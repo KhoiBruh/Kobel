@@ -38,6 +38,7 @@ target_sources(Kobel
 	FILE_SET CXX_MODULES FILES
 	src/lexer/Lexer.cpp
 	src/lexer/Token.cpp
+	src/lexer/TokenMap.cpp
 )
 
 target_link_libraries(Kobel PRIVATE ${llvm_libs})

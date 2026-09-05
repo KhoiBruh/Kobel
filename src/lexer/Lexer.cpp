@@ -1,7 +1,11 @@
 export module lexer;
 
-import std;
+#include <cctype>
+#include <string_view>
+#include <vector>
+
 import token;
+import map;
 
 export struct Lexer {
 	std::string_view src;
@@ -44,50 +48,40 @@ export struct Lexer {
 
 	// Token things
 
-	Token scan_identifier(size_t start_col) {
-		const size_t start = cursor - 1;
+	Token scan_identifier(const size_t start_cursor, const size_t start_col) {
+		const auto peek = peek();
+		while (std::isalnum(static_cast<unsigned char>(peek)) || peek == '_') next();
 
-		while (std::isalnum(peek() || peek() == '_')) next();
+		const auto text = src.substr(start_cursor, cursor - start_cursor);
+		const auto it = KEYWORD.find(text);
 
-		const std::string_view text = src.substr(start, cursor - start);
-
-		TokenType type;
-		switch (text) {
-			case "const":
-				type = TokenType::KW_CONST;
-				break;
-			case "val":
-				type = TokenType::KW_VAL;
-				break;
-			case "var":
-				type = TokenType::KW_VAR;
-				break;
-			case "return":
-				type = TokenType::KW_RETURN;
-				break;
-			default:
-				type = TokenType::IDENTIFIER;
-				break;
-		}
-
+		const auto type = it != KEYWORD.end() ? it->second : TokenType::IDENTIFIER;
 		return {type, text, line, start_col};
 	}
 
 	Token next_token() {
 		skip_whitespace();
 
-		if (is_end()) return Token(TokenType::END_OF_FILE, "", line, col);
+		if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
 
 		const size_t start = cursor;
-		char c = next();
+		const std::string_view sub = src.substr(cursor - 1, 1);
+		switch (const char c = next()) {
+			case '{':
+				return {TokenType::OPEN_BRACE, "{", line, col};
 
-		switch (c) {
+			case '}':
+				return {TokenType::CLOSE_BRACE, "}", line, col};
+
+			case '(':
+				return {TokenType::OPEN_PAREN, sub, line, start};
+
+			case ')':
+				return {TokenType::CLOSE_PAREN, sub, line, start};
+
 			default:
-				return {
-					TokenType::UNKNOWN,
-					src.substr(cursor - 1, 1),
-					line, start
-				};
+				if (std::isalpha(c) || c == '_') return scan_identifier(start);
+				return {TokenType::UNKNOWN, sub, line, start};
 		}
 	}
 
