@@ -13,3 +13,7 @@ add_test(NAME ParserTests COMMAND test_parser)
 add_executable(test_semantic test_semantic.cpp)
 target_link_libraries(test_semantic PRIVATE kobel_core)
 add_test(NAME SemanticTests COMMAND test_semantic)
+
+add_executable(test_codegen test_codegen.cpp)
+target_link_libraries(test_codegen PRIVATE kobel_core)
+add_test(NAME CodeGenTests COMMAND test_codegen)

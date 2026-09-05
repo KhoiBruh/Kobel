@@ -11,6 +11,7 @@ module;
 export module semantic.analyzer;
 
 import ast;
+
 import token;
 import logger;
 import semantic;
@@ -22,6 +23,7 @@ export struct Analyzer {
 	std::unordered_map<std::string, FnSymbol> functions;
 	std::unordered_map<std::string, StructSymbol> structs;
 	std::unordered_map<std::string, ConstSymbol> constants;
+	std::unordered_map<const Expr*, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
 	std::optional<Semantic> current_function_return_type;
@@ -372,7 +374,7 @@ export struct Analyzer {
 	// Thẩm định Biểu thức (Expressions) & Trả về Kiểu Ngữ nghĩa
 	// ========================================================================
 
-	Semantic analyze_expr(const Expr* expr) {
+	Semantic compute_expr_type(const Expr* expr) {
 		if (!expr) return Semantic::make_error();
 
 		// 1. Literal
@@ -674,6 +676,20 @@ export struct Analyzer {
 			return analyze_expr(as<GroupExpr>(expr)->expr.get());
 		}
 
+		return Semantic::make_error();
+	}
+
+	Semantic analyze_expr(const Expr* expr) {
+		if (!expr) return Semantic::make_error();
+		auto ty = compute_expr_type(expr);
+		expr_types[expr] = ty;
+		return ty;
+	}
+
+	Semantic get_expr_type(const Expr* expr) const {
+		if (!expr) return Semantic::make_error();
+		auto it = expr_types.find(expr);
+		if (it != expr_types.end()) return it->second;
 		return Semantic::make_error();
 	}
 

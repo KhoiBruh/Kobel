@@ -8,7 +8,6 @@ module;
 export module semantic;
 
 import token;
-import ast;
 import logger;
 
 export enum class SemaType {

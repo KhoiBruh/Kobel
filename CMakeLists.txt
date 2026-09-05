@@ -29,6 +29,7 @@ llvm_map_components_to_libnames(llvm_libs
 	Support
 	Core
 	IRReader
+	TargetParser
 )
 
 add_library(kobel_core STATIC)
@@ -36,6 +37,7 @@ add_library(kobel_core STATIC)
 target_sources(kobel_core
 	PUBLIC
 	FILE_SET CXX_MODULES FILES
+
 	src/ast/AST.cpp
 
 	src/lexer/Lexer.cpp
@@ -48,6 +50,8 @@ target_sources(kobel_core
 	src/semantic/Semantic.cpp
 	src/semantic/Symbol.cpp
 	src/semantic/Analyzer.cpp
+
+	src/codegen/CodeGen.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})
