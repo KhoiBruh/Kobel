@@ -40,6 +40,7 @@ target_sources(kobel_core
 	src/lexer/Lexer.cpp
 	src/lexer/Token.cpp
 	src/lexer/TokenMap.cpp
+	src/parser/Parser.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})

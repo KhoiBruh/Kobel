@@ -6,43 +6,33 @@ export module token;
 
 export enum class TokenType {
 	// Single syntax
-	SEMI_COLON,
-	COLON,
-	COMMA,
-	DOT,
-	BANG,
-	QUESTION,
-	EQUAL,
-	PLUS,
-	MINUS,
-	STAR,
-	SLASH,
-	PERCENT,
-	GREATER,
-	LESS,
-	OPEN_BRACKET,
-	CLOSE_BRACKET,
-	OPEN_PAREN,
-	CLOSE_PAREN,
-	OPEN_BRACE,
-	CLOSE_BRACE,
+	SEMI_COLON,    // ;
+	COLON,         // :
+	COMMA,         // ,
+	DOT,           // .
+	BANG,          // !
+	EQUAL,         // =
+	PLUS,          // +
+	MINUS,         // -
+	STAR,          // *
+	SLASH,         // /
+	PERCENT,       // %
+	GREATER,       // >
+	LESS,          // <
+	OPEN_BRACKET,  // [
+	CLOSE_BRACKET, // ]
+	OPEN_PAREN,    // (
+	CLOSE_PAREN,   // )
+	OPEN_BRACE,    // {
+	CLOSE_BRACE,   // }
 
 	// Double syntax
-	GREATER_EQUAL,
-	QUESTION_COLON,
-	LESS_EQUAL,
-	SLASH_EQUAL,
-	MINUS_EQUAL,
-	MINUS_MINUS,
-	EQUAL_EQUAL,
-	PLUS_EQUAL,
-	STAR_EQUAL,
-	PLUS_PLUS,
-	BANG_EQUAL,
-	FAT_ARROW,
-	AND_AND,
-	OR_OR,
-	ARROW,
+	EQUAL_EQUAL,   // ==
+	BANG_EQUAL,    // !=
+	LESS_EQUAL,    // <=
+	GREATER_EQUAL, // >=
+	AND_AND,       // &&
+	OR_OR,         // ||
 
 	// Literals
 	CHAR,
@@ -50,15 +40,11 @@ export enum class TokenType {
 	STRING,
 	IDENTIFIER,
 
-	// Keywords
-	KW_PUB,
+	// Keywords (16 minimal keywords)
 	KW_EXTERN,
 	KW_STRUCT,
-	KW_ENUM,
 	KW_FN,
-
 	KW_RETURN,
-	KW_DEFER,
 	KW_CONST,
 	KW_NULL,
 	KW_TRUE,
@@ -66,16 +52,11 @@ export enum class TokenType {
 	KW_VAL,
 	KW_VAR,
 	KW_AS,
-
-	KW_CONTINUE,
 	KW_WHILE,
 	KW_BREAK,
-	KW_WHEN,
-	KW_LOOP,
-	KW_ELSE,
-	KW_FOR,
-	KW_IN,
+	KW_CONTINUE,
 	KW_IF,
+	KW_ELSE,
 
 	// Specials
 	END_OF_FILE,

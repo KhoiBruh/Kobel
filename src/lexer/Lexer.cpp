@@ -55,8 +55,7 @@ export struct Lexer {
 				c == ' ' ||
 				c == '\t' ||
 				c == '\r'
-			)
-				next();
+			) next();
 			else if (c == '\n') {
 				line++;
 				col = 1;
@@ -69,7 +68,7 @@ export struct Lexer {
 		while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') next();
 		const auto text = sub(start_cursor);
 		const auto it = KEYWORDS.find(text);
-		const auto type = (it != KEYWORDS.end()) ? it->second : TokenType::IDENTIFIER;
+		const auto type = it != KEYWORDS.end() ? it->second : TokenType::IDENTIFIER;
 		return {type, text, line, start_col};
 	}
 
@@ -92,14 +91,14 @@ export struct Lexer {
 			if (peek() == '\n') line++;
 			next();
 		}
-		if (!is_end()) next(); // nuốt dấu đóng "
+		if (!is_end()) next();
 		return {TokenType::STRING, sub(start_cursor), line, start_col};
 	}
 
 	Token scan_char(size_t start_cursor, size_t start_col) {
-		if (!is_end() && peek() == '\\') next(); // nuốt ký tự escape backslash
-		if (!is_end()) next(); // nuốt ký tự char
-		if (!is_end() && peek() == '\'') next(); // nuốt dấu đóng '
+		if (!is_end() && peek() == '\\') next();
+		if (!is_end()) next();
+		if (!is_end() && peek() == '\'') next();
 		return {TokenType::CHAR, sub(start_cursor), line, start_col};
 	}
 
@@ -122,32 +121,17 @@ export struct Lexer {
 			case '[': return make_token(TokenType::OPEN_BRACKET, start_cursor, start_col);
 			case ']': return make_token(TokenType::CLOSE_BRACKET, start_cursor, start_col);
 			case '%': return make_token(TokenType::PERCENT, start_cursor, start_col);
+			case '+': return make_token(TokenType::PLUS, start_cursor, start_col);
+			case '*': return make_token(TokenType::STAR, start_cursor, start_col);
 			case '"': return scan_string(start_cursor, start_col);
 			case '\'': return scan_char(start_cursor, start_col);
 
-			case '?':
-				if (match(':')) return make_token(TokenType::QUESTION_COLON, start_cursor, start_col);
-				return make_token(TokenType::QUESTION, start_cursor, start_col);
-
 			case '=':
 				if (match('=')) return make_token(TokenType::EQUAL_EQUAL, start_cursor, start_col);
-				if (match('>')) return make_token(TokenType::FAT_ARROW, start_cursor, start_col);
 				return make_token(TokenType::EQUAL, start_cursor, start_col);
 
 			case '-':
-				if (match('=')) return make_token(TokenType::MINUS_EQUAL, start_cursor, start_col);
-				if (match('-')) return make_token(TokenType::MINUS_MINUS, start_cursor, start_col);
-				if (match('>')) return make_token(TokenType::ARROW, start_cursor, start_col);
 				return make_token(TokenType::MINUS, start_cursor, start_col);
-
-			case '+':
-				if (match('=')) return make_token(TokenType::PLUS_EQUAL, start_cursor, start_col);
-				if (match('+')) return make_token(TokenType::PLUS_PLUS, start_cursor, start_col);
-				return make_token(TokenType::PLUS, start_cursor, start_col);
-
-			case '*':
-				if (match('=')) return make_token(TokenType::STAR_EQUAL, start_cursor, start_col);
-				return make_token(TokenType::STAR, start_cursor, start_col);
 
 			case '/':
 				if (match('/')) {
@@ -171,7 +155,6 @@ export struct Lexer {
 					}
 					return next_token();
 				}
-				if (match('=')) return make_token(TokenType::SLASH_EQUAL, start_cursor, start_col);
 				return make_token(TokenType::SLASH, start_cursor, start_col);
 
 			case '<':

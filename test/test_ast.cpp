@@ -26,19 +26,6 @@ bool test_type_nodes() {
 	ASSERT(ptr->pointee != nullptr, "PointerType pointee is null");
 	ASSERT(isa<PointerType>(ptr.get()), "isa<PointerType> failed");
 
-	// NullableType: *i32?
-	auto nullable = std::make_unique<NullableType>(std::move(ptr), 1, 4);
-	ASSERT(nullable->inner != nullptr, "NullableType inner is null");
-	ASSERT(isa<NullableType>(nullable.get()), "isa<NullableType> failed");
-
-	// GenericType: List<i32>
-	std::vector<std::unique_ptr<TypeNode>> type_args;
-	type_args.push_back(std::make_unique<NamedType>("i32", 1, 10));
-	auto generic = std::make_unique<GenericType>("List", std::move(type_args), 1, 1);
-	ASSERT(generic->base_name == "List", "GenericType base name mismatch");
-	ASSERT(generic->type_args.size() == 1, "GenericType arg count mismatch");
-	ASSERT(isa<GenericType>(generic.get()), "isa<GenericType> failed");
-
 	return true;
 }
 
@@ -94,8 +81,10 @@ bool test_stmt_nodes() {
 
 	// IfStmt
 	auto cond = std::make_unique<LiteralExpr>(LiteralKind::BOOL, "true", 3, 5);
-	auto then_stmt = std::make_unique<ReturnStmt>(nullptr, 3, 12);
-	auto if_stmt = std::make_unique<IfStmt>(std::move(cond), std::move(then_stmt), nullptr, 3, 1);
+	std::vector<std::unique_ptr<Stmt>> then_stmts;
+	then_stmts.push_back(std::make_unique<ReturnStmt>(nullptr, 3, 12));
+	auto then_block = std::make_unique<BlockStmt>(std::move(then_stmts), 3, 10);
+	auto if_stmt = std::make_unique<IfStmt>(std::move(cond), std::move(then_block), nullptr, 3, 1);
 	ASSERT(if_stmt->condition != nullptr, "IfStmt cond is null");
 	ASSERT(if_stmt->else_branch == nullptr, "IfStmt else should be null");
 	ASSERT(isa<IfStmt>(if_stmt.get()), "isa<IfStmt> failed");
@@ -104,16 +93,17 @@ bool test_stmt_nodes() {
 }
 
 bool test_decl_nodes() {
-	// FnDecl: pub fn add(a: i32): i32 => a;
+	// FnDecl: fn add(a: i32): i32 { return a; }
 	auto fn = std::make_unique<FnDecl>("add", 1, 1);
-	fn->is_pub = true;
 	fn->params.push_back(Param{"a", std::make_unique<NamedType>("i32", 1, 11)});
 	fn->return_type = std::make_unique<NamedType>("i32", 1, 18);
-	fn->single_expr_body = std::make_unique<IdentifierExpr>("a", 1, 25);
 
-	ASSERT(fn->is_pub, "FnDecl is_pub mismatch");
+	std::vector<std::unique_ptr<Stmt>> body_stmts;
+	body_stmts.push_back(std::make_unique<ReturnStmt>(std::make_unique<IdentifierExpr>("a", 1, 30), 1, 23));
+	fn->body = std::make_unique<BlockStmt>(std::move(body_stmts), 1, 21);
+
 	ASSERT(fn->params.size() == 1, "FnDecl params size mismatch");
-	ASSERT(fn->single_expr_body != nullptr, "FnDecl single_expr_body is null");
+	ASSERT(fn->body != nullptr, "FnDecl body is null");
 	ASSERT(isa<FnDecl>(fn.get()), "isa<FnDecl> failed");
 
 	// StructDecl: struct Point(x: i32, y: i32)
@@ -137,12 +127,10 @@ bool test_decl_nodes() {
 bool test_rtti() {
 	std::unique_ptr<ASTNode> node = std::make_unique<FnDecl>("compute", 1, 1);
 
-	// isa test
 	ASSERT(isa<FnDecl>(node.get()), "isa<FnDecl> should be true");
 	ASSERT(!isa<StructDecl>(node.get()), "isa<StructDecl> should be false");
 	ASSERT(!isa<BinaryExpr>(node.get()), "isa<BinaryExpr> should be false");
 
-	// as test
 	FnDecl* fn = as<FnDecl>(node.get());
 	ASSERT(fn != nullptr, "as<FnDecl> should return valid pointer");
 	ASSERT(fn->name == "compute", "Casted pointer name mismatch");

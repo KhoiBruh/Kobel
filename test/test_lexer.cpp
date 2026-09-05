@@ -14,17 +14,17 @@ import lexer;
 	} while (0)
 
 bool test_keywords() {
-	std::string_view code = "pub fn extern struct enum return defer const null true false val var as continue while break when loop else for in if";
+	std::string_view code = "extern struct fn return const null true false val var as while break continue if else";
 	Lexer lex{code};
 	auto tokens = lex.tokenize();
 
 	std::vector<TokenType> expected = {
-		TokenType::KW_PUB, TokenType::KW_FN, TokenType::KW_EXTERN, TokenType::KW_STRUCT,
-		TokenType::KW_ENUM, TokenType::KW_RETURN, TokenType::KW_DEFER, TokenType::KW_CONST,
-		TokenType::KW_NULL, TokenType::KW_TRUE, TokenType::KW_FALSE, TokenType::KW_VAL,
-		TokenType::KW_VAR, TokenType::KW_AS, TokenType::KW_CONTINUE, TokenType::KW_WHILE,
-		TokenType::KW_BREAK, TokenType::KW_WHEN, TokenType::KW_LOOP, TokenType::KW_ELSE,
-		TokenType::KW_FOR, TokenType::KW_IN, TokenType::KW_IF, TokenType::END_OF_FILE
+		TokenType::KW_EXTERN, TokenType::KW_STRUCT, TokenType::KW_FN,
+		TokenType::KW_RETURN, TokenType::KW_CONST, TokenType::KW_NULL,
+		TokenType::KW_TRUE, TokenType::KW_FALSE, TokenType::KW_VAL,
+		TokenType::KW_VAR, TokenType::KW_AS, TokenType::KW_WHILE,
+		TokenType::KW_BREAK, TokenType::KW_CONTINUE, TokenType::KW_IF,
+		TokenType::KW_ELSE, TokenType::END_OF_FILE
 	};
 
 	ASSERT(tokens.size() == expected.size(), "Token count mismatch in keywords");
@@ -35,22 +35,22 @@ bool test_keywords() {
 }
 
 bool test_operators() {
-	std::string_view code = "= == => + ++ += - -- -= -> * *= / /= < <= > >= ! != && || ?: ? : ; , .";
+	std::string_view code = "= == + - * / % < <= > >= ! != && || : ; , . [ ] ( ) { }";
 	Lexer lex{code};
 	auto tokens = lex.tokenize();
 
-	std::vector<TokenType> expected = {
-		TokenType::EQUAL, TokenType::EQUAL_EQUAL, TokenType::FAT_ARROW,
-		TokenType::PLUS, TokenType::PLUS_PLUS, TokenType::PLUS_EQUAL,
-		TokenType::MINUS, TokenType::MINUS_MINUS, TokenType::MINUS_EQUAL, TokenType::ARROW,
-		TokenType::STAR, TokenType::STAR_EQUAL,
-		TokenType::SLASH, TokenType::SLASH_EQUAL,
+	std::vector expected = {
+		TokenType::EQUAL, TokenType::EQUAL_EQUAL,
+		TokenType::PLUS, TokenType::MINUS,
+		TokenType::STAR, TokenType::SLASH, TokenType::PERCENT,
 		TokenType::LESS, TokenType::LESS_EQUAL,
 		TokenType::GREATER, TokenType::GREATER_EQUAL,
 		TokenType::BANG, TokenType::BANG_EQUAL,
 		TokenType::AND_AND, TokenType::OR_OR,
-		TokenType::QUESTION_COLON, TokenType::QUESTION, TokenType::COLON,
-		TokenType::SEMI_COLON, TokenType::COMMA, TokenType::DOT,
+		TokenType::COLON, TokenType::SEMI_COLON, TokenType::COMMA, TokenType::DOT,
+		TokenType::OPEN_BRACKET, TokenType::CLOSE_BRACKET,
+		TokenType::OPEN_PAREN, TokenType::CLOSE_PAREN,
+		TokenType::OPEN_BRACE, TokenType::CLOSE_BRACE,
 		TokenType::END_OF_FILE
 	};
 
