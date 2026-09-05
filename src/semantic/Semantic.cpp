@@ -17,9 +17,10 @@ export enum class SemaType {
 	U8, U16, U32, U64, USZ,
 	// Kiểu cơ sở khác
 	BOOL, CHAR, VOID,
-	// Con trỏ & Struct
+	// Con trỏ, Struct & Enum
 	POINTER,
 	STRUCT,
+	ENUM,
 	// Kiểu đặc biệt
 	NULL_TYPE,
 	ERROR_TYPE
@@ -29,6 +30,8 @@ export struct Semantic {
 	SemaType kind = SemaType::ERROR_TYPE;
 	std::shared_ptr<Semantic> pointee = nullptr; // nếu là POINTER
 	std::string struct_name;               // nếu là STRUCT
+	std::string enum_name;                 // nếu là ENUM
+	std::shared_ptr<Semantic> underlying_type = nullptr; // nếu là ENUM
 
 	static Semantic make_primitive(const SemaType k) {
 		Semantic t;
@@ -47,6 +50,14 @@ export struct Semantic {
 		Semantic t;
 		t.kind = SemaType::STRUCT;
 		t.struct_name = std::string(name);
+		return t;
+	}
+
+	static Semantic make_enum(const std::string_view name, Semantic under = make_primitive(SemaType::I32)) {
+		Semantic t;
+		t.kind = SemaType::ENUM;
+		t.enum_name = std::string(name);
+		t.underlying_type = std::make_shared<Semantic>(std::move(under));
 		return t;
 	}
 
@@ -91,6 +102,7 @@ export struct Semantic {
 	bool is_null() const { return kind == SemaType::NULL_TYPE; }
 	bool is_error() const { return kind == SemaType::ERROR_TYPE; }
 	bool is_struct() const { return kind == SemaType::STRUCT; }
+	bool is_enum() const { return kind == SemaType::ENUM; }
 
 	bool equals(const Semantic& other) const {
 		if (kind == SemaType::ERROR_TYPE || other.kind == SemaType::ERROR_TYPE) return true;
@@ -101,6 +113,9 @@ export struct Semantic {
 		}
 		if (kind == SemaType::STRUCT) {
 			return struct_name == other.struct_name;
+		}
+		if (kind == SemaType::ENUM) {
+			return enum_name == other.enum_name;
 		}
 		return true;
 	}
@@ -131,6 +146,7 @@ export struct Semantic {
 			case SemaType::NULL_TYPE: return "null";
 			case SemaType::POINTER: return "*" + (pointee ? pointee->to_string() : "unknown");
 			case SemaType::STRUCT: return struct_name;
+			case SemaType::ENUM: return enum_name;
 			case SemaType::ERROR_TYPE: return "<error-type>";
 		}
 		return "<unknown>";

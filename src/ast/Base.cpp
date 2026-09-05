@@ -38,6 +38,7 @@ export enum class ASTKind {
 	// Declarations
 	DECL_FN,
 	DECL_STRUCT,
+	DECL_ENUM,
 	DECL_CONST,
 	DECL_EXTERN_BLOCK,
 	PROGRAM

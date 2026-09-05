@@ -69,6 +69,38 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 	return st;
 }
 
+std::unique_ptr<EnumDecl> Parser::parse_enum_decl() {
+	const auto tok = consume(TokenType::KW_ENUM, "Expected 'enum'");
+	const auto name = consume(TokenType::IDENTIFIER, "Expected enum name");
+
+	std::unique_ptr<TypeNode> underlying = nullptr;
+	if (match(TokenType::COLON)) {
+		underlying = parse_type();
+	}
+
+	consume(TokenType::OPEN_BRACE, "Expected '{' to begin enum body");
+
+	std::vector<EnumMember> members;
+	if (!check(TokenType::CLOSE_BRACE)) {
+		do {
+			if (check(TokenType::CLOSE_BRACE)) break;
+			const Token m_name = consume(TokenType::IDENTIFIER, "Expected enum member name");
+			std::unique_ptr<Expr> val = nullptr;
+			if (match(TokenType::EQUAL)) {
+				val = parse_expression();
+			}
+			members.push_back(EnumMember{m_name.text, std::move(val), m_name.line, m_name.col});
+		} while (match(TokenType::COMMA));
+	}
+
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to end enum body");
+
+	auto enum_decl = std::make_unique<EnumDecl>(name.text, tok.line, tok.col);
+	enum_decl->underlying_type = std::move(underlying);
+	enum_decl->members = std::move(members);
+	return enum_decl;
+}
+
 std::unique_ptr<ConstDecl> Parser::parse_const_decl() {
 	const auto tok = consume(TokenType::KW_CONST, "Expected 'const'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected constant name");
@@ -105,10 +137,11 @@ std::unique_ptr<ExternBlock> Parser::parse_extern_block() {
 std::unique_ptr<Decl> Parser::parse_declaration() {
 	if (check(TokenType::KW_FN)) return parse_fn_decl();
 	if (check(TokenType::KW_STRUCT)) return parse_struct_decl();
+	if (check(TokenType::KW_ENUM)) return parse_enum_decl();
 	if (check(TokenType::KW_CONST)) return parse_const_decl();
 	if (check(TokenType::KW_EXTERN)) return parse_extern_block();
 
-	error(peek(), "Expected top-level declaration ('fn', 'struct', 'const', 'extern')");
+	error(peek(), "Expected top-level declaration ('fn', 'struct', 'enum', 'const', 'extern')");
 	advance();
 	return nullptr;
 }

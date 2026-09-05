@@ -273,9 +273,34 @@ bool test_codegen_e2e_executable() {
 	return true;
 }
 
+bool test_codegen_enum() {
+	std::string_view code =
+		"enum Status {\n"
+		"    OK,\n"
+		"    ERROR = 504,\n"
+		"    NEXT,\n"
+		"}\n"
+		"fn test_enum(): i32 {\n"
+		"    val s: Status = Status.ERROR;\n"
+		"    val val1: i32 = s.value;\n"
+		"    val val2: i32 = Status.NEXT as i32;\n"
+		"    val s3: Status = 0 as Status;\n"
+		"    if (s3 == Status.OK) {\n"
+		"        return val1 + val2;\n"
+		"    }\n"
+		"    return 0;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã enum thất bại");
+	ASSERT(ir.find("504") != std::string::npos, "Thiếu hằng số 504 trong IR");
+	ASSERT(ir.find("505") != std::string::npos, "Thiếu hằng số 505 trong IR");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 10;
+	int total = 11;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -302,6 +327,10 @@ int main() {
 	}
 	if (test_codegen_cast()) {
 		std::cout << "[PASS] test_codegen_cast\n";
+		passed++;
+	}
+	if (test_codegen_enum()) {
+		std::cout << "[PASS] test_codegen_enum\n";
 		passed++;
 	}
 

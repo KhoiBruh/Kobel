@@ -22,6 +22,7 @@ export struct Analyzer {
 
 	std::unordered_map<std::string, FnSymbol> functions;
 	std::unordered_map<std::string, StructSymbol> structs;
+	std::unordered_map<std::string, EnumSymbol> enums;
 	std::unordered_map<std::string, ConstSymbol> constants;
 	std::unordered_map<const Expr*, Semantic> expr_types;
 
@@ -87,6 +88,12 @@ export struct Analyzer {
 				return Semantic::make_struct(name);
 			}
 
+			// Kiểm tra enum đã khai báo
+			auto it_enum = enums.find(std::string(name));
+			if (it_enum != enums.end()) {
+				return Semantic::make_enum(name, it_enum->second.underlying_type);
+			}
+
 			logger.error(node->line, node->col, "Không tìm thấy kiểu dữ liệu '" + std::string(name) + "'");
 			return Semantic::make_error();
 		}
@@ -144,7 +151,64 @@ export struct Analyzer {
 			}
 		}
 
-		// 2. Đăng ký các Hằng số
+		// 2. Đăng ký các Enum
+		for (const auto& decl : program->declarations) {
+			if (isa<EnumDecl>(decl.get())) {
+				const auto* e = as<EnumDecl>(decl.get());
+				const std::string name = std::string(e->name);
+
+				if (enums.contains(name) || structs.contains(name)) {
+					logger.error(e->line, e->col, "Trùng lặp tên kiểu '" + name + "'");
+					continue;
+				}
+
+				EnumSymbol sym;
+				sym.name = name;
+				sym.underlying_type = e->underlying_type
+					? resolve_type(e->underlying_type.get())
+					: Semantic::make_primitive(SemaType::I32);
+				sym.line = e->line;
+				sym.col = e->col;
+
+				if (!sym.underlying_type.is_integer()) {
+					logger.error(e->line, e->col, "Kiểu cơ sở của enum bắt buộc phải là số nguyên");
+					sym.underlying_type = Semantic::make_primitive(SemaType::I32);
+				}
+
+				int64_t next_value = 0;
+				for (const auto& m : e->members) {
+					std::string m_name = std::string(m.name);
+					if (sym.member_values.contains(m_name)) {
+						logger.error(m.line, m.col, "Trùng lặp thành viên '" + m_name + "' trong enum '" + name + "'");
+						continue;
+					}
+
+					if (m.value) {
+						if (isa<LiteralExpr>(m.value.get())) {
+							const auto* lit = as<LiteralExpr>(m.value.get());
+							if (lit->literal_kind == LiteralKind::INT) {
+								try {
+									next_value = std::stoll(std::string(lit->raw_text), nullptr, 0);
+								} catch (...) {
+									logger.error(m.line, m.col, "Giá trị khởi tạo enum không hợp lệ");
+								}
+							} else {
+								logger.error(m.line, m.col, "Giá trị khởi tạo enum phải là số nguyên");
+							}
+						} else {
+							logger.error(m.line, m.col, "Hiện tại chỉ hỗ trợ khởi tạo enum bằng hằng số nguyên");
+						}
+					}
+
+					sym.member_values[m_name] = next_value;
+					next_value++;
+				}
+
+				enums[name] = std::move(sym);
+			}
+		}
+
+		// 3. Đăng ký các Hằng số
 		for (const auto& decl : program->declarations) {
 			if (isa<ConstDecl>(decl.get())) {
 				const auto* c = as<ConstDecl>(decl.get());
@@ -573,8 +637,11 @@ export struct Analyzer {
 			                           (src_type.is_pointer() && target_type.is_integer());
 			const bool is_char_int_mix = (src_type.is_char() && target_type.is_integer()) ||
 			                            (src_type.is_integer() && target_type.is_char());
+			const bool is_enum_int_mix = (src_type.is_enum() && target_type.is_integer()) ||
+			                            (src_type.is_integer() && target_type.is_enum()) ||
+			                            (src_type.is_enum() && target_type.is_enum() && src_type.equals(target_type));
 
-			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix) {
+			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix) {
 				logger.error(c->line, c->col, "Không thể ép kiểu từ '" + src_type.to_string() +
 				             "' sang '" + target_type.to_string() + "'");
 				return Semantic::make_error();
@@ -618,11 +685,38 @@ export struct Analyzer {
 			return fn_sym.return_type;
 		}
 
-		// 8. Truy cập trường struct: object.field
+		// 8. Truy cập trường struct hoặc thành viên enum: object.field
 		if (isa<MemberExpr>(expr)) {
 			const auto* m = as<MemberExpr>(expr);
+
+			// Kiểm tra nếu object là Identifier của một Enum (vd: Status.OK)
+			if (isa<IdentifierExpr>(m->object.get())) {
+				const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
+				auto it_enum = enums.find(id_name);
+				if (it_enum != enums.end()) {
+					const auto member_name = std::string(m->member);
+					auto it_m = it_enum->second.member_values.find(member_name);
+					if (it_m == it_enum->second.member_values.end()) {
+						logger.error(m->line, m->col, "Enum '" + id_name + "' không có thành viên nào tên là '" + member_name + "'");
+						return Semantic::make_error();
+					}
+					return Semantic::make_enum(id_name, it_enum->second.underlying_type);
+				}
+			}
+
 			auto obj_type = analyze_expr(m->object.get());
 			if (obj_type.is_error()) return Semantic::make_error();
+
+			// Kiểm tra thuộc tính .value trên biến hoặc biểu thức Enum (vd: status.value)
+			if (obj_type.is_enum()) {
+				if (m->member == "value") {
+					return obj_type.underlying_type
+						? *obj_type.underlying_type
+						: Semantic::make_primitive(SemaType::I32);
+				}
+				logger.error(m->line, m->col, "Kiểu enum chỉ hỗ trợ thuộc tính '.value'");
+				return Semantic::make_error();
+			}
 
 			std::string struct_name;
 			if (obj_type.is_struct()) {
@@ -630,7 +724,7 @@ export struct Analyzer {
 			} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
 				struct_name = obj_type.pointee->struct_name;
 			} else {
-				logger.error(m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct hoặc con trỏ struct");
+				logger.error(m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct, con trỏ struct hoặc enum");
 				return Semantic::make_error();
 			}
 

@@ -10,6 +10,7 @@ import token;
 export inline const std::map<std::string_view, TokenType> KEYWORDS = {
 	{"extern", TokenType::KW_EXTERN},
 	{"struct", TokenType::KW_STRUCT},
+	{"enum", TokenType::KW_ENUM},
 	{"fn", TokenType::KW_FN},
 
 	{"return", TokenType::KW_RETURN},

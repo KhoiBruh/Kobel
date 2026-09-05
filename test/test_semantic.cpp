@@ -170,6 +170,42 @@ bool test_break_outside_loop_error() {
 	return true;
 }
 
+bool test_semantic_enum() {
+	std::string_view code =
+		"enum Status {\n"
+		"    OK,\n"
+		"    ERROR = 504,\n"
+		"    UNKNOWN,\n"
+		"}\n"
+		"fn check_status(s: Status): i32 {\n"
+		"    if (s == Status.OK) {\n"
+		"        return 0;\n"
+		"    }\n"
+		"    val code: i32 = s.value;\n"
+		"    val s2: Status = 504 as Status;\n"
+		"    val num: i32 = Status.ERROR as i32;\n"
+		"    return num;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic không được có lỗi với enum hợp lệ");
+
+	ASSERT(sema.enums.contains("Status"), "Phải chứa enum Status");
+	const auto& sym = sema.enums["Status"];
+	ASSERT(sym.member_values.at("OK") == 0, "Status.OK phải bằng 0");
+	ASSERT(sym.member_values.at("ERROR") == 504, "Status.ERROR phải bằng 504");
+	ASSERT(sym.member_values.at("UNKNOWN") == 505, "Status.UNKNOWN phải bằng 505 (tự tăng)");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -194,6 +230,10 @@ int main() {
 	if (!test_break_outside_loop_error()) return 1;
 	std::cout << "  [PASS] test_break_outside_loop_error" << std::endl;
 
+	if (!test_semantic_enum()) return 1;
+	std::cout << "  [PASS] test_semantic_enum" << std::endl;
+
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;
 }
+

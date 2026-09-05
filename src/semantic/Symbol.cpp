@@ -41,6 +41,14 @@ export struct ConstSymbol {
 	size_t col = 0;
 };
 
+export struct EnumSymbol {
+	std::string name;
+	Semantic underlying_type;
+	std::unordered_map<std::string, int64_t> member_values;
+	size_t line = 0;
+	size_t col = 0;
+};
+
 export struct Scope {
 	std::unordered_map<std::string, VarSymbol> variables;
 };

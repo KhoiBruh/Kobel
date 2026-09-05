@@ -98,6 +98,11 @@ export struct CodeGen {
 				return llvm::StructType::getTypeByName(*context, type.struct_name);
 			}
 
+			case SemaType::ENUM: {
+				if (type.underlying_type) return get_llvm_type(*type.underlying_type);
+				return builder->getInt32Ty();
+			}
+
 			default:
 				return builder->getInt32Ty();
 		}

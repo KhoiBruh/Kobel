@@ -40,9 +40,10 @@ export enum class TokenType {
 	STRING,
 	IDENTIFIER,
 
-	// Keywords (16 minimal keywords)
+	// Keywords
 	KW_EXTERN,
 	KW_STRUCT,
+	KW_ENUM,
 	KW_FN,
 	KW_RETURN,
 	KW_CONST,

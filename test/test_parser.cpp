@@ -195,6 +195,44 @@ bool test_error_recovery() {
 	return true;
 }
 
+bool test_parse_enum() {
+	std::string_view code =
+		"enum Status {\n"
+		"    OK,\n"
+		"    ERROR = 504,\n"
+		"    UNKNOWN,\n"
+		"}\n"
+		"enum Priority : u8 {\n"
+		"    LOW = 1,\n"
+		"    HIGH = 10,\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser không được có lỗi khi parse enum");
+	ASSERT(prog->declarations.size() == 2, "Phải parse được 2 declarations");
+	ASSERT(isa<EnumDecl>(prog->declarations[0].get()), "decl 0 phải là EnumDecl");
+	ASSERT(isa<EnumDecl>(prog->declarations[1].get()), "decl 1 phải là EnumDecl");
+
+	auto* e0 = as<EnumDecl>(prog->declarations[0].get());
+	ASSERT(e0->name == "Status", "Tên enum 0 phải là Status");
+	ASSERT(e0->underlying_type == nullptr, "Kiểu cơ sở của Status phải là nullptr (mặc định)");
+	ASSERT(e0->members.size() == 3, "Status phải có 3 members");
+	ASSERT(e0->members[0].name == "OK", "Member 0 là OK");
+	ASSERT(e0->members[0].value == nullptr, "Member OK không có gán giá trị");
+	ASSERT(e0->members[1].name == "ERROR", "Member 1 là ERROR");
+	ASSERT(e0->members[1].value != nullptr, "Member ERROR có gán giá trị");
+
+	auto* e1 = as<EnumDecl>(prog->declarations[1].get());
+	ASSERT(e1->name == "Priority", "Tên enum 1 phải là Priority");
+	ASSERT(e1->underlying_type != nullptr, "Kiểu cơ sở của Priority không được null");
+	ASSERT(e1->members.size() == 2, "Priority phải có 2 members");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -210,6 +248,9 @@ int main() {
 	if (!test_parse_structs()) return 1;
 	std::cout << "  [PASS] test_parse_structs" << std::endl;
 
+	if (!test_parse_enum()) return 1;
+	std::cout << "  [PASS] test_parse_enum" << std::endl;
+
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;
 
@@ -219,3 +260,4 @@ int main() {
 	std::cout << "[ALL PASSED] Parser tests passed successfully!" << std::endl;
 	return 0;
 }
+

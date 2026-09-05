@@ -59,6 +59,27 @@ export struct StructDecl final : Decl {
 	) : Decl(KIND, l, c), name(n) {}
 };
 
+export struct EnumMember {
+	std::string_view name;
+	std::unique_ptr<Expr> value; // nullptr nếu tự tăng
+	size_t line = 0;
+	size_t col = 0;
+};
+
+// Enum liệt kê: enum Status : u16 { A, B = 504, C }
+export struct EnumDecl final : Decl {
+	static constexpr auto KIND = ASTKind::DECL_ENUM;
+	std::string_view name;
+	std::unique_ptr<TypeNode> underlying_type; // nullptr nếu mặc định i32
+	std::vector<EnumMember> members;
+
+	explicit EnumDecl(
+		const std::string_view n,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Decl(KIND, l, c), name(n) {}
+};
+
 // Hằng số top-level: const MAX_SIZE: i32 = 100;
 export struct ConstDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_CONST;

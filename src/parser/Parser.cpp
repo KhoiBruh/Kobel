@@ -90,6 +90,7 @@ export struct Parser {
 			switch (peek().type) {
 				case TokenType::KW_FN:
 				case TokenType::KW_STRUCT:
+				case TokenType::KW_ENUM:
 				case TokenType::KW_CONST:
 				case TokenType::KW_EXTERN:
 				case TokenType::KW_VAL:
@@ -126,6 +127,7 @@ export struct Parser {
 	// 6. Declaration parsing (ParserDecl.cpp)
 	std::unique_ptr<FnDecl> parse_fn_decl();
 	std::unique_ptr<StructDecl> parse_struct_decl();
+	std::unique_ptr<EnumDecl> parse_enum_decl();
 	std::unique_ptr<ConstDecl> parse_const_decl();
 	std::unique_ptr<ExternBlock> parse_extern_block();
 	std::unique_ptr<Decl> parse_declaration();

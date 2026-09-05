@@ -270,9 +270,30 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 		return builder->CreateCall(callee, args);
 	}
 
-	// 7. Truy cập trường struct: object.field
+	// 7. Truy cập trường struct hoặc enum: object.field
 	if (isa<MemberExpr>(expr)) {
 		const auto* m = as<MemberExpr>(expr);
+
+		// 7a. Thành viên Enum hằng số (vd: Status.OK)
+		if (isa<IdentifierExpr>(m->object.get()) && analyzer) {
+			const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
+			auto it_enum = analyzer->enums.find(id_name);
+			if (it_enum != analyzer->enums.end()) {
+				const auto member_name = std::string(m->member);
+				auto it_m = it_enum->second.member_values.find(member_name);
+				if (it_m != it_enum->second.member_values.end()) {
+					llvm::Type* llvm_ty = get_llvm_type(it_enum->second.underlying_type);
+					return llvm::ConstantInt::get(llvm_ty, it_m->second);
+				}
+			}
+		}
+
+		// 7b. Thuộc tính .value trên biến enum (vd: status.value)
+		auto obj_sema = get_sema_type(m->object.get());
+		if (obj_sema.is_enum() && m->member == "value") {
+			return emit_expr(m->object.get());
+		}
+
 		llvm::Value* field_ptr = emit_lvalue(m);
 		auto field_sema = get_sema_type(m);
 		llvm::Type* field_llvm_type = get_llvm_type(field_sema);
@@ -296,13 +317,20 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 		auto dest_sema = analyzer->resolve_type(c->target_type.get());
 		llvm::Type* dest_type = get_llvm_type(dest_sema);
 
-		if (src_sema.is_integer() && dest_sema.is_integer()) {
+		const bool src_is_int = src_sema.is_integer() || src_sema.is_enum();
+		const bool dest_is_int = dest_sema.is_integer() || dest_sema.is_enum();
+
+		if (src_is_int && dest_is_int) {
 			const unsigned src_bits = val->getType()->getIntegerBitWidth();
 			const unsigned dest_bits = dest_type->getIntegerBitWidth();
 			if (src_bits == dest_bits) return val;
 			if (dest_bits > src_bits) {
-				return src_sema.is_signed_integer() ? builder->CreateSExt(val, dest_type, "sext")
-				                                     : builder->CreateZExt(val, dest_type, "zext");
+				bool is_signed = src_sema.is_signed_integer();
+				if (src_sema.is_enum() && src_sema.underlying_type) {
+					is_signed = src_sema.underlying_type->is_signed_integer();
+				}
+				return is_signed ? builder->CreateSExt(val, dest_type, "sext")
+				                 : builder->CreateZExt(val, dest_type, "zext");
 			}
 			return builder->CreateTrunc(val, dest_type, "trunc");
 		}
