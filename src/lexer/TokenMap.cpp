@@ -1,7 +1,7 @@
-export module map;
-
+module;
 #include <map>
 #include <string_view>
+export module map;
 
 import token;
 

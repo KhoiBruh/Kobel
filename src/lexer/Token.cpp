@@ -1,6 +1,6 @@
-export module token;
-
+module;
 #include <string_view>
+export module token;
 
 export enum class TokenType {
 	// Single syntax

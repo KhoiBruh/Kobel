@@ -1,8 +1,8 @@
-export module lexer;
-
+module;
 #include <cctype>
-#include <string_view>
 #include <vector>
+#include <string_view>
+export module lexer;
 
 import token;
 import map;
@@ -14,7 +14,21 @@ export struct Lexer {
 	size_t col = 1;
 
 	bool is_end() const {
-		return cursor == src.size();
+		return cursor >= src.size();
+	}
+
+	char peek() const {
+		return is_end() ? '\0' : src[cursor];
+	}
+
+	std::string_view sub(const size_t start) const {
+		return src.substr(start, cursor - start);
+	}
+
+	char next() {
+		if (is_end()) return '\0';
+		col++;
+		return src[cursor++];
 	}
 
 	bool match(const char expected) {
@@ -24,16 +38,12 @@ export struct Lexer {
 		return true;
 	}
 
-	char peek() const {
-		if (is_end()) return '\0';
-		return src[cursor];
-	}
-
-	char next() {
-		if (is_end()) return '\0';
-		const char c = src[cursor++];
-		col++;
-		return c;
+	Token make_token(
+		const TokenType type,
+		const size_t start_cursor,
+		const size_t start_col
+	) const {
+		return {type, sub(start_cursor), line, start_col};
 	}
 
 	void skip_whitespace() {
@@ -53,125 +63,121 @@ export struct Lexer {
 		}
 	}
 
-	// Token things
-
-	Token make_token(const TokenType type) const {
-		const auto text = src.substr(cursor - 1, 1);
-		return {type, text, line, col};
+	Token scan_identifier(size_t start_cursor, size_t start_col) {
+		while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') next();
+		const auto text = sub(start_cursor);
+		const auto it = KEYWORDS.find(text);
+		const auto type = (it != KEYWORDS.end()) ? it->second : TokenType::IDENTIFIER;
+		return {type, text, line, start_col};
 	}
 
-	Token scan_identifier(const size_t start_cursor, const size_t start_col) {
-		const auto peek = peek();
-		while (std::isalnum(static_cast<unsigned char>(peek)) || peek == '_') next();
+	Token scan_number(size_t start_cursor, size_t start_col) {
+		while (std::isdigit(static_cast<unsigned char>(peek()))) next();
+		if (
+			peek() == '.' &&
+			cursor + 1 < src.size() &&
+			std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
+		) {
+			next(); // nuốt '.'
+			while (std::isdigit(static_cast<unsigned char>(peek()))) next();
+		}
 
-		const auto text = src.substr(start_cursor, cursor - start_cursor);
-		const auto it = KEYWORDS.find(text);
+		return {TokenType::NUMBER, sub(start_cursor), line, start_col};
+	}
 
-		const auto type = it != KEYWORDS.end() ? it->second : TokenType::IDENTIFIER;
-		return {type, text, line, start_col};
+	Token scan_string(size_t start_cursor, size_t start_col) {
+		while (!is_end() && peek() != '"') {
+			if (peek() == '\n') line++;
+			next();
+		}
+		if (!is_end()) next(); // nuốt dấu đóng "
+		return {TokenType::STRING, sub(start_cursor), line, start_col};
 	}
 
 	Token next_token() {
 		skip_whitespace();
-
 		if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
 
-		const auto start = cursor;
+		const size_t start_cursor = cursor;
+		const size_t start_col = col;
+
 		switch (const char c = next()) {
-			case ',':
-				return make_token(TokenType::COMMA);
-
-			case '.':
-				return make_token(TokenType::DOT);
-
-			case ':':
-				return make_token(TokenType::COLON);
-
-			case ';':
-				return make_token(TokenType::SEMI_COLON);
-
-			case '"':
-				return make_token(TokenType::DOUBLE_QUOTE);
+			case ',': return make_token(TokenType::COMMA, start_cursor, start_col);
+			case '.': return make_token(TokenType::DOT, start_cursor, start_col);
+			case ':': return make_token(TokenType::COLON, start_cursor, start_col);
+			case ';': return make_token(TokenType::SEMI_COLON, start_cursor, start_col);
+			case '(': return make_token(TokenType::OPEN_PAREN, start_cursor, start_col);
+			case ')': return make_token(TokenType::CLOSE_PAREN, start_cursor, start_col);
+			case '{': return make_token(TokenType::OPEN_BRACE, start_cursor, start_col);
+			case '}': return make_token(TokenType::CLOSE_BRACE, start_cursor, start_col);
+			case '[': return make_token(TokenType::OPEN_BRACKET, start_cursor, start_col);
+			case ']': return make_token(TokenType::CLOSE_BRACKET, start_cursor, start_col);
+			case '%': return make_token(TokenType::PERCENT, start_cursor, start_col);
+			case '"': return scan_string(start_cursor, start_col);
 
 			case '?':
-				if (match(':')) return make_token(TokenType::QUESTION_COLON);
-				return make_token(TokenType::QUESTION);
-
-			case '{':
-				return make_token(TokenType::OPEN_BRACE);
-
-			case '}':
-				return make_token(TokenType::CLOSE_BRACE);
-
-			case '(':
-				return make_token(TokenType::OPEN_PAREN);
-
-			case ')':
-				return make_token(TokenType::CLOSE_PAREN);
-
-			case '[':
-				return make_token(TokenType::OPEN_BRACKET);
-
-			case ']':
-				return make_token(TokenType::CLOSE_BRACKET);
-
-			case '%':
-				return make_token(TokenType::PERCENT);
+				if (match(':')) return make_token(TokenType::QUESTION_COLON, start_cursor, start_col);
+				return make_token(TokenType::QUESTION, start_cursor, start_col);
 
 			case '=':
-				if (match('=')) return make_token(TokenType::EQUAL_EQUAL);
-				if (match('>')) return make_token(TokenType::FAT_ARROW);
-				return make_token(TokenType::EQUAL);
+				if (match('=')) return make_token(TokenType::EQUAL_EQUAL, start_cursor, start_col);
+				if (match('>')) return make_token(TokenType::FAT_ARROW, start_cursor, start_col);
+				return make_token(TokenType::EQUAL, start_cursor, start_col);
 
 			case '-':
-				if (match('=')) return make_token(TokenType::MINUS_EQUAL);
-				if (match('-')) return make_token(TokenType::MINUS_MINUS);
-				if (match('>')) return make_token(TokenType::ARROW);
-				return make_token(TokenType::MINUS);
+				if (match('=')) return make_token(TokenType::MINUS_EQUAL, start_cursor, start_col);
+				if (match('-')) return make_token(TokenType::MINUS_MINUS, start_cursor, start_col);
+				if (match('>')) return make_token(TokenType::ARROW, start_cursor, start_col);
+				return make_token(TokenType::MINUS, start_cursor, start_col);
 
 			case '+':
-				if (match('=')) return make_token(TokenType::PLUS_EQUAL);
-				if (match('+')) return make_token(TokenType::PLUS_PLUS);
-				return make_token(TokenType::PLUS);
+				if (match('=')) return make_token(TokenType::PLUS_EQUAL, start_cursor, start_col);
+				if (match('+')) return make_token(TokenType::PLUS_PLUS, start_cursor, start_col);
+				return make_token(TokenType::PLUS, start_cursor, start_col);
 
 			case '*':
-				if (match('=')) return make_token(TokenType::STAR_EQUAL);
-				return make_token(TokenType::STAR);
+				if (match('=')) return make_token(TokenType::STAR_EQUAL, start_cursor, start_col);
+				return make_token(TokenType::STAR, start_cursor, start_col);
 
 			case '/':
-				if (match('=')) return make_token(TokenType::SLASH_SLASH);
-				if (match('=')) return make_token(TokenType::SLASH_EQUAL);
-				return make_token(TokenType::SLASH);
+				if (match('/')) {
+					while (!is_end() && peek() != '\n') next();
+					return next_token();
+				}
+				if (match('=')) return make_token(TokenType::SLASH_EQUAL, start_cursor, start_col);
+				return make_token(TokenType::SLASH, start_cursor, start_col);
 
 			case '<':
-				if (match('=')) return make_token(TokenType::LESS_EQUAL);
-				return make_token(TokenType::LESS);
+				if (match('=')) return make_token(TokenType::LESS_EQUAL, start_cursor, start_col);
+				return make_token(TokenType::LESS, start_cursor, start_col);
 
 			case '>':
-				if (match('=')) return make_token(TokenType::GREATER_EQUAL);
-				return make_token(TokenType::GREATER);
+				if (match('=')) return make_token(TokenType::GREATER_EQUAL, start_cursor, start_col);
+				return make_token(TokenType::GREATER, start_cursor, start_col);
 
 			case '&':
-				if (match('&')) return make_token(TokenType::AND_AND);
-				return make_token(TokenType::UNKNOWN);
+				if (match('&')) return make_token(TokenType::AND_AND, start_cursor, start_col);
+				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
 
 			case '!':
-				if (match('=')) return make_token(TokenType::BANG_EQUAL);
-				return make_token(TokenType::BANG);
+				if (match('=')) return make_token(TokenType::BANG_EQUAL, start_cursor, start_col);
+				return make_token(TokenType::BANG, start_cursor, start_col);
 
 			case '|':
-				if (match('|')) return make_token(TokenType::OR_OR);
-				return make_token(TokenType::UNKNOWN);
+				if (match('|')) return make_token(TokenType::OR_OR, start_cursor, start_col);
+				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
 
 			default:
-				if (std::isalpha(c) || c == '_') return scan_identifier(start, col++);
-				return {TokenType::UNKNOWN, src.substr(cursor - 1, 1), line, start};
+				if (std::isalpha(static_cast<unsigned char>(c)) || c == '_')
+					return scan_identifier(start_cursor, start_col);
+				if (std::isdigit(static_cast<unsigned char>(c)))
+					return scan_number(start_cursor, start_col);
+				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
 		}
 	}
 
 	std::vector<Token> tokenize() {
 		std::vector<Token> tokens;
-
 		while (true) {
 			Token token = next_token();
 			tokens.push_back(token);
