@@ -31,9 +31,9 @@ llvm_map_components_to_libnames(llvm_libs
 	IRReader
 )
 
-add_executable(Kobel src/main.cpp)
+add_library(kobel_core STATIC)
 
-target_sources(Kobel
+target_sources(kobel_core
 	PUBLIC
 	FILE_SET CXX_MODULES FILES
 	src/ast/AST.cpp
@@ -42,4 +42,10 @@ target_sources(Kobel
 	src/lexer/TokenMap.cpp
 )
 
-target_link_libraries(Kobel PRIVATE ${llvm_libs})
+target_link_libraries(kobel_core PRIVATE ${llvm_libs})
+
+add_executable(Kobel src/main.cpp)
+target_link_libraries(Kobel PRIVATE kobel_core)
+
+enable_testing()
+add_subdirectory(test)

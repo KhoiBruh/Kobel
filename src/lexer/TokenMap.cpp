@@ -6,10 +6,9 @@ export module map;
 import token;
 
 export inline const std::map<std::string_view, TokenType> KEYWORDS = {
+	{"pub", TokenType::KW_PUB},
 	{"extern", TokenType::KW_EXTERN},
 	{"struct", TokenType::KW_STRUCT},
-	{"trait", TokenType::KW_TRAIT},
-	{"fault", TokenType::KW_FAULT},
 	{"enum", TokenType::KW_ENUM},
 	{"fn", TokenType::KW_FN},
 
@@ -17,6 +16,8 @@ export inline const std::map<std::string_view, TokenType> KEYWORDS = {
 	{"defer", TokenType::KW_DEFER},
 	{"const", TokenType::KW_CONST},
 	{"null", TokenType::KW_NULL},
+	{"true", TokenType::KW_TRUE},
+	{"false", TokenType::KW_FALSE},
 	{"val", TokenType::KW_VAL},
 	{"var", TokenType::KW_VAR},
 	{"as", TokenType::KW_AS},

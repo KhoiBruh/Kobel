@@ -96,6 +96,13 @@ export struct Lexer {
 		return {TokenType::STRING, sub(start_cursor), line, start_col};
 	}
 
+	Token scan_char(size_t start_cursor, size_t start_col) {
+		if (!is_end() && peek() == '\\') next(); // nuốt ký tự escape backslash
+		if (!is_end()) next(); // nuốt ký tự char
+		if (!is_end() && peek() == '\'') next(); // nuốt dấu đóng '
+		return {TokenType::CHAR, sub(start_cursor), line, start_col};
+	}
+
 	Token next_token() {
 		skip_whitespace();
 		if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
@@ -116,6 +123,7 @@ export struct Lexer {
 			case ']': return make_token(TokenType::CLOSE_BRACKET, start_cursor, start_col);
 			case '%': return make_token(TokenType::PERCENT, start_cursor, start_col);
 			case '"': return scan_string(start_cursor, start_col);
+			case '\'': return scan_char(start_cursor, start_col);
 
 			case '?':
 				if (match(':')) return make_token(TokenType::QUESTION_COLON, start_cursor, start_col);
@@ -144,6 +152,23 @@ export struct Lexer {
 			case '/':
 				if (match('/')) {
 					while (!is_end() && peek() != '\n') next();
+					return next_token();
+				}
+				if (match('*')) {
+					while (!is_end()) {
+						if (peek() == '\n') {
+							line++;
+							col = 1;
+							cursor++;
+							continue;
+						}
+						if (peek() == '*' && cursor + 1 < src.size() && src[cursor + 1] == '/') {
+							next(); // *
+							next(); // /
+							break;
+						}
+						next();
+					}
 					return next_token();
 				}
 				if (match('=')) return make_token(TokenType::SLASH_EQUAL, start_cursor, start_col);
