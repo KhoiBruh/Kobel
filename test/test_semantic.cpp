@@ -206,6 +206,80 @@ bool test_semantic_enum() {
 	return true;
 }
 
+bool test_semantic_array() {
+	std::string_view code =
+		"fn test_arr(): i32 {\n"
+		"    val a: Array<i32> = [10, 20, 30];\n"
+		"    a[0] = 99;\n"
+		"    val len: i32 = a.len;\n"
+		"    val p: *i32 = a as *i32;\n"
+		"    return a[0] + len;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic array hợp lệ không được có lỗi");
+
+	return true;
+}
+
+bool test_semantic_array_errors() {
+	// 1. Kích thước không khớp khi khai báo rõ kích thước
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val a: Array<i32>(4) = [1, 2, 3];\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Phải báo lỗi khi số phần tử mảng khác kích thước khai báo");
+	}
+
+	// 2. Không thể gán lại biến val mảng (nhưng được sửa phần tử)
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val a: Array<i32> = [1, 2, 3];\n"
+			"    a = [4, 5, 6];\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Phải báo lỗi khi gán lại biến mảng khai báo bằng val");
+	}
+
+	// 3. Không thể gán giá trị cho thuộc tính .len của mảng
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val a: Array<i32> = [1, 2, 3];\n"
+			"    a.len = 10;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Phải báo lỗi khi gán giá trị cho thuộc tính chỉ đọc .len của mảng");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -232,6 +306,12 @@ int main() {
 
 	if (!test_semantic_enum()) return 1;
 	std::cout << "  [PASS] test_semantic_enum" << std::endl;
+
+	if (!test_semantic_array()) return 1;
+	std::cout << "  [PASS] test_semantic_array" << std::endl;
+
+	if (!test_semantic_array_errors()) return 1;
+	std::cout << "  [PASS] test_semantic_array_errors" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

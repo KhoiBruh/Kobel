@@ -12,6 +12,7 @@ export enum class ASTKind {
 	// Types
 	TYPE_NAMED,
 	TYPE_POINTER,
+	TYPE_ARRAY,
 
 	// Expressions
 	EXPR_LITERAL,
@@ -24,6 +25,7 @@ export enum class ASTKind {
 	EXPR_ASSIGN,
 	EXPR_CAST,
 	EXPR_GROUP,
+	EXPR_ARRAY_LITERAL,
 
 	// Statements
 	STMT_BLOCK,

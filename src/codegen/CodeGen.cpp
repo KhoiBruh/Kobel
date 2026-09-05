@@ -103,6 +103,14 @@ export struct CodeGen {
 				return builder->getInt32Ty();
 			}
 
+			case SemaType::ARRAY: {
+				if (type.element_type) {
+					llvm::Type* elem_ty = get_llvm_type(*type.element_type);
+					return llvm::ArrayType::get(elem_ty, type.array_size);
+				}
+				return llvm::ArrayType::get(builder->getInt32Ty(), type.array_size);
+			}
+
 			default:
 				return builder->getInt32Ty();
 		}

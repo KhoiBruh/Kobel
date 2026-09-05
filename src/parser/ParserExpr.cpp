@@ -98,6 +98,19 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 		return std::make_unique<UnaryExpr>(op.type, std::move(operand), op.line, op.col);
 	}
 
+	// Array literal: [expr1, expr2, ...]
+	if (match(TokenType::OPEN_BRACKET)) {
+		std::vector<std::unique_ptr<Expr>> elements;
+		if (!check(TokenType::CLOSE_BRACKET)) {
+			do {
+				if (check(TokenType::CLOSE_BRACKET)) break;
+				elements.push_back(parse_expression());
+			} while (match(TokenType::COMMA));
+		}
+		consume(TokenType::CLOSE_BRACKET, "Expected ']' to end array literal");
+		return std::make_unique<ArrayLiteralExpr>(std::move(elements), tok.line, tok.col);
+	}
+
 	error(tok, "Biểu thức không hợp lệ");
 	advance();
 	return nullptr;

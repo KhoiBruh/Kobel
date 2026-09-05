@@ -298,9 +298,27 @@ bool test_codegen_enum() {
 	return true;
 }
 
+bool test_codegen_array() {
+	std::string_view code =
+		"fn process_array(): i32 {\n"
+		"    val a: Array<i32> = [10, 20, 30];\n"
+		"    a[0] = 99;\n"
+		"    val len: i32 = a.len;\n"
+		"    val p: *i32 = a as *i32;\n"
+		"    return a[0] + len;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã Array thất bại");
+	ASSERT(ir.find("[3 x i32]") != std::string::npos, "Thiếu kiểu [3 x i32] trong LLVM IR");
+	ASSERT(ir.find("arrayidx") != std::string::npos, "Thiếu GEP arrayidx trong LLVM IR");
+	ASSERT(ir.find("arraydecay") != std::string::npos, "Thiếu GEP arraydecay trong LLVM IR");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 11;
+	int total = 12;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -331,6 +349,10 @@ int main() {
 	}
 	if (test_codegen_enum()) {
 		std::cout << "[PASS] test_codegen_enum\n";
+		passed++;
+	}
+	if (test_codegen_array()) {
+		std::cout << "[PASS] test_codegen_array\n";
 		passed++;
 	}
 

@@ -41,3 +41,18 @@ export struct PointerType final : TypeNode {
 		const size_t c = 0
 	) : TypeNode(KIND, l, c), is_mut(mut), pointee(std::move(p)) {}
 };
+
+// Kiểu mảng tĩnh: Array<T> hoặc Array<T>(N)
+export struct ArrayType final : TypeNode {
+	static constexpr auto KIND = ASTKind::TYPE_ARRAY;
+	std::unique_ptr<TypeNode> element_type;
+	size_t size = 0; // 0 nếu suy luận từ initializer
+
+	ArrayType(
+		std::unique_ptr<TypeNode> elem,
+		const size_t sz = 0,
+		const size_t l = 0,
+		const size_t c = 0
+	) : TypeNode(KIND, l, c), element_type(std::move(elem)), size(sz) {}
+};
+

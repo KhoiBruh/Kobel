@@ -233,6 +233,44 @@ bool test_parse_enum() {
 	return true;
 }
 
+bool test_parse_array() {
+	std::string_view code =
+		"fn test(): void {\n"
+		"    val a: Array<i32> = [1, 2, 3];\n"
+		"    val b: Array<u8>(4) = [1, 2, 3, 4];\n"
+		"    val c: i32 = a[0];\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser không được có lỗi khi parse array");
+	ASSERT(prog->declarations.size() == 1, "Phải parse được 1 hàm");
+	auto* fn = as<FnDecl>(prog->declarations[0].get());
+	ASSERT(fn->body->statements.size() == 3, "Thân hàm phải có 3 câu lệnh");
+
+	// val a: Array<i32> = [1, 2, 3];
+	auto* s0 = as<VarDeclStmt>(fn->body->statements[0].get());
+	ASSERT(isa<ArrayType>(s0->type_annotation.get()), "s0 type phải là ArrayType");
+	auto* arr_ty_a = as<ArrayType>(s0->type_annotation.get());
+	ASSERT(arr_ty_a->size == 0, "ArrayType size của a phải là 0 (suy luận)");
+	ASSERT(isa<ArrayLiteralExpr>(s0->initializer.get()), "s0 init phải là ArrayLiteralExpr");
+	auto* arr_lit_a = as<ArrayLiteralExpr>(s0->initializer.get());
+	ASSERT(arr_lit_a->elements.size() == 3, "a có 3 phần tử");
+
+	// val b: Array<u8>(4) = [1, 2, 3, 4];
+	auto* s1 = as<VarDeclStmt>(fn->body->statements[1].get());
+	auto* arr_ty_b = as<ArrayType>(s1->type_annotation.get());
+	ASSERT(arr_ty_b->size == 4, "ArrayType size của b phải là 4");
+
+	// val c: i32 = a[0];
+	auto* s2 = as<VarDeclStmt>(fn->body->statements[2].get());
+	ASSERT(isa<IndexExpr>(s2->initializer.get()), "s2 init phải là IndexExpr");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -250,6 +288,9 @@ int main() {
 
 	if (!test_parse_enum()) return 1;
 	std::cout << "  [PASS] test_parse_enum" << std::endl;
+
+	if (!test_parse_array()) return 1;
+	std::cout << "  [PASS] test_parse_array" << std::endl;
 
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;

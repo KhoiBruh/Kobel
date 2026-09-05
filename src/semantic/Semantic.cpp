@@ -17,10 +17,11 @@ export enum class SemaType {
 	U8, U16, U32, U64, USZ,
 	// Kiểu cơ sở khác
 	BOOL, CHAR, VOID,
-	// Con trỏ, Struct & Enum
+	// Con trỏ, Struct, Enum & Mảng
 	POINTER,
 	STRUCT,
 	ENUM,
+	ARRAY,
 	// Kiểu đặc biệt
 	NULL_TYPE,
 	ERROR_TYPE
@@ -32,6 +33,8 @@ export struct Semantic {
 	std::string struct_name;               // nếu là STRUCT
 	std::string enum_name;                 // nếu là ENUM
 	std::shared_ptr<Semantic> underlying_type = nullptr; // nếu là ENUM
+	std::shared_ptr<Semantic> element_type = nullptr;    // nếu là ARRAY
+	size_t array_size = 0;                               // nếu là ARRAY
 
 	static Semantic make_primitive(const SemaType k) {
 		Semantic t;
@@ -58,6 +61,14 @@ export struct Semantic {
 		t.kind = SemaType::ENUM;
 		t.enum_name = std::string(name);
 		t.underlying_type = std::make_shared<Semantic>(std::move(under));
+		return t;
+	}
+
+	static Semantic make_array(Semantic elem, const size_t sz = 0) {
+		Semantic t;
+		t.kind = SemaType::ARRAY;
+		t.element_type = std::make_shared<Semantic>(std::move(elem));
+		t.array_size = sz;
 		return t;
 	}
 
@@ -103,6 +114,7 @@ export struct Semantic {
 	bool is_error() const { return kind == SemaType::ERROR_TYPE; }
 	bool is_struct() const { return kind == SemaType::STRUCT; }
 	bool is_enum() const { return kind == SemaType::ENUM; }
+	bool is_array() const { return kind == SemaType::ARRAY; }
 
 	bool equals(const Semantic& other) const {
 		if (kind == SemaType::ERROR_TYPE || other.kind == SemaType::ERROR_TYPE) return true;
@@ -117,6 +129,11 @@ export struct Semantic {
 		if (kind == SemaType::ENUM) {
 			return enum_name == other.enum_name;
 		}
+		if (kind == SemaType::ARRAY) {
+			if (array_size != other.array_size) return false;
+			if (!element_type || !other.element_type) return false;
+			return element_type->equals(*other.element_type);
+		}
 		return true;
 	}
 
@@ -124,6 +141,11 @@ export struct Semantic {
 		if (kind == SemaType::ERROR_TYPE || src.kind == SemaType::ERROR_TYPE) return true;
 		// Con trỏ có thể nhận giá trị null
 		if (is_pointer() && src.is_null()) return true;
+		// Mảng: nếu kích thước đích là 0 (suy luận kích thước), chỉ cần khớp kiểu phần tử
+		if (kind == SemaType::ARRAY && src.kind == SemaType::ARRAY) {
+			if (array_size != 0 && array_size != src.array_size) return false;
+			return element_type && src.element_type && element_type->equals(*src.element_type);
+		}
 		// Bắt buộc khớp kiểu chính xác (Strict Typing)
 		return equals(src);
 	}
@@ -147,6 +169,8 @@ export struct Semantic {
 			case SemaType::POINTER: return "*" + (pointee ? pointee->to_string() : "unknown");
 			case SemaType::STRUCT: return struct_name;
 			case SemaType::ENUM: return enum_name;
+			case SemaType::ARRAY:
+				return "Array<" + (element_type ? element_type->to_string() : "unknown") + ">(" + std::to_string(array_size) + ")";
 			case SemaType::ERROR_TYPE: return "<error-type>";
 		}
 		return "<unknown>";

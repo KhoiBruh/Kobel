@@ -104,6 +104,12 @@ export struct Analyzer {
 			return Semantic::make_pointer(std::move(pointee_type));
 		}
 
+		if (isa<ArrayType>(node)) {
+			const auto* arr = as<ArrayType>(node);
+			auto elem_type = resolve_type(arr->element_type.get());
+			return Semantic::make_array(std::move(elem_type), arr->size);
+		}
+
 		logger.error(node->line, node->col, "Kiểu dữ liệu cú pháp không hợp lệ");
 		return Semantic::make_error();
 	}
@@ -334,6 +340,17 @@ export struct Analyzer {
 			// Kiểm tra giá trị khởi tạo nếu có
 			if (v->initializer) {
 				auto init_type = analyze_expr(v->initializer.get());
+
+				// Suy luận kích thước mảng nếu khai báo là Array<T> (size == 0)
+				if (declared_type.is_array() && init_type.is_array()) {
+					if (declared_type.array_size == 0) {
+						declared_type.array_size = init_type.array_size;
+						if (isa<ArrayType>(v->type_annotation.get())) {
+							as<ArrayType>(v->type_annotation.get())->size = init_type.array_size;
+						}
+					}
+				}
+
 				if (!declared_type.can_assign_from(init_type)) {
 					logger.error(v->line, v->col, "Không thể khởi tạo biến '" + name + "' kiểu '" +
 					             declared_type.to_string() + "' bằng giá trị kiểu '" + init_type.to_string() + "'");
@@ -454,6 +471,28 @@ export struct Analyzer {
 			}
 		}
 
+		// Literal mảng: [expr1, expr2, ...]
+		if (isa<ArrayLiteralExpr>(expr)) {
+			const auto* arr_lit = as<ArrayLiteralExpr>(expr);
+			if (arr_lit->elements.empty()) {
+				logger.error(arr_lit->line, arr_lit->col, "Literal mảng không được để rỗng");
+				return Semantic::make_error();
+			}
+
+			auto first_elem_type = analyze_expr(arr_lit->elements[0].get());
+			for (size_t i = 1; i < arr_lit->elements.size(); ++i) {
+				auto elem_type = analyze_expr(arr_lit->elements[i].get());
+				if (!first_elem_type.equals(elem_type)) {
+					logger.error(arr_lit->elements[i]->line, arr_lit->elements[i]->col,
+					             "Các phần tử trong mảng phải có cùng kiểu dữ liệu: mong đợi '" +
+					             first_elem_type.to_string() + "', nhận được '" + elem_type.to_string() + "'");
+					return Semantic::make_error();
+				}
+			}
+
+			return Semantic::make_array(first_elem_type, arr_lit->elements.size());
+		}
+
 		// 2. Biến / Định danh
 		if (isa<IdentifierExpr>(expr)) {
 			const auto* id = as<IdentifierExpr>(expr);
@@ -492,8 +531,19 @@ export struct Analyzer {
 					             "' được khai báo bằng 'val'");
 					return Semantic::make_error();
 				}
-				target_type = var->type;
-			} else if (isa<MemberExpr>(a->target.get()) || isa<IndexExpr>(a->target.get())) {
+			} else if (isa<MemberExpr>(a->target.get())) {
+				const auto* m = as<MemberExpr>(a->target.get());
+				auto obj_type = analyze_expr(m->object.get());
+				if (obj_type.is_enum() && m->member == "value") {
+					logger.error(a->line, a->col, "Không thể gán giá trị cho thuộc tính chỉ đọc '.value' của enum");
+					return Semantic::make_error();
+				}
+				if (obj_type.is_array() && m->member == "len") {
+					logger.error(a->line, a->col, "Không thể gán giá trị cho thuộc tính chỉ đọc '.len' của mảng");
+					return Semantic::make_error();
+				}
+				target_type = analyze_expr(a->target.get());
+			} else if (isa<IndexExpr>(a->target.get())) {
 				target_type = analyze_expr(a->target.get());
 			} else if (isa<UnaryExpr>(a->target.get()) && as<UnaryExpr>(a->target.get())->op == TokenType::STAR) {
 				target_type = analyze_expr(a->target.get()); // *ptr = value
@@ -640,8 +690,11 @@ export struct Analyzer {
 			const bool is_enum_int_mix = (src_type.is_enum() && target_type.is_integer()) ||
 			                            (src_type.is_integer() && target_type.is_enum()) ||
 			                            (src_type.is_enum() && target_type.is_enum() && src_type.equals(target_type));
+			const bool is_array_to_ptr = src_type.is_array() && target_type.is_pointer() &&
+			                            src_type.element_type && target_type.pointee &&
+			                            src_type.element_type->equals(*target_type.pointee);
 
-			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix) {
+			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix && !is_array_to_ptr) {
 				logger.error(c->line, c->col, "Không thể ép kiểu từ '" + src_type.to_string() +
 				             "' sang '" + target_type.to_string() + "'");
 				return Semantic::make_error();
@@ -718,13 +771,22 @@ export struct Analyzer {
 				return Semantic::make_error();
 			}
 
+			// Kiểm tra thuộc tính .len trên biến hoặc biểu thức Mảng (vd: arr.len)
+			if (obj_type.is_array()) {
+				if (m->member == "len") {
+					return Semantic::make_primitive(SemaType::I32);
+				}
+				logger.error(m->line, m->col, "Kiểu mảng chỉ hỗ trợ thuộc tính '.len'");
+				return Semantic::make_error();
+			}
+
 			std::string struct_name;
 			if (obj_type.is_struct()) {
 				struct_name = obj_type.struct_name;
 			} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
 				struct_name = obj_type.pointee->struct_name;
 			} else {
-				logger.error(m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct, con trỏ struct hoặc enum");
+				logger.error(m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct, con trỏ struct, enum hoặc mảng");
 				return Semantic::make_error();
 			}
 
@@ -744,7 +806,7 @@ export struct Analyzer {
 			return it_f->second;
 		}
 
-		// 9. Chỉ mục mảng/con trỏ: ptr[index]
+		// 9. Chỉ mục mảng/con trỏ: target[index]
 		if (isa<IndexExpr>(expr)) {
 			const auto* idx = as<IndexExpr>(expr);
 			auto target_type = analyze_expr(idx->target.get());
@@ -752,17 +814,21 @@ export struct Analyzer {
 
 			if (target_type.is_error() || index_type.is_error()) return Semantic::make_error();
 
-			if (!target_type.is_pointer() || !target_type.pointee) {
-				logger.error(idx->line, idx->col, "Chỉ mục '[]' chỉ áp dụng cho kiểu con trỏ");
-				return Semantic::make_error();
-			}
-
 			if (!index_type.is_integer()) {
 				logger.error(idx->line, idx->col, "Chỉ mục trong '[]' phải là số nguyên");
 				return Semantic::make_error();
 			}
 
-			return *target_type.pointee;
+			if (target_type.is_array()) {
+				return target_type.element_type ? *target_type.element_type : Semantic::make_error();
+			}
+
+			if (target_type.is_pointer() && target_type.pointee) {
+				return *target_type.pointee;
+			}
+
+			logger.error(idx->line, idx->col, "Chỉ mục '[]' chỉ áp dụng cho kiểu mảng hoặc con trỏ");
+			return Semantic::make_error();
 		}
 
 		// 10. Nhóm ngoặc: (expr)

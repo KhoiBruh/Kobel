@@ -23,78 +23,95 @@ import semantic.symbol;
 import semantic.analyzer;
 
 namespace {
+	std::string unescape_string(std::string_view raw) {
+		if (
+			raw.size() >= 2 &&
+			raw.front() == '"' &&
+			raw.back() == '"'
+		)
+			raw = raw.substr(1, raw.size() - 2);
 
-std::string unescape_string(std::string_view raw) {
-	if (raw.size() >= 2 && raw.front() == '"' && raw.back() == '"') {
-		raw = raw.substr(1, raw.size() - 2);
+		std::string result;
+		for (size_t i = 0; i < raw.size(); ++i) {
+			if (raw[i] == '\\' && i + 1 < raw.size()) {
+				switch (const char next = raw[i + 1]) {
+					case 'n': result.push_back('\n');
+						break;
+					case 't': result.push_back('\t');
+						break;
+					case 'r': result.push_back('\r');
+						break;
+					case '\\': result.push_back('\\');
+						break;
+					case '"': result.push_back('"');
+						break;
+					case '0': result.push_back('\0');
+						break;
+					default: result.push_back(next);
+						break;
+				}
+				i++;
+			} else result.push_back(raw[i]);
+		}
+		return result;
 	}
-	std::string result;
-	for (size_t i = 0; i < raw.size(); ++i) {
-		if (raw[i] == '\\' && i + 1 < raw.size()) {
-			switch (const char next = raw[i + 1]) {
-				case 'n': result.push_back('\n'); break;
-				case 't': result.push_back('\t'); break;
-				case 'r': result.push_back('\r'); break;
-				case '\\': result.push_back('\\'); break;
-				case '"': result.push_back('"'); break;
-				case '0': result.push_back('\0'); break;
-				default: result.push_back(next); break;
+
+	char unescape_char(std::string_view raw) {
+		if (
+			raw.size() >= 2 &&
+			raw.front() == '\'' &&
+			raw.back() == '\''
+		)
+			raw = raw.substr(1, raw.size() - 2);
+
+		if (raw.empty()) return '\0';
+		if (raw.size() >= 2 && raw[0] == '\\') {
+			switch (raw[1]) {
+				case 'n': return '\n';
+				case 't': return '\t';
+				case 'r': return '\r';
+				case '\\': return '\\';
+				case '\'': return '\'';
+				case '0': return '\0';
+				default: return raw[1];
 			}
-			i++;
-		} else {
-			result.push_back(raw[i]);
 		}
+		return raw[0];
 	}
-	return result;
-}
-
-char unescape_char(std::string_view raw) {
-	if (raw.size() >= 2 && raw.front() == '\'' && raw.back() == '\'') {
-		raw = raw.substr(1, raw.size() - 2);
-	}
-	if (raw.empty()) return '\0';
-	if (raw.size() >= 2 && raw[0] == '\\') {
-		switch (raw[1]) {
-			case 'n': return '\n';
-			case 't': return '\t';
-			case 'r': return '\r';
-			case '\\': return '\\';
-			case '\'': return '\'';
-			case '0': return '\0';
-			default: return raw[1];
-		}
-	}
-	return raw[0];
-}
-
 } // anonymous namespace
 
 // ============================================================================
 // 1. LValue Evaluation (Địa chỉ gán)
 // ============================================================================
 
-llvm::Value* CodeGen::emit_lvalue(const Expr* expr) {
+llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 	if (isa<IdentifierExpr>(expr)) {
-		const auto* id = as<IdentifierExpr>(expr);
+		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
 
 		if (const auto it = local_vars.find(name); it != local_vars.end()) return it->second;
-
 		if (const auto it_g = global_consts.find(name); it_g != global_consts.end()) return it_g->second;
 
 		return nullptr;
 	}
 
 	if (isa<MemberExpr>(expr)) {
-		const auto* m = as<MemberExpr>(expr);
+		const auto *m = as<MemberExpr>(expr);
 		auto obj_type = get_sema_type(m->object.get());
+		if (
+			!obj_type.is_struct() &&
+			!(obj_type.is_pointer() &&
+			  obj_type.pointee &&
+			  obj_type.pointee->is_struct())
+		)
+			return nullptr;
 		const std::string st_name = obj_type.is_struct() ? obj_type.struct_name : obj_type.pointee->struct_name;
 
-		llvm::Value* obj_ptr = nullptr;
+		llvm::Value *obj_ptr = nullptr;
 		if (obj_type.is_pointer())obj_ptr = emit_expr(m->object.get());
 		else obj_ptr = emit_lvalue(m->object.get());
 
-		const auto& sym = analyzer->structs[st_name];
+		const auto &sym = analyzer->structs[st_name];
 		unsigned field_idx = 0;
 		for (size_t i = 0; i < sym.field_order.size(); ++i) {
 			if (sym.field_order[i] == m->member) {
@@ -103,24 +120,53 @@ llvm::Value* CodeGen::emit_lvalue(const Expr* expr) {
 			}
 		}
 
-		llvm::StructType* st_ty = struct_types[st_name];
+		auto *st_ty = struct_types[st_name];
 		return builder->CreateStructGEP(st_ty, obj_ptr, field_idx, std::string(m->member));
 	}
 
+	if (isa<ArrayLiteralExpr>(expr)) {
+		const auto *arr_lit = as<ArrayLiteralExpr>(expr);
+		auto sema_ty = get_sema_type(expr);
+		auto *arr_type = get_llvm_type(sema_ty);
+		auto *fn = builder->GetInsertBlock()->getParent();
+		auto *tmp_alloca = create_entry_block_alloca(fn, arr_type, "arr_lit_tmp");
+		for (size_t i = 0; i < arr_lit->elements.size(); ++i) {
+			llvm::Value *elem_val = emit_expr(arr_lit->elements[i].get());
+			llvm::Value *elem_ptr = builder->CreateGEP(
+				arr_type, tmp_alloca,
+				{builder->getInt32(0), builder->getInt32(static_cast<int32_t>(i))},
+				"arr_lit_elem"
+			);
+			builder->CreateStore(elem_val, elem_ptr);
+		}
+		return tmp_alloca;
+	}
+
 	if (isa<IndexExpr>(expr)) {
-		const auto* idx = as<IndexExpr>(expr);
-		llvm::Value* ptr_val = emit_expr(idx->target.get());
-		llvm::Value* index_val = emit_expr(idx->index.get());
-
+		const auto *idx = as<IndexExpr>(expr);
 		auto target_sema = get_sema_type(idx->target.get());
-		llvm::Type* elem_llvm_type = get_llvm_type(*target_sema.pointee);
+		auto *index_val = emit_expr(idx->index.get());
 
-		return builder->CreateGEP(elem_llvm_type, ptr_val, index_val, "arrayidx");
+		if (target_sema.is_array()) {
+			auto *arr_ptr = emit_lvalue(idx->target.get());
+			auto *arr_llvm_type = get_llvm_type(target_sema);
+			return builder->CreateGEP(arr_llvm_type, arr_ptr, {builder->getInt32(0), index_val}, "arrayidx");
+		}
+
+		if (target_sema.is_pointer()) {
+			auto *ptr_val = emit_expr(idx->target.get());
+			auto *elem_llvm_type = get_llvm_type(*target_sema.pointee);
+			return builder->CreateGEP(elem_llvm_type, ptr_val, index_val, "ptridx");
+		}
+
+		return nullptr;
 	}
 
-	if (isa<UnaryExpr>(expr) && as<UnaryExpr>(expr)->op == TokenType::STAR) {
+	if (
+		isa<UnaryExpr>(expr) &&
+		as<UnaryExpr>(expr)->op == TokenType::STAR
+	)
 		return emit_expr(as<UnaryExpr>(expr)->operand.get());
-	}
 
 	return nullptr;
 }
@@ -129,13 +175,12 @@ llvm::Value* CodeGen::emit_lvalue(const Expr* expr) {
 // 2. Biểu thức (Expressions)
 // ============================================================================
 
-llvm::Value* CodeGen::emit_expr(const Expr* expr) {
+llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	if (!expr) return nullptr;
 
 	// 1. Hằng số (Literals)
 	if (isa<LiteralExpr>(expr)) {
-		const auto* lit = as<LiteralExpr>(expr);
-		switch (lit->literal_kind) {
+		switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
 			case LiteralKind::INT: {
 				const int64_t val = std::stoll(std::string(lit->raw_text));
 				return builder->getInt32(static_cast<int32_t>(val));
@@ -160,18 +205,26 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 		}
 	}
 
+	// 1b. Mảng hằng số (Array Literals: [...])
+	if (isa<ArrayLiteralExpr>(expr)) {
+		auto *lval = emit_lvalue(expr);
+		auto sema_ty = get_sema_type(expr);
+		auto *arr_type = get_llvm_type(sema_ty);
+		return builder->CreateLoad(arr_type, lval, "arr_val");
+	}
+
 	// 2. Biến / Định danh (Identifiers)
 	if (isa<IdentifierExpr>(expr)) {
-		const auto* id = as<IdentifierExpr>(expr);
+		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
 
 		if (auto it = local_vars.find(name); it != local_vars.end()) {
-			llvm::AllocaInst* alloca = it->second;
+			llvm::AllocaInst * alloca = it->second;
 			return builder->CreateLoad(alloca->getAllocatedType(), alloca, name);
 		}
 
 		if (auto it_g = global_consts.find(name); it_g != global_consts.end()) {
-			llvm::GlobalVariable* gv = it_g->second;
+			llvm::GlobalVariable *gv = it_g->second;
 			return builder->CreateLoad(gv->getValueType(), gv, name);
 		}
 
@@ -180,18 +233,18 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 
 	// 3. Phép gán: target = value
 	if (isa<AssignExpr>(expr)) {
-		const auto* a = as<AssignExpr>(expr);
-		llvm::Value* lval = emit_lvalue(a->target.get());
-		llvm::Value* rval = emit_expr(a->value.get());
+		const auto *a = as<AssignExpr>(expr);
+		auto *lval = emit_lvalue(a->target.get());
+		auto *rval = emit_expr(a->value.get());
 		builder->CreateStore(rval, lval);
 		return rval;
 	}
 
 	// 4. Biểu thức Nhị phân
 	if (isa<BinaryExpr>(expr)) {
-		const auto* b = as<BinaryExpr>(expr);
-		llvm::Value* l = emit_expr(b->left.get());
-		llvm::Value* r = emit_expr(b->right.get());
+		const auto *b = as<BinaryExpr>(expr);
+		auto *l = emit_expr(b->left.get());
+		auto *r = emit_expr(b->right.get());
 
 		auto left_sema = get_sema_type(b->left.get());
 		const bool is_unsigned = !left_sema.is_signed_integer();
@@ -225,8 +278,8 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 
 	// 5. Biểu thức Một ngôi
 	if (isa<UnaryExpr>(expr)) {
-		const auto* u = as<UnaryExpr>(expr);
-		llvm::Value* opnd = emit_expr(u->operand.get());
+		const auto *u = as<UnaryExpr>(expr);
+		auto *opnd = emit_expr(u->operand.get());
 
 		switch (u->op) {
 			case TokenType::MINUS: return builder->CreateNeg(opnd, "neg");
@@ -234,7 +287,7 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 			case TokenType::STAR: {
 				auto target_type = get_sema_type(u->operand.get());
 				auto elem_type = *target_type.pointee;
-				llvm::Type* elem_llvm_type = get_llvm_type(elem_type);
+				auto *elem_llvm_type = get_llvm_type(elem_type);
 				return builder->CreateLoad(elem_llvm_type, opnd, "deref");
 			}
 			default: return opnd;
@@ -243,27 +296,31 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 
 	// 6. Lệnh gọi hàm: callee(args...)
 	if (isa<CallExpr>(expr)) {
-		const auto* c = as<CallExpr>(expr);
+		const auto *c = as<CallExpr>(expr);
 		const auto fn_name = as<IdentifierExpr>(c->callee.get())->name;
-		llvm::Function* callee = module->getFunction(std::string(fn_name));
+		auto *callee = module->getFunction(std::string(fn_name));
 
 		if (!callee && analyzer) {
-			const auto it = analyzer->functions.find(std::string(fn_name));
-			if (it != analyzer->functions.end()) {
-				std::vector<llvm::Type*> param_types;
-				for (const auto& param_type : it->second.param_types) {
+			if (
+				const auto it = analyzer->functions.find(std::string(fn_name));
+				it != analyzer->functions.end()
+			) {
+				std::vector<llvm::Type *> param_types;
+				for (const auto &param_type: it->second.param_types) {
 					param_types.push_back(get_llvm_type(param_type));
 				}
-				llvm::Type* ret_type = get_llvm_type(it->second.return_type);
-				llvm::FunctionType* fn_type = llvm::FunctionType::get(ret_type, param_types, false);
-				callee = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, std::string(fn_name), *module);
+				llvm::Type *ret_type = get_llvm_type(it->second.return_type);
+				llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_type, param_types, false);
+				callee = llvm::Function::Create(
+					fn_type, llvm::Function::ExternalLinkage, std::string(fn_name), *module
+				);
 			}
 		}
 
 		if (!callee) return nullptr;
 
-		std::vector<llvm::Value*> args;
-		for (const auto& arg : c->args) {
+		std::vector<llvm::Value *> args;
+		for (const auto &arg: c->args) {
 			args.push_back(emit_expr(arg.get()));
 		}
 
@@ -272,17 +329,18 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 
 	// 7. Truy cập trường struct hoặc enum: object.field
 	if (isa<MemberExpr>(expr)) {
-		const auto* m = as<MemberExpr>(expr);
+		const auto *m = as<MemberExpr>(expr);
 
 		// 7a. Thành viên Enum hằng số (vd: Status.OK)
 		if (isa<IdentifierExpr>(m->object.get()) && analyzer) {
 			const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
-			auto it_enum = analyzer->enums.find(id_name);
-			if (it_enum != analyzer->enums.end()) {
+			if (auto it_enum = analyzer->enums.find(id_name); it_enum != analyzer->enums.end()) {
 				const auto member_name = std::string(m->member);
-				auto it_m = it_enum->second.member_values.find(member_name);
-				if (it_m != it_enum->second.member_values.end()) {
-					llvm::Type* llvm_ty = get_llvm_type(it_enum->second.underlying_type);
+				if (
+					auto it_m = it_enum->second.member_values.find(member_name);
+					it_m != it_enum->second.member_values.end()
+				) {
+					llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
 					return llvm::ConstantInt::get(llvm_ty, it_m->second);
 				}
 			}
@@ -290,32 +348,49 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 
 		// 7b. Thuộc tính .value trên biến enum (vd: status.value)
 		auto obj_sema = get_sema_type(m->object.get());
-		if (obj_sema.is_enum() && m->member == "value") {
-			return emit_expr(m->object.get());
-		}
+		if (obj_sema.is_enum() && m->member == "value") return emit_expr(m->object.get());
 
-		llvm::Value* field_ptr = emit_lvalue(m);
+		// 7c. Thuộc tính .len trên mảng (vd: arr.len)
+		if (obj_sema.is_array() && m->member == "len")
+			return builder->getInt32(
+				static_cast<int32_t>(obj_sema.array_size)
+			);
+
+		llvm::Value *field_ptr = emit_lvalue(m);
 		auto field_sema = get_sema_type(m);
-		llvm::Type* field_llvm_type = get_llvm_type(field_sema);
+		llvm::Type *field_llvm_type = get_llvm_type(field_sema);
 		return builder->CreateLoad(field_llvm_type, field_ptr, std::string(m->member));
 	}
 
 	// 8. Chỉ mục mảng: target[index]
 	if (isa<IndexExpr>(expr)) {
-		const auto* idx = as<IndexExpr>(expr);
-		llvm::Value* elem_ptr = emit_lvalue(idx);
+		const auto *idx = as<IndexExpr>(expr);
+		llvm::Value *elem_ptr = emit_lvalue(idx);
 		auto elem_sema = get_sema_type(idx);
-		llvm::Type* elem_llvm_type = get_llvm_type(elem_sema);
+		llvm::Type *elem_llvm_type = get_llvm_type(elem_sema);
 		return builder->CreateLoad(elem_llvm_type, elem_ptr);
 	}
 
 	// 9. Ép kiểu: expr as TargetType
 	if (isa<CastExpr>(expr)) {
-		const auto* c = as<CastExpr>(expr);
-		llvm::Value* val = emit_expr(c->expr.get());
+		const auto *c = as<CastExpr>(expr);
 		auto src_sema = get_sema_type(c->expr.get());
 		auto dest_sema = analyzer->resolve_type(c->target_type.get());
-		llvm::Type* dest_type = get_llvm_type(dest_sema);
+		auto *dest_type = get_llvm_type(dest_sema);
+
+		// Array decay: arr as *T
+		if (src_sema.is_array() && dest_sema.is_pointer()) {
+			if (auto *arr_lval = emit_lvalue(c->expr.get())) {
+				auto *arr_ty = get_llvm_type(src_sema);
+				return builder->CreateGEP(
+					arr_ty, arr_lval,
+					{builder->getInt32(0), builder->getInt32(0)},
+					"arraydecay"
+				);
+			}
+		}
+
+		llvm::Value *val = emit_expr(c->expr.get());
 
 		const bool src_is_int = src_sema.is_integer() || src_sema.is_enum();
 		const bool dest_is_int = dest_sema.is_integer() || dest_sema.is_enum();
@@ -326,42 +401,42 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 			if (src_bits == dest_bits) return val;
 			if (dest_bits > src_bits) {
 				bool is_signed = src_sema.is_signed_integer();
-				if (src_sema.is_enum() && src_sema.underlying_type) {
+				if (src_sema.is_enum() && src_sema.underlying_type)
 					is_signed = src_sema.underlying_type->is_signed_integer();
-				}
-				return is_signed ? builder->CreateSExt(val, dest_type, "sext")
-				                 : builder->CreateZExt(val, dest_type, "zext");
+				return is_signed
+					       ? builder->CreateSExt(val, dest_type, "sext")
+					       : builder->CreateZExt(val, dest_type, "zext");
 			}
 			return builder->CreateTrunc(val, dest_type, "trunc");
 		}
 
-		if (src_sema.is_pointer() && dest_sema.is_pointer()) {
-			return val;
-		}
+		if (src_sema.is_pointer() && dest_sema.is_pointer()) return val;
 
-		if (src_sema.is_integer() && dest_sema.is_pointer()) {
-			return builder->CreateIntToPtr(val, dest_type, "inttoptr");
-		}
+		if (src_sema.is_integer() && dest_sema.is_pointer())
+			return builder->CreateIntToPtr(
+				val, dest_type, "inttoptr"
+			);
 
-		if (src_sema.is_pointer() && dest_sema.is_integer()) {
-			return builder->CreatePtrToInt(val, dest_type, "ptrtoint");
-		}
+		if (src_sema.is_pointer() && dest_sema.is_integer())
+			return builder->CreatePtrToInt(
+				val, dest_type, "ptrtoint"
+			);
 
-		if (src_sema.is_char() && dest_sema.is_integer()) {
-			return builder->CreateZExt(val, dest_type, "zext_char");
-		}
+		if (src_sema.is_char() && dest_sema.is_integer())
+			return builder->CreateZExt(
+				val, dest_type, "zext_char"
+			);
 
-		if (src_sema.is_integer() && dest_sema.is_char()) {
-			return builder->CreateTrunc(val, dest_type, "trunc_char");
-		}
+		if (src_sema.is_integer() && dest_sema.is_char())
+			return builder->CreateTrunc(
+				val, dest_type, "trunc_char"
+			);
 
 		return val;
 	}
 
 	// 10. Group: (expr)
-	if (isa<GroupExpr>(expr)) {
-		return emit_expr(as<GroupExpr>(expr)->expr.get());
-	}
+	if (isa<GroupExpr>(expr)) return emit_expr(as<GroupExpr>(expr)->expr.get());
 
 	return nullptr;
 }

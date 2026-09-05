@@ -32,7 +32,13 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 	if (isa<VarDeclStmt>(stmt)) {
 		const auto* v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
-		const auto sema_ty = analyzer->resolve_type(v->type_annotation.get());
+		auto sema_ty = analyzer->resolve_type(v->type_annotation.get());
+		if (sema_ty.is_array() && sema_ty.array_size == 0 && v->initializer) {
+			auto init_sema = get_sema_type(v->initializer.get());
+			if (init_sema.is_array()) {
+				sema_ty.array_size = init_sema.array_size;
+			}
+		}
 		llvm::Type* var_type = get_llvm_type(sema_ty);
 
 		llvm::Function* fn = builder->GetInsertBlock()->getParent();
@@ -41,8 +47,21 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		local_types[name] = sema_ty;
 
 		if (v->initializer) {
-			llvm::Value* init_val = emit_expr(v->initializer.get());
-			builder->CreateStore(init_val, alloca);
+			if (isa<ArrayLiteralExpr>(v->initializer.get())) {
+				const auto* arr_lit = as<ArrayLiteralExpr>(v->initializer.get());
+				for (size_t i = 0; i < arr_lit->elements.size(); ++i) {
+					llvm::Value* elem_val = emit_expr(arr_lit->elements[i].get());
+					llvm::Value* elem_ptr = builder->CreateGEP(
+						var_type, alloca,
+						{builder->getInt32(0), builder->getInt32(static_cast<int32_t>(i))},
+						name + "_init"
+					);
+					builder->CreateStore(elem_val, elem_ptr);
+				}
+			} else {
+				llvm::Value* init_val = emit_expr(v->initializer.get());
+				builder->CreateStore(init_val, alloca);
+			}
 		}
 		return;
 	}

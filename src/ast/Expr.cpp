@@ -154,3 +154,16 @@ export struct GroupExpr final : Expr {
 		const size_t c = 0
 	) : Expr(KIND, l, c), expr(std::move(e)) {}
 };
+
+// Biểu thức mảng literal: [expr, expr, ...]
+export struct ArrayLiteralExpr final : Expr {
+	static constexpr auto KIND = ASTKind::EXPR_ARRAY_LITERAL;
+	std::vector<std::unique_ptr<Expr>> elements;
+
+	explicit ArrayLiteralExpr(
+		std::vector<std::unique_ptr<Expr>> elems,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Expr(KIND, l, c), elements(std::move(elems)) {}
+};
+
