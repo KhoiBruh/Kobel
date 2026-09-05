@@ -58,6 +58,15 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 					);
 					builder->CreateStore(elem_val, elem_ptr);
 				}
+			} else if (isa<CallExpr>(v->initializer.get()) &&
+			           isa<IdentifierExpr>(as<CallExpr>(v->initializer.get())->callee.get()) &&
+			           analyzer && analyzer->structs.contains(std::string(as<IdentifierExpr>(as<CallExpr>(v->initializer.get())->callee.get())->name))) {
+				const auto* call = as<CallExpr>(v->initializer.get());
+				for (size_t i = 0; i < call->args.size(); ++i) {
+					llvm::Value* arg_val = emit_expr(call->args[i].get());
+					llvm::Value* field_ptr = builder->CreateStructGEP(var_type, alloca, static_cast<unsigned>(i), name + "_f");
+					builder->CreateStore(arg_val, field_ptr);
+				}
 			} else {
 				llvm::Value* init_val = emit_expr(v->initializer.get());
 				builder->CreateStore(init_val, alloca);

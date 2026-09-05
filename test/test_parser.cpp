@@ -271,6 +271,44 @@ bool test_parse_array() {
 	return true;
 }
 
+bool test_parse_struct_methods() {
+	std::string_view code =
+		"struct Point(x: i32, y: i32) {\n"
+		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
+		"    fn translate(var self, dx: i32, dy: i32): void {\n"
+		"        self.x = self.x + dx;\n"
+		"        self.y = self.y + dy;\n"
+		"    }\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser không được có lỗi khi parse struct methods");
+	ASSERT(prog->declarations.size() == 1, "Phải parse được 1 StructDecl");
+	auto* st = as<StructDecl>(prog->declarations[0].get());
+	ASSERT(st->name == "Point", "Tên struct phải là Point");
+	ASSERT(st->fields.size() == 2, "Struct có 2 fields");
+	ASSERT(st->methods.size() == 2, "Struct có 2 methods");
+
+	// Method 1: distance_sq
+	const auto& m0 = st->methods[0];
+	ASSERT(m0->name == "distance_sq", "Method 0 là distance_sq");
+	ASSERT(m0->params.size() == 1, "Method 0 có 1 param");
+	ASSERT(m0->params[0].name == "self", "Param 0 là self");
+	ASSERT(m0->params[0].has_val && !m0->params[0].is_mut, "Param 0 là val self");
+	ASSERT(m0->body != nullptr, "Method 0 có thân hàm (=> expr)");
+
+	// Method 2: translate
+	const auto& m1 = st->methods[1];
+	ASSERT(m1->name == "translate", "Method 1 là translate");
+	ASSERT(m1->params.size() == 3, "Method 1 có 3 params");
+	ASSERT(m1->params[0].name == "self" && m1->params[0].is_mut, "Param 0 là var self");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -291,6 +329,9 @@ int main() {
 
 	if (!test_parse_array()) return 1;
 	std::cout << "  [PASS] test_parse_array" << std::endl;
+
+	if (!test_parse_struct_methods()) return 1;
+	std::cout << "  [PASS] test_parse_struct_methods" << std::endl;
 
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;

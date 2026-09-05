@@ -30,6 +30,7 @@ export struct StructSymbol {
 	std::string name;
 	std::unordered_map<std::string, Semantic> field_types;
 	std::vector<std::string> field_order;
+	std::unordered_map<std::string, FnSymbol> methods;
 	size_t line = 0;
 	size_t col = 0;
 };

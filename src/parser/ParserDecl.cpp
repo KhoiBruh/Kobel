@@ -18,10 +18,23 @@ std::unique_ptr<FnDecl> Parser::parse_fn_decl() {
 	std::vector<Param> params;
 	if (!check(TokenType::CLOSE_PAREN)) {
 		do {
+			bool is_mut = false;
+			bool has_val = false;
+			if (match(TokenType::KW_VAR)) {
+				is_mut = true;
+			} else if (match(TokenType::KW_VAL)) {
+				has_val = true;
+			}
+
 			const Token p_name = consume(TokenType::IDENTIFIER, "Expected parameter name");
-			consume(TokenType::COLON, "Expected ':' after parameter name");
-			auto p_type = parse_type();
-			params.push_back(Param{p_name.text, std::move(p_type)});
+			std::unique_ptr<TypeNode> p_type = nullptr;
+			if (match(TokenType::COLON)) {
+				p_type = parse_type();
+			} else if (p_name.text != "self") {
+				error(p_name, "Expected ':' and type after parameter name");
+			}
+
+			params.push_back(Param{p_name.text, std::move(p_type), is_mut, has_val});
 		} while (match(TokenType::COMMA));
 	}
 	consume(TokenType::CLOSE_PAREN, "Expected ')' close parameter declarations");
@@ -30,11 +43,20 @@ std::unique_ptr<FnDecl> Parser::parse_fn_decl() {
 	if (match(TokenType::COLON)) ret_type = parse_type();
 
 	std::unique_ptr<BlockStmt> body = nullptr;
-	if (check(TokenType::OPEN_BRACE))body = parse_block_stmt();
-	else consume(
-		TokenType::SEMI_COLON,
-		"Expected function body '{' or ';' declare a prototype"
-	);
+	if (check(TokenType::OPEN_BRACE)) {
+		body = parse_block_stmt();
+	} else if (match(TokenType::FAT_ARROW)) {
+		auto expr = parse_expression();
+		consume(TokenType::SEMI_COLON, "Expected ';' after expression body");
+		std::vector<std::unique_ptr<Stmt>> stmts;
+		stmts.push_back(std::make_unique<ReturnStmt>(std::move(expr), tok.line, tok.col));
+		body = std::make_unique<BlockStmt>(std::move(stmts), tok.line, tok.col);
+	} else {
+		consume(
+			TokenType::SEMI_COLON,
+			"Expected function body '{', '=>' or ';' declare a prototype"
+		);
+	}
 
 	auto fn = std::make_unique<FnDecl>(name.text, tok.line, tok.col);
 	fn->params = std::move(params);
@@ -59,13 +81,19 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 	}
 	consume(TokenType::CLOSE_PAREN, "Expected ')' close field declarations for struct");
 
-	// Hỗ trợ cả thân rỗng {} hoặc dấu chấm phẩy ;
-	if (match(TokenType::OPEN_BRACE))
+	std::vector<std::unique_ptr<FnDecl>> methods;
+	if (match(TokenType::OPEN_BRACE)) {
+		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
+			methods.push_back(parse_fn_decl());
+		}
 		consume(TokenType::CLOSE_BRACE, "Expected '}' end struct");
-	else match(TokenType::SEMI_COLON);
+	} else {
+		match(TokenType::SEMI_COLON);
+	}
 
 	auto st = std::make_unique<StructDecl>(name.text, tok.line, tok.col);
 	st->fields = std::move(fields);
+	st->methods = std::move(methods);
 	return st;
 }
 

@@ -29,13 +29,17 @@ void CodeGen::emit_struct_decl(const StructDecl* st) {
 	const auto name = std::string(st->name);
 	std::vector<llvm::Type*> field_types;
 
-	for (const auto&[name, type] : st->fields) {
+	for (const auto&[f_name, type] : st->fields) {
 		auto sema_ty = analyzer->resolve_type(type.get());
 		field_types.push_back(get_llvm_type(sema_ty));
 	}
 
 	llvm::StructType* struct_ty = llvm::StructType::create(*context, field_types, name);
 	struct_types[name] = struct_ty;
+
+	for (const auto& method : st->methods) {
+		emit_fn_decl(method.get(), name + "_" + std::string(method->name));
+	}
 }
 
 void CodeGen::emit_const_decl(const ConstDecl* c) {
@@ -66,33 +70,42 @@ void CodeGen::emit_const_decl(const ConstDecl* c) {
 	global_consts[name] = gv;
 }
 
-void CodeGen::emit_fn_proto(const FnDecl* fn_decl) {
-	const auto name = std::string(fn_decl->name);
+void CodeGen::emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_override) {
+	const auto name = fn_name_override.empty() ? std::string(fn_decl->name) : fn_name_override;
 	llvm::Function* fn = module->getFunction(name);
 
 	if (!fn) {
 		std::vector<llvm::Type*> param_types;
-		for (const auto&[name, type] : fn_decl->params) {
-			auto sema_ty = analyzer->resolve_type(type.get());
-			param_types.push_back(get_llvm_type(sema_ty));
+		llvm::Type* ret_type = nullptr;
+		if (analyzer && analyzer->functions.contains(name)) {
+			const auto& sym = analyzer->functions.at(name);
+			for (const auto& pt : sym.param_types) {
+				param_types.push_back(get_llvm_type(pt));
+			}
+			ret_type = get_llvm_type(sym.return_type);
+		} else {
+			for (const auto& p : fn_decl->params) {
+				auto sema_ty = analyzer->resolve_type(p.type.get());
+				param_types.push_back(get_llvm_type(sema_ty));
+			}
+			auto ret_sema_ty = fn_decl->return_type
+				? analyzer->resolve_type(fn_decl->return_type.get())
+				: Semantic::make_primitive(SemaType::VOID);
+			ret_type = get_llvm_type(ret_sema_ty);
 		}
-		auto ret_sema_ty = fn_decl->return_type
-			? analyzer->resolve_type(fn_decl->return_type.get())
-			: Semantic::make_primitive(SemaType::VOID);
-		llvm::Type* ret_type = get_llvm_type(ret_sema_ty);
 
 		llvm::FunctionType* fn_type = llvm::FunctionType::get(ret_type, param_types, false);
 		llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, name, *module);
 	}
 }
 
-void CodeGen::emit_fn_body(const FnDecl* fn_decl) {
+void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_override) {
 	if (!fn_decl->body) return; // Prototype extern
 
-	const auto name = std::string(fn_decl->name);
+	const auto name = fn_name_override.empty() ? std::string(fn_decl->name) : fn_name_override;
 	llvm::Function* fn = module->getFunction(name);
 	if (!fn) {
-		emit_fn_proto(fn_decl);
+		emit_fn_proto(fn_decl, name);
 		fn = module->getFunction(name);
 	}
 
@@ -109,7 +122,11 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl) {
 		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, arg.getType(), param_name);
 		builder->CreateStore(&arg, alloca);
 		local_vars[param_name] = alloca;
-		local_types[param_name] = analyzer->resolve_type(fn_decl->params[idx].type.get());
+		if (analyzer && analyzer->functions.contains(name)) {
+			local_types[param_name] = analyzer->functions.at(name).param_types[idx];
+		} else {
+			local_types[param_name] = analyzer->resolve_type(fn_decl->params[idx].type.get());
+		}
 		idx++;
 	}
 
@@ -125,9 +142,9 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl) {
 	}
 }
 
-void CodeGen::emit_fn_decl(const FnDecl* fn_decl) {
-	emit_fn_proto(fn_decl);
-	emit_fn_body(fn_decl);
+void CodeGen::emit_fn_decl(const FnDecl* fn_decl, const std::string& fn_name_override) {
+	emit_fn_proto(fn_decl, fn_name_override);
+	emit_fn_body(fn_decl, fn_name_override);
 }
 
 void CodeGen::emit_extern_block(const ExternBlock* ext) {

@@ -1,0 +1,39 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+enum HttpCode {
+    OK = 200,
+    NOT_FOUND = 404,
+    SERVER_ERROR = 500,
+}
+
+enum Level : u8 {
+    LOW = 1,
+    MEDIUM,
+    HIGH,
+}
+
+fn main(): i32 {
+    val status: HttpCode = HttpCode.NOT_FOUND;
+    val raw_code: i32 = status.value;
+    val status_cast: i32 = status as i32;
+
+    val recovered: HttpCode = 200 as HttpCode;
+    val lvl: Level = Level.HIGH;
+
+    if (raw_code == 404) {
+        if (status_cast == 404) {
+            if (recovered == HttpCode.OK) {
+                if (lvl == Level.HIGH) {
+                    val raw_lvl: i32 = lvl.value as i32;
+                    if (raw_lvl == 3) {
+                        puts("Enum test passed successfully in Kobel!");
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+    return 1;
+}

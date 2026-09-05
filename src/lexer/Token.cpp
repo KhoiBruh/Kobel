@@ -33,6 +33,7 @@ export enum class TokenType {
 	GREATER_EQUAL, // >=
 	AND_AND,       // &&
 	OR_OR,         // ||
+	FAT_ARROW,     // =>
 
 	// Literals
 	CHAR,

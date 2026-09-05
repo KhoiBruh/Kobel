@@ -101,7 +101,7 @@ export struct Analyzer {
 		if (isa<PointerType>(node)) {
 			const auto* ptr = as<PointerType>(node);
 			auto pointee_type = resolve_type(ptr->pointee.get());
-			return Semantic::make_pointer(std::move(pointee_type));
+			return Semantic::make_pointer(std::move(pointee_type), ptr->is_mut);
 		}
 
 		if (isa<ArrayType>(node)) {
@@ -153,6 +153,41 @@ export struct Analyzer {
 					auto f_type = resolve_type(f.type.get());
 					sym.field_types[f_name] = f_type;
 					sym.field_order.push_back(f_name);
+				}
+
+				for (const auto& method : st->methods) {
+					std::string m_name = std::string(method->name);
+					if (sym.methods.contains(m_name) || sym.field_types.contains(m_name)) {
+						logger.error(method->line, method->col, "Trùng lặp phương thức hoặc trường '" + m_name + "' trong struct '" + sym.name + "'");
+						continue;
+					}
+
+					std::string mangled_name = sym.name + "_" + m_name;
+					FnSymbol fn_sym;
+					fn_sym.name = mangled_name;
+					fn_sym.return_type = resolve_type(method->return_type.get());
+					fn_sym.line = method->line;
+					fn_sym.col = method->col;
+
+					for (const auto& p : method->params) {
+						fn_sym.param_names.push_back(std::string(p.name));
+						if (p.name == "self") {
+							if (p.type) {
+								fn_sym.param_types.push_back(resolve_type(p.type.get()));
+							} else if (p.is_mut) {
+								fn_sym.param_types.push_back(Semantic::make_pointer(Semantic::make_struct(sym.name), true));
+							} else if (p.has_val) {
+								fn_sym.param_types.push_back(Semantic::make_pointer(Semantic::make_struct(sym.name), false));
+							} else {
+								fn_sym.param_types.push_back(Semantic::make_struct(sym.name));
+							}
+						} else {
+							fn_sym.param_types.push_back(resolve_type(p.type.get()));
+						}
+					}
+
+					sym.methods[m_name] = fn_sym;
+					functions[mangled_name] = fn_sym;
 				}
 			}
 		}
@@ -276,7 +311,13 @@ export struct Analyzer {
 	void pass2_check_declarations(const Program* program) {
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				check_function(as<FnDecl>(decl.get()));
+				check_function(as<FnDecl>(decl.get()), std::string(as<FnDecl>(decl.get())->name));
+			} else if (isa<StructDecl>(decl.get())) {
+				const auto* st = as<StructDecl>(decl.get());
+				for (const auto& method : st->methods) {
+					std::string mangled = std::string(st->name) + "_" + std::string(method->name);
+					check_function(method.get(), mangled);
+				}
 			} else if (isa<ConstDecl>(decl.get())) {
 				const auto* c = as<ConstDecl>(decl.get());
 				auto val_type = analyze_expr(c->value.get());
@@ -289,20 +330,20 @@ export struct Analyzer {
 		}
 	}
 
-	void check_function(const FnDecl* fn) {
+	void check_function(const FnDecl* fn, const std::string& fn_lookup_name) {
 		if (!fn->body) return; // Hàm prototype không có thân
 
-		const auto& sym = functions[std::string(fn->name)];
+		const auto& sym = functions[fn_lookup_name];
 		current_function_return_type = sym.return_type;
 
 		enter_scope(); // Scope mức hàm
 
-		// Đăng ký tham số hàm (mặc định là val bất biến)
+		// Đăng ký tham số hàm
 		for (size_t i = 0; i < sym.param_names.size(); ++i) {
 			VarSymbol p_sym;
 			p_sym.name = sym.param_names[i];
 			p_sym.type = sym.param_types[i];
-			p_sym.is_mut = false; // val
+			p_sym.is_mut = (i < fn->params.size()) ? fn->params[i].is_mut : false;
 			p_sym.line = fn->line;
 			p_sym.col = fn->col;
 			current_scope().variables[p_sym.name] = p_sym;
@@ -542,6 +583,10 @@ export struct Analyzer {
 					logger.error(a->line, a->col, "Không thể gán giá trị cho thuộc tính chỉ đọc '.len' của mảng");
 					return Semantic::make_error();
 				}
+				if (obj_type.is_pointer() && !obj_type.is_mut_pointer) {
+					logger.error(a->line, a->col, "Không thể sửa trường thông qua con trỏ chỉ đọc '*'");
+					return Semantic::make_error();
+				}
 				target_type = analyze_expr(a->target.get());
 			} else if (isa<IndexExpr>(a->target.get())) {
 				target_type = analyze_expr(a->target.get());
@@ -703,39 +748,129 @@ export struct Analyzer {
 			return target_type;
 		}
 
-		// 7. Lệnh gọi hàm: callee(args...)
+		// 7. Lệnh gọi hàm, khởi tạo struct hoặc gọi phương thức: callee(args...)
 		if (isa<CallExpr>(expr)) {
 			const auto* c = as<CallExpr>(expr);
-			if (!isa<IdentifierExpr>(c->callee.get())) {
-				logger.error(c->line, c->col, "Chỉ hỗ trợ gọi hàm trực tiếp bằng tên");
-				return Semantic::make_error();
-			}
 
-			const auto fn_name = as<IdentifierExpr>(c->callee.get())->name;
-			auto it = functions.find(std::string(fn_name));
-			if (it == functions.end()) {
-				logger.error(c->line, c->col, "Hàm '" + std::string(fn_name) + "' chưa được khai báo");
-				return Semantic::make_error();
-			}
+			// 7a. Khởi tạo struct hoặc gọi hàm trực tiếp: Name(args...)
+			if (isa<IdentifierExpr>(c->callee.get())) {
+				const auto callee_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
 
-			const auto& fn_sym = it->second;
-			if (c->args.size() != fn_sym.param_types.size()) {
-				logger.error(c->line, c->col, "Hàm '" + std::string(fn_name) + "' mong đợi " +
-				             std::to_string(fn_sym.param_types.size()) + " đối số, nhưng nhận được " +
-				             std::to_string(c->args.size()));
+				// Khởi tạo struct: Point(10, 20)
+				auto it_st = structs.find(callee_name);
+				if (it_st != structs.end()) {
+					const auto& st_sym = it_st->second;
+					if (c->args.size() != st_sym.field_order.size()) {
+						logger.error(c->line, c->col, "Khởi tạo struct '" + callee_name + "' mong đợi " +
+						             std::to_string(st_sym.field_order.size()) + " đối số, nhưng nhận được " +
+						             std::to_string(c->args.size()));
+						return Semantic::make_struct(callee_name);
+					}
+
+					for (size_t i = 0; i < c->args.size(); ++i) {
+						auto arg_type = analyze_expr(c->args[i].get());
+						const auto& field_name = st_sym.field_order[i];
+						const auto& expected_type = st_sym.field_types.at(field_name);
+						if (!expected_type.can_assign_from(arg_type)) {
+							logger.error(c->line, c->col, "Trường '" + field_name + "' của struct '" +
+							             callee_name + "' không khớp kiểu: mong đợi '" +
+							             expected_type.to_string() + "', nhận được '" + arg_type.to_string() + "'");
+						}
+					}
+					return Semantic::make_struct(callee_name);
+				}
+
+				// Gọi hàm thông thường
+				auto it = functions.find(callee_name);
+				if (it == functions.end()) {
+					logger.error(c->line, c->col, "Hàm '" + callee_name + "' chưa được khai báo");
+					return Semantic::make_error();
+				}
+
+				const auto& fn_sym = it->second;
+				if (c->args.size() != fn_sym.param_types.size()) {
+					logger.error(c->line, c->col, "Hàm '" + callee_name + "' mong đợi " +
+					             std::to_string(fn_sym.param_types.size()) + " đối số, nhưng nhận được " +
+					             std::to_string(c->args.size()));
+					return fn_sym.return_type;
+				}
+
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					auto arg_type = analyze_expr(c->args[i].get());
+					if (!fn_sym.param_types[i].can_assign_from(arg_type)) {
+						logger.error(c->line, c->col, "Đối số " + std::to_string(i + 1) + " của hàm '" +
+						             callee_name + "' không khớp kiểu: mong đợi '" +
+						             fn_sym.param_types[i].to_string() + "', nhận được '" + arg_type.to_string() + "'");
+					}
+				}
+
 				return fn_sym.return_type;
 			}
 
-			for (size_t i = 0; i < c->args.size(); ++i) {
-				auto arg_type = analyze_expr(c->args[i].get());
-				if (!fn_sym.param_types[i].can_assign_from(arg_type)) {
-					logger.error(c->line, c->col, "Đối số " + std::to_string(i + 1) + " của hàm '" +
-					             std::string(fn_name) + "' không khớp kiểu: mong đợi '" +
-					             fn_sym.param_types[i].to_string() + "', nhận được '" + arg_type.to_string() + "'");
+			// 7b. Gọi phương thức: object.method(args...)
+			if (isa<MemberExpr>(c->callee.get())) {
+				const auto* m = as<MemberExpr>(c->callee.get());
+				auto obj_type = analyze_expr(m->object.get());
+				if (obj_type.is_error()) return Semantic::make_error();
+
+				std::string struct_name;
+				if (obj_type.is_struct()) {
+					struct_name = obj_type.struct_name;
+				} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
+					struct_name = obj_type.pointee->struct_name;
+				} else {
+					logger.error(c->line, c->col, "Chỉ có thể gọi phương thức trên struct hoặc con trỏ struct");
+					return Semantic::make_error();
 				}
+
+				auto it_st = structs.find(struct_name);
+				if (it_st == structs.end()) {
+					logger.error(c->line, c->col, "Không tìm thấy định nghĩa struct '" + struct_name + "'");
+					return Semantic::make_error();
+				}
+
+				const auto method_name = std::string(m->member);
+				auto it_m = it_st->second.methods.find(method_name);
+				if (it_m == it_st->second.methods.end()) {
+					logger.error(c->line, c->col, "Struct '" + struct_name + "' không có phương thức '" + method_name + "'");
+					return Semantic::make_error();
+				}
+
+				const auto& method_sym = it_m->second;
+
+				// Kiểm tra self
+				if (!method_sym.param_types.empty() && method_sym.param_names[0] == "self") {
+					const auto& self_expected = method_sym.param_types[0];
+					if (self_expected.is_pointer() && self_expected.is_mut_pointer) {
+						if (obj_type.is_pointer() && !obj_type.is_mut_pointer) {
+							logger.error(c->line, c->col, "Không thể gọi phương thức 'var self' trên con trỏ chỉ đọc '*" + struct_name + "'");
+						}
+					}
+				}
+
+				size_t expected_args = method_sym.param_types.empty() ? 0 : (method_sym.param_types.size() - 1);
+				if (c->args.size() != expected_args) {
+					logger.error(c->line, c->col, "Phương thức '" + method_name + "' mong đợi " +
+					             std::to_string(expected_args) + " đối số, nhưng nhận được " +
+					             std::to_string(c->args.size()));
+					return method_sym.return_type;
+				}
+
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					auto arg_type = analyze_expr(c->args[i].get());
+					const auto& param_type = method_sym.param_types[i + 1];
+					if (!param_type.can_assign_from(arg_type)) {
+						logger.error(c->line, c->col, "Đối số " + std::to_string(i + 1) + " của phương thức '" +
+						             method_name + "' không khớp kiểu: mong đợi '" +
+						             param_type.to_string() + "', nhận được '" + arg_type.to_string() + "'");
+					}
+				}
+
+				return method_sym.return_type;
 			}
 
-			return fn_sym.return_type;
+			logger.error(c->line, c->col, "Biểu thức gọi không hợp lệ");
+			return Semantic::make_error();
 		}
 
 		// 8. Truy cập trường struct hoặc thành viên enum: object.field
@@ -798,12 +933,17 @@ export struct Analyzer {
 
 			const auto field_name = std::string(m->member);
 			auto it_f = it->second.field_types.find(field_name);
-			if (it_f == it->second.field_types.end()) {
-				logger.error(m->line, m->col, "Struct '" + struct_name + "' không có trường nào tên là '" + field_name + "'");
-				return Semantic::make_error();
+			if (it_f != it->second.field_types.end()) {
+				return it_f->second;
 			}
 
-			return it_f->second;
+			auto it_m = it->second.methods.find(field_name);
+			if (it_m != it->second.methods.end()) {
+				return it_m->second.return_type;
+			}
+
+			logger.error(m->line, m->col, "Struct '" + struct_name + "' không có trường hay phương thức nào tên là '" + field_name + "'");
+			return Semantic::make_error();
 		}
 
 		// 9. Chỉ mục mảng/con trỏ: target[index]

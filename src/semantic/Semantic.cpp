@@ -30,6 +30,7 @@ export enum class SemaType {
 export struct Semantic {
 	SemaType kind = SemaType::ERROR_TYPE;
 	std::shared_ptr<Semantic> pointee = nullptr; // nếu là POINTER
+	bool is_mut_pointer = false;                 // true cho &T, false cho *T
 	std::string struct_name;               // nếu là STRUCT
 	std::string enum_name;                 // nếu là ENUM
 	std::shared_ptr<Semantic> underlying_type = nullptr; // nếu là ENUM
@@ -42,10 +43,11 @@ export struct Semantic {
 		return t;
 	}
 
-	static Semantic make_pointer(Semantic target) {
+	static Semantic make_pointer(Semantic target, const bool mut = false) {
 		Semantic t;
 		t.kind = SemaType::POINTER;
 		t.pointee = std::make_shared<Semantic>(std::move(target));
+		t.is_mut_pointer = mut;
 		return t;
 	}
 
@@ -166,7 +168,7 @@ export struct Semantic {
 			case SemaType::CHAR: return "char";
 			case SemaType::VOID: return "void";
 			case SemaType::NULL_TYPE: return "null";
-			case SemaType::POINTER: return "*" + (pointee ? pointee->to_string() : "unknown");
+			case SemaType::POINTER: return (is_mut_pointer ? "&" : "*") + (pointee ? pointee->to_string() : "unknown");
 			case SemaType::STRUCT: return struct_name;
 			case SemaType::ENUM: return enum_name;
 			case SemaType::ARRAY:

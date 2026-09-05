@@ -316,9 +316,35 @@ bool test_codegen_array() {
 	return true;
 }
 
+bool test_codegen_struct_methods() {
+	std::string_view code =
+		"struct Point(x: i32, y: i32) {\n"
+		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
+		"    fn translate(var self, dx: i32, dy: i32): void {\n"
+		"        self.x = self.x + dx;\n"
+		"        self.y = self.y + dy;\n"
+		"    }\n"
+		"}\n"
+		"fn test_methods(): i32 {\n"
+		"    var p: Point = Point(3, 4);\n"
+		"    val d1: i32 = p.distance_sq();\n"
+		"    p.translate(1, 2);\n"
+		"    val d2: i32 = p.distance_sq();\n"
+		"    return d1 + d2;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã struct methods thất bại");
+	ASSERT(ir.find("@Point_distance_sq(") != std::string::npos, "Thiếu hàm @Point_distance_sq");
+	ASSERT(ir.find("@Point_translate(") != std::string::npos, "Thiếu hàm @Point_translate");
+	ASSERT(ir.find("call i32 @Point_distance_sq(") != std::string::npos, "Thiếu lệnh gọi @Point_distance_sq");
+	ASSERT(ir.find("call void @Point_translate(") != std::string::npos, "Thiếu lệnh gọi @Point_translate");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 12;
+	int total = 13;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -353,6 +379,10 @@ int main() {
 	}
 	if (test_codegen_array()) {
 		std::cout << "[PASS] test_codegen_array\n";
+		passed++;
+	}
+	if (test_codegen_struct_methods()) {
+		std::cout << "[PASS] test_codegen_struct_methods\n";
 		passed++;
 	}
 

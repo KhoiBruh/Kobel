@@ -156,9 +156,9 @@ export struct CodeGen {
 	// Khai báo cấp cao (CodeGenDecl.cpp)
 	void emit_struct_decl(const StructDecl* st);
 	void emit_const_decl(const ConstDecl* c);
-	void emit_fn_proto(const FnDecl* fn_decl);
-	void emit_fn_body(const FnDecl* fn_decl);
-	void emit_fn_decl(const FnDecl* fn_decl);
+	void emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_override = "");
+	void emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_override = "");
+	void emit_fn_decl(const FnDecl* fn_decl, const std::string& fn_name_override = "");
 	void emit_extern_block(const ExternBlock* ext);
 
 	// Phát sinh mã máy đích (CodeGenNative.cpp)

@@ -1,0 +1,38 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+struct Point(x: i32, y: i32) {
+    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;
+
+    fn is_origin(val self): bool {
+        return self.x == 0 && self.y == 0;
+    }
+
+    fn translate(var self, dx: i32, dy: i32): void {
+        self.x = self.x + dx;
+        self.y = self.y + dy;
+    }
+}
+
+fn main(): i32 {
+    var p: Point = Point(3, 4);
+
+    val d1: i32 = p.distance_sq();
+    if (d1 != 25) {
+        return 1;
+    }
+
+    if (p.is_origin()) {
+        return 2;
+    }
+
+    p.translate(1, 2);
+    val d2: i32 = p.distance_sq();
+    if (d2 != 52) {
+        return 3;
+    }
+
+    puts("Struct methods & primary constructor test passed successfully in Kobel!");
+    return 0;
+}

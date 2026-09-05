@@ -294,37 +294,107 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 	}
 
-	// 6. Lệnh gọi hàm: callee(args...)
+	// 6. Lệnh gọi hàm, khởi tạo struct hoặc gọi phương thức: callee(args...)
 	if (isa<CallExpr>(expr)) {
 		const auto *c = as<CallExpr>(expr);
-		const auto fn_name = as<IdentifierExpr>(c->callee.get())->name;
-		auto *callee = module->getFunction(std::string(fn_name));
 
-		if (!callee && analyzer) {
-			if (
-				const auto it = analyzer->functions.find(std::string(fn_name));
-				it != analyzer->functions.end()
-			) {
-				std::vector<llvm::Type *> param_types;
-				for (const auto &param_type: it->second.param_types) {
-					param_types.push_back(get_llvm_type(param_type));
+		// 6a. Gọi hàm thông thường hoặc khởi tạo struct qua tên
+		if (isa<IdentifierExpr>(c->callee.get())) {
+			const auto name = std::string(as<IdentifierExpr>(c->callee.get())->name);
+
+			// Khởi tạo struct: Point(10, 20)
+			if (analyzer && analyzer->structs.contains(name)) {
+				llvm::Type* st_type = struct_types[name];
+				llvm::Function* fn = builder->GetInsertBlock()->getParent();
+				llvm::AllocaInst* tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					llvm::Value* arg_val = emit_expr(c->args[i].get());
+					llvm::Value* field_ptr = builder->CreateStructGEP(st_type, tmp_st, static_cast<unsigned>(i), "init_field");
+					builder->CreateStore(arg_val, field_ptr);
 				}
-				llvm::Type *ret_type = get_llvm_type(it->second.return_type);
-				llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_type, param_types, false);
-				callee = llvm::Function::Create(
-					fn_type, llvm::Function::ExternalLinkage, std::string(fn_name), *module
-				);
+				return builder->CreateLoad(st_type, tmp_st, "st_val");
 			}
+
+			// Gọi hàm thông thường
+			auto *callee = module->getFunction(name);
+			if (!callee && analyzer) {
+				const auto it = analyzer->functions.find(name);
+				if (it != analyzer->functions.end()) {
+					std::vector<llvm::Type *> param_types;
+					for (const auto &param_type: it->second.param_types) {
+						param_types.push_back(get_llvm_type(param_type));
+					}
+					llvm::Type *ret_type = get_llvm_type(it->second.return_type);
+					llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_type, param_types, false);
+					callee = llvm::Function::Create(
+						fn_type, llvm::Function::ExternalLinkage, name, *module
+					);
+				}
+			}
+
+			if (!callee) return nullptr;
+
+			std::vector<llvm::Value *> args;
+			for (const auto &arg: c->args) {
+				args.push_back(emit_expr(arg.get()));
+			}
+
+			return builder->CreateCall(callee, args);
 		}
 
-		if (!callee) return nullptr;
+		// 6b. Gọi phương thức struct: object.method(args...)
+		if (isa<MemberExpr>(c->callee.get())) {
+			const auto *m = as<MemberExpr>(c->callee.get());
+			auto obj_type = get_sema_type(m->object.get());
+			std::string st_name = obj_type.is_struct() ? obj_type.struct_name : obj_type.pointee->struct_name;
+			std::string mangled = st_name + "_" + std::string(m->member);
 
-		std::vector<llvm::Value *> args;
-		for (const auto &arg: c->args) {
-			args.push_back(emit_expr(arg.get()));
+			auto *callee = module->getFunction(mangled);
+			if (!callee && analyzer) {
+				const auto it = analyzer->functions.find(mangled);
+				if (it != analyzer->functions.end()) {
+					std::vector<llvm::Type *> param_types;
+					for (const auto &param_type: it->second.param_types) {
+						param_types.push_back(get_llvm_type(param_type));
+					}
+					llvm::Type *ret_type = get_llvm_type(it->second.return_type);
+					llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_type, param_types, false);
+					callee = llvm::Function::Create(
+						fn_type, llvm::Function::ExternalLinkage, mangled, *module
+					);
+				}
+			}
+
+			if (!callee) return nullptr;
+
+			std::vector<llvm::Value *> args;
+
+			// Nạp self nếu phương thức yêu cầu
+			if (analyzer && analyzer->functions.contains(mangled)) {
+				const auto& fn_sym = analyzer->functions.at(mangled);
+				if (!fn_sym.param_types.empty() && fn_sym.param_names[0] == "self") {
+					const auto& self_expected = fn_sym.param_types[0];
+					if (self_expected.is_pointer()) {
+						if (obj_type.is_pointer()) {
+							args.push_back(emit_expr(m->object.get()));
+						} else {
+							args.push_back(emit_lvalue(m->object.get()));
+						}
+					} else {
+						args.push_back(emit_expr(m->object.get()));
+					}
+				}
+			}
+
+			// Nạp các đối số còn lại
+			for (const auto &arg: c->args) {
+				args.push_back(emit_expr(arg.get()));
+			}
+
+			return builder->CreateCall(callee, args);
 		}
 
-		return builder->CreateCall(callee, args);
+		return nullptr;
 	}
 
 	// 7. Truy cập trường struct hoặc enum: object.field

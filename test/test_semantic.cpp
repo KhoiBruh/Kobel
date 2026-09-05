@@ -280,6 +280,73 @@ bool test_semantic_array_errors() {
 	return true;
 }
 
+bool test_semantic_struct_methods() {
+	std::string_view code =
+		"struct Point(x: i32, y: i32) {\n"
+		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
+		"    fn translate(var self, dx: i32, dy: i32): void {\n"
+		"        self.x = self.x + dx;\n"
+		"        self.y = self.y + dy;\n"
+		"    }\n"
+		"}\n"
+		"fn test_methods(): i32 {\n"
+		"    var p: Point = Point(3, 4);\n"
+		"    val d: i32 = p.distance_sq();\n"
+		"    p.translate(1, 2);\n"
+		"    return p.distance_sq();\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic struct methods hợp lệ không được có lỗi");
+
+	return true;
+}
+
+bool test_semantic_struct_method_errors() {
+	// 1. Khởi tạo struct sai số lượng đối số
+	{
+		std::string_view code =
+			"struct Point(x: i32, y: i32);\n"
+			"fn test_err(): void {\n"
+			"    val p: Point = Point(1);\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Phải báo lỗi khi truyền thiếu đối số vào primary constructor");
+	}
+
+	// 2. Gọi phương thức var self trên con trỏ chỉ đọc *T
+	{
+		std::string_view code =
+			"struct Point(x: i32, y: i32) {\n"
+			"    fn modify(var self): void { self.x = 0; }\n"
+			"}\n"
+			"fn test_err(ptr: *Point): void {\n"
+			"    ptr.modify();\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Phải báo lỗi khi gọi phương thức var self trên con trỏ chỉ đọc *Point");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -312,6 +379,12 @@ int main() {
 
 	if (!test_semantic_array_errors()) return 1;
 	std::cout << "  [PASS] test_semantic_array_errors" << std::endl;
+
+	if (!test_semantic_struct_methods()) return 1;
+	std::cout << "  [PASS] test_semantic_struct_methods" << std::endl;
+
+	if (!test_semantic_struct_method_errors()) return 1;
+	std::cout << "  [PASS] test_semantic_struct_method_errors" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

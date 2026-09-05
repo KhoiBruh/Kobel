@@ -24,6 +24,8 @@ export struct Decl : ASTNode {
 export struct Param {
 	std::string_view name;
 	std::unique_ptr<TypeNode> type;
+	bool is_mut = false; // true nếu là var self / var param
+	bool has_val = false; // true nếu là val self / val param
 };
 
 // Hàm thuần túy: fn name(a: i32, b: i32): i32 { ... }
@@ -46,11 +48,12 @@ export struct StructField {
 	std::unique_ptr<TypeNode> type;
 };
 
-// Struct dữ liệu thuần C: struct Point(x: i32, y: i32)
+// Struct dữ liệu và phương thức: struct Point(x: i32, y: i32) { ... }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
 	std::vector<StructField> fields;
+	std::vector<std::unique_ptr<FnDecl>> methods;
 
 	explicit StructDecl(
 		const std::string_view n,

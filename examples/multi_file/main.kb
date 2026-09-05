@@ -1,0 +1,16 @@
+extern "libc" {
+    fn puts(str: *char): i32;
+}
+
+fn main(): i32 {
+    val sum: i32 = add(20, 22);
+    val product: i32 = multiply(6, 7);
+
+    if (sum == 42) {
+        if (product == 42) {
+            puts("Hello from multi-file Kobel program!");
+            return 0;
+        }
+    }
+    return 1;
+}

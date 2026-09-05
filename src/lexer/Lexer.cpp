@@ -128,6 +128,7 @@ export struct Lexer {
 
 			case '=':
 				if (match('=')) return make_token(TokenType::EQUAL_EQUAL, start_cursor, start_col);
+				if (match('>')) return make_token(TokenType::FAT_ARROW, start_cursor, start_col);
 				return make_token(TokenType::EQUAL, start_cursor, start_col);
 
 			case '-':
