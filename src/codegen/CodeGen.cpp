@@ -143,6 +143,8 @@ export struct CodeGen {
 	// Khai báo cấp cao (CodeGenDecl.cpp)
 	void emit_struct_decl(const StructDecl* st);
 	void emit_const_decl(const ConstDecl* c);
+	void emit_fn_proto(const FnDecl* fn_decl);
+	void emit_fn_body(const FnDecl* fn_decl);
 	void emit_fn_decl(const FnDecl* fn_decl);
 	void emit_extern_block(const ExternBlock* ext);
 
@@ -180,10 +182,17 @@ export struct CodeGen {
 			}
 		}
 
-		// 4. Functions
+		// 4a. Function prototypes (Pass 1: Khai báo chữ ký toàn bộ hàm trước)
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				emit_fn_decl(as<FnDecl>(decl.get()));
+				emit_fn_proto(as<FnDecl>(decl.get()));
+			}
+		}
+
+		// 4b. Function bodies (Pass 2: Sinh thân hàm, các hàm có thể gọi chéo nhau tự do)
+		for (const auto& decl : program->declarations) {
+			if (isa<FnDecl>(decl.get())) {
+				emit_fn_body(as<FnDecl>(decl.get()));
 			}
 		}
 

@@ -66,7 +66,7 @@ void CodeGen::emit_const_decl(const ConstDecl* c) {
 	global_consts[name] = gv;
 }
 
-void CodeGen::emit_fn_decl(const FnDecl* fn_decl) {
+void CodeGen::emit_fn_proto(const FnDecl* fn_decl) {
 	const auto name = std::string(fn_decl->name);
 	llvm::Function* fn = module->getFunction(name);
 
@@ -82,10 +82,19 @@ void CodeGen::emit_fn_decl(const FnDecl* fn_decl) {
 		llvm::Type* ret_type = get_llvm_type(ret_sema_ty);
 
 		llvm::FunctionType* fn_type = llvm::FunctionType::get(ret_type, param_types, false);
-		fn = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, name, *module);
+		llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, name, *module);
 	}
+}
 
+void CodeGen::emit_fn_body(const FnDecl* fn_decl) {
 	if (!fn_decl->body) return; // Prototype extern
+
+	const auto name = std::string(fn_decl->name);
+	llvm::Function* fn = module->getFunction(name);
+	if (!fn) {
+		emit_fn_proto(fn_decl);
+		fn = module->getFunction(name);
+	}
 
 	llvm::BasicBlock* entry = llvm::BasicBlock::Create(*context, "entry", fn);
 	builder->SetInsertPoint(entry);
@@ -114,6 +123,11 @@ void CodeGen::emit_fn_decl(const FnDecl* fn_decl) {
 			builder->CreateRet(builder->getInt32(0));
 		}
 	}
+}
+
+void CodeGen::emit_fn_decl(const FnDecl* fn_decl) {
+	emit_fn_proto(fn_decl);
+	emit_fn_body(fn_decl);
 }
 
 void CodeGen::emit_extern_block(const ExternBlock* ext) {

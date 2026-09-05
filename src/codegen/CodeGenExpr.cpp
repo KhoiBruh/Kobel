@@ -247,6 +247,21 @@ llvm::Value* CodeGen::emit_expr(const Expr* expr) {
 		const auto fn_name = as<IdentifierExpr>(c->callee.get())->name;
 		llvm::Function* callee = module->getFunction(std::string(fn_name));
 
+		if (!callee && analyzer) {
+			const auto it = analyzer->functions.find(std::string(fn_name));
+			if (it != analyzer->functions.end()) {
+				std::vector<llvm::Type*> param_types;
+				for (const auto& param_type : it->second.param_types) {
+					param_types.push_back(get_llvm_type(param_type));
+				}
+				llvm::Type* ret_type = get_llvm_type(it->second.return_type);
+				llvm::FunctionType* fn_type = llvm::FunctionType::get(ret_type, param_types, false);
+				callee = llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, std::string(fn_name), *module);
+			}
+		}
+
+		if (!callee) return nullptr;
+
 		std::vector<llvm::Value*> args;
 		for (const auto& arg : c->args) {
 			args.push_back(emit_expr(arg.get()));
