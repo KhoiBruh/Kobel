@@ -45,11 +45,11 @@ export struct Lexer {
 	// Token things
 
 	Token scan_identifier(size_t start_col) {
-		size_t start = cursor - 1;
+		const size_t start = cursor - 1;
 
 		while (std::isalnum(peek() || peek() == '_')) next();
 
-		std::string_view text = src.substr(start, cursor - start);
+		const std::string_view text = src.substr(start, cursor - start);
 
 		TokenType type;
 		switch (text) {
@@ -70,7 +70,7 @@ export struct Lexer {
 				break;
 		}
 
-		return { type, text, line, start_col };
+		return {type, text, line, start_col};
 	}
 
 	Token next_token() {
@@ -78,12 +78,10 @@ export struct Lexer {
 
 		if (is_end()) return Token(TokenType::END_OF_FILE, "", line, col);
 
-		size_t start = cursor;
+		const size_t start = cursor;
 		char c = next();
 
 		switch (c) {
-
-
 			default:
 				return {
 					TokenType::UNKNOWN,
