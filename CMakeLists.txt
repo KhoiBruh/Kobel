@@ -65,6 +65,10 @@ target_sources(kobel_core
 	src/parser/ParserExpr.cpp
 	src/parser/ParserStmt.cpp
 	src/parser/ParserDecl.cpp
+
+	src/codegen/CodeGenExpr.cpp
+	src/codegen/CodeGenStmt.cpp
+	src/codegen/CodeGenDecl.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})

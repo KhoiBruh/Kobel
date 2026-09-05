@@ -1,0 +1,157 @@
+module;
+
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Type.h>
+
+#include <string>
+#include <vector>
+
+module codegen;
+
+import token;
+import ast;
+import semantic;
+import semantic.symbol;
+import semantic.analyzer;
+
+// ============================================================================
+// Sinh mã Câu lệnh (Statements) & Luồng Điều khiển
+// ============================================================================
+
+void CodeGen::emit_stmt(const Stmt* stmt) {
+	if (!stmt) return;
+
+	if (auto* cur_bb = builder->GetInsertBlock(); cur_bb && cur_bb->hasTerminator()) {
+		return;
+	}
+
+	// 1. Khai báo biến: val / var
+	if (isa<VarDeclStmt>(stmt)) {
+		const auto* v = as<VarDeclStmt>(stmt);
+		const auto name = std::string(v->name);
+		const auto sema_ty = analyzer->resolve_type(v->type_annotation.get());
+		llvm::Type* var_type = get_llvm_type(sema_ty);
+
+		llvm::Function* fn = builder->GetInsertBlock()->getParent();
+		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, var_type, name);
+		local_vars[name] = alloca;
+		local_types[name] = sema_ty;
+
+		if (v->initializer) {
+			llvm::Value* init_val = emit_expr(v->initializer.get());
+			builder->CreateStore(init_val, alloca);
+		}
+		return;
+	}
+
+	// 2. Khối lệnh: { ... }
+	if (isa<BlockStmt>(stmt)) {
+		const auto* b = as<BlockStmt>(stmt);
+		for (const auto& s : b->statements) {
+			emit_stmt(s.get());
+		}
+		return;
+	}
+
+	// 3. Câu lệnh if: if (cond) { ... } else { ... }
+	if (isa<IfStmt>(stmt)) {
+		const auto* i = as<IfStmt>(stmt);
+		llvm::Value* cond = emit_expr(i->condition.get());
+		llvm::Function* fn = builder->GetInsertBlock()->getParent();
+
+		llvm::BasicBlock* then_bb = llvm::BasicBlock::Create(*context, "then", fn);
+		llvm::BasicBlock* else_bb = i->else_branch ? llvm::BasicBlock::Create(*context, "else") : nullptr;
+		llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "if_merge");
+
+		builder->CreateCondBr(cond, then_bb, i->else_branch ? else_bb : merge_bb);
+
+		// Then block
+		builder->SetInsertPoint(then_bb);
+		emit_stmt(i->then_branch.get());
+		if (!builder->GetInsertBlock()->hasTerminator()) {
+			builder->CreateBr(merge_bb);
+		}
+
+		// Else block
+		if (i->else_branch) {
+			fn->insert(fn->end(), else_bb);
+			builder->SetInsertPoint(else_bb);
+			emit_stmt(i->else_branch.get());
+			if (!builder->GetInsertBlock()->hasTerminator()) {
+				builder->CreateBr(merge_bb);
+			}
+		}
+
+		// Merge block
+		fn->insert(fn->end(), merge_bb);
+		builder->SetInsertPoint(merge_bb);
+		return;
+	}
+
+	// 4. Vòng lặp while: while (cond) { ... }
+	if (isa<WhileStmt>(stmt)) {
+		const auto* w = as<WhileStmt>(stmt);
+		llvm::Function* fn = builder->GetInsertBlock()->getParent();
+
+		llvm::BasicBlock* cond_bb = llvm::BasicBlock::Create(*context, "while_cond", fn);
+		llvm::BasicBlock* body_bb = llvm::BasicBlock::Create(*context, "while_body", fn);
+		llvm::BasicBlock* after_bb = llvm::BasicBlock::Create(*context, "while_after", fn);
+
+		builder->CreateBr(cond_bb);
+
+		// Cond block
+		builder->SetInsertPoint(cond_bb);
+		llvm::Value* cond = emit_expr(w->condition.get());
+		builder->CreateCondBr(cond, body_bb, after_bb);
+
+		// Body block
+		builder->SetInsertPoint(body_bb);
+		loop_stack.push_back({cond_bb, after_bb});
+		emit_stmt(w->body.get());
+		loop_stack.pop_back();
+
+		if (!builder->GetInsertBlock()->hasTerminator()) {
+			builder->CreateBr(cond_bb);
+		}
+
+		// After block
+		builder->SetInsertPoint(after_bb);
+		return;
+	}
+
+	// 5. Break & Continue
+	if (isa<BreakStmt>(stmt)) {
+		if (!loop_stack.empty()) {
+			builder->CreateBr(loop_stack.back().after_bb);
+		}
+		return;
+	}
+
+	if (isa<ContinueStmt>(stmt)) {
+		if (!loop_stack.empty()) {
+			builder->CreateBr(loop_stack.back().cond_bb);
+		}
+		return;
+	}
+
+	// 6. Return
+	if (isa<ReturnStmt>(stmt)) {
+		const auto* r = as<ReturnStmt>(stmt);
+		if (r->value) {
+			llvm::Value* val = emit_expr(r->value.get());
+			builder->CreateRet(val);
+		} else {
+			builder->CreateRetVoid();
+		}
+		return;
+	}
+
+	// 7. ExprStmt
+	if (isa<ExprStmt>(stmt)) {
+		emit_expr(as<ExprStmt>(stmt)->expr.get());
+		return;
+	}
+}
