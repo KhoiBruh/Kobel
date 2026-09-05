@@ -37,10 +37,17 @@ target_sources(kobel_core
 	PUBLIC
 	FILE_SET CXX_MODULES FILES
 	src/ast/AST.cpp
+
 	src/lexer/Lexer.cpp
 	src/lexer/Token.cpp
 	src/lexer/TokenMap.cpp
+
+	src/logger/Logger.cpp
 	src/parser/Parser.cpp
+
+	src/semantic/Semantic.cpp
+	src/semantic/Symbol.cpp
+	src/semantic/Analyzer.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})
