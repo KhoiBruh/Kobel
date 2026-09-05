@@ -1,6 +1,8 @@
+#include <filesystem>
+#include <fstream>
 #include <iostream>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 import token;
 import lexer;
@@ -151,12 +153,133 @@ bool test_codegen_cast() {
 	return true;
 }
 
+// ============================================================================
+// Giai đoạn 2: Native Target, Object File, Assembly & Executable
+// ============================================================================
+
+bool test_codegen_target_machine() {
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	CodeGen cg{&sema, "test_tm"};
+
+	ASSERT(cg.target_machine != nullptr, "TargetMachine chưa được khởi tạo");
+	ASSERT(!cg.module->getDataLayout().getStringRepresentation().empty(), "DataLayout của Module bị rỗng");
+	ASSERT(cg.module->getTargetTriple().str().find("x86_64") != std::string::npos, "TargetTriple không phải x86_64");
+	return true;
+}
+
+bool test_codegen_emit_object_file() {
+	std::string_view code =
+		"fn multiply(a: i32, b: i32): i32 {\n"
+		"    return a * b;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+
+	CodeGen cg{&sema, "test_obj"};
+	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+
+	const std::string obj_file = "test_multiply.obj";
+	std::filesystem::remove(obj_file);
+
+	ASSERT(cg.emit_object_file(obj_file), "emit_object_file thất bại");
+	ASSERT(std::filesystem::exists(obj_file), "File object không tồn tại");
+	ASSERT(std::filesystem::file_size(obj_file) > 0, "File object có kích thước rỗng");
+
+	std::filesystem::remove(obj_file);
+	return true;
+}
+
+bool test_codegen_emit_assembly() {
+	std::string_view code =
+		"fn sub(a: i32, b: i32): i32 {\n"
+		"    return a - b;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+
+	CodeGen cg{&sema, "test_asm"};
+	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+
+	const std::string asm_file = "test_sub.s";
+	std::filesystem::remove(asm_file);
+
+	ASSERT(cg.emit_assembly_file(asm_file), "emit_assembly_file thất bại");
+	ASSERT(std::filesystem::exists(asm_file), "File assembly không tồn tại");
+
+	std::ifstream f(asm_file);
+	std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+	ASSERT(content.find("sub") != std::string::npos, "Assembly không chứa nhãn hàm 'sub'");
+
+	f.close();
+	std::filesystem::remove(asm_file);
+	return true;
+}
+
+bool test_codegen_e2e_executable() {
+	std::string_view code =
+		"extern \"libc\" {\n"
+		"    fn puts(str: *char): i32;\n"
+		"}\n"
+		"fn main(): i32 {\n"
+		"    puts(\"Hello from native Kobel executable!\");\n"
+		"    return 42;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser có lỗi");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+
+	CodeGen cg{&sema, "e2e_module"};
+	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+
+	const std::string obj_file = "e2e_kobel.obj";
+	const std::string exe_file = "e2e_kobel.exe";
+
+	std::filesystem::remove(obj_file);
+	std::filesystem::remove(exe_file);
+
+	ASSERT(cg.emit_object_file(obj_file), "Sinh file object e2e thất bại");
+	ASSERT(CodeGen::link_executable(obj_file, exe_file), "Link executable e2e thất bại");
+	ASSERT(std::filesystem::exists(exe_file), "File thực thi e2e_kobel.exe không tồn tại");
+
+	int exit_code = std::system(".\\e2e_kobel.exe");
+	ASSERT(exit_code == 42, "Exit code của e2e_kobel.exe mong đợi 42, nhận được " + std::to_string(exit_code));
+
+	std::filesystem::remove(obj_file);
+	std::filesystem::remove(exe_file);
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 6;
+	int total = 10;
 
-	std::cout << "Running CodeGen Tests...\n";
+	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
+	// Stage 1
 	if (test_codegen_arithmetic()) {
 		std::cout << "[PASS] test_codegen_arithmetic\n";
 		passed++;
@@ -179,6 +302,24 @@ int main() {
 	}
 	if (test_codegen_cast()) {
 		std::cout << "[PASS] test_codegen_cast\n";
+		passed++;
+	}
+
+	// Stage 2
+	if (test_codegen_target_machine()) {
+		std::cout << "[PASS] test_codegen_target_machine\n";
+		passed++;
+	}
+	if (test_codegen_emit_object_file()) {
+		std::cout << "[PASS] test_codegen_emit_object_file\n";
+		passed++;
+	}
+	if (test_codegen_emit_assembly()) {
+		std::cout << "[PASS] test_codegen_emit_assembly\n";
+		passed++;
+	}
+	if (test_codegen_e2e_executable()) {
+		std::cout << "[PASS] test_codegen_e2e_executable\n";
 		passed++;
 	}
 

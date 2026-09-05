@@ -12,7 +12,7 @@ module;
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
-#include <llvm/TargetParser/Triple.h>
+#include <llvm/Target/TargetMachine.h>
 
 #include <memory>
 #include <string>
@@ -47,12 +47,14 @@ export struct CodeGen {
 	};
 	std::vector<LoopContext> loop_stack;
 
+	std::unique_ptr<llvm::TargetMachine> target_machine;
+
 	explicit CodeGen(Analyzer* sema, const std::string_view module_name = "kobel_module")
 		: context(std::make_unique<llvm::LLVMContext>()),
 		  module(std::make_unique<llvm::Module>(std::string(module_name), *context)),
 		  builder(std::make_unique<llvm::IRBuilder<>>(*context)),
 		  analyzer(sema) {
-		module->setTargetTriple(llvm::Triple("x86_64-pc-windows-msvc"));
+		setup_target_machine("x86_64-pc-windows-msvc");
 	}
 
 	// ========================================================================
@@ -143,6 +145,12 @@ export struct CodeGen {
 	void emit_const_decl(const ConstDecl* c);
 	void emit_fn_decl(const FnDecl* fn_decl);
 	void emit_extern_block(const ExternBlock* ext);
+
+	// Phát sinh mã máy đích (CodeGenNative.cpp)
+	bool setup_target_machine(const std::string& triple_str = "");
+	bool emit_object_file(const std::string& output_filename);
+	bool emit_assembly_file(const std::string& output_filename);
+	static bool link_executable(const std::string& obj_filename, const std::string& exe_filename);
 
 	// ========================================================================
 	// 3. Tổng thể Sinh mã & Kiểm định Module

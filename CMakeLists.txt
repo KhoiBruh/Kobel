@@ -8,6 +8,9 @@ list(APPEND CMAKE_PREFIX_PATH "C:/LLVM/lib/cmake/llvm")
 
 if (NOT TARGET zstd::libzstd_static)
 	add_library(zstd::libzstd_static INTERFACE IMPORTED)
+	set_target_properties(zstd::libzstd_static PROPERTIES
+		INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+	)
 endif ()
 
 find_package(LLVM REQUIRED CONFIG)
@@ -30,6 +33,14 @@ llvm_map_components_to_libnames(llvm_libs
 	Core
 	IRReader
 	TargetParser
+	Target
+	MC
+	X86
+	X86CodeGen
+	X86Desc
+	X86Info
+	X86AsmParser
+	AsmPrinter
 )
 
 add_library(kobel_core STATIC)
@@ -69,6 +80,7 @@ target_sources(kobel_core
 	src/codegen/CodeGenExpr.cpp
 	src/codegen/CodeGenStmt.cpp
 	src/codegen/CodeGenDecl.cpp
+	src/codegen/CodeGenNative.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})
