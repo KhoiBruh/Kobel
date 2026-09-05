@@ -36,6 +36,7 @@ add_executable(Kobel src/main.cpp)
 target_sources(Kobel
 	PUBLIC
 	FILE_SET CXX_MODULES FILES
+	src/ast/AST.cpp
 	src/lexer/Lexer.cpp
 	src/lexer/Token.cpp
 	src/lexer/TokenMap.cpp

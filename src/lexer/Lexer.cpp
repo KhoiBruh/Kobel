@@ -1,7 +1,9 @@
 module;
+
 #include <cctype>
 #include <vector>
 #include <string_view>
+
 export module lexer;
 
 import token;
