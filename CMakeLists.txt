@@ -32,6 +32,13 @@ llvm_map_components_to_libnames(llvm_libs
 	IRReader
 )
 
-add_executable(Kobel src/main.cpp)
+add_executable(
+	Kobel src/main.cpp
+
+	# Lexer
+	src/lexer/Lexer.cpp
+	src/lexer/Token.cpp
+
+)
 
 target_link_libraries(Kobel PRIVATE ${llvm_libs})
