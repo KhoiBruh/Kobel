@@ -17,6 +17,13 @@ export struct Lexer {
 		return cursor == src.size();
 	}
 
+	bool match(const char expected) {
+		if (is_end() || src[cursor] != expected) return false;
+		cursor++;
+		col++;
+		return true;
+	}
+
 	char peek() const {
 		if (is_end()) return '\0';
 		return src[cursor];
@@ -48,14 +55,19 @@ export struct Lexer {
 
 	// Token things
 
+	Token make_token(const TokenType type) const {
+		const auto text = src.substr(cursor - 1, 1);
+		return {type, text, line, col};
+	}
+
 	Token scan_identifier(const size_t start_cursor, const size_t start_col) {
 		const auto peek = peek();
 		while (std::isalnum(static_cast<unsigned char>(peek)) || peek == '_') next();
 
 		const auto text = src.substr(start_cursor, cursor - start_cursor);
-		const auto it = KEYWORD.find(text);
+		const auto it = KEYWORDS.find(text);
 
-		const auto type = it != KEYWORD.end() ? it->second : TokenType::IDENTIFIER;
+		const auto type = it != KEYWORDS.end() ? it->second : TokenType::IDENTIFIER;
 		return {type, text, line, start_col};
 	}
 
@@ -64,24 +76,96 @@ export struct Lexer {
 
 		if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
 
-		const size_t start = cursor;
-		const std::string_view sub = src.substr(cursor - 1, 1);
+		const auto start = cursor;
 		switch (const char c = next()) {
+			case ',':
+				return make_token(TokenType::COMMA);
+
+			case '.':
+				return make_token(TokenType::DOT);
+
+			case ':':
+				return make_token(TokenType::COLON);
+
+			case ';':
+				return make_token(TokenType::SEMI_COLON);
+
+			case '"':
+				return make_token(TokenType::DOUBLE_QUOTE);
+
+			case '?':
+				if (match(':')) return make_token(TokenType::QUESTION_COLON);
+				return make_token(TokenType::QUESTION);
+
 			case '{':
-				return {TokenType::OPEN_BRACE, "{", line, col};
+				return make_token(TokenType::OPEN_BRACE);
 
 			case '}':
-				return {TokenType::CLOSE_BRACE, "}", line, col};
+				return make_token(TokenType::CLOSE_BRACE);
 
 			case '(':
-				return {TokenType::OPEN_PAREN, sub, line, start};
+				return make_token(TokenType::OPEN_PAREN);
 
 			case ')':
-				return {TokenType::CLOSE_PAREN, sub, line, start};
+				return make_token(TokenType::CLOSE_PAREN);
+
+			case '[':
+				return make_token(TokenType::OPEN_BRACKET);
+
+			case ']':
+				return make_token(TokenType::CLOSE_BRACKET);
+
+			case '%':
+				return make_token(TokenType::PERCENT);
+
+			case '=':
+				if (match('=')) return make_token(TokenType::EQUAL_EQUAL);
+				if (match('>')) return make_token(TokenType::FAT_ARROW);
+				return make_token(TokenType::EQUAL);
+
+			case '-':
+				if (match('=')) return make_token(TokenType::MINUS_EQUAL);
+				if (match('-')) return make_token(TokenType::MINUS_MINUS);
+				if (match('>')) return make_token(TokenType::ARROW);
+				return make_token(TokenType::MINUS);
+
+			case '+':
+				if (match('=')) return make_token(TokenType::PLUS_EQUAL);
+				if (match('+')) return make_token(TokenType::PLUS_PLUS);
+				return make_token(TokenType::PLUS);
+
+			case '*':
+				if (match('=')) return make_token(TokenType::STAR_EQUAL);
+				return make_token(TokenType::STAR);
+
+			case '/':
+				if (match('=')) return make_token(TokenType::SLASH_SLASH);
+				if (match('=')) return make_token(TokenType::SLASH_EQUAL);
+				return make_token(TokenType::SLASH);
+
+			case '<':
+				if (match('=')) return make_token(TokenType::LESS_EQUAL);
+				return make_token(TokenType::LESS);
+
+			case '>':
+				if (match('=')) return make_token(TokenType::GREATER_EQUAL);
+				return make_token(TokenType::GREATER);
+
+			case '&':
+				if (match('&')) return make_token(TokenType::AND_AND);
+				return make_token(TokenType::UNKNOWN);
+
+			case '!':
+				if (match('=')) return make_token(TokenType::BANG_EQUAL);
+				return make_token(TokenType::BANG);
+
+			case '|':
+				if (match('|')) return make_token(TokenType::OR_OR);
+				return make_token(TokenType::UNKNOWN);
 
 			default:
-				if (std::isalpha(c) || c == '_') return scan_identifier(start);
-				return {TokenType::UNKNOWN, sub, line, start};
+				if (std::isalpha(c) || c == '_') return scan_identifier(start, col++);
+				return {TokenType::UNKNOWN, src.substr(cursor - 1, 1), line, start};
 		}
 	}
 

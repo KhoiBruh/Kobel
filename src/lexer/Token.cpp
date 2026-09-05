@@ -1,72 +1,82 @@
 export module token;
 
-import std;
+#include <string_view>
 
 export enum class TokenType {
 	// Single syntax
-	SEMI_COLON, // ;
-	COLON, // :
-	COMMA, // ,
-	DOT, // .
-	BANG, // !
-	AT_SIGN, // @
-	QUESTION, // ?
-	EQUAL, // =
-	PLUS, // +
-	MINUS, // -
-	STAR, // *
-	SLASH, // /
-	PERCENT, // %
-	GREATER, // >
-	LESS, // <
-	OPEN_BRACKET, CLOSE_BRACKET, // [ and ]
-	OPEN_PAREN, CLOSE_PAREN, // ( and )
-	OPEN_BRACE, CLOSE_BRACE, // { and }
+	SEMI_COLON,
+	COLON,
+	COMMA,
+	DOT,
+	BANG,
+	AT_SIGN,
+	QUESTION,
+	EQUAL,
+	PLUS,
+	MINUS,
+	STAR,
+	SLASH,
+	PERCENT,
+	GREATER,
+	LESS,
+	QUOTE,
+	DOUBLE_QUOTE,
+	OPEN_BRACKET,
+	CLOSE_BRACKET,
+	OPEN_PAREN,
+	CLOSE_PAREN,
+	OPEN_BRACE,
+	CLOSE_BRACE,
 
 	// Double syntax
-	// Expressions
-	ARROW, // ->
-	FAT_ARROW, // =>
-	// Logics
-	OR_OR, // ||
-	AND_AND, // &&
-	// Comparatives
-	EQUAL_EQUAL, // ==
-	NOT_EQUAL, // !=
-	GREATER_OR_EQUAL, // >=
-	LESS_OR_EQUAL, // <=
+	GREATER_EQUAL,
+	QUESTION_COLON,
+	LESS_EQUAL,
+	SLASH_SLASH,
+	SLASH_EQUAL,
+	MINUS_EQUAL,
+	MINUS_MINUS,
+	EQUAL_EQUAL,
+	PLUS_EQUAL,
+	STAR_EQUAL,
+	PLUS_PLUS,
+	BANG_EQUAL,
+	FAT_ARROW,
+	AND_AND,
+	OR_OR,
+	ARROW,
 
-	// Datas
-	CHAR, // 'a' 'A'
-	NUMBER, // 1 2 3 4...
-	STRING, // "Hello" "ABC"
+	// Literals
+	CHAR,
+	NUMBER,
+	STRING,
 	IDENTIFIER,
 
 	// Keywords
-	KW_EXTERN, // extern
-	KW_STRUCT, // struct
-	KW_TRAIT, // trait
-	KW_FAULT, // fault
-	KW_ENUM, // enum
-	KW_FN, // fn
+	KW_EXTERN,
+	KW_STRUCT,
+	KW_TRAIT,
+	KW_FAULT,
+	KW_ENUM,
+	KW_FN,
 
-	KW_RETURN, // return
-	KW_DEFER, // defer
-	KW_CONST, // const
-	KW_NULL, // null
-	KW_VAL, // val
-	KW_VAR, // var
-	KW_AS, // as
+	KW_RETURN,
+	KW_DEFER,
+	KW_CONST,
+	KW_NULL,
+	KW_VAL,
+	KW_VAR,
+	KW_AS,
 
-	KW_CONTINUE, // continue
-	KW_WHILE, // while
-	KW_BREAK, // break
-	KW_WHEN, // when
-	KW_LOOP, // loop
-	KW_ELSE, // else
-	KW_FOR, // for
-	KW_IN, // in
-	KW_IF, // if
+	KW_CONTINUE,
+	KW_WHILE,
+	KW_BREAK,
+	KW_WHEN,
+	KW_LOOP,
+	KW_ELSE,
+	KW_FOR,
+	KW_IN,
+	KW_IF,
 
 	// Specials
 	END_OF_FILE,
