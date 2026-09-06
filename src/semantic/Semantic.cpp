@@ -30,12 +30,12 @@ export enum class SemaType {
 export struct Semantic {
 	SemaType kind = SemaType::ERROR_TYPE;
 	std::shared_ptr<Semantic> pointee = nullptr; // nếu là POINTER
-	bool is_mut_pointer = false;                 // true cho &T, false cho *T
-	std::string struct_name;               // nếu là STRUCT
-	std::string enum_name;                 // nếu là ENUM
+	bool is_mut_pointer = false; // true cho &T, false cho *T
+	std::string struct_name; // nếu là STRUCT
+	std::string enum_name; // nếu là ENUM
 	std::shared_ptr<Semantic> underlying_type = nullptr; // nếu là ENUM
-	std::shared_ptr<Semantic> element_type = nullptr;    // nếu là ARRAY
-	size_t array_size = 0;                               // nếu là ARRAY
+	std::shared_ptr<Semantic> element_type = nullptr; // nếu là ARRAY
+	size_t array_size = 0; // nếu là ARRAY
 
 	static Semantic make_primitive(const SemaType k) {
 		Semantic t;
@@ -118,19 +118,15 @@ export struct Semantic {
 	bool is_enum() const { return kind == SemaType::ENUM; }
 	bool is_array() const { return kind == SemaType::ARRAY; }
 
-	bool equals(const Semantic& other) const {
+	bool equals(const Semantic &other) const {
 		if (kind == SemaType::ERROR_TYPE || other.kind == SemaType::ERROR_TYPE) return true;
 		if (kind != other.kind) return false;
 		if (kind == SemaType::POINTER) {
 			if (!pointee || !other.pointee) return false;
 			return pointee->equals(*other.pointee);
 		}
-		if (kind == SemaType::STRUCT) {
-			return struct_name == other.struct_name;
-		}
-		if (kind == SemaType::ENUM) {
-			return enum_name == other.enum_name;
-		}
+		if (kind == SemaType::STRUCT) return struct_name == other.struct_name;
+		if (kind == SemaType::ENUM) return enum_name == other.enum_name;
 		if (kind == SemaType::ARRAY) {
 			if (array_size != other.array_size) return false;
 			if (!element_type || !other.element_type) return false;
@@ -139,7 +135,7 @@ export struct Semantic {
 		return true;
 	}
 
-	bool can_assign_from(const Semantic& src) const {
+	bool can_assign_from(const Semantic &src) const {
 		if (kind == SemaType::ERROR_TYPE || src.kind == SemaType::ERROR_TYPE) return true;
 		// Con trỏ có thể nhận giá trị null
 		if (is_pointer() && src.is_null()) return true;
@@ -172,7 +168,8 @@ export struct Semantic {
 			case SemaType::STRUCT: return struct_name;
 			case SemaType::ENUM: return enum_name;
 			case SemaType::ARRAY:
-				return "Array<" + (element_type ? element_type->to_string() : "unknown") + ">(" + std::to_string(array_size) + ")";
+				return "Array<" + (element_type ? element_type->to_string() : "unknown") + ">(" +
+					std::to_string(array_size) + ")";
 			case SemaType::ERROR_TYPE: return "<error-type>";
 		}
 		return "<unknown>";

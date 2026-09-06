@@ -2,6 +2,7 @@ module;
 
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -18,19 +19,20 @@ import semantic;
 import semantic.symbol;
 
 export struct Analyzer {
-	DiagnosticEngine& logger;
+	DiagnosticEngine &logger;
 
 	std::unordered_map<std::string, FnSymbol> functions;
 	std::unordered_map<std::string, StructSymbol> structs;
 	std::unordered_map<std::string, EnumSymbol> enums;
 	std::unordered_map<std::string, ConstSymbol> constants;
-	std::unordered_map<const Expr*, Semantic> expr_types;
+	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
 	std::optional<Semantic> current_function_return_type;
 	int loop_depth = 0;
 
-	explicit Analyzer(DiagnosticEngine& log) : logger(log) {}
+	explicit Analyzer(DiagnosticEngine &log) : logger(log) {
+	}
 
 	// Scope helpers
 	void enter_scope() {
@@ -41,16 +43,14 @@ export struct Analyzer {
 		if (!scopes.empty()) scopes.pop_back();
 	}
 
-	Scope& current_scope() {
+	Scope &current_scope() {
 		return scopes.back();
 	}
 
-	VarSymbol* lookup_variable(const std::string_view name) {
-		for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-			auto found = it->variables.find(std::string(name));
-			if (found != it->variables.end()) {
-				return &found->second;
-			}
+	VarSymbol *lookup_variable(const std::string_view name) {
+		for (auto &scope: std::views::reverse(scopes)) {
+			auto found = scope.variables.find(std::string(name));
+			if (found != scope.variables.end()) return &found->second;
 		}
 		return nullptr;
 	}
@@ -59,11 +59,11 @@ export struct Analyzer {
 	// Ánh xạ TypeNode (AST) -> Semantic (Semantic)
 	// ========================================================================
 
-	Semantic resolve_type(const TypeNode* node) {
+	Semantic resolve_type(const TypeNode *node) {
 		if (!node) return Semantic::make_primitive(SemaType::VOID);
 
 		if (isa<NamedType>(node)) {
-			const auto* named = as<NamedType>(node);
+			const auto *named = as<NamedType>(node);
 			const auto name = named->name;
 
 			if (name == "i8") return Semantic::make_primitive(SemaType::I8);
@@ -83,29 +83,31 @@ export struct Analyzer {
 			if (name == "void") return Semantic::make_primitive(SemaType::VOID);
 
 			// Kiểm tra struct đã khai báo
-			auto it = structs.find(std::string(name));
-			if (it != structs.end()) {
+			if (
+				const auto it = structs.find(std::string(name));
+				it != structs.end()
+			)
 				return Semantic::make_struct(name);
-			}
 
 			// Kiểm tra enum đã khai báo
-			auto it_enum = enums.find(std::string(name));
-			if (it_enum != enums.end()) {
+			if (
+				const auto it_enum = enums.find(std::string(name));
+				it_enum != enums.end()
+			)
 				return Semantic::make_enum(name, it_enum->second.underlying_type);
-			}
 
 			logger.error(node->line, node->col, "Không tìm thấy kiểu dữ liệu '" + std::string(name) + "'");
 			return Semantic::make_error();
 		}
 
 		if (isa<PointerType>(node)) {
-			const auto* ptr = as<PointerType>(node);
+			const auto *ptr = as<PointerType>(node);
 			auto pointee_type = resolve_type(ptr->pointee.get());
 			return Semantic::make_pointer(std::move(pointee_type), ptr->is_mut);
 		}
 
 		if (isa<ArrayType>(node)) {
-			const auto* arr = as<ArrayType>(node);
+			const auto *arr = as<ArrayType>(node);
 			auto elem_type = resolve_type(arr->element_type.get());
 			return Semantic::make_array(std::move(elem_type), arr->size);
 		}
@@ -118,36 +120,35 @@ export struct Analyzer {
 	// Pass 1: Đăng ký Khai báo Top-Level (Hoisting)
 	// ========================================================================
 
-	void pass1_register_declarations(const Program* program) {
+	void pass1_register_declarations(const Program *program) {
 		// 1. Đăng ký các Struct
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl.get())) {
-				const auto* st = as<StructDecl>(decl.get());
-				const std::string name = std::string(st->name);
+				const auto *st = as<StructDecl>(decl.get());
+				const auto name = std::string(st->name);
 
 				if (structs.contains(name)) {
 					logger.error(st->line, st->col, "Trùng lặp khai báo struct '" + name + "'");
 					continue;
 				}
 
-				StructSymbol sym;
-				sym.name = name;
-				sym.line = st->line;
-				sym.col = st->col;
+				StructSymbol sym = {.name = name, .line = st->line, .col = st->col};
 				structs[name] = sym;
 			}
 		}
 
 		// Sau khi có tên struct, đăng ký các trường của struct
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl.get())) {
-				const auto* st = as<StructDecl>(decl.get());
-				auto& sym = structs[std::string(st->name)];
+				const auto *st = as<StructDecl>(decl.get());
+				auto &sym = structs[std::string(st->name)];
 
-				for (const auto& f : st->fields) {
-					std::string f_name = std::string(f.name);
+				for (const auto &f: st->fields) {
+					auto f_name = std::string(f.name);
 					if (sym.field_types.contains(f_name)) {
-						logger.error(st->line, st->col, "Trùng lặp trường '" + f_name + "' trong struct '" + sym.name + "'");
+						logger.error(
+							st->line, st->col, "Trùng lặp trường '" + f_name + "' trong struct '" + sym.name + "'"
+						);
 						continue;
 					}
 					auto f_type = resolve_type(f.type.get());
@@ -155,35 +156,41 @@ export struct Analyzer {
 					sym.field_order.push_back(f_name);
 				}
 
-				for (const auto& method : st->methods) {
-					std::string m_name = std::string(method->name);
+				for (const auto &method: st->methods) {
+					auto m_name = std::string(method->name);
 					if (sym.methods.contains(m_name) || sym.field_types.contains(m_name)) {
-						logger.error(method->line, method->col, "Trùng lặp phương thức hoặc trường '" + m_name + "' trong struct '" + sym.name + "'");
+						logger.error(
+							method->line, method->col,
+							"Trùng lặp phương thức hoặc trường '" + m_name + "' trong struct '" + sym.name + "'"
+						);
 						continue;
 					}
 
 					std::string mangled_name = sym.name + "_" + m_name;
-					FnSymbol fn_sym;
-					fn_sym.name = mangled_name;
-					fn_sym.return_type = resolve_type(method->return_type.get());
-					fn_sym.line = method->line;
-					fn_sym.col = method->col;
+					FnSymbol fn_sym = {
+						.name = mangled_name,
+						.return_type = resolve_type(method->return_type.get()),
+						.line = st->line,
+						.col = st->col
+					};
 
-					for (const auto& p : method->params) {
+					for (const auto &p: method->params) {
 						fn_sym.param_names.push_back(std::string(p.name));
 						if (p.name == "self") {
 							if (p.type) {
 								fn_sym.param_types.push_back(resolve_type(p.type.get()));
 							} else if (p.is_mut) {
-								fn_sym.param_types.push_back(Semantic::make_pointer(Semantic::make_struct(sym.name), true));
+								fn_sym.param_types.push_back(
+									Semantic::make_pointer(Semantic::make_struct(sym.name), true)
+								);
 							} else if (p.has_val) {
-								fn_sym.param_types.push_back(Semantic::make_pointer(Semantic::make_struct(sym.name), false));
+								fn_sym.param_types.push_back(
+									Semantic::make_pointer(Semantic::make_struct(sym.name), false)
+								);
 							} else {
 								fn_sym.param_types.push_back(Semantic::make_struct(sym.name));
 							}
-						} else {
-							fn_sym.param_types.push_back(resolve_type(p.type.get()));
-						}
+						} else fn_sym.param_types.push_back(resolve_type(p.type.get()));
 					}
 
 					sym.methods[m_name] = fn_sym;
@@ -193,10 +200,10 @@ export struct Analyzer {
 		}
 
 		// 2. Đăng ký các Enum
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<EnumDecl>(decl.get())) {
-				const auto* e = as<EnumDecl>(decl.get());
-				const std::string name = std::string(e->name);
+				const auto *e = as<EnumDecl>(decl.get());
+				const auto name = std::string(e->name);
 
 				if (enums.contains(name) || structs.contains(name)) {
 					logger.error(e->line, e->col, "Trùng lặp tên kiểu '" + name + "'");
@@ -206,8 +213,8 @@ export struct Analyzer {
 				EnumSymbol sym;
 				sym.name = name;
 				sym.underlying_type = e->underlying_type
-					? resolve_type(e->underlying_type.get())
-					: Semantic::make_primitive(SemaType::I32);
+					                      ? resolve_type(e->underlying_type.get())
+					                      : Semantic::make_primitive(SemaType::I32);
 				sym.line = e->line;
 				sym.col = e->col;
 
@@ -217,8 +224,8 @@ export struct Analyzer {
 				}
 
 				int64_t next_value = 0;
-				for (const auto& m : e->members) {
-					std::string m_name = std::string(m.name);
+				for (const auto &m: e->members) {
+					auto m_name = std::string(m.name);
 					if (sym.member_values.contains(m_name)) {
 						logger.error(m.line, m.col, "Trùng lặp thành viên '" + m_name + "' trong enum '" + name + "'");
 						continue;
@@ -226,8 +233,10 @@ export struct Analyzer {
 
 					if (m.value) {
 						if (isa<LiteralExpr>(m.value.get())) {
-							const auto* lit = as<LiteralExpr>(m.value.get());
-							if (lit->literal_kind == LiteralKind::INT) {
+							if (
+								const auto *lit = as<LiteralExpr>(m.value.get());
+								lit->literal_kind == LiteralKind::INT
+							) {
 								try {
 									next_value = std::stoll(std::string(lit->raw_text), nullptr, 0);
 								} catch (...) {
@@ -250,53 +259,51 @@ export struct Analyzer {
 		}
 
 		// 3. Đăng ký các Hằng số
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<ConstDecl>(decl.get())) {
-				const auto* c = as<ConstDecl>(decl.get());
-				const std::string name = std::string(c->name);
+				const auto *c = as<ConstDecl>(decl.get());
+				const auto name = std::string(c->name);
 
 				if (constants.contains(name)) {
 					logger.error(c->line, c->col, "Trùng lặp khai báo hằng số '" + name + "'");
 					continue;
 				}
 
-				ConstSymbol sym;
-				sym.name = name;
-				sym.type = resolve_type(c->type.get());
-				sym.line = c->line;
-				sym.col = c->col;
+				ConstSymbol sym = {name, resolve_type(c->type.get()), c->line, c->col};
 				constants[name] = sym;
 			}
 		}
 
 		// 3. Đăng ký Hàm (bao gồm cả khối extern)
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
 				register_function(as<FnDecl>(decl.get()));
 			} else if (isa<ExternBlock>(decl.get())) {
-				const auto* ext = as<ExternBlock>(decl.get());
-				for (const auto& fn : ext->declarations) {
+				for (
+					const auto *ext = as<ExternBlock>(decl.get());
+					const auto &fn: ext->declarations
+				)
 					register_function(fn.get());
-				}
 			}
 		}
 	}
 
-	void register_function(const FnDecl* fn) {
-		const std::string name = std::string(fn->name);
+	void register_function(const FnDecl *fn) {
+		const auto name = std::string(fn->name);
 
 		if (functions.contains(name)) {
 			logger.error(fn->line, fn->col, "Trùng lặp khai báo hàm '" + name + "'");
 			return;
 		}
 
-		FnSymbol sym;
-		sym.name = name;
-		sym.return_type = resolve_type(fn->return_type.get());
-		sym.line = fn->line;
-		sym.col = fn->col;
+		FnSymbol sym = {
+			.name = name,
+			.return_type = resolve_type(fn->return_type.get()),
+			.line = fn->line,
+			.col = fn->col
+		};
 
-		for (const auto& p : fn->params) {
+		for (const auto &p: fn->params) {
 			sym.param_names.push_back(std::string(p.name));
 			sym.param_types.push_back(resolve_type(p.type.get()));
 		}
@@ -308,32 +315,37 @@ export struct Analyzer {
 	// Pass 2: Kiểm tra Ngữ nghĩa & Kiểu Thân Hàm (Type Checking)
 	// ========================================================================
 
-	void pass2_check_declarations(const Program* program) {
-		for (const auto& decl : program->declarations) {
+	void pass2_check_declarations(const Program *program) {
+		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
 				check_function(as<FnDecl>(decl.get()), std::string(as<FnDecl>(decl.get())->name));
 			} else if (isa<StructDecl>(decl.get())) {
-				const auto* st = as<StructDecl>(decl.get());
-				for (const auto& method : st->methods) {
-					std::string mangled = std::string(st->name) + "_" + std::string(method->name);
+				for (
+					const auto *st = as<StructDecl>(decl.get());
+					const auto &method: st->methods
+				) {
+					auto mangled = std::string(st->name) + "_" + std::string(method->name);
 					check_function(method.get(), mangled);
 				}
 			} else if (isa<ConstDecl>(decl.get())) {
-				const auto* c = as<ConstDecl>(decl.get());
+				const auto *c = as<ConstDecl>(decl.get());
 				auto val_type = analyze_expr(c->value.get());
-				auto expected_type = constants[std::string(c->name)].type;
-				if (!expected_type.can_assign_from(val_type)) {
-					logger.error(c->line, c->col, "Giá trị khởi tạo hằng số không khớp kiểu: mong đợi '" +
-					             expected_type.to_string() + "', gặp '" + val_type.to_string() + "'");
-				}
+				if (
+					auto expected_type = constants[std::string(c->name)].type;
+					!expected_type.can_assign_from(val_type)
+				)
+					logger.error(
+						c->line, c->col, "Giá trị khởi tạo hằng số không khớp kiểu: mong đợi '" +
+						                 expected_type.to_string() + "', gặp '" + val_type.to_string() + "'"
+					);
 			}
 		}
 	}
 
-	void check_function(const FnDecl* fn, const std::string& fn_lookup_name) {
+	void check_function(const FnDecl *fn, const std::string &fn_lookup_name) {
 		if (!fn->body) return; // Hàm prototype không có thân
 
-		const auto& sym = functions[fn_lookup_name];
+		const auto &sym = functions[fn_lookup_name];
 		current_function_return_type = sym.return_type;
 
 		enter_scope(); // Scope mức hàm
@@ -350,7 +362,7 @@ export struct Analyzer {
 		}
 
 		// Duyệt các câu lệnh trong thân hàm
-		for (const auto& stmt : fn->body->statements) {
+		for (const auto &stmt: fn->body->statements) {
 			analyze_stmt(stmt.get());
 		}
 
@@ -362,13 +374,13 @@ export struct Analyzer {
 	// Thẩm định Câu lệnh (Statements)
 	// ========================================================================
 
-	void analyze_stmt(const Stmt* stmt) {
+	void analyze_stmt(const Stmt *stmt) {
 		if (!stmt) return;
 
 		// 1. Khai báo biến: val / var
 		if (isa<VarDeclStmt>(stmt)) {
-			const auto* v = as<VarDeclStmt>(stmt);
-			const std::string name = std::string(v->name);
+			const auto *v = as<VarDeclStmt>(stmt);
+			const auto name = std::string(v->name);
 
 			// Quy tắc 2: Bắt buộc ghi kiểu tường minh
 			if (!v->type_annotation) {
@@ -393,8 +405,11 @@ export struct Analyzer {
 				}
 
 				if (!declared_type.can_assign_from(init_type)) {
-					logger.error(v->line, v->col, "Không thể khởi tạo biến '" + name + "' kiểu '" +
-					             declared_type.to_string() + "' bằng giá trị kiểu '" + init_type.to_string() + "'");
+					logger.error(
+						v->line, v->col, "Không thể khởi tạo biến '" + name + "' kiểu '" +
+						                 declared_type.to_string() + "' bằng giá trị kiểu '" + init_type.to_string() +
+						                 "'"
+					);
 				}
 			}
 
@@ -404,21 +419,16 @@ export struct Analyzer {
 				return;
 			}
 
-			VarSymbol sym;
-			sym.name = name;
-			sym.type = declared_type;
-			sym.is_mut = v->is_mut;
-			sym.line = v->line;
-			sym.col = v->col;
+			VarSymbol sym = {name, declared_type, v->is_mut, v->line, v->col};
 			current_scope().variables[name] = sym;
 			return;
 		}
 
 		// 2. Khối lệnh: { ... }
 		if (isa<BlockStmt>(stmt)) {
-			const auto* b = as<BlockStmt>(stmt);
+			const auto *b = as<BlockStmt>(stmt);
 			enter_scope();
-			for (const auto& s : b->statements) {
+			for (const auto &s: b->statements) {
 				analyze_stmt(s.get());
 			}
 			exit_scope();
@@ -427,25 +437,30 @@ export struct Analyzer {
 
 		// 3. Câu lệnh if: if (cond) { ... } else { ... }
 		if (isa<IfStmt>(stmt)) {
-			const auto* i = as<IfStmt>(stmt);
-			auto cond_type = analyze_expr(i->condition.get());
-			if (!cond_type.is_bool() && !cond_type.is_error()) {
-				logger.error(i->line, i->col, "Điều kiện if phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'");
-			}
+			const auto *i = as<IfStmt>(stmt);
+			if (
+				auto cond_type = analyze_expr(i->condition.get());
+				!cond_type.is_bool() && !cond_type.is_error()
+			)
+				logger.error(
+					i->line, i->col,
+					"Điều kiện if phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'"
+				);
 			analyze_stmt(i->then_branch.get());
-			if (i->else_branch) {
-				analyze_stmt(i->else_branch.get());
-			}
+			if (i->else_branch) analyze_stmt(i->else_branch.get());
 			return;
 		}
 
 		// 4. Vòng lặp while: while (cond) { ... }
 		if (isa<WhileStmt>(stmt)) {
-			const auto* w = as<WhileStmt>(stmt);
-			auto cond_type = analyze_expr(w->condition.get());
-			if (!cond_type.is_bool() && !cond_type.is_error()) {
-				logger.error(w->line, w->col, "Điều kiện while phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'");
-			}
+			const auto *w = as<WhileStmt>(stmt);
+			if (
+				auto cond_type = analyze_expr(w->condition.get());
+				!cond_type.is_bool() && !cond_type.is_error()
+			)
+				logger.error(
+					w->line, w->col, "Điều kiện while phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'"
+				);
 			loop_depth++;
 			analyze_stmt(w->body.get());
 			loop_depth--;
@@ -454,7 +469,7 @@ export struct Analyzer {
 
 		// 5. Câu lệnh return: return expr;
 		if (isa<ReturnStmt>(stmt)) {
-			const auto* r = as<ReturnStmt>(stmt);
+			const auto *r = as<ReturnStmt>(stmt);
 			if (!current_function_return_type.has_value()) {
 				logger.error(r->line, r->col, "Lệnh 'return' chỉ hợp lệ bên trong thân hàm");
 				return;
@@ -462,33 +477,39 @@ export struct Analyzer {
 
 			const auto expected = current_function_return_type.value();
 			if (r->value) {
-				auto val_type = analyze_expr(r->value.get());
-				if (!expected.can_assign_from(val_type)) {
-					logger.error(r->line, r->col, "Kiểu giá trị trả về '" + val_type.to_string() +
-					             "' không khớp với kiểu hàm mong đợi '" + expected.to_string() + "'");
-				}
-			} else {
-				if (!expected.is_void()) {
-					logger.error(r->line, r->col, "Hàm mong đợi trả về kiểu '" + expected.to_string() +
-					             "', không được dùng lệnh return rỗng");
-				}
-			}
+				if (
+					auto val_type = analyze_expr(r->value.get());
+					!expected.can_assign_from(val_type)
+				)
+					logger.error(
+						r->line, r->col,
+						"Kiểu giá trị trả về '" + val_type.to_string() +
+						"' không khớp với kiểu hàm mong đợi '" + expected.to_string() + "'"
+					);
+			} else if (!expected.is_void())
+				logger.error(
+					r->line, r->col,
+					"Hàm mong đợi trả về kiểu '" + expected.to_string() +
+					"', không được dùng lệnh return rỗng"
+				);
 			return;
 		}
 
 		// 6. Break & Continue
 		if (isa<BreakStmt>(stmt) || isa<ContinueStmt>(stmt)) {
 			if (loop_depth <= 0) {
-				logger.error(stmt->line, stmt->col, "Lệnh 'break'/'continue' chỉ được phép nằm bên trong vòng lặp while");
+				logger.error(
+					stmt->line, stmt->col,
+					"Lệnh 'break'/'continue' chỉ được phép nằm bên trong vòng lặp while"
+				);
 			}
 			return;
 		}
 
 		// 7. Câu lệnh biểu thức: expr;
 		if (isa<ExprStmt>(stmt)) {
-			const auto* e = as<ExprStmt>(stmt);
+			const auto *e = as<ExprStmt>(stmt);
 			analyze_expr(e->expr.get());
-			return;
 		}
 	}
 
@@ -496,17 +517,17 @@ export struct Analyzer {
 	// Thẩm định Biểu thức (Expressions) & Trả về Kiểu Ngữ nghĩa
 	// ========================================================================
 
-	Semantic compute_expr_type(const Expr* expr) {
+	Semantic compute_expr_type(const Expr *expr) {
 		if (!expr) return Semantic::make_error();
 
 		// 1. Literal
 		if (isa<LiteralExpr>(expr)) {
-			const auto* lit = as<LiteralExpr>(expr);
-			switch (lit->literal_kind) {
+			switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
 				case LiteralKind::INT: return Semantic::make_primitive(SemaType::I32); // mặc định int là i32
 				case LiteralKind::BOOL: return Semantic::make_primitive(SemaType::BOOL);
 				case LiteralKind::CHAR: return Semantic::make_primitive(SemaType::CHAR);
-				case LiteralKind::STRING: return Semantic::make_pointer(Semantic::make_primitive(SemaType::CHAR)); // *char
+				case LiteralKind::STRING: return Semantic::make_pointer(Semantic::make_primitive(SemaType::CHAR));
+				// *char
 				case LiteralKind::NULL_VAL: return Semantic::make_null();
 				default: return Semantic::make_error();
 			}
@@ -514,7 +535,7 @@ export struct Analyzer {
 
 		// Literal mảng: [expr1, expr2, ...]
 		if (isa<ArrayLiteralExpr>(expr)) {
-			const auto* arr_lit = as<ArrayLiteralExpr>(expr);
+			const auto *arr_lit = as<ArrayLiteralExpr>(expr);
 			if (arr_lit->elements.empty()) {
 				logger.error(arr_lit->line, arr_lit->col, "Literal mảng không được để rỗng");
 				return Semantic::make_error();
@@ -522,11 +543,15 @@ export struct Analyzer {
 
 			auto first_elem_type = analyze_expr(arr_lit->elements[0].get());
 			for (size_t i = 1; i < arr_lit->elements.size(); ++i) {
-				auto elem_type = analyze_expr(arr_lit->elements[i].get());
-				if (!first_elem_type.equals(elem_type)) {
-					logger.error(arr_lit->elements[i]->line, arr_lit->elements[i]->col,
-					             "Các phần tử trong mảng phải có cùng kiểu dữ liệu: mong đợi '" +
-					             first_elem_type.to_string() + "', nhận được '" + elem_type.to_string() + "'");
+				if (
+					auto elem_type = analyze_expr(arr_lit->elements[i].get());
+					!first_elem_type.equals(elem_type)
+				) {
+					logger.error(
+						arr_lit->elements[i]->line, arr_lit->elements[i]->col,
+						"Các phần tử trong mảng phải có cùng kiểu dữ liệu: mong đợi '" +
+						first_elem_type.to_string() + "', nhận được '" + elem_type.to_string() + "'"
+					);
 					return Semantic::make_error();
 				}
 			}
@@ -536,19 +561,18 @@ export struct Analyzer {
 
 		// 2. Biến / Định danh
 		if (isa<IdentifierExpr>(expr)) {
-			const auto* id = as<IdentifierExpr>(expr);
+			const auto *id = as<IdentifierExpr>(expr);
 			const auto name = id->name;
 
 			// Tra cứu biến cục bộ / tham số
-			if (auto* var = lookup_variable(name)) {
-				return var->type;
-			}
+			if (auto *var = lookup_variable(name)) return var->type;
 
 			// Tra cứu hằng số
-			auto it_c = constants.find(std::string(name));
-			if (it_c != constants.end()) {
+			if (
+				auto it_c = constants.find(std::string(name));
+				it_c != constants.end()
+			)
 				return it_c->second.type;
-			}
 
 			logger.error(id->line, id->col, "Biến hoặc định danh '" + std::string(name) + "' chưa được khai báo");
 			return Semantic::make_error();
@@ -556,24 +580,26 @@ export struct Analyzer {
 
 		// 3. Phép gán: target = value
 		if (isa<AssignExpr>(expr)) {
-			const auto* a = as<AssignExpr>(expr);
+			const auto *a = as<AssignExpr>(expr);
 
 			// Kiểm tra lvalue và tính bất biến (Quy tắc 4)
 			Semantic target_type = Semantic::make_error();
 			if (isa<IdentifierExpr>(a->target.get())) {
-				const auto* id = as<IdentifierExpr>(a->target.get());
-				auto* var = lookup_variable(id->name);
+				const auto *id = as<IdentifierExpr>(a->target.get());
+				auto *var = lookup_variable(id->name);
 				if (!var) {
 					logger.error(id->line, id->col, "Biến '" + std::string(id->name) + "' chưa được khai báo");
 					return Semantic::make_error();
 				}
 				if (!var->is_mut) {
-					logger.error(a->line, a->col, "Không thể gán lại biến bất biến '" + std::string(id->name) +
-					             "' được khai báo bằng 'val'");
+					logger.error(
+						a->line, a->col, "Không thể gán lại biến bất biến '" + std::string(id->name) +
+						                 "' được khai báo bằng 'val'"
+					);
 					return Semantic::make_error();
 				}
 			} else if (isa<MemberExpr>(a->target.get())) {
-				const auto* m = as<MemberExpr>(a->target.get());
+				const auto *m = as<MemberExpr>(a->target.get());
 				auto obj_type = analyze_expr(m->object.get());
 				if (obj_type.is_enum() && m->member == "value") {
 					logger.error(a->line, a->col, "Không thể gán giá trị cho thuộc tính chỉ đọc '.value' của enum");
@@ -597,18 +623,21 @@ export struct Analyzer {
 				return Semantic::make_error();
 			}
 
-			auto val_type = analyze_expr(a->value.get());
-			if (!target_type.can_assign_from(val_type)) {
-				logger.error(a->line, a->col, "Không thể gán giá trị kiểu '" + val_type.to_string() +
-				             "' cho đích kiểu '" + target_type.to_string() + "'");
-			}
+			if (
+				auto val_type = analyze_expr(a->value.get());
+				!target_type.can_assign_from(val_type)
+			)
+				logger.error(
+					a->line, a->col, "Không thể gán giá trị kiểu '" + val_type.to_string() +
+					                 "' cho đích kiểu '" + target_type.to_string() + "'"
+				);
 
 			return target_type;
 		}
 
 		// 4. Biểu thức Nhị phân: left op right
 		if (isa<BinaryExpr>(expr)) {
-			const auto* b = as<BinaryExpr>(expr);
+			const auto *b = as<BinaryExpr>(expr);
 			auto left_type = analyze_expr(b->left.get());
 			auto right_type = analyze_expr(b->right.get());
 
@@ -627,9 +656,11 @@ export struct Analyzer {
 					}
 					// Quy tắc 3: Bắt buộc ép kiểu tường minh, không implicit widening
 					if (!left_type.equals(right_type)) {
-						logger.error(b->line, b->col, "Không khớp kiểu trong phép toán số học: '" +
-						             left_type.to_string() + "' và '" + right_type.to_string() +
-						             "'. Cần dùng 'as' để ép kiểu tường minh.");
+						logger.error(
+							b->line, b->col, "Không khớp kiểu trong phép toán số học: '" +
+							                 left_type.to_string() + "' và '" + right_type.to_string() +
+							                 "'. Cần dùng 'as' để ép kiểu tường minh."
+						);
 						return Semantic::make_error();
 					}
 					return left_type;
@@ -645,8 +676,10 @@ export struct Analyzer {
 						return Semantic::make_error();
 					}
 					if (!left_type.equals(right_type)) {
-						logger.error(b->line, b->col, "Không khớp kiểu trong phép so sánh: '" +
-						             left_type.to_string() + "' và '" + right_type.to_string() + "'");
+						logger.error(
+							b->line, b->col, "Không khớp kiểu trong phép so sánh: '" +
+							                 left_type.to_string() + "' và '" + right_type.to_string() + "'"
+						);
 						return Semantic::make_error();
 					}
 					return Semantic::make_primitive(SemaType::BOOL);
@@ -658,8 +691,10 @@ export struct Analyzer {
 					if (left_type.is_pointer() && right_type.is_null()) return Semantic::make_primitive(SemaType::BOOL);
 					if (left_type.is_null() && right_type.is_pointer()) return Semantic::make_primitive(SemaType::BOOL);
 					if (!left_type.equals(right_type)) {
-						logger.error(b->line, b->col, "Không thể so sánh giữa 2 kiểu khác nhau: '" +
-						             left_type.to_string() + "' và '" + right_type.to_string() + "'");
+						logger.error(
+							b->line, b->col, "Không thể so sánh giữa 2 kiểu khác nhau: '" +
+							                 left_type.to_string() + "' và '" + right_type.to_string() + "'"
+						);
 						return Semantic::make_error();
 					}
 					return Semantic::make_primitive(SemaType::BOOL);
@@ -682,7 +717,7 @@ export struct Analyzer {
 
 		// 5. Toán tử Một ngôi (-x, !x, *ptr)
 		if (isa<UnaryExpr>(expr)) {
-			const auto* u = as<UnaryExpr>(expr);
+			const auto *u = as<UnaryExpr>(expr);
 			auto operand_type = analyze_expr(u->operand.get());
 			if (operand_type.is_error()) return Semantic::make_error();
 
@@ -715,7 +750,7 @@ export struct Analyzer {
 
 		// 6. Ép kiểu: expr as TargetType
 		if (isa<CastExpr>(expr)) {
-			const auto* c = as<CastExpr>(expr);
+			const auto *c = as<CastExpr>(expr);
 			auto src_type = analyze_expr(c->expr.get());
 			auto target_type = resolve_type(c->target_type.get());
 
@@ -729,19 +764,22 @@ export struct Analyzer {
 			const bool is_int_to_int = src_type.is_integer() && target_type.is_integer();
 			const bool is_ptr_to_ptr = src_type.is_pointer() && target_type.is_pointer();
 			const bool is_int_ptr_mix = (src_type.is_integer() && target_type.is_pointer()) ||
-			                           (src_type.is_pointer() && target_type.is_integer());
+			                            (src_type.is_pointer() && target_type.is_integer());
 			const bool is_char_int_mix = (src_type.is_char() && target_type.is_integer()) ||
-			                            (src_type.is_integer() && target_type.is_char());
+			                             (src_type.is_integer() && target_type.is_char());
 			const bool is_enum_int_mix = (src_type.is_enum() && target_type.is_integer()) ||
-			                            (src_type.is_integer() && target_type.is_enum()) ||
-			                            (src_type.is_enum() && target_type.is_enum() && src_type.equals(target_type));
+			                             (src_type.is_integer() && target_type.is_enum()) ||
+			                             (src_type.is_enum() && target_type.is_enum() && src_type.equals(target_type));
 			const bool is_array_to_ptr = src_type.is_array() && target_type.is_pointer() &&
-			                            src_type.element_type && target_type.pointee &&
-			                            src_type.element_type->equals(*target_type.pointee);
+			                             src_type.element_type && target_type.pointee &&
+			                             src_type.element_type->equals(*target_type.pointee);
 
-			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix && !is_array_to_ptr) {
-				logger.error(c->line, c->col, "Không thể ép kiểu từ '" + src_type.to_string() +
-				             "' sang '" + target_type.to_string() + "'");
+			if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix && !
+			    is_array_to_ptr) {
+				logger.error(
+					c->line, c->col, "Không thể ép kiểu từ '" + src_type.to_string() +
+					                 "' sang '" + target_type.to_string() + "'"
+				);
 				return Semantic::make_error();
 			}
 
@@ -750,32 +788,37 @@ export struct Analyzer {
 
 		// 7. Lệnh gọi hàm, khởi tạo struct hoặc gọi phương thức: callee(args...)
 		if (isa<CallExpr>(expr)) {
-			const auto* c = as<CallExpr>(expr);
+			const auto *c = as<CallExpr>(expr);
 
 			// 7a. Khởi tạo struct hoặc gọi hàm trực tiếp: Name(args...)
 			if (isa<IdentifierExpr>(c->callee.get())) {
 				const auto callee_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
 
 				// Khởi tạo struct: Point(10, 20)
-				auto it_st = structs.find(callee_name);
-				if (it_st != structs.end()) {
-					const auto& st_sym = it_st->second;
+				if (auto it_st = structs.find(callee_name); it_st != structs.end()) {
+					const auto &st_sym = it_st->second;
 					if (c->args.size() != st_sym.field_order.size()) {
-						logger.error(c->line, c->col, "Khởi tạo struct '" + callee_name + "' mong đợi " +
-						             std::to_string(st_sym.field_order.size()) + " đối số, nhưng nhận được " +
-						             std::to_string(c->args.size()));
+						logger.error(
+							c->line, c->col, "Khởi tạo struct '" + callee_name + "' mong đợi " +
+							                 std::to_string(st_sym.field_order.size()) + " đối số, nhưng nhận được " +
+							                 std::to_string(c->args.size())
+						);
 						return Semantic::make_struct(callee_name);
 					}
 
 					for (size_t i = 0; i < c->args.size(); ++i) {
 						auto arg_type = analyze_expr(c->args[i].get());
-						const auto& field_name = st_sym.field_order[i];
-						const auto& expected_type = st_sym.field_types.at(field_name);
-						if (!expected_type.can_assign_from(arg_type)) {
-							logger.error(c->line, c->col, "Trường '" + field_name + "' của struct '" +
-							             callee_name + "' không khớp kiểu: mong đợi '" +
-							             expected_type.to_string() + "', nhận được '" + arg_type.to_string() + "'");
-						}
+						const auto &field_name = st_sym.field_order[i];
+						if (
+							const auto &expected_type = st_sym.field_types.at(field_name);
+							!expected_type.can_assign_from(arg_type)
+						)
+							logger.error(
+								c->line, c->col, "Trường '" + field_name + "' của struct '" +
+								                 callee_name + "' không khớp kiểu: mong đợi '" +
+								                 expected_type.to_string() + "', nhận được '" + arg_type.to_string() +
+								                 "'"
+							);
 					}
 					return Semantic::make_struct(callee_name);
 				}
@@ -787,20 +830,27 @@ export struct Analyzer {
 					return Semantic::make_error();
 				}
 
-				const auto& fn_sym = it->second;
+				const auto &fn_sym = it->second;
 				if (c->args.size() != fn_sym.param_types.size()) {
-					logger.error(c->line, c->col, "Hàm '" + callee_name + "' mong đợi " +
-					             std::to_string(fn_sym.param_types.size()) + " đối số, nhưng nhận được " +
-					             std::to_string(c->args.size()));
+					logger.error(
+						c->line, c->col, "Hàm '" + callee_name + "' mong đợi " +
+						                 std::to_string(fn_sym.param_types.size()) + " đối số, nhưng nhận được " +
+						                 std::to_string(c->args.size())
+					);
 					return fn_sym.return_type;
 				}
 
 				for (size_t i = 0; i < c->args.size(); ++i) {
-					auto arg_type = analyze_expr(c->args[i].get());
-					if (!fn_sym.param_types[i].can_assign_from(arg_type)) {
-						logger.error(c->line, c->col, "Đối số " + std::to_string(i + 1) + " của hàm '" +
-						             callee_name + "' không khớp kiểu: mong đợi '" +
-						             fn_sym.param_types[i].to_string() + "', nhận được '" + arg_type.to_string() + "'");
+					if (
+						auto arg_type = analyze_expr(c->args[i].get());
+						!fn_sym.param_types[i].can_assign_from(arg_type)
+					) {
+						logger.error(
+							c->line, c->col, "Đối số " + std::to_string(i + 1) + " của hàm '" +
+							                 callee_name + "' không khớp kiểu: mong đợi '" +
+							                 fn_sym.param_types[i].to_string() + "', nhận được '" + arg_type.to_string()
+							                 + "'"
+						);
 					}
 				}
 
@@ -809,7 +859,7 @@ export struct Analyzer {
 
 			// 7b. Gọi phương thức: object.method(args...)
 			if (isa<MemberExpr>(c->callee.get())) {
-				const auto* m = as<MemberExpr>(c->callee.get());
+				const auto *m = as<MemberExpr>(c->callee.get());
 				auto obj_type = analyze_expr(m->object.get());
 				if (obj_type.is_error()) return Semantic::make_error();
 
@@ -832,38 +882,51 @@ export struct Analyzer {
 				const auto method_name = std::string(m->member);
 				auto it_m = it_st->second.methods.find(method_name);
 				if (it_m == it_st->second.methods.end()) {
-					logger.error(c->line, c->col, "Struct '" + struct_name + "' không có phương thức '" + method_name + "'");
+					logger.error(
+						c->line, c->col, "Struct '" + struct_name + "' không có phương thức '" + method_name + "'"
+					);
 					return Semantic::make_error();
 				}
 
-				const auto& method_sym = it_m->second;
+				const auto &method_sym = it_m->second;
 
 				// Kiểm tra self
 				if (!method_sym.param_types.empty() && method_sym.param_names[0] == "self") {
-					const auto& self_expected = method_sym.param_types[0];
-					if (self_expected.is_pointer() && self_expected.is_mut_pointer) {
-						if (obj_type.is_pointer() && !obj_type.is_mut_pointer) {
-							logger.error(c->line, c->col, "Không thể gọi phương thức 'var self' trên con trỏ chỉ đọc '*" + struct_name + "'");
-						}
+					if (
+						const auto &self_expected = method_sym.param_types[0];
+						self_expected.is_pointer() && self_expected.is_mut_pointer
+					) {
+						if (obj_type.is_pointer() && !obj_type.is_mut_pointer)
+							logger.error(
+								c->line, c->col,
+								"Không thể gọi phương thức 'var self' trên con trỏ chỉ đọc '*" + struct_name + "'"
+							);
 					}
 				}
 
-				size_t expected_args = method_sym.param_types.empty() ? 0 : (method_sym.param_types.size() - 1);
-				if (c->args.size() != expected_args) {
-					logger.error(c->line, c->col, "Phương thức '" + method_name + "' mong đợi " +
-					             std::to_string(expected_args) + " đối số, nhưng nhận được " +
-					             std::to_string(c->args.size()));
+				if (
+					size_t expected_args = method_sym.param_types.empty() ? 0 : method_sym.param_types.size() - 1;
+					c->args.size() != expected_args
+				) {
+					logger.error(
+						c->line, c->col, "Phương thức '" + method_name + "' mong đợi " +
+						                 std::to_string(expected_args) + " đối số, nhưng nhận được " +
+						                 std::to_string(c->args.size())
+					);
 					return method_sym.return_type;
 				}
 
 				for (size_t i = 0; i < c->args.size(); ++i) {
 					auto arg_type = analyze_expr(c->args[i].get());
-					const auto& param_type = method_sym.param_types[i + 1];
-					if (!param_type.can_assign_from(arg_type)) {
-						logger.error(c->line, c->col, "Đối số " + std::to_string(i + 1) + " của phương thức '" +
-						             method_name + "' không khớp kiểu: mong đợi '" +
-						             param_type.to_string() + "', nhận được '" + arg_type.to_string() + "'");
-					}
+					if (
+						const auto &param_type = method_sym.param_types[i + 1];
+						!param_type.can_assign_from(arg_type)
+					)
+						logger.error(
+							c->line, c->col, "Đối số " + std::to_string(i + 1) + " của phương thức '" +
+							                 method_name + "' không khớp kiểu: mong đợi '" +
+							                 param_type.to_string() + "', nhận được '" + arg_type.to_string() + "'"
+						);
 				}
 
 				return method_sym.return_type;
@@ -875,17 +938,21 @@ export struct Analyzer {
 
 		// 8. Truy cập trường struct hoặc thành viên enum: object.field
 		if (isa<MemberExpr>(expr)) {
-			const auto* m = as<MemberExpr>(expr);
+			const auto *m = as<MemberExpr>(expr);
 
 			// Kiểm tra nếu object là Identifier của một Enum (vd: Status.OK)
 			if (isa<IdentifierExpr>(m->object.get())) {
 				const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
-				auto it_enum = enums.find(id_name);
-				if (it_enum != enums.end()) {
+				if (auto it_enum = enums.find(id_name); it_enum != enums.end()) {
 					const auto member_name = std::string(m->member);
-					auto it_m = it_enum->second.member_values.find(member_name);
-					if (it_m == it_enum->second.member_values.end()) {
-						logger.error(m->line, m->col, "Enum '" + id_name + "' không có thành viên nào tên là '" + member_name + "'");
+					if (
+						auto it_m = it_enum->second.member_values.find(member_name);
+						it_m == it_enum->second.member_values.end()
+					) {
+						logger.error(
+							m->line, m->col,
+							"Enum '" + id_name + "' không có thành viên nào tên là '" + member_name + "'"
+						);
 						return Semantic::make_error();
 					}
 					return Semantic::make_enum(id_name, it_enum->second.underlying_type);
@@ -899,8 +966,8 @@ export struct Analyzer {
 			if (obj_type.is_enum()) {
 				if (m->member == "value") {
 					return obj_type.underlying_type
-						? *obj_type.underlying_type
-						: Semantic::make_primitive(SemaType::I32);
+						       ? *obj_type.underlying_type
+						       : Semantic::make_primitive(SemaType::I32);
 				}
 				logger.error(m->line, m->col, "Kiểu enum chỉ hỗ trợ thuộc tính '.value'");
 				return Semantic::make_error();
@@ -921,7 +988,9 @@ export struct Analyzer {
 			} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
 				struct_name = obj_type.pointee->struct_name;
 			} else {
-				logger.error(m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct, con trỏ struct, enum hoặc mảng");
+				logger.error(
+					m->line, m->col, "Chỉ có thể truy cập trường '.' trên kiểu struct, con trỏ struct, enum hoặc mảng"
+				);
 				return Semantic::make_error();
 			}
 
@@ -932,23 +1001,28 @@ export struct Analyzer {
 			}
 
 			const auto field_name = std::string(m->member);
-			auto it_f = it->second.field_types.find(field_name);
-			if (it_f != it->second.field_types.end()) {
+			if (
+				auto it_f = it->second.field_types.find(field_name);
+				it_f != it->second.field_types.end()
+			)
 				return it_f->second;
-			}
 
-			auto it_m = it->second.methods.find(field_name);
-			if (it_m != it->second.methods.end()) {
+			if (
+				auto it_m = it->second.methods.find(field_name);
+				it_m != it->second.methods.end()
+			)
 				return it_m->second.return_type;
-			}
 
-			logger.error(m->line, m->col, "Struct '" + struct_name + "' không có trường hay phương thức nào tên là '" + field_name + "'");
+			logger.error(
+				m->line, m->col,
+				"Struct '" + struct_name + "' không có trường hay phương thức nào tên là '" + field_name + "'"
+			);
 			return Semantic::make_error();
 		}
 
 		// 9. Chỉ mục mảng/con trỏ: target[index]
 		if (isa<IndexExpr>(expr)) {
-			const auto* idx = as<IndexExpr>(expr);
+			const auto *idx = as<IndexExpr>(expr);
 			auto target_type = analyze_expr(idx->target.get());
 			auto index_type = analyze_expr(idx->index.get());
 
@@ -959,34 +1033,29 @@ export struct Analyzer {
 				return Semantic::make_error();
 			}
 
-			if (target_type.is_array()) {
+			if (target_type.is_array())
 				return target_type.element_type ? *target_type.element_type : Semantic::make_error();
-			}
 
-			if (target_type.is_pointer() && target_type.pointee) {
-				return *target_type.pointee;
-			}
+			if (target_type.is_pointer() && target_type.pointee) return *target_type.pointee;
 
 			logger.error(idx->line, idx->col, "Chỉ mục '[]' chỉ áp dụng cho kiểu mảng hoặc con trỏ");
 			return Semantic::make_error();
 		}
 
 		// 10. Nhóm ngoặc: (expr)
-		if (isa<GroupExpr>(expr)) {
-			return analyze_expr(as<GroupExpr>(expr)->expr.get());
-		}
+		if (isa<GroupExpr>(expr)) return analyze_expr(as<GroupExpr>(expr)->expr.get());
 
 		return Semantic::make_error();
 	}
 
-	Semantic analyze_expr(const Expr* expr) {
+	Semantic analyze_expr(const Expr *expr) {
 		if (!expr) return Semantic::make_error();
 		auto ty = compute_expr_type(expr);
 		expr_types[expr] = ty;
 		return ty;
 	}
 
-	Semantic get_expr_type(const Expr* expr) const {
+	Semantic get_expr_type(const Expr *expr) const {
 		if (!expr) return Semantic::make_error();
 		auto it = expr_types.find(expr);
 		if (it != expr_types.end()) return it->second;
@@ -997,7 +1066,7 @@ export struct Analyzer {
 	// Hàm Phân tích Tổng thể
 	// ========================================================================
 
-	void analyze(const Program* program) {
+	void analyze(const Program *program) {
 		pass1_register_declarations(program);
 		pass2_check_declarations(program);
 	}
