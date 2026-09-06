@@ -1,5 +1,6 @@
 module;
 
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -27,7 +28,7 @@ std::string Analyzer::resolve_symbol_helper(
 	const size_t line,
 	const size_t col
 ) {
-	const std::string name = std::string(raw_name);
+	const auto name = std::string(raw_name);
 
 	// 1. Within current module
 	if (!current_module.empty()) {
@@ -98,7 +99,7 @@ void Analyzer::pass0_index_modules(const Program *program) {
 	module_wildcards.clear();
 	known_modules.clear();
 
-	std::string active_mod = "";
+	std::string active_mod;
 	for (const auto &decl : program->declarations) {
 		if (isa<ModuleDecl>(decl.get())) {
 			active_mod = as<ModuleDecl>(decl.get())->full_path;
@@ -110,9 +111,9 @@ void Analyzer::pass0_index_modules(const Program *program) {
 			if (u->is_wildcard) {
 				module_wildcards[active_mod].push_back(full_path);
 			} else {
-				std::string sym = std::string(u->symbol_name);
-				std::string alias = u->alias.empty() ? sym : std::string(u->alias);
-				std::string target = full_path + "." + sym;
+				auto sym = std::string(u->symbol_name);
+				auto alias = u->alias.empty() ? sym : std::string(u->alias);
+				auto target = full_path + "." + sym;
 				module_imports[active_mod][alias] = target;
 			}
 		} else {
@@ -131,21 +132,21 @@ void Analyzer::validate_use_declarations(const Program *program) {
 			if (u->is_wildcard) {
 				if (!known_modules.contains(full_path)) {
 					bool mod_found = false;
-					for (const auto &[name, sym] : functions) {
+					for (const auto &sym: functions | std::views::values) {
 						if (sym.module_name == full_path) { mod_found = true; break; }
 					}
 					if (!mod_found) {
-						for (const auto &[name, sym] : structs) {
+						for (const auto &sym: structs | std::views::values) {
 							if (sym.module_name == full_path) { mod_found = true; break; }
 						}
 					}
 					if (!mod_found) {
-						for (const auto &[name, sym] : enums) {
+						for (const auto &sym: enums | std::views::values) {
 							if (sym.module_name == full_path) { mod_found = true; break; }
 						}
 					}
 					if (!mod_found) {
-						for (const auto &[name, sym] : constants) {
+						for (const auto &sym: constants | std::views::values) {
 							if (sym.module_name == full_path) { mod_found = true; break; }
 						}
 					}
@@ -154,8 +155,8 @@ void Analyzer::validate_use_declarations(const Program *program) {
 					}
 				}
 			} else {
-				std::string sym_name = std::string(u->symbol_name);
-				std::string target = full_path + "." + sym_name;
+				auto sym_name = std::string(u->symbol_name);
+				auto target = full_path + "." + sym_name;
 
 				bool found = false;
 				bool is_pub = false;

@@ -16,6 +16,7 @@ module;
 
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -62,15 +63,15 @@ export struct CodeGen {
 	}
 
 	llvm::AllocaInst* lookup_local_var(const std::string_view name) const {
-		for (auto it = local_var_scopes.rbegin(); it != local_var_scopes.rend(); ++it) {
-			if (auto f = it->find(name); f != it->end()) return f->second;
+		for (const auto & local_var_scope : std::views::reverse(local_var_scopes)) {
+			if (auto f = local_var_scope.find(name); f != local_var_scope.end()) return f->second;
 		}
 		return nullptr;
 	}
 
 	std::optional<Semantic> lookup_local_type(const std::string_view name) const {
-		for (auto it = local_type_scopes.rbegin(); it != local_type_scopes.rend(); ++it) {
-			if (auto f = it->find(name); f != it->end()) return f->second;
+		for (const auto & local_type_scope : std::views::reverse(local_type_scopes)) {
+			if (auto f = local_type_scope.find(name); f != local_type_scope.end()) return f->second;
 		}
 		return std::nullopt;
 	}
@@ -236,7 +237,7 @@ export struct CodeGen {
 			if (isa<FnDecl>(decl.get())) {
 				const auto* fn = as<FnDecl>(decl.get());
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
-				std::string qual_name = (mod.empty() || fn->name == "main") ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
 				emit_fn_proto(fn, to_llvm_name(qual_name));
 			}
 		}
@@ -246,7 +247,7 @@ export struct CodeGen {
 			if (isa<FnDecl>(decl.get())) {
 				const auto* fn = as<FnDecl>(decl.get());
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
-				std::string qual_name = (mod.empty() || fn->name == "main") ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
 				emit_fn_body(fn, to_llvm_name(qual_name));
 			}
 		}

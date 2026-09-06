@@ -131,7 +131,7 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 		arg.setName(param_name);
 		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, arg.getType(), param_name);
 		builder->CreateStore(&arg, alloca);
-		Semantic param_sema = (analyzer && analyzer->functions.contains(name))
+		Semantic param_sema = analyzer && analyzer->functions.contains(name)
 			? analyzer->functions.at(name).param_types[idx]
 			: analyzer->resolve_type(fn_decl->params[idx].type.get());
 		add_local(param_name, alloca, param_sema);

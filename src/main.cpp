@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 			std::cerr << "Error: Unknown option '" << arg << "'\n";
 			return 1;
 		} else {
-			options.input_files.push_back(std::string(arg));
+			options.input_files.emplace_back(arg);
 		}
 	}
 

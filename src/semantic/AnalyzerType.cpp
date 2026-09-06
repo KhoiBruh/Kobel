@@ -36,15 +36,11 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 
 		// Check declared struct
 		std::string resolved_st = resolve_struct_name(name, node->line, node->col);
-		if (!resolved_st.empty()) {
-			return Semantic::make_struct(resolved_st);
-		}
+		if (!resolved_st.empty()) return Semantic::make_struct(resolved_st);
 
 		// Check declared enum
 		std::string resolved_enum = resolve_enum_name(name, node->line, node->col);
-		if (!resolved_enum.empty()) {
-			return Semantic::make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
-		}
+		if (!resolved_enum.empty()) return Semantic::make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
 
 		logger.error(node->line, node->col, "Unknown type '" + std::string(name) + "'");
 		return Semantic::make_error();

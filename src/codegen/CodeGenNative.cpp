@@ -135,9 +135,9 @@ namespace {
 		// 3. Fallback to standard installation paths on Windows
 		const std::vector<std::string> standard_windows_paths = {
 			"C:/LLVM/bin/clang.exe",
-			"C:\\LLVM\\bin\\clang.exe",
+			R"(C:\LLVM\bin\clang.exe)",
 			"C:/Program Files/LLVM/bin/clang.exe",
-			"C:\\Program Files\\LLVM\\bin\\clang.exe"
+			R"(C:\Program Files\LLVM\bin\clang.exe)"
 		};
 		for (const auto& path : standard_windows_paths) {
 			if (std::filesystem::exists(path)) return path;

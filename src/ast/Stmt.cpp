@@ -94,7 +94,7 @@ export struct WhileStmt final : Stmt {
 };
 
 export struct ReturnStmt final : Stmt {
-	static constexpr ASTKind KIND = ASTKind::STMT_RETURN;
+	static constexpr auto KIND = ASTKind::STMT_RETURN;
 	std::unique_ptr<Expr> value; // nullptr if return void;
 
 	explicit ReturnStmt(

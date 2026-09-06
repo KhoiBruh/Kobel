@@ -204,7 +204,7 @@ std::unique_ptr<UseDecl> Parser::parse_use_decl() {
 		segments.push_back(seg.text);
 	}
 
-	std::string_view alias = "";
+	std::string_view alias;
 	if (!is_wildcard && match(TokenType::KW_AS)) {
 		const auto alias_tok = consume(TokenType::IDENTIFIER, "Expected alias identifier after 'as'");
 		alias = alias_tok.text;
@@ -213,7 +213,7 @@ std::unique_ptr<UseDecl> Parser::parse_use_decl() {
 	consume(TokenType::SEMI_COLON, "Expected ';' after use declaration");
 
 	std::vector<std::string_view> path;
-	std::string_view symbol_name = "";
+	std::string_view symbol_name;
 
 	if (is_wildcard) {
 		path = std::move(segments);

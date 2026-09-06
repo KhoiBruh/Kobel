@@ -179,8 +179,5 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 	}
 
 	// 7. ExprStmt
-	if (isa<ExprStmt>(stmt)) {
-		emit_expr(as<ExprStmt>(stmt)->expr.get());
-		return;
-	}
+	if (isa<ExprStmt>(stmt)) emit_expr(as<ExprStmt>(stmt)->expr.get());
 }

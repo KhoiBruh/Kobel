@@ -54,9 +54,9 @@ export struct Analyzer {
 	}
 
 	VarSymbol *lookup_variable(const std::string_view name) {
-		for (auto &scope : std::views::reverse(scopes)) {
-			auto found = scope.variables.find(name);
-			if (found != scope.variables.end()) return &found->second;
+		for (auto &[variables] : std::views::reverse(scopes)) {
+			auto found = variables.find(name);
+			if (found != variables.end()) return &found->second;
 		}
 		return nullptr;
 	}

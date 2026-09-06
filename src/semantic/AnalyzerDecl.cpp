@@ -47,15 +47,15 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string qual_name = current_module.empty() ? std::string(st->name) : current_module + "." + std::string(st->name);
 			auto &sym = structs[qual_name];
 
-			for (const auto &f: st->fields) {
-				auto f_name = std::string(f.name);
+			for (const auto &[name, type]: st->fields) {
+				auto f_name = std::string(name);
 				if (sym.field_types.contains(f_name)) {
 					logger.error(
 						st->line, st->col, "Duplicate field '" + f_name + "' in struct '" + sym.name + "'"
 					);
 					continue;
 				}
-				auto f_type = resolve_type(f.type.get());
+				auto f_type = resolve_type(type.get());
 				sym.field_types[f_name] = f_type;
 				sym.field_order.push_back(f_name);
 			}
@@ -80,23 +80,23 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 					.col = st->col
 				};
 
-				for (const auto &p: method->params) {
-					fn_sym.param_names.push_back(std::string(p.name));
-					if (p.name == "self") {
-						if (p.type) {
-							fn_sym.param_types.push_back(resolve_type(p.type.get()));
-						} else if (p.is_mut) {
+				for (const auto &[name, type, is_mut, has_val]: method->params) {
+					fn_sym.param_names.push_back(std::string(name));
+					if (name == "self") {
+						if (type) {
+							fn_sym.param_types.push_back(resolve_type(type.get()));
+						} else if (is_mut) {
 							fn_sym.param_types.push_back(
 								Semantic::make_pointer(Semantic::make_struct(sym.name), true)
 							);
-						} else if (p.has_val) {
+						} else if (has_val) {
 							fn_sym.param_types.push_back(
 								Semantic::make_pointer(Semantic::make_struct(sym.name), false)
 							);
 						} else {
 							fn_sym.param_types.push_back(Semantic::make_struct(sym.name));
 						}
-					} else fn_sym.param_types.push_back(resolve_type(p.type.get()));
+					} else fn_sym.param_types.push_back(resolve_type(type.get()));
 				}
 
 				sym.methods[m_name] = fn_sym;
@@ -141,29 +141,29 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			}
 
 			int64_t next_value = 0;
-			for (const auto &m: e->members) {
-				auto m_name = std::string(m.name);
+			for (const auto &[name, value, line, col]: e->members) {
+				auto m_name = std::string(name);
 				if (sym.member_values.contains(m_name)) {
-					logger.error(m.line, m.col, "Duplicate member '" + m_name + "' in enum '" + std::string(e->name) + "'");
+					logger.error(line, col, "Duplicate member '" + m_name + "' in enum '" + std::string(e->name) + "'");
 					continue;
 				}
 
-				if (m.value) {
-					if (isa<LiteralExpr>(m.value.get())) {
+				if (value) {
+					if (isa<LiteralExpr>(value.get())) {
 						if (
-							const auto *lit = as<LiteralExpr>(m.value.get());
+							const auto *lit = as<LiteralExpr>(value.get());
 							lit->literal_kind == LiteralKind::INT
 						) {
 							try {
 								next_value = std::stoll(std::string(lit->raw_text), nullptr, 0);
 							} catch (...) {
-								logger.error(m.line, m.col, "Invalid enum member initializer value");
+								logger.error(line, col, "Invalid enum member initializer value");
 							}
 						} else {
-							logger.error(m.line, m.col, "Enum member initializer must be an integer");
+							logger.error(line, col, "Enum member initializer must be an integer");
 						}
 					} else {
-						logger.error(m.line, m.col, "Enum member initializer must be an integer constant");
+						logger.error(line, col, "Enum member initializer must be an integer constant");
 					}
 				}
 
@@ -222,7 +222,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 
 void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 	const auto raw_name = std::string(fn->name);
-	const std::string qual_name = (mod.empty() || raw_name == "main") ? raw_name : mod + "." + raw_name;
+	const std::string qual_name = mod.empty() || raw_name == "main" ? raw_name : mod + "." + raw_name;
 
 	if (functions.contains(qual_name)) {
 		logger.error(fn->line, fn->col, "Duplicate function declaration '" + raw_name + "'");
@@ -255,7 +255,7 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 		if (isa<FnDecl>(decl.get())) {
 			const auto *fn = as<FnDecl>(decl.get());
 			current_module = get_decl_module(fn);
-			std::string qual_name = (current_module.empty() || fn->name == "main")
+			std::string qual_name = current_module.empty() || fn->name == "main"
 				? std::string(fn->name)
 				: current_module + "." + std::string(fn->name);
 			check_function(fn, qual_name);
@@ -305,7 +305,7 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 		VarSymbol p_sym;
 		p_sym.name = sym.param_names[i];
 		p_sym.type = sym.param_types[i];
-		p_sym.is_mut = (i < fn->params.size()) ? fn->params[i].is_mut : false;
+		p_sym.is_mut = i < fn->params.size() ? fn->params[i].is_mut : false;
 		p_sym.line = fn->line;
 		p_sym.col = fn->col;
 		current_scope().variables[p_sym.name] = p_sym;

@@ -1,7 +1,5 @@
 module;
 
-#include <cstddef>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -77,8 +75,8 @@ export struct Parser {
 	}
 
 	void error(const Token &token, const std::string_view message) {
-		DiagnosticEngine &d = (diag ? *diag : local_diag);
-		std::string msg = std::string(message);
+		DiagnosticEngine &d = diag ? *diag : local_diag;
+		auto msg = std::string(message);
 		if (token.type != TokenType::END_OF_FILE && !token.text.empty()) {
 			msg += " (found '" + std::string(token.text) + "')";
 		}

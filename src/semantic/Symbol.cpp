@@ -34,7 +34,7 @@ export struct FnSymbol {
 	std::vector<std::string> param_names;
 	Semantic return_type;
 	bool is_pub = false;
-	std::string module_name = "";
+	std::string module_name;
 	size_t line = 0;
 	size_t col = 0;
 };
@@ -45,7 +45,7 @@ export struct StructSymbol {
 	std::vector<std::string> field_order;
 	StringMap<FnSymbol> methods;
 	bool is_pub = false;
-	std::string module_name = "";
+	std::string module_name;
 	size_t line = 0;
 	size_t col = 0;
 };
@@ -54,7 +54,7 @@ export struct ConstSymbol {
 	std::string name;
 	Semantic type;
 	bool is_pub = false;
-	std::string module_name = "";
+	std::string module_name;
 	size_t line = 0;
 	size_t col = 0;
 };
@@ -64,7 +64,7 @@ export struct EnumSymbol {
 	Semantic underlying_type;
 	StringMap<int64_t> member_values;
 	bool is_pub = false;
-	std::string module_name = "";
+	std::string module_name;
 	size_t line = 0;
 	size_t col = 0;
 };
