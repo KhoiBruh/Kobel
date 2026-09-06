@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 import lexer;
@@ -16,6 +17,23 @@ import logger;
 import ast;
 
 namespace {
+	std::string join_module_path(const std::vector<std::string_view>& path) {
+		std::string res;
+		for (size_t i = 0; i < path.size(); ++i) {
+			if (i > 0) res += ".";
+			res += path[i];
+		}
+		return res;
+	}
+
+	std::filesystem::path module_to_file_path(const std::vector<std::string_view>& path) {
+		std::filesystem::path p;
+		for (const auto& part : path) {
+			p /= std::string(part);
+		}
+		return p;
+	}
+
 	enum class OutputMode {
 		EXECUTABLE,
 		OBJECT,
@@ -169,6 +187,110 @@ int main(int argc, char *argv[]) {
 
 	if (has_syntax_errors) {
 		std::cerr << "Compilation aborted due to syntax errors.\n";
+		return 1;
+	}
+
+	// 1b. Tự động tìm và nạp các module được import nhưng chưa nằm trong danh sách input
+	std::unordered_set<std::string> loaded_modules;
+	std::unordered_set<std::string> loaded_files;
+	std::vector<std::filesystem::path> search_dirs;
+
+	for (const auto &filepath : input_files) {
+		std::error_code ec;
+		auto can = std::filesystem::canonical(filepath, ec);
+		if (!ec) {
+			loaded_files.insert(can.string());
+			search_dirs.push_back(can.parent_path());
+		}
+	}
+	search_dirs.push_back(std::filesystem::current_path());
+
+	// Thu thập các module đã khai báo trong input_files
+	for (const auto &prog : parsed_programs) {
+		for (const auto &decl : prog->declarations) {
+			if (isa<ModuleDecl>(decl.get())) {
+				loaded_modules.insert(join_module_path(as<ModuleDecl>(decl.get())->path));
+			}
+		}
+	}
+
+	// Lặp tìm kiếm và nạp các module phụ thuộc
+	bool new_module_loaded = true;
+	while (new_module_loaded) {
+		new_module_loaded = false;
+		std::vector<std::pair<std::vector<std::string_view>, std::string>> pending_imports;
+
+		for (const auto &prog : parsed_programs) {
+			for (const auto &decl : prog->declarations) {
+				if (isa<UseDecl>(decl.get())) {
+					const auto *u = as<UseDecl>(decl.get());
+					std::string mod_name = join_module_path(u->path);
+					if (!loaded_modules.contains(mod_name)) {
+						pending_imports.emplace_back(u->path, mod_name);
+					}
+				}
+			}
+		}
+
+		for (const auto &[mod_path, mod_name] : pending_imports) {
+			if (loaded_modules.contains(mod_name)) continue;
+
+			auto rel_path = module_to_file_path(mod_path);
+			std::filesystem::path found_file;
+
+			for (const auto &dir : search_dirs) {
+				auto cand_kb = dir / rel_path;
+				cand_kb.replace_extension(".kb");
+				if (std::filesystem::exists(cand_kb)) {
+					found_file = cand_kb;
+					break;
+				}
+				auto cand_kobel = dir / rel_path;
+				cand_kobel.replace_extension(".kobel");
+				if (std::filesystem::exists(cand_kobel)) {
+					found_file = cand_kobel;
+					break;
+				}
+			}
+
+			if (!found_file.empty()) {
+				std::error_code ec;
+				auto can = std::filesystem::canonical(found_file, ec);
+				std::string can_str = ec ? found_file.string() : can.string();
+				if (!loaded_files.contains(can_str)) {
+					loaded_files.insert(can_str);
+					auto content = std::make_unique<std::string>(read_file_content(found_file.string()));
+					std::string_view source_view = *content;
+					source_buffers.push_back(std::move(content));
+
+					Lexer lex{source_view};
+					auto tokens = lex.tokenize();
+					Parser parser{std::move(tokens)};
+					auto prog = parser.parse_program();
+
+					if (parser.has_errors()) {
+						has_syntax_errors = true;
+						for (const auto &err : parser.errors) {
+							std::cerr << found_file.string() << ": " << err << "\n";
+						}
+					} else {
+						for (const auto &decl : prog->declarations) {
+							if (isa<ModuleDecl>(decl.get())) {
+								loaded_modules.insert(join_module_path(as<ModuleDecl>(decl.get())->path));
+							}
+						}
+						loaded_modules.insert(mod_name);
+						search_dirs.push_back(found_file.parent_path());
+						parsed_programs.push_back(std::move(prog));
+						new_module_loaded = true;
+					}
+				}
+			}
+		}
+	}
+
+	if (has_syntax_errors) {
+		std::cerr << "Compilation aborted due to syntax errors in imported modules.\n";
 		return 1;
 	}
 

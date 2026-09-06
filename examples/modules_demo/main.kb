@@ -1,0 +1,25 @@
+module app.main;
+
+use math.calc.add;
+use math.calc.multiply as mul;
+use math.calc.FACTOR;
+use geom.point.Point;
+
+extern "libc" {
+    fn puts(str: *char): i32;
+}
+
+fn main(): i32 {
+    val a: i32 = add(20, 22);
+    val b: i32 = mul(6, 7);
+    val p: Point = Point(a, b);
+    val total: i32 = p.sum();
+
+    if (total == 84) {
+        if (FACTOR == 2) {
+            puts("Module and import system works successfully!");
+            return 0;
+        }
+    }
+    return 1;
+}

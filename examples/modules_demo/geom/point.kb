@@ -1,0 +1,7 @@
+module geom.point;
+
+pub struct Point(x: i32, y: i32) {
+    pub fn sum(val self): i32 {
+        return self.x + self.y;
+    }
+}
