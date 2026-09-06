@@ -348,6 +348,86 @@ bool test_parse_logical_expressions() {
 	return true;
 }
 
+bool test_parse_module_and_use() {
+	std::string_view code =
+		"module math.geometry.point;\n"
+		"\n"
+		"use math.calc.add;\n"
+		"use graphics.Point as GPoint;\n"
+		"use std.collections.*;\n"
+		"\n"
+		"pub fn compute(): i32 {\n"
+		"    return 42;\n"
+		"}\n"
+		"\n"
+		"pub struct Vector(x: i32, y: i32);\n"
+		"pub enum Color { RED, GREEN, BLUE }\n"
+		"pub const MAX: i32 = 100;\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser không được có lỗi khi parse module, use, pub");
+	ASSERT(prog->declarations.size() == 8, "Phải parse được 8 declarations");
+
+	// 1. module math.geometry.point;
+	ASSERT(isa<ModuleDecl>(prog->declarations[0].get()), "decl 0 phải là ModuleDecl");
+	auto* mod = as<ModuleDecl>(prog->declarations[0].get());
+	ASSERT(mod->path.size() == 3, "Module path phải có 3 phần: math, geometry, point");
+	ASSERT(mod->path[0] == "math", "Phần 0 là math");
+	ASSERT(mod->path[1] == "geometry", "Phần 1 là geometry");
+	ASSERT(mod->path[2] == "point", "Phần 2 là point");
+
+	// 2. use math.calc.add;
+	ASSERT(isa<UseDecl>(prog->declarations[1].get()), "decl 1 phải là UseDecl");
+	auto* u1 = as<UseDecl>(prog->declarations[1].get());
+	ASSERT(u1->path.size() == 2 && u1->path[0] == "math" && u1->path[1] == "calc", "u1 path là math.calc");
+	ASSERT(u1->symbol_name == "add", "u1 symbol_name là add");
+	ASSERT(u1->alias.empty(), "u1 không có alias");
+	ASSERT(!u1->is_wildcard, "u1 không phải wildcard");
+
+	// 3. use graphics.Point as GPoint;
+	ASSERT(isa<UseDecl>(prog->declarations[2].get()), "decl 2 phải là UseDecl");
+	auto* u2 = as<UseDecl>(prog->declarations[2].get());
+	ASSERT(u2->path.size() == 1 && u2->path[0] == "graphics", "u2 path là graphics");
+	ASSERT(u2->symbol_name == "Point", "u2 symbol_name là Point");
+	ASSERT(u2->alias == "GPoint", "u2 alias là GPoint");
+	ASSERT(!u2->is_wildcard, "u2 không phải wildcard");
+
+	// 4. use std.collections.*;
+	ASSERT(isa<UseDecl>(prog->declarations[3].get()), "decl 3 phải là UseDecl");
+	auto* u3 = as<UseDecl>(prog->declarations[3].get());
+	ASSERT(u3->path.size() == 2 && u3->path[0] == "std" && u3->path[1] == "collections", "u3 path là std.collections");
+	ASSERT(u3->is_wildcard, "u3 phải là wildcard (*)");
+
+	// 5. pub fn compute()
+	ASSERT(isa<FnDecl>(prog->declarations[4].get()), "decl 4 phải là FnDecl");
+	auto* fn = as<FnDecl>(prog->declarations[4].get());
+	ASSERT(fn->name == "compute", "Tên hàm là compute");
+	ASSERT(fn->is_pub, "Hàm compute phải có cờ is_pub == true");
+
+	// 6. pub struct Vector
+	ASSERT(isa<StructDecl>(prog->declarations[5].get()), "decl 5 phải là StructDecl");
+	auto* st = as<StructDecl>(prog->declarations[5].get());
+	ASSERT(st->name == "Vector", "Tên struct là Vector");
+	ASSERT(st->is_pub, "Struct Vector phải có cờ is_pub == true");
+
+	// 7. pub enum Color
+	ASSERT(isa<EnumDecl>(prog->declarations[6].get()), "decl 6 phải là EnumDecl");
+	auto* en = as<EnumDecl>(prog->declarations[6].get());
+	ASSERT(en->name == "Color", "Tên enum là Color");
+	ASSERT(en->is_pub, "Enum Color phải có cờ is_pub == true");
+
+	// 8. pub const MAX
+	ASSERT(isa<ConstDecl>(prog->declarations[7].get()), "decl 7 phải là ConstDecl");
+	auto* cn = as<ConstDecl>(prog->declarations[7].get());
+	ASSERT(cn->name == "MAX", "Tên const là MAX");
+	ASSERT(cn->is_pub, "Const MAX phải có cờ is_pub == true");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -374,6 +454,9 @@ int main() {
 
 	if (!test_parse_logical_expressions()) return 1;
 	std::cout << "  [PASS] test_parse_logical_expressions" << std::endl;
+
+	if (!test_parse_module_and_use()) return 1;
+	std::cout << "  [PASS] test_parse_module_and_use" << std::endl;
 
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;

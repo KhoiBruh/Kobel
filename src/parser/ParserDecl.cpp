@@ -162,16 +162,99 @@ std::unique_ptr<ExternBlock> Parser::parse_extern_block() {
 	return ext;
 }
 
-std::unique_ptr<Decl> Parser::parse_declaration() {
-	if (check(TokenType::KW_FN)) return parse_fn_decl();
-	if (check(TokenType::KW_STRUCT)) return parse_struct_decl();
-	if (check(TokenType::KW_ENUM)) return parse_enum_decl();
-	if (check(TokenType::KW_CONST)) return parse_const_decl();
-	if (check(TokenType::KW_EXTERN)) return parse_extern_block();
+std::unique_ptr<ModuleDecl> Parser::parse_module_decl() {
+	const auto tok = consume(TokenType::KW_MODULE, "Expected 'module'");
+	std::vector<std::string_view> path;
 
-	error(peek(), "Expected top-level declaration ('fn', 'struct', 'enum', 'const', 'extern')");
-	advance();
-	return nullptr;
+	const auto first_seg = consume(TokenType::IDENTIFIER, "Expected module path segment");
+	path.push_back(first_seg.text);
+
+	while (match(TokenType::DOT)) {
+		const auto seg = consume(TokenType::IDENTIFIER, "Expected module path segment after '.'");
+		path.push_back(seg.text);
+	}
+
+	consume(TokenType::SEMI_COLON, "Expected ';' after module declaration");
+	return std::make_unique<ModuleDecl>(std::move(path), tok.line, tok.col);
+}
+
+std::unique_ptr<UseDecl> Parser::parse_use_decl() {
+	const auto tok = consume(TokenType::KW_USE, "Expected 'use'");
+	std::vector<std::string_view> segments;
+	bool is_wildcard = false;
+
+	const auto first_seg = consume(TokenType::IDENTIFIER, "Expected module path or symbol name after 'use'");
+	segments.push_back(first_seg.text);
+
+	while (match(TokenType::DOT)) {
+		if (match(TokenType::STAR)) {
+			is_wildcard = true;
+			break;
+		}
+		const auto seg = consume(TokenType::IDENTIFIER, "Expected module path segment, symbol name or '*' after '.'");
+		segments.push_back(seg.text);
+	}
+
+	std::string_view alias = "";
+	if (!is_wildcard && match(TokenType::KW_AS)) {
+		const auto alias_tok = consume(TokenType::IDENTIFIER, "Expected alias identifier after 'as'");
+		alias = alias_tok.text;
+	}
+
+	consume(TokenType::SEMI_COLON, "Expected ';' after use declaration");
+
+	std::vector<std::string_view> path;
+	std::string_view symbol_name = "";
+
+	if (is_wildcard) {
+		path = std::move(segments);
+	} else if (segments.size() == 1) {
+		symbol_name = segments[0];
+	} else {
+		symbol_name = segments.back();
+		segments.pop_back();
+		path = std::move(segments);
+	}
+
+	return std::make_unique<UseDecl>(std::move(path), symbol_name, alias, is_wildcard, tok.line, tok.col);
+}
+
+std::unique_ptr<Decl> Parser::parse_declaration() {
+	bool is_pub = false;
+	if (match(TokenType::KW_PUB)) {
+		is_pub = true;
+	}
+
+	if (check(TokenType::KW_MODULE)) {
+		if (is_pub) {
+			error(previous(), "'pub' cannot be applied to 'module' declaration");
+		}
+		return parse_module_decl();
+	}
+
+	if (check(TokenType::KW_USE)) {
+		if (is_pub) {
+			error(previous(), "'pub' cannot be applied to 'use' declaration");
+		}
+		return parse_use_decl();
+	}
+
+	std::unique_ptr<Decl> decl = nullptr;
+	if (check(TokenType::KW_FN)) decl = parse_fn_decl();
+	else if (check(TokenType::KW_STRUCT)) decl = parse_struct_decl();
+	else if (check(TokenType::KW_ENUM)) decl = parse_enum_decl();
+	else if (check(TokenType::KW_CONST)) decl = parse_const_decl();
+	else if (check(TokenType::KW_EXTERN)) decl = parse_extern_block();
+	else {
+		error(peek(), "Expected top-level declaration ('fn', 'struct', 'enum', 'const', 'extern', 'module', 'use')");
+		advance();
+		return nullptr;
+	}
+
+	if (decl) {
+		decl->is_pub = is_pub;
+	}
+	return decl;
 }
 
 std::unique_ptr<Program> Parser::parse_program() {

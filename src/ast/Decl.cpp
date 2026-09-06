@@ -19,6 +19,37 @@ import ast.stmt;
 
 export struct Decl : ASTNode {
 	using ASTNode::ASTNode;
+	bool is_pub = false;
+};
+
+// Khai báo Module: module a.b.c;
+export struct ModuleDecl final : Decl {
+	static constexpr auto KIND = ASTKind::DECL_MODULE;
+	std::vector<std::string_view> path;
+
+	explicit ModuleDecl(
+		std::vector<std::string_view> p,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Decl(KIND, l, c), path(std::move(p)) {}
+};
+
+// Khai báo Use: use a.b.c.A; hoặc use a.b.c.A as B; hoặc use a.b.c.*;
+export struct UseDecl final : Decl {
+	static constexpr auto KIND = ASTKind::DECL_USE;
+	std::vector<std::string_view> path;
+	std::string_view symbol_name;
+	std::string_view alias;
+	bool is_wildcard = false;
+
+	UseDecl(
+		std::vector<std::string_view> p,
+		const std::string_view sym,
+		const std::string_view al,
+		const bool wildcard,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Decl(KIND, l, c), path(std::move(p)), symbol_name(sym), alias(al), is_wildcard(wildcard) {}
 };
 
 export struct Param {

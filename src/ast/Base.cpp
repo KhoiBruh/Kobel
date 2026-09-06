@@ -38,6 +38,8 @@ export enum class ASTKind {
 	STMT_CONTINUE,
 
 	// Declarations
+	DECL_MODULE,
+	DECL_USE,
 	DECL_FN,
 	DECL_STRUCT,
 	DECL_ENUM,

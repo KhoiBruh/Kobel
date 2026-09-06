@@ -59,6 +59,9 @@ export enum class TokenType {
 	KW_CONTINUE,
 	KW_IF,
 	KW_ELSE,
+	KW_MODULE,
+	KW_USE,
+	KW_PUB,
 
 	// Specials
 	END_OF_FILE,

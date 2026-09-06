@@ -93,6 +93,9 @@ export struct Parser {
 				case TokenType::KW_ENUM:
 				case TokenType::KW_CONST:
 				case TokenType::KW_EXTERN:
+				case TokenType::KW_MODULE:
+				case TokenType::KW_USE:
+				case TokenType::KW_PUB:
 				case TokenType::KW_VAL:
 				case TokenType::KW_VAR:
 				case TokenType::KW_IF:
@@ -125,6 +128,8 @@ export struct Parser {
 	std::unique_ptr<Stmt> parse_statement();
 
 	// 6. Declaration parsing (ParserDecl.cpp)
+	std::unique_ptr<ModuleDecl> parse_module_decl();
+	std::unique_ptr<UseDecl> parse_use_decl();
 	std::unique_ptr<FnDecl> parse_fn_decl();
 	std::unique_ptr<StructDecl> parse_struct_decl();
 	std::unique_ptr<EnumDecl> parse_enum_decl();
