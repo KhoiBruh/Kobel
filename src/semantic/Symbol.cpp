@@ -3,7 +3,6 @@ module;
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 export module semantic.symbol;
@@ -42,9 +41,9 @@ export struct FnSymbol {
 
 export struct StructSymbol {
 	std::string name;
-	std::unordered_map<std::string, Semantic> field_types;
+	StringMap<Semantic> field_types;
 	std::vector<std::string> field_order;
-	std::unordered_map<std::string, FnSymbol> methods;
+	StringMap<FnSymbol> methods;
 	bool is_pub = false;
 	std::string module_name = "";
 	size_t line = 0;
@@ -63,7 +62,7 @@ export struct ConstSymbol {
 export struct EnumSymbol {
 	std::string name;
 	Semantic underlying_type;
-	std::unordered_map<std::string, int64_t> member_values;
+	StringMap<int64_t> member_values;
 	bool is_pub = false;
 	std::string module_name = "";
 	size_t line = 0;
@@ -71,5 +70,5 @@ export struct EnumSymbol {
 };
 
 export struct Scope {
-	std::unordered_map<std::string, VarSymbol> variables;
+	StringMap<VarSymbol> variables;
 };

@@ -525,8 +525,66 @@ bool test_semantic_module_errors() {
 	return true;
 }
 
+bool test_semantic_memory_optimization() {
+	// 1. Check sizeof(Semantic) <= 24 bytes
+	ASSERT(sizeof(Semantic) <= 24, "sizeof(Semantic) should be <= 24 bytes (kind + shared_ptr)");
+
+	// 2. Primitives have zero payload (no heap allocations)
+	auto i32_t = Semantic::make_primitive(SemaType::I32);
+	auto bool_t = Semantic::make_primitive(SemaType::BOOL);
+	auto void_t = Semantic::make_void();
+	auto null_t = Semantic::make_null();
+	auto err_t = Semantic::make_error();
+
+	ASSERT(i32_t.payload == nullptr, "Primitive I32 must have nullptr payload");
+	ASSERT(bool_t.payload == nullptr, "Primitive BOOL must have nullptr payload");
+	ASSERT(void_t.payload == nullptr, "Primitive VOID must have nullptr payload");
+	ASSERT(null_t.payload == nullptr, "Primitive NULL must have nullptr payload");
+	ASSERT(err_t.payload == nullptr, "Primitive ERROR must have nullptr payload");
+
+	// 3. Complex types have payload with correct accessor values
+	auto ptr_t = Semantic::make_pointer(i32_t, true);
+	ASSERT(ptr_t.payload != nullptr, "Pointer type must have payload");
+	ASSERT(ptr_t.is_mut_pointer() == true, "Pointer must be mut");
+	ASSERT(ptr_t.pointee() != nullptr, "Pointee must be non-null");
+	ASSERT(ptr_t.pointee()->kind == SemaType::I32, "Pointee must be I32");
+
+	auto arr_t = Semantic::make_array(i32_t, 10);
+	ASSERT(arr_t.payload != nullptr, "Array type must have payload");
+	ASSERT(arr_t.array_size() == 10, "Array size must be 10");
+	ASSERT(arr_t.element_type() != nullptr && arr_t.element_type()->kind == SemaType::I32, "Array element must be I32");
+
+	auto st_t = Semantic::make_struct("Point");
+	ASSERT(st_t.payload != nullptr, "Struct type must have payload");
+	ASSERT(st_t.struct_name() == "Point", "Struct name must match");
+
+	auto en_t = Semantic::make_enum("Color", i32_t);
+	ASSERT(en_t.payload != nullptr, "Enum type must have payload");
+	ASSERT(en_t.enum_name() == "Color", "Enum name must match");
+	ASSERT(en_t.underlying_type() != nullptr && en_t.underlying_type()->kind == SemaType::I32, "Enum underlying type must match");
+
+	// 4. StringMap and StringSet heterogeneous lookup
+	StringMap<int> map;
+	map["foo"] = 42;
+	std::string_view sv = "foo";
+	auto it = map.find(sv);
+	ASSERT(it != map.end(), "StringMap must support heterogeneous lookup via string_view");
+	ASSERT(it->second == 42, "Value in StringMap must match");
+	ASSERT(map.contains(sv), "StringMap contains() must support string_view");
+
+	StringSet set;
+	set.insert("module_a");
+	std::string_view mod_sv = "module_a";
+	ASSERT(set.contains(mod_sv), "StringSet contains() must support string_view");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
+
+	if (!test_semantic_memory_optimization()) return 1;
+	std::cout << "  [PASS] test_semantic_memory_optimization" << std::endl;
 
 	if (!test_valid_program()) return 1;
 	std::cout << "  [PASS] test_valid_program" << std::endl;

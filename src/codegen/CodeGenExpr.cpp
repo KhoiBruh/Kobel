@@ -107,11 +107,11 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		if (
 			!obj_type.is_struct() &&
 			!(obj_type.is_pointer() &&
-			  obj_type.pointee &&
-			  obj_type.pointee->is_struct())
+			  obj_type.pointee() &&
+			  obj_type.pointee()->is_struct())
 		)
 			return nullptr;
-		const std::string st_name = obj_type.is_struct() ? obj_type.struct_name : obj_type.pointee->struct_name;
+		const std::string st_name = obj_type.is_struct() ? obj_type.struct_name() : obj_type.pointee()->struct_name();
 
 		llvm::Value *obj_ptr = nullptr;
 		if (obj_type.is_pointer())obj_ptr = emit_expr(m->object.get());
@@ -165,7 +165,7 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 		if (target_sema.is_pointer()) {
 			auto *ptr_val = emit_expr(idx->target.get());
-			auto *elem_llvm_type = get_llvm_type(*target_sema.pointee);
+			auto *elem_llvm_type = get_llvm_type(*target_sema.pointee());
 			return builder->CreateGEP(elem_llvm_type, ptr_val, index_val, "ptridx");
 		}
 
@@ -364,7 +364,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			case TokenType::BANG: return builder->CreateNot(opnd, "not");
 			case TokenType::STAR: {
 				auto target_type = get_sema_type(u->operand.get());
-				auto elem_type = *target_type.pointee;
+				auto elem_type = *target_type.pointee();
 				auto *elem_llvm_type = get_llvm_type(elem_type);
 				return builder->CreateLoad(elem_llvm_type, opnd, "deref");
 			}
@@ -440,7 +440,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		if (isa<MemberExpr>(c->callee.get())) {
 			const auto *m = as<MemberExpr>(c->callee.get());
 			auto obj_type = get_sema_type(m->object.get());
-			std::string st_name = obj_type.is_struct() ? obj_type.struct_name : obj_type.pointee->struct_name;
+			std::string st_name = obj_type.is_struct() ? obj_type.struct_name() : obj_type.pointee()->struct_name();
 			std::string mangled = to_llvm_name(st_name) + "_" + std::string(m->member);
 
 			auto *callee = module->getFunction(mangled);
@@ -495,13 +495,12 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	if (isa<MemberExpr>(expr)) {
 		const auto *m = as<MemberExpr>(expr);
 
-		// 7a. Enum member constant (e.g. Status.OK)
-		if (isa<IdentifierExpr>(m->object.get()) && analyzer) {
-			const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
+		// 7a. Enum member access (e.g. Color.RED)
+		if (isa<IdentifierExpr>(m->object.get())) {
+			const auto id_name = as<IdentifierExpr>(m->object.get())->name;
 			if (auto it_enum = analyzer->enums.find(id_name); it_enum != analyzer->enums.end()) {
-				const auto member_name = std::string(m->member);
 				if (
-					auto it_m = it_enum->second.member_values.find(member_name);
+					auto it_m = it_enum->second.member_values.find(m->member);
 					it_m != it_enum->second.member_values.end()
 				) {
 					llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
@@ -517,7 +516,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		// 7c. .len property on array (e.g. arr.len)
 		if (obj_sema.is_array() && m->member == "len")
 			return builder->getInt32(
-				static_cast<int32_t>(obj_sema.array_size)
+				static_cast<int32_t>(obj_sema.array_size())
 			);
 
 		llvm::Value *field_ptr = emit_lvalue(m);
@@ -565,8 +564,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			if (src_bits == dest_bits) return val;
 			if (dest_bits > src_bits) {
 				bool is_signed = src_sema.is_signed_integer();
-				if (src_sema.is_enum() && src_sema.underlying_type)
-					is_signed = src_sema.underlying_type->is_signed_integer();
+				if (src_sema.is_enum() && src_sema.underlying_type())
+					is_signed = src_sema.underlying_type()->is_signed_integer();
 				return is_signed
 					       ? builder->CreateSExt(val, dest_type, "sext")
 					       : builder->CreateZExt(val, dest_type, "zext");

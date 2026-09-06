@@ -33,17 +33,17 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		const auto* v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
 		auto sema_ty = analyzer->resolve_type(v->type_annotation.get());
-		if (sema_ty.is_array() && sema_ty.array_size == 0 && v->initializer) {
+		if (sema_ty.is_array() && sema_ty.array_size() == 0 && v->initializer) {
 			auto init_sema = get_sema_type(v->initializer.get());
 			if (init_sema.is_array()) {
-				sema_ty.array_size = init_sema.array_size;
+				sema_ty.set_array_size(init_sema.array_size());
 			}
 		}
 		llvm::Type* var_type = get_llvm_type(sema_ty);
 
 		llvm::Function* fn = builder->GetInsertBlock()->getParent();
 		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, var_type, name);
-		add_local(name, alloca, sema_ty);
+		add_local(v->name, alloca, sema_ty);
 
 		if (v->initializer) {
 			if (isa<ArrayLiteralExpr>(v->initializer.get())) {
@@ -59,7 +59,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 				}
 			} else if (isa<CallExpr>(v->initializer.get()) &&
 			           isa<IdentifierExpr>(as<CallExpr>(v->initializer.get())->callee.get()) &&
-			           analyzer && analyzer->structs.contains(std::string(as<IdentifierExpr>(as<CallExpr>(v->initializer.get())->callee.get())->name))) {
+			           analyzer && analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer.get())->callee.get())->name)) {
 				const auto* call = as<CallExpr>(v->initializer.get());
 				for (size_t i = 0; i < call->args.size(); ++i) {
 					llvm::Value* arg_val = emit_expr(call->args[i].get());

@@ -37,8 +37,8 @@ export struct CodeGen {
 	std::unique_ptr<llvm::IRBuilder<>> builder;
 	Analyzer* analyzer = nullptr;
 
-	std::vector<std::unordered_map<std::string, llvm::AllocaInst*>> local_var_scopes;
-	std::vector<std::unordered_map<std::string, Semantic>> local_type_scopes;
+	std::vector<StringMap<llvm::AllocaInst*>> local_var_scopes;
+	std::vector<StringMap<Semantic>> local_type_scopes;
 
 	void push_scope() {
 		local_var_scopes.emplace_back();
@@ -55,28 +55,28 @@ export struct CodeGen {
 		local_type_scopes.clear();
 	}
 
-	void add_local(const std::string& name, llvm::AllocaInst* alloca, const Semantic& ty) {
+	void add_local(const std::string_view name, llvm::AllocaInst* alloca, const Semantic& ty) {
 		if (local_var_scopes.empty()) push_scope();
-		local_var_scopes.back()[name] = alloca;
-		local_type_scopes.back()[name] = ty;
+		local_var_scopes.back()[std::string(name)] = alloca;
+		local_type_scopes.back()[std::string(name)] = ty;
 	}
 
-	llvm::AllocaInst* lookup_local_var(const std::string& name) const {
+	llvm::AllocaInst* lookup_local_var(const std::string_view name) const {
 		for (auto it = local_var_scopes.rbegin(); it != local_var_scopes.rend(); ++it) {
 			if (auto f = it->find(name); f != it->end()) return f->second;
 		}
 		return nullptr;
 	}
 
-	std::optional<Semantic> lookup_local_type(const std::string& name) const {
+	std::optional<Semantic> lookup_local_type(const std::string_view name) const {
 		for (auto it = local_type_scopes.rbegin(); it != local_type_scopes.rend(); ++it) {
 			if (auto f = it->find(name); f != it->end()) return f->second;
 		}
 		return std::nullopt;
 	}
 
-	std::unordered_map<std::string, llvm::GlobalVariable*> global_consts;
-	std::unordered_map<std::string, llvm::StructType*> struct_types;
+	StringMap<llvm::GlobalVariable*> global_consts;
+	StringMap<llvm::StructType*> struct_types;
 
 	struct LoopContext {
 		llvm::BasicBlock* cond_bb;
@@ -130,24 +130,24 @@ export struct CodeGen {
 				return llvm::PointerType::get(*context, 0); // LLVM 23 Opaque Pointer (ptr)
 
 			case SemaType::STRUCT: {
-				auto it = struct_types.find(type.struct_name);
+				auto it = struct_types.find(type.struct_name());
 				if (it != struct_types.end()) return it->second;
-				it = struct_types.find(to_llvm_name(type.struct_name));
+				it = struct_types.find(to_llvm_name(type.struct_name()));
 				if (it != struct_types.end()) return it->second;
-				return llvm::StructType::getTypeByName(*context, to_llvm_name(type.struct_name));
+				return llvm::StructType::getTypeByName(*context, to_llvm_name(type.struct_name()));
 			}
 
 			case SemaType::ENUM: {
-				if (type.underlying_type) return get_llvm_type(*type.underlying_type);
+				if (type.underlying_type()) return get_llvm_type(*type.underlying_type());
 				return builder->getInt32Ty();
 			}
 
 			case SemaType::ARRAY: {
-				if (type.element_type) {
-					llvm::Type* elem_ty = get_llvm_type(*type.element_type);
-					return llvm::ArrayType::get(elem_ty, type.array_size);
+				if (type.element_type()) {
+					llvm::Type* elem_ty = get_llvm_type(*type.element_type());
+					return llvm::ArrayType::get(elem_ty, type.array_size());
 				}
-				return llvm::ArrayType::get(builder->getInt32Ty(), type.array_size);
+				return llvm::ArrayType::get(builder->getInt32Ty(), type.array_size());
 			}
 
 			default:
@@ -168,7 +168,7 @@ export struct CodeGen {
 		}
 
 		if (isa<IdentifierExpr>(expr)) {
-			const auto name = std::string(as<IdentifierExpr>(expr)->name);
+			const auto name = as<IdentifierExpr>(expr)->name;
 			if (auto opt_ty = lookup_local_type(name)) return *opt_ty;
 			if (analyzer) {
 				const auto it_c = analyzer->constants.find(name);

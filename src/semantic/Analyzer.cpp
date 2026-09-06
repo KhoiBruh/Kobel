@@ -21,10 +21,10 @@ export import semantic.symbol;
 export struct Analyzer {
 	DiagnosticEngine &logger;
 
-	std::unordered_map<std::string, FnSymbol> functions;
-	std::unordered_map<std::string, StructSymbol> structs;
-	std::unordered_map<std::string, EnumSymbol> enums;
-	std::unordered_map<std::string, ConstSymbol> constants;
+	StringMap<FnSymbol> functions;
+	StringMap<StructSymbol> structs;
+	StringMap<EnumSymbol> enums;
+	StringMap<ConstSymbol> constants;
 	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
@@ -33,9 +33,9 @@ export struct Analyzer {
 
 	std::string current_module;
 	std::unordered_map<const Decl*, std::string> decl_modules;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> module_imports;
-	std::unordered_map<std::string, std::vector<std::string>> module_wildcards;
-	std::unordered_set<std::string> known_modules;
+	StringMap<StringMap<std::string>> module_imports;
+	StringMap<std::vector<std::string>> module_wildcards;
+	StringSet known_modules;
 	std::unordered_map<const Expr*, std::string> resolved_symbols;
 
 	explicit Analyzer(DiagnosticEngine &log) : logger(log) {}
@@ -55,7 +55,7 @@ export struct Analyzer {
 
 	VarSymbol *lookup_variable(const std::string_view name) {
 		for (auto &scope : std::views::reverse(scopes)) {
-			auto found = scope.variables.find(std::string(name));
+			auto found = scope.variables.find(name);
 			if (found != scope.variables.end()) return &found->second;
 		}
 		return nullptr;
@@ -67,7 +67,7 @@ export struct Analyzer {
 
 	template <typename TSymbol>
 	std::string resolve_symbol_helper(
-		const std::unordered_map<std::string, TSymbol>& symbol_table,
+		const StringMap<TSymbol>& symbol_table,
 		std::string_view raw_name,
 		std::string_view entity_type_name,
 		size_t line, size_t col

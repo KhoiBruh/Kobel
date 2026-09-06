@@ -105,7 +105,7 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				logger.error(a->line, a->col, "Cannot assign to read-only property '.len' of array");
 				return Semantic::make_error();
 			}
-			if (obj_type.is_pointer() && !obj_type.is_mut_pointer) {
+			if (obj_type.is_pointer() && !obj_type.is_mut_pointer()) {
 				logger.error(a->line, a->col, "Cannot modify field through read-only pointer '*'");
 				return Semantic::make_error();
 			}
@@ -237,11 +237,11 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				return operand_type;
 
 			case TokenType::STAR: // Dereference: *ptr
-				if (!operand_type.is_pointer() || !operand_type.pointee) {
+				if (!operand_type.is_pointer() || !operand_type.pointee()) {
 					logger.error(u->line, u->col, "Dereference operator '*' can only be applied to pointer types");
 					return Semantic::make_error();
 				}
-				return *operand_type.pointee;
+				return *operand_type.pointee();
 
 			default:
 				return Semantic::make_error();
@@ -271,8 +271,8 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 		                             (src_type.is_integer() && target_type.is_enum()) ||
 		                             (src_type.is_enum() && target_type.is_enum() && src_type.equals(target_type));
 		const bool is_array_to_ptr = src_type.is_array() && target_type.is_pointer() &&
-		                             src_type.element_type && target_type.pointee &&
-		                             src_type.element_type->equals(*target_type.pointee);
+		                             src_type.element_type() && target_type.pointee() &&
+		                             src_type.element_type()->equals(*target_type.pointee());
 
 		if (!is_int_to_int && !is_ptr_to_ptr && !is_int_ptr_mix && !is_char_int_mix && !is_enum_int_mix && !
 		    is_array_to_ptr) {
@@ -372,9 +372,9 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 			std::string struct_name;
 			if (obj_type.is_struct()) {
-				struct_name = obj_type.struct_name;
-			} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
-				struct_name = obj_type.pointee->struct_name;
+				struct_name = obj_type.struct_name();
+			} else if (obj_type.is_pointer() && obj_type.pointee() && obj_type.pointee()->is_struct()) {
+				struct_name = obj_type.pointee()->struct_name();
 			} else {
 				logger.error(c->line, c->col, "Methods can only be called on structs or struct pointers");
 				return Semantic::make_error();
@@ -387,7 +387,7 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			}
 
 			const auto method_name = std::string(m->member);
-			auto it_m = it_st->second.methods.find(method_name);
+			auto it_m = it_st->second.methods.find(m->member);
 			if (it_m == it_st->second.methods.end()) {
 				logger.error(
 					c->line, c->col, "Struct '" + struct_name + "' has no method named '" + method_name + "'"
@@ -404,9 +404,9 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			if (!method_sym.param_types.empty() && method_sym.param_names[0] == "self") {
 				if (
 					const auto &self_expected = method_sym.param_types[0];
-					self_expected.is_pointer() && self_expected.is_mut_pointer
+					self_expected.is_pointer() && self_expected.is_mut_pointer()
 				) {
-					if (obj_type.is_pointer() && !obj_type.is_mut_pointer)
+					if (obj_type.is_pointer() && !obj_type.is_mut_pointer())
 						logger.error(
 							c->line, c->col,
 							"Cannot call 'var self' method on read-only pointer '*" + struct_name + "'"
@@ -481,8 +481,8 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 		// Check .value property on Enum variable or expression (e.g. status.value)
 		if (obj_type.is_enum()) {
 			if (m->member == "value") {
-				return obj_type.underlying_type
-					       ? *obj_type.underlying_type
+				return obj_type.underlying_type()
+					       ? *obj_type.underlying_type()
 					       : Semantic::make_primitive(SemaType::I32);
 			}
 			logger.error(m->line, m->col, "Enum type only supports property '.value'");
@@ -500,9 +500,9 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 		std::string struct_name;
 		if (obj_type.is_struct()) {
-			struct_name = obj_type.struct_name;
-		} else if (obj_type.is_pointer() && obj_type.pointee && obj_type.pointee->is_struct()) {
-			struct_name = obj_type.pointee->struct_name;
+			struct_name = obj_type.struct_name();
+		} else if (obj_type.is_pointer() && obj_type.pointee() && obj_type.pointee()->is_struct()) {
+			struct_name = obj_type.pointee()->struct_name();
 		} else {
 			logger.error(
 				m->line, m->col, "Member access '.' is only supported on struct, struct pointer, enum, or array types"
@@ -518,13 +518,13 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 		const auto field_name = std::string(m->member);
 		if (
-			auto it_f = it->second.field_types.find(field_name);
+			auto it_f = it->second.field_types.find(m->member);
 			it_f != it->second.field_types.end()
 		)
 			return it_f->second;
 
 		if (
-			auto it_m = it->second.methods.find(field_name);
+			auto it_m = it->second.methods.find(m->member);
 			it_m != it->second.methods.end()
 		)
 			return it_m->second.return_type;
@@ -550,9 +550,9 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 		}
 
 		if (target_type.is_array())
-			return target_type.element_type ? *target_type.element_type : Semantic::make_error();
+			return target_type.element_type() ? *target_type.element_type() : Semantic::make_error();
 
-		if (target_type.is_pointer() && target_type.pointee) return *target_type.pointee;
+		if (target_type.is_pointer() && target_type.pointee()) return *target_type.pointee();
 
 		logger.error(idx->line, idx->col, "Index operator '[]' is only applicable to array or pointer types");
 		return Semantic::make_error();

@@ -39,10 +39,10 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 
 			// Infer array size if declared as Array<T> (size == 0)
 			if (declared_type.is_array() && init_type.is_array()) {
-				if (declared_type.array_size == 0) {
-					declared_type.array_size = init_type.array_size;
+				if (declared_type.array_size() == 0) {
+					declared_type.set_array_size(init_type.array_size());
 					if (isa<ArrayType>(v->type_annotation.get())) {
-						as<ArrayType>(v->type_annotation.get())->size = init_type.array_size;
+						as<ArrayType>(v->type_annotation.get())->size = init_type.array_size();
 					}
 				}
 			}

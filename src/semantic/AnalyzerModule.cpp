@@ -30,7 +30,7 @@ std::string Analyzer::join_path(const std::vector<std::string_view>& path) {
 
 template <typename TSymbol>
 std::string Analyzer::resolve_symbol_helper(
-	const std::unordered_map<std::string, TSymbol>& symbol_table,
+	const StringMap<TSymbol>& symbol_table,
 	const std::string_view raw_name,
 	const std::string_view entity_type_name,
 	const size_t line,
@@ -47,7 +47,7 @@ std::string Analyzer::resolve_symbol_helper(
 	// 2. Lookup in current module's import table
 	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
 		const auto& imports = it_imp->second;
-		if (const auto it = imports.find(name); it != imports.end()) {
+		if (const auto it = imports.find(raw_name); it != imports.end()) {
 			const std::string& target = it->second;
 			if (const auto it_sym = symbol_table.find(target); it_sym != symbol_table.end()) {
 				const auto& sym = it_sym->second;
@@ -74,7 +74,7 @@ std::string Analyzer::resolve_symbol_helper(
 	}
 
 	// 4. Direct lookup (global / extern)
-	if (const auto it_sym = symbol_table.find(name); it_sym != symbol_table.end()) {
+	if (const auto it_sym = symbol_table.find(raw_name); it_sym != symbol_table.end()) {
 		const auto& sym = it_sym->second;
 		if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
 			logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
