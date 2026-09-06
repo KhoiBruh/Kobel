@@ -11,7 +11,7 @@ import ast;
 import token;
 
 std::unique_ptr<BlockStmt> Parser::parse_block_stmt() {
-	const auto tok = consume(TokenType::OPEN_BRACE, "Expected '{' begin statement block");
+	const auto tok = consume(TokenType::OPEN_BRACE, "Expected '{' to begin statement block");
 	std::vector<std::unique_ptr<Stmt>> statements;
 
 	while (!is_end() && !check(TokenType::CLOSE_BRACE)) {
@@ -20,7 +20,7 @@ std::unique_ptr<BlockStmt> Parser::parse_block_stmt() {
 		else synchronize();
 	}
 
-	consume(TokenType::CLOSE_BRACE, "Expected '}' end statement block");
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to end statement block");
 	return std::make_unique<BlockStmt>(std::move(statements), tok.line, tok.col);
 }
 
@@ -36,7 +36,7 @@ std::unique_ptr<Stmt> Parser::parse_var_decl_stmt() {
 	std::unique_ptr<Expr> init = nullptr;
 	if (match(TokenType::EQUAL)) init = parse_expression();
 
-	consume(TokenType::SEMI_COLON, "Expected ';' end variable declatation");
+	consume(TokenType::SEMI_COLON, "Expected ';' after variable declaration");
 	return std::make_unique<VarDeclStmt>(
 		is_mut, name.text,
 		std::move(type),
@@ -107,6 +107,6 @@ std::unique_ptr<Stmt> Parser::parse_statement() {
 	// Expression also is a statement (ex: printf(...); or x = 10;)
 	const auto tok = peek();
 	auto expr = parse_expression();
-	consume(TokenType::SEMI_COLON, "Expected ';' end statement");
+	consume(TokenType::SEMI_COLON, "Expected ';' after statement");
 	return std::make_unique<ExprStmt>(std::move(expr), tok.line, tok.col);
 }

@@ -12,24 +12,24 @@ import semantic.symbol;
 void Analyzer::analyze_stmt(const Stmt *stmt) {
 	if (!stmt) return;
 
-	// 1. Khai báo biến: val / var
+	// 1. Variable declaration: val / var
 	if (isa<VarDeclStmt>(stmt)) {
 		const auto *v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
 
-		// Quy tắc 2: Bắt buộc ghi kiểu tường minh
+		// Explicit type annotation is required
 		if (!v->type_annotation) {
-			logger.error(v->line, v->col, "Bắt buộc phải ghi kiểu dữ liệu tường minh cho biến '" + name + "'");
+			logger.error(v->line, v->col, "Explicit type annotation is required for variable '" + name + "'");
 			return;
 		}
 
 		auto declared_type = resolve_type(v->type_annotation.get());
 
-		// Kiểm tra giá trị khởi tạo nếu có
+		// Check initializer if present
 		if (v->initializer) {
 			auto init_type = analyze_expr(v->initializer.get());
 
-			// Suy luận kích thước mảng nếu khai báo là Array<T> (size == 0)
+			// Infer array size if declared as Array<T> (size == 0)
 			if (declared_type.is_array() && init_type.is_array()) {
 				if (declared_type.array_size == 0) {
 					declared_type.array_size = init_type.array_size;
@@ -41,16 +41,16 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 
 			if (!declared_type.can_assign_from(init_type)) {
 				logger.error(
-					v->line, v->col, "Không thể khởi tạo biến '" + name + "' kiểu '" +
-					                 declared_type.to_string() + "' bằng giá trị kiểu '" + init_type.to_string() +
+					v->line, v->col, "Cannot initialize variable '" + name + "' of type '" +
+					                 declared_type.to_string() + "' with value of type '" + init_type.to_string() +
 					                 "'"
 				);
 			}
 		}
 
-		// Kiểm tra trùng lặp trong cùng một scope
+		// Check duplicate in the same scope
 		if (current_scope().variables.contains(name)) {
-			logger.error(v->line, v->col, "Biến '" + name + "' đã được khai báo trước đó trong cùng phạm vi");
+			logger.error(v->line, v->col, "Variable '" + name + "' was already declared in this scope");
 			return;
 		}
 
@@ -59,7 +59,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		return;
 	}
 
-	// 2. Khối lệnh: { ... }
+	// 2. Block: { ... }
 	if (isa<BlockStmt>(stmt)) {
 		const auto *b = as<BlockStmt>(stmt);
 		enter_scope();
@@ -70,7 +70,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		return;
 	}
 
-	// 3. Câu lệnh if: if (cond) { ... } else { ... }
+	// 3. If statement: if (cond) { ... } else { ... }
 	if (isa<IfStmt>(stmt)) {
 		const auto *i = as<IfStmt>(stmt);
 		if (
@@ -79,14 +79,14 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		)
 			logger.error(
 				i->line, i->col,
-				"Điều kiện if phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'"
+				"Condition of 'if' statement must be of type 'bool', got '" + cond_type.to_string() + "'"
 			);
 		analyze_stmt(i->then_branch.get());
 		if (i->else_branch) analyze_stmt(i->else_branch.get());
 		return;
 	}
 
-	// 4. Vòng lặp while: while (cond) { ... }
+	// 4. While loop: while (cond) { ... }
 	if (isa<WhileStmt>(stmt)) {
 		const auto *w = as<WhileStmt>(stmt);
 		if (
@@ -94,7 +94,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 			!cond_type.is_bool() && !cond_type.is_error()
 		)
 			logger.error(
-				w->line, w->col, "Điều kiện while phải có kiểu 'bool', gặp kiểu '" + cond_type.to_string() + "'"
+				w->line, w->col, "Condition of 'while' statement must be of type 'bool', got '" + cond_type.to_string() + "'"
 			);
 		loop_depth++;
 		analyze_stmt(w->body.get());
@@ -102,11 +102,11 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		return;
 	}
 
-	// 5. Câu lệnh return: return expr;
+	// 5. Return statement: return expr;
 	if (isa<ReturnStmt>(stmt)) {
 		const auto *r = as<ReturnStmt>(stmt);
 		if (!current_function_return_type.has_value()) {
-			logger.error(r->line, r->col, "Lệnh 'return' chỉ hợp lệ bên trong thân hàm");
+			logger.error(r->line, r->col, "Return statement is only valid inside a function body");
 			return;
 		}
 
@@ -118,14 +118,14 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 			)
 				logger.error(
 					r->line, r->col,
-					"Kiểu giá trị trả về '" + val_type.to_string() +
-					"' không khớp với kiểu hàm mong đợi '" + expected.to_string() + "'"
+					"Return value type '" + val_type.to_string() +
+					"' does not match expected function return type '" + expected.to_string() + "'"
 				);
 		} else if (!expected.is_void())
 			logger.error(
 				r->line, r->col,
-				"Hàm mong đợi trả về kiểu '" + expected.to_string() +
-				"', không được dùng lệnh return rỗng"
+				"Function expects return type '" + expected.to_string() +
+				"', cannot return void"
 			);
 		return;
 	}
@@ -135,13 +135,13 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		if (loop_depth <= 0) {
 			logger.error(
 				stmt->line, stmt->col,
-				"Lệnh 'break'/'continue' chỉ được phép nằm bên trong vòng lặp while"
+				"'break'/'continue' statement is only allowed inside a loop"
 			);
 		}
 		return;
 	}
 
-	// 7. Câu lệnh biểu thức: expr;
+	// 7. Expression statement: expr;
 	if (isa<ExprStmt>(stmt)) {
 		const auto *e = as<ExprStmt>(stmt);
 		analyze_expr(e->expr.get());

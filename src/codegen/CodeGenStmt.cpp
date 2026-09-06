@@ -18,7 +18,7 @@ import semantic.symbol;
 import semantic.analyzer;
 
 // ============================================================================
-// Sinh mã Câu lệnh (Statements) & Luồng Điều khiển
+// Code Generation for Statements & Control Flow
 // ============================================================================
 
 void CodeGen::emit_stmt(const Stmt* stmt) {
@@ -28,7 +28,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		return;
 	}
 
-	// 1. Khai báo biến: val / var
+	// 1. Variable declaration: val / var
 	if (isa<VarDeclStmt>(stmt)) {
 		const auto* v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
@@ -75,7 +75,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		return;
 	}
 
-	// 2. Khối lệnh: { ... }
+	// 2. Block: { ... }
 	if (isa<BlockStmt>(stmt)) {
 		const auto* b = as<BlockStmt>(stmt);
 		for (const auto& s : b->statements) {
@@ -84,7 +84,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		return;
 	}
 
-	// 3. Câu lệnh if: if (cond) { ... } else { ... }
+	// 3. If statement: if (cond) { ... } else { ... }
 	if (isa<IfStmt>(stmt)) {
 		const auto* i = as<IfStmt>(stmt);
 		llvm::Value* cond = emit_expr(i->condition.get());
@@ -119,7 +119,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		return;
 	}
 
-	// 4. Vòng lặp while: while (cond) { ... }
+	// 4. While loop: while (cond) { ... }
 	if (isa<WhileStmt>(stmt)) {
 		const auto* w = as<WhileStmt>(stmt);
 		llvm::Function* fn = builder->GetInsertBlock()->getParent();

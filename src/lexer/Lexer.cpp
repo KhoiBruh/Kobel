@@ -79,7 +79,7 @@ export struct Lexer {
 			cursor + 1 < src.size() &&
 			std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
 		) {
-			next(); // nuốt '.'
+			next(); // consume '.'
 			while (std::isdigit(static_cast<unsigned char>(peek()))) next();
 		}
 

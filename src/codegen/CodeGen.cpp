@@ -58,7 +58,7 @@ export struct CodeGen {
 	}
 
 	// ========================================================================
-	// 1. Ánh xạ Kiểu Dữ liệu (Type Mapping)
+	// 1. Type Mapping
 	// ========================================================================
 
 	llvm::Type* get_llvm_type(const Semantic& type) {
@@ -145,17 +145,17 @@ export struct CodeGen {
 	}
 
 	// ========================================================================
-	// 2. Chữ ký các hàm sinh mã (Prototypes)
+	// 2. Code Generation Function Prototypes
 	// ========================================================================
 
-	// Biểu thức & Địa chỉ (CodeGenExpr.cpp)
+	// Expressions & Addresses (CodeGenExpr.cpp)
 	llvm::Value* emit_lvalue(const Expr* expr);
 	llvm::Value* emit_expr(const Expr* expr);
 
-	// Câu lệnh (CodeGenStmt.cpp)
+	// Statements (CodeGenStmt.cpp)
 	void emit_stmt(const Stmt* stmt);
 
-	// Khai báo cấp cao (CodeGenDecl.cpp)
+	// Top-level Declarations (CodeGenDecl.cpp)
 	void emit_struct_decl(const StructDecl* st);
 	void emit_const_decl(const ConstDecl* c);
 	void emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_override = "");
@@ -163,14 +163,14 @@ export struct CodeGen {
 	void emit_fn_decl(const FnDecl* fn_decl, const std::string& fn_name_override = "");
 	void emit_extern_block(const ExternBlock* ext);
 
-	// Phát sinh mã máy đích (CodeGenNative.cpp)
+	// Target Code Generation (CodeGenNative.cpp)
 	bool setup_target_machine(const std::string& triple_str = "");
 	bool emit_object_file(const std::string& output_filename);
 	bool emit_assembly_file(const std::string& output_filename);
 	static bool link_executable(const std::string& obj_filename, const std::string& exe_filename);
 
 	// ========================================================================
-	// 3. Tổng thể Sinh mã & Kiểm định Module
+	// 3. Overall Code Generation & Module Verification
 	// ========================================================================
 
 	bool generate(const Program* program) {
@@ -197,7 +197,7 @@ export struct CodeGen {
 			}
 		}
 
-		// 4a. Function prototypes (Pass 1: Khai báo chữ ký toàn bộ hàm trước)
+		// 4a. Function prototypes (Pass 1: Declare signatures for all functions first)
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
 				const auto* fn = as<FnDecl>(decl.get());
@@ -207,7 +207,7 @@ export struct CodeGen {
 			}
 		}
 
-		// 4b. Function bodies (Pass 2: Sinh thân hàm, các hàm có thể gọi chéo nhau tự do)
+		// 4b. Function bodies (Pass 2: Generate function bodies; functions can call each other freely)
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
 				const auto* fn = as<FnDecl>(decl.get());

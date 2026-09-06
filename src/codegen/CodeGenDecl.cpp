@@ -22,7 +22,7 @@ import semantic.symbol;
 import semantic.analyzer;
 
 // ============================================================================
-// Sinh mã Khai báo Cấp cao (Declarations)
+// Code Generation for Declarations
 // ============================================================================
 
 void CodeGen::emit_struct_decl(const StructDecl* st) {
@@ -124,7 +124,7 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 	local_vars.clear();
 	local_types.clear();
 
-	// Tạo alloca cho tham số hàm
+	// Create alloca for function parameters
 	unsigned idx = 0;
 	for (auto& arg : fn->args()) {
 		const auto param_name = std::string(fn_decl->params[idx].name);
@@ -142,7 +142,7 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 
 	emit_stmt(fn_decl->body.get());
 
-	// Nếu block cuối chưa có lệnh kết thúc terminator, tự động chèn return
+	// If the last basic block lacks a terminator, insert an automatic return
 	if (auto* cur_bb = builder->GetInsertBlock(); cur_bb && !cur_bb->hasTerminator()) {
 		if (fn->getReturnType()->isVoidTy()) {
 			builder->CreateRetVoid();

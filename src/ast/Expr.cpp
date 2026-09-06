@@ -12,7 +12,7 @@ import ast.base;
 import ast.type;
 
 // ============================================================================
-// 4. Biểu thức (Expr)
+// 4. Expressions (Expr)
 // ============================================================================
 
 export struct Expr : ASTNode {
@@ -155,7 +155,7 @@ export struct GroupExpr final : Expr {
 	) : Expr(KIND, l, c), expr(std::move(e)) {}
 };
 
-// Biểu thức mảng literal: [expr, expr, ...]
+// Array literal expression: [expr, expr, ...]
 export struct ArrayLiteralExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_ARRAY_LITERAL;
 	std::vector<std::unique_ptr<Expr>> elements;

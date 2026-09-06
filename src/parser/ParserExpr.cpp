@@ -87,7 +87,7 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 	// single parentheses
 	if (match(TokenType::OPEN_PAREN)) {
 		auto expr = parse_expression();
-		consume(TokenType::CLOSE_PAREN, "Expected ')' đóng biểu thức ngoặc");
+		consume(TokenType::CLOSE_PAREN, "Expected ')' to close grouped expression");
 		return std::make_unique<GroupExpr>(std::move(expr), tok.line, tok.col);
 	}
 
@@ -111,7 +111,7 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 		return std::make_unique<ArrayLiteralExpr>(std::move(elements), tok.line, tok.col);
 	}
 
-	error(tok, "Biểu thức không hợp lệ");
+	error(tok, "Invalid expression");
 	advance();
 	return nullptr;
 }
@@ -130,7 +130,7 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 						args.push_back(parse_expression());
 					} while (match(TokenType::COMMA));
 				}
-				consume(TokenType::CLOSE_PAREN, "Expected ')' end danh sách đối số hàm");
+				consume(TokenType::CLOSE_PAREN, "Expected ')' after argument list");
 				left = std::make_unique<CallExpr>(
 					std::move(left), std::move(args),
 					op.line, op.col
@@ -141,7 +141,7 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 			case TokenType::DOT: {
 				const auto member = consume(
 					TokenType::IDENTIFIER,
-					"Expected name trường after dấu '.'"
+					"Expected member name after '.'"
 				);
 				left = std::make_unique<MemberExpr>(
 					std::move(left), member.text,
@@ -152,7 +152,7 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 			// 3. array/pointer index: ptr[index]
 			case TokenType::OPEN_BRACKET: {
 				auto index = parse_expression();
-				consume(TokenType::CLOSE_BRACKET, "Expected ']' after chỉ mục");
+				consume(TokenType::CLOSE_BRACKET, "Expected ']' after index expression");
 				left = std::make_unique<IndexExpr>(
 					std::move(left), std::move(index),
 					op.line, op.col

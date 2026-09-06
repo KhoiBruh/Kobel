@@ -5,7 +5,7 @@ module;
 export module ast.base;
 
 // ============================================================================
-// 1. Phân loại AST Node (ASTKind)
+// 1. AST Node Classification (ASTKind)
 // ============================================================================
 
 export enum class ASTKind {
@@ -49,7 +49,7 @@ export enum class ASTKind {
 };
 
 // ============================================================================
-// 2. Node Gốc & LLVM-style RTTI (tương thích /GR- / -fno-rtti)
+// 2. Root Node & LLVM-style RTTI (compatible with /GR- / -fno-rtti)
 // ============================================================================
 
 export struct ASTNode {

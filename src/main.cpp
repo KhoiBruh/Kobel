@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// Xác định tên file đầu ra mặc định nếu chưa chỉ định
+	// Determine default output file name if not specified
 	auto base_name = std::filesystem::path(input_files[0]).stem().string();
 	if (output_file.empty()) {
 		switch (mode) {
@@ -143,14 +143,16 @@ int main(int argc, char *argv[]) {
 				break;
 		}
 	} else if (!explicit_mode) {
-		// Tự động suy luận mode dựa trên đuôi file của -o nếu người dùng không dùng cờ tường minh
+		// Automatically infer mode based on output file extension if not explicitly set
 		if (output_file.ends_with(".ll")) mode = OutputMode::IR;
 		else if (output_file.ends_with(".s") || output_file.ends_with(".asm")) mode = OutputMode::ASSEMBLY;
 		else if (output_file.ends_with(".obj") || output_file.ends_with(".o")) mode = OutputMode::OBJECT;
 	}
 
-	// 1. Nạp an toàn nội dung toàn bộ các file nguồn vào bộ nhớ
-	// Sử dụng std::unique_ptr<std::string> để bảo đảm pointer stability cho std::string_view
+	DiagnosticEngine diag;
+
+	// 1. Safely load contents of all source files into memory
+	// Use std::unique_ptr<std::string> to ensure pointer stability for std::string_view
 	std::vector<std::unique_ptr<std::string> > source_buffers;
 	source_buffers.reserve(input_files.size());
 
@@ -172,7 +174,7 @@ int main(int argc, char *argv[]) {
 		Lexer lex{source_view};
 		auto tokens = lex.tokenize();
 
-		Parser parser{std::move(tokens)};
+		Parser parser{std::move(tokens), &diag};
 		auto prog = parser.parse_program();
 
 		if (parser.has_errors()) {
@@ -190,7 +192,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// 1b. Tự động tìm và nạp các module được import nhưng chưa nằm trong danh sách input
+	// 1b. Automatically find and load imported modules not in input list
 	std::unordered_set<std::string> loaded_modules;
 	std::unordered_set<std::string> loaded_files;
 	std::vector<std::filesystem::path> search_dirs;
@@ -205,7 +207,7 @@ int main(int argc, char *argv[]) {
 	}
 	search_dirs.push_back(std::filesystem::current_path());
 
-	// Thu thập các module đã khai báo trong input_files
+	// Collect modules declared in input_files
 	for (const auto &prog : parsed_programs) {
 		for (const auto &decl : prog->declarations) {
 			if (isa<ModuleDecl>(decl.get())) {
@@ -214,7 +216,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// Lặp tìm kiếm và nạp các module phụ thuộc
+	// Iteratively find and load dependent modules
 	bool new_module_loaded = true;
 	while (new_module_loaded) {
 		new_module_loaded = false;
@@ -265,7 +267,7 @@ int main(int argc, char *argv[]) {
 
 					Lexer lex{source_view};
 					auto tokens = lex.tokenize();
-					Parser parser{std::move(tokens)};
+					Parser parser{std::move(tokens), &diag};
 					auto prog = parser.parse_program();
 
 					if (parser.has_errors()) {
@@ -294,7 +296,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// 2. Gộp toàn bộ khai báo cấp cao (Declarations) từ tất cả các file thành 1 Program AST chung
+	// 2. Merge all top-level declarations from all files into a unified Program AST
 	auto unified_program = std::make_unique<Program>();
 	for (auto &prog: parsed_programs) {
 		for (auto &decl: prog->declarations) {
@@ -302,8 +304,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// 3. Phân tích Ngữ nghĩa (Semantic Analysis)
-	DiagnosticEngine diag;
+	// 3. Semantic Analysis
 	Analyzer sema{diag};
 	sema.analyze(unified_program.get());
 
@@ -313,7 +314,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// 4. Sinh mã LLVM (CodeGen)
+	// 4. LLVM Code Generation
 	CodeGen cg{&sema, base_name};
 	if (!cg.setup_target_machine(target_triple)) {
 		std::cerr << "Error: Failed to initialize TargetMachine for target: " << target_triple << "\n";
@@ -325,7 +326,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// 5. Xuất kết quả theo chế độ đã chọn
+	// 5. Emit output based on selected mode
 	switch (mode) {
 		case OutputMode::IR: {
 			std::ofstream out(output_file);

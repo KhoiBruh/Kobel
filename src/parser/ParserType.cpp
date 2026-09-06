@@ -49,6 +49,6 @@ std::unique_ptr<TypeNode> Parser::parse_type() {
 		);
 	}
 
-	error(tok, "Expected name kiểu dữ liệu hoặc con trỏ '*'");
+	error(tok, "Expected type name or pointer '*'");
 	return nullptr;
 }

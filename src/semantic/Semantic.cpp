@@ -11,31 +11,31 @@ import token;
 import logger;
 
 export enum class SemaType {
-	// Số nguyên có dấu
+	// Signed integers
 	I8, I16, I32, I64, ISZ,
-	// Số nguyên không dấu
+	// Unsigned integers
 	U8, U16, U32, U64, USZ,
-	// Kiểu cơ sở khác
+	// Other primitive types
 	BOOL, CHAR, VOID,
-	// Con trỏ, Struct, Enum & Mảng
+	// Pointer, Struct, Enum & Array
 	POINTER,
 	STRUCT,
 	ENUM,
 	ARRAY,
-	// Kiểu đặc biệt
+	// Special types
 	NULL_TYPE,
 	ERROR_TYPE
 };
 
 export struct Semantic {
 	SemaType kind = SemaType::ERROR_TYPE;
-	std::shared_ptr<Semantic> pointee = nullptr; // nếu là POINTER
-	bool is_mut_pointer = false; // true cho &T, false cho *T
-	std::string struct_name; // nếu là STRUCT
-	std::string enum_name; // nếu là ENUM
-	std::shared_ptr<Semantic> underlying_type = nullptr; // nếu là ENUM
-	std::shared_ptr<Semantic> element_type = nullptr; // nếu là ARRAY
-	size_t array_size = 0; // nếu là ARRAY
+	std::shared_ptr<Semantic> pointee = nullptr; // if POINTER
+	bool is_mut_pointer = false; // true for &T, false for *T
+	std::string struct_name; // if STRUCT
+	std::string enum_name; // if ENUM
+	std::shared_ptr<Semantic> underlying_type = nullptr; // if ENUM
+	std::shared_ptr<Semantic> element_type = nullptr; // if ARRAY
+	size_t array_size = 0; // if ARRAY
 
 	static Semantic make_primitive(const SemaType k) {
 		Semantic t;
@@ -137,14 +137,14 @@ export struct Semantic {
 
 	bool can_assign_from(const Semantic &src) const {
 		if (kind == SemaType::ERROR_TYPE || src.kind == SemaType::ERROR_TYPE) return true;
-		// Con trỏ có thể nhận giá trị null
+		// Pointers can accept null
 		if (is_pointer() && src.is_null()) return true;
-		// Mảng: nếu kích thước đích là 0 (suy luận kích thước), chỉ cần khớp kiểu phần tử
+		// Array: if destination size is 0 (size inference), only element types must match
 		if (kind == SemaType::ARRAY && src.kind == SemaType::ARRAY) {
 			if (array_size != 0 && array_size != src.array_size) return false;
 			return element_type && src.element_type && element_type->equals(*src.element_type);
 		}
-		// Bắt buộc khớp kiểu chính xác (Strict Typing)
+		// Strict typing: types must match exactly
 		return equals(src);
 	}
 

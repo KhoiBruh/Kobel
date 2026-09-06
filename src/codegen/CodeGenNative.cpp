@@ -77,13 +77,13 @@ bool CodeGen::emit_object_file(const std::string &output_filename) {
 	std::error_code ec;
 	llvm::raw_fd_ostream dest(output_filename, ec, llvm::sys::fs::OF_None);
 	if (ec) {
-		std::cerr << "Không thể mở file output: " << ec.message() << std::endl;
+		std::cerr << "Could not open output file: " << ec.message() << std::endl;
 		return false;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CodeGenFileType::ObjectFile)) {
-		std::cerr << "TargetMachine không hỗ trợ sinh file object cho target này" << std::endl;
+		std::cerr << "TargetMachine does not support emitting object file for this target" << std::endl;
 		return false;
 	}
 
@@ -98,13 +98,13 @@ bool CodeGen::emit_assembly_file(const std::string &output_filename) {
 	std::error_code ec;
 	llvm::raw_fd_ostream dest(output_filename, ec, llvm::sys::fs::OF_Text);
 	if (ec) {
-		std::cerr << "Không thể mở file output: " << ec.message() << std::endl;
+		std::cerr << "Could not open output file: " << ec.message() << std::endl;
 		return false;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CodeGenFileType::AssemblyFile)) {
-		std::cerr << "TargetMachine không hỗ trợ sinh file assembly cho target này" << std::endl;
+		std::cerr << "TargetMachine does not support emitting assembly file for this target" << std::endl;
 		return false;
 	}
 
@@ -115,7 +115,7 @@ bool CodeGen::emit_assembly_file(const std::string &output_filename) {
 
 namespace {
 	std::string find_clang_executable() {
-		// 1. Kiểm tra biến môi trường người dùng chỉ định
+		// 1. Check user-specified environment variable
 		if (const char* env_kobel_clang = std::getenv("KOBEL_CLANG"); env_kobel_clang && *env_kobel_clang) {
 			if (std::filesystem::exists(env_kobel_clang)) return std::string(env_kobel_clang);
 		}
@@ -123,7 +123,7 @@ namespace {
 			if (std::filesystem::exists(env_clang_path)) return std::string(env_clang_path);
 		}
 
-		// 2. Tìm kiếm trong PATH hệ thống qua LLVM Program Support
+		// 2. Search system PATH via LLVM Program Support
 		if (auto clang_in_path = llvm::sys::findProgramByName("clang"); clang_in_path && !clang_in_path->empty()) {
 			return *clang_in_path;
 		}
@@ -132,7 +132,7 @@ namespace {
 			return *clang_in_path;
 		}
 
-		// 3. Fallback các thư mục cài đặt tiêu chuẩn trên Windows
+		// 3. Fallback to standard installation paths on Windows
 		const std::vector<std::string> standard_windows_paths = {
 			"C:/LLVM/bin/clang.exe",
 			"C:\\LLVM\\bin\\clang.exe",
@@ -143,7 +143,7 @@ namespace {
 			if (std::filesystem::exists(path)) return path;
 		}
 #else
-		// 3. Fallback các thư mục cài đặt tiêu chuẩn trên POSIX
+		// 3. Fallback to standard installation paths on POSIX
 		const std::vector<std::string> standard_posix_paths = {
 			"/usr/bin/clang",
 			"/usr/local/bin/clang"

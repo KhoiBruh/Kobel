@@ -12,6 +12,7 @@ export module parser;
 
 export import token;
 export import ast;
+export import logger;
 
 export enum class Precedence {
 	NONE,
@@ -29,9 +30,12 @@ export enum class Precedence {
 export struct Parser {
 	std::vector<Token> tokens;
 	size_t current = 0;
+	DiagnosticEngine* diag = nullptr;
+	DiagnosticEngine local_diag;
 	std::vector<std::string> errors;
 
-	explicit Parser(std::vector<Token> toks) : tokens(std::move(toks)) {}
+	explicit Parser(std::vector<Token> toks, DiagnosticEngine* d = nullptr)
+		: tokens(std::move(toks)), diag(d) {}
 
 	// 1. Navigation & Helper methods
 	bool is_end() const {
@@ -73,14 +77,21 @@ export struct Parser {
 	}
 
 	void error(const Token &token, const std::string_view message) {
-		std::string err = "[Syntax error] Line " + std::to_string(token.line) +
-		                  ", Column " + std::to_string(token.col) + ": " +
-		                  std::string(message) + " (encounter '" + std::string(token.text) + "')";
-		errors.push_back(std::move(err));
+		DiagnosticEngine &d = (diag ? *diag : local_diag);
+		std::string msg = std::string(message);
+		if (token.type != TokenType::END_OF_FILE && !token.text.empty()) {
+			msg += " (found '" + std::string(token.text) + "')";
+		}
+		d.error(token.line, token.col, msg);
+		errors.push_back("Line " + std::to_string(token.line) + ", Col " + std::to_string(token.col) + ": " + msg);
 	}
 
 	bool has_errors() const {
-		return !errors.empty();
+		return diag ? diag->has_errors() : local_diag.has_errors();
+	}
+
+	const std::vector<Diagnostic>& get_diagnostics() const {
+		return diag ? diag->diagnostics : local_diag.diagnostics;
 	}
 
 	void synchronize() {

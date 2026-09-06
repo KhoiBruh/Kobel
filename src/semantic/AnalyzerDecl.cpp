@@ -13,7 +13,7 @@ import semantic;
 import semantic.symbol;
 
 void Analyzer::pass1_register_declarations(const Program *program) {
-	// 1. Đăng ký các Struct
+	// 1. Register Structs
 	for (const auto &decl: program->declarations) {
 		if (isa<StructDecl>(decl.get())) {
 			const auto *st = as<StructDecl>(decl.get());
@@ -21,7 +21,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
 			if (structs.contains(qual_name)) {
-				logger.error(st->line, st->col, "Trùng lặp khai báo struct '" + std::string(st->name) + "'");
+				logger.error(st->line, st->col, "Duplicate struct declaration '" + std::string(st->name) + "'");
 				continue;
 			}
 
@@ -39,7 +39,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 		}
 	}
 
-	// Sau khi có tên struct, đăng ký các trường và phương thức của struct
+	// Register struct fields and methods
 	for (const auto &decl: program->declarations) {
 		if (isa<StructDecl>(decl.get())) {
 			const auto *st = as<StructDecl>(decl.get());
@@ -51,7 +51,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				auto f_name = std::string(f.name);
 				if (sym.field_types.contains(f_name)) {
 					logger.error(
-						st->line, st->col, "Trùng lặp trường '" + f_name + "' trong struct '" + sym.name + "'"
+						st->line, st->col, "Duplicate field '" + f_name + "' in struct '" + sym.name + "'"
 					);
 					continue;
 				}
@@ -65,7 +65,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				if (sym.methods.contains(m_name) || sym.field_types.contains(m_name)) {
 					logger.error(
 						method->line, method->col,
-						"Trùng lặp phương thức hoặc trường '" + m_name + "' trong struct '" + sym.name + "'"
+						"Duplicate method or field '" + m_name + "' in struct '" + sym.name + "'"
 					);
 					continue;
 				}
@@ -112,7 +112,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 		}
 	}
 
-	// 2. Đăng ký các Enum
+	// 2. Register Enums
 	for (const auto &decl: program->declarations) {
 		if (isa<EnumDecl>(decl.get())) {
 			const auto *e = as<EnumDecl>(decl.get());
@@ -120,7 +120,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string qual_name = mod.empty() ? std::string(e->name) : mod + "." + std::string(e->name);
 
 			if (enums.contains(qual_name) || structs.contains(qual_name)) {
-				logger.error(e->line, e->col, "Trùng lặp tên kiểu '" + std::string(e->name) + "'");
+				logger.error(e->line, e->col, "Duplicate type name '" + std::string(e->name) + "'");
 				continue;
 			}
 
@@ -136,7 +136,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			sym.col = e->col;
 
 			if (!sym.underlying_type.is_integer()) {
-				logger.error(e->line, e->col, "Kiểu cơ sở của enum bắt buộc phải là số nguyên");
+				logger.error(e->line, e->col, "Enum underlying type must be an integer type");
 				sym.underlying_type = Semantic::make_primitive(SemaType::I32);
 			}
 
@@ -144,7 +144,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			for (const auto &m: e->members) {
 				auto m_name = std::string(m.name);
 				if (sym.member_values.contains(m_name)) {
-					logger.error(m.line, m.col, "Trùng lặp thành viên '" + m_name + "' trong enum '" + std::string(e->name) + "'");
+					logger.error(m.line, m.col, "Duplicate member '" + m_name + "' in enum '" + std::string(e->name) + "'");
 					continue;
 				}
 
@@ -157,13 +157,13 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 							try {
 								next_value = std::stoll(std::string(lit->raw_text), nullptr, 0);
 							} catch (...) {
-								logger.error(m.line, m.col, "Giá trị khởi tạo enum không hợp lệ");
+								logger.error(m.line, m.col, "Invalid enum member initializer value");
 							}
 						} else {
-							logger.error(m.line, m.col, "Giá trị khởi tạo enum phải là số nguyên");
+							logger.error(m.line, m.col, "Enum member initializer must be an integer");
 						}
 					} else {
-						logger.error(m.line, m.col, "Hiện tại chỉ hỗ trợ khởi tạo enum bằng hằng số nguyên");
+						logger.error(m.line, m.col, "Enum member initializer must be an integer constant");
 					}
 				}
 
@@ -178,7 +178,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 		}
 	}
 
-	// 3. Đăng ký các Hằng số
+	// 3. Register Constants
 	for (const auto &decl: program->declarations) {
 		if (isa<ConstDecl>(decl.get())) {
 			const auto *c = as<ConstDecl>(decl.get());
@@ -186,7 +186,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string qual_name = mod.empty() ? std::string(c->name) : mod + "." + std::string(c->name);
 
 			if (constants.contains(qual_name)) {
-				logger.error(c->line, c->col, "Trùng lặp khai báo hằng số '" + std::string(c->name) + "'");
+				logger.error(c->line, c->col, "Duplicate constant declaration '" + std::string(c->name) + "'");
 				continue;
 			}
 
@@ -206,7 +206,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 		}
 	}
 
-	// 4. Đăng ký Hàm (bao gồm cả khối extern)
+	// 4. Register Functions (including extern blocks)
 	for (const auto &decl: program->declarations) {
 		if (isa<FnDecl>(decl.get())) {
 			register_function(as<FnDecl>(decl.get()), get_decl_module(decl.get()));
@@ -225,7 +225,7 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 	const std::string qual_name = (mod.empty() || raw_name == "main") ? raw_name : mod + "." + raw_name;
 
 	if (functions.contains(qual_name)) {
-		logger.error(fn->line, fn->col, "Trùng lặp khai báo hàm '" + raw_name + "'");
+		logger.error(fn->line, fn->col, "Duplicate function declaration '" + raw_name + "'");
 		return;
 	}
 
@@ -281,22 +281,22 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 				!expected_type.can_assign_from(val_type)
 			)
 				logger.error(
-					c->line, c->col, "Giá trị khởi tạo hằng số không khớp kiểu: mong đợi '" +
-					                 expected_type.to_string() + "', gặp '" + val_type.to_string() + "'"
+					c->line, c->col, "Constant initializer type mismatch: expected '" +
+					                 expected_type.to_string() + "', got '" + val_type.to_string() + "'"
 				);
 		}
 	}
 }
 
 void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_name) {
-	if (!fn->body) return; // Hàm prototype không có thân
+	if (!fn->body) return; // Function prototype without body
 
 	const auto &sym = functions[fn_lookup_name];
 	current_function_return_type = sym.return_type;
 
-	enter_scope(); // Scope mức hàm
+	enter_scope(); // Function level scope
 
-	// Đăng ký tham số hàm
+	// Register function parameters
 	for (size_t i = 0; i < sym.param_names.size(); ++i) {
 		VarSymbol p_sym;
 		p_sym.name = sym.param_names[i];
@@ -307,7 +307,7 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 		current_scope().variables[p_sym.name] = p_sym;
 	}
 
-	// Duyệt các câu lệnh trong thân hàm
+	// Analyze statements in function body
 	for (const auto &stmt: fn->body->statements) {
 		analyze_stmt(stmt.get());
 	}

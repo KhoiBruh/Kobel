@@ -28,7 +28,7 @@ export struct Diagnostic {
 			case DiagnosticType::NOTE: kind_str = "note"; break;
 		}
 		std::ostringstream ss;
-		ss << "[" << kind_str << "] Dòng " << line << ", Cột " << col << ": " << message;
+		ss << "[" << kind_str << "] Line " << line << ", Column " << col << ": " << message;
 		return ss.str();
 	}
 };

@@ -13,7 +13,7 @@ import ast.type;
 import ast.expr;
 
 // ============================================================================
-// 5. Câu lệnh (Stmt)
+// 5. Statements (Stmt)
 // ============================================================================
 
 export struct Stmt : ASTNode {
@@ -44,7 +44,7 @@ export struct VarDeclStmt final : Stmt {
 	static constexpr auto KIND = ASTKind::STMT_VAR_DECL;
 	bool is_mut; // true: var, false: val
 	std::string_view name;
-	std::unique_ptr<TypeNode> type_annotation; // nullptr nếu suy luận kiểu
+	std::unique_ptr<TypeNode> type_annotation; // nullptr if type inferred
 	std::unique_ptr<Expr> initializer;
 
 	VarDeclStmt(
@@ -64,7 +64,7 @@ export struct IfStmt final : Stmt {
 	static constexpr auto KIND = ASTKind::STMT_IF;
 	std::unique_ptr<Expr> condition;
 	std::unique_ptr<BlockStmt> then_branch;
-	std::unique_ptr<Stmt> else_branch; // có thể là BlockStmt hoặc IfStmt
+	std::unique_ptr<Stmt> else_branch; // can be BlockStmt or IfStmt
 
 	IfStmt(
 		std::unique_ptr<Expr> cond,
@@ -95,7 +95,7 @@ export struct WhileStmt final : Stmt {
 
 export struct ReturnStmt final : Stmt {
 	static constexpr ASTKind KIND = ASTKind::STMT_RETURN;
-	std::unique_ptr<Expr> value; // nullptr nếu return void;
+	std::unique_ptr<Expr> value; // nullptr if return void;
 
 	explicit ReturnStmt(
 		std::unique_ptr<Expr> val = nullptr,

@@ -81,7 +81,7 @@ namespace {
 } // anonymous namespace
 
 // ============================================================================
-// 1. LValue Evaluation (Địa chỉ gán)
+// 1. LValue Evaluation
 // ============================================================================
 
 llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
@@ -140,8 +140,8 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			llvm::Value *elem_val = emit_expr(arr_lit->elements[i].get());
 			llvm::Value *elem_ptr = builder->CreateGEP(
 				arr_type, tmp_alloca,
-				{builder->getInt32(0), builder->getInt32(static_cast<int32_t>(i))},
-				"arr_lit_elem"
+				{builder->getInt32(0), builder->getInt32(static_cast<uint32_t>(i))},
+				"init_elem"
 			);
 			builder->CreateStore(elem_val, elem_ptr);
 		}
@@ -155,8 +155,12 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 		if (target_sema.is_array()) {
 			auto *arr_ptr = emit_lvalue(idx->target.get());
-			auto *arr_llvm_type = get_llvm_type(target_sema);
-			return builder->CreateGEP(arr_llvm_type, arr_ptr, {builder->getInt32(0), index_val}, "arrayidx");
+			auto *arr_type = get_llvm_type(target_sema);
+			return builder->CreateGEP(
+				arr_type, arr_ptr,
+				{builder->getInt32(0), index_val},
+				"arrayidx"
+			);
 		}
 
 		if (target_sema.is_pointer()) {
@@ -178,13 +182,13 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 }
 
 // ============================================================================
-// 2. Biểu thức (Expressions)
+// 2. Expressions
 // ============================================================================
 
 llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	if (!expr) return nullptr;
 
-	// 1. Hằng số (Literals)
+	// 1. Literals
 	if (isa<LiteralExpr>(expr)) {
 		switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
 			case LiteralKind::INT: {
@@ -211,7 +215,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 	}
 
-	// 1b. Mảng hằng số (Array Literals: [...])
+	// 1b. Array literals: [...]
 	if (isa<ArrayLiteralExpr>(expr)) {
 		auto *lval = emit_lvalue(expr);
 		auto sema_ty = get_sema_type(expr);
@@ -219,7 +223,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return builder->CreateLoad(arr_type, lval, "arr_val");
 	}
 
-	// 2. Biến / Định danh (Identifiers)
+	// 2. Identifiers / Variables
 	if (isa<IdentifierExpr>(expr)) {
 		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
@@ -245,7 +249,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return nullptr;
 	}
 
-	// 3. Phép gán: target = value
+	// 3. Assignment: target = value
 	if (isa<AssignExpr>(expr)) {
 		const auto *a = as<AssignExpr>(expr);
 		auto *lval = emit_lvalue(a->target.get());
@@ -254,11 +258,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return rval;
 	}
 
-	// 4. Biểu thức Nhị phân
+	// 4. Binary Expressions
 	if (isa<BinaryExpr>(expr)) {
 		const auto *b = as<BinaryExpr>(expr);
 
-		// Đoản mạch (Short-circuit) cho &&
+		// Short-circuit for &&
 		if (b->op == TokenType::AND_AND) {
 			llvm::Value *lhs_val = emit_expr(b->left.get());
 			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
@@ -282,7 +286,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return phi;
 		}
 
-		// Đoản mạch (Short-circuit) cho ||
+		// Short-circuit for ||
 		if (b->op == TokenType::OR_OR) {
 			llvm::Value *lhs_val = emit_expr(b->left.get());
 			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
@@ -336,7 +340,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 	}
 
-	// 5. Biểu thức Một ngôi
+	// 5. Unary Expressions
 	if (isa<UnaryExpr>(expr)) {
 		const auto *u = as<UnaryExpr>(expr);
 		auto *opnd = emit_expr(u->operand.get());
@@ -354,11 +358,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 	}
 
-	// 6. Lệnh gọi hàm, khởi tạo struct hoặc gọi phương thức: callee(args...)
+	// 6. Function call, struct instantiation or method call: callee(args...)
 	if (isa<CallExpr>(expr)) {
 		const auto *c = as<CallExpr>(expr);
 
-		// 6a. Gọi hàm thông thường hoặc khởi tạo struct qua tên
+		// 6a. Direct call or struct instantiation by name
 		if (isa<IdentifierExpr>(c->callee.get())) {
 			const auto raw_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
 			std::string target_name = raw_name;
@@ -366,7 +370,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				target_name = to_llvm_name(analyzer->resolved_symbols.at(c));
 			}
 
-			// Khởi tạo struct: Point(10, 20)
+			// Struct instantiation: Point(10, 20)
 			if (struct_types.contains(target_name) || (analyzer && (analyzer->structs.contains(target_name) || (analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(analyzer->resolved_symbols.at(c)))))) {
 				llvm::Type* st_type = struct_types[target_name];
 				if (!st_type && analyzer && analyzer->resolved_symbols.contains(c)) {
@@ -384,7 +388,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				return builder->CreateLoad(st_type, tmp_st, "st_val");
 			}
 
-			// Gọi hàm thông thường
+			// Regular function call
 			auto *callee = module->getFunction(target_name);
 			if (!callee && analyzer) {
 				std::string fn_lookup = analyzer->resolved_symbols.contains(c) ? analyzer->resolved_symbols.at(c) : target_name;
@@ -418,7 +422,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return builder->CreateCall(callee, args);
 		}
 
-		// 6b. Gọi phương thức struct: object.method(args...)
+		// 6b. Struct method call: object.method(args...)
 		if (isa<MemberExpr>(c->callee.get())) {
 			const auto *m = as<MemberExpr>(c->callee.get());
 			auto obj_type = get_sema_type(m->object.get());
@@ -445,7 +449,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			std::vector<llvm::Value *> args;
 
-			// Nạp self nếu phương thức yêu cầu
+			// Load self if required by method
 			if (analyzer && analyzer->functions.contains(mangled)) {
 				const auto& fn_sym = analyzer->functions.at(mangled);
 				if (!fn_sym.param_types.empty() && fn_sym.param_names[0] == "self") {
@@ -462,7 +466,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				}
 			}
 
-			// Nạp các đối số còn lại
+			// Load remaining arguments
 			for (const auto &arg: c->args) {
 				args.push_back(emit_expr(arg.get()));
 			}
@@ -473,11 +477,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return nullptr;
 	}
 
-	// 7. Truy cập trường struct hoặc enum: object.field
+	// 7. Member access: object.field
 	if (isa<MemberExpr>(expr)) {
 		const auto *m = as<MemberExpr>(expr);
 
-		// 7a. Thành viên Enum hằng số (vd: Status.OK)
+		// 7a. Enum member constant (e.g. Status.OK)
 		if (isa<IdentifierExpr>(m->object.get()) && analyzer) {
 			const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
 			if (auto it_enum = analyzer->enums.find(id_name); it_enum != analyzer->enums.end()) {
@@ -492,11 +496,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			}
 		}
 
-		// 7b. Thuộc tính .value trên biến enum (vd: status.value)
+		// 7b. .value property on enum variable (e.g. status.value)
 		auto obj_sema = get_sema_type(m->object.get());
 		if (obj_sema.is_enum() && m->member == "value") return emit_expr(m->object.get());
 
-		// 7c. Thuộc tính .len trên mảng (vd: arr.len)
+		// 7c. .len property on array (e.g. arr.len)
 		if (obj_sema.is_array() && m->member == "len")
 			return builder->getInt32(
 				static_cast<int32_t>(obj_sema.array_size)
@@ -508,7 +512,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return builder->CreateLoad(field_llvm_type, field_ptr, std::string(m->member));
 	}
 
-	// 8. Chỉ mục mảng: target[index]
+	// 8. Array indexing: target[index]
 	if (isa<IndexExpr>(expr)) {
 		const auto *idx = as<IndexExpr>(expr);
 		llvm::Value *elem_ptr = emit_lvalue(idx);
@@ -517,7 +521,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		return builder->CreateLoad(elem_llvm_type, elem_ptr);
 	}
 
-	// 9. Ép kiểu: expr as TargetType
+	// 9. Type cast: expr as TargetType
 	if (isa<CastExpr>(expr)) {
 		const auto *c = as<CastExpr>(expr);
 		auto src_sema = get_sema_type(c->expr.get());

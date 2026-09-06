@@ -37,7 +37,7 @@ std::unique_ptr<FnDecl> Parser::parse_fn_decl() {
 			params.push_back(Param{p_name.text, std::move(p_type), is_mut, has_val});
 		} while (match(TokenType::COMMA));
 	}
-	consume(TokenType::CLOSE_PAREN, "Expected ')' close parameter declarations");
+	consume(TokenType::CLOSE_PAREN, "Expected ')' to close parameter list");
 
 	std::unique_ptr<TypeNode> ret_type = nullptr;
 	if (match(TokenType::COLON)) ret_type = parse_type();
@@ -54,7 +54,7 @@ std::unique_ptr<FnDecl> Parser::parse_fn_decl() {
 	} else {
 		consume(
 			TokenType::SEMI_COLON,
-			"Expected function body '{', '=>' or ';' declare a prototype"
+			"Expected function body '{', '=>' or ';' for function prototype"
 		);
 	}
 
@@ -70,7 +70,7 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 	const auto name = consume(TokenType::IDENTIFIER, "Expected struct name");
 
 	std::vector<StructField> fields;
-	consume(TokenType::OPEN_PAREN, "Expected '(' for field declarations for struct");
+	consume(TokenType::OPEN_PAREN, "Expected '(' for struct field declarations");
 	if (!check(TokenType::CLOSE_PAREN)) {
 		do {
 			const Token f_name = consume(TokenType::IDENTIFIER, "Expected field name");
@@ -79,7 +79,7 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 			fields.push_back(StructField{f_name.text, std::move(f_type)});
 		} while (match(TokenType::COMMA));
 	}
-	consume(TokenType::CLOSE_PAREN, "Expected ')' close field declarations for struct");
+	consume(TokenType::CLOSE_PAREN, "Expected ')' to close struct field declarations");
 
 	std::vector<std::unique_ptr<FnDecl>> methods;
 	if (match(TokenType::OPEN_BRACE)) {
@@ -95,7 +95,7 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 				advance();
 			}
 		}
-		consume(TokenType::CLOSE_BRACE, "Expected '}' end struct");
+		consume(TokenType::CLOSE_BRACE, "Expected '}' to end struct definition");
 	} else {
 		match(TokenType::SEMI_COLON);
 	}
@@ -145,18 +145,18 @@ std::unique_ptr<ConstDecl> Parser::parse_const_decl() {
 	consume(TokenType::COLON, "Expected ':' after constant name");
 	auto type = parse_type();
 
-	consume(TokenType::EQUAL, "Expected '=' to assign value for constant");
+	consume(TokenType::EQUAL, "Expected '=' in constant declaration");
 	auto val = parse_expression();
 
-	consume(TokenType::SEMI_COLON, "Expected ';' end constant declaration");
+	consume(TokenType::SEMI_COLON, "Expected ';' after constant declaration");
 	return std::make_unique<ConstDecl>(name.text, std::move(type), std::move(val), tok.line, tok.col);
 }
 
 std::unique_ptr<ExternBlock> Parser::parse_extern_block() {
 	const auto tok = consume(TokenType::KW_EXTERN, "Expected 'extern'");
-	const auto abi = consume(TokenType::STRING, "Expected ABI string (vd: \"libc\", \"C\") after 'extern'");
+	const auto abi = consume(TokenType::STRING, "Expected ABI string (e.g., \"libc\", \"C\") after 'extern'");
 
-	consume(TokenType::OPEN_BRACE, "Expected '{' begin extern block");
+	consume(TokenType::OPEN_BRACE, "Expected '{' to begin extern block");
 	std::vector<std::unique_ptr<FnDecl>> declarations;
 
 	while (!is_end() && !check(TokenType::CLOSE_BRACE)) {
@@ -165,7 +165,7 @@ std::unique_ptr<ExternBlock> Parser::parse_extern_block() {
 		else advance();
 	}
 
-	consume(TokenType::CLOSE_BRACE, "Expected '}' end extern block");
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to end extern block");
 	auto ext = std::make_unique<ExternBlock>(abi.text, tok.line, tok.col);
 	ext->declarations = std::move(declarations);
 	return ext;

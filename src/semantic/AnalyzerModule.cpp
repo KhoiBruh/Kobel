@@ -38,13 +38,13 @@ std::string Analyzer::resolve_symbol_helper(
 ) {
 	const std::string name = std::string(raw_name);
 
-	// 1. Trong module hiện tại
+	// 1. Within current module
 	if (!current_module.empty()) {
 		const std::string local_qualified = current_module + "." + name;
 		if (symbol_table.contains(local_qualified)) return local_qualified;
 	}
 
-	// 2. Tra cứu trong bảng import của module hiện tại
+	// 2. Lookup in current module's import table
 	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
 		const auto& imports = it_imp->second;
 		if (const auto it = imports.find(name); it != imports.end()) {
@@ -52,32 +52,32 @@ std::string Analyzer::resolve_symbol_helper(
 			if (const auto it_sym = symbol_table.find(target); it_sym != symbol_table.end()) {
 				const auto& sym = it_sym->second;
 				if (!sym.is_pub && sym.module_name != current_module) {
-					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
 				}
 				return target;
 			}
 		}
 	}
 
-	// 3. Tra cứu wildcard
+	// 3. Lookup in wildcard imports
 	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
 		for (const auto& w_mod : it_wc->second) {
 			const std::string candidate = w_mod + "." + name;
 			if (const auto it_sym = symbol_table.find(candidate); it_sym != symbol_table.end()) {
 				const auto& sym = it_sym->second;
 				if (!sym.is_pub && sym.module_name != current_module) {
-					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
 				}
 				return candidate;
 			}
 		}
 	}
 
-	// 4. Tra cứu trực tiếp (toàn cục / extern)
+	// 4. Direct lookup (global / extern)
 	if (const auto it_sym = symbol_table.find(name); it_sym != symbol_table.end()) {
 		const auto& sym = it_sym->second;
 		if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
-			logger.error(line, col, std::string(entity_type_name) + " '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+			logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
 		}
 		return name;
 	}
@@ -86,7 +86,7 @@ std::string Analyzer::resolve_symbol_helper(
 }
 
 std::string Analyzer::resolve_function_name(const std::string_view raw_name, const size_t line, const size_t col) {
-	return resolve_symbol_helper(functions, raw_name, "Hàm", line, col);
+	return resolve_symbol_helper(functions, raw_name, "Function", line, col);
 }
 
 std::string Analyzer::resolve_struct_name(const std::string_view raw_name, const size_t line, const size_t col) {
@@ -98,7 +98,7 @@ std::string Analyzer::resolve_enum_name(const std::string_view raw_name, const s
 }
 
 std::string Analyzer::resolve_const_name(const std::string_view raw_name, const size_t line, const size_t col) {
-	return resolve_symbol_helper(constants, raw_name, "Hằng số", line, col);
+	return resolve_symbol_helper(constants, raw_name, "Constant", line, col);
 }
 
 void Analyzer::pass0_index_modules(const Program *program) {
@@ -159,7 +159,7 @@ void Analyzer::validate_use_declarations(const Program *program) {
 						}
 					}
 					if (!mod_found) {
-						logger.error(u->line, u->col, "Không tìm thấy module '" + full_path + "'");
+						logger.error(u->line, u->col, "Module '" + full_path + "' not found");
 					}
 				}
 			} else {
@@ -184,9 +184,9 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				}
 
 				if (!found) {
-					logger.error(u->line, u->col, "Không tìm thấy symbol '" + sym_name + "' trong module '" + full_path + "'");
+					logger.error(u->line, u->col, "Symbol '" + sym_name + "' not found in module '" + full_path + "'");
 				} else if (!is_pub && full_path != mod) {
-					logger.error(u->line, u->col, "Symbol '" + sym_name + "' trong module '" + full_path + "' là private và không thể import");
+					logger.error(u->line, u->col, "Symbol '" + sym_name + "' in module '" + full_path + "' is private and cannot be imported");
 				}
 			}
 		}

@@ -34,19 +34,19 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 		if (name == "char") return Semantic::make_primitive(SemaType::CHAR);
 		if (name == "void") return Semantic::make_primitive(SemaType::VOID);
 
-		// Kiểm tra struct đã khai báo
+		// Check declared struct
 		std::string resolved_st = resolve_struct_name(name, node->line, node->col);
 		if (!resolved_st.empty()) {
 			return Semantic::make_struct(resolved_st);
 		}
 
-		// Kiểm tra enum đã khai báo
+		// Check declared enum
 		std::string resolved_enum = resolve_enum_name(name, node->line, node->col);
 		if (!resolved_enum.empty()) {
 			return Semantic::make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
 		}
 
-		logger.error(node->line, node->col, "Không tìm thấy kiểu dữ liệu '" + std::string(name) + "'");
+		logger.error(node->line, node->col, "Unknown type '" + std::string(name) + "'");
 		return Semantic::make_error();
 	}
 
@@ -62,6 +62,6 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 		return Semantic::make_array(std::move(elem_type), arr->size);
 	}
 
-	logger.error(node->line, node->col, "Kiểu dữ liệu cú pháp không hợp lệ");
+	logger.error(node->line, node->col, "Invalid type syntax");
 	return Semantic::make_error();
 }

@@ -14,7 +14,7 @@ import ast.expr;
 import ast.stmt;
 
 // ============================================================================
-// 6. Khai báo Cấp cao (Decl)
+// 6. Declarations (Decl)
 // ============================================================================
 
 export struct Decl : ASTNode {
@@ -22,7 +22,7 @@ export struct Decl : ASTNode {
 	bool is_pub = false;
 };
 
-// Khai báo Module: module a.b.c;
+// Module declaration: module a.b.c;
 export struct ModuleDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_MODULE;
 	std::vector<std::string_view> path;
@@ -34,7 +34,7 @@ export struct ModuleDecl final : Decl {
 	) : Decl(KIND, l, c), path(std::move(p)) {}
 };
 
-// Khai báo Use: use a.b.c.A; hoặc use a.b.c.A as B; hoặc use a.b.c.*;
+// Use declaration: use a.b.c.A; or use a.b.c.A as B; or use a.b.c.*;
 export struct UseDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_USE;
 	std::vector<std::string_view> path;
@@ -55,17 +55,17 @@ export struct UseDecl final : Decl {
 export struct Param {
 	std::string_view name;
 	std::unique_ptr<TypeNode> type;
-	bool is_mut = false; // true nếu là var self / var param
-	bool has_val = false; // true nếu là val self / val param
+	bool is_mut = false; // true if var self / var param
+	bool has_val = false; // true if val self / val param
 };
 
-// Hàm thuần túy: fn name(a: i32, b: i32): i32 { ... }
+// Function declaration: fn name(a: i32, b: i32): i32 { ... }
 export struct FnDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_FN;
 	std::string_view name;
 	std::vector<Param> params;
-	std::unique_ptr<TypeNode> return_type; // nullptr nếu void
-	std::unique_ptr<BlockStmt> body;       // nullptr nếu prototype (trong extern)
+	std::unique_ptr<TypeNode> return_type; // nullptr if void
+	std::unique_ptr<BlockStmt> body;       // nullptr if prototype (in extern)
 
 	explicit FnDecl(
 		const std::string_view n,
@@ -79,7 +79,7 @@ export struct StructField {
 	std::unique_ptr<TypeNode> type;
 };
 
-// Struct dữ liệu và phương thức: struct Point(x: i32, y: i32) { ... }
+// Struct declaration: struct Point(x: i32, y: i32) { ... }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
@@ -95,16 +95,16 @@ export struct StructDecl final : Decl {
 
 export struct EnumMember {
 	std::string_view name;
-	std::unique_ptr<Expr> value; // nullptr nếu tự tăng
+	std::unique_ptr<Expr> value; // nullptr if auto-incremented
 	size_t line = 0;
 	size_t col = 0;
 };
 
-// Enum liệt kê: enum Status : u16 { A, B = 504, C }
+// Enum declaration: enum Status : u16 { A, B = 504, C }
 export struct EnumDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_ENUM;
 	std::string_view name;
-	std::unique_ptr<TypeNode> underlying_type; // nullptr nếu mặc định i32
+	std::unique_ptr<TypeNode> underlying_type; // nullptr if default i32
 	std::vector<EnumMember> members;
 
 	explicit EnumDecl(
@@ -114,7 +114,7 @@ export struct EnumDecl final : Decl {
 	) : Decl(KIND, l, c), name(n) {}
 };
 
-// Hằng số top-level: const MAX_SIZE: i32 = 100;
+// Top-level constant: const MAX_SIZE: i32 = 100;
 export struct ConstDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_CONST;
 	std::string_view name;
@@ -130,7 +130,7 @@ export struct ConstDecl final : Decl {
 	) : Decl(KIND, l, c), name(n), type(std::move(ty)), value(std::move(val)) {}
 };
 
-// Khai báo FFI: extern "libc" { fn printf(fmt: *char): i32; }
+// FFI declaration: extern "libc" { fn printf(fmt: *char): i32; }
 export struct ExternBlock final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_EXTERN_BLOCK;
 	std::string_view abi; // "libc", "C"

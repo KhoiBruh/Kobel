@@ -9,14 +9,14 @@ export module ast.type;
 import ast.base;
 
 // ============================================================================
-// 3. Hệ thống Kiểu Cú pháp (TypeNode)
+// 3. Syntactic Type System (TypeNode)
 // ============================================================================
 
 export struct TypeNode : ASTNode {
 	using ASTNode::ASTNode;
 };
 
-// Kiểu định danh đơn: "i32", "u8", "usz", "bool", "char", "MyStruct"
+// Named type: "i32", "u8", "usz", "bool", "char", "MyStruct"
 export struct NamedType final : TypeNode {
 	static constexpr auto KIND = ASTKind::TYPE_NAMED;
 	std::string_view name;
@@ -28,7 +28,7 @@ export struct NamedType final : TypeNode {
 	) : TypeNode(KIND, l, c), name(n) {}
 };
 
-// Kiểu con trỏ: *T (chỉ đọc) hoặc &T (đọc/ghi)
+// Pointer type: *T (read-only) or &T (read-write)
 export struct PointerType final : TypeNode {
 	static constexpr auto KIND = ASTKind::TYPE_POINTER;
 	bool is_mut; // true: &T, false: *T
@@ -42,11 +42,11 @@ export struct PointerType final : TypeNode {
 	) : TypeNode(KIND, l, c), is_mut(mut), pointee(std::move(p)) {}
 };
 
-// Kiểu mảng tĩnh: Array<T> hoặc Array<T>(N)
+// Static array type: Array<T> or Array<T>(N)
 export struct ArrayType final : TypeNode {
 	static constexpr auto KIND = ASTKind::TYPE_ARRAY;
 	std::unique_ptr<TypeNode> element_type;
-	size_t size = 0; // 0 nếu suy luận từ initializer
+	size_t size = 0; // 0 if inferred from initializer
 
 	ArrayType(
 		std::unique_ptr<TypeNode> elem,
