@@ -13,11 +13,17 @@ import token;
 std::unique_ptr<TypeNode> Parser::parse_type() {
 	const Token tok = peek();
 
-	// Pointer: *T
+	// Pointer: *T (read-only) or &T (read-write)
 	if (match(TokenType::STAR)) {
 		auto pointee = parse_type();
 		return std::make_unique<PointerType>(
 			false, std::move(pointee), tok.line, tok.col
+		);
+	}
+	if (match(TokenType::AMPERSAND)) {
+		auto pointee = parse_type();
+		return std::make_unique<PointerType>(
+			true, std::move(pointee), tok.line, tok.col
 		);
 	}
 
@@ -49,6 +55,6 @@ std::unique_ptr<TypeNode> Parser::parse_type() {
 		);
 	}
 
-	error(tok, "Expected type name or pointer '*'");
+	error(tok, "Expected type name or pointer ('*' or '&')");
 	return nullptr;
 }

@@ -123,7 +123,7 @@ export struct Semantic {
 		if (kind != other.kind) return false;
 		if (kind == SemaType::POINTER) {
 			if (!pointee || !other.pointee) return false;
-			return pointee->equals(*other.pointee);
+			return is_mut_pointer == other.is_mut_pointer && pointee->equals(*other.pointee);
 		}
 		if (kind == SemaType::STRUCT) return struct_name == other.struct_name;
 		if (kind == SemaType::ENUM) return enum_name == other.enum_name;
@@ -139,6 +139,16 @@ export struct Semantic {
 		if (kind == SemaType::ERROR_TYPE || src.kind == SemaType::ERROR_TYPE) return true;
 		// Pointers can accept null
 		if (is_pointer() && src.is_null()) return true;
+
+		// Pointer compatibility:
+		// &T (mutable pointer) can be assigned to *T (const/raw pointer) (safe covariant decay)
+		// *T cannot be assigned to &T (loss of const safety)
+		if (is_pointer() && src.is_pointer()) {
+			if (is_mut_pointer && !src.is_mut_pointer) return false;
+			if (!pointee || !src.pointee) return false;
+			return pointee->equals(*src.pointee);
+		}
+
 		// Array: if destination size is 0 (size inference), only element types must match
 		if (kind == SemaType::ARRAY && src.kind == SemaType::ARRAY) {
 			if (array_size != 0 && array_size != src.array_size) return false;

@@ -276,10 +276,14 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 				? std::string(c->name)
 				: current_module + "." + std::string(c->name);
 			auto val_type = analyze_expr(c->value.get());
-			if (
-				auto expected_type = constants[c_qual].type;
-				!expected_type.can_assign_from(val_type)
-			)
+			auto expected_type = constants[c_qual].type;
+			if (expected_type.is_integer() && val_type.is_integer() &&
+			    isa<LiteralExpr>(c->value.get()) &&
+			    as<LiteralExpr>(c->value.get())->literal_kind == LiteralKind::INT) {
+				val_type = expected_type;
+				expr_types[c->value.get()] = expected_type;
+			}
+			if (!expected_type.can_assign_from(val_type))
 				logger.error(
 					c->line, c->col, "Constant initializer type mismatch: expected '" +
 					                 expected_type.to_string() + "', got '" + val_type.to_string() + "'"
@@ -312,6 +316,35 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 		analyze_stmt(stmt.get());
 	}
 
+	// Check that non-void functions return on all control paths
+	if (!sym.return_type.is_void() && !sym.return_type.is_error()) {
+		if (!has_definite_return(fn->body.get())) {
+			logger.error(fn->line, fn->col, "Function '" + std::string(fn->name) + "' missing return statement on all control paths");
+		}
+	}
+
 	exit_scope();
 	current_function_return_type.reset();
+}
+
+bool Analyzer::has_definite_return(const Stmt *stmt) {
+	if (!stmt) return false;
+
+	if (isa<ReturnStmt>(stmt)) return true;
+
+	if (isa<BlockStmt>(stmt)) {
+		const auto *b = as<BlockStmt>(stmt);
+		for (const auto &s : b->statements) {
+			if (has_definite_return(s.get())) return true;
+		}
+		return false;
+	}
+
+	if (isa<IfStmt>(stmt)) {
+		const auto *i = as<IfStmt>(stmt);
+		if (!i->else_branch) return false;
+		return has_definite_return(i->then_branch.get()) && has_definite_return(i->else_branch.get());
+	}
+
+	return false;
 }

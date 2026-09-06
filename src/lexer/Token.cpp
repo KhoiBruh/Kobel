@@ -25,6 +25,7 @@ export enum class TokenType {
 	CLOSE_PAREN,   // )
 	OPEN_BRACE,    // {
 	CLOSE_BRACE,   // }
+	AMPERSAND,     // &
 
 	// Double syntax
 	EQUAL_EQUAL,   // ==

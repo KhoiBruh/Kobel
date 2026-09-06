@@ -43,8 +43,7 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 
 		llvm::Function* fn = builder->GetInsertBlock()->getParent();
 		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, var_type, name);
-		local_vars[name] = alloca;
-		local_types[name] = sema_ty;
+		add_local(name, alloca, sema_ty);
 
 		if (v->initializer) {
 			if (isa<ArrayLiteralExpr>(v->initializer.get())) {
@@ -78,9 +77,11 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 	// 2. Block: { ... }
 	if (isa<BlockStmt>(stmt)) {
 		const auto* b = as<BlockStmt>(stmt);
+		push_scope();
 		for (const auto& s : b->statements) {
 			emit_stmt(s.get());
 		}
+		pop_scope();
 		return;
 	}
 

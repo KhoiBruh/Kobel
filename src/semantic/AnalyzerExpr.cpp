@@ -119,10 +119,15 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			return Semantic::make_error();
 		}
 
-		if (
-			auto val_type = analyze_expr(a->value.get());
-			!target_type.can_assign_from(val_type)
-		)
+		auto val_type = analyze_expr(a->value.get());
+		if (target_type.is_integer() && val_type.is_integer() &&
+		    isa<LiteralExpr>(a->value.get()) &&
+		    as<LiteralExpr>(a->value.get())->literal_kind == LiteralKind::INT) {
+			val_type = target_type;
+			expr_types[a->value.get()] = target_type;
+		}
+
+		if (!target_type.can_assign_from(val_type))
 			logger.error(
 				a->line, a->col, "Cannot assign value of type '" + val_type.to_string() +
 				                 "' to target of type '" + target_type.to_string() + "'"
@@ -339,10 +344,14 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			}
 
 			for (size_t i = 0; i < c->args.size(); ++i) {
-				if (
-					auto arg_type = analyze_expr(c->args[i].get());
-					!fn_sym.param_types[i].can_assign_from(arg_type)
-				) {
+				auto arg_type = analyze_expr(c->args[i].get());
+				if (fn_sym.param_types[i].is_integer() && arg_type.is_integer() &&
+				    isa<LiteralExpr>(c->args[i].get()) &&
+				    as<LiteralExpr>(c->args[i].get())->literal_kind == LiteralKind::INT) {
+					arg_type = fn_sym.param_types[i];
+					expr_types[c->args[i].get()] = fn_sym.param_types[i];
+				}
+				if (!fn_sym.param_types[i].can_assign_from(arg_type)) {
 					logger.error(
 						c->line, c->col, "Argument " + std::to_string(i + 1) + " of function '" +
 						                 raw_callee_name + "' type mismatch: expected '" +
@@ -419,10 +428,14 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 			for (size_t i = 0; i < c->args.size(); ++i) {
 				auto arg_type = analyze_expr(c->args[i].get());
-				if (
-					const auto &param_type = method_sym.param_types[i + 1];
-					!param_type.can_assign_from(arg_type)
-				)
+				const auto &param_type = method_sym.param_types[i + 1];
+				if (param_type.is_integer() && arg_type.is_integer() &&
+				    isa<LiteralExpr>(c->args[i].get()) &&
+				    as<LiteralExpr>(c->args[i].get())->literal_kind == LiteralKind::INT) {
+					arg_type = param_type;
+					expr_types[c->args[i].get()] = param_type;
+				}
+				if (!param_type.can_assign_from(arg_type))
 					logger.error(
 						c->line, c->col, "Argument " + std::to_string(i + 1) + " of method '" +
 						                 method_name + "' type mismatch: expected '" +

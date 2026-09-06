@@ -87,11 +87,34 @@ export struct Lexer {
 	}
 
 	Token scan_string(size_t start_cursor, size_t start_col) {
-		while (!is_end() && peek() != '"') {
-			if (peek() == '\n') line++;
+		bool closed = false;
+		while (!is_end()) {
+			const char c = peek();
+			if (c == '"') {
+				next();
+				closed = true;
+				break;
+			}
+			if (c == '\\') {
+				next(); // consume '\'
+				if (!is_end()) {
+					if (peek() == '\n') {
+						line++;
+						col = 1;
+					}
+					next(); // consume escaped char
+				}
+				continue;
+			}
+			if (c == '\n') {
+				line++;
+				col = 1;
+			}
 			next();
 		}
-		if (!is_end()) next();
+		if (!closed) {
+			return make_token(TokenType::UNKNOWN, start_cursor, start_col);
+		}
 		return {TokenType::STRING, sub(start_cursor), line, start_col};
 	}
 
@@ -168,7 +191,7 @@ export struct Lexer {
 
 			case '&':
 				if (match('&')) return make_token(TokenType::AND_AND, start_cursor, start_col);
-				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
+				return make_token(TokenType::AMPERSAND, start_cursor, start_col);
 
 			case '!':
 				if (match('=')) return make_token(TokenType::BANG_EQUAL, start_cursor, start_col);

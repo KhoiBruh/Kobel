@@ -29,6 +29,14 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		if (v->initializer) {
 			auto init_type = analyze_expr(v->initializer.get());
 
+			// Contextual integer literal typing:
+			if (declared_type.is_integer() && init_type.is_integer() &&
+			    isa<LiteralExpr>(v->initializer.get()) &&
+			    as<LiteralExpr>(v->initializer.get())->literal_kind == LiteralKind::INT) {
+				init_type = declared_type;
+				expr_types[v->initializer.get()] = declared_type;
+			}
+
 			// Infer array size if declared as Array<T> (size == 0)
 			if (declared_type.is_array() && init_type.is_array()) {
 				if (declared_type.array_size == 0) {
@@ -112,10 +120,14 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 
 		const auto expected = current_function_return_type.value();
 		if (r->value) {
-			if (
-				auto val_type = analyze_expr(r->value.get());
-				!expected.can_assign_from(val_type)
-			)
+			auto val_type = analyze_expr(r->value.get());
+			if (expected.is_integer() && val_type.is_integer() &&
+			    isa<LiteralExpr>(r->value.get()) &&
+			    as<LiteralExpr>(r->value.get())->literal_kind == LiteralKind::INT) {
+				val_type = expected;
+				expr_types[r->value.get()] = expected;
+			}
+			if (!expected.can_assign_from(val_type))
 				logger.error(
 					r->line, r->col,
 					"Return value type '" + val_type.to_string() +

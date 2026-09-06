@@ -121,8 +121,8 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 
 	llvm::BasicBlock* entry = llvm::BasicBlock::Create(*context, "entry", fn);
 	builder->SetInsertPoint(entry);
-	local_vars.clear();
-	local_types.clear();
+	clear_scopes();
+	push_scope();
 
 	// Create alloca for function parameters
 	unsigned idx = 0;
@@ -131,23 +131,23 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 		arg.setName(param_name);
 		llvm::AllocaInst* alloca = create_entry_block_alloca(fn, arg.getType(), param_name);
 		builder->CreateStore(&arg, alloca);
-		local_vars[param_name] = alloca;
-		if (analyzer && analyzer->functions.contains(name)) {
-			local_types[param_name] = analyzer->functions.at(name).param_types[idx];
-		} else {
-			local_types[param_name] = analyzer->resolve_type(fn_decl->params[idx].type.get());
-		}
+		Semantic param_sema = (analyzer && analyzer->functions.contains(name))
+			? analyzer->functions.at(name).param_types[idx]
+			: analyzer->resolve_type(fn_decl->params[idx].type.get());
+		add_local(param_name, alloca, param_sema);
 		idx++;
 	}
 
 	emit_stmt(fn_decl->body.get());
 
-	// If the last basic block lacks a terminator, insert an automatic return
+	// If the last basic block lacks a terminator, insert an automatic return or unreachable
 	if (auto* cur_bb = builder->GetInsertBlock(); cur_bb && !cur_bb->hasTerminator()) {
 		if (fn->getReturnType()->isVoidTy()) {
 			builder->CreateRetVoid();
-		} else if (fn->getReturnType()->isIntegerTy(32)) {
+		} else if (name == "main" && fn->getReturnType()->isIntegerTy(32)) {
 			builder->CreateRet(builder->getInt32(0));
+		} else {
+			builder->CreateUnreachable();
 		}
 	}
 }

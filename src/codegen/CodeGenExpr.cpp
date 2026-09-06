@@ -89,7 +89,7 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
 
-		if (const auto it = local_vars.find(name); it != local_vars.end()) return it->second;
+		if (auto *alloca = lookup_local_var(name)) return alloca;
 
 		std::string const_lookup = name;
 		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
@@ -193,7 +193,22 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
 			case LiteralKind::INT: {
 				const int64_t val = std::stoll(std::string(lit->raw_text));
-				return builder->getInt32(static_cast<int32_t>(val));
+				auto sema_ty = get_sema_type(expr);
+				switch (sema_ty.kind) {
+					case SemaType::I8:
+					case SemaType::U8:
+						return builder->getInt8(static_cast<uint8_t>(val));
+					case SemaType::I16:
+					case SemaType::U16:
+						return builder->getInt16(static_cast<uint16_t>(val));
+					case SemaType::I64:
+					case SemaType::U64:
+					case SemaType::ISZ:
+					case SemaType::USZ:
+						return builder->getInt64(static_cast<uint64_t>(val));
+					default:
+						return builder->getInt32(static_cast<int32_t>(val));
+				}
 			}
 
 			case LiteralKind::BOOL:
@@ -228,8 +243,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
 
-		if (auto it = local_vars.find(name); it != local_vars.end()) {
-			llvm::AllocaInst * alloca = it->second;
+		if (auto *alloca = lookup_local_var(name)) {
 			return builder->CreateLoad(alloca->getAllocatedType(), alloca, name);
 		}
 

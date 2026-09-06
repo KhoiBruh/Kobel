@@ -88,6 +88,7 @@ export struct Analyzer {
 	void validate_use_declarations(const Program *program);
 	void pass2_check_declarations(const Program *program);
 	void check_function(const FnDecl *fn, const std::string &fn_lookup_name);
+	static bool has_definite_return(const Stmt *stmt);
 
 	// Statements (AnalyzerStmt.cpp)
 	void analyze_stmt(const Stmt *stmt);

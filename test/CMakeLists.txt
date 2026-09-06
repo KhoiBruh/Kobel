@@ -17,3 +17,7 @@ add_test(NAME SemanticTests COMMAND test_semantic)
 add_executable(test_codegen test_codegen.cpp)
 target_link_libraries(test_codegen PRIVATE kobel_core)
 add_test(NAME CodeGenTests COMMAND test_codegen)
+
+add_executable(test_latent_fixes test_latent_fixes.cpp)
+target_link_libraries(test_latent_fixes PRIVATE kobel_core)
+add_test(NAME LatentFixesTests COMMAND test_latent_fixes)

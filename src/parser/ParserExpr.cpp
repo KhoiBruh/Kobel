@@ -111,6 +111,12 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 		return std::make_unique<ArrayLiteralExpr>(std::move(elements), tok.line, tok.col);
 	}
 
+	if (tok.type == TokenType::UNKNOWN && tok.text.starts_with('"')) {
+		error(tok, "Unterminated string literal");
+		advance();
+		return nullptr;
+	}
+
 	error(tok, "Invalid expression");
 	advance();
 	return nullptr;

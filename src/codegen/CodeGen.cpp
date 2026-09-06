@@ -15,6 +15,7 @@ module;
 #include <llvm/Target/TargetMachine.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -36,8 +37,44 @@ export struct CodeGen {
 	std::unique_ptr<llvm::IRBuilder<>> builder;
 	Analyzer* analyzer = nullptr;
 
-	std::unordered_map<std::string, llvm::AllocaInst*> local_vars;
-	std::unordered_map<std::string, Semantic> local_types;
+	std::vector<std::unordered_map<std::string, llvm::AllocaInst*>> local_var_scopes;
+	std::vector<std::unordered_map<std::string, Semantic>> local_type_scopes;
+
+	void push_scope() {
+		local_var_scopes.emplace_back();
+		local_type_scopes.emplace_back();
+	}
+
+	void pop_scope() {
+		if (!local_var_scopes.empty()) local_var_scopes.pop_back();
+		if (!local_type_scopes.empty()) local_type_scopes.pop_back();
+	}
+
+	void clear_scopes() {
+		local_var_scopes.clear();
+		local_type_scopes.clear();
+	}
+
+	void add_local(const std::string& name, llvm::AllocaInst* alloca, const Semantic& ty) {
+		if (local_var_scopes.empty()) push_scope();
+		local_var_scopes.back()[name] = alloca;
+		local_type_scopes.back()[name] = ty;
+	}
+
+	llvm::AllocaInst* lookup_local_var(const std::string& name) const {
+		for (auto it = local_var_scopes.rbegin(); it != local_var_scopes.rend(); ++it) {
+			if (auto f = it->find(name); f != it->end()) return f->second;
+		}
+		return nullptr;
+	}
+
+	std::optional<Semantic> lookup_local_type(const std::string& name) const {
+		for (auto it = local_type_scopes.rbegin(); it != local_type_scopes.rend(); ++it) {
+			if (auto f = it->find(name); f != it->end()) return f->second;
+		}
+		return std::nullopt;
+	}
+
 	std::unordered_map<std::string, llvm::GlobalVariable*> global_consts;
 	std::unordered_map<std::string, llvm::StructType*> struct_types;
 
@@ -132,10 +169,7 @@ export struct CodeGen {
 
 		if (isa<IdentifierExpr>(expr)) {
 			const auto name = std::string(as<IdentifierExpr>(expr)->name);
-			if (
-				const auto it = local_types.find(name);
-				it != local_types.end()
-			) return it->second;
+			if (auto opt_ty = lookup_local_type(name)) return *opt_ty;
 			if (analyzer) {
 				const auto it_c = analyzer->constants.find(name);
 				if (it_c != analyzer->constants.end()) return it_c->second.type;
