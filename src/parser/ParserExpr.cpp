@@ -34,26 +34,26 @@ Precedence Parser::get_infix_precedence(const TokenType type) const {
 	}
 }
 
-std::unique_ptr<Expr> Parser::parse_prefix() {
+Expr* Parser::parse_prefix() {
 	const auto tok = peek();
 
 	// constant number
 	if (match(TokenType::NUMBER)) {
 		const bool is_float = tok.text.find('.') != std::string_view::npos;
 		const LiteralKind kind = is_float ? LiteralKind::FLOAT : LiteralKind::INT;
-		return std::make_unique<LiteralExpr>(kind, tok.text, tok.line, tok.col);
+		return arena.alloc<LiteralExpr>(kind, tok.text, tok.line, tok.col);
 	}
 
 	// constant string
 	if (match(TokenType::STRING)) {
-		return std::make_unique<LiteralExpr>(
+		return arena.alloc<LiteralExpr>(
 			LiteralKind::STRING, tok.text, tok.line, tok.col
 		);
 	}
 
 	// constant character
 	if (match(TokenType::CHAR)) {
-		return std::make_unique<LiteralExpr>(
+		return arena.alloc<LiteralExpr>(
 			LiteralKind::CHAR, tok.text,
 			tok.line, tok.col
 		);
@@ -61,19 +61,19 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 
 	// Boolean / Null
 	if (match(TokenType::KW_TRUE)) {
-		return std::make_unique<LiteralExpr>(
+		return arena.alloc<LiteralExpr>(
 			LiteralKind::BOOL, "true",
 			tok.line, tok.col
 		);
 	}
 	if (match(TokenType::KW_FALSE)) {
-		return std::make_unique<LiteralExpr>(
+		return arena.alloc<LiteralExpr>(
 			LiteralKind::BOOL, "false",
 			tok.line, tok.col
 		);
 	}
 	if (match(TokenType::KW_NULL)) {
-		return std::make_unique<LiteralExpr>(
+		return arena.alloc<LiteralExpr>(
 			LiteralKind::NULL_VAL, "null",
 			tok.line, tok.col
 		);
@@ -81,26 +81,26 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 
 	// name/identifier
 	if (match(TokenType::IDENTIFIER)) {
-		return std::make_unique<IdentifierExpr>(tok.text, tok.line, tok.col);
+		return arena.alloc<IdentifierExpr>(tok.text, tok.line, tok.col);
 	}
 
 	// single parentheses
 	if (match(TokenType::OPEN_PAREN)) {
 		auto expr = parse_expression();
 		consume(TokenType::CLOSE_PAREN, "Expected ')' to close grouped expression");
-		return std::make_unique<GroupExpr>(std::move(expr), tok.line, tok.col);
+		return arena.alloc<GroupExpr>(expr, tok.line, tok.col);
 	}
 
 	// single prefix operator: -x, !x, *ptr
 	if (match(TokenType::MINUS) || match(TokenType::BANG) || match(TokenType::STAR)) {
 		const auto op = previous();
 		auto operand = parse_expression(Precedence::UNARY);
-		return std::make_unique<UnaryExpr>(op.type, std::move(operand), op.line, op.col);
+		return arena.alloc<UnaryExpr>(op.type, operand, op.line, op.col);
 	}
 
 	// Array literal: [expr1, expr2, ...]
 	if (match(TokenType::OPEN_BRACKET)) {
-		std::vector<std::unique_ptr<Expr>> elements;
+		std::vector<Expr*> elements;
 		if (!check(TokenType::CLOSE_BRACKET)) {
 			do {
 				if (check(TokenType::CLOSE_BRACKET)) break;
@@ -108,7 +108,7 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 			} while (match(TokenType::COMMA));
 		}
 		consume(TokenType::CLOSE_BRACKET, "Expected ']' to end array literal");
-		return std::make_unique<ArrayLiteralExpr>(std::move(elements), tok.line, tok.col);
+		return arena.alloc<ArrayLiteralExpr>(arena.alloc_span(elements), tok.line, tok.col);
 	}
 
 	if (tok.type == TokenType::UNKNOWN && tok.text.starts_with('"')) {
@@ -122,7 +122,7 @@ std::unique_ptr<Expr> Parser::parse_prefix() {
 	return nullptr;
 }
 
-std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
+Expr* Parser::parse_expression(const Precedence min_prec) {
 	auto left = parse_prefix();
 	if (!left) return nullptr;
 
@@ -130,15 +130,15 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 		switch (const auto op = advance(); op.type) {
 			// 1. function operator: callee(arg1, arg2, ...)
 			case TokenType::OPEN_PAREN: {
-				std::vector<std::unique_ptr<Expr>> args;
+				std::vector<Expr*> args;
 				if (!check(TokenType::CLOSE_PAREN)) {
 					do {
 						args.push_back(parse_expression());
 					} while (match(TokenType::COMMA));
 				}
 				consume(TokenType::CLOSE_PAREN, "Expected ')' after argument list");
-				left = std::make_unique<CallExpr>(
-					std::move(left), std::move(args),
+				left = arena.alloc<CallExpr>(
+					left, arena.alloc_span(args),
 					op.line, op.col
 				);
 				break;
@@ -149,8 +149,8 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 					TokenType::IDENTIFIER,
 					"Expected member name after '.'"
 				);
-				left = std::make_unique<MemberExpr>(
-					std::move(left), member.text,
+				left = arena.alloc<MemberExpr>(
+					left, member.text,
 					op.line, op.col
 				);
 				break;
@@ -159,8 +159,8 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 			case TokenType::OPEN_BRACKET: {
 				auto index = parse_expression();
 				consume(TokenType::CLOSE_BRACKET, "Expected ']' after index expression");
-				left = std::make_unique<IndexExpr>(
-					std::move(left), std::move(index),
+				left = arena.alloc<IndexExpr>(
+					left, index,
 					op.line, op.col
 				);
 				break;
@@ -168,17 +168,17 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 			// 4. type cast: expr as Type
 			case TokenType::KW_AS: {
 				auto target_type = parse_type();
-				left = std::make_unique<CastExpr>(
-					std::move(left), std::move(target_type),
+				left = arena.alloc<CastExpr>(
+					left, target_type,
 					op.line, op.col
 				);
 				break;
 			}
 			// 5. assign operator: target = value
 			case TokenType::EQUAL: {
-				auto value = parse_expression(Precedence::ASSIGN);
-				left = std::make_unique<AssignExpr>(
-					std::move(left), std::move(value),
+				auto value = parse_expression(Precedence::NONE);
+				left = arena.alloc<AssignExpr>(
+					left, value,
 					op.line, op.col
 				);
 				break;
@@ -187,9 +187,9 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 			default: {
 				const auto next_prec = get_infix_precedence(op.type);
 				auto right = parse_expression(next_prec);
-				left = std::make_unique<BinaryExpr>(
-					std::move(left), op.type,
-					std::move(right), op.line, op.col
+				left = arena.alloc<BinaryExpr>(
+					left, op.type,
+					right, op.line, op.col
 				);
 				break;
 			}
@@ -198,3 +198,6 @@ std::unique_ptr<Expr> Parser::parse_expression(const Precedence min_prec) {
 
 	return left;
 }
+
+
+

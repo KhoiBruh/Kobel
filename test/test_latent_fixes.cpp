@@ -25,11 +25,11 @@ static bool compile_to_ir(std::string_view code, std::string& out_ir) {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 	if (diag.has_errors()) return false;
 
 	CodeGen cg{&sema, "test_module"};
-	if (!cg.generate(prog.get())) return false;
+	if (!cg.generate(prog)) return false;
 
 	out_ir = cg.dump_ir();
 	return true;
@@ -72,7 +72,7 @@ bool test_pointer_mutability_soundness() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(!diag.has_errors(), "Expected &T to *T assignment to succeed");
 	}
 
@@ -89,7 +89,7 @@ bool test_pointer_mutability_soundness() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Expected *T to &T assignment to be rejected");
 	}
 
@@ -146,7 +146,7 @@ bool test_definite_return_analysis() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Analyzer must report missing return statement");
 	}
 
@@ -165,7 +165,7 @@ bool test_definite_return_analysis() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Analyzer must report missing return when if lacks else");
 	}
 
@@ -186,7 +186,7 @@ bool test_definite_return_analysis() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(!diag.has_errors(), "Valid if-else return must pass");
 	}
 
@@ -203,7 +203,7 @@ bool test_definite_return_analysis() {
 
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
+		sema.analyze(prog);
 		ASSERT(!diag.has_errors(), "Void function should not require return");
 	}
 
@@ -249,3 +249,4 @@ int main() {
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;
 }
+

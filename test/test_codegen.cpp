@@ -32,14 +32,14 @@ bool compile_to_ir(std::string_view code, std::string& out_ir) {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 		return false;
 	}
 
 	CodeGen cg{&sema, "test_module"};
-	if (!cg.generate(prog.get())) {
+	if (!cg.generate(prog)) {
 		std::cerr << "CodeGen LLVM verification failed!\n";
 		std::cerr << "Dump IR:\n" << cg.dump_ir() << std::endl;
 		return false;
@@ -56,10 +56,10 @@ bool test_codegen_arithmetic() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã add thất bại");
-	ASSERT(ir.find("define i32 @add(") != std::string::npos, "Thiếu định nghĩa hàm @add");
-	ASSERT(ir.find("add i32") != std::string::npos, "Thiếu lệnh add i32");
-	ASSERT(ir.find("ret i32") != std::string::npos, "Thiếu lệnh ret i32");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? add th???t b???i");
+	ASSERT(ir.find("define i32 @add(") != std::string::npos, "Thi???u ?????nh ngh??a h??m @add");
+	ASSERT(ir.find("add i32") != std::string::npos, "Thi???u l???nh add i32");
+	ASSERT(ir.find("ret i32") != std::string::npos, "Thi???u l???nh ret i32");
 	return true;
 }
 
@@ -73,12 +73,12 @@ bool test_codegen_variables() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã compute thất bại");
-	ASSERT(ir.find("alloca i32") != std::string::npos, "Thiếu alloca i32");
-	ASSERT(ir.find("store i32 10") != std::string::npos, "Thiếu store 10 cho val x");
-	ASSERT(ir.find("store i32 20") != std::string::npos, "Thiếu store 20 cho var y");
-	ASSERT(ir.find("load i32") != std::string::npos, "Thiếu load i32");
-	ASSERT(ir.find("ret i32") != std::string::npos, "Thiếu ret i32");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? compute th???t b???i");
+	ASSERT(ir.find("alloca i32") != std::string::npos, "Thi???u alloca i32");
+	ASSERT(ir.find("store i32 10") != std::string::npos, "Thi???u store 10 cho val x");
+	ASSERT(ir.find("store i32 20") != std::string::npos, "Thi???u store 20 cho var y");
+	ASSERT(ir.find("load i32") != std::string::npos, "Thi???u load i32");
+	ASSERT(ir.find("ret i32") != std::string::npos, "Thi???u ret i32");
 	return true;
 }
 
@@ -98,10 +98,10 @@ bool test_codegen_control_flow() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã loop_sum thất bại");
-	ASSERT(ir.find("icmp slt i32") != std::string::npos, "Thiếu so sánh i < 10");
-	ASSERT(ir.find("icmp eq i32") != std::string::npos, "Thiếu so sánh i == 5");
-	ASSERT(ir.find("br i1") != std::string::npos, "Thiếu rẽ nhánh điều kiện");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? loop_sum th???t b???i");
+	ASSERT(ir.find("icmp slt i32") != std::string::npos, "Thi???u so s??nh i < 10");
+	ASSERT(ir.find("icmp eq i32") != std::string::npos, "Thi???u so s??nh i == 5");
+	ASSERT(ir.find("br i1") != std::string::npos, "Thi???u r??? nh??nh ??i???u ki???n");
 	return true;
 }
 
@@ -113,9 +113,9 @@ bool test_codegen_struct_and_pointer() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã struct Point thất bại");
-	ASSERT(ir.find("%Point = type { i32, i32 }") != std::string::npos, "Thiếu định nghĩa struct %Point");
-	ASSERT(ir.find("getelementptr inbounds") != std::string::npos && ir.find("%Point, ptr") != std::string::npos, "Thiếu GEP cho p.x");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? struct Point th???t b???i");
+	ASSERT(ir.find("%Point = type { i32, i32 }") != std::string::npos, "Thi???u ?????nh ngh??a struct %Point");
+	ASSERT(ir.find("getelementptr inbounds") != std::string::npos && ir.find("%Point, ptr") != std::string::npos, "Thi???u GEP cho p.x");
 	return true;
 }
 
@@ -130,10 +130,10 @@ bool test_codegen_extern_and_call() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã extern puts & main thất bại");
-	ASSERT(ir.find("declare i32 @puts(ptr") != std::string::npos, "Thiếu khai báo declare puts");
-	ASSERT(ir.find("call i32 @puts(") != std::string::npos, "Thiếu lệnh gọi call @puts");
-	ASSERT(ir.find("Hello, Kobel!") != std::string::npos, "Thiếu hằng chuỗi Hello, Kobel!");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? extern puts & main th???t b???i");
+	ASSERT(ir.find("declare i32 @puts(ptr") != std::string::npos, "Thi???u khai b??o declare puts");
+	ASSERT(ir.find("call i32 @puts(") != std::string::npos, "Thi???u l???nh g???i call @puts");
+	ASSERT(ir.find("Hello, Kobel!") != std::string::npos, "Thi???u h???ng chu???i Hello, Kobel!");
 	return true;
 }
 
@@ -147,14 +147,14 @@ bool test_codegen_cast() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã type cast thất bại");
-	ASSERT(ir.find("sext i8") != std::string::npos, "Thiếu lệnh sext cho i8 -> i32");
-	ASSERT(ir.find("trunc i32") != std::string::npos, "Thiếu lệnh trunc cho i32 -> i8");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? type cast th???t b???i");
+	ASSERT(ir.find("sext i8") != std::string::npos, "Thi???u l???nh sext cho i8 -> i32");
+	ASSERT(ir.find("trunc i32") != std::string::npos, "Thi???u l???nh trunc cho i32 -> i8");
 	return true;
 }
 
 // ============================================================================
-// Giai đoạn 2: Native Target, Object File, Assembly & Executable
+// Giai ??o???n 2: Native Target, Object File, Assembly & Executable
 // ============================================================================
 
 bool test_codegen_target_machine() {
@@ -162,9 +162,9 @@ bool test_codegen_target_machine() {
 	Analyzer sema{diag};
 	CodeGen cg{&sema, "test_tm"};
 
-	ASSERT(cg.target_machine != nullptr, "TargetMachine chưa được khởi tạo");
-	ASSERT(!cg.module->getDataLayout().getStringRepresentation().empty(), "DataLayout của Module bị rỗng");
-	ASSERT(cg.module->getTargetTriple().str().find("x86_64") != std::string::npos, "TargetTriple không phải x86_64");
+	ASSERT(cg.target_machine != nullptr, "TargetMachine ch??a ???????c kh???i t???o");
+	ASSERT(!cg.module->getDataLayout().getStringRepresentation().empty(), "DataLayout c???a Module b??? r???ng");
+	ASSERT(cg.module->getTargetTriple().str().find("x86_64") != std::string::npos, "TargetTriple kh??ng ph???i x86_64");
 	return true;
 }
 
@@ -177,22 +177,22 @@ bool test_codegen_emit_object_file() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser có lỗi");
+	ASSERT(!p.has_errors(), "Parser c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
 
 	CodeGen cg{&sema, "test_obj"};
-	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
 
 	const std::string obj_file = "test_multiply.obj";
 	std::filesystem::remove(obj_file);
 
-	ASSERT(cg.emit_object_file(obj_file), "emit_object_file thất bại");
-	ASSERT(std::filesystem::exists(obj_file), "File object không tồn tại");
-	ASSERT(std::filesystem::file_size(obj_file) > 0, "File object có kích thước rỗng");
+	ASSERT(cg.emit_object_file(obj_file), "emit_object_file th???t b???i");
+	ASSERT(std::filesystem::exists(obj_file), "File object kh??ng t???n t???i");
+	ASSERT(std::filesystem::file_size(obj_file) > 0, "File object c?? k??ch th?????c r???ng");
 
 	std::filesystem::remove(obj_file);
 	return true;
@@ -207,25 +207,25 @@ bool test_codegen_emit_assembly() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser có lỗi");
+	ASSERT(!p.has_errors(), "Parser c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
 
 	CodeGen cg{&sema, "test_asm"};
-	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
 
 	const std::string asm_file = "test_sub.s";
 	std::filesystem::remove(asm_file);
 
-	ASSERT(cg.emit_assembly_file(asm_file), "emit_assembly_file thất bại");
-	ASSERT(std::filesystem::exists(asm_file), "File assembly không tồn tại");
+	ASSERT(cg.emit_assembly_file(asm_file), "emit_assembly_file th???t b???i");
+	ASSERT(std::filesystem::exists(asm_file), "File assembly kh??ng t???n t???i");
 
 	std::ifstream f(asm_file);
 	std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-	ASSERT(content.find("sub") != std::string::npos, "Assembly không chứa nhãn hàm 'sub'");
+	ASSERT(content.find("sub") != std::string::npos, "Assembly kh??ng ch???a nh??n h??m 'sub'");
 
 	f.close();
 	std::filesystem::remove(asm_file);
@@ -245,15 +245,15 @@ bool test_codegen_e2e_executable() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser có lỗi");
+	ASSERT(!p.has_errors(), "Parser c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic có lỗi");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
 
 	CodeGen cg{&sema, "e2e_module"};
-	ASSERT(cg.generate(prog.get()), "CodeGen generate thất bại");
+	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
 
 	const std::string obj_file = "e2e_kobel.obj";
 	const std::string exe_file = "e2e_kobel.exe";
@@ -261,12 +261,12 @@ bool test_codegen_e2e_executable() {
 	std::filesystem::remove(obj_file);
 	std::filesystem::remove(exe_file);
 
-	ASSERT(cg.emit_object_file(obj_file), "Sinh file object e2e thất bại");
-	ASSERT(CodeGen::link_executable(obj_file, exe_file), "Link executable e2e thất bại");
-	ASSERT(std::filesystem::exists(exe_file), "File thực thi e2e_kobel.exe không tồn tại");
+	ASSERT(cg.emit_object_file(obj_file), "Sinh file object e2e th???t b???i");
+	ASSERT(CodeGen::link_executable(obj_file, exe_file), "Link executable e2e th???t b???i");
+	ASSERT(std::filesystem::exists(exe_file), "File th???c thi e2e_kobel.exe kh??ng t???n t???i");
 
 	int exit_code = std::system(".\\e2e_kobel.exe");
-	ASSERT(exit_code == 42, "Exit code của e2e_kobel.exe mong đợi 42, nhận được " + std::to_string(exit_code));
+	ASSERT(exit_code == 42, "Exit code c???a e2e_kobel.exe mong ?????i 42, nh???n ???????c " + std::to_string(exit_code));
 
 	std::filesystem::remove(obj_file);
 	std::filesystem::remove(exe_file);
@@ -292,9 +292,9 @@ bool test_codegen_enum() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã enum thất bại");
-	ASSERT(ir.find("504") != std::string::npos, "Thiếu hằng số 504 trong IR");
-	ASSERT(ir.find("505") != std::string::npos, "Thiếu hằng số 505 trong IR");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? enum th???t b???i");
+	ASSERT(ir.find("504") != std::string::npos, "Thi???u h???ng s??? 504 trong IR");
+	ASSERT(ir.find("505") != std::string::npos, "Thi???u h???ng s??? 505 trong IR");
 	return true;
 }
 
@@ -309,10 +309,10 @@ bool test_codegen_array() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã Array thất bại");
-	ASSERT(ir.find("[3 x i32]") != std::string::npos, "Thiếu kiểu [3 x i32] trong LLVM IR");
-	ASSERT(ir.find("arrayidx") != std::string::npos, "Thiếu GEP arrayidx trong LLVM IR");
-	ASSERT(ir.find("arraydecay") != std::string::npos, "Thiếu GEP arraydecay trong LLVM IR");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? Array th???t b???i");
+	ASSERT(ir.find("[3 x i32]") != std::string::npos, "Thi???u ki???u [3 x i32] trong LLVM IR");
+	ASSERT(ir.find("arrayidx") != std::string::npos, "Thi???u GEP arrayidx trong LLVM IR");
+	ASSERT(ir.find("arraydecay") != std::string::npos, "Thi???u GEP arraydecay trong LLVM IR");
 	return true;
 }
 
@@ -334,11 +334,11 @@ bool test_codegen_struct_methods() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã struct methods thất bại");
-	ASSERT(ir.find("@Point_distance_sq(") != std::string::npos, "Thiếu hàm @Point_distance_sq");
-	ASSERT(ir.find("@Point_translate(") != std::string::npos, "Thiếu hàm @Point_translate");
-	ASSERT(ir.find("call i32 @Point_distance_sq(") != std::string::npos, "Thiếu lệnh gọi @Point_distance_sq");
-	ASSERT(ir.find("call void @Point_translate(") != std::string::npos, "Thiếu lệnh gọi @Point_translate");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? struct methods th???t b???i");
+	ASSERT(ir.find("@Point_distance_sq(") != std::string::npos, "Thi???u h??m @Point_distance_sq");
+	ASSERT(ir.find("@Point_translate(") != std::string::npos, "Thi???u h??m @Point_translate");
+	ASSERT(ir.find("call i32 @Point_distance_sq(") != std::string::npos, "Thi???u l???nh g???i @Point_distance_sq");
+	ASSERT(ir.find("call void @Point_translate(") != std::string::npos, "Thi???u l???nh g???i @Point_translate");
 	return true;
 }
 
@@ -361,12 +361,12 @@ bool test_codegen_short_circuit_logic() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã short circuit thất bại");
-	ASSERT(ir.find("land.rhs:") != std::string::npos, "Thiếu nhãn land.rhs");
-	ASSERT(ir.find("land.merge:") != std::string::npos, "Thiếu nhãn land.merge");
-	ASSERT(ir.find("lor.rhs:") != std::string::npos, "Thiếu nhãn lor.rhs");
-	ASSERT(ir.find("lor.merge:") != std::string::npos, "Thiếu nhãn lor.merge");
-	ASSERT(ir.find("phi i1") != std::string::npos, "Thiếu phi i1 cho short circuit");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? short circuit th???t b???i");
+	ASSERT(ir.find("land.rhs:") != std::string::npos, "Thi???u nh??n land.rhs");
+	ASSERT(ir.find("land.merge:") != std::string::npos, "Thi???u nh??n land.merge");
+	ASSERT(ir.find("lor.rhs:") != std::string::npos, "Thi???u nh??n lor.rhs");
+	ASSERT(ir.find("lor.merge:") != std::string::npos, "Thi???u nh??n lor.merge");
+	ASSERT(ir.find("phi i1") != std::string::npos, "Thi???u phi i1 cho short circuit");
 	return true;
 }
 
@@ -388,10 +388,10 @@ bool test_codegen_modules() {
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã modules thất bại");
-	ASSERT(ir.find("@math_calc_add(") != std::string::npos, "Thiếu hàm mangled @math_calc_add");
-	ASSERT(ir.find("define i32 @main()") != std::string::npos, "Thiếu hàm @main");
-	ASSERT(ir.find("call i32 @math_calc_add(") != std::string::npos, "Thiếu lệnh gọi tới @math_calc_add");
+	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? modules th???t b???i");
+	ASSERT(ir.find("@math_calc_add(") != std::string::npos, "Thi???u h??m mangled @math_calc_add");
+	ASSERT(ir.find("define i32 @main()") != std::string::npos, "Thi???u h??m @main");
+	ASSERT(ir.find("call i32 @math_calc_add(") != std::string::npos, "Thi???u l???nh g???i t???i @math_calc_add");
 	return true;
 }
 
@@ -468,3 +468,4 @@ int main() {
 	std::cout << "\nCodeGen Results: " << passed << "/" << total << " passed.\n";
 	return (passed == total) ? 0 : 1;
 }
+

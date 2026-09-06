@@ -1,6 +1,6 @@
 module;
 
-#include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -31,6 +31,7 @@ export struct Parser {
 	DiagnosticEngine* diag = nullptr;
 	DiagnosticEngine local_diag;
 	std::vector<std::string> errors;
+	Arena arena;
 
 	explicit Parser(std::vector<Token> toks, DiagnosticEngine* d = nullptr)
 		: tokens(std::move(toks)), diag(d) {}
@@ -123,28 +124,32 @@ export struct Parser {
 	Precedence get_infix_precedence(TokenType type) const;
 
 	// 3. Type parsing (ParserType.cpp)
-	std::unique_ptr<TypeNode> parse_type();
+	TypeNode* parse_type();
 
 	// 4. Expression parsing (ParserExpr.cpp)
-	std::unique_ptr<Expr> parse_prefix();
-	std::unique_ptr<Expr> parse_expression(Precedence min_prec = Precedence::NONE);
+	Expr* parse_prefix();
+	Expr* parse_expression(Precedence min_prec = Precedence::NONE);
 
 	// 5. Statement parsing (ParserStmt.cpp)
-	std::unique_ptr<BlockStmt> parse_block_stmt();
-	std::unique_ptr<Stmt> parse_var_decl_stmt();
-	std::unique_ptr<Stmt> parse_if_stmt();
-	std::unique_ptr<Stmt> parse_while_stmt();
-	std::unique_ptr<Stmt> parse_return_stmt();
-	std::unique_ptr<Stmt> parse_statement();
+	BlockStmt* parse_block_stmt();
+	Stmt* parse_var_decl_stmt();
+	Stmt* parse_if_stmt();
+	Stmt* parse_while_stmt();
+	Stmt* parse_return_stmt();
+	Stmt* parse_statement();
 
 	// 6. Declaration parsing (ParserDecl.cpp)
-	std::unique_ptr<ModuleDecl> parse_module_decl();
-	std::unique_ptr<UseDecl> parse_use_decl();
-	std::unique_ptr<FnDecl> parse_fn_decl();
-	std::unique_ptr<StructDecl> parse_struct_decl();
-	std::unique_ptr<EnumDecl> parse_enum_decl();
-	std::unique_ptr<ConstDecl> parse_const_decl();
-	std::unique_ptr<ExternBlock> parse_extern_block();
-	std::unique_ptr<Decl> parse_declaration();
-	std::unique_ptr<Program> parse_program();
+	ModuleDecl* parse_module_decl();
+	UseDecl* parse_use_decl();
+	FnDecl* parse_fn_decl();
+	StructDecl* parse_struct_decl();
+	EnumDecl* parse_enum_decl();
+	ConstDecl* parse_const_decl();
+	ExternBlock* parse_extern_block();
+	Decl* parse_declaration();
+	Program* parse_program();
 };
+
+
+
+

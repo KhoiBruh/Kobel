@@ -101,31 +101,31 @@ void Analyzer::pass0_index_modules(const Program *program) {
 
 	std::string active_mod;
 	for (const auto &decl : program->declarations) {
-		if (isa<ModuleDecl>(decl.get())) {
-			active_mod = as<ModuleDecl>(decl.get())->full_path;
+		if (isa<ModuleDecl>(decl)) {
+			active_mod = as<ModuleDecl>(decl)->full_path;
 			known_modules.insert(active_mod);
-		} else if (isa<UseDecl>(decl.get())) {
-			const auto *u = as<UseDecl>(decl.get());
+		} else if (isa<UseDecl>(decl)) {
+			const auto *u = as<UseDecl>(decl);
 			decl_modules[u] = active_mod;
 			const auto &full_path = u->full_path;
 			if (u->is_wildcard) {
-				module_wildcards[active_mod].push_back(full_path);
+				module_wildcards[active_mod].push_back(std::string(full_path));
 			} else {
 				auto sym = std::string(u->symbol_name);
 				auto alias = u->alias.empty() ? sym : std::string(u->alias);
-				auto target = full_path + "." + sym;
+				auto target = std::string(full_path) + "." + std::string(sym);
 				module_imports[active_mod][alias] = target;
 			}
 		} else {
-			decl_modules[decl.get()] = active_mod;
+			decl_modules[decl] = active_mod;
 		}
 	}
 }
 
 void Analyzer::validate_use_declarations(const Program *program) {
 	for (const auto &decl : program->declarations) {
-		if (isa<UseDecl>(decl.get())) {
-			const auto *u = as<UseDecl>(decl.get());
+		if (isa<UseDecl>(decl)) {
+			const auto *u = as<UseDecl>(decl);
 			std::string mod = get_decl_module(u);
 			const auto &full_path = u->full_path;
 
@@ -151,12 +151,12 @@ void Analyzer::validate_use_declarations(const Program *program) {
 						}
 					}
 					if (!mod_found) {
-						logger.error(u->line, u->col, "Module '" + full_path + "' not found");
+						logger.error(u->line, u->col, "module '" + std::string(full_path) + "' not found");
 					}
 				}
 			} else {
 				auto sym_name = std::string(u->symbol_name);
-				auto target = full_path + "." + sym_name;
+				auto target = std::string(full_path) + "." + std::string(sym_name);
 
 				bool found = false;
 				bool is_pub = false;
@@ -176,11 +176,17 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				}
 
 				if (!found) {
-					logger.error(u->line, u->col, "Symbol '" + sym_name + "' not found in module '" + full_path + "'");
+					logger.error(u->line, u->col, "Symbol '" + std::string(sym_name) + "' not found in module '" + std::string(full_path) + "'");
 				} else if (!is_pub && full_path != mod) {
-					logger.error(u->line, u->col, "Symbol '" + sym_name + "' in module '" + full_path + "' is private and cannot be imported");
+					logger.error(u->line, u->col, "Symbol '" + std::string(sym_name) + "' in module '" + std::string(full_path) + "' is private and cannot be imported");
 				}
 			}
 		}
 	}
 }
+
+
+
+
+
+

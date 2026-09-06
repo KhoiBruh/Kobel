@@ -15,8 +15,8 @@ import semantic.symbol;
 void Analyzer::pass1_register_declarations(const Program *program) {
 	// 1. Register Structs
 	for (const auto &decl: program->declarations) {
-		if (isa<StructDecl>(decl.get())) {
-			const auto *st = as<StructDecl>(decl.get());
+		if (isa<StructDecl>(decl)) {
+			const auto *st = as<StructDecl>(decl);
 			std::string mod = get_decl_module(st);
 			std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
@@ -41,8 +41,8 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 
 	// Register struct fields and methods
 	for (const auto &decl: program->declarations) {
-		if (isa<StructDecl>(decl.get())) {
-			const auto *st = as<StructDecl>(decl.get());
+		if (isa<StructDecl>(decl)) {
+			const auto *st = as<StructDecl>(decl);
 			current_module = get_decl_module(st);
 			std::string qual_name = current_module.empty() ? std::string(st->name) : current_module + "." + std::string(st->name);
 			auto &sym = structs[qual_name];
@@ -55,7 +55,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 					);
 					continue;
 				}
-				auto f_type = resolve_type(type.get());
+				auto f_type = resolve_type(type);
 				sym.field_types[f_name] = f_type;
 				sym.field_order.push_back(f_name);
 			}
@@ -73,7 +73,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				std::string mangled_name = sym.name + "_" + m_name;
 				FnSymbol fn_sym = {
 					.name = mangled_name,
-					.return_type = resolve_type(method->return_type.get()),
+					.return_type = resolve_type(method->return_type),
 					.is_pub = method->is_pub,
 					.module_name = current_module,
 					.line = st->line,
@@ -84,19 +84,19 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 					fn_sym.param_names.push_back(std::string(name));
 					if (name == "self") {
 						if (type) {
-							fn_sym.param_types.push_back(resolve_type(type.get()));
+							fn_sym.param_types.push_back(resolve_type(type));
 						} else if (is_mut) {
 							fn_sym.param_types.push_back(
-								Semantic::make_pointer(Semantic::make_struct(sym.name), true)
+								make_pointer(make_struct(sym.name), true)
 							);
 						} else if (has_val) {
 							fn_sym.param_types.push_back(
-								Semantic::make_pointer(Semantic::make_struct(sym.name), false)
+								make_pointer(make_struct(sym.name), false)
 							);
 						} else {
-							fn_sym.param_types.push_back(Semantic::make_struct(sym.name));
+							fn_sym.param_types.push_back(make_struct(sym.name));
 						}
-					} else fn_sym.param_types.push_back(resolve_type(type.get()));
+					} else fn_sym.param_types.push_back(resolve_type(type));
 				}
 
 				sym.methods[m_name] = fn_sym;
@@ -114,8 +114,8 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 
 	// 2. Register Enums
 	for (const auto &decl: program->declarations) {
-		if (isa<EnumDecl>(decl.get())) {
-			const auto *e = as<EnumDecl>(decl.get());
+		if (isa<EnumDecl>(decl)) {
+			const auto *e = as<EnumDecl>(decl);
 			std::string mod = get_decl_module(e);
 			std::string qual_name = mod.empty() ? std::string(e->name) : mod + "." + std::string(e->name);
 
@@ -130,14 +130,14 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			sym.is_pub = e->is_pub;
 			sym.module_name = mod;
 			sym.underlying_type = e->underlying_type
-				                      ? resolve_type(e->underlying_type.get())
-				                      : Semantic::make_primitive(SemaType::I32);
+				                      ? resolve_type(e->underlying_type)
+				                      : make_primitive(SemaType::I32);
 			sym.line = e->line;
 			sym.col = e->col;
 
-			if (!sym.underlying_type.is_integer()) {
+			if (!sym.underlying_type->is_integer()) {
 				logger.error(e->line, e->col, "Enum underlying type must be an integer type");
-				sym.underlying_type = Semantic::make_primitive(SemaType::I32);
+				sym.underlying_type = make_primitive(SemaType::I32);
 			}
 
 			int64_t next_value = 0;
@@ -149,9 +149,9 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				}
 
 				if (value) {
-					if (isa<LiteralExpr>(value.get())) {
+					if (isa<LiteralExpr>(value)) {
 						if (
-							const auto *lit = as<LiteralExpr>(value.get());
+							const auto *lit = as<LiteralExpr>(value);
 							lit->literal_kind == LiteralKind::INT
 						) {
 							try {
@@ -180,8 +180,8 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 
 	// 3. Register Constants
 	for (const auto &decl: program->declarations) {
-		if (isa<ConstDecl>(decl.get())) {
-			const auto *c = as<ConstDecl>(decl.get());
+		if (isa<ConstDecl>(decl)) {
+			const auto *c = as<ConstDecl>(decl);
 			std::string mod = get_decl_module(c);
 			std::string qual_name = mod.empty() ? std::string(c->name) : mod + "." + std::string(c->name);
 
@@ -193,7 +193,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			current_module = mod;
 			ConstSymbol sym = {
 				.name = qual_name,
-				.type = resolve_type(c->type.get()),
+				.type = resolve_type(c->type),
 				.is_pub = c->is_pub,
 				.module_name = mod,
 				.line = c->line,
@@ -208,14 +208,14 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 
 	// 4. Register Functions (including extern blocks)
 	for (const auto &decl: program->declarations) {
-		if (isa<FnDecl>(decl.get())) {
-			register_function(as<FnDecl>(decl.get()), get_decl_module(decl.get()));
-		} else if (isa<ExternBlock>(decl.get())) {
+		if (isa<FnDecl>(decl)) {
+			register_function(as<FnDecl>(decl), get_decl_module(decl));
+		} else if (isa<ExternBlock>(decl)) {
 			for (
-				const auto *ext = as<ExternBlock>(decl.get());
+				const auto *ext = as<ExternBlock>(decl);
 				const auto &fn: ext->declarations
 			)
-				register_function(fn.get(), "");
+				register_function(fn, "");
 		}
 	}
 }
@@ -232,7 +232,7 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 	current_module = mod;
 	FnSymbol sym = {
 		.name = qual_name,
-		.return_type = resolve_type(fn->return_type.get()),
+		.return_type = resolve_type(fn->return_type),
 		.is_pub = fn->is_pub,
 		.module_name = mod,
 		.line = fn->line,
@@ -241,7 +241,7 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 
 	for (const auto &p: fn->params) {
 		sym.param_names.push_back(std::string(p.name));
-		sym.param_types.push_back(resolve_type(p.type.get()));
+		sym.param_types.push_back(resolve_type(p.type));
 	}
 
 	functions[qual_name] = sym;
@@ -252,41 +252,41 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 
 void Analyzer::pass2_check_declarations(const Program *program) {
 	for (const auto &decl: program->declarations) {
-		if (isa<FnDecl>(decl.get())) {
-			const auto *fn = as<FnDecl>(decl.get());
+		if (isa<FnDecl>(decl)) {
+			const auto *fn = as<FnDecl>(decl);
 			current_module = get_decl_module(fn);
 			std::string qual_name = current_module.empty() || fn->name == "main"
 				? std::string(fn->name)
 				: current_module + "." + std::string(fn->name);
 			check_function(fn, qual_name);
-		} else if (isa<StructDecl>(decl.get())) {
-			const auto *st = as<StructDecl>(decl.get());
+		} else if (isa<StructDecl>(decl)) {
+			const auto *st = as<StructDecl>(decl);
 			current_module = get_decl_module(st);
 			std::string st_qual = current_module.empty()
 				? std::string(st->name)
 				: current_module + "." + std::string(st->name);
 			for (const auto &method: st->methods) {
 				std::string mangled = st_qual + "_" + std::string(method->name);
-				check_function(method.get(), mangled);
+				check_function(method, mangled);
 			}
-		} else if (isa<ConstDecl>(decl.get())) {
-			const auto *c = as<ConstDecl>(decl.get());
+		} else if (isa<ConstDecl>(decl)) {
+			const auto *c = as<ConstDecl>(decl);
 			current_module = get_decl_module(c);
 			std::string c_qual = current_module.empty()
 				? std::string(c->name)
 				: current_module + "." + std::string(c->name);
-			auto val_type = analyze_expr(c->value.get());
+			auto val_type = analyze_expr(c->value);
 			auto expected_type = constants[c_qual].type;
-			if (expected_type.is_integer() && val_type.is_integer() &&
-			    isa<LiteralExpr>(c->value.get()) &&
-			    as<LiteralExpr>(c->value.get())->literal_kind == LiteralKind::INT) {
+			if (expected_type->is_integer() && val_type->is_integer() &&
+			    isa<LiteralExpr>(c->value) &&
+			    as<LiteralExpr>(c->value)->literal_kind == LiteralKind::INT) {
 				val_type = expected_type;
-				expr_types[c->value.get()] = expected_type;
+				expr_types[c->value] = expected_type;
 			}
-			if (!expected_type.can_assign_from(val_type))
+			if (!expected_type->can_assign_from(val_type))
 				logger.error(
 					c->line, c->col, "Constant initializer type mismatch: expected '" +
-					                 expected_type.to_string() + "', got '" + val_type.to_string() + "'"
+					                 expected_type->to_string() + "', got '" + val_type->to_string() + "'"
 				);
 		}
 	}
@@ -313,12 +313,12 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 
 	// Analyze statements in function body
 	for (const auto &stmt: fn->body->statements) {
-		analyze_stmt(stmt.get());
+		analyze_stmt(stmt);
 	}
 
 	// Check that non-void functions return on all control paths
-	if (!sym.return_type.is_void() && !sym.return_type.is_error()) {
-		if (!has_definite_return(fn->body.get())) {
+	if (!sym.return_type->is_void() && !sym.return_type->is_error()) {
+		if (!has_definite_return(fn->body)) {
 			logger.error(fn->line, fn->col, "Function '" + std::string(fn->name) + "' missing return statement on all control paths");
 		}
 	}
@@ -335,7 +335,7 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 	if (isa<BlockStmt>(stmt)) {
 		const auto *b = as<BlockStmt>(stmt);
 		for (const auto &s : b->statements) {
-			if (has_definite_return(s.get())) return true;
+			if (has_definite_return(s)) return true;
 		}
 		return false;
 	}
@@ -343,8 +343,11 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 	if (isa<IfStmt>(stmt)) {
 		const auto *i = as<IfStmt>(stmt);
 		if (!i->else_branch) return false;
-		return has_definite_return(i->then_branch.get()) && has_definite_return(i->else_branch.get());
+		return has_definite_return(i->then_branch) && has_definite_return(i->else_branch);
 	}
 
 	return false;
 }
+
+
+

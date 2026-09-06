@@ -33,7 +33,7 @@ void CodeGen::emit_struct_decl(const StructDecl* st) {
 	std::vector<llvm::Type*> field_types;
 
 	for (const auto&[f_name, type] : st->fields) {
-		auto sema_ty = analyzer->resolve_type(type.get());
+		auto sema_ty = analyzer->resolve_type(type);
 		field_types.push_back(get_llvm_type(sema_ty));
 	}
 
@@ -43,7 +43,7 @@ void CodeGen::emit_struct_decl(const StructDecl* st) {
 	struct_types[std::string(st->name)] = struct_ty;
 
 	for (const auto& method : st->methods) {
-		emit_fn_decl(method.get(), llvm_st_name + "_" + std::string(method->name));
+		emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
 	}
 }
 
@@ -52,12 +52,12 @@ void CodeGen::emit_const_decl(const ConstDecl* c) {
 	std::string qual_name = mod.empty() ? std::string(c->name) : mod + "." + std::string(c->name);
 	std::string llvm_name = to_llvm_name(qual_name);
 
-	const auto sema_ty = analyzer->resolve_type(c->type.get());
+	const auto sema_ty = analyzer->resolve_type(c->type);
 	llvm::Type* llvm_ty = get_llvm_type(sema_ty);
 
 	llvm::Constant* init_const = nullptr;
-	if (c->value && isa<LiteralExpr>(c->value.get())) {
-		const auto* lit = as<LiteralExpr>(c->value.get());
+	if (c->value && isa<LiteralExpr>(c->value)) {
+		const auto* lit = as<LiteralExpr>(c->value);
 		if (lit->literal_kind == LiteralKind::INT) {
 			const int64_t val = std::stoll(std::string(lit->raw_text));
 			init_const = llvm::ConstantInt::get(llvm_ty, val);
@@ -95,12 +95,12 @@ void CodeGen::emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_ov
 			ret_type = get_llvm_type(sym.return_type);
 		} else {
 			for (const auto& p : fn_decl->params) {
-				auto sema_ty = analyzer->resolve_type(p.type.get());
+				auto sema_ty = analyzer->resolve_type(p.type);
 				param_types.push_back(get_llvm_type(sema_ty));
 			}
 			auto ret_sema_ty = fn_decl->return_type
-				? analyzer->resolve_type(fn_decl->return_type.get())
-				: Semantic::make_primitive(SemaType::VOID);
+				? analyzer->resolve_type(fn_decl->return_type)
+				: analyzer->make_primitive(SemaType::VOID);
 			ret_type = get_llvm_type(ret_sema_ty);
 		}
 
@@ -133,12 +133,12 @@ void CodeGen::emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_ove
 		builder->CreateStore(&arg, alloca);
 		Semantic param_sema = analyzer && analyzer->functions.contains(name)
 			? analyzer->functions.at(name).param_types[idx]
-			: analyzer->resolve_type(fn_decl->params[idx].type.get());
+			: analyzer->resolve_type(fn_decl->params[idx].type);
 		add_local(param_name, alloca, param_sema);
 		idx++;
 	}
 
-	emit_stmt(fn_decl->body.get());
+	emit_stmt(fn_decl->body);
 
 	// If the last basic block lacks a terminator, insert an automatic return or unreachable
 	if (auto* cur_bb = builder->GetInsertBlock(); cur_bb && !cur_bb->hasTerminator()) {
@@ -159,6 +159,13 @@ void CodeGen::emit_fn_decl(const FnDecl* fn_decl, const std::string& fn_name_ove
 
 void CodeGen::emit_extern_block(const ExternBlock* ext) {
 	for (const auto& fn : ext->declarations) {
-		emit_fn_decl(fn.get());
+		emit_fn_decl(fn);
 	}
 }
+
+
+
+
+
+
+

@@ -59,8 +59,6 @@ export struct ASTNode {
 
 	explicit ASTNode(const ASTKind k, const size_t l = 0, const size_t c = 0)
 		: kind(k), line(l), col(c) {}
-
-	virtual ~ASTNode() = default;
 };
 
 export template <typename T>
@@ -77,3 +75,5 @@ export template <typename T>
 const T* as(const ASTNode* node) {
 	return isa<T>(node) ? static_cast<const T*>(node) : nullptr;
 }
+
+

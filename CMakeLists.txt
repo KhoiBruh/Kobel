@@ -55,6 +55,7 @@ target_sources(kobel_core
 	PUBLIC
 	FILE_SET CXX_MODULES FILES
 
+	src/ast/Arena.cpp
 	src/ast/Base.cpp
 	src/ast/Type.cpp
 	src/ast/Expr.cpp
@@ -104,3 +105,7 @@ target_link_libraries(Kobel PRIVATE kobel_core)
 
 enable_testing()
 add_subdirectory(test)
+
+
+
+

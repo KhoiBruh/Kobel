@@ -23,34 +23,34 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 			return;
 		}
 
-		auto declared_type = resolve_type(v->type_annotation.get());
+		auto declared_type = resolve_type(v->type_annotation);
 
 		// Check initializer if present
 		if (v->initializer) {
-			auto init_type = analyze_expr(v->initializer.get());
+			auto init_type = analyze_expr(v->initializer);
 
 			// Contextual integer literal typing:
-			if (declared_type.is_integer() && init_type.is_integer() &&
-			    isa<LiteralExpr>(v->initializer.get()) &&
-			    as<LiteralExpr>(v->initializer.get())->literal_kind == LiteralKind::INT) {
+			if (declared_type->is_integer() && init_type->is_integer() &&
+			    isa<LiteralExpr>(v->initializer) &&
+			    as<LiteralExpr>(v->initializer)->literal_kind == LiteralKind::INT) {
 				init_type = declared_type;
-				expr_types[v->initializer.get()] = declared_type;
+				expr_types[v->initializer] = declared_type;
 			}
 
 			// Infer array size if declared as Array<T> (size == 0)
-			if (declared_type.is_array() && init_type.is_array()) {
-				if (declared_type.array_size() == 0) {
-					declared_type.set_array_size(init_type.array_size());
-					if (isa<ArrayType>(v->type_annotation.get())) {
-						as<ArrayType>(v->type_annotation.get())->size = init_type.array_size();
+			if (declared_type->is_array() && init_type->is_array()) {
+				if (declared_type->array_size == 0) {
+					declared_type->array_size = (init_type->array_size);
+					if (isa<ArrayType>(v->type_annotation)) {
+						as<ArrayType>(v->type_annotation)->size = init_type->array_size;
 					}
 				}
 			}
 
-			if (!declared_type.can_assign_from(init_type)) {
+			if (!declared_type->can_assign_from(init_type)) {
 				logger.error(
 					v->line, v->col, "Cannot initialize variable '" + name + "' of type '" +
-					                 declared_type.to_string() + "' with value of type '" + init_type.to_string() +
+					                 declared_type->to_string() + "' with value of type '" + init_type->to_string() +
 					                 "'"
 				);
 			}
@@ -72,7 +72,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		const auto *b = as<BlockStmt>(stmt);
 		enter_scope();
 		for (const auto &s: b->statements) {
-			analyze_stmt(s.get());
+			analyze_stmt(s);
 		}
 		exit_scope();
 		return;
@@ -82,15 +82,15 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 	if (isa<IfStmt>(stmt)) {
 		const auto *i = as<IfStmt>(stmt);
 		if (
-			auto cond_type = analyze_expr(i->condition.get());
-			!cond_type.is_bool() && !cond_type.is_error()
+			auto cond_type = analyze_expr(i->condition);
+			!cond_type->is_bool() && !cond_type->is_error()
 		)
 			logger.error(
 				i->line, i->col,
-				"Condition of 'if' statement must be of type 'bool', got '" + cond_type.to_string() + "'"
+				"Condition of 'if' statement must be of type 'bool', got '" + cond_type->to_string() + "'"
 			);
-		analyze_stmt(i->then_branch.get());
-		if (i->else_branch) analyze_stmt(i->else_branch.get());
+		analyze_stmt(i->then_branch);
+		if (i->else_branch) analyze_stmt(i->else_branch);
 		return;
 	}
 
@@ -98,14 +98,14 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 	if (isa<WhileStmt>(stmt)) {
 		const auto *w = as<WhileStmt>(stmt);
 		if (
-			auto cond_type = analyze_expr(w->condition.get());
-			!cond_type.is_bool() && !cond_type.is_error()
+			auto cond_type = analyze_expr(w->condition);
+			!cond_type->is_bool() && !cond_type->is_error()
 		)
 			logger.error(
-				w->line, w->col, "Condition of 'while' statement must be of type 'bool', got '" + cond_type.to_string() + "'"
+				w->line, w->col, "Condition of 'while' statement must be of type 'bool', got '" + cond_type->to_string() + "'"
 			);
 		loop_depth++;
-		analyze_stmt(w->body.get());
+		analyze_stmt(w->body);
 		loop_depth--;
 		return;
 	}
@@ -120,23 +120,23 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 
 		const auto expected = current_function_return_type.value();
 		if (r->value) {
-			auto val_type = analyze_expr(r->value.get());
-			if (expected.is_integer() && val_type.is_integer() &&
-			    isa<LiteralExpr>(r->value.get()) &&
-			    as<LiteralExpr>(r->value.get())->literal_kind == LiteralKind::INT) {
+			auto val_type = analyze_expr(r->value);
+			if (expected->is_integer() && val_type->is_integer() &&
+			    isa<LiteralExpr>(r->value) &&
+			    as<LiteralExpr>(r->value)->literal_kind == LiteralKind::INT) {
 				val_type = expected;
-				expr_types[r->value.get()] = expected;
+				expr_types[r->value] = expected;
 			}
-			if (!expected.can_assign_from(val_type))
+			if (!expected->can_assign_from(val_type))
 				logger.error(
 					r->line, r->col,
-					"Return value type '" + val_type.to_string() +
-					"' does not match expected function return type '" + expected.to_string() + "'"
+					"Return value type '" + val_type->to_string() +
+					"' does not match expected function return type '" + expected->to_string() + "'"
 				);
-		} else if (!expected.is_void())
+		} else if (!expected->is_void())
 			logger.error(
 				r->line, r->col,
-				"Function expects return type '" + expected.to_string() +
+				"Function expects return type '" + expected->to_string() +
 				"', cannot return void"
 			);
 		return;
@@ -156,6 +156,9 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 	// 7. Expression statement: expr;
 	if (isa<ExprStmt>(stmt)) {
 		const auto *e = as<ExprStmt>(stmt);
-		analyze_expr(e->expr.get());
+		analyze_expr(e->expr);
 	}
 }
+
+
+

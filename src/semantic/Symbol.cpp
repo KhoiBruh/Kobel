@@ -72,3 +72,5 @@ export struct EnumSymbol {
 export struct Scope {
 	StringMap<VarSymbol> variables;
 };
+
+

@@ -100,7 +100,7 @@ export struct CodeGen {
 	// ========================================================================
 
 	llvm::Type* get_llvm_type(const Semantic& type) {
-		switch (type.kind) {
+		switch (type->kind) {
 			case SemaType::I8:
 			case SemaType::U8:
 			case SemaType::CHAR:
@@ -131,24 +131,24 @@ export struct CodeGen {
 				return llvm::PointerType::get(*context, 0); // LLVM 23 Opaque Pointer (ptr)
 
 			case SemaType::STRUCT: {
-				auto it = struct_types.find(type.struct_name());
+				auto it = struct_types.find(type->struct_name);
 				if (it != struct_types.end()) return it->second;
-				it = struct_types.find(to_llvm_name(type.struct_name()));
+				it = struct_types.find(to_llvm_name(type->struct_name));
 				if (it != struct_types.end()) return it->second;
-				return llvm::StructType::getTypeByName(*context, to_llvm_name(type.struct_name()));
+				return llvm::StructType::getTypeByName(*context, to_llvm_name(type->struct_name));
 			}
 
 			case SemaType::ENUM: {
-				if (type.underlying_type()) return get_llvm_type(*type.underlying_type());
+				if (type->underlying_type) return get_llvm_type(type->underlying_type);
 				return builder->getInt32Ty();
 			}
 
 			case SemaType::ARRAY: {
-				if (type.element_type()) {
-					llvm::Type* elem_ty = get_llvm_type(*type.element_type());
-					return llvm::ArrayType::get(elem_ty, type.array_size());
+				if (type->element_type) {
+					llvm::Type* elem_ty = get_llvm_type(type->element_type);
+					return llvm::ArrayType::get(elem_ty, type->array_size);
 				}
-				return llvm::ArrayType::get(builder->getInt32Ty(), type.array_size());
+				return llvm::ArrayType::get(builder->getInt32Ty(), type->array_size);
 			}
 
 			default:
@@ -162,10 +162,10 @@ export struct CodeGen {
 	}
 
 	Semantic get_sema_type(const Expr* expr) {
-		if (!expr) return Semantic::make_error();
+		if (!expr) return analyzer->make_error();
 		if (analyzer) {
 			auto ty = analyzer->get_expr_type(expr);
-			if (!ty.is_error()) return ty;
+			if (!ty->is_error()) return ty;
 		}
 
 		if (isa<IdentifierExpr>(expr)) {
@@ -176,7 +176,7 @@ export struct CodeGen {
 				if (it_c != analyzer->constants.end()) return it_c->second.type;
 			}
 		}
-		return Semantic::make_error();
+		return analyzer->make_error();
 	}
 
 	// ========================================================================
@@ -213,29 +213,29 @@ export struct CodeGen {
 
 		// 1. Structs
 		for (const auto& decl : program->declarations) {
-			if (isa<StructDecl>(decl.get())) {
-				emit_struct_decl(as<StructDecl>(decl.get()));
+			if (isa<StructDecl>(decl)) {
+				emit_struct_decl(as<StructDecl>(decl));
 			}
 		}
 
 		// 2. Constants
 		for (const auto& decl : program->declarations) {
-			if (isa<ConstDecl>(decl.get())) {
-				emit_const_decl(as<ConstDecl>(decl.get()));
+			if (isa<ConstDecl>(decl)) {
+				emit_const_decl(as<ConstDecl>(decl));
 			}
 		}
 
 		// 3. Extern blocks
 		for (const auto& decl : program->declarations) {
-			if (isa<ExternBlock>(decl.get())) {
-				emit_extern_block(as<ExternBlock>(decl.get()));
+			if (isa<ExternBlock>(decl)) {
+				emit_extern_block(as<ExternBlock>(decl));
 			}
 		}
 
 		// 4a. Function prototypes (Pass 1: Declare signatures for all functions first)
 		for (const auto& decl : program->declarations) {
-			if (isa<FnDecl>(decl.get())) {
-				const auto* fn = as<FnDecl>(decl.get());
+			if (isa<FnDecl>(decl)) {
+				const auto* fn = as<FnDecl>(decl);
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
 				emit_fn_proto(fn, to_llvm_name(qual_name));
@@ -244,8 +244,8 @@ export struct CodeGen {
 
 		// 4b. Function bodies (Pass 2: Generate function bodies; functions can call each other freely)
 		for (const auto& decl : program->declarations) {
-			if (isa<FnDecl>(decl.get())) {
-				const auto* fn = as<FnDecl>(decl.get());
+			if (isa<FnDecl>(decl)) {
+				const auto* fn = as<FnDecl>(decl);
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
 				emit_fn_body(fn, to_llvm_name(qual_name));
@@ -268,3 +268,9 @@ export struct CodeGen {
 		return ir_str;
 	}
 };
+
+
+
+
+
+

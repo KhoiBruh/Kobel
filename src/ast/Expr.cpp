@@ -1,6 +1,6 @@
 module;
 
-#include <memory>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -54,116 +54,119 @@ export struct IdentifierExpr final : Expr {
 
 export struct BinaryExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_BINARY;
-	std::unique_ptr<Expr> left;
+	Expr* left;
 	TokenType op;
-	std::unique_ptr<Expr> right;
+	Expr* right;
 
 	BinaryExpr(
-		std::unique_ptr<Expr> l,
-		const TokenType o, std::unique_ptr<Expr> r,
+		Expr* l,
+		const TokenType o, Expr* r,
 		const size_t ln = 0,
 		const size_t col = 0
-	) : Expr(KIND, ln, col), left(std::move(l)), op(o), right(std::move(r)) {}
+	) : Expr(KIND, ln, col), left(l), op(o), right(r) {}
 };
 
 export struct UnaryExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_UNARY;
 	TokenType op;
-	std::unique_ptr<Expr> operand;
+	Expr* operand;
 
 	UnaryExpr(
 		const TokenType o,
-		std::unique_ptr<Expr> opnd,
+		Expr* opnd,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), op(o), operand(std::move(opnd)) {}
+	) : Expr(KIND, l, c), op(o), operand(opnd) {}
 };
 
 export struct CallExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_CALL;
-	std::unique_ptr<Expr> callee;
-	std::vector<std::unique_ptr<Expr>> args;
+	Expr* callee;
+	std::span<Expr*> args;
 
 	CallExpr(
-		std::unique_ptr<Expr> cl,
-		std::vector<std::unique_ptr<Expr>> a,
+		Expr* cl,
+		std::span<Expr*> a,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), callee(std::move(cl)), args(std::move(a)) {}
+	) : Expr(KIND, l, c), callee(cl), args(a) {}
 };
 
 export struct MemberExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_MEMBER;
-	std::unique_ptr<Expr> object;
+	Expr* object;
 	std::string_view member;
 
 	MemberExpr(
-		std::unique_ptr<Expr> obj,
+		Expr* obj,
 		const std::string_view mem,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), object(std::move(obj)), member(mem) {}
+	) : Expr(KIND, l, c), object(obj), member(mem) {}
 };
 
 export struct IndexExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_INDEX;
-	std::unique_ptr<Expr> target;
-	std::unique_ptr<Expr> index;
+	Expr* target;
+	Expr* index;
 
 	IndexExpr(
-		std::unique_ptr<Expr> tgt,
-		std::unique_ptr<Expr> idx,
+		Expr* tgt,
+		Expr* idx,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), target(std::move(tgt)), index(std::move(idx)) {}
+	) : Expr(KIND, l, c), target(tgt), index(idx) {}
 };
 
 export struct AssignExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_ASSIGN;
-	std::unique_ptr<Expr> target;
-	std::unique_ptr<Expr> value;
+	Expr* target;
+	Expr* value;
 
 	AssignExpr(
-		std::unique_ptr<Expr> tgt,
-		std::unique_ptr<Expr> val,
+		Expr* tgt,
+		Expr* val,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), target(std::move(tgt)), value(std::move(val)) {}
+	) : Expr(KIND, l, c), target(tgt), value(val) {}
 };
 
 export struct CastExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_CAST;
-	std::unique_ptr<Expr> expr;
-	std::unique_ptr<TypeNode> target_type;
+	Expr* expr;
+	TypeNode* target_type;
 
 	CastExpr(
-		std::unique_ptr<Expr> e,
-		std::unique_ptr<TypeNode> t,
+		Expr* e,
+		TypeNode* t,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), expr(std::move(e)), target_type(std::move(t)) {}
+	) : Expr(KIND, l, c), expr(e), target_type(t) {}
 };
 
 export struct GroupExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_GROUP;
-	std::unique_ptr<Expr> expr;
+	Expr* expr;
 
 	explicit GroupExpr(
-		std::unique_ptr<Expr> e,
+		Expr* e,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), expr(std::move(e)) {}
+	) : Expr(KIND, l, c), expr(e) {}
 };
 
 // Array literal expression: [expr, expr, ...]
 export struct ArrayLiteralExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_ARRAY_LITERAL;
-	std::vector<std::unique_ptr<Expr>> elements;
+	std::span<Expr*> elements;
 
 	explicit ArrayLiteralExpr(
-		std::vector<std::unique_ptr<Expr>> elems,
+		std::span<Expr*> elems,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), elements(std::move(elems)) {}
+	) : Expr(KIND, l, c), elements(elems) {}
 };
+
+
+
 

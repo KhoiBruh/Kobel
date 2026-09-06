@@ -125,3 +125,4 @@ int main() {
 	std::cout << "[ALL PASSED] Lexer tests passed successfully!" << std::endl;
 	return 0;
 }
+

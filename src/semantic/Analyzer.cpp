@@ -38,6 +38,74 @@ export struct Analyzer {
 	StringSet known_modules;
 	std::unordered_map<const Expr*, std::string> resolved_symbols;
 
+		std::vector<std::unique_ptr<Type>> interned_types;
+
+	Semantic make_primitive(SemaType k) {
+		for (const auto& t : interned_types) {
+			if (t->kind == k && k != SemaType::POINTER && k != SemaType::STRUCT && k != SemaType::ENUM && k != SemaType::ARRAY) {
+				return t.get();
+			}
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = k;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_pointer(Semantic target, bool mut = false) {
+		for (const auto& t : interned_types) {
+			if (t->kind == SemaType::POINTER && t->pointee == target && t->is_mut_pointer == mut)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::POINTER;
+		t->pointee = target;
+		t->is_mut_pointer = mut;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_struct(const std::string_view name) {
+		for (const auto& t : interned_types) {
+			if (t->kind == SemaType::STRUCT && t->struct_name == name)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::STRUCT;
+		t->struct_name = std::string(name);
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_enum(const std::string_view name, Semantic under) {
+		for (const auto& t : interned_types) {
+			if (t->kind == SemaType::ENUM && t->enum_name == name && t->underlying_type == under)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::ENUM;
+		t->enum_name = std::string(name);
+		t->underlying_type = under;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_array(Semantic elem, size_t sz = 0) {
+		for (const auto& t : interned_types) {
+			if (t->kind == SemaType::ARRAY && t->element_type == elem && t->array_size == sz)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::ARRAY;
+		t->element_type = elem;
+		t->array_size = sz;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_void() { return make_primitive(SemaType::VOID); }
+	Semantic make_null() { return make_primitive(SemaType::NULL_TYPE); }
+	Semantic make_error() { return make_primitive(SemaType::ERROR_TYPE); }
 	explicit Analyzer(DiagnosticEngine &log) : logger(log) {}
 
 	// Scope helpers
@@ -95,7 +163,7 @@ export struct Analyzer {
 	// Expressions (AnalyzerExpr.cpp)
 	Semantic compute_expr_type(const Expr *expr);
 	Semantic analyze_expr(const Expr *expr);
-	Semantic get_expr_type(const Expr *expr) const;
+	Semantic get_expr_type(const Expr *expr);
 
 	// Overall Analysis Driver
 	void analyze(const Program *program) {
@@ -105,3 +173,9 @@ export struct Analyzer {
 		pass2_check_declarations(program);
 	}
 };
+
+
+
+
+
+

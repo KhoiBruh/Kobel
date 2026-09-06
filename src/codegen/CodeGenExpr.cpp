@@ -103,19 +103,19 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 	if (isa<MemberExpr>(expr)) {
 		const auto *m = as<MemberExpr>(expr);
-		auto obj_type = get_sema_type(m->object.get());
+		auto obj_type = get_sema_type(m->object);
 		if (
-			!obj_type.is_struct() &&
-			!(obj_type.is_pointer() &&
-			  obj_type.pointee() &&
-			  obj_type.pointee()->is_struct())
+			!obj_type->is_struct() &&
+			!(obj_type->is_pointer() &&
+			  obj_type->pointee &&
+			  obj_type->pointee->is_struct())
 		)
 			return nullptr;
-		const std::string st_name = obj_type.is_struct() ? obj_type.struct_name() : obj_type.pointee()->struct_name();
+		const std::string st_name = obj_type->is_struct() ? obj_type->struct_name : obj_type->pointee->struct_name;
 
 		llvm::Value *obj_ptr = nullptr;
-		if (obj_type.is_pointer())obj_ptr = emit_expr(m->object.get());
-		else obj_ptr = emit_lvalue(m->object.get());
+		if (obj_type->is_pointer())obj_ptr = emit_expr(m->object);
+		else obj_ptr = emit_lvalue(m->object);
 
 		const auto &sym = analyzer->structs[st_name];
 		unsigned field_idx = 0;
@@ -137,7 +137,7 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		auto *fn = builder->GetInsertBlock()->getParent();
 		auto *tmp_alloca = create_entry_block_alloca(fn, arr_type, "arr_lit_tmp");
 		for (size_t i = 0; i < arr_lit->elements.size(); ++i) {
-			llvm::Value *elem_val = emit_expr(arr_lit->elements[i].get());
+			llvm::Value *elem_val = emit_expr(arr_lit->elements[i]);
 			llvm::Value *elem_ptr = builder->CreateGEP(
 				arr_type, tmp_alloca,
 				{builder->getInt32(0), builder->getInt32(static_cast<uint32_t>(i))},
@@ -150,11 +150,11 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 	if (isa<IndexExpr>(expr)) {
 		const auto *idx = as<IndexExpr>(expr);
-		auto target_sema = get_sema_type(idx->target.get());
-		auto *index_val = emit_expr(idx->index.get());
+		auto target_sema = get_sema_type(idx->target);
+		auto *index_val = emit_expr(idx->index);
 
-		if (target_sema.is_array()) {
-			auto *arr_ptr = emit_lvalue(idx->target.get());
+		if (target_sema->is_array()) {
+			auto *arr_ptr = emit_lvalue(idx->target);
 			auto *arr_type = get_llvm_type(target_sema);
 			return builder->CreateGEP(
 				arr_type, arr_ptr,
@@ -163,9 +163,9 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			);
 		}
 
-		if (target_sema.is_pointer()) {
-			auto *ptr_val = emit_expr(idx->target.get());
-			auto *elem_llvm_type = get_llvm_type(*target_sema.pointee());
+		if (target_sema->is_pointer()) {
+			auto *ptr_val = emit_expr(idx->target);
+			auto *elem_llvm_type = get_llvm_type(target_sema->pointee);
 			return builder->CreateGEP(elem_llvm_type, ptr_val, index_val, "ptridx");
 		}
 
@@ -176,7 +176,7 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		isa<UnaryExpr>(expr) &&
 		as<UnaryExpr>(expr)->op == TokenType::STAR
 	)
-		return emit_expr(as<UnaryExpr>(expr)->operand.get());
+		return emit_expr(as<UnaryExpr>(expr)->operand);
 
 	return nullptr;
 }
@@ -194,7 +194,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			case LiteralKind::INT: {
 				const int64_t val = std::stoll(std::string(lit->raw_text));
 				auto sema_ty = get_sema_type(expr);
-				switch (sema_ty.kind) {
+				switch (sema_ty->kind) {
 					case SemaType::I8:
 					case SemaType::U8:
 						return builder->getInt8(static_cast<uint8_t>(val));
@@ -266,8 +266,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 3. Assignment: target = value
 	if (isa<AssignExpr>(expr)) {
 		const auto *a = as<AssignExpr>(expr);
-		auto *lval = emit_lvalue(a->target.get());
-		auto *rval = emit_expr(a->value.get());
+		auto *lval = emit_lvalue(a->target);
+		auto *rval = emit_expr(a->value);
 		builder->CreateStore(rval, lval);
 		return rval;
 	}
@@ -278,7 +278,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 		// Short-circuit for &&
 		if (b->op == TokenType::AND_AND) {
-			llvm::Value *lhs_val = emit_expr(b->left.get());
+			llvm::Value *lhs_val = emit_expr(b->left);
 			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
 			llvm::Function *fn = lhs_bb->getParent();
 
@@ -288,7 +288,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			builder->CreateCondBr(lhs_val, rhs_bb, merge_bb);
 
 			builder->SetInsertPoint(rhs_bb);
-			llvm::Value *rhs_val = emit_expr(b->right.get());
+			llvm::Value *rhs_val = emit_expr(b->right);
 			llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
 			merge_bb->moveAfter(rhs_end_bb);
 			builder->CreateBr(merge_bb);
@@ -302,7 +302,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 		// Short-circuit for ||
 		if (b->op == TokenType::OR_OR) {
-			llvm::Value *lhs_val = emit_expr(b->left.get());
+			llvm::Value *lhs_val = emit_expr(b->left);
 			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
 			llvm::Function *fn = lhs_bb->getParent();
 
@@ -312,7 +312,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			builder->CreateCondBr(lhs_val, merge_bb, rhs_bb);
 
 			builder->SetInsertPoint(rhs_bb);
-			llvm::Value *rhs_val = emit_expr(b->right.get());
+			llvm::Value *rhs_val = emit_expr(b->right);
 			llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
 			merge_bb->moveAfter(rhs_end_bb);
 			builder->CreateBr(merge_bb);
@@ -324,11 +324,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return phi;
 		}
 
-		auto *l = emit_expr(b->left.get());
-		auto *r = emit_expr(b->right.get());
+		auto *l = emit_expr(b->left);
+		auto *r = emit_expr(b->right);
 
-		auto left_sema = get_sema_type(b->left.get());
-		const bool is_unsigned = !left_sema.is_signed_integer();
+		auto left_sema = get_sema_type(b->left);
+		const bool is_unsigned = !left_sema->is_signed_integer();
 
 		switch (b->op) {
 			case TokenType::PLUS: return builder->CreateAdd(l, r, "add");
@@ -357,14 +357,14 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 5. Unary Expressions
 	if (isa<UnaryExpr>(expr)) {
 		const auto *u = as<UnaryExpr>(expr);
-		auto *opnd = emit_expr(u->operand.get());
+		auto *opnd = emit_expr(u->operand);
 
 		switch (u->op) {
 			case TokenType::MINUS: return builder->CreateNeg(opnd, "neg");
 			case TokenType::BANG: return builder->CreateNot(opnd, "not");
 			case TokenType::STAR: {
-				auto target_type = get_sema_type(u->operand.get());
-				auto elem_type = *target_type.pointee();
+				auto target_type = get_sema_type(u->operand);
+				auto elem_type = target_type->pointee;
 				auto *elem_llvm_type = get_llvm_type(elem_type);
 				return builder->CreateLoad(elem_llvm_type, opnd, "deref");
 			}
@@ -377,8 +377,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		const auto *c = as<CallExpr>(expr);
 
 		// 6a. Direct call or struct instantiation by name
-		if (isa<IdentifierExpr>(c->callee.get())) {
-			const auto raw_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
+		if (isa<IdentifierExpr>(c->callee)) {
+			const auto raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
 			std::string target_name = raw_name;
 			if (analyzer && analyzer->resolved_symbols.contains(c)) {
 				target_name = to_llvm_name(analyzer->resolved_symbols.at(c));
@@ -395,7 +395,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				llvm::Function* fn = builder->GetInsertBlock()->getParent();
 				llvm::AllocaInst* tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
 				for (size_t i = 0; i < c->args.size(); ++i) {
-					llvm::Value* arg_val = emit_expr(c->args[i].get());
+					llvm::Value* arg_val = emit_expr(c->args[i]);
 					llvm::Value* field_ptr = builder->CreateStructGEP(st_type, tmp_st, static_cast<unsigned>(i), "init_field");
 					builder->CreateStore(arg_val, field_ptr);
 				}
@@ -430,17 +430,17 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			std::vector<llvm::Value *> args;
 			for (const auto &arg: c->args) {
-				args.push_back(emit_expr(arg.get()));
+				args.push_back(emit_expr(arg));
 			}
 
 			return builder->CreateCall(callee, args);
 		}
 
 		// 6b. Struct method call: object.method(args...)
-		if (isa<MemberExpr>(c->callee.get())) {
-			const auto *m = as<MemberExpr>(c->callee.get());
-			auto obj_type = get_sema_type(m->object.get());
-			std::string st_name = obj_type.is_struct() ? obj_type.struct_name() : obj_type.pointee()->struct_name();
+		if (isa<MemberExpr>(c->callee)) {
+			const auto *m = as<MemberExpr>(c->callee);
+			auto obj_type = get_sema_type(m->object);
+			std::string st_name = obj_type->is_struct() ? obj_type->struct_name : obj_type->pointee->struct_name;
 			std::string mangled = to_llvm_name(st_name) + "_" + std::string(m->member);
 
 			auto *callee = module->getFunction(mangled);
@@ -468,21 +468,21 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				const auto& fn_sym = analyzer->functions.at(mangled);
 				if (!fn_sym.param_types.empty() && fn_sym.param_names[0] == "self") {
 					const auto& self_expected = fn_sym.param_types[0];
-					if (self_expected.is_pointer()) {
-						if (obj_type.is_pointer()) {
-							args.push_back(emit_expr(m->object.get()));
+					if (self_expected->is_pointer()) {
+						if (obj_type->is_pointer()) {
+							args.push_back(emit_expr(m->object));
 						} else {
-							args.push_back(emit_lvalue(m->object.get()));
+							args.push_back(emit_lvalue(m->object));
 						}
 					} else {
-						args.push_back(emit_expr(m->object.get()));
+						args.push_back(emit_expr(m->object));
 					}
 				}
 			}
 
 			// Load remaining arguments
 			for (const auto &arg: c->args) {
-				args.push_back(emit_expr(arg.get()));
+				args.push_back(emit_expr(arg));
 			}
 
 			return builder->CreateCall(callee, args);
@@ -496,8 +496,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		const auto *m = as<MemberExpr>(expr);
 
 		// 7a. Enum member access (e.g. Color.RED)
-		if (isa<IdentifierExpr>(m->object.get())) {
-			const auto id_name = as<IdentifierExpr>(m->object.get())->name;
+		if (isa<IdentifierExpr>(m->object)) {
+			const auto id_name = as<IdentifierExpr>(m->object)->name;
 			if (auto it_enum = analyzer->enums.find(id_name); it_enum != analyzer->enums.end()) {
 				if (
 					auto it_m = it_enum->second.member_values.find(m->member);
@@ -510,13 +510,13 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		// 7b. .value property on enum variable (e.g. status.value)
-		auto obj_sema = get_sema_type(m->object.get());
-		if (obj_sema.is_enum() && m->member == "value") return emit_expr(m->object.get());
+		auto obj_sema = get_sema_type(m->object);
+		if (obj_sema->is_enum() && m->member == "value") return emit_expr(m->object);
 
 		// 7c. .len property on array (e.g. arr.len)
-		if (obj_sema.is_array() && m->member == "len")
+		if (obj_sema->is_array() && m->member == "len")
 			return builder->getInt32(
-				static_cast<int32_t>(obj_sema.array_size())
+				static_cast<int32_t>(obj_sema->array_size)
 			);
 
 		llvm::Value *field_ptr = emit_lvalue(m);
@@ -537,13 +537,13 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 9. Type cast: expr as TargetType
 	if (isa<CastExpr>(expr)) {
 		const auto *c = as<CastExpr>(expr);
-		auto src_sema = get_sema_type(c->expr.get());
-		auto dest_sema = analyzer->resolve_type(c->target_type.get());
+		auto src_sema = get_sema_type(c->expr);
+		auto dest_sema = analyzer->resolve_type(c->target_type);
 		auto *dest_type = get_llvm_type(dest_sema);
 
 		// Array decay: arr as *T
-		if (src_sema.is_array() && dest_sema.is_pointer()) {
-			if (auto *arr_lval = emit_lvalue(c->expr.get())) {
+		if (src_sema->is_array() && dest_sema->is_pointer()) {
+			if (auto *arr_lval = emit_lvalue(c->expr)) {
 				auto *arr_ty = get_llvm_type(src_sema);
 				return builder->CreateGEP(
 					arr_ty, arr_lval,
@@ -553,19 +553,19 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			}
 		}
 
-		llvm::Value *val = emit_expr(c->expr.get());
+		llvm::Value *val = emit_expr(c->expr);
 
-		const bool src_is_int = src_sema.is_integer() || src_sema.is_enum();
-		const bool dest_is_int = dest_sema.is_integer() || dest_sema.is_enum();
+		const bool src_is_int = src_sema->is_integer() || src_sema->is_enum();
+		const bool dest_is_int = dest_sema->is_integer() || dest_sema->is_enum();
 
 		if (src_is_int && dest_is_int) {
 			const unsigned src_bits = val->getType()->getIntegerBitWidth();
 			const unsigned dest_bits = dest_type->getIntegerBitWidth();
 			if (src_bits == dest_bits) return val;
 			if (dest_bits > src_bits) {
-				bool is_signed = src_sema.is_signed_integer();
-				if (src_sema.is_enum() && src_sema.underlying_type())
-					is_signed = src_sema.underlying_type()->is_signed_integer();
+				bool is_signed = src_sema->is_signed_integer();
+				if (src_sema->is_enum() && src_sema->underlying_type)
+					is_signed = src_sema->underlying_type->is_signed_integer();
 				return is_signed
 					       ? builder->CreateSExt(val, dest_type, "sext")
 					       : builder->CreateZExt(val, dest_type, "zext");
@@ -573,24 +573,24 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return builder->CreateTrunc(val, dest_type, "trunc");
 		}
 
-		if (src_sema.is_pointer() && dest_sema.is_pointer()) return val;
+		if (src_sema->is_pointer() && dest_sema->is_pointer()) return val;
 
-		if (src_sema.is_integer() && dest_sema.is_pointer())
+		if (src_sema->is_integer() && dest_sema->is_pointer())
 			return builder->CreateIntToPtr(
 				val, dest_type, "inttoptr"
 			);
 
-		if (src_sema.is_pointer() && dest_sema.is_integer())
+		if (src_sema->is_pointer() && dest_sema->is_integer())
 			return builder->CreatePtrToInt(
 				val, dest_type, "ptrtoint"
 			);
 
-		if (src_sema.is_char() && dest_sema.is_integer())
+		if (src_sema->is_char() && dest_sema->is_integer())
 			return builder->CreateZExt(
 				val, dest_type, "zext_char"
 			);
 
-		if (src_sema.is_integer() && dest_sema.is_char())
+		if (src_sema->is_integer() && dest_sema->is_char())
 			return builder->CreateTrunc(
 				val, dest_type, "trunc_char"
 			);
@@ -599,7 +599,14 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	}
 
 	// 10. Group: (expr)
-	if (isa<GroupExpr>(expr)) return emit_expr(as<GroupExpr>(expr)->expr.get());
+	if (isa<GroupExpr>(expr)) return emit_expr(as<GroupExpr>(expr)->expr);
 
 	return nullptr;
 }
+
+
+
+
+
+
+

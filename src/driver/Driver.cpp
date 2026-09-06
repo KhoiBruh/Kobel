@@ -11,6 +11,7 @@ module;
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <span>
 
 export module driver;
 
@@ -56,10 +57,11 @@ private:
 	DiagnosticEngine diag_;
 
 	static std::string read_file_content(const std::string& path);
-	static std::filesystem::path module_to_file_path(const std::vector<std::string_view>& path);
+	static std::filesystem::path module_to_file_path(const std::span<std::string_view>& path);
 
 	bool resolve_dependencies(std::vector<std::unique_ptr<std::string>>& source_buffers,
-	                          std::vector<std::unique_ptr<Program>>& parsed_programs);
+	                          std::vector<Program*>& parsed_programs,
+	std::vector<std::unique_ptr<Parser>>& parsers);
 
 	bool emit_output(CodeGen& cg, const std::string& base_name);
 };
@@ -72,7 +74,7 @@ std::string Driver::read_file_content(const std::string& path) {
 	return ss.str();
 }
 
-std::filesystem::path Driver::module_to_file_path(const std::vector<std::string_view>& path) {
+std::filesystem::path Driver::module_to_file_path(const std::span<std::string_view>& path) {
 	std::filesystem::path p;
 	for (const auto& part : path) {
 		p /= std::string(part);
@@ -82,7 +84,8 @@ std::filesystem::path Driver::module_to_file_path(const std::vector<std::string_
 
 bool Driver::resolve_dependencies(
 	std::vector<std::unique_ptr<std::string>>& source_buffers,
-	std::vector<std::unique_ptr<Program>>& parsed_programs) {
+	std::vector<Program*>& parsed_programs,
+	std::vector<std::unique_ptr<Parser>>& parsers) {
 
 	StringSet loaded_modules;
 	StringSet loaded_files;
@@ -101,8 +104,8 @@ bool Driver::resolve_dependencies(
 	// Collect modules declared in input_files
 	for (const auto& prog : parsed_programs) {
 		for (const auto& decl : prog->declarations) {
-			if (isa<ModuleDecl>(decl.get())) {
-				loaded_modules.insert(as<ModuleDecl>(decl.get())->full_path);
+			if (isa<ModuleDecl>(decl)) {
+				loaded_modules.insert(std::string(as<ModuleDecl>(decl)->full_path));
 			}
 		}
 	}
@@ -112,12 +115,12 @@ bool Driver::resolve_dependencies(
 	bool new_module_loaded = true;
 	while (new_module_loaded) {
 		new_module_loaded = false;
-		std::vector<std::pair<std::vector<std::string_view>, std::string_view>> pending_imports;
+		std::vector<std::pair<std::span<std::string_view>, std::string_view>> pending_imports;
 
 		for (const auto& prog : parsed_programs) {
 			for (const auto& decl : prog->declarations) {
-				if (isa<UseDecl>(decl.get())) {
-					const auto* u = as<UseDecl>(decl.get());
+				if (isa<UseDecl>(decl)) {
+					const auto* u = as<UseDecl>(decl);
 					if (!loaded_modules.contains(u->full_path)) {
 						pending_imports.emplace_back(u->path, u->full_path);
 					}
@@ -158,18 +161,18 @@ bool Driver::resolve_dependencies(
 
 					Lexer lex{source_view};
 					auto tokens = lex.tokenize();
-					Parser parser{std::move(tokens), &diag_};
-					auto prog = parser.parse_program();
+					auto parser = std::make_unique<Parser>(std::move(tokens), &diag_);
+					auto prog = parser->parse_program();
 
-					if (parser.has_errors()) {
+					if (parser->has_errors()) {
 						has_syntax_errors = true;
-						for (const auto& err : parser.errors) {
+						for (const auto& err : parser->errors) {
 							err_ << found_file.string() << ": " << err << "\n";
 						}
 					} else {
 						for (const auto& decl : prog->declarations) {
-							if (isa<ModuleDecl>(decl.get())) {
-								loaded_modules.insert(as<ModuleDecl>(decl.get())->full_path);
+							if (isa<ModuleDecl>(decl)) {
+								loaded_modules.insert(std::string(as<ModuleDecl>(decl)->full_path));
 							}
 						}
 						loaded_modules.insert(std::string(mod_name));
@@ -278,7 +281,8 @@ int Driver::run() {
 	std::vector<std::unique_ptr<std::string>> source_buffers;
 	source_buffers.reserve(options_.input_files.size());
 
-	std::vector<std::unique_ptr<Program>> parsed_programs;
+	std::vector<Program*> parsed_programs;
+	std::vector<std::unique_ptr<Parser>> parsers;
 	parsed_programs.reserve(options_.input_files.size());
 
 	bool has_syntax_errors = false;
@@ -296,12 +300,12 @@ int Driver::run() {
 		Lexer lex{source_view};
 		auto tokens = lex.tokenize();
 
-		Parser parser{std::move(tokens), &diag_};
-		auto prog = parser.parse_program();
+		auto parser = std::make_unique<Parser>(std::move(tokens), &diag_);
+		auto prog = parser->parse_program();
 
-		if (parser.has_errors()) {
+		if (parser->has_errors()) {
 			has_syntax_errors = true;
-			for (const auto& err : parser.errors) {
+			for (const auto& err : parser->errors) {
 				err_ << filepath << ": " << err << "\n";
 			}
 		} else {
@@ -315,21 +319,23 @@ int Driver::run() {
 	}
 
 	// 1b. Automatically find and load imported modules not in input list
-	if (!resolve_dependencies(source_buffers, parsed_programs)) {
+	if (!resolve_dependencies(source_buffers, parsed_programs, parsers)) {
 		return 1;
 	}
 
 	// 2. Merge all top-level declarations from all files into a unified Program AST
-	auto unified_program = std::make_unique<Program>();
+		auto unified_program = parsers.front()->arena.alloc<Program>();
+	std::vector<Decl*> all_decls;
 	for (auto& prog : parsed_programs) {
 		for (auto& decl : prog->declarations) {
-			unified_program->declarations.push_back(std::move(decl));
+			all_decls.push_back(decl);
 		}
 	}
+	unified_program->declarations = parsers.front()->arena.alloc_span<Decl*>(all_decls);
 
 	// 3. Semantic Analysis
 	Analyzer sema{diag_};
-	sema.analyze(unified_program.get());
+	sema.analyze(unified_program);
 
 	if (diag_.has_errors()) {
 		diag_.print_all(err_);
@@ -344,7 +350,7 @@ int Driver::run() {
 		return 1;
 	}
 
-	if (!cg.generate(unified_program.get())) {
+	if (!cg.generate(unified_program)) {
 		err_ << "Error: LLVM IR generation or module verification failed.\n";
 		return 1;
 	}
@@ -352,3 +358,14 @@ int Driver::run() {
 	// 5. Emit output based on selected mode
 	return emit_output(cg, base_name) ? 0 : 1;
 }
+
+
+
+
+
+
+
+
+
+
+

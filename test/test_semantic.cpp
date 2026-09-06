@@ -40,16 +40,16 @@ bool test_valid_program() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "Chương trình hợp lệ không được có lỗi ngữ nghĩa");
+	ASSERT(!diag.has_errors(), "Ch????ng tr??nh h???p l??? kh??ng ???????c c?? l???i ng??? ngh??a");
 	return true;
 }
 
@@ -57,7 +57,7 @@ bool test_val_immutability_error() {
 	std::string_view code = 
 		"fn test(): void {\n"
 		"    val x: i32 = 10;\n"
-		"    x = 20;\n" // Lỗi: gán lại biến val
+		"    x = 20;\n" // L???i: g??n l???i bi???n val
 		"}\n";
 
 	Lexer lex{code};
@@ -66,17 +66,17 @@ bool test_val_immutability_error() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phải phát hiện lỗi khi gán lại biến val");
-	ASSERT(diag.diagnostics[0].format().find("val") != std::string::npos, "Thông báo lỗi phải nhắc tới 'val'");
+	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i khi g??n l???i bi???n val");
+	ASSERT(diag.diagnostics[0].format().find("val") != std::string::npos, "Th??ng b??o l???i ph???i nh???c t???i 'val'");
 	return true;
 }
 
 bool test_missing_type_annotation_error() {
 	std::string_view code = 
 		"fn test(): void {\n"
-		"    val x = 10;\n" // Lỗi: v0 chưa cho phép suy luận kiểu, bắt buộc ghi rõ : i32
+		"    val x = 10;\n" // L???i: v0 ch??a cho ph??p suy lu???n ki???u, b???t bu???c ghi r?? : i32
 		"}\n";
 
 	Lexer lex{code};
@@ -85,9 +85,9 @@ bool test_missing_type_annotation_error() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phải phát hiện lỗi thiếu khai báo kiểu tường minh");
+	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i thi???u khai b??o ki???u t?????ng minh");
 	return true;
 }
 
@@ -96,7 +96,7 @@ bool test_strict_type_mismatch_error() {
 		"fn test(): void {\n"
 		"    val a: i32 = 1;\n"
 		"    val b: i64 = 2;\n"
-		"    val c: i32 = a + b;\n" // Lỗi: i32 + i64 không tự động thăng kiểu, bắt buộc ép kiểu as
+		"    val c: i32 = a + b;\n" // L???i: i32 + i64 kh??ng t??? ?????ng th??ng ki???u, b???t bu???c ??p ki???u as
 		"}\n";
 
 	Lexer lex{code};
@@ -105,16 +105,16 @@ bool test_strict_type_mismatch_error() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phải phát hiện lỗi không khớp kiểu trong phép cộng");
+	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i kh??ng kh???p ki???u trong ph??p c???ng");
 	return true;
 }
 
 bool test_explicit_cast_success() {
 	std::string_view code = 
 		"fn test(a: i32, b: i64): i64 {\n"
-		"    val c: i64 = (a as i64) + b;\n" // Hợp lệ nhờ ép kiểu tường minh qua as
+		"    val c: i64 = (a as i64) + b;\n" // H???p l??? nh??? ??p ki???u t?????ng minh qua as
 		"    return c;\n"
 		"}\n";
 
@@ -124,12 +124,12 @@ bool test_explicit_cast_success() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "Ép kiểu tường minh qua 'as' phải hợp lệ");
+	ASSERT(!diag.has_errors(), "??p ki???u t?????ng minh qua 'as' ph???i h???p l???");
 	return true;
 }
 
@@ -137,7 +137,7 @@ bool test_non_boolean_condition_error() {
 	std::string_view code = 
 		"fn test(): void {\n"
 		"    val x: i32 = 1;\n"
-		"    if (x) {}\n" // Lỗi: x có kiểu i32, không phải bool
+		"    if (x) {}\n" // L???i: x c?? ki???u i32, kh??ng ph???i bool
 		"}\n";
 
 	Lexer lex{code};
@@ -146,16 +146,16 @@ bool test_non_boolean_condition_error() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phải phát hiện lỗi điều kiện if không phải bool");
+	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i ??i???u ki???n if kh??ng ph???i bool");
 	return true;
 }
 
 bool test_break_outside_loop_error() {
 	std::string_view code = 
 		"fn test(): void {\n"
-		"    break;\n" // Lỗi: break ngoài vòng lặp
+		"    break;\n" // L???i: break ngo??i v??ng l???p
 		"}\n";
 
 	Lexer lex{code};
@@ -164,9 +164,9 @@ bool test_break_outside_loop_error() {
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phải phát hiện lỗi dùng break ngoài vòng lặp");
+	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i d??ng break ngo??i v??ng l???p");
 	return true;
 }
 
@@ -190,18 +190,18 @@ bool test_semantic_enum() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic không được có lỗi với enum hợp lệ");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic kh??ng ???????c c?? l???i v???i enum h???p l???");
 
-	ASSERT(sema.enums.contains("Status"), "Phải chứa enum Status");
+	ASSERT(sema.enums.contains("Status"), "Ph???i ch???a enum Status");
 	const auto& sym = sema.enums["Status"];
-	ASSERT(sym.member_values.at("OK") == 0, "Status.OK phải bằng 0");
-	ASSERT(sym.member_values.at("ERROR") == 504, "Status.ERROR phải bằng 504");
-	ASSERT(sym.member_values.at("UNKNOWN") == 505, "Status.UNKNOWN phải bằng 505 (tự tăng)");
+	ASSERT(sym.member_values.at("OK") == 0, "Status.OK ph???i b???ng 0");
+	ASSERT(sym.member_values.at("ERROR") == 504, "Status.ERROR ph???i b???ng 504");
+	ASSERT(sym.member_values.at("UNKNOWN") == 505, "Status.UNKNOWN ph???i b???ng 505 (t??? t??ng)");
 
 	return true;
 }
@@ -219,18 +219,18 @@ bool test_semantic_array() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic array hợp lệ không được có lỗi");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic array h???p l??? kh??ng ???????c c?? l???i");
 
 	return true;
 }
 
 bool test_semantic_array_errors() {
-	// 1. Kích thước không khớp khi khai báo rõ kích thước
+	// 1. K??ch th?????c kh??ng kh???p khi khai b??o r?? k??ch th?????c
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -241,11 +241,11 @@ bool test_semantic_array_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Phải báo lỗi khi số phần tử mảng khác kích thước khai báo");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi s??? ph???n t??? m???ng kh??c k??ch th?????c khai b??o");
 	}
 
-	// 2. Không thể gán lại biến val mảng (nhưng được sửa phần tử)
+	// 2. Kh??ng th??? g??n l???i bi???n val m???ng (nh??ng ???????c s???a ph???n t???)
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -257,11 +257,11 @@ bool test_semantic_array_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Phải báo lỗi khi gán lại biến mảng khai báo bằng val");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g??n l???i bi???n m???ng khai b??o b???ng val");
 	}
 
-	// 3. Không thể gán giá trị cho thuộc tính .len của mảng
+	// 3. Kh??ng th??? g??n gi?? tr??? cho thu???c t??nh .len c???a m???ng
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -273,8 +273,8 @@ bool test_semantic_array_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Phải báo lỗi khi gán giá trị cho thuộc tính chỉ đọc .len của mảng");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g??n gi?? tr??? cho thu???c t??nh ch??? ?????c .len c???a m???ng");
 	}
 
 	return true;
@@ -299,18 +299,18 @@ bool test_semantic_struct_methods() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser không được có lỗi");
+	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
-	ASSERT(!diag.has_errors(), "Semantic struct methods hợp lệ không được có lỗi");
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic struct methods h???p l??? kh??ng ???????c c?? l???i");
 
 	return true;
 }
 
 bool test_semantic_struct_method_errors() {
-	// 1. Khởi tạo struct sai số lượng đối số
+	// 1. Kh???i t???o struct sai s??? l?????ng ?????i s???
 	{
 		std::string_view code =
 			"struct Point(x: i32, y: i32);\n"
@@ -322,11 +322,11 @@ bool test_semantic_struct_method_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Phải báo lỗi khi truyền thiếu đối số vào primary constructor");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi truy???n thi???u ?????i s??? v??o primary constructor");
 	}
 
-	// 2. Gọi phương thức var self trên con trỏ chỉ đọc *T
+	// 2. G???i ph????ng th???c var self tr??n con tr??? ch??? ?????c *T
 	{
 		std::string_view code =
 			"struct Point(x: i32, y: i32) {\n"
@@ -340,15 +340,15 @@ bool test_semantic_struct_method_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Phải báo lỗi khi gọi phương thức var self trên con trỏ chỉ đọc *Point");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g???i ph????ng th???c var self tr??n con tr??? ch??? ?????c *Point");
 	}
 
 	return true;
 }
 
 bool test_semantic_logical_operators() {
-	// 1. Hợp lệ: boolean && boolean, boolean || boolean, !boolean
+	// 1. H???p l???: boolean && boolean, boolean || boolean, !boolean
 	{
 		std::string_view code =
 			"fn check(x: i32, flag: bool): bool {\n"
@@ -361,11 +361,11 @@ bool test_semantic_logical_operators() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(!diag.has_errors(), "Biểu thức logic hợp lệ không được có lỗi semantic");
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Bi???u th???c logic h???p l??? kh??ng ???????c c?? l???i semantic");
 	}
 
-	// 2. Sai kiểu: Dùng số nguyên thay vì boolean cho &&
+	// 2. Sai ki???u: D??ng s??? nguy??n thay v?? boolean cho &&
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -376,11 +376,11 @@ bool test_semantic_logical_operators() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Toán tử '&&' với toán hạng không phải bool phải báo lỗi");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "To??n t??? '&&' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
 	}
 
-	// 3. Sai kiểu: Dùng số nguyên thay vì boolean cho ||
+	// 3. Sai ki???u: D??ng s??? nguy??n thay v?? boolean cho ||
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -391,11 +391,11 @@ bool test_semantic_logical_operators() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Toán tử '||' với toán hạng không phải bool phải báo lỗi");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "To??n t??? '||' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
 	}
 
-	// 4. Sai kiểu: Dùng ! trên số nguyên
+	// 4. Sai ki???u: D??ng ! tr??n s??? nguy??n
 	{
 		std::string_view code =
 			"fn test_err(): void {\n"
@@ -406,8 +406,8 @@ bool test_semantic_logical_operators() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Toán tử '!' với toán hạng không phải bool phải báo lỗi");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "To??n t??? '!' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
 	}
 
 	return true;
@@ -445,15 +445,15 @@ bool test_semantic_modules() {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser không được có lỗi với module syntax");
+	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i v???i module syntax");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
-	sema.analyze(prog.get());
+	sema.analyze(prog);
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "Semantic modules hợp lệ không được có lỗi");
+	ASSERT(!diag.has_errors(), "Semantic modules h???p l??? kh??ng ???????c c?? l???i");
 	return true;
 }
 
@@ -473,9 +473,9 @@ bool test_semantic_module_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Import symbol private phải báo lỗi");
-		ASSERT(diag.diagnostics[0].format().find("private") != std::string::npos, "Lỗi phải nhắc tới 'private'");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Import symbol private ph???i b??o l???i");
+		ASSERT(diag.diagnostics[0].format().find("private") != std::string::npos, "L???i ph???i nh???c t???i 'private'");
 	}
 
 	// 2. Private method access error
@@ -498,8 +498,8 @@ bool test_semantic_module_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Gọi phương thức private từ module khác phải báo lỗi");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "G???i ph????ng th???c private t??? module kh??c ph???i b??o l???i");
 	}
 
 	// 3. Nonexistent symbol import error
@@ -517,74 +517,21 @@ bool test_semantic_module_errors() {
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
-		sema.analyze(prog.get());
-		ASSERT(diag.has_errors(), "Import symbol không tồn tại phải báo lỗi");
-		ASSERT(diag.diagnostics[0].format().find("nonexistent") != std::string::npos, "Lỗi phải nhắc tới 'nonexistent'");
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Import symbol kh??ng t???n t???i ph???i b??o l???i");
+		ASSERT(diag.diagnostics[0].format().find("nonexistent") != std::string::npos, "L???i ph???i nh???c t???i 'nonexistent'");
 	}
 
 	return true;
 }
 
-bool test_semantic_memory_optimization() {
-	// 1. Check sizeof(Semantic) <= 24 bytes
-	ASSERT(sizeof(Semantic) <= 24, "sizeof(Semantic) should be <= 24 bytes (kind + shared_ptr)");
 
-	// 2. Primitives have zero payload (no heap allocations)
-	auto i32_t = Semantic::make_primitive(SemaType::I32);
-	auto bool_t = Semantic::make_primitive(SemaType::BOOL);
-	auto void_t = Semantic::make_void();
-	auto null_t = Semantic::make_null();
-	auto err_t = Semantic::make_error();
-
-	ASSERT(i32_t.payload == nullptr, "Primitive I32 must have nullptr payload");
-	ASSERT(bool_t.payload == nullptr, "Primitive BOOL must have nullptr payload");
-	ASSERT(void_t.payload == nullptr, "Primitive VOID must have nullptr payload");
-	ASSERT(null_t.payload == nullptr, "Primitive NULL must have nullptr payload");
-	ASSERT(err_t.payload == nullptr, "Primitive ERROR must have nullptr payload");
-
-	// 3. Complex types have payload with correct accessor values
-	auto ptr_t = Semantic::make_pointer(i32_t, true);
-	ASSERT(ptr_t.payload != nullptr, "Pointer type must have payload");
-	ASSERT(ptr_t.is_mut_pointer() == true, "Pointer must be mut");
-	ASSERT(ptr_t.pointee() != nullptr, "Pointee must be non-null");
-	ASSERT(ptr_t.pointee()->kind == SemaType::I32, "Pointee must be I32");
-
-	auto arr_t = Semantic::make_array(i32_t, 10);
-	ASSERT(arr_t.payload != nullptr, "Array type must have payload");
-	ASSERT(arr_t.array_size() == 10, "Array size must be 10");
-	ASSERT(arr_t.element_type() != nullptr && arr_t.element_type()->kind == SemaType::I32, "Array element must be I32");
-
-	auto st_t = Semantic::make_struct("Point");
-	ASSERT(st_t.payload != nullptr, "Struct type must have payload");
-	ASSERT(st_t.struct_name() == "Point", "Struct name must match");
-
-	auto en_t = Semantic::make_enum("Color", i32_t);
-	ASSERT(en_t.payload != nullptr, "Enum type must have payload");
-	ASSERT(en_t.enum_name() == "Color", "Enum name must match");
-	ASSERT(en_t.underlying_type() != nullptr && en_t.underlying_type()->kind == SemaType::I32, "Enum underlying type must match");
-
-	// 4. StringMap and StringSet heterogeneous lookup
-	StringMap<int> map;
-	map["foo"] = 42;
-	std::string_view sv = "foo";
-	auto it = map.find(sv);
-	ASSERT(it != map.end(), "StringMap must support heterogeneous lookup via string_view");
-	ASSERT(it->second == 42, "Value in StringMap must match");
-	ASSERT(map.contains(sv), "StringMap contains() must support string_view");
-
-	StringSet set;
-	set.insert("module_a");
-	std::string_view mod_sv = "module_a";
-	ASSERT(set.contains(mod_sv), "StringSet contains() must support string_view");
-
-	return true;
-}
 
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
-	if (!test_semantic_memory_optimization()) return 1;
-	std::cout << "  [PASS] test_semantic_memory_optimization" << std::endl;
+	
+	
 
 	if (!test_valid_program()) return 1;
 	std::cout << "  [PASS] test_valid_program" << std::endl;
@@ -634,4 +581,8 @@ int main() {
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;
 }
+
+
+
+
 
