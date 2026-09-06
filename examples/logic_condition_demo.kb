@@ -1,0 +1,64 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+struct Counter(count: i32) {
+    fn inc(var self): bool {
+        self.count = self.count + 1;
+        return true;
+    }
+}
+
+fn main(): i32 {
+    var c: Counter = Counter(0);
+
+    // Test 1: false && c.inc() -> c.inc() must NOT be called!
+    val r1: bool = false && c.inc();
+    if (r1) {
+        return 1;
+    }
+    if (c.count != 0) {
+        return 2;
+    }
+
+    // Test 2: true || c.inc() -> c.inc() must NOT be called!
+    val r2: bool = true || c.inc();
+    if (!r2) {
+        return 3;
+    }
+    if (c.count != 0) {
+        return 4;
+    }
+
+    // Test 3: true && c.inc() -> c.inc() MUST be called!
+    val r3: bool = true && c.inc();
+    if (!r3) {
+        return 5;
+    }
+    if (c.count != 1) {
+        return 6;
+    }
+
+    // Test 4: false || c.inc() -> c.inc() MUST be called!
+    val r4: bool = false || c.inc();
+    if (!r4) {
+        return 7;
+    }
+    if (c.count != 2) {
+        return 8;
+    }
+
+    // Test 5: While loop with compound condition
+    var i: i32 = 0;
+    var sum: i32 = 0;
+    while (i < 10 && sum < 15) {
+        sum = sum + i;
+        i = i + 1;
+    }
+    if (sum != 15) {
+        return 9;
+    }
+
+    puts("Short-circuit logic & loop conditions test passed successfully in Kobel!");
+    return 0;
+}

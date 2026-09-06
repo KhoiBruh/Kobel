@@ -243,6 +243,55 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 4. Biểu thức Nhị phân
 	if (isa<BinaryExpr>(expr)) {
 		const auto *b = as<BinaryExpr>(expr);
+
+		// Đoản mạch (Short-circuit) cho &&
+		if (b->op == TokenType::AND_AND) {
+			llvm::Value *lhs_val = emit_expr(b->left.get());
+			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
+			llvm::Function *fn = lhs_bb->getParent();
+
+			llvm::BasicBlock *rhs_bb = llvm::BasicBlock::Create(*context, "land.rhs", fn);
+			llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(*context, "land.merge", fn);
+
+			builder->CreateCondBr(lhs_val, rhs_bb, merge_bb);
+
+			builder->SetInsertPoint(rhs_bb);
+			llvm::Value *rhs_val = emit_expr(b->right.get());
+			llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
+			merge_bb->moveAfter(rhs_end_bb);
+			builder->CreateBr(merge_bb);
+
+			builder->SetInsertPoint(merge_bb);
+			llvm::PHINode *phi = builder->CreatePHI(builder->getInt1Ty(), 2, "land.res");
+			phi->addIncoming(builder->getInt1(false), lhs_bb);
+			phi->addIncoming(rhs_val, rhs_end_bb);
+			return phi;
+		}
+
+		// Đoản mạch (Short-circuit) cho ||
+		if (b->op == TokenType::OR_OR) {
+			llvm::Value *lhs_val = emit_expr(b->left.get());
+			llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
+			llvm::Function *fn = lhs_bb->getParent();
+
+			llvm::BasicBlock *rhs_bb = llvm::BasicBlock::Create(*context, "lor.rhs", fn);
+			llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(*context, "lor.merge", fn);
+
+			builder->CreateCondBr(lhs_val, merge_bb, rhs_bb);
+
+			builder->SetInsertPoint(rhs_bb);
+			llvm::Value *rhs_val = emit_expr(b->right.get());
+			llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
+			merge_bb->moveAfter(rhs_end_bb);
+			builder->CreateBr(merge_bb);
+
+			builder->SetInsertPoint(merge_bb);
+			llvm::PHINode *phi = builder->CreatePHI(builder->getInt1Ty(), 2, "lor.res");
+			phi->addIncoming(builder->getInt1(true), lhs_bb);
+			phi->addIncoming(rhs_val, rhs_end_bb);
+			return phi;
+		}
+
 		auto *l = emit_expr(b->left.get());
 		auto *r = emit_expr(b->right.get());
 
@@ -268,9 +317,6 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				return is_unsigned ? builder->CreateICmpUGT(l, r, "ugt") : builder->CreateICmpSGT(l, r, "sgt");
 			case TokenType::GREATER_EQUAL:
 				return is_unsigned ? builder->CreateICmpUGE(l, r, "uge") : builder->CreateICmpSGE(l, r, "sge");
-
-			case TokenType::AND_AND: return builder->CreateAnd(l, r, "land");
-			case TokenType::OR_OR: return builder->CreateOr(l, r, "lor");
 
 			default: return l;
 		}

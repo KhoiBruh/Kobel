@@ -347,6 +347,72 @@ bool test_semantic_struct_method_errors() {
 	return true;
 }
 
+bool test_semantic_logical_operators() {
+	// 1. Hợp lệ: boolean && boolean, boolean || boolean, !boolean
+	{
+		std::string_view code =
+			"fn check(x: i32, flag: bool): bool {\n"
+			"    val c1: bool = (x > 0 && x < 100) || !flag;\n"
+			"    val c2: bool = flag && (x == 50 || x == 60);\n"
+			"    return c1 && c2;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(!diag.has_errors(), "Biểu thức logic hợp lệ không được có lỗi semantic");
+	}
+
+	// 2. Sai kiểu: Dùng số nguyên thay vì boolean cho &&
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val res: bool = 10 && true;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Toán tử '&&' với toán hạng không phải bool phải báo lỗi");
+	}
+
+	// 3. Sai kiểu: Dùng số nguyên thay vì boolean cho ||
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val res: bool = false || 20;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Toán tử '||' với toán hạng không phải bool phải báo lỗi");
+	}
+
+	// 4. Sai kiểu: Dùng ! trên số nguyên
+	{
+		std::string_view code =
+			"fn test_err(): void {\n"
+			"    val res: bool = !42;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Toán tử '!' với toán hạng không phải bool phải báo lỗi");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -385,6 +451,9 @@ int main() {
 
 	if (!test_semantic_struct_method_errors()) return 1;
 	std::cout << "  [PASS] test_semantic_struct_method_errors" << std::endl;
+
+	if (!test_semantic_logical_operators()) return 1;
+	std::cout << "  [PASS] test_semantic_logical_operators" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

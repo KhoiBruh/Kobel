@@ -309,6 +309,45 @@ bool test_parse_struct_methods() {
 	return true;
 }
 
+bool test_parse_logical_expressions() {
+	std::string_view code =
+		"fn test_logic(): void {\n"
+		"    val r1: bool = a && b || c && !d;\n"
+		"    val r2: bool = (a || b) && c;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser không được có lỗi khi parse logical expressions");
+	ASSERT(prog->declarations.size() == 1, "Phải parse được 1 hàm");
+	auto* fn = as<FnDecl>(prog->declarations[0].get());
+
+	// Statement 1: val r1: bool = a && b || c && !d;
+	// Precedence: || is top-level binary op
+	auto* s0 = as<VarDeclStmt>(fn->body->statements[0].get());
+	ASSERT(isa<BinaryExpr>(s0->initializer.get()), "Init của r1 phải là BinaryExpr");
+	auto* top_or = as<BinaryExpr>(s0->initializer.get());
+	ASSERT(top_or->op == TokenType::OR_OR, "Top op của r1 phải là ||");
+	ASSERT(isa<BinaryExpr>(top_or->left.get()), "Vế trái của || phải là BinaryExpr");
+	ASSERT(as<BinaryExpr>(top_or->left.get())->op == TokenType::AND_AND, "Vế trái phải là &&");
+	ASSERT(isa<BinaryExpr>(top_or->right.get()), "Vế phải của || phải là BinaryExpr");
+	auto* right_and = as<BinaryExpr>(top_or->right.get());
+	ASSERT(right_and->op == TokenType::AND_AND, "Vế phải phải là &&");
+	ASSERT(isa<UnaryExpr>(right_and->right.get()), "Vế phải của && phải là UnaryExpr (!d)");
+	ASSERT(as<UnaryExpr>(right_and->right.get())->op == TokenType::BANG, "Unary op phải là !");
+
+	// Statement 2: val r2: bool = (a || b) && c;
+	auto* s1 = as<VarDeclStmt>(fn->body->statements[1].get());
+	ASSERT(isa<BinaryExpr>(s1->initializer.get()), "Init của r2 phải là BinaryExpr");
+	auto* top_and = as<BinaryExpr>(s1->initializer.get());
+	ASSERT(top_and->op == TokenType::AND_AND, "Top op của r2 phải là &&");
+	ASSERT(isa<GroupExpr>(top_and->left.get()), "Vế trái của && phải là GroupExpr");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -333,6 +372,9 @@ int main() {
 	if (!test_parse_struct_methods()) return 1;
 	std::cout << "  [PASS] test_parse_struct_methods" << std::endl;
 
+	if (!test_parse_logical_expressions()) return 1;
+	std::cout << "  [PASS] test_parse_logical_expressions" << std::endl;
+
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;
 
@@ -342,4 +384,5 @@ int main() {
 	std::cout << "[ALL PASSED] Parser tests passed successfully!" << std::endl;
 	return 0;
 }
+
 

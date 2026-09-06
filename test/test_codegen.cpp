@@ -342,9 +342,37 @@ bool test_codegen_struct_methods() {
 	return true;
 }
 
+bool test_codegen_short_circuit_logic() {
+	std::string_view code =
+		"fn test_and(a: bool, b: bool): bool {\n"
+		"    return a && b;\n"
+		"}\n"
+		"fn test_or(a: bool, b: bool): bool {\n"
+		"    return a || b;\n"
+		"}\n"
+		"fn test_while_logic(limit: i32): i32 {\n"
+		"    var i: i32 = 0;\n"
+		"    var sum: i32 = 0;\n"
+		"    while (i < limit && sum < 100) {\n"
+		"        sum = sum + i;\n"
+		"        i = i + 1;\n"
+		"    }\n"
+		"    return sum;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã short circuit thất bại");
+	ASSERT(ir.find("land.rhs:") != std::string::npos, "Thiếu nhãn land.rhs");
+	ASSERT(ir.find("land.merge:") != std::string::npos, "Thiếu nhãn land.merge");
+	ASSERT(ir.find("lor.rhs:") != std::string::npos, "Thiếu nhãn lor.rhs");
+	ASSERT(ir.find("lor.merge:") != std::string::npos, "Thiếu nhãn lor.merge");
+	ASSERT(ir.find("phi i1") != std::string::npos, "Thiếu phi i1 cho short circuit");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 13;
+	int total = 14;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -383,6 +411,10 @@ int main() {
 	}
 	if (test_codegen_struct_methods()) {
 		std::cout << "[PASS] test_codegen_struct_methods\n";
+		passed++;
+	}
+	if (test_codegen_short_circuit_logic()) {
+		std::cout << "[PASS] test_codegen_short_circuit_logic\n";
 		passed++;
 	}
 
