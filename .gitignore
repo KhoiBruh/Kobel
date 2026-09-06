@@ -1,2 +1,13 @@
 /cmake-build-debug/
 /.idea/
+
+# Compiler outputs and intermediate build files
+*.obj
+*.o
+*.exe
+*.ll
+*.s
+*.asm
+*.tmp.*
+*.pdb
+*.ilk

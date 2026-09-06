@@ -74,6 +74,8 @@ target_sources(kobel_core
 	src/semantic/Analyzer.cpp
 
 	src/codegen/CodeGen.cpp
+
+	src/driver/Driver.cpp
 )
 
 target_sources(kobel_core
