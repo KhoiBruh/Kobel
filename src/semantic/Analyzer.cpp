@@ -63,7 +63,6 @@ export struct Analyzer {
 
 	// Module & Symbol resolution helpers (AnalyzerModule.cpp)
 	std::string get_decl_module(const Decl* decl) const;
-	static std::string join_path(const std::vector<std::string_view>& path);
 
 	template <typename TSymbol>
 	std::string resolve_symbol_helper(

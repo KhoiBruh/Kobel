@@ -19,15 +19,6 @@ std::string Analyzer::get_decl_module(const Decl* decl) const {
 	return "";
 }
 
-std::string Analyzer::join_path(const std::vector<std::string_view>& path) {
-	std::string res;
-	for (size_t i = 0; i < path.size(); ++i) {
-		if (i > 0) res += ".";
-		res += path[i];
-	}
-	return res;
-}
-
 template <typename TSymbol>
 std::string Analyzer::resolve_symbol_helper(
 	const StringMap<TSymbol>& symbol_table,
@@ -110,12 +101,12 @@ void Analyzer::pass0_index_modules(const Program *program) {
 	std::string active_mod = "";
 	for (const auto &decl : program->declarations) {
 		if (isa<ModuleDecl>(decl.get())) {
-			active_mod = join_path(as<ModuleDecl>(decl.get())->path);
+			active_mod = as<ModuleDecl>(decl.get())->full_path;
 			known_modules.insert(active_mod);
 		} else if (isa<UseDecl>(decl.get())) {
 			const auto *u = as<UseDecl>(decl.get());
 			decl_modules[u] = active_mod;
-			std::string full_path = join_path(u->path);
+			const auto &full_path = u->full_path;
 			if (u->is_wildcard) {
 				module_wildcards[active_mod].push_back(full_path);
 			} else {
@@ -135,7 +126,7 @@ void Analyzer::validate_use_declarations(const Program *program) {
 		if (isa<UseDecl>(decl.get())) {
 			const auto *u = as<UseDecl>(decl.get());
 			std::string mod = get_decl_module(u);
-			std::string full_path = join_path(u->path);
+			const auto &full_path = u->full_path;
 
 			if (u->is_wildcard) {
 				if (!known_modules.contains(full_path)) {

@@ -56,7 +56,6 @@ private:
 	DiagnosticEngine diag_;
 
 	static std::string read_file_content(const std::string& path);
-	static std::string join_module_path(const std::vector<std::string_view>& path);
 	static std::filesystem::path module_to_file_path(const std::vector<std::string_view>& path);
 
 	bool resolve_dependencies(std::vector<std::unique_ptr<std::string>>& source_buffers,
@@ -73,15 +72,6 @@ std::string Driver::read_file_content(const std::string& path) {
 	return ss.str();
 }
 
-std::string Driver::join_module_path(const std::vector<std::string_view>& path) {
-	std::string res;
-	for (size_t i = 0; i < path.size(); ++i) {
-		if (i > 0) res += ".";
-		res += path[i];
-	}
-	return res;
-}
-
 std::filesystem::path Driver::module_to_file_path(const std::vector<std::string_view>& path) {
 	std::filesystem::path p;
 	for (const auto& part : path) {
@@ -94,8 +84,8 @@ bool Driver::resolve_dependencies(
 	std::vector<std::unique_ptr<std::string>>& source_buffers,
 	std::vector<std::unique_ptr<Program>>& parsed_programs) {
 
-	std::unordered_set<std::string> loaded_modules;
-	std::unordered_set<std::string> loaded_files;
+	StringSet loaded_modules;
+	StringSet loaded_files;
 	std::vector<std::filesystem::path> search_dirs = options_.custom_search_dirs;
 
 	for (const auto& filepath : options_.input_files) {
@@ -112,7 +102,7 @@ bool Driver::resolve_dependencies(
 	for (const auto& prog : parsed_programs) {
 		for (const auto& decl : prog->declarations) {
 			if (isa<ModuleDecl>(decl.get())) {
-				loaded_modules.insert(join_module_path(as<ModuleDecl>(decl.get())->path));
+				loaded_modules.insert(as<ModuleDecl>(decl.get())->full_path);
 			}
 		}
 	}
@@ -122,15 +112,14 @@ bool Driver::resolve_dependencies(
 	bool new_module_loaded = true;
 	while (new_module_loaded) {
 		new_module_loaded = false;
-		std::vector<std::pair<std::vector<std::string_view>, std::string>> pending_imports;
+		std::vector<std::pair<std::vector<std::string_view>, std::string_view>> pending_imports;
 
 		for (const auto& prog : parsed_programs) {
 			for (const auto& decl : prog->declarations) {
 				if (isa<UseDecl>(decl.get())) {
 					const auto* u = as<UseDecl>(decl.get());
-					std::string mod_name = join_module_path(u->path);
-					if (!loaded_modules.contains(mod_name)) {
-						pending_imports.emplace_back(u->path, mod_name);
+					if (!loaded_modules.contains(u->full_path)) {
+						pending_imports.emplace_back(u->path, u->full_path);
 					}
 				}
 			}
@@ -180,10 +169,10 @@ bool Driver::resolve_dependencies(
 					} else {
 						for (const auto& decl : prog->declarations) {
 							if (isa<ModuleDecl>(decl.get())) {
-								loaded_modules.insert(join_module_path(as<ModuleDecl>(decl.get())->path));
+								loaded_modules.insert(as<ModuleDecl>(decl.get())->full_path);
 							}
 						}
-						loaded_modules.insert(mod_name);
+						loaded_modules.insert(std::string(mod_name));
 						search_dirs.push_back(found_file.parent_path());
 						parsed_programs.push_back(std::move(prog));
 						new_module_loaded = true;

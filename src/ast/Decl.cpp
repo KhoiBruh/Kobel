@@ -1,6 +1,7 @@
 module;
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -26,18 +27,25 @@ export struct Decl : ASTNode {
 export struct ModuleDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_MODULE;
 	std::vector<std::string_view> path;
+	std::string full_path;
 
 	explicit ModuleDecl(
 		std::vector<std::string_view> p,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Decl(KIND, l, c), path(std::move(p)) {}
+	) : Decl(KIND, l, c), path(std::move(p)) {
+		for (size_t i = 0; i < path.size(); ++i) {
+			if (i > 0) full_path += ".";
+			full_path += path[i];
+		}
+	}
 };
 
 // Use declaration: use a.b.c.A; or use a.b.c.A as B; or use a.b.c.*;
 export struct UseDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_USE;
 	std::vector<std::string_view> path;
+	std::string full_path;
 	std::string_view symbol_name;
 	std::string_view alias;
 	bool is_wildcard = false;
@@ -49,7 +57,12 @@ export struct UseDecl final : Decl {
 		const bool wildcard,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Decl(KIND, l, c), path(std::move(p)), symbol_name(sym), alias(al), is_wildcard(wildcard) {}
+	) : Decl(KIND, l, c), path(std::move(p)), symbol_name(sym), alias(al), is_wildcard(wildcard) {
+		for (size_t i = 0; i < path.size(); ++i) {
+			if (i > 0) full_path += ".";
+			full_path += path[i];
+		}
+	}
 };
 
 export struct Param {
