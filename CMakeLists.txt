@@ -77,6 +77,12 @@ target_sources(kobel_core
 	src/parser/ParserStmt.cpp
 	src/parser/ParserDecl.cpp
 
+	src/semantic/AnalyzerModule.cpp
+	src/semantic/AnalyzerType.cpp
+	src/semantic/AnalyzerDecl.cpp
+	src/semantic/AnalyzerStmt.cpp
+	src/semantic/AnalyzerExpr.cpp
+
 	src/codegen/CodeGenExpr.cpp
 	src/codegen/CodeGenStmt.cpp
 	src/codegen/CodeGenDecl.cpp
