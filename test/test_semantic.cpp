@@ -413,6 +413,118 @@ bool test_semantic_logical_operators() {
 	return true;
 }
 
+bool test_semantic_modules() {
+	std::string_view code =
+		"module math.calc;\n"
+		"pub fn add(a: i32, b: i32): i32 {\n"
+		"    return a + b;\n"
+		"}\n"
+		"pub const BASE: i32 = 100;\n"
+		"\n"
+		"module geom;\n"
+		"pub struct Point(x: i32, y: i32) {\n"
+		"    pub fn sum(val self): i32 {\n"
+		"        return self.x + self.y;\n"
+		"    }\n"
+		"}\n"
+		"\n"
+		"module app;\n"
+		"use math.calc.add;\n"
+		"use math.calc.BASE;\n"
+		"use math.calc.add as my_add;\n"
+		"use geom.Point;\n"
+		"\n"
+		"fn main(): i32 {\n"
+		"    val p: Point = Point(1, 2);\n"
+		"    val s: i32 = p.sum();\n"
+		"    val r1: i32 = add(s, BASE);\n"
+		"    val r2: i32 = my_add(r1, 5);\n"
+		"    return r2;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser không được có lỗi với module syntax");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog.get());
+	if (diag.has_errors()) {
+		diag.print_all(std::cerr);
+	}
+	ASSERT(!diag.has_errors(), "Semantic modules hợp lệ không được có lỗi");
+	return true;
+}
+
+bool test_semantic_module_errors() {
+	// 1. Private function access error
+	{
+		std::string_view code =
+			"module math.calc;\n"
+			"fn secret(): i32 { return 42; }\n"
+			"\n"
+			"module app;\n"
+			"use math.calc.secret;\n"
+			"fn main(): i32 { return secret(); }\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Import symbol private phải báo lỗi");
+		ASSERT(diag.diagnostics[0].format().find("private") != std::string::npos, "Lỗi phải nhắc tới 'private'");
+	}
+
+	// 2. Private method access error
+	{
+		std::string_view code =
+			"module geom;\n"
+			"pub struct Point(x: i32, y: i32) {\n"
+			"    fn secret_method(val self): i32 { return self.x; }\n"
+			"}\n"
+			"\n"
+			"module app;\n"
+			"use geom.Point;\n"
+			"fn main(): i32 {\n"
+			"    val p: Point = Point(1, 2);\n"
+			"    return p.secret_method();\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Gọi phương thức private từ module khác phải báo lỗi");
+	}
+
+	// 3. Nonexistent symbol import error
+	{
+		std::string_view code =
+			"module math.calc;\n"
+			"pub fn add(a: i32, b: i32): i32 { return a + b; }\n"
+			"\n"
+			"module app;\n"
+			"use math.calc.nonexistent;\n"
+			"fn main(): i32 { return 0; }\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog.get());
+		ASSERT(diag.has_errors(), "Import symbol không tồn tại phải báo lỗi");
+		ASSERT(diag.diagnostics[0].format().find("nonexistent") != std::string::npos, "Lỗi phải nhắc tới 'nonexistent'");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -454,6 +566,12 @@ int main() {
 
 	if (!test_semantic_logical_operators()) return 1;
 	std::cout << "  [PASS] test_semantic_logical_operators" << std::endl;
+
+	if (!test_semantic_modules()) return 1;
+	std::cout << "  [PASS] test_semantic_modules" << std::endl;
+
+	if (!test_semantic_module_errors()) return 1;
+	std::cout << "  [PASS] test_semantic_module_errors" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

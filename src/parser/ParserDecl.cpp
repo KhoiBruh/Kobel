@@ -84,7 +84,16 @@ std::unique_ptr<StructDecl> Parser::parse_struct_decl() {
 	std::vector<std::unique_ptr<FnDecl>> methods;
 	if (match(TokenType::OPEN_BRACE)) {
 		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
-			methods.push_back(parse_fn_decl());
+			const bool method_pub = match(TokenType::KW_PUB);
+			if (check(TokenType::KW_FN)) {
+				auto fn = parse_fn_decl();
+				if (fn) {
+					fn->is_pub = method_pub;
+					methods.push_back(std::move(fn));
+				}
+			} else {
+				advance();
+			}
 		}
 		consume(TokenType::CLOSE_BRACE, "Expected '}' end struct");
 	} else {

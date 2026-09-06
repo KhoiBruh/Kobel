@@ -95,7 +95,9 @@ export struct CodeGen {
 			case SemaType::STRUCT: {
 				auto it = struct_types.find(type.struct_name);
 				if (it != struct_types.end()) return it->second;
-				return llvm::StructType::getTypeByName(*context, type.struct_name);
+				it = struct_types.find(to_llvm_name(type.struct_name));
+				if (it != struct_types.end()) return it->second;
+				return llvm::StructType::getTypeByName(*context, to_llvm_name(type.struct_name));
 			}
 
 			case SemaType::ENUM: {
@@ -198,14 +200,20 @@ export struct CodeGen {
 		// 4a. Function prototypes (Pass 1: Khai báo chữ ký toàn bộ hàm trước)
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				emit_fn_proto(as<FnDecl>(decl.get()));
+				const auto* fn = as<FnDecl>(decl.get());
+				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
+				std::string qual_name = (mod.empty() || fn->name == "main") ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				emit_fn_proto(fn, to_llvm_name(qual_name));
 			}
 		}
 
 		// 4b. Function bodies (Pass 2: Sinh thân hàm, các hàm có thể gọi chéo nhau tự do)
 		for (const auto& decl : program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				emit_fn_body(as<FnDecl>(decl.get()));
+				const auto* fn = as<FnDecl>(decl.get());
+				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
+				std::string qual_name = (mod.empty() || fn->name == "main") ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				emit_fn_body(fn, to_llvm_name(qual_name));
 			}
 		}
 

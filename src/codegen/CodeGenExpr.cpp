@@ -90,6 +90,12 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		const auto name = std::string(id->name);
 
 		if (const auto it = local_vars.find(name); it != local_vars.end()) return it->second;
+
+		std::string const_lookup = name;
+		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
+			const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
+		}
+		if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
 		if (const auto it_g = global_consts.find(name); it_g != global_consts.end()) return it_g->second;
 
 		return nullptr;
@@ -223,6 +229,14 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return builder->CreateLoad(alloca->getAllocatedType(), alloca, name);
 		}
 
+		std::string const_lookup = name;
+		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
+			const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
+		}
+		if (auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) {
+			llvm::GlobalVariable *gv = it_g->second;
+			return builder->CreateLoad(gv->getValueType(), gv, name);
+		}
 		if (auto it_g = global_consts.find(name); it_g != global_consts.end()) {
 			llvm::GlobalVariable *gv = it_g->second;
 			return builder->CreateLoad(gv->getValueType(), gv, name);
@@ -346,11 +360,20 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 		// 6a. Gọi hàm thông thường hoặc khởi tạo struct qua tên
 		if (isa<IdentifierExpr>(c->callee.get())) {
-			const auto name = std::string(as<IdentifierExpr>(c->callee.get())->name);
+			const auto raw_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
+			std::string target_name = raw_name;
+			if (analyzer && analyzer->resolved_symbols.contains(c)) {
+				target_name = to_llvm_name(analyzer->resolved_symbols.at(c));
+			}
 
 			// Khởi tạo struct: Point(10, 20)
-			if (analyzer && analyzer->structs.contains(name)) {
-				llvm::Type* st_type = struct_types[name];
+			if (struct_types.contains(target_name) || (analyzer && (analyzer->structs.contains(target_name) || (analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(analyzer->resolved_symbols.at(c)))))) {
+				llvm::Type* st_type = struct_types[target_name];
+				if (!st_type && analyzer && analyzer->resolved_symbols.contains(c)) {
+					st_type = struct_types[analyzer->resolved_symbols.at(c)];
+				}
+				if (!st_type) st_type = struct_types[raw_name];
+
 				llvm::Function* fn = builder->GetInsertBlock()->getParent();
 				llvm::AllocaInst* tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
 				for (size_t i = 0; i < c->args.size(); ++i) {
@@ -362,9 +385,16 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			}
 
 			// Gọi hàm thông thường
-			auto *callee = module->getFunction(name);
+			auto *callee = module->getFunction(target_name);
 			if (!callee && analyzer) {
-				const auto it = analyzer->functions.find(name);
+				std::string fn_lookup = analyzer->resolved_symbols.contains(c) ? analyzer->resolved_symbols.at(c) : target_name;
+				auto it = analyzer->functions.find(fn_lookup);
+				if (it == analyzer->functions.end()) {
+					it = analyzer->functions.find(target_name);
+				}
+				if (it == analyzer->functions.end()) {
+					it = analyzer->functions.find(raw_name);
+				}
 				if (it != analyzer->functions.end()) {
 					std::vector<llvm::Type *> param_types;
 					for (const auto &param_type: it->second.param_types) {
@@ -373,7 +403,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					llvm::Type *ret_type = get_llvm_type(it->second.return_type);
 					llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_type, param_types, false);
 					callee = llvm::Function::Create(
-						fn_type, llvm::Function::ExternalLinkage, name, *module
+						fn_type, llvm::Function::ExternalLinkage, target_name, *module
 					);
 				}
 			}
@@ -393,7 +423,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			const auto *m = as<MemberExpr>(c->callee.get());
 			auto obj_type = get_sema_type(m->object.get());
 			std::string st_name = obj_type.is_struct() ? obj_type.struct_name : obj_type.pointee->struct_name;
-			std::string mangled = st_name + "_" + std::string(m->member);
+			std::string mangled = to_llvm_name(st_name) + "_" + std::string(m->member);
 
 			auto *callee = module->getFunction(mangled);
 			if (!callee && analyzer) {

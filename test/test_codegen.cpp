@@ -370,9 +370,34 @@ bool test_codegen_short_circuit_logic() {
 	return true;
 }
 
+bool test_codegen_modules() {
+	std::string_view code =
+		"module math.calc;\n"
+		"pub fn add(a: i32, b: i32): i32 {\n"
+		"    return a + b;\n"
+		"}\n"
+		"pub const DELTA: i32 = 10;\n"
+		"\n"
+		"module app;\n"
+		"use math.calc.add;\n"
+		"use math.calc.DELTA;\n"
+		"\n"
+		"fn main(): i32 {\n"
+		"    val res: i32 = add(20, DELTA);\n"
+		"    return res;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã modules thất bại");
+	ASSERT(ir.find("@math_calc_add(") != std::string::npos, "Thiếu hàm mangled @math_calc_add");
+	ASSERT(ir.find("define i32 @main()") != std::string::npos, "Thiếu hàm @main");
+	ASSERT(ir.find("call i32 @math_calc_add(") != std::string::npos, "Thiếu lệnh gọi tới @math_calc_add");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 14;
+	int total = 15;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -415,6 +440,10 @@ int main() {
 	}
 	if (test_codegen_short_circuit_logic()) {
 		std::cout << "[PASS] test_codegen_short_circuit_logic\n";
+		passed++;
+	}
+	if (test_codegen_modules()) {
+		std::cout << "[PASS] test_codegen_modules\n";
 		passed++;
 	}
 

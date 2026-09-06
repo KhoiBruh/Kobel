@@ -55,6 +55,231 @@ export struct Analyzer {
 		return nullptr;
 	}
 
+	std::string current_module;
+	std::unordered_map<const Decl*, std::string> decl_modules;
+	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> module_imports;
+	std::unordered_map<std::string, std::vector<std::string>> module_wildcards;
+	std::unordered_map<const Expr*, std::string> resolved_symbols;
+
+	std::string get_decl_module(const Decl* decl) const {
+		auto it = decl_modules.find(decl);
+		if (it != decl_modules.end()) return it->second;
+		return "";
+	}
+
+	static std::string join_path(const std::vector<std::string_view>& path) {
+		std::string res;
+		for (size_t i = 0; i < path.size(); ++i) {
+			if (i > 0) res += ".";
+			res += path[i];
+		}
+		return res;
+	}
+
+	std::string resolve_function_name(const std::string_view raw_name, const size_t line = 0, const size_t col = 0) {
+		std::string name = std::string(raw_name);
+
+		// 1. Trong module hiện tại
+		if (!current_module.empty()) {
+			std::string local_qualified = current_module + "." + name;
+			if (functions.contains(local_qualified)) return local_qualified;
+		}
+
+		// 2. Tra cứu trong bảng import của module hiện tại
+		if (module_imports.contains(current_module)) {
+			const auto& imports = module_imports.at(current_module);
+			auto it = imports.find(name);
+			if (it != imports.end()) {
+				const std::string& target = it->second;
+				if (functions.contains(target)) {
+					const auto& sym = functions.at(target);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Hàm '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return target;
+				}
+			}
+		}
+
+		// 3. Tra cứu wildcard
+		if (module_wildcards.contains(current_module)) {
+			for (const auto& w_mod : module_wildcards.at(current_module)) {
+				std::string candidate = w_mod + "." + name;
+				if (functions.contains(candidate)) {
+					const auto& sym = functions.at(candidate);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Hàm '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return candidate;
+				}
+			}
+		}
+
+		// 4. Tra cứu trực tiếp (toàn cục / extern)
+		if (functions.contains(name)) {
+			const auto& sym = functions.at(name);
+			if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
+				logger.error(line, col, "Hàm '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+			}
+			return name;
+		}
+
+		return "";
+	}
+
+	std::string resolve_struct_name(const std::string_view raw_name, const size_t line = 0, const size_t col = 0) {
+		std::string name = std::string(raw_name);
+
+		// 1. Trong module hiện tại
+		if (!current_module.empty()) {
+			std::string local_qualified = current_module + "." + name;
+			if (structs.contains(local_qualified)) return local_qualified;
+		}
+
+		// 2. Tra cứu import
+		if (module_imports.contains(current_module)) {
+			const auto& imports = module_imports.at(current_module);
+			auto it = imports.find(name);
+			if (it != imports.end()) {
+				const std::string& target = it->second;
+				if (structs.contains(target)) {
+					const auto& sym = structs.at(target);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Struct '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return target;
+				}
+			}
+		}
+
+		// 3. Tra cứu wildcard
+		if (module_wildcards.contains(current_module)) {
+			for (const auto& w_mod : module_wildcards.at(current_module)) {
+				std::string candidate = w_mod + "." + name;
+				if (structs.contains(candidate)) {
+					const auto& sym = structs.at(candidate);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Struct '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return candidate;
+				}
+			}
+		}
+
+		// 4. Tra cứu trực tiếp
+		if (structs.contains(name)) {
+			const auto& sym = structs.at(name);
+			if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
+				logger.error(line, col, "Struct '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+			}
+			return name;
+		}
+
+		return "";
+	}
+
+	std::string resolve_enum_name(const std::string_view raw_name, const size_t line = 0, const size_t col = 0) {
+		std::string name = std::string(raw_name);
+
+		// 1. Trong module hiện tại
+		if (!current_module.empty()) {
+			std::string local_qualified = current_module + "." + name;
+			if (enums.contains(local_qualified)) return local_qualified;
+		}
+
+		// 2. Tra cứu import
+		if (module_imports.contains(current_module)) {
+			const auto& imports = module_imports.at(current_module);
+			auto it = imports.find(name);
+			if (it != imports.end()) {
+				const std::string& target = it->second;
+				if (enums.contains(target)) {
+					const auto& sym = enums.at(target);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Enum '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return target;
+				}
+			}
+		}
+
+		// 3. Tra cứu wildcard
+		if (module_wildcards.contains(current_module)) {
+			for (const auto& w_mod : module_wildcards.at(current_module)) {
+				std::string candidate = w_mod + "." + name;
+				if (enums.contains(candidate)) {
+					const auto& sym = enums.at(candidate);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Enum '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return candidate;
+				}
+			}
+		}
+
+		// 4. Tra cứu trực tiếp
+		if (enums.contains(name)) {
+			const auto& sym = enums.at(name);
+			if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
+				logger.error(line, col, "Enum '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+			}
+			return name;
+		}
+
+		return "";
+	}
+
+	std::string resolve_const_name(const std::string_view raw_name, const size_t line = 0, const size_t col = 0) {
+		std::string name = std::string(raw_name);
+
+		// 1. Trong module hiện tại
+		if (!current_module.empty()) {
+			std::string local_qualified = current_module + "." + name;
+			if (constants.contains(local_qualified)) return local_qualified;
+		}
+
+		// 2. Tra cứu import
+		if (module_imports.contains(current_module)) {
+			const auto& imports = module_imports.at(current_module);
+			auto it = imports.find(name);
+			if (it != imports.end()) {
+				const std::string& target = it->second;
+				if (constants.contains(target)) {
+					const auto& sym = constants.at(target);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Hằng số '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return target;
+				}
+			}
+		}
+
+		// 3. Tra cứu wildcard
+		if (module_wildcards.contains(current_module)) {
+			for (const auto& w_mod : module_wildcards.at(current_module)) {
+				std::string candidate = w_mod + "." + name;
+				if (constants.contains(candidate)) {
+					const auto& sym = constants.at(candidate);
+					if (!sym.is_pub && sym.module_name != current_module) {
+						logger.error(line, col, "Hằng số '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+					}
+					return candidate;
+				}
+			}
+		}
+
+		// 4. Tra cứu trực tiếp
+		if (constants.contains(name)) {
+			const auto& sym = constants.at(name);
+			if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
+				logger.error(line, col, "Hằng số '" + name + "' trong module '" + sym.module_name + "' là private và không thể truy cập từ bên ngoài");
+			}
+			return name;
+		}
+
+		return "";
+	}
+
 	// ========================================================================
 	// Ánh xạ TypeNode (AST) -> Semantic (Semantic)
 	// ========================================================================
@@ -83,18 +308,16 @@ export struct Analyzer {
 			if (name == "void") return Semantic::make_primitive(SemaType::VOID);
 
 			// Kiểm tra struct đã khai báo
-			if (
-				const auto it = structs.find(std::string(name));
-				it != structs.end()
-			)
-				return Semantic::make_struct(name);
+			std::string resolved_st = resolve_struct_name(name, node->line, node->col);
+			if (!resolved_st.empty()) {
+				return Semantic::make_struct(resolved_st);
+			}
 
 			// Kiểm tra enum đã khai báo
-			if (
-				const auto it_enum = enums.find(std::string(name));
-				it_enum != enums.end()
-			)
-				return Semantic::make_enum(name, it_enum->second.underlying_type);
+			std::string resolved_enum = resolve_enum_name(name, node->line, node->col);
+			if (!resolved_enum.empty()) {
+				return Semantic::make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
+			}
 
 			logger.error(node->line, node->col, "Không tìm thấy kiểu dữ liệu '" + std::string(name) + "'");
 			return Semantic::make_error();
@@ -117,6 +340,37 @@ export struct Analyzer {
 	}
 
 	// ========================================================================
+	// Pass 0: Đăng ký Module và Import
+	// ========================================================================
+
+	void pass0_index_modules(const Program *program) {
+		decl_modules.clear();
+		module_imports.clear();
+		module_wildcards.clear();
+
+		std::string active_mod = "";
+		for (const auto &decl : program->declarations) {
+			if (isa<ModuleDecl>(decl.get())) {
+				active_mod = join_path(as<ModuleDecl>(decl.get())->path);
+			} else if (isa<UseDecl>(decl.get())) {
+				const auto *u = as<UseDecl>(decl.get());
+				decl_modules[u] = active_mod;
+				std::string full_path = join_path(u->path);
+				if (u->is_wildcard) {
+					module_wildcards[active_mod].push_back(full_path);
+				} else {
+					std::string sym = std::string(u->symbol_name);
+					std::string alias = u->alias.empty() ? sym : std::string(u->alias);
+					std::string target = full_path + "." + sym;
+					module_imports[active_mod][alias] = target;
+				}
+			} else {
+				decl_modules[decl.get()] = active_mod;
+			}
+		}
+	}
+
+	// ========================================================================
 	// Pass 1: Đăng ký Khai báo Top-Level (Hoisting)
 	// ========================================================================
 
@@ -125,23 +379,35 @@ export struct Analyzer {
 		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl.get())) {
 				const auto *st = as<StructDecl>(decl.get());
-				const auto name = std::string(st->name);
+				std::string mod = get_decl_module(st);
+				std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
-				if (structs.contains(name)) {
-					logger.error(st->line, st->col, "Trùng lặp khai báo struct '" + name + "'");
+				if (structs.contains(qual_name)) {
+					logger.error(st->line, st->col, "Trùng lặp khai báo struct '" + std::string(st->name) + "'");
 					continue;
 				}
 
-				StructSymbol sym = {.name = name, .line = st->line, .col = st->col};
-				structs[name] = sym;
+				StructSymbol sym = {
+					.name = qual_name,
+					.is_pub = st->is_pub,
+					.module_name = mod,
+					.line = st->line,
+					.col = st->col
+				};
+				structs[qual_name] = sym;
+				if (!mod.empty()) {
+					structs[to_llvm_name(qual_name)] = sym;
+				}
 			}
 		}
 
-		// Sau khi có tên struct, đăng ký các trường của struct
+		// Sau khi có tên struct, đăng ký các trường và phương thức của struct
 		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl.get())) {
 				const auto *st = as<StructDecl>(decl.get());
-				auto &sym = structs[std::string(st->name)];
+				current_module = get_decl_module(st);
+				std::string qual_name = current_module.empty() ? std::string(st->name) : current_module + "." + std::string(st->name);
+				auto &sym = structs[qual_name];
 
 				for (const auto &f: st->fields) {
 					auto f_name = std::string(f.name);
@@ -170,6 +436,8 @@ export struct Analyzer {
 					FnSymbol fn_sym = {
 						.name = mangled_name,
 						.return_type = resolve_type(method->return_type.get()),
+						.is_pub = method->is_pub,
+						.module_name = current_module,
 						.line = st->line,
 						.col = st->col
 					};
@@ -195,6 +463,13 @@ export struct Analyzer {
 
 					sym.methods[m_name] = fn_sym;
 					functions[mangled_name] = fn_sym;
+					if (!current_module.empty()) {
+						functions[to_llvm_name(mangled_name)] = fn_sym;
+					}
+				}
+
+				if (!current_module.empty()) {
+					structs[to_llvm_name(qual_name)] = sym;
 				}
 			}
 		}
@@ -203,15 +478,19 @@ export struct Analyzer {
 		for (const auto &decl: program->declarations) {
 			if (isa<EnumDecl>(decl.get())) {
 				const auto *e = as<EnumDecl>(decl.get());
-				const auto name = std::string(e->name);
+				std::string mod = get_decl_module(e);
+				std::string qual_name = mod.empty() ? std::string(e->name) : mod + "." + std::string(e->name);
 
-				if (enums.contains(name) || structs.contains(name)) {
-					logger.error(e->line, e->col, "Trùng lặp tên kiểu '" + name + "'");
+				if (enums.contains(qual_name) || structs.contains(qual_name)) {
+					logger.error(e->line, e->col, "Trùng lặp tên kiểu '" + std::string(e->name) + "'");
 					continue;
 				}
 
+				current_module = mod;
 				EnumSymbol sym;
-				sym.name = name;
+				sym.name = qual_name;
+				sym.is_pub = e->is_pub;
+				sym.module_name = mod;
 				sym.underlying_type = e->underlying_type
 					                      ? resolve_type(e->underlying_type.get())
 					                      : Semantic::make_primitive(SemaType::I32);
@@ -227,7 +506,7 @@ export struct Analyzer {
 				for (const auto &m: e->members) {
 					auto m_name = std::string(m.name);
 					if (sym.member_values.contains(m_name)) {
-						logger.error(m.line, m.col, "Trùng lặp thành viên '" + m_name + "' trong enum '" + name + "'");
+						logger.error(m.line, m.col, "Trùng lặp thành viên '" + m_name + "' trong enum '" + std::string(e->name) + "'");
 						continue;
 					}
 
@@ -254,7 +533,10 @@ export struct Analyzer {
 					next_value++;
 				}
 
-				enums[name] = std::move(sym);
+				enums[qual_name] = sym;
+				if (!mod.empty()) {
+					enums[to_llvm_name(qual_name)] = sym;
+				}
 			}
 		}
 
@@ -262,43 +544,59 @@ export struct Analyzer {
 		for (const auto &decl: program->declarations) {
 			if (isa<ConstDecl>(decl.get())) {
 				const auto *c = as<ConstDecl>(decl.get());
-				const auto name = std::string(c->name);
+				std::string mod = get_decl_module(c);
+				std::string qual_name = mod.empty() ? std::string(c->name) : mod + "." + std::string(c->name);
 
-				if (constants.contains(name)) {
-					logger.error(c->line, c->col, "Trùng lặp khai báo hằng số '" + name + "'");
+				if (constants.contains(qual_name)) {
+					logger.error(c->line, c->col, "Trùng lặp khai báo hằng số '" + std::string(c->name) + "'");
 					continue;
 				}
 
-				ConstSymbol sym = {name, resolve_type(c->type.get()), c->line, c->col};
-				constants[name] = sym;
+				current_module = mod;
+				ConstSymbol sym = {
+					.name = qual_name,
+					.type = resolve_type(c->type.get()),
+					.is_pub = c->is_pub,
+					.module_name = mod,
+					.line = c->line,
+					.col = c->col
+				};
+				constants[qual_name] = sym;
+				if (!mod.empty()) {
+					constants[to_llvm_name(qual_name)] = sym;
+				}
 			}
 		}
 
-		// 3. Đăng ký Hàm (bao gồm cả khối extern)
+		// 4. Đăng ký Hàm (bao gồm cả khối extern)
 		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				register_function(as<FnDecl>(decl.get()));
+				register_function(as<FnDecl>(decl.get()), get_decl_module(decl.get()));
 			} else if (isa<ExternBlock>(decl.get())) {
 				for (
 					const auto *ext = as<ExternBlock>(decl.get());
 					const auto &fn: ext->declarations
 				)
-					register_function(fn.get());
+					register_function(fn.get(), "");
 			}
 		}
 	}
 
-	void register_function(const FnDecl *fn) {
-		const auto name = std::string(fn->name);
+	void register_function(const FnDecl *fn, const std::string &mod) {
+		const auto raw_name = std::string(fn->name);
+		const std::string qual_name = (mod.empty() || raw_name == "main") ? raw_name : mod + "." + raw_name;
 
-		if (functions.contains(name)) {
-			logger.error(fn->line, fn->col, "Trùng lặp khai báo hàm '" + name + "'");
+		if (functions.contains(qual_name)) {
+			logger.error(fn->line, fn->col, "Trùng lặp khai báo hàm '" + raw_name + "'");
 			return;
 		}
 
+		current_module = mod;
 		FnSymbol sym = {
-			.name = name,
+			.name = qual_name,
 			.return_type = resolve_type(fn->return_type.get()),
+			.is_pub = fn->is_pub,
+			.module_name = mod,
 			.line = fn->line,
 			.col = fn->col
 		};
@@ -308,7 +606,75 @@ export struct Analyzer {
 			sym.param_types.push_back(resolve_type(p.type.get()));
 		}
 
-		functions[name] = sym;
+		functions[qual_name] = sym;
+		if (!mod.empty() && raw_name != "main") {
+			functions[to_llvm_name(qual_name)] = sym;
+		}
+	}
+
+	// ========================================================================
+	// Thẩm định Câu lệnh Use & Visibility
+	// ========================================================================
+
+	void validate_use_declarations(const Program *program) {
+		for (const auto &decl : program->declarations) {
+			if (isa<UseDecl>(decl.get())) {
+				const auto *u = as<UseDecl>(decl.get());
+				std::string mod = get_decl_module(u);
+				std::string full_path = join_path(u->path);
+
+				if (u->is_wildcard) {
+					bool mod_found = false;
+					for (const auto &[name, sym] : functions) {
+						if (sym.module_name == full_path) { mod_found = true; break; }
+					}
+					if (!mod_found) {
+						for (const auto &[name, sym] : structs) {
+							if (sym.module_name == full_path) { mod_found = true; break; }
+						}
+					}
+					if (!mod_found) {
+						for (const auto &[name, sym] : enums) {
+							if (sym.module_name == full_path) { mod_found = true; break; }
+						}
+					}
+					if (!mod_found) {
+						for (const auto &[name, sym] : constants) {
+							if (sym.module_name == full_path) { mod_found = true; break; }
+						}
+					}
+					if (!mod_found) {
+						logger.error(u->line, u->col, "Không tìm thấy module '" + full_path + "'");
+					}
+				} else {
+					std::string sym_name = std::string(u->symbol_name);
+					std::string target = full_path + "." + sym_name;
+
+					bool found = false;
+					bool is_pub = false;
+
+					if (functions.contains(target)) {
+						found = true;
+						is_pub = functions.at(target).is_pub;
+					} else if (structs.contains(target)) {
+						found = true;
+						is_pub = structs.at(target).is_pub;
+					} else if (enums.contains(target)) {
+						found = true;
+						is_pub = enums.at(target).is_pub;
+					} else if (constants.contains(target)) {
+						found = true;
+						is_pub = constants.at(target).is_pub;
+					}
+
+					if (!found) {
+						logger.error(u->line, u->col, "Không tìm thấy symbol '" + sym_name + "' trong module '" + full_path + "'");
+					} else if (!is_pub && full_path != mod) {
+						logger.error(u->line, u->col, "Symbol '" + sym_name + "' trong module '" + full_path + "' là private và không thể import");
+					}
+				}
+			}
+		}
 	}
 
 	// ========================================================================
@@ -318,20 +684,31 @@ export struct Analyzer {
 	void pass2_check_declarations(const Program *program) {
 		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl.get())) {
-				check_function(as<FnDecl>(decl.get()), std::string(as<FnDecl>(decl.get())->name));
+				const auto *fn = as<FnDecl>(decl.get());
+				current_module = get_decl_module(fn);
+				std::string qual_name = (current_module.empty() || fn->name == "main")
+					? std::string(fn->name)
+					: current_module + "." + std::string(fn->name);
+				check_function(fn, qual_name);
 			} else if (isa<StructDecl>(decl.get())) {
-				for (
-					const auto *st = as<StructDecl>(decl.get());
-					const auto &method: st->methods
-				) {
-					auto mangled = std::string(st->name) + "_" + std::string(method->name);
+				const auto *st = as<StructDecl>(decl.get());
+				current_module = get_decl_module(st);
+				std::string st_qual = current_module.empty()
+					? std::string(st->name)
+					: current_module + "." + std::string(st->name);
+				for (const auto &method: st->methods) {
+					std::string mangled = st_qual + "_" + std::string(method->name);
 					check_function(method.get(), mangled);
 				}
 			} else if (isa<ConstDecl>(decl.get())) {
 				const auto *c = as<ConstDecl>(decl.get());
+				current_module = get_decl_module(c);
+				std::string c_qual = current_module.empty()
+					? std::string(c->name)
+					: current_module + "." + std::string(c->name);
 				auto val_type = analyze_expr(c->value.get());
 				if (
-					auto expected_type = constants[std::string(c->name)].type;
+					auto expected_type = constants[c_qual].type;
 					!expected_type.can_assign_from(val_type)
 				)
 					logger.error(
@@ -568,11 +945,11 @@ export struct Analyzer {
 			if (auto *var = lookup_variable(name)) return var->type;
 
 			// Tra cứu hằng số
-			if (
-				auto it_c = constants.find(std::string(name));
-				it_c != constants.end()
-			)
-				return it_c->second.type;
+			std::string resolved_c = resolve_const_name(name, id->line, id->col);
+			if (!resolved_c.empty()) {
+				resolved_symbols[id] = resolved_c;
+				return constants.at(resolved_c).type;
+			}
 
 			logger.error(id->line, id->col, "Biến hoặc định danh '" + std::string(name) + "' chưa được khai báo");
 			return Semantic::make_error();
@@ -792,18 +1169,20 @@ export struct Analyzer {
 
 			// 7a. Khởi tạo struct hoặc gọi hàm trực tiếp: Name(args...)
 			if (isa<IdentifierExpr>(c->callee.get())) {
-				const auto callee_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
+				const auto raw_callee_name = std::string(as<IdentifierExpr>(c->callee.get())->name);
 
 				// Khởi tạo struct: Point(10, 20)
-				if (auto it_st = structs.find(callee_name); it_st != structs.end()) {
-					const auto &st_sym = it_st->second;
+				std::string resolved_st = resolve_struct_name(raw_callee_name, c->line, c->col);
+				if (!resolved_st.empty()) {
+					resolved_symbols[c] = resolved_st;
+					const auto &st_sym = structs.at(resolved_st);
 					if (c->args.size() != st_sym.field_order.size()) {
 						logger.error(
-							c->line, c->col, "Khởi tạo struct '" + callee_name + "' mong đợi " +
+							c->line, c->col, "Khởi tạo struct '" + raw_callee_name + "' mong đợi " +
 							                 std::to_string(st_sym.field_order.size()) + " đối số, nhưng nhận được " +
 							                 std::to_string(c->args.size())
 						);
-						return Semantic::make_struct(callee_name);
+						return Semantic::make_struct(resolved_st);
 					}
 
 					for (size_t i = 0; i < c->args.size(); ++i) {
@@ -815,25 +1194,26 @@ export struct Analyzer {
 						)
 							logger.error(
 								c->line, c->col, "Trường '" + field_name + "' của struct '" +
-								                 callee_name + "' không khớp kiểu: mong đợi '" +
+								                 raw_callee_name + "' không khớp kiểu: mong đợi '" +
 								                 expected_type.to_string() + "', nhận được '" + arg_type.to_string() +
 								                 "'"
 							);
 					}
-					return Semantic::make_struct(callee_name);
+					return Semantic::make_struct(resolved_st);
 				}
 
 				// Gọi hàm thông thường
-				auto it = functions.find(callee_name);
-				if (it == functions.end()) {
-					logger.error(c->line, c->col, "Hàm '" + callee_name + "' chưa được khai báo");
+				std::string resolved_fn = resolve_function_name(raw_callee_name, c->line, c->col);
+				if (resolved_fn.empty()) {
+					logger.error(c->line, c->col, "Hàm '" + raw_callee_name + "' chưa được khai báo");
 					return Semantic::make_error();
 				}
 
-				const auto &fn_sym = it->second;
+				resolved_symbols[c] = resolved_fn;
+				const auto &fn_sym = functions.at(resolved_fn);
 				if (c->args.size() != fn_sym.param_types.size()) {
 					logger.error(
-						c->line, c->col, "Hàm '" + callee_name + "' mong đợi " +
+						c->line, c->col, "Hàm '" + raw_callee_name + "' mong đợi " +
 						                 std::to_string(fn_sym.param_types.size()) + " đối số, nhưng nhận được " +
 						                 std::to_string(c->args.size())
 					);
@@ -847,7 +1227,7 @@ export struct Analyzer {
 					) {
 						logger.error(
 							c->line, c->col, "Đối số " + std::to_string(i + 1) + " của hàm '" +
-							                 callee_name + "' không khớp kiểu: mong đợi '" +
+							                 raw_callee_name + "' không khớp kiểu: mong đợi '" +
 							                 fn_sym.param_types[i].to_string() + "', nhận được '" + arg_type.to_string()
 							                 + "'"
 						);
@@ -889,6 +1269,9 @@ export struct Analyzer {
 				}
 
 				const auto &method_sym = it_m->second;
+				if (!method_sym.is_pub && method_sym.module_name != current_module && !method_sym.module_name.empty()) {
+					logger.error(c->line, c->col, "Phương thức '" + method_name + "' của struct '" + struct_name + "' là private và không thể truy cập từ bên ngoài");
+				}
 
 				// Kiểm tra self
 				if (!method_sym.param_types.empty() && method_sym.param_names[0] == "self") {
@@ -943,11 +1326,13 @@ export struct Analyzer {
 			// Kiểm tra nếu object là Identifier của một Enum (vd: Status.OK)
 			if (isa<IdentifierExpr>(m->object.get())) {
 				const auto id_name = std::string(as<IdentifierExpr>(m->object.get())->name);
-				if (auto it_enum = enums.find(id_name); it_enum != enums.end()) {
+				std::string resolved_enum = resolve_enum_name(id_name, m->line, m->col);
+				if (!resolved_enum.empty()) {
+					const auto &enum_sym = enums.at(resolved_enum);
 					const auto member_name = std::string(m->member);
 					if (
-						auto it_m = it_enum->second.member_values.find(member_name);
-						it_m == it_enum->second.member_values.end()
+						auto it_m = enum_sym.member_values.find(member_name);
+						it_m == enum_sym.member_values.end()
 					) {
 						logger.error(
 							m->line, m->col,
@@ -955,7 +1340,7 @@ export struct Analyzer {
 						);
 						return Semantic::make_error();
 					}
-					return Semantic::make_enum(id_name, it_enum->second.underlying_type);
+					return Semantic::make_enum(resolved_enum, enum_sym.underlying_type);
 				}
 			}
 
@@ -1067,7 +1452,9 @@ export struct Analyzer {
 	// ========================================================================
 
 	void analyze(const Program *program) {
+		pass0_index_modules(program);
 		pass1_register_declarations(program);
+		validate_use_declarations(program);
 		pass2_check_declarations(program);
 	}
 };

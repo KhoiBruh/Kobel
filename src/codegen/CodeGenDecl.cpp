@@ -26,7 +26,10 @@ import semantic.analyzer;
 // ============================================================================
 
 void CodeGen::emit_struct_decl(const StructDecl* st) {
-	const auto name = std::string(st->name);
+	std::string mod = analyzer ? analyzer->get_decl_module(st) : "";
+	std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
+	std::string llvm_st_name = to_llvm_name(qual_name);
+
 	std::vector<llvm::Type*> field_types;
 
 	for (const auto&[f_name, type] : st->fields) {
@@ -34,16 +37,21 @@ void CodeGen::emit_struct_decl(const StructDecl* st) {
 		field_types.push_back(get_llvm_type(sema_ty));
 	}
 
-	llvm::StructType* struct_ty = llvm::StructType::create(*context, field_types, name);
-	struct_types[name] = struct_ty;
+	llvm::StructType* struct_ty = llvm::StructType::create(*context, field_types, llvm_st_name);
+	struct_types[llvm_st_name] = struct_ty;
+	struct_types[qual_name] = struct_ty;
+	struct_types[std::string(st->name)] = struct_ty;
 
 	for (const auto& method : st->methods) {
-		emit_fn_decl(method.get(), name + "_" + std::string(method->name));
+		emit_fn_decl(method.get(), llvm_st_name + "_" + std::string(method->name));
 	}
 }
 
 void CodeGen::emit_const_decl(const ConstDecl* c) {
-	const auto name = std::string(c->name);
+	std::string mod = analyzer ? analyzer->get_decl_module(c) : "";
+	std::string qual_name = mod.empty() ? std::string(c->name) : mod + "." + std::string(c->name);
+	std::string llvm_name = to_llvm_name(qual_name);
+
 	const auto sema_ty = analyzer->resolve_type(c->type.get());
 	llvm::Type* llvm_ty = get_llvm_type(sema_ty);
 
@@ -65,9 +73,11 @@ void CodeGen::emit_const_decl(const ConstDecl* c) {
 		true, // constant
 		llvm::GlobalValue::InternalLinkage,
 		init_const,
-		name
+		llvm_name
 	);
-	global_consts[name] = gv;
+	global_consts[llvm_name] = gv;
+	global_consts[qual_name] = gv;
+	global_consts[std::string(c->name)] = gv;
 }
 
 void CodeGen::emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_override) {
