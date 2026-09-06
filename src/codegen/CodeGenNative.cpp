@@ -12,11 +12,15 @@ module;
 #include <llvm/TargetParser/Triple.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <vector>
+
+#include <llvm/Support/Program.h>
 
 module codegen;
 
@@ -109,8 +113,75 @@ bool CodeGen::emit_assembly_file(const std::string &output_filename) {
 	return true;
 }
 
+namespace {
+	std::string find_clang_executable() {
+		// 1. Kiểm tra biến môi trường người dùng chỉ định
+		if (const char* env_kobel_clang = std::getenv("KOBEL_CLANG"); env_kobel_clang && *env_kobel_clang) {
+			if (std::filesystem::exists(env_kobel_clang)) return std::string(env_kobel_clang);
+		}
+		if (const char* env_clang_path = std::getenv("CLANG_PATH"); env_clang_path && *env_clang_path) {
+			if (std::filesystem::exists(env_clang_path)) return std::string(env_clang_path);
+		}
+
+		// 2. Tìm kiếm trong PATH hệ thống qua LLVM Program Support
+		if (auto clang_in_path = llvm::sys::findProgramByName("clang"); clang_in_path && !clang_in_path->empty()) {
+			return *clang_in_path;
+		}
+#ifdef _WIN32
+		if (auto clang_in_path = llvm::sys::findProgramByName("clang.exe"); clang_in_path && !clang_in_path->empty()) {
+			return *clang_in_path;
+		}
+
+		// 3. Fallback các thư mục cài đặt tiêu chuẩn trên Windows
+		const std::vector<std::string> standard_windows_paths = {
+			"C:/LLVM/bin/clang.exe",
+			"C:\\LLVM\\bin\\clang.exe",
+			"C:/Program Files/LLVM/bin/clang.exe",
+			"C:\\Program Files\\LLVM\\bin\\clang.exe"
+		};
+		for (const auto& path : standard_windows_paths) {
+			if (std::filesystem::exists(path)) return path;
+		}
+#else
+		// 3. Fallback các thư mục cài đặt tiêu chuẩn trên POSIX
+		const std::vector<std::string> standard_posix_paths = {
+			"/usr/bin/clang",
+			"/usr/local/bin/clang"
+		};
+		for (const auto& path : standard_posix_paths) {
+			if (std::filesystem::exists(path)) return path;
+		}
+#endif
+
+		return "";
+	}
+}
+
 bool CodeGen::link_executable(const std::string &obj_filename, const std::string &exe_filename) {
-	const std::string cmd = R"(""C:\LLVM\bin\clang.exe" ")" + obj_filename + "\" -o \"" + exe_filename + "\"\"";
-	const int ret = std::system(cmd.c_str());
-	return ret == 0;
+	const std::string clang_path = find_clang_executable();
+	if (clang_path.empty()) {
+		std::cerr << "Error: Could not find 'clang' linker executable.\n"
+		          << "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
+		return false;
+	}
+
+	std::vector<llvm::StringRef> args = {
+		clang_path,
+		obj_filename,
+		"-o",
+		exe_filename
+	};
+
+	std::string err_msg;
+	const int ret = llvm::sys::ExecuteAndWait(clang_path, args, std::nullopt, {}, 0, 0, &err_msg);
+	if (ret != 0) {
+		std::cerr << "Error: Linking executable failed (exit code " << ret << ")";
+		if (!err_msg.empty()) {
+			std::cerr << ": " << err_msg;
+		}
+		std::cerr << "\n";
+		return false;
+	}
+
+	return true;
 }

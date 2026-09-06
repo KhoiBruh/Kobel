@@ -428,8 +428,21 @@ bool test_parse_module_and_use() {
 	return true;
 }
 
+bool test_empty_parser_safety() {
+	Parser p{{}};
+	ASSERT(p.is_end(), "Empty parser must report is_end");
+	Token prev = p.previous();
+	ASSERT(prev.type == TokenType::END_OF_FILE, "Previous on empty parser must return EOF");
+	Token pk = p.peek();
+	ASSERT(pk.type == TokenType::END_OF_FILE, "Peek on empty parser must return EOF");
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
+
+	if (!test_empty_parser_safety()) return 1;
+	std::cout << "  [PASS] test_empty_parser_safety" << std::endl;
 
 	if (!test_parse_expressions()) return 1;
 	std::cout << "  [PASS] test_parse_expressions" << std::endl;

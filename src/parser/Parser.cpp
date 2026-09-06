@@ -44,6 +44,7 @@ export struct Parser {
 	}
 
 	Token previous() const {
+		if (tokens.empty()) return {TokenType::END_OF_FILE, "", 0, 0};
 		return current > 0 ? tokens[current - 1] : tokens[0];
 	}
 
