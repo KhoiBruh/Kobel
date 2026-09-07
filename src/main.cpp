@@ -23,7 +23,7 @@ namespace {
 	}
 }
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
 	if (argc < 2) {
 		print_help(argv[0]);
 		return 1;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 				std::cerr << "Error: Missing argument after '--target'\n";
 				return 1;
 			}
-		} else if (arg.starts_with("-")) {
+		} else if (arg.starts_with('-')) {
 			std::cerr << "Error: Unknown option '" << arg << "'\n";
 			return 1;
 		} else {
@@ -76,5 +76,3 @@ int main(int argc, char *argv[]) {
 	Driver driver{options};
 	return driver.run();
 }
-
-
