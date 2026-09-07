@@ -116,10 +116,10 @@ bool CodeGen::emit_assembly_file(const std::string &output_filename) {
 namespace {
 	std::string find_clang_executable() {
 		// 1. Check user-specified environment variable
-		if (const char* env_kobel_clang = std::getenv("KOBEL_CLANG"); env_kobel_clang && *env_kobel_clang) {
+		if (const char *env_kobel_clang = std::getenv("KOBEL_CLANG"); env_kobel_clang && *env_kobel_clang) {
 			if (std::filesystem::exists(env_kobel_clang)) return std::string(env_kobel_clang);
 		}
-		if (const char* env_clang_path = std::getenv("CLANG_PATH"); env_clang_path && *env_clang_path) {
+		if (const char *env_clang_path = std::getenv("CLANG_PATH"); env_clang_path && *env_clang_path) {
 			if (std::filesystem::exists(env_clang_path)) return std::string(env_clang_path);
 		}
 
@@ -139,7 +139,7 @@ namespace {
 			"C:/Program Files/LLVM/bin/clang.exe",
 			R"(C:\Program Files\LLVM\bin\clang.exe)"
 		};
-		for (const auto& path : standard_windows_paths) {
+		for (const auto &path: standard_windows_paths) {
 			if (std::filesystem::exists(path)) return path;
 		}
 #else
@@ -148,7 +148,7 @@ namespace {
 			"/usr/bin/clang",
 			"/usr/local/bin/clang"
 		};
-		for (const auto& path : standard_posix_paths) {
+		for (const auto &path: standard_posix_paths) {
 			if (std::filesystem::exists(path)) return path;
 		}
 #endif
@@ -161,7 +161,7 @@ bool CodeGen::link_executable(const std::string &obj_filename, const std::string
 	const std::string clang_path = find_clang_executable();
 	if (clang_path.empty()) {
 		std::cerr << "Error: Could not find 'clang' linker executable.\n"
-		          << "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
+			<< "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
 		return false;
 	}
 
@@ -185,7 +185,3 @@ bool CodeGen::link_executable(const std::string &obj_filename, const std::string
 
 	return true;
 }
-
-
-
-

@@ -171,8 +171,8 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 		// str[index]: extract data ptr, GEP to char
 		if (target_sema->is_str()) {
-			auto* str_val = emit_expr(idx->target);
-			auto* data_ptr = builder->CreateExtractValue(str_val, 0, "str.data");
+			auto *str_val = emit_expr(idx->target);
+			auto *data_ptr = builder->CreateExtractValue(str_val, 0, "str.data");
 			return builder->CreateGEP(builder->getInt8Ty(), data_ptr, index_val, "str.idx");
 		}
 
@@ -227,13 +227,13 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			case LiteralKind::STRING: {
 				const std::string s = unescape_string(lit->raw_text);
 				// CreateGlobalString appends \0 automatically
-				auto* global = builder->CreateGlobalString(s, ".str", 0, module.get());
+				auto *global = builder->CreateGlobalString(s, ".str", 0, module.get());
 				// Wrap as str struct: { data, len, cap=0 (STATIC) }
-				auto* str_ty = struct_types["str"];
-				llvm::Value* str_val = llvm::UndefValue::get(str_ty);
-				str_val = builder->CreateInsertValue(str_val, global, 0);                        // data
-				str_val = builder->CreateInsertValue(str_val, builder->getInt64(s.size()), 1);   // len
-				str_val = builder->CreateInsertValue(str_val, builder->getInt64(0), 2);          // cap = 0 (STATIC)
+				auto *str_ty = struct_types["str"];
+				llvm::Value *str_val = llvm::UndefValue::get(str_ty);
+				str_val = builder->CreateInsertValue(str_val, global, 0); // data
+				str_val = builder->CreateInsertValue(str_val, builder->getInt64(s.size()), 1); // len
+				str_val = builder->CreateInsertValue(str_val, builder->getInt64(0), 2); // cap = 0 (STATIC)
 				return str_val;
 			}
 
@@ -350,32 +350,32 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 		// str binary ops
 		if (left_sema->is_str()) {
-			auto* str_ty = struct_types["str"];
+			auto *str_ty = struct_types["str"];
 
 			if (b->op == TokenType::PLUS) {
 				// Alloca + store both operands, pass by pointer to __kobel_str_concat
-				auto* fn = builder->GetInsertBlock()->getParent();
-				auto* l_alloca = create_entry_block_alloca(fn, str_ty, "concat.l");
-				auto* r_alloca = create_entry_block_alloca(fn, str_ty, "concat.r");
+				auto *fn = builder->GetInsertBlock()->getParent();
+				auto *l_alloca = create_entry_block_alloca(fn, str_ty, "concat.l");
+				auto *r_alloca = create_entry_block_alloca(fn, str_ty, "concat.r");
 				builder->CreateStore(l, l_alloca);
 				builder->CreateStore(r, r_alloca);
-				auto* concat_fn = module->getFunction("__kobel_str_concat");
+				auto *concat_fn = module->getFunction("__kobel_str_concat");
 				return builder->CreateCall(concat_fn, {l_alloca, r_alloca}, "concat");
 			}
 
 			if (b->op == TokenType::EQUAL_EQUAL || b->op == TokenType::BANG_EQUAL) {
 				// Compare len first, then memcmp
-				auto* a_len = builder->CreateExtractValue(l, 1, "a.len");
-				auto* b_len = builder->CreateExtractValue(r, 1, "b.len");
-				auto* len_eq = builder->CreateICmpEQ(a_len, b_len, "len.eq");
+				auto *a_len = builder->CreateExtractValue(l, 1, "a.len");
+				auto *b_len = builder->CreateExtractValue(r, 1, "b.len");
+				auto *len_eq = builder->CreateICmpEQ(a_len, b_len, "len.eq");
 
-				auto* a_data = builder->CreateExtractValue(l, 0, "a.data");
-				auto* b_data = builder->CreateExtractValue(r, 0, "b.data");
-				auto* memcmp_fn = module->getFunction("memcmp");
-				auto* cmp_result = builder->CreateCall(memcmp_fn, {a_data, b_data, a_len}, "memcmp");
-				auto* content_eq = builder->CreateICmpEQ(cmp_result, builder->getInt32(0), "content.eq");
+				auto *a_data = builder->CreateExtractValue(l, 0, "a.data");
+				auto *b_data = builder->CreateExtractValue(r, 0, "b.data");
+				auto *memcmp_fn = module->getFunction("memcmp");
+				auto *cmp_result = builder->CreateCall(memcmp_fn, {a_data, b_data, a_len}, "memcmp");
+				auto *content_eq = builder->CreateICmpEQ(cmp_result, builder->getInt32(0), "content.eq");
 
-				auto* result = builder->CreateAnd(len_eq, content_eq, "str.eq");
+				auto *result = builder->CreateAnd(len_eq, content_eq, "str.eq");
 				if (b->op == TokenType::BANG_EQUAL)
 					result = builder->CreateNot(result, "str.ne");
 				return result;
@@ -436,7 +436,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			if (ty->kind == SemaType::VOID) {
 				return builder->getInt64(0);
 			}
-			llvm::Type* llvm_ty = get_llvm_type(ty);
+			llvm::Type *llvm_ty = get_llvm_type(ty);
 			uint64_t sz = module->getDataLayout().getTypeAllocSize(llvm_ty);
 			return builder->getInt64(sz);
 		}
@@ -450,18 +450,24 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			}
 
 			// Struct instantiation: Point(10, 20)
-			if (struct_types.contains(target_name) || (analyzer && (analyzer->structs.contains(target_name) || (analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(analyzer->resolved_symbols.at(c)))))) {
-				llvm::Type* st_type = struct_types[target_name];
+			if (struct_types.contains(target_name) || (
+				    analyzer && (analyzer->structs.contains(target_name) || (
+					                 analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(
+						                 analyzer->resolved_symbols.at(c)
+					                 ))))) {
+				llvm::Type *st_type = struct_types[target_name];
 				if (!st_type && analyzer && analyzer->resolved_symbols.contains(c)) {
 					st_type = struct_types[analyzer->resolved_symbols.at(c)];
 				}
 				if (!st_type) st_type = struct_types[raw_name];
 
-				llvm::Function* fn = builder->GetInsertBlock()->getParent();
-				llvm::AllocaInst* tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
+				llvm::Function *fn = builder->GetInsertBlock()->getParent();
+				llvm::AllocaInst *tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
 				for (size_t i = 0; i < c->args.size(); ++i) {
-					llvm::Value* arg_val = emit_expr(c->args[i]);
-					llvm::Value* field_ptr = builder->CreateStructGEP(st_type, tmp_st, static_cast<unsigned>(i), "init_field");
+					llvm::Value *arg_val = emit_expr(c->args[i]);
+					llvm::Value *field_ptr = builder->CreateStructGEP(
+						st_type, tmp_st, static_cast<unsigned>(i), "init_field"
+					);
 					builder->CreateStore(arg_val, field_ptr);
 				}
 				return builder->CreateLoad(st_type, tmp_st, "st_val");
@@ -470,7 +476,9 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			// Regular function call
 			auto *callee = module->getFunction(target_name);
 			if (!callee && analyzer) {
-				std::string fn_lookup = analyzer->resolved_symbols.contains(c) ? analyzer->resolved_symbols.at(c) : target_name;
+				std::string fn_lookup = analyzer->resolved_symbols.contains(c)
+					                        ? analyzer->resolved_symbols.at(c)
+					                        : target_name;
 				auto it = analyzer->functions.find(fn_lookup);
 				if (it == analyzer->functions.end()) {
 					it = analyzer->functions.find(target_name);
@@ -517,7 +525,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			// Built-in str methods
 			if (obj_type->is_str()) {
-				auto* str_val = emit_expr(m->object);
+				auto *str_val = emit_expr(m->object);
 				if (std::string(m->member) == "size" || std::string(m->member) == "len") {
 					return builder->CreateExtractValue(str_val, 1, "str.len");
 				}
@@ -525,13 +533,13 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					return builder->CreateExtractValue(str_val, 0, "str.cstr");
 				}
 				if (std::string(m->member) == "slice") {
-					auto* str_ty = struct_types["str"];
-					auto* fn = builder->GetInsertBlock()->getParent();
-					auto* s_alloca = create_entry_block_alloca(fn, str_ty, "slice.s");
+					auto *str_ty = struct_types["str"];
+					auto *fn = builder->GetInsertBlock()->getParent();
+					auto *s_alloca = create_entry_block_alloca(fn, str_ty, "slice.s");
 					builder->CreateStore(str_val, s_alloca);
 
 					// Arg 0: start
-					llvm::Value* start_val = emit_expr(c->args[0]);
+					llvm::Value *start_val = emit_expr(c->args[0]);
 					if (start_val->getType()->getIntegerBitWidth() < 64) {
 						start_val = builder->CreateSExt(start_val, builder->getInt64Ty(), "start.i64");
 					} else if (start_val->getType()->getIntegerBitWidth() > 64) {
@@ -539,7 +547,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					}
 
 					// Arg 1: end (or s.len if omitted)
-					llvm::Value* end_val = nullptr;
+					llvm::Value *end_val = nullptr;
 					if (c->args.size() >= 2) {
 						end_val = emit_expr(c->args[1]);
 						if (end_val->getType()->getIntegerBitWidth() < 64) {
@@ -551,7 +559,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 						end_val = builder->CreateExtractValue(str_val, 1, "str.len");
 					}
 
-					auto* slice_fn = module->getFunction("__kobel_str_slice");
+					auto *slice_fn = module->getFunction("__kobel_str_slice");
 					return builder->CreateCall(slice_fn, {s_alloca, start_val, end_val}, "slice.res");
 				}
 				return nullptr;
@@ -582,9 +590,9 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			// Load self if required by method
 			if (analyzer && analyzer->functions.contains(mangled)) {
-				const auto& fn_sym = analyzer->functions.at(mangled);
+				const auto &fn_sym = analyzer->functions.at(mangled);
 				if (!fn_sym.param_types.empty() && fn_sym.param_names[0] == "self") {
-					const auto& self_expected = fn_sym.param_types[0];
+					const auto &self_expected = fn_sym.param_types[0];
 					if (self_expected->is_pointer()) {
 						if (obj_type->is_pointer()) {
 							args.push_back(emit_expr(m->object));
@@ -600,7 +608,11 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			// Load remaining arguments
 			for (size_t i = 0; i < c->args.size(); ++i) {
 				auto *arg_val = emit_expr(c->args[i]);
-				size_t param_idx = (analyzer && analyzer->functions.contains(mangled) && !analyzer->functions.at(mangled).param_types.empty() && analyzer->functions.at(mangled).param_names[0] == "self") ? i + 1 : i;
+				size_t param_idx = (analyzer && analyzer->functions.contains(mangled) && !analyzer->functions.
+				                    at(mangled).param_types.empty() && analyzer->functions.at(mangled).param_names[0] ==
+				                    "self")
+					                   ? i + 1
+					                   : i;
 				if (param_idx < callee->getFunctionType()->getNumParams()) {
 					auto *expected_ty = callee->getFunctionType()->getParamType(static_cast<unsigned>(param_idx));
 					if (expected_ty->isPointerTy() && arg_val->getType()->isStructTy()) {
@@ -648,7 +660,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 		// 7d. str properties (.len, .data)
 		if (obj_sema->is_str()) {
-			auto* str_val = emit_expr(m->object);
+			auto *str_val = emit_expr(m->object);
 			if (m->member == "len") {
 				return builder->CreateExtractValue(str_val, 1, "str.len");
 			}
@@ -748,22 +760,22 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	return nullptr;
 }
 
-llvm::Value* CodeGen::emit_if_expr(const IfExpr* expr) {
+llvm::Value *CodeGen::emit_if_expr(const IfExpr *expr) {
 	if (!expr) return nullptr;
 
-	llvm::Value* cond = emit_expr(expr->condition);
-	llvm::Function* fn = builder->GetInsertBlock()->getParent();
+	llvm::Value *cond = emit_expr(expr->condition);
+	llvm::Function *fn = builder->GetInsertBlock()->getParent();
 
-	llvm::BasicBlock* then_bb = llvm::BasicBlock::Create(*context, "ifexpr_then", fn);
-	llvm::BasicBlock* else_bb = llvm::BasicBlock::Create(*context, "ifexpr_else", fn);
-	llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "ifexpr_merge");
+	llvm::BasicBlock *then_bb = llvm::BasicBlock::Create(*context, "ifexpr_then", fn);
+	llvm::BasicBlock *else_bb = llvm::BasicBlock::Create(*context, "ifexpr_else", fn);
+	llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(*context, "ifexpr_merge");
 
 	builder->CreateCondBr(cond, then_bb, else_bb);
 
 	// Then branch
 	builder->SetInsertPoint(then_bb);
-	llvm::Value* then_val = emit_expr(expr->then_branch);
-	llvm::BasicBlock* then_end_bb = builder->GetInsertBlock();
+	llvm::Value *then_val = emit_expr(expr->then_branch);
+	llvm::BasicBlock *then_end_bb = builder->GetInsertBlock();
 	bool then_reaches = false;
 	if (!then_end_bb->hasTerminator()) {
 		builder->CreateBr(merge_bb);
@@ -772,8 +784,8 @@ llvm::Value* CodeGen::emit_if_expr(const IfExpr* expr) {
 
 	// Else branch
 	builder->SetInsertPoint(else_bb);
-	llvm::Value* else_val = emit_expr(expr->else_branch);
-	llvm::BasicBlock* else_end_bb = builder->GetInsertBlock();
+	llvm::Value *else_val = emit_expr(expr->else_branch);
+	llvm::BasicBlock *else_end_bb = builder->GetInsertBlock();
 	bool else_reaches = false;
 	if (!else_end_bb->hasTerminator()) {
 		builder->CreateBr(merge_bb);
@@ -785,7 +797,7 @@ llvm::Value* CodeGen::emit_if_expr(const IfExpr* expr) {
 	builder->SetInsertPoint(merge_bb);
 
 	auto result_sema = get_sema_type(expr);
-	llvm::Type* res_llvm_type = get_llvm_type(result_sema);
+	llvm::Type *res_llvm_type = get_llvm_type(result_sema);
 
 	if (res_llvm_type->isVoidTy()) return nullptr;
 
@@ -823,42 +835,43 @@ llvm::Value* CodeGen::emit_if_expr(const IfExpr* expr) {
 	unsigned incoming_count = (then_reaches ? 1 : 0) + (else_reaches ? 1 : 0);
 	if (incoming_count == 0) return llvm::UndefValue::get(res_llvm_type);
 
-	llvm::PHINode* phi = builder->CreatePHI(res_llvm_type, incoming_count, "ifexpr.res");
+	llvm::PHINode *phi = builder->CreatePHI(res_llvm_type, incoming_count, "ifexpr.res");
 	if (then_reaches) phi->addIncoming(then_val, then_end_bb);
 	if (else_reaches) phi->addIncoming(else_val, else_end_bb);
 
 	return phi;
 }
 
-llvm::Value* CodeGen::emit_when_expr(const WhenExpr* expr) {
+llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 	if (!expr || expr->arms.empty()) return nullptr;
 
 	auto result_sema = get_sema_type(expr);
-	llvm::Type* res_llvm_type = get_llvm_type(result_sema);
+	llvm::Type *res_llvm_type = get_llvm_type(result_sema);
 
-	llvm::Function* fn = builder->GetInsertBlock()->getParent();
-	llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "when_merge");
+	llvm::Function *fn = builder->GetInsertBlock()->getParent();
+	llvm::BasicBlock *merge_bb = llvm::BasicBlock::Create(*context, "when_merge");
 
-	llvm::Value* cond_val = nullptr;
+	llvm::Value *cond_val = nullptr;
 	Semantic cond_sema = nullptr;
 	if (expr->condition) {
 		cond_val = emit_expr(expr->condition);
 		cond_sema = get_sema_type(expr->condition);
 	}
 
-	std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming_vals;
+	std::vector<std::pair<llvm::Value *, llvm::BasicBlock *> > incoming_vals;
 
 	for (size_t i = 0; i < expr->arms.size(); ++i) {
-		const auto& arm = expr->arms[i];
-		llvm::BasicBlock* arm_body_bb = llvm::BasicBlock::Create(*context, "when_arm_body", fn);
+		const auto &arm = expr->arms[i];
+		llvm::BasicBlock *arm_body_bb = llvm::BasicBlock::Create(*context, "when_arm_body", fn);
 
 		if (arm.is_else) {
 			builder->CreateBr(arm_body_bb);
 			builder->SetInsertPoint(arm_body_bb);
-			llvm::Value* body_val = emit_expr(arm.body);
-			llvm::BasicBlock* body_end_bb = builder->GetInsertBlock();
+			llvm::Value *body_val = emit_expr(arm.body);
+			llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 			if (!body_end_bb->hasTerminator()) {
-				if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()->isIntegerTy()) {
+				if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->
+				    getType()->isIntegerTy()) {
 					body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
 				} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
 					body_val = builder->CreatePointerCast(body_val, res_llvm_type);
@@ -869,16 +882,17 @@ llvm::Value* CodeGen::emit_when_expr(const WhenExpr* expr) {
 			break;
 		}
 
-		llvm::BasicBlock* next_arm_bb = (i + 1 < expr->arms.size()) ?
-			llvm::BasicBlock::Create(*context, "when_arm_next", fn) :
-			llvm::BasicBlock::Create(*context, "when_unreachable", fn);
+		llvm::BasicBlock *next_arm_bb = (i + 1 < expr->arms.size())
+			                                ? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
+			                                : llvm::BasicBlock::Create(*context, "when_unreachable", fn);
 
 		for (size_t j = 0; j < arm.patterns.size(); ++j) {
-			llvm::BasicBlock* next_pat_bb = (j + 1 < arm.patterns.size()) ?
-				llvm::BasicBlock::Create(*context, "when_pat_next", fn) : next_arm_bb;
+			llvm::BasicBlock *next_pat_bb = (j + 1 < arm.patterns.size())
+				                                ? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
+				                                : next_arm_bb;
 
-			llvm::Value* pat_val = emit_expr(arm.patterns[j]);
-			llvm::Value* match_cond = nullptr;
+			llvm::Value *pat_val = emit_expr(arm.patterns[j]);
+			llvm::Value *match_cond = nullptr;
 			if (cond_val) {
 				match_cond = emit_equality(cond_val, pat_val, cond_sema);
 			} else {
@@ -891,10 +905,11 @@ llvm::Value* CodeGen::emit_when_expr(const WhenExpr* expr) {
 		}
 
 		builder->SetInsertPoint(arm_body_bb);
-		llvm::Value* body_val = emit_expr(arm.body);
-		llvm::BasicBlock* body_end_bb = builder->GetInsertBlock();
+		llvm::Value *body_val = emit_expr(arm.body);
+		llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 		if (!body_end_bb->hasTerminator()) {
-			if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()->isIntegerTy()) {
+			if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()
+			    ->isIntegerTy()) {
 				body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
 			} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
 				body_val = builder->CreatePointerCast(body_val, res_llvm_type);
@@ -918,16 +933,9 @@ llvm::Value* CodeGen::emit_when_expr(const WhenExpr* expr) {
 
 	if (incoming_vals.empty()) return llvm::UndefValue::get(res_llvm_type);
 
-	llvm::PHINode* phi = builder->CreatePHI(res_llvm_type, incoming_vals.size(), "when.res");
-	for (const auto& [val, bb] : incoming_vals) {
+	llvm::PHINode *phi = builder->CreatePHI(res_llvm_type, incoming_vals.size(), "when.res");
+	for (const auto &[val, bb]: incoming_vals) {
 		phi->addIncoming(val, bb);
 	}
 	return phi;
 }
-
-
-
-
-
-
-

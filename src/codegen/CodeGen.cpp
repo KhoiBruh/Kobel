@@ -35,11 +35,11 @@ import semantic.analyzer;
 export struct CodeGen {
 	std::unique_ptr<llvm::LLVMContext> context;
 	std::unique_ptr<llvm::Module> module;
-	std::unique_ptr<llvm::IRBuilder<>> builder;
-	Analyzer* analyzer = nullptr;
+	std::unique_ptr<llvm::IRBuilder<> > builder;
+	Analyzer *analyzer = nullptr;
 
-	std::vector<StringMap<llvm::AllocaInst*>> local_var_scopes;
-	std::vector<StringMap<Semantic>> local_type_scopes;
+	std::vector<StringMap<llvm::AllocaInst *> > local_var_scopes;
+	std::vector<StringMap<Semantic> > local_type_scopes;
 
 	void push_scope() {
 		local_var_scopes.emplace_back();
@@ -56,41 +56,42 @@ export struct CodeGen {
 		local_type_scopes.clear();
 	}
 
-	void add_local(const std::string_view name, llvm::AllocaInst* alloca, const Semantic& ty) {
+	void add_local(const std::string_view name, llvm::AllocaInst * alloca, const Semantic &ty) {
 		if (local_var_scopes.empty()) push_scope();
 		local_var_scopes.back()[std::string(name)] = alloca;
 		local_type_scopes.back()[std::string(name)] = ty;
 	}
 
-	llvm::AllocaInst* lookup_local_var(const std::string_view name) const {
-		for (const auto & local_var_scope : std::views::reverse(local_var_scopes)) {
+	llvm::AllocaInst *lookup_local_var(const std::string_view name) const {
+		for (const auto &local_var_scope: std::views::reverse(local_var_scopes)) {
 			if (auto f = local_var_scope.find(name); f != local_var_scope.end()) return f->second;
 		}
 		return nullptr;
 	}
 
 	std::optional<Semantic> lookup_local_type(const std::string_view name) const {
-		for (const auto & local_type_scope : std::views::reverse(local_type_scopes)) {
+		for (const auto &local_type_scope: std::views::reverse(local_type_scopes)) {
 			if (auto f = local_type_scope.find(name); f != local_type_scope.end()) return f->second;
 		}
 		return std::nullopt;
 	}
 
-	StringMap<llvm::GlobalVariable*> global_consts;
-	StringMap<llvm::StructType*> struct_types;
+	StringMap<llvm::GlobalVariable *> global_consts;
+	StringMap<llvm::StructType *> struct_types;
 
 	struct LoopContext {
-		llvm::BasicBlock* cond_bb;
-		llvm::BasicBlock* after_bb;
+		llvm::BasicBlock *cond_bb;
+		llvm::BasicBlock *after_bb;
 	};
+
 	std::vector<LoopContext> loop_stack;
 
 	std::unique_ptr<llvm::TargetMachine> target_machine;
 
-	explicit CodeGen(Analyzer* sema, const std::string_view module_name = "kobel_module")
+	explicit CodeGen(Analyzer *sema, const std::string_view module_name = "kobel_module")
 		: context(std::make_unique<llvm::LLVMContext>()),
 		  module(std::make_unique<llvm::Module>(std::string(module_name), *context)),
-		  builder(std::make_unique<llvm::IRBuilder<>>(*context)),
+		  builder(std::make_unique<llvm::IRBuilder<> >(*context)),
 		  analyzer(sema) {
 		setup_target_machine("x86_64-pc-windows-msvc");
 		init_str_type();
@@ -100,87 +101,97 @@ export struct CodeGen {
 
 	void init_str_type() {
 		// str = { data: ptr, len: i64, cap: i64 }
-		llvm::Type* str_fields[] = {
-			llvm::PointerType::get(*context, 0),  // data
-			builder->getInt64Ty(),                  // len
-			builder->getInt64Ty()                   // cap
+		llvm::Type *str_fields[] = {
+			llvm::PointerType::get(*context, 0), // data
+			builder->getInt64Ty(), // len
+			builder->getInt64Ty() // cap
 		};
-		auto* str_struct = llvm::StructType::create(*context, str_fields, "str");
+		auto *str_struct = llvm::StructType::create(*context, str_fields, "str");
 		struct_types["str"] = str_struct;
 	}
 
-	void declare_runtime_functions() {
-		auto* ptr_ty = llvm::PointerType::get(*context, 0);
-		auto* i64_ty = builder->getInt64Ty();
-		auto* i32_ty = builder->getInt32Ty();
-		auto* void_ty = builder->getVoidTy();
+	void declare_runtime_functions() const {
+		auto *ptr_ty = llvm::PointerType::get(*context, 0);
+		auto *i64_ty = builder->getInt64Ty();
+		auto *i32_ty = builder->getInt32Ty();
+		auto *void_ty = builder->getVoidTy();
 
 		// void* malloc(size_t)
-		module->getOrInsertFunction("malloc",
-			llvm::FunctionType::get(ptr_ty, {i64_ty}, false));
+		module->getOrInsertFunction(
+			"malloc",
+			llvm::FunctionType::get(ptr_ty, {i64_ty}, false)
+		);
 		// void free(void*)
-		module->getOrInsertFunction("free",
-			llvm::FunctionType::get(void_ty, {ptr_ty}, false));
+		module->getOrInsertFunction(
+			"free",
+			llvm::FunctionType::get(void_ty, {ptr_ty}, false)
+		);
 		// void* memcpy(void* dst, void* src, size_t n)
-		module->getOrInsertFunction("memcpy",
-			llvm::FunctionType::get(ptr_ty, {ptr_ty, ptr_ty, i64_ty}, false));
+		module->getOrInsertFunction(
+			"memcpy",
+			llvm::FunctionType::get(ptr_ty, {ptr_ty, ptr_ty, i64_ty}, false)
+		);
 		// int memcmp(void* a, void* b, size_t n)
-		module->getOrInsertFunction("memcmp",
-			llvm::FunctionType::get(i32_ty, {ptr_ty, ptr_ty, i64_ty}, false));
+		module->getOrInsertFunction(
+			"memcmp",
+			llvm::FunctionType::get(i32_ty, {ptr_ty, ptr_ty, i64_ty}, false)
+		);
 	}
 
 	void emit_str_helpers() {
-		auto* ptr_ty = llvm::PointerType::get(*context, 0);
-		auto* i64_ty = builder->getInt64Ty();
-		auto* i8_ty = builder->getInt8Ty();
-		auto* str_ty = struct_types["str"];
+		auto *ptr_ty = llvm::PointerType::get(*context, 0);
+		auto *i64_ty = builder->getInt64Ty();
+		auto *i8_ty = builder->getInt8Ty();
+		auto *str_ty = struct_types["str"];
 
 		// __kobel_str_concat(str* a, str* b) -> str
 		{
-			llvm::FunctionType* fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, ptr_ty}, false);
-			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::InternalLinkage, "__kobel_str_concat", *module);
-			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			llvm::FunctionType *fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, ptr_ty}, false);
+			llvm::Function *fn = llvm::Function::Create(
+				fn_ty, llvm::Function::InternalLinkage, "__kobel_str_concat", *module
+			);
+			auto *entry = llvm::BasicBlock::Create(*context, "entry", fn);
 			builder->SetInsertPoint(entry);
 
 			auto args = fn->arg_begin();
-			llvm::Value* a_ptr = &*args++;
-			llvm::Value* b_ptr = &*args;
+			llvm::Value *a_ptr = args++;
+			llvm::Value *b_ptr = args;
 
 			// Load a.data, a.len
-			auto* a_data_ptr = builder->CreateStructGEP(str_ty, a_ptr, 0);
-			auto* a_data = builder->CreateLoad(ptr_ty, a_data_ptr, "a.data");
-			auto* a_len_ptr = builder->CreateStructGEP(str_ty, a_ptr, 1);
-			auto* a_len = builder->CreateLoad(i64_ty, a_len_ptr, "a.len");
+			auto *a_data_ptr = builder->CreateStructGEP(str_ty, a_ptr, 0);
+			auto *a_data = builder->CreateLoad(ptr_ty, a_data_ptr, "a.data");
+			auto *a_len_ptr = builder->CreateStructGEP(str_ty, a_ptr, 1);
+			auto *a_len = builder->CreateLoad(i64_ty, a_len_ptr, "a.len");
 
 			// Load b.data, b.len
-			auto* b_data_ptr = builder->CreateStructGEP(str_ty, b_ptr, 0);
-			auto* b_data = builder->CreateLoad(ptr_ty, b_data_ptr, "b.data");
-			auto* b_len_ptr = builder->CreateStructGEP(str_ty, b_ptr, 1);
-			auto* b_len = builder->CreateLoad(i64_ty, b_len_ptr, "b.len");
+			auto *b_data_ptr = builder->CreateStructGEP(str_ty, b_ptr, 0);
+			auto *b_data = builder->CreateLoad(ptr_ty, b_data_ptr, "b.data");
+			auto *b_len_ptr = builder->CreateStructGEP(str_ty, b_ptr, 1);
+			auto *b_len = builder->CreateLoad(i64_ty, b_len_ptr, "b.len");
 
 			// new_len = a.len + b.len
-			auto* new_len = builder->CreateAdd(a_len, b_len, "new.len");
+			auto *new_len = builder->CreateAdd(a_len, b_len, "new.len");
 			// new_cap = new_len + 1 (for \0)
-			auto* new_cap = builder->CreateAdd(new_len, builder->getInt64(1), "new.cap");
+			auto *new_cap = builder->CreateAdd(new_len, builder->getInt64(1), "new.cap");
 
 			// new_data = malloc(new_cap)
-			auto* malloc_fn = module->getFunction("malloc");
-			auto* new_data = builder->CreateCall(malloc_fn, {new_cap}, "new.data");
+			auto *malloc_fn = module->getFunction("malloc");
+			auto *new_data = builder->CreateCall(malloc_fn, {new_cap}, "new.data");
 
 			// memcpy(new_data, a.data, a.len)
-			auto* memcpy_fn = module->getFunction("memcpy");
+			auto *memcpy_fn = module->getFunction("memcpy");
 			builder->CreateCall(memcpy_fn, {new_data, a_data, a_len});
 
 			// memcpy(new_data + a.len, b.data, b.len)
-			auto* dst_offset = builder->CreateGEP(i8_ty, new_data, a_len, "dst.offset");
+			auto *dst_offset = builder->CreateGEP(i8_ty, new_data, a_len, "dst.offset");
 			builder->CreateCall(memcpy_fn, {dst_offset, b_data, b_len});
 
 			// new_data[new_len] = '\0'
-			auto* null_ptr = builder->CreateGEP(i8_ty, new_data, new_len, "null.pos");
+			auto *null_ptr = builder->CreateGEP(i8_ty, new_data, new_len, "null.pos");
 			builder->CreateStore(builder->getInt8(0), null_ptr);
 
 			// Build result str { new_data, new_len, new_cap }
-			llvm::Value* result = llvm::UndefValue::get(str_ty);
+			llvm::Value *result = llvm::UndefValue::get(str_ty);
 			result = builder->CreateInsertValue(result, new_data, 0);
 			result = builder->CreateInsertValue(result, new_len, 1);
 			result = builder->CreateInsertValue(result, new_cap, 2);
@@ -189,22 +200,24 @@ export struct CodeGen {
 
 		// __kobel_str_free(str* s) -> void
 		{
-			llvm::FunctionType* fn_ty = llvm::FunctionType::get(builder->getVoidTy(), {ptr_ty}, false);
-			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::ExternalLinkage, "__kobel_str_free", *module);
-			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
-			auto* free_bb = llvm::BasicBlock::Create(*context, "do.free", fn);
-			auto* done_bb = llvm::BasicBlock::Create(*context, "done", fn);
+			llvm::FunctionType *fn_ty = llvm::FunctionType::get(builder->getVoidTy(), {ptr_ty}, false);
+			llvm::Function *fn = llvm::Function::Create(
+				fn_ty, llvm::Function::ExternalLinkage, "__kobel_str_free", *module
+			);
+			auto *entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			auto *free_bb = llvm::BasicBlock::Create(*context, "do.free", fn);
+			auto *done_bb = llvm::BasicBlock::Create(*context, "done", fn);
 			builder->SetInsertPoint(entry);
 
-			llvm::Value* s_ptr = &*fn->arg_begin();
-			auto* cap_ptr = builder->CreateStructGEP(str_ty, s_ptr, 2);
-			auto* cap = builder->CreateLoad(i64_ty, cap_ptr, "cap");
-			auto* is_owned = builder->CreateICmpUGT(cap, builder->getInt64(0), "is.owned");
+			llvm::Value *s_ptr = fn->arg_begin();
+			auto *cap_ptr = builder->CreateStructGEP(str_ty, s_ptr, 2);
+			auto *cap = builder->CreateLoad(i64_ty, cap_ptr, "cap");
+			auto *is_owned = builder->CreateICmpUGT(cap, builder->getInt64(0), "is.owned");
 			builder->CreateCondBr(is_owned, free_bb, done_bb);
 
 			builder->SetInsertPoint(free_bb);
-			auto* data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
-			auto* data = builder->CreateLoad(ptr_ty, data_ptr, "data");
+			auto *data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
+			auto *data = builder->CreateLoad(ptr_ty, data_ptr, "data");
 			builder->CreateCall(module->getFunction("free"), {data});
 			builder->CreateBr(done_bb);
 
@@ -214,53 +227,55 @@ export struct CodeGen {
 
 		// __kobel_str_slice(str* s, i64 start, i64 end) -> str
 		{
-			llvm::FunctionType* fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, i64_ty, i64_ty}, false);
-			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::InternalLinkage, "__kobel_str_slice", *module);
-			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			llvm::FunctionType *fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, i64_ty, i64_ty}, false);
+			llvm::Function *fn = llvm::Function::Create(
+				fn_ty, llvm::Function::InternalLinkage, "__kobel_str_slice", *module
+			);
+			auto *entry = llvm::BasicBlock::Create(*context, "entry", fn);
 			builder->SetInsertPoint(entry);
 
 			auto args = fn->arg_begin();
-			llvm::Value* s_ptr = &*args++;
-			llvm::Value* start_arg = &*args++;
-			llvm::Value* end_arg = &*args;
+			llvm::Value *s_ptr = args++;
+			llvm::Value *start_arg = args++;
+			llvm::Value *end_arg = args;
 
 			// Load s.data, s.len
-			auto* s_data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
-			auto* s_data = builder->CreateLoad(ptr_ty, s_data_ptr, "s.data");
-			auto* s_len_ptr = builder->CreateStructGEP(str_ty, s_ptr, 1);
-			auto* s_len = builder->CreateLoad(i64_ty, s_len_ptr, "s.len");
+			auto *s_data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
+			auto *s_data = builder->CreateLoad(ptr_ty, s_data_ptr, "s.data");
+			auto *s_len_ptr = builder->CreateStructGEP(str_ty, s_ptr, 1);
+			auto *s_len = builder->CreateLoad(i64_ty, s_len_ptr, "s.len");
 
 			// Clamp start: if start < 0 -> start = 0
-			auto* start_lt_0 = builder->CreateICmpSLT(start_arg, builder->getInt64(0), "start.lt.0");
-			auto* start_clamped = builder->CreateSelect(start_lt_0, builder->getInt64(0), start_arg, "start.clamped");
+			auto *start_lt_0 = builder->CreateICmpSLT(start_arg, builder->getInt64(0), "start.lt.0");
+			auto *start_clamped = builder->CreateSelect(start_lt_0, builder->getInt64(0), start_arg, "start.clamped");
 
 			// Clamp end: if end > s.len -> end = s.len
-			auto* end_gt_len = builder->CreateICmpSGT(end_arg, s_len, "end.gt.len");
-			auto* end_clamped = builder->CreateSelect(end_gt_len, s_len, end_arg, "end.clamped");
+			auto *end_gt_len = builder->CreateICmpSGT(end_arg, s_len, "end.gt.len");
+			auto *end_clamped = builder->CreateSelect(end_gt_len, s_len, end_arg, "end.clamped");
 
 			// Condition for empty slice: start >= end || start >= s.len
-			auto* start_ge_end = builder->CreateICmpSGE(start_clamped, end_clamped, "start.ge.end");
-			auto* start_ge_len = builder->CreateICmpSGE(start_clamped, s_len, "start.ge.len");
-			auto* is_empty = builder->CreateOr(start_ge_end, start_ge_len, "is.empty");
+			auto *start_ge_end = builder->CreateICmpSGE(start_clamped, end_clamped, "start.ge.end");
+			auto *start_ge_len = builder->CreateICmpSGE(start_clamped, s_len, "start.ge.len");
+			auto *is_empty = builder->CreateOr(start_ge_end, start_ge_len, "is.empty");
 
-			auto* raw_len = builder->CreateSub(end_clamped, start_clamped, "raw.len");
-			auto* slice_len = builder->CreateSelect(is_empty, builder->getInt64(0), raw_len, "slice.len");
-			auto* slice_cap = builder->CreateAdd(slice_len, builder->getInt64(1), "slice.cap");
+			auto *raw_len = builder->CreateSub(end_clamped, start_clamped, "raw.len");
+			auto *slice_len = builder->CreateSelect(is_empty, builder->getInt64(0), raw_len, "slice.len");
+			auto *slice_cap = builder->CreateAdd(slice_len, builder->getInt64(1), "slice.cap");
 
-			auto* malloc_fn = module->getFunction("malloc");
-			auto* new_data = builder->CreateCall(malloc_fn, {slice_cap}, "slice.data");
+			auto *malloc_fn = module->getFunction("malloc");
+			auto *new_data = builder->CreateCall(malloc_fn, {slice_cap}, "slice.data");
 
 			// Copy content: memcpy(new_data, s.data + start_clamped, slice_len)
-			auto* src_offset = builder->CreateGEP(i8_ty, s_data, start_clamped, "src.offset");
-			auto* memcpy_fn = module->getFunction("memcpy");
+			auto *src_offset = builder->CreateGEP(i8_ty, s_data, start_clamped, "src.offset");
+			auto *memcpy_fn = module->getFunction("memcpy");
 			builder->CreateCall(memcpy_fn, {new_data, src_offset, slice_len});
 
 			// Set null-terminator: new_data[slice_len] = '\0'
-			auto* null_ptr = builder->CreateGEP(i8_ty, new_data, slice_len, "null.pos");
+			auto *null_ptr = builder->CreateGEP(i8_ty, new_data, slice_len, "null.pos");
 			builder->CreateStore(builder->getInt8(0), null_ptr);
 
 			// Return str { new_data, slice_len, slice_cap }
-			llvm::Value* result = llvm::UndefValue::get(str_ty);
+			llvm::Value *result = llvm::UndefValue::get(str_ty);
 			result = builder->CreateInsertValue(result, new_data, 0);
 			result = builder->CreateInsertValue(result, slice_len, 1);
 			result = builder->CreateInsertValue(result, slice_cap, 2);
@@ -272,7 +287,7 @@ export struct CodeGen {
 	// 1. Type Mapping
 	// ========================================================================
 
-	llvm::Type* get_llvm_type(const Semantic& type) {
+	llvm::Type *get_llvm_type(const Semantic &type) {
 		switch (type->kind) {
 			case SemaType::I8:
 			case SemaType::U8:
@@ -321,7 +336,7 @@ export struct CodeGen {
 
 			case SemaType::ARRAY: {
 				if (type->element_type) {
-					llvm::Type* elem_ty = get_llvm_type(type->element_type);
+					llvm::Type *elem_ty = get_llvm_type(type->element_type);
 					return llvm::ArrayType::get(elem_ty, type->array_size);
 				}
 				return llvm::ArrayType::get(builder->getInt32Ty(), type->array_size);
@@ -332,12 +347,12 @@ export struct CodeGen {
 		}
 	}
 
-	llvm::AllocaInst* create_entry_block_alloca(llvm::Function* fn, llvm::Type* type, const std::string_view name) {
+	llvm::AllocaInst *create_entry_block_alloca(llvm::Function *fn, llvm::Type *type, const std::string_view name) {
 		llvm::IRBuilder tmp_builder(&fn->getEntryBlock(), fn->getEntryBlock().begin());
 		return tmp_builder.CreateAlloca(type, nullptr, std::string(name));
 	}
 
-	Semantic get_sema_type(const Expr* expr) {
+	Semantic get_sema_type(const Expr *expr) const {
 		if (!expr) return analyzer->make_error();
 		if (analyzer) {
 			auto ty = analyzer->get_expr_type(expr);
@@ -360,74 +375,91 @@ export struct CodeGen {
 	// ========================================================================
 
 	// Expressions & Addresses (CodeGenExpr.cpp)
-	llvm::Value* emit_lvalue(const Expr* expr);
-	llvm::Value* emit_expr(const Expr* expr);
-	llvm::Value* emit_if_expr(const IfExpr* expr);
-	llvm::Value* emit_when_expr(const WhenExpr* expr);
-	llvm::Value* emit_equality(llvm::Value* l, llvm::Value* r, Semantic sema_ty);
+	llvm::Value *emit_lvalue(const Expr *expr);
+
+	llvm::Value *emit_expr(const Expr *expr);
+
+	llvm::Value *emit_if_expr(const IfExpr *expr);
+
+	llvm::Value *emit_when_expr(const WhenExpr *expr);
+
+	llvm::Value *emit_equality(llvm::Value *l, llvm::Value *r, Semantic sema_ty);
 
 	// Statements (CodeGenStmt.cpp)
-	void emit_stmt(const Stmt* stmt);
-	void emit_when_stmt(const WhenStmt* stmt);
+	void emit_stmt(const Stmt *stmt);
+
+	void emit_when_stmt(const WhenStmt *stmt);
 
 	// Top-level Declarations (CodeGenDecl.cpp)
-	void emit_struct_decl(const StructDecl* st);
-	void emit_const_decl(const ConstDecl* c);
-	void emit_fn_proto(const FnDecl* fn_decl, const std::string& fn_name_override = "");
-	void emit_fn_body(const FnDecl* fn_decl, const std::string& fn_name_override = "");
-	void emit_fn_decl(const FnDecl* fn_decl, const std::string& fn_name_override = "");
-	void emit_extern_block(const ExternBlock* ext);
+	void emit_struct_decl(const StructDecl *st);
+
+	void emit_const_decl(const ConstDecl *c);
+
+	void emit_fn_proto(const FnDecl *fn_decl, const std::string &fn_name_override = "");
+
+	void emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_override = "");
+
+	void emit_fn_decl(const FnDecl *fn_decl, const std::string &fn_name_override = "");
+
+	void emit_extern_block(const ExternBlock *ext);
 
 	// Target Code Generation (CodeGenNative.cpp)
-	bool setup_target_machine(const std::string& triple_str = "");
-	bool emit_object_file(const std::string& output_filename);
-	bool emit_assembly_file(const std::string& output_filename);
-	static bool link_executable(const std::string& obj_filename, const std::string& exe_filename);
+	bool setup_target_machine(const std::string &triple_str = "");
+
+	bool emit_object_file(const std::string &output_filename);
+
+	bool emit_assembly_file(const std::string &output_filename);
+
+	static bool link_executable(const std::string &obj_filename, const std::string &exe_filename);
 
 	// ========================================================================
 	// 3. Overall Code Generation & Module Verification
 	// ========================================================================
 
-	bool generate(const Program* program) {
+	bool generate(const Program *program) {
 		if (!program || !analyzer) return false;
 
 		// 1. Structs
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl)) {
 				emit_struct_decl(as<StructDecl>(decl));
 			}
 		}
 
 		// 2. Constants
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<ConstDecl>(decl)) {
 				emit_const_decl(as<ConstDecl>(decl));
 			}
 		}
 
 		// 3. Extern blocks
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<ExternBlock>(decl)) {
 				emit_extern_block(as<ExternBlock>(decl));
 			}
 		}
 
 		// 4a. Function prototypes (Pass 1: Declare signatures for all functions first)
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl)) {
-				const auto* fn = as<FnDecl>(decl);
+				const auto *fn = as<FnDecl>(decl);
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
-				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				std::string qual_name = mod.empty() || fn->name == "main"
+					                        ? std::string(fn->name)
+					                        : mod + "." + std::string(fn->name);
 				emit_fn_proto(fn, to_llvm_name(qual_name));
 			}
 		}
 
 		// 4b. Function bodies (Pass 2: Generate function bodies; functions can call each other freely)
-		for (const auto& decl : program->declarations) {
+		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl)) {
-				const auto* fn = as<FnDecl>(decl);
+				const auto *fn = as<FnDecl>(decl);
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
-				std::string qual_name = mod.empty() || fn->name == "main" ? std::string(fn->name) : mod + "." + std::string(fn->name);
+				std::string qual_name = mod.empty() || fn->name == "main"
+					                        ? std::string(fn->name)
+					                        : mod + "." + std::string(fn->name);
 				emit_fn_body(fn, to_llvm_name(qual_name));
 			}
 		}
@@ -448,9 +480,3 @@ export struct CodeGen {
 		return ir_str;
 	}
 };
-
-
-
-
-
-
