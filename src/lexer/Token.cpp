@@ -6,36 +6,36 @@ export module token;
 
 export enum class TokenType {
 	// Single syntax
-	SEMI_COLON,    // ;
-	COLON,         // :
-	COMMA,         // ,
-	DOT,           // .
-	BANG,          // !
-	EQUAL,         // =
-	PLUS,          // +
-	MINUS,         // -
-	STAR,          // *
-	SLASH,         // /
-	PERCENT,       // %
-	GREATER,       // >
-	LESS,          // <
-	OPEN_BRACKET,  // [
+	SEMI_COLON, // ;
+	COLON, // :
+	COMMA, // ,
+	DOT, // .
+	BANG, // !
+	EQUAL, // =
+	PLUS, // +
+	MINUS, // -
+	STAR, // *
+	SLASH, // /
+	PERCENT, // %
+	GREATER, // >
+	LESS, // <
+	OPEN_BRACKET, // [
 	CLOSE_BRACKET, // ]
-	OPEN_PAREN,    // (
-	CLOSE_PAREN,   // )
-	OPEN_BRACE,    // {
-	CLOSE_BRACE,   // }
-	AMPERSAND,     // &
+	OPEN_PAREN, // (
+	CLOSE_PAREN, // )
+	OPEN_BRACE, // {
+	CLOSE_BRACE, // }
+	AMPERSAND, // &
 
 	// Double syntax
-	EQUAL_EQUAL,   // ==
-	BANG_EQUAL,    // !=
-	LESS_EQUAL,    // <=
+	EQUAL_EQUAL, // ==
+	BANG_EQUAL, // !=
+	LESS_EQUAL, // <=
 	GREATER_EQUAL, // >=
-	AND_AND,       // &&
-	OR_OR,         // ||
-	FAT_ARROW,     // =>
-	ARROW,         // ->
+	AND_AND, // &&
+	OR_OR, // ||
+	FAT_ARROW, // =>
+	ARROW, // ->
 
 	// Literals
 	CHAR,
@@ -77,5 +77,3 @@ export struct Token {
 	size_t line;
 	size_t col;
 };
-
-

@@ -55,7 +55,8 @@ export struct Lexer {
 				c == ' ' ||
 				c == '\t' ||
 				c == '\r'
-			) next();
+			)
+				next();
 			else if (c == '\n') {
 				line++;
 				col = 1;
@@ -222,5 +223,3 @@ export struct Lexer {
 		return tokens;
 	}
 };
-
-
