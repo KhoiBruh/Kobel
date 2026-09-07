@@ -438,6 +438,80 @@ bool test_empty_parser_safety() {
 	return true;
 }
 
+bool test_parse_when_and_if_expr() {
+	// 1. when expression with condition and else
+	{
+		std::string_view code =
+			"val x = when (c) {\n"
+			"    1 -> 10;\n"
+			"    2, 3 -> 20;\n"
+			"    else -> 0;\n"
+			"};\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto stmt = p.parse_statement();
+		ASSERT(isa<VarDeclStmt>(stmt), "stmt must be VarDeclStmt");
+		auto v = as<VarDeclStmt>(stmt);
+		ASSERT(isa<WhenExpr>(v->initializer), "init must be WhenExpr");
+		auto w = as<WhenExpr>(v->initializer);
+		ASSERT(w->condition != nullptr, "when condition must not be null");
+		ASSERT(w->arms.size() == 3, "when must have 3 arms");
+		ASSERT(!w->arms[0].is_else && w->arms[0].patterns.size() == 1, "arm 0 has 1 pattern");
+		ASSERT(!w->arms[1].is_else && w->arms[1].patterns.size() == 2, "arm 1 has 2 patterns");
+		ASSERT(w->arms[2].is_else, "arm 2 is else");
+	}
+
+	// 2. when statement without condition (boolean when)
+	{
+		std::string_view code =
+			"when {\n"
+			"    x > 0 -> foo();\n"
+			"    else -> bar();\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto stmt = p.parse_statement();
+		ASSERT(isa<WhenStmt>(stmt), "stmt must be WhenStmt");
+		auto w = as<WhenStmt>(stmt);
+		ASSERT(w->condition == nullptr, "boolean when has null condition");
+		ASSERT(w->arms.size() == 2, "boolean when has 2 arms");
+	}
+
+	// 3. if-else expression (unbraced and braced)
+	{
+		std::string_view code = "val a = if (x > 0) 1 else -1;";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto stmt = p.parse_statement();
+		ASSERT(isa<VarDeclStmt>(stmt), "stmt must be VarDeclStmt");
+		auto v = as<VarDeclStmt>(stmt);
+		ASSERT(isa<IfExpr>(v->initializer), "init must be IfExpr");
+	}
+	{
+		std::string_view code = "val a = if (x > 0) { 1 } else { -1 };";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto stmt = p.parse_statement();
+		ASSERT(isa<VarDeclStmt>(stmt), "stmt must be VarDeclStmt");
+		auto v = as<VarDeclStmt>(stmt);
+		ASSERT(isa<IfExpr>(v->initializer), "init must be IfExpr");
+	}
+
+	// 4. if statement without braces
+	{
+		std::string_view code = "if (x > 0) return 1; else return -1;";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto stmt = p.parse_statement();
+		ASSERT(isa<IfStmt>(stmt), "stmt must be IfStmt");
+		auto ifs = as<IfStmt>(stmt);
+		ASSERT(isa<BlockStmt>(ifs->then_branch), "then branch wrapped in block");
+		ASSERT(isa<BlockStmt>(ifs->else_branch), "else branch wrapped in block");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -473,6 +547,9 @@ int main() {
 
 	if (!test_parse_extern_and_const()) return 1;
 	std::cout << "  [PASS] test_parse_extern_and_const" << std::endl;
+
+	if (!test_parse_when_and_if_expr()) return 1;
+	std::cout << "  [PASS] test_parse_when_and_if_expr" << std::endl;
 
 	if (!test_error_recovery()) return 1;
 	std::cout << "  [PASS] test_error_recovery" << std::endl;

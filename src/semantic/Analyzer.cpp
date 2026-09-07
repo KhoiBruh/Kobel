@@ -162,11 +162,14 @@ export struct Analyzer {
 
 	// Statements (AnalyzerStmt.cpp)
 	void analyze_stmt(const Stmt *stmt);
+	void analyze_when_stmt(const WhenStmt *stmt);
 
 	// Expressions (AnalyzerExpr.cpp)
 	Semantic compute_expr_type(const Expr *expr);
 	Semantic analyze_expr(const Expr *expr);
 	Semantic get_expr_type(const Expr *expr);
+	Semantic analyze_if_expr(const IfExpr *expr);
+	Semantic analyze_when_expr(const WhenExpr *expr);
 
 	// Overall Analysis Driver
 	void analyze(const Program *program) {

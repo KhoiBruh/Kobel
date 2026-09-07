@@ -1,0 +1,71 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+fn describe_number(n: i32): str {
+    val result: str = when (n) {
+        1 -> "one";
+        2, 3 -> "two or three";
+        4, 5, 6 -> "four to six";
+        else -> "other";
+    };
+    return result;
+}
+
+fn describe_sign(n: i32): str {
+    // Boolean when expression
+    val sign: str = when {
+        n > 0 -> "positive";
+        n < 0 -> "negative";
+        else -> "zero";
+    };
+    return sign;
+}
+
+fn main(): i32 {
+    // 1. when expression
+    val s1: str = describe_number(1);
+    puts(s1.c_str());
+
+    val s2: str = describe_number(3);
+    puts(s2.c_str());
+
+    val s3: str = describe_number(5);
+    puts(s3.c_str());
+
+    val s4: str = describe_number(99);
+    puts(s4.c_str());
+
+    // 2. boolean when expression
+    val pos: str = describe_sign(42);
+    puts(pos.c_str());
+
+    val neg: str = describe_sign(-7);
+    puts(neg.c_str());
+
+    // 3. when statement
+    val code: i32 = 2;
+    when (code) {
+        1 -> puts("code is 1");
+        2 -> {
+            puts("code is 2 in block");
+        }
+        else -> puts("code is something else");
+    }
+
+    // 4. if-else expression (unbraced)
+    val parity: str = if (code % 2 == 0) "even" else "odd";
+    puts(parity.c_str());
+
+    // 5. if-else expression (braced)
+    val check: str = if (code > 0) { "positive" } else { "non-positive" };
+    puts(check.c_str());
+
+    // 6. if-else statement without braces
+    if (code == 2)
+        puts("code == 2 (unbraced if)");
+    else
+        puts("code != 2 (unbraced else)");
+
+    return 0;
+}

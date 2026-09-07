@@ -157,6 +157,55 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 	if (isa<ExprStmt>(stmt)) {
 		const auto *e = as<ExprStmt>(stmt);
 		analyze_expr(e->expr);
+		return;
+	}
+
+	// 8. When statement: when (cond) { ... }
+	if (isa<WhenStmt>(stmt)) {
+		analyze_when_stmt(as<WhenStmt>(stmt));
+		return;
+	}
+}
+
+void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
+	if (!stmt) return;
+
+	Semantic cond_type = nullptr;
+	if (stmt->condition) {
+		cond_type = analyze_expr(stmt->condition);
+	}
+
+	for (const auto& arm : stmt->arms) {
+		if (!arm.is_else) {
+			for (const auto* pat : arm.patterns) {
+				auto pat_type = analyze_expr(pat);
+				if (cond_type) {
+					if (cond_type->is_integer() && pat_type->is_integer() &&
+					    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {
+						pat_type = cond_type;
+						expr_types[pat] = cond_type;
+					}
+					if (cond_type->is_enum() && pat_type->is_enum()) {
+						if (cond_type != pat_type) {
+							logger.error(pat->line, pat->col,
+								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" + cond_type->to_string() + "'");
+						}
+					} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
+						logger.error(pat->line, pat->col,
+							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" + cond_type->to_string() + "'");
+					}
+				} else {
+					if (!pat_type->is_bool() && !pat_type->is_error()) {
+						logger.error(pat->line, pat->col,
+							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'");
+					}
+				}
+			}
+		}
+
+		if (arm.body) {
+			analyze_stmt(arm.body);
+		}
 	}
 }
 

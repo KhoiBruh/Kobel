@@ -155,6 +155,7 @@ export struct Lexer {
 				return make_token(TokenType::EQUAL, start_cursor, start_col);
 
 			case '-':
+				if (match('>')) return make_token(TokenType::ARROW, start_cursor, start_col);
 				return make_token(TokenType::MINUS, start_cursor, start_col);
 
 			case '/':

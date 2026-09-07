@@ -739,7 +739,190 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 10. Group: (expr)
 	if (isa<GroupExpr>(expr)) return emit_expr(as<GroupExpr>(expr)->expr);
 
+	// 11. If-expression
+	if (isa<IfExpr>(expr)) return emit_if_expr(as<IfExpr>(expr));
+
+	// 12. When-expression
+	if (isa<WhenExpr>(expr)) return emit_when_expr(as<WhenExpr>(expr));
+
 	return nullptr;
+}
+
+llvm::Value* CodeGen::emit_if_expr(const IfExpr* expr) {
+	if (!expr) return nullptr;
+
+	llvm::Value* cond = emit_expr(expr->condition);
+	llvm::Function* fn = builder->GetInsertBlock()->getParent();
+
+	llvm::BasicBlock* then_bb = llvm::BasicBlock::Create(*context, "ifexpr_then", fn);
+	llvm::BasicBlock* else_bb = llvm::BasicBlock::Create(*context, "ifexpr_else", fn);
+	llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "ifexpr_merge");
+
+	builder->CreateCondBr(cond, then_bb, else_bb);
+
+	// Then branch
+	builder->SetInsertPoint(then_bb);
+	llvm::Value* then_val = emit_expr(expr->then_branch);
+	llvm::BasicBlock* then_end_bb = builder->GetInsertBlock();
+	bool then_reaches = false;
+	if (!then_end_bb->hasTerminator()) {
+		builder->CreateBr(merge_bb);
+		then_reaches = true;
+	}
+
+	// Else branch
+	builder->SetInsertPoint(else_bb);
+	llvm::Value* else_val = emit_expr(expr->else_branch);
+	llvm::BasicBlock* else_end_bb = builder->GetInsertBlock();
+	bool else_reaches = false;
+	if (!else_end_bb->hasTerminator()) {
+		builder->CreateBr(merge_bb);
+		else_reaches = true;
+	}
+
+	// Merge block
+	fn->insert(fn->end(), merge_bb);
+	builder->SetInsertPoint(merge_bb);
+
+	auto result_sema = get_sema_type(expr);
+	llvm::Type* res_llvm_type = get_llvm_type(result_sema);
+
+	if (res_llvm_type->isVoidTy()) return nullptr;
+
+	// Normalize types if needed
+	if (res_llvm_type->isIntegerTy()) {
+		if (then_val && then_val->getType() != res_llvm_type && then_val->getType()->isIntegerTy()) {
+			if (then_reaches) {
+				builder->SetInsertPoint(then_end_bb->getTerminator());
+				then_val = builder->CreateIntCast(then_val, res_llvm_type, result_sema->is_signed_integer());
+			}
+		}
+		if (else_val && else_val->getType() != res_llvm_type && else_val->getType()->isIntegerTy()) {
+			if (else_reaches) {
+				builder->SetInsertPoint(else_end_bb->getTerminator());
+				else_val = builder->CreateIntCast(else_val, res_llvm_type, result_sema->is_signed_integer());
+			}
+		}
+		builder->SetInsertPoint(merge_bb);
+	} else if (res_llvm_type->isPointerTy()) {
+		if (then_val && then_val->getType() != res_llvm_type) {
+			if (then_reaches) {
+				builder->SetInsertPoint(then_end_bb->getTerminator());
+				then_val = builder->CreatePointerCast(then_val, res_llvm_type);
+			}
+		}
+		if (else_val && else_val->getType() != res_llvm_type) {
+			if (else_reaches) {
+				builder->SetInsertPoint(else_end_bb->getTerminator());
+				else_val = builder->CreatePointerCast(else_val, res_llvm_type);
+			}
+		}
+		builder->SetInsertPoint(merge_bb);
+	}
+
+	unsigned incoming_count = (then_reaches ? 1 : 0) + (else_reaches ? 1 : 0);
+	if (incoming_count == 0) return llvm::UndefValue::get(res_llvm_type);
+
+	llvm::PHINode* phi = builder->CreatePHI(res_llvm_type, incoming_count, "ifexpr.res");
+	if (then_reaches) phi->addIncoming(then_val, then_end_bb);
+	if (else_reaches) phi->addIncoming(else_val, else_end_bb);
+
+	return phi;
+}
+
+llvm::Value* CodeGen::emit_when_expr(const WhenExpr* expr) {
+	if (!expr || expr->arms.empty()) return nullptr;
+
+	auto result_sema = get_sema_type(expr);
+	llvm::Type* res_llvm_type = get_llvm_type(result_sema);
+
+	llvm::Function* fn = builder->GetInsertBlock()->getParent();
+	llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "when_merge");
+
+	llvm::Value* cond_val = nullptr;
+	Semantic cond_sema = nullptr;
+	if (expr->condition) {
+		cond_val = emit_expr(expr->condition);
+		cond_sema = get_sema_type(expr->condition);
+	}
+
+	std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming_vals;
+
+	for (size_t i = 0; i < expr->arms.size(); ++i) {
+		const auto& arm = expr->arms[i];
+		llvm::BasicBlock* arm_body_bb = llvm::BasicBlock::Create(*context, "when_arm_body", fn);
+
+		if (arm.is_else) {
+			builder->CreateBr(arm_body_bb);
+			builder->SetInsertPoint(arm_body_bb);
+			llvm::Value* body_val = emit_expr(arm.body);
+			llvm::BasicBlock* body_end_bb = builder->GetInsertBlock();
+			if (!body_end_bb->hasTerminator()) {
+				if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()->isIntegerTy()) {
+					body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
+				} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
+					body_val = builder->CreatePointerCast(body_val, res_llvm_type);
+				}
+				builder->CreateBr(merge_bb);
+				incoming_vals.emplace_back(body_val, body_end_bb);
+			}
+			break;
+		}
+
+		llvm::BasicBlock* next_arm_bb = (i + 1 < expr->arms.size()) ?
+			llvm::BasicBlock::Create(*context, "when_arm_next", fn) :
+			llvm::BasicBlock::Create(*context, "when_unreachable", fn);
+
+		for (size_t j = 0; j < arm.patterns.size(); ++j) {
+			llvm::BasicBlock* next_pat_bb = (j + 1 < arm.patterns.size()) ?
+				llvm::BasicBlock::Create(*context, "when_pat_next", fn) : next_arm_bb;
+
+			llvm::Value* pat_val = emit_expr(arm.patterns[j]);
+			llvm::Value* match_cond = nullptr;
+			if (cond_val) {
+				match_cond = emit_equality(cond_val, pat_val, cond_sema);
+			} else {
+				match_cond = pat_val;
+			}
+			builder->CreateCondBr(match_cond, arm_body_bb, next_pat_bb);
+			if (j + 1 < arm.patterns.size()) {
+				builder->SetInsertPoint(next_pat_bb);
+			}
+		}
+
+		builder->SetInsertPoint(arm_body_bb);
+		llvm::Value* body_val = emit_expr(arm.body);
+		llvm::BasicBlock* body_end_bb = builder->GetInsertBlock();
+		if (!body_end_bb->hasTerminator()) {
+			if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()->isIntegerTy()) {
+				body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
+			} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
+				body_val = builder->CreatePointerCast(body_val, res_llvm_type);
+			}
+			builder->CreateBr(merge_bb);
+			incoming_vals.emplace_back(body_val, body_end_bb);
+		}
+
+		if (i + 1 < expr->arms.size()) {
+			builder->SetInsertPoint(next_arm_bb);
+		} else {
+			builder->SetInsertPoint(next_arm_bb);
+			builder->CreateUnreachable();
+		}
+	}
+
+	fn->insert(fn->end(), merge_bb);
+	builder->SetInsertPoint(merge_bb);
+
+	if (res_llvm_type->isVoidTy()) return nullptr;
+
+	if (incoming_vals.empty()) return llvm::UndefValue::get(res_llvm_type);
+
+	llvm::PHINode* phi = builder->CreatePHI(res_llvm_type, incoming_vals.size(), "when.res");
+	for (const auto& [val, bb] : incoming_vals) {
+		phi->addIncoming(val, bb);
+	}
+	return phi;
 }
 
 

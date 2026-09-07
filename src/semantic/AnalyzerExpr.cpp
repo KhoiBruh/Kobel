@@ -635,6 +635,12 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 	// 10. Parenthesized expression: (expr)
 	if (isa<GroupExpr>(expr)) return analyze_expr(as<GroupExpr>(expr)->expr);
 
+	// 11. If-expression: if (cond) then_expr else else_expr
+	if (isa<IfExpr>(expr)) return analyze_if_expr(as<IfExpr>(expr));
+
+	// 12. When-expression: when (cond) { ... }
+	if (isa<WhenExpr>(expr)) return analyze_when_expr(as<WhenExpr>(expr));
+
 	return make_error();
 }
 
@@ -650,6 +656,146 @@ Semantic Analyzer::get_expr_type(const Expr *expr) {
 	auto it = expr_types.find(expr);
 	if (it != expr_types.end()) return it->second;
 	return make_error();
+}
+
+Semantic Analyzer::analyze_if_expr(const IfExpr *expr) {
+	if (!expr) return make_error();
+
+	auto cond_type = analyze_expr(expr->condition);
+	if (!cond_type->is_bool() && !cond_type->is_error()) {
+		logger.error(
+			expr->condition->line, expr->condition->col,
+			"Condition of 'if' expression must be of type 'bool', got '" + cond_type->to_string() + "'"
+		);
+	}
+
+	auto then_type = analyze_expr(expr->then_branch);
+	auto else_type = analyze_expr(expr->else_branch);
+
+	if (then_type->is_error() || else_type->is_error()) return make_error();
+
+	// Int literal contextual typing:
+	if (then_type->is_integer() && else_type->is_integer() && then_type != else_type) {
+		if (isa<LiteralExpr>(expr->then_branch) && as<LiteralExpr>(expr->then_branch)->literal_kind == LiteralKind::INT) {
+			then_type = else_type;
+			expr_types[expr->then_branch] = else_type;
+		} else if (isa<LiteralExpr>(expr->else_branch) && as<LiteralExpr>(expr->else_branch)->literal_kind == LiteralKind::INT) {
+			else_type = then_type;
+			expr_types[expr->else_branch] = then_type;
+		}
+	}
+
+	// Pointer / null compatibility
+	if (then_type->is_pointer() && else_type->is_null()) return then_type;
+	if (then_type->is_null() && else_type->is_pointer()) return else_type;
+
+	if (then_type != else_type) {
+		logger.error(
+			expr->line, expr->col,
+			"Branches of 'if' expression must have the same type, got '" +
+			then_type->to_string() + "' and '" + else_type->to_string() + "'"
+		);
+		return make_error();
+	}
+
+	return then_type;
+}
+
+Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
+	if (!expr) return make_error();
+
+	Semantic cond_type = nullptr;
+	if (expr->condition) {
+		cond_type = analyze_expr(expr->condition);
+	}
+
+	bool has_else = false;
+	for (const auto& arm : expr->arms) {
+		if (arm.is_else) {
+			has_else = true;
+		} else {
+			for (const auto* pat : arm.patterns) {
+				auto pat_type = analyze_expr(pat);
+				if (cond_type) {
+					if (cond_type->is_integer() && pat_type->is_integer() &&
+					    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {
+						pat_type = cond_type;
+						expr_types[pat] = cond_type;
+					}
+					if (cond_type->is_enum() && pat_type->is_enum()) {
+						if (cond_type != pat_type) {
+							logger.error(pat->line, pat->col,
+								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" + cond_type->to_string() + "'");
+						}
+					} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
+						logger.error(pat->line, pat->col,
+							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" + cond_type->to_string() + "'");
+					}
+				} else {
+					if (!pat_type->is_bool() && !pat_type->is_error()) {
+						logger.error(pat->line, pat->col,
+							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'");
+					}
+				}
+			}
+		}
+	}
+
+	if (!has_else) {
+		logger.error(expr->line, expr->col, "'when' expression must be exhaustive and have an 'else' arm");
+	}
+
+	// Unify arm body types
+	Semantic expected_type = nullptr;
+	for (size_t i = 0; i < expr->arms.size(); ++i) {
+		const auto& arm = expr->arms[i];
+		if (!arm.body) continue;
+		auto ty = analyze_expr(arm.body);
+		if (ty->is_error()) continue;
+		if (!expected_type || (expected_type->is_null() && ty->is_pointer())) {
+			expected_type = ty;
+		}
+	}
+
+	if (!expected_type) return make_error();
+
+	// Check if expected_type is integer, see if any arm has a non-default int type
+	if (expected_type->is_integer()) {
+		for (size_t i = 0; i < expr->arms.size(); ++i) {
+			const auto& arm = expr->arms[i];
+			if (!arm.body) continue;
+			auto ty = get_expr_type(arm.body);
+			if (ty->is_integer() && !isa<LiteralExpr>(arm.body)) {
+				expected_type = ty;
+				break;
+			}
+		}
+	}
+
+	for (size_t i = 0; i < expr->arms.size(); ++i) {
+		const auto& arm = expr->arms[i];
+		if (!arm.body) continue;
+		auto ty = get_expr_type(arm.body);
+		if (ty->is_error()) continue;
+
+		if (expected_type->is_integer() && ty->is_integer() &&
+		    isa<LiteralExpr>(arm.body) && as<LiteralExpr>(arm.body)->literal_kind == LiteralKind::INT) {
+			ty = expected_type;
+			expr_types[arm.body] = expected_type;
+		}
+
+		if (expected_type->is_pointer() && ty->is_null()) {
+			continue;
+		}
+
+		if (ty != expected_type) {
+			logger.error(arm.body->line, arm.body->col,
+				"When arm expression type '" + ty->to_string() +
+				"' does not match expected when expression type '" + expected_type->to_string() + "'");
+		}
+	}
+
+	return expected_type;
 }
 
 

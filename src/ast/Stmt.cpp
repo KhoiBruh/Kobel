@@ -113,5 +113,28 @@ export struct ContinueStmt final : Stmt {
 	explicit ContinueStmt(const size_t l = 0, const size_t c = 0) : Stmt(KIND, l, c) {}
 };
 
+export struct WhenStmtArm {
+	std::span<Expr*> patterns; // empty if is_else
+	bool is_else = false;
+	Stmt* body = nullptr;
+	size_t line = 0;
+	size_t col = 0;
+};
+
+// When statement: when (cond) { pat1 -> stmt1; else -> stmt2; }
+export struct WhenStmt final : Stmt {
+	static constexpr auto KIND = ASTKind::STMT_WHEN;
+	Expr* condition; // nullptr if when { ... }
+	std::span<WhenStmtArm> arms;
+
+	WhenStmt(
+		Expr* cond,
+		std::span<WhenStmtArm> a,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Stmt(KIND, l, c), condition(cond), arms(a) {}
+};
+
+
 
 

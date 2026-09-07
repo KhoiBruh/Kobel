@@ -362,9 +362,13 @@ export struct CodeGen {
 	// Expressions & Addresses (CodeGenExpr.cpp)
 	llvm::Value* emit_lvalue(const Expr* expr);
 	llvm::Value* emit_expr(const Expr* expr);
+	llvm::Value* emit_if_expr(const IfExpr* expr);
+	llvm::Value* emit_when_expr(const WhenExpr* expr);
+	llvm::Value* emit_equality(llvm::Value* l, llvm::Value* r, Semantic sema_ty);
 
 	// Statements (CodeGenStmt.cpp)
 	void emit_stmt(const Stmt* stmt);
+	void emit_when_stmt(const WhenStmt* stmt);
 
 	// Top-level Declarations (CodeGenDecl.cpp)
 	void emit_struct_decl(const StructDecl* st);

@@ -346,6 +346,16 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 		return has_definite_return(i->then_branch) && has_definite_return(i->else_branch);
 	}
 
+	if (isa<WhenStmt>(stmt)) {
+		const auto *w = as<WhenStmt>(stmt);
+		bool has_else = false;
+		for (const auto &arm : w->arms) {
+			if (arm.is_else) has_else = true;
+			if (!has_definite_return(arm.body)) return false;
+		}
+		return has_else && !w->arms.empty();
+	}
+
 	return false;
 }
 

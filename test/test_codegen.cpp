@@ -434,9 +434,49 @@ bool test_codegen_type_size() {
 	return true;
 }
 
+bool test_codegen_when_and_if_expr() {
+	// 1. when expression, statement, and if expression
+	{
+		std::string_view code =
+			"fn test_when(x: i32): i32 {\n"
+			"    val a: i32 = when (x) {\n"
+			"        1 -> 10;\n"
+			"        2, 3 -> 20;\n"
+			"        else -> 30;\n"
+			"    };\n"
+			"    return a;\n"
+			"}\n"
+			"fn test_if(c: bool): i32 {\n"
+			"    val a: i32 = if (c) 100 else -100;\n"
+			"    val b: i32 = if (c) { 200 } else { -200 };\n"
+			"    return a + b;\n"
+			"}\n"
+			"fn test_when_stmt(x: i32): i32 {\n"
+			"    var res: i32 = 0;\n"
+			"    when (x) {\n"
+			"        1 -> res = 10;\n"
+			"        2, 3 -> { res = 20; }\n"
+			"        else -> res = 30;\n"
+			"    }\n"
+			"    return res;\n"
+			"}\n"
+			"fn test_if_unbraced(x: i32): i32 {\n"
+			"    if (x > 0) return 1; else return 0;\n"
+			"}\n";
+
+		std::string ir;
+		ASSERT(compile_to_ir(code, ir), "CodeGen for when and if expr failed");
+		ASSERT(ir.find("phi i32") != std::string::npos, "Missing phi node for when/if expr");
+		ASSERT(ir.find("when_arm_body") != std::string::npos, "Missing when_arm_body basic block");
+		ASSERT(ir.find("ifexpr_then") != std::string::npos, "Missing ifexpr_then basic block");
+	}
+
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 17;
+	int total = 18;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -491,6 +531,10 @@ int main() {
 	}
 	if (test_codegen_type_size()) {
 		std::cout << "[PASS] test_codegen_type_size\n";
+		passed++;
+	}
+	if (test_codegen_when_and_if_expr()) {
+		std::cout << "[PASS] test_codegen_when_and_if_expr\n";
 		passed++;
 	}
 

@@ -35,6 +35,7 @@ export enum class TokenType {
 	AND_AND,       // &&
 	OR_OR,         // ||
 	FAT_ARROW,     // =>
+	ARROW,         // ->
 
 	// Literals
 	CHAR,
@@ -60,6 +61,7 @@ export enum class TokenType {
 	KW_CONTINUE,
 	KW_IF,
 	KW_ELSE,
+	KW_WHEN,
 	KW_MODULE,
 	KW_USE,
 	KW_PUB,

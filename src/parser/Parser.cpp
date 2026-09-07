@@ -110,6 +110,7 @@ export struct Parser {
 				case TokenType::KW_VAL:
 				case TokenType::KW_VAR:
 				case TokenType::KW_IF:
+				case TokenType::KW_WHEN:
 				case TokenType::KW_WHILE:
 				case TokenType::KW_RETURN:
 					return;
@@ -129,11 +130,14 @@ export struct Parser {
 	// 4. Expression parsing (ParserExpr.cpp)
 	Expr* parse_prefix();
 	Expr* parse_expression(Precedence min_prec = Precedence::NONE);
+	Expr* parse_if_expr();
+	Expr* parse_when_expr();
 
 	// 5. Statement parsing (ParserStmt.cpp)
 	BlockStmt* parse_block_stmt();
 	Stmt* parse_var_decl_stmt();
 	Stmt* parse_if_stmt();
+	Stmt* parse_when_stmt();
 	Stmt* parse_while_stmt();
 	Stmt* parse_return_stmt();
 	Stmt* parse_statement();

@@ -51,12 +51,30 @@ Stmt* Parser::parse_if_stmt() {
 	auto cond = parse_expression();
 	consume(TokenType::CLOSE_PAREN, "Expected ')' after if condition");
 
-	auto then_branch = parse_block_stmt();
+	BlockStmt* then_branch = nullptr;
+	if (check(TokenType::OPEN_BRACE)) {
+		then_branch = parse_block_stmt();
+	} else {
+		auto single_stmt = parse_statement();
+		if (single_stmt) {
+			std::vector<Stmt*> stmts = {single_stmt};
+			then_branch = arena.alloc<BlockStmt>(arena.alloc_span<Stmt*>(stmts), single_stmt->line, single_stmt->col);
+		}
+	}
 
 	Stmt* else_branch = nullptr;
 	if (match(TokenType::KW_ELSE)) {
-		if (check(TokenType::KW_IF)) else_branch = parse_if_stmt();
-		else else_branch = parse_block_stmt();
+		if (check(TokenType::KW_IF)) {
+			else_branch = parse_if_stmt();
+		} else if (check(TokenType::OPEN_BRACE)) {
+			else_branch = parse_block_stmt();
+		} else {
+			auto single_stmt = parse_statement();
+			if (single_stmt) {
+				std::vector<Stmt*> stmts = {single_stmt};
+				else_branch = arena.alloc<BlockStmt>(arena.alloc_span<Stmt*>(stmts), single_stmt->line, single_stmt->col);
+			}
+		}
 	}
 
 	return arena.alloc<IfStmt>(
@@ -65,6 +83,61 @@ Stmt* Parser::parse_if_stmt() {
 		else_branch,
 		tok.line, tok.col
 	);
+}
+
+Stmt* Parser::parse_when_stmt() {
+	const Token tok = consume(TokenType::KW_WHEN, "Expected 'when'");
+
+	Expr* condition = nullptr;
+	if (match(TokenType::OPEN_PAREN)) {
+		condition = parse_expression();
+		consume(TokenType::CLOSE_PAREN, "Expected ')' after when condition");
+	}
+
+	consume(TokenType::OPEN_BRACE, "Expected '{' to start when block");
+
+	std::vector<WhenStmtArm> arms;
+	while (!is_end() && !check(TokenType::CLOSE_BRACE)) {
+		WhenStmtArm arm;
+		arm.line = peek().line;
+		arm.col = peek().col;
+
+		if (match(TokenType::KW_ELSE)) {
+			arm.is_else = true;
+		} else {
+			std::vector<Expr*> patterns;
+			patterns.push_back(parse_expression());
+			while (match(TokenType::COMMA)) {
+				patterns.push_back(parse_expression());
+			}
+			arm.patterns = arena.alloc_span<Expr*>(patterns);
+		}
+
+		consume(TokenType::ARROW, "Expected '->' after when pattern");
+
+		if (check(TokenType::OPEN_BRACE)) {
+			arm.body = parse_block_stmt();
+			match(TokenType::SEMI_COLON); // optional semicolon after block
+		} else {
+			if (check(TokenType::KW_RETURN) || check(TokenType::KW_IF) || check(TokenType::KW_WHILE) ||
+			    check(TokenType::KW_VAL) || check(TokenType::KW_VAR) || check(TokenType::KW_WHEN)) {
+				arm.body = parse_statement();
+			} else {
+				auto expr = parse_expression();
+				if (!match(TokenType::SEMI_COLON) && !match(TokenType::COMMA)) {
+					if (!check(TokenType::CLOSE_BRACE)) {
+						consume(TokenType::SEMI_COLON, "Expected ';' after when arm expression");
+					}
+				}
+				arm.body = arena.alloc<ExprStmt>(expr, expr ? expr->line : arm.line, expr ? expr->col : arm.col);
+			}
+		}
+
+		arms.push_back(arm);
+	}
+
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to close when block");
+	return arena.alloc<WhenStmt>(condition, arena.alloc_span<WhenStmtArm>(arms), tok.line, tok.col);
 }
 
 Stmt* Parser::parse_while_stmt() {
@@ -90,6 +163,7 @@ Stmt* Parser::parse_return_stmt() {
 Stmt* Parser::parse_statement() {
 	if (check(TokenType::KW_VAL) || check(TokenType::KW_VAR)) return parse_var_decl_stmt();
 	if (check(TokenType::KW_IF)) return parse_if_stmt();
+	if (check(TokenType::KW_WHEN)) return parse_when_stmt();
 	if (check(TokenType::KW_WHILE)) return parse_while_stmt();
 	if (check(TokenType::KW_RETURN)) return parse_return_stmt();
 	if (match(TokenType::KW_BREAK)) {

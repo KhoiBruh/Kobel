@@ -186,7 +186,101 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 	}
 
 	// 7. ExprStmt
-	if (isa<ExprStmt>(stmt)) emit_expr(as<ExprStmt>(stmt)->expr);
+	if (isa<ExprStmt>(stmt)) {
+		emit_expr(as<ExprStmt>(stmt)->expr);
+		return;
+	}
+
+	// 8. When statement
+	if (isa<WhenStmt>(stmt)) {
+		emit_when_stmt(as<WhenStmt>(stmt));
+		return;
+	}
+}
+
+llvm::Value* CodeGen::emit_equality(llvm::Value* l, llvm::Value* r, Semantic sema_ty) {
+	if (sema_ty && sema_ty->is_str()) {
+		auto* a_len = builder->CreateExtractValue(l, 1, "a.len");
+		auto* b_len = builder->CreateExtractValue(r, 1, "b.len");
+		auto* len_eq = builder->CreateICmpEQ(a_len, b_len, "len.eq");
+
+		auto* a_data = builder->CreateExtractValue(l, 0, "a.data");
+		auto* b_data = builder->CreateExtractValue(r, 0, "b.data");
+		auto* memcmp_fn = module->getFunction("memcmp");
+		auto* cmp_result = builder->CreateCall(memcmp_fn, {a_data, b_data, a_len}, "memcmp");
+		auto* content_eq = builder->CreateICmpEQ(cmp_result, builder->getInt32(0), "content.eq");
+
+		return builder->CreateAnd(len_eq, content_eq, "str.eq");
+	}
+
+	if (l->getType()->isIntegerTy() && r->getType()->isIntegerTy()) {
+		if (l->getType() != r->getType()) {
+			r = builder->CreateIntCast(r, l->getType(), sema_ty ? sema_ty->is_signed_integer() : true);
+		}
+	}
+	return builder->CreateICmpEQ(l, r, "eq");
+}
+
+void CodeGen::emit_when_stmt(const WhenStmt* stmt) {
+	if (!stmt || stmt->arms.empty()) return;
+
+	llvm::Function* fn = builder->GetInsertBlock()->getParent();
+	llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(*context, "when_merge");
+
+	llvm::Value* cond_val = nullptr;
+	Semantic cond_sema = nullptr;
+	if (stmt->condition) {
+		cond_val = emit_expr(stmt->condition);
+		cond_sema = get_sema_type(stmt->condition);
+	}
+
+	for (size_t i = 0; i < stmt->arms.size(); ++i) {
+		const auto& arm = stmt->arms[i];
+		llvm::BasicBlock* arm_body_bb = llvm::BasicBlock::Create(*context, "when_arm_body", fn);
+
+		if (arm.is_else) {
+			builder->CreateBr(arm_body_bb);
+			builder->SetInsertPoint(arm_body_bb);
+			emit_stmt(arm.body);
+			if (!builder->GetInsertBlock()->hasTerminator()) {
+				builder->CreateBr(merge_bb);
+			}
+			break;
+		}
+
+		llvm::BasicBlock* next_arm_bb = (i + 1 < stmt->arms.size()) ?
+			llvm::BasicBlock::Create(*context, "when_arm_next", fn) : merge_bb;
+
+		for (size_t j = 0; j < arm.patterns.size(); ++j) {
+			llvm::BasicBlock* next_pat_bb = (j + 1 < arm.patterns.size()) ?
+				llvm::BasicBlock::Create(*context, "when_pat_next", fn) : next_arm_bb;
+
+			llvm::Value* pat_val = emit_expr(arm.patterns[j]);
+			llvm::Value* match_cond = nullptr;
+			if (cond_val) {
+				match_cond = emit_equality(cond_val, pat_val, cond_sema);
+			} else {
+				match_cond = pat_val;
+			}
+			builder->CreateCondBr(match_cond, arm_body_bb, next_pat_bb);
+			if (j + 1 < arm.patterns.size()) {
+				builder->SetInsertPoint(next_pat_bb);
+			}
+		}
+
+		builder->SetInsertPoint(arm_body_bb);
+		emit_stmt(arm.body);
+		if (!builder->GetInsertBlock()->hasTerminator()) {
+			builder->CreateBr(merge_bb);
+		}
+
+		if (i + 1 < stmt->arms.size()) {
+			builder->SetInsertPoint(next_arm_bb);
+		}
+	}
+
+	fn->insert(fn->end(), merge_bb);
+	builder->SetInsertPoint(merge_bb);
 }
 
 

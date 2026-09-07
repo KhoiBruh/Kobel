@@ -111,6 +111,16 @@ Expr* Parser::parse_prefix() {
 		return arena.alloc<ArrayLiteralExpr>(arena.alloc_span(elements), tok.line, tok.col);
 	}
 
+	// if expression: if (cond) then_expr else else_expr
+	if (match(TokenType::KW_IF)) {
+		return parse_if_expr();
+	}
+
+	// when expression: when (cond) { ... }
+	if (match(TokenType::KW_WHEN)) {
+		return parse_when_expr();
+	}
+
 	if (tok.type == TokenType::UNKNOWN && tok.text.starts_with('"')) {
 		error(tok, "Unterminated string literal");
 		advance();
@@ -120,6 +130,88 @@ Expr* Parser::parse_prefix() {
 	error(tok, "Invalid expression");
 	advance();
 	return nullptr;
+}
+
+Expr* Parser::parse_if_expr() {
+	const Token tok = previous(); // KW_IF
+	consume(TokenType::OPEN_PAREN, "Expected '(' after 'if'");
+	auto cond = parse_expression();
+	consume(TokenType::CLOSE_PAREN, "Expected ')' after if condition");
+
+	Expr* then_branch = nullptr;
+	if (match(TokenType::OPEN_BRACE)) {
+		then_branch = parse_expression();
+		match(TokenType::SEMI_COLON);
+		consume(TokenType::CLOSE_BRACE, "Expected '}' after then block in if-expression");
+	} else {
+		then_branch = parse_expression();
+	}
+
+	consume(TokenType::KW_ELSE, "Expected 'else' in if-expression");
+
+	Expr* else_branch = nullptr;
+	if (match(TokenType::OPEN_BRACE)) {
+		else_branch = parse_expression();
+		match(TokenType::SEMI_COLON);
+		consume(TokenType::CLOSE_BRACE, "Expected '}' after else block in if-expression");
+	} else {
+		else_branch = parse_expression();
+	}
+
+	return arena.alloc<IfExpr>(cond, then_branch, else_branch, tok.line, tok.col);
+}
+
+Expr* Parser::parse_when_expr() {
+	const Token tok = previous(); // KW_WHEN
+
+	Expr* condition = nullptr;
+	if (match(TokenType::OPEN_PAREN)) {
+		condition = parse_expression();
+		consume(TokenType::CLOSE_PAREN, "Expected ')' after when condition");
+	}
+
+	consume(TokenType::OPEN_BRACE, "Expected '{' to start when block");
+
+	std::vector<WhenArm> arms;
+	while (!is_end() && !check(TokenType::CLOSE_BRACE)) {
+		WhenArm arm;
+		arm.line = peek().line;
+		arm.col = peek().col;
+
+		if (match(TokenType::KW_ELSE)) {
+			arm.is_else = true;
+		} else {
+			std::vector<Expr*> patterns;
+			patterns.push_back(parse_expression());
+			while (match(TokenType::COMMA)) {
+				patterns.push_back(parse_expression());
+			}
+			arm.patterns = arena.alloc_span<Expr*>(patterns);
+		}
+
+		consume(TokenType::ARROW, "Expected '->' after when pattern");
+
+		if (match(TokenType::OPEN_BRACE)) {
+			arm.body = parse_expression();
+			match(TokenType::SEMI_COLON);
+			consume(TokenType::CLOSE_BRACE, "Expected '}' after arm block in when-expression");
+			if (!match(TokenType::SEMI_COLON)) {
+				match(TokenType::COMMA);
+			}
+		} else {
+			arm.body = parse_expression();
+			if (!match(TokenType::SEMI_COLON) && !match(TokenType::COMMA)) {
+				if (!check(TokenType::CLOSE_BRACE)) {
+					consume(TokenType::SEMI_COLON, "Expected ';' or ',' after when arm expression");
+				}
+			}
+		}
+
+		arms.push_back(arm);
+	}
+
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to close when block");
+	return arena.alloc<WhenExpr>(condition, arena.alloc_span<WhenArm>(arms), tok.line, tok.col);
 }
 
 Expr* Parser::parse_expression(const Precedence min_prec) {

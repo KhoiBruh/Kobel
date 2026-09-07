@@ -646,6 +646,108 @@ bool test_semantic_type_size() {
 	return true;
 }
 
+bool test_semantic_when_and_if_expr() {
+	// 1. Valid when expression and statement
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val c: i32 = 2;\n"
+			"    val x: i32 = when (c) {\n"
+			"        1 -> 10;\n"
+			"        2, 3 -> 20;\n"
+			"        else -> 0;\n"
+			"    };\n"
+			"    when (x) {\n"
+			"        10 -> return 1;\n"
+			"        20 -> return 2;\n"
+			"        else -> return 0;\n"
+			"    }\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Valid when expression and statement must pass semantic check");
+	}
+
+	// 2. Valid if expression (braced and unbraced) and unbraced if statement
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val c: bool = true;\n"
+			"    val a: i32 = if (c) 1 else 0;\n"
+			"    val b: i32 = if (c) { 1 } else { 0 };\n"
+			"    if (a > 0) return a; else return b;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Valid if expression and unbraced if statement must pass semantic check");
+	}
+
+	// 3. Error: when expression without else arm
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val c: i32 = 1;\n"
+			"    val x: i32 = when (c) {\n"
+			"        1 -> 10;\n"
+			"    };\n"
+			"    return x;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "When expression without else arm must report error");
+	}
+
+	// 4. Error: if expression branches type mismatch
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val x = if (true) 1 else \"hello\";\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "If expression branch type mismatch must report error");
+	}
+
+	// 5. Error: when pattern type incompatible with condition
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val c: i32 = 1;\n"
+			"    val x = when (c) {\n"
+			"        \"hello\" -> 10;\n"
+			"        else -> 0;\n"
+			"    };\n"
+			"    return x;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "When pattern type mismatch with condition must report error");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -699,6 +801,9 @@ int main() {
 
 	if (!test_semantic_type_size()) return 1;
 	std::cout << "  [PASS] test_semantic_type_size" << std::endl;
+
+	if (!test_semantic_when_and_if_expr()) return 1;
+	std::cout << "  [PASS] test_semantic_when_and_if_expr" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

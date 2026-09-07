@@ -167,6 +167,44 @@ export struct ArrayLiteralExpr final : Expr {
 	) : Expr(KIND, l, c), elements(elems) {}
 };
 
+// If expression: if (cond) then_expr else else_expr
+export struct IfExpr final : Expr {
+	static constexpr auto KIND = ASTKind::EXPR_IF;
+	Expr* condition;
+	Expr* then_branch;
+	Expr* else_branch;
+
+	IfExpr(
+		Expr* cond,
+		Expr* th,
+		Expr* el,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Expr(KIND, l, c), condition(cond), then_branch(th), else_branch(el) {}
+};
+
+export struct WhenArm {
+	std::span<Expr*> patterns; // empty if is_else
+	bool is_else = false;
+	Expr* body = nullptr;
+	size_t line = 0;
+	size_t col = 0;
+};
+
+// When expression: when (cond) { pat1 -> expr1; else -> expr2; }
+export struct WhenExpr final : Expr {
+	static constexpr auto KIND = ASTKind::EXPR_WHEN;
+	Expr* condition; // nullptr if when { ... }
+	std::span<WhenArm> arms;
+
+	WhenExpr(
+		Expr* cond,
+		std::span<WhenArm> a,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Expr(KIND, l, c), condition(cond), arms(a) {}
+};
+
 
 
 
