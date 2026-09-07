@@ -29,10 +29,10 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 	if (name == "void") return make_primitive(SemaType::VOID);
 	if (name == "str") return make_str();
 
-	std::string resolved_st = resolve_struct_name(name, line, col);
+	const auto resolved_st = resolve_struct_name(name, line, col);
 	if (!resolved_st.empty()) return make_struct(resolved_st);
 
-	std::string resolved_enum = resolve_enum_name(name, line, col);
+	const auto resolved_enum = resolve_enum_name(name, line, col);
 	if (!resolved_enum.empty()) return make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
 
 	return nullptr;
@@ -43,7 +43,7 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 
 	if (isa<NamedType>(node)) {
 		const auto *named = as<NamedType>(node);
-		if (auto ty = resolve_type_by_name(named->name, node->line, node->col)) {
+		if (const auto ty = resolve_type_by_name(named->name, node->line, node->col)) {
 			return ty;
 		}
 

@@ -14,15 +14,15 @@ import logger;
 import semantic;
 import semantic.symbol;
 
-std::string Analyzer::get_decl_module(const Decl* decl) const {
+std::string Analyzer::get_decl_module(const Decl *decl) const {
 	auto it = decl_modules.find(decl);
 	if (it != decl_modules.end()) return it->second;
 	return "";
 }
 
-template <typename TSymbol>
+template<typename TSymbol>
 std::string Analyzer::resolve_symbol_helper(
-	const StringMap<TSymbol>& symbol_table,
+	const StringMap<TSymbol> &symbol_table,
 	const std::string_view raw_name,
 	const std::string_view entity_type_name,
 	const size_t line,
@@ -38,13 +38,17 @@ std::string Analyzer::resolve_symbol_helper(
 
 	// 2. Lookup in current module's import table
 	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
-		const auto& imports = it_imp->second;
+		const auto &imports = it_imp->second;
 		if (const auto it = imports.find(raw_name); it != imports.end()) {
-			const std::string& target = it->second;
+			const std::string &target = it->second;
 			if (const auto it_sym = symbol_table.find(target); it_sym != symbol_table.end()) {
-				const auto& sym = it_sym->second;
+				const auto &sym = it_sym->second;
 				if (!sym.is_pub && sym.module_name != current_module) {
-					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
+					logger.error(
+						line, col,
+						std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name +
+						"' is private and cannot be accessed from outside"
+					);
 				}
 				return target;
 			}
@@ -53,12 +57,16 @@ std::string Analyzer::resolve_symbol_helper(
 
 	// 3. Lookup in wildcard imports
 	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
-		for (const auto& w_mod : it_wc->second) {
+		for (const auto &w_mod: it_wc->second) {
 			const std::string candidate = w_mod + "." + name;
 			if (const auto it_sym = symbol_table.find(candidate); it_sym != symbol_table.end()) {
-				const auto& sym = it_sym->second;
+				const auto &sym = it_sym->second;
 				if (!sym.is_pub && sym.module_name != current_module) {
-					logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
+					logger.error(
+						line, col,
+						std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name +
+						"' is private and cannot be accessed from outside"
+					);
 				}
 				return candidate;
 			}
@@ -67,9 +75,13 @@ std::string Analyzer::resolve_symbol_helper(
 
 	// 4. Direct lookup (global / extern)
 	if (const auto it_sym = symbol_table.find(raw_name); it_sym != symbol_table.end()) {
-		const auto& sym = it_sym->second;
+		const auto &sym = it_sym->second;
 		if (!sym.module_name.empty() && sym.module_name != current_module && !sym.is_pub) {
-			logger.error(line, col, std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name + "' is private and cannot be accessed from outside");
+			logger.error(
+				line, col,
+				std::string(entity_type_name) + " '" + name + "' in module '" + sym.module_name +
+				"' is private and cannot be accessed from outside"
+			);
 		}
 		return name;
 	}
@@ -100,7 +112,7 @@ void Analyzer::pass0_index_modules(const Program *program) {
 	known_modules.clear();
 
 	std::string active_mod;
-	for (const auto &decl : program->declarations) {
+	for (const auto &decl: program->declarations) {
 		if (isa<ModuleDecl>(decl)) {
 			active_mod = as<ModuleDecl>(decl)->full_path;
 			known_modules.insert(active_mod);
@@ -123,7 +135,7 @@ void Analyzer::pass0_index_modules(const Program *program) {
 }
 
 void Analyzer::validate_use_declarations(const Program *program) {
-	for (const auto &decl : program->declarations) {
+	for (const auto &decl: program->declarations) {
 		if (isa<UseDecl>(decl)) {
 			const auto *u = as<UseDecl>(decl);
 			std::string mod = get_decl_module(u);
@@ -133,21 +145,33 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				if (!known_modules.contains(full_path)) {
 					bool mod_found = false;
 					for (const auto &sym: functions | std::views::values) {
-						if (sym.module_name == full_path) { mod_found = true; break; }
+						if (sym.module_name == full_path) {
+							mod_found = true;
+							break;
+						}
 					}
 					if (!mod_found) {
 						for (const auto &sym: structs | std::views::values) {
-							if (sym.module_name == full_path) { mod_found = true; break; }
+							if (sym.module_name == full_path) {
+								mod_found = true;
+								break;
+							}
 						}
 					}
 					if (!mod_found) {
 						for (const auto &sym: enums | std::views::values) {
-							if (sym.module_name == full_path) { mod_found = true; break; }
+							if (sym.module_name == full_path) {
+								mod_found = true;
+								break;
+							}
 						}
 					}
 					if (!mod_found) {
 						for (const auto &sym: constants | std::views::values) {
-							if (sym.module_name == full_path) { mod_found = true; break; }
+							if (sym.module_name == full_path) {
+								mod_found = true;
+								break;
+							}
 						}
 					}
 					if (!mod_found) {
@@ -176,17 +200,18 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				}
 
 				if (!found) {
-					logger.error(u->line, u->col, "Symbol '" + std::string(sym_name) + "' not found in module '" + std::string(full_path) + "'");
+					logger.error(
+						u->line, u->col,
+						"Symbol '" + std::string(sym_name) + "' not found in module '" + std::string(full_path) + "'"
+					);
 				} else if (!is_pub && full_path != mod) {
-					logger.error(u->line, u->col, "Symbol '" + std::string(sym_name) + "' in module '" + std::string(full_path) + "' is private and cannot be imported");
+					logger.error(
+						u->line, u->col,
+						"Symbol '" + std::string(sym_name) + "' in module '" + std::string(full_path) +
+						"' is private and cannot be imported"
+					);
 				}
 			}
 		}
 	}
 }
-
-
-
-
-
-

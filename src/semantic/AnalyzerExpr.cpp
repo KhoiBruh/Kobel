@@ -215,7 +215,9 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			case TokenType::AND_AND:
 			case TokenType::OR_OR: {
 				if (!left_type->is_bool() || !right_type->is_bool()) {
-					logger.error(b->line, b->col, "Logical operators '&&'/'||' are only applicable to boolean (bool) type");
+					logger.error(
+						b->line, b->col, "Logical operators '&&'/'||' are only applicable to boolean (bool) type"
+					);
 					return make_error();
 				}
 				return make_primitive(SemaType::BOOL);
@@ -414,22 +416,28 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				}
 				if (method_name == "slice") {
 					if (c->args.empty() || c->args.size() > 2) {
-						logger.error(c->line, c->col, "str.slice() expects 1 or 2 arguments: slice(start) or slice(start, end)");
+						logger.error(
+							c->line, c->col, "str.slice() expects 1 or 2 arguments: slice(start) or slice(start, end)"
+						);
 						return make_error();
 					}
 					for (size_t i = 0; i < c->args.size(); ++i) {
 						auto arg_ty = analyze_expr(c->args[i]);
 						if (arg_ty->is_error()) return make_error();
 						if (!arg_ty->is_integer()) {
-							logger.error(c->args[i]->line, c->args[i]->col,
-								"Argument " + std::to_string(i + 1) + " of str.slice() must be an integer");
+							logger.error(
+								c->args[i]->line, c->args[i]->col,
+								"Argument " + std::to_string(i + 1) + " of str.slice() must be an integer"
+							);
 							return make_error();
 						}
 					}
 					return make_str();
 				}
-				logger.error(c->line, c->col,
-					"str type only supports methods '.len()', '.size()', '.c_str()', and '.slice()'");
+				logger.error(
+					c->line, c->col,
+					"str type only supports methods '.len()', '.size()', '.c_str()', and '.slice()'"
+				);
 				return make_error();
 			}
 
@@ -460,7 +468,11 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 			const auto &method_sym = it_m->second;
 			if (!method_sym.is_pub && method_sym.module_name != current_module && !method_sym.module_name.empty()) {
-				logger.error(c->line, c->col, "Method '" + method_name + "' of struct '" + struct_name + "' is private and cannot be accessed from outside");
+				logger.error(
+					c->line, c->col,
+					"Method '" + method_name + "' of struct '" + struct_name +
+					"' is private and cannot be accessed from outside"
+				);
 			}
 
 			// Check self
@@ -676,10 +688,12 @@ Semantic Analyzer::analyze_if_expr(const IfExpr *expr) {
 
 	// Int literal contextual typing:
 	if (then_type->is_integer() && else_type->is_integer() && then_type != else_type) {
-		if (isa<LiteralExpr>(expr->then_branch) && as<LiteralExpr>(expr->then_branch)->literal_kind == LiteralKind::INT) {
+		if (isa<LiteralExpr>(expr->then_branch) && as<LiteralExpr>(expr->then_branch)->literal_kind ==
+		    LiteralKind::INT) {
 			then_type = else_type;
 			expr_types[expr->then_branch] = else_type;
-		} else if (isa<LiteralExpr>(expr->else_branch) && as<LiteralExpr>(expr->else_branch)->literal_kind == LiteralKind::INT) {
+		} else if (isa<LiteralExpr>(expr->else_branch) && as<LiteralExpr>(expr->else_branch)->literal_kind ==
+		           LiteralKind::INT) {
 			else_type = then_type;
 			expr_types[expr->else_branch] = then_type;
 		}
@@ -710,11 +724,11 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 	}
 
 	bool has_else = false;
-	for (const auto& arm : expr->arms) {
+	for (const auto &arm: expr->arms) {
 		if (arm.is_else) {
 			has_else = true;
 		} else {
-			for (const auto* pat : arm.patterns) {
+			for (const auto *pat: arm.patterns) {
 				auto pat_type = analyze_expr(pat);
 				if (cond_type) {
 					if (cond_type->is_integer() && pat_type->is_integer() &&
@@ -724,17 +738,25 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 					}
 					if (cond_type->is_enum() && pat_type->is_enum()) {
 						if (cond_type != pat_type) {
-							logger.error(pat->line, pat->col,
-								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" + cond_type->to_string() + "'");
+							logger.error(
+								pat->line, pat->col,
+								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" +
+								cond_type->to_string() + "'"
+							);
 						}
 					} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
-						logger.error(pat->line, pat->col,
-							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" + cond_type->to_string() + "'");
+						logger.error(
+							pat->line, pat->col,
+							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" +
+							cond_type->to_string() + "'"
+						);
 					}
 				} else {
 					if (!pat_type->is_bool() && !pat_type->is_error()) {
-						logger.error(pat->line, pat->col,
-							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'");
+						logger.error(
+							pat->line, pat->col,
+							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'"
+						);
 					}
 				}
 			}
@@ -748,7 +770,7 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 	// Unify arm body types
 	Semantic expected_type = nullptr;
 	for (size_t i = 0; i < expr->arms.size(); ++i) {
-		const auto& arm = expr->arms[i];
+		const auto &arm = expr->arms[i];
 		if (!arm.body) continue;
 		auto ty = analyze_expr(arm.body);
 		if (ty->is_error()) continue;
@@ -762,7 +784,7 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 	// Check if expected_type is integer, see if any arm has a non-default int type
 	if (expected_type->is_integer()) {
 		for (size_t i = 0; i < expr->arms.size(); ++i) {
-			const auto& arm = expr->arms[i];
+			const auto &arm = expr->arms[i];
 			if (!arm.body) continue;
 			auto ty = get_expr_type(arm.body);
 			if (ty->is_integer() && !isa<LiteralExpr>(arm.body)) {
@@ -773,7 +795,7 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 	}
 
 	for (size_t i = 0; i < expr->arms.size(); ++i) {
-		const auto& arm = expr->arms[i];
+		const auto &arm = expr->arms[i];
 		if (!arm.body) continue;
 		auto ty = get_expr_type(arm.body);
 		if (ty->is_error()) continue;
@@ -789,22 +811,13 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 		}
 
 		if (ty != expected_type) {
-			logger.error(arm.body->line, arm.body->col,
+			logger.error(
+				arm.body->line, arm.body->col,
 				"When arm expression type '" + ty->to_string() +
-				"' does not match expected when expression type '" + expected_type->to_string() + "'");
+				"' does not match expected when expression type '" + expected_type->to_string() + "'"
+			);
 		}
 	}
 
 	return expected_type;
 }
-
-
-
-
-
-
-
-
-
-
-

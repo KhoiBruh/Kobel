@@ -44,7 +44,9 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 		if (isa<StructDecl>(decl)) {
 			const auto *st = as<StructDecl>(decl);
 			current_module = get_decl_module(st);
-			std::string qual_name = current_module.empty() ? std::string(st->name) : current_module + "." + std::string(st->name);
+			std::string qual_name = current_module.empty()
+				                        ? std::string(st->name)
+				                        : current_module + "." + std::string(st->name);
 			auto &sym = structs[qual_name];
 
 			for (const auto &[name, type]: st->fields) {
@@ -256,15 +258,15 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			const auto *fn = as<FnDecl>(decl);
 			current_module = get_decl_module(fn);
 			std::string qual_name = current_module.empty() || fn->name == "main"
-				? std::string(fn->name)
-				: current_module + "." + std::string(fn->name);
+				                        ? std::string(fn->name)
+				                        : current_module + "." + std::string(fn->name);
 			check_function(fn, qual_name);
 		} else if (isa<StructDecl>(decl)) {
 			const auto *st = as<StructDecl>(decl);
 			current_module = get_decl_module(st);
 			std::string st_qual = current_module.empty()
-				? std::string(st->name)
-				: current_module + "." + std::string(st->name);
+				                      ? std::string(st->name)
+				                      : current_module + "." + std::string(st->name);
 			for (const auto &method: st->methods) {
 				std::string mangled = st_qual + "_" + std::string(method->name);
 				check_function(method, mangled);
@@ -273,8 +275,8 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			const auto *c = as<ConstDecl>(decl);
 			current_module = get_decl_module(c);
 			std::string c_qual = current_module.empty()
-				? std::string(c->name)
-				: current_module + "." + std::string(c->name);
+				                     ? std::string(c->name)
+				                     : current_module + "." + std::string(c->name);
 			auto val_type = analyze_expr(c->value);
 			auto expected_type = constants[c_qual].type;
 			if (expected_type->is_integer() && val_type->is_integer() &&
@@ -319,7 +321,10 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 	// Check that non-void functions return on all control paths
 	if (!sym.return_type->is_void() && !sym.return_type->is_error()) {
 		if (!has_definite_return(fn->body)) {
-			logger.error(fn->line, fn->col, "Function '" + std::string(fn->name) + "' missing return statement on all control paths");
+			logger.error(
+				fn->line, fn->col,
+				"Function '" + std::string(fn->name) + "' missing return statement on all control paths"
+			);
 		}
 	}
 
@@ -334,7 +339,7 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 
 	if (isa<BlockStmt>(stmt)) {
 		const auto *b = as<BlockStmt>(stmt);
-		for (const auto &s : b->statements) {
+		for (const auto &s: b->statements) {
 			if (has_definite_return(s)) return true;
 		}
 		return false;
@@ -349,7 +354,7 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 	if (isa<WhenStmt>(stmt)) {
 		const auto *w = as<WhenStmt>(stmt);
 		bool has_else = false;
-		for (const auto &arm : w->arms) {
+		for (const auto &arm: w->arms) {
 			if (arm.is_else) has_else = true;
 			if (!has_definite_return(arm.body)) return false;
 		}
@@ -358,6 +363,3 @@ bool Analyzer::has_definite_return(const Stmt *stmt) {
 
 	return false;
 }
-
-
-

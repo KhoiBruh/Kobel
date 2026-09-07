@@ -15,21 +15,24 @@ import logger;
 
 export struct StringHash {
 	using is_transparent = void;
+
 	size_t operator()(std::string_view sv) const noexcept {
 		return std::hash<std::string_view>{}(sv);
 	}
-	size_t operator()(const std::string& s) const noexcept {
+
+	size_t operator()(const std::string &s) const noexcept {
 		return std::hash<std::string_view>{}(s);
 	}
-	size_t operator()(const char* s) const noexcept {
+
+	size_t operator()(const char *s) const noexcept {
 		return std::hash<std::string_view>{}(s);
 	}
 };
 
-export template <typename Value>
-using StringMap = std::unordered_map<std::string, Value, StringHash, std::equal_to<>>;
+export template<typename Value>
+using StringMap = std::unordered_map<std::string, Value, StringHash, std::equal_to<> >;
 
-export using StringSet = std::unordered_set<std::string, StringHash, std::equal_to<>>;
+export using StringSet = std::unordered_set<std::string, StringHash, std::equal_to<> >;
 
 export enum class SemaType {
 	I8, I16, I32, I64, ISZ,
@@ -41,18 +44,26 @@ export enum class SemaType {
 
 export struct Type {
 	SemaType kind = SemaType::ERROR_TYPE;
-	const Type* pointee = nullptr;
+	const Type *pointee = nullptr;
 	bool is_mut_pointer = false;
 	std::string struct_name;
 	std::string enum_name;
-	const Type* underlying_type = nullptr;
-	const Type* element_type = nullptr;
+	const Type *underlying_type = nullptr;
+	const Type *element_type = nullptr;
 	mutable size_t array_size = 0; // mutable to allow array size inference
 
 	bool is_integer() const {
 		switch (kind) {
-			case SemaType::I8: case SemaType::I16: case SemaType::I32: case SemaType::I64: case SemaType::ISZ:
-			case SemaType::U8: case SemaType::U16: case SemaType::U32: case SemaType::U64: case SemaType::USZ:
+			case SemaType::I8:
+			case SemaType::I16:
+			case SemaType::I32:
+			case SemaType::I64:
+			case SemaType::ISZ:
+			case SemaType::U8:
+			case SemaType::U16:
+			case SemaType::U32:
+			case SemaType::U64:
+			case SemaType::USZ:
 				return true;
 			default: return false;
 		}
@@ -60,7 +71,11 @@ export struct Type {
 
 	bool is_signed_integer() const {
 		switch (kind) {
-			case SemaType::I8: case SemaType::I16: case SemaType::I32: case SemaType::I64: case SemaType::ISZ:
+			case SemaType::I8:
+			case SemaType::I16:
+			case SemaType::I32:
+			case SemaType::I64:
+			case SemaType::ISZ:
 				return true;
 			default: return false;
 		}
@@ -77,7 +92,7 @@ export struct Type {
 	bool is_array() const { return kind == SemaType::ARRAY; }
 	bool is_str() const { return kind == SemaType::STR; }
 
-	bool can_assign_from(const Type* src) const {
+	bool can_assign_from(const Type *src) const {
 		if (kind == SemaType::ERROR_TYPE || src->kind == SemaType::ERROR_TYPE) return true;
 		if (is_pointer() && src->is_null()) return true;
 		if (is_str() && src->is_str()) return true;
@@ -118,13 +133,11 @@ export struct Type {
 			case SemaType::ENUM: return enum_name;
 			case SemaType::ARRAY:
 				return "Array<" + (element_type ? element_type->to_string() : "unknown") + ">(" +
-					std::to_string(array_size) + ")";
+				       std::to_string(array_size) + ")";
 			case SemaType::ERROR_TYPE: return "<error-type>";
 		}
 		return "<unknown>";
 	}
 };
 
-export using Semantic = const Type*;
-
-
+export using Semantic = const Type *;

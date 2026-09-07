@@ -13,7 +13,7 @@ export inline std::string to_llvm_name(std::string_view name) {
 	if (name == "main") return "main";
 	std::string res;
 	res.reserve(name.size());
-	for (char c : name) {
+	for (const char c: name) {
 		if (c == '.') res += '_';
 		else res += c;
 	}
@@ -72,5 +72,3 @@ export struct EnumSymbol {
 export struct Scope {
 	StringMap<VarSymbol> variables;
 };
-
-

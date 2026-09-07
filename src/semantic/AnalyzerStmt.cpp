@@ -102,7 +102,8 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 			!cond_type->is_bool() && !cond_type->is_error()
 		)
 			logger.error(
-				w->line, w->col, "Condition of 'while' statement must be of type 'bool', got '" + cond_type->to_string() + "'"
+				w->line, w->col,
+				"Condition of 'while' statement must be of type 'bool', got '" + cond_type->to_string() + "'"
 			);
 		loop_depth++;
 		analyze_stmt(w->body);
@@ -175,9 +176,9 @@ void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
 		cond_type = analyze_expr(stmt->condition);
 	}
 
-	for (const auto& arm : stmt->arms) {
+	for (const auto &arm: stmt->arms) {
 		if (!arm.is_else) {
-			for (const auto* pat : arm.patterns) {
+			for (const auto *pat: arm.patterns) {
 				auto pat_type = analyze_expr(pat);
 				if (cond_type) {
 					if (cond_type->is_integer() && pat_type->is_integer() &&
@@ -187,17 +188,25 @@ void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
 					}
 					if (cond_type->is_enum() && pat_type->is_enum()) {
 						if (cond_type != pat_type) {
-							logger.error(pat->line, pat->col,
-								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" + cond_type->to_string() + "'");
+							logger.error(
+								pat->line, pat->col,
+								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" +
+								cond_type->to_string() + "'"
+							);
 						}
 					} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
-						logger.error(pat->line, pat->col,
-							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" + cond_type->to_string() + "'");
+						logger.error(
+							pat->line, pat->col,
+							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" +
+							cond_type->to_string() + "'"
+						);
 					}
 				} else {
 					if (!pat_type->is_bool() && !pat_type->is_error()) {
-						logger.error(pat->line, pat->col,
-							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'");
+						logger.error(
+							pat->line, pat->col,
+							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'"
+						);
 					}
 				}
 			}
@@ -208,6 +217,3 @@ void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
 		}
 	}
 }
-
-
-
