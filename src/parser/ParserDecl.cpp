@@ -3,7 +3,6 @@ module;
 
 #include <memory>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 module parser;
@@ -11,7 +10,7 @@ module parser;
 import ast;
 import token;
 
-FnDecl* Parser::parse_fn_decl() {
+FnDecl *Parser::parse_fn_decl() {
 	const auto tok = consume(TokenType::KW_FN, "Expected 'fn'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected function name after 'fn'");
 
@@ -28,7 +27,7 @@ FnDecl* Parser::parse_fn_decl() {
 			}
 
 			const Token p_name = consume(TokenType::IDENTIFIER, "Expected parameter name");
-			TypeNode* p_type = nullptr;
+			TypeNode *p_type = nullptr;
 			if (match(TokenType::COLON)) {
 				p_type = parse_type();
 			} else if (p_name.text != "self") {
@@ -40,18 +39,18 @@ FnDecl* Parser::parse_fn_decl() {
 	}
 	consume(TokenType::CLOSE_PAREN, "Expected ')' to close parameter list");
 
-	TypeNode* ret_type = nullptr;
+	TypeNode *ret_type = nullptr;
 	if (match(TokenType::COLON)) ret_type = parse_type();
 
-	BlockStmt* body = nullptr;
+	BlockStmt *body = nullptr;
 	if (check(TokenType::OPEN_BRACE)) {
 		body = parse_block_stmt();
 	} else if (match(TokenType::FAT_ARROW)) {
 		auto expr = parse_expression();
 		consume(TokenType::SEMI_COLON, "Expected ';' after expression body");
-		std::vector<Stmt*> stmts;
+		std::vector<Stmt *> stmts;
 		stmts.push_back(arena.alloc<ReturnStmt>(expr, tok.line, tok.col));
-		body = arena.alloc<BlockStmt>(arena.alloc_span<Stmt*>(stmts), tok.line, tok.col);
+		body = arena.alloc<BlockStmt>(arena.alloc_span<Stmt *>(stmts), tok.line, tok.col);
 	} else {
 		consume(
 			TokenType::SEMI_COLON,
@@ -66,7 +65,7 @@ FnDecl* Parser::parse_fn_decl() {
 	return fn;
 }
 
-StructDecl* Parser::parse_struct_decl() {
+StructDecl *Parser::parse_struct_decl() {
 	const auto tok = consume(TokenType::KW_STRUCT, "Expected 'struct'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected struct name");
 
@@ -82,7 +81,7 @@ StructDecl* Parser::parse_struct_decl() {
 	}
 	consume(TokenType::CLOSE_PAREN, "Expected ')' to close struct field declarations");
 
-	std::vector<FnDecl*> methods;
+	std::vector<FnDecl *> methods;
 	if (match(TokenType::OPEN_BRACE)) {
 		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
 			const bool method_pub = match(TokenType::KW_PUB);
@@ -107,11 +106,11 @@ StructDecl* Parser::parse_struct_decl() {
 	return st;
 }
 
-EnumDecl* Parser::parse_enum_decl() {
+EnumDecl *Parser::parse_enum_decl() {
 	const auto tok = consume(TokenType::KW_ENUM, "Expected 'enum'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected enum name");
 
-	TypeNode* underlying = nullptr;
+	TypeNode *underlying = nullptr;
 	if (match(TokenType::COLON)) {
 		underlying = parse_type();
 	}
@@ -123,7 +122,7 @@ EnumDecl* Parser::parse_enum_decl() {
 		do {
 			if (check(TokenType::CLOSE_BRACE)) break;
 			const Token m_name = consume(TokenType::IDENTIFIER, "Expected enum member name");
-			Expr* val = nullptr;
+			Expr *val = nullptr;
 			if (match(TokenType::EQUAL)) {
 				val = parse_expression();
 			}
@@ -139,7 +138,7 @@ EnumDecl* Parser::parse_enum_decl() {
 	return enum_decl;
 }
 
-ConstDecl* Parser::parse_const_decl() {
+ConstDecl *Parser::parse_const_decl() {
 	const auto tok = consume(TokenType::KW_CONST, "Expected 'const'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected constant name");
 
@@ -153,12 +152,12 @@ ConstDecl* Parser::parse_const_decl() {
 	return arena.alloc<ConstDecl>(name.text, type, val, tok.line, tok.col);
 }
 
-ExternBlock* Parser::parse_extern_block() {
+ExternBlock *Parser::parse_extern_block() {
 	const auto tok = consume(TokenType::KW_EXTERN, "Expected 'extern'");
 	const auto abi = consume(TokenType::STRING, "Expected ABI string (e.g., \"libc\", \"C\") after 'extern'");
 
 	consume(TokenType::OPEN_BRACE, "Expected '{' to begin extern block");
-	std::vector<FnDecl*> declarations;
+	std::vector<FnDecl *> declarations;
 
 	while (!is_end() && !check(TokenType::CLOSE_BRACE)) {
 		if (check(TokenType::KW_FN))
@@ -168,11 +167,11 @@ ExternBlock* Parser::parse_extern_block() {
 
 	consume(TokenType::CLOSE_BRACE, "Expected '}' to end extern block");
 	auto ext = arena.alloc<ExternBlock>(abi.text, tok.line, tok.col);
-	ext->declarations = arena.alloc_span<FnDecl*>(declarations);
+	ext->declarations = arena.alloc_span<FnDecl *>(declarations);
 	return ext;
 }
 
-ModuleDecl* Parser::parse_module_decl() {
+ModuleDecl *Parser::parse_module_decl() {
 	const auto tok = consume(TokenType::KW_MODULE, "Expected 'module'");
 	std::vector<std::string_view> path;
 
@@ -185,7 +184,7 @@ ModuleDecl* Parser::parse_module_decl() {
 	}
 
 	consume(TokenType::SEMI_COLON, "Expected ';' after module declaration");
-		std::string full_path;
+	std::string full_path;
 	for (size_t i = 0; i < path.size(); ++i) {
 		if (i > 0) full_path += ".";
 		full_path += path[i];
@@ -193,7 +192,7 @@ ModuleDecl* Parser::parse_module_decl() {
 	return arena.alloc<ModuleDecl>(arena.alloc_span(path), arena.alloc_string(full_path), tok.line, tok.col);
 }
 
-UseDecl* Parser::parse_use_decl() {
+UseDecl *Parser::parse_use_decl() {
 	const auto tok = consume(TokenType::KW_USE, "Expected 'use'");
 	std::vector<std::string_view> segments;
 	bool is_wildcard = false;
@@ -231,15 +230,17 @@ UseDecl* Parser::parse_use_decl() {
 		path = segments;
 	}
 
-		std::string full_path;
+	std::string full_path;
 	for (size_t i = 0; i < path.size(); ++i) {
 		if (i > 0) full_path += ".";
 		full_path += path[i];
 	}
-	return arena.alloc<UseDecl>(arena.alloc_span(path), arena.alloc_string(full_path), symbol_name, alias, is_wildcard, tok.line, tok.col);
+	return arena.alloc<UseDecl>(
+		arena.alloc_span(path), arena.alloc_string(full_path), symbol_name, alias, is_wildcard, tok.line, tok.col
+	);
 }
 
-Decl* Parser::parse_declaration() {
+Decl *Parser::parse_declaration() {
 	bool is_pub = false;
 	if (match(TokenType::KW_PUB)) {
 		is_pub = true;
@@ -259,7 +260,7 @@ Decl* Parser::parse_declaration() {
 		return parse_use_decl();
 	}
 
-	Decl* decl = nullptr;
+	Decl *decl = nullptr;
 	if (check(TokenType::KW_FN)) decl = parse_fn_decl();
 	else if (check(TokenType::KW_STRUCT)) decl = parse_struct_decl();
 	else if (check(TokenType::KW_ENUM)) decl = parse_enum_decl();
@@ -277,24 +278,14 @@ Decl* Parser::parse_declaration() {
 	return decl;
 }
 
-Program* Parser::parse_program() {
+Program *Parser::parse_program() {
 	auto program = arena.alloc<Program>();
-	std::vector<Decl*> decls;
+	std::vector<Decl *> decls;
 	while (!is_end()) {
 		if (auto decl = parse_declaration())
 			decls.push_back(decl);
 		else synchronize();
 	}
-	program->declarations = arena.alloc_span<Decl*>(decls);
+	program->declarations = arena.alloc_span<Decl *>(decls);
 	return program;
 }
-
-
-
-
-
-
-
-
-
-

@@ -3,14 +3,13 @@ module;
 #include <memory>
 #include <string>
 #include <string_view>
-#include <utility>
 
 module parser;
 
 import ast;
 import token;
 
-TypeNode* Parser::parse_type() {
+TypeNode *Parser::parse_type() {
 	const Token tok = peek();
 
 	// Pointer: *T (read-only) or &T (read-write)
@@ -58,6 +57,3 @@ TypeNode* Parser::parse_type() {
 	error(tok, "Expected type name or pointer ('*' or '&')");
 	return nullptr;
 }
-
-
-

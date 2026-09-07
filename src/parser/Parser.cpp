@@ -14,27 +14,28 @@ export import logger;
 
 export enum class Precedence {
 	NONE,
-	ASSIGN,     // =
-	OR,         // ||
-	AND,        // &&
-	EQUALITY,   // == !=
+	ASSIGN, // =
+	OR, // ||
+	AND, // &&
+	EQUALITY, // == !=
 	COMPARISON, // < <= > >=
-	TERM,       // + -
-	FACTOR,     // * / %
-	UNARY,      // ! - *
-	POSTFIX     // () . [] as
+	TERM, // + -
+	FACTOR, // * / %
+	UNARY, // ! - *
+	POSTFIX // () . [] as
 };
 
 export struct Parser {
 	std::vector<Token> tokens;
 	size_t current = 0;
-	DiagnosticEngine* diag = nullptr;
+	DiagnosticEngine *diag = nullptr;
 	DiagnosticEngine local_diag;
 	std::vector<std::string> errors;
 	Arena arena;
 
-	explicit Parser(std::vector<Token> toks, DiagnosticEngine* d = nullptr)
-		: tokens(std::move(toks)), diag(d) {}
+	explicit Parser(std::vector<Token> toks, DiagnosticEngine *d = nullptr)
+		: tokens(std::move(toks)), diag(d) {
+	}
 
 	// 1. Navigation & Helper methods
 	bool is_end() const {
@@ -89,7 +90,7 @@ export struct Parser {
 		return diag ? diag->has_errors() : local_diag.has_errors();
 	}
 
-	const std::vector<Diagnostic>& get_diagnostics() const {
+	const std::vector<Diagnostic> &get_diagnostics() const {
 		return diag ? diag->diagnostics : local_diag.diagnostics;
 	}
 
@@ -125,35 +126,48 @@ export struct Parser {
 	Precedence get_infix_precedence(TokenType type) const;
 
 	// 3. Type parsing (ParserType.cpp)
-	TypeNode* parse_type();
+	TypeNode *parse_type();
 
 	// 4. Expression parsing (ParserExpr.cpp)
-	Expr* parse_prefix();
-	Expr* parse_expression(Precedence min_prec = Precedence::NONE);
-	Expr* parse_if_expr();
-	Expr* parse_when_expr();
+	Expr *parse_prefix();
+
+	Expr *parse_expression(Precedence min_prec = Precedence::NONE);
+
+	Expr *parse_if_expr();
+
+	Expr *parse_when_expr();
 
 	// 5. Statement parsing (ParserStmt.cpp)
-	BlockStmt* parse_block_stmt();
-	Stmt* parse_var_decl_stmt();
-	Stmt* parse_if_stmt();
-	Stmt* parse_when_stmt();
-	Stmt* parse_while_stmt();
-	Stmt* parse_return_stmt();
-	Stmt* parse_statement();
+	BlockStmt *parse_block_stmt();
+
+	Stmt *parse_var_decl_stmt();
+
+	Stmt *parse_if_stmt();
+
+	Stmt *parse_when_stmt();
+
+	Stmt *parse_while_stmt();
+
+	Stmt *parse_return_stmt();
+
+	Stmt *parse_statement();
 
 	// 6. Declaration parsing (ParserDecl.cpp)
-	ModuleDecl* parse_module_decl();
-	UseDecl* parse_use_decl();
-	FnDecl* parse_fn_decl();
-	StructDecl* parse_struct_decl();
-	EnumDecl* parse_enum_decl();
-	ConstDecl* parse_const_decl();
-	ExternBlock* parse_extern_block();
-	Decl* parse_declaration();
-	Program* parse_program();
+	ModuleDecl *parse_module_decl();
+
+	UseDecl *parse_use_decl();
+
+	FnDecl *parse_fn_decl();
+
+	StructDecl *parse_struct_decl();
+
+	EnumDecl *parse_enum_decl();
+
+	ConstDecl *parse_const_decl();
+
+	ExternBlock *parse_extern_block();
+
+	Decl *parse_declaration();
+
+	Program *parse_program();
 };
-
-
-
-

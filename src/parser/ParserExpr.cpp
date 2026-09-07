@@ -1,8 +1,6 @@
 module;
 
-#include <memory>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 module parser;
@@ -34,7 +32,7 @@ Precedence Parser::get_infix_precedence(const TokenType type) const {
 	}
 }
 
-Expr* Parser::parse_prefix() {
+Expr *Parser::parse_prefix() {
 	const auto tok = peek();
 
 	// constant number
@@ -100,7 +98,7 @@ Expr* Parser::parse_prefix() {
 
 	// Array literal: [expr1, expr2, ...]
 	if (match(TokenType::OPEN_BRACKET)) {
-		std::vector<Expr*> elements;
+		std::vector<Expr *> elements;
 		if (!check(TokenType::CLOSE_BRACKET)) {
 			do {
 				if (check(TokenType::CLOSE_BRACKET)) break;
@@ -132,13 +130,13 @@ Expr* Parser::parse_prefix() {
 	return nullptr;
 }
 
-Expr* Parser::parse_if_expr() {
+Expr *Parser::parse_if_expr() {
 	const Token tok = previous(); // KW_IF
 	consume(TokenType::OPEN_PAREN, "Expected '(' after 'if'");
 	auto cond = parse_expression();
 	consume(TokenType::CLOSE_PAREN, "Expected ')' after if condition");
 
-	Expr* then_branch = nullptr;
+	Expr *then_branch = nullptr;
 	if (match(TokenType::OPEN_BRACE)) {
 		then_branch = parse_expression();
 		match(TokenType::SEMI_COLON);
@@ -149,7 +147,7 @@ Expr* Parser::parse_if_expr() {
 
 	consume(TokenType::KW_ELSE, "Expected 'else' in if-expression");
 
-	Expr* else_branch = nullptr;
+	Expr *else_branch = nullptr;
 	if (match(TokenType::OPEN_BRACE)) {
 		else_branch = parse_expression();
 		match(TokenType::SEMI_COLON);
@@ -161,10 +159,10 @@ Expr* Parser::parse_if_expr() {
 	return arena.alloc<IfExpr>(cond, then_branch, else_branch, tok.line, tok.col);
 }
 
-Expr* Parser::parse_when_expr() {
+Expr *Parser::parse_when_expr() {
 	const Token tok = previous(); // KW_WHEN
 
-	Expr* condition = nullptr;
+	Expr *condition = nullptr;
 	if (match(TokenType::OPEN_PAREN)) {
 		condition = parse_expression();
 		consume(TokenType::CLOSE_PAREN, "Expected ')' after when condition");
@@ -181,12 +179,12 @@ Expr* Parser::parse_when_expr() {
 		if (match(TokenType::KW_ELSE)) {
 			arm.is_else = true;
 		} else {
-			std::vector<Expr*> patterns;
+			std::vector<Expr *> patterns;
 			patterns.push_back(parse_expression());
 			while (match(TokenType::COMMA)) {
 				patterns.push_back(parse_expression());
 			}
-			arm.patterns = arena.alloc_span<Expr*>(patterns);
+			arm.patterns = arena.alloc_span<Expr *>(patterns);
 		}
 
 		consume(TokenType::ARROW, "Expected '->' after when pattern");
@@ -214,7 +212,7 @@ Expr* Parser::parse_when_expr() {
 	return arena.alloc<WhenExpr>(condition, arena.alloc_span<WhenArm>(arms), tok.line, tok.col);
 }
 
-Expr* Parser::parse_expression(const Precedence min_prec) {
+Expr *Parser::parse_expression(const Precedence min_prec) {
 	auto left = parse_prefix();
 	if (!left) return nullptr;
 
@@ -222,7 +220,7 @@ Expr* Parser::parse_expression(const Precedence min_prec) {
 		switch (const auto op = advance(); op.type) {
 			// 1. function operator: callee(arg1, arg2, ...)
 			case TokenType::OPEN_PAREN: {
-				std::vector<Expr*> args;
+				std::vector<Expr *> args;
 				if (!check(TokenType::CLOSE_PAREN)) {
 					do {
 						args.push_back(parse_expression());
@@ -290,6 +288,3 @@ Expr* Parser::parse_expression(const Precedence min_prec) {
 
 	return left;
 }
-
-
-
