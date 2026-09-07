@@ -51,7 +51,7 @@ FnDecl* Parser::parse_fn_decl() {
 		consume(TokenType::SEMI_COLON, "Expected ';' after expression body");
 		std::vector<Stmt*> stmts;
 		stmts.push_back(arena.alloc<ReturnStmt>(expr, tok.line, tok.col));
-		body = arena.alloc<BlockStmt>(stmts, tok.line, tok.col);
+		body = arena.alloc<BlockStmt>(arena.alloc_span<Stmt*>(stmts), tok.line, tok.col);
 	} else {
 		consume(
 			TokenType::SEMI_COLON,
@@ -168,7 +168,7 @@ ExternBlock* Parser::parse_extern_block() {
 
 	consume(TokenType::CLOSE_BRACE, "Expected '}' to end extern block");
 	auto ext = arena.alloc<ExternBlock>(abi.text, tok.line, tok.col);
-	ext->declarations = declarations;
+	ext->declarations = arena.alloc_span<FnDecl*>(declarations);
 	return ext;
 }
 
@@ -288,6 +288,8 @@ Program* Parser::parse_program() {
 	program->declarations = arena.alloc_span<Decl*>(decls);
 	return program;
 }
+
+
 
 
 

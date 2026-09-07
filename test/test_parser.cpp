@@ -171,7 +171,7 @@ bool test_parse_extern_and_const() {
 	auto ext = as<ExternBlock>(prog->declarations[1]);
 	ASSERT(ext->abi == "\"libc\"", "ABI ph???i l?? libc");
 	ASSERT(ext->declarations.size() == 2, "Kh???i extern ph???i ch???a 2 h??m");
-	ASSERT(ext->declarations[0]->name == "printf", "H??m 1 ph???i l?? printf");
+	std::cout << "printf name: " << ext->declarations[0]->name << std::endl; ASSERT(ext->declarations[0]->name == "printf", "H??m 1 ph???i l?? printf");
 	ASSERT(ext->declarations[1]->name == "malloc", "H??m 2 ph???i l?? malloc");
 
 	return true;
@@ -480,6 +480,7 @@ int main() {
 	std::cout << "[ALL PASSED] Parser tests passed successfully!" << std::endl;
 	return 0;
 }
+
 
 
 
