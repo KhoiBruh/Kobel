@@ -169,6 +169,13 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			return builder->CreateGEP(elem_llvm_type, ptr_val, index_val, "ptridx");
 		}
 
+		// str[index]: extract data ptr, GEP to char
+		if (target_sema->is_str()) {
+			auto* str_val = emit_expr(idx->target);
+			auto* data_ptr = builder->CreateExtractValue(str_val, 0, "str.data");
+			return builder->CreateGEP(builder->getInt8Ty(), data_ptr, index_val, "str.idx");
+		}
+
 		return nullptr;
 	}
 
@@ -219,7 +226,15 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			case LiteralKind::STRING: {
 				const std::string s = unescape_string(lit->raw_text);
-				return builder->CreateGlobalString(s, ".str", 0, module.get());
+				// CreateGlobalString appends \0 automatically
+				auto* global = builder->CreateGlobalString(s, ".str", 0, module.get());
+				// Wrap as str struct: { data, len, cap=0 (STATIC) }
+				auto* str_ty = struct_types["str"];
+				llvm::Value* str_val = llvm::UndefValue::get(str_ty);
+				str_val = builder->CreateInsertValue(str_val, global, 0);                        // data
+				str_val = builder->CreateInsertValue(str_val, builder->getInt64(s.size()), 1);   // len
+				str_val = builder->CreateInsertValue(str_val, builder->getInt64(0), 2);          // cap = 0 (STATIC)
+				return str_val;
 			}
 
 			case LiteralKind::NULL_VAL:
@@ -268,6 +283,10 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		const auto *a = as<AssignExpr>(expr);
 		auto *lval = emit_lvalue(a->target);
 		auto *rval = emit_expr(a->value);
+		auto target_sema = get_sema_type(a->target);
+		if (target_sema->is_pointer() && rval->getType()->isStructTy()) {
+			rval = builder->CreateExtractValue(rval, 0, "str_ptr");
+		}
 		builder->CreateStore(rval, lval);
 		return rval;
 	}
@@ -328,6 +347,41 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		auto *r = emit_expr(b->right);
 
 		auto left_sema = get_sema_type(b->left);
+
+		// str binary ops
+		if (left_sema->is_str()) {
+			auto* str_ty = struct_types["str"];
+
+			if (b->op == TokenType::PLUS) {
+				// Alloca + store both operands, pass by pointer to __kobel_str_concat
+				auto* fn = builder->GetInsertBlock()->getParent();
+				auto* l_alloca = create_entry_block_alloca(fn, str_ty, "concat.l");
+				auto* r_alloca = create_entry_block_alloca(fn, str_ty, "concat.r");
+				builder->CreateStore(l, l_alloca);
+				builder->CreateStore(r, r_alloca);
+				auto* concat_fn = module->getFunction("__kobel_str_concat");
+				return builder->CreateCall(concat_fn, {l_alloca, r_alloca}, "concat");
+			}
+
+			if (b->op == TokenType::EQUAL_EQUAL || b->op == TokenType::BANG_EQUAL) {
+				// Compare len first, then memcmp
+				auto* a_len = builder->CreateExtractValue(l, 1, "a.len");
+				auto* b_len = builder->CreateExtractValue(r, 1, "b.len");
+				auto* len_eq = builder->CreateICmpEQ(a_len, b_len, "len.eq");
+
+				auto* a_data = builder->CreateExtractValue(l, 0, "a.data");
+				auto* b_data = builder->CreateExtractValue(r, 0, "b.data");
+				auto* memcmp_fn = module->getFunction("memcmp");
+				auto* cmp_result = builder->CreateCall(memcmp_fn, {a_data, b_data, a_len}, "memcmp");
+				auto* content_eq = builder->CreateICmpEQ(cmp_result, builder->getInt32(0), "content.eq");
+
+				auto* result = builder->CreateAnd(len_eq, content_eq, "str.eq");
+				if (b->op == TokenType::BANG_EQUAL)
+					result = builder->CreateNot(result, "str.ne");
+				return result;
+			}
+		}
+
 		const bool is_unsigned = !left_sema->is_signed_integer();
 
 		switch (b->op) {
@@ -429,17 +483,39 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			if (!callee) return nullptr;
 
 			std::vector<llvm::Value *> args;
-			for (const auto &arg: c->args) {
-				args.push_back(emit_expr(arg));
+			for (size_t i = 0; i < c->args.size(); ++i) {
+				auto *arg_val = emit_expr(c->args[i]);
+				if (i < callee->getFunctionType()->getNumParams()) {
+					auto *expected_ty = callee->getFunctionType()->getParamType(static_cast<unsigned>(i));
+					if (expected_ty->isPointerTy() && arg_val->getType()->isStructTy()) {
+						arg_val = builder->CreateExtractValue(arg_val, 0, "str_ptr");
+					}
+				} else if (callee->isVarArg() && arg_val->getType()->isStructTy()) {
+					arg_val = builder->CreateExtractValue(arg_val, 0, "str_ptr");
+				}
+				args.push_back(arg_val);
 			}
 
 			return builder->CreateCall(callee, args);
 		}
 
-		// 6b. Struct method call: object.method(args...)
+		// 6b. Method call: object.method(args...)
 		if (isa<MemberExpr>(c->callee)) {
 			const auto *m = as<MemberExpr>(c->callee);
 			auto obj_type = get_sema_type(m->object);
+
+			// Built-in str methods
+			if (obj_type->is_str()) {
+				auto* str_val = emit_expr(m->object);
+				if (std::string(m->member) == "size") {
+					return builder->CreateExtractValue(str_val, 1, "str.size");
+				}
+				if (std::string(m->member) == "c_str") {
+					return builder->CreateExtractValue(str_val, 0, "str.cstr");
+				}
+				return nullptr;
+			}
+
 			std::string st_name = obj_type->is_struct() ? obj_type->struct_name : obj_type->pointee->struct_name;
 			std::string mangled = to_llvm_name(st_name) + "_" + std::string(m->member);
 
@@ -481,8 +557,18 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			}
 
 			// Load remaining arguments
-			for (const auto &arg: c->args) {
-				args.push_back(emit_expr(arg));
+			for (size_t i = 0; i < c->args.size(); ++i) {
+				auto *arg_val = emit_expr(c->args[i]);
+				size_t param_idx = (analyzer && analyzer->functions.contains(mangled) && !analyzer->functions.at(mangled).param_types.empty() && analyzer->functions.at(mangled).param_names[0] == "self") ? i + 1 : i;
+				if (param_idx < callee->getFunctionType()->getNumParams()) {
+					auto *expected_ty = callee->getFunctionType()->getParamType(static_cast<unsigned>(param_idx));
+					if (expected_ty->isPointerTy() && arg_val->getType()->isStructTy()) {
+						arg_val = builder->CreateExtractValue(arg_val, 0, "str_ptr");
+					}
+				} else if (callee->isVarArg() && arg_val->getType()->isStructTy()) {
+					arg_val = builder->CreateExtractValue(arg_val, 0, "str_ptr");
+				}
+				args.push_back(arg_val);
 			}
 
 			return builder->CreateCall(callee, args);
@@ -518,6 +604,17 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			return builder->getInt32(
 				static_cast<int32_t>(obj_sema->array_size)
 			);
+
+		// 7d. str properties (.len, .data)
+		if (obj_sema->is_str()) {
+			auto* str_val = emit_expr(m->object);
+			if (m->member == "len") {
+				return builder->CreateExtractValue(str_val, 1, "str.len");
+			}
+			if (m->member == "data") {
+				return builder->CreateExtractValue(str_val, 0, "str.data");
+			}
+		}
 
 		llvm::Value *field_ptr = emit_lvalue(m);
 		auto field_sema = get_sema_type(m);

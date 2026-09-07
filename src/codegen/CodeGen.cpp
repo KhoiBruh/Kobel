@@ -93,6 +93,124 @@ export struct CodeGen {
 		  builder(std::make_unique<llvm::IRBuilder<>>(*context)),
 		  analyzer(sema) {
 		setup_target_machine("x86_64-pc-windows-msvc");
+		init_str_type();
+		declare_runtime_functions();
+		emit_str_helpers();
+	}
+
+	void init_str_type() {
+		// str = { data: ptr, len: i64, cap: i64 }
+		llvm::Type* str_fields[] = {
+			llvm::PointerType::get(*context, 0),  // data
+			builder->getInt64Ty(),                  // len
+			builder->getInt64Ty()                   // cap
+		};
+		auto* str_struct = llvm::StructType::create(*context, str_fields, "str");
+		struct_types["str"] = str_struct;
+	}
+
+	void declare_runtime_functions() {
+		auto* ptr_ty = llvm::PointerType::get(*context, 0);
+		auto* i64_ty = builder->getInt64Ty();
+		auto* i32_ty = builder->getInt32Ty();
+		auto* void_ty = builder->getVoidTy();
+
+		// void* malloc(size_t)
+		module->getOrInsertFunction("malloc",
+			llvm::FunctionType::get(ptr_ty, {i64_ty}, false));
+		// void free(void*)
+		module->getOrInsertFunction("free",
+			llvm::FunctionType::get(void_ty, {ptr_ty}, false));
+		// void* memcpy(void* dst, void* src, size_t n)
+		module->getOrInsertFunction("memcpy",
+			llvm::FunctionType::get(ptr_ty, {ptr_ty, ptr_ty, i64_ty}, false));
+		// int memcmp(void* a, void* b, size_t n)
+		module->getOrInsertFunction("memcmp",
+			llvm::FunctionType::get(i32_ty, {ptr_ty, ptr_ty, i64_ty}, false));
+	}
+
+	void emit_str_helpers() {
+		auto* ptr_ty = llvm::PointerType::get(*context, 0);
+		auto* i64_ty = builder->getInt64Ty();
+		auto* i8_ty = builder->getInt8Ty();
+		auto* str_ty = struct_types["str"];
+
+		// __kobel_str_concat(str* a, str* b) -> str
+		{
+			llvm::FunctionType* fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, ptr_ty}, false);
+			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::InternalLinkage, "__kobel_str_concat", *module);
+			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			builder->SetInsertPoint(entry);
+
+			auto args = fn->arg_begin();
+			llvm::Value* a_ptr = &*args++;
+			llvm::Value* b_ptr = &*args;
+
+			// Load a.data, a.len
+			auto* a_data_ptr = builder->CreateStructGEP(str_ty, a_ptr, 0);
+			auto* a_data = builder->CreateLoad(ptr_ty, a_data_ptr, "a.data");
+			auto* a_len_ptr = builder->CreateStructGEP(str_ty, a_ptr, 1);
+			auto* a_len = builder->CreateLoad(i64_ty, a_len_ptr, "a.len");
+
+			// Load b.data, b.len
+			auto* b_data_ptr = builder->CreateStructGEP(str_ty, b_ptr, 0);
+			auto* b_data = builder->CreateLoad(ptr_ty, b_data_ptr, "b.data");
+			auto* b_len_ptr = builder->CreateStructGEP(str_ty, b_ptr, 1);
+			auto* b_len = builder->CreateLoad(i64_ty, b_len_ptr, "b.len");
+
+			// new_len = a.len + b.len
+			auto* new_len = builder->CreateAdd(a_len, b_len, "new.len");
+			// new_cap = new_len + 1 (for \0)
+			auto* new_cap = builder->CreateAdd(new_len, builder->getInt64(1), "new.cap");
+
+			// new_data = malloc(new_cap)
+			auto* malloc_fn = module->getFunction("malloc");
+			auto* new_data = builder->CreateCall(malloc_fn, {new_cap}, "new.data");
+
+			// memcpy(new_data, a.data, a.len)
+			auto* memcpy_fn = module->getFunction("memcpy");
+			builder->CreateCall(memcpy_fn, {new_data, a_data, a_len});
+
+			// memcpy(new_data + a.len, b.data, b.len)
+			auto* dst_offset = builder->CreateGEP(i8_ty, new_data, a_len, "dst.offset");
+			builder->CreateCall(memcpy_fn, {dst_offset, b_data, b_len});
+
+			// new_data[new_len] = '\0'
+			auto* null_ptr = builder->CreateGEP(i8_ty, new_data, new_len, "null.pos");
+			builder->CreateStore(builder->getInt8(0), null_ptr);
+
+			// Build result str { new_data, new_len, new_cap }
+			llvm::Value* result = llvm::UndefValue::get(str_ty);
+			result = builder->CreateInsertValue(result, new_data, 0);
+			result = builder->CreateInsertValue(result, new_len, 1);
+			result = builder->CreateInsertValue(result, new_cap, 2);
+			builder->CreateRet(result);
+		}
+
+		// __kobel_str_free(str* s) -> void
+		{
+			llvm::FunctionType* fn_ty = llvm::FunctionType::get(builder->getVoidTy(), {ptr_ty}, false);
+			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::ExternalLinkage, "__kobel_str_free", *module);
+			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			auto* free_bb = llvm::BasicBlock::Create(*context, "do.free", fn);
+			auto* done_bb = llvm::BasicBlock::Create(*context, "done", fn);
+			builder->SetInsertPoint(entry);
+
+			llvm::Value* s_ptr = &*fn->arg_begin();
+			auto* cap_ptr = builder->CreateStructGEP(str_ty, s_ptr, 2);
+			auto* cap = builder->CreateLoad(i64_ty, cap_ptr, "cap");
+			auto* is_owned = builder->CreateICmpUGT(cap, builder->getInt64(0), "is.owned");
+			builder->CreateCondBr(is_owned, free_bb, done_bb);
+
+			builder->SetInsertPoint(free_bb);
+			auto* data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
+			auto* data = builder->CreateLoad(ptr_ty, data_ptr, "data");
+			builder->CreateCall(module->getFunction("free"), {data});
+			builder->CreateBr(done_bb);
+
+			builder->SetInsertPoint(done_bb);
+			builder->CreateRetVoid();
+		}
 	}
 
 	// ========================================================================
@@ -125,6 +243,9 @@ export struct CodeGen {
 
 			case SemaType::VOID:
 				return builder->getVoidTy();
+
+			case SemaType::STR:
+				return struct_types["str"];
 
 			case SemaType::POINTER:
 			case SemaType::NULL_TYPE:

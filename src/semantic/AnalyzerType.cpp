@@ -33,7 +33,7 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 		if (name == "bool") return make_primitive(SemaType::BOOL);
 		if (name == "char") return make_primitive(SemaType::CHAR);
 		if (name == "void") return make_primitive(SemaType::VOID);
-
+		if (name == "str") return make_str();
 		// Check declared struct
 		std::string resolved_st = resolve_struct_name(name, node->line, node->col);
 		if (!resolved_st.empty()) return make_struct(resolved_st);

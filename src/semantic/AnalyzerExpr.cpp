@@ -22,8 +22,7 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			case LiteralKind::INT: return make_primitive(SemaType::I32); // default int is i32
 			case LiteralKind::BOOL: return make_primitive(SemaType::BOOL);
 			case LiteralKind::CHAR: return make_primitive(SemaType::CHAR);
-			case LiteralKind::STRING: return make_pointer(make_primitive(SemaType::CHAR));
-			// *char
+			case LiteralKind::STRING: return make_str();
 			case LiteralKind::NULL_VAL: return make_null();
 			default: return make_error();
 		}
@@ -111,6 +110,12 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			}
 			target_type = analyze_expr(a->target);
 		} else if (isa<IndexExpr>(a->target)) {
+			const auto *idx = as<IndexExpr>(a->target);
+			auto target_obj_type = analyze_expr(idx->target);
+			if (target_obj_type->is_str()) {
+				logger.error(a->line, a->col, "Cannot modify elements of immutable string 'str'");
+				return make_error();
+			}
 			target_type = analyze_expr(a->target);
 		} else if (isa<UnaryExpr>(a->target) && as<UnaryExpr>(a->target)->op == TokenType::STAR) {
 			target_type = analyze_expr(a->target); // *ptr = value
@@ -151,6 +156,10 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			case TokenType::STAR:
 			case TokenType::SLASH:
 			case TokenType::PERCENT: {
+				// str + str → str (concatenation)
+				if (b->op == TokenType::PLUS && left_type->is_str() && right_type->is_str()) {
+					return make_str();
+				}
 				if (!left_type->is_integer() || !right_type->is_integer()) {
 					logger.error(b->line, b->col, "Arithmetic operators are only applicable to integer types");
 					return make_error();
@@ -190,6 +199,8 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			case TokenType::BANG_EQUAL: {
 				if (left_type->is_pointer() && right_type->is_null()) return make_primitive(SemaType::BOOL);
 				if (left_type->is_null() && right_type->is_pointer()) return make_primitive(SemaType::BOOL);
+				// str == str / str != str → bool (content comparison)
+				if (left_type->is_str() && right_type->is_str()) return make_primitive(SemaType::BOOL);
 				if (left_type != right_type) {
 					logger.error(
 						b->line, b->col, "Cannot compare different types: '" +
@@ -370,6 +381,26 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			auto obj_type = analyze_expr(m->object);
 			if (obj_type->is_error()) return make_error();
 
+			// Built-in str methods
+			if (obj_type->is_str()) {
+				const auto method_name = std::string(m->member);
+				if (method_name == "size") {
+					if (!c->args.empty()) {
+						logger.error(c->line, c->col, "str.size() takes no arguments");
+					}
+					return make_primitive(SemaType::USZ);
+				}
+				if (method_name == "c_str") {
+					if (!c->args.empty()) {
+						logger.error(c->line, c->col, "str.c_str() takes no arguments");
+					}
+					return make_pointer(make_primitive(SemaType::CHAR));
+				}
+				logger.error(c->line, c->col,
+					"str type only supports methods '.size()' and '.c_str()'");
+				return make_error();
+			}
+
 			std::string struct_name;
 			if (obj_type->is_struct()) {
 				struct_name = obj_type->struct_name;
@@ -498,6 +529,14 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 			return make_error();
 		}
 
+		// Check str properties (.len, .data)
+		if (obj_type->is_str()) {
+			if (m->member == "len") return make_primitive(SemaType::USZ);
+			if (m->member == "data") return make_pointer(make_primitive(SemaType::U8));
+			logger.error(m->line, m->col, "str type only supports properties '.len' and '.data'");
+			return make_error();
+		}
+
 		std::string struct_name;
 		if (obj_type->is_struct()) {
 			struct_name = obj_type->struct_name;
@@ -554,7 +593,10 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 
 		if (target_type->is_pointer() && target_type->pointee) return target_type->pointee;
 
-		logger.error(idx->line, idx->col, "Index operator '[]' is only applicable to array or pointer types");
+		// str[index] → char
+		if (target_type->is_str()) return make_primitive(SemaType::CHAR);
+
+		logger.error(idx->line, idx->col, "Index operator '[]' is only applicable to array, pointer, or str types");
 		return make_error();
 	}
 

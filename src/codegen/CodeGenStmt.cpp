@@ -68,6 +68,9 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 				}
 			} else {
 				llvm::Value* init_val = emit_expr(v->initializer);
+				if (var_type->isPointerTy() && init_val->getType()->isStructTy()) {
+					init_val = builder->CreateExtractValue(init_val, 0, "str_ptr");
+				}
 				builder->CreateStore(init_val, alloca);
 			}
 		}
@@ -171,6 +174,10 @@ void CodeGen::emit_stmt(const Stmt* stmt) {
 		const auto* r = as<ReturnStmt>(stmt);
 		if (r->value) {
 			llvm::Value* val = emit_expr(r->value);
+			if (val && val->getType()->isStructTy() &&
+				builder->GetInsertBlock()->getParent()->getReturnType()->isPointerTy()) {
+				val = builder->CreateExtractValue(val, 0, "str_ptr");
+			}
 			builder->CreateRet(val);
 		} else {
 			builder->CreateRetVoid();

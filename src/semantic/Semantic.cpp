@@ -34,7 +34,7 @@ export using StringSet = std::unordered_set<std::string, StringHash, std::equal_
 export enum class SemaType {
 	I8, I16, I32, I64, ISZ,
 	U8, U16, U32, U64, USZ,
-	BOOL, CHAR, VOID,
+	BOOL, CHAR, VOID, STR,
 	POINTER, STRUCT, ENUM, ARRAY,
 	NULL_TYPE, ERROR_TYPE
 };
@@ -75,10 +75,13 @@ export struct Type {
 	bool is_struct() const { return kind == SemaType::STRUCT; }
 	bool is_enum() const { return kind == SemaType::ENUM; }
 	bool is_array() const { return kind == SemaType::ARRAY; }
+	bool is_str() const { return kind == SemaType::STR; }
 
 	bool can_assign_from(const Type* src) const {
 		if (kind == SemaType::ERROR_TYPE || src->kind == SemaType::ERROR_TYPE) return true;
 		if (is_pointer() && src->is_null()) return true;
+		if (is_str() && src->is_str()) return true;
+		if (is_pointer() && !is_mut_pointer && pointee && pointee->is_char() && src->is_str()) return true;
 
 		if (is_pointer() && src->is_pointer()) {
 			if (is_mut_pointer && !src->is_mut_pointer) return false;
@@ -107,6 +110,7 @@ export struct Type {
 			case SemaType::BOOL: return "bool";
 			case SemaType::CHAR: return "char";
 			case SemaType::VOID: return "void";
+			case SemaType::STR: return "str";
 			case SemaType::NULL_TYPE: return "null";
 			case SemaType::POINTER:
 				return (is_mut_pointer ? "&" : "*") + (pointee ? pointee->to_string() : "unknown");

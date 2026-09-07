@@ -310,6 +310,7 @@ int Driver::run() {
 			}
 		} else {
 			parsed_programs.push_back(std::move(prog));
+			parsers.push_back(std::move(parser));
 		}
 	}
 

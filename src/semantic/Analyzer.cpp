@@ -106,6 +106,7 @@ export struct Analyzer {
 	Semantic make_void() { return make_primitive(SemaType::VOID); }
 	Semantic make_null() { return make_primitive(SemaType::NULL_TYPE); }
 	Semantic make_error() { return make_primitive(SemaType::ERROR_TYPE); }
+	Semantic make_str() { return make_primitive(SemaType::STR); }
 	explicit Analyzer(DiagnosticEngine &log) : logger(log) {}
 
 	// Scope helpers

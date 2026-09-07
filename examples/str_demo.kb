@@ -1,0 +1,44 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+    fn putchar(c: char): i32;
+}
+
+fn main(): i32 {
+    // 1. String literal (STATIC - cap=0, rodata)
+    val hello: str = "Hello";
+    puts(hello.c_str());
+
+    // 2. Concatenation (OWNED - heap allocated with null terminator)
+    val greeting: str = hello + ", World!";
+    puts(greeting.c_str());
+
+    // 3. Size property & method
+    val len: usz = greeting.size();
+    if (len as i32 == 13) {
+        puts("greeting.size() == 13 : PASS");
+    }
+
+    // 4. Indexing s[i] -> char
+    val ch: char = greeting[0];
+    if (ch == 'H') {
+        puts("greeting[0] == 'H' : PASS");
+    }
+
+    // 5. Value equality comparison (content comparison)
+    if (hello == "Hello") {
+        puts("hello == \"Hello\" : PASS");
+    }
+    if (hello != "World") {
+        puts("hello != \"World\" : PASS");
+    }
+
+    // 6. Var reassignment (lazy promotion)
+    var buf: str = "Kobel";
+    buf = buf + " Hybrid String!";
+    puts(buf.c_str());
+
+    // 7. Direct compatibility: passing str to *char
+    puts("Direct str to *char compatibility works!");
+
+    return 0;
+}
