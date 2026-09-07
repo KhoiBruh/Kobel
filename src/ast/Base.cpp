@@ -61,22 +61,21 @@ export struct ASTNode {
 	size_t col = 0;
 
 	explicit ASTNode(const ASTKind k, const size_t l = 0, const size_t c = 0)
-		: kind(k), line(l), col(c) {}
+		: kind(k), line(l), col(c) {
+	}
 };
 
-export template <typename T>
-bool isa(const ASTNode* node) {
+export template<typename T>
+bool isa(const ASTNode *node) {
 	return node && node->kind == T::KIND;
 }
 
-export template <typename T>
-T* as(ASTNode* node) {
-	return isa<T>(node) ? static_cast<T*>(node) : nullptr;
+export template<typename T>
+T *as(ASTNode *node) {
+	return isa<T>(node) ? static_cast<T *>(node) : nullptr;
 }
 
-export template <typename T>
-const T* as(const ASTNode* node) {
-	return isa<T>(node) ? static_cast<const T*>(node) : nullptr;
+export template<typename T>
+const T *as(const ASTNode *node) {
+	return isa<T>(node) ? static_cast<const T *>(node) : nullptr;
 }
-
-
