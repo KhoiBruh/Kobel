@@ -1,0 +1,12 @@
+module lexer;
+
+pub struct Lexer(
+	source: str,
+	cursor: usz,
+	line: usz,
+	col: usz
+) {
+
+
+
+}

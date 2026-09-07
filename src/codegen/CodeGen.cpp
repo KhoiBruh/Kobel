@@ -211,6 +211,61 @@ export struct CodeGen {
 			builder->SetInsertPoint(done_bb);
 			builder->CreateRetVoid();
 		}
+
+		// __kobel_str_slice(str* s, i64 start, i64 end) -> str
+		{
+			llvm::FunctionType* fn_ty = llvm::FunctionType::get(str_ty, {ptr_ty, i64_ty, i64_ty}, false);
+			llvm::Function* fn = llvm::Function::Create(fn_ty, llvm::Function::InternalLinkage, "__kobel_str_slice", *module);
+			auto* entry = llvm::BasicBlock::Create(*context, "entry", fn);
+			builder->SetInsertPoint(entry);
+
+			auto args = fn->arg_begin();
+			llvm::Value* s_ptr = &*args++;
+			llvm::Value* start_arg = &*args++;
+			llvm::Value* end_arg = &*args;
+
+			// Load s.data, s.len
+			auto* s_data_ptr = builder->CreateStructGEP(str_ty, s_ptr, 0);
+			auto* s_data = builder->CreateLoad(ptr_ty, s_data_ptr, "s.data");
+			auto* s_len_ptr = builder->CreateStructGEP(str_ty, s_ptr, 1);
+			auto* s_len = builder->CreateLoad(i64_ty, s_len_ptr, "s.len");
+
+			// Clamp start: if start < 0 -> start = 0
+			auto* start_lt_0 = builder->CreateICmpSLT(start_arg, builder->getInt64(0), "start.lt.0");
+			auto* start_clamped = builder->CreateSelect(start_lt_0, builder->getInt64(0), start_arg, "start.clamped");
+
+			// Clamp end: if end > s.len -> end = s.len
+			auto* end_gt_len = builder->CreateICmpSGT(end_arg, s_len, "end.gt.len");
+			auto* end_clamped = builder->CreateSelect(end_gt_len, s_len, end_arg, "end.clamped");
+
+			// Condition for empty slice: start >= end || start >= s.len
+			auto* start_ge_end = builder->CreateICmpSGE(start_clamped, end_clamped, "start.ge.end");
+			auto* start_ge_len = builder->CreateICmpSGE(start_clamped, s_len, "start.ge.len");
+			auto* is_empty = builder->CreateOr(start_ge_end, start_ge_len, "is.empty");
+
+			auto* raw_len = builder->CreateSub(end_clamped, start_clamped, "raw.len");
+			auto* slice_len = builder->CreateSelect(is_empty, builder->getInt64(0), raw_len, "slice.len");
+			auto* slice_cap = builder->CreateAdd(slice_len, builder->getInt64(1), "slice.cap");
+
+			auto* malloc_fn = module->getFunction("malloc");
+			auto* new_data = builder->CreateCall(malloc_fn, {slice_cap}, "slice.data");
+
+			// Copy content: memcpy(new_data, s.data + start_clamped, slice_len)
+			auto* src_offset = builder->CreateGEP(i8_ty, s_data, start_clamped, "src.offset");
+			auto* memcpy_fn = module->getFunction("memcpy");
+			builder->CreateCall(memcpy_fn, {new_data, src_offset, slice_len});
+
+			// Set null-terminator: new_data[slice_len] = '\0'
+			auto* null_ptr = builder->CreateGEP(i8_ty, new_data, slice_len, "null.pos");
+			builder->CreateStore(builder->getInt8(0), null_ptr);
+
+			// Return str { new_data, slice_len, slice_cap }
+			llvm::Value* result = llvm::UndefValue::get(str_ty);
+			result = builder->CreateInsertValue(result, new_data, 0);
+			result = builder->CreateInsertValue(result, slice_len, 1);
+			result = builder->CreateInsertValue(result, slice_cap, 2);
+			builder->CreateRet(result);
+		}
 	}
 
 	// ========================================================================

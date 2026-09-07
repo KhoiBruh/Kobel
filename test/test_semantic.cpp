@@ -525,13 +525,129 @@ bool test_semantic_module_errors() {
 	return true;
 }
 
+bool test_semantic_str_slice() {
+	// 1. Valid slice with 1 and 2 arguments
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val s: str = \"Hello, World!\";\n"
+			"    val a: str = s.slice(0, 5);\n"
+			"    val b: str = s.slice(7);\n"
+			"    val len: usz = s.len();\n"
+			"    val len_prop: usz = s.len;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Valid str.slice and str.len should pass semantic analysis");
+	}
 
+	// 2. Error: slice with invalid argument type
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val s: str = \"Hello\";\n"
+			"    val a: str = s.slice(\"invalid\");\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "str.slice with non-integer argument must report error");
+	}
+
+	// 3. Error: slice with 0 arguments
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val s: str = \"Hello\";\n"
+			"    val a: str = s.slice();\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "str.slice() with 0 arguments must report error");
+	}
+
+	return true;
+}
+
+bool test_semantic_type_size() {
+	// 1. Valid T.size() on primitives, struct, and enum
+	{
+		std::string_view code =
+			"struct Point(x: i32, y: i32)\n"
+			"enum Status { OK, ERR }\n"
+			"fn main(): i32 {\n"
+			"    val s_i32: usz = i32.size();\n"
+			"    val s_i64: usz = i64.size();\n"
+			"    val s_u8: usz = u8.size();\n"
+			"    val s_bool: usz = bool.size();\n"
+			"    val s_char: usz = char.size();\n"
+			"    val s_str: usz = str.size();\n"
+			"    val s_pt: usz = Point.size();\n"
+			"    val s_st: usz = Status.size();\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "T.size() on types must pass semantic analysis");
+	}
+
+	// 2. Error: calling .size() on variable of struct that has no size method
+	{
+		std::string_view code =
+			"struct Point(x: i32, y: i32)\n"
+			"fn main(): i32 {\n"
+			"    val p: Point = Point(1, 2);\n"
+			"    val s: usz = p.size();\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Calling .size() on variable without method must fail");
+	}
+
+	// 3. Error: T.size() with arguments
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val s: usz = i32.size(10);\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "T.size() with arguments must fail");
+	}
+
+	return true;
+}
 
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
-
-	
-	
 
 	if (!test_valid_program()) return 1;
 	std::cout << "  [PASS] test_valid_program" << std::endl;
@@ -577,6 +693,12 @@ int main() {
 
 	if (!test_semantic_module_errors()) return 1;
 	std::cout << "  [PASS] test_semantic_module_errors" << std::endl;
+
+	if (!test_semantic_str_slice()) return 1;
+	std::cout << "  [PASS] test_semantic_str_slice" << std::endl;
+
+	if (!test_semantic_type_size()) return 1;
+	std::cout << "  [PASS] test_semantic_type_size" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

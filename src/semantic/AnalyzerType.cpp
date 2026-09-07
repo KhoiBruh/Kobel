@@ -11,38 +11,43 @@ import logger;
 import semantic;
 import semantic.symbol;
 
+Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_t line, const size_t col) {
+	if (name == "i8") return make_primitive(SemaType::I8);
+	if (name == "i16") return make_primitive(SemaType::I16);
+	if (name == "i32") return make_primitive(SemaType::I32);
+	if (name == "i64") return make_primitive(SemaType::I64);
+	if (name == "isz") return make_primitive(SemaType::ISZ);
+
+	if (name == "u8") return make_primitive(SemaType::U8);
+	if (name == "u16") return make_primitive(SemaType::U16);
+	if (name == "u32") return make_primitive(SemaType::U32);
+	if (name == "u64") return make_primitive(SemaType::U64);
+	if (name == "usz") return make_primitive(SemaType::USZ);
+
+	if (name == "bool") return make_primitive(SemaType::BOOL);
+	if (name == "char") return make_primitive(SemaType::CHAR);
+	if (name == "void") return make_primitive(SemaType::VOID);
+	if (name == "str") return make_str();
+
+	std::string resolved_st = resolve_struct_name(name, line, col);
+	if (!resolved_st.empty()) return make_struct(resolved_st);
+
+	std::string resolved_enum = resolve_enum_name(name, line, col);
+	if (!resolved_enum.empty()) return make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
+
+	return nullptr;
+}
+
 Semantic Analyzer::resolve_type(const TypeNode *node) {
 	if (!node) return make_primitive(SemaType::VOID);
 
 	if (isa<NamedType>(node)) {
 		const auto *named = as<NamedType>(node);
-		const auto name = named->name;
+		if (auto ty = resolve_type_by_name(named->name, node->line, node->col)) {
+			return ty;
+		}
 
-		if (name == "i8") return make_primitive(SemaType::I8);
-		if (name == "i16") return make_primitive(SemaType::I16);
-		if (name == "i32") return make_primitive(SemaType::I32);
-		if (name == "i64") return make_primitive(SemaType::I64);
-		if (name == "isz") return make_primitive(SemaType::ISZ);
-
-		if (name == "u8") return make_primitive(SemaType::U8);
-		if (name == "u16") return make_primitive(SemaType::U16);
-		if (name == "u32") return make_primitive(SemaType::U32);
-		if (name == "u64") return make_primitive(SemaType::U64);
-		if (name == "usz") return make_primitive(SemaType::USZ);
-
-		if (name == "bool") return make_primitive(SemaType::BOOL);
-		if (name == "char") return make_primitive(SemaType::CHAR);
-		if (name == "void") return make_primitive(SemaType::VOID);
-		if (name == "str") return make_str();
-		// Check declared struct
-		std::string resolved_st = resolve_struct_name(name, node->line, node->col);
-		if (!resolved_st.empty()) return make_struct(resolved_st);
-
-		// Check declared enum
-		std::string resolved_enum = resolve_enum_name(name, node->line, node->col);
-		if (!resolved_enum.empty()) return make_enum(resolved_enum, enums.at(resolved_enum).underlying_type);
-
-		logger.error(node->line, node->col, "Unknown type '" + std::string(name) + "'");
+		logger.error(node->line, node->col, "Unknown type '" + std::string(named->name) + "'");
 		return make_error();
 	}
 

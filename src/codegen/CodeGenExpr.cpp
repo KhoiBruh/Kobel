@@ -430,6 +430,17 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	if (isa<CallExpr>(expr)) {
 		const auto *c = as<CallExpr>(expr);
 
+		// Static T.size() inquiry (e.g. Point.size(), i32.size(), str.size())
+		if (analyzer && analyzer->resolved_type_sizes.contains(c)) {
+			Semantic ty = analyzer->resolved_type_sizes.at(c);
+			if (ty->kind == SemaType::VOID) {
+				return builder->getInt64(0);
+			}
+			llvm::Type* llvm_ty = get_llvm_type(ty);
+			uint64_t sz = module->getDataLayout().getTypeAllocSize(llvm_ty);
+			return builder->getInt64(sz);
+		}
+
 		// 6a. Direct call or struct instantiation by name
 		if (isa<IdentifierExpr>(c->callee)) {
 			const auto raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
@@ -507,11 +518,41 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			// Built-in str methods
 			if (obj_type->is_str()) {
 				auto* str_val = emit_expr(m->object);
-				if (std::string(m->member) == "size") {
-					return builder->CreateExtractValue(str_val, 1, "str.size");
+				if (std::string(m->member) == "size" || std::string(m->member) == "len") {
+					return builder->CreateExtractValue(str_val, 1, "str.len");
 				}
 				if (std::string(m->member) == "c_str") {
 					return builder->CreateExtractValue(str_val, 0, "str.cstr");
+				}
+				if (std::string(m->member) == "slice") {
+					auto* str_ty = struct_types["str"];
+					auto* fn = builder->GetInsertBlock()->getParent();
+					auto* s_alloca = create_entry_block_alloca(fn, str_ty, "slice.s");
+					builder->CreateStore(str_val, s_alloca);
+
+					// Arg 0: start
+					llvm::Value* start_val = emit_expr(c->args[0]);
+					if (start_val->getType()->getIntegerBitWidth() < 64) {
+						start_val = builder->CreateSExt(start_val, builder->getInt64Ty(), "start.i64");
+					} else if (start_val->getType()->getIntegerBitWidth() > 64) {
+						start_val = builder->CreateTrunc(start_val, builder->getInt64Ty(), "start.i64");
+					}
+
+					// Arg 1: end (or s.len if omitted)
+					llvm::Value* end_val = nullptr;
+					if (c->args.size() >= 2) {
+						end_val = emit_expr(c->args[1]);
+						if (end_val->getType()->getIntegerBitWidth() < 64) {
+							end_val = builder->CreateSExt(end_val, builder->getInt64Ty(), "end.i64");
+						} else if (end_val->getType()->getIntegerBitWidth() > 64) {
+							end_val = builder->CreateTrunc(end_val, builder->getInt64Ty(), "end.i64");
+						}
+					} else {
+						end_val = builder->CreateExtractValue(str_val, 1, "str.len");
+					}
+
+					auto* slice_fn = module->getFunction("__kobel_str_slice");
+					return builder->CreateCall(slice_fn, {s_alloca, start_val, end_val}, "slice.res");
 				}
 				return nullptr;
 			}

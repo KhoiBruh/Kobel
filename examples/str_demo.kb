@@ -12,19 +12,47 @@ fn main(): i32 {
     val greeting: str = hello + ", World!";
     puts(greeting.c_str());
 
-    // 3. Size property & method
-    val len: usz = greeting.size();
-    if (len as i32 == 13) {
-        puts("greeting.size() == 13 : PASS");
+    // 3. Length property & method: s.len, s.len()
+    val len: usz = greeting.len;
+    val len_fn: usz = greeting.len();
+    if (len as i32 == 13 && len_fn as i32 == 13) {
+        puts("greeting.len == 13 : PASS");
     }
 
-    // 4. Indexing s[i] -> char
+    // 4. Slicing: s.slice(start, end) and s.slice(start)
+    val sub_hello: str = greeting.slice(0, 5);
+    if (sub_hello == "Hello") {
+        puts("greeting.slice(0, 5) == \"Hello\" : PASS");
+    }
+
+    val sub_world: str = greeting.slice(7, 12);
+    if (sub_world == "World") {
+        puts("greeting.slice(7, 12) == \"World\" : PASS");
+    }
+
+    val sub_tail: str = greeting.slice(7);
+    if (sub_tail == "World!") {
+        puts("greeting.slice(7) == \"World!\" : PASS");
+    }
+
+    // 5. Type sizing: T.size()
+    val str_struct_sz: usz = str.size();
+    if (str_struct_sz as i32 == 24) {
+        puts("str.size() == 24 : PASS");
+    }
+
+    val i32_sz: usz = i32.size();
+    if (i32_sz as i32 == 4) {
+        puts("i32.size() == 4 : PASS");
+    }
+
+    // 6. Indexing s[i] -> char
     val ch: char = greeting[0];
     if (ch == 'H') {
         puts("greeting[0] == 'H' : PASS");
     }
 
-    // 5. Value equality comparison (content comparison)
+    // 7. Value equality comparison (content comparison)
     if (hello == "Hello") {
         puts("hello == \"Hello\" : PASS");
     }
@@ -32,12 +60,12 @@ fn main(): i32 {
         puts("hello != \"World\" : PASS");
     }
 
-    // 6. Var reassignment (lazy promotion)
+    // 8. Var reassignment (lazy promotion)
     var buf: str = "Kobel";
     buf = buf + " Hybrid String!";
     puts(buf.c_str());
 
-    // 7. Direct compatibility: passing str to *char
+    // 9. Direct compatibility: passing str to *char
     puts("Direct str to *char compatibility works!");
 
     return 0;

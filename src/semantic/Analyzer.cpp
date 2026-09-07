@@ -37,6 +37,7 @@ export struct Analyzer {
 	StringMap<std::vector<std::string>> module_wildcards;
 	StringSet known_modules;
 	std::unordered_map<const Expr*, std::string> resolved_symbols;
+	std::unordered_map<const Expr*, Semantic> resolved_type_sizes;
 
 		std::vector<std::unique_ptr<Type>> interned_types;
 
@@ -148,6 +149,7 @@ export struct Analyzer {
 
 	// Type mapping (AnalyzerType.cpp)
 	Semantic resolve_type(const TypeNode *node);
+	Semantic resolve_type_by_name(std::string_view name, size_t line = 0, size_t col = 0);
 
 	// Declarations & Passes (AnalyzerModule.cpp & AnalyzerDecl.cpp)
 	void pass0_index_modules(const Program *program);

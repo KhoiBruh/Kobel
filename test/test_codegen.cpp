@@ -395,9 +395,48 @@ bool test_codegen_modules() {
 	return true;
 }
 
+bool test_codegen_str_slice() {
+	std::string_view code =
+		"fn main(): i32 {\n"
+		"    val s: str = \"Hello, World!\";\n"
+		"    val h: str = s.slice(0, 5);\n"
+		"    val w: str = s.slice(7, 12);\n"
+		"    val tail: str = s.slice(7);\n"
+		"    val l: usz = s.len();\n"
+		"    return 0;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "CodeGen for str.slice failed");
+	ASSERT(ir.find("@__kobel_str_slice") != std::string::npos, "Missing @__kobel_str_slice definition");
+	ASSERT(ir.find("call %str @__kobel_str_slice(") != std::string::npos, "Missing call to @__kobel_str_slice");
+	return true;
+}
+
+bool test_codegen_type_size() {
+	std::string_view code =
+		"struct Point(x: i32, y: i32)\n"
+		"enum Status { OK, ERR }\n"
+		"fn main(): i32 {\n"
+		"    val s_i32: usz = i32.size();\n"
+		"    val s_i64: usz = i64.size();\n"
+		"    val s_pt: usz = Point.size();\n"
+		"    val s_str: usz = str.size();\n"
+		"    val s_st: usz = Status.size();\n"
+		"    return 0;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "CodeGen for T.size() failed");
+	ASSERT(ir.find("store i64 4") != std::string::npos, "Missing 4 for i32.size()");
+	ASSERT(ir.find("store i64 8") != std::string::npos, "Missing 8 for i64.size() / Point.size()");
+	ASSERT(ir.find("store i64 24") != std::string::npos, "Missing 24 for str.size()");
+	return true;
+}
+
 int main() {
 	int passed = 0;
-	int total = 15;
+	int total = 17;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -444,6 +483,14 @@ int main() {
 	}
 	if (test_codegen_modules()) {
 		std::cout << "[PASS] test_codegen_modules\n";
+		passed++;
+	}
+	if (test_codegen_str_slice()) {
+		std::cout << "[PASS] test_codegen_str_slice\n";
+		passed++;
+	}
+	if (test_codegen_type_size()) {
+		std::cout << "[PASS] test_codegen_type_size\n";
 		passed++;
 	}
 

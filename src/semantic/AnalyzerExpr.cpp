@@ -378,15 +378,31 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 		// 7b. Method call: object.method(args...)
 		if (isa<MemberExpr>(c->callee)) {
 			const auto *m = as<MemberExpr>(c->callee);
+
+			// Check for T.size() static type size inquiry (e.g. Point.size(), i32.size(), str.size())
+			if (m->member == "size" && isa<IdentifierExpr>(m->object)) {
+				const auto id_name = as<IdentifierExpr>(m->object)->name;
+				if (!lookup_variable(id_name)) {
+					if (auto type_sem = resolve_type_by_name(id_name, m->line, m->col)) {
+						if (!c->args.empty()) {
+							logger.error(c->line, c->col, "Type size method '.size()' takes no arguments");
+							return make_error();
+						}
+						resolved_type_sizes[c] = type_sem;
+						return make_primitive(SemaType::USZ);
+					}
+				}
+			}
+
 			auto obj_type = analyze_expr(m->object);
 			if (obj_type->is_error()) return make_error();
 
 			// Built-in str methods
 			if (obj_type->is_str()) {
 				const auto method_name = std::string(m->member);
-				if (method_name == "size") {
+				if (method_name == "size" || method_name == "len") {
 					if (!c->args.empty()) {
-						logger.error(c->line, c->col, "str.size() takes no arguments");
+						logger.error(c->line, c->col, "str." + method_name + "() takes no arguments");
 					}
 					return make_primitive(SemaType::USZ);
 				}
@@ -396,8 +412,24 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 					}
 					return make_pointer(make_primitive(SemaType::CHAR));
 				}
+				if (method_name == "slice") {
+					if (c->args.empty() || c->args.size() > 2) {
+						logger.error(c->line, c->col, "str.slice() expects 1 or 2 arguments: slice(start) or slice(start, end)");
+						return make_error();
+					}
+					for (size_t i = 0; i < c->args.size(); ++i) {
+						auto arg_ty = analyze_expr(c->args[i]);
+						if (arg_ty->is_error()) return make_error();
+						if (!arg_ty->is_integer()) {
+							logger.error(c->args[i]->line, c->args[i]->col,
+								"Argument " + std::to_string(i + 1) + " of str.slice() must be an integer");
+							return make_error();
+						}
+					}
+					return make_str();
+				}
 				logger.error(c->line, c->col,
-					"str type only supports methods '.size()' and '.c_str()'");
+					"str type only supports methods '.len()', '.size()', '.c_str()', and '.slice()'");
 				return make_error();
 			}
 
