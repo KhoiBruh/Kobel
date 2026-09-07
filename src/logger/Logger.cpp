@@ -23,9 +23,12 @@ export struct Diagnostic {
 	auto format() const {
 		std::string kind_str;
 		switch (type) {
-			case DiagnosticType::ERROR: kind_str = "error"; break;
-			case DiagnosticType::WARNING: kind_str = "warning"; break;
-			case DiagnosticType::NOTE: kind_str = "note"; break;
+			case DiagnosticType::ERROR: kind_str = "error";
+				break;
+			case DiagnosticType::WARNING: kind_str = "warning";
+				break;
+			case DiagnosticType::NOTE: kind_str = "note";
+				break;
 		}
 		std::ostringstream ss;
 		ss << "[" << kind_str << "] Line " << line << ", Column " << col << ": " << message;
@@ -49,7 +52,7 @@ export struct DiagnosticEngine {
 	}
 
 	bool has_errors() const {
-		for (const auto& d : diagnostics) {
+		for (const auto &d: diagnostics) {
 			if (d.type == DiagnosticType::ERROR) return true;
 		}
 		return false;
@@ -57,7 +60,7 @@ export struct DiagnosticEngine {
 
 	auto error_count() const {
 		size_t count = 0;
-		for (const auto& d : diagnostics) {
+		for (const auto &d: diagnostics) {
 			if (d.type == DiagnosticType::ERROR) count++;
 		}
 		return count;
@@ -67,11 +70,9 @@ export struct DiagnosticEngine {
 		diagnostics.clear();
 	}
 
-	void print_all(std::ostream& os) const {
-		for (const auto& d : diagnostics) {
+	void print_all(std::ostream &os) const {
+		for (const auto &d: diagnostics) {
 			os << d.format() << "\n";
 		}
 	}
 };
-
-
