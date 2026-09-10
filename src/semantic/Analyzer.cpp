@@ -23,6 +23,10 @@ export struct Analyzer {
 
 	StringMap<FnSymbol> functions;
 	StringMap<StructSymbol> structs;
+	StringMap<const StructDecl *> generic_structs;
+	std::vector<std::string> instantiated_struct_order;
+	StringMap<StringMap<Semantic>> instantiated_type_maps;
+	StringMap<Semantic> active_type_substitutions;
 	StringMap<EnumSymbol> enums;
 	StringMap<ConstSymbol> constants;
 	std::unordered_map<const Expr *, Semantic> expr_types;
@@ -149,14 +153,20 @@ export struct Analyzer {
 
 	std::string resolve_struct_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
+	std::string resolve_generic_struct_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
+
 	std::string resolve_enum_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
 	std::string resolve_const_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
-	// Type mapping (AnalyzerType.cpp)
+	// Type mapping & Generic instantiation (AnalyzerType.cpp)
 	Semantic resolve_type(const TypeNode *node);
 
 	Semantic resolve_type_by_name(std::string_view name, size_t line = 0, size_t col = 0);
+
+	Semantic substitute_type(const TypeNode *node, const StringMap<Semantic> &type_map);
+
+	Semantic instantiate_struct(const StructDecl *generic_st, const std::string &instantiated_name, const std::vector<Semantic> &type_args, size_t line, size_t col);
 
 	// Declarations & Passes (AnalyzerModule.cpp & AnalyzerDecl.cpp)
 	void pass0_index_modules(const Program *program);

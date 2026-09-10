@@ -69,6 +69,22 @@ StructDecl *Parser::parse_struct_decl() {
 	const auto tok = consume(TokenType::KW_STRUCT, "Expected 'struct'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected struct name");
 
+	std::vector<GenericParam> type_params;
+	if (match(TokenType::LESS)) {
+		do {
+			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+			std::vector<std::string_view> bounds;
+			if (match(TokenType::COLON)) {
+				do {
+					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+					bounds.push_back(b_name.text);
+				} while (match(TokenType::PLUS));
+			}
+			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+		} while (match(TokenType::COMMA));
+		consume(TokenType::GREATER, "Expected '>' after type parameters");
+	}
+
 	std::vector<StructField> fields;
 	consume(TokenType::OPEN_PAREN, "Expected '(' for struct field declarations");
 	if (!check(TokenType::CLOSE_PAREN)) {
@@ -101,6 +117,7 @@ StructDecl *Parser::parse_struct_decl() {
 	}
 
 	auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
+	st->type_params = arena.alloc_span(type_params);
 	st->fields = arena.alloc_span(fields);
 	st->methods = arena.alloc_span(methods);
 	return st;

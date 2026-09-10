@@ -512,6 +512,80 @@ bool test_parse_when_and_if_expr() {
 	return true;
 }
 
+bool test_parse_generic_structs() {
+	// 1. Generic struct declarations
+	{
+		std::string_view code =
+			"struct Box<T>(value: T)\n"
+			"struct Pair<T, U>(first: T, second: U)\n"
+			"struct Container<T: Comparable>(item: T) {\n"
+			"    fn get(val self): T => self.item;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should not error on generic structs");
+		ASSERT(prog->declarations.size() == 3, "Expected 3 declarations");
+
+		auto *box = as<StructDecl>(prog->declarations[0]);
+		ASSERT(box->name == "Box", "Expected struct Box");
+		ASSERT(box->type_params.size() == 1, "Expected 1 type param for Box");
+		ASSERT(box->type_params[0].name == "T", "Expected type param T");
+		ASSERT(box->fields.size() == 1, "Expected 1 field for Box");
+
+		auto *pair = as<StructDecl>(prog->declarations[1]);
+		ASSERT(pair->name == "Pair", "Expected struct Pair");
+		ASSERT(pair->type_params.size() == 2, "Expected 2 type params for Pair");
+		ASSERT(pair->type_params[0].name == "T" && pair->type_params[1].name == "U", "Expected T and U");
+
+		auto *container = as<StructDecl>(prog->declarations[2]);
+		ASSERT(container->name == "Container", "Expected struct Container");
+		ASSERT(container->type_params.size() == 1, "Expected 1 type param for Container");
+		ASSERT(!container->type_params[0].bounds.empty(), "Expected bounds for Container T");
+		ASSERT(container->type_params[0].bounds[0] == "Comparable", "Expected Comparable bound");
+		ASSERT(container->methods.size() == 1, "Expected 1 method in Container");
+	}
+
+	// 2. Generic type usage and constructor call with explicit and inferred type arguments
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val b: Box<i32> = Box<i32>(10);\n"
+			"    val p: Pair<i32, str> = Pair(1, \"hello\");\n"
+			"    val nested: Box<Box<i32>> = Box<Box<i32>>(b);\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should parse generic type usage and calls");
+		ASSERT(prog->declarations.size() == 1, "Expected 1 fn declaration");
+
+		auto *fn = as<FnDecl>(prog->declarations[0]);
+		ASSERT(fn->body->statements.size() == 4, "Expected 4 statements in main");
+
+		// val b: Box<i32> = Box<i32>(10);
+		auto *v0 = as<VarDeclStmt>(fn->body->statements[0]);
+		ASSERT(isa<NamedType>(v0->type_annotation), "Expected NamedType");
+		auto *nt0 = as<NamedType>(v0->type_annotation);
+		ASSERT(nt0->name == "Box", "Expected Box");
+		ASSERT(nt0->type_args.size() == 1, "Expected 1 type argument");
+		ASSERT(isa<CallExpr>(v0->initializer), "Expected CallExpr");
+		auto *c0 = as<CallExpr>(v0->initializer);
+		ASSERT(c0->type_args.size() == 1, "Expected 1 explicit type arg in call");
+
+		// val nested: Box<Box<i32>>
+		auto *v2 = as<VarDeclStmt>(fn->body->statements[2]);
+		auto *nt2 = as<NamedType>(v2->type_annotation);
+		ASSERT(nt2->type_args.size() == 1, "Expected 1 type arg for outer Box");
+		ASSERT(isa<NamedType>(nt2->type_args[0]), "Expected inner NamedType");
+		auto *inner = as<NamedType>(nt2->type_args[0]);
+		ASSERT(inner->name == "Box" && inner->type_args.size() == 1, "Expected inner Box<i32>");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -550,6 +624,9 @@ int main() {
 
 	if (!test_parse_when_and_if_expr()) return 1;
 	std::cout << "  [PASS] test_parse_when_and_if_expr" << std::endl;
+
+	if (!test_parse_generic_structs()) return 1;
+	std::cout << "  [PASS] test_parse_generic_structs" << std::endl;
 
 	if (!test_error_recovery()) return 1;
 	std::cout << "  [PASS] test_error_recovery" << std::endl;

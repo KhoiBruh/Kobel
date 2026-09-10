@@ -748,6 +748,126 @@ bool test_semantic_when_and_if_expr() {
 	return true;
 }
 
+bool test_semantic_generic_structs() {
+	// 1. Generic struct definition, explicit & inferred instantiation, field access, nested
+	{
+		std::string_view code =
+			"struct Box<T>(value: T)\n"
+			"struct Pair<T, U>(first: T, second: U)\n"
+			"fn main(): i32 {\n"
+			"    val b: Box<i32> = Box<i32>(42);\n"
+			"    val p: Pair<i32, str> = Pair<i32, str>(1, \"hello\");\n"
+			"    val b_inferred: Box<i32> = Box(100);\n"
+			"    val p_inferred: Pair<i32, str> = Pair(2, \"world\");\n"
+			"    val v: i32 = b.value;\n"
+			"    val s: str = p.second;\n"
+			"    val nested: Box<Box<i32>> = Box<Box<i32>>(b);\n"
+			"    val nested_v: i32 = nested.value.value;\n"
+			"    return v + nested_v;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Generic structs valid program must pass semantic analysis");
+	}
+
+	// 2. Generic struct with methods
+	{
+		std::string_view code =
+			"struct Box<T>(value: T) {\n"
+			"    fn get(val self): T => self.value;\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    val b: Box<i32> = Box<i32>(42);\n"
+			"    val res: i32 = b.get();\n"
+			"    return res;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Generic struct methods must pass semantic analysis");
+	}
+
+	return true;
+}
+
+bool test_semantic_generic_struct_errors() {
+	// 1. Field type mismatch in instantiation
+	{
+		std::string_view code =
+			"struct Box<T>(value: T)\n"
+			"fn main(): i32 {\n"
+			"    val b: Box<i32> = Box<i32>(\"not an int\");\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Field type mismatch in generic struct instantiation must report error");
+	}
+
+	// 2. Wrong number of type arguments
+	{
+		std::string_view code =
+			"struct Box<T>(value: T)\n"
+			"fn main(): i32 {\n"
+			"    val b: Box<i32, str> = 0;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Wrong number of type arguments must report error");
+	}
+
+	// 3. Generic struct used without type arguments
+	{
+		std::string_view code =
+			"struct Box<T>(value: T)\n"
+			"fn main(): i32 {\n"
+			"    val b: Box = 0;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Generic struct used as type without arguments must report error");
+	}
+
+	// 4. Unknown generic struct
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val b: Unknown<i32> = 0;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Unknown generic struct must report error");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -804,6 +924,12 @@ int main() {
 
 	if (!test_semantic_when_and_if_expr()) return 1;
 	std::cout << "  [PASS] test_semantic_when_and_if_expr" << std::endl;
+
+	if (!test_semantic_generic_structs()) return 1;
+	std::cout << "  [PASS] test_semantic_generic_structs" << std::endl;
+
+	if (!test_semantic_generic_struct_errors()) return 1;
+	std::cout << "  [PASS] test_semantic_generic_struct_errors" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

@@ -80,15 +80,21 @@ export struct FnDecl final : Decl {
 	}
 };
 
+export struct GenericParam {
+	std::string_view name;
+	std::span<std::string_view> bounds;
+};
+
 export struct StructField {
 	std::string_view name;
 	TypeNode *type;
 };
 
-// Struct declaration: struct Point(x: i32, y: i32) { ... }
+// Struct declaration: struct Point(x: i32, y: i32) { ... } or struct Box<T>(value: T) { ... }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
+	std::span<GenericParam> type_params;
 	std::span<StructField> fields;
 	std::span<FnDecl *> methods;
 

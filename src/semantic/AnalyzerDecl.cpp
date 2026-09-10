@@ -20,6 +20,18 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string mod = get_decl_module(st);
 			std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
+			if (!st->type_params.empty()) {
+				if (generic_structs.contains(qual_name)) {
+					logger.error(st->line, st->col, "Duplicate generic struct declaration '" + std::string(st->name) + "'");
+					continue;
+				}
+				generic_structs[qual_name] = st;
+				if (!mod.empty()) {
+					generic_structs[to_llvm_name(qual_name)] = st;
+				}
+				continue;
+			}
+
 			if (structs.contains(qual_name)) {
 				logger.error(st->line, st->col, "Duplicate struct declaration '" + std::string(st->name) + "'");
 				continue;
@@ -43,6 +55,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 	for (const auto &decl: program->declarations) {
 		if (isa<StructDecl>(decl)) {
 			const auto *st = as<StructDecl>(decl);
+			if (!st->type_params.empty()) continue; // Skip generic struct templates
 			current_module = get_decl_module(st);
 			std::string qual_name = current_module.empty()
 				                        ? std::string(st->name)
@@ -263,6 +276,7 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			check_function(fn, qual_name);
 		} else if (isa<StructDecl>(decl)) {
 			const auto *st = as<StructDecl>(decl);
+			if (!st->type_params.empty()) continue; // Generic templates are checked upon instantiation
 			current_module = get_decl_module(st);
 			std::string st_qual = current_module.empty()
 				                      ? std::string(st->name)
@@ -291,6 +305,29 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 					                 expected_type->to_string() + "', got '" + val_type->to_string() + "'"
 				);
 		}
+	}
+
+	// Check methods for instantiated generic structs
+	for (size_t i = 0; i < instantiated_struct_order.size(); ++i) {
+		const auto &inst_name = instantiated_struct_order[i];
+		std::string base_name = inst_name.substr(0, inst_name.find('<'));
+		if (!generic_structs.contains(base_name)) continue;
+		const auto *generic_st = generic_structs.at(base_name);
+		if (generic_st->methods.empty()) continue;
+
+		auto old_subst = active_type_substitutions;
+		if (instantiated_type_maps.contains(inst_name)) {
+			active_type_substitutions = instantiated_type_maps.at(inst_name);
+		}
+
+		for (const auto &method : generic_st->methods) {
+			std::string mangled = to_llvm_name(inst_name) + "_" + std::string(method->name);
+			if (functions.contains(mangled)) {
+				check_function(method, mangled);
+			}
+		}
+
+		active_type_substitutions = old_subst;
 	}
 }
 

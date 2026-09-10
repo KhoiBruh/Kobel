@@ -1,5 +1,6 @@
 module;
 
+#include <span>
 #include <string_view>
 
 export module ast.type;
@@ -14,16 +15,25 @@ export struct TypeNode : ASTNode {
 	using ASTNode::ASTNode;
 };
 
-// Named type: "i32", "u8", "usz", "bool", "char", "MyStruct"
+// Named type: "i32", "u8", "usz", "bool", "char", "MyStruct", "Box<i32>"
 export struct NamedType final : TypeNode {
 	static constexpr auto KIND = ASTKind::TYPE_NAMED;
 	std::string_view name;
+	std::span<TypeNode *> type_args;
 
 	explicit NamedType(
 		const std::string_view n,
 		const size_t l = 0,
 		const size_t c = 0
-	) : TypeNode(KIND, l, c), name(n) {
+	) : TypeNode(KIND, l, c), name(n), type_args() {
+	}
+
+	NamedType(
+		const std::string_view n,
+		std::span<TypeNode *> args,
+		const size_t l = 0,
+		const size_t c = 0
+	) : TypeNode(KIND, l, c), name(n), type_args(args) {
 	}
 };
 

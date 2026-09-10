@@ -97,6 +97,38 @@ std::string Analyzer::resolve_struct_name(const std::string_view raw_name, const
 	return resolve_symbol_helper(structs, raw_name, "Struct", line, col);
 }
 
+std::string Analyzer::resolve_generic_struct_name(const std::string_view raw_name, const size_t line, const size_t col) {
+	const auto name = std::string(raw_name);
+
+	// 1. Within current module
+	if (!current_module.empty()) {
+		const std::string local_qualified = current_module + "." + name;
+		if (generic_structs.contains(local_qualified)) return local_qualified;
+	}
+
+	// 2. Direct lookup
+	if (const auto it = generic_structs.find(raw_name); it != generic_structs.end()) {
+		return name;
+	}
+
+	// 3. Module imports
+	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
+		if (const auto it = it_imp->second.find(raw_name); it != it_imp->second.end()) {
+			if (generic_structs.contains(it->second)) return it->second;
+		}
+	}
+
+	// 4. Wildcard imports
+	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
+		for (const auto &w_mod: it_wc->second) {
+			const std::string candidate = w_mod + "." + name;
+			if (generic_structs.contains(candidate)) return candidate;
+		}
+	}
+
+	return "";
+}
+
 std::string Analyzer::resolve_enum_name(const std::string_view raw_name, const size_t line, const size_t col) {
 	return resolve_symbol_helper(enums, raw_name, "Enum", line, col);
 }

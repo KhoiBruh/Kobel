@@ -323,10 +323,19 @@ export struct CodeGen {
 
 			case SemaType::STRUCT: {
 				auto it = struct_types.find(type->struct_name);
-				if (it != struct_types.end()) return it->second;
+				if (it != struct_types.end() && it->second != nullptr) return it->second;
 				it = struct_types.find(to_llvm_name(type->struct_name));
-				if (it != struct_types.end()) return it->second;
-				return llvm::StructType::getTypeByName(*context, to_llvm_name(type->struct_name));
+				if (it != struct_types.end() && it->second != nullptr) return it->second;
+				auto *st = llvm::StructType::getTypeByName(*context, to_llvm_name(type->struct_name));
+				if (st) return st;
+				if (analyzer && analyzer->structs.contains(type->struct_name)) {
+					emit_instantiated_struct(type->struct_name);
+					auto it2 = struct_types.find(to_llvm_name(type->struct_name));
+					if (it2 != struct_types.end() && it2->second != nullptr) return it2->second;
+					auto it3 = struct_types.find(type->struct_name);
+					if (it3 != struct_types.end() && it3->second != nullptr) return it3->second;
+				}
+				return builder->getInt32Ty();
 			}
 
 			case SemaType::ENUM: {
@@ -353,11 +362,7 @@ export struct CodeGen {
 	}
 
 	Semantic get_sema_type(const Expr *expr) const {
-		if (!expr) return analyzer->make_error();
-		if (analyzer) {
-			auto ty = analyzer->get_expr_type(expr);
-			if (!ty->is_error()) return ty;
-		}
+		if (!expr) return analyzer ? analyzer->make_error() : nullptr;
 
 		if (isa<IdentifierExpr>(expr)) {
 			const auto name = as<IdentifierExpr>(expr)->name;
@@ -367,7 +372,13 @@ export struct CodeGen {
 				if (it_c != analyzer->constants.end()) return it_c->second.type;
 			}
 		}
-		return analyzer->make_error();
+
+		if (analyzer) {
+			auto ty = analyzer->get_expr_type(expr);
+			if (!ty->is_error()) return ty;
+		}
+
+		return analyzer ? analyzer->make_error() : nullptr;
 	}
 
 	// ========================================================================
@@ -392,6 +403,8 @@ export struct CodeGen {
 
 	// Top-level Declarations (CodeGenDecl.cpp)
 	void emit_struct_decl(const StructDecl *st);
+
+	void emit_instantiated_struct(const std::string &inst_name);
 
 	void emit_const_decl(const ConstDecl *c);
 
@@ -423,6 +436,12 @@ export struct CodeGen {
 		for (const auto &decl: program->declarations) {
 			if (isa<StructDecl>(decl)) {
 				emit_struct_decl(as<StructDecl>(decl));
+			}
+		}
+
+		if (analyzer) {
+			for (const auto &inst_name: analyzer->instantiated_struct_order) {
+				emit_instantiated_struct(inst_name);
 			}
 		}
 
@@ -461,6 +480,21 @@ export struct CodeGen {
 					                        ? std::string(fn->name)
 					                        : mod + "." + std::string(fn->name);
 				emit_fn_body(fn, to_llvm_name(qual_name));
+			}
+		}
+
+		// 4c. Instantiated struct method bodies
+		if (analyzer) {
+			for (const auto &inst_name: analyzer->instantiated_struct_order) {
+				std::string llvm_st_name = to_llvm_name(inst_name);
+				std::string base_name = inst_name.substr(0, inst_name.find('<'));
+				if (analyzer->generic_structs.contains(base_name)) {
+					const auto *generic_st = analyzer->generic_structs.at(base_name);
+					for (const auto &method: generic_st->methods) {
+						std::string mangled = llvm_st_name + "_" + std::string(method->name);
+						emit_fn_body(method, mangled);
+					}
+				}
 			}
 		}
 

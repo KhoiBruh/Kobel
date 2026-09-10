@@ -126,7 +126,18 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			}
 		}
 
-		auto *st_ty = struct_types[st_name];
+		llvm::StructType *st_ty = nullptr;
+		if (auto it = struct_types.find(st_name); it != struct_types.end()) st_ty = it->second;
+		if (!st_ty) {
+			if (auto it = struct_types.find(to_llvm_name(st_name)); it != struct_types.end()) st_ty = it->second;
+		}
+		if (!st_ty && analyzer && analyzer->structs.contains(st_name)) {
+			emit_instantiated_struct(st_name);
+			if (auto it = struct_types.find(to_llvm_name(st_name)); it != struct_types.end()) st_ty = it->second;
+			if (!st_ty) {
+				if (auto it = struct_types.find(st_name); it != struct_types.end()) st_ty = it->second;
+			}
+		}
 		return builder->CreateStructGEP(st_ty, obj_ptr, field_idx, std::string(m->member));
 	}
 
@@ -455,11 +466,25 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					                 analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(
 						                 analyzer->resolved_symbols.at(c)
 					                 ))))) {
-				llvm::Type *st_type = struct_types[target_name];
+				llvm::Type *st_type = nullptr;
+				if (auto it = struct_types.find(target_name); it != struct_types.end()) st_type = it->second;
 				if (!st_type && analyzer && analyzer->resolved_symbols.contains(c)) {
-					st_type = struct_types[analyzer->resolved_symbols.at(c)];
+					const auto &sym_name = analyzer->resolved_symbols.at(c);
+					if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
+					if (!st_type) {
+						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end()) st_type = it->second;
+					}
+					if (!st_type && analyzer->structs.contains(sym_name)) {
+						emit_instantiated_struct(sym_name);
+						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end()) st_type = it->second;
+						if (!st_type) {
+							if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
+						}
+					}
 				}
-				if (!st_type) st_type = struct_types[raw_name];
+				if (!st_type) {
+					if (auto it = struct_types.find(raw_name); it != struct_types.end()) st_type = it->second;
+				}
 
 				llvm::Function *fn = builder->GetInsertBlock()->getParent();
 				llvm::AllocaInst *tmp_st = create_entry_block_alloca(fn, st_type, "st_tmp");
@@ -569,6 +594,10 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			std::string mangled = to_llvm_name(st_name) + "_" + std::string(m->member);
 
 			auto *callee = module->getFunction(mangled);
+			if (!callee && analyzer && analyzer->structs.contains(st_name)) {
+				emit_instantiated_struct(st_name);
+				callee = module->getFunction(mangled);
+			}
 			if (!callee && analyzer) {
 				const auto it = analyzer->functions.find(mangled);
 				if (it != analyzer->functions.end()) {
@@ -670,7 +699,17 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		llvm::Value *field_ptr = emit_lvalue(m);
-		auto field_sema = get_sema_type(m);
+		Semantic field_sema = nullptr;
+		if (obj_sema->is_struct() || (obj_sema->is_pointer() && obj_sema->pointee && obj_sema->pointee->is_struct())) {
+			std::string st_name = obj_sema->is_struct() ? obj_sema->struct_name : obj_sema->pointee->struct_name;
+			if (analyzer && analyzer->structs.contains(st_name)) {
+				const auto &sym = analyzer->structs.at(st_name);
+				if (auto it = sym.field_types.find(m->member); it != sym.field_types.end()) {
+					field_sema = it->second;
+				}
+			}
+		}
+		if (!field_sema) field_sema = get_sema_type(m);
 		llvm::Type *field_llvm_type = get_llvm_type(field_sema);
 		return builder->CreateLoad(field_llvm_type, field_ptr, std::string(m->member));
 	}

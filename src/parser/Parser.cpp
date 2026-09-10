@@ -62,6 +62,36 @@ export struct Parser {
 		return peek().type == type;
 	}
 
+	bool is_generic_arguments_ahead() const {
+		if (current >= tokens.size() || tokens[current].type != TokenType::LESS) return false;
+		size_t idx = current;
+		int depth = 0;
+		while (idx < tokens.size()) {
+			const auto t = tokens[idx].type;
+			if (t == TokenType::LESS) {
+				depth++;
+			} else if (t == TokenType::GREATER) {
+				depth--;
+				if (depth == 0) {
+					if (idx + 1 < tokens.size()) {
+						const auto next_t = tokens[idx + 1].type;
+						return next_t == TokenType::OPEN_PAREN || next_t == TokenType::DOT;
+					}
+					return false;
+				}
+			} else if (t == TokenType::IDENTIFIER || t == TokenType::COMMA ||
+			           t == TokenType::STAR || t == TokenType::AMPERSAND ||
+			           t == TokenType::NUMBER || t == TokenType::OPEN_PAREN ||
+			           t == TokenType::CLOSE_PAREN || t == TokenType::DOT) {
+				// Valid tokens inside type argument lists
+			} else {
+				return false;
+			}
+			idx++;
+		}
+		return false;
+	}
+
 	bool match(const TokenType type) {
 		if (check(type)) {
 			advance();

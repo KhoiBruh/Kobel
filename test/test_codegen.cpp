@@ -474,9 +474,34 @@ bool test_codegen_when_and_if_expr() {
 	return true;
 }
 
+bool test_codegen_generic_structs() {
+	std::string_view code =
+		"struct Box<T>(value: T) {\n"
+		"    fn get(val self): T => self.value;\n"
+		"}\n"
+		"struct Pair<T, U>(first: T, second: U)\n"
+		"fn test_generics(): i32 {\n"
+		"    val b1: Box<i32> = Box<i32>(42);\n"
+		"    val b2: Box<i32> = Box(100);\n"
+		"    val p: Pair<i32, str> = Pair(1, \"hello\");\n"
+		"    val nested: Box<Box<i32>> = Box<Box<i32>>(b1);\n"
+		"    val m_val: i32 = b1.get();\n"
+		"    return b1.value + b2.value + p.first + m_val + nested.value.value;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "CodeGen for generic structs failed");
+	ASSERT(ir.find("%Box_i32") != std::string::npos, "Missing %Box_i32 struct definition in LLVM IR");
+	ASSERT(ir.find("%Pair_i32_str") != std::string::npos, "Missing %Pair_i32_str struct definition in LLVM IR");
+	ASSERT(ir.find("%Box_Box_i32") != std::string::npos, "Missing %Box_Box_i32 struct definition in LLVM IR");
+	ASSERT(ir.find("@Box_i32_get") != std::string::npos, "Missing @Box_i32_get function in LLVM IR");
+	return true;
+}
+
 int main() {
+	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 18;
+	int total = 19;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -535,6 +560,10 @@ int main() {
 	}
 	if (test_codegen_when_and_if_expr()) {
 		std::cout << "[PASS] test_codegen_when_and_if_expr\n";
+		passed++;
+	}
+	if (test_codegen_generic_structs()) {
+		std::cout << "[PASS] test_codegen_generic_structs\n";
 		passed++;
 	}
 

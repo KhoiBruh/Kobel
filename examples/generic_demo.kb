@@ -1,0 +1,32 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+struct Box<T>(value: T) {
+    fn get(val self): T => self.value;
+}
+
+struct Pair<T, U>(first: T, second: U)
+
+fn main(): i32 {
+    // 1. Explicit instantiation
+    val b1: Box<i32> = Box<i32>(42);
+    if (b1.value != 42) return 1;
+    if (b1.get() != 42) return 2;
+
+    // 2. Inferred instantiation
+    val b2: Box<i32> = Box(100);
+    if (b2.value != 100) return 3;
+
+    // 3. Multi-parameter generic struct
+    val p: Pair<i32, str> = Pair(1, "hello");
+    if (p.first != 1) return 4;
+    if (p.second.len != 5 as usz) return 5;
+
+    // 4. Nested generic struct
+    val nested: Box<Box<i32>> = Box(b1);
+    if (nested.value.value != 42) return 6;
+
+    puts("Generic structs (monomorphization) passed successfully in Kobel!");
+    return 0;
+}

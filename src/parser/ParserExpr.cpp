@@ -9,6 +9,7 @@ import ast;
 import token;
 
 Precedence Parser::get_infix_precedence(const TokenType type) const {
+	if (type == TokenType::LESS && is_generic_arguments_ahead()) return Precedence::POSTFIX;
 	switch (type) {
 		case TokenType::EQUAL: return Precedence::ASSIGN;
 		case TokenType::OR_OR: return Precedence::OR;
@@ -217,7 +218,39 @@ Expr *Parser::parse_expression(const Precedence min_prec) {
 	if (!left) return nullptr;
 
 	while (!is_end() && min_prec < get_infix_precedence(peek().type)) {
+		const bool is_gen_call = (peek().type == TokenType::LESS && is_generic_arguments_ahead());
 		switch (const auto op = advance(); op.type) {
+			// generic call / instantiation: callee<T, U>(arg1, arg2, ...)
+			case TokenType::LESS: {
+				if (is_gen_call) {
+					std::vector<TypeNode *> type_args;
+					do {
+						type_args.push_back(parse_type());
+					} while (match(TokenType::COMMA));
+					consume(TokenType::GREATER, "Expected '>' after generic type arguments");
+					if (match(TokenType::OPEN_PAREN)) {
+						std::vector<Expr *> args;
+						if (!check(TokenType::CLOSE_PAREN)) {
+							do {
+								args.push_back(parse_expression());
+							} while (match(TokenType::COMMA));
+						}
+						consume(TokenType::CLOSE_PAREN, "Expected ')' after argument list");
+						left = arena.alloc<CallExpr>(
+							left, arena.alloc_span(args), arena.alloc_span(type_args),
+							op.line, op.col
+						);
+					}
+					break;
+				}
+				const auto next_prec = get_infix_precedence(op.type);
+				auto right = parse_expression(next_prec);
+				left = arena.alloc<BinaryExpr>(
+					left, op.type,
+					right, op.line, op.col
+				);
+				break;
+			}
 			// 1. function operator: callee(arg1, arg2, ...)
 			case TokenType::OPEN_PAREN: {
 				std::vector<Expr *> args;

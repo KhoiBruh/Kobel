@@ -14,9 +14,15 @@ export inline std::string to_llvm_name(std::string_view name) {
 	std::string res;
 	res.reserve(name.size());
 	for (const char c: name) {
-		if (c == '.') res += '_';
-		else res += c;
+		if (c == '.' || c == '<' || c == '>' || c == ',') {
+			if (res.empty() || res.back() != '_') res += '_';
+		} else if (c == ' ') {
+			continue;
+		} else {
+			res += c;
+		}
 	}
+	if (!res.empty() && res.back() == '_') res.pop_back();
 	return res;
 }
 

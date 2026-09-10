@@ -26,6 +26,8 @@ import semantic.analyzer;
 // ============================================================================
 
 void CodeGen::emit_struct_decl(const StructDecl *st) {
+	if (!st->type_params.empty()) return; // Skip generic struct templates (monomorphized on demand)
+
 	std::string mod = analyzer ? analyzer->get_decl_module(st) : "";
 	std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 	std::string llvm_st_name = to_llvm_name(qual_name);
@@ -44,6 +46,37 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 
 	for (const auto &method: st->methods) {
 		emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
+	}
+}
+
+void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
+	std::string llvm_st_name = to_llvm_name(inst_name);
+	if (auto it = struct_types.find(llvm_st_name); it != struct_types.end() && it->second != nullptr) return;
+	if (!analyzer || !analyzer->structs.contains(inst_name)) return;
+
+	llvm::StructType *struct_ty = llvm::StructType::getTypeByName(*context, llvm_st_name);
+	if (!struct_ty) {
+		struct_ty = llvm::StructType::create(*context, llvm_st_name);
+	}
+	struct_types[llvm_st_name] = struct_ty;
+	struct_types[inst_name] = struct_ty;
+
+	const auto &sym = analyzer->structs.at(inst_name);
+	std::vector<llvm::Type *> field_types;
+	for (const auto &f_name : sym.field_order) {
+		const auto &f_type = sym.field_types.at(f_name);
+		field_types.push_back(get_llvm_type(f_type));
+	}
+
+	struct_ty->setBody(field_types);
+
+	std::string base_name = inst_name.substr(0, inst_name.find('<'));
+	if (analyzer->generic_structs.contains(base_name)) {
+		const auto *generic_st = analyzer->generic_structs.at(base_name);
+		for (const auto &method : generic_st->methods) {
+			std::string mangled = llvm_st_name + "_" + std::string(method->name);
+			emit_fn_proto(method, mangled);
+		}
 	}
 }
 
@@ -118,6 +151,7 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 		emit_fn_proto(fn_decl, name);
 		fn = module->getFunction(name);
 	}
+	if (!fn || !fn->empty()) return; // Function body already emitted
 
 	llvm::BasicBlock *entry = llvm::BasicBlock::Create(*context, "entry", fn);
 	builder->SetInsertPoint(entry);

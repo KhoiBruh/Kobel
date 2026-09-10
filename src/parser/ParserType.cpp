@@ -47,10 +47,18 @@ TypeNode *Parser::parse_type() {
 		return arena.alloc<ArrayType>(elem_type, explicit_size, arr_tok.line, arr_tok.col);
 	}
 
-	// single identifier: i32, u8, char, bool, MyStruct...
+	// identifier: i32, u8, char, bool, MyStruct... or generic type: Box<i32>, Pair<i32, str>
 	if (match(TokenType::IDENTIFIER)) {
+		const Token id_tok = previous();
+		std::vector<TypeNode *> type_args;
+		if (match(TokenType::LESS)) {
+			do {
+				type_args.push_back(parse_type());
+			} while (match(TokenType::COMMA));
+			consume(TokenType::GREATER, "Expected '>' after generic type arguments");
+		}
 		return arena.alloc<NamedType>(
-			previous().text, tok.line, tok.col
+			id_tok.text, arena.alloc_span(type_args), tok.line, tok.col
 		);
 	}
 

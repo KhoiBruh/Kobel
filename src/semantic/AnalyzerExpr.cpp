@@ -303,9 +303,101 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 	if (isa<CallExpr>(expr)) {
 		const auto *c = as<CallExpr>(expr);
 
-		// 7a. Struct instantiation or direct function call: Name(args...)
+		// 7a. Struct instantiation or direct function call: Name(args...) or GenericName<T>(args...)
 		if (isa<IdentifierExpr>(c->callee)) {
 			const auto raw_callee_name = std::string(as<IdentifierExpr>(c->callee)->name);
+
+			// Check generic struct instantiation first: Box<i32>(10) or inferred Box(10)
+			std::string gen_st_name = resolve_generic_struct_name(raw_callee_name, c->line, c->col);
+			if (!gen_st_name.empty()) {
+				const auto *gen_st = generic_structs.at(gen_st_name);
+				std::vector<Semantic> resolved_type_args;
+
+				if (!c->type_args.empty()) {
+					// Explicit type arguments: Box<i32>(10)
+					for (const auto *t_arg : c->type_args) {
+						resolved_type_args.push_back(resolve_type(t_arg));
+					}
+				} else {
+					// Inferred type arguments: Box(10)
+					if (c->args.size() != gen_st->fields.size()) {
+						logger.error(
+							c->line, c->col,
+							"Struct instantiation '" + raw_callee_name + "' expects " +
+							std::to_string(gen_st->fields.size()) + " arguments, but got " +
+							std::to_string(c->args.size())
+						);
+						return make_error();
+					}
+
+					StringMap<Semantic> deduced;
+					for (size_t i = 0; i < c->args.size(); ++i) {
+						auto arg_ty = analyze_expr(c->args[i]);
+						if (isa<NamedType>(gen_st->fields[i].type)) {
+							const auto p_name = as<NamedType>(gen_st->fields[i].type)->name;
+							for (const auto &tp : gen_st->type_params) {
+								if (tp.name == p_name && !deduced.contains(std::string(p_name))) {
+									deduced[std::string(p_name)] = arg_ty;
+								}
+							}
+						}
+					}
+
+					for (const auto &tp : gen_st->type_params) {
+						auto it_d = deduced.find(tp.name);
+						if (it_d != deduced.end()) {
+							resolved_type_args.push_back(it_d->second);
+						} else {
+							logger.error(
+								c->line, c->col,
+								"Cannot infer type parameter '" + std::string(tp.name) + "' for generic struct '" + raw_callee_name + "'"
+							);
+							return make_error();
+						}
+					}
+				}
+
+				std::string inst_name = raw_callee_name + "<";
+				for (size_t i = 0; i < resolved_type_args.size(); ++i) {
+					if (i > 0) inst_name += ", ";
+					inst_name += resolved_type_args[i]->to_string();
+				}
+				inst_name += ">";
+
+				instantiate_struct(gen_st, inst_name, resolved_type_args, c->line, c->col);
+				resolved_symbols[c] = inst_name;
+
+				const auto &st_sym = structs.at(inst_name);
+				if (c->args.size() != st_sym.field_order.size()) {
+					logger.error(
+						c->line, c->col, "Struct instantiation '" + inst_name + "' expects " +
+						                 std::to_string(st_sym.field_order.size()) + " arguments, but got " +
+						                 std::to_string(c->args.size())
+					);
+					return make_struct(inst_name);
+				}
+
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					auto arg_type = analyze_expr(c->args[i]);
+					const auto &field_name = st_sym.field_order[i];
+					const auto &expected_type = st_sym.field_types.at(field_name);
+					if (expected_type->is_integer() && arg_type->is_integer() &&
+					    isa<LiteralExpr>(c->args[i]) &&
+					    as<LiteralExpr>(c->args[i])->literal_kind == LiteralKind::INT) {
+						arg_type = expected_type;
+						expr_types[c->args[i]] = expected_type;
+					}
+					if (!expected_type->can_assign_from(arg_type)) {
+						logger.error(
+							c->line, c->col, "Field '" + field_name + "' of struct '" +
+							                 inst_name + "' type mismatch: expected '" +
+							                 expected_type->to_string() + "', got '" + arg_type->to_string() +
+							                 "'"
+						);
+					}
+				}
+				return make_struct(inst_name);
+			}
 
 			// Struct instantiation: Point(10, 20)
 			std::string resolved_st = resolve_struct_name(raw_callee_name, c->line, c->col);
@@ -324,16 +416,21 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				for (size_t i = 0; i < c->args.size(); ++i) {
 					auto arg_type = analyze_expr(c->args[i]);
 					const auto &field_name = st_sym.field_order[i];
-					if (
-						const auto &expected_type = st_sym.field_types.at(field_name);
-						!expected_type->can_assign_from(arg_type)
-					)
+					const auto &expected_type = st_sym.field_types.at(field_name);
+					if (expected_type->is_integer() && arg_type->is_integer() &&
+					    isa<LiteralExpr>(c->args[i]) &&
+					    as<LiteralExpr>(c->args[i])->literal_kind == LiteralKind::INT) {
+						arg_type = expected_type;
+						expr_types[c->args[i]] = expected_type;
+					}
+					if (!expected_type->can_assign_from(arg_type)) {
 						logger.error(
 							c->line, c->col, "Field '" + field_name + "' of struct '" +
 							                 raw_callee_name + "' type mismatch: expected '" +
 							                 expected_type->to_string() + "', got '" + arg_type->to_string() +
 							                 "'"
 						);
+					}
 				}
 				return make_struct(resolved_st);
 			}

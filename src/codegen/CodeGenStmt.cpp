@@ -59,8 +59,10 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 				}
 			} else if (isa<CallExpr>(v->initializer) &&
 			           isa<IdentifierExpr>(as<CallExpr>(v->initializer)->callee) &&
-			           analyzer && analyzer->structs.contains(
-				           as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name
+			           analyzer && (
+				           analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name) ||
+				           (analyzer->resolved_symbols.contains(as<CallExpr>(v->initializer)) &&
+				            analyzer->structs.contains(analyzer->resolved_symbols.at(as<CallExpr>(v->initializer))))
 			           )) {
 				const auto *call = as<CallExpr>(v->initializer);
 				for (size_t i = 0; i < call->args.size(); ++i) {

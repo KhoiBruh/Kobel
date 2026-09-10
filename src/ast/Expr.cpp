@@ -87,13 +87,23 @@ export struct CallExpr final : Expr {
 	static constexpr auto KIND = ASTKind::EXPR_CALL;
 	Expr *callee;
 	std::span<Expr *> args;
+	std::span<TypeNode *> type_args;
 
 	CallExpr(
 		Expr *cl,
 		std::span<Expr *> a,
 		const size_t l = 0,
 		const size_t c = 0
-	) : Expr(KIND, l, c), callee(cl), args(a) {
+	) : Expr(KIND, l, c), callee(cl), args(a), type_args() {
+	}
+
+	CallExpr(
+		Expr *cl,
+		std::span<Expr *> a,
+		std::span<TypeNode *> t_args,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Expr(KIND, l, c), callee(cl), args(a), type_args(t_args) {
 	}
 };
 
