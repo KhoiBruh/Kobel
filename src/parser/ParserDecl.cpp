@@ -14,6 +14,22 @@ FnDecl *Parser::parse_fn_decl() {
 	const auto tok = consume(TokenType::KW_FN, "Expected 'fn'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected function name after 'fn'");
 
+	std::vector<GenericParam> type_params;
+	if (match(TokenType::LESS)) {
+		do {
+			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+			std::vector<std::string_view> bounds;
+			if (match(TokenType::COLON)) {
+				do {
+					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+					bounds.push_back(b_name.text);
+				} while (match(TokenType::PLUS));
+			}
+			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+		} while (match(TokenType::COMMA));
+		consume(TokenType::GREATER, "Expected '>' after type parameters");
+	}
+
 	consume(TokenType::OPEN_PAREN, "Expected '(' after function name");
 	std::vector<Param> params;
 	if (!check(TokenType::CLOSE_PAREN)) {
@@ -59,6 +75,7 @@ FnDecl *Parser::parse_fn_decl() {
 	}
 
 	auto fn = arena.alloc<FnDecl>(name.text, tok.line, tok.col);
+	fn->type_params = arena.alloc_span(type_params);
 	fn->params = arena.alloc_span(params);
 	fn->return_type = ret_type;
 	fn->body = body;

@@ -85,6 +85,11 @@ namespace {
 // ============================================================================
 
 llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
+	if (analyzer && analyzer->resolved_symbols.contains(expr)) {
+		std::string const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
+		if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
+	}
+
 	if (isa<IdentifierExpr>(expr)) {
 		const auto *id = as<IdentifierExpr>(expr);
 		const auto name = std::string(id->name);
@@ -210,7 +215,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	if (isa<LiteralExpr>(expr)) {
 		switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
 			case LiteralKind::INT: {
-				const int64_t val = std::stoll(std::string(lit->raw_text));
+				const int64_t val = parse_kobel_int(lit->raw_text);
 				auto sema_ty = get_sema_type(expr);
 				switch (sema_ty->kind) {
 					case SemaType::I8:
@@ -227,6 +232,17 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					default:
 						return builder->getInt32(static_cast<int32_t>(val));
 				}
+			}
+
+			case LiteralKind::FLOAT: {
+				std::string s(lit->raw_text);
+				while (!s.empty() && (s.back() == 'F' || s.back() == 'D' || s.back() == '_')) s.pop_back();
+				double val = std::stod(s);
+				auto sema_ty = get_sema_type(expr);
+				if (sema_ty && sema_ty->kind == SemaType::F32) {
+					return llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<float>(val)));
+				}
+				return llvm::ConstantFP::get(*context, llvm::APFloat(val));
 			}
 
 			case LiteralKind::BOOL:
@@ -453,8 +469,13 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		// 6a. Direct call or struct instantiation by name
-		if (isa<IdentifierExpr>(c->callee)) {
-			const auto raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
+		if (isa<IdentifierExpr>(c->callee) || (analyzer && analyzer->resolved_symbols.contains(c))) {
+			std::string raw_name;
+			if (isa<IdentifierExpr>(c->callee)) {
+				raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
+			} else if (analyzer && analyzer->resolved_symbols.contains(c)) {
+				raw_name = analyzer->resolved_symbols.at(c);
+			}
 			std::string target_name = raw_name;
 			if (analyzer && analyzer->resolved_symbols.contains(c)) {
 				target_name = to_llvm_name(analyzer->resolved_symbols.at(c));
@@ -662,6 +683,26 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 	// 7. Member access: object.field
 	if (isa<MemberExpr>(expr)) {
 		const auto *m = as<MemberExpr>(expr);
+
+		// Resolved symbol (e.g. module-prefixed constant or enum member)
+		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
+			const auto &sym_name = analyzer->resolved_symbols.at(expr);
+			size_t last_dot = sym_name.rfind('.');
+			if (last_dot != std::string::npos) {
+				std::string enum_part = sym_name.substr(0, last_dot);
+				std::string member_part = sym_name.substr(last_dot + 1);
+				if (auto it_enum = analyzer->enums.find(enum_part); it_enum != analyzer->enums.end()) {
+					if (auto it_m = it_enum->second.member_values.find(member_part); it_m != it_enum->second.member_values.end()) {
+						llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
+						return llvm::ConstantInt::get(llvm_ty, it_m->second);
+					}
+				}
+			}
+			std::string llvm_c_name = to_llvm_name(sym_name);
+			if (auto it_g = global_consts.find(llvm_c_name); it_g != global_consts.end()) {
+				return builder->CreateLoad(it_g->second->getValueType(), it_g->second, llvm_c_name);
+			}
+		}
 
 		// 7a. Enum member access (e.g. Color.RED)
 		if (isa<IdentifierExpr>(m->object)) {

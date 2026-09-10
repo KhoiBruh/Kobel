@@ -1,5 +1,6 @@
 module;
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -13,13 +14,103 @@ import logger;
 import semantic;
 import semantic.symbol;
 
+namespace {
+
+std::optional<std::string> get_symbol_path(const Expr *expr, Analyzer *analyzer) {
+	if (!expr) return std::nullopt;
+	if (isa<IdentifierExpr>(expr)) {
+		auto id = as<IdentifierExpr>(expr);
+		if (analyzer->lookup_variable(id->name)) return std::nullopt;
+		return std::string(id->name);
+	}
+	if (isa<MemberExpr>(expr)) {
+		auto m = as<MemberExpr>(expr);
+		auto obj_path = get_symbol_path(m->object, analyzer);
+		if (!obj_path) return std::nullopt;
+		return *obj_path + "." + std::string(m->member);
+	}
+	return std::nullopt;
+}
+
+bool deduce_type_arg(
+	const TypeNode *param_type,
+	Semantic arg_type,
+	const FnDecl *gen_fn,
+	StringMap<Semantic> &deduced
+) {
+	if (!param_type || !arg_type) return false;
+
+	if (isa<NamedType>(param_type)) {
+		const auto *named = as<NamedType>(param_type);
+		for (const auto &tp : gen_fn->type_params) {
+			if (tp.name == named->name) {
+				if (named->type_args.empty()) {
+					std::string t_name = std::string(named->name);
+					if (deduced.contains(t_name)) {
+						if (deduced[t_name] != arg_type) {
+							return false;
+						}
+					} else {
+						deduced[t_name] = arg_type;
+					}
+					return true;
+				}
+				return false;
+			}
+		}
+		return false;
+	}
+
+	if (isa<PointerType>(param_type)) {
+		const auto *ptr = as<PointerType>(param_type);
+		if (arg_type->is_pointer()) {
+			return deduce_type_arg(ptr->pointee, arg_type->pointee, gen_fn, deduced);
+		}
+		return false;
+	}
+
+	if (isa<ArrayType>(param_type)) {
+		const auto *arr = as<ArrayType>(param_type);
+		if (arg_type->is_array()) {
+			return deduce_type_arg(arr->element_type, arg_type->element_type, gen_fn, deduced);
+		}
+		return false;
+	}
+
+	return false;
+}
+
+} // namespace
+
 Semantic Analyzer::compute_expr_type(const Expr *expr) {
 	if (!expr) return make_error();
 
 	// 1. Literal
 	if (isa<LiteralExpr>(expr)) {
 		switch (const auto *lit = as<LiteralExpr>(expr); lit->literal_kind) {
-			case LiteralKind::INT: return make_primitive(SemaType::I32); // default int is i32
+			case LiteralKind::INT: {
+				const auto raw = lit->raw_text;
+				bool is_hex = raw.starts_with("0x") || raw.starts_with("0X");
+				if (raw.ends_with("UB")) return make_primitive(SemaType::U8);
+				if (raw.ends_with("US")) return make_primitive(SemaType::U16);
+				if (raw.ends_with("UL")) return make_primitive(SemaType::U64);
+				if (raw.ends_with("UZ")) return make_primitive(SemaType::USZ);
+				if (raw.ends_with("U")) return make_primitive(SemaType::U32);
+				if (raw.ends_with("L")) return make_primitive(SemaType::I64);
+				if (raw.ends_with("S")) return make_primitive(SemaType::I16);
+				if (raw.ends_with("Z")) return make_primitive(SemaType::ISZ);
+				if (!is_hex && raw.ends_with("B")) return make_primitive(SemaType::I8);
+				if (is_hex && raw.find('_') != std::string_view::npos) {
+					size_t last_us = raw.rfind('_');
+					if (raw.substr(last_us + 1) == "B") return make_primitive(SemaType::I8);
+				}
+				return make_primitive(SemaType::I32); // default int is i32
+			}
+			case LiteralKind::FLOAT: {
+				const auto raw = lit->raw_text;
+				if (raw.ends_with("F")) return make_primitive(SemaType::F32);
+				return make_primitive(SemaType::F64);
+			}
 			case LiteralKind::BOOL: return make_primitive(SemaType::BOOL);
 			case LiteralKind::CHAR: return make_primitive(SemaType::CHAR);
 			case LiteralKind::STRING: return make_str();
@@ -303,11 +394,26 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 	if (isa<CallExpr>(expr)) {
 		const auto *c = as<CallExpr>(expr);
 
-		// 7a. Struct instantiation or direct function call: Name(args...) or GenericName<T>(args...)
-		if (isa<IdentifierExpr>(c->callee)) {
-			const auto raw_callee_name = std::string(as<IdentifierExpr>(c->callee)->name);
+		// Check for T.size() static type size inquiry (e.g. Point.size(), i32.size(), str.size())
+		if (isa<MemberExpr>(c->callee) && as<MemberExpr>(c->callee)->member == "size") {
+			const auto *m = as<MemberExpr>(c->callee);
+			if (auto path = get_symbol_path(m->object, this)) {
+				if (auto type_sem = resolve_type_by_name(*path, m->line, m->col)) {
+					if (!c->args.empty()) {
+						logger.error(c->line, c->col, "Type size method '.size()' takes no arguments");
+						return make_error();
+					}
+					resolved_type_sizes[c] = type_sem;
+					return make_primitive(SemaType::USZ);
+				}
+			}
+		}
 
-			// Check generic struct instantiation first: Box<i32>(10) or inferred Box(10)
+		auto sym_path = get_symbol_path(c->callee, this);
+		if (sym_path) {
+			const auto raw_callee_name = *sym_path;
+
+			// 1. Check generic struct instantiation: Box<i32>(10) or inferred Box(10)
 			std::string gen_st_name = resolve_generic_struct_name(raw_callee_name, c->line, c->col);
 			if (!gen_st_name.empty()) {
 				const auto *gen_st = generic_structs.at(gen_st_name);
@@ -357,7 +463,7 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 					}
 				}
 
-				std::string inst_name = raw_callee_name + "<";
+				std::string inst_name = gen_st_name + "<";
 				for (size_t i = 0; i < resolved_type_args.size(); ++i) {
 					if (i > 0) inst_name += ", ";
 					inst_name += resolved_type_args[i]->to_string();
@@ -399,7 +505,91 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				return make_struct(inst_name);
 			}
 
-			// Struct instantiation: Point(10, 20)
+			// 2. Check generic function call: id<i32>(42) or id(42)
+			std::string gen_fn_name = resolve_generic_function_name(raw_callee_name, c->line, c->col);
+			if (!gen_fn_name.empty()) {
+				const auto *gen_fn = generic_functions.at(gen_fn_name);
+				std::vector<Semantic> resolved_type_args;
+
+				if (!c->type_args.empty()) {
+					// Explicit type arguments: id<i32>(42)
+					for (const auto *t_arg : c->type_args) {
+						resolved_type_args.push_back(resolve_type(t_arg));
+					}
+				} else {
+					// Inferred type arguments: id(42)
+					if (c->args.size() != gen_fn->params.size()) {
+						logger.error(
+							c->line, c->col,
+							"Function '" + raw_callee_name + "' expects " +
+							std::to_string(gen_fn->params.size()) + " arguments, but got " +
+							std::to_string(c->args.size())
+						);
+						return make_error();
+					}
+
+					StringMap<Semantic> deduced;
+					for (size_t i = 0; i < c->args.size(); ++i) {
+						auto arg_ty = analyze_expr(c->args[i]);
+						deduce_type_arg(gen_fn->params[i].type, arg_ty, gen_fn, deduced);
+					}
+
+					for (const auto &tp : gen_fn->type_params) {
+						auto it_d = deduced.find(tp.name);
+						if (it_d != deduced.end()) {
+							resolved_type_args.push_back(it_d->second);
+						} else {
+							logger.error(
+								c->line, c->col,
+								"Cannot infer type parameter '" + std::string(tp.name) + "' for generic function '" + raw_callee_name + "'"
+							);
+							return make_error();
+						}
+					}
+				}
+
+				std::string inst_name = gen_fn_name + "<";
+				for (size_t i = 0; i < resolved_type_args.size(); ++i) {
+					if (i > 0) inst_name += ", ";
+					inst_name += resolved_type_args[i]->to_string();
+				}
+				inst_name += ">";
+
+				instantiate_function(gen_fn, inst_name, resolved_type_args, c->line, c->col);
+				resolved_symbols[c] = inst_name;
+
+				const auto &fn_sym = functions.at(inst_name);
+				if (c->args.size() != fn_sym.param_types.size()) {
+					logger.error(
+						c->line, c->col, "Function '" + raw_callee_name + "' expects " +
+						                 std::to_string(fn_sym.param_types.size()) + " arguments, but got " +
+						                 std::to_string(c->args.size())
+					);
+					return fn_sym.return_type;
+				}
+
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					auto arg_type = analyze_expr(c->args[i]);
+					if (fn_sym.param_types[i]->is_integer() && arg_type->is_integer() &&
+					    isa<LiteralExpr>(c->args[i]) &&
+					    as<LiteralExpr>(c->args[i])->literal_kind == LiteralKind::INT) {
+						arg_type = fn_sym.param_types[i];
+						expr_types[c->args[i]] = fn_sym.param_types[i];
+					}
+					if (!fn_sym.param_types[i]->can_assign_from(arg_type)) {
+						logger.error(
+							c->line, c->col, "Argument " + std::to_string(i + 1) + " of function '" +
+							                 raw_callee_name + "' type mismatch: expected '" +
+							                 fn_sym.param_types[i]->to_string() + "', got '" + arg_type->to_string()
+							                 + "'"
+						);
+					}
+				}
+
+				return fn_sym.return_type;
+			}
+
+			// 3. Struct instantiation: Point(10, 20)
 			std::string resolved_st = resolve_struct_name(raw_callee_name, c->line, c->col);
 			if (!resolved_st.empty()) {
 				resolved_symbols[c] = resolved_st;
@@ -435,63 +625,52 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				return make_struct(resolved_st);
 			}
 
-			// Regular function call
+			// 4. Regular function call
 			std::string resolved_fn = resolve_function_name(raw_callee_name, c->line, c->col);
-			if (resolved_fn.empty()) {
-				logger.error(c->line, c->col, "Function '" + raw_callee_name + "' is not declared");
-				return make_error();
-			}
+			if (!resolved_fn.empty()) {
+				resolved_symbols[c] = resolved_fn;
+				const auto &fn_sym = functions.at(resolved_fn);
+				if (c->args.size() != fn_sym.param_types.size()) {
+					logger.error(
+						c->line, c->col, "Function '" + raw_callee_name + "' expects " +
+						                 std::to_string(fn_sym.param_types.size()) + " arguments, but got " +
+						                 std::to_string(c->args.size())
+					);
+					return fn_sym.return_type;
+				}
 
-			resolved_symbols[c] = resolved_fn;
-			const auto &fn_sym = functions.at(resolved_fn);
-			if (c->args.size() != fn_sym.param_types.size()) {
-				logger.error(
-					c->line, c->col, "Function '" + raw_callee_name + "' expects " +
-					                 std::to_string(fn_sym.param_types.size()) + " arguments, but got " +
-					                 std::to_string(c->args.size())
-				);
+				for (size_t i = 0; i < c->args.size(); ++i) {
+					auto arg_type = analyze_expr(c->args[i]);
+					if (fn_sym.param_types[i]->is_integer() && arg_type->is_integer() &&
+					    isa<LiteralExpr>(c->args[i]) &&
+					    as<LiteralExpr>(c->args[i])->literal_kind == LiteralKind::INT) {
+						arg_type = fn_sym.param_types[i];
+						expr_types[c->args[i]] = fn_sym.param_types[i];
+					}
+					if (!fn_sym.param_types[i]->can_assign_from(arg_type)) {
+						logger.error(
+							c->line, c->col, "Argument " + std::to_string(i + 1) + " of function '" +
+							                 raw_callee_name + "' type mismatch: expected '" +
+							                 fn_sym.param_types[i]->to_string() + "', got '" + arg_type->to_string()
+							                 + "'"
+						);
+					}
+				}
+
 				return fn_sym.return_type;
 			}
 
-			for (size_t i = 0; i < c->args.size(); ++i) {
-				auto arg_type = analyze_expr(c->args[i]);
-				if (fn_sym.param_types[i]->is_integer() && arg_type->is_integer() &&
-				    isa<LiteralExpr>(c->args[i]) &&
-				    as<LiteralExpr>(c->args[i])->literal_kind == LiteralKind::INT) {
-					arg_type = fn_sym.param_types[i];
-					expr_types[c->args[i]] = fn_sym.param_types[i];
-				}
-				if (!fn_sym.param_types[i]->can_assign_from(arg_type)) {
-					logger.error(
-						c->line, c->col, "Argument " + std::to_string(i + 1) + " of function '" +
-						                 raw_callee_name + "' type mismatch: expected '" +
-						                 fn_sym.param_types[i]->to_string() + "', got '" + arg_type->to_string()
-						                 + "'"
-					);
-				}
+			// If it was an identifier and didn't match any function/struct, report error
+			if (isa<IdentifierExpr>(c->callee)) {
+				logger.error(c->line, c->col, "Function '" + raw_callee_name + "' is not declared");
+				return make_error();
 			}
-
-			return fn_sym.return_type;
+			// If it was a MemberExpr, fall through to method call!
 		}
 
 		// 7b. Method call: object.method(args...)
 		if (isa<MemberExpr>(c->callee)) {
 			const auto *m = as<MemberExpr>(c->callee);
-
-			// Check for T.size() static type size inquiry (e.g. Point.size(), i32.size(), str.size())
-			if (m->member == "size" && isa<IdentifierExpr>(m->object)) {
-				const auto id_name = as<IdentifierExpr>(m->object)->name;
-				if (!lookup_variable(id_name)) {
-					if (auto type_sem = resolve_type_by_name(id_name, m->line, m->col)) {
-						if (!c->args.empty()) {
-							logger.error(c->line, c->col, "Type size method '.size()' takes no arguments");
-							return make_error();
-						}
-						resolved_type_sizes[c] = type_sem;
-						return make_primitive(SemaType::USZ);
-					}
-				}
-			}
 
 			auto obj_type = analyze_expr(m->object);
 			if (obj_type->is_error()) return make_error();
@@ -626,10 +805,18 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 	if (isa<MemberExpr>(expr)) {
 		const auto *m = as<MemberExpr>(expr);
 
-		// Check if object is an Enum Identifier (e.g. Status.OK)
-		if (isa<IdentifierExpr>(m->object)) {
-			const auto id_name = std::string(as<IdentifierExpr>(m->object)->name);
-			std::string resolved_enum = resolve_enum_name(id_name, m->line, m->col);
+		// Check if this MemberExpr forms a qualified symbol path to a constant (e.g. b.PI)
+		if (auto path = get_symbol_path(expr, this)) {
+			std::string resolved_const = resolve_const_name(*path, m->line, m->col);
+			if (!resolved_const.empty()) {
+				resolved_symbols[expr] = resolved_const;
+				return constants.at(resolved_const).type;
+			}
+		}
+
+		// Check if object is an Enum Identifier or qualified enum (e.g. Color.RED or b.Color.RED)
+		if (auto obj_path = get_symbol_path(m->object, this)) {
+			std::string resolved_enum = resolve_enum_name(*obj_path, m->line, m->col);
 			if (!resolved_enum.empty()) {
 				const auto &enum_sym = enums.at(resolved_enum);
 				const auto member_name = std::string(m->member);
@@ -639,10 +826,11 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				) {
 					logger.error(
 						m->line, m->col,
-						"Enum '" + id_name + "' has no member named '" + member_name + "'"
+						"Enum '" + *obj_path + "' has no member named '" + member_name + "'"
 					);
 					return make_error();
 				}
+				resolved_symbols[expr] = resolved_enum + "." + member_name;
 				return make_enum(resolved_enum, enum_sym.underlying_type);
 			}
 		}

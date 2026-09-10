@@ -38,7 +38,13 @@ Expr *Parser::parse_prefix() {
 
 	// constant number
 	if (match(TokenType::NUMBER)) {
-		const bool is_float = tok.text.find('.') != std::string_view::npos;
+		bool is_float = false;
+		if (!tok.text.starts_with("0x") && !tok.text.starts_with("0X") &&
+		    !tok.text.starts_with("0b") && !tok.text.starts_with("0B") &&
+		    !tok.text.starts_with("0o") && !tok.text.starts_with("0O")) {
+			is_float = tok.text.find('.') != std::string_view::npos ||
+			           (!tok.text.empty() && (tok.text.back() == 'F' || tok.text.back() == 'D'));
+		}
 		const LiteralKind kind = is_float ? LiteralKind::FLOAT : LiteralKind::INT;
 		return arena.alloc<LiteralExpr>(kind, tok.text, tok.line, tok.col);
 	}

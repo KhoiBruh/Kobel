@@ -17,42 +17,48 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		const auto *v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
 
-		// Explicit type annotation is required
+		Semantic declared_type = nullptr;
+
+		// Check if type annotation is present or infer from initializer
 		if (!v->type_annotation) {
-			logger.error(v->line, v->col, "Explicit type annotation is required for variable '" + name + "'");
-			return;
-		}
-
-		auto declared_type = resolve_type(v->type_annotation);
-
-		// Check initializer if present
-		if (v->initializer) {
-			auto init_type = analyze_expr(v->initializer);
-
-			// Contextual integer literal typing:
-			if (declared_type->is_integer() && init_type->is_integer() &&
-			    isa<LiteralExpr>(v->initializer) &&
-			    as<LiteralExpr>(v->initializer)->literal_kind == LiteralKind::INT) {
-				init_type = declared_type;
-				expr_types[v->initializer] = declared_type;
+			if (!v->initializer) {
+				logger.error(v->line, v->col, "Variable '" + name + "' without type annotation must have an initializer");
+				return;
 			}
+			declared_type = analyze_expr(v->initializer);
+			if (declared_type->is_error()) return;
+		} else {
+			declared_type = resolve_type(v->type_annotation);
 
-			// Infer array size if declared as Array<T> (size == 0)
-			if (declared_type->is_array() && init_type->is_array()) {
-				if (declared_type->array_size == 0) {
-					declared_type->array_size = (init_type->array_size);
-					if (isa<ArrayType>(v->type_annotation)) {
-						as<ArrayType>(v->type_annotation)->size = init_type->array_size;
+			// Check initializer if present
+			if (v->initializer) {
+				auto init_type = analyze_expr(v->initializer);
+
+				// Contextual integer literal typing:
+				if (declared_type->is_integer() && init_type->is_integer() &&
+				    isa<LiteralExpr>(v->initializer) &&
+				    as<LiteralExpr>(v->initializer)->literal_kind == LiteralKind::INT) {
+					init_type = declared_type;
+					expr_types[v->initializer] = declared_type;
+				}
+
+				// Infer array size if declared as Array<T> (size == 0)
+				if (declared_type->is_array() && init_type->is_array()) {
+					if (declared_type->array_size == 0) {
+						declared_type->array_size = (init_type->array_size);
+						if (isa<ArrayType>(v->type_annotation)) {
+							as<ArrayType>(v->type_annotation)->size = init_type->array_size;
+						}
 					}
 				}
-			}
 
-			if (!declared_type->can_assign_from(init_type)) {
-				logger.error(
-					v->line, v->col, "Cannot initialize variable '" + name + "' of type '" +
-					                 declared_type->to_string() + "' with value of type '" + init_type->to_string() +
-					                 "'"
-				);
+				if (!declared_type->can_assign_from(init_type)) {
+					logger.error(
+						v->line, v->col, "Cannot initialize variable '" + name + "' of type '" +
+						                 declared_type->to_string() + "' with value of type '" + init_type->to_string() +
+						                 "'"
+					);
+				}
 			}
 		}
 

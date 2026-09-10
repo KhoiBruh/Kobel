@@ -27,6 +27,10 @@ export struct Analyzer {
 	std::vector<std::string> instantiated_struct_order;
 	StringMap<StringMap<Semantic>> instantiated_type_maps;
 	StringMap<Semantic> active_type_substitutions;
+	StringMap<const FnDecl *> generic_functions;
+	std::vector<std::string> instantiated_function_order;
+	StringMap<const FnDecl *> instantiated_fn_decls;
+	StringMap<StringMap<Semantic>> instantiated_fn_type_maps;
 	StringMap<EnumSymbol> enums;
 	StringMap<ConstSymbol> constants;
 	std::unordered_map<const Expr *, Semantic> expr_types;
@@ -38,6 +42,7 @@ export struct Analyzer {
 	std::string current_module;
 	std::unordered_map<const Decl *, std::string> decl_modules;
 	StringMap<StringMap<std::string> > module_imports;
+	StringMap<StringSet> ambiguous_imports;
 	StringMap<std::vector<std::string> > module_wildcards;
 	StringSet known_modules;
 	std::unordered_map<const Expr *, std::string> resolved_symbols;
@@ -167,6 +172,10 @@ export struct Analyzer {
 	Semantic substitute_type(const TypeNode *node, const StringMap<Semantic> &type_map);
 
 	Semantic instantiate_struct(const StructDecl *generic_st, const std::string &instantiated_name, const std::vector<Semantic> &type_args, size_t line, size_t col);
+
+	std::string resolve_generic_function_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
+
+	Semantic instantiate_function(const FnDecl *generic_fn, const std::string &instantiated_name, const std::vector<Semantic> &type_args, size_t line, size_t col);
 
 	// Declarations & Passes (AnalyzerModule.cpp & AnalyzerDecl.cpp)
 	void pass0_index_modules(const Program *program);

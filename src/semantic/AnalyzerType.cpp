@@ -28,6 +28,9 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 	if (name == "u64") return make_primitive(SemaType::U64);
 	if (name == "usz") return make_primitive(SemaType::USZ);
 
+	if (name == "f32") return make_primitive(SemaType::F32);
+	if (name == "f64") return make_primitive(SemaType::F64);
+
 	if (name == "bool") return make_primitive(SemaType::BOOL);
 	if (name == "char") return make_primitive(SemaType::CHAR);
 	if (name == "void") return make_primitive(SemaType::VOID);
@@ -268,5 +271,83 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 	return make_error();
 }
 
+Semantic Analyzer::instantiate_function(
+	const FnDecl *generic_fn,
+	const std::string &instantiated_name,
+	const std::vector<Semantic> &type_args,
+	const size_t line,
+	const size_t col
+) {
+	if (!generic_fn) return make_error();
 
+	if (functions.contains(instantiated_name)) {
+		return functions.at(instantiated_name).return_type;
+	}
 
+	if (type_args.size() != generic_fn->type_params.size()) {
+		logger.error(
+			line, col,
+			"Generic function '" + std::string(generic_fn->name) + "' expects " +
+			std::to_string(generic_fn->type_params.size()) + " type arguments, but got " +
+			std::to_string(type_args.size())
+		);
+		return make_error();
+	}
+
+	StringMap<Semantic> type_map;
+	for (size_t i = 0; i < generic_fn->type_params.size(); ++i) {
+		type_map[std::string(generic_fn->type_params[i].name)] = type_args[i];
+	}
+
+	std::string mod = get_decl_module(generic_fn);
+
+	std::vector<std::string> param_names;
+	std::vector<Semantic> param_types;
+	for (const auto &p : generic_fn->params) {
+		param_names.push_back(std::string(p.name));
+		param_types.push_back(substitute_type(p.type, type_map));
+	}
+
+	Semantic ret_sem = nullptr;
+	if (generic_fn->return_type) {
+		ret_sem = substitute_type(generic_fn->return_type, type_map);
+	} else if (generic_fn->body && generic_fn->body->statements.size() == 1 && isa<ReturnStmt>(generic_fn->body->statements[0])) {
+		auto old_subst = active_type_substitutions;
+		active_type_substitutions = type_map;
+		enter_scope();
+		for (size_t i = 0; i < param_names.size(); ++i) {
+			VarSymbol p_sym{param_names[i], param_types[i], false, generic_fn->line, generic_fn->col};
+			current_scope().variables[p_sym.name] = p_sym;
+		}
+		const auto *ret_stmt = as<ReturnStmt>(generic_fn->body->statements[0]);
+		if (ret_stmt->value) {
+			ret_sem = analyze_expr(ret_stmt->value);
+		}
+		exit_scope();
+		active_type_substitutions = old_subst;
+	}
+	if (!ret_sem) {
+		ret_sem = make_primitive(SemaType::VOID);
+	}
+
+	FnSymbol sym = {
+		.name = instantiated_name,
+		.param_types = param_types,
+		.param_names = param_names,
+		.return_type = ret_sem,
+		.is_pub = generic_fn->is_pub,
+		.module_name = mod,
+		.line = generic_fn->line,
+		.col = generic_fn->col
+	};
+
+	functions[instantiated_name] = sym;
+	std::string llvm_name = to_llvm_name(instantiated_name);
+	functions[llvm_name] = sym;
+
+	instantiated_function_order.push_back(instantiated_name);
+	instantiated_fn_decls[instantiated_name] = generic_fn;
+	instantiated_fn_type_maps[instantiated_name] = type_map;
+
+	return ret_sem;
+}

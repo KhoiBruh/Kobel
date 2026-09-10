@@ -76,7 +76,7 @@ bool test_val_immutability_error() {
 bool test_missing_type_annotation_error() {
 	std::string_view code = 
 		"fn test(): void {\n"
-		"    val x = 10;\n" // L???i: v0 ch??a cho ph??p suy lu???n ki???u, b???t bu???c ghi r?? : i32
+		"    var x;\n" // Loi: khong co kieu va khong co initializer
 		"}\n";
 
 	Lexer lex{code};
@@ -87,7 +87,7 @@ bool test_missing_type_annotation_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i thi???u khai b??o ki???u t?????ng minh");
+	ASSERT(diag.has_errors(), "Phai phat hien loi thieu kieu va initializer");
 	return true;
 }
 
@@ -868,6 +868,187 @@ bool test_semantic_generic_struct_errors() {
 	return true;
 }
 
+bool test_variable_and_fn_type_inference() {
+	std::string_view code =
+		"fn add(a: i32, b: i32) => a + b;\n"
+		"fn check(x: i32) => if (x > 0) true else false;\n"
+		"fn describe(x: i32) => when (x) { 0 -> \"zero\"; else -> \"other\"; };\n"
+		"fn test_inference(): i32 {\n"
+		"    val num = 42;\n"
+		"    val flag = true;\n"
+		"    val ch = 'k';\n"
+		"    val text = \"hello\";\n"
+		"    val if_res = if (flag) 100 else 200;\n"
+		"    val when_res = when (num) { 42 -> \"matched\"; else -> \"unmatched\"; };\n"
+		"    val sum = add(num, if_res);\n"
+		"    val is_pos = check(sum);\n"
+		"    val desc = describe(0);\n"
+		"    return sum;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser should have no errors");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog);
+
+	if (diag.has_errors()) {
+		diag.print_all(std::cerr);
+	}
+	ASSERT(!diag.has_errors(), "Type inference should succeed with no errors");
+
+	// Verify inferred function return types
+	ASSERT(sema.functions.contains("add"), "add must be registered");
+	ASSERT(sema.functions.at("add").return_type->is_integer(), "add return type must be inferred as i32");
+	ASSERT(sema.functions.contains("check"), "check must be registered");
+	ASSERT(sema.functions.at("check").return_type->is_bool(), "check return type must be inferred as bool");
+	ASSERT(sema.functions.contains("describe"), "describe must be registered");
+	ASSERT(sema.functions.at("describe").return_type->is_str(), "describe return type must be inferred as str");
+
+	return true;
+}
+
+bool test_semantic_generic_functions() {
+	// 1. Generic function with explicit and inferred calls
+	{
+		std::string_view code =
+			"struct Pair<T, U>(first: T, second: U)\n"
+			"fn id<T>(x: T): T => x;\n"
+			"fn max<T>(a: T, b: T): T {\n"
+			"    if (a > b) return a; else return b;\n"
+			"}\n"
+			"fn make_pair<T, U>(a: T, b: U): Pair<T, U> => Pair(a, b);\n"
+			"fn main(): i32 {\n"
+			"    val a: i32 = id<i32>(42);\n"
+			"    val b: i32 = id(42);\n"
+			"    val c: str = id(\"hello\");\n"
+			"    val m: i64 = max(10L, 20L);\n"
+			"    val p = make_pair(100, \"world\");\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should have no errors");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Generic function analysis should succeed with no errors");
+
+		// Check instantiated functions in symbol table
+		ASSERT(sema.functions.contains("id<i32>"), "id<i32> must be instantiated");
+		ASSERT(sema.functions.contains("id<str>"), "id<str> must be instantiated");
+		ASSERT(sema.functions.contains("max<i64>"), "max<i64> must be instantiated");
+		ASSERT(sema.functions.contains("make_pair<i32, str>"), "make_pair<i32, str> must be instantiated");
+	}
+
+	// 2. Error: type count mismatch
+	{
+		std::string_view code =
+			"fn id<T>(x: T): T => x;\n"
+			"fn main(): i32 {\n"
+			"    val a = id<i32, str>(42);\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Generic function with wrong number of type args must error");
+	}
+
+	// 3. Error: cannot infer type parameter
+	{
+		std::string_view code =
+			"fn dummy<T>(): i32 => 0;\n"
+			"fn main(): i32 {\n"
+			"    val a = dummy();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Uninferrable generic function call without type args must error");
+	}
+
+	return true;
+}
+
+bool test_semantic_module_prefixes() {
+	// 1. Ambiguous bare import collision resolved by module prefix
+	{
+		std::string_view code =
+			"module math.vec;\n"
+			"pub struct Vector(x: i32, y: i32)\n"
+			"module physics.space;\n"
+			"pub struct Vector(mag: i32)\n"
+			"module main;\n"
+			"use math.vec.Vector;\n"
+			"use physics.space.Vector;\n"
+			"fn main(): i32 {\n"
+			"    val v1: vec.Vector = vec.Vector(10, 20);\n"
+			"    val v2: space.Vector = space.Vector(100);\n"
+			"    return v1.x + v2.mag;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should have no errors");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Disambiguated module prefix access must succeed");
+	}
+
+	// 2. Bare symbol collision reports ambiguous error
+	{
+		std::string_view code =
+			"module math.vec;\n"
+			"pub struct Vector(x: i32, y: i32)\n"
+			"module physics.space;\n"
+			"pub struct Vector(mag: i32)\n"
+			"module main;\n"
+			"use math.vec.Vector;\n"
+			"use physics.space.Vector;\n"
+			"fn main(): i32 {\n"
+			"    val v = Vector(10, 20);\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Accessing ambiguous bare imported symbol must report error");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -879,6 +1060,9 @@ int main() {
 
 	if (!test_missing_type_annotation_error()) return 1;
 	std::cout << "  [PASS] test_missing_type_annotation_error" << std::endl;
+
+	if (!test_variable_and_fn_type_inference()) return 1;
+	std::cout << "  [PASS] test_variable_and_fn_type_inference" << std::endl;
 
 	if (!test_strict_type_mismatch_error()) return 1;
 	std::cout << "  [PASS] test_strict_type_mismatch_error" << std::endl;
@@ -930,6 +1114,12 @@ int main() {
 
 	if (!test_semantic_generic_struct_errors()) return 1;
 	std::cout << "  [PASS] test_semantic_generic_struct_errors" << std::endl;
+
+	if (!test_semantic_generic_functions()) return 1;
+	std::cout << "  [PASS] test_semantic_generic_functions" << std::endl;
+
+	if (!test_semantic_module_prefixes()) return 1;
+	std::cout << "  [PASS] test_semantic_module_prefixes" << std::endl;
 
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;

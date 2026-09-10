@@ -92,7 +92,7 @@ void CodeGen::emit_const_decl(const ConstDecl *c) {
 	if (c->value && isa<LiteralExpr>(c->value)) {
 		const auto *lit = as<LiteralExpr>(c->value);
 		if (lit->literal_kind == LiteralKind::INT) {
-			const int64_t val = std::stoll(std::string(lit->raw_text));
+			const int64_t val = parse_kobel_int(lit->raw_text);
 			init_const = llvm::ConstantInt::get(llvm_ty, val);
 		}
 	}
@@ -114,6 +114,7 @@ void CodeGen::emit_const_decl(const ConstDecl *c) {
 }
 
 void CodeGen::emit_fn_proto(const FnDecl *fn_decl, const std::string &fn_name_override) {
+	if (fn_decl && !fn_decl->type_params.empty() && fn_name_override.empty()) return;
 	const auto name = fn_name_override.empty() ? std::string(fn_decl->name) : fn_name_override;
 	llvm::Function *fn = module->getFunction(name);
 
@@ -144,6 +145,7 @@ void CodeGen::emit_fn_proto(const FnDecl *fn_decl, const std::string &fn_name_ov
 
 void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_override) {
 	if (!fn_decl->body) return; // Prototype extern
+	if (!fn_decl->type_params.empty() && fn_name_override.empty()) return;
 
 	const auto name = fn_name_override.empty() ? std::string(fn_decl->name) : fn_name_override;
 	llvm::Function *fn = module->getFunction(name);

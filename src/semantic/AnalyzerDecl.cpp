@@ -86,33 +86,55 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				}
 
 				std::string mangled_name = sym.name + "_" + m_name;
+				Semantic m_ret_sem = method->return_type ? resolve_type(method->return_type) : nullptr;
+				std::vector<std::string> m_param_names;
+				std::vector<Semantic> m_param_types;
+
+				for (const auto &[name, type, is_mut, has_val]: method->params) {
+					m_param_names.push_back(std::string(name));
+					if (name == "self") {
+						if (type) {
+							m_param_types.push_back(resolve_type(type));
+						} else if (is_mut) {
+							m_param_types.push_back(
+								make_pointer(make_struct(sym.name), true)
+							);
+						} else if (has_val) {
+							m_param_types.push_back(
+								make_pointer(make_struct(sym.name), false)
+							);
+						} else {
+							m_param_types.push_back(make_struct(sym.name));
+						}
+					} else m_param_types.push_back(resolve_type(type));
+				}
+
+				if (!m_ret_sem && method->body && method->body->statements.size() == 1 && isa<ReturnStmt>(method->body->statements[0])) {
+					enter_scope();
+					for (size_t i = 0; i < m_param_names.size(); ++i) {
+						VarSymbol p_sym{m_param_names[i], m_param_types[i], false, method->line, method->col};
+						current_scope().variables[p_sym.name] = p_sym;
+					}
+					const auto *ret_stmt = as<ReturnStmt>(method->body->statements[0]);
+					if (ret_stmt->value) {
+						m_ret_sem = analyze_expr(ret_stmt->value);
+					}
+					exit_scope();
+				}
+				if (!m_ret_sem) {
+					m_ret_sem = make_primitive(SemaType::VOID);
+				}
+
 				FnSymbol fn_sym = {
 					.name = mangled_name,
-					.return_type = resolve_type(method->return_type),
+					.param_types = m_param_types,
+					.param_names = m_param_names,
+					.return_type = m_ret_sem,
 					.is_pub = method->is_pub,
 					.module_name = current_module,
 					.line = st->line,
 					.col = st->col
 				};
-
-				for (const auto &[name, type, is_mut, has_val]: method->params) {
-					fn_sym.param_names.push_back(std::string(name));
-					if (name == "self") {
-						if (type) {
-							fn_sym.param_types.push_back(resolve_type(type));
-						} else if (is_mut) {
-							fn_sym.param_types.push_back(
-								make_pointer(make_struct(sym.name), true)
-							);
-						} else if (has_val) {
-							fn_sym.param_types.push_back(
-								make_pointer(make_struct(sym.name), false)
-							);
-						} else {
-							fn_sym.param_types.push_back(make_struct(sym.name));
-						}
-					} else fn_sym.param_types.push_back(resolve_type(type));
-				}
 
 				sym.methods[m_name] = fn_sym;
 				functions[mangled_name] = fn_sym;
@@ -170,7 +192,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 							lit->literal_kind == LiteralKind::INT
 						) {
 							try {
-								next_value = std::stoll(std::string(lit->raw_text), nullptr, 0);
+								next_value = parse_kobel_int(lit->raw_text);
 							} catch (...) {
 								logger.error(line, col, "Invalid enum member initializer value");
 							}
@@ -239,25 +261,62 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 	const auto raw_name = std::string(fn->name);
 	const std::string qual_name = mod.empty() || raw_name == "main" ? raw_name : mod + "." + raw_name;
 
+	if (!fn->type_params.empty()) {
+		if (generic_functions.contains(qual_name)) {
+			logger.error(fn->line, fn->col, "Duplicate generic function declaration '" + raw_name + "'");
+			return;
+		}
+		generic_functions[qual_name] = fn;
+		if (!mod.empty()) {
+			generic_functions[to_llvm_name(qual_name)] = fn;
+		}
+		return;
+	}
+
 	if (functions.contains(qual_name)) {
 		logger.error(fn->line, fn->col, "Duplicate function declaration '" + raw_name + "'");
 		return;
 	}
 
 	current_module = mod;
+	Semantic ret_sem = nullptr;
+	if (fn->return_type) {
+		ret_sem = resolve_type(fn->return_type);
+	}
+
+	std::vector<std::string> param_names;
+	std::vector<Semantic> param_types;
+	for (const auto &p: fn->params) {
+		param_names.push_back(std::string(p.name));
+		param_types.push_back(resolve_type(p.type));
+	}
+
+	if (!ret_sem && fn->body && fn->body->statements.size() == 1 && isa<ReturnStmt>(fn->body->statements[0])) {
+		enter_scope();
+		for (size_t i = 0; i < param_names.size(); ++i) {
+			VarSymbol p_sym{param_names[i], param_types[i], false, fn->line, fn->col};
+			current_scope().variables[p_sym.name] = p_sym;
+		}
+		const auto *ret_stmt = as<ReturnStmt>(fn->body->statements[0]);
+		if (ret_stmt->value) {
+			ret_sem = analyze_expr(ret_stmt->value);
+		}
+		exit_scope();
+	}
+	if (!ret_sem) {
+		ret_sem = make_primitive(SemaType::VOID);
+	}
+
 	FnSymbol sym = {
 		.name = qual_name,
-		.return_type = resolve_type(fn->return_type),
+		.param_types = param_types,
+		.param_names = param_names,
+		.return_type = ret_sem,
 		.is_pub = fn->is_pub,
 		.module_name = mod,
 		.line = fn->line,
 		.col = fn->col
 	};
-
-	for (const auto &p: fn->params) {
-		sym.param_names.push_back(std::string(p.name));
-		sym.param_types.push_back(resolve_type(p.type));
-	}
 
 	functions[qual_name] = sym;
 	if (!mod.empty() && raw_name != "main") {
@@ -269,6 +328,7 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 	for (const auto &decl: program->declarations) {
 		if (isa<FnDecl>(decl)) {
 			const auto *fn = as<FnDecl>(decl);
+			if (!fn->type_params.empty()) continue; // Generic templates are checked upon instantiation
 			current_module = get_decl_module(fn);
 			std::string qual_name = current_module.empty() || fn->name == "main"
 				                        ? std::string(fn->name)
@@ -307,27 +367,52 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 		}
 	}
 
-	// Check methods for instantiated generic structs
-	for (size_t i = 0; i < instantiated_struct_order.size(); ++i) {
-		const auto &inst_name = instantiated_struct_order[i];
-		std::string base_name = inst_name.substr(0, inst_name.find('<'));
-		if (!generic_structs.contains(base_name)) continue;
-		const auto *generic_st = generic_structs.at(base_name);
-		if (generic_st->methods.empty()) continue;
+	// Check methods for instantiated generic structs and bodies for instantiated generic functions
+	bool progress = true;
+	size_t struct_idx = 0;
+	size_t fn_idx = 0;
+	while (progress) {
+		progress = false;
+		while (struct_idx < instantiated_struct_order.size()) {
+			progress = true;
+			const auto &inst_name = instantiated_struct_order[struct_idx++];
+			std::string base_name = inst_name.substr(0, inst_name.find('<'));
+			if (!generic_structs.contains(base_name)) continue;
+			const auto *generic_st = generic_structs.at(base_name);
+			if (generic_st->methods.empty()) continue;
 
-		auto old_subst = active_type_substitutions;
-		if (instantiated_type_maps.contains(inst_name)) {
-			active_type_substitutions = instantiated_type_maps.at(inst_name);
-		}
-
-		for (const auto &method : generic_st->methods) {
-			std::string mangled = to_llvm_name(inst_name) + "_" + std::string(method->name);
-			if (functions.contains(mangled)) {
-				check_function(method, mangled);
+			auto old_subst = active_type_substitutions;
+			if (instantiated_type_maps.contains(inst_name)) {
+				active_type_substitutions = instantiated_type_maps.at(inst_name);
 			}
+
+			for (const auto &method : generic_st->methods) {
+				std::string mangled = to_llvm_name(inst_name) + "_" + std::string(method->name);
+				if (functions.contains(mangled)) {
+					check_function(method, mangled);
+				}
+			}
+
+			active_type_substitutions = old_subst;
 		}
 
-		active_type_substitutions = old_subst;
+		while (fn_idx < instantiated_function_order.size()) {
+			progress = true;
+			const auto &inst_name = instantiated_function_order[fn_idx++];
+			const auto *fn_decl = instantiated_fn_decls.at(inst_name);
+			auto old_mod = current_module;
+			current_module = get_decl_module(fn_decl);
+
+			auto old_subst = active_type_substitutions;
+			if (instantiated_fn_type_maps.contains(inst_name)) {
+				active_type_substitutions = instantiated_fn_type_maps.at(inst_name);
+			}
+
+			check_function(fn_decl, inst_name);
+
+			active_type_substitutions = old_subst;
+			current_module = old_mod;
+		}
 	}
 }
 

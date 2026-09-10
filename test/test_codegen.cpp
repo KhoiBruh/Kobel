@@ -498,10 +498,86 @@ bool test_codegen_generic_structs() {
 	return true;
 }
 
+bool test_codegen_type_inference_and_prefixes() {
+	std::string_view code =
+		"fn add(a: i32, b: i32) => a + b;\n"
+		"fn check(x: i32) => if (x > 0) true else false;\n"
+		"fn test_inference_code(): i32 {\n"
+		"    val hex_val = 0xFF;\n"
+		"    val bin_val = 0b1010;\n"
+		"    val oct_val = 0o77;\n"
+		"    val split_val = 1_000_000;\n"
+		"    val flag = true;\n"
+		"    val sum = add(hex_val, bin_val);\n"
+		"    val is_pos = check(sum);\n"
+		"    return sum;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho suy luận kiểu và tiền tố thất bại");
+	ASSERT(ir.find("store i32 255") != std::string::npos, "Thiếu store i32 255 (hex)");
+	ASSERT(ir.find("store i32 10") != std::string::npos, "Thiếu store i32 10 (bin)");
+	ASSERT(ir.find("store i32 63") != std::string::npos, "Thiếu store i32 63 (oct)");
+	ASSERT(ir.find("store i32 1000000") != std::string::npos, "Thiếu store i32 1000000 (underscore)");
+	ASSERT(ir.find("store i1 true") != std::string::npos, "Thiếu store i1 true (bool)");
+	ASSERT(ir.find("call i32 @add(") != std::string::npos, "Thiếu lệnh gọi @add");
+	ASSERT(ir.find("call i1 @check(") != std::string::npos, "Thiếu lệnh gọi @check");
+	return true;
+}
+
+bool test_codegen_generic_functions() {
+	std::string_view code =
+		"fn id<T>(x: T): T => x;\n"
+		"fn max<T>(a: T, b: T): T {\n"
+		"    if (a > b) return a; else return b;\n"
+		"}\n"
+		"fn test_generics(): i32 {\n"
+		"    val a = id<i32>(42);\n"
+		"    val b = id(100);\n"
+		"    val m = max(a, b);\n"
+		"    return m;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho hàm generic thất bại");
+	ASSERT(ir.find("define i32 @id_i32(i32 %x)") != std::string::npos, "Thiếu định nghĩa @id_i32");
+	ASSERT(ir.find("define i32 @max_i32(i32 %a, i32 %b)") != std::string::npos, "Thiếu định nghĩa @max_i32");
+	ASSERT(ir.find("call i32 @id_i32(i32 42)") != std::string::npos, "Thiếu lệnh gọi id_i32(42)");
+	ASSERT(ir.find("call i32 @id_i32(i32 100)") != std::string::npos, "Thiếu lệnh gọi id_i32(100)");
+	ASSERT(ir.find("call i32 @max_i32(") != std::string::npos, "Thiếu lệnh gọi max_i32");
+	return true;
+}
+
+bool test_codegen_module_prefixes() {
+	std::string_view code =
+		"module math.vec;\n"
+		"pub struct Vector(x: i32, y: i32)\n"
+		"pub fn make_vec(x: i32, y: i32): Vector => Vector(x, y);\n"
+		"module physics.space;\n"
+		"pub struct Vector(mag: i32)\n"
+		"module main;\n"
+		"use math.vec.Vector;\n"
+		"use math.vec.make_vec;\n"
+		"use physics.space.Vector;\n"
+		"fn test_prefixes(): i32 {\n"
+		"    val v1 = vec.Vector(10, 20);\n"
+		"    val v2 = space.Vector(100);\n"
+		"    val v3 = vec.make_vec(30, 40);\n"
+		"    return v1.x + v2.mag + v3.x;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho tiền tố module thất bại");
+	ASSERT(ir.find("%math_vec_Vector") != std::string::npos, "Thiếu kiểu struct %math_vec_Vector");
+	ASSERT(ir.find("%physics_space_Vector") != std::string::npos, "Thiếu kiểu struct %physics_space_Vector");
+	ASSERT(ir.find("call %math_vec_Vector @math_vec_make_vec(") != std::string::npos, "Thiếu gọi hàm module vec.make_vec");
+	return true;
+}
+
 int main() {
 	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 19;
+	int total = 22;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -564,6 +640,18 @@ int main() {
 	}
 	if (test_codegen_generic_structs()) {
 		std::cout << "[PASS] test_codegen_generic_structs\n";
+		passed++;
+	}
+	if (test_codegen_type_inference_and_prefixes()) {
+		std::cout << "[PASS] test_codegen_type_inference_and_prefixes\n";
+		passed++;
+	}
+	if (test_codegen_generic_functions()) {
+		std::cout << "[PASS] test_codegen_generic_functions\n";
+		passed++;
+	}
+	if (test_codegen_module_prefixes()) {
+		std::cout << "[PASS] test_codegen_module_prefixes\n";
 		passed++;
 	}
 

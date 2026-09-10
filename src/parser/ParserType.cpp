@@ -47,9 +47,16 @@ TypeNode *Parser::parse_type() {
 		return arena.alloc<ArrayType>(elem_type, explicit_size, arr_tok.line, arr_tok.col);
 	}
 
-	// identifier: i32, u8, char, bool, MyStruct... or generic type: Box<i32>, Pair<i32, str>
+	// identifier: i32, u8, char, bool, MyStruct... or generic type: Box<i32>, Pair<i32, str> or module-prefixed b.B
 	if (match(TokenType::IDENTIFIER)) {
 		const Token id_tok = previous();
+		std::string full_name(id_tok.text);
+		while (match(TokenType::DOT)) {
+			const auto seg = consume(TokenType::IDENTIFIER, "Expected identifier after '.' in type name");
+			full_name += ".";
+			full_name += seg.text;
+		}
+
 		std::vector<TypeNode *> type_args;
 		if (match(TokenType::LESS)) {
 			do {
@@ -58,7 +65,7 @@ TypeNode *Parser::parse_type() {
 			consume(TokenType::GREATER, "Expected '>' after generic type arguments");
 		}
 		return arena.alloc<NamedType>(
-			id_tok.text, arena.alloc_span(type_args), tok.line, tok.col
+			arena.alloc_string(full_name), arena.alloc_span(type_args), id_tok.line, id_tok.col
 		);
 	}
 

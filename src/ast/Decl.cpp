@@ -64,10 +64,16 @@ export struct Param {
 	bool has_val = false; // true if val self / val param
 };
 
+export struct GenericParam {
+	std::string_view name;
+	std::span<std::string_view> bounds;
+};
+
 // Function declaration: fn name(a: i32, b: i32): i32 { ... }
 export struct FnDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_FN;
 	std::string_view name;
+	std::span<GenericParam> type_params;
 	std::span<Param> params;
 	TypeNode *return_type = nullptr; // nullptr if void
 	BlockStmt *body = nullptr; // nullptr if prototype (in extern)
@@ -78,11 +84,6 @@ export struct FnDecl final : Decl {
 		const size_t c = 0
 	) : Decl(KIND, l, c), name(n) {
 	}
-};
-
-export struct GenericParam {
-	std::string_view name;
-	std::span<std::string_view> bounds;
 };
 
 export struct StructField {

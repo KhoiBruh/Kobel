@@ -100,6 +100,19 @@ std::string Analyzer::resolve_struct_name(const std::string_view raw_name, const
 std::string Analyzer::resolve_generic_struct_name(const std::string_view raw_name, const size_t line, const size_t col) {
 	const auto name = std::string(raw_name);
 
+	// Check if bare symbol is ambiguous
+	if (!current_module.empty()) {
+		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
+			if (it_amb->second.contains(name)) {
+				logger.error(
+					line, col,
+					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
+				);
+				return "";
+			}
+		}
+	}
+
 	// 1. Within current module
 	if (!current_module.empty()) {
 		const std::string local_qualified = current_module + "." + name;
@@ -129,6 +142,51 @@ std::string Analyzer::resolve_generic_struct_name(const std::string_view raw_nam
 	return "";
 }
 
+std::string Analyzer::resolve_generic_function_name(const std::string_view raw_name, const size_t line, const size_t col) {
+	const auto name = std::string(raw_name);
+
+	// Check if bare symbol is ambiguous
+	if (!current_module.empty()) {
+		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
+			if (it_amb->second.contains(name)) {
+				logger.error(
+					line, col,
+					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
+				);
+				return "";
+			}
+		}
+	}
+
+	// 1. Within current module
+	if (!current_module.empty()) {
+		const std::string local_qualified = current_module + "." + name;
+		if (generic_functions.contains(local_qualified)) return local_qualified;
+	}
+
+	// 2. Direct lookup
+	if (const auto it = generic_functions.find(raw_name); it != generic_functions.end()) {
+		return name;
+	}
+
+	// 3. Module imports
+	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
+		if (const auto it = it_imp->second.find(raw_name); it != it_imp->second.end()) {
+			if (generic_functions.contains(it->second)) return it->second;
+		}
+	}
+
+	// 4. Wildcard imports
+	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
+		for (const auto &w_mod: it_wc->second) {
+			const std::string candidate = w_mod + "." + name;
+			if (generic_functions.contains(candidate)) return candidate;
+		}
+	}
+
+	return "";
+}
+
 std::string Analyzer::resolve_enum_name(const std::string_view raw_name, const size_t line, const size_t col) {
 	return resolve_symbol_helper(enums, raw_name, "Enum", line, col);
 }
@@ -140,6 +198,7 @@ std::string Analyzer::resolve_const_name(const std::string_view raw_name, const 
 void Analyzer::pass0_index_modules(const Program *program) {
 	decl_modules.clear();
 	module_imports.clear();
+	ambiguous_imports.clear();
 	module_wildcards.clear();
 	known_modules.clear();
 
@@ -156,9 +215,37 @@ void Analyzer::pass0_index_modules(const Program *program) {
 				module_wildcards[active_mod].push_back(std::string(full_path));
 			} else {
 				auto sym = std::string(u->symbol_name);
-				auto alias = u->alias.empty() ? sym : std::string(u->alias);
 				auto target = std::string(full_path) + "." + std::string(sym);
-				module_imports[active_mod][alias] = target;
+
+				if (!u->alias.empty()) {
+					auto alias = std::string(u->alias);
+					module_imports[active_mod][alias] = target;
+				} else {
+					// Register last module prefix: e.g. b.B for use a.b.B;
+					std::string last_mod_seg = std::string(full_path);
+					if (size_t dot_pos = last_mod_seg.rfind('.'); dot_pos != std::string::npos) {
+						last_mod_seg = last_mod_seg.substr(dot_pos + 1);
+					}
+					std::string prefixed_alias = last_mod_seg + "." + sym;
+
+					if (module_imports[active_mod].contains(prefixed_alias) &&
+					    module_imports[active_mod][prefixed_alias] != target) {
+						logger.error(u->line, u->col, "Ambiguous import '" + prefixed_alias + "', explicit alias required with 'as'");
+					} else {
+						module_imports[active_mod][prefixed_alias] = target;
+					}
+
+					// For bare sym:
+					if (module_imports[active_mod].contains(sym)) {
+						if (module_imports[active_mod][sym] != target) {
+							// Collision on bare symbol! Remove bare symbol so prefix is required
+							module_imports[active_mod].erase(sym);
+							ambiguous_imports[active_mod].insert(sym);
+						}
+					} else if (!ambiguous_imports[active_mod].contains(sym)) {
+						module_imports[active_mod][sym] = target;
+					}
+				}
 			}
 		} else {
 			decl_modules[decl] = active_mod;

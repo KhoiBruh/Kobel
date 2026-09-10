@@ -308,6 +308,12 @@ export struct CodeGen {
 			case SemaType::USZ:
 				return builder->getInt64Ty();
 
+			case SemaType::F32:
+				return builder->getFloatTy();
+
+			case SemaType::F64:
+				return builder->getDoubleTy();
+
 			case SemaType::BOOL:
 				return builder->getInt1Ty();
 
@@ -463,6 +469,7 @@ export struct CodeGen {
 		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl)) {
 				const auto *fn = as<FnDecl>(decl);
+				if (!fn->type_params.empty()) continue;
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main"
 					                        ? std::string(fn->name)
@@ -471,10 +478,18 @@ export struct CodeGen {
 			}
 		}
 
+		if (analyzer) {
+			for (const auto &inst_name: analyzer->instantiated_function_order) {
+				const auto *fn = analyzer->instantiated_fn_decls.at(inst_name);
+				emit_fn_proto(fn, to_llvm_name(inst_name));
+			}
+		}
+
 		// 4b. Function bodies (Pass 2: Generate function bodies; functions can call each other freely)
 		for (const auto &decl: program->declarations) {
 			if (isa<FnDecl>(decl)) {
 				const auto *fn = as<FnDecl>(decl);
+				if (!fn->type_params.empty()) continue;
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main"
 					                        ? std::string(fn->name)
@@ -490,11 +505,29 @@ export struct CodeGen {
 				std::string base_name = inst_name.substr(0, inst_name.find('<'));
 				if (analyzer->generic_structs.contains(base_name)) {
 					const auto *generic_st = analyzer->generic_structs.at(base_name);
+					auto old_subst = analyzer->active_type_substitutions;
+					if (analyzer->instantiated_type_maps.contains(inst_name)) {
+						analyzer->active_type_substitutions = analyzer->instantiated_type_maps.at(inst_name);
+					}
 					for (const auto &method: generic_st->methods) {
 						std::string mangled = llvm_st_name + "_" + std::string(method->name);
 						emit_fn_body(method, mangled);
 					}
+					analyzer->active_type_substitutions = old_subst;
 				}
+			}
+		}
+
+		// 4d. Instantiated generic function bodies
+		if (analyzer) {
+			for (const auto &inst_name: analyzer->instantiated_function_order) {
+				const auto *fn = analyzer->instantiated_fn_decls.at(inst_name);
+				auto old_subst = analyzer->active_type_substitutions;
+				if (analyzer->instantiated_fn_type_maps.contains(inst_name)) {
+					analyzer->active_type_substitutions = analyzer->instantiated_fn_type_maps.at(inst_name);
+				}
+				emit_fn_body(fn, to_llvm_name(inst_name));
+				analyzer->active_type_substitutions = old_subst;
 			}
 		}
 

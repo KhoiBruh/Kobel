@@ -32,10 +32,12 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 	if (isa<VarDeclStmt>(stmt)) {
 		const auto *v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
-		auto sema_ty = analyzer->resolve_type(v->type_annotation);
-		if (sema_ty->is_array() && sema_ty->array_size == 0 && v->initializer) {
+		auto sema_ty = v->type_annotation
+			               ? analyzer->resolve_type(v->type_annotation)
+			               : get_sema_type(v->initializer);
+		if (sema_ty && sema_ty->is_array() && sema_ty->array_size == 0 && v->initializer) {
 			auto init_sema = get_sema_type(v->initializer);
-			if (init_sema->is_array()) {
+			if (init_sema && init_sema->is_array()) {
 				sema_ty->array_size = (init_sema->array_size);
 			}
 		}

@@ -586,6 +586,50 @@ bool test_parse_generic_structs() {
 	return true;
 }
 
+bool test_parse_generic_functions() {
+	std::string_view code =
+		"fn id<T>(x: T): T => x;\n"
+		"fn max<T: Comparable>(a: T, b: T): T {\n"
+		"    if (a > b) return a; else return b;\n"
+		"}\n"
+		"fn main(): i32 {\n"
+		"    val a = id<i32>(42);\n"
+		"    val b = id(42);\n"
+		"    val m = max<i64>(10L, 20L);\n"
+		"    return 0;\n"
+		"}\n";
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+	ASSERT(!p.has_errors(), "Parser should not error on generic functions");
+	ASSERT(prog->declarations.size() == 3, "Expected 3 declarations");
+
+	auto *id_fn = as<FnDecl>(prog->declarations[0]);
+	ASSERT(id_fn->name == "id", "Expected fn id");
+	ASSERT(id_fn->type_params.size() == 1, "Expected 1 type param for id");
+	ASSERT(id_fn->type_params[0].name == "T", "Expected type param T");
+	ASSERT(id_fn->params.size() == 1, "Expected 1 param for id");
+
+	auto *max_fn = as<FnDecl>(prog->declarations[1]);
+	ASSERT(max_fn->name == "max", "Expected fn max");
+	ASSERT(max_fn->type_params.size() == 1, "Expected 1 type param for max");
+	ASSERT(max_fn->type_params[0].name == "T", "Expected type param T");
+	ASSERT(!max_fn->type_params[0].bounds.empty(), "Expected bound for max T");
+	ASSERT(max_fn->type_params[0].bounds[0] == "Comparable", "Expected Comparable bound");
+
+	auto *main_fn = as<FnDecl>(prog->declarations[2]);
+	ASSERT(main_fn->body->statements.size() == 4, "Expected 4 statements in main");
+	auto *v0 = as<VarDeclStmt>(main_fn->body->statements[0]);
+	auto *c0 = as<CallExpr>(v0->initializer);
+	ASSERT(c0->type_args.size() == 1, "Expected 1 explicit type argument in id<i32>(42)");
+
+	auto *v1 = as<VarDeclStmt>(main_fn->body->statements[1]);
+	auto *c1 = as<CallExpr>(v1->initializer);
+	ASSERT(c1->type_args.empty(), "Expected empty explicit type arguments in id(42)");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
 
@@ -627,6 +671,9 @@ int main() {
 
 	if (!test_parse_generic_structs()) return 1;
 	std::cout << "  [PASS] test_parse_generic_structs" << std::endl;
+
+	if (!test_parse_generic_functions()) return 1;
+	std::cout << "  [PASS] test_parse_generic_functions" << std::endl;
 
 	if (!test_error_recovery()) return 1;
 	std::cout << "  [PASS] test_error_recovery" << std::endl;

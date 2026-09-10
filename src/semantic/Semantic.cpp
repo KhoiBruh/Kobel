@@ -37,6 +37,7 @@ export using StringSet = std::unordered_set<std::string, StringHash, std::equal_
 export enum class SemaType {
 	I8, I16, I32, I64, ISZ,
 	U8, U16, U32, U64, USZ,
+	F32, F64,
 	BOOL, CHAR, VOID, STR,
 	POINTER, STRUCT, ENUM, ARRAY,
 	NULL_TYPE, ERROR_TYPE
@@ -81,6 +82,7 @@ export struct Type {
 		}
 	}
 
+	bool is_float() const { return kind == SemaType::F32 || kind == SemaType::F64; }
 	bool is_pointer() const { return kind == SemaType::POINTER; }
 	bool is_bool() const { return kind == SemaType::BOOL; }
 	bool is_char() const { return kind == SemaType::CHAR; }
@@ -122,6 +124,8 @@ export struct Type {
 			case SemaType::U32: return "u32";
 			case SemaType::U64: return "u64";
 			case SemaType::USZ: return "usz";
+			case SemaType::F32: return "f32";
+			case SemaType::F64: return "f64";
 			case SemaType::BOOL: return "bool";
 			case SemaType::CHAR: return "char";
 			case SemaType::VOID: return "void";

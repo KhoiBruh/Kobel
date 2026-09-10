@@ -1,0 +1,58 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+// 1. Generic identity function with expression body
+fn id<T>(x: T): T => x;
+
+// 2. Generic function with block body
+fn max<T>(a: T, b: T): T {
+    if (a > b) return a;
+    else return b;
+}
+
+// 3. Generic pair constructor
+struct Pair<T, U>(first: T, second: U)
+fn make_pair<T, U>(a: T, b: U): Pair<T, U> => Pair(a, b);
+
+fn main(): i32 {
+    // 1. Full variable type inference
+    val hex_num = 0x2A;               // 42 in hex
+    val bin_num = 0b101010;           // 42 in bin
+    val oct_num = 0o52;               // 42 in oct
+    val split_million = 1_000_000;    // 1000000 with separators
+    val long_num = 1000L;             // i64 with suffix
+    val flag = true;                  // bool
+    val letter = 'K';                 // char
+    val greeting = "Hello, Kobel!";   // str
+
+    if (hex_num != 42) return 1;
+    if (bin_num != 42) return 2;
+    if (oct_num != 42) return 3;
+    if (split_million != 1000000) return 4;
+    if (!flag) return 5;
+    if (letter != 'K') return 6;
+
+    // 2. Generic functions: explicit & inferred
+    val id_i32 = id<i32>(hex_num);
+    if (id_i32 != 42) return 7;
+
+    val id_inferred = id(bin_num);
+    if (id_inferred != 42) return 8;
+
+    val id_str = id(greeting);
+    if (id_str.len != 13 as usz) return 9;
+
+    val m_val = max(10, 20);
+    if (m_val != 20) return 10;
+
+    val m_long = max(100L, 50L);
+    if (m_long != 100L) return 11;
+
+    // 3. Generic function producing generic struct
+    val p = make_pair(42, "answer");
+    if (p.first != 42) return 12;
+
+    puts("Generic functions & Type inference passed successfully in Kobel!");
+    return 0;
+}

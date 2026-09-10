@@ -105,6 +105,25 @@ bool test_line_col_tracking() {
 	return true;
 }
 
+bool test_numeric_prefixes_and_suffixes() {
+	std::string_view code = "0xFF 0b1010 0o77 1_000_000 100L 50U 10_000_US 3.14F 2.5D";
+	Lexer lex{code};
+	auto tokens = lex.tokenize();
+
+	ASSERT(tokens.size() == 10, "Prefixes token count mismatch");
+	ASSERT(tokens[0].type == TokenType::NUMBER && tokens[0].text == "0xFF", "Hex mismatch");
+	ASSERT(tokens[1].type == TokenType::NUMBER && tokens[1].text == "0b1010", "Binary mismatch");
+	ASSERT(tokens[2].type == TokenType::NUMBER && tokens[2].text == "0o77", "Octal mismatch");
+	ASSERT(tokens[3].type == TokenType::NUMBER && tokens[3].text == "1_000_000", "Underscore mismatch");
+	ASSERT(tokens[4].type == TokenType::NUMBER && tokens[4].text == "100L", "Suffix L mismatch");
+	ASSERT(tokens[5].type == TokenType::NUMBER && tokens[5].text == "50U", "Suffix U mismatch");
+	ASSERT(tokens[6].type == TokenType::NUMBER && tokens[6].text == "10_000_US", "Suffix US mismatch");
+	ASSERT(tokens[7].type == TokenType::NUMBER && tokens[7].text == "3.14F", "Suffix F mismatch");
+	ASSERT(tokens[8].type == TokenType::NUMBER && tokens[8].text == "2.5D", "Suffix D mismatch");
+	ASSERT(tokens[9].type == TokenType::END_OF_FILE, "EOF mismatch");
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Lexer tests..." << std::endl;
 	if (!test_keywords()) return 1;
@@ -115,6 +134,9 @@ int main() {
 
 	if (!test_literals()) return 1;
 	std::cout << "  [PASS] test_literals" << std::endl;
+
+	if (!test_numeric_prefixes_and_suffixes()) return 1;
+	std::cout << "  [PASS] test_numeric_prefixes_and_suffixes" << std::endl;
 
 	if (!test_comments_and_whitespace()) return 1;
 	std::cout << "  [PASS] test_comments_and_whitespace" << std::endl;

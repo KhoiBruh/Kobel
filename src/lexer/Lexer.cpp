@@ -74,14 +74,65 @@ export struct Lexer {
 	}
 
 	Token scan_number(size_t start_cursor, size_t start_col) {
-		while (std::isdigit(static_cast<unsigned char>(peek()))) next();
-		if (
-			peek() == '.' &&
-			cursor + 1 < src.size() &&
-			std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
-		) {
-			next(); // consume '.'
-			while (std::isdigit(static_cast<unsigned char>(peek()))) next();
+		const char first = src[start_cursor];
+		if (first == '0' && !is_end()) {
+			const char p = peek();
+			if (p == 'x' || p == 'X') {
+				next(); // consume 'x' or 'X'
+				while (std::isxdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+			} else if (p == 'b' || p == 'B') {
+				next(); // consume 'b' or 'B'
+				while (peek() == '0' || peek() == '1' || peek() == '_') next();
+			} else if (p == 'o' || p == 'O') {
+				next(); // consume 'o' or 'O'
+				while ((peek() >= '0' && peek() <= '7') || peek() == '_') next();
+			} else {
+				while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+				if (
+					peek() == '.' &&
+					cursor + 1 < src.size() &&
+					std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
+				) {
+					next(); // consume '.'
+					while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+				}
+			}
+		} else {
+			while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+			if (
+				peek() == '.' &&
+				cursor + 1 < src.size() &&
+				std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
+			) {
+				next(); // consume '.'
+				while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+			}
+		}
+
+		// Optional separator before suffix: e.g. 100_L or 0xFF_UL
+		if (peek() == '_' && cursor + 1 < src.size()) {
+			const char next_c = src[cursor + 1];
+			if (next_c == 'S' || next_c == 'L' || next_c == 'B' || next_c == 'Z' ||
+			    next_c == 'U' || next_c == 'D' || next_c == 'F') {
+				next(); // consume '_'
+			}
+		}
+
+		// Optional type suffixes: S, L, B, Z, U, US, UL, UB, UZ, D, F
+		if (!is_end()) {
+			const char c1 = peek();
+			if (c1 == 'U' && cursor + 1 < src.size()) {
+				const char c2 = src[cursor + 1];
+				if (c2 == 'S' || c2 == 'L' || c2 == 'B' || c2 == 'Z') {
+					next();
+					next();
+				} else {
+					next();
+				}
+			} else if (c1 == 'S' || c1 == 'L' || c1 == 'B' || c1 == 'Z' ||
+			           c1 == 'U' || c1 == 'D' || c1 == 'F') {
+				next();
+			}
 		}
 
 		return {TokenType::NUMBER, sub(start_cursor), line, start_col};
