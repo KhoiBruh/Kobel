@@ -513,6 +513,12 @@ export struct CodeGen {
 						std::string mangled = llvm_st_name + "_" + std::string(method->name);
 						emit_fn_body(method, mangled);
 					}
+					if (analyzer->struct_default_methods.contains(inst_name)) {
+						for (const auto &inh : analyzer->struct_default_methods.at(inst_name)) {
+							std::string mangled = llvm_st_name + "_" + inh.method_name;
+							emit_fn_body(inh.fn_decl, mangled);
+						}
+					}
 					analyzer->active_type_substitutions = old_subst;
 				}
 			}

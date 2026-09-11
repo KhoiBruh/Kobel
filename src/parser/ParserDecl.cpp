@@ -114,14 +114,35 @@ StructDecl *Parser::parse_struct_decl() {
 	}
 	consume(TokenType::CLOSE_PAREN, "Expected ')' to close struct field declarations");
 
+	std::vector<std::string_view> traits;
+	if (match(TokenType::COLON)) {
+		do {
+			const Token t_name = consume(TokenType::IDENTIFIER, "Expected trait name");
+			traits.push_back(t_name.text);
+			if (check(TokenType::PLUS)) {
+				advance();
+			} else if (check(TokenType::COMMA)) {
+				advance();
+			} else {
+				break;
+			}
+		} while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end());
+	}
+
 	std::vector<FnDecl *> methods;
 	if (match(TokenType::OPEN_BRACE)) {
 		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
-			const bool method_pub = match(TokenType::KW_PUB);
+			bool method_pub = false;
+			bool is_override = false;
+			while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
+				if (match(TokenType::KW_PUB)) method_pub = true;
+				else if (match(TokenType::KW_OVERRIDE)) is_override = true;
+			}
 			if (check(TokenType::KW_FN)) {
 				auto fn = parse_fn_decl();
 				if (fn) {
 					fn->is_pub = method_pub;
+					fn->is_override = is_override;
 					methods.push_back(fn);
 				}
 			} else {
@@ -136,8 +157,69 @@ StructDecl *Parser::parse_struct_decl() {
 	auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
 	st->type_params = arena.alloc_span(type_params);
 	st->fields = arena.alloc_span(fields);
+	st->traits = arena.alloc_span(traits);
 	st->methods = arena.alloc_span(methods);
 	return st;
+}
+
+TraitDecl *Parser::parse_trait_decl() {
+	const auto tok = consume(TokenType::KW_TRAIT, "Expected 'trait'");
+	const auto name = consume(TokenType::IDENTIFIER, "Expected trait name after 'trait'");
+
+	std::vector<GenericParam> type_params;
+	if (match(TokenType::LESS)) {
+		do {
+			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+			std::vector<std::string_view> bounds;
+			if (match(TokenType::COLON)) {
+				do {
+					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+					bounds.push_back(b_name.text);
+				} while (match(TokenType::PLUS));
+			}
+			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+		} while (match(TokenType::COMMA));
+		consume(TokenType::GREATER, "Expected '>' after type parameters");
+	}
+
+	std::vector<std::string_view> bases;
+	if (match(TokenType::COLON)) {
+		do {
+			const Token b_name = consume(TokenType::IDENTIFIER, "Expected base trait name");
+			bases.push_back(b_name.text);
+			if (check(TokenType::PLUS)) {
+				advance();
+			} else if (check(TokenType::COMMA)) {
+				advance();
+			} else {
+				break;
+			}
+		} while (!check(TokenType::OPEN_BRACE) && !is_end());
+	}
+
+	consume(TokenType::OPEN_BRACE, "Expected '{' to begin trait body");
+
+	std::vector<FnDecl *> methods;
+	while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
+		const bool method_pub = match(TokenType::KW_PUB);
+		if (check(TokenType::KW_FN)) {
+			auto fn = parse_fn_decl();
+			if (fn) {
+				fn->is_pub = method_pub;
+				methods.push_back(fn);
+			}
+		} else {
+			advance();
+		}
+	}
+
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to end trait body");
+
+	auto tr = arena.alloc<TraitDecl>(name.text, tok.line, tok.col);
+	tr->type_params = arena.alloc_span(type_params);
+	tr->bases = arena.alloc_span(bases);
+	tr->methods = arena.alloc_span(methods);
+	return tr;
 }
 
 EnumDecl *Parser::parse_enum_decl() {
@@ -297,11 +379,12 @@ Decl *Parser::parse_declaration() {
 	Decl *decl = nullptr;
 	if (check(TokenType::KW_FN)) decl = parse_fn_decl();
 	else if (check(TokenType::KW_STRUCT)) decl = parse_struct_decl();
+	else if (check(TokenType::KW_TRAIT)) decl = parse_trait_decl();
 	else if (check(TokenType::KW_ENUM)) decl = parse_enum_decl();
 	else if (check(TokenType::KW_CONST)) decl = parse_const_decl();
 	else if (check(TokenType::KW_EXTERN)) decl = parse_extern_block();
 	else {
-		error(peek(), "Expected top-level declaration ('fn', 'struct', 'enum', 'const', 'extern', 'module', 'use')");
+		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'enum', 'const', 'extern', 'module', 'use')");
 		advance();
 		return nullptr;
 	}

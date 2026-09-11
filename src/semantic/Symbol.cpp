@@ -9,6 +9,7 @@ module;
 export module semantic.symbol;
 
 import semantic;
+import ast;
 
 export inline std::string to_llvm_name(std::string_view name) {
 	if (name == "main") return "main";
@@ -99,6 +100,17 @@ export struct StructSymbol {
 	StringMap<FnSymbol> methods;
 	bool is_pub = false;
 	std::string module_name;
+	size_t line = 0;
+	size_t col = 0;
+};
+
+export struct TraitSymbol {
+	std::string name;
+	bool is_pub = false;
+	std::string module_name;
+	std::vector<std::string> base_traits;
+	StringMap<const FnDecl *> required_methods;
+	StringMap<const FnDecl *> default_methods;
 	size_t line = 0;
 	size_t col = 0;
 };

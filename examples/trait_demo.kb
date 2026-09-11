@@ -1,0 +1,59 @@
+extern "libc" {
+    fn puts(s: *char): i32;
+}
+
+// 1. Trait with prototype and default implementation
+trait Greeter {
+    fn name(val self): str;
+    fn greet(val self): str => "Hello from " + self.name();
+}
+
+// 2. Trait inheritance
+trait Measurable {
+    fn measure(val self): i32;
+}
+
+trait Summarizable : Measurable {
+    fn summary(val self): i32 => self.measure() * 2;
+}
+
+// 3. Structs implementing traits with override
+struct Person(first_name: str) : Greeter {
+    override fn name(val self): str => self.first_name;
+}
+
+struct Box(width: i32, height: i32) : Summarizable {
+    override fn measure(val self): i32 => self.width * self.height;
+}
+
+// 4. Generic function constrained with static trait bound
+fn announce<T: Greeter>(val item: T): str {
+    return item.greet();
+}
+
+fn evaluate<T: Summarizable>(val item: T): i32 {
+    return item.summary();
+}
+
+fn main(): i32 {
+    val person = Person("Kobel Trait System");
+    val greeting = person.greet();
+    if (greeting.len == 0 as usz) return 1;
+
+    val announcement = announce<Person>(person);
+    if (announcement.len == 0 as usz) return 2;
+
+    val box = Box(5, 10);
+    val area = box.measure();
+    if (area != 50) return 3;
+
+    // Inherited default method from Summarizable
+    val score = box.summary();
+    if (score != 100) return 4;
+
+    val evaluated = evaluate<Box>(box);
+    if (evaluated != 100) return 5;
+
+    puts("Static Traits demo passed successfully in native Kobel!");
+    return 0;
+}

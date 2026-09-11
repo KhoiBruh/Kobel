@@ -630,8 +630,66 @@ bool test_parse_generic_functions() {
 	return true;
 }
 
+bool test_parse_traits() {
+	std::string_view code =
+		"trait Greeter {\n"
+		"    fn greet(val self): str => \"hello\";\n"
+		"    fn name(val self): str;\n"
+		"}\n"
+		"\n"
+		"trait AdvancedGreeter : Greeter {\n"
+		"    fn detailed_greet(val self): str;\n"
+		"}\n"
+		"\n"
+		"struct Person(first: str, age: i32) : Greeter, AdvancedGreeter {\n"
+		"    override fn name(val self): str => self.first;\n"
+		"    pub override fn detailed_greet(val self): str => self.first;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto *prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parser should not error on traits");
+	ASSERT(prog->declarations.size() == 3, "Expected 3 declarations");
+
+	// 1. Trait Greeter
+	ASSERT(isa<TraitDecl>(prog->declarations[0]), "Expected TraitDecl for Greeter");
+	auto *tr1 = as<TraitDecl>(prog->declarations[0]);
+	ASSERT(tr1->name == "Greeter", "Trait name should be Greeter");
+	ASSERT(tr1->bases.empty(), "Greeter has no base traits");
+	ASSERT(tr1->methods.size() == 2, "Greeter has 2 methods");
+	ASSERT(tr1->methods[0]->name == "greet", "Method 0 is greet");
+	ASSERT(tr1->methods[0]->body != nullptr, "greet has default body");
+	ASSERT(tr1->methods[1]->name == "name", "Method 1 is name");
+	ASSERT(tr1->methods[1]->body == nullptr, "name is prototype without body");
+
+	// 2. Trait AdvancedGreeter : Greeter
+	ASSERT(isa<TraitDecl>(prog->declarations[1]), "Expected TraitDecl for AdvancedGreeter");
+	auto *tr2 = as<TraitDecl>(prog->declarations[1]);
+	ASSERT(tr2->name == "AdvancedGreeter", "Trait name should be AdvancedGreeter");
+	ASSERT(tr2->bases.size() == 1 && tr2->bases[0] == "Greeter", "AdvancedGreeter inherits Greeter");
+	ASSERT(tr2->methods.size() == 1, "AdvancedGreeter has 1 method");
+
+	// 3. Struct Person : Greeter, AdvancedGreeter
+	ASSERT(isa<StructDecl>(prog->declarations[2]), "Expected StructDecl for Person");
+	auto *st = as<StructDecl>(prog->declarations[2]);
+	ASSERT(st->name == "Person", "Struct name should be Person");
+	ASSERT(st->traits.size() == 2, "Person implements 2 traits");
+	ASSERT(st->traits[0] == "Greeter", "Trait 0 is Greeter");
+	ASSERT(st->traits[1] == "AdvancedGreeter", "Trait 1 is AdvancedGreeter");
+	ASSERT(st->methods.size() == 2, "Person has 2 methods");
+	ASSERT(st->methods[0]->is_override, "name has is_override true");
+	ASSERT(st->methods[1]->is_override && st->methods[1]->is_pub, "detailed_greet has is_override and is_pub");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Parser tests..." << std::endl;
+
+	if (!test_parse_traits()) return 1;
+	std::cout << "  [PASS] test_parse_traits" << std::endl;
 
 	if (!test_empty_parser_safety()) return 1;
 	std::cout << "  [PASS] test_empty_parser_safety" << std::endl;

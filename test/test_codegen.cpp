@@ -574,10 +574,41 @@ bool test_codegen_module_prefixes() {
 	return true;
 }
 
+bool test_codegen_traits() {
+	std::string_view code =
+		"trait MathOps {\n"
+		"    fn sum(val self): i32;\n"
+		"    fn inherited_mult(val self): i32 => self.sum() * 2;\n"
+		"}\n"
+		"struct Point(x: i32, y: i32) : MathOps {\n"
+		"    override fn sum(val self): i32 => self.x + self.y;\n"
+		"}\n"
+		"fn calc<T: MathOps>(val item: T): i32 {\n"
+		"    return item.inherited_mult();\n"
+		"}\n"
+		"fn test_traits_code(): i32 {\n"
+		"    val p = Point(10, 20);\n"
+		"    val s = p.sum();\n"
+		"    val m = p.inherited_mult();\n"
+		"    val c = calc<Point>(p);\n"
+		"    return s + m + c;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "CodeGen for static traits failed");
+	ASSERT(ir.find("define i32 @Point_sum(") != std::string::npos, "Missing @Point_sum definition");
+	ASSERT(ir.find("define i32 @Point_inherited_mult(") != std::string::npos, "Missing inherited @Point_inherited_mult definition");
+	ASSERT(ir.find("define i32 @calc_Point(") != std::string::npos, "Missing @calc_Point specialization");
+	ASSERT(ir.find("call i32 @Point_sum(ptr ") != std::string::npos, "Missing call to @Point_sum");
+	ASSERT(ir.find("call i32 @Point_inherited_mult(ptr ") != std::string::npos, "Missing call to @Point_inherited_mult");
+	ASSERT(ir.find("call i32 @calc_Point(") != std::string::npos, "Missing call to @calc_Point");
+	return true;
+}
+
 int main() {
 	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 22;
+	int total = 23;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -652,6 +683,10 @@ int main() {
 	}
 	if (test_codegen_module_prefixes()) {
 		std::cout << "[PASS] test_codegen_module_prefixes\n";
+		passed++;
+	}
+	if (test_codegen_traits()) {
+		std::cout << "[PASS] test_codegen_traits\n";
 		passed++;
 	}
 

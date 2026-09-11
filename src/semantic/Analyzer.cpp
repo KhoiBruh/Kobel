@@ -33,10 +33,18 @@ export struct Analyzer {
 	StringMap<StringMap<Semantic>> instantiated_fn_type_maps;
 	StringMap<EnumSymbol> enums;
 	StringMap<ConstSymbol> constants;
+	StringMap<TraitSymbol> traits;
+	StringMap<std::vector<std::string>> struct_traits;
+	struct InheritedTraitMethod {
+		std::string method_name;
+		const FnDecl *fn_decl;
+	};
+	StringMap<std::vector<InheritedTraitMethod>> struct_default_methods;
 	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
 	std::optional<Semantic> current_function_return_type;
+	Semantic current_self_type = nullptr;
 	int loop_depth = 0;
 
 	std::string current_module;
@@ -163,6 +171,10 @@ export struct Analyzer {
 	std::string resolve_enum_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
 	std::string resolve_const_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
+ 
+	std::string resolve_trait_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
+ 
+	bool type_implements_trait(Semantic type, std::string_view trait_name);
 
 	// Type mapping & Generic instantiation (AnalyzerType.cpp)
 	Semantic resolve_type(const TypeNode *node);
@@ -183,6 +195,19 @@ export struct Analyzer {
 	void pass1_register_declarations(const Program *program);
 
 	void register_function(const FnDecl *fn, const std::string &mod);
+
+	void collect_trait_methods(
+		const std::string &trait_name,
+		StringMap<const FnDecl *> &out_required,
+		StringMap<const FnDecl *> &out_defaults,
+		std::vector<std::string> &out_all_traits,
+		std::unordered_set<std::string> &visited
+	);
+
+	void check_and_apply_struct_traits(
+		const StructDecl *st,
+		const std::string &qual_name
+	);
 
 	void validate_use_declarations(const Program *program);
 

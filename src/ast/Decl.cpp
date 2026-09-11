@@ -76,7 +76,8 @@ export struct FnDecl final : Decl {
 	std::span<GenericParam> type_params;
 	std::span<Param> params;
 	TypeNode *return_type = nullptr; // nullptr if void
-	BlockStmt *body = nullptr; // nullptr if prototype (in extern)
+	BlockStmt *body = nullptr; // nullptr if prototype (in extern, trait)
+	bool is_override = false;
 
 	explicit FnDecl(
 		const std::string_view n,
@@ -91,15 +92,32 @@ export struct StructField {
 	TypeNode *type;
 };
 
-// Struct declaration: struct Point(x: i32, y: i32) { ... } or struct Box<T>(value: T) { ... }
+// Struct declaration: struct Point(x: i32, y: i32) : Trait1, Trait2 { ... } or struct Box<T>(value: T) { ... }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
 	std::span<GenericParam> type_params;
 	std::span<StructField> fields;
+	std::span<std::string_view> traits;
 	std::span<FnDecl *> methods;
 
 	explicit StructDecl(
+		const std::string_view n,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Decl(KIND, l, c), name(n) {
+	}
+};
+
+// Trait declaration: trait Greeter { ... } or trait Child : Parent { ... }
+export struct TraitDecl final : Decl {
+	static constexpr auto KIND = ASTKind::DECL_TRAIT;
+	std::string_view name;
+	std::span<GenericParam> type_params;
+	std::span<std::string_view> bases;
+	std::span<FnDecl *> methods;
+
+	explicit TraitDecl(
 		const std::string_view n,
 		const size_t l = 0,
 		const size_t c = 0

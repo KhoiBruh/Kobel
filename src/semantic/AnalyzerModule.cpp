@@ -195,6 +195,10 @@ std::string Analyzer::resolve_const_name(const std::string_view raw_name, const 
 	return resolve_symbol_helper(constants, raw_name, "Constant", line, col);
 }
 
+std::string Analyzer::resolve_trait_name(const std::string_view raw_name, const size_t line, const size_t col) {
+	return resolve_symbol_helper(traits, raw_name, "Trait", line, col);
+}
+
 void Analyzer::pass0_index_modules(const Program *program) {
 	decl_modules.clear();
 	module_imports.clear();
@@ -294,6 +298,14 @@ void Analyzer::validate_use_declarations(const Program *program) {
 						}
 					}
 					if (!mod_found) {
+						for (const auto &sym: traits | std::views::values) {
+							if (sym.module_name == full_path) {
+								mod_found = true;
+								break;
+							}
+						}
+					}
+					if (!mod_found) {
 						logger.error(u->line, u->col, "module '" + std::string(full_path) + "' not found");
 					}
 				}
@@ -310,6 +322,9 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				} else if (structs.contains(target)) {
 					found = true;
 					is_pub = structs.at(target).is_pub;
+				} else if (traits.contains(target)) {
+					found = true;
+					is_pub = traits.at(target).is_pub;
 				} else if (enums.contains(target)) {
 					found = true;
 					is_pub = enums.at(target).is_pub;

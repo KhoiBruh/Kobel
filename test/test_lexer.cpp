@@ -14,7 +14,7 @@ import lexer;
 	} while (0)
 
 bool test_keywords() {
-	std::string_view code = "extern struct fn return const null true false val var as while break continue if else";
+	std::string_view code = "extern struct fn return const null true false val var as while break continue if else trait override";
 	Lexer lex{code};
 	auto tokens = lex.tokenize();
 
@@ -24,7 +24,8 @@ bool test_keywords() {
 		TokenType::KW_TRUE, TokenType::KW_FALSE, TokenType::KW_VAL,
 		TokenType::KW_VAR, TokenType::KW_AS, TokenType::KW_WHILE,
 		TokenType::KW_BREAK, TokenType::KW_CONTINUE, TokenType::KW_IF,
-		TokenType::KW_ELSE, TokenType::END_OF_FILE
+		TokenType::KW_ELSE, TokenType::KW_TRAIT, TokenType::KW_OVERRIDE,
+		TokenType::END_OF_FILE
 	};
 
 	ASSERT(tokens.size() == expected.size(), "Token count mismatch in keywords");

@@ -36,6 +36,10 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 	if (name == "void") return make_primitive(SemaType::VOID);
 	if (name == "str") return make_str();
 
+	if (name == "Self" && current_self_type) {
+		return current_self_type;
+	}
+
 	const auto resolved_st = resolve_struct_name(name, line, col);
 	if (!resolved_st.empty()) return make_struct(resolved_st);
 
@@ -45,11 +49,46 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 	return nullptr;
 }
 
+bool Analyzer::type_implements_trait(Semantic type, const std::string_view trait_name) {
+	if (!type) return false;
+	while (type->is_pointer()) {
+		type = type->pointee;
+	}
+	if (!type->is_struct()) return false;
+
+	std::string resolved_trait = resolve_trait_name(trait_name);
+	if (resolved_trait.empty()) {
+		resolved_trait = std::string(trait_name);
+	}
+
+	std::string st_name = type->struct_name;
+	std::vector<std::string> candidates;
+	candidates.push_back(st_name);
+	if (st_name.find('<') != std::string::npos) {
+		candidates.push_back(st_name.substr(0, st_name.find('<')));
+	}
+
+	for (const auto &c_name : candidates) {
+		if (auto it = struct_traits.find(c_name); it != struct_traits.end()) {
+			for (const auto &t : it->second) {
+				if (t == resolved_trait || t == trait_name) return true;
+				if (t.ends_with("." + std::string(trait_name))) return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 Semantic Analyzer::substitute_type(const TypeNode *node, const StringMap<Semantic> &type_map) {
 	if (!node) return make_primitive(SemaType::VOID);
 
 	if (isa<NamedType>(node)) {
 		const auto *named = as<NamedType>(node);
+
+		if (named->name == "Self" && current_self_type) {
+			return current_self_type;
+		}
 
 		// Check if it's a type parameter (e.g. "T" -> i32)
 		auto it = type_map.find(named->name);
@@ -132,6 +171,21 @@ Semantic Analyzer::instantiate_struct(
 		return make_error();
 	}
 
+	for (size_t i = 0; i < generic_st->type_params.size(); ++i) {
+		const auto &tp = generic_st->type_params[i];
+		const auto arg_ty = type_args[i];
+		for (const auto &b : tp.bounds) {
+			if (!type_implements_trait(arg_ty, b)) {
+				logger.error(
+					line, col,
+					"Type '" + arg_ty->to_string() + "' does not implement trait '" +
+					std::string(b) + "' required by type parameter '" + std::string(tp.name) + "'"
+				);
+				return make_error();
+			}
+		}
+	}
+
 	StringMap<Semantic> type_map;
 	for (size_t i = 0; i < generic_st->type_params.size(); ++i) {
 		type_map[std::string(generic_st->type_params[i].name)] = type_args[i];
@@ -202,6 +256,8 @@ Semantic Analyzer::instantiate_struct(
 	if (!mod.empty()) {
 		structs[to_llvm_name(instantiated_name)] = sym;
 	}
+
+	check_and_apply_struct_traits(generic_st, instantiated_name);
 
 	return make_struct(instantiated_name);
 }
@@ -292,6 +348,21 @@ Semantic Analyzer::instantiate_function(
 			std::to_string(type_args.size())
 		);
 		return make_error();
+	}
+
+	for (size_t i = 0; i < generic_fn->type_params.size(); ++i) {
+		const auto &tp = generic_fn->type_params[i];
+		const auto arg_ty = type_args[i];
+		for (const auto &b : tp.bounds) {
+			if (!type_implements_trait(arg_ty, b)) {
+				logger.error(
+					line, col,
+					"Type '" + arg_ty->to_string() + "' does not implement trait '" +
+					std::string(b) + "' required by type parameter '" + std::string(tp.name) + "'"
+				);
+				return make_error();
+			}
+		}
 	}
 
 	StringMap<Semantic> type_map;

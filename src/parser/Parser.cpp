@@ -190,6 +190,8 @@ export struct Parser {
 	FnDecl *parse_fn_decl();
 
 	StructDecl *parse_struct_decl();
+ 
+	TraitDecl *parse_trait_decl();
 
 	EnumDecl *parse_enum_decl();
 

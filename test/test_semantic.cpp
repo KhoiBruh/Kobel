@@ -1049,8 +1049,288 @@ bool test_semantic_module_prefixes() {
 	return true;
 }
 
+bool test_semantic_traits() {
+	// 1. Basic trait with required and default method, called on struct
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"    fn greet(val self): str => \"hello\";\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"    override fn name(val self): str => self.first_name;\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    val p = Person(\"Kobel\");\n"
+			"    val n: str = p.name();\n"
+			"    val g: str = p.greet();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Valid trait implementation and call must pass semantic analysis");
+	}
+
+	// 2. Trait inheritance
+	{
+		std::string_view code =
+			"trait Base {\n"
+			"    fn base_val(val self): i32 => 10;\n"
+			"}\n"
+			"trait Derived : Base {\n"
+			"    fn derived_val(val self): i32;\n"
+			"}\n"
+			"struct Foo() : Derived {\n"
+			"    override fn derived_val(val self): i32 => 20;\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    val f = Foo();\n"
+			"    val b = f.base_val();\n"
+			"    val d = f.derived_val();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Trait inheritance must pass semantic analysis");
+	}
+
+	// 3. Generic function with trait bound
+	{
+		std::string_view code =
+			"trait Printable {\n"
+			"    fn print_me(val self): str;\n"
+			"}\n"
+			"struct Item(msg: str) : Printable {\n"
+			"    override fn print_me(val self): str => self.msg;\n"
+			"}\n"
+			"fn show<T: Printable>(val x: T): str {\n"
+			"    return x.print_me();\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    val it = Item(\"hello\");\n"
+			"    val s: str = show<Item>(it);\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Generic function with satisfied trait bound must pass");
+	}
+
+	// 4. Generic struct with trait bound
+	{
+		std::string_view code =
+			"trait Hashable {\n"
+			"    fn hash(val self): i64;\n"
+			"}\n"
+			"struct Key(k_id: i64) : Hashable {\n"
+			"    override fn hash(val self): i64 => self.k_id;\n"
+			"}\n"
+			"struct Container<T: Hashable>(item: T) {\n"
+			"    fn get_hash(val self): i64 => self.item.hash();\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    val k = Key(12345L);\n"
+			"    val c = Container<Key>(k);\n"
+			"    val h = c.get_hash();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(!diag.has_errors(), "Generic struct with satisfied trait bound must pass");
+	}
+
+	return true;
+}
+
+bool test_semantic_trait_errors() {
+	// 1. Error: struct missing required method from trait
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Struct missing required trait method must report error");
+	}
+
+	// 2. Error: method marked override but struct implements no traits
+	{
+		std::string_view code =
+			"struct Person(first_name: str) {\n"
+			"    override fn foo(val self): str => self.first_name;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Method marked override in struct without traits must report error");
+	}
+
+	// 3. Error: method marked override but does not match any trait method
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"    override fn name(val self): str => self.first_name;\n"
+			"    override fn extra(val self): i32 => 42;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Method marked override not in trait must report error");
+	}
+
+	// 4. Error: method overrides trait method but forgets 'override'
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"    fn name(val self): str => self.first_name;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Trait method implementation without 'override' must report error");
+	}
+
+	// 5. Error: method receiver mode mismatch (var self vs val self)
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"    override fn name(var self): str => self.first_name;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Method receiver mode mismatch must report error");
+	}
+
+	// 6. Error: method return type mismatch (i32 vs str)
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct Person(first_name: str) : Greeter {\n"
+			"    override fn name(val self): i32 => 42;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Method return type mismatch must report error");
+	}
+
+	// 7. Error: generic function trait bound not satisfied
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct NotGreeter(x: i32)\n"
+			"fn test_bound<T: Greeter>(val x: T): str => x.name();\n"
+			"fn main(): i32 {\n"
+			"    val ng = NotGreeter(42);\n"
+			"    val s = test_bound<NotGreeter>(ng);\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Generic function with unsatisfied trait bound must report error");
+	}
+
+	// 8. Error: generic struct trait bound not satisfied
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"}\n"
+			"struct NotGreeter(x: i32)\n"
+			"struct Box<T: Greeter>(val item: T)\n"
+			"fn main(): i32 {\n"
+			"    val ng = NotGreeter(42);\n"
+			"    val b = Box<NotGreeter>(ng);\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Generic struct with unsatisfied trait bound must report error");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
+
+	if (!test_semantic_traits()) return 1;
+	std::cout << "  [PASS] test_semantic_traits" << std::endl;
+
+	if (!test_semantic_trait_errors()) return 1;
+	std::cout << "  [PASS] test_semantic_trait_errors" << std::endl;
 
 	if (!test_valid_program()) return 1;
 	std::cout << "  [PASS] test_valid_program" << std::endl;

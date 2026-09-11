@@ -12,7 +12,273 @@ import logger;
 import semantic;
 import semantic.symbol;
 
+void Analyzer::collect_trait_methods(
+	const std::string &trait_name,
+	StringMap<const FnDecl *> &out_required,
+	StringMap<const FnDecl *> &out_defaults,
+	std::vector<std::string> &out_all_traits,
+	std::unordered_set<std::string> &visited
+) {
+	if (visited.contains(trait_name)) return;
+	visited.insert(trait_name);
+	out_all_traits.push_back(trait_name);
+
+	if (!traits.contains(trait_name)) return;
+	const auto &sym = traits.at(trait_name);
+
+	for (const auto &b : sym.base_traits) {
+		std::string resolved_b = resolve_trait_name(b, sym.line, sym.col);
+		if (!resolved_b.empty()) {
+			collect_trait_methods(resolved_b, out_required, out_defaults, out_all_traits, visited);
+		}
+	}
+
+	for (const auto &[m_name, fn_decl] : sym.default_methods) {
+		out_required.erase(m_name);
+		out_defaults[m_name] = fn_decl;
+	}
+
+	for (const auto &[m_name, fn_decl] : sym.required_methods) {
+		if (!out_defaults.contains(m_name)) {
+			out_required[m_name] = fn_decl;
+		}
+	}
+}
+
+void Analyzer::check_and_apply_struct_traits(
+	const StructDecl *st,
+	const std::string &qual_name
+) {
+	if (st->traits.empty()) {
+		for (const auto &method : st->methods) {
+			if (method->is_override) {
+				logger.error(
+					method->line, method->col,
+					"Method '" + std::string(method->name) + "' in struct '" + qual_name +
+					"' is marked 'override' but struct does not implement any traits"
+				);
+			}
+		}
+		return;
+	}
+
+	auto &sym = structs[qual_name];
+	std::string mod = get_decl_module(st);
+	current_self_type = make_struct(qual_name);
+
+	StringMap<const FnDecl *> all_required;
+	StringMap<const FnDecl *> all_defaults;
+	std::vector<std::string> all_traits;
+	std::unordered_set<std::string> visited;
+
+	for (const auto &raw_tr : st->traits) {
+		std::string tr_name = resolve_trait_name(raw_tr, st->line, st->col);
+		if (tr_name.empty()) {
+			logger.error(
+				st->line, st->col,
+				"Unknown trait '" + std::string(raw_tr) + "' in struct '" + sym.name + "'"
+			);
+			continue;
+		}
+		collect_trait_methods(tr_name, all_required, all_defaults, all_traits, visited);
+	}
+
+	struct_traits[qual_name] = all_traits;
+	if (!mod.empty()) {
+		struct_traits[to_llvm_name(qual_name)] = all_traits;
+	}
+
+	auto build_fn_symbol = [&](const FnDecl *fn_decl, const std::string &mangled) -> FnSymbol {
+		std::vector<Semantic> p_types;
+		std::vector<std::string> p_names;
+
+		for (const auto &[p_name, p_type, is_mut, has_val] : fn_decl->params) {
+			p_names.push_back(std::string(p_name));
+			if (p_name == "self") {
+				if (is_mut) {
+					p_types.push_back(make_pointer(current_self_type, true));
+				} else if (has_val) {
+					p_types.push_back(make_pointer(current_self_type, false));
+				} else {
+					p_types.push_back(current_self_type);
+				}
+			} else {
+				p_types.push_back(resolve_type(p_type));
+			}
+		}
+
+		Semantic ret_type = fn_decl->return_type ? resolve_type(fn_decl->return_type) : make_primitive(SemaType::VOID);
+		return FnSymbol{
+			.name = mangled,
+			.param_types = p_types,
+			.param_names = p_names,
+			.return_type = ret_type,
+			.is_pub = fn_decl->is_pub,
+			.module_name = mod,
+			.line = fn_decl->line,
+			.col = fn_decl->col
+		};
+	};
+
+	// 1. Check all required methods
+	for (const auto &[req_name, req_decl] : all_required) {
+		if (!sym.methods.contains(req_name)) {
+			if (all_defaults.contains(req_name)) {
+				const auto *def_decl = all_defaults.at(req_name);
+				std::string mangled = sym.name + "_" + req_name;
+				FnSymbol inh_sym = build_fn_symbol(def_decl, mangled);
+				sym.methods[req_name] = inh_sym;
+				functions[mangled] = inh_sym;
+				if (!mod.empty()) {
+					functions[to_llvm_name(mangled)] = inh_sym;
+				}
+				struct_default_methods[qual_name].push_back({req_name, def_decl});
+			} else {
+				logger.error(
+					st->line, st->col,
+					"Struct '" + sym.name + "' does not implement required method '" + req_name + "'"
+				);
+			}
+		}
+	}
+
+	// 2. Inherit remaining default methods
+	for (const auto &[def_name, def_decl] : all_defaults) {
+		if (!sym.methods.contains(def_name)) {
+			std::string mangled = sym.name + "_" + def_name;
+			FnSymbol inh_sym = build_fn_symbol(def_decl, mangled);
+			sym.methods[def_name] = inh_sym;
+			functions[mangled] = inh_sym;
+			if (!mod.empty()) {
+				functions[to_llvm_name(mangled)] = inh_sym;
+			}
+			struct_default_methods[qual_name].push_back({def_name, def_decl});
+		}
+	}
+
+	// 3. Verify signatures and 'override' modifier
+	for (const auto &method : st->methods) {
+		std::string m_name = std::string(method->name);
+		bool is_in_trait = all_required.contains(m_name) || all_defaults.contains(m_name);
+
+		if (method->is_override && !is_in_trait) {
+			logger.error(
+				method->line, method->col,
+				"Method '" + m_name + "' in struct '" + sym.name +
+				"' is marked 'override' but does not override any trait method"
+			);
+			continue;
+		}
+
+		if (!method->is_override && is_in_trait) {
+			logger.error(
+				method->line, method->col,
+				"Method '" + m_name + "' in struct '" + sym.name +
+				"' overrides a trait method but is missing 'override' modifier"
+			);
+		}
+
+		if (is_in_trait) {
+			const auto *expected_decl = all_required.contains(m_name) ? all_required.at(m_name) : all_defaults.at(m_name);
+			FnSymbol expected = build_fn_symbol(expected_decl, "");
+			const auto &actual = sym.methods.at(m_name);
+
+			if (actual.param_types.size() != expected.param_types.size()) {
+				logger.error(
+					method->line, method->col,
+					"Method '" + m_name + "' has " + std::to_string(actual.param_types.size()) +
+					" parameter(s), but trait method expects " + std::to_string(expected.param_types.size())
+				);
+				continue;
+			}
+
+			if (!actual.param_types.empty() && !expected.param_types.empty()) {
+				bool exp_ptr = expected.param_types[0]->is_pointer();
+				bool exp_mut = exp_ptr && expected.param_types[0]->is_mut_pointer;
+				bool act_ptr = actual.param_types[0]->is_pointer();
+				bool act_mut = act_ptr && actual.param_types[0]->is_mut_pointer;
+
+				if (exp_ptr != act_ptr || exp_mut != act_mut) {
+					std::string exp_str = exp_ptr ? (exp_mut ? "var self" : "val self") : "self";
+					std::string act_str = act_ptr ? (act_mut ? "var self" : "val self") : "self";
+					logger.error(
+						method->line, method->col,
+						"Method '" + m_name + "' receiver mode '" + act_str +
+						"' does not match trait method (expected '" + exp_str + "')"
+					);
+				}
+			}
+
+			for (size_t i = 1; i < expected.param_types.size(); ++i) {
+				if (actual.param_types[i] != expected.param_types[i]) {
+					logger.error(
+						method->line, method->col,
+						"Parameter " + std::to_string(i) + " of method '" + m_name +
+						"' has type '" + actual.param_types[i]->to_string() +
+						"', but trait method expects '" + expected.param_types[i]->to_string() + "'"
+					);
+				}
+			}
+
+			if (actual.return_type != expected.return_type) {
+				logger.error(
+					method->line, method->col,
+					"Method '" + m_name + "' return type '" + actual.return_type->to_string() +
+					"' does not match trait method (expected '" + expected.return_type->to_string() + "')"
+				);
+			}
+		}
+	}
+
+	current_self_type = nullptr;
+}
+
 void Analyzer::pass1_register_declarations(const Program *program) {
+	// 0. Register Traits
+	for (const auto &decl : program->declarations) {
+		if (isa<TraitDecl>(decl)) {
+			const auto *tr = as<TraitDecl>(decl);
+			std::string mod = get_decl_module(tr);
+			std::string qual_name = mod.empty() ? std::string(tr->name) : mod + "." + std::string(tr->name);
+
+			if (traits.contains(qual_name)) {
+				logger.error(tr->line, tr->col, "Duplicate trait declaration '" + std::string(tr->name) + "'");
+				continue;
+			}
+
+			TraitSymbol sym = {
+				.name = qual_name,
+				.is_pub = tr->is_pub,
+				.module_name = mod,
+				.line = tr->line,
+				.col = tr->col
+			};
+
+			for (const auto &b : tr->bases) {
+				sym.base_traits.push_back(std::string(b));
+			}
+
+			for (const auto &method : tr->methods) {
+				auto m_name = std::string(method->name);
+				if (sym.required_methods.contains(m_name) || sym.default_methods.contains(m_name)) {
+					logger.error(method->line, method->col, "Duplicate method '" + m_name + "' in trait '" + sym.name + "'");
+					continue;
+				}
+
+				if (method->body) {
+					sym.default_methods[m_name] = method;
+				} else {
+					sym.required_methods[m_name] = method;
+				}
+			}
+
+			traits[qual_name] = sym;
+			if (!mod.empty()) {
+				traits[to_llvm_name(qual_name)] = sym;
+			}
+		}
+	}
+
 	// 1. Register Structs
 	for (const auto &decl: program->declarations) {
 		if (isa<StructDecl>(decl)) {
@@ -143,8 +409,10 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				}
 			}
 
+			check_and_apply_struct_traits(st, qual_name);
+
 			if (!current_module.empty()) {
-				structs[to_llvm_name(qual_name)] = sym;
+				structs[to_llvm_name(qual_name)] = structs[qual_name];
 			}
 		}
 	}
@@ -345,6 +613,12 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 				std::string mangled = st_qual + "_" + std::string(method->name);
 				check_function(method, mangled);
 			}
+			if (struct_default_methods.contains(st_qual)) {
+				for (const auto &inh : struct_default_methods.at(st_qual)) {
+					std::string mangled = st_qual + "_" + inh.method_name;
+					check_function(inh.fn_decl, mangled);
+				}
+			}
 		} else if (isa<ConstDecl>(decl)) {
 			const auto *c = as<ConstDecl>(decl);
 			current_module = get_decl_module(c);
@@ -390,6 +664,15 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 				std::string mangled = to_llvm_name(inst_name) + "_" + std::string(method->name);
 				if (functions.contains(mangled)) {
 					check_function(method, mangled);
+				}
+			}
+
+			if (struct_default_methods.contains(inst_name)) {
+				for (const auto &inh : struct_default_methods.at(inst_name)) {
+					std::string mangled = to_llvm_name(inst_name) + "_" + inh.method_name;
+					if (functions.contains(mangled)) {
+						check_function(inh.fn_decl, mangled);
+					}
 				}
 			}
 

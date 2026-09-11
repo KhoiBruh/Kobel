@@ -47,6 +47,12 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 	for (const auto &method: st->methods) {
 		emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
 	}
+
+	if (analyzer && analyzer->struct_default_methods.contains(qual_name)) {
+		for (const auto &inh : analyzer->struct_default_methods.at(qual_name)) {
+			emit_fn_decl(inh.fn_decl, llvm_st_name + "_" + inh.method_name);
+		}
+	}
 }
 
 void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
@@ -76,6 +82,12 @@ void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 		for (const auto &method : generic_st->methods) {
 			std::string mangled = llvm_st_name + "_" + std::string(method->name);
 			emit_fn_proto(method, mangled);
+		}
+	}
+	if (analyzer && analyzer->struct_default_methods.contains(inst_name)) {
+		for (const auto &inh : analyzer->struct_default_methods.at(inst_name)) {
+			std::string mangled = llvm_st_name + "_" + inh.method_name;
+			emit_fn_proto(inh.fn_decl, mangled);
 		}
 	}
 }
