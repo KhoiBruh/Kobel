@@ -350,7 +350,7 @@ bool test_parse_logical_expressions() {
 
 bool test_parse_module_and_use() {
 	std::string_view code =
-		"module math.geometry.point;\n"
+		"mod math.geometry.point;\n"
 		"\n"
 		"use math.calc.add;\n"
 		"use graphics.Point as GPoint;\n"

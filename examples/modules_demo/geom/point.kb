@@ -1,4 +1,4 @@
-module geom.point;
+mod geom.point;
 
 pub struct Point(x: i32, y: i32) {
     pub fn sum(val self): i32 {

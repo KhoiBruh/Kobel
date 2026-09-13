@@ -372,13 +372,13 @@ bool test_codegen_short_circuit_logic() {
 
 bool test_codegen_modules() {
 	std::string_view code =
-		"module math.calc;\n"
+		"mod math.calc;\n"
 		"pub fn add(a: i32, b: i32): i32 {\n"
 		"    return a + b;\n"
 		"}\n"
 		"pub const DELTA: i32 = 10;\n"
 		"\n"
-		"module app;\n"
+		"mod app;\n"
 		"use math.calc.add;\n"
 		"use math.calc.DELTA;\n"
 		"\n"
@@ -550,12 +550,12 @@ bool test_codegen_generic_functions() {
 
 bool test_codegen_module_prefixes() {
 	std::string_view code =
-		"module math.vec;\n"
+		"mod math.vec;\n"
 		"pub struct Vector(x: i32, y: i32)\n"
 		"pub fn make_vec(x: i32, y: i32): Vector => Vector(x, y);\n"
-		"module physics.space;\n"
+		"mod physics.space;\n"
 		"pub struct Vector(mag: i32)\n"
-		"module main;\n"
+		"mod main;\n"
 		"use math.vec.Vector;\n"
 		"use math.vec.make_vec;\n"
 		"use physics.space.Vector;\n"

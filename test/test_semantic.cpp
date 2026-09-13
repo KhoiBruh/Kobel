@@ -415,20 +415,20 @@ bool test_semantic_logical_operators() {
 
 bool test_semantic_modules() {
 	std::string_view code =
-		"module math.calc;\n"
+		"mod math.calc;\n"
 		"pub fn add(a: i32, b: i32): i32 {\n"
 		"    return a + b;\n"
 		"}\n"
 		"pub const BASE: i32 = 100;\n"
 		"\n"
-		"module geom;\n"
+		"mod geom;\n"
 		"pub struct Point(x: i32, y: i32) {\n"
 		"    pub fn sum(val self): i32 {\n"
 		"        return self.x + self.y;\n"
 		"    }\n"
 		"}\n"
 		"\n"
-		"module app;\n"
+		"mod app;\n"
 		"use math.calc.add;\n"
 		"use math.calc.BASE;\n"
 		"use math.calc.add as my_add;\n"
@@ -461,10 +461,10 @@ bool test_semantic_module_errors() {
 	// 1. Private function access error
 	{
 		std::string_view code =
-			"module math.calc;\n"
+			"mod math.calc;\n"
 			"fn secret(): i32 { return 42; }\n"
 			"\n"
-			"module app;\n"
+			"mod app;\n"
 			"use math.calc.secret;\n"
 			"fn main(): i32 { return secret(); }\n";
 
@@ -481,12 +481,12 @@ bool test_semantic_module_errors() {
 	// 2. Private method access error
 	{
 		std::string_view code =
-			"module geom;\n"
+			"mod geom;\n"
 			"pub struct Point(x: i32, y: i32) {\n"
 			"    fn secret_method(val self): i32 { return self.x; }\n"
 			"}\n"
 			"\n"
-			"module app;\n"
+			"mod app;\n"
 			"use geom.Point;\n"
 			"fn main(): i32 {\n"
 			"    val p: Point = Point(1, 2);\n"
@@ -505,10 +505,10 @@ bool test_semantic_module_errors() {
 	// 3. Nonexistent symbol import error
 	{
 		std::string_view code =
-			"module math.calc;\n"
+			"mod math.calc;\n"
 			"pub fn add(a: i32, b: i32): i32 { return a + b; }\n"
 			"\n"
-			"module app;\n"
+			"mod app;\n"
 			"use math.calc.nonexistent;\n"
 			"fn main(): i32 { return 0; }\n";
 
@@ -994,11 +994,11 @@ bool test_semantic_module_prefixes() {
 	// 1. Ambiguous bare import collision resolved by module prefix
 	{
 		std::string_view code =
-			"module math.vec;\n"
+			"mod math.vec;\n"
 			"pub struct Vector(x: i32, y: i32)\n"
-			"module physics.space;\n"
+			"mod physics.space;\n"
 			"pub struct Vector(mag: i32)\n"
-			"module main;\n"
+			"mod main;\n"
 			"use math.vec.Vector;\n"
 			"use physics.space.Vector;\n"
 			"fn main(): i32 {\n"
@@ -1025,11 +1025,11 @@ bool test_semantic_module_prefixes() {
 	// 2. Bare symbol collision reports ambiguous error
 	{
 		std::string_view code =
-			"module math.vec;\n"
+			"mod math.vec;\n"
 			"pub struct Vector(x: i32, y: i32)\n"
-			"module physics.space;\n"
+			"mod physics.space;\n"
 			"pub struct Vector(mag: i32)\n"
-			"module main;\n"
+			"mod main;\n"
 			"use math.vec.Vector;\n"
 			"use physics.space.Vector;\n"
 			"fn main(): i32 {\n"

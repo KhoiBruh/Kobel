@@ -135,7 +135,7 @@ export struct Parser {
 				case TokenType::KW_ENUM:
 				case TokenType::KW_CONST:
 				case TokenType::KW_EXTERN:
-				case TokenType::KW_MODULE:
+				case TokenType::KW_MOD:
 				case TokenType::KW_USE:
 				case TokenType::KW_PUB:
 				case TokenType::KW_VAL:

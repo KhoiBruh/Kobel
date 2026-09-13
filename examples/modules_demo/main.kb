@@ -1,4 +1,4 @@
-module app.main;
+mod app.main;
 
 use math.calc.add;
 use math.calc.multiply as mul;

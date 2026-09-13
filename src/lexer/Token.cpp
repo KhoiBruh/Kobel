@@ -62,7 +62,7 @@ export enum class TokenType {
 	KW_IF,
 	KW_ELSE,
 	KW_WHEN,
-	KW_MODULE,
+	KW_MOD,
 	KW_USE,
 	KW_PUB,
 	KW_TRAIT,

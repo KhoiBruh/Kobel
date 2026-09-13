@@ -2,17 +2,17 @@ extern "libc" {
     fn puts(s: *char): i32;
 }
 
-module math.vec;
+mod math.vec;
 pub struct Vector(x: i32, y: i32)
 pub const PI: i32 = 314;
 pub fn create(x: i32, y: i32): Vector => Vector(x, y);
 
-module physics.space;
+mod physics.space;
 pub struct Vector(mag: i32)
 pub const PI: i32 = 3;
 pub fn create(mag: i32): Vector => Vector(mag);
 
-module main;
+mod main;
 use math.vec.Vector;
 use math.vec.create;
 use math.vec.PI;

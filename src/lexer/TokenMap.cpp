@@ -28,7 +28,7 @@ export inline const std::map<std::string_view, TokenType> KEYWORDS = {
 	{"if", TokenType::KW_IF},
 	{"else", TokenType::KW_ELSE},
 	{"when", TokenType::KW_WHEN},
-	{"module", TokenType::KW_MODULE},
+	{"mod", TokenType::KW_MOD},
 	{"use", TokenType::KW_USE},
 	{"pub", TokenType::KW_PUB},
 	{"trait", TokenType::KW_TRAIT},

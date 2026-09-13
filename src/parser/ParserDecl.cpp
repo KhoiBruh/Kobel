@@ -288,7 +288,7 @@ ExternBlock *Parser::parse_extern_block() {
 }
 
 ModuleDecl *Parser::parse_module_decl() {
-	const auto tok = consume(TokenType::KW_MODULE, "Expected 'module'");
+	const auto tok = consume(TokenType::KW_MOD, "Expected 'mod'");
 	std::vector<std::string_view> path;
 
 	const auto first_seg = consume(TokenType::IDENTIFIER, "Expected module path segment");
@@ -362,7 +362,7 @@ Decl *Parser::parse_declaration() {
 		is_pub = true;
 	}
 
-	if (check(TokenType::KW_MODULE)) {
+	if (check(TokenType::KW_MOD)) {
 		if (is_pub) {
 			error(previous(), "'pub' cannot be applied to 'module' declaration");
 		}
@@ -384,7 +384,7 @@ Decl *Parser::parse_declaration() {
 	else if (check(TokenType::KW_CONST)) decl = parse_const_decl();
 	else if (check(TokenType::KW_EXTERN)) decl = parse_extern_block();
 	else {
-		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'enum', 'const', 'extern', 'module', 'use')");
+		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'enum', 'const', 'extern', 'mod', 'use')");
 		advance();
 		return nullptr;
 	}

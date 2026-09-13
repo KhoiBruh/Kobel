@@ -1,4 +1,4 @@
-module lexer;
+mod lexer;
 
 pub struct Lexer(
 	source: str,
