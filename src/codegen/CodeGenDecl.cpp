@@ -34,8 +34,8 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 
 	std::vector<llvm::Type *> field_types;
 
-	for (const auto &[f_name, type]: st->fields) {
-		auto sema_ty = analyzer->resolve_type(type);
+	for (const auto &field: st->fields) {
+		auto sema_ty = analyzer->resolve_type(field.type);
 		field_types.push_back(get_llvm_type(sema_ty));
 	}
 

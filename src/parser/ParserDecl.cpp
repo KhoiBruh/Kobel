@@ -103,55 +103,108 @@ StructDecl *Parser::parse_struct_decl() {
 	}
 
 	std::vector<StructField> fields;
-	consume(TokenType::OPEN_PAREN, "Expected '(' for struct field declarations");
-	if (!check(TokenType::CLOSE_PAREN)) {
-		do {
-			const Token f_name = consume(TokenType::IDENTIFIER, "Expected field name");
-			consume(TokenType::COLON, "Expected ':' after field name");
-			auto f_type = parse_type();
-			fields.push_back(StructField{f_name.text, f_type});
-		} while (match(TokenType::COMMA));
-	}
-	consume(TokenType::CLOSE_PAREN, "Expected ')' to close struct field declarations");
-
 	std::vector<std::string_view> traits;
-	if (match(TokenType::COLON)) {
-		do {
-			const Token t_name = consume(TokenType::IDENTIFIER, "Expected trait name");
-			traits.push_back(t_name.text);
-			if (check(TokenType::PLUS)) {
-				advance();
-			} else if (check(TokenType::COMMA)) {
-				advance();
-			} else {
-				break;
-			}
-		} while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end());
-	}
-
 	std::vector<FnDecl *> methods;
-	if (match(TokenType::OPEN_BRACE)) {
-		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
-			bool method_pub = false;
-			bool is_override = false;
-			while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
-				if (match(TokenType::KW_PUB)) method_pub = true;
-				else if (match(TokenType::KW_OVERRIDE)) is_override = true;
-			}
-			if (check(TokenType::KW_FN)) {
-				auto fn = parse_fn_decl();
-				if (fn) {
-					fn->is_pub = method_pub;
-					fn->is_override = is_override;
-					methods.push_back(fn);
-				}
-			} else {
-				advance();
-			}
+
+	if (match(TokenType::OPEN_PAREN)) {
+		// Old syntax: struct Point(x: i32, y: i32)
+		if (!check(TokenType::CLOSE_PAREN)) {
+			do {
+				bool is_field_pub = match(TokenType::KW_PUB);
+				const Token f_name = consume(TokenType::IDENTIFIER, "Expected field name");
+				consume(TokenType::COLON, "Expected ':' after field name");
+				auto f_type = parse_type();
+				fields.push_back(StructField{f_name.text, f_type, true});
+			} while (match(TokenType::COMMA));
 		}
-		consume(TokenType::CLOSE_BRACE, "Expected '}' to end struct definition");
+		consume(TokenType::CLOSE_PAREN, "Expected ')' to close struct field declarations");
+
+		if (match(TokenType::COLON)) {
+			do {
+				const Token t_name = consume(TokenType::IDENTIFIER, "Expected trait name");
+				traits.push_back(t_name.text);
+				if (check(TokenType::PLUS)) {
+					advance();
+				} else if (check(TokenType::COMMA)) {
+					advance();
+				} else {
+					break;
+				}
+			} while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end());
+		}
+
+		if (match(TokenType::OPEN_BRACE)) {
+			while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
+				bool method_pub = false;
+				bool is_override = false;
+				while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
+					if (match(TokenType::KW_PUB)) method_pub = true;
+					else if (match(TokenType::KW_OVERRIDE)) is_override = true;
+				}
+				if (check(TokenType::KW_FN)) {
+					auto fn = parse_fn_decl();
+					if (fn) {
+						fn->is_pub = method_pub;
+						fn->is_override = is_override;
+						methods.push_back(fn);
+					}
+				} else {
+					advance();
+				}
+			}
+			consume(TokenType::CLOSE_BRACE, "Expected '}' to end struct definition");
+		} else {
+			match(TokenType::SEMI_COLON);
+		}
 	} else {
-		match(TokenType::SEMI_COLON);
+		// New syntax: struct List<T> { pub data: &T, len: usz, cap: usz }
+		if (match(TokenType::COLON)) {
+			do {
+				const Token t_name = consume(TokenType::IDENTIFIER, "Expected trait name");
+				traits.push_back(t_name.text);
+				if (check(TokenType::PLUS)) {
+					advance();
+				} else if (check(TokenType::COMMA)) {
+					advance();
+				} else {
+					break;
+				}
+			} while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end());
+		}
+
+		if (match(TokenType::OPEN_BRACE)) {
+			while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
+				bool is_pub = false;
+				bool is_override = false;
+				while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
+					if (match(TokenType::KW_PUB)) is_pub = true;
+					else if (match(TokenType::KW_OVERRIDE)) is_override = true;
+				}
+
+				if (check(TokenType::KW_FN)) {
+					auto fn = parse_fn_decl();
+					if (fn) {
+						fn->is_pub = is_pub;
+						fn->is_override = is_override;
+						methods.push_back(fn);
+					}
+				} else if (check(TokenType::IDENTIFIER)) {
+					const Token f_name = advance();
+					consume(TokenType::COLON, "Expected ':' after field name");
+					auto f_type = parse_type();
+					fields.push_back(StructField{f_name.text, f_type, is_pub});
+					if (check(TokenType::COMMA) || check(TokenType::SEMI_COLON)) {
+						advance();
+					}
+				} else {
+					error(peek(), "Expected field or method declaration in struct");
+					advance();
+				}
+			}
+			consume(TokenType::CLOSE_BRACE, "Expected '}' to end struct definition");
+		} else {
+			match(TokenType::SEMI_COLON);
+		}
 	}
 
 	auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
@@ -160,6 +213,113 @@ StructDecl *Parser::parse_struct_decl() {
 	st->traits = arena.alloc_span(traits);
 	st->methods = arena.alloc_span(methods);
 	return st;
+}
+
+ImplDecl *Parser::parse_impl_decl() {
+	const auto tok = consume(TokenType::KW_IMPL, "Expected 'impl'");
+
+	std::vector<GenericParam> type_params;
+	if (match(TokenType::LESS)) {
+		do {
+			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+			std::vector<std::string_view> bounds;
+			if (match(TokenType::COLON)) {
+				do {
+					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+					bounds.push_back(b_name.text);
+				} while (match(TokenType::PLUS));
+			}
+			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+		} while (match(TokenType::COMMA));
+		consume(TokenType::GREATER, "Expected '>' after type parameters");
+	}
+
+	const Token first_tok = consume(TokenType::IDENTIFIER, "Expected struct or trait name after 'impl'");
+
+	if (match(TokenType::LESS)) {
+		do {
+			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+			std::vector<std::string_view> bounds;
+			if (match(TokenType::COLON)) {
+				do {
+					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+					bounds.push_back(b_name.text);
+				} while (match(TokenType::PLUS));
+			}
+			bool exists = false;
+			for (const auto &tp : type_params) {
+				if (tp.name == p_name.text) { exists = true; break; }
+			}
+			if (!exists) {
+				type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+			}
+		} while (match(TokenType::COMMA));
+		consume(TokenType::GREATER, "Expected '>' after type parameters");
+	}
+
+	std::string_view struct_name = first_tok.text;
+	std::string_view trait_name = "";
+
+	if (match(TokenType::KW_FOR)) {
+		trait_name = first_tok.text;
+		const Token st_tok = consume(TokenType::IDENTIFIER, "Expected struct name after 'for'");
+		struct_name = st_tok.text;
+		if (match(TokenType::LESS)) {
+			do {
+				const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
+				std::vector<std::string_view> bounds;
+				if (match(TokenType::COLON)) {
+					do {
+						const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
+						bounds.push_back(b_name.text);
+					} while (match(TokenType::PLUS));
+				}
+				bool exists = false;
+				for (const auto &tp : type_params) {
+					if (tp.name == p_name.text) { exists = true; break; }
+				}
+				if (!exists) {
+					type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
+				}
+			} while (match(TokenType::COMMA));
+			consume(TokenType::GREATER, "Expected '>' after type parameters");
+		}
+	} else if (match(TokenType::COLON)) {
+		struct_name = first_tok.text;
+		const Token tr_tok = consume(TokenType::IDENTIFIER, "Expected trait name after ':'");
+		trait_name = tr_tok.text;
+	}
+
+	consume(TokenType::OPEN_BRACE, "Expected '{' to begin 'impl' body");
+
+	std::vector<FnDecl *> methods;
+	while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
+		bool method_pub = false;
+		bool is_override = false;
+		while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
+			if (match(TokenType::KW_PUB)) method_pub = true;
+			else if (match(TokenType::KW_OVERRIDE)) is_override = true;
+		}
+		if (check(TokenType::KW_FN)) {
+			auto fn = parse_fn_decl();
+			if (fn) {
+				fn->is_pub = method_pub;
+				fn->is_override = is_override;
+				methods.push_back(fn);
+			}
+		} else {
+			error(peek(), "Expected method declaration in 'impl' block");
+			advance();
+		}
+	}
+
+	consume(TokenType::CLOSE_BRACE, "Expected '}' to end 'impl' body");
+
+	auto impl_decl = arena.alloc<ImplDecl>(struct_name, tok.line, tok.col);
+	impl_decl->type_params = arena.alloc_span(type_params);
+	impl_decl->trait_name = trait_name;
+	impl_decl->methods = arena.alloc_span(methods);
+	return impl_decl;
 }
 
 TraitDecl *Parser::parse_trait_decl() {
@@ -380,11 +540,12 @@ Decl *Parser::parse_declaration() {
 	if (check(TokenType::KW_FN)) decl = parse_fn_decl();
 	else if (check(TokenType::KW_STRUCT)) decl = parse_struct_decl();
 	else if (check(TokenType::KW_TRAIT)) decl = parse_trait_decl();
+	else if (check(TokenType::KW_IMPL)) decl = parse_impl_decl();
 	else if (check(TokenType::KW_ENUM)) decl = parse_enum_decl();
 	else if (check(TokenType::KW_CONST)) decl = parse_const_decl();
 	else if (check(TokenType::KW_EXTERN)) decl = parse_extern_block();
 	else {
-		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'enum', 'const', 'extern', 'mod', 'use')");
+		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'impl', 'enum', 'const', 'extern', 'mod', 'use')");
 		advance();
 		return nullptr;
 	}

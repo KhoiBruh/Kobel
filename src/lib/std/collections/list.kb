@@ -1,0 +1,15 @@
+mod std.collections;
+
+pub struct List<T> {
+	pub data: &T,
+	len: usz,
+	cap: usz
+}
+
+impl List<T> {
+	pub fn add(var self, value: T) {
+	}
+
+	pub fn free(self) {
+	}
+}

@@ -148,6 +148,77 @@ bool test_parse_structs() {
 	return true;
 }
 
+bool test_parse_new_struct_and_impl() {
+	std::string_view code =
+		"struct List<T> {\n"
+		"    pub data: &T,\n"
+		"    len: usz,\n"
+		"    cap: usz\n"
+		"}\n"
+		"\n"
+		"impl List<T> {\n"
+		"    fn add(var self, value: T) {\n"
+		"    }\n"
+		"\n"
+		"    fn free(self) {\n"
+		"    }\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser p{lex.tokenize()};
+	auto prog = p.parse_program();
+
+	ASSERT(!p.has_errors(), "Parse new struct & impl must not have errors");
+	ASSERT(prog->declarations.size() == 2, "Program must contain 2 declarations (StructDecl and ImplDecl)");
+	ASSERT(isa<StructDecl>(prog->declarations[0]), "First decl must be StructDecl");
+	ASSERT(isa<ImplDecl>(prog->declarations[1]), "Second decl must be ImplDecl");
+
+	auto st = as<StructDecl>(prog->declarations[0]);
+	ASSERT(st->name == "List", "Struct name must be 'List'");
+	ASSERT(st->type_params.size() == 1 && st->type_params[0].name == "T", "Generic type param must be T");
+	ASSERT(st->fields.size() == 3, "List struct must have 3 fields");
+	ASSERT(st->fields[0].name == "data" && st->fields[0].is_pub, "data field must be pub");
+	ASSERT(st->fields[1].name == "len" && !st->fields[1].is_pub, "len field must not be pub");
+	ASSERT(st->fields[2].name == "cap" && !st->fields[2].is_pub, "cap field must not be pub");
+
+	auto imp = as<ImplDecl>(prog->declarations[1]);
+	ASSERT(imp->struct_name == "List", "Impl struct name must be 'List'");
+	ASSERT(imp->methods.size() == 2, "Impl must contain 2 methods");
+	ASSERT(imp->methods[0]->name == "add", "First method must be 'add'");
+	ASSERT(imp->methods[1]->name == "free", "Second method must be 'free'");
+
+	// Test pub override fn inside new struct syntax
+	{
+		std::string_view code_override =
+			"struct Widget {\n"
+			"    pub id: i32,\n"
+			"    pub override fn render(val self): void {}\n"
+			"}\n";
+		Lexer lex_ov{code_override};
+		Parser p_ov{lex_ov.tokenize()};
+		auto prog_ov = p_ov.parse_program();
+		ASSERT(!p_ov.has_errors(), "Parse pub override in struct should have no errors");
+		auto st_ov = as<StructDecl>(prog_ov->declarations[0]);
+		ASSERT(st_ov->methods.size() == 1, "Expected 1 method in Widget");
+		ASSERT(st_ov->methods[0]->is_pub, "Method must have is_pub true");
+		ASSERT(st_ov->methods[0]->is_override, "Method must have is_override true");
+	}
+
+	// Test syntax error for invalid content inside impl
+	{
+		std::string_view bad_impl =
+			"impl List<T> {\n"
+			"    var x: i32;\n"
+			"}\n";
+		Lexer lex_bad{bad_impl};
+		Parser p_bad{lex_bad.tokenize()};
+		p_bad.parse_program();
+		ASSERT(p_bad.has_errors(), "Invalid statement in impl block must report error");
+	}
+
+	return true;
+}
+
 bool test_parse_extern_and_const() {
 	std::string_view code = 
 		"const BUFFER_SIZE: i32 = 1024;\n"
@@ -705,6 +776,9 @@ int main() {
 
 	if (!test_parse_structs()) return 1;
 	std::cout << "  [PASS] test_parse_structs" << std::endl;
+
+	if (!test_parse_new_struct_and_impl()) return 1;
+	std::cout << "  [PASS] test_parse_new_struct_and_impl" << std::endl;
 
 	if (!test_parse_enum()) return 1;
 	std::cout << "  [PASS] test_parse_enum" << std::endl;

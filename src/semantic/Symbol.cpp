@@ -97,6 +97,7 @@ export struct StructSymbol {
 	std::string name;
 	StringMap<Semantic> field_types;
 	std::vector<std::string> field_order;
+	StringMap<bool> field_pub;
 	StringMap<FnSymbol> methods;
 	bool is_pub = false;
 	std::string module_name;

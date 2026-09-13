@@ -90,9 +90,18 @@ export struct FnDecl final : Decl {
 export struct StructField {
 	std::string_view name;
 	TypeNode *type;
+	bool is_pub = false;
+
+	StructField() = default;
+	StructField(
+		const std::string_view n,
+		TypeNode *t,
+		const bool p = false
+	) : name(n), type(t), is_pub(p) {
+	}
 };
 
-// Struct declaration: struct Point(x: i32, y: i32) : Trait1, Trait2 { ... } or struct Box<T>(value: T) { ... }
+// Struct declaration: struct Point(x: i32, y: i32) : Trait1, Trait2 { ... } or struct List<T> { pub data: &T }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
@@ -122,6 +131,22 @@ export struct TraitDecl final : Decl {
 		const size_t l = 0,
 		const size_t c = 0
 	) : Decl(KIND, l, c), name(n) {
+	}
+};
+
+// Impl declaration: impl List<T> { ... } or impl Greeter for Person { ... }
+export struct ImplDecl final : Decl {
+	static constexpr auto KIND = ASTKind::DECL_IMPL;
+	std::string_view struct_name;
+	std::span<GenericParam> type_params;
+	std::string_view trait_name; // empty if inherent impl
+	std::span<FnDecl *> methods;
+
+	explicit ImplDecl(
+		const std::string_view st_name,
+		const size_t l = 0,
+		const size_t c = 0
+	) : Decl(KIND, l, c), struct_name(st_name) {
 	}
 };
 

@@ -208,11 +208,12 @@ Semantic Analyzer::instantiate_struct(
 	instantiated_type_maps[instantiated_name] = type_map;
 
 	// Resolve fields under substitution
-	for (const auto &[f_name_sv, f_type_node] : generic_st->fields) {
+	for (const auto &[f_name_sv, f_type_node, is_pub] : generic_st->fields) {
 		auto f_name = std::string(f_name_sv);
 		auto f_type = substitute_type(f_type_node, type_map);
 		sym.field_types[f_name] = f_type;
 		sym.field_order.push_back(f_name);
+		sym.field_pub[f_name] = is_pub;
 	}
 
 	// Resolve methods under substitution
@@ -282,18 +283,32 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 			}
 
 			const auto *generic_st = generic_structs.at(gen_name);
-			std::string inst_name = std::string(named->name) + "<";
+			std::string inst_name = gen_name + "<";
 			for (size_t i = 0; i < resolved_args.size(); ++i) {
 				if (i > 0) inst_name += ", ";
 				inst_name += resolved_args[i]->to_string();
 			}
 			inst_name += ">";
 
+			std::string bare_inst_name = std::string(named->name) + "<";
+			for (size_t i = 0; i < resolved_args.size(); ++i) {
+				if (i > 0) bare_inst_name += ", ";
+				bare_inst_name += resolved_args[i]->to_string();
+			}
+			bare_inst_name += ">";
+
 			if (structs.contains(inst_name)) {
+				if (bare_inst_name != inst_name && !structs.contains(bare_inst_name)) {
+					structs[bare_inst_name] = structs.at(inst_name);
+				}
 				return make_struct(inst_name);
 			}
 
-			return instantiate_struct(generic_st, inst_name, resolved_args, node->line, node->col);
+			auto res = instantiate_struct(generic_st, inst_name, resolved_args, node->line, node->col);
+			if (bare_inst_name != inst_name && structs.contains(inst_name)) {
+				structs[bare_inst_name] = structs.at(inst_name);
+			}
+			return res;
 		}
 
 		// 2. Error if using a generic struct without type arguments

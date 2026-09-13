@@ -40,6 +40,10 @@ export struct Analyzer {
 		const FnDecl *fn_decl;
 	};
 	StringMap<std::vector<InheritedTraitMethod>> struct_default_methods;
+	StringMap<StructDecl *> all_struct_decls;
+	std::vector<std::vector<FnDecl *>> merged_methods_storage;
+	std::vector<std::vector<std::string_view>> merged_traits_storage;
+	std::vector<std::string> resolved_trait_names_storage;
 	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;

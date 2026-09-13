@@ -605,10 +605,102 @@ bool test_codegen_traits() {
 	return true;
 }
 
+bool test_codegen_new_struct_and_impl() {
+	std::string_view code =
+		"struct List<T> {\n"
+		"    pub data: &T,\n"
+		"    len: usz,\n"
+		"    cap: usz\n"
+		"}\n"
+		"\n"
+		"impl List<T> {\n"
+		"    fn add(var self, value: T): void {\n"
+		"        self.len = self.len + 1 as usz;\n"
+		"    }\n"
+		"\n"
+		"    fn free(self): void {\n"
+		"    }\n"
+		"}\n"
+		"\n"
+		"fn test_list(p: &i32): usz {\n"
+		"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+		"    list.add(40);\n"
+		"    return list.len;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "CodeGen for new struct & impl failed");
+	ASSERT(ir.find("%List_i32") != std::string::npos, "Missing instantiated struct %List_i32");
+	ASSERT(ir.find("List_i32") != std::string::npos, "Missing List_i32 specialization");
+	return true;
+}
+
+bool test_codegen_multi_impl_and_trait() {
+	// 1. Multiple separate impl blocks for the same struct
+	{
+		std::string_view code =
+			"struct List<T> {\n"
+			"    pub data: &T,\n"
+			"    len: usz,\n"
+			"    cap: usz\n"
+			"}\n"
+			"\n"
+			"impl List<T> {\n"
+			"    fn add(var self, value: T): void {\n"
+			"        self.len = self.len + 1 as usz;\n"
+			"    }\n"
+			"}\n"
+			"\n"
+			"impl List<T> {\n"
+			"    fn free(self): void {\n"
+			"    }\n"
+			"}\n"
+			"\n"
+			"fn test_multi_impl(p: &i32): usz {\n"
+			"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+			"    list.add(40);\n"
+			"    list.free();\n"
+			"    return list.len;\n"
+			"}\n";
+
+		std::string ir;
+		ASSERT(compile_to_ir(code, ir), "CodeGen for multiple impl blocks failed");
+		ASSERT(ir.find("List_i32_add") != std::string::npos, "Missing List_i32_add from first impl");
+		ASSERT(ir.find("List_i32_free") != std::string::npos, "Missing List_i32_free from second impl");
+	}
+
+	// 2. Trait impl via impl Trait for Struct in CodeGen
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn greet(val self): i32;\n"
+			"}\n"
+			"\n"
+			"struct Person {\n"
+			"    pub age: i32\n"
+			"}\n"
+			"\n"
+			"impl Greeter for Person {\n"
+			"    override fn greet(val self): i32 => self.age;\n"
+			"}\n"
+			"\n"
+			"fn test_trait(): i32 {\n"
+			"    val p = Person(25);\n"
+			"    return p.greet();\n"
+			"}\n";
+
+		std::string ir;
+		ASSERT(compile_to_ir(code, ir), "CodeGen for impl Trait for Struct failed");
+		ASSERT(ir.find("Person_greet") != std::string::npos, "Missing Person_greet method");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 23;
+	int total = 25;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
@@ -687,6 +779,14 @@ int main() {
 	}
 	if (test_codegen_traits()) {
 		std::cout << "[PASS] test_codegen_traits\n";
+		passed++;
+	}
+	if (test_codegen_new_struct_and_impl()) {
+		std::cout << "[PASS] test_codegen_new_struct_and_impl\n";
+		passed++;
+	}
+	if (test_codegen_multi_impl_and_trait()) {
+		std::cout << "[PASS] test_codegen_multi_impl_and_trait\n";
 		passed++;
 	}
 

@@ -67,6 +67,8 @@ export enum class TokenType {
 	KW_PUB,
 	KW_TRAIT,
 	KW_OVERRIDE,
+	KW_IMPL,
+	KW_FOR,
 
 	// Specials
 	END_OF_FILE,

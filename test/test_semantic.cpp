@@ -1323,6 +1323,199 @@ bool test_semantic_trait_errors() {
 	return true;
 }
 
+bool test_semantic_new_struct_and_impl() {
+	// 1. Generic struct with impl block methods (exact user scenario)
+	{
+		std::string_view code =
+			"struct List<T> {\n"
+			"    pub data: &T,\n"
+			"    len: usz,\n"
+			"    cap: usz\n"
+			"}\n"
+			"\n"
+			"impl List<T> {\n"
+			"    fn add(var self, value: T): void {\n"
+			"        self.len = self.len + 1 as usz;\n"
+			"    }\n"
+			"\n"
+			"    fn free(self): void {\n"
+			"    }\n"
+			"}\n"
+			"\n"
+			"fn test_fn(p: &i32): i32 {\n"
+			"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+			"    list.add(40);\n"
+			"    list.free();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should not error on valid new struct & impl");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Semantic analysis of new struct & impl must pass");
+	}
+
+	// 2. Trait implementation via impl Trait for Struct
+	{
+		std::string_view code =
+			"trait Greeter {\n"
+			"    fn name(val self): str;\n"
+			"    fn greet(val self): str => \"Hello from \" + self.name();\n"
+			"}\n"
+			"\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"\n"
+			"impl Greeter for Person {\n"
+			"    override fn name(val self): str => self.first_name;\n"
+			"}\n"
+			"\n"
+			"fn main(): i32 {\n"
+			"    val p = Person(\"Kobel\");\n"
+			"    val g = p.greet();\n"
+			"    return 0;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should not error on impl Trait for Struct");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Semantic analysis of impl Trait for Struct must pass");
+	}
+
+	// 3. Field privacy error across modules
+	{
+		std::string_view code =
+			"mod geom;\n"
+			"pub struct Point {\n"
+			"    pub x: i32,\n"
+			"    y: i32\n"
+			"}\n"
+			"\n"
+			"mod app;\n"
+			"use geom.Point;\n"
+			"fn test(p: Point): i32 {\n"
+			"    val a = p.x;\n" // OK: pub
+			"    val b = p.y;\n" // Error: private
+			"    return a + b;\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Accessing private field across modules must report error");
+	}
+
+	// 4. Error on impl for non-existent struct
+	{
+		std::string_view code =
+			"impl Ghost {\n"
+			"    fn haunt(self): void {}\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "impl for non-existent struct must report error");
+	}
+
+	// 5. Cross-module generic struct method accessing private fields
+	{
+		std::string_view code =
+			"mod geom;\n"
+			"pub struct Point<T> {\n"
+			"    pub x: T,\n"
+			"    y: T\n"
+			"}\n"
+			"impl Point<T> {\n"
+			"    pub fn get_y(self): T => self.y;\n"
+			"}\n"
+			"\n"
+			"mod app;\n"
+			"use geom.Point;\n"
+			"fn test(p: Point<i32>): i32 {\n"
+			"    return p.get_y();\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should not error on cross-module generic struct impl");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Cross-module generic struct method should access its private fields without error");
+	}
+
+	// 6. Multi-module trait implementation: Trait in module A, Struct in module B, impl in module C
+	{
+		std::string_view code =
+			"mod mytraits;\n"
+			"pub trait Describable {\n"
+			"    fn desc(val self): str;\n"
+			"}\n"
+			"\n"
+			"mod geom;\n"
+			"pub struct Point {\n"
+			"    pub x: i32\n"
+			"}\n"
+			"\n"
+			"mod app;\n"
+			"use geom.Point;\n"
+			"use mytraits.Describable;\n"
+			"impl Describable for Point {\n"
+			"    override fn desc(val self): str => \"point\";\n"
+			"}\n"
+			"\n"
+			"fn test(p: Point): str {\n"
+			"    return p.desc();\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto *prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser should not error on multi-module trait impl");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) {
+			diag.print_all(std::cerr);
+		}
+		ASSERT(!diag.has_errors(), "Multi-module trait impl across different modules must pass");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
 
@@ -1397,6 +1590,9 @@ int main() {
 
 	if (!test_semantic_generic_functions()) return 1;
 	std::cout << "  [PASS] test_semantic_generic_functions" << std::endl;
+
+	if (!test_semantic_new_struct_and_impl()) return 1;
+	std::cout << "  [PASS] test_semantic_new_struct_and_impl" << std::endl;
 
 	if (!test_semantic_module_prefixes()) return 1;
 	std::cout << "  [PASS] test_semantic_module_prefixes" << std::endl;

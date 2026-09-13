@@ -470,7 +470,10 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				}
 				inst_name += ">";
 
-				instantiate_struct(gen_st, inst_name, resolved_type_args, c->line, c->col);
+				auto st_res = instantiate_struct(gen_st, inst_name, resolved_type_args, c->line, c->col);
+				if (st_res == make_error() || !structs.contains(inst_name)) {
+					return make_error();
+				}
 				resolved_symbols[c] = inst_name;
 
 				const auto &st_sym = structs.at(inst_name);
@@ -555,7 +558,10 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 				}
 				inst_name += ">";
 
-				instantiate_function(gen_fn, inst_name, resolved_type_args, c->line, c->col);
+				auto fn_res = instantiate_function(gen_fn, inst_name, resolved_type_args, c->line, c->col);
+				if (fn_res == make_error() || !functions.contains(inst_name)) {
+					return make_error();
+				}
 				resolved_symbols[c] = inst_name;
 
 				const auto &fn_sym = functions.at(inst_name);
@@ -888,8 +894,17 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 		if (
 			auto it_f = it->second.field_types.find(m->member);
 			it_f != it->second.field_types.end()
-		)
+		) {
+			auto it_pub = it->second.field_pub.find(m->member);
+			bool is_field_pub = (it_pub != it->second.field_pub.end()) ? it_pub->second : true;
+			if (!is_field_pub && !current_module.empty() && current_module != it->second.module_name) {
+				logger.error(
+					m->line, m->col,
+					"Field '" + field_name + "' of struct '" + struct_name + "' is private"
+				);
+			}
 			return it_f->second;
+		}
 
 		if (
 			auto it_m = it->second.methods.find(m->member);

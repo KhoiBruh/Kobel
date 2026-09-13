@@ -132,6 +132,8 @@ export struct Parser {
 			switch (peek().type) {
 				case TokenType::KW_FN:
 				case TokenType::KW_STRUCT:
+				case TokenType::KW_TRAIT:
+				case TokenType::KW_IMPL:
 				case TokenType::KW_ENUM:
 				case TokenType::KW_CONST:
 				case TokenType::KW_EXTERN:
@@ -192,6 +194,8 @@ export struct Parser {
 	StructDecl *parse_struct_decl();
  
 	TraitDecl *parse_trait_decl();
+
+	ImplDecl *parse_impl_decl();
 
 	EnumDecl *parse_enum_decl();
 

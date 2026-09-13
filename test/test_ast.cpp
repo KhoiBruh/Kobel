@@ -118,13 +118,23 @@ bool test_decl_nodes() { Arena arena;
 	ASSERT(st->fields.size() == 2, "StructDecl field count mismatch");
 	ASSERT(isa<StructDecl>(st), "isa<StructDecl> failed");
 
+	// ImplDecl: impl Point { ... }
+	auto imp = arena.alloc<ImplDecl>("Point", 3, 1);
+	std::vector<FnDecl *> imp_methods;
+	imp_methods.push_back(fn);
+	imp->methods = arena.alloc_span<FnDecl *>(imp_methods);
+	ASSERT(imp->struct_name == "Point", "ImplDecl struct_name mismatch");
+	ASSERT(imp->methods.size() == 1, "ImplDecl methods count mismatch");
+	ASSERT(isa<ImplDecl>(imp), "isa<ImplDecl> failed");
+
 	// Program node
 	auto prog = arena.alloc<Program>();
 		std::vector<Decl*> prog_decls;
 	prog_decls.push_back(fn);
 	prog_decls.push_back(st);
+	prog_decls.push_back(imp);
 	prog->declarations = arena.alloc_span<Decl*>(prog_decls);
-	ASSERT(prog->declarations.size() == 2, "Program decl count mismatch");
+	ASSERT(prog->declarations.size() == 3, "Program decl count mismatch");
 	ASSERT(isa<Program>(prog), "isa<Program> failed");
 
 	return true;
@@ -135,6 +145,7 @@ bool test_rtti() { Arena arena;
 
 	ASSERT(isa<FnDecl>(node), "isa<FnDecl> should be true");
 	ASSERT(!isa<StructDecl>(node), "isa<StructDecl> should be false");
+	ASSERT(!isa<ImplDecl>(node), "isa<ImplDecl> should be false");
 	ASSERT(!isa<BinaryExpr>(node), "isa<BinaryExpr> should be false");
 
 	FnDecl* fn = as<FnDecl>(node);
@@ -143,6 +154,9 @@ bool test_rtti() { Arena arena;
 
 	StructDecl* st = as<StructDecl>(node);
 	ASSERT(st == nullptr, "as<StructDecl> should return nullptr");
+
+	ImplDecl* imp = as<ImplDecl>(node);
+	ASSERT(imp == nullptr, "as<ImplDecl> should return nullptr");
 
 	return true;
 }

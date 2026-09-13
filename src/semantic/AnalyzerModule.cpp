@@ -306,6 +306,22 @@ void Analyzer::validate_use_declarations(const Program *program) {
 						}
 					}
 					if (!mod_found) {
+						for (const auto &st: generic_structs | std::views::values) {
+							if (get_decl_module(st) == full_path) {
+								mod_found = true;
+								break;
+							}
+						}
+					}
+					if (!mod_found) {
+						for (const auto &fn: generic_functions | std::views::values) {
+							if (get_decl_module(fn) == full_path) {
+								mod_found = true;
+								break;
+							}
+						}
+					}
+					if (!mod_found) {
 						logger.error(u->line, u->col, "module '" + std::string(full_path) + "' not found");
 					}
 				}
@@ -322,6 +338,12 @@ void Analyzer::validate_use_declarations(const Program *program) {
 				} else if (structs.contains(target)) {
 					found = true;
 					is_pub = structs.at(target).is_pub;
+				} else if (generic_structs.contains(target)) {
+					found = true;
+					is_pub = generic_structs.at(target)->is_pub;
+				} else if (generic_functions.contains(target)) {
+					found = true;
+					is_pub = generic_functions.at(target)->is_pub;
 				} else if (traits.contains(target)) {
 					found = true;
 					is_pub = traits.at(target).is_pub;
