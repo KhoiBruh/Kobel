@@ -1592,8 +1592,126 @@ bool test_primitive_types_interning() {
 	return true;
 }
 
+bool test_type_context_interning() {
+	TypeContext ctx;
+
+	// 1. Primitives
+	auto i32_t = ctx.make_primitive(SemaType::I32);
+	ASSERT(i32_t != nullptr, "i32 primitive should not be null");
+	ASSERT(i32_t->is_integer(), "i32 should be integer");
+	ASSERT(i32_t->kind == SemaType::I32, "i32 kind mismatch");
+
+	auto void_t = ctx.make_void();
+	ASSERT(void_t == ctx.make_primitive(SemaType::VOID), "make_void must match SemaType::VOID");
+
+	auto null_t = ctx.make_null();
+	ASSERT(null_t == ctx.make_primitive(SemaType::NULL_TYPE), "make_null must match SemaType::NULL_TYPE");
+
+	auto err_t = ctx.make_error();
+	ASSERT(err_t == ctx.make_primitive(SemaType::ERROR_TYPE), "make_error must match SemaType::ERROR_TYPE");
+
+	auto str_t = ctx.make_str();
+	ASSERT(str_t == ctx.make_primitive(SemaType::STR), "make_str must match SemaType::STR");
+
+	// 2. Pointers & Interning
+	auto ptr_immut = ctx.make_pointer(i32_t, false);
+	auto ptr_immut2 = ctx.make_pointer(i32_t, false);
+	ASSERT(ptr_immut != nullptr, "pointer must not be null");
+	ASSERT(ptr_immut == ptr_immut2, "Immutable pointers to same target must be interned");
+	ASSERT(ptr_immut->is_pointer(), "Must be pointer");
+	ASSERT(!ptr_immut->is_mut_pointer, "Must be immutable pointer");
+	ASSERT(ptr_immut->pointee == i32_t, "Pointee mismatch");
+
+	auto ptr_mut = ctx.make_pointer(i32_t, true);
+	auto ptr_mut2 = ctx.make_pointer(i32_t, true);
+	ASSERT(ptr_mut == ptr_mut2, "Mutable pointers to same target must be interned");
+	ASSERT(ptr_mut->is_mut_pointer, "Must be mutable pointer");
+	ASSERT(ptr_immut != ptr_mut, "Immutable and mutable pointers must have distinct addresses");
+
+	auto ptr_ptr = ctx.make_pointer(ptr_immut, false);
+	ASSERT(ptr_ptr->pointee == ptr_immut, "Pointer to pointer pointee mismatch");
+
+	// 3. Structs & Interning
+	auto st1 = ctx.make_struct("Point");
+	auto st2 = ctx.make_struct("Point");
+	ASSERT(st1 != nullptr, "struct must not be null");
+	ASSERT(st1 == st2, "Struct types with same name must be interned");
+	ASSERT(st1->is_struct(), "Must be struct");
+	ASSERT(st1->struct_name == "Point", "Struct name mismatch");
+
+	auto st3 = ctx.make_struct("Vector");
+	ASSERT(st1 != st3, "Distinct struct names must produce distinct types");
+
+	// 4. Enums & Interning
+	auto en1 = ctx.make_enum("Color", i32_t);
+	auto en2 = ctx.make_enum("Color", i32_t);
+	ASSERT(en1 != nullptr, "enum must not be null");
+	ASSERT(en1 == en2, "Enum types with same name and underlying type must be interned");
+	ASSERT(en1->is_enum(), "Must be enum");
+	ASSERT(en1->enum_name == "Color", "Enum name mismatch");
+	ASSERT(en1->underlying_type == i32_t, "Enum underlying type mismatch");
+
+	auto u8_t = ctx.make_primitive(SemaType::U8);
+	auto en3 = ctx.make_enum("Color", u8_t);
+	ASSERT(en1 != en3, "Enum types with different underlying types must produce distinct types");
+
+	// 5. Arrays & Interning
+	auto arr1 = ctx.make_array(i32_t, 5);
+	auto arr2 = ctx.make_array(i32_t, 5);
+	ASSERT(arr1 != nullptr, "array must not be null");
+	ASSERT(arr1 == arr2, "Array types with same element and size must be interned");
+	ASSERT(arr1->is_array(), "Must be array");
+	ASSERT(arr1->element_type == i32_t, "Array element type mismatch");
+	ASSERT(arr1->array_size == 5, "Array size mismatch");
+
+	auto arr3 = ctx.make_array(i32_t, 10);
+	ASSERT(arr1 != arr3, "Array types with different size must produce distinct types");
+	auto arr4 = ctx.make_array(u8_t, 5);
+	ASSERT(arr1 != arr4, "Array types with different element type must produce distinct types");
+
+	// 6. Analyzer Integration & Delegation
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+
+	auto sema_i32 = sema.make_primitive(SemaType::I32);
+	ASSERT(sema_i32 == i32_t, "Analyzer make_primitive must match primitive_types static address");
+	ASSERT(sema.type_ctx.make_primitive(SemaType::I32) == sema_i32, "type_ctx inside Analyzer must match make_primitive");
+
+	auto sema_ptr = sema.make_pointer(sema_i32, false);
+	auto sema_ptr2 = sema.type_ctx.make_pointer(sema_i32, false);
+	ASSERT(sema_ptr == sema_ptr2, "Analyzer make_pointer must delegate directly to sema.type_ctx");
+
+	auto sema_st = sema.make_struct("Node");
+	auto sema_st2 = sema.type_ctx.make_struct("Node");
+	ASSERT(sema_st == sema_st2, "Analyzer make_struct must delegate directly to sema.type_ctx");
+
+	auto sema_en = sema.make_enum("Status", sema_i32);
+	auto sema_en2 = sema.type_ctx.make_enum("Status", sema_i32);
+	ASSERT(sema_en == sema_en2, "Analyzer make_enum must delegate directly to sema.type_ctx");
+
+	auto sema_arr = sema.make_array(sema_i32, 4);
+	auto sema_arr2 = sema.type_ctx.make_array(sema_i32, 4);
+	ASSERT(sema_arr == sema_arr2, "Analyzer make_array must delegate directly to sema.type_ctx");
+
+	ASSERT(sema.make_void() == sema.type_ctx.make_void(), "Analyzer make_void must delegate to type_ctx");
+	ASSERT(sema.make_null() == sema.type_ctx.make_null(), "Analyzer make_null must delegate to type_ctx");
+	ASSERT(sema.make_error() == sema.type_ctx.make_error(), "Analyzer make_error must delegate to type_ctx");
+	ASSERT(sema.make_str() == sema.type_ctx.make_str(), "Analyzer make_str must delegate to type_ctx");
+
+	// 7. Analyzer construction with external TypeContext
+	TypeContext custom_ctx;
+	auto custom_st = custom_ctx.make_struct("ExternalStruct");
+	Analyzer custom_sema{diag, std::move(custom_ctx)};
+	ASSERT(custom_sema.make_struct("ExternalStruct") == custom_st, "Analyzer initialized with custom TypeContext preserves interned types");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
+
+	if (!test_type_context_interning()) return 1;
+	std::cout << "  [PASS] test_type_context_interning" << std::endl;
 
 	if (!test_primitive_types_interning()) return 1;
 	std::cout << "  [PASS] test_primitive_types_interning" << std::endl;

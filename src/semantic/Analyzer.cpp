@@ -61,73 +61,23 @@ export struct Analyzer {
 	std::unordered_map<const Expr *, std::string> resolved_symbols;
 	std::unordered_map<const Expr *, Semantic> resolved_type_sizes;
 
-	std::vector<std::unique_ptr<Type> > interned_types;
+	TypeContext type_ctx;
 
-	Semantic make_primitive(SemaType k) {
-		const auto idx = static_cast<size_t>(k);
-		if (idx < primitive_types.size()) {
-			return &primitive_types[idx];
-		}
-		return &primitive_types[static_cast<size_t>(SemaType::ERROR_TYPE)];
-	}
+	Semantic make_primitive(SemaType k) { return type_ctx.make_primitive(k); }
+	Semantic make_pointer(Semantic target, bool mut = false) { return type_ctx.make_pointer(target, mut); }
+	Semantic make_struct(std::string_view name) { return type_ctx.make_struct(name); }
+	Semantic make_enum(std::string_view name, Semantic under) { return type_ctx.make_enum(name, under); }
+	Semantic make_array(Semantic elem, size_t sz = 0) { return type_ctx.make_array(elem, sz); }
 
-	Semantic make_pointer(Semantic target, bool mut = false) {
-		for (const auto &t: interned_types) {
-			if (t->kind == SemaType::POINTER && t->pointee == target && t->is_mut_pointer == mut)
-				return t.get();
-		}
-		auto t = std::make_unique<Type>();
-		t->kind = SemaType::POINTER;
-		t->pointee = target;
-		t->is_mut_pointer = mut;
-		interned_types.push_back(std::move(t));
-		return interned_types.back().get();
-	}
-
-	Semantic make_struct(const std::string_view name) {
-		for (const auto &t: interned_types) {
-			if (t->kind == SemaType::STRUCT && t->struct_name == name)
-				return t.get();
-		}
-		auto t = std::make_unique<Type>();
-		t->kind = SemaType::STRUCT;
-		t->struct_name = std::string(name);
-		interned_types.push_back(std::move(t));
-		return interned_types.back().get();
-	}
-
-	Semantic make_enum(const std::string_view name, Semantic under) {
-		for (const auto &t: interned_types) {
-			if (t->kind == SemaType::ENUM && t->enum_name == name && t->underlying_type == under)
-				return t.get();
-		}
-		auto t = std::make_unique<Type>();
-		t->kind = SemaType::ENUM;
-		t->enum_name = std::string(name);
-		t->underlying_type = under;
-		interned_types.push_back(std::move(t));
-		return interned_types.back().get();
-	}
-
-	Semantic make_array(Semantic elem, size_t sz = 0) {
-		for (const auto &t: interned_types) {
-			if (t->kind == SemaType::ARRAY && t->element_type == elem && t->array_size == sz)
-				return t.get();
-		}
-		auto t = std::make_unique<Type>();
-		t->kind = SemaType::ARRAY;
-		t->element_type = elem;
-		t->array_size = sz;
-		interned_types.push_back(std::move(t));
-		return interned_types.back().get();
-	}
-
-	Semantic make_void() { return make_primitive(SemaType::VOID); }
-	Semantic make_null() { return make_primitive(SemaType::NULL_TYPE); }
-	Semantic make_error() { return make_primitive(SemaType::ERROR_TYPE); }
-	Semantic make_str() { return make_primitive(SemaType::STR); }
+	Semantic make_void() { return type_ctx.make_void(); }
+	Semantic make_null() { return type_ctx.make_null(); }
+	Semantic make_error() { return type_ctx.make_error(); }
+	Semantic make_str() { return type_ctx.make_str(); }
 
 	explicit Analyzer(DiagnosticEngine &log) : logger(log) {
+	}
+
+	Analyzer(DiagnosticEngine &log, TypeContext ctx) : logger(log), type_ctx(std::move(ctx)) {
 	}
 
 	// Scope helpers

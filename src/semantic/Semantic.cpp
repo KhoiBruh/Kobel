@@ -2,6 +2,7 @@ module;
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -153,3 +154,73 @@ export inline const std::array<Type, 18> primitive_types = [] {
 	}
 	return arr;
 }();
+
+export struct TypeContext {
+	std::vector<std::unique_ptr<Type>> interned_types;
+
+	Semantic make_primitive(SemaType k) const {
+		if (const auto idx = static_cast<size_t>(k); idx < primitive_types.size()) {
+			return &primitive_types[idx];
+		}
+		return &primitive_types[static_cast<size_t>(SemaType::ERROR_TYPE)];
+	}
+
+	Semantic make_pointer(Semantic target, bool mut = false) {
+		for (const auto &t: interned_types) {
+			if (
+				t->kind == SemaType::POINTER &&
+				t->pointee == target &&
+				t->is_mut_pointer == mut
+			) return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::POINTER;
+		t->pointee = target;
+		t->is_mut_pointer = mut;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_struct(std::string_view name) {
+		for (const auto &t: interned_types) {
+			if (t->kind == SemaType::STRUCT && t->struct_name == name)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::STRUCT;
+		t->struct_name = std::string(name);
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_enum(std::string_view name, Semantic under) {
+		for (const auto &t: interned_types) {
+			if (t->kind == SemaType::ENUM && t->enum_name == name && t->underlying_type == under)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::ENUM;
+		t->enum_name = std::string(name);
+		t->underlying_type = under;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_array(Semantic elem, size_t sz = 0) {
+		for (const auto &t: interned_types) {
+			if (t->kind == SemaType::ARRAY && t->element_type == elem && t->array_size == sz)
+				return t.get();
+		}
+		auto t = std::make_unique<Type>();
+		t->kind = SemaType::ARRAY;
+		t->element_type = elem;
+		t->array_size = sz;
+		interned_types.push_back(std::move(t));
+		return interned_types.back().get();
+	}
+
+	Semantic make_void() const { return make_primitive(SemaType::VOID); }
+	Semantic make_null() const { return make_primitive(SemaType::NULL_TYPE); }
+	Semantic make_error() const { return make_primitive(SemaType::ERROR_TYPE); }
+	Semantic make_str() const { return make_primitive(SemaType::STR); }
+};
