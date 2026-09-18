@@ -1,5 +1,6 @@
 module;
 
+#include <charconv>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -36,9 +37,8 @@ TypeNode *Parser::parse_type() {
 		size_t explicit_size = 0;
 		if (match(TokenType::OPEN_PAREN)) {
 			const auto size_tok = consume(TokenType::NUMBER, "Expected array size in parentheses");
-			try {
-				explicit_size = std::stoull(std::string(size_tok.text));
-			} catch (...) {
+			auto [ptr, ec] = std::from_chars(size_tok.text.data(), size_tok.text.data() + size_tok.text.size(), explicit_size);
+			if (ec != std::errc{}) {
 				error(size_tok, "Invalid array size number");
 			}
 			consume(TokenType::CLOSE_PAREN, "Expected ')' after array size");

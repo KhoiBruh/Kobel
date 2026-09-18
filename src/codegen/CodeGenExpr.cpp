@@ -9,6 +9,7 @@ module;
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 
+#include <charconv>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -258,7 +259,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			case LiteralKind::FLOAT: {
 				std::string s(lit->raw_text);
 				while (!s.empty() && (s.back() == 'F' || s.back() == 'D' || s.back() == '_')) s.pop_back();
-				double val = std::stod(s);
+				double val = 0.0;
+				std::from_chars(s.data(), s.data() + s.size(), val);
 				auto sema_ty = get_sema_type(expr);
 				if (sema_ty && sema_ty->kind == SemaType::F32) {
 					return llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<float>(val)));

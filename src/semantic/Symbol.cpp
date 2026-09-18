@@ -1,5 +1,6 @@
 module;
 
+#include <charconv>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -68,9 +69,12 @@ export inline int64_t parse_kobel_int(std::string_view raw) {
 		}
 	}
 
-	const char *begin = s.c_str() + start;
-	char *end = nullptr;
-	unsigned long long val = std::strtoull(begin, &end, base);
+	const char *begin = s.data() + start;
+	const char *end = s.data() + s.size();
+	unsigned long long val = 0;
+	if (begin < end) {
+		std::from_chars(begin, end, val, base);
+	}
 	return static_cast<int64_t>(val);
 }
 

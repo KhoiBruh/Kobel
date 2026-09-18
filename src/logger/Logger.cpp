@@ -1,7 +1,7 @@
 module;
 
 #include <iostream>
-#include <sstream>
+#include <format>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,7 +21,7 @@ export struct Diagnostic {
 	size_t col = 0;
 
 	auto format() const {
-		std::string kind_str;
+		std::string_view kind_str;
 		switch (type) {
 			case DiagnosticType::ERROR: kind_str = "error";
 				break;
@@ -30,9 +30,7 @@ export struct Diagnostic {
 			case DiagnosticType::NOTE: kind_str = "note";
 				break;
 		}
-		std::ostringstream ss;
-		ss << "[" << kind_str << "] Line " << line << ", Column " << col << ": " << message;
-		return ss.str();
+		return std::format("[{}] Line {}, Column {}: {}", kind_str, line, col, message);
 	}
 };
 
