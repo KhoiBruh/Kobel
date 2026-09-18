@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <string_view>
+#include <string>
 
 import token;
 import ast;
@@ -140,6 +141,24 @@ bool test_decl_nodes() { Arena arena;
 	return true;
 }
 
+
+bool test_alloc_string() {
+	Arena arena;
+
+	// Empty string
+	std::string_view empty_sv = arena.alloc_string("");
+	ASSERT(empty_sv.empty(), "Empty string allocation should return empty string_view");
+	ASSERT(empty_sv.data() == nullptr, "Empty string allocation should return null data pointer");
+
+	// Large string
+	std::string large_str(100000, 'a');
+	std::string_view large_sv = arena.alloc_string(large_str);
+	ASSERT(large_sv.size() == 100000, "Large string allocation size mismatch");
+	ASSERT(large_sv == large_str, "Large string allocation content mismatch");
+
+	return true;
+}
+
 bool test_rtti() { Arena arena;
 	ASTNode* node = arena.alloc<FnDecl>("compute", 1, 1);
 
@@ -174,6 +193,9 @@ int main() {
 
 	if (!test_decl_nodes()) return 1;
 	std::cout << "  [PASS] test_decl_nodes" << std::endl;
+
+	if (!test_alloc_string()) return 1;
+	std::cout << "  [PASS] test_alloc_string" << std::endl;
 
 	if (!test_rtti()) return 1;
 	std::cout << "  [PASS] test_rtti" << std::endl;
