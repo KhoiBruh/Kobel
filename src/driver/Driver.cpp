@@ -352,14 +352,7 @@ int Driver::run() {
 	auto unified_program = parsers.front()->arena.alloc<Program>();
 	std::vector<Decl *> all_decls;
 	for (auto &prog: parsed_programs) {
-		bool has_mod = false;
-		for (auto &decl: prog->declarations) {
-			if (isa<ModuleDecl>(decl)) {
-				has_mod = true;
-				break;
-			}
-		}
-		if (!has_mod) {
+		if (prog->declarations.empty() || !isa<ModuleDecl>(prog->declarations.front())) {
 			all_decls.push_back(parsers.front()->arena.alloc<ModuleDecl>(
 				std::span<std::string_view>{}, ""
 			));

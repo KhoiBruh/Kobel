@@ -498,6 +498,43 @@ bool test_lexer_comment_stack_overflow_stress() {
 	return true;
 }
 
+// 9. Test multi-file module scope isolation
+bool test_multifile_module_isolation() {
+	std::filesystem::path dir = std::filesystem::temp_directory_path() / "kobel_iso_test";
+	std::error_code ec;
+	std::filesystem::create_directories(dir, ec);
+
+	std::filesystem::path f1 = dir / "f1.kb";
+	std::filesystem::path f2 = dir / "f2.kb";
+
+	{
+		std::ofstream out(f1);
+		out << "mod alpha;\n"
+		    << "pub fn a_val(): i32 { return 10; }\n";
+	}
+	{
+		std::ofstream out(f2);
+		out << "fn root_helper(): i32 { return 20; }\n"
+		    << "mod beta;\n"
+		    << "use alpha.a_val;\n"
+		    << "pub fn run(): i32 { return a_val() + root_helper(); }\n";
+	}
+
+	CompilerOptions opts;
+	opts.input_files = {f1.string(), f2.string()};
+	opts.mode = OutputMode::IR;
+	opts.output_file = (dir / "out.ll").string();
+
+	std::ostringstream err_out;
+	Driver driver(opts, std::cout, err_out);
+	int ret = driver.run();
+
+	std::filesystem::remove_all(dir, ec);
+
+	ASSERT(ret == 0, ("Multi-file module isolation failed: " + err_out.str()).c_str());
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -524,6 +561,9 @@ int main() {
 
 	if (!test_lexer_comment_stack_overflow_stress()) return 1;
 	std::cout << "  [PASS] test_lexer_comment_stack_overflow_stress" << std::endl;
+
+	if (!test_multifile_module_isolation()) return 1;
+	std::cout << "  [PASS] test_multifile_module_isolation" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;
