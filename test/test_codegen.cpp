@@ -697,12 +697,33 @@ bool test_codegen_multi_impl_and_trait() {
 	return true;
 }
 
+bool test_codegen_float_literals() {
+	std::string_view code =
+		"fn test_floats(): f64 {\n"
+		"    val a: f64 = 1_000.5;\n"
+		"    val b: f32 = 100.0_F;\n"
+		"    val c: f32 = 2.5F;\n"
+		"    val d: f64 = 3.14_15_92;\n"
+		"    return a;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Compilation of float literals failed");
+	ASSERT(ir.find("1.000500e+03") != std::string::npos, "Expected 1_000.5 to be emitted as 1.000500e+03");
+	return true;
+}
+
 int main() {
 	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 25;
+	int total = 26;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
+
+	if (test_codegen_float_literals()) {
+		std::cout << "[PASS] test_codegen_float_literals\n";
+		passed++;
+	}
 
 	// Stage 1
 	if (test_codegen_arithmetic()) {

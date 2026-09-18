@@ -1516,8 +1516,48 @@ bool test_semantic_new_struct_and_impl() {
 	return true;
 }
 
+bool test_primitive_types_interning() {
+	DiagnosticEngine diag1;
+	Analyzer sema1{diag1};
+	DiagnosticEngine diag2;
+	Analyzer sema2{diag2};
+
+	// Verify all 18 primitive types are distinct and non-null
+	std::vector<Semantic> types;
+	for (size_t i = 0; i < 18; ++i) {
+		auto t = sema1.make_primitive(static_cast<SemaType>(i));
+		ASSERT(t != nullptr, "Primitive type must not be null");
+		ASSERT(static_cast<size_t>(t->kind) == i, "Primitive kind mismatch");
+		types.push_back(t);
+	}
+
+	// Verify uniqueness
+	for (size_t i = 0; i < 18; ++i) {
+		for (size_t j = i + 1; j < 18; ++j) {
+			ASSERT(types[i] != types[j], "Primitive types must have unique static addresses");
+		}
+	}
+
+	// Verify cross-analyzer static identity
+	for (size_t i = 0; i < 18; ++i) {
+		auto t1 = sema1.make_primitive(static_cast<SemaType>(i));
+		auto t2 = sema2.make_primitive(static_cast<SemaType>(i));
+		ASSERT(t1 == t2, "make_primitive must return identical static address across analyzers");
+		ASSERT(t1 == &primitive_types[i], "make_primitive must match primitive_types array address");
+	}
+
+	// Verify out-of-range kinds return ERROR_TYPE
+	auto err_ptr = sema1.make_primitive(SemaType::POINTER);
+	ASSERT(err_ptr == sema1.make_primitive(SemaType::ERROR_TYPE), "make_primitive with POINTER must return ERROR_TYPE");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Semantic tests..." << std::endl;
+
+	if (!test_primitive_types_interning()) return 1;
+	std::cout << "  [PASS] test_primitive_types_interning" << std::endl;
 
 	if (!test_semantic_traits()) return 1;
 	std::cout << "  [PASS] test_semantic_traits" << std::endl;

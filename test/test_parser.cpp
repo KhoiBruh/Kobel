@@ -310,34 +310,61 @@ bool test_parse_array() {
 		"    val a: Array<i32> = [1, 2, 3];\n"
 		"    val b: Array<u8>(4) = [1, 2, 3, 4];\n"
 		"    val c: i32 = a[0];\n"
+		"    val d: Array<i32>(1_000) = [];\n"
+		"    val e: Array<i32>(0x10) = [];\n"
+		"    val f: Array<i32>(10UZ) = [];\n"
 		"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
 
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i khi parse array");
-	ASSERT(prog->declarations.size() == 1, "Ph???i parse ???????c 1 h??m");
+	ASSERT(!p.has_errors(), "Parser should have no errors parsing arrays");
+	ASSERT(prog->declarations.size() == 1, "Must parse 1 function");
 	auto* fn = as<FnDecl>(prog->declarations[0]);
-	ASSERT(fn->body->statements.size() == 3, "Th??n h??m ph???i c?? 3 c??u l???nh");
+	ASSERT(fn->body->statements.size() == 6, "Function body should have 6 statements");
 
 	// val a: Array<i32> = [1, 2, 3];
 	auto* s0 = as<VarDeclStmt>(fn->body->statements[0]);
-	ASSERT(isa<ArrayType>(s0->type_annotation), "s0 type ph???i l?? ArrayType");
+	ASSERT(isa<ArrayType>(s0->type_annotation), "s0 type must be ArrayType");
 	auto* arr_ty_a = as<ArrayType>(s0->type_annotation);
-	ASSERT(arr_ty_a->size == 0, "ArrayType size c???a a ph???i l?? 0 (suy lu???n)");
-	ASSERT(isa<ArrayLiteralExpr>(s0->initializer), "s0 init ph???i l?? ArrayLiteralExpr");
+	ASSERT(arr_ty_a->size == 0, "ArrayType size of a must be 0");
+	ASSERT(isa<ArrayLiteralExpr>(s0->initializer), "s0 init must be ArrayLiteralExpr");
 	auto* arr_lit_a = as<ArrayLiteralExpr>(s0->initializer);
-	ASSERT(arr_lit_a->elements.size() == 3, "a c?? 3 ph???n t???");
+	ASSERT(arr_lit_a->elements.size() == 3, "a has 3 elements");
 
 	// val b: Array<u8>(4) = [1, 2, 3, 4];
 	auto* s1 = as<VarDeclStmt>(fn->body->statements[1]);
 	auto* arr_ty_b = as<ArrayType>(s1->type_annotation);
-	ASSERT(arr_ty_b->size == 4, "ArrayType size c???a b ph???i l?? 4");
+	ASSERT(arr_ty_b->size == 4, "ArrayType size of b must be 4");
 
 	// val c: i32 = a[0];
 	auto* s2 = as<VarDeclStmt>(fn->body->statements[2]);
-	ASSERT(isa<IndexExpr>(s2->initializer), "s2 init ph???i l?? IndexExpr");
+	ASSERT(isa<IndexExpr>(s2->initializer), "s2 init must be IndexExpr");
+
+	// val d: Array<i32>(1_000) = [];
+	auto* s3 = as<VarDeclStmt>(fn->body->statements[3]);
+	auto* arr_ty_d = as<ArrayType>(s3->type_annotation);
+	ASSERT(arr_ty_d->size == 1000, "ArrayType size of d must be 1000");
+
+	// val e: Array<i32>(0x10) = [];
+	auto* s4 = as<VarDeclStmt>(fn->body->statements[4]);
+	auto* arr_ty_e = as<ArrayType>(s4->type_annotation);
+	ASSERT(arr_ty_e->size == 16, "ArrayType size of e must be 16");
+
+	// val f: Array<i32>(10UZ) = [];
+	auto* s5 = as<VarDeclStmt>(fn->body->statements[5]);
+	auto* arr_ty_f = as<ArrayType>(s5->type_annotation);
+	ASSERT(arr_ty_f->size == 10, "ArrayType size of f must be 10");
+
+	// Test invalid array size numbers
+	{
+		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10.5) = []; }\n";
+		Lexer bad_lex{bad_code};
+		Parser bad_p{bad_lex.tokenize()};
+		bad_p.parse_program();
+		ASSERT(bad_p.has_errors(), "Parser must reject float array size");
+	}
 
 	return true;
 }

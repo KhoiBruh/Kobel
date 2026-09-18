@@ -21,7 +21,7 @@ export struct Diagnostic {
 	size_t col = 0;
 
 	auto format() const {
-		std::string_view kind_str;
+		std::string_view kind_str = "unknown";
 		switch (type) {
 			case DiagnosticType::ERROR: kind_str = "error";
 				break;
@@ -29,6 +29,7 @@ export struct Diagnostic {
 				break;
 			case DiagnosticType::NOTE: kind_str = "note";
 				break;
+			default: break;
 		}
 		return std::format("[{}] Line {}, Column {}: {}", kind_str, line, col, message);
 	}
