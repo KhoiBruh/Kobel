@@ -1,5 +1,6 @@
 module;
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -84,7 +85,7 @@ std::string Driver::read_file_content(const std::string &path) {
 std::filesystem::path Driver::module_to_file_path(const std::span<std::string_view> &path) {
 	std::filesystem::path p;
 	for (const auto &part: path) {
-		p /= std::string(part);
+		p /= part;
 	}
 	return p;
 }
@@ -98,15 +99,21 @@ bool Driver::resolve_dependencies(
 	StringSet loaded_files;
 	std::vector<std::filesystem::path> search_dirs = options_.custom_search_dirs;
 
+	auto add_search_dir = [&](const std::filesystem::path &dir) {
+		if (std::ranges::find(search_dirs, dir) == search_dirs.end()) {
+			search_dirs.push_back(dir);
+		}
+	};
+
 	for (const auto &filepath: options_.input_files) {
 		std::error_code ec;
 		auto can = std::filesystem::canonical(filepath, ec);
 		if (!ec) {
 			loaded_files.insert(can.string());
-			search_dirs.push_back(can.parent_path());
+			add_search_dir(can.parent_path());
 		}
 	}
-	search_dirs.push_back(std::filesystem::current_path());
+	add_search_dir(std::filesystem::current_path());
 
 	// Collect modules declared in input_files
 	for (const auto &prog: parsed_programs) {
@@ -183,7 +190,7 @@ bool Driver::resolve_dependencies(
 							}
 						}
 						loaded_modules.insert(std::string(mod_name));
-						search_dirs.push_back(found_file.parent_path());
+						add_search_dir(found_file.parent_path());
 						parsed_programs.push_back(prog);
 						parsers.push_back(std::move(parser));
 						new_module_loaded = true;
@@ -337,9 +344,26 @@ int Driver::run() {
 	}
 
 	// 2. Merge all top-level declarations from all files into a unified Program AST
+	if (parsers.empty() || parsed_programs.empty()) {
+		err_ << "Error: No valid programs to compile.\n";
+		return 1;
+	}
+
 	auto unified_program = parsers.front()->arena.alloc<Program>();
 	std::vector<Decl *> all_decls;
 	for (auto &prog: parsed_programs) {
+		bool has_mod = false;
+		for (auto &decl: prog->declarations) {
+			if (isa<ModuleDecl>(decl)) {
+				has_mod = true;
+				break;
+			}
+		}
+		if (!has_mod) {
+			all_decls.push_back(parsers.front()->arena.alloc<ModuleDecl>(
+				std::span<std::string_view>{}, ""
+			));
+		}
 		for (auto &decl: prog->declarations) {
 			all_decls.push_back(decl);
 		}

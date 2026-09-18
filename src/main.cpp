@@ -14,6 +14,7 @@ namespace {
 		std::cout << "Usage: " << prog_name << " [options] <source files...>\n\n"
 			<< "Options:\n"
 			<< "  -o <file>          Specify output file name\n"
+			<< "  -I <dir>           Add directory to module search path\n"
 			<< "  -c, --emit-obj     Emit native object file (.obj) and stop\n"
 			<< "  -S, --emit-asm     Emit x86_64 assembly (.s) and stop\n"
 			<< "  --emit-ir          Emit LLVM IR (.ll) and stop\n"
@@ -50,6 +51,15 @@ int main(const int argc, char *argv[]) {
 				std::cerr << "Error: Missing argument after '-o'\n";
 				return 1;
 			}
+		} else if (arg == "-I") {
+			if (i + 1 < argc) {
+				options.custom_search_dirs.emplace_back(argv[++i]);
+			} else {
+				std::cerr << "Error: Missing argument after '-I'\n";
+				return 1;
+			}
+		} else if (arg.starts_with("-I") && arg.size() > 2) {
+			options.custom_search_dirs.emplace_back(arg.substr(2));
 		} else if (arg == "-c" || arg == "--emit-obj") {
 			options.mode = OutputMode::OBJECT;
 			options.explicit_mode = true;

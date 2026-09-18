@@ -210,7 +210,9 @@ void Analyzer::pass0_index_modules(const Program *program) {
 	for (const auto &decl: program->declarations) {
 		if (isa<ModuleDecl>(decl)) {
 			active_mod = as<ModuleDecl>(decl)->full_path;
-			known_modules.insert(active_mod);
+			if (!active_mod.empty()) {
+				known_modules.insert(active_mod);
+			}
 		} else if (isa<UseDecl>(decl)) {
 			const auto *u = as<UseDecl>(decl);
 			decl_modules[u] = active_mod;
