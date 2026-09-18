@@ -365,6 +365,20 @@ bool test_parse_array() {
 		bad_p.parse_program();
 		ASSERT(bad_p.has_errors(), "Parser must reject float array size");
 	}
+	{
+		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10F) = []; }\n";
+		Lexer bad_lex{bad_code};
+		Parser bad_p{bad_lex.tokenize()};
+		bad_p.parse_program();
+		ASSERT(bad_p.has_errors(), "Parser must reject float suffix F in array size");
+	}
+	{
+		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10D) = []; }\n";
+		Lexer bad_lex{bad_code};
+		Parser bad_p{bad_lex.tokenize()};
+		bad_p.parse_program();
+		ASSERT(bad_p.has_errors(), "Parser must reject double suffix D in array size");
+	}
 
 	return true;
 }

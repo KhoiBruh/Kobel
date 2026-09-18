@@ -115,7 +115,7 @@ export inline int64_t parse_kobel_int(std::string_view raw) {
 		} else if (raw.find('_') != std::string_view::npos) {
 			size_t last_us = raw.rfind('_');
 			std::string_view suf = raw.substr(last_us + 1);
-			if (suf == "B" || suf == "D" || suf == "F") {
+			if (suf == "B") {
 				s.pop_back();
 			}
 		}
@@ -123,7 +123,7 @@ export inline int64_t parse_kobel_int(std::string_view raw) {
 		if (s.ends_with("UL") || s.ends_with("US") || s.ends_with("UB") || s.ends_with("UZ")) {
 			s.pop_back(); s.pop_back();
 		} else if (s.ends_with("U") || s.ends_with("L") || s.ends_with("S") || s.ends_with("B") ||
-		           s.ends_with("Z") || s.ends_with("D") || s.ends_with("F")) {
+		           s.ends_with("Z")) {
 			s.pop_back();
 		}
 	}

@@ -48,25 +48,26 @@ export struct Lexer {
 		return {type, sub(start_cursor), line, start_col};
 	}
 
+	void handle_newline() {
+		if (peek() == '\r') {
+			next();
+			if (!is_end() && peek() == '\n') {
+				cursor++;
+			}
+		} else if (peek() == '\n') {
+			cursor++;
+		}
+		line++;
+		col = 1;
+	}
+
 	void skip_whitespace() {
 		while (!is_end()) {
-			if (
-				const char c = peek();
-				c == ' ' ||
-				c == '\t'
-			)
+			const char c = peek();
+			if (c == ' ' || c == '\t') {
 				next();
-			else if (c == '\r') {
-				next();
-				if (!is_end() && peek() == '\n') {
-					cursor++;
-				}
-				line++;
-				col = 1;
-			} else if (c == '\n') {
-				line++;
-				col = 1;
-				cursor++;
+			} else if (c == '\r' || c == '\n') {
+				handle_newline();
 			} else break;
 		}
 	}
@@ -150,17 +151,17 @@ export struct Lexer {
 			if (c == '\\') {
 				next(); // consume '\'
 				if (!is_end()) {
-					if (peek() == '\n') {
-						line++;
-						col = 1;
+					if (peek() == '\r' || peek() == '\n') {
+						handle_newline();
+					} else {
+						next(); // consume escaped char
 					}
-					next(); // consume escaped char
 				}
 				continue;
 			}
-			if (c == '\n') {
-				line++;
-				col = 1;
+			if (c == '\r' || c == '\n') {
+				handle_newline();
+				continue;
 			}
 			next();
 		}
@@ -218,19 +219,8 @@ export struct Lexer {
 					}
 					if (match('*')) {
 						while (!is_end()) {
-							if (peek() == '\r') {
-								next();
-								if (!is_end() && peek() == '\n') {
-									cursor++;
-								}
-								line++;
-								col = 1;
-								continue;
-							}
-							if (peek() == '\n') {
-								line++;
-								col = 1;
-								cursor++;
+							if (peek() == '\r' || peek() == '\n') {
+								handle_newline();
 								continue;
 							}
 							if (peek() == '*' && cursor + 1 < src.size() && src[cursor + 1] == '/') {
