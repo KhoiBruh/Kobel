@@ -420,6 +420,84 @@ bool test_struct_member_no_map_pollution() {
 	return true;
 }
 
+// 8. Test Lexer comment skipping does not cause stack overflow on deep comment chains
+bool test_lexer_comment_stack_overflow_stress() {
+	// Case 1: 50,000 consecutive single-line comments
+	{
+		std::string deep_comments;
+		deep_comments.reserve(50000 * 20 + 50);
+		for (int i = 0; i < 50000; ++i) {
+			deep_comments += "// comment line\n";
+		}
+		deep_comments += "val final_token = 42;";
+
+		Lexer lex{deep_comments};
+		auto tokens = lex.tokenize();
+		ASSERT(!tokens.empty(), "Tokens should not be empty");
+		ASSERT(tokens.size() >= 5, "Expected tokens for 'val final_token = 42;'");
+		ASSERT(tokens[0].type == TokenType::KW_VAL, "Expected KW_VAL token as first non-comment token");
+		ASSERT(tokens[1].text == "final_token", "Expected final_token identifier");
+		ASSERT(tokens.back().type == TokenType::END_OF_FILE, "Expected EOF token");
+	}
+
+	// Case 2: 25,000 consecutive block comments
+	{
+		std::string block_comments;
+		block_comments.reserve(25000 * 15 + 50);
+		for (int i = 0; i < 25000; ++i) {
+			block_comments += "/* block */ ";
+		}
+		block_comments += "fn foo(): void {}";
+
+		Lexer lex{block_comments};
+		auto tokens = lex.tokenize();
+		ASSERT(tokens[0].type == TokenType::KW_FN, "Expected KW_FN token after block comments");
+		ASSERT(tokens[1].text == "foo", "Expected foo identifier");
+	}
+
+	// Case 3: Alternating line comments, block comments, and division operators
+	{
+		std::string mixed = "100 / /* c1 */ 2 // line comment\n / 5 /* c2 */";
+		Lexer lex{mixed};
+		auto tokens = lex.tokenize();
+		// Tokens: 100, SLASH, 2, SLASH, 5, EOF
+		ASSERT(tokens.size() == 6, "Expected 6 tokens for mixed comments and division");
+		ASSERT(tokens[0].type == TokenType::NUMBER && tokens[0].text == "100", "Token 0 mismatch");
+		ASSERT(tokens[1].type == TokenType::SLASH, "Token 1 mismatch");
+		ASSERT(tokens[2].type == TokenType::NUMBER && tokens[2].text == "2", "Token 2 mismatch");
+		ASSERT(tokens[3].type == TokenType::SLASH, "Token 3 mismatch");
+		ASSERT(tokens[4].type == TokenType::NUMBER && tokens[4].text == "5", "Token 4 mismatch");
+		ASSERT(tokens[5].type == TokenType::END_OF_FILE, "Token 5 mismatch");
+	}
+
+	// Case 4: Unclosed block comment at EOF
+	{
+		std::string unclosed = "/* unterminated block comment at eof";
+		Lexer lex{unclosed};
+		auto tokens = lex.tokenize();
+		ASSERT(tokens.size() == 1, "Expected only EOF token for unclosed block comment");
+		ASSERT(tokens[0].type == TokenType::END_OF_FILE, "Expected EOF token");
+	}
+
+	// Case 5: Carriage return line comment endings and CRLF/CR in block comments
+	{
+		std::string cr_comments = "// first comment\rval x = 1;\r// second comment\r\nval y = 2;\n/* block \r with cr \r\n and crlf */\nval z = 3;";
+		Lexer lex{cr_comments};
+		auto tokens = lex.tokenize();
+		// Tokens for: val x = 1 ; val y = 2 ; val z = 3 ; EOF
+		ASSERT(tokens.size() >= 15, "Expected tokens for x, y, and z declarations");
+		ASSERT(tokens[0].type == TokenType::KW_VAL, "Expected KW_VAL for x");
+		ASSERT(tokens[1].text == "x", "Expected identifier x");
+		ASSERT(tokens[5].type == TokenType::KW_VAL, "Expected KW_VAL for y");
+		ASSERT(tokens[6].text == "y", "Expected identifier y");
+		ASSERT(tokens[10].type == TokenType::KW_VAL, "Expected KW_VAL for z");
+		ASSERT(tokens[11].text == "z", "Expected identifier z");
+		ASSERT(tokens[10].line == 8, ("Expected line 8 for z, got line " + std::to_string(tokens[10].line)).c_str());
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -443,6 +521,9 @@ int main() {
 
 	if (!test_struct_member_no_map_pollution()) return 1;
 	std::cout << "  [PASS] test_struct_member_no_map_pollution" << std::endl;
+
+	if (!test_lexer_comment_stack_overflow_stress()) return 1;
+	std::cout << "  [PASS] test_lexer_comment_stack_overflow_stress" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;

@@ -53,11 +53,17 @@ export struct Lexer {
 			if (
 				const char c = peek();
 				c == ' ' ||
-				c == '\t' ||
-				c == '\r'
+				c == '\t'
 			)
 				next();
-			else if (c == '\n') {
+			else if (c == '\r') {
+				next();
+				if (!is_end() && peek() == '\n') {
+					cursor++;
+				}
+				line++;
+				col = 1;
+			} else if (c == '\n') {
 				line++;
 				col = 1;
 				cursor++;
@@ -178,88 +184,99 @@ export struct Lexer {
 	}
 
 	Token next_token() {
-		skip_whitespace();
-		if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
+		while (true) {
+			skip_whitespace();
+			if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
 
-		const size_t start_cursor = cursor;
-		const size_t start_col = col;
+			const size_t start_cursor = cursor;
+			const size_t start_col = col;
 
-		switch (const char c = next()) {
-			case ',': return make_token(TokenType::COMMA, start_cursor, start_col);
-			case '.': return make_token(TokenType::DOT, start_cursor, start_col);
-			case ':': return make_token(TokenType::COLON, start_cursor, start_col);
-			case ';': return make_token(TokenType::SEMI_COLON, start_cursor, start_col);
-			case '(': return make_token(TokenType::OPEN_PAREN, start_cursor, start_col);
-			case ')': return make_token(TokenType::CLOSE_PAREN, start_cursor, start_col);
-			case '{': return make_token(TokenType::OPEN_BRACE, start_cursor, start_col);
-			case '}': return make_token(TokenType::CLOSE_BRACE, start_cursor, start_col);
-			case '[': return make_token(TokenType::OPEN_BRACKET, start_cursor, start_col);
-			case ']': return make_token(TokenType::CLOSE_BRACKET, start_cursor, start_col);
-			case '%': return make_token(TokenType::PERCENT, start_cursor, start_col);
-			case '+': return make_token(TokenType::PLUS, start_cursor, start_col);
-			case '*': return make_token(TokenType::STAR, start_cursor, start_col);
-			case '"': return scan_string(start_cursor, start_col);
-			case '\'': return scan_char(start_cursor, start_col);
+			switch (const char c = next()) {
+				case ',': return make_token(TokenType::COMMA, start_cursor, start_col);
+				case '.': return make_token(TokenType::DOT, start_cursor, start_col);
+				case ':': return make_token(TokenType::COLON, start_cursor, start_col);
+				case ';': return make_token(TokenType::SEMI_COLON, start_cursor, start_col);
+				case '(': return make_token(TokenType::OPEN_PAREN, start_cursor, start_col);
+				case ')': return make_token(TokenType::CLOSE_PAREN, start_cursor, start_col);
+				case '{': return make_token(TokenType::OPEN_BRACE, start_cursor, start_col);
+				case '}': return make_token(TokenType::CLOSE_BRACE, start_cursor, start_col);
+				case '[': return make_token(TokenType::OPEN_BRACKET, start_cursor, start_col);
+				case ']': return make_token(TokenType::CLOSE_BRACKET, start_cursor, start_col);
+				case '%': return make_token(TokenType::PERCENT, start_cursor, start_col);
+				case '+': return make_token(TokenType::PLUS, start_cursor, start_col);
+				case '*': return make_token(TokenType::STAR, start_cursor, start_col);
+				case '"': return scan_string(start_cursor, start_col);
+				case '\'': return scan_char(start_cursor, start_col);
 
-			case '=':
-				if (match('=')) return make_token(TokenType::EQUAL_EQUAL, start_cursor, start_col);
-				if (match('>')) return make_token(TokenType::FAT_ARROW, start_cursor, start_col);
-				return make_token(TokenType::EQUAL, start_cursor, start_col);
+				case '=':
+					if (match('=')) return make_token(TokenType::EQUAL_EQUAL, start_cursor, start_col);
+					if (match('>')) return make_token(TokenType::FAT_ARROW, start_cursor, start_col);
+					return make_token(TokenType::EQUAL, start_cursor, start_col);
 
-			case '-':
-				if (match('>')) return make_token(TokenType::ARROW, start_cursor, start_col);
-				return make_token(TokenType::MINUS, start_cursor, start_col);
+				case '-':
+					if (match('>')) return make_token(TokenType::ARROW, start_cursor, start_col);
+					return make_token(TokenType::MINUS, start_cursor, start_col);
 
-			case '/':
-				if (match('/')) {
-					while (!is_end() && peek() != '\n') next();
-					return next_token();
-				}
-				if (match('*')) {
-					while (!is_end()) {
-						if (peek() == '\n') {
-							line++;
-							col = 1;
-							cursor++;
-							continue;
-						}
-						if (peek() == '*' && cursor + 1 < src.size() && src[cursor + 1] == '/') {
-							next(); // *
-							next(); // /
-							break;
-						}
-						next();
+				case '/':
+					if (match('/')) {
+						while (!is_end() && peek() != '\n' && peek() != '\r') next();
+						continue;
 					}
-					return next_token();
-				}
-				return make_token(TokenType::SLASH, start_cursor, start_col);
+					if (match('*')) {
+						while (!is_end()) {
+							if (peek() == '\r') {
+								next();
+								if (!is_end() && peek() == '\n') {
+									cursor++;
+								}
+								line++;
+								col = 1;
+								continue;
+							}
+							if (peek() == '\n') {
+								line++;
+								col = 1;
+								cursor++;
+								continue;
+							}
+							if (peek() == '*' && cursor + 1 < src.size() && src[cursor + 1] == '/') {
+								next(); // *
+								next(); // /
+								break;
+							}
+							next();
+						}
+						continue;
+					}
+					return make_token(TokenType::SLASH, start_cursor, start_col);
 
-			case '<':
-				if (match('=')) return make_token(TokenType::LESS_EQUAL, start_cursor, start_col);
-				return make_token(TokenType::LESS, start_cursor, start_col);
+				case '<':
+					if (match('=')) return make_token(TokenType::LESS_EQUAL, start_cursor, start_col);
+					return make_token(TokenType::LESS, start_cursor, start_col);
 
-			case '>':
-				if (match('=')) return make_token(TokenType::GREATER_EQUAL, start_cursor, start_col);
-				return make_token(TokenType::GREATER, start_cursor, start_col);
+				case '>':
+					if (match('=')) return make_token(TokenType::GREATER_EQUAL, start_cursor, start_col);
+					return make_token(TokenType::GREATER, start_cursor, start_col);
 
-			case '&':
-				if (match('&')) return make_token(TokenType::AND_AND, start_cursor, start_col);
-				return make_token(TokenType::AMPERSAND, start_cursor, start_col);
+				case '&':
+					if (match('&')) return make_token(TokenType::AND_AND, start_cursor, start_col);
+					return make_token(TokenType::AMPERSAND, start_cursor, start_col);
 
-			case '!':
-				if (match('=')) return make_token(TokenType::BANG_EQUAL, start_cursor, start_col);
-				return make_token(TokenType::BANG, start_cursor, start_col);
+				case '!':
+					if (match('=')) return make_token(TokenType::BANG_EQUAL, start_cursor, start_col);
+					return make_token(TokenType::BANG, start_cursor, start_col);
 
-			case '|':
-				if (match('|')) return make_token(TokenType::OR_OR, start_cursor, start_col);
-				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
+				case '|':
+					if (match('|')) return make_token(TokenType::OR_OR, start_cursor, start_col);
+					return make_token(TokenType::UNKNOWN, start_cursor, start_col);
 
-			default:
-				if (std::isalpha(static_cast<unsigned char>(c)) || c == '_')
-					return scan_identifier(start_cursor, start_col);
-				if (std::isdigit(static_cast<unsigned char>(c)))
-					return scan_number(start_cursor, start_col);
-				return make_token(TokenType::UNKNOWN, start_cursor, start_col);
+				default:
+					if (std::isalpha(static_cast<unsigned char>(c)) || c == '_')
+						return scan_identifier(start_cursor, start_col);
+					if (std::isdigit(static_cast<unsigned char>(c)))
+						return scan_number(start_cursor, start_col);
+					return make_token(TokenType::UNKNOWN, start_cursor, start_col);
+			}
 		}
 	}
 
