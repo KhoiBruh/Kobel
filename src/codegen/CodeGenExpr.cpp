@@ -117,10 +117,10 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		if (
 			!obj_type->is_struct() &&
 			!(obj_type->is_pointer() &&
-			  obj_type->pointee &&
-			  obj_type->pointee->is_struct())
-		)
-			return nullptr;
+			obj_type->pointee &&
+			obj_type->pointee->is_struct())
+		) return nullptr;
+
 		const std::string st_name = obj_type->is_struct() ? obj_type->struct_name : obj_type->pointee->struct_name;
 
 		llvm::Value *obj_ptr = nullptr;
@@ -129,11 +129,15 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 		if (!analyzer) return nullptr;
 		const StructSymbol *sym_ptr = nullptr;
-		if (auto it = analyzer->structs.find(st_name); it != analyzer->structs.end()) {
-			sym_ptr = &it->second;
-		} else if (auto it = analyzer->structs.find(to_llvm_name(st_name)); it != analyzer->structs.end()) {
-			sym_ptr = &it->second;
-		}
+
+		if (
+			auto it = analyzer->structs.find(st_name);
+			it != analyzer->structs.end()
+		) sym_ptr = &it->second;
+		else if (
+			auto it = analyzer->structs.find(to_llvm_name(st_name));
+			it != analyzer->structs.end()
+		) sym_ptr = &it->second;
 		if (!sym_ptr) return nullptr;
 
 		const auto &sym = *sym_ptr;
@@ -154,11 +158,15 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			if (auto it = struct_types.find(to_llvm_name(st_name)); it != struct_types.end()) st_ty = it->second;
 		}
 		if (!st_ty) {
-			std::string lookup_name = analyzer->structs.contains(st_name) ? st_name :
-			                          (analyzer->structs.contains(to_llvm_name(st_name)) ? to_llvm_name(st_name) : "");
+			std::string lookup_name = analyzer->structs.contains(st_name)
+										  ? st_name
+										  : (analyzer->structs.contains(to_llvm_name(st_name))
+												 ? to_llvm_name(st_name)
+												 : "");
 			if (!lookup_name.empty()) {
 				emit_instantiated_struct(lookup_name);
-				if (auto it = struct_types.find(to_llvm_name(lookup_name)); it != struct_types.end()) st_ty = it->second;
+				if (auto it = struct_types.find(to_llvm_name(lookup_name)); it != struct_types.end())
+					st_ty = it->second;
 				if (!st_ty) {
 					if (auto it = struct_types.find(lookup_name); it != struct_types.end()) st_ty = it->second;
 				}
@@ -259,7 +267,7 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			case LiteralKind::FLOAT: {
 				std::string s;
 				s.reserve(lit->raw_text.size());
-				for (const char c : lit->raw_text) {
+				for (const char c: lit->raw_text) {
 					if (c != '_') s.push_back(c);
 				}
 				while (!s.empty() && (s.back() == 'F' || s.back() == 'D')) s.pop_back();
@@ -500,7 +508,9 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		// 6a. Direct call or struct instantiation by name
-		auto resolved_it = analyzer ? analyzer->resolved_symbols.find(c) : decltype(analyzer->resolved_symbols.find(c)){};
+		auto resolved_it = analyzer
+							   ? analyzer->resolved_symbols.find(c)
+							   : decltype(analyzer->resolved_symbols.find(c)){};
 		bool has_resolved = analyzer && resolved_it != analyzer->resolved_symbols.end();
 
 		if (isa<IdentifierExpr>(c->callee) || has_resolved) {
@@ -517,21 +527,23 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 
 			// Struct instantiation: Point(10, 20)
 			if (struct_types.contains(target_name) || (
-				    analyzer && (analyzer->structs.contains(target_name) || (
-					                 has_resolved && analyzer->structs.contains(
-						                 resolved_it->second
-					                 ))))) {
+					analyzer && (analyzer->structs.contains(target_name) || (
+									 has_resolved && analyzer->structs.contains(
+										 resolved_it->second
+									 ))))) {
 				llvm::Type *st_type = nullptr;
 				if (auto it = struct_types.find(target_name); it != struct_types.end()) st_type = it->second;
 				if (!st_type && has_resolved) {
 					const auto &sym_name = resolved_it->second;
 					if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
 					if (!st_type) {
-						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end()) st_type = it->second;
+						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end())
+							st_type = it->second;
 					}
 					if (!st_type && analyzer->structs.contains(sym_name)) {
 						emit_instantiated_struct(sym_name);
-						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end()) st_type = it->second;
+						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end())
+							st_type = it->second;
 						if (!st_type) {
 							if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
 						}
@@ -557,8 +569,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			auto *callee = module->getFunction(target_name);
 			if (!callee && analyzer) {
 				std::string fn_lookup = has_resolved
-					                        ? resolved_it->second
-					                        : target_name;
+											? resolved_it->second
+											: target_name;
 				auto it = analyzer->functions.find(fn_lookup);
 				if (it == analyzer->functions.end()) {
 					it = analyzer->functions.find(target_name);
@@ -693,10 +705,10 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			for (size_t i = 0; i < c->args.size(); ++i) {
 				auto *arg_val = emit_expr(c->args[i]);
 				size_t param_idx = (analyzer && analyzer->functions.contains(mangled) && !analyzer->functions.
-				                    at(mangled).param_types.empty() && analyzer->functions.at(mangled).param_names[0] ==
-				                    "self")
-					                   ? i + 1
-					                   : i;
+									at(mangled).param_types.empty() && analyzer->functions.at(mangled).param_names[0] ==
+									"self")
+									   ? i + 1
+									   : i;
 				if (param_idx < callee->getFunctionType()->getNumParams()) {
 					auto *expected_ty = callee->getFunctionType()->getParamType(static_cast<unsigned>(param_idx));
 					if (expected_ty->isPointerTy() && arg_val->getType()->isStructTy()) {
@@ -727,7 +739,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 					std::string enum_part = sym_name.substr(0, last_dot);
 					std::string member_part = sym_name.substr(last_dot + 1);
 					if (auto it_enum = analyzer->enums.find(enum_part); it_enum != analyzer->enums.end()) {
-						if (auto it_m = it_enum->second.member_values.find(member_part); it_m != it_enum->second.member_values.end()) {
+						if (auto it_m = it_enum->second.member_values.find(member_part);
+							it_m != it_enum->second.member_values.end()) {
 							llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
 							return llvm::ConstantInt::get(llvm_ty, it_m->second);
 						}
@@ -835,8 +848,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 				if (src_sema->is_enum() && src_sema->underlying_type)
 					is_signed = src_sema->underlying_type->is_signed_integer();
 				return is_signed
-					       ? builder->CreateSExt(val, dest_type, "sext")
-					       : builder->CreateZExt(val, dest_type, "zext");
+						   ? builder->CreateSExt(val, dest_type, "sext")
+						   : builder->CreateZExt(val, dest_type, "zext");
 			}
 			return builder->CreateTrunc(val, dest_type, "trunc");
 		}
@@ -989,7 +1002,7 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 			llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 			if (!body_end_bb->hasTerminator()) {
 				if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->
-				    getType()->isIntegerTy()) {
+					getType()->isIntegerTy()) {
 					body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
 				} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
 					body_val = builder->CreatePointerCast(body_val, res_llvm_type);
@@ -1001,13 +1014,13 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 		}
 
 		llvm::BasicBlock *next_arm_bb = (i + 1 < expr->arms.size())
-			                                ? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
-			                                : llvm::BasicBlock::Create(*context, "when_unreachable", fn);
+											? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
+											: llvm::BasicBlock::Create(*context, "when_unreachable", fn);
 
 		for (size_t j = 0; j < arm.patterns.size(); ++j) {
 			llvm::BasicBlock *next_pat_bb = (j + 1 < arm.patterns.size())
-				                                ? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
-				                                : next_arm_bb;
+												? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
+												: next_arm_bb;
 
 			llvm::Value *pat_val = emit_expr(arm.patterns[j]);
 			llvm::Value *match_cond = nullptr;
@@ -1026,8 +1039,11 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 		llvm::Value *body_val = emit_expr(arm.body);
 		llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 		if (!body_end_bb->hasTerminator()) {
-			if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->getType()
-			    ->isIntegerTy()) {
+			if (
+				res_llvm_type->isIntegerTy() &&
+				body_val && body_val->getType() != res_llvm_type &&
+				body_val->getType()->isIntegerTy()
+			) {
 				body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
 			} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
 				body_val = builder->CreatePointerCast(body_val, res_llvm_type);

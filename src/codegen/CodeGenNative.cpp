@@ -42,9 +42,7 @@ void init_llvm_native_target() {
 bool CodeGen::setup_target_machine(const std::string &triple_str) {
 	init_llvm_native_target();
 
-	const auto target_triple = triple_str.empty()
-		                           ? "x86_64-pc-windows-msvc"
-		                           : triple_str;
+	const auto target_triple = triple_str.empty() ? "x86_64-pc-windows-msvc" : triple_str;
 
 	std::string err;
 	const llvm::Triple the_triple(target_triple);
@@ -207,7 +205,7 @@ bool CodeGen::link_executable(const std::string &obj_filename, const std::string
 	const std::string clang_path = find_clang_executable();
 	if (clang_path.empty()) {
 		std::cerr << "Error: Could not find 'clang' linker executable.\n"
-			<< "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
+				<< "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
 		return false;
 	}
 

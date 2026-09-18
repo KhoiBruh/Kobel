@@ -32,9 +32,10 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 	if (isa<VarDeclStmt>(stmt)) {
 		const auto *v = as<VarDeclStmt>(stmt);
 		const auto name = std::string(v->name);
-		auto sema_ty = v->type_annotation
-			               ? analyzer->resolve_type(v->type_annotation)
-			               : get_sema_type(v->initializer);
+		const auto sema_ty = v->type_annotation
+								 ? analyzer->resolve_type(v->type_annotation)
+								 : get_sema_type(v->initializer);
+
 		if (sema_ty && sema_ty->is_array() && sema_ty->array_size == 0 && v->initializer) {
 			auto init_sema = get_sema_type(v->initializer);
 			if (init_sema && init_sema->is_array()) {
@@ -59,13 +60,15 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 					);
 					builder->CreateStore(elem_val, elem_ptr);
 				}
-			} else if (isa<CallExpr>(v->initializer) &&
-			           isa<IdentifierExpr>(as<CallExpr>(v->initializer)->callee) &&
-			           analyzer && (
-				           analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name) ||
-				           (analyzer->resolved_symbols.contains(as<CallExpr>(v->initializer)) &&
-				            analyzer->structs.contains(analyzer->resolved_symbols.at(as<CallExpr>(v->initializer))))
-			           )) {
+			} else if (
+				isa<CallExpr>(v->initializer) &&
+				isa<IdentifierExpr>(as<CallExpr>(v->initializer)->callee) &&
+				analyzer && (
+					analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name) ||
+					(analyzer->resolved_symbols.contains(as<CallExpr>(v->initializer)) &&
+					 analyzer->structs.contains(analyzer->resolved_symbols.at(as<CallExpr>(v->initializer))))
+				)
+			) {
 				const auto *call = as<CallExpr>(v->initializer);
 				for (size_t i = 0; i < call->args.size(); ++i) {
 					llvm::Value *arg_val = emit_expr(call->args[i]);
@@ -183,7 +186,7 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 		if (r->value) {
 			llvm::Value *val = emit_expr(r->value);
 			if (val && val->getType()->isStructTy() &&
-			    builder->GetInsertBlock()->getParent()->getReturnType()->isPointerTy()) {
+				builder->GetInsertBlock()->getParent()->getReturnType()->isPointerTy()) {
 				val = builder->CreateExtractValue(val, 0, "str_ptr");
 			}
 			builder->CreateRet(val);
@@ -200,10 +203,7 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 	}
 
 	// 8. When statement
-	if (isa<WhenStmt>(stmt)) {
-		emit_when_stmt(as<WhenStmt>(stmt));
-		return;
-	}
+	if (isa<WhenStmt>(stmt)) emit_when_stmt(as<WhenStmt>(stmt));
 }
 
 llvm::Value *CodeGen::emit_equality(llvm::Value *l, llvm::Value *r, Semantic sema_ty) {
@@ -257,13 +257,13 @@ void CodeGen::emit_when_stmt(const WhenStmt *stmt) {
 		}
 
 		llvm::BasicBlock *next_arm_bb = (i + 1 < stmt->arms.size())
-			                                ? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
-			                                : merge_bb;
+											? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
+											: merge_bb;
 
 		for (size_t j = 0; j < arm.patterns.size(); ++j) {
 			llvm::BasicBlock *next_pat_bb = (j + 1 < arm.patterns.size())
-				                                ? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
-				                                : next_arm_bb;
+												? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
+												: next_arm_bb;
 
 			llvm::Value *pat_val = emit_expr(arm.patterns[j]);
 			llvm::Value *match_cond = nullptr;

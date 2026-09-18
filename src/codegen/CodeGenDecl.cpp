@@ -49,7 +49,7 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 	}
 
 	if (analyzer && analyzer->struct_default_methods.contains(qual_name)) {
-		for (const auto &inh : analyzer->struct_default_methods.at(qual_name)) {
+		for (const auto &inh: analyzer->struct_default_methods.at(qual_name)) {
 			emit_fn_decl(inh.fn_decl, llvm_st_name + "_" + inh.method_name);
 		}
 	}
@@ -76,7 +76,7 @@ void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 
 	const auto &sym = *sym_ptr;
 	std::vector<llvm::Type *> field_types;
-	for (const auto &f_name : sym.field_order) {
+	for (const auto &f_name: sym.field_order) {
 		const auto &f_type = sym.field_types.at(f_name);
 		field_types.push_back(get_llvm_type(f_type));
 	}
@@ -86,13 +86,13 @@ void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 	std::string base_name = inst_name.substr(0, inst_name.find('<'));
 	if (analyzer->generic_structs.contains(base_name)) {
 		const auto *generic_st = analyzer->generic_structs.at(base_name);
-		for (const auto &method : generic_st->methods) {
+		for (const auto &method: generic_st->methods) {
 			std::string mangled = llvm_st_name + "_" + std::string(method->name);
 			emit_fn_proto(method, mangled);
 		}
 	}
 	if (analyzer && analyzer->struct_default_methods.contains(inst_name)) {
-		for (const auto &inh : analyzer->struct_default_methods.at(inst_name)) {
+		for (const auto &inh: analyzer->struct_default_methods.at(inst_name)) {
 			std::string mangled = llvm_st_name + "_" + inh.method_name;
 			emit_fn_proto(inh.fn_decl, mangled);
 		}
@@ -152,8 +152,8 @@ void CodeGen::emit_fn_proto(const FnDecl *fn_decl, const std::string &fn_name_ov
 				param_types.push_back(get_llvm_type(sema_ty));
 			}
 			auto ret_sema_ty = fn_decl->return_type
-				                   ? analyzer->resolve_type(fn_decl->return_type)
-				                   : analyzer->make_primitive(SemaType::VOID);
+								   ? analyzer->resolve_type(fn_decl->return_type)
+								   : analyzer->make_primitive(SemaType::VOID);
 			ret_type = get_llvm_type(ret_sema_ty);
 		}
 
@@ -187,8 +187,8 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 		llvm::AllocaInst * alloca = create_entry_block_alloca(fn, arg.getType(), param_name);
 		builder->CreateStore(&arg, alloca);
 		Semantic param_sema = analyzer && analyzer->functions.contains(name)
-			                      ? analyzer->functions.at(name).param_types[idx]
-			                      : analyzer->resolve_type(fn_decl->params[idx].type);
+								  ? analyzer->functions.at(name).param_types[idx]
+								  : analyzer->resolve_type(fn_decl->params[idx].type);
 		add_local(param_name, alloca, param_sema);
 		idx++;
 	}

@@ -483,8 +483,8 @@ export struct CodeGen {
 				if (!fn->type_params.empty()) continue;
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main"
-					                        ? std::string(fn->name)
-					                        : mod + "." + std::string(fn->name);
+											? std::string(fn->name)
+											: mod + "." + std::string(fn->name);
 				emit_fn_proto(fn, to_llvm_name(qual_name));
 			}
 		}
@@ -503,8 +503,8 @@ export struct CodeGen {
 				if (!fn->type_params.empty()) continue;
 				std::string mod = analyzer ? analyzer->get_decl_module(fn) : "";
 				std::string qual_name = mod.empty() || fn->name == "main"
-					                        ? std::string(fn->name)
-					                        : mod + "." + std::string(fn->name);
+											? std::string(fn->name)
+											: mod + "." + std::string(fn->name);
 				emit_fn_body(fn, to_llvm_name(qual_name));
 			}
 		}
@@ -525,7 +525,7 @@ export struct CodeGen {
 						emit_fn_body(method, mangled);
 					}
 					if (analyzer->struct_default_methods.contains(inst_name)) {
-						for (const auto &inh : analyzer->struct_default_methods.at(inst_name)) {
+						for (const auto &inh: analyzer->struct_default_methods.at(inst_name)) {
 							std::string mangled = llvm_st_name + "_" + inh.method_name;
 							emit_fn_body(inh.fn_decl, mangled);
 						}

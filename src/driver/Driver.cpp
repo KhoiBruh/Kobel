@@ -64,9 +64,11 @@ private:
 
 	static std::filesystem::path module_to_file_path(const std::span<std::string_view> &path);
 
-	bool resolve_dependencies(std::vector<std::unique_ptr<std::string> > &source_buffers,
-	                          std::vector<Program *> &parsed_programs,
-	                          std::vector<std::unique_ptr<Parser> > &parsers);
+	bool resolve_dependencies(
+		std::vector<std::unique_ptr<std::string> > &source_buffers,
+		std::vector<Program *> &parsed_programs,
+		std::vector<std::unique_ptr<Parser> > &parsers
+	);
 
 	bool emit_output(CodeGen &cg, const std::string &base_name);
 };
@@ -90,7 +92,8 @@ std::filesystem::path Driver::module_to_file_path(const std::span<std::string_vi
 bool Driver::resolve_dependencies(
 	std::vector<std::unique_ptr<std::string> > &source_buffers,
 	std::vector<Program *> &parsed_programs,
-	std::vector<std::unique_ptr<Parser> > &parsers) {
+	std::vector<std::unique_ptr<Parser> > &parsers
+) {
 	StringSet loaded_modules;
 	StringSet loaded_files;
 	std::vector<std::filesystem::path> search_dirs = options_.custom_search_dirs;
@@ -306,7 +309,7 @@ int Driver::run() {
 		std::string_view source_view = *content;
 		source_buffers.push_back(std::move(content));
 
-		Lexer lex{source_view};
+		Lexer lex{.src = source_view};
 		auto tokens = lex.tokenize();
 
 		auto parser = std::make_unique<Parser>(std::move(tokens), &diag_);
