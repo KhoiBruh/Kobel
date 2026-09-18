@@ -1669,6 +1669,21 @@ bool test_type_context_interning() {
 	auto arr4 = ctx.make_array(u8_t, 5);
 	ASSERT(arr1 != arr4, "Array types with different element type must produce distinct types");
 
+	auto unsized1 = ctx.make_array(i32_t);
+	auto unsized2 = ctx.make_array(i32_t, 0);
+	ASSERT(unsized1 != nullptr, "unsized array must not be null");
+	ASSERT(unsized1 == unsized2, "Unsized arrays must default to size 0 and deduplicate");
+	ASSERT(unsized1->array_size == 0, "Unsized array must have size 0");
+
+	// Pointer to struct & composite types
+	auto ptr_st = ctx.make_pointer(st1, false);
+	ASSERT(ptr_st != nullptr, "pointer to struct must not be null");
+	ASSERT(ptr_st->pointee == st1, "Pointer to struct pointee mismatch");
+
+	// Container queries: size() and empty()
+	ASSERT(!ctx.empty(), "ctx must not be empty after interning types");
+	ASSERT(ctx.size() > 0, "ctx size must be greater than 0");
+
 	// 6. Analyzer Integration & Delegation
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
@@ -1693,12 +1708,40 @@ bool test_type_context_interning() {
 	auto sema_arr2 = sema.type_ctx.make_array(sema_i32, 4);
 	ASSERT(sema_arr == sema_arr2, "Analyzer make_array must delegate directly to sema.type_ctx");
 
+	auto sema_unsized = sema.make_array(sema_i32);
+	ASSERT(sema_unsized->array_size == 0, "Analyzer make_array default size must be 0");
+	ASSERT(sema_unsized == sema.make_array(sema_i32, 0), "Analyzer make_array(elem) must equal make_array(elem, 0)");
+
 	ASSERT(sema.make_void() == sema.type_ctx.make_void(), "Analyzer make_void must delegate to type_ctx");
 	ASSERT(sema.make_null() == sema.type_ctx.make_null(), "Analyzer make_null must delegate to type_ctx");
 	ASSERT(sema.make_error() == sema.type_ctx.make_error(), "Analyzer make_error must delegate to type_ctx");
 	ASSERT(sema.make_str() == sema.type_ctx.make_str(), "Analyzer make_str must delegate to type_ctx");
 
-	// 7. Analyzer construction with external TypeContext
+	// Const Analyzer verification
+	const Analyzer &const_sema = sema;
+	ASSERT(const_sema.make_primitive(SemaType::I32) == i32_t, "const Analyzer make_primitive check");
+	ASSERT(const_sema.make_void() == void_t, "const Analyzer make_void check");
+	ASSERT(const_sema.make_null() == null_t, "const Analyzer make_null check");
+	ASSERT(const_sema.make_error() == err_t, "const Analyzer make_error check");
+	ASSERT(const_sema.make_str() == str_t, "const Analyzer make_str check");
+
+	// 7. Analyzer construction with external TypeContext & Standalone Move Semantics
+	TypeContext move_src;
+	auto orig_ptr = move_src.make_struct("MovedType");
+	size_t orig_size = move_src.size();
+	ASSERT(orig_size > 0, "move_src should have interned types");
+	ASSERT(!move_src.empty(), "move_src should not be empty");
+
+	TypeContext move_dst = std::move(move_src);
+	ASSERT(move_dst.size() == orig_size, "move_dst should inherit all types");
+	ASSERT(move_dst.make_struct("MovedType") == orig_ptr, "move_dst must preserve exact pointer address of interned types");
+	ASSERT(move_src.empty(), "move_src must be empty after move");
+	ASSERT(move_src.size() == 0, "move_src size must be 0 after move");
+
+	move_dst.clear();
+	ASSERT(move_dst.empty(), "TypeContext::clear should make context empty");
+	ASSERT(move_dst.size() == 0, "TypeContext::clear should reset size to 0");
+
 	TypeContext custom_ctx;
 	auto custom_st = custom_ctx.make_struct("ExternalStruct");
 	Analyzer custom_sema{diag, std::move(custom_ctx)};

@@ -158,6 +158,16 @@ export inline const std::array<Type, 18> primitive_types = [] {
 export struct TypeContext {
 	std::vector<std::unique_ptr<Type>> interned_types;
 
+	TypeContext() = default;
+	TypeContext(TypeContext &&) noexcept = default;
+	TypeContext &operator=(TypeContext &&) noexcept = default;
+	TypeContext(const TypeContext &) = delete;
+	TypeContext &operator=(const TypeContext &) = delete;
+
+	[[nodiscard]] size_t size() const noexcept { return interned_types.size(); }
+	[[nodiscard]] bool empty() const noexcept { return interned_types.empty(); }
+	void clear() noexcept { interned_types.clear(); }
+
 	Semantic make_primitive(SemaType k) const {
 		if (const auto idx = static_cast<size_t>(k); idx < primitive_types.size()) {
 			return &primitive_types[idx];

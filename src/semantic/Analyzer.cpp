@@ -63,16 +63,16 @@ export struct Analyzer {
 
 	TypeContext type_ctx;
 
-	Semantic make_primitive(SemaType k) { return type_ctx.make_primitive(k); }
+	Semantic make_primitive(SemaType k) const { return type_ctx.make_primitive(k); }
 	Semantic make_pointer(Semantic target, bool mut = false) { return type_ctx.make_pointer(target, mut); }
 	Semantic make_struct(std::string_view name) { return type_ctx.make_struct(name); }
 	Semantic make_enum(std::string_view name, Semantic under) { return type_ctx.make_enum(name, under); }
 	Semantic make_array(Semantic elem, size_t sz = 0) { return type_ctx.make_array(elem, sz); }
 
-	Semantic make_void() { return type_ctx.make_void(); }
-	Semantic make_null() { return type_ctx.make_null(); }
-	Semantic make_error() { return type_ctx.make_error(); }
-	Semantic make_str() { return type_ctx.make_str(); }
+	Semantic make_void() const { return type_ctx.make_void(); }
+	Semantic make_null() const { return type_ctx.make_null(); }
+	Semantic make_error() const { return type_ctx.make_error(); }
+	Semantic make_str() const { return type_ctx.make_str(); }
 
 	explicit Analyzer(DiagnosticEngine &log) : logger(log) {
 	}
