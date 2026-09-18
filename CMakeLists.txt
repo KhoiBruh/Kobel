@@ -14,9 +14,19 @@ endif ()
 
 if (NOT TARGET zstd::libzstd_static)
 	add_library(zstd::libzstd_static INTERFACE IMPORTED)
-	set_target_properties(zstd::libzstd_static PROPERTIES
-		INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,~/vcpkg/installed/x64-windows/debug/lib/zstd.lib,~/vcpkg/installed/x64-windows/lib/zstd.lib>"
-	)
+	if (EXISTS "C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
+		set_target_properties(zstd::libzstd_static PROPERTIES
+			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+		)
+	elseif (EXISTS "$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
+		set_target_properties(zstd::libzstd_static PROPERTIES
+			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+		)
+	elseif (EXISTS "$ENV{USERPROFILE}/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
+		set_target_properties(zstd::libzstd_static PROPERTIES
+			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/lib/zstd.lib>"
+		)
+	endif ()
 endif ()
 
 find_package(LLVM REQUIRED CONFIG)
