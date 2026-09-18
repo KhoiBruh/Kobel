@@ -2,7 +2,6 @@ module;
 
 #include <span>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 export module ast.stmt;
@@ -57,9 +56,9 @@ export struct VarDeclStmt final : Stmt {
 		const size_t l = 0,
 		const size_t c = 0
 	) : Stmt(KIND, l, c),
-	    is_mut(mut), name(n),
-	    type_annotation(ty),
-	    initializer(init) {
+		is_mut(mut), name(n),
+		type_annotation(ty),
+		initializer(init) {
 	}
 };
 
@@ -76,9 +75,9 @@ export struct IfStmt final : Stmt {
 		const size_t l = 0,
 		const size_t c = 0
 	) : Stmt(KIND, l, c),
-	    condition(cond),
-	    then_branch(th),
-	    else_branch(el) {
+		condition(cond),
+		then_branch(th),
+		else_branch(el) {
 	}
 };
 
@@ -93,8 +92,8 @@ export struct WhileStmt final : Stmt {
 		const size_t l = 0,
 		const size_t c = 0
 	) : Stmt(KIND, l, c),
-	    condition(cond),
-	    body(b) {
+		condition(cond),
+		body(b) {
 	}
 };
 

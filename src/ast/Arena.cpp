@@ -127,10 +127,10 @@ export struct Arena {
 		return alloc_span(std::span<const T>(vec.data(), vec.size()));
 	}
 
-	std::string_view alloc_string(std::string_view str) {
+	std::string_view alloc_string(const std::string_view str) {
 		if (str.empty()) return {};
-		char *ptr = static_cast<char *>(allocate(str.size(), 1));
+		const auto ptr = static_cast<char *>(allocate(str.size(), 1));
 		std::memcpy(ptr, str.data(), str.size());
-		return std::string_view(ptr, str.size());
+		return std::string_view{ptr, str.size()};
 	}
 };

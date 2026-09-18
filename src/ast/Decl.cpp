@@ -93,6 +93,7 @@ export struct StructField {
 	bool is_pub = false;
 
 	StructField() = default;
+
 	StructField(
 		const std::string_view n,
 		TypeNode *t,
