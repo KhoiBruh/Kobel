@@ -1,7 +1,6 @@
 module;
 
 #include <span>
-#include <string>
 #include <string_view>
 
 export module ast.decl;

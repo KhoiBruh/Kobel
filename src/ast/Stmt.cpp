@@ -2,7 +2,6 @@ module;
 
 #include <span>
 #include <string_view>
-#include <vector>
 
 export module ast.stmt;
 
