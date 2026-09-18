@@ -1044,6 +1044,45 @@ bool test_semantic_module_prefixes() {
 		Analyzer sema{diag};
 		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Accessing ambiguous bare imported symbol must report error");
+		bool found_ambiguous = false;
+		for (const auto &d : diag.diagnostics) {
+			if (d.format().find("Ambiguous reference") != std::string::npos) {
+				found_ambiguous = true;
+				break;
+			}
+		}
+		ASSERT(found_ambiguous, "Struct collision diagnostic must specifically mention ambiguous reference");
+	}
+
+	// 3. Ambiguous bare function import triggers explicit ambiguous error
+	{
+		std::string_view code =
+			"mod A;\n"
+			"pub fn calc(): i32 { return 1; }\n"
+			"mod B;\n"
+			"pub fn calc(): i32 { return 2; }\n"
+			"mod main;\n"
+			"use A.calc;\n"
+			"use B.calc;\n"
+			"fn main(): i32 {\n"
+			"    return calc();\n"
+			"}\n";
+
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Accessing ambiguous bare imported function must report error");
+		bool found_ambiguous_fn = false;
+		for (const auto &d : diag.diagnostics) {
+			if (d.format().find("Ambiguous reference") != std::string::npos) {
+				found_ambiguous_fn = true;
+				break;
+			}
+		}
+		ASSERT(found_ambiguous_fn, "Function collision diagnostic must specifically mention ambiguous reference");
 	}
 
 	return true;

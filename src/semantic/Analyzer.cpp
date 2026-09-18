@@ -162,6 +162,13 @@ export struct Analyzer {
 		size_t line, size_t col
 	);
 
+	template<typename TDecl>
+	std::string resolve_generic_symbol_helper(
+		const StringMap<const TDecl *> &symbol_table,
+		std::string_view raw_name,
+		size_t line, size_t col
+	);
+
 	std::string resolve_function_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
 	std::string resolve_struct_name(std::string_view raw_name, size_t line = 0, size_t col = 0);

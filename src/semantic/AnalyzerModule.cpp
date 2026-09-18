@@ -30,6 +30,19 @@ std::string Analyzer::resolve_symbol_helper(
 ) {
 	const auto name = std::string(raw_name);
 
+	// Check if bare symbol is ambiguous
+	if (!current_module.empty()) {
+		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
+			if (it_amb->second.contains(name)) {
+				logger.error(
+					line, col,
+					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
+				);
+				return "";
+			}
+		}
+	}
+
 	// 1. Within current module
 	if (!current_module.empty()) {
 		const std::string local_qualified = current_module + "." + name;
@@ -89,6 +102,57 @@ std::string Analyzer::resolve_symbol_helper(
 	return "";
 }
 
+template<typename TDecl>
+std::string Analyzer::resolve_generic_symbol_helper(
+	const StringMap<const TDecl *> &symbol_table,
+	const std::string_view raw_name,
+	const size_t line,
+	const size_t col
+) {
+	const auto name = std::string(raw_name);
+
+	// Check if bare symbol is ambiguous
+	if (!current_module.empty()) {
+		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
+			if (it_amb->second.contains(name)) {
+				logger.error(
+					line, col,
+					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
+				);
+				return "";
+			}
+		}
+	}
+
+	// 1. Within current module
+	if (!current_module.empty()) {
+		const std::string local_qualified = current_module + "." + name;
+		if (symbol_table.contains(local_qualified)) return local_qualified;
+	}
+
+	// 2. Direct lookup
+	if (const auto it = symbol_table.find(raw_name); it != symbol_table.end()) {
+		return name;
+	}
+
+	// 3. Module imports
+	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
+		if (const auto it = it_imp->second.find(raw_name); it != it_imp->second.end()) {
+			if (symbol_table.contains(it->second)) return it->second;
+		}
+	}
+
+	// 4. Wildcard imports
+	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
+		for (const auto &w_mod: it_wc->second) {
+			const std::string candidate = w_mod + "." + name;
+			if (symbol_table.contains(candidate)) return candidate;
+		}
+	}
+
+	return "";
+}
+
 std::string Analyzer::resolve_function_name(const std::string_view raw_name, const size_t line, const size_t col) {
 	return resolve_symbol_helper(functions, raw_name, "Function", line, col);
 }
@@ -98,93 +162,11 @@ std::string Analyzer::resolve_struct_name(const std::string_view raw_name, const
 }
 
 std::string Analyzer::resolve_generic_struct_name(const std::string_view raw_name, const size_t line, const size_t col) {
-	const auto name = std::string(raw_name);
-
-	// Check if bare symbol is ambiguous
-	if (!current_module.empty()) {
-		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
-			if (it_amb->second.contains(name)) {
-				logger.error(
-					line, col,
-					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
-				);
-				return "";
-			}
-		}
-	}
-
-	// 1. Within current module
-	if (!current_module.empty()) {
-		const std::string local_qualified = current_module + "." + name;
-		if (generic_structs.contains(local_qualified)) return local_qualified;
-	}
-
-	// 2. Direct lookup
-	if (const auto it = generic_structs.find(raw_name); it != generic_structs.end()) {
-		return name;
-	}
-
-	// 3. Module imports
-	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
-		if (const auto it = it_imp->second.find(raw_name); it != it_imp->second.end()) {
-			if (generic_structs.contains(it->second)) return it->second;
-		}
-	}
-
-	// 4. Wildcard imports
-	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
-		for (const auto &w_mod: it_wc->second) {
-			const std::string candidate = w_mod + "." + name;
-			if (generic_structs.contains(candidate)) return candidate;
-		}
-	}
-
-	return "";
+	return resolve_generic_symbol_helper(generic_structs, raw_name, line, col);
 }
 
 std::string Analyzer::resolve_generic_function_name(const std::string_view raw_name, const size_t line, const size_t col) {
-	const auto name = std::string(raw_name);
-
-	// Check if bare symbol is ambiguous
-	if (!current_module.empty()) {
-		if (const auto it_amb = ambiguous_imports.find(current_module); it_amb != ambiguous_imports.end()) {
-			if (it_amb->second.contains(name)) {
-				logger.error(
-					line, col,
-					"Ambiguous reference to '" + name + "' due to multiple conflicting imports. Use a module prefix."
-				);
-				return "";
-			}
-		}
-	}
-
-	// 1. Within current module
-	if (!current_module.empty()) {
-		const std::string local_qualified = current_module + "." + name;
-		if (generic_functions.contains(local_qualified)) return local_qualified;
-	}
-
-	// 2. Direct lookup
-	if (const auto it = generic_functions.find(raw_name); it != generic_functions.end()) {
-		return name;
-	}
-
-	// 3. Module imports
-	if (const auto it_imp = module_imports.find(current_module); it_imp != module_imports.end()) {
-		if (const auto it = it_imp->second.find(raw_name); it != it_imp->second.end()) {
-			if (generic_functions.contains(it->second)) return it->second;
-		}
-	}
-
-	// 4. Wildcard imports
-	if (const auto it_wc = module_wildcards.find(current_module); it_wc != module_wildcards.end()) {
-		for (const auto &w_mod: it_wc->second) {
-			const std::string candidate = w_mod + "." + name;
-			if (generic_functions.contains(candidate)) return candidate;
-		}
-	}
-
-	return "";
+	return resolve_generic_symbol_helper(generic_functions, raw_name, line, col);
 }
 
 std::string Analyzer::resolve_enum_name(const std::string_view raw_name, const size_t line, const size_t col) {
