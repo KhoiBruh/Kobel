@@ -1,7 +1,7 @@
 module;
-#include <string>
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -10,10 +10,7 @@ module parser;
 import ast;
 import token;
 
-FnDecl *Parser::parse_fn_decl() {
-	const auto tok = consume(TokenType::KW_FN, "Expected 'fn'");
-	const auto name = consume(TokenType::IDENTIFIER, "Expected function name after 'fn'");
-
+std::vector<GenericParam> Parser::parse_generic_params() {
 	std::vector<GenericParam> type_params;
 	if (match(TokenType::LESS)) {
 		do {
@@ -29,6 +26,30 @@ FnDecl *Parser::parse_fn_decl() {
 		} while (match(TokenType::COMMA));
 		consume(TokenType::GREATER, "Expected '>' after type parameters");
 	}
+	return type_params;
+}
+
+void Parser::append_unique_generic_params(std::vector<GenericParam> &type_params) {
+	auto extra = parse_generic_params();
+	for (auto &&tp : extra) {
+		bool exists = false;
+		for (const auto &existing : type_params) {
+			if (existing.name == tp.name) {
+				exists = true;
+				break;
+			}
+		}
+		if (!exists) {
+			type_params.push_back(std::move(tp));
+		}
+	}
+}
+
+FnDecl *Parser::parse_fn_decl() {
+	const auto tok = consume(TokenType::KW_FN, "Expected 'fn'");
+	const auto name = consume(TokenType::IDENTIFIER, "Expected function name after 'fn'");
+
+	auto type_params = parse_generic_params();
 
 	consume(TokenType::OPEN_PAREN, "Expected '(' after function name");
 	std::vector<Param> params;
@@ -85,21 +106,7 @@ StructDecl *Parser::parse_struct_decl() {
 	const auto tok = consume(TokenType::KW_STRUCT, "Expected 'struct'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected struct name");
 
-	std::vector<GenericParam> type_params;
-	if (match(TokenType::LESS)) {
-		do {
-			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
-			std::vector<std::string_view> bounds;
-			if (match(TokenType::COLON)) {
-				do {
-					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
-					bounds.push_back(b_name.text);
-				} while (match(TokenType::PLUS));
-			}
-			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
-		} while (match(TokenType::COMMA));
-		consume(TokenType::GREATER, "Expected '>' after type parameters");
-	}
+	auto type_params = parse_generic_params();
 
 	std::vector<StructField> fields;
 	std::vector<std::string_view> traits;
@@ -217,44 +224,11 @@ StructDecl *Parser::parse_struct_decl() {
 ImplDecl *Parser::parse_impl_decl() {
 	const auto tok = consume(TokenType::KW_IMPL, "Expected 'impl'");
 
-	std::vector<GenericParam> type_params;
-	if (match(TokenType::LESS)) {
-		do {
-			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
-			std::vector<std::string_view> bounds;
-			if (match(TokenType::COLON)) {
-				do {
-					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
-					bounds.push_back(b_name.text);
-				} while (match(TokenType::PLUS));
-			}
-			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
-		} while (match(TokenType::COMMA));
-		consume(TokenType::GREATER, "Expected '>' after type parameters");
-	}
+	auto type_params = parse_generic_params();
 
 	const Token first_tok = consume(TokenType::IDENTIFIER, "Expected struct or trait name after 'impl'");
 
-	if (match(TokenType::LESS)) {
-		do {
-			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
-			std::vector<std::string_view> bounds;
-			if (match(TokenType::COLON)) {
-				do {
-					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
-					bounds.push_back(b_name.text);
-				} while (match(TokenType::PLUS));
-			}
-			bool exists = false;
-			for (const auto &tp : type_params) {
-				if (tp.name == p_name.text) { exists = true; break; }
-			}
-			if (!exists) {
-				type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
-			}
-		} while (match(TokenType::COMMA));
-		consume(TokenType::GREATER, "Expected '>' after type parameters");
-	}
+	append_unique_generic_params(type_params);
 
 	std::string_view struct_name = first_tok.text;
 	std::string_view trait_name = "";
@@ -263,26 +237,7 @@ ImplDecl *Parser::parse_impl_decl() {
 		trait_name = first_tok.text;
 		const Token st_tok = consume(TokenType::IDENTIFIER, "Expected struct name after 'for'");
 		struct_name = st_tok.text;
-		if (match(TokenType::LESS)) {
-			do {
-				const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
-				std::vector<std::string_view> bounds;
-				if (match(TokenType::COLON)) {
-					do {
-						const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
-						bounds.push_back(b_name.text);
-					} while (match(TokenType::PLUS));
-				}
-				bool exists = false;
-				for (const auto &tp : type_params) {
-					if (tp.name == p_name.text) { exists = true; break; }
-				}
-				if (!exists) {
-					type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
-				}
-			} while (match(TokenType::COMMA));
-			consume(TokenType::GREATER, "Expected '>' after type parameters");
-		}
+		append_unique_generic_params(type_params);
 	} else if (match(TokenType::COLON)) {
 		struct_name = first_tok.text;
 		const Token tr_tok = consume(TokenType::IDENTIFIER, "Expected trait name after ':'");
@@ -325,21 +280,7 @@ TraitDecl *Parser::parse_trait_decl() {
 	const auto tok = consume(TokenType::KW_TRAIT, "Expected 'trait'");
 	const auto name = consume(TokenType::IDENTIFIER, "Expected trait name after 'trait'");
 
-	std::vector<GenericParam> type_params;
-	if (match(TokenType::LESS)) {
-		do {
-			const Token p_name = consume(TokenType::IDENTIFIER, "Expected type parameter name");
-			std::vector<std::string_view> bounds;
-			if (match(TokenType::COLON)) {
-				do {
-					const Token b_name = consume(TokenType::IDENTIFIER, "Expected trait bound name");
-					bounds.push_back(b_name.text);
-				} while (match(TokenType::PLUS));
-			}
-			type_params.push_back(GenericParam{p_name.text, arena.alloc_span(bounds)});
-		} while (match(TokenType::COMMA));
-		consume(TokenType::GREATER, "Expected '>' after type parameters");
-	}
+	auto type_params = parse_generic_params();
 
 	std::vector<std::string_view> bases;
 	if (match(TokenType::COLON)) {

@@ -185,6 +185,10 @@ export struct Parser {
 	Stmt *parse_statement();
 
 	// 6. Declaration parsing (ParserDecl.cpp)
+	std::vector<GenericParam> parse_generic_params();
+
+	void append_unique_generic_params(std::vector<GenericParam> &type_params);
+
 	ModuleDecl *parse_module_decl();
 
 	UseDecl *parse_use_decl();
