@@ -1,10 +1,11 @@
 module;
 
+#include <cstdint>
 #include <string_view>
 
 export module token;
 
-export enum class TokenType {
+export enum class TokenType : uint8_t {
 	// Single syntax
 	SEMI_COLON, // ;
 	COLON, // :
@@ -78,6 +79,6 @@ export enum class TokenType {
 export struct Token {
 	TokenType type;
 	std::string_view text;
-	size_t line;
-	size_t col;
+	uint32_t line;
+	uint32_t col;
 };

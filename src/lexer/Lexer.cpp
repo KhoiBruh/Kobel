@@ -12,8 +12,8 @@ import map;
 export struct Lexer {
 	std::string_view src;
 	size_t cursor = 0;
-	size_t line = 1;
-	size_t col = 1;
+	uint32_t line = 1;
+	uint32_t col = 1;
 
 	bool is_end() const {
 		return cursor >= src.size();
@@ -43,7 +43,7 @@ export struct Lexer {
 	Token make_token(
 		const TokenType type,
 		const size_t start_cursor,
-		const size_t start_col
+		const uint32_t start_col
 	) const {
 		return {type, sub(start_cursor), line, start_col};
 	}
@@ -71,7 +71,7 @@ export struct Lexer {
 		}
 	}
 
-	Token scan_identifier(size_t start_cursor, size_t start_col) {
+	Token scan_identifier(size_t start_cursor, uint32_t start_col) {
 		while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') next();
 		const auto text = sub(start_cursor);
 		const auto it = KEYWORDS.find(text);
@@ -79,7 +79,7 @@ export struct Lexer {
 		return {type, text, line, start_col};
 	}
 
-	Token scan_number(size_t start_cursor, size_t start_col) {
+	Token scan_number(size_t start_cursor, uint32_t start_col) {
 		const char first = src[start_cursor];
 		if (first == '0' && !is_end()) {
 			const char p = peek();
@@ -144,7 +144,7 @@ export struct Lexer {
 		return {TokenType::NUMBER, sub(start_cursor), line, start_col};
 	}
 
-	Token scan_string(size_t start_cursor, size_t start_col) {
+	Token scan_string(size_t start_cursor, uint32_t start_col) {
 		bool closed = false;
 		while (!is_end()) {
 			const char c = peek();
@@ -176,7 +176,7 @@ export struct Lexer {
 		return {TokenType::STRING, sub(start_cursor), line, start_col};
 	}
 
-	Token scan_char(size_t start_cursor, size_t start_col) {
+	Token scan_char(size_t start_cursor, uint32_t start_col) {
 		if (!is_end() && peek() == '\\') next();
 		if (!is_end()) next();
 		if (!is_end() && peek() == '\'') next();
@@ -189,7 +189,7 @@ export struct Lexer {
 			if (is_end()) return {TokenType::END_OF_FILE, "", line, col};
 
 			const size_t start_cursor = cursor;
-			const size_t start_col = col;
+			const uint32_t start_col = col;
 
 			switch (const char c = next()) {
 				case ',': return make_token(TokenType::COMMA, start_cursor, start_col);
