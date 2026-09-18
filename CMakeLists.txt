@@ -8,14 +8,14 @@ if (DEFINED ENV{LLVM_DIR})
 	list(APPEND CMAKE_PREFIX_PATH "$ENV{LLVM_DIR}")
 elseif (DEFINED ENV{LLVM_PATH})
 	list(APPEND CMAKE_PREFIX_PATH "$ENV{LLVM_PATH}/lib/cmake/llvm")
-elseif (EXISTS "C:/LLVM/lib/cmake/llvm")
-	list(APPEND CMAKE_PREFIX_PATH "C:/LLVM/lib/cmake/llvm")
+elseif (EXISTS "~/LLVM/lib/cmake/llvm")
+	list(APPEND CMAKE_PREFIX_PATH "~/LLVM/lib/cmake/llvm")
 endif ()
 
 if (NOT TARGET zstd::libzstd_static)
 	add_library(zstd::libzstd_static INTERFACE IMPORTED)
 	set_target_properties(zstd::libzstd_static PROPERTIES
-		INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+		INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,~/vcpkg/installed/x64-windows/debug/lib/zstd.lib,~/vcpkg/installed/x64-windows/lib/zstd.lib>"
 	)
 endif ()
 
@@ -105,7 +105,3 @@ target_link_libraries(Kobel PRIVATE kobel_core)
 
 enable_testing()
 add_subdirectory(test)
-
-
-
-
