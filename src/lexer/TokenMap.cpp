@@ -3,7 +3,7 @@ module;
 #include <map>
 #include <string_view>
 
-export module map;
+export module token.map;
 
 import token;
 
@@ -36,3 +36,8 @@ export inline const std::map<std::string_view, TokenType> KEYWORDS = {
 	{"impl", TokenType::KW_IMPL},
 	{"for", TokenType::KW_FOR}
 };
+
+export inline TokenType lookup_keyword(const std::string_view text) noexcept {
+	const auto it = KEYWORDS.find(text);
+	return it != KEYWORDS.end() ? it->second : TokenType::IDENTIFIER;
+}

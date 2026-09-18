@@ -7,7 +7,7 @@ module;
 export module lexer;
 
 import token;
-import map;
+import token.map;
 
 export struct Lexer {
 	std::string_view src;
@@ -71,12 +71,22 @@ export struct Lexer {
 		}
 	}
 
+	void scan_decimal_digits_and_fraction() {
+		while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+		if (
+			peek() == '.' &&
+			cursor + 1 < src.size() &&
+			std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
+		) {
+			next(); // consume '.'
+			while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
+		}
+	}
+
 	Token scan_identifier(size_t start_cursor, uint32_t start_col) {
 		while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') next();
 		const auto text = sub(start_cursor);
-		const auto it = KEYWORDS.find(text);
-		const auto type = it != KEYWORDS.end() ? it->second : TokenType::IDENTIFIER;
-		return {type, text, line, start_col};
+		return make_token(lookup_keyword(text), start_cursor, start_col);
 	}
 
 	Token scan_number(size_t start_cursor, uint32_t start_col) {
@@ -93,26 +103,10 @@ export struct Lexer {
 				next(); // consume 'o' or 'O'
 				while ((peek() >= '0' && peek() <= '7') || peek() == '_') next();
 			} else {
-				while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
-				if (
-					peek() == '.' &&
-					cursor + 1 < src.size() &&
-					std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
-				) {
-					next(); // consume '.'
-					while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
-				}
+				scan_decimal_digits_and_fraction();
 			}
 		} else {
-			while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
-			if (
-				peek() == '.' &&
-				cursor + 1 < src.size() &&
-				std::isdigit(static_cast<unsigned char>(src[cursor + 1]))
-			) {
-				next(); // consume '.'
-				while (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '_') next();
-			}
+			scan_decimal_digits_and_fraction();
 		}
 
 		// Optional separator before suffix: e.g. 100_L or 0xFF_UL
@@ -141,7 +135,7 @@ export struct Lexer {
 			}
 		}
 
-		return {TokenType::NUMBER, sub(start_cursor), line, start_col};
+		return make_token(TokenType::NUMBER, start_cursor, start_col);
 	}
 
 	Token scan_string(size_t start_cursor, uint32_t start_col) {
@@ -173,14 +167,14 @@ export struct Lexer {
 		if (!closed) {
 			return make_token(TokenType::UNKNOWN, start_cursor, start_col);
 		}
-		return {TokenType::STRING, sub(start_cursor), line, start_col};
+		return make_token(TokenType::STRING, start_cursor, start_col);
 	}
 
 	Token scan_char(size_t start_cursor, uint32_t start_col) {
 		if (!is_end() && peek() == '\\') next();
 		if (!is_end()) next();
 		if (!is_end() && peek() == '\'') next();
-		return {TokenType::CHAR, sub(start_cursor), line, start_col};
+		return make_token(TokenType::CHAR, start_cursor, start_col);
 	}
 
 	Token next_token() {

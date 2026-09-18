@@ -1,6 +1,5 @@
 module;
 
-#include <charconv>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -37,35 +36,11 @@ TypeNode *Parser::parse_type() {
 		size_t explicit_size = 0;
 		if (match(TokenType::OPEN_PAREN)) {
 			const auto size_tok = consume(TokenType::NUMBER, "Expected array size in parentheses");
-			std::string s;
-			s.reserve(size_tok.text.size());
-			for (const char c : size_tok.text) {
-				if (c != '_') s.push_back(c);
-			}
-			int base = 10;
-			size_t start = 0;
-			if (s.starts_with("0x") || s.starts_with("0X")) {
-				base = 16;
-				start = 2;
-			} else if (s.starts_with("0b") || s.starts_with("0B")) {
-				base = 2;
-				start = 2;
-			} else if (s.starts_with("0o") || s.starts_with("0O")) {
-				base = 8;
-				start = 2;
-			}
-			while (!s.empty() && (s.back() == 'U' || s.back() == 'L' || s.back() == 'S' || s.back() == 'B' || s.back() == 'Z')) {
-				s.pop_back();
-			}
-			const char *begin = s.data() + start;
-			const char *end = s.data() + s.size();
-			if (begin >= end) {
+			const int64_t val = parse_kobel_int(size_tok.text);
+			if (val < 0) {
 				error(size_tok, "Invalid array size number");
 			} else {
-				auto [ptr, ec] = std::from_chars(begin, end, explicit_size, base);
-				if (ec != std::errc{} || ptr != end) {
-					error(size_tok, "Invalid array size number");
-				}
+				explicit_size = static_cast<size_t>(val);
 			}
 			consume(TokenType::CLOSE_PAREN, "Expected ')' after array size");
 		}
