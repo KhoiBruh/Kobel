@@ -1,5 +1,6 @@
 module;
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -63,16 +64,11 @@ export struct Analyzer {
 	std::vector<std::unique_ptr<Type> > interned_types;
 
 	Semantic make_primitive(SemaType k) {
-		for (const auto &t: interned_types) {
-			if (t->kind == k && k != SemaType::POINTER && k != SemaType::STRUCT && k != SemaType::ENUM && k !=
-			    SemaType::ARRAY) {
-				return t.get();
-			}
+		const auto idx = static_cast<size_t>(k);
+		if (idx < primitive_types.size()) {
+			return &primitive_types[idx];
 		}
-		auto t = std::make_unique<Type>();
-		t->kind = k;
-		interned_types.push_back(std::move(t));
-		return interned_types.back().get();
+		return &primitive_types[static_cast<size_t>(SemaType::ERROR_TYPE)];
 	}
 
 	Semantic make_pointer(Semantic target, bool mut = false) {

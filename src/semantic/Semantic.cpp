@@ -1,5 +1,6 @@
 module;
 
+#include <array>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -34,13 +35,13 @@ using StringMap = std::unordered_map<std::string, Value, StringHash, std::equal_
 
 export using StringSet = std::unordered_set<std::string, StringHash, std::equal_to<> >;
 
-export enum class SemaType {
+export enum class SemaType : uint8_t {
 	I8, I16, I32, I64, ISZ,
 	U8, U16, U32, U64, USZ,
 	F32, F64,
 	BOOL, CHAR, VOID, STR,
-	POINTER, STRUCT, ENUM, ARRAY,
-	NULL_TYPE, ERROR_TYPE
+	NULL_TYPE, ERROR_TYPE,
+	POINTER, STRUCT, ENUM, ARRAY
 };
 
 export struct Type {
@@ -145,3 +146,11 @@ export struct Type {
 };
 
 export using Semantic = const Type *;
+ 
+export inline const std::array<Type, 18> primitive_types = [] {
+	std::array<Type, 18> arr{};
+	for (size_t i = 0; i < 18; ++i) {
+		arr[i].kind = static_cast<SemaType>(i);
+	}
+	return arr;
+}();
