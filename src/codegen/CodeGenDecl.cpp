@@ -58,7 +58,14 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 	std::string llvm_st_name = to_llvm_name(inst_name);
 	if (auto it = struct_types.find(llvm_st_name); it != struct_types.end() && it->second != nullptr) return;
-	if (!analyzer || !analyzer->structs.contains(inst_name)) return;
+	if (!analyzer) return;
+	const StructSymbol *sym_ptr = nullptr;
+	if (auto it = analyzer->structs.find(inst_name); it != analyzer->structs.end()) {
+		sym_ptr = &it->second;
+	} else if (auto it = analyzer->structs.find(llvm_st_name); it != analyzer->structs.end()) {
+		sym_ptr = &it->second;
+	}
+	if (!sym_ptr) return;
 
 	llvm::StructType *struct_ty = llvm::StructType::getTypeByName(*context, llvm_st_name);
 	if (!struct_ty) {
@@ -67,7 +74,7 @@ void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 	struct_types[llvm_st_name] = struct_ty;
 	struct_types[inst_name] = struct_ty;
 
-	const auto &sym = analyzer->structs.at(inst_name);
+	const auto &sym = *sym_ptr;
 	std::vector<llvm::Type *> field_types;
 	for (const auto &f_name : sym.field_order) {
 		const auto &f_type = sym.field_types.at(f_name);

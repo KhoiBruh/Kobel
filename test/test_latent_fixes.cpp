@@ -325,6 +325,101 @@ bool test_driver_dependency_lifetime() {
 	return true;
 }
 
+// 7. Test struct member codegen does not pollute analyzer->structs map via operator[]
+bool test_struct_member_no_map_pollution() {
+	std::string_view code =
+		"struct Point {\n"
+		"    x: i32,\n"
+		"    y: i32,\n"
+		"    z: i32\n"
+		"}\n"
+		"struct Nested {\n"
+		"    pt: Point,\n"
+		"    tag: i32\n"
+		"}\n"
+		"fn test_members(n: &Nested): i32 {\n"
+		"    return n.pt.z + n.tag;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser parser{lex.tokenize()};
+	auto prog = parser.parse_program();
+	ASSERT(!parser.has_errors(), "Parser failed on struct definitions");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic analysis failed");
+
+	size_t initial_struct_count = sema.structs.size();
+	ASSERT(!sema.structs.contains("NonExistentGhostStruct"), "Ghost struct should not exist initially");
+
+	CodeGen cg{&sema, "test_struct_module"};
+	ASSERT(cg.generate(prog), "CodeGen failed for struct members");
+
+	// Verify that code generation did not inject any bogus empty structs into sema.structs
+	ASSERT(sema.structs.size() == initial_struct_count, "Struct map size must remain strictly unchanged after CodeGen");
+	ASSERT(!sema.structs.contains("NonExistentGhostStruct"), "Ghost struct must not be inserted");
+
+	std::string ir = cg.dump_ir();
+	// Check struct GEPs exist for pt (idx 0), tag (idx 1), and z (idx 2)
+	ASSERT(ir.find("getelementptr inbounds") != std::string::npos, "Missing GEP in emitted IR");
+	ASSERT(ir.find("ret i32") != std::string::npos, "Missing ret i32 in emitted IR");
+
+	// Stress test: large struct with 25 fields
+	{
+		std::string stress_code = "struct Huge {\n";
+		for (int i = 0; i < 25; ++i) {
+			stress_code += "    f" + std::to_string(i) + ": i32" + (i == 24 ? "\n" : ",\n");
+		}
+		stress_code += "}\nfn test_huge(h: &Huge): i32 {\n    return h.f0 + h.f12 + h.f24;\n}\n";
+
+		Lexer s_lex{stress_code};
+		Parser s_parser{s_lex.tokenize()};
+		auto s_prog = s_parser.parse_program();
+		ASSERT(!s_parser.has_errors(), "Parser failed on huge struct");
+
+		DiagnosticEngine s_diag;
+		Analyzer s_sema{s_diag};
+		s_sema.analyze(s_prog);
+		ASSERT(!s_diag.has_errors(), "Semantic analysis failed on huge struct");
+
+		size_t huge_init_count = s_sema.structs.size();
+		CodeGen s_cg{&s_sema, "huge_module"};
+		ASSERT(s_cg.generate(s_prog), "CodeGen failed for huge struct");
+		ASSERT(s_sema.structs.size() == huge_init_count, "Huge struct CodeGen must not add empty structs");
+
+		std::string huge_ir = s_cg.dump_ir();
+		ASSERT(huge_ir.find(", i32 12") != std::string::npos, "Missing GEP index 12 for f12");
+		ASSERT(huge_ir.find(", i32 24") != std::string::npos, "Missing GEP index 24 for f24");
+	}
+
+	// Member access on non-existent member or unresolvable struct does not crash
+	{
+		std::string bad_code =
+			"struct Dummy { a: i32 }\n"
+			"fn test_bad(d: &Dummy): i32 {\n"
+			"    return d.a;\n"
+			"}\n";
+		Lexer b_lex{bad_code};
+		Parser b_parser{b_lex.tokenize()};
+		auto b_prog = b_parser.parse_program();
+		DiagnosticEngine b_diag;
+		Analyzer b_sema{b_diag};
+		b_sema.analyze(b_prog);
+
+		CodeGen b_cg{&b_sema, "bad_module"};
+		ASSERT(b_cg.generate(b_prog), "Expected valid dummy codegen to succeed");
+
+		// Attempting to emit lvalue or expr on invalid member expression returns nullptr safely without crashing
+		MemberExpr fake_member{nullptr, "non_existent", 1, 1};
+		ASSERT(b_cg.emit_lvalue(&fake_member) == nullptr, "emit_lvalue on invalid member must return nullptr");
+		ASSERT(b_cg.emit_expr(&fake_member) == nullptr, "emit_expr on invalid member must return nullptr without crashing");
+	}
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -345,6 +440,9 @@ int main() {
 
 	if (!test_driver_dependency_lifetime()) return 1;
 	std::cout << "  [PASS] test_driver_dependency_lifetime" << std::endl;
+
+	if (!test_struct_member_no_map_pollution()) return 1;
+	std::cout << "  [PASS] test_struct_member_no_map_pollution" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;
