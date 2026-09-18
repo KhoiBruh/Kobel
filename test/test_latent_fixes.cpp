@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 
 import lexer;
 import parser;
@@ -8,6 +11,7 @@ import semantic;
 import semantic.analyzer;
 import codegen;
 import logger;
+import driver;
 
 #define ASSERT(cond, msg) \
 	do { \
@@ -228,6 +232,99 @@ bool test_contextual_integer_literal_typing() {
 	return true;
 }
 
+// 6. Test Driver dependency resolution parser/arena lifetime & no use-after-free
+bool test_driver_dependency_lifetime() {
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	fs::path temp_dir = fs::temp_directory_path() / "kobel_test_dep_lifetime";
+	fs::remove_all(temp_dir, ec);
+	fs::create_directories(temp_dir, ec);
+
+	// Case 1: Chained dependencies (A -> B -> C -> D)
+	{
+		std::ofstream(temp_dir / "mod_d.kb") << "mod mod_d;\npub fn calc_d(): i32 { return 10; }\n";
+		std::ofstream(temp_dir / "mod_c.kb") << "mod mod_c;\nuse mod_d.calc_d;\npub fn calc_c(): i32 { return calc_d() + 1; }\n";
+		std::ofstream(temp_dir / "mod_b.kb") << "mod mod_b;\nuse mod_c.calc_c;\npub fn calc_b(): i32 { return calc_c() + 2; }\n";
+		std::ofstream(temp_dir / "mod_a.kb") << "mod mod_a;\nuse mod_b.calc_b;\npub fn calc_a(): i32 { return calc_b() + 3; }\n";
+		std::ofstream(temp_dir / "main.kb") << "mod main;\nuse mod_a.calc_a;\nfn main(): i32 { return calc_a(); }\n";
+
+		CompilerOptions opts;
+		opts.input_files = { (temp_dir / "main.kb").string() };
+		opts.output_file = (temp_dir / "output.ll").string();
+		opts.mode = OutputMode::IR;
+		opts.custom_search_dirs = { temp_dir };
+
+		std::ostringstream out_s, err_s;
+		Driver driver{opts, out_s, err_s};
+		int res = driver.run();
+		ASSERT(res == 0, ("Driver run failed on chained dependencies: " + err_s.str()).c_str());
+
+		std::ifstream ir_file(temp_dir / "output.ll");
+		std::string ir_content((std::istreambuf_iterator<char>(ir_file)), std::istreambuf_iterator<char>());
+		ASSERT(ir_content.find("calc_d") != std::string::npos, "Missing calc_d in IR");
+		ASSERT(ir_content.find("calc_c") != std::string::npos, "Missing calc_c in IR");
+		ASSERT(ir_content.find("calc_b") != std::string::npos, "Missing calc_b in IR");
+		ASSERT(ir_content.find("calc_a") != std::string::npos, "Missing calc_a in IR");
+	}
+
+	// Case 2: Diamond dependencies (main -> left, right; left -> base; right -> base)
+	{
+		fs::path diamond_dir = temp_dir / "diamond";
+		fs::create_directories(diamond_dir, ec);
+
+		std::ofstream(diamond_dir / "base.kb") << "mod base;\npub fn base_val(): i32 { return 42; }\n";
+		std::ofstream(diamond_dir / "left.kb") << "mod left;\nuse base.base_val;\npub fn left_val(): i32 { return base_val() + 1; }\n";
+		std::ofstream(diamond_dir / "right.kb") << "mod right;\nuse base.base_val;\npub fn right_val(): i32 { return base_val() * 2; }\n";
+		std::ofstream(diamond_dir / "main.kb") << "mod main;\nuse left.left_val;\nuse right.right_val;\nfn main(): i32 { return left_val() + right_val(); }\n";
+
+		CompilerOptions opts;
+		opts.input_files = { (diamond_dir / "main.kb").string() };
+		opts.output_file = (diamond_dir / "output.ll").string();
+		opts.mode = OutputMode::IR;
+		opts.custom_search_dirs = { diamond_dir };
+
+		std::ostringstream out_s, err_s;
+		Driver driver{opts, out_s, err_s};
+		int res = driver.run();
+		ASSERT(res == 0, ("Driver run failed on diamond dependencies: " + err_s.str()).c_str());
+
+		std::ifstream ir_file(diamond_dir / "output.ll");
+		std::string ir_content((std::istreambuf_iterator<char>(ir_file)), std::istreambuf_iterator<char>());
+		ASSERT(ir_content.find("base_val") != std::string::npos, "Missing base_val in IR");
+		ASSERT(ir_content.find("left_val") != std::string::npos, "Missing left_val in IR");
+		ASSERT(ir_content.find("right_val") != std::string::npos, "Missing right_val in IR");
+	}
+
+	// Case 3: Circular dependencies (mod_a <-> mod_b mutual imports)
+	{
+		fs::path circ_dir = temp_dir / "circ";
+		fs::create_directories(circ_dir, ec);
+
+		std::ofstream(circ_dir / "mod_a.kb") << "mod mod_a;\nuse mod_b.func_b;\npub fn func_a(): i32 { return 10; }\n";
+		std::ofstream(circ_dir / "mod_b.kb") << "mod mod_b;\nuse mod_a.func_a;\npub fn func_b(): i32 { return func_a() + 5; }\n";
+		std::ofstream(circ_dir / "main.kb") << "mod main;\nuse mod_a.func_a;\nuse mod_b.func_b;\nfn main(): i32 { return func_a() + func_b(); }\n";
+
+		CompilerOptions opts;
+		opts.input_files = { (circ_dir / "main.kb").string() };
+		opts.output_file = (circ_dir / "output.ll").string();
+		opts.mode = OutputMode::IR;
+		opts.custom_search_dirs = { circ_dir };
+
+		std::ostringstream out_s, err_s;
+		Driver driver{opts, out_s, err_s};
+		int res = driver.run();
+		ASSERT(res == 0, ("Driver run failed on circular dependencies: " + err_s.str()).c_str());
+
+		std::ifstream ir_file(circ_dir / "output.ll");
+		std::string ir_content((std::istreambuf_iterator<char>(ir_file)), std::istreambuf_iterator<char>());
+		ASSERT(ir_content.find("func_a") != std::string::npos, "Missing func_a in IR");
+		ASSERT(ir_content.find("func_b") != std::string::npos, "Missing func_b in IR");
+	}
+
+	fs::remove_all(temp_dir, ec);
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -245,6 +342,9 @@ int main() {
 
 	if (!test_contextual_integer_literal_typing()) return 1;
 	std::cout << "  [PASS] test_contextual_integer_literal_typing" << std::endl;
+
+	if (!test_driver_dependency_lifetime()) return 1;
+	std::cout << "  [PASS] test_driver_dependency_lifetime" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;

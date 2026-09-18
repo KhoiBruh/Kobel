@@ -122,7 +122,7 @@ bool Driver::resolve_dependencies(
 			for (const auto &decl: prog->declarations) {
 				if (isa<UseDecl>(decl)) {
 					const auto *u = as<UseDecl>(decl);
-					if (!loaded_modules.contains(u->full_path)) {
+					if (!u->full_path.empty() && !loaded_modules.contains(u->full_path)) {
 						pending_imports.emplace_back(u->path, u->full_path);
 					}
 				}
@@ -130,7 +130,7 @@ bool Driver::resolve_dependencies(
 		}
 
 		for (const auto &[mod_path, mod_name]: pending_imports) {
-			if (loaded_modules.contains(mod_name)) continue;
+			if (mod_name.empty() || loaded_modules.contains(mod_name)) continue;
 
 			auto rel_path = module_to_file_path(mod_path);
 			std::filesystem::path found_file;
@@ -178,9 +178,12 @@ bool Driver::resolve_dependencies(
 						}
 						loaded_modules.insert(std::string(mod_name));
 						search_dirs.push_back(found_file.parent_path());
-						parsed_programs.push_back(std::move(prog));
+						parsed_programs.push_back(prog);
+						parsers.push_back(std::move(parser));
 						new_module_loaded = true;
 					}
+				} else {
+					loaded_modules.insert(std::string(mod_name));
 				}
 			}
 		}
