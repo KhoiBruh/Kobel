@@ -10,6 +10,11 @@ module;
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Triple.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/CGSCCPassManager.h>
+#include <llvm/Analysis/LoopAnalysisManager.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -69,6 +74,47 @@ bool CodeGen::setup_target_machine(const std::string &triple_str) {
 	module->setTargetTriple(the_triple);
 	module->setDataLayout(target_machine->createDataLayout());
 	return true;
+}
+
+bool CodeGen::optimize(OptLevel level) {
+	if (!module) return false;
+	if (!target_machine && !setup_target_machine()) return false;
+
+	llvm::LoopAnalysisManager lam;
+	llvm::FunctionAnalysisManager fam;
+	llvm::CGSCCAnalysisManager cgam;
+	llvm::ModuleAnalysisManager mam;
+
+	llvm::PassBuilder pb(target_machine.get());
+
+	fam.registerPass([&] { return pb.buildDefaultAAPipeline(); });
+
+	pb.registerModuleAnalyses(mam);
+	pb.registerCGSCCAnalyses(cgam);
+	pb.registerFunctionAnalyses(fam);
+	pb.registerLoopAnalyses(lam);
+	pb.crossRegisterProxies(lam, fam, cgam, mam);
+
+	llvm::ModulePassManager mpm;
+	switch (level) {
+		case OptLevel::O0:
+			mpm = pb.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
+			break;
+		case OptLevel::O1:
+			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O1);
+			break;
+		case OptLevel::O2:
+		case OptLevel::Os:
+		case OptLevel::Oz:
+			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O2);
+			break;
+		case OptLevel::O3:
+			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+			break;
+	}
+
+	mpm.run(*module, mam);
+	return verify();
 }
 
 bool CodeGen::emit_object_file(const std::string &output_filename) {

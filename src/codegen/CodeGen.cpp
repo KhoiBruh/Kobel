@@ -32,6 +32,15 @@ import semantic;
 import semantic.symbol;
 import semantic.analyzer;
 
+export enum class OptLevel {
+	O0,
+	O1,
+	O2,
+	O3,
+	Os,
+	Oz
+};
+
 export struct CodeGen {
 	std::unique_ptr<llvm::LLVMContext> context;
 	std::unique_ptr<llvm::Module> module;
@@ -424,6 +433,8 @@ export struct CodeGen {
 
 	// Target Code Generation (CodeGenNative.cpp)
 	bool setup_target_machine(const std::string &triple_str = "");
+
+	bool optimize(OptLevel level = OptLevel::O2);
 
 	bool emit_object_file(const std::string &output_filename);
 

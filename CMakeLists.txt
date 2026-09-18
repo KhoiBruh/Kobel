@@ -57,6 +57,7 @@ llvm_map_components_to_libnames(llvm_libs
 	X86Info
 	X86AsmParser
 	AsmPrinter
+	Passes
 )
 
 add_library(kobel_core STATIC)

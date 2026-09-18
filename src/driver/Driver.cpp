@@ -30,12 +30,15 @@ export enum class OutputMode {
 	IR
 };
 
+export using ::OptLevel;
+
 export struct CompilerOptions {
 	std::vector<std::string> input_files;
 	std::string output_file;
 	std::string target_triple = "x86_64-pc-windows-msvc";
 	OutputMode mode = OutputMode::EXECUTABLE;
 	bool explicit_mode = false;
+	OptLevel opt_level = OptLevel::O0;
 	std::vector<std::filesystem::path> custom_search_dirs;
 };
 
@@ -359,6 +362,11 @@ int Driver::run() {
 
 	if (!cg.generate(unified_program)) {
 		err_ << "Error: LLVM IR generation or module verification failed.\n";
+		return 1;
+	}
+
+	if (!cg.optimize(options_.opt_level)) {
+		err_ << "Error: LLVM optimization pipeline failed.\n";
 		return 1;
 	}
 

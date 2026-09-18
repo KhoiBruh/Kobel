@@ -21,3 +21,7 @@ add_test(NAME CodeGenTests COMMAND test_codegen)
 add_executable(test_latent_fixes test_latent_fixes.cpp)
 target_link_libraries(test_latent_fixes PRIVATE kobel_core)
 add_test(NAME LatentFixesTests COMMAND test_latent_fixes)
+
+add_executable(test_optimization test_optimization.cpp)
+target_link_libraries(test_optimization PRIVATE kobel_core)
+add_test(NAME OptimizationTests COMMAND test_optimization)

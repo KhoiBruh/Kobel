@@ -17,6 +17,7 @@ namespace {
 			<< "  -c, --emit-obj     Emit native object file (.obj) and stop\n"
 			<< "  -S, --emit-asm     Emit x86_64 assembly (.s) and stop\n"
 			<< "  --emit-ir          Emit LLVM IR (.ll) and stop\n"
+			<< "  -O<n>              Set optimization level: -O0, -O1, -O2, -O3, -Os, -Oz (default: -O0)\n"
 			<< "  --target <triple>  Specify target triple (default: x86_64-pc-windows-msvc)\n"
 			<< "  -h, --help         Display this help message\n"
 			<< "  -v, --version      Display compiler version\n";
@@ -58,6 +59,18 @@ int main(const int argc, char *argv[]) {
 		} else if (arg == "--emit-ir") {
 			options.mode = OutputMode::IR;
 			options.explicit_mode = true;
+		} else if (arg == "-O0") {
+			options.opt_level = OptLevel::O0;
+		} else if (arg == "-O1") {
+			options.opt_level = OptLevel::O1;
+		} else if (arg == "-O2") {
+			options.opt_level = OptLevel::O2;
+		} else if (arg == "-O3") {
+			options.opt_level = OptLevel::O3;
+		} else if (arg == "-Os") {
+			options.opt_level = OptLevel::Os;
+		} else if (arg == "-Oz") {
+			options.opt_level = OptLevel::Oz;
 		} else if (arg == "--target") {
 			if (i + 1 < argc) {
 				options.target_triple = argv[++i];
