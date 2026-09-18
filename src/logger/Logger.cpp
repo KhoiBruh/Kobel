@@ -37,8 +37,10 @@ export struct Diagnostic {
 
 export struct DiagnosticEngine {
 	std::vector<Diagnostic> diagnostics;
+	size_t errors_ = 0;
 
 	void report(const DiagnosticType kind, const size_t line, const size_t col, const std::string_view msg) {
+		if (kind == DiagnosticType::ERROR) ++errors_;
 		diagnostics.push_back({kind, std::string(msg), line, col});
 	}
 
@@ -50,23 +52,17 @@ export struct DiagnosticEngine {
 		report(DiagnosticType::WARNING, line, col, msg);
 	}
 
-	bool has_errors() const {
-		for (const auto &d: diagnostics) {
-			if (d.type == DiagnosticType::ERROR) return true;
-		}
-		return false;
+	bool has_errors() const noexcept {
+		return errors_ > 0;
 	}
 
-	auto error_count() const {
-		size_t count = 0;
-		for (const auto &d: diagnostics) {
-			if (d.type == DiagnosticType::ERROR) count++;
-		}
-		return count;
+	size_t error_count() const noexcept {
+		return errors_;
 	}
 
-	void clear() {
+	void clear() noexcept {
 		diagnostics.clear();
+		errors_ = 0;
 	}
 
 	void print_all(std::ostream &os) const {
