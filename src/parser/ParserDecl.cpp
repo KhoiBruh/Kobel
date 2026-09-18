@@ -64,9 +64,8 @@ FnDecl *Parser::parse_fn_decl() {
 	} else if (match(TokenType::FAT_ARROW)) {
 		auto expr = parse_expression();
 		consume(TokenType::SEMI_COLON, "Expected ';' after expression body");
-		std::vector<Stmt *> stmts;
-		stmts.push_back(arena.alloc<ReturnStmt>(expr, tok.line, tok.col));
-		body = arena.alloc<BlockStmt>(arena.alloc_span<Stmt *>(stmts), tok.line, tok.col);
+		auto ret_stmt = arena.alloc<ReturnStmt>(expr, tok.line, tok.col);
+		body = arena.alloc<BlockStmt>(arena.alloc_span<Stmt *>({ret_stmt}), tok.line, tok.col);
 	} else {
 		consume(
 			TokenType::SEMI_COLON,

@@ -6,6 +6,8 @@ module;
 #include <utility>
 #include <string_view>
 #include <span>
+#include <type_traits>
+#include <initializer_list>
 
 export module ast.arena;
 
@@ -78,23 +80,46 @@ export struct Arena {
 	}
 
 	template<typename T>
+	std::span<T> alloc_span(std::span<const T> src) {
+		if (src.empty()) return {};
+		T *ptr = static_cast<T *>(allocate(sizeof(T) * src.size(), alignof(T)));
+		if constexpr (std::is_trivially_copyable_v<T>) {
+			std::memcpy(ptr, src.data(), sizeof(T) * src.size());
+		} else {
+			for (size_t i = 0; i < src.size(); ++i) {
+				new(ptr + i) T(src[i]);
+			}
+		}
+		return std::span<T>(ptr, src.size());
+	}
+
+	template<typename T>
+	std::span<T> alloc_span(std::span<T> src) {
+		return alloc_span(std::span<const T>(src));
+	}
+
+	template<typename T>
+	std::span<T> alloc_span(std::initializer_list<T> list) {
+		return alloc_span(std::span<const T>(list.begin(), list.size()));
+	}
+
+	template<typename T>
 	std::span<T> alloc_span(std::vector<T> &vec) {
 		if (vec.empty()) return {};
 		T *ptr = static_cast<T *>(allocate(sizeof(T) * vec.size(), alignof(T)));
-		for (size_t i = 0; i < vec.size(); ++i) {
-			new(ptr + i) T(std::move(vec[i]));
+		if constexpr (std::is_trivially_copyable_v<T>) {
+			std::memcpy(ptr, vec.data(), sizeof(T) * vec.size());
+		} else {
+			for (size_t i = 0; i < vec.size(); ++i) {
+				new(ptr + i) T(std::move(vec[i]));
+			}
 		}
 		return std::span<T>(ptr, vec.size());
 	}
 
 	template<typename T>
 	std::span<T> alloc_span(const std::vector<T> &vec) {
-		if (vec.empty()) return {};
-		T *ptr = static_cast<T *>(allocate(sizeof(T) * vec.size(), alignof(T)));
-		for (size_t i = 0; i < vec.size(); ++i) {
-			new(ptr + i) T(vec[i]);
-		}
-		return std::span<T>(ptr, vec.size());
+		return alloc_span(std::span<const T>(vec.data(), vec.size()));
 	}
 
 	std::string_view alloc_string(std::string_view str) {

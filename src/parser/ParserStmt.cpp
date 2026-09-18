@@ -55,8 +55,7 @@ Stmt *Parser::parse_if_stmt() {
 	} else {
 		auto single_stmt = parse_statement();
 		if (single_stmt) {
-			std::vector<Stmt *> stmts = {single_stmt};
-			then_branch = arena.alloc<BlockStmt>(arena.alloc_span<Stmt *>(stmts), single_stmt->line, single_stmt->col);
+			then_branch = arena.alloc<BlockStmt>(arena.alloc_span<Stmt *>({single_stmt}), single_stmt->line, single_stmt->col);
 		}
 	}
 
@@ -69,9 +68,8 @@ Stmt *Parser::parse_if_stmt() {
 		} else {
 			auto single_stmt = parse_statement();
 			if (single_stmt) {
-				std::vector stmts = {single_stmt};
 				else_branch = arena.alloc<BlockStmt>(
-					arena.alloc_span<Stmt *>(stmts), single_stmt->line, single_stmt->col
+					arena.alloc_span<Stmt *>({single_stmt}), single_stmt->line, single_stmt->col
 				);
 			}
 		}
