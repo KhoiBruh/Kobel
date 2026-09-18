@@ -118,6 +118,11 @@ export struct Arena {
 	}
 
 	template<typename T>
+	std::span<T> alloc_span(std::vector<T> &&vec) {
+		return alloc_span(vec);
+	}
+
+	template<typename T>
 	std::span<T> alloc_span(const std::vector<T> &vec) {
 		return alloc_span(std::span<const T>(vec.data(), vec.size()));
 	}

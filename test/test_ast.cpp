@@ -180,6 +180,34 @@ bool test_rtti() { Arena arena;
 	return true;
 }
 
+bool test_alloc_span() {
+	Arena arena;
+
+	// Empty span
+	std::span<const int> empty_src{};
+	auto empty_span = arena.alloc_span(empty_src);
+	ASSERT(empty_span.empty(), "Empty span should be empty");
+
+	// Trivially copyable with std::span
+	int nums[] = {10, 20, 30, 40};
+	auto span_nums = arena.alloc_span<int>(std::span<const int>(nums, 4));
+	ASSERT(span_nums.size() == 4, "span_nums size mismatch");
+	ASSERT(span_nums[0] == 10 && span_nums[3] == 40, "span_nums content mismatch");
+
+	// Initializer list
+	auto span_init = arena.alloc_span<int>({100, 200, 300});
+	ASSERT(span_init.size() == 3, "span_init size mismatch");
+	ASSERT(span_init[0] == 100 && span_init[1] == 200 && span_init[2] == 300, "span_init content mismatch");
+
+	// Non-trivially copyable types (std::string)
+	std::vector<std::string> str_vec = {"hello", "world", "kobel"};
+	auto span_str = arena.alloc_span(std::move(str_vec));
+	ASSERT(span_str.size() == 3, "span_str size mismatch");
+	ASSERT(span_str[0] == "hello" && span_str[1] == "world" && span_str[2] == "kobel", "span_str content mismatch");
+
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] AST tests..." << std::endl;
 	if (!test_type_nodes()) return 1;
@@ -199,6 +227,9 @@ int main() {
 
 	if (!test_rtti()) return 1;
 	std::cout << "  [PASS] test_rtti" << std::endl;
+
+	if (!test_alloc_span()) return 1;
+	std::cout << "  [PASS] test_alloc_span" << std::endl;
 
 	std::cout << "[ALL PASSED] AST tests passed successfully!" << std::endl;
 	return 0;
