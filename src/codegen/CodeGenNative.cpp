@@ -45,7 +45,7 @@ bool CodeGen::setup_target_machine(const std::string &triple_str) {
 	const llvm::Triple the_triple(target_triple);
 	const auto *target = llvm::TargetRegistry::lookupTarget(the_triple, err);
 	if (!target) {
-		std::cerr << "CodeGen Error lookupTarget: " << err << std::endl;
+		std::cerr << "CodeGen Error lookupTarget: " << err << '\n';
 		return false;
 	}
 
@@ -77,13 +77,13 @@ bool CodeGen::emit_object_file(const std::string &output_filename) {
 	std::error_code ec;
 	llvm::raw_fd_ostream dest(output_filename, ec, llvm::sys::fs::OF_None);
 	if (ec) {
-		std::cerr << "Could not open output file: " << ec.message() << std::endl;
+		std::cerr << "Could not open output file: " << ec.message() << '\n';
 		return false;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CodeGenFileType::ObjectFile)) {
-		std::cerr << "TargetMachine does not support emitting object file for this target" << std::endl;
+		std::cerr << "TargetMachine does not support emitting object file for this target" << '\n';
 		return false;
 	}
 
@@ -98,13 +98,13 @@ bool CodeGen::emit_assembly_file(const std::string &output_filename) {
 	std::error_code ec;
 	llvm::raw_fd_ostream dest(output_filename, ec, llvm::sys::fs::OF_Text);
 	if (ec) {
-		std::cerr << "Could not open output file: " << ec.message() << std::endl;
+		std::cerr << "Could not open output file: " << ec.message() << '\n';
 		return false;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CodeGenFileType::AssemblyFile)) {
-		std::cerr << "TargetMachine does not support emitting assembly file for this target" << std::endl;
+		std::cerr << "TargetMachine does not support emitting assembly file for this target" << '\n';
 		return false;
 	}
 
