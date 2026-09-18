@@ -85,9 +85,11 @@ namespace {
 // ============================================================================
 
 llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
-	if (analyzer && analyzer->resolved_symbols.contains(expr)) {
-		std::string const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
-		if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
+	if (analyzer) {
+		if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
+			std::string const_lookup = to_llvm_name(it->second);
+			if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
+		}
 	}
 
 	if (isa<IdentifierExpr>(expr)) {
@@ -97,8 +99,10 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		if (auto *alloca = lookup_local_var(name)) return alloca;
 
 		std::string const_lookup = name;
-		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
-			const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
+		if (analyzer) {
+			if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
+				const_lookup = to_llvm_name(it->second);
+			}
 		}
 		if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
 		if (const auto it_g = global_consts.find(name); it_g != global_consts.end()) return it_g->second;
@@ -290,8 +294,10 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		std::string const_lookup = name;
-		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
-			const_lookup = to_llvm_name(analyzer->resolved_symbols.at(expr));
+		if (analyzer) {
+			if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
+				const_lookup = to_llvm_name(it->second);
+			}
 		}
 		if (auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) {
 			llvm::GlobalVariable *gv = it_g->second;
@@ -469,28 +475,31 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		}
 
 		// 6a. Direct call or struct instantiation by name
-		if (isa<IdentifierExpr>(c->callee) || (analyzer && analyzer->resolved_symbols.contains(c))) {
+		auto resolved_it = analyzer ? analyzer->resolved_symbols.find(c) : decltype(analyzer->resolved_symbols.find(c)){};
+		bool has_resolved = analyzer && resolved_it != analyzer->resolved_symbols.end();
+
+		if (isa<IdentifierExpr>(c->callee) || has_resolved) {
 			std::string raw_name;
 			if (isa<IdentifierExpr>(c->callee)) {
 				raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
-			} else if (analyzer && analyzer->resolved_symbols.contains(c)) {
-				raw_name = analyzer->resolved_symbols.at(c);
+			} else if (has_resolved) {
+				raw_name = resolved_it->second;
 			}
 			std::string target_name = raw_name;
-			if (analyzer && analyzer->resolved_symbols.contains(c)) {
-				target_name = to_llvm_name(analyzer->resolved_symbols.at(c));
+			if (has_resolved) {
+				target_name = to_llvm_name(resolved_it->second);
 			}
 
 			// Struct instantiation: Point(10, 20)
 			if (struct_types.contains(target_name) || (
 				    analyzer && (analyzer->structs.contains(target_name) || (
-					                 analyzer->resolved_symbols.contains(c) && analyzer->structs.contains(
-						                 analyzer->resolved_symbols.at(c)
+					                 has_resolved && analyzer->structs.contains(
+						                 resolved_it->second
 					                 ))))) {
 				llvm::Type *st_type = nullptr;
 				if (auto it = struct_types.find(target_name); it != struct_types.end()) st_type = it->second;
-				if (!st_type && analyzer && analyzer->resolved_symbols.contains(c)) {
-					const auto &sym_name = analyzer->resolved_symbols.at(c);
+				if (!st_type && has_resolved) {
+					const auto &sym_name = resolved_it->second;
 					if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
 					if (!st_type) {
 						if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end()) st_type = it->second;
@@ -522,8 +531,8 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 			// Regular function call
 			auto *callee = module->getFunction(target_name);
 			if (!callee && analyzer) {
-				std::string fn_lookup = analyzer->resolved_symbols.contains(c)
-					                        ? analyzer->resolved_symbols.at(c)
+				std::string fn_lookup = has_resolved
+					                        ? resolved_it->second
 					                        : target_name;
 				auto it = analyzer->functions.find(fn_lookup);
 				if (it == analyzer->functions.end()) {
@@ -685,22 +694,24 @@ llvm::Value *CodeGen::emit_expr(const Expr *expr) {
 		const auto *m = as<MemberExpr>(expr);
 
 		// Resolved symbol (e.g. module-prefixed constant or enum member)
-		if (analyzer && analyzer->resolved_symbols.contains(expr)) {
-			const auto &sym_name = analyzer->resolved_symbols.at(expr);
-			size_t last_dot = sym_name.rfind('.');
-			if (last_dot != std::string::npos) {
-				std::string enum_part = sym_name.substr(0, last_dot);
-				std::string member_part = sym_name.substr(last_dot + 1);
-				if (auto it_enum = analyzer->enums.find(enum_part); it_enum != analyzer->enums.end()) {
-					if (auto it_m = it_enum->second.member_values.find(member_part); it_m != it_enum->second.member_values.end()) {
-						llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
-						return llvm::ConstantInt::get(llvm_ty, it_m->second);
+		if (analyzer) {
+			if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
+				const auto &sym_name = it->second;
+				size_t last_dot = sym_name.rfind('.');
+				if (last_dot != std::string::npos) {
+					std::string enum_part = sym_name.substr(0, last_dot);
+					std::string member_part = sym_name.substr(last_dot + 1);
+					if (auto it_enum = analyzer->enums.find(enum_part); it_enum != analyzer->enums.end()) {
+						if (auto it_m = it_enum->second.member_values.find(member_part); it_m != it_enum->second.member_values.end()) {
+							llvm::Type *llvm_ty = get_llvm_type(it_enum->second.underlying_type);
+							return llvm::ConstantInt::get(llvm_ty, it_m->second);
+						}
 					}
 				}
-			}
-			std::string llvm_c_name = to_llvm_name(sym_name);
-			if (auto it_g = global_consts.find(llvm_c_name); it_g != global_consts.end()) {
-				return builder->CreateLoad(it_g->second->getValueType(), it_g->second, llvm_c_name);
+				std::string llvm_c_name = to_llvm_name(sym_name);
+				if (auto it_g = global_consts.find(llvm_c_name); it_g != global_consts.end()) {
+					return builder->CreateLoad(it_g->second->getValueType(), it_g->second, llvm_c_name);
+				}
 			}
 		}
 
