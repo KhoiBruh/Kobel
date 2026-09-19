@@ -19,7 +19,7 @@ import semantic.analyzer;
 
 bool test_valid_program() {
 	std::string_view code = 
-		"struct Point(x: i32, y: i32);\n"
+		"struct Point { x: i32, y: i32 }\n"
 		"const ORIGIN: i32 = 0;\n"
 		"extern \"libc\" {\n"
 		"    fn printf(fmt: *char): i32;\n"
@@ -282,7 +282,11 @@ bool test_semantic_array_errors() {
 
 bool test_semantic_struct_methods() {
 	std::string_view code =
-		"struct Point(x: i32, y: i32) {\n"
+		"struct Point {\n"
+		"    x: i32,\n"
+		"    y: i32\n"
+		"}\n"
+		"impl Point {\n"
 		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
 		"    fn translate(var self, dx: i32, dy: i32): void {\n"
 		"        self.x = self.x + dx;\n"
@@ -313,7 +317,7 @@ bool test_semantic_struct_method_errors() {
 	// 1. Kh???i t???o struct sai s??? l?????ng ?????i s???
 	{
 		std::string_view code =
-			"struct Point(x: i32, y: i32);\n"
+			"struct Point { x: i32, y: i32 }\n"
 			"fn test_err(): void {\n"
 			"    val p: Point = Point(1);\n"
 			"}\n";
@@ -329,7 +333,8 @@ bool test_semantic_struct_method_errors() {
 	// 2. G???i ph????ng th???c var self tr??n con tr??? ch??? ?????c *T
 	{
 		std::string_view code =
-			"struct Point(x: i32, y: i32) {\n"
+			"struct Point { x: i32, y: i32 }\n"
+			"impl Point {\n"
 			"    fn modify(var self): void { self.x = 0; }\n"
 			"}\n"
 			"fn test_err(ptr: *Point): void {\n"
@@ -422,7 +427,11 @@ bool test_semantic_modules() {
 		"pub const BASE: i32 = 100;\n"
 		"\n"
 		"mod geom;\n"
-		"pub struct Point(x: i32, y: i32) {\n"
+		"pub struct Point {\n"
+		"    pub x: i32,\n"
+		"    pub y: i32\n"
+		"}\n"
+		"impl Point {\n"
 		"    pub fn sum(val self): i32 {\n"
 		"        return self.x + self.y;\n"
 		"    }\n"
@@ -482,7 +491,11 @@ bool test_semantic_module_errors() {
 	{
 		std::string_view code =
 			"mod geom;\n"
-			"pub struct Point(x: i32, y: i32) {\n"
+			"pub struct Point {\n"
+			"    pub x: i32,\n"
+			"    pub y: i32\n"
+			"}\n"
+			"impl Point {\n"
 			"    fn secret_method(val self): i32 { return self.x; }\n"
 			"}\n"
 			"\n"
@@ -587,7 +600,7 @@ bool test_semantic_type_size() {
 	// 1. Valid T.size() on primitives, struct, and enum
 	{
 		std::string_view code =
-			"struct Point(x: i32, y: i32)\n"
+			"struct Point { x: i32, y: i32 }\n"
 			"enum Status { OK, ERR }\n"
 			"fn main(): i32 {\n"
 			"    val s_i32: usz = i32.size();\n"
@@ -612,7 +625,7 @@ bool test_semantic_type_size() {
 	// 2. Error: calling .size() on variable of struct that has no size method
 	{
 		std::string_view code =
-			"struct Point(x: i32, y: i32)\n"
+			"struct Point { x: i32, y: i32 }\n"
 			"fn main(): i32 {\n"
 			"    val p: Point = Point(1, 2);\n"
 			"    val s: usz = p.size();\n"
@@ -650,7 +663,7 @@ bool test_unsuffixed_int_literal_inference() {
 	// 1. Unsuffixed integer literals adopt the type of their context
 	{
 		std::string_view code =
-			"struct S(n: usz)\n"
+			"struct S { n: usz }\n"
 			"fn takes(n: usz): usz { return n; }\n"
 			"fn from_literal(): usz { return 2 * 3; }\n"
 			"fn main(): i32 {\n"
@@ -885,8 +898,8 @@ bool test_semantic_generic_structs() {
 	// 1. Generic struct definition, explicit & inferred instantiation, field access, nested
 	{
 		std::string_view code =
-			"struct Box<T>(value: T)\n"
-			"struct Pair<T, U>(first: T, second: U)\n"
+			"struct Box<T> { value: T }\n"
+			"struct Pair<T, U> { first: T, second: U }\n"
 			"fn main(): i32 {\n"
 			"    val b: Box<i32> = Box<i32>(42);\n"
 			"    val p: Pair<i32, str> = Pair<i32, str>(1, \"hello\");\n"
@@ -910,7 +923,8 @@ bool test_semantic_generic_structs() {
 	// 2. Generic struct with methods
 	{
 		std::string_view code =
-			"struct Box<T>(value: T) {\n"
+			"struct Box<T> { value: T }\n"
+			"impl Box<T> {\n"
 			"    fn get(val self): T => self.value;\n"
 			"}\n"
 			"fn main(): i32 {\n"
@@ -934,7 +948,7 @@ bool test_semantic_generic_struct_errors() {
 	// 1. Field type mismatch in instantiation
 	{
 		std::string_view code =
-			"struct Box<T>(value: T)\n"
+			"struct Box<T> { value: T }\n"
 			"fn main(): i32 {\n"
 			"    val b: Box<i32> = Box<i32>(\"not an int\");\n"
 			"    return 0;\n"
@@ -951,7 +965,7 @@ bool test_semantic_generic_struct_errors() {
 	// 2. Wrong number of type arguments
 	{
 		std::string_view code =
-			"struct Box<T>(value: T)\n"
+			"struct Box<T> { value: T }\n"
 			"fn main(): i32 {\n"
 			"    val b: Box<i32, str> = 0;\n"
 			"    return 0;\n"
@@ -968,7 +982,7 @@ bool test_semantic_generic_struct_errors() {
 	// 3. Generic struct used without type arguments
 	{
 		std::string_view code =
-			"struct Box<T>(value: T)\n"
+			"struct Box<T> { value: T }\n"
 			"fn main(): i32 {\n"
 			"    val b: Box = 0;\n"
 			"    return 0;\n"
@@ -1003,13 +1017,15 @@ bool test_semantic_generic_struct_errors() {
 
 bool test_variable_and_fn_type_inference() {
 	std::string_view code =
-		"struct Box<T>(value: T) {\n"
+		"struct Box<T> { value: T }\n"
+		"impl Box<T> {\n"
 		"    fn get(val self) => self.value;\n"
 		"}\n"
 		"trait Scaled {\n"
 		"    fn twice(val self) => self.value + self.value;\n"
 		"}\n"
-		"struct Number(value: i32) : Scaled;\n"
+		"struct Number { value: i32 }\n"
+		"impl Scaled for Number {}\n"
 		"fn add(a: i32, b: i32) => a + b;\n"
 		"fn check(x: i32) => if (x > 0) true else false;\n"
 		"fn describe(x: i32) => when (x) { 0 -> \"zero\"; else -> \"other\"; };\n"
@@ -1063,7 +1079,7 @@ bool test_semantic_generic_functions() {
 	// 1. Generic function with explicit and inferred calls
 	{
 		std::string_view code =
-			"struct Pair<T, U>(first: T, second: U)\n"
+			"struct Pair<T, U> { first: T, second: U }\n"
 			"fn id<T>(x: T): T => x;\n"
 			"fn max<T>(a: T, b: T): T {\n"
 			"    if (a > b) return a; else return b;\n"
@@ -1143,9 +1159,9 @@ bool test_semantic_module_prefixes() {
 	{
 		std::string_view code =
 			"mod math.vec;\n"
-			"pub struct Vector(x: i32, y: i32)\n"
+			"pub struct Vector { pub x: i32, pub y: i32 }\n"
 			"mod physics.space;\n"
-			"pub struct Vector(mag: i32)\n"
+			"pub struct Vector { pub mag: i32 }\n"
 			"mod main;\n"
 			"use math.vec.Vector;\n"
 			"use physics.space.Vector;\n"
@@ -1174,9 +1190,9 @@ bool test_semantic_module_prefixes() {
 	{
 		std::string_view code =
 			"mod math.vec;\n"
-			"pub struct Vector(x: i32, y: i32)\n"
+			"pub struct Vector { pub x: i32, pub y: i32 }\n"
 			"mod physics.space;\n"
-			"pub struct Vector(mag: i32)\n"
+			"pub struct Vector { pub mag: i32 }\n"
 			"mod main;\n"
 			"use math.vec.Vector;\n"
 			"use physics.space.Vector;\n"
@@ -1244,7 +1260,10 @@ bool test_semantic_traits() {
 			"    fn name(val self): str;\n"
 			"    fn greet(val self): str => \"hello\";\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"    override fn name(val self): str => self.first_name;\n"
 			"}\n"
 			"fn main(): i32 {\n"
@@ -1272,7 +1291,8 @@ bool test_semantic_traits() {
 			"trait Derived : Base {\n"
 			"    fn derived_val(val self): i32;\n"
 			"}\n"
-			"struct Foo() : Derived {\n"
+			"struct Foo {}\n"
+			"impl Derived for Foo {\n"
 			"    override fn derived_val(val self): i32 => 20;\n"
 			"}\n"
 			"fn main(): i32 {\n"
@@ -1297,7 +1317,10 @@ bool test_semantic_traits() {
 			"trait Printable {\n"
 			"    fn print_me(val self): str;\n"
 			"}\n"
-			"struct Item(msg: str) : Printable {\n"
+			"struct Item {\n"
+			"    pub msg: str\n"
+			"}\n"
+			"impl Printable for Item {\n"
 			"    override fn print_me(val self): str => self.msg;\n"
 			"}\n"
 			"fn show<T: Printable>(val x: T): str {\n"
@@ -1324,10 +1347,16 @@ bool test_semantic_traits() {
 			"trait Hashable {\n"
 			"    fn hash(val self): i64;\n"
 			"}\n"
-			"struct Key(k_id: i64) : Hashable {\n"
+			"struct Key {\n"
+			"    pub k_id: i64\n"
+			"}\n"
+			"impl Hashable for Key {\n"
 			"    override fn hash(val self): i64 => self.k_id;\n"
 			"}\n"
-			"struct Container<T: Hashable>(item: T) {\n"
+			"struct Container<T: Hashable> {\n"
+			"    pub item: T\n"
+			"}\n"
+			"impl<T: Hashable> Container<T> {\n"
 			"    fn get_hash(val self): i64 => self.item.hash();\n"
 			"}\n"
 			"fn main(): i32 {\n"
@@ -1356,7 +1385,10 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"}\n";
 
 		Lexer lex{code};
@@ -1371,7 +1403,10 @@ bool test_semantic_trait_errors() {
 	// 2. Error: method marked override but struct implements no traits
 	{
 		std::string_view code =
-			"struct Person(first_name: str) {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Person {\n"
 			"    override fn foo(val self): str => self.first_name;\n"
 			"}\n";
 
@@ -1390,7 +1425,10 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"    override fn name(val self): str => self.first_name;\n"
 			"    override fn extra(val self): i32 => 42;\n"
 			"}\n";
@@ -1410,7 +1448,10 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"    fn name(val self): str => self.first_name;\n"
 			"}\n";
 
@@ -1429,7 +1470,10 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"    override fn name(var self): str => self.first_name;\n"
 			"}\n";
 
@@ -1448,7 +1492,10 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct Person(first_name: str) : Greeter {\n"
+			"struct Person {\n"
+			"    pub first_name: str\n"
+			"}\n"
+			"impl Greeter for Person {\n"
 			"    override fn name(val self): i32 => 42;\n"
 			"}\n";
 
@@ -1467,7 +1514,7 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct NotGreeter(x: i32)\n"
+			"struct NotGreeter { x: i32 }\n"
 			"fn test_bound<T: Greeter>(val x: T): str => x.name();\n"
 			"fn main(): i32 {\n"
 			"    val ng = NotGreeter(42);\n"
@@ -1490,8 +1537,8 @@ bool test_semantic_trait_errors() {
 			"trait Greeter {\n"
 			"    fn name(val self): str;\n"
 			"}\n"
-			"struct NotGreeter(x: i32)\n"
-			"struct Box<T: Greeter>(val item: T)\n"
+			"struct NotGreeter { x: i32 }\n"
+			"struct Box<T: Greeter> { item: T }\n"
 			"fn main(): i32 {\n"
 			"    val ng = NotGreeter(42);\n"
 			"    val b = Box<NotGreeter>(ng);\n"

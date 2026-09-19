@@ -128,10 +128,10 @@ Size khai báo tường minh không khớp số phần tử literal → lỗi bi
 ### Struct tự tham chiếu (linked list, cây...)
 
 ```
-struct Node(
+struct Node {
     value: i32,
     next: *Node?
-) { }
+}
 ```
 
 Dùng con trỏ thô nullable, cấp phát/giải phóng thủ công qua `extern "libc"` + `defer`. Chưa có smart pointer sở hữu tự động (kiểu `Box<T>` của Rust) — để dành làm sau.
@@ -144,13 +144,15 @@ Trait riêng, bắt buộc với `Array`, `Slice`, `List`, `Map`, `HashMap`, ran
 
 ## 5. Struct, Trait, Fault, Enum
 
-### Struct — cú pháp primary constructor
+### Struct — cú pháp Rust-like và `impl`
 
 ```
-struct A(
-    a: i32,
-    b: str
-) {
+struct A {
+    pub a: i32,
+    pub b: str
+}
+
+impl A {
     fn new(c: i32 = 1, d: str = "hello"): Self {
         return Self(c, d);
     }
@@ -159,8 +161,10 @@ struct A(
 }
 ```
 
-- Struct không có thân hàm vẫn hợp lệ — thuần túy chứa dữ liệu.
-- **Không có `new(...)`:** khởi tạo phải truyền đủ mọi field theo đúng thứ tự khai báo: `A(1, "hello")`.
+- Struct thuần túy chứa khai báo các trường dữ liệu (fields), hỗ trợ từ khóa `pub` cho từng field.
+- Toàn bộ hàm thành viên (methods) được định nghĩa tách rời trong khối `impl StructName { ... }`.
+- Cú pháp cũ kiểu `struct Point(...) : Trait { ... }` đã được loại bỏ hoàn toàn để mã nguồn mạch lạc và giống Rust hơn.
+- **Không có `new(...)`:** khởi tạo truyền đủ mọi field theo đúng thứ tự khai báo: `A(1, "hello")`.
 - **Có `new(...)`:** khởi tạo theo đúng chữ ký `new`. `Self(...)` bên trong luôn trỏ tới chính struct đang định nghĩa.
 - Layout bộ nhớ: **luôn theo chuẩn C** (thứ tự field, alignment/padding tự nhiên) — áp dụng mặc định cho mọi struct, không cần đánh dấu riêng. Mục đích: dễ FFI/bind sang C, Java, Python...
 
@@ -171,7 +175,12 @@ trait B {
     fn greet(val self): str => "hello";  // có triển khai mặc định
 }
 
-struct A(a: i32, b: str) : B {
+struct A {
+    pub a: i32,
+    pub b: str
+}
+
+impl B for A {
     override fn greet(val self): str => "hi, " + self.b;
 }
 ```
@@ -292,7 +301,12 @@ val (a, b) = getPair();
 ## 9. Toán tử & Overloading
 
 ```
-struct A(a: i32, c: i32) {
+struct A {
+    pub a: i32,
+    pub c: i32
+}
+
+impl A {
     @operator(+)
     fn plus(val self, other: A): A => A(self.a + other.a, self.c + other.c);
 }

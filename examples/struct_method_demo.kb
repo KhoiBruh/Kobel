@@ -2,7 +2,12 @@ extern "libc" {
     fn puts(s: *char): i32;
 }
 
-struct Point(x: i32, y: i32) {
+struct Point {
+    pub x: i32,
+    pub y: i32
+}
+
+impl Point {
     fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;
 
     fn is_origin(val self): bool {

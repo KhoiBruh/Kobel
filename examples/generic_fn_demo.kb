@@ -12,7 +12,10 @@ fn max<T>(a: T, b: T): T {
 }
 
 // 3. Generic pair constructor
-struct Pair<T, U>(first: T, second: U)
+struct Pair<T, U> {
+    pub first: T,
+    pub second: U
+}
 fn make_pair<T, U>(a: T, b: U): Pair<T, U> => Pair(a, b);
 
 fn main(): i32 {

@@ -2,7 +2,11 @@ extern "libc" {
     fn puts(s: *char): i32;
 }
 
-struct Counter(count: i32) {
+struct Counter {
+    pub count: i32
+}
+
+impl Counter {
     fn inc(var self): bool {
         self.count = self.count + 1;
         return true;

@@ -3,12 +3,17 @@ extern "libc" {
 }
 
 mod math.vec;
-pub struct Vector(x: i32, y: i32)
+pub struct Vector {
+    pub x: i32,
+    pub y: i32
+}
 pub const PI: i32 = 314;
 pub fn create(x: i32, y: i32): Vector => Vector(x, y);
 
 mod physics.space;
-pub struct Vector(mag: i32)
+pub struct Vector {
+    pub mag: i32
+}
 pub const PI: i32 = 3;
 pub fn create(mag: i32): Vector => Vector(mag);
 

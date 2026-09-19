@@ -109,7 +109,7 @@ bool test_decl_nodes() { Arena arena;
 	ASSERT(fn->body != nullptr, "FnDecl body is null");
 	ASSERT(isa<FnDecl>(fn), "isa<FnDecl> failed");
 
-	// StructDecl: struct Point(x: i32, y: i32)
+	// StructDecl: struct Point { x: i32, y: i32 }
 	auto st = arena.alloc<StructDecl>("Point", 2, 1);
 		std::vector<StructField> st_fields;
 	st_fields.push_back(StructField{"x", arena.alloc<NamedType>("i32", 2, 16)});

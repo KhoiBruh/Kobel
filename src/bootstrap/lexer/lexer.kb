@@ -1,12 +1,8 @@
 mod lexer;
 
-pub struct Lexer(
-	source: str,
-	cursor: usz,
-	line: usz,
-	col: usz
-) {
-
-
-
+pub struct Lexer {
+	pub source: str,
+	pub cursor: usz,
+	pub line: usz,
+	pub col: usz
 }

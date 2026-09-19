@@ -131,19 +131,19 @@ bool test_parse_functions() {
 }
 
 bool test_parse_structs() {
-	std::string_view code = "struct Point(x: i32, y: i32);";
+	std::string_view code = "struct Point { x: i32, y: i32 }";
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
 
-	ASSERT(!p.has_errors(), "Parse struct kh??ng ???????c c?? l???i c?? ph??p");
-	ASSERT(prog->declarations.size() == 1, "Ch????ng tr??nh ph???i ch???a 1 khai b??o");
-	ASSERT(isa<StructDecl>(prog->declarations[0]), "Khai b??o ph???i l?? StructDecl");
+	ASSERT(!p.has_errors(), "Parse struct khong duoc co loi cu phap");
+	ASSERT(prog->declarations.size() == 1, "Chuong trinh phai chua 1 khai bao");
+	ASSERT(isa<StructDecl>(prog->declarations[0]), "Khai bao phai la StructDecl");
 
 	auto st = as<StructDecl>(prog->declarations[0]);
-	ASSERT(st->name == "Point", "T??n struct ph???i l?? 'Point'");
-	ASSERT(st->fields.size() == 2, "Struct ph???i c?? 2 tr?????ng");
-	ASSERT(st->fields[0].name == "x" && st->fields[1].name == "y", "T??n tr?????ng x v?? y");
+	ASSERT(st->name == "Point", "Ten struct phai la 'Point'");
+	ASSERT(st->fields.size() == 2, "Struct phai co 2 truong");
+	ASSERT(st->fields[0].name == "x" && st->fields[1].name == "y", "Ten truong x va y");
 
 	return true;
 }
@@ -187,7 +187,7 @@ bool test_parse_new_struct_and_impl() {
 	ASSERT(imp->methods[0]->name == "add", "First method must be 'add'");
 	ASSERT(imp->methods[1]->name == "free", "Second method must be 'free'");
 
-	// Test pub override fn inside new struct syntax
+	// Test error when methods are placed inside struct syntax
 	{
 		std::string_view code_override =
 			"struct Widget {\n"
@@ -196,12 +196,8 @@ bool test_parse_new_struct_and_impl() {
 			"}\n";
 		Lexer lex_ov{code_override};
 		Parser p_ov{lex_ov.tokenize()};
-		auto prog_ov = p_ov.parse_program();
-		ASSERT(!p_ov.has_errors(), "Parse pub override in struct should have no errors");
-		auto st_ov = as<StructDecl>(prog_ov->declarations[0]);
-		ASSERT(st_ov->methods.size() == 1, "Expected 1 method in Widget");
-		ASSERT(st_ov->methods[0]->is_pub, "Method must have is_pub true");
-		ASSERT(st_ov->methods[0]->is_override, "Method must have is_override true");
+		p_ov.parse_program();
+		ASSERT(p_ov.has_errors(), "Methods inside struct must report error");
 	}
 
 	// Test syntax error for invalid content inside impl
@@ -385,7 +381,11 @@ bool test_parse_array() {
 
 bool test_parse_struct_methods() {
 	std::string_view code =
-		"struct Point(x: i32, y: i32) {\n"
+		"struct Point {\n"
+		"    pub x: i32,\n"
+		"    pub y: i32\n"
+		"}\n"
+		"impl Point {\n"
 		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
 		"    fn translate(var self, dx: i32, dy: i32): void {\n"
 		"        self.x = self.x + dx;\n"
@@ -397,26 +397,28 @@ bool test_parse_struct_methods() {
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
 
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i khi parse struct methods");
-	ASSERT(prog->declarations.size() == 1, "Ph???i parse ???????c 1 StructDecl");
+	ASSERT(!p.has_errors(), "Parser khong duoc co loi khi parse struct methods");
+	ASSERT(prog->declarations.size() == 2, "Phai parse duoc 1 StructDecl va 1 ImplDecl");
 	auto* st = as<StructDecl>(prog->declarations[0]);
-	ASSERT(st->name == "Point", "T??n struct ph???i l?? Point");
-	ASSERT(st->fields.size() == 2, "Struct c?? 2 fields");
-	ASSERT(st->methods.size() == 2, "Struct c?? 2 methods");
+	ASSERT(st->name == "Point", "Ten struct phai la Point");
+	ASSERT(st->fields.size() == 2, "Struct co 2 fields");
+	auto* imp = as<ImplDecl>(prog->declarations[1]);
+	ASSERT(imp->struct_name == "Point", "Impl struct name phai la Point");
+	ASSERT(imp->methods.size() == 2, "Impl co 2 methods");
 
 	// Method 1: distance_sq
-	const auto& m0 = st->methods[0];
-	ASSERT(m0->name == "distance_sq", "Method 0 l?? distance_sq");
-	ASSERT(m0->params.size() == 1, "Method 0 c?? 1 param");
-	ASSERT(m0->params[0].name == "self", "Param 0 l?? self");
-	ASSERT(m0->params[0].has_val && !m0->params[0].is_mut, "Param 0 l?? val self");
-	ASSERT(m0->body != nullptr, "Method 0 c?? th??n h??m (=> expr)");
+	const auto& m0 = imp->methods[0];
+	ASSERT(m0->name == "distance_sq", "Method 0 la distance_sq");
+	ASSERT(m0->params.size() == 1, "Method 0 co 1 param");
+	ASSERT(m0->params[0].name == "self", "Param 0 la self");
+	ASSERT(m0->params[0].has_val && !m0->params[0].is_mut, "Param 0 la val self");
+	ASSERT(m0->body != nullptr, "Method 0 co than ham (=> expr)");
 
 	// Method 2: translate
-	const auto& m1 = st->methods[1];
-	ASSERT(m1->name == "translate", "Method 1 l?? translate");
-	ASSERT(m1->params.size() == 3, "Method 1 c?? 3 params");
-	ASSERT(m1->params[0].name == "self" && m1->params[0].is_mut, "Param 0 l?? var self");
+	const auto& m1 = imp->methods[1];
+	ASSERT(m1->name == "translate", "Method 1 la translate");
+	ASSERT(m1->params.size() == 3, "Method 1 co 3 params");
+	ASSERT(m1->params[0].name == "self" && m1->params[0].is_mut, "Param 0 la var self");
 
 	return true;
 }
@@ -472,7 +474,7 @@ bool test_parse_module_and_use() {
 		"    return 42;\n"
 		"}\n"
 		"\n"
-		"pub struct Vector(x: i32, y: i32);\n"
+		"pub struct Vector { pub x: i32, pub y: i32 }\n"
 		"pub enum Color { RED, GREEN, BLUE }\n"
 		"pub const MAX: i32 = 100;\n";
 
@@ -628,16 +630,17 @@ bool test_parse_generic_structs() {
 	// 1. Generic struct declarations
 	{
 		std::string_view code =
-			"struct Box<T>(value: T)\n"
-			"struct Pair<T, U>(first: T, second: U)\n"
-			"struct Container<T: Comparable>(item: T) {\n"
+			"struct Box<T> { value: T }\n"
+			"struct Pair<T, U> { first: T, second: U }\n"
+			"struct Container<T: Comparable> { item: T }\n"
+			"impl<T: Comparable> Container<T> {\n"
 			"    fn get(val self): T => self.item;\n"
 			"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		ASSERT(!p.has_errors(), "Parser should not error on generic structs");
-		ASSERT(prog->declarations.size() == 3, "Expected 3 declarations");
+		ASSERT(prog->declarations.size() == 4, "Expected 4 declarations");
 
 		auto *box = as<StructDecl>(prog->declarations[0]);
 		ASSERT(box->name == "Box", "Expected struct Box");
@@ -655,7 +658,11 @@ bool test_parse_generic_structs() {
 		ASSERT(container->type_params.size() == 1, "Expected 1 type param for Container");
 		ASSERT(!container->type_params[0].bounds.empty(), "Expected bounds for Container T");
 		ASSERT(container->type_params[0].bounds[0] == "Comparable", "Expected Comparable bound");
-		ASSERT(container->methods.size() == 1, "Expected 1 method in Container");
+		ASSERT(container->fields.size() == 1, "Expected 1 field in Container");
+
+		auto *imp = as<ImplDecl>(prog->declarations[3]);
+		ASSERT(imp->struct_name == "Container", "Expected impl Container");
+		ASSERT(imp->methods.size() == 1, "Expected 1 method in Container impl");
 	}
 
 	// 2. Generic type usage and constructor call with explicit and inferred type arguments
@@ -753,8 +760,16 @@ bool test_parse_traits() {
 		"    fn detailed_greet(val self): str;\n"
 		"}\n"
 		"\n"
-		"struct Person(first: str, age: i32) : Greeter, AdvancedGreeter {\n"
+		"struct Person {\n"
+		"    pub first: str,\n"
+		"    pub age: i32\n"
+		"}\n"
+		"\n"
+		"impl Greeter for Person {\n"
 		"    override fn name(val self): str => self.first;\n"
+		"}\n"
+		"\n"
+		"impl AdvancedGreeter for Person {\n"
 		"    pub override fn detailed_greet(val self): str => self.first;\n"
 		"}\n";
 
@@ -763,7 +778,7 @@ bool test_parse_traits() {
 	auto *prog = p.parse_program();
 
 	ASSERT(!p.has_errors(), "Parser should not error on traits");
-	ASSERT(prog->declarations.size() == 3, "Expected 3 declarations");
+	ASSERT(prog->declarations.size() == 5, "Expected 5 declarations");
 
 	// 1. Trait Greeter
 	ASSERT(isa<TraitDecl>(prog->declarations[0]), "Expected TraitDecl for Greeter");
@@ -783,16 +798,27 @@ bool test_parse_traits() {
 	ASSERT(tr2->bases.size() == 1 && tr2->bases[0] == "Greeter", "AdvancedGreeter inherits Greeter");
 	ASSERT(tr2->methods.size() == 1, "AdvancedGreeter has 1 method");
 
-	// 3. Struct Person : Greeter, AdvancedGreeter
+	// 3. Struct Person
 	ASSERT(isa<StructDecl>(prog->declarations[2]), "Expected StructDecl for Person");
 	auto *st = as<StructDecl>(prog->declarations[2]);
 	ASSERT(st->name == "Person", "Struct name should be Person");
-	ASSERT(st->traits.size() == 2, "Person implements 2 traits");
-	ASSERT(st->traits[0] == "Greeter", "Trait 0 is Greeter");
-	ASSERT(st->traits[1] == "AdvancedGreeter", "Trait 1 is AdvancedGreeter");
-	ASSERT(st->methods.size() == 2, "Person has 2 methods");
-	ASSERT(st->methods[0]->is_override, "name has is_override true");
-	ASSERT(st->methods[1]->is_override && st->methods[1]->is_pub, "detailed_greet has is_override and is_pub");
+	ASSERT(st->fields.size() == 2, "Person has 2 fields");
+
+	// 4. Impl Greeter for Person
+	ASSERT(isa<ImplDecl>(prog->declarations[3]), "Expected ImplDecl for Greeter");
+	auto *imp1 = as<ImplDecl>(prog->declarations[3]);
+	ASSERT(imp1->trait_name == "Greeter", "Trait name is Greeter");
+	ASSERT(imp1->struct_name == "Person", "Struct name is Person");
+	ASSERT(imp1->methods.size() == 1, "Greeter impl has 1 method");
+	ASSERT(imp1->methods[0]->is_override, "name has is_override true");
+
+	// 5. Impl AdvancedGreeter for Person
+	ASSERT(isa<ImplDecl>(prog->declarations[4]), "Expected ImplDecl for AdvancedGreeter");
+	auto *imp2 = as<ImplDecl>(prog->declarations[4]);
+	ASSERT(imp2->trait_name == "AdvancedGreeter", "Trait name is AdvancedGreeter");
+	ASSERT(imp2->struct_name == "Person", "Struct name is Person");
+	ASSERT(imp2->methods.size() == 1, "AdvancedGreeter impl has 1 method");
+	ASSERT(imp2->methods[0]->is_override && imp2->methods[0]->is_pub, "detailed_greet has is_override and is_pub");
 
 	return true;
 }

@@ -2,11 +2,18 @@ extern "libc" {
     fn puts(s: *char): i32;
 }
 
-struct Box<T>(value: T) {
-    fn get(val self): T => self.value;
+struct Box<T> {
+    pub value: T
 }
 
-struct Pair<T, U>(first: T, second: U)
+impl Box<T> {
+    pub fn get(val self): T => self.value;
+}
+
+struct Pair<T, U> {
+    pub first: T,
+    pub second: U
+}
 
 fn main(): i32 {
     // 1. Explicit instantiation

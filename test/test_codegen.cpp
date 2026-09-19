@@ -107,7 +107,7 @@ bool test_codegen_control_flow() {
 
 bool test_codegen_struct_and_pointer() {
 	std::string_view code =
-		"struct Point(x: i32, y: i32);\n"
+		"struct Point { pub x: i32, pub y: i32 }\n"
 		"fn get_x(p: *Point): i32 {\n"
 		"    return p.x;\n"
 		"}\n";
@@ -318,7 +318,11 @@ bool test_codegen_array() {
 
 bool test_codegen_struct_methods() {
 	std::string_view code =
-		"struct Point(x: i32, y: i32) {\n"
+		"struct Point {\n"
+		"    pub x: i32,\n"
+		"    pub y: i32\n"
+		"}\n"
+		"impl Point {\n"
 		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
 		"    fn translate(var self, dx: i32, dy: i32): void {\n"
 		"        self.x = self.x + dx;\n"
@@ -415,7 +419,7 @@ bool test_codegen_str_slice() {
 
 bool test_codegen_type_size() {
 	std::string_view code =
-		"struct Point(x: i32, y: i32)\n"
+		"struct Point { pub x: i32, pub y: i32 }\n"
 		"enum Status { OK, ERR }\n"
 		"fn main(): i32 {\n"
 		"    val s_i32: usz = i32.size();\n"
@@ -476,10 +480,11 @@ bool test_codegen_when_and_if_expr() {
 
 bool test_codegen_generic_structs() {
 	std::string_view code =
-		"struct Box<T>(value: T) {\n"
+		"struct Box<T> { pub value: T }\n"
+		"impl Box<T> {\n"
 		"    fn get(val self): T => self.value;\n"
 		"}\n"
-		"struct Pair<T, U>(first: T, second: U)\n"
+		"struct Pair<T, U> { pub first: T, pub second: U }\n"
 		"fn test_generics(): i32 {\n"
 		"    val b1: Box<i32> = Box<i32>(42);\n"
 		"    val b2: Box<i32> = Box(100);\n"
@@ -500,7 +505,8 @@ bool test_codegen_generic_structs() {
 
 bool test_codegen_type_inference_and_prefixes() {
 	std::string_view code =
-		"struct Box<T>(value: T) {\n"
+		"struct Box<T> { pub value: T }\n"
+		"impl Box<T> {\n"
 		"    fn get(val self) => self.value;\n"
 		"}\n"
 		"fn add(a: i32, b: i32) => a + b;\n"
@@ -557,10 +563,10 @@ bool test_codegen_generic_functions() {
 bool test_codegen_module_prefixes() {
 	std::string_view code =
 		"mod math.vec;\n"
-		"pub struct Vector(x: i32, y: i32)\n"
+		"pub struct Vector { pub x: i32, pub y: i32 }\n"
 		"pub fn make_vec(x: i32, y: i32): Vector => Vector(x, y);\n"
 		"mod physics.space;\n"
-		"pub struct Vector(mag: i32)\n"
+		"pub struct Vector { pub mag: i32 }\n"
 		"mod main;\n"
 		"use math.vec.Vector;\n"
 		"use math.vec.make_vec;\n"
@@ -586,7 +592,11 @@ bool test_codegen_traits() {
 		"    fn sum(val self): i32;\n"
 		"    fn inherited_mult(val self): i32 => self.sum() * 2;\n"
 		"}\n"
-		"struct Point(x: i32, y: i32) : MathOps {\n"
+		"struct Point {\n"
+		"    pub x: i32,\n"
+		"    pub y: i32\n"
+		"}\n"
+		"impl MathOps for Point {\n"
 		"    override fn sum(val self): i32 => self.x + self.y;\n"
 		"}\n"
 		"fn calc<T: MathOps>(val item: T): i32 {\n"
