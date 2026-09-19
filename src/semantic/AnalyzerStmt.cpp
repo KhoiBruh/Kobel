@@ -45,10 +45,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 				// Infer array size if declared as Array<T> (size == 0)
 				if (declared_type->is_array() && init_type->is_array()) {
 					if (declared_type->array_size == 0) {
-						declared_type->array_size = (init_type->array_size);
-						if (isa<ArrayType>(v->type_annotation)) {
-							as<ArrayType>(v->type_annotation)->size = init_type->array_size;
-						}
+						declared_type = make_array(declared_type->element_type, init_type->array_size);
 					}
 				}
 

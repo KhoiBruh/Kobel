@@ -44,8 +44,17 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 	struct_types[qual_name] = struct_ty;
 	struct_types[std::string(st->name)] = struct_ty;
 
-	for (const auto &method: st->methods) {
-		emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
+	if (analyzer && (analyzer->structs.contains(qual_name) || analyzer->structs.contains(llvm_st_name))) {
+		const auto &sym = analyzer->structs.contains(qual_name)
+		                      ? analyzer->structs.at(qual_name)
+		                      : analyzer->structs.at(llvm_st_name);
+		for (const auto *method: sym.method_decls) {
+			emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
+		}
+	} else {
+		for (const auto &method: st->methods) {
+			emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
+		}
 	}
 
 	if (analyzer && analyzer->struct_default_methods.contains(qual_name)) {
@@ -83,13 +92,9 @@ void CodeGen::emit_instantiated_struct(const std::string &inst_name) {
 
 	struct_ty->setBody(field_types);
 
-	std::string base_name = inst_name.substr(0, inst_name.find('<'));
-	if (analyzer->generic_structs.contains(base_name)) {
-		const auto *generic_st = analyzer->generic_structs.at(base_name);
-		for (const auto &method: generic_st->methods) {
-			std::string mangled = llvm_st_name + "_" + std::string(method->name);
-			emit_fn_proto(method, mangled);
-		}
+	for (const auto *method: sym.method_decls) {
+		std::string mangled = llvm_st_name + "_" + std::string(method->name);
+		emit_fn_proto(method, mangled);
 	}
 	if (analyzer && analyzer->struct_default_methods.contains(inst_name)) {
 		for (const auto &inh: analyzer->struct_default_methods.at(inst_name)) {

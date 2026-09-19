@@ -41,10 +41,8 @@ export struct Analyzer {
 		const FnDecl *fn_decl;
 	};
 	StringMap<std::vector<InheritedTraitMethod>> struct_default_methods;
-	StringMap<StructDecl *> all_struct_decls;
-	std::vector<std::vector<FnDecl *>> merged_methods_storage;
-	std::vector<std::vector<std::string_view>> merged_traits_storage;
-	std::vector<std::string> resolved_trait_names_storage;
+	StringMap<std::vector<const FnDecl *>> generic_struct_methods;
+	StringMap<std::vector<std::string>> generic_struct_traits;
 	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
@@ -165,6 +163,30 @@ export struct Analyzer {
 		const StructDecl *st,
 		const std::string &qual_name
 	);
+
+	const std::vector<const FnDecl *> &get_generic_struct_methods(const std::string &name) const {
+		if (auto it = generic_struct_methods.find(name); it != generic_struct_methods.end()) {
+			return it->second;
+		}
+		std::string llvm_name = to_llvm_name(name);
+		if (auto it = generic_struct_methods.find(llvm_name); it != generic_struct_methods.end()) {
+			return it->second;
+		}
+		static const std::vector<const FnDecl *> empty;
+		return empty;
+	}
+
+	const std::vector<std::string> &get_generic_struct_traits(const std::string &name) const {
+		if (auto it = generic_struct_traits.find(name); it != generic_struct_traits.end()) {
+			return it->second;
+		}
+		std::string llvm_name = to_llvm_name(name);
+		if (auto it = generic_struct_traits.find(llvm_name); it != generic_struct_traits.end()) {
+			return it->second;
+		}
+		static const std::vector<std::string> empty;
+		return empty;
+	}
 
 	void validate_use_declarations(const Program *program);
 

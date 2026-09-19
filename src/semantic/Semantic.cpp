@@ -52,7 +52,7 @@ export struct Type {
 	std::string enum_name;
 	const Type *underlying_type = nullptr;
 	const Type *element_type = nullptr;
-	mutable size_t array_size = 0; // mutable to allow array size inference
+	size_t array_size = 0;
 
 	bool is_integer() const {
 		switch (kind) {

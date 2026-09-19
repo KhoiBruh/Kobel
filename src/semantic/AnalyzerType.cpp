@@ -206,7 +206,9 @@ Semantic Analyzer::instantiate_struct(
 	}
 
 	// Resolve methods under substitution
-	for (const auto &method: generic_st->methods) {
+	std::string base_name = instantiated_name.substr(0, instantiated_name.find('<'));
+	const auto &methods = get_generic_struct_methods(base_name);
+	for (const auto *method: methods) {
 		auto m_name = std::string(method->name);
 		auto mangled_name = to_llvm_name(instantiated_name) + "_" + m_name;
 		FnSymbol fn_sym {
@@ -242,6 +244,9 @@ Semantic Analyzer::instantiate_struct(
 		sym.methods[m_name] = fn_sym;
 		functions[mangled_name] = fn_sym;
 	}
+
+	sym.method_decls = methods;
+	sym.traits = get_generic_struct_traits(base_name);
 
 	structs[instantiated_name] = sym;
 	if (!mod.empty()) structs[to_llvm_name(instantiated_name)] = sym;

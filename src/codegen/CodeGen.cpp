@@ -211,7 +211,7 @@ export struct CodeGen {
 		{
 			llvm::FunctionType *fn_ty = llvm::FunctionType::get(builder->getVoidTy(), {ptr_ty}, false);
 			llvm::Function *fn = llvm::Function::Create(
-				fn_ty, llvm::Function::ExternalLinkage, "__kobel_str_free", *module
+				fn_ty, llvm::Function::InternalLinkage, "__kobel_str_free", *module
 			);
 			auto *entry = llvm::BasicBlock::Create(*context, "entry", fn);
 			auto *free_bb = llvm::BasicBlock::Create(*context, "do.free", fn);
@@ -513,14 +513,13 @@ export struct CodeGen {
 		if (analyzer) {
 			for (const auto &inst_name: analyzer->instantiated_struct_order) {
 				std::string llvm_st_name = to_llvm_name(inst_name);
-				std::string base_name = inst_name.substr(0, inst_name.find('<'));
-				if (analyzer->generic_structs.contains(base_name)) {
-					const auto *generic_st = analyzer->generic_structs.at(base_name);
+				if (analyzer->structs.contains(inst_name)) {
+					const auto &sym = analyzer->structs.at(inst_name);
 					auto old_subst = analyzer->active_type_substitutions;
 					if (analyzer->instantiated_type_maps.contains(inst_name)) {
 						analyzer->active_type_substitutions = analyzer->instantiated_type_maps.at(inst_name);
 					}
-					for (const auto &method: generic_st->methods) {
+					for (const auto *method: sym.method_decls) {
 						std::string mangled = llvm_st_name + "_" + std::string(method->name);
 						emit_fn_body(method, mangled);
 					}

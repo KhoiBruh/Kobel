@@ -1,5 +1,7 @@
 module;
 
+#include <llvm/IR/Attributes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/MC/TargetRegistry.h>
@@ -83,7 +85,50 @@ bool CodeGen::optimize(OptLevel level) {
 	llvm::CGSCCAnalysisManager cgam;
 	llvm::ModuleAnalysisManager mam;
 
-	llvm::PassBuilder pb(target_machine.get());
+	llvm::PipelineTuningOptions pto;
+	llvm::OptimizationLevel opt_level = llvm::OptimizationLevel::O0;
+
+	switch (level) {
+		case OptLevel::O0:
+			opt_level = llvm::OptimizationLevel::O0;
+			break;
+		case OptLevel::O1:
+			opt_level = llvm::OptimizationLevel::O1;
+			break;
+		case OptLevel::O2:
+			opt_level = llvm::OptimizationLevel::O2;
+			break;
+		case OptLevel::O3:
+			opt_level = llvm::OptimizationLevel::O3;
+			break;
+		case OptLevel::Os:
+			opt_level = llvm::OptimizationLevel::O2;
+			for (auto &F : *module) {
+				if (!F.isDeclaration()) {
+					F.addFnAttr(llvm::Attribute::OptimizeForSize);
+				}
+			}
+			pto.LoopVectorization = false;
+			pto.SLPVectorization = false;
+			pto.MergeFunctions = true;
+			break;
+		case OptLevel::Oz:
+			opt_level = llvm::OptimizationLevel::O2;
+			for (auto &F : *module) {
+				if (!F.isDeclaration()) {
+					F.addFnAttr(llvm::Attribute::OptimizeForSize);
+					F.addFnAttr(llvm::Attribute::MinSize);
+				}
+			}
+			pto.LoopVectorization = false;
+			pto.SLPVectorization = false;
+			pto.LoopUnrolling = false;
+			pto.MergeFunctions = true;
+			pto.InlinerThreshold = 5;
+			break;
+	}
+
+	llvm::PassBuilder pb(target_machine.get(), pto);
 
 	fam.registerPass([&] { return pb.buildDefaultAAPipeline(); });
 
@@ -94,21 +139,10 @@ bool CodeGen::optimize(OptLevel level) {
 	pb.crossRegisterProxies(lam, fam, cgam, mam);
 
 	llvm::ModulePassManager mpm;
-	switch (level) {
-		case OptLevel::O0:
-			mpm = pb.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
-			break;
-		case OptLevel::O1:
-			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O1);
-			break;
-		case OptLevel::O2:
-		case OptLevel::Os:
-		case OptLevel::Oz:
-			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O2);
-			break;
-		case OptLevel::O3:
-			mpm = pb.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
-			break;
+	if (opt_level == llvm::OptimizationLevel::O0) {
+		mpm = pb.buildO0DefaultPipeline(opt_level);
+	} else {
+		mpm = pb.buildPerModuleDefaultPipeline(opt_level);
 	}
 
 	mpm.run(*module, mam);

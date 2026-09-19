@@ -535,6 +535,76 @@ bool test_multifile_module_isolation() {
 	return true;
 }
 
+bool test_array_flyweight_immutability() {
+	std::string_view code =
+		"fn test_arrays(): i32 {\n"
+		"    val a: Array<i32> = [1, 2];\n"
+		"    val b: Array<i32> = [10, 20, 30, 40];\n"
+		"    return a[0] + b[0];\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Array flyweight immutability compilation failed");
+	ASSERT(ir.find("[2 x i32]") != std::string::npos, "Array a should have type [2 x i32]");
+	ASSERT(ir.find("[4 x i32]") != std::string::npos, "Array b should have type [4 x i32]");
+	return true;
+}
+
+bool test_ast_immutability_struct_and_impl() {
+	std::string_view code =
+		"struct Widget {\n"
+		"    pub id: i32\n"
+		"}\n"
+		"impl Widget {\n"
+		"    fn get_id(self): i32 => self.id;\n"
+		"}\n";
+
+	Lexer lex{code};
+	Parser parser{lex.tokenize()};
+	auto prog = parser.parse_program();
+	ASSERT(!parser.has_errors(), "Parsing Widget and impl failed");
+
+	const StructDecl *st = nullptr;
+	for (const auto &decl : prog->declarations) {
+		if (isa<StructDecl>(decl)) {
+			st = as<StructDecl>(decl);
+			break;
+		}
+	}
+	ASSERT(st != nullptr, "Widget struct decl not found");
+	size_t orig_methods_count = st->methods.size();
+	ASSERT(orig_methods_count == 0, "AST StructDecl methods should initially be 0");
+
+	DiagnosticEngine diag;
+	Analyzer sema{diag};
+	sema.analyze(prog);
+	ASSERT(!diag.has_errors(), "Semantic analysis of Widget and impl failed");
+
+	// AST StructDecl must NOT have been mutated
+	ASSERT(st->methods.size() == orig_methods_count, "AST StructDecl methods was mutated! Immutability violated");
+
+	// StructSymbol must contain the merged method
+	ASSERT(sema.structs.contains("Widget"), "Widget should be in structs symbol table");
+	const auto &sym = sema.structs.at("Widget");
+	ASSERT(sym.methods.contains("get_id"), "get_id should be in StructSymbol::methods");
+	ASSERT(sym.method_decls.size() == 1, "StructSymbol::method_decls should contain 1 method");
+
+	return true;
+}
+
+bool test_str_free_internal_linkage() {
+	std::string_view code =
+		"fn test_str(): void {\n"
+		"    val s = \"hello\";\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "String helper compilation failed");
+	ASSERT(ir.find("define internal void @__kobel_str_free(") != std::string::npos,
+	       "__kobel_str_free must have internal linkage to avoid duplicate symbols in multi-module linking");
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -564,6 +634,15 @@ int main() {
 
 	if (!test_multifile_module_isolation()) return 1;
 	std::cout << "  [PASS] test_multifile_module_isolation" << std::endl;
+
+	if (!test_array_flyweight_immutability()) return 1;
+	std::cout << "  [PASS] test_array_flyweight_immutability" << std::endl;
+
+	if (!test_ast_immutability_struct_and_impl()) return 1;
+	std::cout << "  [PASS] test_ast_immutability_struct_and_impl" << std::endl;
+
+	if (!test_str_free_internal_linkage()) return 1;
+	std::cout << "  [PASS] test_str_free_internal_linkage" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;

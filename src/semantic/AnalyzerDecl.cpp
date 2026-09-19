@@ -50,8 +50,9 @@ void Analyzer::check_and_apply_struct_traits(
 	const StructDecl *st,
 	const std::string &qual_name
 ) {
-	if (st->traits.empty()) {
-		for (const auto &method : st->methods) {
+	auto &sym = structs[qual_name];
+	if (sym.traits.empty()) {
+		for (const auto *method : sym.method_decls) {
 			if (method->is_override) {
 				logger.error(
 					method->line, method->col,
@@ -63,7 +64,6 @@ void Analyzer::check_and_apply_struct_traits(
 		return;
 	}
 
-	auto &sym = structs[qual_name];
 	std::string mod = get_decl_module(st);
 	current_self_type = make_struct(qual_name);
 
@@ -72,12 +72,12 @@ void Analyzer::check_and_apply_struct_traits(
 	std::vector<std::string> all_traits;
 	std::unordered_set<std::string> visited;
 
-	for (const auto &raw_tr : st->traits) {
+	for (const auto &raw_tr : sym.traits) {
 		std::string tr_name = resolve_trait_name(raw_tr, st->line, st->col);
 		if (tr_name.empty()) {
 			logger.error(
 				st->line, st->col,
-				"Unknown trait '" + std::string(raw_tr) + "' in struct '" + sym.name + "'"
+				"Unknown trait '" + raw_tr + "' in struct '" + sym.name + "'"
 			);
 			continue;
 		}
@@ -158,7 +158,7 @@ void Analyzer::check_and_apply_struct_traits(
 	}
 
 	// 3. Verify signatures and 'override' modifier
-	for (const auto &method : st->methods) {
+	for (const auto *method : sym.method_decls) {
 		std::string m_name = std::string(method->name);
 		bool is_in_trait = all_required.contains(m_name) || all_defaults.contains(m_name);
 
@@ -298,20 +298,25 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			std::string mod = get_decl_module(st);
 			std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
-			all_struct_decls[qual_name] = const_cast<StructDecl *>(st);
-			if (!mod.empty()) {
-				all_struct_decls[to_llvm_name(qual_name)] = const_cast<StructDecl *>(st);
-			}
-			all_struct_decls[std::string(st->name)] = const_cast<StructDecl *>(st);
-
 			if (!st->type_params.empty()) {
 				if (generic_structs.contains(qual_name)) {
 					logger.error(st->line, st->col, "Duplicate generic struct declaration '" + std::string(st->name) + "'");
 					continue;
 				}
 				generic_structs[qual_name] = st;
+				std::vector<const FnDecl *> m_decls(st->methods.begin(), st->methods.end());
+				std::vector<std::string> tr_decls;
+				for (const auto &tr : st->traits) {
+					tr_decls.push_back(std::string(tr));
+				}
+				generic_struct_methods[qual_name] = m_decls;
+				generic_struct_traits[qual_name] = tr_decls;
+				generic_struct_methods[std::string(st->name)] = m_decls;
+				generic_struct_traits[std::string(st->name)] = tr_decls;
 				if (!mod.empty()) {
 					generic_structs[to_llvm_name(qual_name)] = st;
+					generic_struct_methods[to_llvm_name(qual_name)] = m_decls;
+					generic_struct_traits[to_llvm_name(qual_name)] = tr_decls;
 				}
 				continue;
 			}
@@ -328,6 +333,12 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				.line = st->line,
 				.col = st->col
 			};
+			for (const auto *m : st->methods) {
+				sym.method_decls.push_back(m);
+			}
+			for (const auto &tr : st->traits) {
+				sym.traits.push_back(std::string(tr));
+			}
 			structs[qual_name] = sym;
 			if (!mod.empty()) {
 				structs[to_llvm_name(qual_name)] = sym;
@@ -349,43 +360,58 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				qual_name = st_qual;
 			} else {
 				std::string local_qual = mod.empty() ? std::string(impl->struct_name) : mod + "." + std::string(impl->struct_name);
-				if (all_struct_decls.contains(local_qual)) {
+				if (generic_structs.contains(local_qual) || structs.contains(local_qual)) {
 					qual_name = local_qual;
-				} else if (all_struct_decls.contains(std::string(impl->struct_name))) {
+				} else if (generic_structs.contains(std::string(impl->struct_name)) || structs.contains(std::string(impl->struct_name))) {
 					qual_name = std::string(impl->struct_name);
 				}
 			}
 
-			if (qual_name.empty() || !all_struct_decls.contains(qual_name)) {
+			bool is_generic = generic_structs.contains(qual_name) || (!mod.empty() && generic_structs.contains(to_llvm_name(qual_name)));
+			bool is_normal = structs.contains(qual_name) || (!mod.empty() && structs.contains(to_llvm_name(qual_name)));
+
+			if (qual_name.empty() || (!is_generic && !is_normal)) {
 				logger.error(impl->line, impl->col, "Cannot find struct '" + std::string(impl->struct_name) + "' for 'impl'");
 				continue;
 			}
 
-			auto *target_st = all_struct_decls[qual_name];
-
-			// Merge methods
-			std::vector<FnDecl *> merged_methods(target_st->methods.begin(), target_st->methods.end());
-			for (auto *m : impl->methods) {
-				merged_methods.push_back(m);
-				decl_modules[m] = mod;
-			}
-			merged_methods_storage.push_back(std::move(merged_methods));
-			target_st->methods = merged_methods_storage.back();
-
-			// Merge trait if specified
-			if (!impl->trait_name.empty()) {
-				std::string tr_qual = resolve_trait_name(impl->trait_name, impl->line, impl->col);
-				if (tr_qual.empty()) {
-					logger.error(impl->line, impl->col, "Unknown trait '" + std::string(impl->trait_name) + "' in 'impl'");
-					continue;
+			if (is_generic) {
+				for (auto *m : impl->methods) {
+					generic_struct_methods[qual_name].push_back(m);
+					decl_modules[m] = mod;
 				}
-				resolved_trait_names_storage.push_back(std::move(tr_qual));
-				std::string_view tr_sv = resolved_trait_names_storage.back();
-
-				std::vector<std::string_view> merged_traits(target_st->traits.begin(), target_st->traits.end());
-				merged_traits.push_back(tr_sv);
-				merged_traits_storage.push_back(std::move(merged_traits));
-				target_st->traits = merged_traits_storage.back();
+				if (!impl->trait_name.empty()) {
+					std::string tr_qual = resolve_trait_name(impl->trait_name, impl->line, impl->col);
+					if (tr_qual.empty()) {
+						logger.error(impl->line, impl->col, "Unknown trait '" + std::string(impl->trait_name) + "' in 'impl'");
+						continue;
+					}
+					generic_struct_traits[qual_name].push_back(tr_qual);
+				}
+				generic_struct_methods[std::string(impl->struct_name)] = generic_struct_methods[qual_name];
+				generic_struct_traits[std::string(impl->struct_name)] = generic_struct_traits[qual_name];
+				if (!mod.empty()) {
+					generic_struct_methods[to_llvm_name(qual_name)] = generic_struct_methods[qual_name];
+					generic_struct_traits[to_llvm_name(qual_name)] = generic_struct_traits[qual_name];
+				}
+			} else {
+				auto &target_sym = structs.contains(qual_name) ? structs[qual_name] : structs[to_llvm_name(qual_name)];
+				for (auto *m : impl->methods) {
+					target_sym.method_decls.push_back(m);
+					decl_modules[m] = mod;
+				}
+				if (!impl->trait_name.empty()) {
+					std::string tr_qual = resolve_trait_name(impl->trait_name, impl->line, impl->col);
+					if (tr_qual.empty()) {
+						logger.error(impl->line, impl->col, "Unknown trait '" + std::string(impl->trait_name) + "' in 'impl'");
+						continue;
+					}
+					target_sym.traits.push_back(tr_qual);
+				}
+				if (!mod.empty()) {
+					structs[to_llvm_name(qual_name)] = target_sym;
+					structs[qual_name] = target_sym;
+				}
 			}
 		}
 	}
@@ -415,7 +441,7 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				sym.field_pub[f_name] = is_pub;
 			}
 
-			for (const auto &method: st->methods) {
+			for (const auto *method: sym.method_decls) {
 				auto m_name = std::string(method->name);
 				if (sym.methods.contains(m_name) || sym.field_types.contains(m_name)) {
 					logger.error(
@@ -471,9 +497,9 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 					.param_names = m_param_names,
 					.return_type = m_ret_sem,
 					.is_pub = method->is_pub,
-					.module_name = current_module,
-					.line = st->line,
-					.col = st->col
+					.module_name = decl_modules.contains(method) ? decl_modules.at(method) : current_module,
+					.line = method->line,
+					.col = method->col
 				};
 
 				sym.methods[m_name] = fn_sym;
@@ -683,7 +709,8 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			std::string st_qual = current_module.empty()
 				                      ? std::string(st->name)
 				                      : current_module + "." + std::string(st->name);
-			for (const auto &method: st->methods) {
+			const auto &sym = structs.contains(st_qual) ? structs.at(st_qual) : structs.at(to_llvm_name(st_qual));
+			for (const auto *method: sym.method_decls) {
 				std::string mangled = st_qual + "_" + std::string(method->name);
 				auto old_mod = current_module;
 				current_module = decl_modules.contains(method) ? decl_modules.at(method) : get_decl_module(st);
@@ -738,14 +765,15 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			}
 			if (!generic_structs.contains(base_name)) continue;
 			const auto *generic_st = generic_structs.at(base_name);
-			if (generic_st->methods.empty()) continue;
+			const auto &methods = get_generic_struct_methods(base_name);
+			if (methods.empty()) continue;
 
 			auto old_subst = active_type_substitutions;
 			if (instantiated_type_maps.contains(inst_name)) {
 				active_type_substitutions = instantiated_type_maps.at(inst_name);
 			}
 
-			for (const auto &method : generic_st->methods) {
+			for (const auto *method : methods) {
 				std::string mangled = to_llvm_name(inst_name) + "_" + std::string(method->name);
 				if (functions.contains(mangled)) {
 					auto old_mod = current_module;

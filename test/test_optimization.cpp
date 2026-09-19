@@ -158,6 +158,22 @@ namespace {
 		ASSERT(opts.opt_level == OptLevel::O3, "Setting opt level to O3 failed");
 		return true;
 	}
+
+	bool test_size_optimization_pipeline() {
+		std::string_view code =
+			"fn calc(x: i32): i32 {\n"
+			"    return x * 2 + 1;\n"
+			"}\n";
+
+		std::string ir_os, ir_oz;
+		ASSERT(compile_to_ir_with_opt(code, OptLevel::Os, ir_os), "Os compilation failed");
+		ASSERT(compile_to_ir_with_opt(code, OptLevel::Oz, ir_oz), "Oz compilation failed");
+
+		ASSERT(ir_os.find("optsize") != std::string::npos, "Os should set optsize attribute on functions");
+		ASSERT(ir_oz.find("optsize") != std::string::npos, "Oz should set optsize attribute on functions");
+		ASSERT(ir_oz.find("minsize") != std::string::npos, "Oz should set minsize attribute on functions");
+		return true;
+	}
 }
 
 int main() {
@@ -168,6 +184,7 @@ int main() {
 	if (!test_function_inlining()) return 1;
 	if (!test_dead_code_elimination()) return 1;
 	if (!test_all_opt_levels()) return 1;
+	if (!test_size_optimization_pipeline()) return 1;
 
 	std::cout << "[PASSED] All Optimization Pipeline Tests passed successfully!\n";
 	return 0;

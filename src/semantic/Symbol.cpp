@@ -54,6 +54,8 @@ export struct StructSymbol {
 	std::vector<std::string> field_order;
 	StringMap<bool> field_pub;
 	StringMap<FnSymbol> methods;
+	std::vector<const FnDecl *> method_decls;
+	std::vector<std::string> traits;
 	bool is_pub = false;
 	std::string module_name;
 	size_t line = 0;
