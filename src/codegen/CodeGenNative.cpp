@@ -52,8 +52,8 @@ bool CodeGen::setup_target_machine(const std::string &triple_str) {
 		return false;
 	}
 
-	constexpr const char *cpu = "generic";
-	constexpr const char *features = "";
+	constexpr auto cpu = "generic";
+	constexpr auto features = "";
 	const llvm::TargetOptions opt;
 	constexpr auto reloc_model = std::optional(llvm::Reloc::PIC_);
 
@@ -200,14 +200,14 @@ namespace {
 }
 
 bool CodeGen::link_executable(const std::string &obj_filename, const std::string &exe_filename) {
-	const std::string clang_path = find_clang_executable();
+	const auto clang_path = find_clang_executable();
 	if (clang_path.empty()) {
 		std::cerr << "Error: Could not find 'clang' linker executable.\n"
 				<< "Please ensure clang is installed and added to PATH, or set the KOBEL_CLANG environment variable.\n";
 		return false;
 	}
 
-	std::vector<llvm::StringRef> args = {
+	const std::vector<llvm::StringRef> args{
 		clang_path,
 		obj_filename,
 		"-o",
@@ -215,12 +215,15 @@ bool CodeGen::link_executable(const std::string &obj_filename, const std::string
 	};
 
 	std::string err_msg;
-	const int ret = llvm::sys::ExecuteAndWait(clang_path, args, std::nullopt, {}, 0, 0, &err_msg);
-	if (ret != 0) {
+	if (
+		const int ret = llvm::sys::ExecuteAndWait(
+			clang_path, args, std::nullopt, {},
+			0, 0, &err_msg
+		);
+		ret != 0
+	) {
 		std::cerr << "Error: Linking executable failed (exit code " << ret << ")";
-		if (!err_msg.empty()) {
-			std::cerr << ": " << err_msg;
-		}
+		if (!err_msg.empty()) std::cerr << ": " << err_msg;
 		std::cerr << "\n";
 		return false;
 	}

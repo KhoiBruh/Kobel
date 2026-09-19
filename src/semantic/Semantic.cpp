@@ -17,7 +17,7 @@ import logger;
 export struct StringHash {
 	using is_transparent = void;
 
-	size_t operator()(std::string_view sv) const noexcept {
+	size_t operator()(const std::string_view sv) const noexcept {
 		return std::hash<std::string_view>{}(sv);
 	}
 
@@ -138,7 +138,7 @@ export struct Type {
 			case SemaType::ENUM: return enum_name;
 			case SemaType::ARRAY:
 				return "Array<" + (element_type ? element_type->to_string() : "unknown") + ">(" +
-				       std::to_string(array_size) + ")";
+					   std::to_string(array_size) + ")";
 			case SemaType::ERROR_TYPE: return "<error-type>";
 		}
 		return "<unknown>";
@@ -146,7 +146,7 @@ export struct Type {
 };
 
 export using Semantic = const Type *;
- 
+
 export inline const std::array<Type, 18> primitive_types = [] {
 	std::array<Type, 18> arr{};
 	for (size_t i = 0; i < 18; ++i) {
@@ -156,12 +156,16 @@ export inline const std::array<Type, 18> primitive_types = [] {
 }();
 
 export struct TypeContext {
-	std::vector<std::unique_ptr<Type>> interned_types;
+	std::vector<std::unique_ptr<Type> > interned_types;
 
 	TypeContext() = default;
+
 	TypeContext(TypeContext &&) noexcept = default;
+
 	TypeContext &operator=(TypeContext &&) noexcept = default;
+
 	TypeContext(const TypeContext &) = delete;
+
 	TypeContext &operator=(const TypeContext &) = delete;
 
 	[[nodiscard]] size_t size() const noexcept { return interned_types.size(); }
@@ -181,7 +185,8 @@ export struct TypeContext {
 				t->kind == SemaType::POINTER &&
 				t->pointee == target &&
 				t->is_mut_pointer == mut
-			) return t.get();
+			)
+				return t.get();
 		}
 		auto t = std::make_unique<Type>();
 		t->kind = SemaType::POINTER;

@@ -12,9 +12,11 @@ import semantic;
 import semantic.symbol;
 
 Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_t line, const size_t col) {
-	if (auto it = active_type_substitutions.find(name); it != active_type_substitutions.end()) {
+	if (
+		const auto it = active_type_substitutions.find(name);
+		it != active_type_substitutions.end()
+	)
 		return it->second;
-	}
 
 	if (name == "i8") return make_primitive(SemaType::I8);
 	if (name == "i16") return make_primitive(SemaType::I16);
@@ -36,9 +38,7 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 	if (name == "void") return make_primitive(SemaType::VOID);
 	if (name == "str") return make_str();
 
-	if (name == "Self" && current_self_type) {
-		return current_self_type;
-	}
+	if (name == "Self" && current_self_type) return current_self_type;
 
 	const auto resolved_st = resolve_struct_name(name, line, col);
 	if (!resolved_st.empty()) return make_struct(resolved_st);
@@ -51,26 +51,23 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 
 bool Analyzer::type_implements_trait(Semantic type, const std::string_view trait_name) {
 	if (!type) return false;
-	while (type->is_pointer()) {
-		type = type->pointee;
-	}
+	while (type->is_pointer()) type = type->pointee;
 	if (!type->is_struct()) return false;
 
 	std::string resolved_trait = resolve_trait_name(trait_name);
-	if (resolved_trait.empty()) {
-		resolved_trait = std::string(trait_name);
-	}
+	if (resolved_trait.empty()) resolved_trait = std::string(trait_name);
 
 	std::string st_name = type->struct_name;
 	std::vector<std::string> candidates;
 	candidates.push_back(st_name);
-	if (st_name.find('<') != std::string::npos) {
-		candidates.push_back(st_name.substr(0, st_name.find('<')));
-	}
+	if (st_name.find('<') != std::string::npos)
+		candidates.push_back(
+			st_name.substr(0, st_name.find('<'))
+		);
 
-	for (const auto &c_name : candidates) {
+	for (const auto &c_name: candidates) {
 		if (auto it = struct_traits.find(c_name); it != struct_traits.end()) {
-			for (const auto &t : it->second) {
+			for (const auto &t: it->second) {
 				if (t == resolved_trait || t == trait_name) return true;
 				if (t.ends_with("." + std::string(trait_name))) return true;
 			}
@@ -86,24 +83,23 @@ Semantic Analyzer::substitute_type(const TypeNode *node, const StringMap<Semanti
 	if (isa<NamedType>(node)) {
 		const auto *named = as<NamedType>(node);
 
-		if (named->name == "Self" && current_self_type) {
-			return current_self_type;
-		}
+		if (named->name == "Self" && current_self_type) return current_self_type;
 
 		// Check if it's a type parameter (e.g. "T" -> i32)
-		auto it = type_map.find(named->name);
-		if (it != type_map.end()) {
+		if (
+			const auto it = type_map.find(named->name);
+			it != type_map.end()
+		)
 			return it->second;
-		}
 
 		// Generic type inside struct (e.g. Box<T>)
 		if (!named->type_args.empty()) {
 			std::vector<Semantic> sub_args;
-			for (const auto *arg : named->type_args) {
+			for (const auto *arg: named->type_args) {
 				sub_args.push_back(substitute_type(arg, type_map));
 			}
 
-			std::string gen_name = resolve_generic_struct_name(named->name, node->line, node->col);
+			const std::string gen_name = resolve_generic_struct_name(named->name, node->line, node->col);
 			if (gen_name.empty()) {
 				logger.error(node->line, node->col, "Unknown generic struct '" + std::string(named->name) + "'");
 				return make_error();
@@ -117,17 +113,13 @@ Semantic Analyzer::substitute_type(const TypeNode *node, const StringMap<Semanti
 			}
 			inst_name += ">";
 
-			if (structs.contains(inst_name)) {
-				return make_struct(inst_name);
-			}
+			if (structs.contains(inst_name)) return make_struct(inst_name);
 
 			return instantiate_struct(generic_st, inst_name, sub_args, node->line, node->col);
 		}
 
 		// Concrete type (e.g. i32, str, Point)
-		if (const auto ty = resolve_type_by_name(named->name, node->line, node->col)) {
-			return ty;
-		}
+		if (const auto ty = resolve_type_by_name(named->name, node->line, node->col)) return ty;
 
 		logger.error(node->line, node->col, "Unknown type '" + std::string(named->name) + "'");
 		return make_error();
@@ -157,9 +149,7 @@ Semantic Analyzer::instantiate_struct(
 ) {
 	if (!generic_st) return make_error();
 
-	if (structs.contains(instantiated_name)) {
-		return make_struct(instantiated_name);
-	}
+	if (structs.contains(instantiated_name)) return make_struct(instantiated_name);
 
 	if (type_args.size() != generic_st->type_params.size()) {
 		logger.error(
@@ -172,14 +162,14 @@ Semantic Analyzer::instantiate_struct(
 	}
 
 	for (size_t i = 0; i < generic_st->type_params.size(); ++i) {
-		const auto &tp = generic_st->type_params[i];
+		const auto &[name, bounds] = generic_st->type_params[i];
 		const auto arg_ty = type_args[i];
-		for (const auto &b : tp.bounds) {
+		for (const auto &b: bounds) {
 			if (!type_implements_trait(arg_ty, b)) {
 				logger.error(
 					line, col,
 					"Type '" + arg_ty->to_string() + "' does not implement trait '" +
-					std::string(b) + "' required by type parameter '" + std::string(tp.name) + "'"
+					std::string(b) + "' required by type parameter '" + std::string(name) + "'"
 				);
 				return make_error();
 			}
@@ -191,8 +181,8 @@ Semantic Analyzer::instantiate_struct(
 		type_map[std::string(generic_st->type_params[i].name)] = type_args[i];
 	}
 
-	std::string mod = get_decl_module(generic_st);
-	StructSymbol sym = {
+	auto mod = get_decl_module(generic_st);
+	StructSymbol sym {
 		.name = instantiated_name,
 		.is_pub = generic_st->is_pub,
 		.module_name = mod,
@@ -201,14 +191,13 @@ Semantic Analyzer::instantiate_struct(
 	};
 
 	structs[instantiated_name] = sym;
-	if (!mod.empty()) {
-		structs[to_llvm_name(instantiated_name)] = sym;
-	}
+	if (!mod.empty()) structs[to_llvm_name(instantiated_name)] = sym;
+
 	instantiated_struct_order.push_back(instantiated_name);
 	instantiated_type_maps[instantiated_name] = type_map;
 
 	// Resolve fields under substitution
-	for (const auto &[f_name_sv, f_type_node, is_pub] : generic_st->fields) {
+	for (const auto &[f_name_sv, f_type_node, is_pub]: generic_st->fields) {
 		auto f_name = std::string(f_name_sv);
 		auto f_type = substitute_type(f_type_node, type_map);
 		sym.field_types[f_name] = f_type;
@@ -217,10 +206,10 @@ Semantic Analyzer::instantiate_struct(
 	}
 
 	// Resolve methods under substitution
-	for (const auto &method : generic_st->methods) {
+	for (const auto &method: generic_st->methods) {
 		auto m_name = std::string(method->name);
-		std::string mangled_name = to_llvm_name(instantiated_name) + "_" + m_name;
-		FnSymbol fn_sym = {
+		auto mangled_name = to_llvm_name(instantiated_name) + "_" + m_name;
+		FnSymbol fn_sym {
 			.name = mangled_name,
 			.return_type = substitute_type(method->return_type, type_map),
 			.is_pub = method->is_pub,
@@ -229,7 +218,7 @@ Semantic Analyzer::instantiate_struct(
 			.col = method->col
 		};
 
-		for (const auto &[p_name, p_type, is_mut, has_val] : method->params) {
+		for (const auto &[p_name, p_type, is_mut, has_val]: method->params) {
 			fn_sym.param_names.push_back(std::string(p_name));
 			if (p_name == "self") {
 				if (p_type) {
@@ -249,14 +238,13 @@ Semantic Analyzer::instantiate_struct(
 				fn_sym.param_types.push_back(substitute_type(p_type, type_map));
 			}
 		}
+
 		sym.methods[m_name] = fn_sym;
 		functions[mangled_name] = fn_sym;
 	}
 
 	structs[instantiated_name] = sym;
-	if (!mod.empty()) {
-		structs[to_llvm_name(instantiated_name)] = sym;
-	}
+	if (!mod.empty()) structs[to_llvm_name(instantiated_name)] = sym;
 
 	check_and_apply_struct_traits(generic_st, instantiated_name);
 
@@ -272,13 +260,17 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 		// 1. Generic type instantiation: Box<i32>, Pair<i32, str>
 		if (!named->type_args.empty()) {
 			std::vector<Semantic> resolved_args;
-			for (const auto *arg : named->type_args) {
+			for (const auto *arg: named->type_args) {
 				resolved_args.push_back(resolve_type(arg));
 			}
 
 			std::string gen_name = resolve_generic_struct_name(named->name, node->line, node->col);
 			if (gen_name.empty()) {
-				logger.error(node->line, node->col, "Unknown generic struct '" + std::string(named->name) + "'");
+				logger.error(
+					node->line, node->col,
+					"Unknown generic struct '" + std::string(named->name) + "'"
+				);
+
 				return make_error();
 			}
 
@@ -304,23 +296,34 @@ Semantic Analyzer::resolve_type(const TypeNode *node) {
 				return make_struct(inst_name);
 			}
 
-			auto res = instantiate_struct(generic_st, inst_name, resolved_args, node->line, node->col);
-			if (bare_inst_name != inst_name && structs.contains(inst_name)) {
+			const auto res = instantiate_struct(
+				generic_st, inst_name, resolved_args,
+				node->line, node->col
+			);
+
+			if (
+				bare_inst_name != inst_name &&
+				structs.contains(inst_name)
+			)
 				structs[bare_inst_name] = structs.at(inst_name);
-			}
+
 			return res;
 		}
 
 		// 2. Error if using a generic struct without type arguments
-		if (std::string gen_name = resolve_generic_struct_name(named->name); !gen_name.empty()) {
-			logger.error(node->line, node->col, "Generic struct '" + std::string(named->name) + "' requires type arguments");
+		if (
+			const std::string gen_name = resolve_generic_struct_name(named->name);
+			!gen_name.empty()
+		) {
+			logger.error(
+				node->line, node->col,
+				"Generic struct '" + std::string(named->name) + "' requires type arguments"
+			);
 			return make_error();
 		}
 
 		// 3. Regular non-generic type
-		if (const auto ty = resolve_type_by_name(named->name, node->line, node->col)) {
-			return ty;
-		}
+		if (const auto ty = resolve_type_by_name(named->name, node->line, node->col)) return ty;
 
 		logger.error(node->line, node->col, "Unknown type '" + std::string(named->name) + "'");
 		return make_error();
@@ -351,9 +354,7 @@ Semantic Analyzer::instantiate_function(
 ) {
 	if (!generic_fn) return make_error();
 
-	if (functions.contains(instantiated_name)) {
-		return functions.at(instantiated_name).return_type;
-	}
+	if (functions.contains(instantiated_name)) return functions.at(instantiated_name).return_type;
 
 	if (type_args.size() != generic_fn->type_params.size()) {
 		logger.error(
@@ -366,14 +367,15 @@ Semantic Analyzer::instantiate_function(
 	}
 
 	for (size_t i = 0; i < generic_fn->type_params.size(); ++i) {
-		const auto &tp = generic_fn->type_params[i];
+		const auto &[name, bounds] = generic_fn->type_params[i];
 		const auto arg_ty = type_args[i];
-		for (const auto &b : tp.bounds) {
+
+		for (const auto &b: bounds) {
 			if (!type_implements_trait(arg_ty, b)) {
 				logger.error(
 					line, col,
 					"Type '" + arg_ty->to_string() + "' does not implement trait '" +
-					std::string(b) + "' required by type parameter '" + std::string(tp.name) + "'"
+					std::string(b) + "' required by type parameter '" + std::string(name) + "'"
 				);
 				return make_error();
 			}
@@ -389,34 +391,46 @@ Semantic Analyzer::instantiate_function(
 
 	std::vector<std::string> param_names;
 	std::vector<Semantic> param_types;
-	for (const auto &p : generic_fn->params) {
+	for (const auto &p: generic_fn->params) {
 		param_names.push_back(std::string(p.name));
 		param_types.push_back(substitute_type(p.type, type_map));
 	}
 
 	Semantic ret_sem = nullptr;
-	if (generic_fn->return_type) {
-		ret_sem = substitute_type(generic_fn->return_type, type_map);
-	} else if (generic_fn->body && generic_fn->body->statements.size() == 1 && isa<ReturnStmt>(generic_fn->body->statements[0])) {
+	if (generic_fn->return_type) ret_sem = substitute_type(generic_fn->return_type, type_map);
+	else if (
+		generic_fn->body &&
+		generic_fn->body->statements.size() == 1 &&
+		isa<ReturnStmt>(generic_fn->body->statements[0])
+	) {
 		auto old_subst = active_type_substitutions;
 		active_type_substitutions = type_map;
 		enter_scope();
 		for (size_t i = 0; i < param_names.size(); ++i) {
-			VarSymbol p_sym{param_names[i], param_types[i], false, generic_fn->line, generic_fn->col};
+			VarSymbol p_sym {
+				.name = param_names[i],
+				.type = param_types[i],
+				.is_mut = false,
+				.line = generic_fn->line,
+				.col = generic_fn->col
+			};
+
 			current_scope().variables[p_sym.name] = p_sym;
 		}
-		const auto *ret_stmt = as<ReturnStmt>(generic_fn->body->statements[0]);
-		if (ret_stmt->value) {
+
+		if (
+			const auto *ret_stmt = as<ReturnStmt>(generic_fn->body->statements[0]);
+			ret_stmt->value
+		)
 			ret_sem = analyze_expr(ret_stmt->value);
-		}
+
 		exit_scope();
 		active_type_substitutions = old_subst;
 	}
-	if (!ret_sem) {
-		ret_sem = make_primitive(SemaType::VOID);
-	}
 
-	FnSymbol sym = {
+	if (!ret_sem) ret_sem = make_primitive(SemaType::VOID);
+
+	FnSymbol sym {
 		.name = instantiated_name,
 		.param_types = param_types,
 		.param_names = param_names,
