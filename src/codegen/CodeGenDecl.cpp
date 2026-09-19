@@ -51,10 +51,6 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 		for (const auto *method: sym.method_decls) {
 			emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
 		}
-	} else {
-		for (const auto &method: st->methods) {
-			emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
-		}
 	}
 
 	if (analyzer && analyzer->struct_default_methods.contains(qual_name)) {

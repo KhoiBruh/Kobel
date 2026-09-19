@@ -4,7 +4,7 @@
 
 ## 1. Tổng quan
 
-- **Loại ngôn ngữ:** đa năng, thủ tục kết hợp hướng đối tượng — không có `class`, chỉ có `struct` (dữ liệu + hàm gắn trực tiếp trong thân) và `trait` (trừu tượng, không virtual/vtable — mọi dispatch giải quyết tĩnh lúc biên dịch qua overload resolution).
+- **Loại ngôn ngữ:** đa năng, thủ tục kết hợp hướng đối tượng — không có `class`, chỉ có `struct` (thuần túy chứa dữ liệu) và `impl` (chứa các hàm triển khai), cùng `trait` (trừu tượng, không virtual/vtable — mọi dispatch giải quyết tĩnh lúc biên dịch qua overload resolution).
 - **Biên dịch:** xuống LLVM IR → mã máy native. Compiler v0 viết bằng C++ (dùng LLVM C++ API); mục tiêu dài hạn là bootstrap — viết lại compiler bằng chính ngôn ngữ (gọi LLVM qua C API ổn định `llvm-c` qua `extern`).
 - **Đối tượng hướng tới:** cả người mới lẫn có kinh nghiệm — ưu tiên dễ hiểu, thân thiện, tránh phình cú pháp kiểu Java (không cho tự định nghĩa attribute mới, không cho enum mang dữ liệu vì đã có union...).
 - **Quản lý bộ nhớ:** không GC — mỗi giá trị có đúng một chủ sở hữu, tự động giải phóng khi hết scope. Compiler chỉ kiểm tra move (Phương án A — không có borrow checker đầy đủ kiểu Rust).
@@ -17,7 +17,7 @@
 
 - Ngoặc nhọn `{}` định phạm vi khối lệnh.
 - Comment: `// một dòng`, `/* nhiều dòng */`.
-- Từ khóa chính: `fn`, `struct`, `trait`, `fault`, `enum`, `alias`, `const`, `val`, `var`, `module`, `use`, `pub`, `extern`, `defer`, `as`, `as?`, `in`.
+- Từ khóa chính: `fn`, `struct`, `trait`, `fault`, `enum`, `alias`, `const`, `val`, `var`, `mod`, `use`, `pub`, `extern`, `defer`, `as`, `as?`, `in`.
 - Attribute (không gọi là "annotation"): `@operator(...)`, `@infix`. **Không cho phép người dùng tự định nghĩa attribute mới** — chỉ có tập cố định do ngôn ngữ cung cấp, tránh rối loạn/giảm hiệu năng kiểu hệ sinh thái annotation Java.
 
 ### Thân hàm dạng biểu thức đơn
@@ -354,7 +354,7 @@ Không dùng exception (`try/catch`) — lỗi là một phần kiểu trả v�
 ## 11. Module System
 
 ```
-module a.b.c;   // c = tên file, a.b = đường dẫn thư mục
+mod a.b.c;   // c = tên file, a.b = đường dẫn thư mục
 
 use a.b.c.A;
 use b.c.d.A as B;

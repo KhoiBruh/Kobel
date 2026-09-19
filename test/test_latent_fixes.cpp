@@ -572,8 +572,8 @@ bool test_ast_immutability_struct_and_impl() {
 		}
 	}
 	ASSERT(st != nullptr, "Widget struct decl not found");
-	size_t orig_methods_count = st->methods.size();
-	ASSERT(orig_methods_count == 0, "AST StructDecl methods should initially be 0");
+	size_t orig_fields_count = st->fields.size();
+	ASSERT(orig_fields_count == 1, "AST StructDecl fields should initially be 1");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
@@ -581,7 +581,7 @@ bool test_ast_immutability_struct_and_impl() {
 	ASSERT(!diag.has_errors(), "Semantic analysis of Widget and impl failed");
 
 	// AST StructDecl must NOT have been mutated
-	ASSERT(st->methods.size() == orig_methods_count, "AST StructDecl methods was mutated! Immutability violated");
+	ASSERT(st->fields.size() == orig_fields_count, "AST StructDecl fields was mutated! Immutability violated");
 
 	// StructSymbol must contain the merged method
 	ASSERT(sema.structs.contains("Widget"), "Widget should be in structs symbol table");

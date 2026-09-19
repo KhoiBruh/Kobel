@@ -100,14 +100,12 @@ export struct StructField {
 	}
 };
 
-// Struct declaration: struct Point(x: i32, y: i32) : Trait1, Trait2 { ... } or struct List<T> { pub data: &T }
+// Struct declaration: struct Point { pub x: i32, pub y: i32 }
 export struct StructDecl final : Decl {
 	static constexpr auto KIND = ASTKind::DECL_STRUCT;
 	std::string_view name;
 	std::span<GenericParam> type_params;
 	std::span<StructField> fields;
-	std::span<std::string_view> traits;
-	std::span<FnDecl *> methods;
 
 	explicit StructDecl(
 		const std::string_view n,

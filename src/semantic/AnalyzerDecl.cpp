@@ -300,19 +300,14 @@ void Analyzer::register_structs(const Program *program) {
 					continue;
 				}
 				generic_structs[qual_name] = st;
-				std::vector<const FnDecl *> m_decls(st->methods.begin(), st->methods.end());
-				std::vector<std::string> tr_decls;
-				for (const auto &tr : st->traits) {
-					tr_decls.push_back(std::string(tr));
-				}
-				generic_struct_methods[qual_name] = m_decls;
-				generic_struct_traits[qual_name] = tr_decls;
-				generic_struct_methods[std::string(st->name)] = m_decls;
-				generic_struct_traits[std::string(st->name)] = tr_decls;
+				generic_struct_methods[qual_name] = {};
+				generic_struct_traits[qual_name] = {};
+				generic_struct_methods[std::string(st->name)] = {};
+				generic_struct_traits[std::string(st->name)] = {};
 				if (!mod.empty()) {
 					generic_structs[to_llvm_name(qual_name)] = st;
-					generic_struct_methods[to_llvm_name(qual_name)] = m_decls;
-					generic_struct_traits[to_llvm_name(qual_name)] = tr_decls;
+					generic_struct_methods[to_llvm_name(qual_name)] = {};
+					generic_struct_traits[to_llvm_name(qual_name)] = {};
 				}
 				continue;
 			}
@@ -329,12 +324,6 @@ void Analyzer::register_structs(const Program *program) {
 				.line = st->line,
 				.col = st->col
 			};
-			for (const auto *m : st->methods) {
-				sym.method_decls.push_back(m);
-			}
-			for (const auto &tr : st->traits) {
-				sym.traits.push_back(std::string(tr));
-			}
 			structs[qual_name] = sym;
 			if (!mod.empty()) {
 				structs[to_llvm_name(qual_name)] = sym;

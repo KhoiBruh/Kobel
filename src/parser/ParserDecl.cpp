@@ -25,22 +25,22 @@ std::vector<GenericParam> Parser::parse_generic_params() {
 		} while (match(TokenType::COMMA));
 		consume(TokenType::GREATER, "Expected '>' after type parameters");
 	}
+
 	return type_params;
 }
 
 void Parser::append_unique_generic_params(std::vector<GenericParam> &type_params) {
 	auto extra = parse_generic_params();
-	for (auto &&tp : extra) {
+	for (auto &&tp: extra) {
 		bool exists = false;
-		for (const auto &existing : type_params) {
+		for (const auto &existing: type_params) {
 			if (existing.name == tp.name) {
 				exists = true;
 				break;
 			}
 		}
-		if (!exists) {
-			type_params.push_back(std::move(tp));
-		}
+
+		if (!exists) type_params.push_back(std::move(tp));
 	}
 }
 
@@ -108,22 +108,29 @@ StructDecl *Parser::parse_struct_decl() {
 	auto type_params = parse_generic_params();
 
 	std::vector<StructField> fields;
-	std::vector<std::string_view> traits;
-	std::vector<FnDecl *> methods;
 
 	if (check(TokenType::OPEN_PAREN)) {
-		error(advance(), "Old struct syntax 'struct Name(...)' has been removed; use 'struct Name { ... }' instead");
+		error(
+			advance(),
+			"Old struct syntax 'struct Name(...)' has been removed; use 'struct Name { ... }' instead"
+		);
+
 		int paren_depth = 1;
 		while (paren_depth > 0 && !is_end()) {
 			if (check(TokenType::OPEN_PAREN)) paren_depth++;
 			else if (check(TokenType::CLOSE_PAREN)) paren_depth--;
 			advance();
 		}
+
 		if (match(TokenType::COLON)) {
-			while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end()) {
+			while (
+				!check(TokenType::OPEN_BRACE) &&
+				!check(TokenType::SEMI_COLON) &&
+				!is_end()
+			)
 				advance();
-			}
 		}
+
 		if (match(TokenType::OPEN_BRACE)) {
 			int brace_depth = 1;
 			while (brace_depth > 0 && !is_end()) {
@@ -131,19 +138,24 @@ StructDecl *Parser::parse_struct_decl() {
 				else if (check(TokenType::CLOSE_BRACE)) brace_depth--;
 				advance();
 			}
-		} else {
-			match(TokenType::SEMI_COLON);
-		}
+		} else match(TokenType::SEMI_COLON);
+
 		auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
 		st->type_params = arena.alloc_span(type_params);
 		return st;
 	}
 
 	if (check(TokenType::COLON)) {
-		error(advance(), "Traits cannot be specified on struct declaration; use 'impl Trait for " + std::string(name.text) + "' instead");
-		while (!check(TokenType::OPEN_BRACE) && !check(TokenType::SEMI_COLON) && !is_end()) {
+		error(advance(),
+			  "Traits cannot be specified on struct declaration; use 'impl Trait for " +
+			  std::string(name.text) + "' instead"
+		);
+		while (
+			!check(TokenType::OPEN_BRACE) &&
+			!check(TokenType::SEMI_COLON) &&
+			!is_end()
+		)
 			advance();
-		}
 	}
 
 	if (match(TokenType::OPEN_BRACE)) {
@@ -151,17 +163,20 @@ StructDecl *Parser::parse_struct_decl() {
 			bool is_pub = match(TokenType::KW_PUB);
 
 			if (check(TokenType::KW_FN)) {
-				error(peek(), "Structs cannot contain methods. Use 'impl " + std::string(name.text) + "' or 'impl Trait for " + std::string(name.text) + "' instead");
+				error(
+					peek(),
+					"Structs cannot contain methods. Use 'impl " +
+					std::string(name.text) + "' or 'impl Trait for " +
+					std::string(name.text) + "' instead"
+				);
 				auto fn = parse_fn_decl();
-				(void)fn;
+				(void) fn;
 			} else if (check(TokenType::IDENTIFIER)) {
 				const Token f_name = advance();
 				consume(TokenType::COLON, "Expected ':' after field name");
 				auto f_type = parse_type();
 				fields.push_back(StructField{f_name.text, f_type, is_pub});
-				if (check(TokenType::COMMA) || check(TokenType::SEMI_COLON)) {
-					advance();
-				}
+				if (check(TokenType::COMMA) || check(TokenType::SEMI_COLON)) advance();
 			} else {
 				error(peek(), "Expected field declaration in struct");
 				advance();
@@ -170,15 +185,11 @@ StructDecl *Parser::parse_struct_decl() {
 		consume(TokenType::CLOSE_BRACE, "Expected '}' to end struct definition");
 	} else if (match(TokenType::SEMI_COLON)) {
 		// Unit struct: struct Point;
-	} else {
-		error(peek(), "Expected '{' to begin struct body or ';' for unit struct");
-	}
+	} else error(peek(), "Expected '{' to begin struct body or ';' for unit struct");
 
 	auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
 	st->type_params = arena.alloc_span(type_params);
 	st->fields = arena.alloc_span(fields);
-	st->traits = arena.alloc_span(traits);
-	st->methods = arena.alloc_span(methods);
 	return st;
 }
 
@@ -199,10 +210,12 @@ ImplDecl *Parser::parse_impl_decl() {
 		const Token st_tok = consume(TokenType::IDENTIFIER, "Expected struct name after 'for'");
 		struct_name = st_tok.text;
 		append_unique_generic_params(type_params);
-	} else if (match(TokenType::COLON)) {
-		struct_name = first_tok.text;
-		const Token tr_tok = consume(TokenType::IDENTIFIER, "Expected trait name after ':'");
-		trait_name = tr_tok.text;
+	} else if (check(TokenType::COLON)) {
+		error(advance(),
+			  "Old trait implementation syntax 'impl Struct : Trait' has been removed; use 'impl Trait for Struct' instead");
+		while (!check(TokenType::OPEN_BRACE) && !is_end()) {
+			advance();
+		}
 	}
 
 	consume(TokenType::OPEN_BRACE, "Expected '{' to begin 'impl' body");
@@ -242,13 +255,9 @@ TraitDecl *Parser::parse_trait_decl() {
 		do {
 			const Token b_name = consume(TokenType::IDENTIFIER, "Expected base trait name");
 			bases.push_back(b_name.text);
-			if (check(TokenType::PLUS)) {
-				advance();
-			} else if (check(TokenType::COMMA)) {
-				advance();
-			} else {
-				break;
-			}
+			if (check(TokenType::PLUS)) advance();
+			else if (check(TokenType::COMMA)) advance();
+			else break;
 		} while (!check(TokenType::OPEN_BRACE) && !is_end());
 	}
 
@@ -263,9 +272,7 @@ TraitDecl *Parser::parse_trait_decl() {
 				fn->is_pub = method_pub;
 				methods.push_back(fn);
 			}
-		} else {
-			advance();
-		}
+		} else advance();
 	}
 
 	consume(TokenType::CLOSE_BRACE, "Expected '}' to end trait body");
@@ -282,9 +289,7 @@ EnumDecl *Parser::parse_enum_decl() {
 	const auto name = consume(TokenType::IDENTIFIER, "Expected enum name");
 
 	TypeNode *underlying = nullptr;
-	if (match(TokenType::COLON)) {
-		underlying = parse_type();
-	}
+	if (match(TokenType::COLON)) underlying = parse_type();
 
 	consume(TokenType::OPEN_BRACE, "Expected '{' to begin enum body");
 
@@ -360,7 +365,11 @@ ModuleDecl *Parser::parse_module_decl() {
 		if (i > 0) full_path += ".";
 		full_path += path[i];
 	}
-	return arena.alloc<ModuleDecl>(arena.alloc_span(path), arena.alloc_string(full_path), tok.line, tok.col);
+
+	return arena.alloc<ModuleDecl>(
+		arena.alloc_span(path), arena.alloc_string(full_path),
+		tok.line, tok.col
+	);
 }
 
 UseDecl *Parser::parse_use_decl() {
@@ -391,11 +400,9 @@ UseDecl *Parser::parse_use_decl() {
 	std::vector<std::string_view> path;
 	std::string_view symbol_name;
 
-	if (is_wildcard) {
-		path = segments;
-	} else if (segments.size() == 1) {
-		symbol_name = segments[0];
-	} else {
+	if (is_wildcard) path = segments;
+	else if (segments.size() == 1) symbol_name = segments[0];
+	else {
 		symbol_name = segments.back();
 		segments.pop_back();
 		path = segments;
@@ -406,48 +413,48 @@ UseDecl *Parser::parse_use_decl() {
 		if (i > 0) full_path += ".";
 		full_path += path[i];
 	}
+
 	return arena.alloc<UseDecl>(
-		arena.alloc_span(path), arena.alloc_string(full_path), symbol_name, alias, is_wildcard, tok.line, tok.col
+		arena.alloc_span(path), arena.alloc_string(full_path),
+		symbol_name, alias, is_wildcard,
+		tok.line, tok.col
 	);
 }
 
 Decl *Parser::parse_declaration() {
 	bool is_pub = false;
-	if (match(TokenType::KW_PUB)) {
-		is_pub = true;
-	}
+	if (match(TokenType::KW_PUB)) is_pub = true;
 
 	if (check(TokenType::KW_MOD)) {
-		if (is_pub) {
-			error(previous(), "'pub' cannot be applied to 'module' declaration");
-		}
+		if (is_pub) error(previous(), "'pub' cannot be applied to 'mod' declaration");
 		return parse_module_decl();
 	}
 
 	if (check(TokenType::KW_USE)) {
-		if (is_pub) {
-			error(previous(), "'pub' cannot be applied to 'use' declaration");
-		}
+		if (is_pub) error(previous(), "'pub' cannot be applied to 'use' declaration");
 		return parse_use_decl();
+	}
+
+	if (check(TokenType::KW_IMPL)) {
+		if (is_pub) error(previous(), "'pub' cannot be applied to 'impl' block");
+		return parse_impl_decl();
 	}
 
 	Decl *decl = nullptr;
 	if (check(TokenType::KW_FN)) decl = parse_fn_decl();
 	else if (check(TokenType::KW_STRUCT)) decl = parse_struct_decl();
 	else if (check(TokenType::KW_TRAIT)) decl = parse_trait_decl();
-	else if (check(TokenType::KW_IMPL)) decl = parse_impl_decl();
 	else if (check(TokenType::KW_ENUM)) decl = parse_enum_decl();
 	else if (check(TokenType::KW_CONST)) decl = parse_const_decl();
 	else if (check(TokenType::KW_EXTERN)) decl = parse_extern_block();
 	else {
-		error(peek(), "Expected top-level declaration ('fn', 'struct', 'trait', 'impl', 'enum', 'const', 'extern', 'mod', 'use')");
+		error(peek(),
+			  "Expected top-level declaration ('fn', 'struct', 'trait', 'impl', 'enum', 'const', 'extern', 'mod', 'use')");
 		advance();
 		return nullptr;
 	}
 
-	if (decl) {
-		decl->is_pub = is_pub;
-	}
+	if (decl) decl->is_pub = is_pub;
 	return decl;
 }
 
@@ -459,6 +466,7 @@ Program *Parser::parse_program() {
 			decls.push_back(decl);
 		else synchronize();
 	}
+
 	program->declarations = arena.alloc_span<Decl *>(decls);
 	return program;
 }
