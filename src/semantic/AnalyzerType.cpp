@@ -249,9 +249,14 @@ Semantic Analyzer::instantiate_struct(
 	sym.traits = get_generic_struct_traits(base_name);
 
 	structs[instantiated_name] = sym;
-	if (!mod.empty()) structs[to_llvm_name(instantiated_name)] = sym;
+	structs[to_llvm_name(instantiated_name)] = sym;
 
+	auto old_subst = active_type_substitutions;
+	active_type_substitutions = type_map;
 	check_and_apply_struct_traits(generic_st, instantiated_name);
+	active_type_substitutions = old_subst;
+
+	structs[to_llvm_name(instantiated_name)] = structs[instantiated_name];
 
 	return make_struct(instantiated_name);
 }

@@ -593,15 +593,97 @@ bool test_ast_immutability_struct_and_impl() {
 }
 
 bool test_str_free_internal_linkage() {
-	std::string_view code =
-		"fn test_str(): void {\n"
+	std::string_view code1 =
+		"pub fn test_str1(): void {\n"
 		"    val s = \"hello\";\n"
+		"}\n";
+	std::string_view code2 =
+		"pub fn test_str2(): void {\n"
+		"    val s = \"world\";\n"
 		"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "String helper compilation failed");
+	ASSERT(compile_to_ir(code1, ir), "String helper compilation failed");
 	ASSERT(ir.find("define internal void @__kobel_str_free(") != std::string::npos,
 	       "__kobel_str_free must have internal linkage to avoid duplicate symbols in multi-module linking");
+
+	// Physical object link verification:
+	std::filesystem::path dir = std::filesystem::temp_directory_path() / "kobel_linkage_test";
+	std::error_code ec;
+	std::filesystem::create_directories(dir, ec);
+
+	std::string obj1 = (dir / "mod1.obj").string();
+	std::string obj2 = (dir / "mod2.obj").string();
+	std::string dll_out = (dir / "out.dll").string();
+
+	auto emit_obj = [&](std::string_view code, const std::string &out_path) -> bool {
+		Lexer lex{code};
+		Parser parser{lex.tokenize()};
+		auto prog = parser.parse_program();
+		if (parser.has_errors()) return false;
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) return false;
+		CodeGen cg{&sema, "test_mod"};
+		if (!cg.setup_target_machine()) return false;
+		if (!cg.generate(prog)) return false;
+		return cg.emit_object_file(out_path);
+	};
+
+	ASSERT(emit_obj(code1, obj1), "Emit obj1 failed");
+	ASSERT(emit_obj(code2, obj2), "Emit obj2 failed");
+
+	std::string link_cmd = "link /NOLOGO /DLL /NOENTRY /FORCE:UNRESOLVED /OUT:\"" + dll_out + "\" \"" + obj1 + "\" \"" + obj2 + "\" > nul 2>&1";
+	int ret = std::system(link_cmd.c_str());
+	std::filesystem::remove_all(dir, ec);
+
+	ASSERT(ret == 0, "Physical linking of two modules with string helpers failed due to symbol collision");
+	return true;
+}
+
+bool test_generic_struct_trait_default_method() {
+	std::string_view code =
+		"trait Greeter {\n"
+		"    fn greet(val self): i32 => 42;\n"
+		"}\n"
+		"struct Box<T>(item: T) : Greeter {\n"
+		"}\n"
+		"fn test_box(): i32 {\n"
+		"    val b = Box<i32>(10);\n"
+		"    return b.greet();\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Generic struct trait default method failed");
+	ASSERT(ir.find("Box_i32_greet") != std::string::npos, "Box_i32_greet should be present in IR");
+	return true;
+}
+
+bool test_generic_struct_multi_trait_impl_override() {
+	std::string_view code =
+		"trait Named {\n"
+		"    fn name(val self): str => \"anonymous\";\n"
+		"}\n"
+		"trait Value {\n"
+		"    fn val_int(val self): i32;\n"
+		"    fn double_val(val self): i32 => self.val_int() * 2;\n"
+		"}\n"
+		"struct Wrapper<T>(item: T) : Named {\n"
+		"}\n"
+		"impl Wrapper : Value {\n"
+		"    override fn val_int(val self): i32 => 10;\n"
+		"}\n"
+		"fn test_wrap(): i32 {\n"
+		"    val w = Wrapper<i32>(100);\n"
+		"    val d = w.double_val();\n"
+		"    return d;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Generic struct multi-trait impl override failed");
+	ASSERT(ir.find("Wrapper_i32_double_val") != std::string::npos, "Wrapper_i32_double_val should be present in IR");
+	ASSERT(ir.find("Wrapper_i32_val_int") != std::string::npos, "Wrapper_i32_val_int should be present in IR");
 	return true;
 }
 
@@ -643,6 +725,12 @@ int main() {
 
 	if (!test_str_free_internal_linkage()) return 1;
 	std::cout << "  [PASS] test_str_free_internal_linkage" << std::endl;
+
+	if (!test_generic_struct_trait_default_method()) return 1;
+	std::cout << "  [PASS] test_generic_struct_trait_default_method" << std::endl;
+
+	if (!test_generic_struct_multi_trait_impl_override()) return 1;
+	std::cout << "  [PASS] test_generic_struct_multi_trait_impl_override" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;

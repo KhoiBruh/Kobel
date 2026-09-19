@@ -85,8 +85,9 @@ void Analyzer::check_and_apply_struct_traits(
 	}
 
 	struct_traits[qual_name] = all_traits;
-	if (!mod.empty()) {
+	if (!mod.empty() || to_llvm_name(qual_name) != qual_name) {
 		struct_traits[to_llvm_name(qual_name)] = all_traits;
+		structs[to_llvm_name(qual_name)] = sym;
 	}
 
 	auto build_fn_symbol = [&](const FnDecl *fn_decl, const std::string &mangled) -> FnSymbol {
@@ -130,6 +131,8 @@ void Analyzer::check_and_apply_struct_traits(
 				FnSymbol inh_sym = build_fn_symbol(def_decl, mangled);
 				sym.methods[req_name] = inh_sym;
 				functions[mangled] = inh_sym;
+				std::string llvm_mangled = to_llvm_name(sym.name) + "_" + req_name;
+				functions[llvm_mangled] = inh_sym;
 				if (!mod.empty()) {
 					functions[to_llvm_name(mangled)] = inh_sym;
 				}
@@ -150,6 +153,8 @@ void Analyzer::check_and_apply_struct_traits(
 			FnSymbol inh_sym = build_fn_symbol(def_decl, mangled);
 			sym.methods[def_name] = inh_sym;
 			functions[mangled] = inh_sym;
+			std::string llvm_mangled = to_llvm_name(sym.name) + "_" + def_name;
+			functions[llvm_mangled] = inh_sym;
 			if (!mod.empty()) {
 				functions[to_llvm_name(mangled)] = inh_sym;
 			}
@@ -182,8 +187,12 @@ void Analyzer::check_and_apply_struct_traits(
 		if (is_in_trait) {
 			sym.methods[m_name].is_pub = true;
 			std::string mangled = sym.name + "_" + m_name;
+			std::string llvm_mangled = to_llvm_name(sym.name) + "_" + m_name;
 			if (functions.contains(mangled)) {
 				functions[mangled].is_pub = true;
+			}
+			if (functions.contains(llvm_mangled)) {
+				functions[llvm_mangled].is_pub = true;
 			}
 			if (!mod.empty()) {
 				if (functions.contains(to_llvm_name(mangled))) {
@@ -390,10 +399,8 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 				}
 				generic_struct_methods[std::string(impl->struct_name)] = generic_struct_methods[qual_name];
 				generic_struct_traits[std::string(impl->struct_name)] = generic_struct_traits[qual_name];
-				if (!mod.empty()) {
-					generic_struct_methods[to_llvm_name(qual_name)] = generic_struct_methods[qual_name];
-					generic_struct_traits[to_llvm_name(qual_name)] = generic_struct_traits[qual_name];
-				}
+				generic_struct_methods[to_llvm_name(qual_name)] = generic_struct_methods[qual_name];
+				generic_struct_traits[to_llvm_name(qual_name)] = generic_struct_traits[qual_name];
 			} else {
 				auto &target_sym = structs.contains(qual_name) ? structs[qual_name] : structs[to_llvm_name(qual_name)];
 				for (auto *m : impl->methods) {
@@ -408,10 +415,8 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 					}
 					target_sym.traits.push_back(tr_qual);
 				}
-				if (!mod.empty()) {
-					structs[to_llvm_name(qual_name)] = target_sym;
-					structs[qual_name] = target_sym;
-				}
+				structs[qual_name] = target_sym;
+				structs[to_llvm_name(qual_name)] = target_sym;
 			}
 		}
 	}

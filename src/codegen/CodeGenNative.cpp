@@ -123,6 +123,7 @@ bool CodeGen::optimize(OptLevel level) {
 			pto.LoopVectorization = false;
 			pto.SLPVectorization = false;
 			pto.LoopUnrolling = false;
+			pto.LoopInterleaving = false;
 			pto.MergeFunctions = true;
 			pto.InlinerThreshold = 5;
 			break;
