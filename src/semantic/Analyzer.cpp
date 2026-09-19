@@ -27,23 +27,25 @@ export struct Analyzer {
 	StringMap<StructSymbol> structs;
 	StringMap<const StructDecl *> generic_structs;
 	std::vector<std::string> instantiated_struct_order;
-	StringMap<StringMap<Semantic>> instantiated_type_maps;
+	StringMap<StringMap<Semantic> > instantiated_type_maps;
 	StringMap<Semantic> active_type_substitutions;
 	StringMap<const FnDecl *> generic_functions;
 	std::vector<std::string> instantiated_function_order;
 	StringMap<const FnDecl *> instantiated_fn_decls;
-	StringMap<StringMap<Semantic>> instantiated_fn_type_maps;
+	StringMap<StringMap<Semantic> > instantiated_fn_type_maps;
 	StringMap<EnumSymbol> enums;
 	StringMap<ConstSymbol> constants;
 	StringMap<TraitSymbol> traits;
-	StringMap<std::vector<std::string>> struct_traits;
+	StringMap<std::vector<std::string> > struct_traits;
+
 	struct InheritedTraitMethod {
 		std::string method_name;
 		const FnDecl *fn_decl;
 	};
-	StringMap<std::vector<InheritedTraitMethod>> struct_default_methods;
-	StringMap<std::vector<const FnDecl *>> generic_struct_methods;
-	StringMap<std::vector<std::string>> generic_struct_traits;
+
+	StringMap<std::vector<InheritedTraitMethod> > struct_default_methods;
+	StringMap<std::vector<const FnDecl *> > generic_struct_methods;
+	StringMap<std::vector<std::string> > generic_struct_traits;
 	std::unordered_map<const Expr *, Semantic> expr_types;
 
 	std::vector<Scope> scopes;
@@ -127,9 +129,9 @@ export struct Analyzer {
 	std::string resolve_enum_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
 	std::string resolve_const_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
- 
+
 	std::string resolve_trait_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
- 
+
 	bool type_implements_trait(Semantic type, std::string_view trait_name);
 
 	// Type mapping & Generic instantiation (AnalyzerType.cpp)
@@ -139,20 +141,27 @@ export struct Analyzer {
 
 	Semantic substitute_type(const TypeNode *node, const StringMap<Semantic> &type_map);
 
-	Semantic instantiate_struct(const StructDecl *generic_st, const std::string &instantiated_name, const std::vector<Semantic> &type_args, size_t line, size_t col);
+	Semantic instantiate_struct(const StructDecl *generic_st, const std::string &instantiated_name,
+								const std::vector<Semantic> &type_args, size_t line, size_t col);
 
 	std::string resolve_generic_function_name(std::string_view raw_name, size_t line = 0, size_t col = 0);
 
-	Semantic instantiate_function(const FnDecl *generic_fn, const std::string &instantiated_name, const std::vector<Semantic> &type_args, size_t line, size_t col);
+	Semantic instantiate_function(const FnDecl *generic_fn, const std::string &instantiated_name,
+								  const std::vector<Semantic> &type_args, size_t line, size_t col);
 
 	// Declarations & Passes (AnalyzerModule.cpp & AnalyzerDecl.cpp)
 	void pass0_index_modules(const Program *program);
 
 	void pass1_register_declarations(const Program *program);
+
 	void register_traits(const Program *program);
+
 	void register_structs(const Program *program);
+
 	void register_enums(const Program *program);
+
 	void register_constants(const Program *program);
+
 	void register_functions(const Program *program);
 
 	void register_function(const FnDecl *fn, const std::string &mod);
@@ -201,6 +210,11 @@ export struct Analyzer {
 	void check_function(const FnDecl *fn, const std::string &fn_lookup_name);
 
 	static bool has_definite_return(const Stmt *stmt);
+
+	Semantic infer_expression_body_return_type(
+		const FnDecl *fn,
+		const std::vector<Semantic> &param_types
+	);
 
 	// Statements (AnalyzerStmt.cpp)
 	void analyze_stmt(const Stmt *stmt);

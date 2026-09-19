@@ -870,6 +870,13 @@ bool test_semantic_generic_struct_errors() {
 
 bool test_variable_and_fn_type_inference() {
 	std::string_view code =
+		"struct Box<T>(value: T) {\n"
+		"    fn get(val self) => self.value;\n"
+		"}\n"
+		"trait Scaled {\n"
+		"    fn twice(val self) => self.value + self.value;\n"
+		"}\n"
+		"struct Number(value: i32) : Scaled;\n"
 		"fn add(a: i32, b: i32) => a + b;\n"
 		"fn check(x: i32) => if (x > 0) true else false;\n"
 		"fn describe(x: i32) => when (x) { 0 -> \"zero\"; else -> \"other\"; };\n"
@@ -880,7 +887,11 @@ bool test_variable_and_fn_type_inference() {
 		"    val text = \"hello\";\n"
 		"    val if_res = if (flag) 100 else 200;\n"
 		"    val when_res = when (num) { 42 -> \"matched\"; else -> \"unmatched\"; };\n"
-		"    val sum = add(num, if_res);\n"
+		"    val boxed = Box(42);\n"
+		"    val number = Number(21);\n"
+		"    val box_value = boxed.get();\n"
+		"    val doubled = number.twice();\n"
+		"    val sum = add(num, if_res) + box_value + doubled;\n"
 		"    val is_pos = check(sum);\n"
 		"    val desc = describe(0);\n"
 		"    return sum;\n"
@@ -907,6 +918,10 @@ bool test_variable_and_fn_type_inference() {
 	ASSERT(sema.functions.at("check").return_type->is_bool(), "check return type must be inferred as bool");
 	ASSERT(sema.functions.contains("describe"), "describe must be registered");
 	ASSERT(sema.functions.at("describe").return_type->is_str(), "describe return type must be inferred as str");
+	ASSERT(sema.functions.contains("Box_i32_get"), "Generic expression-bodied method must be instantiated");
+	ASSERT(sema.functions.at("Box_i32_get").return_type->is_integer(), "Generic expression-bodied method return type must be inferred as i32");
+	ASSERT(sema.functions.contains("Number_twice"), "Default trait method must be inherited");
+	ASSERT(sema.functions.at("Number_twice").return_type->is_integer(), "Default expression-bodied trait method return type must be inferred as i32");
 
 	return true;
 }

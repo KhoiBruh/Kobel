@@ -109,7 +109,9 @@ void Analyzer::check_and_apply_struct_traits(
 			}
 		}
 
-		Semantic ret_type = fn_decl->return_type ? resolve_type(fn_decl->return_type) : make_primitive(SemaType::VOID);
+		Semantic ret_type = fn_decl->return_type
+			? resolve_type(fn_decl->return_type)
+			: infer_expression_body_return_type(fn_decl, p_types);
 		return FnSymbol{
 			.name = mangled,
 			.param_types = p_types,
@@ -493,20 +495,8 @@ void Analyzer::register_structs(const Program *program) {
 					} else m_param_types.push_back(resolve_type(type));
 				}
 
-				if (!m_ret_sem && method->body && method->body->statements.size() == 1 && isa<ReturnStmt>(method->body->statements[0])) {
-					enter_scope();
-					for (size_t i = 0; i < m_param_names.size(); ++i) {
-						VarSymbol p_sym{m_param_names[i], m_param_types[i], false, method->line, method->col};
-						current_scope().variables[p_sym.name] = p_sym;
-					}
-					const auto *ret_stmt = as<ReturnStmt>(method->body->statements[0]);
-					if (ret_stmt->value) {
-						m_ret_sem = analyze_expr(ret_stmt->value);
-					}
-					exit_scope();
-				}
 				if (!m_ret_sem) {
-					m_ret_sem = make_primitive(SemaType::VOID);
+					m_ret_sem = infer_expression_body_return_type(method, m_param_types);
 				}
 
 				FnSymbol fn_sym = {
@@ -683,20 +673,8 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 		param_types.push_back(resolve_type(p.type));
 	}
 
-	if (!ret_sem && fn->body && fn->body->statements.size() == 1 && isa<ReturnStmt>(fn->body->statements[0])) {
-		enter_scope();
-		for (size_t i = 0; i < param_names.size(); ++i) {
-			VarSymbol p_sym{param_names[i], param_types[i], false, fn->line, fn->col};
-			current_scope().variables[p_sym.name] = p_sym;
-		}
-		const auto *ret_stmt = as<ReturnStmt>(fn->body->statements[0]);
-		if (ret_stmt->value) {
-			ret_sem = analyze_expr(ret_stmt->value);
-		}
-		exit_scope();
-	}
 	if (!ret_sem) {
-		ret_sem = make_primitive(SemaType::VOID);
+		ret_sem = infer_expression_body_return_type(fn, param_types);
 	}
 
 	FnSymbol sym = {
@@ -840,6 +818,40 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 			current_module = old_mod;
 		}
 	}
+}
+
+Semantic Analyzer::infer_expression_body_return_type(
+	const FnDecl *fn,
+	const std::vector<Semantic> &param_types
+) {
+	if (
+		!fn->body ||
+		fn->body->statements.size() != 1 ||
+		!isa<ReturnStmt>(fn->body->statements[0])
+	) {
+		return make_primitive(SemaType::VOID);
+	}
+
+	const auto *ret_stmt = as<ReturnStmt>(fn->body->statements[0]);
+	if (!ret_stmt->value) return make_primitive(SemaType::VOID);
+
+	enter_scope();
+	for (size_t i = 0; i < param_types.size(); ++i) {
+		const auto &param = fn->params[i];
+		current_scope().variables.emplace(
+			std::string(param.name),
+			VarSymbol{
+				.name = std::string(param.name),
+				.type = param_types[i],
+				.is_mut = param.is_mut,
+				.line = fn->line,
+				.col = fn->col
+			}
+		);
+	}
+	const auto return_type = analyze_expr(ret_stmt->value);
+	exit_scope();
+	return return_type;
 }
 
 void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_name) {

@@ -500,6 +500,9 @@ bool test_codegen_generic_structs() {
 
 bool test_codegen_type_inference_and_prefixes() {
 	std::string_view code =
+		"struct Box<T>(value: T) {\n"
+		"    fn get(val self) => self.value;\n"
+		"}\n"
 		"fn add(a: i32, b: i32) => a + b;\n"
 		"fn check(x: i32) => if (x > 0) true else false;\n"
 		"fn test_inference_code(): i32 {\n"
@@ -508,7 +511,8 @@ bool test_codegen_type_inference_and_prefixes() {
 		"    val oct_val = 0o77;\n"
 		"    val split_val = 1_000_000;\n"
 		"    val flag = true;\n"
-		"    val sum = add(hex_val, bin_val);\n"
+		"    val boxed = Box(42);\n"
+		"    val sum = add(hex_val, bin_val) + boxed.get();\n"
 		"    val is_pos = check(sum);\n"
 		"    return sum;\n"
 		"}\n";
@@ -522,6 +526,8 @@ bool test_codegen_type_inference_and_prefixes() {
 	ASSERT(ir.find("store i1 true") != std::string::npos, "Thiếu store i1 true (bool)");
 	ASSERT(ir.find("call i32 @add(") != std::string::npos, "Thiếu lệnh gọi @add");
 	ASSERT(ir.find("call i1 @check(") != std::string::npos, "Thiếu lệnh gọi @check");
+	ASSERT(ir.find("define i32 @Box_i32_get(") != std::string::npos, "Missing inferred i32 return type for @Box_i32_get");
+	ASSERT(ir.find("call i32 @Box_i32_get(") != std::string::npos, "Missing i32 call to @Box_i32_get");
 	return true;
 }
 

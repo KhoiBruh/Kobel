@@ -220,42 +220,54 @@ Semantic Analyzer::instantiate_struct(
 		sym.field_order.push_back(f_name);
 		sym.field_pub[f_name] = is_pub;
 	}
+	structs[instantiated_name] = sym;
+	if (!mod.empty()) structs[to_llvm_name(instantiated_name)] = sym;
 
 	// Resolve methods under substitution
 	std::string base_name = instantiated_name.substr(0, instantiated_name.find('<'));
 	const auto &methods = get_generic_struct_methods(base_name);
+	auto old_subst = active_type_substitutions;
+	active_type_substitutions = type_map;
 	for (const auto *method: methods) {
 		auto m_name = std::string(method->name);
 		auto mangled_name = to_llvm_name(instantiated_name) + "_" + m_name;
+		std::vector<std::string> param_names;
+		std::vector<Semantic> param_types;
+
+		for (const auto &[p_name, p_type, is_mut, has_val]: method->params) {
+			param_names.push_back(std::string(p_name));
+			if (p_name == "self") {
+				if (p_type) {
+					param_types.push_back(substitute_type(p_type, type_map));
+				} else if (is_mut) {
+					param_types.push_back(
+						make_pointer(make_struct(instantiated_name), true)
+					);
+				} else if (has_val) {
+					param_types.push_back(
+						make_pointer(make_struct(instantiated_name), false)
+					);
+				} else {
+					param_types.push_back(make_struct(instantiated_name));
+				}
+			} else {
+				param_types.push_back(substitute_type(p_type, type_map));
+			}
+		}
+
+		Semantic return_type = method->return_type
+			? substitute_type(method->return_type, type_map)
+			: infer_expression_body_return_type(method, param_types);
 		FnSymbol fn_sym {
 			.name = mangled_name,
-			.return_type = substitute_type(method->return_type, type_map),
+			.param_types = std::move(param_types),
+			.param_names = std::move(param_names),
+			.return_type = return_type,
 			.is_pub = method->is_pub,
 			.module_name = mod,
 			.line = method->line,
 			.col = method->col
 		};
-
-		for (const auto &[p_name, p_type, is_mut, has_val]: method->params) {
-			fn_sym.param_names.push_back(std::string(p_name));
-			if (p_name == "self") {
-				if (p_type) {
-					fn_sym.param_types.push_back(substitute_type(p_type, type_map));
-				} else if (is_mut) {
-					fn_sym.param_types.push_back(
-						make_pointer(make_struct(instantiated_name), true)
-					);
-				} else if (has_val) {
-					fn_sym.param_types.push_back(
-						make_pointer(make_struct(instantiated_name), false)
-					);
-				} else {
-					fn_sym.param_types.push_back(make_struct(instantiated_name));
-				}
-			} else {
-				fn_sym.param_types.push_back(substitute_type(p_type, type_map));
-			}
-		}
 
 		sym.methods[m_name] = fn_sym;
 		functions[mangled_name] = fn_sym;
@@ -267,8 +279,6 @@ Semantic Analyzer::instantiate_struct(
 	structs[instantiated_name] = sym;
 	structs[to_llvm_name(instantiated_name)] = sym;
 
-	auto old_subst = active_type_substitutions;
-	active_type_substitutions = type_map;
 	check_and_apply_struct_traits(generic_st, instantiated_name);
 	active_type_substitutions = old_subst;
 
@@ -423,38 +433,14 @@ Semantic Analyzer::instantiate_function(
 	}
 
 	Semantic ret_sem = nullptr;
-	if (generic_fn->return_type) ret_sem = substitute_type(generic_fn->return_type, type_map);
-	else if (
-		generic_fn->body &&
-		generic_fn->body->statements.size() == 1 &&
-		isa<ReturnStmt>(generic_fn->body->statements[0])
-	) {
+	if (generic_fn->return_type) {
+		ret_sem = substitute_type(generic_fn->return_type, type_map);
+	} else {
 		auto old_subst = active_type_substitutions;
 		active_type_substitutions = type_map;
-		enter_scope();
-		for (size_t i = 0; i < param_names.size(); ++i) {
-			VarSymbol p_sym {
-				.name = param_names[i],
-				.type = param_types[i],
-				.is_mut = false,
-				.line = generic_fn->line,
-				.col = generic_fn->col
-			};
-
-			current_scope().variables[p_sym.name] = p_sym;
-		}
-
-		if (
-			const auto *ret_stmt = as<ReturnStmt>(generic_fn->body->statements[0]);
-			ret_stmt->value
-		)
-			ret_sem = analyze_expr(ret_stmt->value);
-
-		exit_scope();
+		ret_sem = infer_expression_body_return_type(generic_fn, param_types);
 		active_type_substitutions = old_subst;
 	}
-
-	if (!ret_sem) ret_sem = make_primitive(SemaType::VOID);
 
 	FnSymbol sym {
 		.name = instantiated_name,

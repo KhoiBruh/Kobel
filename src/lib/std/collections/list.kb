@@ -50,16 +50,16 @@ impl List<T> {
 	// ---- Read operations ----
 
 	/// Lay phan tu tai vi tri index (khong kiem tra bounds)
-	pub fn get(val self, index: usz): T => self.data[index];
+	pub fn get(val self, index: usz) => self.data[index];
 
 	/// Lay phan tu dau tien
-	pub fn first(val self): T => self.data[0];
+	pub fn first(val self) => self.data[0];
 
 	/// Lay phan tu cuoi cung
-	pub fn last(val self): T  => self.data[self.len - 1UZ];
+	pub fn last(val self)  => self.data[self.len - 1UZ];
 
 	/// Kiem tra list co rong khong
-	pub fn is_empty(val self): bool => self.len == 0UZ;
+	pub fn is_empty(val self) => self.len == 0UZ;
 
 	// ---- Write operations ----
 
