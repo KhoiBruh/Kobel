@@ -14,7 +14,8 @@ import lexer;
 	} while (0)
 
 bool test_keywords() {
-	std::string_view code = "extern struct fn return const null true false val var as while break continue if else trait impl for";
+	std::string_view code =
+			"extern struct fn return const null true false val var as while break continue if else trait impl for";
 	Lexer lex{code};
 	auto tokens = lex.tokenize();
 
@@ -149,4 +150,3 @@ int main() {
 	std::cout << "[ALL PASSED] Lexer tests passed successfully!" << std::endl;
 	return 0;
 }
-

@@ -21,7 +21,7 @@ import codegen;
 		} \
 	} while (0)
 
-bool compile_to_ir(std::string_view code, std::string& out_ir) {
+bool compile_to_ir(std::string_view code, std::string &out_ir) {
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
@@ -51,110 +51,111 @@ bool compile_to_ir(std::string_view code, std::string& out_ir) {
 
 bool test_codegen_arithmetic() {
 	std::string_view code =
-		"fn add(a: i32, b: i32): i32 {\n"
-		"    return a + b;\n"
-		"}\n";
+			"fn add(a: i32, b: i32): i32 {\n"
+			"    return a + b;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? add th???t b???i");
-	ASSERT(ir.find("define i32 @add(") != std::string::npos, "Thi???u ?????nh ngh??a h??m @add");
-	ASSERT(ir.find("add i32") != std::string::npos, "Thi???u l???nh add i32");
-	ASSERT(ir.find("ret i32") != std::string::npos, "Thi???u l???nh ret i32");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for add failed");
+	ASSERT(ir.find("define i32 @add(") != std::string::npos, "Missing @add function definition");
+	ASSERT(ir.find("add i32") != std::string::npos, "Missing add i32 instruction");
+	ASSERT(ir.find("ret i32") != std::string::npos, "Missing ret i32 instruction");
 	return true;
 }
 
 bool test_codegen_variables() {
 	std::string_view code =
-		"fn compute(): i32 {\n"
-		"    val x: i32 = 10;\n"
-		"    var y: i32 = 20;\n"
-		"    y = y + x;\n"
-		"    return y;\n"
-		"}\n";
+			"fn compute(): i32 {\n"
+			"    val x: i32 = 10;\n"
+			"    var y: i32 = 20;\n"
+			"    y = y + x;\n"
+			"    return y;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? compute th???t b???i");
-	ASSERT(ir.find("alloca i32") != std::string::npos, "Thi???u alloca i32");
-	ASSERT(ir.find("store i32 10") != std::string::npos, "Thi???u store 10 cho val x");
-	ASSERT(ir.find("store i32 20") != std::string::npos, "Thi???u store 20 cho var y");
-	ASSERT(ir.find("load i32") != std::string::npos, "Thi???u load i32");
-	ASSERT(ir.find("ret i32") != std::string::npos, "Thi???u ret i32");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for compute failed");
+	ASSERT(ir.find("alloca i32") != std::string::npos, "Missing alloca i32");
+	ASSERT(ir.find("store i32 10") != std::string::npos, "Missing store 10 for val x");
+	ASSERT(ir.find("store i32 20") != std::string::npos, "Missing store 20 for var y");
+	ASSERT(ir.find("load i32") != std::string::npos, "Missing load i32");
+	ASSERT(ir.find("ret i32") != std::string::npos, "Missing ret i32");
 	return true;
 }
 
 bool test_codegen_control_flow() {
 	std::string_view code =
-		"fn loop_sum(): i32 {\n"
-		"    var i: i32 = 0;\n"
-		"    var sum: i32 = 0;\n"
-		"    while (i < 10) {\n"
-		"        if (i == 5) {\n"
-		"            break;\n"
-		"        }\n"
-		"        sum = sum + i;\n"
-		"        i = i + 1;\n"
-		"    }\n"
-		"    return sum;\n"
-		"}\n";
+			"fn loop_sum(): i32 {\n"
+			"    var i: i32 = 0;\n"
+			"    var sum: i32 = 0;\n"
+			"    while (i < 10) {\n"
+			"        if (i == 5) {\n"
+			"            break;\n"
+			"        }\n"
+			"        sum = sum + i;\n"
+			"        i = i + 1;\n"
+			"    }\n"
+			"    return sum;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? loop_sum th???t b???i");
-	ASSERT(ir.find("icmp slt i32") != std::string::npos, "Thi???u so s??nh i < 10");
-	ASSERT(ir.find("icmp eq i32") != std::string::npos, "Thi???u so s??nh i == 5");
-	ASSERT(ir.find("br i1") != std::string::npos, "Thi???u r??? nh??nh ??i???u ki???n");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for loop_sum failed");
+	ASSERT(ir.find("icmp slt i32") != std::string::npos, "Missing comparison i < 10");
+	ASSERT(ir.find("icmp eq i32") != std::string::npos, "Missing comparison i == 5");
+	ASSERT(ir.find("br i1") != std::string::npos, "Missing conditional branch");
 	return true;
 }
 
 bool test_codegen_struct_and_pointer() {
 	std::string_view code =
-		"struct Point { pub x: i32, pub y: i32 }\n"
-		"fn get_x(p: *Point): i32 {\n"
-		"    return p.x;\n"
-		"}\n";
+			"struct Point { pub x: i32, pub y: i32 }\n"
+			"fn get_x(p: *Point): i32 {\n"
+			"    return p.x;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? struct Point th???t b???i");
-	ASSERT(ir.find("%Point = type { i32, i32 }") != std::string::npos, "Thi???u ?????nh ngh??a struct %Point");
-	ASSERT(ir.find("getelementptr inbounds") != std::string::npos && ir.find("%Point, ptr") != std::string::npos, "Thi???u GEP cho p.x");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for struct Point failed");
+	ASSERT(ir.find("%Point = type { i32, i32 }") != std::string::npos, "Missing %Point struct definition");
+	ASSERT(ir.find("getelementptr inbounds") != std::string::npos && ir.find("%Point, ptr") != std::string::npos,
+		   "Missing GEP for p.x");
 	return true;
 }
 
 bool test_codegen_extern_and_call() {
 	std::string_view code =
-		"extern \"libc\" {\n"
-		"    fn puts(str: *char): i32;\n"
-		"}\n"
-		"fn main(): i32 {\n"
-		"    puts(\"Hello, Kobel!\");\n"
-		"    return 0;\n"
-		"}\n";
+			"extern \"libc\" {\n"
+			"    fn puts(str: *char): i32;\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    puts(\"Hello, Kobel!\");\n"
+			"    return 0;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? extern puts & main th???t b???i");
-	ASSERT(ir.find("declare i32 @puts(ptr") != std::string::npos, "Thi???u khai b??o declare puts");
-	ASSERT(ir.find("call i32 @puts(") != std::string::npos, "Thi???u l???nh g???i call @puts");
-	ASSERT(ir.find("Hello, Kobel!") != std::string::npos, "Thi???u h???ng chu???i Hello, Kobel!");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for extern puts & main failed");
+	ASSERT(ir.find("declare i32 @puts(ptr") != std::string::npos, "Missing declare puts");
+	ASSERT(ir.find("call i32 @puts(") != std::string::npos, "Missing call @puts");
+	ASSERT(ir.find("Hello, Kobel!") != std::string::npos, "Missing string constant Hello, Kobel!");
 	return true;
 }
 
 bool test_codegen_cast() {
 	std::string_view code =
-		"fn cast_up(x: i8): i32 {\n"
-		"    return x as i32;\n"
-		"}\n"
-		"fn cast_down(x: i32): i8 {\n"
-		"    return x as i8;\n"
-		"}\n";
+			"fn cast_up(x: i8): i32 {\n"
+			"    return x as i32;\n"
+			"}\n"
+			"fn cast_down(x: i32): i8 {\n"
+			"    return x as i8;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? type cast th???t b???i");
-	ASSERT(ir.find("sext i8") != std::string::npos, "Thi???u l???nh sext cho i8 -> i32");
-	ASSERT(ir.find("trunc i32") != std::string::npos, "Thi???u l???nh trunc cho i32 -> i8");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for type cast failed");
+	ASSERT(ir.find("sext i8") != std::string::npos, "Missing sext instruction for i8 -> i32");
+	ASSERT(ir.find("trunc i32") != std::string::npos, "Missing trunc instruction for i32 -> i8");
 	return true;
 }
 
 // ============================================================================
-// Giai ??o???n 2: Native Target, Object File, Assembly & Executable
+// Phase 2: Native Target, Object File, Assembly & Executable
 // ============================================================================
 
 bool test_codegen_target_machine() {
@@ -162,37 +163,37 @@ bool test_codegen_target_machine() {
 	Analyzer sema{diag};
 	CodeGen cg{&sema, "test_tm"};
 
-	ASSERT(cg.target_machine != nullptr, "TargetMachine ch??a ???????c kh???i t???o");
-	ASSERT(!cg.module->getDataLayout().getStringRepresentation().empty(), "DataLayout c???a Module b??? r???ng");
-	ASSERT(cg.module->getTargetTriple().str().find("x86_64") != std::string::npos, "TargetTriple kh??ng ph???i x86_64");
+	ASSERT(cg.target_machine != nullptr, "TargetMachine is not initialized");
+	ASSERT(!cg.module->getDataLayout().getStringRepresentation().empty(), "Module DataLayout is empty");
+	ASSERT(cg.module->getTargetTriple().str().find("x86_64") != std::string::npos, "TargetTriple is not x86_64");
 	return true;
 }
 
 bool test_codegen_emit_object_file() {
 	std::string_view code =
-		"fn multiply(a: i32, b: i32): i32 {\n"
-		"    return a * b;\n"
-		"}\n";
+			"fn multiply(a: i32, b: i32): i32 {\n"
+			"    return a * b;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser c?? l???i");
+	ASSERT(!p.has_errors(), "Parser error");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
+	ASSERT(!diag.has_errors(), "Semantic error");
 
 	CodeGen cg{&sema, "test_obj"};
-	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
+	ASSERT(cg.generate(prog), "CodeGen generate failed");
 
 	const std::string obj_file = "test_multiply.obj";
 	std::filesystem::remove(obj_file);
 
-	ASSERT(cg.emit_object_file(obj_file), "emit_object_file th???t b???i");
-	ASSERT(std::filesystem::exists(obj_file), "File object kh??ng t???n t???i");
-	ASSERT(std::filesystem::file_size(obj_file) > 0, "File object c?? k??ch th?????c r???ng");
+	ASSERT(cg.emit_object_file(obj_file), "emit_object_file failed");
+	ASSERT(std::filesystem::exists(obj_file), "Object file does not exist");
+	ASSERT(std::filesystem::file_size(obj_file) > 0, "Object file is empty");
 
 	std::filesystem::remove(obj_file);
 	return true;
@@ -200,32 +201,32 @@ bool test_codegen_emit_object_file() {
 
 bool test_codegen_emit_assembly() {
 	std::string_view code =
-		"fn sub(a: i32, b: i32): i32 {\n"
-		"    return a - b;\n"
-		"}\n";
+			"fn sub(a: i32, b: i32): i32 {\n"
+			"    return a - b;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser c?? l???i");
+	ASSERT(!p.has_errors(), "Parser error");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
+	ASSERT(!diag.has_errors(), "Semantic error");
 
 	CodeGen cg{&sema, "test_asm"};
-	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
+	ASSERT(cg.generate(prog), "CodeGen generate failed");
 
 	const std::string asm_file = "test_sub.s";
 	std::filesystem::remove(asm_file);
 
-	ASSERT(cg.emit_assembly_file(asm_file), "emit_assembly_file th???t b???i");
-	ASSERT(std::filesystem::exists(asm_file), "File assembly kh??ng t???n t???i");
+	ASSERT(cg.emit_assembly_file(asm_file), "emit_assembly_file failed");
+	ASSERT(std::filesystem::exists(asm_file), "Assembly file does not exist");
 
 	std::ifstream f(asm_file);
 	std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-	ASSERT(content.find("sub") != std::string::npos, "Assembly kh??ng ch???a nh??n h??m 'sub'");
+	ASSERT(content.find("sub") != std::string::npos, "Assembly does not contain function label 'sub'");
 
 	f.close();
 	std::filesystem::remove(asm_file);
@@ -234,26 +235,26 @@ bool test_codegen_emit_assembly() {
 
 bool test_codegen_e2e_executable() {
 	std::string_view code =
-		"extern \"libc\" {\n"
-		"    fn puts(str: *char): i32;\n"
-		"}\n"
-		"fn main(): i32 {\n"
-		"    puts(\"Hello from native Kobel executable!\");\n"
-		"    return 42;\n"
-		"}\n";
+			"extern \"libc\" {\n"
+			"    fn puts(str: *char): i32;\n"
+			"}\n"
+			"fn main(): i32 {\n"
+			"    puts(\"Hello from native Kobel executable!\");\n"
+			"    return 42;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser c?? l???i");
+	ASSERT(!p.has_errors(), "Parser error");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic c?? l???i");
+	ASSERT(!diag.has_errors(), "Semantic error");
 
 	CodeGen cg{&sema, "e2e_module"};
-	ASSERT(cg.generate(prog), "CodeGen generate th???t b???i");
+	ASSERT(cg.generate(prog), "CodeGen generate failed");
 
 	const std::string obj_file = "e2e_kobel.obj";
 	const std::string exe_file = "e2e_kobel.exe";
@@ -261,12 +262,12 @@ bool test_codegen_e2e_executable() {
 	std::filesystem::remove(obj_file);
 	std::filesystem::remove(exe_file);
 
-	ASSERT(cg.emit_object_file(obj_file), "Sinh file object e2e th???t b???i");
-	ASSERT(CodeGen::link_executable(obj_file, exe_file), "Link executable e2e th???t b???i");
-	ASSERT(std::filesystem::exists(exe_file), "File th???c thi e2e_kobel.exe kh??ng t???n t???i");
+	ASSERT(cg.emit_object_file(obj_file), "e2e emit_object_file failed");
+	ASSERT(CodeGen::link_executable(obj_file, exe_file), "e2e link_executable failed");
+	ASSERT(std::filesystem::exists(exe_file), "Executable e2e_kobel.exe does not exist");
 
 	int exit_code = std::system(".\\e2e_kobel.exe");
-	ASSERT(exit_code == 42, "Exit code c???a e2e_kobel.exe mong ?????i 42, nh???n ???????c " + std::to_string(exit_code));
+	ASSERT(exit_code == 42, "Exit code of e2e_kobel.exe expected 42, got " + std::to_string(exit_code));
 
 	std::filesystem::remove(obj_file);
 	std::filesystem::remove(exe_file);
@@ -275,140 +276,140 @@ bool test_codegen_e2e_executable() {
 
 bool test_codegen_enum() {
 	std::string_view code =
-		"enum Status {\n"
-		"    OK,\n"
-		"    ERROR = 504,\n"
-		"    NEXT,\n"
-		"}\n"
-		"fn test_enum(): i32 {\n"
-		"    val s: Status = Status.ERROR;\n"
-		"    val val1: i32 = s.value;\n"
-		"    val val2: i32 = Status.NEXT as i32;\n"
-		"    val s3: Status = 0 as Status;\n"
-		"    if (s3 == Status.OK) {\n"
-		"        return val1 + val2;\n"
-		"    }\n"
-		"    return 0;\n"
-		"}\n";
+			"enum Status {\n"
+			"    OK,\n"
+			"    ERROR = 504,\n"
+			"    NEXT,\n"
+			"}\n"
+			"fn test_enum(): i32 {\n"
+			"    val s: Status = Status.ERROR;\n"
+			"    val val1: i32 = s.value;\n"
+			"    val val2: i32 = Status.NEXT as i32;\n"
+			"    val s3: Status = 0 as Status;\n"
+			"    if (s3 == Status.OK) {\n"
+			"        return val1 + val2;\n"
+			"    }\n"
+			"    return 0;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? enum th???t b???i");
-	ASSERT(ir.find("504") != std::string::npos, "Thi???u h???ng s??? 504 trong IR");
-	ASSERT(ir.find("505") != std::string::npos, "Thi???u h???ng s??? 505 trong IR");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for enum failed");
+	ASSERT(ir.find("504") != std::string::npos, "Missing constant 504 in IR");
+	ASSERT(ir.find("505") != std::string::npos, "Missing constant 505 in IR");
 	return true;
 }
 
 bool test_codegen_array() {
 	std::string_view code =
-		"fn process_array(): i32 {\n"
-		"    val a: Array<i32> = [10, 20, 30];\n"
-		"    a[0] = 99;\n"
-		"    val len: i32 = a.len;\n"
-		"    val p: *i32 = a as *i32;\n"
-		"    return a[0] + len;\n"
-		"}\n";
+			"fn process_array(): i32 {\n"
+			"    val a: Array<i32> = [10, 20, 30];\n"
+			"    a[0] = 99;\n"
+			"    val len: i32 = a.len;\n"
+			"    val p: *i32 = a as *i32;\n"
+			"    return a[0] + len;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? Array th???t b???i");
-	ASSERT(ir.find("[3 x i32]") != std::string::npos, "Thi???u ki???u [3 x i32] trong LLVM IR");
-	ASSERT(ir.find("arrayidx") != std::string::npos, "Thi???u GEP arrayidx trong LLVM IR");
-	ASSERT(ir.find("arraydecay") != std::string::npos, "Thi???u GEP arraydecay trong LLVM IR");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for Array failed");
+	ASSERT(ir.find("[3 x i32]") != std::string::npos, "Missing type [3 x i32] in LLVM IR");
+	ASSERT(ir.find("arrayidx") != std::string::npos, "Missing GEP arrayidx in LLVM IR");
+	ASSERT(ir.find("arraydecay") != std::string::npos, "Missing GEP arraydecay in LLVM IR");
 	return true;
 }
 
 bool test_codegen_struct_methods() {
 	std::string_view code =
-		"struct Point {\n"
-		"    pub x: i32,\n"
-		"    pub y: i32\n"
-		"}\n"
-		"impl Point {\n"
-		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
-		"    fn translate(var self, dx: i32, dy: i32): void {\n"
-		"        self.x = self.x + dx;\n"
-		"        self.y = self.y + dy;\n"
-		"    }\n"
-		"}\n"
-		"fn test_methods(): i32 {\n"
-		"    var p: Point = Point(3, 4);\n"
-		"    val d1: i32 = p.distance_sq();\n"
-		"    p.translate(1, 2);\n"
-		"    val d2: i32 = p.distance_sq();\n"
-		"    return d1 + d2;\n"
-		"}\n";
+			"struct Point {\n"
+			"    pub x: i32,\n"
+			"    pub y: i32\n"
+			"}\n"
+			"impl Point {\n"
+			"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
+			"    fn translate(var self, dx: i32, dy: i32): void {\n"
+			"        self.x = self.x + dx;\n"
+			"        self.y = self.y + dy;\n"
+			"    }\n"
+			"}\n"
+			"fn test_methods(): i32 {\n"
+			"    var p: Point = Point(3, 4);\n"
+			"    val d1: i32 = p.distance_sq();\n"
+			"    p.translate(1, 2);\n"
+			"    val d2: i32 = p.distance_sq();\n"
+			"    return d1 + d2;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? struct methods th???t b???i");
-	ASSERT(ir.find("@Point_distance_sq(") != std::string::npos, "Thi???u h??m @Point_distance_sq");
-	ASSERT(ir.find("@Point_translate(") != std::string::npos, "Thi???u h??m @Point_translate");
-	ASSERT(ir.find("call i32 @Point_distance_sq(") != std::string::npos, "Thi???u l???nh g???i @Point_distance_sq");
-	ASSERT(ir.find("call void @Point_translate(") != std::string::npos, "Thi???u l???nh g???i @Point_translate");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for struct methods failed");
+	ASSERT(ir.find("@Point_distance_sq(") != std::string::npos, "Missing function @Point_distance_sq");
+	ASSERT(ir.find("@Point_translate(") != std::string::npos, "Missing function @Point_translate");
+	ASSERT(ir.find("call i32 @Point_distance_sq(") != std::string::npos, "Missing call to @Point_distance_sq");
+	ASSERT(ir.find("call void @Point_translate(") != std::string::npos, "Missing call to @Point_translate");
 	return true;
 }
 
 bool test_codegen_short_circuit_logic() {
 	std::string_view code =
-		"fn test_and(a: bool, b: bool): bool {\n"
-		"    return a && b;\n"
-		"}\n"
-		"fn test_or(a: bool, b: bool): bool {\n"
-		"    return a || b;\n"
-		"}\n"
-		"fn test_while_logic(limit: i32): i32 {\n"
-		"    var i: i32 = 0;\n"
-		"    var sum: i32 = 0;\n"
-		"    while (i < limit && sum < 100) {\n"
-		"        sum = sum + i;\n"
-		"        i = i + 1;\n"
-		"    }\n"
-		"    return sum;\n"
-		"}\n";
+			"fn test_and(a: bool, b: bool): bool {\n"
+			"    return a && b;\n"
+			"}\n"
+			"fn test_or(a: bool, b: bool): bool {\n"
+			"    return a || b;\n"
+			"}\n"
+			"fn test_while_logic(limit: i32): i32 {\n"
+			"    var i: i32 = 0;\n"
+			"    var sum: i32 = 0;\n"
+			"    while (i < limit && sum < 100) {\n"
+			"        sum = sum + i;\n"
+			"        i = i + 1;\n"
+			"    }\n"
+			"    return sum;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? short circuit th???t b???i");
-	ASSERT(ir.find("land.rhs:") != std::string::npos, "Thi???u nh??n land.rhs");
-	ASSERT(ir.find("land.merge:") != std::string::npos, "Thi???u nh??n land.merge");
-	ASSERT(ir.find("lor.rhs:") != std::string::npos, "Thi???u nh??n lor.rhs");
-	ASSERT(ir.find("lor.merge:") != std::string::npos, "Thi???u nh??n lor.merge");
-	ASSERT(ir.find("phi i1") != std::string::npos, "Thi???u phi i1 cho short circuit");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for short circuit failed");
+	ASSERT(ir.find("land.rhs:") != std::string::npos, "Missing label land.rhs");
+	ASSERT(ir.find("land.merge:") != std::string::npos, "Missing label land.merge");
+	ASSERT(ir.find("lor.rhs:") != std::string::npos, "Missing label lor.rhs");
+	ASSERT(ir.find("lor.merge:") != std::string::npos, "Missing label lor.merge");
+	ASSERT(ir.find("phi i1") != std::string::npos, "Missing phi i1 for short circuit");
 	return true;
 }
 
 bool test_codegen_modules() {
 	std::string_view code =
-		"mod math.calc;\n"
-		"pub fn add(a: i32, b: i32): i32 {\n"
-		"    return a + b;\n"
-		"}\n"
-		"pub const DELTA: i32 = 10;\n"
-		"\n"
-		"mod app;\n"
-		"use math.calc.add;\n"
-		"use math.calc.DELTA;\n"
-		"\n"
-		"fn main(): i32 {\n"
-		"    val res: i32 = add(20, DELTA);\n"
-		"    return res;\n"
-		"}\n";
+			"mod math.calc;\n"
+			"pub fn add(a: i32, b: i32): i32 {\n"
+			"    return a + b;\n"
+			"}\n"
+			"pub const DELTA: i32 = 10;\n"
+			"\n"
+			"mod app;\n"
+			"use math.calc.add;\n"
+			"use math.calc.DELTA;\n"
+			"\n"
+			"fn main(): i32 {\n"
+			"    val res: i32 = add(20, DELTA);\n"
+			"    return res;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Ph??t sinh m?? modules th???t b???i");
-	ASSERT(ir.find("@math_calc_add(") != std::string::npos, "Thi???u h??m mangled @math_calc_add");
-	ASSERT(ir.find("define i32 @main()") != std::string::npos, "Thi???u h??m @main");
-	ASSERT(ir.find("call i32 @math_calc_add(") != std::string::npos, "Thi???u l???nh g???i t???i @math_calc_add");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for modules failed");
+	ASSERT(ir.find("@math_calc_add(") != std::string::npos, "Missing mangled function @math_calc_add");
+	ASSERT(ir.find("define i32 @main()") != std::string::npos, "Missing function @main");
+	ASSERT(ir.find("call i32 @math_calc_add(") != std::string::npos, "Missing call to @math_calc_add");
 	return true;
 }
 
 bool test_codegen_str_slice() {
 	std::string_view code =
-		"fn main(): i32 {\n"
-		"    val s: str = \"Hello, World!\";\n"
-		"    val h: str = s.slice(0, 5);\n"
-		"    val w: str = s.slice(7, 12);\n"
-		"    val tail: str = s.slice(7);\n"
-		"    val l: usz = s.len();\n"
-		"    return 0;\n"
-		"}\n";
+			"fn main(): i32 {\n"
+			"    val s: str = \"Hello, World!\";\n"
+			"    val h: str = s.slice(0, 5);\n"
+			"    val w: str = s.slice(7, 12);\n"
+			"    val tail: str = s.slice(7);\n"
+			"    val l: usz = s.len();\n"
+			"    return 0;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "CodeGen for str.slice failed");
@@ -419,16 +420,16 @@ bool test_codegen_str_slice() {
 
 bool test_codegen_type_size() {
 	std::string_view code =
-		"struct Point { pub x: i32, pub y: i32 }\n"
-		"enum Status { OK, ERR }\n"
-		"fn main(): i32 {\n"
-		"    val s_i32: usz = i32.size();\n"
-		"    val s_i64: usz = i64.size();\n"
-		"    val s_pt: usz = Point.size();\n"
-		"    val s_str: usz = str.size();\n"
-		"    val s_st: usz = Status.size();\n"
-		"    return 0;\n"
-		"}\n";
+			"struct Point { pub x: i32, pub y: i32 }\n"
+			"enum Status { OK, ERR }\n"
+			"fn main(): i32 {\n"
+			"    val s_i32: usz = i32.size();\n"
+			"    val s_i64: usz = i64.size();\n"
+			"    val s_pt: usz = Point.size();\n"
+			"    val s_str: usz = str.size();\n"
+			"    val s_st: usz = Status.size();\n"
+			"    return 0;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "CodeGen for T.size() failed");
@@ -442,31 +443,31 @@ bool test_codegen_when_and_if_expr() {
 	// 1. when expression, statement, and if expression
 	{
 		std::string_view code =
-			"fn test_when(x: i32): i32 {\n"
-			"    val a: i32 = when (x) {\n"
-			"        1 -> 10;\n"
-			"        2, 3 -> 20;\n"
-			"        else -> 30;\n"
-			"    };\n"
-			"    return a;\n"
-			"}\n"
-			"fn test_if(c: bool): i32 {\n"
-			"    val a: i32 = if (c) 100 else -100;\n"
-			"    val b: i32 = if (c) { 200 } else { -200 };\n"
-			"    return a + b;\n"
-			"}\n"
-			"fn test_when_stmt(x: i32): i32 {\n"
-			"    var res: i32 = 0;\n"
-			"    when (x) {\n"
-			"        1 -> res = 10;\n"
-			"        2, 3 -> { res = 20; }\n"
-			"        else -> res = 30;\n"
-			"    }\n"
-			"    return res;\n"
-			"}\n"
-			"fn test_if_unbraced(x: i32): i32 {\n"
-			"    if (x > 0) return 1; else return 0;\n"
-			"}\n";
+				"fn test_when(x: i32): i32 {\n"
+				"    val a: i32 = when (x) {\n"
+				"        1 -> 10;\n"
+				"        2, 3 -> 20;\n"
+				"        else -> 30;\n"
+				"    };\n"
+				"    return a;\n"
+				"}\n"
+				"fn test_if(c: bool): i32 {\n"
+				"    val a: i32 = if (c) 100 else -100;\n"
+				"    val b: i32 = if (c) { 200 } else { -200 };\n"
+				"    return a + b;\n"
+				"}\n"
+				"fn test_when_stmt(x: i32): i32 {\n"
+				"    var res: i32 = 0;\n"
+				"    when (x) {\n"
+				"        1 -> res = 10;\n"
+				"        2, 3 -> { res = 20; }\n"
+				"        else -> res = 30;\n"
+				"    }\n"
+				"    return res;\n"
+				"}\n"
+				"fn test_if_unbraced(x: i32): i32 {\n"
+				"    if (x > 0) return 1; else return 0;\n"
+				"}\n";
 
 		std::string ir;
 		ASSERT(compile_to_ir(code, ir), "CodeGen for when and if expr failed");
@@ -480,19 +481,19 @@ bool test_codegen_when_and_if_expr() {
 
 bool test_codegen_generic_structs() {
 	std::string_view code =
-		"struct Box<T> { pub value: T }\n"
-		"impl Box<T> {\n"
-		"    fn get(val self): T => self.value;\n"
-		"}\n"
-		"struct Pair<T, U> { pub first: T, pub second: U }\n"
-		"fn test_generics(): i32 {\n"
-		"    val b1: Box<i32> = Box<i32>(42);\n"
-		"    val b2: Box<i32> = Box(100);\n"
-		"    val p: Pair<i32, str> = Pair(1, \"hello\");\n"
-		"    val nested: Box<Box<i32>> = Box<Box<i32>>(b1);\n"
-		"    val m_val: i32 = b1.get();\n"
-		"    return b1.value + b2.value + p.first + m_val + nested.value.value;\n"
-		"}\n";
+			"struct Box<T> { pub value: T }\n"
+			"impl Box<T> {\n"
+			"    fn get(val self): T => self.value;\n"
+			"}\n"
+			"struct Pair<T, U> { pub first: T, pub second: U }\n"
+			"fn test_generics(): i32 {\n"
+			"    val b1: Box<i32> = Box<i32>(42);\n"
+			"    val b2: Box<i32> = Box(100);\n"
+			"    val p: Pair<i32, str> = Pair(1, \"hello\");\n"
+			"    val nested: Box<Box<i32>> = Box<Box<i32>>(b1);\n"
+			"    val m_val: i32 = b1.get();\n"
+			"    return b1.value + b2.value + p.first + m_val + nested.value.value;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "CodeGen for generic structs failed");
@@ -505,144 +506,148 @@ bool test_codegen_generic_structs() {
 
 bool test_codegen_type_inference_and_prefixes() {
 	std::string_view code =
-		"struct Box<T> { pub value: T }\n"
-		"impl Box<T> {\n"
-		"    fn get(val self) => self.value;\n"
-		"}\n"
-		"fn add(a: i32, b: i32) => a + b;\n"
-		"fn check(x: i32) => if (x > 0) true else false;\n"
-		"fn test_inference_code(): i32 {\n"
-		"    val hex_val = 0xFF;\n"
-		"    val bin_val = 0b1010;\n"
-		"    val oct_val = 0o77;\n"
-		"    val split_val = 1_000_000;\n"
-		"    val flag = true;\n"
-		"    val boxed = Box(42);\n"
-		"    val sum = add(hex_val, bin_val) + boxed.get();\n"
-		"    val is_pos = check(sum);\n"
-		"    return sum;\n"
-		"}\n";
+			"struct Box<T> { pub value: T }\n"
+			"impl Box<T> {\n"
+			"    fn get(val self) => self.value;\n"
+			"}\n"
+			"fn add(a: i32, b: i32) => a + b;\n"
+			"fn check(x: i32) => if (x > 0) true else false;\n"
+			"fn test_inference_code(): i32 {\n"
+			"    val hex_val = 0xFF;\n"
+			"    val bin_val = 0b1010;\n"
+			"    val oct_val = 0o77;\n"
+			"    val split_val = 1_000_000;\n"
+			"    val flag = true;\n"
+			"    val boxed = Box(42);\n"
+			"    val sum = add(hex_val, bin_val) + boxed.get();\n"
+			"    val is_pos = check(sum);\n"
+			"    return sum;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho suy luận kiểu và tiền tố thất bại");
-	ASSERT(ir.find("store i32 255") != std::string::npos, "Thiếu store i32 255 (hex)");
-	ASSERT(ir.find("store i32 10") != std::string::npos, "Thiếu store i32 10 (bin)");
-	ASSERT(ir.find("store i32 63") != std::string::npos, "Thiếu store i32 63 (oct)");
-	ASSERT(ir.find("store i32 1000000") != std::string::npos, "Thiếu store i32 1000000 (underscore)");
-	ASSERT(ir.find("store i1 true") != std::string::npos, "Thiếu store i1 true (bool)");
-	ASSERT(ir.find("call i32 @add(") != std::string::npos, "Thiếu lệnh gọi @add");
-	ASSERT(ir.find("call i1 @check(") != std::string::npos, "Thiếu lệnh gọi @check");
-	ASSERT(ir.find("define i32 @Box_i32_get(") != std::string::npos, "Missing inferred i32 return type for @Box_i32_get");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for type inference and prefixes failed");
+	ASSERT(ir.find("store i32 255") != std::string::npos, "Missing store i32 255 (hex)");
+	ASSERT(ir.find("store i32 10") != std::string::npos, "Missing store i32 10 (bin)");
+	ASSERT(ir.find("store i32 63") != std::string::npos, "Missing store i32 63 (oct)");
+	ASSERT(ir.find("store i32 1000000") != std::string::npos, "Missing store i32 1000000 (underscore)");
+	ASSERT(ir.find("store i1 true") != std::string::npos, "Missing store i1 true (bool)");
+	ASSERT(ir.find("call i32 @add(") != std::string::npos, "Missing call to @add");
+	ASSERT(ir.find("call i1 @check(") != std::string::npos, "Missing call to @check");
+	ASSERT(ir.find("define i32 @Box_i32_get(") != std::string::npos,
+		   "Missing inferred i32 return type for @Box_i32_get");
 	ASSERT(ir.find("call i32 @Box_i32_get(") != std::string::npos, "Missing i32 call to @Box_i32_get");
 	return true;
 }
 
 bool test_codegen_generic_functions() {
 	std::string_view code =
-		"fn id<T>(x: T): T => x;\n"
-		"fn max<T>(a: T, b: T): T {\n"
-		"    if (a > b) return a; else return b;\n"
-		"}\n"
-		"fn test_generics(): i32 {\n"
-		"    val a = id<i32>(42);\n"
-		"    val b = id(100);\n"
-		"    val m = max(a, b);\n"
-		"    return m;\n"
-		"}\n";
+			"fn id<T>(x: T): T => x;\n"
+			"fn max<T>(a: T, b: T): T {\n"
+			"    if (a > b) return a; else return b;\n"
+			"}\n"
+			"fn test_generics(): i32 {\n"
+			"    val a = id<i32>(42);\n"
+			"    val b = id(100);\n"
+			"    val m = max(a, b);\n"
+			"    return m;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho hàm generic thất bại");
-	ASSERT(ir.find("define i32 @id_i32(i32 %x)") != std::string::npos, "Thiếu định nghĩa @id_i32");
-	ASSERT(ir.find("define i32 @max_i32(i32 %a, i32 %b)") != std::string::npos, "Thiếu định nghĩa @max_i32");
-	ASSERT(ir.find("call i32 @id_i32(i32 42)") != std::string::npos, "Thiếu lệnh gọi id_i32(42)");
-	ASSERT(ir.find("call i32 @id_i32(i32 100)") != std::string::npos, "Thiếu lệnh gọi id_i32(100)");
-	ASSERT(ir.find("call i32 @max_i32(") != std::string::npos, "Thiếu lệnh gọi max_i32");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for generic functions failed");
+	ASSERT(ir.find("define i32 @id_i32(i32 %x)") != std::string::npos, "Missing definition of @id_i32");
+	ASSERT(ir.find("define i32 @max_i32(i32 %a, i32 %b)") != std::string::npos, "Missing definition of @max_i32");
+	ASSERT(ir.find("call i32 @id_i32(i32 42)") != std::string::npos, "Missing call id_i32(42)");
+	ASSERT(ir.find("call i32 @id_i32(i32 100)") != std::string::npos, "Missing call id_i32(100)");
+	ASSERT(ir.find("call i32 @max_i32(") != std::string::npos, "Missing call to max_i32");
 	return true;
 }
 
 bool test_codegen_module_prefixes() {
 	std::string_view code =
-		"mod math.vec;\n"
-		"pub struct Vector { pub x: i32, pub y: i32 }\n"
-		"pub fn make_vec(x: i32, y: i32): Vector => Vector(x, y);\n"
-		"mod physics.space;\n"
-		"pub struct Vector { pub mag: i32 }\n"
-		"mod main;\n"
-		"use math.vec.Vector;\n"
-		"use math.vec.make_vec;\n"
-		"use physics.space.Vector;\n"
-		"fn test_prefixes(): i32 {\n"
-		"    val v1 = vec.Vector(10, 20);\n"
-		"    val v2 = space.Vector(100);\n"
-		"    val v3 = vec.make_vec(30, 40);\n"
-		"    return v1.x + v2.mag + v3.x;\n"
-		"}\n";
+			"mod math.vec;\n"
+			"pub struct Vector { pub x: i32, pub y: i32 }\n"
+			"pub fn make_vec(x: i32, y: i32): Vector => Vector(x, y);\n"
+			"mod physics.space;\n"
+			"pub struct Vector { pub mag: i32 }\n"
+			"mod main;\n"
+			"use math.vec.Vector;\n"
+			"use math.vec.make_vec;\n"
+			"use physics.space.Vector;\n"
+			"fn test_prefixes(): i32 {\n"
+			"    val v1 = vec.Vector(10, 20);\n"
+			"    val v2 = space.Vector(100);\n"
+			"    val v3 = vec.make_vec(30, 40);\n"
+			"    return v1.x + v2.mag + v3.x;\n"
+			"}\n";
 
 	std::string ir;
-	ASSERT(compile_to_ir(code, ir), "Phát sinh mã cho tiền tố module thất bại");
-	ASSERT(ir.find("%math_vec_Vector") != std::string::npos, "Thiếu kiểu struct %math_vec_Vector");
-	ASSERT(ir.find("%physics_space_Vector") != std::string::npos, "Thiếu kiểu struct %physics_space_Vector");
-	ASSERT(ir.find("call %math_vec_Vector @math_vec_make_vec(") != std::string::npos, "Thiếu gọi hàm module vec.make_vec");
+	ASSERT(compile_to_ir(code, ir), "CodeGen for module prefixes failed");
+	ASSERT(ir.find("%math_vec_Vector") != std::string::npos, "Missing struct type %math_vec_Vector");
+	ASSERT(ir.find("%physics_space_Vector") != std::string::npos, "Missing struct type %physics_space_Vector");
+	ASSERT(ir.find("call %math_vec_Vector @math_vec_make_vec(") != std::string::npos,
+		   "Missing call to module function vec.make_vec");
 	return true;
 }
 
 bool test_codegen_traits() {
 	std::string_view code =
-		"trait MathOps {\n"
-		"    fn sum(val self): i32;\n"
-		"    fn inherited_mult(val self): i32 => self.sum() * 2;\n"
-		"}\n"
-		"struct Point {\n"
-		"    pub x: i32,\n"
-		"    pub y: i32\n"
-		"}\n"
-		"impl MathOps for Point {\n"
-		"    fn sum(val self): i32 => self.x + self.y;\n"
-		"}\n"
-		"fn calc<T: MathOps>(val item: T): i32 {\n"
-		"    return item.inherited_mult();\n"
-		"}\n"
-		"fn test_traits_code(): i32 {\n"
-		"    val p = Point(10, 20);\n"
-		"    val s = p.sum();\n"
-		"    val m = p.inherited_mult();\n"
-		"    val c = calc<Point>(p);\n"
-		"    return s + m + c;\n"
-		"}\n";
+			"trait MathOps {\n"
+			"    fn sum(val self): i32;\n"
+			"    fn inherited_mult(val self): i32 => self.sum() * 2;\n"
+			"}\n"
+			"struct Point {\n"
+			"    pub x: i32,\n"
+			"    pub y: i32\n"
+			"}\n"
+			"impl MathOps for Point {\n"
+			"    fn sum(val self): i32 => self.x + self.y;\n"
+			"}\n"
+			"fn calc<T: MathOps>(val item: T): i32 {\n"
+			"    return item.inherited_mult();\n"
+			"}\n"
+			"fn test_traits_code(): i32 {\n"
+			"    val p = Point(10, 20);\n"
+			"    val s = p.sum();\n"
+			"    val m = p.inherited_mult();\n"
+			"    val c = calc<Point>(p);\n"
+			"    return s + m + c;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "CodeGen for static traits failed");
 	ASSERT(ir.find("define i32 @Point_sum(") != std::string::npos, "Missing @Point_sum definition");
-	ASSERT(ir.find("define i32 @Point_inherited_mult(") != std::string::npos, "Missing inherited @Point_inherited_mult definition");
+	ASSERT(ir.find("define i32 @Point_inherited_mult(") != std::string::npos,
+		   "Missing inherited @Point_inherited_mult definition");
 	ASSERT(ir.find("define i32 @calc_Point(") != std::string::npos, "Missing @calc_Point specialization");
 	ASSERT(ir.find("call i32 @Point_sum(ptr ") != std::string::npos, "Missing call to @Point_sum");
-	ASSERT(ir.find("call i32 @Point_inherited_mult(ptr ") != std::string::npos, "Missing call to @Point_inherited_mult");
+	ASSERT(ir.find("call i32 @Point_inherited_mult(ptr ") != std::string::npos,
+		   "Missing call to @Point_inherited_mult");
 	ASSERT(ir.find("call i32 @calc_Point(") != std::string::npos, "Missing call to @calc_Point");
 	return true;
 }
 
 bool test_codegen_new_struct_and_impl() {
 	std::string_view code =
-		"struct List<T> {\n"
-		"    pub data: &T,\n"
-		"    len: usz,\n"
-		"    cap: usz\n"
-		"}\n"
-		"\n"
-		"impl List<T> {\n"
-		"    fn add(var self, value: T): void {\n"
-		"        self.len = self.len + 1 as usz;\n"
-		"    }\n"
-		"\n"
-		"    fn free(self): void {\n"
-		"    }\n"
-		"}\n"
-		"\n"
-		"fn test_list(p: &i32): usz {\n"
-		"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
-		"    list.add(40);\n"
-		"    return list.len;\n"
-		"}\n";
+			"struct List<T> {\n"
+			"    pub data: &T,\n"
+			"    len: usz,\n"
+			"    cap: usz\n"
+			"}\n"
+			"\n"
+			"impl List<T> {\n"
+			"    fn add(var self, value: T): void {\n"
+			"        self.len = self.len + 1 as usz;\n"
+			"    }\n"
+			"\n"
+			"    fn free(self): void {\n"
+			"    }\n"
+			"}\n"
+			"\n"
+			"fn test_list(p: &i32): usz {\n"
+			"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+			"    list.add(40);\n"
+			"    return list.len;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "CodeGen for new struct & impl failed");
@@ -655,29 +660,29 @@ bool test_codegen_multi_impl_and_trait() {
 	// 1. Multiple separate impl blocks for the same struct
 	{
 		std::string_view code =
-			"struct List<T> {\n"
-			"    pub data: &T,\n"
-			"    len: usz,\n"
-			"    cap: usz\n"
-			"}\n"
-			"\n"
-			"impl List<T> {\n"
-			"    fn add(var self, value: T): void {\n"
-			"        self.len = self.len + 1 as usz;\n"
-			"    }\n"
-			"}\n"
-			"\n"
-			"impl List<T> {\n"
-			"    fn free(self): void {\n"
-			"    }\n"
-			"}\n"
-			"\n"
-			"fn test_multi_impl(p: &i32): usz {\n"
-			"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
-			"    list.add(40);\n"
-			"    list.free();\n"
-			"    return list.len;\n"
-			"}\n";
+				"struct List<T> {\n"
+				"    pub data: &T,\n"
+				"    len: usz,\n"
+				"    cap: usz\n"
+				"}\n"
+				"\n"
+				"impl List<T> {\n"
+				"    fn add(var self, value: T): void {\n"
+				"        self.len = self.len + 1 as usz;\n"
+				"    }\n"
+				"}\n"
+				"\n"
+				"impl List<T> {\n"
+				"    fn free(self): void {\n"
+				"    }\n"
+				"}\n"
+				"\n"
+				"fn test_multi_impl(p: &i32): usz {\n"
+				"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+				"    list.add(40);\n"
+				"    list.free();\n"
+				"    return list.len;\n"
+				"}\n";
 
 		std::string ir;
 		ASSERT(compile_to_ir(code, ir), "CodeGen for multiple impl blocks failed");
@@ -688,22 +693,22 @@ bool test_codegen_multi_impl_and_trait() {
 	// 2. Trait impl via impl Trait for Struct in CodeGen
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn greet(val self): i32;\n"
-			"}\n"
-			"\n"
-			"struct Person {\n"
-			"    pub age: i32\n"
-			"}\n"
-			"\n"
-			"impl Greeter for Person {\n"
-			"    fn greet(val self): i32 => self.age;\n"
-			"}\n"
-			"\n"
-			"fn test_trait(): i32 {\n"
-			"    val p = Person(25);\n"
-			"    return p.greet();\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn greet(val self): i32;\n"
+				"}\n"
+				"\n"
+				"struct Person {\n"
+				"    pub age: i32\n"
+				"}\n"
+				"\n"
+				"impl Greeter for Person {\n"
+				"    fn greet(val self): i32 => self.age;\n"
+				"}\n"
+				"\n"
+				"fn test_trait(): i32 {\n"
+				"    val p = Person(25);\n"
+				"    return p.greet();\n"
+				"}\n";
 
 		std::string ir;
 		ASSERT(compile_to_ir(code, ir), "CodeGen for impl Trait for Struct failed");
@@ -715,13 +720,13 @@ bool test_codegen_multi_impl_and_trait() {
 
 bool test_codegen_float_literals() {
 	std::string_view code =
-		"fn test_floats(): f64 {\n"
-		"    val a: f64 = 1_000.5;\n"
-		"    val b: f32 = 100.0_F;\n"
-		"    val c: f32 = 2.5F;\n"
-		"    val d: f64 = 3.14_15_92;\n"
-		"    return a;\n"
-		"}\n";
+			"fn test_floats(): f64 {\n"
+			"    val a: f64 = 1_000.5;\n"
+			"    val b: f32 = 100.0_F;\n"
+			"    val c: f32 = 2.5F;\n"
+			"    val d: f64 = 3.14_15_92;\n"
+			"    return a;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Compilation of float literals failed");
@@ -731,18 +736,18 @@ bool test_codegen_float_literals() {
 
 bool test_codegen_unsuffixed_int_literal_width() {
 	std::string_view code =
-		"fn main(): i32 {\n"
-		"    var a: usz = 0;\n"
-		"    a = a + 2;\n"
-		"    var n: usz = 4;\n"
-		"    val b: usz = n * 2;\n"
-		"    val c: usz = i32.size() * 2;\n"
-		"    val d: usz = 2 * 3;\n"
-		"    if (b != 8) { return 1; }\n"
-		"    if (c != 8) { return 2; }\n"
-		"    if (d != 6) { return 3; }\n"
-		"    return 0;\n"
-		"}\n";
+			"fn main(): i32 {\n"
+			"    var a: usz = 0;\n"
+			"    a = a + 2;\n"
+			"    var n: usz = 4;\n"
+			"    val b: usz = n * 2;\n"
+			"    val c: usz = i32.size() * 2;\n"
+			"    val d: usz = 2 * 3;\n"
+			"    if (b != 8) { return 1; }\n"
+			"    if (c != 8) { return 2; }\n"
+			"    if (d != 6) { return 3; }\n"
+			"    return 0;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Unsuffixed integer literal inference failed to codegen");
@@ -878,4 +883,3 @@ int main() {
 	std::cout << "\nCodeGen Results: " << passed << "/" << total << " passed.\n";
 	return (passed == total) ? 0 : 1;
 }
-

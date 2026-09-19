@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string_view>
+#include <vector>
 
 import token;
 import lexer;
@@ -18,29 +19,29 @@ import semantic.analyzer;
 	} while (0)
 
 bool test_valid_program() {
-	std::string_view code = 
-		"struct Point { x: i32, y: i32 }\n"
-		"const ORIGIN: i32 = 0;\n"
-		"extern \"libc\" {\n"
-		"    fn printf(fmt: *char): i32;\n"
-		"}\n"
-		"fn compute(p: *Point): i32 {\n"
-		"    val base: i32 = 10;\n"
-		"    var count: i32 = 0;\n"
-		"    while (count < 5) {\n"
-		"        count = count + 1;\n"
-		"        if (count == 3) {\n"
-		"            break;\n"
-		"        }\n"
-		"    }\n"
-		"    val total: i32 = p.x + p.y + base + count;\n"
-		"    return total;\n"
-		"}\n";
+	std::string_view code =
+			"struct Point { x: i32, y: i32 }\n"
+			"const ORIGIN: i32 = 0;\n"
+			"extern \"libc\" {\n"
+			"    fn printf(fmt: *char): i32;\n"
+			"}\n"
+			"fn compute(p: *Point): i32 {\n"
+			"    val base: i32 = 10;\n"
+			"    var count: i32 = 0;\n"
+			"    while (count < 5) {\n"
+			"        count = count + 1;\n"
+			"        if (count == 3) {\n"
+			"            break;\n"
+			"        }\n"
+			"    }\n"
+			"    val total: i32 = p.x + p.y + base + count;\n"
+			"    return total;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
+	ASSERT(!p.has_errors(), "Parser should have no errors");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
@@ -49,16 +50,16 @@ bool test_valid_program() {
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "Ch????ng tr??nh h???p l??? kh??ng ???????c c?? l???i ng??? ngh??a");
+	ASSERT(!diag.has_errors(), "Valid program should have no semantic errors");
 	return true;
 }
 
 bool test_val_immutability_error() {
-	std::string_view code = 
-		"fn test(): void {\n"
-		"    val x: i32 = 10;\n"
-		"    x = 20;\n" // L???i: g??n l???i bi???n val
-		"}\n";
+	std::string_view code =
+			"fn test(): void {\n"
+			"    val x: i32 = 10;\n"
+			"    x = 20;\n" // Error: reassignment to val
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -68,16 +69,16 @@ bool test_val_immutability_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i khi g??n l???i bi???n val");
-	ASSERT(diag.diagnostics[0].format().find("val") != std::string::npos, "Th??ng b??o l???i ph???i nh???c t???i 'val'");
+	ASSERT(diag.has_errors(), "Must report error when reassigning val variable");
+	ASSERT(diag.diagnostics[0].format().find("val") != std::string::npos, "Error message must mention 'val'");
 	return true;
 }
 
 bool test_missing_type_annotation_error() {
-	std::string_view code = 
-		"fn test(): void {\n"
-		"    var x;\n" // Loi: khong co kieu va khong co initializer
-		"}\n";
+	std::string_view code =
+			"fn test(): void {\n"
+			"    var x;\n" // Error: missing type and initializer
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -87,17 +88,17 @@ bool test_missing_type_annotation_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Phai phat hien loi thieu kieu va initializer");
+	ASSERT(diag.has_errors(), "Must report error for missing type and initializer");
 	return true;
 }
 
 bool test_strict_type_mismatch_error() {
-	std::string_view code = 
-		"fn test(): void {\n"
-		"    val a: i32 = 1;\n"
-		"    val b: i64 = 2;\n"
-		"    val c: i32 = a + b;\n" // L???i: i32 + i64 kh??ng t??? ?????ng th??ng ki???u, b???t bu???c ??p ki???u as
-		"}\n";
+	std::string_view code =
+			"fn test(): void {\n"
+			"    val a: i32 = 1;\n"
+			"    val b: i64 = 2;\n"
+			"    val c: i32 = a + b;\n" // Error: i32 + i64 requires explicit cast
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -107,16 +108,16 @@ bool test_strict_type_mismatch_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i kh??ng kh???p ki???u trong ph??p c???ng");
+	ASSERT(diag.has_errors(), "Must report type mismatch error in addition");
 	return true;
 }
 
 bool test_explicit_cast_success() {
-	std::string_view code = 
-		"fn test(a: i32, b: i64): i64 {\n"
-		"    val c: i64 = (a as i64) + b;\n" // H???p l??? nh??? ??p ki???u t?????ng minh qua as
-		"    return c;\n"
-		"}\n";
+	std::string_view code =
+			"fn test(a: i32, b: i64): i64 {\n"
+			"    val c: i64 = (a as i64) + b;\n" // Valid via explicit cast
+			"    return c;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -129,16 +130,16 @@ bool test_explicit_cast_success() {
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "??p ki???u t?????ng minh qua 'as' ph???i h???p l???");
+	ASSERT(!diag.has_errors(), "Explicit cast with 'as' must succeed");
 	return true;
 }
 
 bool test_non_boolean_condition_error() {
-	std::string_view code = 
-		"fn test(): void {\n"
-		"    val x: i32 = 1;\n"
-		"    if (x) {}\n" // L???i: x c?? ki???u i32, kh??ng ph???i bool
-		"}\n";
+	std::string_view code =
+			"fn test(): void {\n"
+			"    val x: i32 = 1;\n"
+			"    if (x) {}\n" // Error: x has type i32, not bool
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -148,15 +149,15 @@ bool test_non_boolean_condition_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i ??i???u ki???n if kh??ng ph???i bool");
+	ASSERT(diag.has_errors(), "Must report error when if condition is not bool");
 	return true;
 }
 
 bool test_break_outside_loop_error() {
-	std::string_view code = 
-		"fn test(): void {\n"
-		"    break;\n" // L???i: break ngo??i v??ng l???p
-		"}\n";
+	std::string_view code =
+			"fn test(): void {\n"
+			"    break;\n" // Error: break outside loop
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -166,115 +167,115 @@ bool test_break_outside_loop_error() {
 	Analyzer sema{diag};
 	sema.analyze(prog);
 
-	ASSERT(diag.has_errors(), "Ph???i ph??t hi???n l???i d??ng break ngo??i v??ng l???p");
+	ASSERT(diag.has_errors(), "Must report error for break outside loop");
 	return true;
 }
 
 bool test_semantic_enum() {
 	std::string_view code =
-		"enum Status {\n"
-		"    OK,\n"
-		"    ERROR = 504,\n"
-		"    UNKNOWN,\n"
-		"}\n"
-		"fn check_status(s: Status): i32 {\n"
-		"    if (s == Status.OK) {\n"
-		"        return 0;\n"
-		"    }\n"
-		"    val code: i32 = s.value;\n"
-		"    val s2: Status = 504 as Status;\n"
-		"    val num: i32 = Status.ERROR as i32;\n"
-		"    return num;\n"
-		"}\n";
+			"enum Status {\n"
+			"    OK,\n"
+			"    ERROR = 504,\n"
+			"    UNKNOWN,\n"
+			"}\n"
+			"fn check_status(s: Status): i32 {\n"
+			"    if (s == Status.OK) {\n"
+			"        return 0;\n"
+			"    }\n"
+			"    val code: i32 = s.value;\n"
+			"    val s2: Status = 504 as Status;\n"
+			"    val num: i32 = Status.ERROR as i32;\n"
+			"    return num;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
+	ASSERT(!p.has_errors(), "Parser should have no errors");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic kh??ng ???????c c?? l???i v???i enum h???p l???");
+	ASSERT(!diag.has_errors(), "Valid enum should have no semantic errors");
 
-	ASSERT(sema.enums.contains("Status"), "Ph???i ch???a enum Status");
-	const auto& sym = sema.enums["Status"];
-	ASSERT(sym.member_values.at("OK") == 0, "Status.OK ph???i b???ng 0");
-	ASSERT(sym.member_values.at("ERROR") == 504, "Status.ERROR ph???i b???ng 504");
-	ASSERT(sym.member_values.at("UNKNOWN") == 505, "Status.UNKNOWN ph???i b???ng 505 (t??? t??ng)");
+	ASSERT(sema.enums.contains("Status"), "Must contain enum Status");
+	const auto &sym = sema.enums["Status"];
+	ASSERT(sym.member_values.at("OK") == 0, "Status.OK must equal 0");
+	ASSERT(sym.member_values.at("ERROR") == 504, "Status.ERROR must equal 504");
+	ASSERT(sym.member_values.at("UNKNOWN") == 505, "Status.UNKNOWN must equal 505 (auto-increment)");
 
 	return true;
 }
 
 bool test_semantic_array() {
 	std::string_view code =
-		"fn test_arr(): i32 {\n"
-		"    val a: Array<i32> = [10, 20, 30];\n"
-		"    a[0] = 99;\n"
-		"    val len: i32 = a.len;\n"
-		"    val p: *i32 = a as *i32;\n"
-		"    return a[0] + len;\n"
-		"}\n";
+			"fn test_arr(): i32 {\n"
+			"    val a: Array<i32> = [10, 20, 30];\n"
+			"    a[0] = 99;\n"
+			"    val len: i32 = a.len;\n"
+			"    val p: *i32 = a as *i32;\n"
+			"    return a[0] + len;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
+	ASSERT(!p.has_errors(), "Parser should have no errors");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic array h???p l??? kh??ng ???????c c?? l???i");
+	ASSERT(!diag.has_errors(), "Valid array code should have no semantic errors");
 
 	return true;
 }
 
 bool test_semantic_array_errors() {
-	// 1. K??ch th?????c kh??ng kh???p khi khai b??o r?? k??ch th?????c
+	// 1. Array element count mismatch with explicit size
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val a: Array<i32>(4) = [1, 2, 3];\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val a: Array<i32>(4) = [1, 2, 3];\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi s??? ph???n t??? m???ng kh??c k??ch th?????c khai b??o");
+		ASSERT(diag.has_errors(), "Must report error when element count does not match declared size");
 	}
 
-	// 2. Kh??ng th??? g??n l???i bi???n val m???ng (nh??ng ???????c s???a ph???n t???)
+	// 2. Cannot reassign val array variable (even though elements can be mutated)
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val a: Array<i32> = [1, 2, 3];\n"
-			"    a = [4, 5, 6];\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val a: Array<i32> = [1, 2, 3];\n"
+				"    a = [4, 5, 6];\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g??n l???i bi???n m???ng khai b??o b???ng val");
+		ASSERT(diag.has_errors(), "Must report error when reassigning array variable declared with val");
 	}
 
-	// 3. Kh??ng th??? g??n gi?? tr??? cho thu???c t??nh .len c???a m???ng
+	// 3. Cannot assign value to read-only property .len
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val a: Array<i32> = [1, 2, 3];\n"
-			"    a.len = 10;\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val a: Array<i32> = [1, 2, 3];\n"
+				"    a.len = 10;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g??n gi?? tr??? cho thu???c t??nh ch??? ?????c .len c???a m???ng");
+		ASSERT(diag.has_errors(), "Must report error when assigning to read-only property .len of array");
 	}
 
 	return true;
@@ -282,137 +283,137 @@ bool test_semantic_array_errors() {
 
 bool test_semantic_struct_methods() {
 	std::string_view code =
-		"struct Point {\n"
-		"    x: i32,\n"
-		"    y: i32\n"
-		"}\n"
-		"impl Point {\n"
-		"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
-		"    fn translate(var self, dx: i32, dy: i32): void {\n"
-		"        self.x = self.x + dx;\n"
-		"        self.y = self.y + dy;\n"
-		"    }\n"
-		"}\n"
-		"fn test_methods(): i32 {\n"
-		"    var p: Point = Point(3, 4);\n"
-		"    val d: i32 = p.distance_sq();\n"
-		"    p.translate(1, 2);\n"
-		"    return p.distance_sq();\n"
-		"}\n";
+			"struct Point {\n"
+			"    x: i32,\n"
+			"    y: i32\n"
+			"}\n"
+			"impl Point {\n"
+			"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
+			"    fn translate(var self, dx: i32, dy: i32): void {\n"
+			"        self.x = self.x + dx;\n"
+			"        self.y = self.y + dy;\n"
+			"    }\n"
+			"}\n"
+			"fn test_methods(): i32 {\n"
+			"    var p: Point = Point(3, 4);\n"
+			"    val d: i32 = p.distance_sq();\n"
+			"    p.translate(1, 2);\n"
+			"    return p.distance_sq();\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i");
+	ASSERT(!p.has_errors(), "Parser should have no errors");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
 	sema.analyze(prog);
-	ASSERT(!diag.has_errors(), "Semantic struct methods h???p l??? kh??ng ???????c c?? l???i");
+	ASSERT(!diag.has_errors(), "Valid struct methods should have no semantic errors");
 
 	return true;
 }
 
 bool test_semantic_struct_method_errors() {
-	// 1. Kh???i t???o struct sai s??? l?????ng ?????i s???
+	// 1. Initializing struct with wrong argument count
 	{
 		std::string_view code =
-			"struct Point { x: i32, y: i32 }\n"
-			"fn test_err(): void {\n"
-			"    val p: Point = Point(1);\n"
-			"}\n";
+				"struct Point { x: i32, y: i32 }\n"
+				"fn test_err(): void {\n"
+				"    val p: Point = Point(1);\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi truy???n thi???u ?????i s??? v??o primary constructor");
+		ASSERT(diag.has_errors(), "Must report error when missing arguments in constructor call");
 	}
 
-	// 2. G???i ph????ng th???c var self tr??n con tr??? ch??? ?????c *T
+	// 2. Calling var self method on read-only pointer *T
 	{
 		std::string_view code =
-			"struct Point { x: i32, y: i32 }\n"
-			"impl Point {\n"
-			"    fn modify(var self): void { self.x = 0; }\n"
-			"}\n"
-			"fn test_err(ptr: *Point): void {\n"
-			"    ptr.modify();\n"
-			"}\n";
+				"struct Point { x: i32, y: i32 }\n"
+				"impl Point {\n"
+				"    fn modify(var self): void { self.x = 0; }\n"
+				"}\n"
+				"fn test_err(ptr: *Point): void {\n"
+				"    ptr.modify();\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Ph???i b??o l???i khi g???i ph????ng th???c var self tr??n con tr??? ch??? ?????c *Point");
+		ASSERT(diag.has_errors(), "Must report error when calling var self method on read-only pointer *Point");
 	}
 
 	return true;
 }
 
 bool test_semantic_logical_operators() {
-	// 1. H???p l???: boolean && boolean, boolean || boolean, !boolean
+	// 1. Valid expressions: boolean && boolean, boolean || boolean, !boolean
 	{
 		std::string_view code =
-			"fn check(x: i32, flag: bool): bool {\n"
-			"    val c1: bool = (x > 0 && x < 100) || !flag;\n"
-			"    val c2: bool = flag && (x == 50 || x == 60);\n"
-			"    return c1 && c2;\n"
-			"}\n";
+				"fn check(x: i32, flag: bool): bool {\n"
+				"    val c1: bool = (x > 0 && x < 100) || !flag;\n"
+				"    val c2: bool = flag && (x == 50 || x == 60);\n"
+				"    return c1 && c2;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(!diag.has_errors(), "Bi???u th???c logic h???p l??? kh??ng ???????c c?? l???i semantic");
+		ASSERT(!diag.has_errors(), "Valid logical expressions should have no semantic errors");
 	}
 
-	// 2. Sai ki???u: D??ng s??? nguy??n thay v?? boolean cho &&
+	// 2. Type mismatch: integer instead of boolean for &&
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val res: bool = 10 && true;\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val res: bool = 10 && true;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "To??n t??? '&&' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
+		ASSERT(diag.has_errors(), "Operator '&&' with non-bool operand must report error");
 	}
 
-	// 3. Sai ki???u: D??ng s??? nguy??n thay v?? boolean cho ||
+	// 3. Type mismatch: integer instead of boolean for ||
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val res: bool = false || 20;\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val res: bool = false || 20;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "To??n t??? '||' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
+		ASSERT(diag.has_errors(), "Operator '||' with non-bool operand must report error");
 	}
 
-	// 4. Sai ki???u: D??ng ! tr??n s??? nguy??n
+	// 4. Type mismatch: ! on integer
 	{
 		std::string_view code =
-			"fn test_err(): void {\n"
-			"    val res: bool = !42;\n"
-			"}\n";
+				"fn test_err(): void {\n"
+				"    val res: bool = !42;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "To??n t??? '!' v???i to??n h???ng kh??ng ph???i bool ph???i b??o l???i");
+		ASSERT(diag.has_errors(), "Operator '!' with non-bool operand must report error");
 	}
 
 	return true;
@@ -420,41 +421,41 @@ bool test_semantic_logical_operators() {
 
 bool test_semantic_modules() {
 	std::string_view code =
-		"mod math.calc;\n"
-		"pub fn add(a: i32, b: i32): i32 {\n"
-		"    return a + b;\n"
-		"}\n"
-		"pub const BASE: i32 = 100;\n"
-		"\n"
-		"mod geom;\n"
-		"pub struct Point {\n"
-		"    pub x: i32,\n"
-		"    pub y: i32\n"
-		"}\n"
-		"impl Point {\n"
-		"    pub fn sum(val self): i32 {\n"
-		"        return self.x + self.y;\n"
-		"    }\n"
-		"}\n"
-		"\n"
-		"mod app;\n"
-		"use math.calc.add;\n"
-		"use math.calc.BASE;\n"
-		"use math.calc.add as my_add;\n"
-		"use geom.Point;\n"
-		"\n"
-		"fn main(): i32 {\n"
-		"    val p: Point = Point(1, 2);\n"
-		"    val s: i32 = p.sum();\n"
-		"    val r1: i32 = add(s, BASE);\n"
-		"    val r2: i32 = my_add(r1, 5);\n"
-		"    return r2;\n"
-		"}\n";
+			"mod math.calc;\n"
+			"pub fn add(a: i32, b: i32): i32 {\n"
+			"    return a + b;\n"
+			"}\n"
+			"pub const BASE: i32 = 100;\n"
+			"\n"
+			"mod geom;\n"
+			"pub struct Point {\n"
+			"    pub x: i32,\n"
+			"    pub y: i32\n"
+			"}\n"
+			"impl Point {\n"
+			"    pub fn sum(val self): i32 {\n"
+			"        return self.x + self.y;\n"
+			"    }\n"
+			"}\n"
+			"\n"
+			"mod app;\n"
+			"use math.calc.add;\n"
+			"use math.calc.BASE;\n"
+			"use math.calc.add as my_add;\n"
+			"use geom.Point;\n"
+			"\n"
+			"fn main(): i32 {\n"
+			"    val p: Point = Point(1, 2);\n"
+			"    val s: i32 = p.sum();\n"
+			"    val r1: i32 = add(s, BASE);\n"
+			"    val r2: i32 = my_add(r1, 5);\n"
+			"    return r2;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
 	auto prog = p.parse_program();
-	ASSERT(!p.has_errors(), "Parser kh??ng ???????c c?? l???i v???i module syntax");
+	ASSERT(!p.has_errors(), "Parser should have no errors with module syntax");
 
 	DiagnosticEngine diag;
 	Analyzer sema{diag};
@@ -462,7 +463,7 @@ bool test_semantic_modules() {
 	if (diag.has_errors()) {
 		diag.print_all(std::cerr);
 	}
-	ASSERT(!diag.has_errors(), "Semantic modules h???p l??? kh??ng ???????c c?? l???i");
+	ASSERT(!diag.has_errors(), "Valid modules should have no semantic errors");
 	return true;
 }
 
@@ -470,12 +471,12 @@ bool test_semantic_module_errors() {
 	// 1. Private function access error
 	{
 		std::string_view code =
-			"mod math.calc;\n"
-			"fn secret(): i32 { return 42; }\n"
-			"\n"
-			"mod app;\n"
-			"use math.calc.secret;\n"
-			"fn main(): i32 { return secret(); }\n";
+				"mod math.calc;\n"
+				"fn secret(): i32 { return 42; }\n"
+				"\n"
+				"mod app;\n"
+				"use math.calc.secret;\n"
+				"fn main(): i32 { return secret(); }\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -483,28 +484,28 @@ bool test_semantic_module_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Import symbol private ph???i b??o l???i");
-		ASSERT(diag.diagnostics[0].format().find("private") != std::string::npos, "L???i ph???i nh???c t???i 'private'");
+		ASSERT(diag.has_errors(), "Importing private symbol must report error");
+		ASSERT(diag.diagnostics[0].format().find("private") != std::string::npos, "Error must mention 'private'");
 	}
 
 	// 2. Private method access error
 	{
 		std::string_view code =
-			"mod geom;\n"
-			"pub struct Point {\n"
-			"    pub x: i32,\n"
-			"    pub y: i32\n"
-			"}\n"
-			"impl Point {\n"
-			"    fn secret_method(val self): i32 { return self.x; }\n"
-			"}\n"
-			"\n"
-			"mod app;\n"
-			"use geom.Point;\n"
-			"fn main(): i32 {\n"
-			"    val p: Point = Point(1, 2);\n"
-			"    return p.secret_method();\n"
-			"}\n";
+				"mod geom;\n"
+				"pub struct Point {\n"
+				"    pub x: i32,\n"
+				"    pub y: i32\n"
+				"}\n"
+				"impl Point {\n"
+				"    fn secret_method(val self): i32 { return self.x; }\n"
+				"}\n"
+				"\n"
+				"mod app;\n"
+				"use geom.Point;\n"
+				"fn main(): i32 {\n"
+				"    val p: Point = Point(1, 2);\n"
+				"    return p.secret_method();\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -512,18 +513,18 @@ bool test_semantic_module_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "G???i ph????ng th???c private t??? module kh??c ph???i b??o l???i");
+		ASSERT(diag.has_errors(), "Calling private method from another module must report error");
 	}
 
 	// 3. Nonexistent symbol import error
 	{
 		std::string_view code =
-			"mod math.calc;\n"
-			"pub fn add(a: i32, b: i32): i32 { return a + b; }\n"
-			"\n"
-			"mod app;\n"
-			"use math.calc.nonexistent;\n"
-			"fn main(): i32 { return 0; }\n";
+				"mod math.calc;\n"
+				"pub fn add(a: i32, b: i32): i32 { return a + b; }\n"
+				"\n"
+				"mod app;\n"
+				"use math.calc.nonexistent;\n"
+				"fn main(): i32 { return 0; }\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -531,8 +532,9 @@ bool test_semantic_module_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Import symbol kh??ng t???n t???i ph???i b??o l???i");
-		ASSERT(diag.diagnostics[0].format().find("nonexistent") != std::string::npos, "L???i ph???i nh???c t???i 'nonexistent'");
+		ASSERT(diag.has_errors(), "Importing nonexistent symbol must report error");
+		ASSERT(diag.diagnostics[0].format().find("nonexistent") != std::string::npos,
+			   "Error must mention 'nonexistent'");
 	}
 
 	return true;
@@ -542,14 +544,14 @@ bool test_semantic_str_slice() {
 	// 1. Valid slice with 1 and 2 arguments
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val s: str = \"Hello, World!\";\n"
-			"    val a: str = s.slice(0, 5);\n"
-			"    val b: str = s.slice(7);\n"
-			"    val len: usz = s.len();\n"
-			"    val len_prop: usz = s.len;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val s: str = \"Hello, World!\";\n"
+				"    val a: str = s.slice(0, 5);\n"
+				"    val b: str = s.slice(7);\n"
+				"    val len: usz = s.len();\n"
+				"    val len_prop: usz = s.len;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -562,11 +564,11 @@ bool test_semantic_str_slice() {
 	// 2. Error: slice with invalid argument type
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val s: str = \"Hello\";\n"
-			"    val a: str = s.slice(\"invalid\");\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val s: str = \"Hello\";\n"
+				"    val a: str = s.slice(\"invalid\");\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -579,11 +581,11 @@ bool test_semantic_str_slice() {
 	// 3. Error: slice with 0 arguments
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val s: str = \"Hello\";\n"
-			"    val a: str = s.slice();\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val s: str = \"Hello\";\n"
+				"    val a: str = s.slice();\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -600,19 +602,19 @@ bool test_semantic_type_size() {
 	// 1. Valid T.size() on primitives, struct, and enum
 	{
 		std::string_view code =
-			"struct Point { x: i32, y: i32 }\n"
-			"enum Status { OK, ERR }\n"
-			"fn main(): i32 {\n"
-			"    val s_i32: usz = i32.size();\n"
-			"    val s_i64: usz = i64.size();\n"
-			"    val s_u8: usz = u8.size();\n"
-			"    val s_bool: usz = bool.size();\n"
-			"    val s_char: usz = char.size();\n"
-			"    val s_str: usz = str.size();\n"
-			"    val s_pt: usz = Point.size();\n"
-			"    val s_st: usz = Status.size();\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Point { x: i32, y: i32 }\n"
+				"enum Status { OK, ERR }\n"
+				"fn main(): i32 {\n"
+				"    val s_i32: usz = i32.size();\n"
+				"    val s_i64: usz = i64.size();\n"
+				"    val s_u8: usz = u8.size();\n"
+				"    val s_bool: usz = bool.size();\n"
+				"    val s_char: usz = char.size();\n"
+				"    val s_str: usz = str.size();\n"
+				"    val s_pt: usz = Point.size();\n"
+				"    val s_st: usz = Status.size();\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -625,12 +627,12 @@ bool test_semantic_type_size() {
 	// 2. Error: calling .size() on variable of struct that has no size method
 	{
 		std::string_view code =
-			"struct Point { x: i32, y: i32 }\n"
-			"fn main(): i32 {\n"
-			"    val p: Point = Point(1, 2);\n"
-			"    val s: usz = p.size();\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Point { x: i32, y: i32 }\n"
+				"fn main(): i32 {\n"
+				"    val p: Point = Point(1, 2);\n"
+				"    val s: usz = p.size();\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -643,10 +645,10 @@ bool test_semantic_type_size() {
 	// 3. Error: T.size() with arguments
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val s: usz = i32.size(10);\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val s: usz = i32.size(10);\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -663,33 +665,33 @@ bool test_unsuffixed_int_literal_inference() {
 	// 1. Unsuffixed integer literals adopt the type of their context
 	{
 		std::string_view code =
-			"struct S { n: usz }\n"
-			"fn takes(n: usz): usz { return n; }\n"
-			"fn from_literal(): usz { return 2 * 3; }\n"
-			"fn main(): i32 {\n"
-			"    val a: usz = i32.size() * 2;\n"
-			"    val a2: usz = a;\n"
-			"    val b: usz = 2 * i32.size();\n"
-			"    val b2: usz = b;\n"
-			"    val c: usz = takes(2 * 3);\n"
-			"    val d: usz = 2 * 3;\n"
-			"    var e: usz = 0;\n"
-			"    e = 4 * 5;\n"
-			"    val e2: usz = e;\n"
-			"    val s: S = S(2 * 3);\n"
-			"    val f: usz = from_literal();\n"
-			"    val g: usz = if (a > 0) i32.size() else 0;\n"
-			"    val we: usz = when (a) {\n"
-			"        8 -> i32.size();\n"
-			"        else -> 0;\n"
-			"    };\n"
-			"    var w: usz = 0;\n"
-			"    when (a) {\n"
-			"        8 -> { w = 2 * 3; }\n"
-			"        else -> { w = 4 * 5; }\n"
-			"    }\n"
-			"    return 0;\n"
-			"}\n";
+				"struct S { n: usz }\n"
+				"fn takes(n: usz): usz { return n; }\n"
+				"fn from_literal(): usz { return 2 * 3; }\n"
+				"fn main(): i32 {\n"
+				"    val a: usz = i32.size() * 2;\n"
+				"    val a2: usz = a;\n"
+				"    val b: usz = 2 * i32.size();\n"
+				"    val b2: usz = b;\n"
+				"    val c: usz = takes(2 * 3);\n"
+				"    val d: usz = 2 * 3;\n"
+				"    var e: usz = 0;\n"
+				"    e = 4 * 5;\n"
+				"    val e2: usz = e;\n"
+				"    val s: S = S(2 * 3);\n"
+				"    val f: usz = from_literal();\n"
+				"    val g: usz = if (a > 0) i32.size() else 0;\n"
+				"    val we: usz = when (a) {\n"
+				"        8 -> i32.size();\n"
+				"        else -> 0;\n"
+				"    };\n"
+				"    var w: usz = 0;\n"
+				"    when (a) {\n"
+				"        8 -> { w = 2 * 3; }\n"
+				"        else -> { w = 4 * 5; }\n"
+				"    }\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -705,12 +707,12 @@ bool test_unsuffixed_int_literal_inference() {
 	// 2. Negative literals still retype for signed targets only
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val a: i64 = -1;\n"
-			"    val b: i64 = a * -2;\n"
-			"    val c: i64 = 2 * -3;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val a: i64 = -1;\n"
+				"    val b: i64 = a * -2;\n"
+				"    val c: i64 = 2 * -3;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -724,12 +726,12 @@ bool test_unsuffixed_int_literal_inference() {
 	// 3. Two non-literal operands of different integer types still require an explicit cast
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val a: i64 = 1;\n"
-			"    var b: i32 = 2;\n"
-			"    val c: i64 = a + b;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val a: i64 = 1;\n"
+				"    var b: i32 = 2;\n"
+				"    val c: i64 = a + b;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -742,10 +744,10 @@ bool test_unsuffixed_int_literal_inference() {
 	// 4. A negative literal cannot silently become unsigned
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val a: usz = -1;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val a: usz = -1;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -758,11 +760,11 @@ bool test_unsuffixed_int_literal_inference() {
 	// 5. An explicit suffix conflicting with a typed sibling still errors
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    var a: usz = 0;\n"
-			"    val b: i64 = a + 1UZ;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    var a: usz = 0;\n"
+				"    val b: i64 = a + 1UZ;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -775,11 +777,11 @@ bool test_unsuffixed_int_literal_inference() {
 	// 6. Inference must not widen assignment compatibility for typed values
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val a: usz = 0;\n"
-			"    val b: i32 = a;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val a: usz = 0;\n"
+				"    val b: i32 = a;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -796,19 +798,19 @@ bool test_semantic_when_and_if_expr() {
 	// 1. Valid when expression and statement
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val c: i32 = 2;\n"
-			"    val x: i32 = when (c) {\n"
-			"        1 -> 10;\n"
-			"        2, 3 -> 20;\n"
-			"        else -> 0;\n"
-			"    };\n"
-			"    when (x) {\n"
-			"        10 -> return 1;\n"
-			"        20 -> return 2;\n"
-			"        else -> return 0;\n"
-			"    }\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val c: i32 = 2;\n"
+				"    val x: i32 = when (c) {\n"
+				"        1 -> 10;\n"
+				"        2, 3 -> 20;\n"
+				"        else -> 0;\n"
+				"    };\n"
+				"    when (x) {\n"
+				"        10 -> return 1;\n"
+				"        20 -> return 2;\n"
+				"        else -> return 0;\n"
+				"    }\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -821,12 +823,12 @@ bool test_semantic_when_and_if_expr() {
 	// 2. Valid if expression (braced and unbraced) and unbraced if statement
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val c: bool = true;\n"
-			"    val a: i32 = if (c) 1 else 0;\n"
-			"    val b: i32 = if (c) { 1 } else { 0 };\n"
-			"    if (a > 0) return a; else return b;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val c: bool = true;\n"
+				"    val a: i32 = if (c) 1 else 0;\n"
+				"    val b: i32 = if (c) { 1 } else { 0 };\n"
+				"    if (a > 0) return a; else return b;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -839,13 +841,13 @@ bool test_semantic_when_and_if_expr() {
 	// 3. Error: when expression without else arm
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val c: i32 = 1;\n"
-			"    val x: i32 = when (c) {\n"
-			"        1 -> 10;\n"
-			"    };\n"
-			"    return x;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val c: i32 = 1;\n"
+				"    val x: i32 = when (c) {\n"
+				"        1 -> 10;\n"
+				"    };\n"
+				"    return x;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -858,10 +860,10 @@ bool test_semantic_when_and_if_expr() {
 	// 4. Error: if expression branches type mismatch
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val x = if (true) 1 else \"hello\";\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val x = if (true) 1 else \"hello\";\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -874,14 +876,14 @@ bool test_semantic_when_and_if_expr() {
 	// 5. Error: when pattern type incompatible with condition
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val c: i32 = 1;\n"
-			"    val x = when (c) {\n"
-			"        \"hello\" -> 10;\n"
-			"        else -> 0;\n"
-			"    };\n"
-			"    return x;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val c: i32 = 1;\n"
+				"    val x = when (c) {\n"
+				"        \"hello\" -> 10;\n"
+				"        else -> 0;\n"
+				"    };\n"
+				"    return x;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -898,19 +900,19 @@ bool test_semantic_generic_structs() {
 	// 1. Generic struct definition, explicit & inferred instantiation, field access, nested
 	{
 		std::string_view code =
-			"struct Box<T> { value: T }\n"
-			"struct Pair<T, U> { first: T, second: U }\n"
-			"fn main(): i32 {\n"
-			"    val b: Box<i32> = Box<i32>(42);\n"
-			"    val p: Pair<i32, str> = Pair<i32, str>(1, \"hello\");\n"
-			"    val b_inferred: Box<i32> = Box(100);\n"
-			"    val p_inferred: Pair<i32, str> = Pair(2, \"world\");\n"
-			"    val v: i32 = b.value;\n"
-			"    val s: str = p.second;\n"
-			"    val nested: Box<Box<i32>> = Box<Box<i32>>(b);\n"
-			"    val nested_v: i32 = nested.value.value;\n"
-			"    return v + nested_v;\n"
-			"}\n";
+				"struct Box<T> { value: T }\n"
+				"struct Pair<T, U> { first: T, second: U }\n"
+				"fn main(): i32 {\n"
+				"    val b: Box<i32> = Box<i32>(42);\n"
+				"    val p: Pair<i32, str> = Pair<i32, str>(1, \"hello\");\n"
+				"    val b_inferred: Box<i32> = Box(100);\n"
+				"    val p_inferred: Pair<i32, str> = Pair(2, \"world\");\n"
+				"    val v: i32 = b.value;\n"
+				"    val s: str = p.second;\n"
+				"    val nested: Box<Box<i32>> = Box<Box<i32>>(b);\n"
+				"    val nested_v: i32 = nested.value.value;\n"
+				"    return v + nested_v;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -923,15 +925,15 @@ bool test_semantic_generic_structs() {
 	// 2. Generic struct with methods
 	{
 		std::string_view code =
-			"struct Box<T> { value: T }\n"
-			"impl Box<T> {\n"
-			"    fn get(val self): T => self.value;\n"
-			"}\n"
-			"fn main(): i32 {\n"
-			"    val b: Box<i32> = Box<i32>(42);\n"
-			"    val res: i32 = b.get();\n"
-			"    return res;\n"
-			"}\n";
+				"struct Box<T> { value: T }\n"
+				"impl Box<T> {\n"
+				"    fn get(val self): T => self.value;\n"
+				"}\n"
+				"fn main(): i32 {\n"
+				"    val b: Box<i32> = Box<i32>(42);\n"
+				"    val res: i32 = b.get();\n"
+				"    return res;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -948,11 +950,11 @@ bool test_semantic_generic_struct_errors() {
 	// 1. Field type mismatch in instantiation
 	{
 		std::string_view code =
-			"struct Box<T> { value: T }\n"
-			"fn main(): i32 {\n"
-			"    val b: Box<i32> = Box<i32>(\"not an int\");\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Box<T> { value: T }\n"
+				"fn main(): i32 {\n"
+				"    val b: Box<i32> = Box<i32>(\"not an int\");\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -965,11 +967,11 @@ bool test_semantic_generic_struct_errors() {
 	// 2. Wrong number of type arguments
 	{
 		std::string_view code =
-			"struct Box<T> { value: T }\n"
-			"fn main(): i32 {\n"
-			"    val b: Box<i32, str> = 0;\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Box<T> { value: T }\n"
+				"fn main(): i32 {\n"
+				"    val b: Box<i32, str> = 0;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -982,11 +984,11 @@ bool test_semantic_generic_struct_errors() {
 	// 3. Generic struct used without type arguments
 	{
 		std::string_view code =
-			"struct Box<T> { value: T }\n"
-			"fn main(): i32 {\n"
-			"    val b: Box = 0;\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Box<T> { value: T }\n"
+				"fn main(): i32 {\n"
+				"    val b: Box = 0;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -999,10 +1001,10 @@ bool test_semantic_generic_struct_errors() {
 	// 4. Unknown generic struct
 	{
 		std::string_view code =
-			"fn main(): i32 {\n"
-			"    val b: Unknown<i32> = 0;\n"
-			"    return 0;\n"
-			"}\n";
+				"fn main(): i32 {\n"
+				"    val b: Unknown<i32> = 0;\n"
+				"    return 0;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
 		auto prog = p.parse_program();
@@ -1017,34 +1019,34 @@ bool test_semantic_generic_struct_errors() {
 
 bool test_variable_and_fn_type_inference() {
 	std::string_view code =
-		"struct Box<T> { value: T }\n"
-		"impl Box<T> {\n"
-		"    fn get(val self) => self.value;\n"
-		"}\n"
-		"trait Scaled {\n"
-		"    fn twice(val self) => self.value + self.value;\n"
-		"}\n"
-		"struct Number { value: i32 }\n"
-		"impl Scaled for Number {}\n"
-		"fn add(a: i32, b: i32) => a + b;\n"
-		"fn check(x: i32) => if (x > 0) true else false;\n"
-		"fn describe(x: i32) => when (x) { 0 -> \"zero\"; else -> \"other\"; };\n"
-		"fn test_inference(): i32 {\n"
-		"    val num = 42;\n"
-		"    val flag = true;\n"
-		"    val ch = 'k';\n"
-		"    val text = \"hello\";\n"
-		"    val if_res = if (flag) 100 else 200;\n"
-		"    val when_res = when (num) { 42 -> \"matched\"; else -> \"unmatched\"; };\n"
-		"    val boxed = Box(42);\n"
-		"    val number = Number(21);\n"
-		"    val box_value = boxed.get();\n"
-		"    val doubled = number.twice();\n"
-		"    val sum = add(num, if_res) + box_value + doubled;\n"
-		"    val is_pos = check(sum);\n"
-		"    val desc = describe(0);\n"
-		"    return sum;\n"
-		"}\n";
+			"struct Box<T> { value: T }\n"
+			"impl Box<T> {\n"
+			"    fn get(val self) => self.value;\n"
+			"}\n"
+			"trait Scaled {\n"
+			"    fn twice(val self) => self.value + self.value;\n"
+			"}\n"
+			"struct Number { value: i32 }\n"
+			"impl Scaled for Number {}\n"
+			"fn add(a: i32, b: i32) => a + b;\n"
+			"fn check(x: i32) => if (x > 0) true else false;\n"
+			"fn describe(x: i32) => when (x) { 0 -> \"zero\"; else -> \"other\"; };\n"
+			"fn test_inference(): i32 {\n"
+			"    val num = 42;\n"
+			"    val flag = true;\n"
+			"    val ch = 'k';\n"
+			"    val text = \"hello\";\n"
+			"    val if_res = if (flag) 100 else 200;\n"
+			"    val when_res = when (num) { 42 -> \"matched\"; else -> \"unmatched\"; };\n"
+			"    val boxed = Box(42);\n"
+			"    val number = Number(21);\n"
+			"    val box_value = boxed.get();\n"
+			"    val doubled = number.twice();\n"
+			"    val sum = add(num, if_res) + box_value + doubled;\n"
+			"    val is_pos = check(sum);\n"
+			"    val desc = describe(0);\n"
+			"    return sum;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser p{lex.tokenize()};
@@ -1068,9 +1070,11 @@ bool test_variable_and_fn_type_inference() {
 	ASSERT(sema.functions.contains("describe"), "describe must be registered");
 	ASSERT(sema.functions.at("describe").return_type->is_str(), "describe return type must be inferred as str");
 	ASSERT(sema.functions.contains("Box_i32_get"), "Generic expression-bodied method must be instantiated");
-	ASSERT(sema.functions.at("Box_i32_get").return_type->is_integer(), "Generic expression-bodied method return type must be inferred as i32");
+	ASSERT(sema.functions.at("Box_i32_get").return_type->is_integer(),
+		   "Generic expression-bodied method return type must be inferred as i32");
 	ASSERT(sema.functions.contains("Number_twice"), "Default trait method must be inherited");
-	ASSERT(sema.functions.at("Number_twice").return_type->is_integer(), "Default expression-bodied trait method return type must be inferred as i32");
+	ASSERT(sema.functions.at("Number_twice").return_type->is_integer(),
+		   "Default expression-bodied trait method return type must be inferred as i32");
 
 	return true;
 }
@@ -1079,20 +1083,20 @@ bool test_semantic_generic_functions() {
 	// 1. Generic function with explicit and inferred calls
 	{
 		std::string_view code =
-			"struct Pair<T, U> { first: T, second: U }\n"
-			"fn id<T>(x: T): T => x;\n"
-			"fn max<T>(a: T, b: T): T {\n"
-			"    if (a > b) return a; else return b;\n"
-			"}\n"
-			"fn make_pair<T, U>(a: T, b: U): Pair<T, U> => Pair(a, b);\n"
-			"fn main(): i32 {\n"
-			"    val a: i32 = id<i32>(42);\n"
-			"    val b: i32 = id(42);\n"
-			"    val c: str = id(\"hello\");\n"
-			"    val m: i64 = max(10L, 20L);\n"
-			"    val p = make_pair(100, \"world\");\n"
-			"    return 0;\n"
-			"}\n";
+				"struct Pair<T, U> { first: T, second: U }\n"
+				"fn id<T>(x: T): T => x;\n"
+				"fn max<T>(a: T, b: T): T {\n"
+				"    if (a > b) return a; else return b;\n"
+				"}\n"
+				"fn make_pair<T, U>(a: T, b: U): Pair<T, U> => Pair(a, b);\n"
+				"fn main(): i32 {\n"
+				"    val a: i32 = id<i32>(42);\n"
+				"    val b: i32 = id(42);\n"
+				"    val c: str = id(\"hello\");\n"
+				"    val m: i64 = max(10L, 20L);\n"
+				"    val p = make_pair(100, \"world\");\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1118,11 +1122,11 @@ bool test_semantic_generic_functions() {
 	// 2. Error: type count mismatch
 	{
 		std::string_view code =
-			"fn id<T>(x: T): T => x;\n"
-			"fn main(): i32 {\n"
-			"    val a = id<i32, str>(42);\n"
-			"    return 0;\n"
-			"}\n";
+				"fn id<T>(x: T): T => x;\n"
+				"fn main(): i32 {\n"
+				"    val a = id<i32, str>(42);\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1136,11 +1140,11 @@ bool test_semantic_generic_functions() {
 	// 3. Error: cannot infer type parameter
 	{
 		std::string_view code =
-			"fn dummy<T>(): i32 => 0;\n"
-			"fn main(): i32 {\n"
-			"    val a = dummy();\n"
-			"    return 0;\n"
-			"}\n";
+				"fn dummy<T>(): i32 => 0;\n"
+				"fn main(): i32 {\n"
+				"    val a = dummy();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1158,18 +1162,18 @@ bool test_semantic_module_prefixes() {
 	// 1. Ambiguous bare import collision resolved by module prefix
 	{
 		std::string_view code =
-			"mod math.vec;\n"
-			"pub struct Vector { pub x: i32, pub y: i32 }\n"
-			"mod physics.space;\n"
-			"pub struct Vector { pub mag: i32 }\n"
-			"mod main;\n"
-			"use math.vec.Vector;\n"
-			"use physics.space.Vector;\n"
-			"fn main(): i32 {\n"
-			"    val v1: vec.Vector = vec.Vector(10, 20);\n"
-			"    val v2: space.Vector = space.Vector(100);\n"
-			"    return v1.x + v2.mag;\n"
-			"}\n";
+				"mod math.vec;\n"
+				"pub struct Vector { pub x: i32, pub y: i32 }\n"
+				"mod physics.space;\n"
+				"pub struct Vector { pub mag: i32 }\n"
+				"mod main;\n"
+				"use math.vec.Vector;\n"
+				"use physics.space.Vector;\n"
+				"fn main(): i32 {\n"
+				"    val v1: vec.Vector = vec.Vector(10, 20);\n"
+				"    val v2: space.Vector = space.Vector(100);\n"
+				"    return v1.x + v2.mag;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1189,17 +1193,17 @@ bool test_semantic_module_prefixes() {
 	// 2. Bare symbol collision reports ambiguous error
 	{
 		std::string_view code =
-			"mod math.vec;\n"
-			"pub struct Vector { pub x: i32, pub y: i32 }\n"
-			"mod physics.space;\n"
-			"pub struct Vector { pub mag: i32 }\n"
-			"mod main;\n"
-			"use math.vec.Vector;\n"
-			"use physics.space.Vector;\n"
-			"fn main(): i32 {\n"
-			"    val v = Vector(10, 20);\n"
-			"    return 0;\n"
-			"}\n";
+				"mod math.vec;\n"
+				"pub struct Vector { pub x: i32, pub y: i32 }\n"
+				"mod physics.space;\n"
+				"pub struct Vector { pub mag: i32 }\n"
+				"mod main;\n"
+				"use math.vec.Vector;\n"
+				"use physics.space.Vector;\n"
+				"fn main(): i32 {\n"
+				"    val v = Vector(10, 20);\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1209,7 +1213,7 @@ bool test_semantic_module_prefixes() {
 		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Accessing ambiguous bare imported symbol must report error");
 		bool found_ambiguous = false;
-		for (const auto &d : diag.diagnostics) {
+		for (const auto &d: diag.diagnostics) {
 			if (d.format().find("Ambiguous reference") != std::string::npos) {
 				found_ambiguous = true;
 				break;
@@ -1221,16 +1225,16 @@ bool test_semantic_module_prefixes() {
 	// 3. Ambiguous bare function import triggers explicit ambiguous error
 	{
 		std::string_view code =
-			"mod A;\n"
-			"pub fn calc(): i32 { return 1; }\n"
-			"mod B;\n"
-			"pub fn calc(): i32 { return 2; }\n"
-			"mod main;\n"
-			"use A.calc;\n"
-			"use B.calc;\n"
-			"fn main(): i32 {\n"
-			"    return calc();\n"
-			"}\n";
+				"mod A;\n"
+				"pub fn calc(): i32 { return 1; }\n"
+				"mod B;\n"
+				"pub fn calc(): i32 { return 2; }\n"
+				"mod main;\n"
+				"use A.calc;\n"
+				"use B.calc;\n"
+				"fn main(): i32 {\n"
+				"    return calc();\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1240,7 +1244,7 @@ bool test_semantic_module_prefixes() {
 		sema.analyze(prog);
 		ASSERT(diag.has_errors(), "Accessing ambiguous bare imported function must report error");
 		bool found_ambiguous_fn = false;
-		for (const auto &d : diag.diagnostics) {
+		for (const auto &d: diag.diagnostics) {
 			if (d.format().find("Ambiguous reference") != std::string::npos) {
 				found_ambiguous_fn = true;
 				break;
@@ -1256,22 +1260,22 @@ bool test_semantic_traits() {
 	// 1. Basic trait with required and default method, called on struct
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"    fn greet(val self): str => \"hello\";\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"    fn name(val self): str => self.first_name;\n"
-			"}\n"
-			"fn main(): i32 {\n"
-			"    val p = Person(\"Kobel\");\n"
-			"    val n: str = p.name();\n"
-			"    val g: str = p.greet();\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"    fn greet(val self): str => \"hello\";\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"    fn name(val self): str => self.first_name;\n"
+				"}\n"
+				"fn main(): i32 {\n"
+				"    val p = Person(\"Kobel\");\n"
+				"    val n: str = p.name();\n"
+				"    val g: str = p.greet();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1285,22 +1289,22 @@ bool test_semantic_traits() {
 	// 2. Trait inheritance
 	{
 		std::string_view code =
-			"trait Base {\n"
-			"    fn base_val(val self): i32 => 10;\n"
-			"}\n"
-			"trait Derived : Base {\n"
-			"    fn derived_val(val self): i32;\n"
-			"}\n"
-			"struct Foo {}\n"
-			"impl Derived for Foo {\n"
-			"    fn derived_val(val self): i32 => 20;\n"
-			"}\n"
-			"fn main(): i32 {\n"
-			"    val f = Foo();\n"
-			"    val b = f.base_val();\n"
-			"    val d = f.derived_val();\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Base {\n"
+				"    fn base_val(val self): i32 => 10;\n"
+				"}\n"
+				"trait Derived : Base {\n"
+				"    fn derived_val(val self): i32;\n"
+				"}\n"
+				"struct Foo {}\n"
+				"impl Derived for Foo {\n"
+				"    fn derived_val(val self): i32 => 20;\n"
+				"}\n"
+				"fn main(): i32 {\n"
+				"    val f = Foo();\n"
+				"    val b = f.base_val();\n"
+				"    val d = f.derived_val();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1314,23 +1318,23 @@ bool test_semantic_traits() {
 	// 3. Generic function with trait bound
 	{
 		std::string_view code =
-			"trait Printable {\n"
-			"    fn print_me(val self): str;\n"
-			"}\n"
-			"struct Item {\n"
-			"    pub msg: str\n"
-			"}\n"
-			"impl Printable for Item {\n"
-			"    fn print_me(val self): str => self.msg;\n"
-			"}\n"
-			"fn show<T: Printable>(val x: T): str {\n"
-			"    return x.print_me();\n"
-			"}\n"
-			"fn main(): i32 {\n"
-			"    val it = Item(\"hello\");\n"
-			"    val s: str = show<Item>(it);\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Printable {\n"
+				"    fn print_me(val self): str;\n"
+				"}\n"
+				"struct Item {\n"
+				"    pub msg: str\n"
+				"}\n"
+				"impl Printable for Item {\n"
+				"    fn print_me(val self): str => self.msg;\n"
+				"}\n"
+				"fn show<T: Printable>(val x: T): str {\n"
+				"    return x.print_me();\n"
+				"}\n"
+				"fn main(): i32 {\n"
+				"    val it = Item(\"hello\");\n"
+				"    val s: str = show<Item>(it);\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1344,27 +1348,27 @@ bool test_semantic_traits() {
 	// 4. Generic struct with trait bound
 	{
 		std::string_view code =
-			"trait Hashable {\n"
-			"    fn hash(val self): i64;\n"
-			"}\n"
-			"struct Key {\n"
-			"    pub k_id: i64\n"
-			"}\n"
-			"impl Hashable for Key {\n"
-			"    fn hash(val self): i64 => self.k_id;\n"
-			"}\n"
-			"struct Container<T: Hashable> {\n"
-			"    pub item: T\n"
-			"}\n"
-			"impl<T: Hashable> Container<T> {\n"
-			"    fn get_hash(val self): i64 => self.item.hash();\n"
-			"}\n"
-			"fn main(): i32 {\n"
-			"    val k = Key(12345L);\n"
-			"    val c = Container<Key>(k);\n"
-			"    val h = c.get_hash();\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Hashable {\n"
+				"    fn hash(val self): i64;\n"
+				"}\n"
+				"struct Key {\n"
+				"    pub k_id: i64\n"
+				"}\n"
+				"impl Hashable for Key {\n"
+				"    fn hash(val self): i64 => self.k_id;\n"
+				"}\n"
+				"struct Container<T: Hashable> {\n"
+				"    pub item: T\n"
+				"}\n"
+				"impl<T: Hashable> Container<T> {\n"
+				"    fn get_hash(val self): i64 => self.item.hash();\n"
+				"}\n"
+				"fn main(): i32 {\n"
+				"    val k = Key(12345L);\n"
+				"    val c = Container<Key>(k);\n"
+				"    val h = c.get_hash();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1382,14 +1386,14 @@ bool test_semantic_trait_errors() {
 	// 1. Error: struct missing required method from trait
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1403,12 +1407,12 @@ bool test_semantic_trait_errors() {
 	// 2. Inherent method on struct without traits is valid
 	{
 		std::string_view code =
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Person {\n"
-			"    fn foo(val self): str => self.first_name;\n"
-			"}\n";
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Person {\n"
+				"    fn foo(val self): str => self.first_name;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1422,16 +1426,16 @@ bool test_semantic_trait_errors() {
 	// 3. Error: method in impl Trait does not match any trait method
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"    fn name(val self): str => self.first_name;\n"
-			"    fn extra(val self): i32 => 42;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"    fn name(val self): str => self.first_name;\n"
+				"    fn extra(val self): i32 => 42;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1445,15 +1449,15 @@ bool test_semantic_trait_errors() {
 	// 4. Valid: trait method implementation without 'override'
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"    fn name(val self): str => self.first_name;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"    fn name(val self): str => self.first_name;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1467,15 +1471,15 @@ bool test_semantic_trait_errors() {
 	// 5. Error: method receiver mode mismatch (var self vs val self)
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"    fn name(var self): str => self.first_name;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"    fn name(var self): str => self.first_name;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1489,15 +1493,15 @@ bool test_semantic_trait_errors() {
 	// 6. Error: method return type mismatch (i32 vs str)
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"impl Greeter for Person {\n"
-			"    fn name(val self): i32 => 42;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"impl Greeter for Person {\n"
+				"    fn name(val self): i32 => 42;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1511,16 +1515,16 @@ bool test_semantic_trait_errors() {
 	// 7. Error: generic function trait bound not satisfied
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct NotGreeter { x: i32 }\n"
-			"fn test_bound<T: Greeter>(val x: T): str => x.name();\n"
-			"fn main(): i32 {\n"
-			"    val ng = NotGreeter(42);\n"
-			"    val s = test_bound<NotGreeter>(ng);\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct NotGreeter { x: i32 }\n"
+				"fn test_bound<T: Greeter>(val x: T): str => x.name();\n"
+				"fn main(): i32 {\n"
+				"    val ng = NotGreeter(42);\n"
+				"    val s = test_bound<NotGreeter>(ng);\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1534,16 +1538,16 @@ bool test_semantic_trait_errors() {
 	// 8. Error: generic struct trait bound not satisfied
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"}\n"
-			"struct NotGreeter { x: i32 }\n"
-			"struct Box<T: Greeter> { item: T }\n"
-			"fn main(): i32 {\n"
-			"    val ng = NotGreeter(42);\n"
-			"    val b = Box<NotGreeter>(ng);\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"}\n"
+				"struct NotGreeter { x: i32 }\n"
+				"struct Box<T: Greeter> { item: T }\n"
+				"fn main(): i32 {\n"
+				"    val ng = NotGreeter(42);\n"
+				"    val b = Box<NotGreeter>(ng);\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1561,27 +1565,27 @@ bool test_semantic_new_struct_and_impl() {
 	// 1. Generic struct with impl block methods (exact user scenario)
 	{
 		std::string_view code =
-			"struct List<T> {\n"
-			"    pub data: &T,\n"
-			"    len: usz,\n"
-			"    cap: usz\n"
-			"}\n"
-			"\n"
-			"impl List<T> {\n"
-			"    fn add(var self, value: T): void {\n"
-			"        self.len = self.len + 1 as usz;\n"
-			"    }\n"
-			"\n"
-			"    fn free(self): void {\n"
-			"    }\n"
-			"}\n"
-			"\n"
-			"fn test_fn(p: &i32): i32 {\n"
-			"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
-			"    list.add(40);\n"
-			"    list.free();\n"
-			"    return 0;\n"
-			"}\n";
+				"struct List<T> {\n"
+				"    pub data: &T,\n"
+				"    len: usz,\n"
+				"    cap: usz\n"
+				"}\n"
+				"\n"
+				"impl List<T> {\n"
+				"    fn add(var self, value: T): void {\n"
+				"        self.len = self.len + 1 as usz;\n"
+				"    }\n"
+				"\n"
+				"    fn free(self): void {\n"
+				"    }\n"
+				"}\n"
+				"\n"
+				"fn test_fn(p: &i32): i32 {\n"
+				"    var list = List<i32>(p, 0 as usz, 3 as usz);\n"
+				"    list.add(40);\n"
+				"    list.free();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1600,24 +1604,24 @@ bool test_semantic_new_struct_and_impl() {
 	// 2. Trait implementation via impl Trait for Struct
 	{
 		std::string_view code =
-			"trait Greeter {\n"
-			"    fn name(val self): str;\n"
-			"    fn greet(val self): str => \"Hello from \" + self.name();\n"
-			"}\n"
-			"\n"
-			"struct Person {\n"
-			"    pub first_name: str\n"
-			"}\n"
-			"\n"
-			"impl Greeter for Person {\n"
-			"    fn name(val self): str => self.first_name;\n"
-			"}\n"
-			"\n"
-			"fn main(): i32 {\n"
-			"    val p = Person(\"Kobel\");\n"
-			"    val g = p.greet();\n"
-			"    return 0;\n"
-			"}\n";
+				"trait Greeter {\n"
+				"    fn name(val self): str;\n"
+				"    fn greet(val self): str => \"Hello from \" + self.name();\n"
+				"}\n"
+				"\n"
+				"struct Person {\n"
+				"    pub first_name: str\n"
+				"}\n"
+				"\n"
+				"impl Greeter for Person {\n"
+				"    fn name(val self): str => self.first_name;\n"
+				"}\n"
+				"\n"
+				"fn main(): i32 {\n"
+				"    val p = Person(\"Kobel\");\n"
+				"    val g = p.greet();\n"
+				"    return 0;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1636,19 +1640,19 @@ bool test_semantic_new_struct_and_impl() {
 	// 3. Field privacy error across modules
 	{
 		std::string_view code =
-			"mod geom;\n"
-			"pub struct Point {\n"
-			"    pub x: i32,\n"
-			"    y: i32\n"
-			"}\n"
-			"\n"
-			"mod app;\n"
-			"use geom.Point;\n"
-			"fn test(p: Point): i32 {\n"
-			"    val a = p.x;\n" // OK: pub
-			"    val b = p.y;\n" // Error: private
-			"    return a + b;\n"
-			"}\n";
+				"mod geom;\n"
+				"pub struct Point {\n"
+				"    pub x: i32,\n"
+				"    y: i32\n"
+				"}\n"
+				"\n"
+				"mod app;\n"
+				"use geom.Point;\n"
+				"fn test(p: Point): i32 {\n"
+				"    val a = p.x;\n" // OK: pub
+				"    val b = p.y;\n" // Error: private
+				"    return a + b;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1663,9 +1667,9 @@ bool test_semantic_new_struct_and_impl() {
 	// 4. Error on impl for non-existent struct
 	{
 		std::string_view code =
-			"impl Ghost {\n"
-			"    fn haunt(self): void {}\n"
-			"}\n";
+				"impl Ghost {\n"
+				"    fn haunt(self): void {}\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1680,20 +1684,20 @@ bool test_semantic_new_struct_and_impl() {
 	// 5. Cross-module generic struct method accessing private fields
 	{
 		std::string_view code =
-			"mod geom;\n"
-			"pub struct Point<T> {\n"
-			"    pub x: T,\n"
-			"    y: T\n"
-			"}\n"
-			"impl Point<T> {\n"
-			"    pub fn get_y(self): T => self.y;\n"
-			"}\n"
-			"\n"
-			"mod app;\n"
-			"use geom.Point;\n"
-			"fn test(p: Point<i32>): i32 {\n"
-			"    return p.get_y();\n"
-			"}\n";
+				"mod geom;\n"
+				"pub struct Point<T> {\n"
+				"    pub x: T,\n"
+				"    y: T\n"
+				"}\n"
+				"impl Point<T> {\n"
+				"    pub fn get_y(self): T => self.y;\n"
+				"}\n"
+				"\n"
+				"mod app;\n"
+				"use geom.Point;\n"
+				"fn test(p: Point<i32>): i32 {\n"
+				"    return p.get_y();\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1712,26 +1716,26 @@ bool test_semantic_new_struct_and_impl() {
 	// 6. Multi-module trait implementation: Trait in module A, Struct in module B, impl in module C
 	{
 		std::string_view code =
-			"mod mytraits;\n"
-			"pub trait Describable {\n"
-			"    fn desc(val self): str;\n"
-			"}\n"
-			"\n"
-			"mod geom;\n"
-			"pub struct Point {\n"
-			"    pub x: i32\n"
-			"}\n"
-			"\n"
-			"mod app;\n"
-			"use geom.Point;\n"
-			"use mytraits.Describable;\n"
-			"impl Describable for Point {\n"
-			"    fn desc(val self): str => \"point\";\n"
-			"}\n"
-			"\n"
-			"fn test(p: Point): str {\n"
-			"    return p.desc();\n"
-			"}\n";
+				"mod mytraits;\n"
+				"pub trait Describable {\n"
+				"    fn desc(val self): str;\n"
+				"}\n"
+				"\n"
+				"mod geom;\n"
+				"pub struct Point {\n"
+				"    pub x: i32\n"
+				"}\n"
+				"\n"
+				"mod app;\n"
+				"use geom.Point;\n"
+				"use mytraits.Describable;\n"
+				"impl Describable for Point {\n"
+				"    fn desc(val self): str => \"point\";\n"
+				"}\n"
+				"\n"
+				"fn test(p: Point): str {\n"
+				"    return p.desc();\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser p{lex.tokenize()};
@@ -1885,7 +1889,8 @@ bool test_type_context_interning() {
 
 	auto sema_i32 = sema.make_primitive(SemaType::I32);
 	ASSERT(sema_i32 == i32_t, "Analyzer make_primitive must match primitive_types static address");
-	ASSERT(sema.type_ctx.make_primitive(SemaType::I32) == sema_i32, "type_ctx inside Analyzer must match make_primitive");
+	ASSERT(sema.type_ctx.make_primitive(SemaType::I32) == sema_i32,
+		   "type_ctx inside Analyzer must match make_primitive");
 
 	auto sema_ptr = sema.make_pointer(sema_i32, false);
 	auto sema_ptr2 = sema.type_ctx.make_pointer(sema_i32, false);
@@ -1929,7 +1934,8 @@ bool test_type_context_interning() {
 
 	TypeContext move_dst = std::move(move_src);
 	ASSERT(move_dst.size() == orig_size, "move_dst should inherit all types");
-	ASSERT(move_dst.make_struct("MovedType") == orig_ptr, "move_dst must preserve exact pointer address of interned types");
+	ASSERT(move_dst.make_struct("MovedType") == orig_ptr,
+		   "move_dst must preserve exact pointer address of interned types");
 	ASSERT(move_src.empty(), "move_src must be empty after move");
 	ASSERT(move_src.size() == 0, "move_src size must be 0 after move");
 
@@ -1940,7 +1946,8 @@ bool test_type_context_interning() {
 	TypeContext custom_ctx;
 	auto custom_st = custom_ctx.make_struct("ExternalStruct");
 	Analyzer custom_sema{diag, std::move(custom_ctx)};
-	ASSERT(custom_sema.make_struct("ExternalStruct") == custom_st, "Analyzer initialized with custom TypeContext preserves interned types");
+	ASSERT(custom_sema.make_struct("ExternalStruct") == custom_st,
+		   "Analyzer initialized with custom TypeContext preserves interned types");
 
 	return true;
 }
@@ -2038,8 +2045,3 @@ int main() {
 	std::cout << "[ALL PASSED] Semantic tests passed successfully!" << std::endl;
 	return 0;
 }
-
-
-
-
-

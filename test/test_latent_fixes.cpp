@@ -21,7 +21,7 @@ import driver;
 		} \
 	} while (0)
 
-static bool compile_to_ir(std::string_view code, std::string& out_ir) {
+static bool compile_to_ir(std::string_view code, std::string &out_ir) {
 	Lexer lex{code};
 	Parser parser{lex.tokenize()};
 	auto prog = parser.parse_program();
@@ -42,13 +42,13 @@ static bool compile_to_ir(std::string_view code, std::string& out_ir) {
 // 1. Test variable shadowing in CodeGen: outer variable is restored after inner block
 bool test_variable_shadowing_codegen() {
 	std::string_view code =
-		"fn test_shadow(): i32 {\n"
-		"    var x: i32 = 10;\n"
-		"    {\n"
-		"        var x: i32 = 20;\n"
-		"    }\n"
-		"    return x;\n"
-		"}\n";
+			"fn test_shadow(): i32 {\n"
+			"    var x: i32 = 10;\n"
+			"    {\n"
+			"        var x: i32 = 20;\n"
+			"    }\n"
+			"    return x;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Compilation of variable shadowing failed");
@@ -65,9 +65,9 @@ bool test_pointer_mutability_soundness() {
 	// 2a. &T can be parsed and assigned to *T (safe decay)
 	{
 		std::string_view code =
-			"fn test_decay(p_mut: &i32): void {\n"
-			"    val p_const: *i32 = p_mut;\n"
-			"}\n";
+				"fn test_decay(p_mut: &i32): void {\n"
+				"    val p_const: *i32 = p_mut;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -83,9 +83,9 @@ bool test_pointer_mutability_soundness() {
 	// 2b. *T cannot be assigned to &T (loss of const safety)
 	{
 		std::string_view code =
-			"fn test_invalid(p_const: *i32): void {\n"
-			"    val p_mut: &i32 = p_const;\n"
-			"}\n";
+				"fn test_invalid(p_const: *i32): void {\n"
+				"    val p_mut: &i32 = p_const;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -115,15 +115,15 @@ bool test_string_literal_escapes() {
 	// 3b. Unterminated string reaching EOF
 	{
 		std::string_view code =
-			"fn test(): void {\n"
-			"    val msg: *char = \"unclosed string;\n"
-			"}\n";
+				"fn test(): void {\n"
+				"    val msg: *char = \"unclosed string;\n"
+				"}\n";
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
 		auto prog = parser.parse_program();
 		ASSERT(parser.has_errors(), "Parser should report error for unclosed string");
 		bool found_unterminated = false;
-		for (const auto& err : parser.errors) {
+		for (const auto &err: parser.errors) {
 			if (err.find("Unterminated string literal") != std::string::npos) {
 				found_unterminated = true;
 				break;
@@ -140,9 +140,9 @@ bool test_definite_return_analysis() {
 	// 4a. Missing return in simple non-void function
 	{
 		std::string_view code =
-			"fn missing_ret(): i32 {\n"
-			"    val a: i32 = 1;\n"
-			"}\n";
+				"fn missing_ret(): i32 {\n"
+				"    val a: i32 = 1;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -157,11 +157,11 @@ bool test_definite_return_analysis() {
 	// 4b. Missing return in if without else
 	{
 		std::string_view code =
-			"fn missing_in_if(x: i32): i32 {\n"
-			"    if x > 0 {\n"
-			"        return 1;\n"
-			"    }\n"
-			"}\n";
+				"fn missing_in_if(x: i32): i32 {\n"
+				"    if x > 0 {\n"
+				"        return 1;\n"
+				"    }\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -176,13 +176,13 @@ bool test_definite_return_analysis() {
 	// 4c. Valid return in both if and else
 	{
 		std::string_view code =
-			"fn valid_if_else(x: i32): i32 {\n"
-			"    if x > 0 {\n"
-			"        return 1;\n"
-			"    } else {\n"
-			"        return 2;\n"
-			"    }\n"
-			"}\n";
+				"fn valid_if_else(x: i32): i32 {\n"
+				"    if x > 0 {\n"
+				"        return 1;\n"
+				"    } else {\n"
+				"        return 2;\n"
+				"    }\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -197,9 +197,9 @@ bool test_definite_return_analysis() {
 	// 4d. Void function does not require return
 	{
 		std::string_view code =
-			"fn do_something(): void {\n"
-			"    val a: i32 = 1;\n"
-			"}\n";
+				"fn do_something(): void {\n"
+				"    val a: i32 = 1;\n"
+				"}\n";
 
 		Lexer lex{code};
 		Parser parser{lex.tokenize()};
@@ -217,12 +217,12 @@ bool test_definite_return_analysis() {
 // 5. Test contextual integer literal typing
 bool test_contextual_integer_literal_typing() {
 	std::string_view code =
-		"fn test_int_types(): i64 {\n"
-		"    val a: i64 = 100;\n"
-		"    val b: i16 = 5;\n"
-		"    val c: i8 = 2;\n"
-		"    return a;\n"
-		"}\n";
+			"fn test_int_types(): i64 {\n"
+			"    val a: i64 = 100;\n"
+			"    val b: i16 = 5;\n"
+			"    val c: i8 = 2;\n"
+			"    return a;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Compilation of contextual integer literals failed");
@@ -243,16 +243,19 @@ bool test_driver_dependency_lifetime() {
 	// Case 1: Chained dependencies (A -> B -> C -> D)
 	{
 		std::ofstream(temp_dir / "mod_d.kb") << "mod mod_d;\npub fn calc_d(): i32 { return 10; }\n";
-		std::ofstream(temp_dir / "mod_c.kb") << "mod mod_c;\nuse mod_d.calc_d;\npub fn calc_c(): i32 { return calc_d() + 1; }\n";
-		std::ofstream(temp_dir / "mod_b.kb") << "mod mod_b;\nuse mod_c.calc_c;\npub fn calc_b(): i32 { return calc_c() + 2; }\n";
-		std::ofstream(temp_dir / "mod_a.kb") << "mod mod_a;\nuse mod_b.calc_b;\npub fn calc_a(): i32 { return calc_b() + 3; }\n";
+		std::ofstream(temp_dir / "mod_c.kb") <<
+				"mod mod_c;\nuse mod_d.calc_d;\npub fn calc_c(): i32 { return calc_d() + 1; }\n";
+		std::ofstream(temp_dir / "mod_b.kb") <<
+				"mod mod_b;\nuse mod_c.calc_c;\npub fn calc_b(): i32 { return calc_c() + 2; }\n";
+		std::ofstream(temp_dir / "mod_a.kb") <<
+				"mod mod_a;\nuse mod_b.calc_b;\npub fn calc_a(): i32 { return calc_b() + 3; }\n";
 		std::ofstream(temp_dir / "main.kb") << "mod main;\nuse mod_a.calc_a;\nfn main(): i32 { return calc_a(); }\n";
 
 		CompilerOptions opts;
-		opts.input_files = { (temp_dir / "main.kb").string() };
+		opts.input_files = {(temp_dir / "main.kb").string()};
 		opts.output_file = (temp_dir / "output.ll").string();
 		opts.mode = OutputMode::IR;
-		opts.custom_search_dirs = { temp_dir };
+		opts.custom_search_dirs = {temp_dir};
 
 		std::ostringstream out_s, err_s;
 		Driver driver{opts, out_s, err_s};
@@ -273,15 +276,18 @@ bool test_driver_dependency_lifetime() {
 		fs::create_directories(diamond_dir, ec);
 
 		std::ofstream(diamond_dir / "base.kb") << "mod base;\npub fn base_val(): i32 { return 42; }\n";
-		std::ofstream(diamond_dir / "left.kb") << "mod left;\nuse base.base_val;\npub fn left_val(): i32 { return base_val() + 1; }\n";
-		std::ofstream(diamond_dir / "right.kb") << "mod right;\nuse base.base_val;\npub fn right_val(): i32 { return base_val() * 2; }\n";
-		std::ofstream(diamond_dir / "main.kb") << "mod main;\nuse left.left_val;\nuse right.right_val;\nfn main(): i32 { return left_val() + right_val(); }\n";
+		std::ofstream(diamond_dir / "left.kb") <<
+				"mod left;\nuse base.base_val;\npub fn left_val(): i32 { return base_val() + 1; }\n";
+		std::ofstream(diamond_dir / "right.kb") <<
+				"mod right;\nuse base.base_val;\npub fn right_val(): i32 { return base_val() * 2; }\n";
+		std::ofstream(diamond_dir / "main.kb") <<
+				"mod main;\nuse left.left_val;\nuse right.right_val;\nfn main(): i32 { return left_val() + right_val(); }\n";
 
 		CompilerOptions opts;
-		opts.input_files = { (diamond_dir / "main.kb").string() };
+		opts.input_files = {(diamond_dir / "main.kb").string()};
 		opts.output_file = (diamond_dir / "output.ll").string();
 		opts.mode = OutputMode::IR;
-		opts.custom_search_dirs = { diamond_dir };
+		opts.custom_search_dirs = {diamond_dir};
 
 		std::ostringstream out_s, err_s;
 		Driver driver{opts, out_s, err_s};
@@ -301,14 +307,16 @@ bool test_driver_dependency_lifetime() {
 		fs::create_directories(circ_dir, ec);
 
 		std::ofstream(circ_dir / "mod_a.kb") << "mod mod_a;\nuse mod_b.func_b;\npub fn func_a(): i32 { return 10; }\n";
-		std::ofstream(circ_dir / "mod_b.kb") << "mod mod_b;\nuse mod_a.func_a;\npub fn func_b(): i32 { return func_a() + 5; }\n";
-		std::ofstream(circ_dir / "main.kb") << "mod main;\nuse mod_a.func_a;\nuse mod_b.func_b;\nfn main(): i32 { return func_a() + func_b(); }\n";
+		std::ofstream(circ_dir / "mod_b.kb") <<
+				"mod mod_b;\nuse mod_a.func_a;\npub fn func_b(): i32 { return func_a() + 5; }\n";
+		std::ofstream(circ_dir / "main.kb") <<
+				"mod main;\nuse mod_a.func_a;\nuse mod_b.func_b;\nfn main(): i32 { return func_a() + func_b(); }\n";
 
 		CompilerOptions opts;
-		opts.input_files = { (circ_dir / "main.kb").string() };
+		opts.input_files = {(circ_dir / "main.kb").string()};
 		opts.output_file = (circ_dir / "output.ll").string();
 		opts.mode = OutputMode::IR;
-		opts.custom_search_dirs = { circ_dir };
+		opts.custom_search_dirs = {circ_dir};
 
 		std::ostringstream out_s, err_s;
 		Driver driver{opts, out_s, err_s};
@@ -328,18 +336,18 @@ bool test_driver_dependency_lifetime() {
 // 7. Test struct member codegen does not pollute analyzer->structs map via operator[]
 bool test_struct_member_no_map_pollution() {
 	std::string_view code =
-		"struct Point {\n"
-		"    x: i32,\n"
-		"    y: i32,\n"
-		"    z: i32\n"
-		"}\n"
-		"struct Nested {\n"
-		"    pt: Point,\n"
-		"    tag: i32\n"
-		"}\n"
-		"fn test_members(n: &Nested): i32 {\n"
-		"    return n.pt.z + n.tag;\n"
-		"}\n";
+			"struct Point {\n"
+			"    x: i32,\n"
+			"    y: i32,\n"
+			"    z: i32\n"
+			"}\n"
+			"struct Nested {\n"
+			"    pt: Point,\n"
+			"    tag: i32\n"
+			"}\n"
+			"fn test_members(n: &Nested): i32 {\n"
+			"    return n.pt.z + n.tag;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser parser{lex.tokenize()};
@@ -397,10 +405,10 @@ bool test_struct_member_no_map_pollution() {
 	// Member access on non-existent member or unresolvable struct does not crash
 	{
 		std::string bad_code =
-			"struct Dummy { a: i32 }\n"
-			"fn test_bad(d: &Dummy): i32 {\n"
-			"    return d.a;\n"
-			"}\n";
+				"struct Dummy { a: i32 }\n"
+				"fn test_bad(d: &Dummy): i32 {\n"
+				"    return d.a;\n"
+				"}\n";
 		Lexer b_lex{bad_code};
 		Parser b_parser{b_lex.tokenize()};
 		auto b_prog = b_parser.parse_program();
@@ -414,7 +422,8 @@ bool test_struct_member_no_map_pollution() {
 		// Attempting to emit lvalue or expr on invalid member expression returns nullptr safely without crashing
 		MemberExpr fake_member{nullptr, "non_existent", 1, 1};
 		ASSERT(b_cg.emit_lvalue(&fake_member) == nullptr, "emit_lvalue on invalid member must return nullptr");
-		ASSERT(b_cg.emit_expr(&fake_member) == nullptr, "emit_expr on invalid member must return nullptr without crashing");
+		ASSERT(b_cg.emit_expr(&fake_member) == nullptr,
+			   "emit_expr on invalid member must return nullptr without crashing");
 	}
 
 	return true;
@@ -481,7 +490,8 @@ bool test_lexer_comment_stack_overflow_stress() {
 
 	// Case 5: Carriage return line comment endings and CRLF/CR in block comments
 	{
-		std::string cr_comments = "// first comment\rval x = 1;\r// second comment\r\nval y = 2;\n/* block \r with cr \r\n and crlf */\nval z = 3;";
+		std::string cr_comments =
+				"// first comment\rval x = 1;\r// second comment\r\nval y = 2;\n/* block \r with cr \r\n and crlf */\nval z = 3;";
 		Lexer lex{cr_comments};
 		auto tokens = lex.tokenize();
 		// Tokens for: val x = 1 ; val y = 2 ; val z = 3 ; EOF
@@ -510,14 +520,14 @@ bool test_multifile_module_isolation() {
 	{
 		std::ofstream out(f1);
 		out << "mod alpha;\n"
-		    << "pub fn a_val(): i32 { return 10; }\n";
+				<< "pub fn a_val(): i32 { return 10; }\n";
 	}
 	{
 		std::ofstream out(f2);
 		out << "fn root_helper(): i32 { return 20; }\n"
-		    << "mod beta;\n"
-		    << "use alpha.a_val;\n"
-		    << "pub fn run(): i32 { return a_val() + root_helper(); }\n";
+				<< "mod beta;\n"
+				<< "use alpha.a_val;\n"
+				<< "pub fn run(): i32 { return a_val() + root_helper(); }\n";
 	}
 
 	CompilerOptions opts;
@@ -537,11 +547,11 @@ bool test_multifile_module_isolation() {
 
 bool test_array_flyweight_immutability() {
 	std::string_view code =
-		"fn test_arrays(): i32 {\n"
-		"    val a: Array<i32> = [1, 2];\n"
-		"    val b: Array<i32> = [10, 20, 30, 40];\n"
-		"    return a[0] + b[0];\n"
-		"}\n";
+			"fn test_arrays(): i32 {\n"
+			"    val a: Array<i32> = [1, 2];\n"
+			"    val b: Array<i32> = [10, 20, 30, 40];\n"
+			"    return a[0] + b[0];\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Array flyweight immutability compilation failed");
@@ -552,12 +562,12 @@ bool test_array_flyweight_immutability() {
 
 bool test_ast_immutability_struct_and_impl() {
 	std::string_view code =
-		"struct Widget {\n"
-		"    pub id: i32\n"
-		"}\n"
-		"impl Widget {\n"
-		"    fn get_id(self): i32 => self.id;\n"
-		"}\n";
+			"struct Widget {\n"
+			"    pub id: i32\n"
+			"}\n"
+			"impl Widget {\n"
+			"    fn get_id(self): i32 => self.id;\n"
+			"}\n";
 
 	Lexer lex{code};
 	Parser parser{lex.tokenize()};
@@ -565,7 +575,7 @@ bool test_ast_immutability_struct_and_impl() {
 	ASSERT(!parser.has_errors(), "Parsing Widget and impl failed");
 
 	const StructDecl *st = nullptr;
-	for (const auto &decl : prog->declarations) {
+	for (const auto &decl: prog->declarations) {
 		if (isa<StructDecl>(decl)) {
 			st = as<StructDecl>(decl);
 			break;
@@ -594,18 +604,18 @@ bool test_ast_immutability_struct_and_impl() {
 
 bool test_str_free_internal_linkage() {
 	std::string_view code1 =
-		"pub fn test_str1(): void {\n"
-		"    val s = \"hello\";\n"
-		"}\n";
+			"pub fn test_str1(): void {\n"
+			"    val s = \"hello\";\n"
+			"}\n";
 	std::string_view code2 =
-		"pub fn test_str2(): void {\n"
-		"    val s = \"world\";\n"
-		"}\n";
+			"pub fn test_str2(): void {\n"
+			"    val s = \"world\";\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code1, ir), "String helper compilation failed");
 	ASSERT(ir.find("define internal void @__kobel_str_free(") != std::string::npos,
-	       "__kobel_str_free must have internal linkage to avoid duplicate symbols in multi-module linking");
+		   "__kobel_str_free must have internal linkage to avoid duplicate symbols in multi-module linking");
 
 	// Physical object link verification:
 	std::filesystem::path dir = std::filesystem::temp_directory_path() / "kobel_linkage_test";
@@ -634,7 +644,8 @@ bool test_str_free_internal_linkage() {
 	ASSERT(emit_obj(code1, obj1), "Emit obj1 failed");
 	ASSERT(emit_obj(code2, obj2), "Emit obj2 failed");
 
-	std::string link_cmd = "link /NOLOGO /DLL /NOENTRY /FORCE:UNRESOLVED /OUT:\"" + dll_out + "\" \"" + obj1 + "\" \"" + obj2 + "\" > nul 2>&1";
+	std::string link_cmd = "link /NOLOGO /DLL /NOENTRY /FORCE:UNRESOLVED /OUT:\"" + dll_out + "\" \"" + obj1 + "\" \"" +
+						   obj2 + "\" > nul 2>&1";
 	int ret = std::system(link_cmd.c_str());
 	std::filesystem::remove_all(dir, ec);
 
@@ -644,17 +655,17 @@ bool test_str_free_internal_linkage() {
 
 bool test_generic_struct_trait_default_method() {
 	std::string_view code =
-		"trait Greeter {\n"
-		"    fn greet(val self): i32 => 42;\n"
-		"}\n"
-		"struct Box<T> {\n"
-		"    pub item: T\n"
-		"}\n"
-		"impl<T> Greeter for Box<T> {}\n"
-		"fn test_box(): i32 {\n"
-		"    val b = Box<i32>(10);\n"
-		"    return b.greet();\n"
-		"}\n";
+			"trait Greeter {\n"
+			"    fn greet(val self): i32 => 42;\n"
+			"}\n"
+			"struct Box<T> {\n"
+			"    pub item: T\n"
+			"}\n"
+			"impl<T> Greeter for Box<T> {}\n"
+			"fn test_box(): i32 {\n"
+			"    val b = Box<i32>(10);\n"
+			"    return b.greet();\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Generic struct trait default method failed");
@@ -664,25 +675,25 @@ bool test_generic_struct_trait_default_method() {
 
 bool test_generic_struct_multi_trait_impl_override() {
 	std::string_view code =
-		"trait Named {\n"
-		"    fn name(val self): str => \"anonymous\";\n"
-		"}\n"
-		"trait Value {\n"
-		"    fn val_int(val self): i32;\n"
-		"    fn double_val(val self): i32 => self.val_int() * 2;\n"
-		"}\n"
-		"struct Wrapper<T> {\n"
-		"    pub item: T\n"
-		"}\n"
-		"impl<T> Named for Wrapper<T> {}\n"
-		"impl<T> Value for Wrapper<T> {\n"
-		"    fn val_int(val self): i32 => 10;\n"
-		"}\n"
-		"fn test_wrap(): i32 {\n"
-		"    val w = Wrapper<i32>(100);\n"
-		"    val d = w.double_val();\n"
-		"    return d;\n"
-		"}\n";
+			"trait Named {\n"
+			"    fn name(val self): str => \"anonymous\";\n"
+			"}\n"
+			"trait Value {\n"
+			"    fn val_int(val self): i32;\n"
+			"    fn double_val(val self): i32 => self.val_int() * 2;\n"
+			"}\n"
+			"struct Wrapper<T> {\n"
+			"    pub item: T\n"
+			"}\n"
+			"impl<T> Named for Wrapper<T> {}\n"
+			"impl<T> Value for Wrapper<T> {\n"
+			"    fn val_int(val self): i32 => 10;\n"
+			"}\n"
+			"fn test_wrap(): i32 {\n"
+			"    val w = Wrapper<i32>(100);\n"
+			"    val d = w.double_val();\n"
+			"    return d;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Generic struct multi-trait impl override failed");
@@ -693,22 +704,23 @@ bool test_generic_struct_multi_trait_impl_override() {
 
 bool test_struct_with_enum_field() {
 	std::string_view code =
-		"enum Status {\n"
-		"    OK = 0,\n"
-		"    ERR = 1\n"
-		"}\n"
-		"struct Task {\n"
-		"    id: i32,\n"
-		"    status: Status\n"
-		"}\n"
-		"fn test_task(): Status {\n"
-		"    val t = Task(42, Status.OK);\n"
-		"    return t.status;\n"
-		"}\n";
+			"enum Status {\n"
+			"    OK = 0,\n"
+			"    ERR = 1\n"
+			"}\n"
+			"struct Task {\n"
+			"    id: i32,\n"
+			"    status: Status\n"
+			"}\n"
+			"fn test_task(): Status {\n"
+			"    val t = Task(42, Status.OK);\n"
+			"    return t.status;\n"
+			"}\n";
 
 	std::string ir;
 	ASSERT(compile_to_ir(code, ir), "Compilation of struct with enum field failed");
-	ASSERT(ir.find("%Task = type { i32, i32 }") != std::string::npos, "Task struct should have i32 and i32 status in IR");
+	ASSERT(ir.find("%Task = type { i32, i32 }") != std::string::npos,
+		   "Task struct should have i32 and i32 status in IR");
 	return true;
 }
 
@@ -763,4 +775,3 @@ int main() {
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;
 }
-

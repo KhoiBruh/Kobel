@@ -55,12 +55,12 @@ namespace {
 
 	bool test_mem2reg_and_constant_folding() {
 		std::string_view code =
-			"fn compute(x: i32): i32 {\n"
-			"    var a = x;\n"
-			"    var b = 10;\n"
-			"    var c = 20;\n"
-			"    return a + b * c;\n"
-			"}\n";
+				"fn compute(x: i32): i32 {\n"
+				"    var a = x;\n"
+				"    var b = 10;\n"
+				"    var c = 20;\n"
+				"    return a + b * c;\n"
+				"}\n";
 
 		std::string ir_o0, ir_o2;
 		ASSERT(compile_to_ir_with_opt(code, OptLevel::O0, ir_o0), "O0 compilation failed");
@@ -77,12 +77,12 @@ namespace {
 
 	bool test_function_inlining() {
 		std::string_view code =
-			"fn square(x: i32): i32 {\n"
-			"    return x * x;\n"
-			"}\n"
-			"fn sum_squares(a: i32, b: i32): i32 {\n"
-			"    return square(a) + square(b);\n"
-			"}\n";
+				"fn square(x: i32): i32 {\n"
+				"    return x * x;\n"
+				"}\n"
+				"fn sum_squares(a: i32, b: i32): i32 {\n"
+				"    return square(a) + square(b);\n"
+				"}\n";
 
 		std::string ir_o0, ir_o2;
 		ASSERT(compile_to_ir_with_opt(code, OptLevel::O0, ir_o0), "O0 compilation failed");
@@ -106,11 +106,11 @@ namespace {
 
 	bool test_dead_code_elimination() {
 		std::string_view code =
-			"fn dce_test(x: i32): i32 {\n"
-			"    var unused = 99999;\n"
-			"    var dead_calc = x * 777;\n"
-			"    return x;\n"
-			"}\n";
+				"fn dce_test(x: i32): i32 {\n"
+				"    var unused = 99999;\n"
+				"    var dead_calc = x * 777;\n"
+				"    return x;\n"
+				"}\n";
 
 		std::string ir_o0, ir_o2;
 		ASSERT(compile_to_ir_with_opt(code, OptLevel::O0, ir_o0), "O0 compilation failed");
@@ -128,10 +128,10 @@ namespace {
 
 	bool test_all_opt_levels() {
 		std::string_view code =
-			"fn fib(n: i32): i32 {\n"
-			"    if (n <= 1) { return n; }\n"
-			"    return fib(n - 1) + fib(n - 2);\n"
-			"}\n";
+				"fn fib(n: i32): i32 {\n"
+				"    if (n <= 1) { return n; }\n"
+				"    return fib(n - 1) + fib(n - 2);\n"
+				"}\n";
 
 		const OptLevel levels[] = {
 			OptLevel::O0,
@@ -142,7 +142,7 @@ namespace {
 			OptLevel::Oz
 		};
 
-		for (auto lvl : levels) {
+		for (auto lvl: levels) {
 			std::string ir;
 			ASSERT(compile_to_ir_with_opt(code, lvl, ir), "Optimization failed for level");
 			ASSERT(ir.find("define i32 @fib(") != std::string::npos, "Missing fib function");
@@ -161,9 +161,9 @@ namespace {
 
 	bool test_size_optimization_pipeline() {
 		std::string_view code =
-			"fn calc(x: i32): i32 {\n"
-			"    return x * 2 + 1;\n"
-			"}\n";
+				"fn calc(x: i32): i32 {\n"
+				"    return x * 2 + 1;\n"
+				"}\n";
 
 		std::string ir_os, ir_oz;
 		ASSERT(compile_to_ir_with_opt(code, OptLevel::Os, ir_os), "Os compilation failed");

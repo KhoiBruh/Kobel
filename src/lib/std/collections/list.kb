@@ -47,46 +47,46 @@ pub fn list_with_capacity<T>(capacity: usz): List<T> {
 impl List<T> {
 	// ---- Read operations ----
 
-	/// Lay phan tu tai vi tri index (khong kiem tra bounds)
+	/// Get element at index (no bounds check)
 	pub fn get(val self, index: usz) => self.data[index];
 
-	/// Lay phan tu dau tien
+	/// Get first element
 	pub fn first(val self) => self.data[0];
 
-	/// Lay phan tu cuoi cung
+	/// Get last element
 	pub fn last(val self)  => self.data[self.len - 1];
 
-	/// Kiem tra list co rong khong
+	/// Check if list is empty
 	pub fn is_empty(val self) => self.len == 0;
 
 	// ---- Write operations ----
 
-	/// Gan gia tri tai vi tri index (khong kiem tra bounds)
+	/// Set element at index (no bounds check)
 	pub fn set(var self, index: usz, value: T) {
 		self.data[index] = value;
 	}
 
-	/// Them phan tu vao cuoi list, tu dong mo rong neu can
+	/// Append element to list, auto-grow capacity if full
 	pub fn add(var self, value: T) {
 		if (self.len == self.cap) self.grow();
 		self.data[self.len] = value;
 		self.len = self.len + 1;
 	}
 
-	/// Xoa phan tu cuoi cung va tra ve gia tri
+	/// Remove last element and return it
 	pub fn pop(var self): T {
 		self.len = self.len - 1;
 		return self.data[self.len];
 	}
 
-	/// Xoa tat ca phan tu (khong giai phong bo nho)
+	/// Clear all elements (preserves allocated capacity)
 	pub fn clear(var self) {
 		self.len = 0UZ;
 	}
 
 	// ---- Capacity management ----
 
-	/// Mo rong gap doi dung luong hien tai
+	/// Double current capacity
 	fn grow(var self) {
 		val new_cap = self.cap * 2;
 		val new_raw = realloc(self.data as &u8, new_cap * T.size());
@@ -94,7 +94,7 @@ impl List<T> {
 		self.cap = new_cap;
 	}
 
-	/// Dam bao dung luong toi thieu, mo rong neu can
+	/// Ensure minimum capacity, grow if necessary
 	pub fn reserve(var self, min_cap: usz) {
 		if (min_cap > self.cap) {
 			var new_cap = self.cap;
@@ -109,7 +109,7 @@ impl List<T> {
 
 	// ---- Cleanup ----
 
-	/// Giai phong vung nho heap. Goi khi khong con dung list nua.
+	/// Free heap memory buffer
 	pub fn delete(self) {
 		free(self.data as &u8);
 	}
