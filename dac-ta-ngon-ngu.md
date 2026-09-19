@@ -163,7 +163,6 @@ impl A {
 
 - Struct thuần túy chứa khai báo các trường dữ liệu (fields), hỗ trợ từ khóa `pub` cho từng field.
 - Toàn bộ hàm thành viên (methods) được định nghĩa tách rời trong khối `impl StructName { ... }`.
-- Cú pháp cũ kiểu `struct Point(...) : Trait { ... }` đã được loại bỏ hoàn toàn để mã nguồn mạch lạc và giống Rust hơn.
 - **Không có `new(...)`:** khởi tạo truyền đủ mọi field theo đúng thứ tự khai báo: `A(1, "hello")`.
 - **Có `new(...)`:** khởi tạo theo đúng chữ ký `new`. `Self(...)` bên trong luôn trỏ tới chính struct đang định nghĩa.
 - Layout bộ nhớ: **luôn theo chuẩn C** (thứ tự field, alignment/padding tự nhiên) — áp dụng mặc định cho mọi struct, không cần đánh dấu riêng. Mục đích: dễ FFI/bind sang C, Java, Python...

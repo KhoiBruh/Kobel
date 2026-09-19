@@ -109,69 +109,11 @@ StructDecl *Parser::parse_struct_decl() {
 
 	std::vector<StructField> fields;
 
-	if (check(TokenType::OPEN_PAREN)) {
-		error(
-			advance(),
-			"Old struct syntax 'struct Name(...)' has been removed; use 'struct Name { ... }' instead"
-		);
-
-		int paren_depth = 1;
-		while (paren_depth > 0 && !is_end()) {
-			if (check(TokenType::OPEN_PAREN)) paren_depth++;
-			else if (check(TokenType::CLOSE_PAREN)) paren_depth--;
-			advance();
-		}
-
-		if (match(TokenType::COLON)) {
-			while (
-				!check(TokenType::OPEN_BRACE) &&
-				!check(TokenType::SEMI_COLON) &&
-				!is_end()
-			)
-				advance();
-		}
-
-		if (match(TokenType::OPEN_BRACE)) {
-			int brace_depth = 1;
-			while (brace_depth > 0 && !is_end()) {
-				if (check(TokenType::OPEN_BRACE)) brace_depth++;
-				else if (check(TokenType::CLOSE_BRACE)) brace_depth--;
-				advance();
-			}
-		} else match(TokenType::SEMI_COLON);
-
-		auto st = arena.alloc<StructDecl>(name.text, tok.line, tok.col);
-		st->type_params = arena.alloc_span(type_params);
-		return st;
-	}
-
-	if (check(TokenType::COLON)) {
-		error(advance(),
-			  "Traits cannot be specified on struct declaration; use 'impl Trait for " +
-			  std::string(name.text) + "' instead"
-		);
-		while (
-			!check(TokenType::OPEN_BRACE) &&
-			!check(TokenType::SEMI_COLON) &&
-			!is_end()
-		)
-			advance();
-	}
-
 	if (match(TokenType::OPEN_BRACE)) {
 		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
 			bool is_pub = match(TokenType::KW_PUB);
 
-			if (check(TokenType::KW_FN)) {
-				error(
-					peek(),
-					"Structs cannot contain methods. Use 'impl " +
-					std::string(name.text) + "' or 'impl Trait for " +
-					std::string(name.text) + "' instead"
-				);
-				auto fn = parse_fn_decl();
-				(void) fn;
-			} else if (check(TokenType::IDENTIFIER)) {
+			if (check(TokenType::IDENTIFIER)) {
 				const Token f_name = advance();
 				consume(TokenType::COLON, "Expected ':' after field name");
 				auto f_type = parse_type();
@@ -210,12 +152,6 @@ ImplDecl *Parser::parse_impl_decl() {
 		const Token st_tok = consume(TokenType::IDENTIFIER, "Expected struct name after 'for'");
 		struct_name = st_tok.text;
 		append_unique_generic_params(type_params);
-	} else if (check(TokenType::COLON)) {
-		error(advance(),
-			  "Old trait implementation syntax 'impl Struct : Trait' has been removed; use 'impl Trait for Struct' instead");
-		while (!check(TokenType::OPEN_BRACE) && !is_end()) {
-			advance();
-		}
 	}
 
 	consume(TokenType::OPEN_BRACE, "Expected '{' to begin 'impl' body");
