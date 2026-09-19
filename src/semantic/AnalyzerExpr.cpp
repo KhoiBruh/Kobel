@@ -80,7 +80,105 @@ bool deduce_type_arg(
 	return false;
 }
 
+// Returns the primitive type explicitly requested by an integer literal's suffix,
+// or std::nullopt when the literal carries no suffix and should therefore infer its
+// width from the surrounding context (falling back to i32 when there is none).
+std::optional<SemaType> int_literal_suffix_type(const std::string_view raw) {
+	const bool is_hex = raw.starts_with("0x") || raw.starts_with("0X");
+	if (raw.ends_with("UB")) return SemaType::U8;
+	if (raw.ends_with("US")) return SemaType::U16;
+	if (raw.ends_with("UL")) return SemaType::U64;
+	if (raw.ends_with("UZ")) return SemaType::USZ;
+	if (raw.ends_with("U")) return SemaType::U32;
+	if (raw.ends_with("L")) return SemaType::I64;
+	if (raw.ends_with("S")) return SemaType::I16;
+	if (raw.ends_with("Z")) return SemaType::ISZ;
+	if (!is_hex && raw.ends_with("B")) return SemaType::I8;
+	if (is_hex) {
+		const size_t last_us = raw.rfind('_');
+		if (last_us != std::string_view::npos && raw.substr(last_us + 1) == "B") return SemaType::I8;
+	}
+	return std::nullopt;
+}
+
+// True when `expr` is an integer literal written without a type suffix, e.g. `2`.
+// Such a literal is context-sensitive: `T.size() * 2` infers `usz`, not `i32`.
+bool is_unsuffixed_int_literal(const Expr *expr) {
+	if (!expr || !isa<LiteralExpr>(expr)) return false;
+	const auto *lit = as<LiteralExpr>(expr);
+	return lit->literal_kind == LiteralKind::INT &&
+	       !int_literal_suffix_type(lit->raw_text).has_value();
+}
+
+// A tree built only from unsuffixed integer literals (literals, grouping and
+// arithmetic between them) can adopt a surrounding integer type as a whole, so
+// `2 * 3 * T.size()` behaves like `T.size() * 6`. Unary minus is only retypeable
+// for signed targets, keeping a negative literal in an unsigned context an error.
+bool is_inferable_int_literal_expr(const Expr *expr, Semantic target_type) {
+	if (!expr) return false;
+	if (isa<LiteralExpr>(expr)) return is_unsuffixed_int_literal(expr);
+	if (isa<GroupExpr>(expr)) return is_inferable_int_literal_expr(as<GroupExpr>(expr)->expr, target_type);
+	if (isa<UnaryExpr>(expr)) {
+		const auto *un = as<UnaryExpr>(expr);
+		if (un->op != TokenType::MINUS) return false;
+		if (target_type && !target_type->is_signed_integer()) return false;
+		return is_inferable_int_literal_expr(un->operand, target_type);
+	}
+	if (isa<BinaryExpr>(expr)) {
+		const auto *bin = as<BinaryExpr>(expr);
+		switch (bin->op) {
+			case TokenType::PLUS:
+			case TokenType::MINUS:
+			case TokenType::STAR:
+			case TokenType::SLASH:
+			case TokenType::PERCENT:
+				return is_inferable_int_literal_expr(bin->left, target_type) &&
+				       is_inferable_int_literal_expr(bin->right, target_type);
+			default: return false;
+		}
+	}
+	return false;
+}
+
+// Rewrites the recorded type of every node of a purely-literal integer expression
+// so codegen emits each operand with the contextual width.
+void retype_int_literal_expr(
+	const Expr *expr,
+	Semantic target_type,
+	std::unordered_map<const Expr *, Semantic> &expr_types
+) {
+	if (!expr) return;
+	expr_types[expr] = target_type;
+
+	if (isa<GroupExpr>(expr)) {
+		retype_int_literal_expr(as<GroupExpr>(expr)->expr, target_type, expr_types);
+		return;
+	}
+	if (isa<UnaryExpr>(expr)) {
+		retype_int_literal_expr(as<UnaryExpr>(expr)->operand, target_type, expr_types);
+		return;
+	}
+	if (isa<BinaryExpr>(expr)) {
+		const auto *bin = as<BinaryExpr>(expr);
+		retype_int_literal_expr(bin->left, target_type, expr_types);
+		retype_int_literal_expr(bin->right, target_type, expr_types);
+	}
+}
+
 } // namespace
+
+Semantic Analyzer::coerce_int_literal_type(
+	const Expr *expr,
+	const Semantic expected_type,
+	const Semantic actual_type
+) {
+	if (!expected_type || !actual_type || expected_type == actual_type) return actual_type;
+	if (!expected_type->is_integer() || !actual_type->is_integer()) return actual_type;
+	if (!is_inferable_int_literal_expr(expr, expected_type)) return actual_type;
+
+	retype_int_literal_expr(expr, expected_type, expr_types);
+	return expected_type;
+}
 
 Semantic Analyzer::check_and_coerce_arg(
 	const Expr *arg,
@@ -92,12 +190,7 @@ Semantic Analyzer::check_and_coerce_arg(
 	if (!expected_type || !arg) return make_error();
 	auto arg_type = analyze_expr(arg);
 	if (!arg_type) return make_error();
-	if (expected_type->is_integer() && arg_type->is_integer() &&
-	    isa<LiteralExpr>(arg) &&
-	    as<LiteralExpr>(arg)->literal_kind == LiteralKind::INT) {
-		arg_type = expected_type;
-		expr_types[arg] = expected_type;
-	}
+	arg_type = coerce_int_literal_type(arg, expected_type, arg_type);
 	if (!expected_type->can_assign_from(arg_type)) {
 		logger.error(
 			line, col,
@@ -112,22 +205,8 @@ Semantic Analyzer::analyze_literal_expr(const LiteralExpr *lit) {
 	if (!lit) return make_error();
 	switch (lit->literal_kind) {
 		case LiteralKind::INT: {
-			const auto raw = lit->raw_text;
-			bool is_hex = raw.starts_with("0x") || raw.starts_with("0X");
-			if (raw.ends_with("UB")) return make_primitive(SemaType::U8);
-			if (raw.ends_with("US")) return make_primitive(SemaType::U16);
-			if (raw.ends_with("UL")) return make_primitive(SemaType::U64);
-			if (raw.ends_with("UZ")) return make_primitive(SemaType::USZ);
-			if (raw.ends_with("U")) return make_primitive(SemaType::U32);
-			if (raw.ends_with("L")) return make_primitive(SemaType::I64);
-			if (raw.ends_with("S")) return make_primitive(SemaType::I16);
-			if (raw.ends_with("Z")) return make_primitive(SemaType::ISZ);
-			if (!is_hex && raw.ends_with("B")) return make_primitive(SemaType::I8);
-			if (is_hex && raw.find('_') != std::string_view::npos) {
-				size_t last_us = raw.rfind('_');
-				if (raw.substr(last_us + 1) == "B") return make_primitive(SemaType::I8);
-			}
-			return make_primitive(SemaType::I32); // default int is i32
+			if (const auto suffix = int_literal_suffix_type(lit->raw_text)) return make_primitive(*suffix);
+			return make_primitive(SemaType::I32); // unsuffixed int defaults to i32 unless context says otherwise
 		}
 		case LiteralKind::FLOAT: {
 			const auto raw = lit->raw_text;
@@ -236,12 +315,7 @@ Semantic Analyzer::analyze_assign_expr(const AssignExpr *a) {
 	}
 
 	auto val_type = analyze_expr(a->value);
-	if (target_type->is_integer() && val_type->is_integer() &&
-	    isa<LiteralExpr>(a->value) &&
-	    as<LiteralExpr>(a->value)->literal_kind == LiteralKind::INT) {
-		val_type = target_type;
-		expr_types[a->value] = target_type;
-	}
+	val_type = coerce_int_literal_type(a->value, target_type, val_type);
 
 	if (!target_type->can_assign_from(val_type))
 		logger.error(
@@ -258,6 +332,16 @@ Semantic Analyzer::analyze_binary_expr(const BinaryExpr *b) {
 	auto right_type = analyze_expr(b->right);
 
 	if (left_type->is_error() || right_type->is_error()) return make_error();
+
+	// Unsuffixed integer literals infer their width from the sibling operand, so
+	// `T.size() * 2` is accepted without writing the `UZ` suffix on the literal.
+	if (left_type->is_integer() && right_type->is_integer() && left_type != right_type) {
+		if (is_inferable_int_literal_expr(b->right, left_type)) {
+			right_type = coerce_int_literal_type(b->right, left_type, right_type);
+		} else if (is_inferable_int_literal_expr(b->left, right_type)) {
+			left_type = coerce_int_literal_type(b->left, right_type, left_type);
+		}
+	}
 
 	switch (b->op) {
 		// Arithmetic operators (+, -, *, /, %)
@@ -957,14 +1041,10 @@ Semantic Analyzer::analyze_if_expr(const IfExpr *expr) {
 
 	// Int literal contextual typing:
 	if (then_type->is_integer() && else_type->is_integer() && then_type != else_type) {
-		if (isa<LiteralExpr>(expr->then_branch) && as<LiteralExpr>(expr->then_branch)->literal_kind ==
-		    LiteralKind::INT) {
-			then_type = else_type;
-			expr_types[expr->then_branch] = else_type;
-		} else if (isa<LiteralExpr>(expr->else_branch) && as<LiteralExpr>(expr->else_branch)->literal_kind ==
-		           LiteralKind::INT) {
-			else_type = then_type;
-			expr_types[expr->else_branch] = then_type;
+		if (is_inferable_int_literal_expr(expr->then_branch, else_type)) {
+			then_type = coerce_int_literal_type(expr->then_branch, else_type, then_type);
+		} else if (is_inferable_int_literal_expr(expr->else_branch, then_type)) {
+			else_type = coerce_int_literal_type(expr->else_branch, then_type, else_type);
 		}
 	}
 
@@ -1025,7 +1105,7 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 			const auto &arm = expr->arms[i];
 			if (!arm.body) continue;
 			auto ty = get_expr_type(arm.body);
-			if (ty->is_integer() && !isa<LiteralExpr>(arm.body)) {
+			if (ty->is_integer() && !is_inferable_int_literal_expr(arm.body, ty)) {
 				expected_type = ty;
 				break;
 			}
@@ -1038,11 +1118,7 @@ Semantic Analyzer::analyze_when_expr(const WhenExpr *expr) {
 		auto ty = get_expr_type(arm.body);
 		if (ty->is_error()) continue;
 
-		if (expected_type->is_integer() && ty->is_integer() &&
-		    isa<LiteralExpr>(arm.body) && as<LiteralExpr>(arm.body)->literal_kind == LiteralKind::INT) {
-			ty = expected_type;
-			expr_types[arm.body] = expected_type;
-		}
+		ty = coerce_int_literal_type(arm.body, expected_type, ty);
 
 		if (expected_type->is_pointer() && ty->is_null()) {
 			continue;

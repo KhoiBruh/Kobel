@@ -63,7 +63,7 @@ Dùng được ở mọi nơi, không giới hạn trong khối `unsafe`:
 
 | Hậu tố | Kiểu |
 |---|---|
-| *(không, không `.`)* | `i32` |
+| *(không, không `.`)* | `i32` (hoặc suy luận theo ngữ cảnh, xem bên dưới) |
 | `S` | `i16` |
 | `L` | `i64` |
 | `B` | `i8` |
@@ -75,6 +75,24 @@ Dùng được ở mọi nơi, không giới hạn trong khối `unsafe`:
 | `UZ` | `usz` |
 | *(không, có `.`)* hoặc `D` | `f64` |
 | `F` | `f32` |
+
+**Suy luận kiểu theo ngữ cảnh:** literal số nguyên **không có hậu tố** sẽ lấy kiểu của ngữ cảnh xung quanh thay vì luôn mặc định `i32`. Nhờ đó không cần viết `UZ`/`L` khi kiểu đã rõ ràng:
+
+```
+val a = i32.size() * 2;      // 2 suy luận là usz, a: usz
+val b: usz = 2 * 3;          // cả cụm literal suy luận là usz
+var c: usz = 0;
+c = c + 1;                   // 1 suy luận là usz
+val d = takes_usz(2 * 3);    // tham số suy luận là usz
+```
+
+Quy tắc:
+
+- Một biểu thức chỉ gồm literal không hậu tố (kể cả ngoặc và `+ - * / %` giữa chúng) được coi là "literal thuần" và nhận kiểu của ngữ cảnh.
+- Ngữ cảnh gồm: toán hạng còn lại của phép toán 2 ngôi, kiểu khai báo `val`/`var`/`const`, kiểu trả về, kiểu tham số hàm/struct, `return`, gán, nhánh `if`/`when`.
+- **Hậu tố tường minh luôn thắng**: `x + 1UZ` (với `x: usz`) vẫn hợp lệ, còn `x + 1UZ` (với `x: i64`) vẫn báo lỗi.
+- Hai toán hạng đều là biến/giá trị có kiểu khác nhau vẫn **không** tự động chuyển kiểu — phải dùng `as`.
+- Literal âm (ví dụ `-1`) chỉ suy luận được cho kiểu **có dấu**; `val x: usz = -1;` vẫn là lỗi.
 
 ### Ép kiểu
 

@@ -1,12 +1,12 @@
 mod std.collections;
 
 /*
-	List<T> — Dynamic array, heap-allocated
+	List<T> — dynamic array, heap-allocated
 
-	C ABI Layout:
+	C ABI layout:
 		data:   &T  — pointer point to heap of elements
-		len:    usz — so luong phan tu hien tai
-		cap:    usz — dung luong toi da truoc khi can realloc
+		len:    usz — current element count
+		cap:    usz — max capacity before need to realloc
 
 	Usage:
 		val list = new_list<i32>();
@@ -27,19 +27,17 @@ pub struct List<T> {
 	pub cap: usz
 }
 
-// --- Factory functions (top-level vi Kobel chua co static methods) ----------
-
-/// Tao List rong voi dung luong mac dinh (4 phan tu)
+// create an empty list with 4 slots
 pub fn new_list<T>(): List<T> {
-	val initial_cap = 4UZ;
-	val raw = malloc(initial_cap * T.size());
-	return List<T>(raw as &T, 0, initial_cap);
+	val init_cap = 4UZ;
+	val raw = malloc(init_cap * T.size());
+	return List<T>(raw as &T, 0, init_cap);
 }
 
-/// Tao List rong voi dung luong chi dinh
+// create an empty list with capacity
 pub fn list_with_capacity<T>(capacity: usz): List<T> {
 	var cap = capacity;
-	if (cap == 0UZ) cap = 4UZ;
+	if (cap == 0) cap = 4;
 	val raw = malloc(cap * T.size());
 	return List<T>(raw as &T, 0, cap);
 }
@@ -56,10 +54,10 @@ impl List<T> {
 	pub fn first(val self) => self.data[0];
 
 	/// Lay phan tu cuoi cung
-	pub fn last(val self)  => self.data[self.len - 1UZ];
+	pub fn last(val self)  => self.data[self.len - 1];
 
 	/// Kiem tra list co rong khong
-	pub fn is_empty(val self) => self.len == 0UZ;
+	pub fn is_empty(val self) => self.len == 0;
 
 	// ---- Write operations ----
 
@@ -72,12 +70,12 @@ impl List<T> {
 	pub fn add(var self, value: T) {
 		if (self.len == self.cap) self.grow();
 		self.data[self.len] = value;
-		self.len = self.len + 1UZ;
+		self.len = self.len + 1;
 	}
 
 	/// Xoa phan tu cuoi cung va tra ve gia tri
 	pub fn pop(var self): T {
-		self.len = self.len - 1UZ;
+		self.len = self.len - 1;
 		return self.data[self.len];
 	}
 
@@ -90,7 +88,7 @@ impl List<T> {
 
 	/// Mo rong gap doi dung luong hien tai
 	fn grow(var self) {
-		val new_cap = self.cap * 2UZ;
+		val new_cap = self.cap * 2;
 		val new_raw = realloc(self.data as &u8, new_cap * T.size());
 		self.data = new_raw as &T;
 		self.cap = new_cap;
@@ -101,7 +99,7 @@ impl List<T> {
 		if (min_cap > self.cap) {
 			var new_cap = self.cap;
 			while (new_cap < min_cap) {
-				new_cap = new_cap * 2UZ;
+				new_cap = new_cap * 2;
 			}
 			val new_raw = realloc(self.data as &u8, new_cap * T.size());
 			self.data = new_raw as &T;

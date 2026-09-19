@@ -719,15 +719,45 @@ bool test_codegen_float_literals() {
 	return true;
 }
 
+bool test_codegen_unsuffixed_int_literal_width() {
+	std::string_view code =
+		"fn main(): i32 {\n"
+		"    var a: usz = 0;\n"
+		"    a = a + 2;\n"
+		"    var n: usz = 4;\n"
+		"    val b: usz = n * 2;\n"
+		"    val c: usz = i32.size() * 2;\n"
+		"    val d: usz = 2 * 3;\n"
+		"    if (b != 8) { return 1; }\n"
+		"    if (c != 8) { return 2; }\n"
+		"    if (d != 6) { return 3; }\n"
+		"    return 0;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Unsuffixed integer literal inference failed to codegen");
+	ASSERT(ir.find("add i64") != std::string::npos, "Literal must widen to i64 for `a + 2`");
+	ASSERT(ir.find("mul i64") != std::string::npos, "Literal must widen to i64 for `n * 2`");
+	ASSERT(ir.find("icmp ne i64") != std::string::npos, "Comparison must compare i64 operands");
+	ASSERT(ir.find("store i64 8") != std::string::npos, "`i32.size() * 2` must fold to i64 8");
+	ASSERT(ir.find("store i64 6") != std::string::npos, "Literal tree `2 * 3` must be emitted as i64");
+	return true;
+}
+
 int main() {
 	std::cout.setf(std::ios::unitbuf);
 	int passed = 0;
-	int total = 26;
+	int total = 27;
 
 	std::cout << "Running CodeGen Tests (Stage 1 & Stage 2)...\n";
 
 	if (test_codegen_float_literals()) {
 		std::cout << "[PASS] test_codegen_float_literals\n";
+		passed++;
+	}
+
+	if (test_codegen_unsuffixed_int_literal_width()) {
+		std::cout << "[PASS] test_codegen_unsuffixed_int_literal_width\n";
 		passed++;
 	}
 

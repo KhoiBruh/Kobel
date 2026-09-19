@@ -736,12 +736,7 @@ void Analyzer::pass2_check_declarations(const Program *program) {
 				                     : current_module + "." + std::string(c->name);
 			auto val_type = analyze_expr(c->value);
 			auto expected_type = constants[c_qual].type;
-			if (expected_type->is_integer() && val_type->is_integer() &&
-			    isa<LiteralExpr>(c->value) &&
-			    as<LiteralExpr>(c->value)->literal_kind == LiteralKind::INT) {
-				val_type = expected_type;
-				expr_types[c->value] = expected_type;
-			}
+			val_type = coerce_int_literal_type(c->value, expected_type, val_type);
 			if (!expected_type->can_assign_from(val_type))
 				logger.error(
 					c->line, c->col, "Constant initializer type mismatch: expected '" +

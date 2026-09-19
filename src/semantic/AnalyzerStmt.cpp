@@ -36,12 +36,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 				auto init_type = analyze_expr(v->initializer);
 
 				// Contextual integer literal typing:
-				if (declared_type->is_integer() && init_type->is_integer() &&
-				    isa<LiteralExpr>(v->initializer) &&
-				    as<LiteralExpr>(v->initializer)->literal_kind == LiteralKind::INT) {
-					init_type = declared_type;
-					expr_types[v->initializer] = declared_type;
-				}
+				init_type = coerce_int_literal_type(v->initializer, declared_type, init_type);
 
 				// Infer array size if declared as Array<T> (size == 0)
 				if (declared_type->is_array() && init_type->is_array()) {
@@ -126,12 +121,7 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 		const auto expected = current_function_return_type.value();
 		if (r->value) {
 			auto val_type = analyze_expr(r->value);
-			if (expected->is_integer() && val_type->is_integer() &&
-			    isa<LiteralExpr>(r->value) &&
-			    as<LiteralExpr>(r->value)->literal_kind == LiteralKind::INT) {
-				val_type = expected;
-				expr_types[r->value] = expected;
-			}
+			val_type = coerce_int_literal_type(r->value, expected, val_type);
 			if (!expected->can_assign_from(val_type))
 				logger.error(
 					r->line, r->col,
@@ -178,11 +168,7 @@ void Analyzer::validate_when_arm_patterns(std::span<Expr *> patterns, Semantic c
 		auto pat_type = analyze_expr(pat);
 		if (!pat_type) continue;
 		if (cond_type) {
-			if (cond_type->is_integer() && pat_type->is_integer() &&
-			    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {
-				pat_type = cond_type;
-				expr_types[pat] = cond_type;
-			}
+			pat_type = coerce_int_literal_type(pat, cond_type, pat_type);
 			if (cond_type->is_enum() && pat_type->is_enum()) {
 				if (cond_type != pat_type) {
 					logger.error(

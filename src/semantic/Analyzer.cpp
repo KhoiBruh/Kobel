@@ -236,6 +236,9 @@ export struct Analyzer {
 		const std::string &desc
 	);
 
+	// Contextual typing for unsuffixed integer literals (AnalyzerExpr.cpp)
+	Semantic coerce_int_literal_type(const Expr *expr, Semantic expected_type, Semantic actual_type);
+
 	Semantic analyze_literal_expr(const LiteralExpr *lit);
 
 	Semantic analyze_array_literal_expr(const ArrayLiteralExpr *arr_lit);

@@ -646,6 +646,139 @@ bool test_semantic_type_size() {
 	return true;
 }
 
+bool test_unsuffixed_int_literal_inference() {
+	// 1. Unsuffixed integer literals adopt the type of their context
+	{
+		std::string_view code =
+			"struct S(n: usz)\n"
+			"fn takes(n: usz): usz { return n; }\n"
+			"fn from_literal(): usz { return 2 * 3; }\n"
+			"fn main(): i32 {\n"
+			"    val a: usz = i32.size() * 2;\n"
+			"    val a2: usz = a;\n"
+			"    val b: usz = 2 * i32.size();\n"
+			"    val b2: usz = b;\n"
+			"    val c: usz = takes(2 * 3);\n"
+			"    val d: usz = 2 * 3;\n"
+			"    var e: usz = 0;\n"
+			"    e = 4 * 5;\n"
+			"    val e2: usz = e;\n"
+			"    val s: S = S(2 * 3);\n"
+			"    val f: usz = from_literal();\n"
+			"    val g: usz = if (a > 0) i32.size() else 0;\n"
+			"    val we: usz = when (a) {\n"
+			"        8 -> i32.size();\n"
+			"        else -> 0;\n"
+			"    };\n"
+			"    var w: usz = 0;\n"
+			"    when (a) {\n"
+			"        8 -> { w = 2 * 3; }\n"
+			"        else -> { w = 4 * 5; }\n"
+			"    }\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		ASSERT(!p.has_errors(), "Parser must accept unsuffixed integer literal inference program");
+
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) diag.print_all(std::cerr);
+		ASSERT(!diag.has_errors(), "Unsuffixed integer literals must infer their type from context");
+	}
+
+	// 2. Negative literals still retype for signed targets only
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val a: i64 = -1;\n"
+			"    val b: i64 = a * -2;\n"
+			"    val c: i64 = 2 * -3;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		if (diag.has_errors()) diag.print_all(std::cerr);
+		ASSERT(!diag.has_errors(), "Negative literals must infer signed integer types");
+	}
+
+	// 3. Two non-literal operands of different integer types still require an explicit cast
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val a: i64 = 1;\n"
+			"    var b: i32 = 2;\n"
+			"    val c: i64 = a + b;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Mixing two typed operands of different widths must still require 'as'");
+	}
+
+	// 4. A negative literal cannot silently become unsigned
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val a: usz = -1;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "A negative literal in an unsigned context must be an error");
+	}
+
+	// 5. An explicit suffix conflicting with a typed sibling still errors
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    var a: usz = 0;\n"
+			"    val b: i64 = a + 1UZ;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "An explicit literal suffix must not be overridden by inference");
+	}
+
+	// 6. Inference must not widen assignment compatibility for typed values
+	{
+		std::string_view code =
+			"fn main(): i32 {\n"
+			"    val a: usz = 0;\n"
+			"    val b: i32 = a;\n"
+			"    return 0;\n"
+			"}\n";
+		Lexer lex{code};
+		Parser p{lex.tokenize()};
+		auto prog = p.parse_program();
+		DiagnosticEngine diag;
+		Analyzer sema{diag};
+		sema.analyze(prog);
+		ASSERT(diag.has_errors(), "Assigning an usz value to an i32 variable must still be an error");
+	}
+
+	return true;
+}
+
 bool test_semantic_when_and_if_expr() {
 	// 1. Valid when expression and statement
 	{
@@ -1833,6 +1966,9 @@ int main() {
 
 	if (!test_semantic_type_size()) return 1;
 	std::cout << "  [PASS] test_semantic_type_size" << std::endl;
+
+	if (!test_unsuffixed_int_literal_inference()) return 1;
+	std::cout << "  [PASS] test_unsuffixed_int_literal_inference" << std::endl;
 
 	if (!test_semantic_when_and_if_expr()) return 1;
 	std::cout << "  [PASS] test_semantic_when_and_if_expr" << std::endl;
