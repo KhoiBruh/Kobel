@@ -1,5 +1,6 @@
 module;
 
+#include <span>
 #include <string>
 
 module semantic.analyzer;
@@ -171,6 +172,41 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 	}
 }
 
+void Analyzer::validate_when_arm_patterns(std::span<Expr *> patterns, Semantic cond_type) {
+	for (const auto *pat: patterns) {
+		auto pat_type = analyze_expr(pat);
+		if (cond_type) {
+			if (cond_type->is_integer() && pat_type->is_integer() &&
+			    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {
+				pat_type = cond_type;
+				expr_types[pat] = cond_type;
+			}
+			if (cond_type->is_enum() && pat_type->is_enum()) {
+				if (cond_type != pat_type) {
+					logger.error(
+						pat->line, pat->col,
+						"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" +
+						cond_type->to_string() + "'"
+					);
+				}
+			} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
+				logger.error(
+					pat->line, pat->col,
+					"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" +
+					cond_type->to_string() + "'"
+				);
+			}
+		} else {
+			if (!pat_type->is_bool() && !pat_type->is_error()) {
+				logger.error(
+					pat->line, pat->col,
+					"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'"
+				);
+			}
+		}
+	}
+}
+
 void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
 	if (!stmt) return;
 
@@ -181,38 +217,7 @@ void Analyzer::analyze_when_stmt(const WhenStmt *stmt) {
 
 	for (const auto &arm: stmt->arms) {
 		if (!arm.is_else) {
-			for (const auto *pat: arm.patterns) {
-				auto pat_type = analyze_expr(pat);
-				if (cond_type) {
-					if (cond_type->is_integer() && pat_type->is_integer() &&
-					    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {
-						pat_type = cond_type;
-						expr_types[pat] = cond_type;
-					}
-					if (cond_type->is_enum() && pat_type->is_enum()) {
-						if (cond_type != pat_type) {
-							logger.error(
-								pat->line, pat->col,
-								"Pattern enum '" + pat_type->to_string() + "' does not match when condition enum '" +
-								cond_type->to_string() + "'"
-							);
-						}
-					} else if (!cond_type->can_assign_from(pat_type) && !pat_type->can_assign_from(cond_type)) {
-						logger.error(
-							pat->line, pat->col,
-							"Pattern type '" + pat_type->to_string() + "' is incompatible with when condition type '" +
-							cond_type->to_string() + "'"
-						);
-					}
-				} else {
-					if (!pat_type->is_bool() && !pat_type->is_error()) {
-						logger.error(
-							pat->line, pat->col,
-							"When condition pattern must be of type 'bool', got '" + pat_type->to_string() + "'"
-						);
-					}
-				}
-			}
+			validate_when_arm_patterns(arm.patterns, cond_type);
 		}
 
 		if (arm.body) {

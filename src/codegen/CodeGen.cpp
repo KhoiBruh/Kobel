@@ -17,6 +17,7 @@ module;
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -405,9 +406,38 @@ export struct CodeGen {
 
 	llvm::Value *emit_expr(const Expr *expr);
 
+	llvm::Value *emit_literal_expr(const LiteralExpr *lit);
+
+	llvm::Value *emit_array_literal_expr(const ArrayLiteralExpr *arr_lit);
+
+	llvm::Value *emit_identifier_expr(const IdentifierExpr *id);
+
+	llvm::Value *emit_assign_expr(const AssignExpr *a);
+
+	llvm::Value *emit_binary_expr(const BinaryExpr *b);
+
+	llvm::Value *emit_unary_expr(const UnaryExpr *u);
+
+	llvm::Value *emit_call_expr(const CallExpr *c);
+
+	llvm::Value *emit_member_expr(const MemberExpr *m);
+
+	llvm::Value *emit_index_expr(const IndexExpr *idx);
+
+	llvm::Value *emit_cast_expr(const CastExpr *c);
+
 	llvm::Value *emit_if_expr(const IfExpr *expr);
 
 	llvm::Value *emit_when_expr(const WhenExpr *expr);
+
+	void emit_when_patterns_branch(
+		std::span<Expr *> patterns,
+		llvm::Value *cond_val,
+		Semantic cond_sema,
+		llvm::BasicBlock *arm_body_bb,
+		llvm::BasicBlock *next_arm_bb,
+		llvm::Function *fn
+	);
 
 	llvm::Value *emit_equality(llvm::Value *l, llvm::Value *r, Semantic sema_ty);
 

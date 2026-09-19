@@ -260,23 +260,7 @@ void CodeGen::emit_when_stmt(const WhenStmt *stmt) {
 											? llvm::BasicBlock::Create(*context, "when_arm_next", fn)
 											: merge_bb;
 
-		for (size_t j = 0; j < arm.patterns.size(); ++j) {
-			llvm::BasicBlock *next_pat_bb = (j + 1 < arm.patterns.size())
-												? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
-												: next_arm_bb;
-
-			llvm::Value *pat_val = emit_expr(arm.patterns[j]);
-			llvm::Value *match_cond = nullptr;
-			if (cond_val) {
-				match_cond = emit_equality(cond_val, pat_val, cond_sema);
-			} else {
-				match_cond = pat_val;
-			}
-			builder->CreateCondBr(match_cond, arm_body_bb, next_pat_bb);
-			if (j + 1 < arm.patterns.size()) {
-				builder->SetInsertPoint(next_pat_bb);
-			}
-		}
+		emit_when_patterns_branch(arm.patterns, cond_val, cond_sema, arm_body_bb, next_arm_bb, fn);
 
 		builder->SetInsertPoint(arm_body_bb);
 		emit_stmt(arm.body);

@@ -4,6 +4,7 @@ module;
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -148,6 +149,11 @@ export struct Analyzer {
 	void pass0_index_modules(const Program *program);
 
 	void pass1_register_declarations(const Program *program);
+	void register_traits(const Program *program);
+	void register_structs(const Program *program);
+	void register_enums(const Program *program);
+	void register_constants(const Program *program);
+	void register_functions(const Program *program);
 
 	void register_function(const FnDecl *fn, const std::string &mod);
 
@@ -208,9 +214,39 @@ export struct Analyzer {
 
 	Semantic get_expr_type(const Expr *expr);
 
+	Semantic check_and_coerce_arg(
+		const Expr *arg,
+		Semantic expected_type,
+		size_t line,
+		size_t col,
+		const std::string &desc
+	);
+
+	Semantic analyze_literal_expr(const LiteralExpr *lit);
+
+	Semantic analyze_array_literal_expr(const ArrayLiteralExpr *arr_lit);
+
+	Semantic analyze_identifier_expr(const IdentifierExpr *id);
+
+	Semantic analyze_assign_expr(const AssignExpr *a);
+
+	Semantic analyze_binary_expr(const BinaryExpr *b);
+
+	Semantic analyze_unary_expr(const UnaryExpr *u);
+
+	Semantic analyze_cast_expr(const CastExpr *c);
+
+	Semantic analyze_call_expr(const CallExpr *c);
+
+	Semantic analyze_member_expr(const MemberExpr *m);
+
+	Semantic analyze_index_expr(const IndexExpr *idx);
+
 	Semantic analyze_if_expr(const IfExpr *expr);
 
 	Semantic analyze_when_expr(const WhenExpr *expr);
+
+	void validate_when_arm_patterns(std::span<Expr *> patterns, Semantic cond_type);
 
 	// Overall Analysis Driver
 	void analyze(const Program *program) {

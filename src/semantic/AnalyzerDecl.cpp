@@ -255,7 +255,16 @@ void Analyzer::check_and_apply_struct_traits(
 }
 
 void Analyzer::pass1_register_declarations(const Program *program) {
-	// 0. Register Traits
+	if (!program) return;
+	register_traits(program);
+	register_structs(program);
+	register_enums(program);
+	register_constants(program);
+	register_functions(program);
+}
+
+void Analyzer::register_traits(const Program *program) {
+	if (!program) return;
 	for (const auto &decl : program->declarations) {
 		if (isa<TraitDecl>(decl)) {
 			const auto *tr = as<TraitDecl>(decl);
@@ -299,8 +308,12 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			}
 		}
 	}
+}
 
-	// 1. Register Structs
+void Analyzer::register_structs(const Program *program) {
+	if (!program) return;
+
+	// 1. Register Struct templates and symbols
 	for (const auto &decl: program->declarations) {
 		if (isa<StructDecl>(decl)) {
 			const auto *st = as<StructDecl>(decl);
@@ -521,8 +534,10 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			}
 		}
 	}
+}
 
-	// 2. Register Enums
+void Analyzer::register_enums(const Program *program) {
+	if (!program) return;
 	for (const auto &decl: program->declarations) {
 		if (isa<EnumDecl>(decl)) {
 			const auto *e = as<EnumDecl>(decl);
@@ -587,8 +602,10 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			}
 		}
 	}
+}
 
-	// 3. Register Constants
+void Analyzer::register_constants(const Program *program) {
+	if (!program) return;
 	for (const auto &decl: program->declarations) {
 		if (isa<ConstDecl>(decl)) {
 			const auto *c = as<ConstDecl>(decl);
@@ -615,8 +632,10 @@ void Analyzer::pass1_register_declarations(const Program *program) {
 			}
 		}
 	}
+}
 
-	// 4. Register Functions (including extern blocks)
+void Analyzer::register_functions(const Program *program) {
+	if (!program) return;
 	for (const auto &decl: program->declarations) {
 		if (isa<FnDecl>(decl)) {
 			register_function(as<FnDecl>(decl), get_decl_module(decl));
