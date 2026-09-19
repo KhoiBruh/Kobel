@@ -126,9 +126,9 @@ fn main(): i32 {
 	}
 
 	// Cleanup
-	nums.destroy();
-	big.destroy();
-	pre.destroy();
+	nums.delete();
+	big.delete();
+	pre.delete();
 
 	puts("All List<T> tests passed!");
 	return 0;
