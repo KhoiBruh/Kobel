@@ -189,15 +189,15 @@ bool test_parse_new_struct_and_impl() {
 
 	// Test error when methods are placed inside struct syntax
 	{
-		std::string_view code_override =
+		std::string_view code_struct_method =
 			"struct Widget {\n"
 			"    pub id: i32,\n"
-			"    pub override fn render(val self): void {}\n"
+			"    pub fn render(val self): void {}\n"
 			"}\n";
-		Lexer lex_ov{code_override};
-		Parser p_ov{lex_ov.tokenize()};
-		p_ov.parse_program();
-		ASSERT(p_ov.has_errors(), "Methods inside struct must report error");
+		Lexer lex_sm{code_struct_method};
+		Parser p_sm{lex_sm.tokenize()};
+		p_sm.parse_program();
+		ASSERT(p_sm.has_errors(), "Methods inside struct must report error");
 	}
 
 	// Test syntax error for invalid content inside impl
@@ -766,11 +766,11 @@ bool test_parse_traits() {
 		"}\n"
 		"\n"
 		"impl Greeter for Person {\n"
-		"    override fn name(val self): str => self.first;\n"
+		"    fn name(val self): str => self.first;\n"
 		"}\n"
 		"\n"
 		"impl AdvancedGreeter for Person {\n"
-		"    pub override fn detailed_greet(val self): str => self.first;\n"
+		"    pub fn detailed_greet(val self): str => self.first;\n"
 		"}\n";
 
 	Lexer lex{code};
@@ -810,7 +810,7 @@ bool test_parse_traits() {
 	ASSERT(imp1->trait_name == "Greeter", "Trait name is Greeter");
 	ASSERT(imp1->struct_name == "Person", "Struct name is Person");
 	ASSERT(imp1->methods.size() == 1, "Greeter impl has 1 method");
-	ASSERT(imp1->methods[0]->is_override, "name has is_override true");
+	ASSERT(imp1->methods[0]->name == "name", "name method parsed");
 
 	// 5. Impl AdvancedGreeter for Person
 	ASSERT(isa<ImplDecl>(prog->declarations[4]), "Expected ImplDecl for AdvancedGreeter");
@@ -818,7 +818,7 @@ bool test_parse_traits() {
 	ASSERT(imp2->trait_name == "AdvancedGreeter", "Trait name is AdvancedGreeter");
 	ASSERT(imp2->struct_name == "Person", "Struct name is Person");
 	ASSERT(imp2->methods.size() == 1, "AdvancedGreeter impl has 1 method");
-	ASSERT(imp2->methods[0]->is_override && imp2->methods[0]->is_pub, "detailed_greet has is_override and is_pub");
+	ASSERT(imp2->methods[0]->name == "detailed_greet" && imp2->methods[0]->is_pub, "detailed_greet has is_pub");
 
 	return true;
 }

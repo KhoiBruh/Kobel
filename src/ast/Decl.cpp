@@ -76,7 +76,6 @@ export struct FnDecl final : Decl {
 	std::span<Param> params;
 	TypeNode *return_type = nullptr; // nullptr if void
 	BlockStmt *body = nullptr; // nullptr if prototype (in extern, trait)
-	bool is_override = false;
 
 	explicit FnDecl(
 		const std::string_view n,

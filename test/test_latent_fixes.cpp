@@ -676,7 +676,7 @@ bool test_generic_struct_multi_trait_impl_override() {
 		"}\n"
 		"impl<T> Named for Wrapper<T> {}\n"
 		"impl<T> Value for Wrapper<T> {\n"
-		"    override fn val_int(val self): i32 => 10;\n"
+		"    fn val_int(val self): i32 => 10;\n"
 		"}\n"
 		"fn test_wrap(): i32 {\n"
 		"    val w = Wrapper<i32>(100);\n"

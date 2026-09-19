@@ -51,18 +51,7 @@ void Analyzer::check_and_apply_struct_traits(
 	const std::string &qual_name
 ) {
 	auto &sym = structs[qual_name];
-	if (sym.traits.empty()) {
-		for (const auto *method : sym.method_decls) {
-			if (method->is_override) {
-				logger.error(
-					method->line, method->col,
-					"Method '" + std::string(method->name) + "' in struct '" + qual_name +
-					"' is marked 'override' but struct does not implement any traits"
-				);
-			}
-		}
-		return;
-	}
+	if (sym.traits.empty()) return;
 
 	std::string mod = get_decl_module(st);
 	current_self_type = make_struct(qual_name);
@@ -164,27 +153,10 @@ void Analyzer::check_and_apply_struct_traits(
 		}
 	}
 
-	// 3. Verify signatures and 'override' modifier
+	// 3. Verify signatures of trait methods
 	for (const auto *method : sym.method_decls) {
 		std::string m_name = std::string(method->name);
 		bool is_in_trait = all_required.contains(m_name) || all_defaults.contains(m_name);
-
-		if (method->is_override && !is_in_trait) {
-			logger.error(
-				method->line, method->col,
-				"Method '" + m_name + "' in struct '" + sym.name +
-				"' is marked 'override' but does not override any trait method"
-			);
-			continue;
-		}
-
-		if (!method->is_override && is_in_trait) {
-			logger.error(
-				method->line, method->col,
-				"Method '" + m_name + "' in struct '" + sym.name +
-				"' overrides a trait method but is missing 'override' modifier"
-			);
-		}
 
 		if (is_in_trait) {
 			sym.methods[m_name].is_pub = true;
@@ -411,6 +383,22 @@ void Analyzer::register_structs(const Program *program) {
 						continue;
 					}
 					generic_struct_traits[qual_name].push_back(tr_qual);
+
+					StringMap<const FnDecl *> trait_required;
+					StringMap<const FnDecl *> trait_defaults;
+					std::vector<std::string> trait_all;
+					std::unordered_set<std::string> trait_visited;
+					collect_trait_methods(tr_qual, trait_required, trait_defaults, trait_all, trait_visited);
+
+					for (auto *m : impl->methods) {
+						std::string m_name = std::string(m->name);
+						if (!trait_required.contains(m_name) && !trait_defaults.contains(m_name)) {
+							logger.error(
+								m->line, m->col,
+								"Method '" + m_name + "' in 'impl " + std::string(impl->trait_name) + " for " + std::string(impl->struct_name) + "' does not match any method in trait '" + std::string(impl->trait_name) + "'"
+							);
+						}
+					}
 				}
 				generic_struct_methods[std::string(impl->struct_name)] = generic_struct_methods[qual_name];
 				generic_struct_traits[std::string(impl->struct_name)] = generic_struct_traits[qual_name];
@@ -429,6 +417,22 @@ void Analyzer::register_structs(const Program *program) {
 						continue;
 					}
 					target_sym.traits.push_back(tr_qual);
+
+					StringMap<const FnDecl *> trait_required;
+					StringMap<const FnDecl *> trait_defaults;
+					std::vector<std::string> trait_all;
+					std::unordered_set<std::string> trait_visited;
+					collect_trait_methods(tr_qual, trait_required, trait_defaults, trait_all, trait_visited);
+
+					for (auto *m : impl->methods) {
+						std::string m_name = std::string(m->name);
+						if (!trait_required.contains(m_name) && !trait_defaults.contains(m_name)) {
+							logger.error(
+								m->line, m->col,
+								"Method '" + m_name + "' in 'impl " + std::string(impl->trait_name) + " for " + std::string(impl->struct_name) + "' does not match any method in trait '" + std::string(impl->trait_name) + "'"
+							);
+						}
+					}
 				}
 				structs[qual_name] = target_sym;
 				structs[to_llvm_name(qual_name)] = target_sym;

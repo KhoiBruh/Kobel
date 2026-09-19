@@ -1264,7 +1264,7 @@ bool test_semantic_traits() {
 			"    pub first_name: str\n"
 			"}\n"
 			"impl Greeter for Person {\n"
-			"    override fn name(val self): str => self.first_name;\n"
+			"    fn name(val self): str => self.first_name;\n"
 			"}\n"
 			"fn main(): i32 {\n"
 			"    val p = Person(\"Kobel\");\n"
@@ -1293,7 +1293,7 @@ bool test_semantic_traits() {
 			"}\n"
 			"struct Foo {}\n"
 			"impl Derived for Foo {\n"
-			"    override fn derived_val(val self): i32 => 20;\n"
+			"    fn derived_val(val self): i32 => 20;\n"
 			"}\n"
 			"fn main(): i32 {\n"
 			"    val f = Foo();\n"
@@ -1321,7 +1321,7 @@ bool test_semantic_traits() {
 			"    pub msg: str\n"
 			"}\n"
 			"impl Printable for Item {\n"
-			"    override fn print_me(val self): str => self.msg;\n"
+			"    fn print_me(val self): str => self.msg;\n"
 			"}\n"
 			"fn show<T: Printable>(val x: T): str {\n"
 			"    return x.print_me();\n"
@@ -1351,7 +1351,7 @@ bool test_semantic_traits() {
 			"    pub k_id: i64\n"
 			"}\n"
 			"impl Hashable for Key {\n"
-			"    override fn hash(val self): i64 => self.k_id;\n"
+			"    fn hash(val self): i64 => self.k_id;\n"
 			"}\n"
 			"struct Container<T: Hashable> {\n"
 			"    pub item: T\n"
@@ -1400,14 +1400,14 @@ bool test_semantic_trait_errors() {
 		ASSERT(diag.has_errors(), "Struct missing required trait method must report error");
 	}
 
-	// 2. Error: method marked override but struct implements no traits
+	// 2. Inherent method on struct without traits is valid
 	{
 		std::string_view code =
 			"struct Person {\n"
 			"    pub first_name: str\n"
 			"}\n"
 			"impl Person {\n"
-			"    override fn foo(val self): str => self.first_name;\n"
+			"    fn foo(val self): str => self.first_name;\n"
 			"}\n";
 
 		Lexer lex{code};
@@ -1416,10 +1416,10 @@ bool test_semantic_trait_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Method marked override in struct without traits must report error");
+		ASSERT(!diag.has_errors(), "Inherent method on struct without traits must pass");
 	}
 
-	// 3. Error: method marked override but does not match any trait method
+	// 3. Error: method in impl Trait does not match any trait method
 	{
 		std::string_view code =
 			"trait Greeter {\n"
@@ -1429,8 +1429,8 @@ bool test_semantic_trait_errors() {
 			"    pub first_name: str\n"
 			"}\n"
 			"impl Greeter for Person {\n"
-			"    override fn name(val self): str => self.first_name;\n"
-			"    override fn extra(val self): i32 => 42;\n"
+			"    fn name(val self): str => self.first_name;\n"
+			"    fn extra(val self): i32 => 42;\n"
 			"}\n";
 
 		Lexer lex{code};
@@ -1439,10 +1439,10 @@ bool test_semantic_trait_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Method marked override not in trait must report error");
+		ASSERT(diag.has_errors(), "Method not in trait must report error");
 	}
 
-	// 4. Error: method overrides trait method but forgets 'override'
+	// 4. Valid: trait method implementation without 'override'
 	{
 		std::string_view code =
 			"trait Greeter {\n"
@@ -1461,7 +1461,7 @@ bool test_semantic_trait_errors() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(diag.has_errors(), "Trait method implementation without 'override' must report error");
+		ASSERT(!diag.has_errors(), "Trait method implementation without 'override' must succeed");
 	}
 
 	// 5. Error: method receiver mode mismatch (var self vs val self)
@@ -1474,7 +1474,7 @@ bool test_semantic_trait_errors() {
 			"    pub first_name: str\n"
 			"}\n"
 			"impl Greeter for Person {\n"
-			"    override fn name(var self): str => self.first_name;\n"
+			"    fn name(var self): str => self.first_name;\n"
 			"}\n";
 
 		Lexer lex{code};
@@ -1496,7 +1496,7 @@ bool test_semantic_trait_errors() {
 			"    pub first_name: str\n"
 			"}\n"
 			"impl Greeter for Person {\n"
-			"    override fn name(val self): i32 => 42;\n"
+			"    fn name(val self): i32 => 42;\n"
 			"}\n";
 
 		Lexer lex{code};
@@ -1610,7 +1610,7 @@ bool test_semantic_new_struct_and_impl() {
 			"}\n"
 			"\n"
 			"impl Greeter for Person {\n"
-			"    override fn name(val self): str => self.first_name;\n"
+			"    fn name(val self): str => self.first_name;\n"
 			"}\n"
 			"\n"
 			"fn main(): i32 {\n"
@@ -1726,7 +1726,7 @@ bool test_semantic_new_struct_and_impl() {
 			"use geom.Point;\n"
 			"use mytraits.Describable;\n"
 			"impl Describable for Point {\n"
-			"    override fn desc(val self): str => \"point\";\n"
+			"    fn desc(val self): str => \"point\";\n"
 			"}\n"
 			"\n"
 			"fn test(p: Point): str {\n"

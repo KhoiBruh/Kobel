@@ -32,7 +32,6 @@ export inline const std::map<std::string_view, TokenType> KEYWORDS = {
 	{"use", TokenType::KW_USE},
 	{"pub", TokenType::KW_PUB},
 	{"trait", TokenType::KW_TRAIT},
-	{"override", TokenType::KW_OVERRIDE},
 	{"impl", TokenType::KW_IMPL},
 	{"for", TokenType::KW_FOR}
 };

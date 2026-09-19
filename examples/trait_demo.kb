@@ -23,7 +23,7 @@ struct Person {
 }
 
 impl Greeter for Person {
-    override fn name(val self): str => self.first_name;
+    fn name(val self): str => self.first_name;
 }
 
 struct Box {
@@ -32,7 +32,7 @@ struct Box {
 }
 
 impl Summarizable for Box {
-    override fn measure(val self): i32 => self.width * self.height;
+    fn measure(val self): i32 => self.width * self.height;
 }
 
 // 4. Generic function constrained with static trait bound

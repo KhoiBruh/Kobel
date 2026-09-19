@@ -148,21 +148,13 @@ StructDecl *Parser::parse_struct_decl() {
 
 	if (match(TokenType::OPEN_BRACE)) {
 		while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
-			bool is_pub = false;
-			bool is_override = false;
-			while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
-				if (match(TokenType::KW_PUB)) is_pub = true;
-				else if (match(TokenType::KW_OVERRIDE)) is_override = true;
-			}
+			bool is_pub = match(TokenType::KW_PUB);
 
 			if (check(TokenType::KW_FN)) {
 				error(peek(), "Structs cannot contain methods. Use 'impl " + std::string(name.text) + "' or 'impl Trait for " + std::string(name.text) + "' instead");
 				auto fn = parse_fn_decl();
 				(void)fn;
 			} else if (check(TokenType::IDENTIFIER)) {
-				if (is_override) {
-					error(peek(), "'override' is not valid for struct fields");
-				}
 				const Token f_name = advance();
 				consume(TokenType::COLON, "Expected ':' after field name");
 				auto f_type = parse_type();
@@ -217,17 +209,11 @@ ImplDecl *Parser::parse_impl_decl() {
 
 	std::vector<FnDecl *> methods;
 	while (!check(TokenType::CLOSE_BRACE) && !is_end()) {
-		bool method_pub = false;
-		bool is_override = false;
-		while (check(TokenType::KW_PUB) || check(TokenType::KW_OVERRIDE)) {
-			if (match(TokenType::KW_PUB)) method_pub = true;
-			else if (match(TokenType::KW_OVERRIDE)) is_override = true;
-		}
+		bool method_pub = match(TokenType::KW_PUB);
 		if (check(TokenType::KW_FN)) {
 			auto fn = parse_fn_decl();
 			if (fn) {
 				fn->is_pub = method_pub;
-				fn->is_override = is_override;
 				methods.push_back(fn);
 			}
 		} else {

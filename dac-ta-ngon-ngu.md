@@ -181,7 +181,7 @@ struct A {
 }
 
 impl B for A {
-    override fn greet(val self): str => "hi, " + self.b;
+    fn greet(val self): str => "hi, " + self.b;
 }
 ```
 

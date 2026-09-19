@@ -69,7 +69,6 @@ export enum class TokenType : uint8_t {
 	KW_USE,
 	KW_PUB,
 	KW_TRAIT,
-	KW_OVERRIDE,
 	KW_IMPL,
 	KW_FOR,
 
