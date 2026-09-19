@@ -687,6 +687,27 @@ bool test_generic_struct_multi_trait_impl_override() {
 	return true;
 }
 
+bool test_struct_with_enum_field() {
+	std::string_view code =
+		"enum Status {\n"
+		"    OK = 0,\n"
+		"    ERR = 1\n"
+		"}\n"
+		"struct Task {\n"
+		"    id: i32,\n"
+		"    status: Status\n"
+		"}\n"
+		"fn test_task(): Status {\n"
+		"    val t = Task(42, Status.OK);\n"
+		"    return t.status;\n"
+		"}\n";
+
+	std::string ir;
+	ASSERT(compile_to_ir(code, ir), "Compilation of struct with enum field failed");
+	ASSERT(ir.find("%Task = type { i32, i32 }") != std::string::npos, "Task struct should have i32 and i32 status in IR");
+	return true;
+}
+
 int main() {
 	std::cout << "[RUNNING] Latent Fixes & Soundness Tests..." << std::endl;
 
@@ -731,6 +752,9 @@ int main() {
 
 	if (!test_generic_struct_multi_trait_impl_override()) return 1;
 	std::cout << "  [PASS] test_generic_struct_multi_trait_impl_override" << std::endl;
+
+	if (!test_struct_with_enum_field()) return 1;
+	std::cout << "  [PASS] test_struct_with_enum_field" << std::endl;
 
 	std::cout << "[ALL PASSED] Latent Fixes Tests passed successfully!" << std::endl;
 	return 0;

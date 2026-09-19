@@ -89,7 +89,9 @@ Semantic Analyzer::check_and_coerce_arg(
 	size_t col,
 	const std::string &desc
 ) {
+	if (!expected_type || !arg) return make_error();
 	auto arg_type = analyze_expr(arg);
+	if (!arg_type) return make_error();
 	if (expected_type->is_integer() && arg_type->is_integer() &&
 	    isa<LiteralExpr>(arg) &&
 	    as<LiteralExpr>(arg)->literal_kind == LiteralKind::INT) {

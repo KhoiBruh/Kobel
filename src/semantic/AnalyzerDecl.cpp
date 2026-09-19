@@ -257,8 +257,8 @@ void Analyzer::check_and_apply_struct_traits(
 void Analyzer::pass1_register_declarations(const Program *program) {
 	if (!program) return;
 	register_traits(program);
-	register_structs(program);
 	register_enums(program);
+	register_structs(program);
 	register_constants(program);
 	register_functions(program);
 }
@@ -321,8 +321,8 @@ void Analyzer::register_structs(const Program *program) {
 			std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 
 			if (!st->type_params.empty()) {
-				if (generic_structs.contains(qual_name)) {
-					logger.error(st->line, st->col, "Duplicate generic struct declaration '" + std::string(st->name) + "'");
+				if (generic_structs.contains(qual_name) || enums.contains(qual_name)) {
+					logger.error(st->line, st->col, "Duplicate type name '" + std::string(st->name) + "'");
 					continue;
 				}
 				generic_structs[qual_name] = st;
@@ -343,8 +343,8 @@ void Analyzer::register_structs(const Program *program) {
 				continue;
 			}
 
-			if (structs.contains(qual_name)) {
-				logger.error(st->line, st->col, "Duplicate struct declaration '" + std::string(st->name) + "'");
+			if (structs.contains(qual_name) || enums.contains(qual_name)) {
+				logger.error(st->line, st->col, "Duplicate type name '" + std::string(st->name) + "'");
 				continue;
 			}
 

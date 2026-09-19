@@ -1,0 +1,135 @@
+mod std.collections;
+
+extern "libc" {
+	fn puts(s: *char): i32;
+}
+
+fn main(): i32 {
+	// 1. Tao list rong va kiem tra is_empty
+	var nums = new_list<i32>();
+	if (!nums.is_empty()) {
+		puts("FAIL: new list should be empty");
+		return 1;
+	}
+	if (nums.len != 0UZ) {
+		puts("FAIL: new list len should be 0");
+		return 2;
+	}
+
+	// 2. Them phan tu va kiem tra len
+	nums.add(10);
+	nums.add(20);
+	nums.add(30);
+	if (nums.len != 3UZ) {
+		puts("FAIL: len should be 3 after adding 3 elements");
+		return 3;
+	}
+	if (nums.is_empty()) {
+		puts("FAIL: list should not be empty after add");
+		return 4;
+	}
+
+	// 3. Doc phan tu bang get
+	if (nums.get(0UZ) != 10) {
+		puts("FAIL: get(0) should be 10");
+		return 5;
+	}
+	if (nums.get(1UZ) != 20) {
+		puts("FAIL: get(1) should be 20");
+		return 6;
+	}
+	if (nums.get(2UZ) != 30) {
+		puts("FAIL: get(2) should be 30");
+		return 7;
+	}
+
+	// 4. first va last
+	if (nums.first() != 10) {
+		puts("FAIL: first() should be 10");
+		return 8;
+	}
+	if (nums.last() != 30) {
+		puts("FAIL: last() should be 30");
+		return 9;
+	}
+
+	// 5. set — ghi de phan tu
+	nums.set(1UZ, 99);
+	if (nums.get(1UZ) != 99) {
+		puts("FAIL: set(1, 99) then get(1) should be 99");
+		return 10;
+	}
+
+	// 6. pop — xoa phan tu cuoi
+	val popped: i32 = nums.pop();
+	if (popped != 30) {
+		puts("FAIL: pop() should return 30");
+		return 11;
+	}
+	if (nums.len != 2UZ) {
+		puts("FAIL: len should be 2 after pop");
+		return 12;
+	}
+
+	// 7. Auto-grow — them nhieu phan tu vuot cap mac dinh (4)
+	var big = new_list<i32>();
+	var i: i32 = 0;
+	while (i < 100) {
+		big.add(i * i);
+		i = i + 1;
+	}
+	if (big.len != 100UZ) {
+		puts("FAIL: big list len should be 100");
+		return 13;
+	}
+	if (big.get(0UZ) != 0) {
+		puts("FAIL: big[0] should be 0");
+		return 14;
+	}
+	if (big.get(99UZ) != 9801) {
+		puts("FAIL: big[99] should be 9801 (99*99)");
+		return 15;
+	}
+
+	// 8. list_with_capacity
+	var pre = list_with_capacity<i32>(64UZ);
+	if (pre.cap != 64UZ) {
+		puts("FAIL: pre-allocated cap should be 64");
+		return 16;
+	}
+	pre.add(42);
+	if (pre.get(0UZ) != 42) {
+		puts("FAIL: pre.get(0) should be 42");
+		return 17;
+	}
+
+	// 9. reserve
+	pre.reserve(200UZ);
+	if (pre.cap < 200UZ) {
+		puts("FAIL: cap should be >= 200 after reserve");
+		return 18;
+	}
+	if (pre.get(0UZ) != 42) {
+		puts("FAIL: data should be preserved after reserve");
+		return 19;
+	}
+
+	// 10. clear
+	pre.clear();
+	if (pre.len != 0UZ) {
+		puts("FAIL: len should be 0 after clear");
+		return 20;
+	}
+	if (pre.is_empty() != true) {
+		puts("FAIL: is_empty should be true after clear");
+		return 21;
+	}
+
+	// Cleanup
+	nums.destroy();
+	big.destroy();
+	pre.destroy();
+
+	puts("All List<T> tests passed!");
+	return 0;
+}

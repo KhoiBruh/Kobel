@@ -106,16 +106,32 @@ Semantic Analyzer::substitute_type(const TypeNode *node, const StringMap<Semanti
 			}
 
 			const auto *generic_st = generic_structs.at(gen_name);
-			std::string inst_name = std::string(named->name) + "<";
+			std::string inst_name = gen_name + "<";
 			for (size_t i = 0; i < sub_args.size(); ++i) {
 				if (i > 0) inst_name += ", ";
 				inst_name += sub_args[i]->to_string();
 			}
 			inst_name += ">";
 
-			if (structs.contains(inst_name)) return make_struct(inst_name);
+			std::string bare_inst_name = std::string(named->name) + "<";
+			for (size_t i = 0; i < sub_args.size(); ++i) {
+				if (i > 0) bare_inst_name += ", ";
+				bare_inst_name += sub_args[i]->to_string();
+			}
+			bare_inst_name += ">";
 
-			return instantiate_struct(generic_st, inst_name, sub_args, node->line, node->col);
+			if (structs.contains(inst_name)) {
+				if (bare_inst_name != inst_name && !structs.contains(bare_inst_name)) {
+					structs[bare_inst_name] = structs.at(inst_name);
+				}
+				return make_struct(inst_name);
+			}
+
+			const auto res = instantiate_struct(generic_st, inst_name, sub_args, node->line, node->col);
+			if (bare_inst_name != inst_name && structs.contains(inst_name)) {
+				structs[bare_inst_name] = structs.at(inst_name);
+			}
+			return res;
 		}
 
 		// Concrete type (e.g. i32, str, Point)

@@ -174,7 +174,9 @@ void Analyzer::analyze_stmt(const Stmt *stmt) {
 
 void Analyzer::validate_when_arm_patterns(std::span<Expr *> patterns, Semantic cond_type) {
 	for (const auto *pat: patterns) {
+		if (!pat) continue;
 		auto pat_type = analyze_expr(pat);
+		if (!pat_type) continue;
 		if (cond_type) {
 			if (cond_type->is_integer() && pat_type->is_integer() &&
 			    isa<LiteralExpr>(pat) && as<LiteralExpr>(pat)->literal_kind == LiteralKind::INT) {

@@ -965,8 +965,8 @@ llvm::Value *CodeGen::emit_if_expr(const IfExpr *expr) {
 	if (incoming_count == 0) return llvm::UndefValue::get(res_llvm_type);
 
 	llvm::PHINode *phi = builder->CreatePHI(res_llvm_type, incoming_count, "ifexpr.res");
-	if (then_reaches) phi->addIncoming(then_val, then_end_bb);
-	if (else_reaches) phi->addIncoming(else_val, else_end_bb);
+	if (then_reaches) phi->addIncoming(then_val ? then_val : llvm::UndefValue::get(res_llvm_type), then_end_bb);
+	if (else_reaches) phi->addIncoming(else_val ? else_val : llvm::UndefValue::get(res_llvm_type), else_end_bb);
 
 	return phi;
 }
@@ -979,13 +979,33 @@ void CodeGen::emit_when_patterns_branch(
 	llvm::BasicBlock *next_arm_bb,
 	llvm::Function *fn
 ) {
+	if (patterns.empty()) {
+		builder->CreateBr(next_arm_bb);
+		return;
+	}
+
 	for (size_t j = 0; j < patterns.size(); ++j) {
 		llvm::BasicBlock *next_pat_bb = (j + 1 < patterns.size())
 											? llvm::BasicBlock::Create(*context, "when_pat_next", fn)
 											: next_arm_bb;
 
 		llvm::Value *pat_val = emit_expr(patterns[j]);
+		if (!pat_val) {
+			builder->CreateBr(next_pat_bb);
+			if (j + 1 < patterns.size()) {
+				builder->SetInsertPoint(next_pat_bb);
+			}
+			continue;
+		}
+
 		llvm::Value *match_cond = cond_val ? emit_equality(cond_val, pat_val, cond_sema) : pat_val;
+		if (match_cond->getType()->isIntegerTy() && match_cond->getType()->getIntegerBitWidth() != 1) {
+			match_cond = builder->CreateICmpNE(
+				match_cond,
+				llvm::ConstantInt::get(match_cond->getType(), 0),
+				"match.cond"
+			);
+		}
 		builder->CreateCondBr(match_cond, arm_body_bb, next_pat_bb);
 		if (j + 1 < patterns.size()) {
 			builder->SetInsertPoint(next_pat_bb);
@@ -1021,7 +1041,9 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 			llvm::Value *body_val = emit_expr(arm.body);
 			llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 			if (!body_end_bb->hasTerminator()) {
-				if (res_llvm_type->isIntegerTy() && body_val && body_val->getType() != res_llvm_type && body_val->
+				if (!body_val) {
+					body_val = llvm::UndefValue::get(res_llvm_type);
+				} else if (res_llvm_type->isIntegerTy() && body_val->getType() != res_llvm_type && body_val->
 					getType()->isIntegerTy()) {
 					body_val = builder->CreateIntCast(body_val, res_llvm_type, result_sema->is_signed_integer());
 				} else if (res_llvm_type->isPointerTy() && body_val && body_val->getType() != res_llvm_type) {
@@ -1043,7 +1065,9 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 		llvm::Value *body_val = emit_expr(arm.body);
 		llvm::BasicBlock *body_end_bb = builder->GetInsertBlock();
 		if (!body_end_bb->hasTerminator()) {
-			if (
+			if (!body_val) {
+				body_val = llvm::UndefValue::get(res_llvm_type);
+			} else if (
 				res_llvm_type->isIntegerTy() &&
 				body_val && body_val->getType() != res_llvm_type &&
 				body_val->getType()->isIntegerTy()
@@ -1073,7 +1097,7 @@ llvm::Value *CodeGen::emit_when_expr(const WhenExpr *expr) {
 
 	llvm::PHINode *phi = builder->CreatePHI(res_llvm_type, incoming_vals.size(), "when.res");
 	for (const auto &[val, bb]: incoming_vals) {
-		phi->addIncoming(val, bb);
+		phi->addIncoming(val ? val : llvm::UndefValue::get(res_llvm_type), bb);
 	}
 	return phi;
 }
