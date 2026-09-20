@@ -11,15 +11,15 @@ namespace kobel::logger {
 	std::string Diagnostic::format() const {
 		std::string_view type_str = "unknown";
 		switch (type) {
-			case Type::ERROR:
+			case DiagnosticType::ERROR:
 				type_str = "error";
 				break;
 
-			case Type::WARNING:
+			case DiagnosticType::WARNING:
 				type_str = "warning";
 				break;
 
-			case Type::NOTE:
+			case DiagnosticType::NOTE:
 				type_str = "note";
 				break;
 

@@ -22,7 +22,7 @@ export namespace kobel::logger {
 
 		void print_all(std::ostream &os) const;
 
-		void report(Type type, size_t line, size_t col, std::string_view msg);
+		void report(DiagnosticType type, size_t line, size_t col, std::string_view msg);
 
 		void error(size_t line, size_t col, std::string_view msg);
 

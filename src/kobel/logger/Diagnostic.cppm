@@ -5,12 +5,12 @@ module;
 
 export module kobel:logger.Diagnostic;
 
-import :logger.Type;
+import :logger.DiagnosticType;
 
 export namespace kobel::logger {
 
 	struct Diagnostic {
-		Type type;
+		DiagnosticType type;
 		std::string message;
 		size_t line = 0;
 		size_t col = 0;

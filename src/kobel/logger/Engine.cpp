@@ -26,12 +26,12 @@ namespace kobel::logger {
 	}
 
 	void Engine::report(
-		const Type type,
+		const DiagnosticType type,
 		const size_t line,
 		const size_t col,
 		const std::string_view msg
 	) {
-		if (type == Type::ERROR) errors++;
+		if (type == DiagnosticType::ERROR) errors++;
 		const Diagnostic diagnostic {
 			.type = type,
 			.message = std::string(msg),
@@ -46,7 +46,7 @@ namespace kobel::logger {
 		const size_t col,
 		const std::string_view msg
 	) {
-		report(Type::ERROR, line, col, msg);
+		report(DiagnosticType::ERROR, line, col, msg);
 	}
 
 	void Engine::warning(
@@ -54,7 +54,7 @@ namespace kobel::logger {
 		const size_t col,
 		const std::string_view msg
 	) {
-		report(Type::WARNING, line, col, msg);
+		report(DiagnosticType::WARNING, line, col, msg);
 	}
 
 }
