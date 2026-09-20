@@ -10,6 +10,7 @@ module;
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -175,6 +176,15 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 	}
 	if (!fn || !fn->empty()) return; // Function body already emitted
 
+	std::string old_mod;
+	if (analyzer) {
+		old_mod = analyzer->current_module;
+		std::string mod = analyzer->decl_modules.contains(fn_decl)
+							  ? analyzer->decl_modules.at(fn_decl)
+							  : analyzer->get_decl_module(fn_decl);
+		if (!mod.empty()) analyzer->current_module = mod;
+	}
+
 	llvm::BasicBlock *entry = llvm::BasicBlock::Create(*context, "entry", fn);
 	builder->SetInsertPoint(entry);
 	clear_scopes();
@@ -205,6 +215,9 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 		} else {
 			builder->CreateUnreachable();
 		}
+	}
+	if (analyzer) {
+		analyzer->current_module = old_mod;
 	}
 }
 

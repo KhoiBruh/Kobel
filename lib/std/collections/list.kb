@@ -1,0 +1,97 @@
+mod std.collections.list;
+
+/*
+	List<T> — dynamic array, heap-allocated
+
+	C ABI layout:
+		data:   &T  — pointer to heap of elements
+		len:    usz — current element count
+		cap:    usz — max capacity before need to realloc
+
+	Usage:
+		val list = new_list<i32>();
+		list.add(42);
+		val x = list.get(0UZ);
+		list.delete();
+*/
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn realloc(ptr: &u8, size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+pub struct List<T> {
+	pub data: &T,
+	pub len: usz,
+	pub cap: usz
+}
+
+pub fn new_list<T>(): List<T> {
+	val init_cap: usz = 4UZ;
+	val raw: &u8 = malloc(init_cap * T.size());
+	return List<T>(raw as &T, 0UZ, init_cap);
+}
+
+pub fn list_with_capacity<T>(capacity: usz): List<T> {
+	var cap: usz = capacity;
+	if (cap == 0UZ) {
+		cap = 4UZ;
+	}
+	val raw: &u8 = malloc(cap * T.size());
+	return List<T>(raw as &T, 0UZ, cap);
+}
+
+impl List<T> {
+	pub fn get(val self, index: usz): T => self.data[index];
+
+	pub fn first(val self): T => self.data[0UZ];
+
+	pub fn last(val self): T => self.data[self.len - 1UZ];
+
+	pub fn is_empty(val self): bool => self.len == 0UZ;
+
+	pub fn set(var self, index: usz, value: T): void {
+		self.data[index] = value;
+	}
+
+	pub fn add(var self, value: T): void {
+		if (self.len == self.cap) {
+			self.grow();
+		}
+		self.data[self.len] = value;
+		self.len = self.len + 1UZ;
+	}
+
+	pub fn pop(var self): T {
+		self.len = self.len - 1UZ;
+		return self.data[self.len];
+	}
+
+	pub fn clear(var self): void {
+		self.len = 0UZ;
+	}
+
+	fn grow(var self): void {
+		val new_cap: usz = self.cap * 2UZ;
+		val new_raw: &u8 = realloc(self.data as &u8, new_cap * T.size());
+		self.data = new_raw as &T;
+		self.cap = new_cap;
+	}
+
+	pub fn reserve(var self, min_cap: usz): void {
+		if (min_cap > self.cap) {
+			var new_cap: usz = self.cap;
+			while (new_cap < min_cap) {
+				new_cap = new_cap * 2UZ;
+			}
+			val new_raw: &u8 = realloc(self.data as &u8, new_cap * T.size());
+			self.data = new_raw as &T;
+			self.cap = new_cap;
+		}
+	}
+
+	pub fn delete(self): void {
+		free(self.data as &u8);
+	}
+}

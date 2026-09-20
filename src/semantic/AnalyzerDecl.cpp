@@ -649,6 +649,7 @@ void Analyzer::register_function(const FnDecl *fn, const std::string &mod) {
 	}
 
 	if (functions.contains(qual_name)) {
+		if (!fn->body) return; // Repeated extern prototype across modules
 		logger.error(fn->line, fn->col, "Duplicate function declaration '" + raw_name + "'");
 		return;
 	}

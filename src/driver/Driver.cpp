@@ -114,7 +114,8 @@ bool Driver::resolve_dependencies(
 		}
 	}
 	add_search_dir(std::filesystem::current_path());
-
+	add_search_dir(std::filesystem::current_path() / "lib");
+	add_search_dir(std::filesystem::current_path() / "src" / "lib");
 	// Collect modules declared in input_files
 	for (const auto &prog: parsed_programs) {
 		for (const auto &decl: prog->declarations) {

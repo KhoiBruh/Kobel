@@ -6,6 +6,7 @@ module;
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Type.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
 

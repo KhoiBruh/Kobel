@@ -1,0 +1,134 @@
+mod std.collections.hash_map;
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+pub struct HashMap<V> {
+	pub keys: &str,
+	pub values: &V,
+	pub occupied: &bool,
+	pub len: usz,
+	pub cap: usz
+}
+
+pub fn new_hash_map<V>(): HashMap<V> {
+	val init_cap: usz = 16UZ;
+	val raw_keys: &u8 = malloc(init_cap * str.size());
+	val raw_vals: &u8 = malloc(init_cap * V.size());
+	val raw_occ: &u8 = malloc(init_cap * bool.size());
+
+	val occ: &bool = raw_occ as &bool;
+	var i: usz = 0UZ;
+	while (i < init_cap) {
+		occ[i] = false;
+		i = i + 1UZ;
+	}
+	return HashMap<V>(raw_keys as &str, raw_vals as &V, occ, 0UZ, init_cap);
+}
+
+impl HashMap<V> {
+	fn hash_key(val self, key: str): usz {
+		var h: usz = 5381UZ;
+		var i: usz = 0UZ;
+		val len: usz = key.len;
+		while (i < len) {
+			val c: usz = key[i] as usz;
+			h = h * 33UZ + c;
+			i = i + 1UZ;
+		}
+		return h;
+	}
+
+	pub fn put(var self, key: str, value: V): void {
+		if (self.len * 10UZ >= self.cap * 7UZ) {
+			self.grow();
+		}
+
+		val h: usz = self.hash_key(key);
+		var idx: usz = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) {
+				self.values[idx] = value;
+				return;
+			}
+			idx = (idx + 1UZ) % self.cap;
+		}
+
+		self.keys[idx] = key;
+		self.values[idx] = value;
+		self.occupied[idx] = true;
+		self.len = self.len + 1UZ;
+	}
+
+	pub fn contains(val self, key: str): bool {
+		val h: usz = self.hash_key(key);
+		var idx: usz = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) {
+				return true;
+			}
+			idx = (idx + 1UZ) % self.cap;
+		}
+		return false;
+	}
+
+	pub fn get_or(val self, key: str, default_val: V): V {
+		val h: usz = self.hash_key(key);
+		var idx: usz = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) {
+				return self.values[idx];
+			}
+			idx = (idx + 1UZ) % self.cap;
+		}
+		return default_val;
+	}
+
+	fn grow(var self): void {
+		val old_cap: usz = self.cap;
+		val old_keys: &str = self.keys;
+		val old_vals: &V = self.values;
+		val old_occ: &bool = self.occupied;
+
+		val new_cap: usz = old_cap * 2UZ;
+		val raw_keys: &u8 = malloc(new_cap * str.size());
+		val raw_vals: &u8 = malloc(new_cap * V.size());
+		val raw_occ: &u8 = malloc(new_cap * bool.size());
+
+		val new_occ: &bool = raw_occ as &bool;
+		var j: usz = 0UZ;
+		while (j < new_cap) {
+			new_occ[j] = false;
+			j = j + 1UZ;
+		}
+
+		self.keys = raw_keys as &str;
+		self.values = raw_vals as &V;
+		self.occupied = new_occ;
+		self.cap = new_cap;
+		self.len = 0UZ;
+
+		var i: usz = 0UZ;
+		while (i < old_cap) {
+			if (old_occ[i]) {
+				self.put(old_keys[i], old_vals[i]);
+			}
+			i = i + 1UZ;
+		}
+
+		free(old_keys as &u8);
+		free(old_vals as &u8);
+		free(old_occ as &u8);
+	}
+
+	pub fn delete(self): void {
+		free(self.keys as &u8);
+		free(self.values as &u8);
+		free(self.occupied as &u8);
+	}
+}

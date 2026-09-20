@@ -374,8 +374,10 @@ Semantic Analyzer::analyze_binary_expr(const BinaryExpr *b) {
 		case TokenType::LESS_EQUAL:
 		case TokenType::GREATER:
 		case TokenType::GREATER_EQUAL: {
-			if (!left_type->is_integer() || !right_type->is_integer()) {
-				logger.error(b->line, b->col, "Comparison operators are only applicable to integer types");
+			const bool left_ok = left_type->is_integer() || left_type->is_char();
+			const bool right_ok = right_type->is_integer() || right_type->is_char();
+			if (!left_ok || !right_ok) {
+				logger.error(b->line, b->col, "Comparison operators are only applicable to integer and char types");
 				return make_error();
 			}
 			if (left_type != right_type) {

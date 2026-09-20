@@ -1,0 +1,111 @@
+mod std.collections.string_builder;
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn realloc(ptr: &u8, size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+struct StringRaw {
+	pub data: *char,
+	pub len: usz,
+	pub cap: usz
+}
+
+pub struct StringBuilder {
+	pub buf: &u8,
+	pub len: usz,
+	pub cap: usz
+}
+
+pub fn new_string_builder(): StringBuilder {
+	val init_cap: usz = 32UZ;
+	val raw: &u8 = malloc(init_cap);
+	return StringBuilder(raw, 0UZ, init_cap);
+}
+
+impl StringBuilder {
+	pub fn append_char(var self, c: char): void {
+		if (self.len + 2UZ >= self.cap) {
+			self.grow(self.len + 2UZ);
+		}
+		self.buf[self.len] = c as u8;
+		self.len = self.len + 1UZ;
+	}
+
+	pub fn append_str(var self, s: str): void {
+		val s_len: usz = s.len;
+		if (self.len + s_len + 1UZ >= self.cap) {
+			self.grow(self.len + s_len + 1UZ);
+		}
+		var i: usz = 0UZ;
+		while (i < s_len) {
+			self.buf[self.len + i] = s[i] as u8;
+			i = i + 1UZ;
+		}
+		self.len = self.len + s_len;
+	}
+
+	pub fn append_i32(var self, n: i32): void {
+		var val_n: i32 = n;
+		if (val_n == 0) {
+			self.append_char('0');
+			return;
+		}
+		if (val_n < 0) {
+			self.append_char('-');
+			val_n = -val_n;
+		}
+		val digits: Array<char>(12) = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
+		var count: usz = 0UZ;
+		while (val_n > 0) {
+			val rem: i32 = val_n % 10;
+			val char_code: i32 = rem + 48;
+			digits[count] = char_code as char;
+			count = count + 1UZ;
+			val_n = val_n / 10;
+		}
+		while (count > 0UZ) {
+			count = count - 1UZ;
+			self.append_char(digits[count]);
+		}
+	}
+
+	pub fn to_str(val self): str {
+		val str_data: &u8 = malloc(self.len + 1UZ);
+		var i: usz = 0UZ;
+		while (i < self.len) {
+			str_data[i] = self.buf[i];
+			i = i + 1UZ;
+		}
+		str_data[self.len] = 0UB;
+
+		val raw_mem = malloc(24UZ);
+		val r = raw_mem as &StringRaw;
+		r.data = str_data as *char;
+		r.len = self.len;
+		r.cap = self.len + 1UZ;
+		val sp: *str = r as *str;
+		val res: str = *sp;
+		free(raw_mem);
+		return res;
+	}
+
+	pub fn clear(var self): void {
+		self.len = 0UZ;
+	}
+
+	fn grow(var self, min_cap: usz): void {
+		var new_cap: usz = self.cap * 2UZ;
+		while (new_cap < min_cap) {
+			new_cap = new_cap * 2UZ;
+		}
+		val new_raw: &u8 = realloc(self.buf, new_cap);
+		self.buf = new_raw;
+		self.cap = new_cap;
+	}
+
+	pub fn delete(self): void {
+		free(self.buf);
+	}
+}

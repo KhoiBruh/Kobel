@@ -9,6 +9,7 @@ module;
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 
+#include <iostream>
 #include <charconv>
 #include <memory>
 #include <span>
@@ -139,6 +140,14 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 			auto it = analyzer->structs.find(to_llvm_name(st_name));
 			it != analyzer->structs.end()
 		) sym_ptr = &it->second;
+		if (!sym_ptr) {
+			for (const auto &[s_k, s_v]: analyzer->structs) {
+				if (s_k == st_name || s_k.ends_with("." + st_name) || s_v.name == st_name) {
+					sym_ptr = &s_v;
+					break;
+				}
+			}
+		}
 		if (!sym_ptr) return nullptr;
 
 		const auto &sym = *sym_ptr;
@@ -171,6 +180,12 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 				if (!st_ty) {
 					if (auto it = struct_types.find(lookup_name); it != struct_types.end()) st_ty = it->second;
 				}
+			}
+		}
+		if (!st_ty && sym_ptr) {
+			if (auto it = struct_types.find(sym_ptr->name); it != struct_types.end()) st_ty = it->second;
+			if (!st_ty) {
+				if (auto it = struct_types.find(to_llvm_name(sym_ptr->name)); it != struct_types.end()) st_ty = it->second;
 			}
 		}
 		if (!st_ty || !obj_ptr) return nullptr;
@@ -442,6 +457,8 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 			return result;
 		}
 	}
+
+	if (!l || !r) return nullptr;
 
 	const bool is_unsigned = !left_sema->is_signed_integer();
 
@@ -784,10 +801,22 @@ llvm::Value *CodeGen::emit_member_expr(const MemberExpr *m) {
 	Semantic field_sema = nullptr;
 	if (obj_sema->is_struct() || (obj_sema->is_pointer() && obj_sema->pointee && obj_sema->pointee->is_struct())) {
 		std::string st_name = obj_sema->is_struct() ? obj_sema->struct_name : obj_sema->pointee->struct_name;
-		if (analyzer && analyzer->structs.contains(st_name)) {
-			const auto &sym = analyzer->structs.at(st_name);
-			if (auto it = sym.field_types.find(m->member); it != sym.field_types.end()) {
-				field_sema = it->second;
+		if (analyzer) {
+			const StructSymbol *sym_ptr = nullptr;
+			if (auto it = analyzer->structs.find(st_name); it != analyzer->structs.end()) sym_ptr = &it->second;
+			else if (auto it = analyzer->structs.find(to_llvm_name(st_name)); it != analyzer->structs.end()) sym_ptr = &it->second;
+			if (!sym_ptr) {
+				for (const auto &[s_k, s_v]: analyzer->structs) {
+					if (s_k == st_name || s_k.ends_with("." + st_name) || s_v.name == st_name) {
+						sym_ptr = &s_v;
+						break;
+					}
+				}
+			}
+			if (sym_ptr) {
+				if (auto it = sym_ptr->field_types.find(m->member); it != sym_ptr->field_types.end()) {
+					field_sema = it->second;
+				}
 			}
 		}
 	}

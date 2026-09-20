@@ -1,0 +1,76 @@
+mod std.io;
+
+extern "libc" {
+	fn puts(s: *char): i32;
+	fn putchar(c: char): i32;
+	fn fopen(filename: *char, mode: *char): &u8;
+	fn fclose(stream: &u8): i32;
+	fn fread(ptr: &u8, size: usz, count: usz, stream: &u8): usz;
+	fn fwrite(ptr: *char, size: usz, count: usz, stream: &u8): usz;
+	fn fseek(stream: &u8, offset: i64, origin: i32): i32;
+	fn ftell(stream: &u8): i64;
+	fn malloc(size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+struct StringRaw {
+	pub data: *char,
+	pub len: usz,
+	pub cap: usz
+}
+
+pub fn print(s: str): void {
+	var i: usz = 0;
+	val len: usz = s.len;
+	while (i < len) {
+		putchar(s[i]);
+		i = i + 1;
+	}
+}
+
+pub fn println(s: str): void {
+	puts(s.c_str());
+}
+
+pub fn read_file(path: str): str {
+	val f = fopen(path.c_str(), "rb");
+	if (f == null) {
+		return "";
+	}
+	fseek(f, 0L, 2);
+	val size_i64: i64 = ftell(f);
+	if (size_i64 <= 0L) {
+		fclose(f);
+		return "";
+	}
+	fseek(f, 0L, 0);
+	val sz: usz = size_i64 as usz;
+	val buf: &u8 = malloc(sz + 1);
+	if (buf == null) {
+		fclose(f);
+		return "";
+	}
+	val read_bytes: usz = fread(buf, 1UZ, sz, f);
+	fclose(f);
+	buf[read_bytes] = 0UB;
+
+	val raw_mem = malloc(24UZ);
+	val r = raw_mem as &StringRaw;
+	r.data = buf as *char;
+	r.len = read_bytes;
+	r.cap = sz + 1;
+	val sp: *str = r as *str;
+	val res: str = *sp;
+	free(raw_mem);
+	return res;
+}
+
+pub fn write_file(path: str, content: str): bool {
+	val f = fopen(path.c_str(), "wb");
+	if (f == null) {
+		return false;
+	}
+	val written: usz = fwrite(content.c_str(), 1UZ, content.len, f);
+	fclose(f);
+	return written == content.len;
+}

@@ -1,0 +1,123 @@
+mod test.std_demo;
+
+use std.ascii.is_digit;
+use std.ascii.is_alpha;
+use std.ascii.to_lower;
+use std.ascii.to_upper;
+
+use std.io.print;
+use std.io.println;
+use std.io.write_file;
+use std.io.read_file;
+
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+use std.collections.hash_map.HashMap;
+use std.collections.hash_map.new_hash_map;
+
+use std.collections.string_builder.StringBuilder;
+use std.collections.string_builder.new_string_builder;
+
+fn test_ascii(): bool {
+	if (!is_digit('5')) return false;
+	if (is_digit('a')) return false;
+	if (!is_alpha('Z')) return false;
+	if (to_lower('G') != 'g') return false;
+	if (to_upper('m') != 'M') return false;
+	return true;
+}
+
+fn test_arena(): bool {
+	var arena: Arena = new_arena(1024UZ);
+	val p1: &u8 = arena.alloc_bytes(64UZ, 8UZ);
+	val p2: &u8 = arena.alloc_bytes(128UZ, 8UZ);
+	if (p1 == null || p2 == null) return false;
+	arena.reset();
+	val p3: &u8 = arena.alloc_bytes(32UZ, 8UZ);
+	if (p3 == null) return false;
+	arena.delete();
+	return true;
+}
+
+fn test_collections(): bool {
+	// 1. List
+	var list: List<i32> = new_list<i32>();
+	list.add(10);
+	list.add(20);
+	list.add(30);
+	if (list.len != 3UZ) return false;
+	if (list.get(1UZ) != 20) return false;
+	val pop_val: i32 = list.pop();
+	if (pop_val != 30 || list.len != 2UZ) return false;
+	list.delete();
+
+	// 2. HashMap
+	var map: HashMap<i32> = new_hash_map<i32>();
+	map.put("first", 100);
+	map.put("second", 200);
+	map.put("third", 300);
+	if (!map.contains("second")) return false;
+	if (map.contains("not_found")) return false;
+	if (map.get_or("first", 0) != 100) return false;
+	if (map.get_or("third", 0) != 300) return false;
+	if (map.get_or("missing", -1) != -1) return false;
+	map.delete();
+
+	// 3. StringBuilder
+	var sb: StringBuilder = new_string_builder();
+	sb.append_str("Kobel");
+	sb.append_char(' ');
+	sb.append_str("Compiler v");
+	sb.append_i32(1);
+	val result_str: str = sb.to_str();
+	if (result_str != "Kobel Compiler v1") return false;
+	sb.delete();
+
+	return true;
+}
+
+fn test_io(): bool {
+	val tmp_file: str = "tmp_std_test.txt";
+	val content: str = "Testing Kobel standard library I/O!";
+	val written: bool = write_file(tmp_file, content);
+	if (!written) return false;
+
+	val read_back: str = read_file(tmp_file);
+	if (read_back != content) return false;
+
+	return true;
+}
+
+fn main(): i32 {
+	if (!test_ascii()) {
+		println("FAIL: test_ascii");
+		return 1;
+	}
+	println("PASS: std.ascii");
+
+	if (!test_arena()) {
+		println("FAIL: test_arena");
+		return 1;
+	}
+	println("PASS: std.mem.arena");
+
+	if (!test_collections()) {
+		println("FAIL: test_collections");
+		return 1;
+	}
+	println("PASS: std.collections (List, HashMap, StringBuilder)");
+
+	if (!test_io()) {
+		println("FAIL: test_io");
+		return 1;
+	}
+	println("PASS: std.io");
+
+	println("All standard library tests passed successfully!");
+	return 0;
+}
+

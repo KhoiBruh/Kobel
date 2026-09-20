@@ -1,0 +1,93 @@
+mod std.mem.arena;
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+pub struct ArenaBlock {
+	pub data: &u8,
+	pub size: usz,
+	pub used: usz,
+	pub next: *ArenaBlock
+}
+
+pub struct Arena {
+	pub current: *ArenaBlock,
+	pub block_size: usz
+}
+
+pub fn new_arena(default_block_size: usz): Arena {
+	var bs: usz = default_block_size;
+	if (bs == 0UZ) {
+		bs = 65536UZ;
+	}
+	return Arena(null, bs);
+}
+
+impl Arena {
+	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
+		var al: usz = align;
+		if (al == 0UZ) {
+			al = 8UZ;
+		}
+
+		if (self.current == null) {
+			self.new_block(size);
+		}
+
+		var blk: &ArenaBlock = self.current as &ArenaBlock;
+		val rem: usz = blk.used % al;
+		var aligned_used: usz = blk.used;
+		if (rem != 0UZ) {
+			aligned_used = blk.used + (al - rem);
+		}
+
+		if (aligned_used + size > blk.size) {
+			self.new_block(size);
+			blk = self.current as &ArenaBlock;
+			aligned_used = 0UZ;
+		}
+
+		val addr: usz = (blk.data as usz) + aligned_used;
+		val ptr: &u8 = addr as &u8;
+		blk.used = aligned_used + size;
+		return ptr;
+	}
+
+	fn new_block(var self, min_size: usz) {
+		var sz: usz = self.block_size;
+		if (sz < min_size) {
+			sz = min_size;
+		}
+		val data: &u8 = malloc(sz);
+		val blk_mem: &u8 = malloc(ArenaBlock.size());
+		val blk: &ArenaBlock = blk_mem as &ArenaBlock;
+		blk.data = data;
+		blk.size = sz;
+		blk.used = 0UZ;
+		blk.next = self.current;
+		self.current = blk as *ArenaBlock;
+	}
+
+	pub fn reset(var self) {
+		var curr: *ArenaBlock = self.current;
+		while (curr != null) {
+			val blk: &ArenaBlock = curr as &ArenaBlock;
+			blk.used = 0UZ;
+			curr = blk.next;
+		}
+	}
+
+	pub fn delete(var self) {
+		var curr: *ArenaBlock = self.current;
+		while (curr != null) {
+			val blk: &ArenaBlock = curr as &ArenaBlock;
+			val next_blk: *ArenaBlock = blk.next;
+			free(blk.data);
+			free(curr as &u8);
+			curr = next_blk;
+		}
+		self.current = null;
+	}
+}
