@@ -1,0 +1,50 @@
+export module kobel:ast.ASTKind;
+
+export namespace kobel::ast {
+
+	enum class ASTKind {
+		// Types
+		TYPE_NAMED,
+		TYPE_POINTER,
+		TYPE_ARRAY,
+
+		// Expressions
+		EXPR_LITERAL,
+		EXPR_IDENTIFIER,
+		EXPR_BINARY,
+		EXPR_UNARY,
+		EXPR_CALL,
+		EXPR_MEMBER,
+		EXPR_INDEX,
+		EXPR_ASSIGN,
+		EXPR_CAST,
+		EXPR_GROUP,
+		EXPR_ARRAY_LITERAL,
+		EXPR_IF,
+		EXPR_WHEN,
+
+		// Statements
+		STMT_BLOCK,
+		STMT_EXPR,
+		STMT_VAR_DECL,
+		STMT_IF,
+		STMT_WHEN,
+		STMT_WHILE,
+		STMT_RETURN,
+		STMT_BREAK,
+		STMT_CONTINUE,
+
+		// Declarations
+		DECL_MODULE,
+		DECL_USE,
+		DECL_FN,
+		DECL_STRUCT,
+		DECL_TRAIT,
+		DECL_IMPL,
+		DECL_ENUM,
+		DECL_CONST,
+		DECL_EXTERN_BLOCK,
+		PROGRAM
+	};
+
+}

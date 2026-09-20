@@ -67,8 +67,17 @@ target_sources(kobel_core
 		FILE_SET CXX_MODULES FILES
 		src/kobel/kobel.cppm
 
+		src/kobel/ast/mod.cppm
 		src/kobel/lexer/mod.cppm
 		src/kobel/logger/mod.cppm
+
+		src/kobel/ast/ASTNode.cppm
+		src/kobel/ast/ASTKind.cppm
+		src/kobel/ast/Arena.cppm
+		src/kobel/ast/Type.cppm
+		src/kobel/ast/Expr.cppm
+		src/kobel/ast/Stmt.cppm
+		src/kobel/ast/Decl.cppm
 
 		src/kobel/lexer/Lexer.cppm
 		src/kobel/lexer/Token.cppm
