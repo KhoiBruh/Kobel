@@ -70,9 +70,10 @@ target_sources(kobel_core
 		src/kobel/ast/mod.cppm
 		src/kobel/lexer/mod.cppm
 		src/kobel/logger/mod.cppm
+		src/kobel/parser/mod.cppm
 
-		src/kobel/ast/ASTNode.cppm
 		src/kobel/ast/ASTKind.cppm
+		src/kobel/ast/ASTNode.cppm
 		src/kobel/ast/Arena.cppm
 		src/kobel/ast/Type.cppm
 		src/kobel/ast/Expr.cppm
@@ -86,6 +87,9 @@ target_sources(kobel_core
 		src/kobel/logger/Engine.cppm
 		src/kobel/logger/Diagnostic.cppm
 		src/kobel/logger/DiagnosticType.cppm
+
+		src/kobel/parser/Precedence.cppm
+		src/kobel/parser/Parser.cppm
 )
 
 target_sources(kobel_core
@@ -96,6 +100,12 @@ target_sources(kobel_core
 
 		src/kobel/logger/Diagnostic.cpp
 		src/kobel/logger/Engine.cpp
+
+		src/kobel/parser/Parser.cpp
+		src/kobel/parser/ParserType.cpp
+		src/kobel/parser/ParserExpr.cpp
+		src/kobel/parser/ParserStmt.cpp
+		src/kobel/parser/ParserDecl.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})

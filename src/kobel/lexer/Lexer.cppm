@@ -27,21 +27,21 @@ export namespace kobel::lexer {
 
 		explicit Lexer(std::string_view src);
 
-		bool is_end() const;
+		[[nodiscard]] bool is_end() const;
 
 		bool match(char expected);
 
-		char peek(size_t offset = 0) const;
+		[[nodiscard]] char peek(size_t offset = 0) const;
 
 		char next();
 
-		std::string_view sub(size_t start) const;
+		[[nodiscard]] std::string_view sub(size_t start) const;
 
 		void new_line();
 
 		void skip_space();
 
-		Token make_token(TokenType type) const;
+		[[nodiscard]] Token make_token(TokenType type) const;
 
 		Token next_token();
 
