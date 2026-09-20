@@ -8,6 +8,9 @@ import :lexer.Lexer;
 
 namespace kobel::lexer {
 
+	Lexer::Lexer(const std::string_view src) : src(src) {
+	}
+
 	bool Lexer::is_end() const {
 		return cursor >= src.size();
 	}
@@ -19,14 +22,15 @@ namespace kobel::lexer {
 		return true;
 	}
 
-	char Lexer::peek() const {
-		return is_end() ? '\0' : src[cursor];
+	char Lexer::peek(const size_t offset) const {
+		if (cursor + offset >= src.size()) return '\0';
+		return src[cursor + offset];
 	}
 
 	char Lexer::next() {
-		cursor++;
+		if (is_end()) return '\0';
 		col++;
-		return peek();
+		return src[cursor++];
 	}
 
 	std::string_view Lexer::sub(const size_t start) const {
@@ -34,28 +38,18 @@ namespace kobel::lexer {
 	}
 
 	void Lexer::new_line() {
-		switch (const auto p = peek()) {
-			case '\r': {
-				next();
-				if (!is_end() && p == '\n') cursor++;
-			}
-
-			case '\n':
-				cursor++;
-				break;
-
-			default:
-				break;
-		}
+		if (peek() == '\r') {
+			next();
+			if (peek() == '\n') next();
+		} else if (peek() == '\n') next();
 
 		line++;
 		col = 1;
 	}
 
 	void Lexer::skip_space() {
-		const auto c = peek();
 		while (!is_end()) {
-			switch (c) {
+			switch (peek()) {
 				case ' ':
 				case '\t':
 					next();
@@ -67,7 +61,7 @@ namespace kobel::lexer {
 					break;
 
 				default:
-					break;
+					return;
 			}
 		}
 	}

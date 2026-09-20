@@ -11,18 +11,27 @@ import :lexer.TokenType;
 export namespace kobel::lexer {
 
 	class Lexer {
-	private:
 		std::string_view src;
 		size_t cursor = 0;
 		uint32_t line = 1;
 		uint32_t col = 1;
 
+		size_t start_cursor = 0;
+		uint32_t start_line = 1;
+		uint32_t start_col = 1;
+
+		void scan_decimals();
+
 	public:
+		Lexer() = default;
+
+		explicit Lexer(std::string_view src);
+
 		bool is_end() const;
 
 		bool match(char expected);
 
-		char peek() const;
+		char peek(size_t offset = 0) const;
 
 		char next();
 

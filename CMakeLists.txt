@@ -16,15 +16,15 @@ if (NOT TARGET zstd::libzstd_static)
 	add_library(zstd::libzstd_static INTERFACE IMPORTED)
 	if (EXISTS "C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
 		set_target_properties(zstd::libzstd_static PROPERTIES
-			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+				INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,C:/Users/Admin/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
 		)
 	elseif (EXISTS "$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
 		set_target_properties(zstd::libzstd_static PROPERTIES
-			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
+				INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/.vcpkg-clion/vcpkg/installed/x64-windows/lib/zstd.lib>"
 		)
 	elseif (EXISTS "$ENV{USERPROFILE}/vcpkg/installed/x64-windows/debug/lib/zstd.lib")
 		set_target_properties(zstd::libzstd_static PROPERTIES
-			INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/lib/zstd.lib>"
+				INTERFACE_LINK_LIBRARIES "$<IF:$<CONFIG:Debug>,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/debug/lib/zstd.lib,$ENV{USERPROFILE}/vcpkg/installed/x64-windows/lib/zstd.lib>"
 		)
 	endif ()
 endif ()
@@ -45,73 +45,53 @@ else ()
 endif ()
 
 llvm_map_components_to_libnames(llvm_libs
-	Support
-	Core
-	IRReader
-	TargetParser
-	Target
-	MC
-	X86
-	X86CodeGen
-	X86Desc
-	X86Info
-	X86AsmParser
-	AsmPrinter
-	Passes
+		Support
+		Core
+		IRReader
+		TargetParser
+		Target
+		MC
+		X86
+		X86CodeGen
+		X86Desc
+		X86Info
+		X86AsmParser
+		AsmPrinter
+		Passes
 )
 
 add_library(kobel_core STATIC)
 
 target_sources(kobel_core
-	PUBLIC
-	FILE_SET CXX_MODULES FILES
+		PUBLIC
+		FILE_SET CXX_MODULES FILES
+		src/kobel/kobel.cppm
 
-	src/ast/Arena.cpp
-	src/ast/Base.cpp
-	src/ast/Type.cpp
-	src/ast/Expr.cpp
-	src/ast/Stmt.cpp
-	src/ast/Decl.cpp
-	src/ast/AST.cpp
+		src/kobel/lexer/mod.cppm
+		src/kobel/logger/mod.cppm
 
-	src/lexer/Lexer.cpp
-	src/lexer/Token.cpp
-	src/lexer/TokenMap.cpp
+		src/kobel/lexer/Lexer.cppm
+		src/kobel/lexer/Token.cppm
+		src/kobel/lexer/TokenType.cppm
 
-	src/logger/Logger.cpp
-	src/parser/Parser.cpp
-
-	src/semantic/Semantic.cpp
-	src/semantic/Symbol.cpp
-	src/semantic/Analyzer.cpp
-
-	src/codegen/CodeGen.cpp
-
-	src/driver/Driver.cpp
+		src/kobel/logger/Engine.cppm
+		src/kobel/logger/Diagnostic.cppm
+		src/kobel/logger/DiagnosticType.cppm
 )
 
 target_sources(kobel_core
-	PRIVATE
-	src/parser/ParserType.cpp
-	src/parser/ParserExpr.cpp
-	src/parser/ParserStmt.cpp
-	src/parser/ParserDecl.cpp
+		PRIVATE
 
-	src/semantic/AnalyzerModule.cpp
-	src/semantic/AnalyzerType.cpp
-	src/semantic/AnalyzerDecl.cpp
-	src/semantic/AnalyzerStmt.cpp
-	src/semantic/AnalyzerExpr.cpp
+		src/kobel/lexer/Lexer.cpp
+		src/kobel/lexer/Tokenizer.cpp
 
-	src/codegen/CodeGenExpr.cpp
-	src/codegen/CodeGenStmt.cpp
-	src/codegen/CodeGenDecl.cpp
-	src/codegen/CodeGenNative.cpp
+		src/kobel/logger/Diagnostic.cpp
+		src/kobel/logger/Engine.cpp
 )
 
 target_link_libraries(kobel_core PRIVATE ${llvm_libs})
 
-add_executable(Kobel src/main.cpp)
+add_executable(Kobel src/Main.cpp)
 target_link_libraries(Kobel PRIVATE kobel_core)
 
 enable_testing()
