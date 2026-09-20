@@ -583,7 +583,11 @@ export struct CodeGen {
 	bool verify() const {
 		std::string err_str;
 		llvm::raw_string_ostream os(err_str);
-		return !llvm::verifyModule(*module, &os);
+		if (llvm::verifyModule(*module, &os)) {
+			llvm::errs() << "LLVM Module Verification Failed:\n" << err_str << "\n";
+			return false;
+		}
+		return true;
 	}
 
 	std::string dump_ir() const {

@@ -33,6 +33,24 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 	std::string qual_name = mod.empty() ? std::string(st->name) : mod + "." + std::string(st->name);
 	std::string llvm_st_name = to_llvm_name(qual_name);
 
+	if (auto it = struct_types.find(llvm_st_name); it != struct_types.end() && it->second != nullptr && !it->second->isOpaque()) {
+		if (analyzer && (analyzer->structs.contains(qual_name) || analyzer->structs.contains(llvm_st_name))) {
+			const auto &sym = analyzer->structs.contains(qual_name)
+			                      ? analyzer->structs.at(qual_name)
+			                      : analyzer->structs.at(llvm_st_name);
+			for (const auto *method: sym.method_decls) {
+				emit_fn_decl(method, llvm_st_name + "_" + std::string(method->name));
+			}
+		}
+
+		if (analyzer && analyzer->struct_default_methods.contains(qual_name)) {
+			for (const auto &inh: analyzer->struct_default_methods.at(qual_name)) {
+				emit_fn_decl(inh.fn_decl, llvm_st_name + "_" + inh.method_name);
+			}
+		}
+		return;
+	}
+
 	std::vector<llvm::Type *> field_types;
 
 	for (const auto &field: st->fields) {
@@ -40,7 +58,12 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 		field_types.push_back(get_llvm_type(sema_ty));
 	}
 
-	llvm::StructType *struct_ty = llvm::StructType::create(*context, field_types, llvm_st_name);
+	llvm::StructType *struct_ty = llvm::StructType::getTypeByName(*context, llvm_st_name);
+	if (!struct_ty) {
+		struct_ty = llvm::StructType::create(*context, field_types, llvm_st_name);
+	} else if (struct_ty->isOpaque()) {
+		struct_ty->setBody(field_types);
+	}
 	struct_types[llvm_st_name] = struct_ty;
 	struct_types[qual_name] = struct_ty;
 	struct_types[std::string(st->name)] = struct_ty;

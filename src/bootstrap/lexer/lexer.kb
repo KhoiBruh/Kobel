@@ -1,8 +1,384 @@
-mod lexer;
+mod bootstrap.lexer.lexer;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+
+use std.ascii.is_digit;
+use std.ascii.is_alpha;
+use std.ascii.is_alphanumeric;
+use std.ascii.is_hex_digit;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
 
 pub struct Lexer {
-	pub source: str,
+	pub src: str,
 	pub cursor: usz,
 	pub line: usz,
 	pub col: usz
+}
+
+pub fn new_lexer(src: str): Lexer {
+	return Lexer(src, 0UZ, 1UZ, 1UZ);
+}
+
+pub fn lookup_keyword(text: str): TokenType {
+	if (text == "extern") return TokenType.KW_EXTERN;
+	if (text == "struct") return TokenType.KW_STRUCT;
+	if (text == "enum") return TokenType.KW_ENUM;
+	if (text == "fn") return TokenType.KW_FN;
+	if (text == "return") return TokenType.KW_RETURN;
+	if (text == "const") return TokenType.KW_CONST;
+	if (text == "null") return TokenType.KW_NULL;
+	if (text == "true") return TokenType.KW_TRUE;
+	if (text == "false") return TokenType.KW_FALSE;
+	if (text == "val") return TokenType.KW_VAL;
+	if (text == "var") return TokenType.KW_VAR;
+	if (text == "as") return TokenType.KW_AS;
+	if (text == "while") return TokenType.KW_WHILE;
+	if (text == "break") return TokenType.KW_BREAK;
+	if (text == "continue") return TokenType.KW_CONTINUE;
+	if (text == "if") return TokenType.KW_IF;
+	if (text == "else") return TokenType.KW_ELSE;
+	if (text == "when") return TokenType.KW_WHEN;
+	if (text == "mod") return TokenType.KW_MOD;
+	if (text == "use") return TokenType.KW_USE;
+	if (text == "pub") return TokenType.KW_PUB;
+	if (text == "trait") return TokenType.KW_TRAIT;
+	if (text == "impl") return TokenType.KW_IMPL;
+	if (text == "for") return TokenType.KW_FOR;
+	return TokenType.IDENTIFIER;
+}
+
+impl Lexer {
+	pub fn is_end(val self): bool {
+		return self.cursor >= self.src.len;
+	}
+
+	pub fn peek(val self): char {
+		if (self.is_end()) return '\0';
+		return self.src[self.cursor];
+	}
+
+	pub fn peek_at(val self, offset: usz): char {
+		val idx: usz = self.cursor + offset;
+		if (idx >= self.src.len) return '\0';
+		return self.src[idx];
+	}
+
+	pub fn sub(val self, start: usz): str {
+		return self.src.slice(start, self.cursor);
+	}
+
+	pub fn next(var self): char {
+		if (self.is_end()) return '\0';
+		val c: char = self.src[self.cursor];
+		self.cursor = self.cursor + 1UZ;
+		self.col = self.col + 1UZ;
+		return c;
+	}
+
+	pub fn match_char(var self, expected: char): bool {
+		if (self.is_end()) return false;
+		if (self.src[self.cursor] != expected) return false;
+		self.cursor = self.cursor + 1UZ;
+		self.col = self.col + 1UZ;
+		return true;
+	}
+
+	pub fn make_token(val self, t: TokenType, start_cursor: usz, start_col: usz): Token {
+		return Token(t, self.sub(start_cursor), self.line, start_col);
+	}
+
+	pub fn handle_newline(var self): void {
+		val c: char = self.peek();
+		if (c == '\r') {
+			self.next();
+			if (!self.is_end() && self.peek() == '\n') {
+				self.cursor = self.cursor + 1UZ;
+			}
+		} else if (c == '\n') {
+			self.cursor = self.cursor + 1UZ;
+		}
+		self.line = self.line + 1UZ;
+		self.col = 1UZ;
+	}
+
+	pub fn skip_whitespace(var self): void {
+		while (!self.is_end()) {
+			val c: char = self.peek();
+			if (c == ' ' || c == '\t') {
+				self.next();
+			} else if (c == '\r' || c == '\n') {
+				self.handle_newline();
+			} else {
+				break;
+			}
+		}
+	}
+
+	pub fn scan_identifier(var self, start_cursor: usz, start_col: usz): Token {
+		while (!self.is_end()) {
+			val c: char = self.peek();
+			if (is_alphanumeric(c) || c == '_') {
+				self.next();
+			} else {
+				break;
+			}
+		}
+		val text: str = self.sub(start_cursor);
+		val kw: TokenType = lookup_keyword(text);
+		return Token(kw, text, self.line, start_col);
+	}
+
+	pub fn scan_decimal_digits_and_fraction(var self): void {
+		while (!self.is_end()) {
+			val c: char = self.peek();
+			if (is_digit(c) || c == '_') {
+				self.next();
+			} else {
+				break;
+			}
+		}
+		if (self.peek() == '.' && self.cursor + 1UZ < self.src.len && is_digit(self.src[self.cursor + 1UZ])) {
+			self.next(); // consume '.'
+			while (!self.is_end()) {
+				val c: char = self.peek();
+				if (is_digit(c) || c == '_') {
+					self.next();
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+	pub fn scan_number(var self, start_cursor: usz, start_col: usz): Token {
+		val first: char = self.src[start_cursor];
+		if (first == '0' && !self.is_end()) {
+			val p: char = self.peek();
+			if (p == 'x' || p == 'X') {
+				self.next(); // consume 'x' or 'X'
+				while (!self.is_end()) {
+					val c: char = self.peek();
+					if (is_hex_digit(c) || c == '_') {
+						self.next();
+					} else {
+						break;
+					}
+				}
+			} else if (p == 'b' || p == 'B') {
+				self.next(); // consume 'b' or 'B'
+				while (!self.is_end()) {
+					val c: char = self.peek();
+					if (c == '0' || c == '1' || c == '_') {
+						self.next();
+					} else {
+						break;
+					}
+				}
+			} else if (p == 'o' || p == 'O') {
+				self.next(); // consume 'o' or 'O'
+				while (!self.is_end()) {
+					val c: char = self.peek();
+					if ((c >= '0' && c <= '7') || c == '_') {
+						self.next();
+					} else {
+						break;
+					}
+				}
+			} else {
+				self.scan_decimal_digits_and_fraction();
+			}
+		} else {
+			self.scan_decimal_digits_and_fraction();
+		}
+
+		// Optional separator before suffix: e.g. 100_L or 0xFF_UL
+		if (self.peek() == '_' && self.cursor + 1UZ < self.src.len) {
+			val next_c: char = self.src[self.cursor + 1UZ];
+			if (next_c == 'S' || next_c == 'L' || next_c == 'B' || next_c == 'Z' ||
+			    next_c == 'U' || next_c == 'D' || next_c == 'F') {
+				self.next(); // consume '_'
+			}
+		}
+
+		// Optional type suffixes: S, L, B, Z, U, US, UL, UB, UZ, D, F
+		if (!self.is_end()) {
+			val c1: char = self.peek();
+			if (c1 == 'U' && self.cursor + 1UZ < self.src.len) {
+				val c2: char = self.src[self.cursor + 1UZ];
+				if (c2 == 'S' || c2 == 'L' || c2 == 'B' || c2 == 'Z') {
+					self.next();
+					self.next();
+				} else {
+					self.next();
+				}
+			} else if (c1 == 'S' || c1 == 'L' || c1 == 'B' || c1 == 'Z' ||
+			           c1 == 'U' || c1 == 'D' || c1 == 'F') {
+				self.next();
+			}
+		}
+
+		return self.make_token(TokenType.NUMBER, start_cursor, start_col);
+	}
+
+	pub fn scan_string(var self, start_cursor: usz, start_col: usz): Token {
+		var closed: bool = false;
+		while (!self.is_end()) {
+			val c: char = self.peek();
+			if (c == '"') {
+				self.next();
+				closed = true;
+				break;
+			}
+			if (c == '\\') {
+				self.next(); // consume '\'
+				if (!self.is_end()) {
+					val esc: char = self.peek();
+					if (esc == '\r' || esc == '\n') {
+						self.handle_newline();
+					} else {
+						self.next();
+					}
+				}
+				continue;
+			}
+			if (c == '\r' || c == '\n') {
+				self.handle_newline();
+				continue;
+			}
+			self.next();
+		}
+		if (!closed) {
+			return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+		}
+		return self.make_token(TokenType.STRING, start_cursor, start_col);
+	}
+
+	pub fn scan_char(var self, start_cursor: usz, start_col: usz): Token {
+		if (!self.is_end() && self.peek() == '\\') {
+			self.next();
+		}
+		if (!self.is_end()) {
+			self.next();
+		}
+		if (!self.is_end() && self.peek() == '\'') {
+			self.next();
+		}
+		return self.make_token(TokenType.CHAR, start_cursor, start_col);
+	}
+
+	pub fn next_token(var self): Token {
+		while (true) {
+			self.skip_whitespace();
+			if (self.is_end()) {
+				return Token(TokenType.END_OF_FILE, "", self.line, self.col);
+			}
+
+			val start_cursor: usz = self.cursor;
+			val start_col: usz = self.col;
+			val c: char = self.next();
+
+			if (c == ',') return self.make_token(TokenType.COMMA, start_cursor, start_col);
+			if (c == '.') return self.make_token(TokenType.DOT, start_cursor, start_col);
+			if (c == ':') return self.make_token(TokenType.COLON, start_cursor, start_col);
+			if (c == ';') return self.make_token(TokenType.SEMI_COLON, start_cursor, start_col);
+			if (c == '(') return self.make_token(TokenType.OPEN_PAREN, start_cursor, start_col);
+			if (c == ')') return self.make_token(TokenType.CLOSE_PAREN, start_cursor, start_col);
+			if (c == '{') return self.make_token(TokenType.OPEN_BRACE, start_cursor, start_col);
+			if (c == '}') return self.make_token(TokenType.CLOSE_BRACE, start_cursor, start_col);
+			if (c == '[') return self.make_token(TokenType.OPEN_BRACKET, start_cursor, start_col);
+			if (c == ']') return self.make_token(TokenType.CLOSE_BRACKET, start_cursor, start_col);
+			if (c == '%') return self.make_token(TokenType.PERCENT, start_cursor, start_col);
+			if (c == '+') return self.make_token(TokenType.PLUS, start_cursor, start_col);
+			if (c == '*') return self.make_token(TokenType.STAR, start_cursor, start_col);
+			if (c == '"') return self.scan_string(start_cursor, start_col);
+			if (c == '\'') return self.scan_char(start_cursor, start_col);
+
+			if (c == '=') {
+				if (self.match_char('=')) return self.make_token(TokenType.EQUAL_EQUAL, start_cursor, start_col);
+				if (self.match_char('>')) return self.make_token(TokenType.FAT_ARROW, start_cursor, start_col);
+				return self.make_token(TokenType.EQUAL, start_cursor, start_col);
+			}
+
+			if (c == '-') {
+				if (self.match_char('>')) return self.make_token(TokenType.ARROW, start_cursor, start_col);
+				return self.make_token(TokenType.MINUS, start_cursor, start_col);
+			}
+
+			if (c == '/') {
+				if (self.match_char('/')) {
+					while (!self.is_end() && self.peek() != '\n' && self.peek() != '\r') {
+						self.next();
+					}
+					continue;
+				}
+				if (self.match_char('*')) {
+					while (!self.is_end()) {
+						if (self.peek() == '\r' || self.peek() == '\n') {
+							self.handle_newline();
+							continue;
+						}
+						if (self.peek() == '*' && self.cursor + 1UZ < self.src.len && self.src[self.cursor + 1UZ] == '/') {
+							self.next(); // '*'
+							self.next(); // '/'
+							break;
+						}
+						self.next();
+					}
+					continue;
+				}
+				return self.make_token(TokenType.SLASH, start_cursor, start_col);
+			}
+
+			if (c == '<') {
+				if (self.match_char('=')) return self.make_token(TokenType.LESS_EQUAL, start_cursor, start_col);
+				return self.make_token(TokenType.LESS, start_cursor, start_col);
+			}
+
+			if (c == '>') {
+				if (self.match_char('=')) return self.make_token(TokenType.GREATER_EQUAL, start_cursor, start_col);
+				return self.make_token(TokenType.GREATER, start_cursor, start_col);
+			}
+
+			if (c == '&') {
+				if (self.match_char('&')) return self.make_token(TokenType.AND_AND, start_cursor, start_col);
+				return self.make_token(TokenType.AMPERSAND, start_cursor, start_col);
+			}
+
+			if (c == '!') {
+				if (self.match_char('=')) return self.make_token(TokenType.BANG_EQUAL, start_cursor, start_col);
+				return self.make_token(TokenType.BANG, start_cursor, start_col);
+			}
+
+			if (c == '|') {
+				if (self.match_char('|')) return self.make_token(TokenType.OR_OR, start_cursor, start_col);
+				return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+			}
+
+			if (is_alpha(c) || c == '_') {
+				return self.scan_identifier(start_cursor, start_col);
+			}
+
+			if (is_digit(c)) {
+				return self.scan_number(start_cursor, start_col);
+			}
+
+			return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+		}
+		return Token(TokenType.UNKNOWN, "", self.line, self.col);
+	}
+
+	pub fn tokenize(var self): List<Token> {
+		var tokens: List<Token> = new_list<Token>();
+		while (true) {
+			val tok: Token = self.next_token();
+			tokens.add(tok);
+			if (tok.type == TokenType.END_OF_FILE) {
+				break;
+			}
+		}
+		return tokens;
+	}
 }

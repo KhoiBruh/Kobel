@@ -126,8 +126,19 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 		const std::string st_name = obj_type->is_struct() ? obj_type->struct_name : obj_type->pointee->struct_name;
 
 		llvm::Value *obj_ptr = nullptr;
-		if (obj_type->is_pointer())obj_ptr = emit_expr(m->object);
-		else obj_ptr = emit_lvalue(m->object);
+		if (obj_type->is_pointer()) obj_ptr = emit_expr(m->object);
+		else {
+			obj_ptr = emit_lvalue(m->object);
+			if (!obj_ptr) {
+				llvm::Value *rval = emit_expr(m->object);
+				if (rval) {
+					auto *fn = builder->GetInsertBlock()->getParent();
+					auto *tmp_alloca = create_entry_block_alloca(fn, rval->getType(), "member_obj_tmp");
+					builder->CreateStore(rval, tmp_alloca);
+					obj_ptr = tmp_alloca;
+				}
+			}
+		}
 
 		if (!analyzer) return nullptr;
 		const StructSymbol *sym_ptr = nullptr;
@@ -374,6 +385,7 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 	// Short-circuit for &&
 	if (b->op == TokenType::AND_AND) {
 		llvm::Value *lhs_val = emit_expr(b->left);
+		if (!lhs_val) return nullptr;
 		llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
 		llvm::Function *fn = lhs_bb->getParent();
 
@@ -384,6 +396,7 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 
 		builder->SetInsertPoint(rhs_bb);
 		llvm::Value *rhs_val = emit_expr(b->right);
+		if (!rhs_val) return nullptr;
 		llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
 		merge_bb->moveAfter(rhs_end_bb);
 		builder->CreateBr(merge_bb);
@@ -398,6 +411,7 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 	// Short-circuit for ||
 	if (b->op == TokenType::OR_OR) {
 		llvm::Value *lhs_val = emit_expr(b->left);
+		if (!lhs_val) return nullptr;
 		llvm::BasicBlock *lhs_bb = builder->GetInsertBlock();
 		llvm::Function *fn = lhs_bb->getParent();
 
@@ -408,6 +422,7 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 
 		builder->SetInsertPoint(rhs_bb);
 		llvm::Value *rhs_val = emit_expr(b->right);
+		if (!rhs_val) return nullptr;
 		llvm::BasicBlock *rhs_end_bb = builder->GetInsertBlock();
 		merge_bb->moveAfter(rhs_end_bb);
 		builder->CreateBr(merge_bb);
@@ -421,6 +436,7 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 
 	auto *l = emit_expr(b->left);
 	auto *r = emit_expr(b->right);
+	if (!l || !r) return nullptr;
 
 	auto left_sema = get_sema_type(b->left);
 

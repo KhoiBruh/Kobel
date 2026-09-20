@@ -1,0 +1,231 @@
+mod test.bootstrap_lexer;
+
+use std.io.print;
+use std.io.println;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+use bootstrap.lexer.token.token_type_name;
+
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+
+use std.collections.list.List;
+
+fn test_keywords(): bool {
+	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 24UZ) {
+		println("  [ERR] Keyword token count mismatch");
+		return false;
+	}
+
+	if (tokens.get(0UZ).type != TokenType.KW_EXTERN) return false;
+	if (tokens.get(1UZ).type != TokenType.KW_STRUCT) return false;
+	if (tokens.get(2UZ).type != TokenType.KW_FN) return false;
+	if (tokens.get(3UZ).type != TokenType.KW_RETURN) return false;
+	if (tokens.get(4UZ).type != TokenType.KW_CONST) return false;
+	if (tokens.get(5UZ).type != TokenType.KW_NULL) return false;
+	if (tokens.get(6UZ).type != TokenType.KW_TRUE) return false;
+	if (tokens.get(7UZ).type != TokenType.KW_FALSE) return false;
+	if (tokens.get(8UZ).type != TokenType.KW_VAL) return false;
+	if (tokens.get(9UZ).type != TokenType.KW_VAR) return false;
+	if (tokens.get(10UZ).type != TokenType.KW_AS) return false;
+	if (tokens.get(11UZ).type != TokenType.KW_WHILE) return false;
+	if (tokens.get(12UZ).type != TokenType.KW_BREAK) return false;
+	if (tokens.get(13UZ).type != TokenType.KW_CONTINUE) return false;
+	if (tokens.get(14UZ).type != TokenType.KW_IF) return false;
+	if (tokens.get(15UZ).type != TokenType.KW_ELSE) return false;
+	if (tokens.get(16UZ).type != TokenType.KW_WHEN) return false;
+	if (tokens.get(17UZ).type != TokenType.KW_MOD) return false;
+	if (tokens.get(18UZ).type != TokenType.KW_USE) return false;
+	if (tokens.get(19UZ).type != TokenType.KW_PUB) return false;
+	if (tokens.get(20UZ).type != TokenType.KW_TRAIT) return false;
+	if (tokens.get(21UZ).type != TokenType.KW_IMPL) return false;
+	if (tokens.get(22UZ).type != TokenType.KW_FOR) return false;
+	if (tokens.get(23UZ).type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn test_operators(): bool {
+	val code: str = "= == => + - -> * / % < <= > >= ! != && || : ; , . [ ] ( ) { } &";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.get(0UZ).type != TokenType.EQUAL) return false;
+	if (tokens.get(1UZ).type != TokenType.EQUAL_EQUAL) return false;
+	if (tokens.get(2UZ).type != TokenType.FAT_ARROW) return false;
+	if (tokens.get(3UZ).type != TokenType.PLUS) return false;
+	if (tokens.get(4UZ).type != TokenType.MINUS) return false;
+	if (tokens.get(5UZ).type != TokenType.ARROW) return false;
+	if (tokens.get(6UZ).type != TokenType.STAR) return false;
+	if (tokens.get(7UZ).type != TokenType.SLASH) return false;
+	if (tokens.get(8UZ).type != TokenType.PERCENT) return false;
+	if (tokens.get(9UZ).type != TokenType.LESS) return false;
+	if (tokens.get(10UZ).type != TokenType.LESS_EQUAL) return false;
+	if (tokens.get(11UZ).type != TokenType.GREATER) return false;
+	if (tokens.get(12UZ).type != TokenType.GREATER_EQUAL) return false;
+	if (tokens.get(13UZ).type != TokenType.BANG) return false;
+	if (tokens.get(14UZ).type != TokenType.BANG_EQUAL) return false;
+	if (tokens.get(15UZ).type != TokenType.AND_AND) return false;
+	if (tokens.get(16UZ).type != TokenType.OR_OR) return false;
+	if (tokens.get(17UZ).type != TokenType.COLON) return false;
+	if (tokens.get(18UZ).type != TokenType.SEMI_COLON) return false;
+	if (tokens.get(19UZ).type != TokenType.COMMA) return false;
+	if (tokens.get(20UZ).type != TokenType.DOT) return false;
+	if (tokens.get(21UZ).type != TokenType.OPEN_BRACKET) return false;
+	if (tokens.get(22UZ).type != TokenType.CLOSE_BRACKET) return false;
+	if (tokens.get(23UZ).type != TokenType.OPEN_PAREN) return false;
+	if (tokens.get(24UZ).type != TokenType.CLOSE_PAREN) return false;
+	if (tokens.get(25UZ).type != TokenType.OPEN_BRACE) return false;
+	if (tokens.get(26UZ).type != TokenType.CLOSE_BRACE) return false;
+	if (tokens.get(27UZ).type != TokenType.AMPERSAND) return false;
+	if (tokens.get(28UZ).type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn test_literals(): bool {
+	val code: str = "123 45.67 \"hello world\" 'a' '\\n'";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 6UZ) return false;
+
+	val t0: Token = tokens.get(0UZ);
+	if (t0.type != TokenType.NUMBER || t0.text != "123") return false;
+
+	val t1: Token = tokens.get(1UZ);
+	if (t1.type != TokenType.NUMBER || t1.text != "45.67") return false;
+
+	val t2: Token = tokens.get(2UZ);
+	if (t2.type != TokenType.STRING || t2.text != "\"hello world\"") return false;
+
+	val t3: Token = tokens.get(3UZ);
+	if (t3.type != TokenType.CHAR || t3.text != "'a'") return false;
+
+	val t4: Token = tokens.get(4UZ);
+	if (t4.type != TokenType.CHAR || t4.text != "'\\n'") return false;
+
+	val t5: Token = tokens.get(5UZ);
+	if (t5.type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn test_numeric_prefixes_and_suffixes(): bool {
+	val code: str = "0xFF 0b1010 0o77 1_000_000 100L 50U 10_000_US 3.14F 2.5D";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 10UZ) return false;
+
+	if (tokens.get(0UZ).type != TokenType.NUMBER || tokens.get(0UZ).text != "0xFF") return false;
+	if (tokens.get(1UZ).type != TokenType.NUMBER || tokens.get(1UZ).text != "0b1010") return false;
+	if (tokens.get(2UZ).type != TokenType.NUMBER || tokens.get(2UZ).text != "0o77") return false;
+	if (tokens.get(3UZ).type != TokenType.NUMBER || tokens.get(3UZ).text != "1_000_000") return false;
+	if (tokens.get(4UZ).type != TokenType.NUMBER || tokens.get(4UZ).text != "100L") return false;
+	if (tokens.get(5UZ).type != TokenType.NUMBER || tokens.get(5UZ).text != "50U") return false;
+	if (tokens.get(6UZ).type != TokenType.NUMBER || tokens.get(6UZ).text != "10_000_US") return false;
+	if (tokens.get(7UZ).type != TokenType.NUMBER || tokens.get(7UZ).text != "3.14F") return false;
+	if (tokens.get(8UZ).type != TokenType.NUMBER || tokens.get(8UZ).text != "2.5D") return false;
+	if (tokens.get(9UZ).type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn test_comments_and_whitespace(): bool {
+	val code: str = "val a = 1; // single line comment\nval b = 2; /* multi\nline\ncomment */ val c = 3;";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 16UZ) return false;
+
+	if (tokens.get(0UZ).text != "val") return false;
+	if (tokens.get(1UZ).text != "a") return false;
+	if (tokens.get(2UZ).text != "=") return false;
+	if (tokens.get(3UZ).text != "1") return false;
+	if (tokens.get(4UZ).text != ";") return false;
+
+	if (tokens.get(5UZ).text != "val") return false;
+	if (tokens.get(6UZ).text != "b") return false;
+	if (tokens.get(7UZ).text != "=") return false;
+	if (tokens.get(8UZ).text != "2") return false;
+	if (tokens.get(9UZ).text != ";") return false;
+
+	if (tokens.get(10UZ).text != "val") return false;
+	if (tokens.get(11UZ).text != "c") return false;
+	if (tokens.get(12UZ).text != "=") return false;
+	if (tokens.get(13UZ).text != "3") return false;
+	if (tokens.get(14UZ).text != ";") return false;
+
+	if (tokens.get(15UZ).type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn test_line_col_tracking(): bool {
+	val code: str = "val x = 1;\nval y = 2;";
+	var lex: Lexer = new_lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	val t0: Token = tokens.get(0UZ);
+	if (t0.text != "val" || t0.line != 1UZ || t0.col != 1UZ) return false;
+
+	val t5: Token = tokens.get(5UZ);
+	if (t5.text != "val" || t5.line != 2UZ || t5.col != 1UZ) return false;
+
+	tokens.delete();
+	return true;
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap Lexer tests...");
+
+	if (!test_keywords()) {
+		println("  [FAIL] test_keywords");
+		return 1;
+	}
+	println("  [PASS] test_keywords");
+
+	if (!test_operators()) {
+		println("  [FAIL] test_operators");
+		return 1;
+	}
+	println("  [PASS] test_operators");
+
+	if (!test_literals()) {
+		println("  [FAIL] test_literals");
+		return 1;
+	}
+	println("  [PASS] test_literals");
+
+	if (!test_numeric_prefixes_and_suffixes()) {
+		println("  [FAIL] test_numeric_prefixes_and_suffixes");
+		return 1;
+	}
+	println("  [PASS] test_numeric_prefixes_and_suffixes");
+
+	if (!test_comments_and_whitespace()) {
+		println("  [FAIL] test_comments_and_whitespace");
+		return 1;
+	}
+	println("  [PASS] test_comments_and_whitespace");
+
+	if (!test_line_col_tracking()) {
+		println("  [FAIL] test_line_col_tracking");
+		return 1;
+	}
+	println("  [PASS] test_line_col_tracking");
+
+	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
+	return 0;
+}
