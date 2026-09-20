@@ -77,67 +77,67 @@ pub struct Token {
 	pub col: usz
 }
 
-pub fn token_type_name(t: TokenType): str {
-	if (t == TokenType.SEMI_COLON) return "SEMI_COLON";
-	if (t == TokenType.COLON) return "COLON";
-	if (t == TokenType.COMMA) return "COMMA";
-	if (t == TokenType.DOT) return "DOT";
-	if (t == TokenType.BANG) return "BANG";
-	if (t == TokenType.EQUAL) return "EQUAL";
-	if (t == TokenType.PLUS) return "PLUS";
-	if (t == TokenType.MINUS) return "MINUS";
-	if (t == TokenType.STAR) return "STAR";
-	if (t == TokenType.SLASH) return "SLASH";
-	if (t == TokenType.PERCENT) return "PERCENT";
-	if (t == TokenType.GREATER) return "GREATER";
-	if (t == TokenType.LESS) return "LESS";
-	if (t == TokenType.OPEN_BRACKET) return "OPEN_BRACKET";
-	if (t == TokenType.CLOSE_BRACKET) return "CLOSE_BRACKET";
-	if (t == TokenType.OPEN_PAREN) return "OPEN_PAREN";
-	if (t == TokenType.CLOSE_PAREN) return "CLOSE_PAREN";
-	if (t == TokenType.OPEN_BRACE) return "OPEN_BRACE";
-	if (t == TokenType.CLOSE_BRACE) return "CLOSE_BRACE";
-	if (t == TokenType.AMPERSAND) return "AMPERSAND";
+pub fn token_type_name(t: TokenType): str => when (t) {
+	TokenType.SEMI_COLON -> "SEMI_COLON",
+	TokenType.COLON -> "COLON",
+	TokenType.COMMA -> "COMMA",
+	TokenType.DOT -> "DOT",
+	TokenType.BANG -> "BANG",
+	TokenType.EQUAL -> "EQUAL",
+	TokenType.PLUS -> "PLUS",
+	TokenType.MINUS -> "MINUS",
+	TokenType.STAR -> "STAR",
+	TokenType.SLASH -> "SLASH",
+	TokenType.PERCENT -> "PERCENT",
+	TokenType.GREATER -> "GREATER",
+	TokenType.LESS -> "LESS",
+	TokenType.OPEN_BRACKET -> "OPEN_BRACKET",
+	TokenType.CLOSE_BRACKET -> "CLOSE_BRACKET",
+	TokenType.OPEN_PAREN -> "OPEN_PAREN",
+	TokenType.CLOSE_PAREN -> "CLOSE_PAREN",
+	TokenType.OPEN_BRACE -> "OPEN_BRACE",
+	TokenType.CLOSE_BRACE -> "CLOSE_BRACE",
+	TokenType.AMPERSAND -> "AMPERSAND",
 
-	if (t == TokenType.EQUAL_EQUAL) return "EQUAL_EQUAL";
-	if (t == TokenType.BANG_EQUAL) return "BANG_EQUAL";
-	if (t == TokenType.LESS_EQUAL) return "LESS_EQUAL";
-	if (t == TokenType.GREATER_EQUAL) return "GREATER_EQUAL";
-	if (t == TokenType.AND_AND) return "AND_AND";
-	if (t == TokenType.OR_OR) return "OR_OR";
-	if (t == TokenType.FAT_ARROW) return "FAT_ARROW";
-	if (t == TokenType.ARROW) return "ARROW";
+	TokenType.EQUAL_EQUAL -> "EQUAL_EQUAL",
+	TokenType.BANG_EQUAL -> "BANG_EQUAL",
+	TokenType.LESS_EQUAL -> "LESS_EQUAL",
+	TokenType.GREATER_EQUAL -> "GREATER_EQUAL",
+	TokenType.AND_AND -> "AND_AND",
+	TokenType.OR_OR -> "OR_OR",
+	TokenType.FAT_ARROW -> "FAT_ARROW",
+	TokenType.ARROW -> "ARROW",
 
-	if (t == TokenType.CHAR) return "CHAR";
-	if (t == TokenType.NUMBER) return "NUMBER";
-	if (t == TokenType.STRING) return "STRING";
-	if (t == TokenType.IDENTIFIER) return "IDENTIFIER";
+	TokenType.CHAR -> "CHAR",
+	TokenType.NUMBER -> "NUMBER",
+	TokenType.STRING -> "STRING",
+	TokenType.IDENTIFIER -> "IDENTIFIER",
 
-	if (t == TokenType.KW_EXTERN) return "KW_EXTERN";
-	if (t == TokenType.KW_STRUCT) return "KW_STRUCT";
-	if (t == TokenType.KW_ENUM) return "KW_ENUM";
-	if (t == TokenType.KW_FN) return "KW_FN";
-	if (t == TokenType.KW_RETURN) return "KW_RETURN";
-	if (t == TokenType.KW_CONST) return "KW_CONST";
-	if (t == TokenType.KW_NULL) return "KW_NULL";
-	if (t == TokenType.KW_TRUE) return "KW_TRUE";
-	if (t == TokenType.KW_FALSE) return "KW_FALSE";
-	if (t == TokenType.KW_VAL) return "KW_VAL";
-	if (t == TokenType.KW_VAR) return "KW_VAR";
-	if (t == TokenType.KW_AS) return "KW_AS";
-	if (t == TokenType.KW_WHILE) return "KW_WHILE";
-	if (t == TokenType.KW_BREAK) return "KW_BREAK";
-	if (t == TokenType.KW_CONTINUE) return "KW_CONTINUE";
-	if (t == TokenType.KW_IF) return "KW_IF";
-	if (t == TokenType.KW_ELSE) return "KW_ELSE";
-	if (t == TokenType.KW_WHEN) return "KW_WHEN";
-	if (t == TokenType.KW_MOD) return "KW_MOD";
-	if (t == TokenType.KW_USE) return "KW_USE";
-	if (t == TokenType.KW_PUB) return "KW_PUB";
-	if (t == TokenType.KW_TRAIT) return "KW_TRAIT";
-	if (t == TokenType.KW_IMPL) return "KW_IMPL";
-	if (t == TokenType.KW_FOR) return "KW_FOR";
+	TokenType.KW_EXTERN -> "KW_EXTERN",
+	TokenType.KW_STRUCT -> "KW_STRUCT",
+	TokenType.KW_ENUM -> "KW_ENUM",
+	TokenType.KW_FN -> "KW_FN",
+	TokenType.KW_RETURN -> "KW_RETURN",
+	TokenType.KW_CONST -> "KW_CONST",
+	TokenType.KW_NULL -> "KW_NULL",
+	TokenType.KW_TRUE -> "KW_TRUE",
+	TokenType.KW_FALSE -> "KW_FALSE",
+	TokenType.KW_VAL -> "KW_VAL",
+	TokenType.KW_VAR -> "KW_VAR",
+	TokenType.KW_AS -> "KW_AS",
+	TokenType.KW_WHILE -> "KW_WHILE",
+	TokenType.KW_BREAK -> "KW_BREAK",
+	TokenType.KW_CONTINUE -> "KW_CONTINUE",
+	TokenType.KW_IF -> "KW_IF",
+	TokenType.KW_ELSE -> "KW_ELSE",
+	TokenType.KW_WHEN -> "KW_WHEN",
+	TokenType.KW_MOD -> "KW_MOD",
+	TokenType.KW_USE -> "KW_USE",
+	TokenType.KW_PUB -> "KW_PUB",
+	TokenType.KW_TRAIT -> "KW_TRAIT",
+	TokenType.KW_IMPL -> "KW_IMPL",
+	TokenType.KW_FOR -> "KW_FOR",
 
-	if (t == TokenType.END_OF_FILE) return "END_OF_FILE";
-	return "UNKNOWN";
-}
+	TokenType.END_OF_FILE -> "END_OF_FILE",
+	else -> "UNKNOWN"
+};

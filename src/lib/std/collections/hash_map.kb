@@ -1,7 +1,0 @@
-mod std.collections;
-
-pub struct HashMap<K, V> {
-}
-
-impl HashMap<K, V> {
-}

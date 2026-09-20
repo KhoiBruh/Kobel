@@ -1,7 +1,0 @@
-mod std.collections;
-
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn realloc(ptr: &u8, size: usz): &u8;
-	fn free(ptr: &u8): void;
-}
