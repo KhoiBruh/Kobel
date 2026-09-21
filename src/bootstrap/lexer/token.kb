@@ -77,7 +77,7 @@ pub struct Token {
 	pub col: usz
 }
 
-pub fn token_type_name(t: TokenType): str => when (t) {
+pub fn token_type_name(t: TokenType) => when (t) {
 	TokenType.SEMI_COLON -> "SEMI_COLON",
 	TokenType.COLON -> "COLON",
 	TokenType.COMMA -> "COMMA",
@@ -154,53 +154,53 @@ struct StringRaw {
 }
 
 pub fn usz_to_str(n: usz): str {
-	if (n == 0UZ) return "0";
-	val buf = malloc(32UZ);
+	if (n == 0) return "0";
+	val buf = malloc(32);
 	var tmp = n;
-	var len: usz = 0UZ;
-	while (tmp > 0UZ) {
-		len = len + 1UZ;
-		tmp = tmp / 10UZ;
+	var len = 0UZ;
+	while (tmp > 0) {
+		len = len + 1;
+		tmp = tmp / 10;
 	}
-	buf[len] = 0UB;
+	buf[len] = 0;
 	var i = len;
 	tmp = n;
-	while (tmp > 0UZ) {
-		i = i - 1UZ;
-		val digit = (tmp % 10UZ) as u8;
-		buf[i] = (48UB + digit) as u8;
-		tmp = tmp / 10UZ;
+	while (tmp > 0) {
+		i = i - 1;
+		val digit = (tmp % 10) as u8;
+		buf[i] = (48 + digit) as u8;
+		tmp = tmp / 10;
 	}
-	val raw_mem = malloc(24UZ);
+	val raw_mem = malloc(24);
 	val r = raw_mem as &StringRaw;
 	r.data = buf as *char;
 	r.len = len;
-	r.cap = 32UZ;
+	r.cap = 32;
 	val sp: *str = r as *str;
 	val res: str = *sp;
 	free(raw_mem);
 	return res;
 }
 
-pub fn format_loc(line: usz, col: usz): str {
-	return "Line " + usz_to_str(line) + ", Column " + usz_to_str(col) + ": ";
-}
-
+pub fn format_loc(line: usz, col: usz) => "Line " + usz_to_str(line) + ", Column " + usz_to_str(col) + ": ";
+ 
 pub fn strip_suffix(s: str, n: usz): str {
 	if (s.len <= n) return "";
 	val new_len = s.len - n;
-	val buf = malloc(new_len + 1UZ);
-	var i: usz = 0UZ;
+	val buf = malloc(new_len + 1);
+	var i = 0UZ;
 	while (i < new_len) {
 		buf[i] = s[i] as u8;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	buf[new_len] = 0UB;
-	val raw_mem = malloc(24UZ);
+
+	buf[new_len] = 0;
+	val raw_mem = malloc(24);
 	val r = raw_mem as &StringRaw;
 	r.data = buf as *char;
 	r.len = new_len;
-	r.cap = new_len + 1UZ;
+	r.cap = new_len + 1;
+
 	val sp: *str = r as *str;
 	val res: str = *sp;
 	free(raw_mem);
