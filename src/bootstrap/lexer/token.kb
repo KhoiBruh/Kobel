@@ -1,5 +1,10 @@
 mod bootstrap.lexer.token;
 
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
 pub enum TokenType {
 	// Single syntax
 	SEMI_COLON,    // ;
@@ -75,76 +80,6 @@ pub struct Token {
 	pub text: str,
 	pub line: usz,
 	pub col: usz
-}
-
-pub fn token_type_name(t: TokenType) => when (t) {
-	TokenType.SEMI_COLON -> "SEMI_COLON",
-	TokenType.COLON -> "COLON",
-	TokenType.COMMA -> "COMMA",
-	TokenType.DOT -> "DOT",
-	TokenType.BANG -> "BANG",
-	TokenType.EQUAL -> "EQUAL",
-	TokenType.PLUS -> "PLUS",
-	TokenType.MINUS -> "MINUS",
-	TokenType.STAR -> "STAR",
-	TokenType.SLASH -> "SLASH",
-	TokenType.PERCENT -> "PERCENT",
-	TokenType.GREATER -> "GREATER",
-	TokenType.LESS -> "LESS",
-	TokenType.OPEN_BRACKET -> "OPEN_BRACKET",
-	TokenType.CLOSE_BRACKET -> "CLOSE_BRACKET",
-	TokenType.OPEN_PAREN -> "OPEN_PAREN",
-	TokenType.CLOSE_PAREN -> "CLOSE_PAREN",
-	TokenType.OPEN_BRACE -> "OPEN_BRACE",
-	TokenType.CLOSE_BRACE -> "CLOSE_BRACE",
-	TokenType.AMPERSAND -> "AMPERSAND",
-
-	TokenType.EQUAL_EQUAL -> "EQUAL_EQUAL",
-	TokenType.BANG_EQUAL -> "BANG_EQUAL",
-	TokenType.LESS_EQUAL -> "LESS_EQUAL",
-	TokenType.GREATER_EQUAL -> "GREATER_EQUAL",
-	TokenType.AND_AND -> "AND_AND",
-	TokenType.OR_OR -> "OR_OR",
-	TokenType.FAT_ARROW -> "FAT_ARROW",
-	TokenType.ARROW -> "ARROW",
-
-	TokenType.CHAR -> "CHAR",
-	TokenType.NUMBER -> "NUMBER",
-	TokenType.STRING -> "STRING",
-	TokenType.IDENTIFIER -> "IDENTIFIER",
-
-	TokenType.KW_EXTERN -> "KW_EXTERN",
-	TokenType.KW_STRUCT -> "KW_STRUCT",
-	TokenType.KW_ENUM -> "KW_ENUM",
-	TokenType.KW_FN -> "KW_FN",
-	TokenType.KW_RETURN -> "KW_RETURN",
-	TokenType.KW_CONST -> "KW_CONST",
-	TokenType.KW_NULL -> "KW_NULL",
-	TokenType.KW_TRUE -> "KW_TRUE",
-	TokenType.KW_FALSE -> "KW_FALSE",
-	TokenType.KW_VAL -> "KW_VAL",
-	TokenType.KW_VAR -> "KW_VAR",
-	TokenType.KW_AS -> "KW_AS",
-	TokenType.KW_WHILE -> "KW_WHILE",
-	TokenType.KW_BREAK -> "KW_BREAK",
-	TokenType.KW_CONTINUE -> "KW_CONTINUE",
-	TokenType.KW_IF -> "KW_IF",
-	TokenType.KW_ELSE -> "KW_ELSE",
-	TokenType.KW_WHEN -> "KW_WHEN",
-	TokenType.KW_MOD -> "KW_MOD",
-	TokenType.KW_USE -> "KW_USE",
-	TokenType.KW_PUB -> "KW_PUB",
-	TokenType.KW_TRAIT -> "KW_TRAIT",
-	TokenType.KW_IMPL -> "KW_IMPL",
-	TokenType.KW_FOR -> "KW_FOR",
-
-	TokenType.END_OF_FILE -> "END_OF_FILE",
-	else -> "UNKNOWN"
-};
-
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): void;
 }
 
 struct StringRaw {
