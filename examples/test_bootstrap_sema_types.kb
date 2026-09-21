@@ -1,0 +1,212 @@
+mod test.bootstrap_sema_types;
+
+use std.io.print;
+use std.io.println;
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+use bootstrap.sema.types.DataType;
+use bootstrap.sema.types.Type;
+use bootstrap.sema.types.PointerType;
+use bootstrap.sema.types.ArrayType;
+use bootstrap.sema.types.StructField;
+use bootstrap.sema.types.StructType;
+use bootstrap.sema.types.FnType;
+
+use bootstrap.sema.types.type_void;
+use bootstrap.sema.types.type_bool;
+use bootstrap.sema.types.type_i8;
+use bootstrap.sema.types.type_i16;
+use bootstrap.sema.types.type_i32;
+use bootstrap.sema.types.type_i64;
+use bootstrap.sema.types.type_isz;
+use bootstrap.sema.types.type_u8;
+use bootstrap.sema.types.type_u16;
+use bootstrap.sema.types.type_u32;
+use bootstrap.sema.types.type_u64;
+use bootstrap.sema.types.type_usz;
+use bootstrap.sema.types.type_f32;
+use bootstrap.sema.types.type_f64;
+use bootstrap.sema.types.type_str;
+
+use bootstrap.sema.types.alloc_pointer_type;
+use bootstrap.sema.types.alloc_array_type;
+use bootstrap.sema.types.alloc_struct_type;
+use bootstrap.sema.types.alloc_fn_type;
+
+use bootstrap.sema.types.as_pointer_type;
+use bootstrap.sema.types.as_array_type;
+use bootstrap.sema.types.as_struct_type;
+use bootstrap.sema.types.as_fn_type;
+
+use bootstrap.sema.types.is_integer;
+use bootstrap.sema.types.is_signed_integer;
+use bootstrap.sema.types.is_unsigned_integer;
+use bootstrap.sema.types.is_float;
+use bootstrap.sema.types.is_numeric;
+use bootstrap.sema.types.type_equals;
+use bootstrap.sema.types.can_assign;
+use bootstrap.sema.types.type_to_string;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		println(" (usz mismatch)");
+	}
+}
+
+fn assert_eq_str(actual: str, expected: str, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		print(" | Expected: '");
+		print(expected);
+		print("', got: '");
+		print(actual);
+		println("'");
+	}
+}
+
+// ============================================================================
+// Test 1: Primitive Types Properties
+// ============================================================================
+
+fn test_primitive_types() {
+	var t_i32 = type_i32();
+	assert_eq_usz(t_i32.size, 4UZ, "i32 size must be 4");
+	assert_eq_usz(t_i32.align, 4UZ, "i32 align must be 4");
+	assert_true(is_integer(&t_i32), "i32 must be integer");
+	assert_true(is_signed_integer(&t_i32), "i32 must be signed integer");
+	assert_true(!is_unsigned_integer(&t_i32), "i32 must not be unsigned");
+	assert_true(is_numeric(&t_i32), "i32 must be numeric");
+
+	var t_u64 = type_u64();
+	assert_eq_usz(t_u64.size, 8UZ, "u64 size must be 8");
+	assert_eq_usz(t_u64.align, 8UZ, "u64 align must be 8");
+	assert_true(is_unsigned_integer(&t_u64), "u64 must be unsigned integer");
+	assert_true(!is_signed_integer(&t_u64), "u64 must not be signed");
+
+	var t_f64 = type_f64();
+	assert_eq_usz(t_f64.size, 8UZ, "f64 size must be 8");
+	assert_true(is_float(&t_f64), "f64 must be float");
+	assert_true(!is_integer(&t_f64), "f64 must not be integer");
+
+	var t_bool = type_bool();
+	assert_eq_usz(t_bool.size, 1UZ, "bool size must be 1");
+	assert_true(!is_numeric(&t_bool), "bool must not be numeric");
+
+	println("  [PASS] test_primitive_types");
+}
+
+// ============================================================================
+// Test 2: Pointer & Array Types
+// ============================================================================
+
+fn test_pointer_and_array_types() {
+	var arena = new_arena(16384UZ);
+
+	var t_i32 = type_i32();
+	val ptr_mut = alloc_pointer_type(&arena, &t_i32, true);
+	val ptr_const = alloc_pointer_type(&arena, &t_i32, false);
+
+	assert_eq_usz(ptr_mut.size, 8UZ, "Pointer size must be 8 on x64");
+	assert_eq_usz(ptr_mut.align, 8UZ, "Pointer align must be 8 on x64");
+	assert_true(as_pointer_type(ptr_mut).is_mut, "ptr_mut must be mutable");
+	assert_true(!as_pointer_type(ptr_const).is_mut, "ptr_const must not be mutable");
+
+	// Array [i32; 10]
+	val arr = alloc_array_type(&arena, &t_i32, 10UZ);
+	assert_eq_usz(arr.size, 40UZ, "Array [i32; 10] size must be 40");
+	assert_eq_usz(arr.align, 4UZ, "Array [i32; 10] align must be 4");
+	assert_eq_usz(as_array_type(arr).length, 10UZ, "Array length must be 10");
+
+	arena.delete();
+	println("  [PASS] test_pointer_and_array_types");
+}
+
+// ============================================================================
+// Test 3: Struct Layout & Alignment (x64 ABI)
+// ============================================================================
+
+fn test_struct_layout() {
+	var arena = new_arena(16384UZ);
+
+	// struct Sample { a: u8, b: i32, c: i64 }
+	// - a: u8  -> offset 0, size 1 (rem 3 bytes padding)
+	// - b: i32 -> offset 4, size 4
+	// - c: i64 -> offset 8, size 8
+	// - total size: 16, align: 8
+	var t_u8 = type_u8();
+	var t_i32 = type_i32();
+	var t_i64 = type_i64();
+
+	var fields = new_list<StructField>();
+	fields.add(StructField("a", &t_u8, 0UZ));
+	fields.add(StructField("b", &t_i32, 0UZ));
+	fields.add(StructField("c", &t_i64, 0UZ));
+
+	val s_ty = alloc_struct_type(&arena, "Sample", fields);
+
+	assert_eq_usz(s_ty.align, 8UZ, "Struct max align must be 8");
+	assert_eq_usz(s_ty.size, 16UZ, "Struct size with padding must be 16");
+
+	val s_info = as_struct_type(s_ty);
+	assert_eq_str(s_info.name, "Sample", "Struct name must match");
+	assert_eq_usz(s_info.fields.len, 3UZ, "Field count must be 3");
+
+	assert_eq_usz(s_info.fields.get(0UZ).offset, 0UZ, "Field a offset must be 0");
+	assert_eq_usz(s_info.fields.get(1UZ).offset, 4UZ, "Field b offset must be 4 (after 3B padding)");
+	assert_eq_usz(s_info.fields.get(2UZ).offset, 8UZ, "Field c offset must be 8");
+
+	arena.delete();
+	println("  [PASS] test_struct_layout");
+}
+
+// ============================================================================
+// Test 4: Type Equality & Assignability
+// ============================================================================
+
+fn test_type_equality_and_assignability() {
+	var arena = new_arena(16384UZ);
+
+	var t_i32_1 = type_i32();
+	var t_i32_2 = type_i32();
+	var t_i64 = type_i64();
+	var t_bool = type_bool();
+
+	assert_true(type_equals(&t_i32_1, &t_i32_2), "i32 must equal i32");
+	assert_true(!type_equals(&t_i32_1, &t_i64), "i32 must not equal i64");
+
+	assert_true(can_assign(&t_i32_1, &t_i32_2), "i32 can assign to i32");
+	assert_true(!can_assign(&t_bool, &t_i32_1), "i32 cannot assign to bool");
+
+	// Pointers: *mut i32 -> *i32 is valid (const promotion)
+	val p_mut = alloc_pointer_type(&arena, &t_i32_1, true);
+	val p_const = alloc_pointer_type(&arena, &t_i32_1, false);
+
+	assert_true(can_assign(p_const, p_mut), "*mut i32 can assign to *i32");
+	assert_true(!can_assign(p_mut, p_const), "*i32 cannot assign to *mut i32 without cast");
+
+	arena.delete();
+	println("  [PASS] test_type_equality_and_assignability");
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap Semantic Types tests...");
+	test_primitive_types();
+	test_pointer_and_array_types();
+	test_struct_layout();
+	test_type_equality_and_assignability();
+	println("[ALL PASSED] Bootstrap Semantic Types passed all tests successfully!");
+	return 0;
+}

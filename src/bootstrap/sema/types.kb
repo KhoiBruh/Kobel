@@ -1,0 +1,300 @@
+mod bootstrap.sema.types;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+use std.mem.arena.Arena;
+
+// ============================================================================
+// DataType Enumeration
+// ============================================================================
+
+pub enum DataType {
+	VOID,
+	BOOL,
+	I8, I16, I32, I64, ISZ,
+	U8, U16, U32, U64, USZ,
+	F32, F64,
+	STR,
+	POINTER,
+	ARRAY,
+	STRUCT,
+	FN
+}
+
+// ============================================================================
+// Type Representation (Tagged Type)
+// ============================================================================
+
+pub struct Type {
+	pub kind: DataType,
+	pub size: usz,
+	pub align: usz,
+	pub data: *u8
+}
+
+pub struct PointerType {
+	pub pointee: *Type,
+	pub is_mut: bool
+}
+
+pub struct ArrayType {
+	pub elem: *Type,
+	pub length: usz
+}
+
+pub struct StructField {
+	pub name: str,
+	pub type_ptr: *Type,
+	pub offset: usz
+}
+
+pub struct StructType {
+	pub name: str,
+	pub fields: List<StructField>
+}
+
+pub struct FnType {
+	pub param_types: List<*Type>,
+	pub return_type: *Type
+}
+
+// ============================================================================
+// Downcast Helper Functions
+// ============================================================================
+
+pub fn as_pointer_type(ty: *Type): *PointerType => ty.data as *PointerType;
+pub fn as_array_type(ty: *Type): *ArrayType => ty.data as *ArrayType;
+pub fn as_struct_type(ty: *Type): *StructType => ty.data as *StructType;
+pub fn as_fn_type(ty: *Type): *FnType => ty.data as *FnType;
+
+// ============================================================================
+// Primitive Types Constructors
+// ============================================================================
+
+pub fn make_primitive(kind: DataType, size: usz, align: usz): Type => Type(kind, size, align, null);
+
+pub fn type_void(): Type => make_primitive(DataType.VOID, 0UZ, 1UZ);
+pub fn type_bool(): Type => make_primitive(DataType.BOOL, 1UZ, 1UZ);
+
+pub fn type_i8(): Type => make_primitive(DataType.I8, 1UZ, 1UZ);
+pub fn type_i16(): Type => make_primitive(DataType.I16, 2UZ, 2UZ);
+pub fn type_i32(): Type => make_primitive(DataType.I32, 4UZ, 4UZ);
+pub fn type_i64(): Type => make_primitive(DataType.I64, 8UZ, 8UZ);
+pub fn type_isz(): Type => make_primitive(DataType.ISZ, 8UZ, 8UZ);
+
+pub fn type_u8(): Type => make_primitive(DataType.U8, 1UZ, 1UZ);
+pub fn type_u16(): Type => make_primitive(DataType.U16, 2UZ, 2UZ);
+pub fn type_u32(): Type => make_primitive(DataType.U32, 4UZ, 4UZ);
+pub fn type_u64(): Type => make_primitive(DataType.U64, 8UZ, 8UZ);
+pub fn type_usz(): Type => make_primitive(DataType.USZ, 8UZ, 8UZ);
+
+pub fn type_f32(): Type => make_primitive(DataType.F32, 4UZ, 4UZ);
+pub fn type_f64(): Type => make_primitive(DataType.F64, 8UZ, 8UZ);
+
+pub fn type_str(): Type => make_primitive(DataType.STR, 16UZ, 8UZ);
+
+// ============================================================================
+// Complex Type Allocators
+// ============================================================================
+
+pub fn alloc_pointer_type(
+	var arena: &Arena,
+	pointee: *Type,
+	is_mut: bool
+): *Type {
+	val payload_mem = arena.alloc_bytes(PointerType.size(), 8UZ);
+	val ptr_info = payload_mem as *PointerType;
+	*ptr_info = PointerType(pointee, is_mut);
+
+	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val t_ptr = type_mem as *Type;
+	*t_ptr = Type(DataType.POINTER, 8UZ, 8UZ, payload_mem);
+	return t_ptr;
+}
+
+pub fn alloc_array_type(
+	var arena: &Arena,
+	elem: *Type,
+	length: usz
+): *Type {
+	val payload_mem = arena.alloc_bytes(ArrayType.size(), 8UZ);
+	val arr_info = payload_mem as *ArrayType;
+	*arr_info = ArrayType(elem, length);
+
+	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val t_ptr = type_mem as *Type;
+	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, payload_mem);
+	return t_ptr;
+}
+
+pub fn alloc_struct_type(
+	var arena: &Arena,
+	name: str,
+	fields: List<StructField>
+): *Type {
+	var max_align: usz = 1UZ;
+	var current_offset: usz = 0UZ;
+
+	var i: usz = 0UZ;
+	while (i < fields.len) {
+		var f = fields.get(i);
+		val f_align = f.type_ptr.align;
+		if (f_align > max_align) max_align = f_align;
+
+		// Align current_offset theo f_align
+		val rem = current_offset % f_align;
+		if (rem != 0UZ) current_offset = current_offset + (f_align - rem);
+
+		f.offset = current_offset;
+		fields.set(i, f);
+		current_offset = current_offset + f.type_ptr.size;
+		i = i + 1UZ;
+	}
+
+	// Đệm cuối struct theo max_align
+	val total_rem = current_offset % max_align;
+	if (total_rem != 0UZ) current_offset = current_offset + (max_align - total_rem);
+
+	val payload_mem = arena.alloc_bytes(StructType.size(), 8UZ);
+	val struct_info = payload_mem as *StructType;
+	*struct_info = StructType(name, fields);
+
+	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val t_ptr = type_mem as *Type;
+	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, payload_mem);
+	return t_ptr;
+}
+
+pub fn alloc_fn_type(
+	var arena: &Arena,
+	param_types: List<*Type>,
+	return_type: *Type
+): *Type {
+	val payload_mem = arena.alloc_bytes(FnType.size(), 8UZ);
+	val fn_info = payload_mem as *FnType;
+	*fn_info = FnType(param_types, return_type);
+
+	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val t_ptr = type_mem as *Type;
+	*t_ptr = Type(DataType.FN, 8UZ, 8UZ, payload_mem);
+	return t_ptr;
+}
+
+// ============================================================================
+// Type Inspection & Semantic Queries
+// ============================================================================
+
+pub fn is_signed_integer(ty: *Type): bool => when (ty.kind) {
+	DataType.I8, DataType.I16, DataType.I32,
+	DataType.I64, DataType.ISZ -> true;
+	else -> false;
+}
+
+pub fn is_unsigned_integer(ty: *Type): bool => when (ty.kind) {
+	DataType.U8, DataType.U16, DataType.U32,
+	DataType.U64, DataType.USZ -> return true;
+	else -> return false;
+}
+
+pub fn is_integer(ty: *Type): bool => is_signed_integer(ty) || is_unsigned_integer(ty);
+
+pub fn is_float(ty: *Type): bool => when (ty.kind) {
+	DataType.F32, DataType.F64 -> return true;
+	else -> return false;
+}
+
+pub fn is_numeric(ty: *Type): bool => is_integer(ty) || is_float(ty);
+
+pub fn type_equals(a: *Type, b: *Type): bool {
+	if (a == b) return true;
+	if (a.kind != b.kind) return false;
+
+	when (a.kind) {
+		DataType.POINTER -> {
+			val p_a = as_pointer_type(a);
+			val p_b = as_pointer_type(b);
+			return (p_a.is_mut == p_b.is_mut) && type_equals(p_a.pointee, p_b.pointee);
+		}
+		DataType.ARRAY -> {
+			val arr_a = as_array_type(a);
+			val arr_b = as_array_type(b);
+			return (arr_a.length == arr_b.length) && type_equals(arr_a.elem, arr_b.elem);
+		}
+		DataType.STRUCT -> {
+			val s_a = as_struct_type(a);
+			val s_b = as_struct_type(b);
+			return s_a.name == s_b.name;
+		}
+		DataType.FN -> {
+			val f_a = as_fn_type(a);
+			val f_b = as_fn_type(b);
+			if (f_a.param_types.len != f_b.param_types.len) return false;
+			if (!type_equals(f_a.return_type, f_b.return_type)) return false;
+
+			var i: usz = 0UZ;
+			while (i < f_a.param_types.len) {
+				if (!type_equals(f_a.param_types.get(i), f_b.param_types.get(i))) return false;
+				i = i + 1UZ;
+			}
+			return true;
+		}
+		else -> return true;
+	}
+}
+
+pub fn can_assign(target: *Type, source: *Type): bool {
+	if (type_equals(target, source)) return true;
+
+	// 1. Cho phép con trỏ mutable gán cho con trỏ immutable: *mut T -> *T
+	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
+		val t_ptr = as_pointer_type(target);
+		val s_ptr = as_pointer_type(source);
+		if (!t_ptr.is_mut && s_ptr.is_mut) return type_equals(t_ptr.pointee, s_ptr.pointee);
+	}
+
+	// 2. Cho phép con trỏ void (hoặc u8 pointer) nhận các con trỏ khác nếu là raw pointer
+	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
+		val t_ptr = as_pointer_type(target);
+		if (
+			t_ptr.pointee.kind == DataType.U8 ||
+			t_ptr.pointee.kind == DataType.VOID
+		) return true;
+	}
+
+	return false;
+}
+
+pub fn type_to_string(ty: *Type): str {
+	when (ty.kind) {
+		DataType.VOID -> return "void";
+		DataType.BOOL -> return "bool";
+		DataType.I8 -> return "i8";
+		DataType.I16 -> return "i16";
+		DataType.I32 -> return "i32";
+		DataType.I64 -> return "i64";
+		DataType.ISZ -> return "isz";
+		DataType.U8 -> return "u8";
+		DataType.U16 -> return "u16";
+		DataType.U32 -> return "u32";
+		DataType.U64 -> return "u64";
+		DataType.USZ -> return "usz";
+		DataType.F32 -> return "f32";
+		DataType.F64 -> return "f64";
+		DataType.STR -> return "str";
+		DataType.POINTER -> {
+			val ptr = as_pointer_type(ty);
+			if (ptr.is_mut) return "*mut " + type_to_string(ptr.pointee);
+			return "*" + type_to_string(ptr.pointee);
+		}
+		DataType.ARRAY -> {
+			val arr = as_array_type(ty);
+			return "[" + type_to_string(arr.elem) + "]";
+		}
+		DataType.STRUCT -> {
+			val s = as_struct_type(ty);
+			return s.name;
+		}
+		DataType.FN -> return "fn(...)";
+		else -> return "unknown";
+	}
+}
