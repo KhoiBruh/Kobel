@@ -643,6 +643,7 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
 			return ast_alloc_named(arena, st_name, new_list<*AstNode>(), 0, 0);
 		}
+		DataType.VOID -> return ast_alloc_named(arena, "void", new_list<*AstNode>(), 0, 0);
 		DataType.STR -> return ast_alloc_named(arena, "str", new_list<*AstNode>(), 0, 0);
 		DataType.BOOL -> return ast_alloc_named(arena, "bool", new_list<*AstNode>(), 0, 0);
 		DataType.CHAR -> return ast_alloc_named(arena, "char", new_list<*AstNode>(), 0, 0);
