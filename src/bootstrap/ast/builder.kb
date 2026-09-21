@@ -1,53 +1,14 @@
 mod bootstrap.ast.builder;
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
+use bootstrap.ast.node.*;
 
-use bootstrap.ast.types.NamedType;
-use bootstrap.ast.types.PointerType;
-use bootstrap.ast.types.ArrayType;
+use bootstrap.ast.types.*;
 
-use bootstrap.ast.expr.LiteralKind;
-use bootstrap.ast.expr.LiteralExpr;
-use bootstrap.ast.expr.IdentifierExpr;
-use bootstrap.ast.expr.BinaryExpr;
-use bootstrap.ast.expr.UnaryExpr;
-use bootstrap.ast.expr.CallExpr;
-use bootstrap.ast.expr.MemberExpr;
-use bootstrap.ast.expr.IndexExpr;
-use bootstrap.ast.expr.AssignExpr;
-use bootstrap.ast.expr.CastExpr;
-use bootstrap.ast.expr.GroupExpr;
-use bootstrap.ast.expr.ArrayLiteralExpr;
-use bootstrap.ast.expr.IfExpr;
-use bootstrap.ast.expr.WhenArm;
-use bootstrap.ast.expr.WhenExpr;
+use bootstrap.ast.expr.*;
 
-use bootstrap.ast.stmt.BlockStmt;
-use bootstrap.ast.stmt.ExprStmt;
-use bootstrap.ast.stmt.VarDeclStmt;
-use bootstrap.ast.stmt.IfStmt;
-use bootstrap.ast.stmt.WhileStmt;
-use bootstrap.ast.stmt.ReturnStmt;
-use bootstrap.ast.stmt.BreakStmt;
-use bootstrap.ast.stmt.ContinueStmt;
-use bootstrap.ast.stmt.WhenStmtArm;
-use bootstrap.ast.stmt.WhenStmt;
+use bootstrap.ast.stmt.*;
 
-use bootstrap.ast.decl.Param;
-use bootstrap.ast.decl.GenericParam;
-use bootstrap.ast.decl.FnDecl;
-use bootstrap.ast.decl.StructField;
-use bootstrap.ast.decl.StructDecl;
-use bootstrap.ast.decl.TraitDecl;
-use bootstrap.ast.decl.ImplDecl;
-use bootstrap.ast.decl.EnumMember;
-use bootstrap.ast.decl.EnumDecl;
-use bootstrap.ast.decl.ConstDecl;
-use bootstrap.ast.decl.ModuleDecl;
-use bootstrap.ast.decl.UseDecl;
-use bootstrap.ast.decl.ExternBlock;
-use bootstrap.ast.decl.Program;
+use bootstrap.ast.decl.*;
 
 use bootstrap.lexer.token.TokenType;
 use std.collections.list.List;

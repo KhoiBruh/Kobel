@@ -1,12 +1,8 @@
 mod bootstrap.parser.parser;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
-use bootstrap.lexer.token.format_loc;
-use std.collections.list.List;
-use std.collections.list.new_list;
-use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
+use bootstrap.lexer.token.*;
+use std.collections.list.*;
+use std.mem.arena.*;
 
 pub struct Parser {
 	pub tokens: List<Token>,

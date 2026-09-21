@@ -1,42 +1,20 @@
 mod bootstrap.parser.decl;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
+use bootstrap.lexer.token.*;
+
 use bootstrap.ast.node.AstNode;
-use bootstrap.ast.decl.Param;
-use bootstrap.ast.decl.GenericParam;
-use bootstrap.ast.decl.StructField;
-use bootstrap.ast.decl.EnumMember;
+use bootstrap.ast.decl.*;
 
-use bootstrap.ast.builder.alloc_fn_decl;
-use bootstrap.ast.builder.alloc_struct_decl;
-use bootstrap.ast.builder.alloc_trait_decl;
-use bootstrap.ast.builder.alloc_impl_decl;
-use bootstrap.ast.builder.alloc_enum_decl;
-use bootstrap.ast.builder.alloc_const_decl;
-use bootstrap.ast.builder.alloc_module_decl;
-use bootstrap.ast.builder.alloc_use_decl;
-use bootstrap.ast.builder.alloc_extern_block;
-use bootstrap.ast.builder.alloc_program;
-use bootstrap.ast.builder.alloc_expr_stmt;
+use bootstrap.ast.builder.*;
 
-use bootstrap.parser.parser.Parser;
-use bootstrap.parser.parser.is_end;
-use bootstrap.parser.parser.peek;
-use bootstrap.parser.parser.advance;
-use bootstrap.parser.parser.check;
-use bootstrap.parser.parser.match_token;
-use bootstrap.parser.parser.consume;
-use bootstrap.parser.parser.error;
-use bootstrap.parser.parser.synchronize;
+use bootstrap.parser.parser.*;
+
 use bootstrap.parser.types.parse_type;
-use bootstrap.parser.expr.parse_expression;
-use bootstrap.parser.expr.PREC_NONE;
-use bootstrap.parser.stmt.parse_block_stmt;
-use bootstrap.parser.stmt.parse_statement;
+use bootstrap.parser.expr.*;
 
-use std.collections.list.List;
-use std.collections.list.new_list;
+use bootstrap.parser.stmt.*;
+
+use std.collections.list.*;
 
 // ============================================================================
 // Generic Parameter Parsing

@@ -1,15 +1,10 @@
 mod bootstrap.lexer.lexer;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
+use bootstrap.lexer.token.*;
 
-use std.ascii.is_digit;
-use std.ascii.is_alpha;
-use std.ascii.is_alphanumeric;
-use std.ascii.is_hex_digit;
+use std.ascii.*;
 
-use std.collections.list.List;
-use std.collections.list.new_list;
+use std.collections.list.*;
 
 pub struct Lexer {
 	pub src: str,

@@ -13,41 +13,23 @@ mod bootstrap.loader.loader;
 // (thư viện chuẩn) -> "src" (mã nguồn bootstrap).
 // ============================================================================
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
+use bootstrap.ast.node.*;
 
-use bootstrap.ast.decl.Program;
-use bootstrap.ast.decl.UseDecl;
-use bootstrap.ast.decl.ModuleDecl;
+use bootstrap.ast.decl.*;
 
-use bootstrap.ast.builder.as_program;
-use bootstrap.ast.builder.as_use_decl;
-use bootstrap.ast.builder.as_module_decl;
-use bootstrap.ast.builder.alloc_module_decl;
-use bootstrap.ast.builder.alloc_program;
+use bootstrap.ast.builder.*;
 
-use bootstrap.lexer.lexer.Lexer;
-use bootstrap.lexer.lexer.new_lexer;
+use bootstrap.lexer.lexer.*;
 
 use bootstrap.parser.parser.Parser;
 use bootstrap.parser.parser.new_parser;
 use bootstrap.parser.decl.parse_program;
 
-use bootstrap.util.strutil.str_base_name;
-use bootstrap.util.strutil.str_concat;
-use bootstrap.util.strutil.str_concat3;
-use bootstrap.util.strutil.str_dir_of;
-use bootstrap.util.strutil.str_join_dots;
-use bootstrap.util.strutil.str_join_path;
-use bootstrap.util.strutil.str_module_to_rel;
-use bootstrap.util.strutil.str_path_to_module;
-use bootstrap.util.strutil.str_split_dots;
+use bootstrap.util.strutil.*;
 
 use std.io.read_file;
-use std.collections.list.List;
-use std.collections.list.new_list;
-use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
+use std.collections.list.*;
+use std.mem.arena.*;
 
 pub struct LoadedModule {
 	pub name: str,

@@ -1,71 +1,20 @@
 mod bootstrap.codegen.c_codegen;
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
+use bootstrap.ast.node.*;
 
-use bootstrap.ast.types.NamedType;
-use bootstrap.ast.types.PointerType;
-use bootstrap.ast.types.ArrayType;
+use bootstrap.ast.types.*;
 
-use bootstrap.ast.expr.LiteralKind;
-use bootstrap.ast.expr.LiteralExpr;
-use bootstrap.ast.expr.IdentifierExpr;
-use bootstrap.ast.expr.BinaryExpr;
-use bootstrap.ast.expr.UnaryExpr;
-use bootstrap.ast.expr.CallExpr;
-use bootstrap.ast.expr.MemberExpr;
-use bootstrap.ast.expr.IndexExpr;
-use bootstrap.ast.expr.AssignExpr;
-use bootstrap.ast.expr.CastExpr;
-use bootstrap.ast.expr.GroupExpr;
-use bootstrap.ast.expr.IfExpr;
+use bootstrap.ast.expr.*;
 
-use bootstrap.ast.stmt.BlockStmt;
-use bootstrap.ast.stmt.ExprStmt;
-use bootstrap.ast.stmt.VarDeclStmt;
-use bootstrap.ast.stmt.IfStmt;
-use bootstrap.ast.stmt.WhileStmt;
-use bootstrap.ast.stmt.ReturnStmt;
+use bootstrap.ast.stmt.*;
 
-use bootstrap.ast.decl.Program;
-use bootstrap.ast.decl.FnDecl;
-use bootstrap.ast.decl.StructDecl;
-use bootstrap.ast.decl.EnumDecl;
-use bootstrap.ast.decl.ConstDecl;
-use bootstrap.ast.decl.ExternBlock;
+use bootstrap.ast.decl.*;
 
-use bootstrap.ast.builder.as_program;
-use bootstrap.ast.builder.as_fn_decl;
-use bootstrap.ast.builder.as_struct_decl;
-use bootstrap.ast.builder.as_enum_decl;
-use bootstrap.ast.builder.as_const_decl;
-use bootstrap.ast.builder.as_extern_block;
-use bootstrap.ast.builder.as_literal;
-use bootstrap.ast.builder.as_identifier;
-use bootstrap.ast.builder.as_binary;
-use bootstrap.ast.builder.as_unary;
-use bootstrap.ast.builder.as_call;
-use bootstrap.ast.builder.as_member;
-use bootstrap.ast.builder.as_index;
-use bootstrap.ast.builder.as_assign;
-use bootstrap.ast.builder.as_cast;
-use bootstrap.ast.builder.as_group;
-use bootstrap.ast.builder.as_if_expr;
-use bootstrap.ast.builder.as_block_stmt;
-use bootstrap.ast.builder.as_expr_stmt;
-use bootstrap.ast.builder.as_var_decl;
-use bootstrap.ast.builder.as_if_stmt;
-use bootstrap.ast.builder.as_while_stmt;
-use bootstrap.ast.builder.as_return_stmt;
-use bootstrap.ast.builder.as_named_type;
-use bootstrap.ast.builder.as_pointer_type;
-use bootstrap.ast.builder.as_array_type;
+use bootstrap.ast.builder.*;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.strip_suffix;
+use bootstrap.lexer.token.*;
 
-use std.collections.list.List;
-use std.collections.list.new_list;
+use std.collections.list.*;
 
 // ============================================================================
 // C99 Backend Code Generator

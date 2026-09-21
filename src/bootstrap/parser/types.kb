@@ -1,21 +1,13 @@
 mod bootstrap.parser.types;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
+use bootstrap.lexer.token.*;
+
 use bootstrap.ast.node.AstNode;
-use bootstrap.ast.builder.alloc_pointer_type;
-use bootstrap.ast.builder.alloc_array_type;
-use bootstrap.ast.builder.alloc_named_type;
-use bootstrap.parser.parser.Parser;
-use bootstrap.parser.parser.is_end;
-use bootstrap.parser.parser.peek;
-use bootstrap.parser.parser.advance;
-use bootstrap.parser.parser.check;
-use bootstrap.parser.parser.match_token;
-use bootstrap.parser.parser.consume;
-use bootstrap.parser.parser.error;
-use std.collections.list.List;
-use std.collections.list.new_list;
+
+use bootstrap.ast.builder.*;
+use bootstrap.parser.parser.*;
+
+use std.collections.list.*;
 
 pub fn parse_type(var self: &Parser): *AstNode {
 	val tok = peek(self);
