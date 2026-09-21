@@ -75,7 +75,7 @@ impl Lexer {
 		return true;
 	}
 
-	pub fn make_token(val self, t: TokenType, start_cursor: usz, start_col: usz) =>
+	pub fn make_token(val self, t: TokenType, start_cursor: usz, start_col: usz): Token =>
 		Token(t, self.sub(start_cursor), self.line, start_col);
 
 	pub fn newline(var self): void {

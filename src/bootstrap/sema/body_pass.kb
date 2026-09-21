@@ -26,6 +26,9 @@ use bootstrap.ast.builder.as_var_decl;
 use bootstrap.ast.builder.as_if_stmt;
 use bootstrap.ast.builder.as_while_stmt;
 use bootstrap.ast.builder.as_return_stmt;
+use bootstrap.ast.builder.as_impl_decl;
+use bootstrap.ast.builder.alloc_identifier;
+use bootstrap.ast.builder.alloc_unary;
 
 use bootstrap.lexer.token.*;
 
@@ -212,13 +215,59 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 		}
 		NodeKind.EXPR_CALL -> {
-			val call = as_call(node);
+			val call = as_call(node) as &CallExpr;
 
 			// Check the static type size query: T.size()
 			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
 				val mem = as_member(call.callee);
 				if (mem.member == "size") {
+					// Mangle the type name so the backend emits sizeof(<c_name>).
+					if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
+						val id = as_identifier(mem.object) as &IdentifierExpr;
+						val tsym = lookup(&self.symtab, id.name);
+						if (tsym != null && tsym.c_name != id.name) id.name = tsym.c_name;
+					}
 					return alloc_primitive(&self.arena, type_usz());
+				}
+
+				// Instance method call: obj.m(args) -> Struct_m(self, args)
+				val obj_raw_ty = check_expr(self, mem.object);
+				var obj_ty = obj_raw_ty;
+				var obj_is_ptr = false;
+				if (obj_ty.kind == DataType.POINTER) {
+					obj_is_ptr = true;
+					obj_ty = as_pointer_type(obj_ty).pointee;
+				}
+				if (obj_ty.kind == DataType.STRUCT) {
+					val s_info = as_struct_type(obj_ty);
+					val mi = struct_find_method(s_info, mem.member);
+					if (mi != null) {
+						val fn_info = as_fn_type(mi.fn_type);
+						if (call.args.len + 1 != fn_info.param_types.len) {
+							report_error(self, node, "Argument count mismatch in method call '" + mem.member + "'");
+						} else {
+							var i: usz = 0;
+							while (i < call.args.len) {
+								val arg_ty = check_expr(self, call.args.get(i));
+								val param_ty = fn_info.param_types.get(i + 1);
+								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '" + mem.member + "'");
+								i = i + 1;
+							}
+						}
+
+						// Desugar to a free-function call with the receiver as first argument.
+						var new_args = new_list<*AstNode>();
+						if (obj_is_ptr) new_args.add(mem.object);
+						else new_args.add(alloc_unary(&self.arena, TokenType.AMPERSAND, mem.object, node.line, node.col));
+						var a: usz = 0;
+						while (a < call.args.len) {
+							new_args.add(call.args.get(a));
+							a = a + 1;
+						}
+						call.args = new_args;
+						call.callee = alloc_identifier(&self.arena, mi.c_name, node.line, node.col);
+						return fn_info.return_type;
+					}
 				}
 			}
 
@@ -421,8 +470,15 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 	val f = as_fn_decl(fn_node);
 	val sym = lookup(&self.symtab, f.name);
 	if (sym == null || sym.type_ptr.kind != DataType.FN) return;
+	check_fn_body(self, fn_node, sym.type_ptr);
+}
 
-	val fn_info = as_fn_type(sym.type_ptr);
+// Shared body checker: works for free functions and impl methods. `fn_type`
+// is the signature already built by DeclPass (methods have no global symbol).
+pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
+	val f = as_fn_decl(fn_node);
+
+	val fn_info = as_fn_type(fn_type);
 	self.current_fn_return_type = fn_info.return_type;
 
 	enter_scope(&self.symtab, true);
@@ -450,7 +506,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 			val es = as_expr_stmt(f.body);
 			val body_ty = check_expr(self, es.expr);
 			if (f.return_type == null) {
-				val fn_info_mut = as_fn_type_mut(sym.type_ptr);
+				val fn_info_mut = as_fn_type_mut(fn_type);
 				fn_info_mut.return_type = body_ty;
 				self.current_fn_return_type = body_ty;
 			} else if (!can_assign(self.current_fn_return_type, body_ty)) {
@@ -460,6 +516,22 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 	}
 
 	exit_scope(&self.symtab);
+}
+
+pub fn check_impl(var self: &BodyPass, node: *AstNode) {
+	val im = as_impl_decl(node);
+	val st_sym = lookup(&self.symtab, im.struct_name);
+	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
+	val st_info = as_struct_type(st_sym.type_ptr);
+
+	var i: usz = 0;
+	while (i < im.methods.len) {
+		val m_node = im.methods.get(i);
+		val f = as_fn_decl(m_node);
+		val mi = struct_find_method_c(st_info, f.name);
+		if (mi != null) check_fn_body(self, m_node, mi.fn_type);
+		i = i + 1;
+	}
 }
 
 pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
@@ -488,6 +560,7 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 			val m = as_module_decl(decl);
 			set_current_module(&self.symtab, m.full_path);
 		} else if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
+		else if (decl.kind == NodeKind.DECL_IMPL) check_impl(self, decl);
 		j = j + 1;
 	}
 }

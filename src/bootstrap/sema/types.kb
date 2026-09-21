@@ -48,9 +48,19 @@ pub struct StructField {
 	pub offset: usz
 }
 
+// A method collected from an `impl` block.
+// For instance methods `fn_type.param_types[0]` is the receiver
+// (`*Struct` for `val self`, `*mut Struct` for `var self`).
+pub struct MethodInfo {
+	pub name: str,
+	pub c_name: str,
+	pub fn_type: *Type
+}
+
 pub struct StructType {
 	pub name: str,
-	pub fields: List<StructField>
+	pub fields: List<StructField>,
+	pub methods: List<*MethodInfo>
 }
 
 pub struct FnType {
@@ -68,6 +78,28 @@ pub fn as_struct_type(ty: *Type): *StructType => ty.data as *StructType;
 pub fn as_struct_type_mut(ty: *Type): &StructType => ty.data as &StructType;
 pub fn as_fn_type(ty: *Type): *FnType => ty.data as *FnType;
 pub fn as_fn_type_mut(ty: *Type): &FnType => ty.data as &FnType;
+
+// Look up a method by its source name (e.g. "peek").
+pub fn struct_find_method(st: *StructType, name: str): *MethodInfo {
+	var i: usz = 0;
+	while (i < st.methods.len) {
+		val m = st.methods.get(i);
+		if (m.name == name) return m;
+		i = i + 1;
+	}
+	return null;
+}
+
+// Look up a method by its mangled C name (used when re-visiting an `impl`).
+pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo {
+	var i: usz = 0;
+	while (i < st.methods.len) {
+		val m = st.methods.get(i);
+		if (m.c_name == c_name) return m;
+		i = i + 1;
+	}
+	return null;
+}
 
 // ============================================================================
 // Primitive Types Constructors
@@ -160,7 +192,7 @@ pub fn alloc_struct_type(
 
 	val payload_mem = arena.alloc_bytes(StructType.size(), 8);
 	val struct_info = payload_mem as *StructType;
-	*struct_info = StructType(name, fields);
+	*struct_info = StructType(name, fields, new_list<*MethodInfo>());
 
 	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;

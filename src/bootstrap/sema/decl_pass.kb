@@ -32,6 +32,7 @@ use bootstrap.sema.types.alloc_array_type;
 use bootstrap.sema.types.alloc_struct_type;
 use bootstrap.sema.types.alloc_fn_type;
 use bootstrap.sema.types.as_struct_type_mut;
+use bootstrap.sema.types.MethodInfo;
 
 use bootstrap.util.strutil.*;
 
@@ -257,6 +258,62 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	self.is_extern = prev_is_extern;
 }
 
+pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
+	val im = as_impl_decl(node) as &ImplDecl;
+
+	// Generic impls (e.g. `impl List<T>`) are lowered by monomorphization; skip here.
+	if (im.type_params.len > 0) return;
+
+	val st_sym = lookup(&self.symtab, im.struct_name);
+	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
+		report_error(self, node, "Cannot impl methods for unknown type '" + im.struct_name + "'");
+		return;
+	}
+
+	val st_type = st_sym.type_ptr;
+	val st_c_name = st_sym.c_name;
+	val st_info = as_struct_type_mut(st_type);
+
+	// Rename so the backend can learn the receiver type of each method.
+	im.struct_name = st_c_name;
+
+	var i: usz = 0;
+	while (i < im.methods.len) {
+		val m_node = im.methods.get(i);
+		val f = as_fn_decl(m_node) as &FnDecl;
+		var param_types = new_list<*Type>();
+
+		var pi: usz = 0;
+		while (pi < f.params.len) {
+			val p = f.params.get(pi);
+			var pt: *Type = null;
+			if (p.name == "self" && p.type_node == null) {
+				// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
+				pt = alloc_pointer_type(&self.arena, st_type, p.is_mut);
+			} else {
+				pt = resolve_ast_type(self, p.type_node);
+			}
+			param_types.add(pt);
+			pi = pi + 1;
+		}
+
+		var ret_type = alloc_primitive(&self.arena, type_void());
+		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+
+		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+		val m_c_name = str_concat(st_c_name, str_concat("_", f.name));
+
+		val mi_mem = self.arena.alloc_bytes(MethodInfo.size(), 8);
+		val mi = mi_mem as *MethodInfo;
+		*mi = MethodInfo(f.name, m_c_name, fn_type);
+		st_info.methods.add(mi);
+
+		// Uniquify the AST name so the backend emits the mangled method name.
+		f.name = m_c_name;
+		i = i + 1;
+	}
+}
+
 pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 	when (node.kind) {
 		NodeKind.DECL_MODULE -> collect_module(self, node);
@@ -265,6 +322,7 @@ pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 		NodeKind.DECL_FN -> collect_fn(self, node);
 		NodeKind.DECL_ENUM -> collect_enum(self, node);
 		NodeKind.DECL_CONST -> collect_const(self, node);
+		NodeKind.DECL_IMPL -> collect_impl(self, node);
 		NodeKind.DECL_EXTERN_BLOCK -> collect_extern_block(self, node);
 		else -> {}
 	}
