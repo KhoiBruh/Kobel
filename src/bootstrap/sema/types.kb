@@ -1,7 +1,6 @@
 mod bootstrap.sema.types;
 
-use std.collections.list.List;
-use std.collections.list.new_list;
+use std.collections.list.*;
 use std.mem.arena.Arena;
 
 // ============================================================================
@@ -74,28 +73,28 @@ pub fn as_fn_type_mut(ty: *Type): &FnType => ty.data as &FnType;
 // Primitive Types Constructors
 // ============================================================================
 
-pub fn make_primitive(kind: DataType, size: usz, align: usz): Type => Type(kind, size, align, null);
+pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, null);
 
-pub fn type_void(): Type => make_primitive(DataType.VOID, 0UZ, 1UZ);
-pub fn type_bool(): Type => make_primitive(DataType.BOOL, 1UZ, 1UZ);
-pub fn type_char(): Type => make_primitive(DataType.CHAR, 1UZ, 1UZ);
+pub fn type_void() => make_primitive(DataType.VOID, 0, 1);
+pub fn type_bool() => make_primitive(DataType.BOOL, 1, 1);
+pub fn type_char() => make_primitive(DataType.CHAR, 1, 1);
 
-pub fn type_i8(): Type => make_primitive(DataType.I8, 1UZ, 1UZ);
-pub fn type_i16(): Type => make_primitive(DataType.I16, 2UZ, 2UZ);
-pub fn type_i32(): Type => make_primitive(DataType.I32, 4UZ, 4UZ);
-pub fn type_i64(): Type => make_primitive(DataType.I64, 8UZ, 8UZ);
-pub fn type_isz(): Type => make_primitive(DataType.ISZ, 8UZ, 8UZ);
+pub fn type_i8() => make_primitive(DataType.I8, 1, 1);
+pub fn type_i16() => make_primitive(DataType.I16, 2, 2);
+pub fn type_i32() => make_primitive(DataType.I32, 4, 4);
+pub fn type_i64() => make_primitive(DataType.I64, 8, 8);
+pub fn type_isz() => make_primitive(DataType.ISZ, 8, 8);
 
-pub fn type_u8(): Type => make_primitive(DataType.U8, 1UZ, 1UZ);
-pub fn type_u16(): Type => make_primitive(DataType.U16, 2UZ, 2UZ);
-pub fn type_u32(): Type => make_primitive(DataType.U32, 4UZ, 4UZ);
-pub fn type_u64(): Type => make_primitive(DataType.U64, 8UZ, 8UZ);
-pub fn type_usz(): Type => make_primitive(DataType.USZ, 8UZ, 8UZ);
+pub fn type_u8() => make_primitive(DataType.U8, 1, 1);
+pub fn type_u16() => make_primitive(DataType.U16, 2, 2);
+pub fn type_u32() => make_primitive(DataType.U32, 4, 4);
+pub fn type_u64() => make_primitive(DataType.U64, 8, 8);
+pub fn type_usz() => make_primitive(DataType.USZ, 8, 8);
 
-pub fn type_f32(): Type => make_primitive(DataType.F32, 4UZ, 4UZ);
-pub fn type_f64(): Type => make_primitive(DataType.F64, 8UZ, 8UZ);
+pub fn type_f32() => make_primitive(DataType.F32, 4, 4);
+pub fn type_f64() => make_primitive(DataType.F64, 8, 8);
 
-pub fn type_str(): Type => make_primitive(DataType.STR, 16UZ, 8UZ);
+pub fn type_str() => make_primitive(DataType.STR, 16, 8);
 
 // ============================================================================
 // Complex Type Allocators
@@ -106,13 +105,13 @@ pub fn alloc_pointer_type(
 	pointee: *Type,
 	is_mut: bool
 ): *Type {
-	val payload_mem = arena.alloc_bytes(PointerType.size(), 8UZ);
+	val payload_mem = arena.alloc_bytes(PointerType.size(), 8);
 	val ptr_info = payload_mem as *PointerType;
 	*ptr_info = PointerType(pointee, is_mut);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.POINTER, 8UZ, 8UZ, payload_mem);
+	*t_ptr = Type(DataType.POINTER, 8, 8, payload_mem);
 	return t_ptr;
 }
 
@@ -121,11 +120,11 @@ pub fn alloc_array_type(
 	elem: *Type,
 	length: usz
 ): *Type {
-	val payload_mem = arena.alloc_bytes(ArrayType.size(), 8UZ);
+	val payload_mem = arena.alloc_bytes(ArrayType.size(), 8);
 	val arr_info = payload_mem as *ArrayType;
 	*arr_info = ArrayType(elem, length);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;
 	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, payload_mem);
 	return t_ptr;
@@ -136,10 +135,10 @@ pub fn alloc_struct_type(
 	name: str,
 	fields: List<StructField>
 ): *Type {
-	var max_align: usz = 1UZ;
-	var current_offset: usz = 0UZ;
+	var max_align: usz = 1;
+	var current_offset: usz = 0;
 
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < fields.len) {
 		var f = fields.get(i);
 		val f_align = f.type_ptr.align;
@@ -147,23 +146,23 @@ pub fn alloc_struct_type(
 
 		// Align current_offset theo f_align
 		val rem = current_offset % f_align;
-		if (rem != 0UZ) current_offset = current_offset + (f_align - rem);
+		if (rem != 0) current_offset = current_offset + (f_align - rem);
 
 		f.offset = current_offset;
 		fields.set(i, f);
 		current_offset = current_offset + f.type_ptr.size;
-		i = i + 1UZ;
+		i = i + 1;
 	}
 
 	// Final struct padding to max_align
 	val total_rem = current_offset % max_align;
-	if (total_rem != 0UZ) current_offset = current_offset + (max_align - total_rem);
+	if (total_rem != 0) current_offset = current_offset + (max_align - total_rem);
 
-	val payload_mem = arena.alloc_bytes(StructType.size(), 8UZ);
+	val payload_mem = arena.alloc_bytes(StructType.size(), 8);
 	val struct_info = payload_mem as *StructType;
 	*struct_info = StructType(name, fields);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;
 	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, payload_mem);
 	return t_ptr;
@@ -174,13 +173,13 @@ pub fn alloc_fn_type(
 	param_types: List<*Type>,
 	return_type: *Type
 ): *Type {
-	val payload_mem = arena.alloc_bytes(FnType.size(), 8UZ);
+	val payload_mem = arena.alloc_bytes(FnType.size(), 8);
 	val fn_info = payload_mem as *FnType;
 	*fn_info = FnType(param_types, return_type);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.FN, 8UZ, 8UZ, payload_mem);
+	*t_ptr = Type(DataType.FN, 8, 8, payload_mem);
 	return t_ptr;
 }
 
@@ -199,30 +198,22 @@ pub fn is_signed_integer(ty: *Type): bool {
 	}
 }
 
-pub fn is_unsigned_integer(ty: *Type): bool {
-	when (ty.kind) {
-		DataType.U8,
-		DataType.U16,
-		DataType.U32,
-		DataType.U64,
-		DataType.USZ -> return true;
-		else -> return false;
-	}
-}
+pub fn is_unsigned_integer(ty: *Type) => when (ty.kind) {
+	DataType.U8, DataType.U16, DataType.U32,
+	DataType.U64, DataType.USZ -> true;
+	else -> false;
+};
 
-pub fn is_integer(ty: *Type): bool => is_signed_integer(ty) || is_unsigned_integer(ty);
+pub fn is_integer(ty: *Type) => is_signed_integer(ty) || is_unsigned_integer(ty);
 
-pub fn is_float(ty: *Type): bool {
-	when (ty.kind) {
-		DataType.F32,
-		DataType.F64 -> return true;
-		else -> return false;
-	}
-}
+pub fn is_float(ty: *Type) => when (ty.kind) {
+	DataType.F32, DataType.F64 -> true;
+	else -> false;
+};
 
-pub fn is_char(ty: *Type): bool => ty.kind == DataType.CHAR;
+pub fn is_char(ty: *Type) => ty.kind == DataType.CHAR;
 
-pub fn is_numeric(ty: *Type): bool => is_integer(ty) || is_float(ty);
+pub fn is_numeric(ty: *Type) => is_integer(ty) || is_float(ty);
 
 pub fn type_equals(a: *Type, b: *Type): bool {
 	if (a == b) return true;
@@ -250,10 +241,10 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 			if (f_a.param_types.len != f_b.param_types.len) return false;
 			if (!type_equals(f_a.return_type, f_b.return_type)) return false;
 
-			var i: usz = 0UZ;
+			var i: usz = 0;
 			while (i < f_a.param_types.len) {
 				if (!type_equals(f_a.param_types.get(i), f_b.param_types.get(i))) return false;
-				i = i + 1UZ;
+				i = i + 1;
 			}
 			return true;
 		}

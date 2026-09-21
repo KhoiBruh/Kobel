@@ -1,10 +1,9 @@
 mod bootstrap.sema.symbol;
 
 use bootstrap.sema.types.Type;
-use std.collections.list.List;
-use std.collections.list.new_list;
-use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
+
+use std.collections.list.*;
+use std.mem.arena.*;
 
 // ============================================================================
 // SymbolKind Enumeration
@@ -85,15 +84,15 @@ pub struct SymbolTable {
 }
 
 pub fn new_symbol_table(): SymbolTable {
-	var arena = new_arena(65536UZ);
-	val mem = arena.alloc_bytes(Scope.size(), 8UZ);
+	var arena = new_arena(65536);
+	val mem = arena.alloc_bytes(Scope.size(), 8);
 	val root_scope = mem as *Scope;
 	*root_scope = Scope(null, new_list<*Symbol>(), false);
 	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>());
 }
 
 pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
-	val mem = self.arena.alloc_bytes(Scope.size(), 8UZ);
+	val mem = self.arena.alloc_bytes(Scope.size(), 8);
 	val new_sc = mem as *Scope;
 	*new_sc = Scope(self.current_scope, new_list<*Symbol>(), is_fn_boundary);
 	self.current_scope = new_sc;
@@ -117,11 +116,11 @@ pub fn is_in_function(var self: &SymbolTable): bool {
 
 pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 	val scope = self.current_scope;
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < scope.symbols.len) {
 		val sym = scope.symbols.get(i);
 		if (sym.name == name) return sym;
-		i = i + 1UZ;
+		i = i + 1;
 	}
 	return null;
 }
@@ -131,11 +130,11 @@ pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	var curr = self.current_scope;
 	while (curr != null) {
-		var i: usz = 0UZ;
+		var i: usz = 0;
 		while (i < curr.symbols.len) {
 			val sym = curr.symbols.get(i);
 			if (sym.name == name) return sym;
-			i = i + 1UZ;
+			i = i + 1;
 		}
 		curr = curr.parent;
 	}
@@ -145,24 +144,24 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	if (own != null) return own;
 
 	// 3. Explicit imports (by original name or alias)
-	var k: usz = 0UZ;
+	var k: usz = 0;
 	while (k < self.imports.len) {
 		val b = self.imports.get(k);
 		if (!b.is_wildcard && b.local_name == name) {
 			return lookup_in_module(self, b.module_name, b.symbol_name);
 		}
-		k = k + 1UZ;
+		k = k + 1;
 	}
 
 	// 4. Wildcard imports
-	var w: usz = 0UZ;
+	var w: usz = 0;
 	while (w < self.imports.len) {
 		val b2 = self.imports.get(w);
 		if (b2.is_wildcard) {
 			val found = lookup_in_module(self, b2.module_name, name);
 			if (found != null) return found;
 		}
-		w = w + 1UZ;
+		w = w + 1;
 	}
 
 	// 5. Mangled C name (idempotent on repeated resolution)
@@ -174,7 +173,7 @@ pub fn define(var self: &SymbolTable, sym: Symbol): bool {
 	val existing = lookup_current(self, sym.name);
 	if (existing != null) return false;
 
-	val mem = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+	val mem = self.arena.alloc_bytes(Symbol.size(), 8);
 	val sym_ptr = mem as *Symbol;
 	*sym_ptr = sym;
 
@@ -191,42 +190,42 @@ pub fn set_current_module(var self: &SymbolTable, name: str) {
 }
 
 pub fn module_exists(self: &SymbolTable, name: str): bool {
-	var m: usz = 0UZ;
+	var m: usz = 0;
 	while (m < self.modules.len) {
 		if (self.modules.get(m).name == name) return true;
-		m = m + 1UZ;
+		m = m + 1;
 	}
 	return false;
 }
 
 // Define a top-level declaration into the scope of the given module.
 pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool {
-	var m: usz = 0UZ;
+	var m: usz = 0;
 	while (m < self.modules.len) {
 		// get() returns a COPY of ModuleScope; after modifying you must set() it back,
 		// otherwise len/cap of the original in self.modules diverge -> heap corruption.
 		val sc = self.modules.get(m);
 		if (sc.name == module_name) {
-			var i: usz = 0UZ;
+			var i: usz = 0;
 			while (i < sc.symbols.len) {
 				if (sc.symbols.get(i).name == sym.name) return false;
-				i = i + 1UZ;
+				i = i + 1;
 			}
-			val mem = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+			val mem = self.arena.alloc_bytes(Symbol.size(), 8);
 			val sym_ptr = mem as *Symbol;
 			*sym_ptr = sym;
 			sc.symbols.add(sym_ptr);
 			self.modules.set(m, sc);
 			return true;
 		}
-		m = m + 1UZ;
+		m = m + 1;
 	}
 
 	// Module scope does not exist yet -> create it (via pointer) then add the symbol
-	val mem2 = self.arena.alloc_bytes(ModuleScope.size(), 8UZ);
+	val mem2 = self.arena.alloc_bytes(ModuleScope.size(), 8);
 	val fresh = mem2 as *ModuleScope;
 	*fresh = new_module_scope(module_name);
-	val mem3 = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+	val mem3 = self.arena.alloc_bytes(Symbol.size(), 8);
 	val sym_ptr2 = mem3 as *Symbol;
 	*sym_ptr2 = sym;
 	fresh.symbols.add(sym_ptr2);
@@ -244,36 +243,36 @@ pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, lo
 }
 
 pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
-	var m: usz = 0UZ;
+	var m: usz = 0;
 	while (m < self.modules.len) {
 		val sc = self.modules.get(m);
 		if (sc.name == module_name) {
-			var i: usz = 0UZ;
+			var i: usz = 0;
 			while (i < sc.symbols.len) {
 				val sym = sc.symbols.get(i);
 				if (sym.name == name) return sym;
-				i = i + 1UZ;
+				i = i + 1;
 			}
 			return null;
 		}
-		m = m + 1UZ;
+		m = m + 1;
 	}
 	return null;
 }
 
 // Look up by generated C name (used when re-resolving a mangled name).
 pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
-	if (c_name.len == 0UZ) return null;
-	var m: usz = 0UZ;
+	if (c_name.len == 0) return null;
+	var m: usz = 0;
 	while (m < self.modules.len) {
 		val sc = self.modules.get(m);
-		var i: usz = 0UZ;
+		var i: usz = 0;
 		while (i < sc.symbols.len) {
 			val sym = sc.symbols.get(i);
 			if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
-			i = i + 1UZ;
+			i = i + 1;
 		}
-		m = m + 1UZ;
+		m = m + 1;
 	}
 	return null;
 }

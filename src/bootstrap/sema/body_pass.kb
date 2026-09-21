@@ -1,34 +1,10 @@
 mod bootstrap.sema.body_pass;
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
-
-use bootstrap.ast.types.NamedType;
-use bootstrap.ast.types.PointerType;
-use bootstrap.ast.types.ArrayType;
-
-use bootstrap.ast.expr.LiteralKind;
-use bootstrap.ast.expr.LiteralExpr;
-use bootstrap.ast.expr.IdentifierExpr;
-use bootstrap.ast.expr.BinaryExpr;
-use bootstrap.ast.expr.UnaryExpr;
-use bootstrap.ast.expr.CallExpr;
-use bootstrap.ast.expr.MemberExpr;
-use bootstrap.ast.expr.IndexExpr;
-use bootstrap.ast.expr.AssignExpr;
-use bootstrap.ast.expr.CastExpr;
-use bootstrap.ast.expr.GroupExpr;
-use bootstrap.ast.expr.IfExpr;
-
-use bootstrap.ast.stmt.BlockStmt;
-use bootstrap.ast.stmt.ExprStmt;
-use bootstrap.ast.stmt.VarDeclStmt;
-use bootstrap.ast.stmt.IfStmt;
-use bootstrap.ast.stmt.WhileStmt;
-use bootstrap.ast.stmt.ReturnStmt;
-
-use bootstrap.ast.decl.Program;
-use bootstrap.ast.decl.FnDecl;
+use bootstrap.ast.node.*;
+use bootstrap.ast.types.*;
+use bootstrap.ast.expr.*;
+use bootstrap.ast.stmt.*;
+use bootstrap.ast.decl.*;
 
 use bootstrap.ast.builder.as_program;
 use bootstrap.ast.builder.as_fn_decl;
@@ -51,61 +27,16 @@ use bootstrap.ast.builder.as_if_stmt;
 use bootstrap.ast.builder.as_while_stmt;
 use bootstrap.ast.builder.as_return_stmt;
 
-use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.*;
 
-use bootstrap.sema.types.DataType;
-use bootstrap.sema.types.Type;
-use bootstrap.sema.types.type_void;
-use bootstrap.sema.types.type_bool;
-use bootstrap.sema.types.type_char;
-use bootstrap.sema.types.type_i8;
-use bootstrap.sema.types.type_i16;
-use bootstrap.sema.types.type_i32;
-use bootstrap.sema.types.type_i64;
-use bootstrap.sema.types.type_isz;
-use bootstrap.sema.types.type_u8;
-use bootstrap.sema.types.type_u16;
-use bootstrap.sema.types.type_u32;
-use bootstrap.sema.types.type_u64;
-use bootstrap.sema.types.type_usz;
-use bootstrap.sema.types.type_f32;
-use bootstrap.sema.types.type_f64;
-use bootstrap.sema.types.type_str;
-use bootstrap.sema.types.alloc_pointer_type;
-use bootstrap.sema.types.alloc_array_type;
-use bootstrap.sema.types.alloc_fn_type;
-use bootstrap.sema.types.as_pointer_type;
-use bootstrap.sema.types.as_array_type;
-use bootstrap.sema.types.as_struct_type;
-use bootstrap.sema.types.as_fn_type;
-use bootstrap.sema.types.as_fn_type_mut;
-use bootstrap.sema.types.is_numeric;
-use bootstrap.sema.types.is_integer;
-use bootstrap.sema.types.can_assign;
-use bootstrap.sema.types.type_equals;
-use bootstrap.sema.types.type_to_string;
-use bootstrap.lexer.token.format_loc;
 use bootstrap.util.strutil.str_concat3;
 
-use bootstrap.sema.symbol.SymbolKind;
-use bootstrap.sema.symbol.Symbol;
-use bootstrap.sema.symbol.SymbolTable;
-use bootstrap.sema.symbol.enter_scope;
-use bootstrap.sema.symbol.exit_scope;
-use bootstrap.sema.symbol.lookup;
-use bootstrap.sema.symbol.define;
-use bootstrap.sema.symbol.set_current_module;
+use bootstrap.sema.types.*;
+use bootstrap.sema.symbol.*;
+use bootstrap.sema.decl_pass.*;
 
-use bootstrap.sema.decl_pass.DeclPass;
-use bootstrap.sema.decl_pass.new_decl_pass;
-use bootstrap.sema.decl_pass.collect_program;
-use bootstrap.sema.decl_pass.alloc_primitive;
-use bootstrap.sema.decl_pass.resolve_ast_type;
-
-use std.collections.list.List;
-use std.collections.list.new_list;
-use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
+use std.collections.list.*;
+use std.mem.arena.*;
 
 // ============================================================================
 // BodyPass - Type Checker & Body Analyzer
@@ -122,31 +53,27 @@ pub struct BodyPass {
 }
 
 pub fn new_body_pass(): BodyPass {
-	var arena = new_arena(65536UZ);
+	var arena = new_arena(65536);
 	var decl_p = new_decl_pass();
 	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(decl_p.symtab, arena, void_ty, 0UZ, new_list<str>(), false);
+	return BodyPass(decl_p.symtab, arena, void_ty, 0, new_list<str>(), false);
 }
 
 pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
-	var arena = new_arena(65536UZ);
+	var arena = new_arena(65536);
 	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(symtab, arena, void_ty, 0UZ, new_list<str>(), true);
+	return BodyPass(symtab, arena, void_ty, 0, new_list<str>(), true);
 }
 
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
 	// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 	var loc: str = "";
-	if (node != null) {
-		loc = format_loc(node.line, node.col) + msg;
-	} else {
-		loc = msg;
-	}
-	if (self.symtab.current_module.len > 0UZ) {
+	if (node != null) loc = format_loc(node.line, node.col) + msg;
+	else loc = msg;
+
+	if (self.symtab.current_module.len > 0) {
 		self.errors.add(str_concat3(self.symtab.current_module, ": ", loc));
-	} else {
-		self.errors.add(loc);
-	}
+	} else self.errors.add(loc);
 }
 
 pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
@@ -159,16 +86,16 @@ pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 	val len = raw.len;
-	if (len >= 2UZ) {
-		val last = raw[len - 1UZ];
-		val prev = raw[len - 2UZ];
+	if (len >= 2) {
+		val last = raw[len - 1];
+		val prev = raw[len - 2];
 		if (prev == 'U' && last == 'B') return alloc_primitive(arena, type_u8());
 		if (prev == 'U' && last == 'S') return alloc_primitive(arena, type_u16());
 		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
 		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
 	}
-	if (len >= 1UZ) {
-		val last = raw[len - 1UZ];
+	if (len >= 1) {
+		val last = raw[len - 1];
 		if (last == 'U') return alloc_primitive(arena, type_u32());
 		if (last == 'L') return alloc_primitive(arena, type_i64());
 		if (last == 'S') return alloc_primitive(arena, type_i16());
@@ -201,7 +128,6 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				else -> return alloc_primitive(&self.arena, type_void());
 			}
 		}
-
 		NodeKind.EXPR_IDENTIFIER -> {
 			val id = as_identifier(node) as &IdentifierExpr;
 			val sym = lookup(&self.symtab, id.name);
@@ -213,12 +139,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
 			return sym.type_ptr;
 		}
-
 		NodeKind.EXPR_GROUP -> {
 			val grp = as_group(node);
 			return check_expr(self, grp.expr);
 		}
-
 		NodeKind.EXPR_BINARY -> {
 			val bin = as_binary(node);
 			val lt = check_expr(self, bin.left);
@@ -226,11 +150,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			// 1. Arithmetic operators (+, -, *, /, %)
 			when (bin.op) {
-				TokenType.PLUS,
-				TokenType.MINUS,
-				TokenType.STAR,
-				TokenType.SLASH,
-				TokenType.PERCENT -> {
+				TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
+				TokenType.SLASH, TokenType.PERCENT -> {
 					if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
 						return alloc_primitive(&self.arena, type_str());
 					}
@@ -238,25 +159,20 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					report_error(self, node, "Arithmetic operator not supported for these types");
 					return lt;
 				}
-
 				// 2. Equality comparison (==, !=)
 				TokenType.EQUAL_EQUAL,
 				TokenType.BANG_EQUAL -> {
 					if (!can_assign(lt, rt) && !can_assign(rt, lt)) report_error(self, node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
-
 				// 3. Ordering comparison (<, <=, >, >=)
-				TokenType.LESS,
-				TokenType.LESS_EQUAL,
-				TokenType.GREATER,
-				TokenType.GREATER_EQUAL -> {
+				TokenType.LESS, TokenType.LESS_EQUAL,
+				TokenType.GREATER, TokenType.GREATER_EQUAL -> {
 					val is_num_comp = is_numeric(lt) && is_numeric(rt);
 					val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
 					if (!is_num_comp && !is_char_comp) report_error(self, node, "Comparison requires numeric or char operands");
 					return alloc_primitive(&self.arena, type_bool());
 				}
-
 				// 4. Logic (&&, ||)
 				TokenType.AND_AND,
 				TokenType.OR_OR -> {
@@ -265,11 +181,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					}
 					return alloc_primitive(&self.arena, type_bool());
 				}
-
 				else -> return lt;
 			}
 		}
-
 		NodeKind.EXPR_UNARY -> {
 			val un = as_unary(node);
 			val op_ty = check_expr(self, un.operand);
@@ -279,12 +193,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					if (!is_numeric(op_ty)) report_error(self, node, "Unary minus requires numeric operand");
 					return op_ty;
 				}
-
 				TokenType.BANG -> {
 					if (op_ty.kind != DataType.BOOL) report_error(self, node, "Logical NOT requires bool operand");
 					return alloc_primitive(&self.arena, type_bool());
 				}
-
 				TokenType.STAR -> {
 					// Pointer dereference (*ptr)
 					if (op_ty.kind != DataType.POINTER) {
@@ -294,14 +206,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					val p_info = as_pointer_type(op_ty);
 					return p_info.pointee;
 				}
-
 				// Take address (&expr)
 				TokenType.AMPERSAND -> return alloc_pointer_type(&self.arena, op_ty, true);
-
 				else -> return op_ty;
 			}
 		}
-
 		NodeKind.EXPR_CALL -> {
 			val call = as_call(node);
 
@@ -320,12 +229,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				val fn_info = as_fn_type(callee_ty);
 				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
 				else {
-					var i: usz = 0UZ;
+					var i: usz = 0;
 					while (i < call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val param_ty = fn_info.param_types.get(i);
 						if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in function call");
-						i = i + 1UZ;
+						i = i + 1;
 					}
 				}
 				return fn_info.return_type;
@@ -336,12 +245,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				val s_info = as_struct_type(callee_ty);
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
-					var i: usz = 0UZ;
+					var i: usz = 0;
 					while (i < call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val f_ty = s_info.fields.get(i).type_ptr;
 						if (!can_assign(f_ty, arg_ty)) report_error(self, node, "Field type mismatch in struct constructor");
-						i = i + 1UZ;
+						i = i + 1;
 					}
 				}
 				return callee_ty;
@@ -350,7 +259,6 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			report_error(self, node, "Callee is not a function or struct");
 			return alloc_primitive(&self.arena, type_void());
 		}
-
 		NodeKind.EXPR_MEMBER -> {
 			val mem = as_member(node);
 			var obj_ty = check_expr(self, mem.object);
@@ -379,17 +287,16 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			val s_info = as_struct_type(obj_ty);
-			var i: usz = 0UZ;
+			var i: usz = 0;
 			while (i < s_info.fields.len) {
 				val f = s_info.fields.get(i);
 				if (f.name == mem.member) return f.type_ptr;
-				i = i + 1UZ;
+				i = i + 1;
 			}
 
 			report_error(self, node, "Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
 			return alloc_primitive(&self.arena, type_void());
 		}
-
 		NodeKind.EXPR_INDEX -> {
 			val idx = as_index(node);
 			val target_ty = check_expr(self, idx.target);
@@ -404,7 +311,6 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			report_error(self, node, "Index access on non-indexable type");
 			return alloc_primitive(&self.arena, type_void());
 		}
-
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = as_assign(node);
 			val target_ty = check_expr(self, asgn.target);
@@ -413,13 +319,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			if (!can_assign(target_ty, val_ty)) report_error(self, node, "Type mismatch in assignment");
 			return target_ty;
 		}
-
 		NodeKind.EXPR_CAST -> {
 			val cst = as_cast(node);
 			check_expr(self, cst.expr);
 			return resolve_type(self, cst.target_type);
 		}
-
 		NodeKind.EXPR_IF -> {
 			val if_e = as_if_expr(node);
 			val cond_ty = check_expr(self, if_e.condition);
@@ -429,7 +333,6 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			if (!can_assign(then_ty, else_ty)) report_error(self, node, "If expression branches have incompatible types");
 			return then_ty;
 		}
-
 		else -> return alloc_primitive(&self.arena, type_void());
 	}
 }
@@ -445,14 +348,13 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		NodeKind.STMT_BLOCK -> {
 			val blk = as_block_stmt(node);
 			enter_scope(&self.symtab, false);
-			var i: usz = 0UZ;
+			var i: usz = 0;
 			while (i < blk.statements.len) {
 				check_statement(self, blk.statements.get(i));
-				i = i + 1UZ;
+				i = i + 1;
 			}
 			exit_scope(&self.symtab);
 		}
-
 		NodeKind.STMT_VAR_DECL -> {
 			val vd = as_var_decl(node);
 			var var_ty = alloc_primitive(&self.arena, type_void());
@@ -479,7 +381,6 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
 			if (!ok) report_error(self, node, "Variable '" + vd.name + "' is already defined in this scope");
 		}
-
 		NodeKind.STMT_IF -> {
 			val if_s = as_if_stmt(node);
 			val cond_ty = check_expr(self, if_s.condition);
@@ -487,16 +388,14 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			check_statement(self, if_s.then_branch);
 			if (if_s.else_branch != null) check_statement(self, if_s.else_branch);
 		}
-
 		NodeKind.STMT_WHILE -> {
 			val wh = as_while_stmt(node);
 			val cond_ty = check_expr(self, wh.condition);
 			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "While statement condition must be bool");
-			self.loop_depth = self.loop_depth + 1UZ;
+			self.loop_depth = self.loop_depth + 1;
 			check_statement(self, wh.body);
-			self.loop_depth = self.loop_depth - 1UZ;
+			self.loop_depth = self.loop_depth - 1;
 		}
-
 		NodeKind.STMT_RETURN -> {
 			val ret = as_return_stmt(node);
 			if (ret.value != null) {
@@ -504,18 +403,13 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
 			} else if (self.current_fn_return_type.kind != DataType.VOID) report_error(self, node, "Non-void function must return a value");
 		}
-
-		NodeKind.STMT_BREAK,
-		NodeKind.STMT_CONTINUE -> {
-			if (self.loop_depth == 0UZ) report_error(self, node, "Break or continue statement outside of loop");
+		NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
+			if (self.loop_depth == 0) report_error(self, node, "Break or continue statement outside of loop");
 		}
-
 		NodeKind.STMT_EXPR -> {
 			val es = as_expr_stmt(node);
 			check_expr(self, es.expr);
 		}
-
-		else -> {}
 	}
 }
 
@@ -534,22 +428,22 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 	enter_scope(&self.symtab, true);
 
 	// Register parameters into the function scope
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < f.params.len) {
 		val p = f.params.get(i);
 		val p_ty = fn_info.param_types.get(i);
 		define(&self.symtab, Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col));
-		i = i + 1UZ;
+		i = i + 1;
 	}
 
 	// Analyze the function body
 	if (f.body != null) {
 		if (f.body.kind == NodeKind.STMT_BLOCK) {
 			val blk = as_block_stmt(f.body);
-			var j: usz = 0UZ;
+			var j: usz = 0;
 			while (j < blk.statements.len) {
 				check_statement(self, blk.statements.get(j));
-				j = j + 1UZ;
+				j = j + 1;
 			}
 		} else if (f.body.kind == NodeKind.STMT_EXPR) {
 			// Expression body: => expr;
@@ -578,24 +472,22 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 
 		// Inherit SymbolTable and merge errors from DeclPass
 		self.symtab = decl_p.symtab;
-		var i: usz = 0UZ;
+		var i: usz = 0;
 		while (i < decl_p.errors.len) {
 			self.errors.add(decl_p.errors.get(i));
-			i = i + 1UZ;
+			i = i + 1;
 		}
 	}
 
 	// Step 2: Analyze each function body of each module (program already merged)
 	val prog = as_program(program_node);
-	var j: usz = 0UZ;
+	var j: usz = 0;
 	while (j < prog.declarations.len) {
 		val decl = prog.declarations.get(j);
 		if (decl.kind == NodeKind.DECL_MODULE) {
 			val m = as_module_decl(decl);
 			set_current_module(&self.symtab, m.full_path);
-		} else if (decl.kind == NodeKind.DECL_FN) {
-			check_fn(self, decl);
-		}
-		j = j + 1UZ;
+		} else if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
+		j = j + 1;
 	}
 }

@@ -1,32 +1,12 @@
 mod bootstrap.sema.decl_pass;
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
+use bootstrap.lexer.token.format_loc;
 
-use bootstrap.ast.types.NamedType;
-use bootstrap.ast.types.PointerType;
-use bootstrap.ast.types.ArrayType;
-
-use bootstrap.ast.decl.Program;
-use bootstrap.ast.decl.ModuleDecl;
-use bootstrap.ast.decl.UseDecl;
-use bootstrap.ast.decl.StructDecl;
-use bootstrap.ast.decl.FnDecl;
-use bootstrap.ast.decl.EnumDecl;
-use bootstrap.ast.decl.ConstDecl;
-use bootstrap.ast.decl.ExternBlock;
-
-use bootstrap.ast.builder.as_program;
-use bootstrap.ast.builder.as_module_decl;
-use bootstrap.ast.builder.as_use_decl;
-use bootstrap.ast.builder.as_struct_decl;
-use bootstrap.ast.builder.as_fn_decl;
-use bootstrap.ast.builder.as_enum_decl;
-use bootstrap.ast.builder.as_const_decl;
-use bootstrap.ast.builder.as_extern_block;
-use bootstrap.ast.builder.as_named_type;
-use bootstrap.ast.builder.as_pointer_type;
-use bootstrap.ast.builder.as_array_type;
+use bootstrap.ast.node.*;
+use bootstrap.ast.types.*;
+use bootstrap.ast.decl.*;
+use bootstrap.ast.builder.*;
+use bootstrap.sema.symbol.*;
 
 use bootstrap.sema.types.DataType;
 use bootstrap.sema.types.Type;
@@ -52,28 +32,11 @@ use bootstrap.sema.types.alloc_array_type;
 use bootstrap.sema.types.alloc_struct_type;
 use bootstrap.sema.types.alloc_fn_type;
 use bootstrap.sema.types.as_struct_type_mut;
-use bootstrap.lexer.token.format_loc;
 
-use bootstrap.sema.symbol.SymbolKind;
-use bootstrap.sema.symbol.Symbol;
-use bootstrap.sema.symbol.SymbolTable;
-use bootstrap.sema.symbol.new_symbol_table;
-use bootstrap.sema.symbol.lookup;
-use bootstrap.sema.symbol.define;
-use bootstrap.sema.symbol.define_global;
-use bootstrap.sema.symbol.set_current_module;
-use bootstrap.sema.symbol.lookup_in_module;
-use bootstrap.sema.symbol.module_exists;
-use bootstrap.sema.symbol.add_import;
+use bootstrap.util.strutil.*;
 
-use bootstrap.util.strutil.str_mangle_symbol;
-use bootstrap.util.strutil.str_join_dots;
-use bootstrap.util.strutil.str_concat3;
-
-use std.collections.list.List;
-use std.collections.list.new_list;
-use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
+use std.collections.list.*;
+use std.mem.arena.*;
 
 // ============================================================================
 // DeclPass - Top-level Declarations Collector
@@ -89,20 +52,19 @@ pub struct DeclPass {
 }
 
 pub fn new_decl_pass(): DeclPass {
-	var arena = new_arena(65536UZ);
+	var arena = new_arena(65536);
 	return DeclPass(new_symbol_table(), arena, "", new_list<str>(), false);
 }
 
 // C name of a top-level declaration: modules get the module name as a prefix
 // to avoid name clashes in the flat C file; `main` and libc functions keep their names.
 pub fn c_name_for(self: &DeclPass, name: str): str {
-	if (self.is_extern) return name;
-	if (name == "main") return name;
+	if (self.is_extern || name == "main") return name;
 	return str_mangle_symbol(self.current_module, name);
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
-	val mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val mem = arena.alloc_bytes(Type.size(), 8);
 	val ptr = mem as *Type;
 	*ptr = base;
 	return ptr;
@@ -116,11 +78,9 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
 // we still know exactly which module the error is in (instead of blaming the entry file).
 pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 	val loc = format_loc(node.line, node.col);
-	if (self.current_module.len > 0UZ) {
+	if (self.current_module.len > 0) {
 		self.errors.add(str_concat3(self.current_module, ": ", loc + msg));
-	} else {
-		self.errors.add(loc + msg);
-	}
+	} else self.errors.add(loc + msg);
 }
 
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
@@ -131,22 +91,25 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			val named = as_named_type(node) as &NamedType;
 			val name = named.name;
 
-			if (name == "void") return alloc_primitive(&self.arena, type_void());
-			if (name == "bool") return alloc_primitive(&self.arena, type_bool());
-			if (name == "char") return alloc_primitive(&self.arena, type_char());
-			if (name == "i8") return alloc_primitive(&self.arena, type_i8());
-			if (name == "i16") return alloc_primitive(&self.arena, type_i16());
-			if (name == "i32") return alloc_primitive(&self.arena, type_i32());
-			if (name == "i64") return alloc_primitive(&self.arena, type_i64());
-			if (name == "isz") return alloc_primitive(&self.arena, type_isz());
-			if (name == "u8") return alloc_primitive(&self.arena, type_u8());
-			if (name == "u16") return alloc_primitive(&self.arena, type_u16());
-			if (name == "u32") return alloc_primitive(&self.arena, type_u32());
-			if (name == "u64") return alloc_primitive(&self.arena, type_u64());
-			if (name == "usz") return alloc_primitive(&self.arena, type_usz());
-			if (name == "f32") return alloc_primitive(&self.arena, type_f32());
-			if (name == "f64") return alloc_primitive(&self.arena, type_f64());
-			if (name == "str") return alloc_primitive(&self.arena, type_str());
+			when (name) {
+				"void" -> return alloc_primitive(&self.arena, type_void());
+				"bool" -> return alloc_primitive(&self.arena, type_bool());
+				"char" -> return alloc_primitive(&self.arena, type_char());
+				"i8" -> return alloc_primitive(&self.arena, type_i8());
+				"i16" -> return alloc_primitive(&self.arena, type_i16());
+				"i32" -> return alloc_primitive(&self.arena, type_i32());
+				"i64" -> return alloc_primitive(&self.arena, type_i64());
+				"isz" -> return alloc_primitive(&self.arena, type_isz());
+				"u8" -> return alloc_primitive(&self.arena, type_u8());
+				"u16" -> return alloc_primitive(&self.arena, type_u16());
+				"u32" -> return alloc_primitive(&self.arena, type_u32());
+				"u64" -> return alloc_primitive(&self.arena, type_u64());
+				"usz" -> return alloc_primitive(&self.arena, type_usz());
+				"f32" -> return alloc_primitive(&self.arena, type_f32());
+				"f64" -> return alloc_primitive(&self.arena, type_f64());
+				"str" -> return alloc_primitive(&self.arena, type_str());
+				else -> {}
+			}
 
 			// Look up a user-defined type (Struct / Enum)
 			val sym = lookup(&self.symtab, name);
@@ -159,19 +122,16 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			report_error(self, node, "Unknown type '" + name + "'");
 			return alloc_primitive(&self.arena, type_void());
 		}
-
 		NodeKind.TYPE_POINTER -> {
 			val ptr_ast = as_pointer_type(node);
 			val pointee = resolve_ast_type(self, ptr_ast.pointee);
 			return alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
 		}
-
 		NodeKind.TYPE_ARRAY -> {
 			val arr_ast = as_array_type(node);
 			val elem = resolve_ast_type(self, arr_ast.element_type);
 			return alloc_array_type(&self.arena, elem, arr_ast.size);
 		}
-
 		else -> return alloc_primitive(&self.arena, type_void());
 	}
 }
@@ -200,8 +160,8 @@ pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 	}
 
 	// The last segment of the path is the symbol name, the rest is the module path
-	if (u.path.len < 2UZ) return;
-	val mod_name = str_join_dots(u.path, u.path.len - 1UZ);
+	if (u.path.len < 2) return;
+	val mod_name = str_join_dots(u.path, u.path.len - 1);
 
 	// Missing/failed module was already reported by ModuleLoader
 	if (!module_exists(&self.symtab, mod_name)) return;
@@ -227,13 +187,13 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	// Rename the AST node to the C name so the backend emits a unique name
 	s.name = c_name;
 
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < s.fields.len) {
 		val f = s.fields.get(i);
 		val f_type = resolve_ast_type(self, f.type_node);
 		val s_info = as_struct_type_mut(s_type);
-		s_info.fields.add(StructField(f.name, f_type, 0UZ));
-		i = i + 1UZ;
+		s_info.fields.add(StructField(f.name, f_type, 0));
+		i = i + 1;
 	}
 }
 
@@ -241,12 +201,12 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	val f = as_fn_decl(node) as &FnDecl;
 	var param_types = new_list<*Type>();
 
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < f.params.len) {
 		val p = f.params.get(i);
 		val p_type = resolve_ast_type(self, p.type_node);
 		param_types.add(p_type);
-		i = i + 1UZ;
+		i = i + 1;
 	}
 
 	var ret_type = alloc_primitive(&self.arena, type_void());
@@ -289,10 +249,10 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	val ext = as_extern_block(node);
 	val prev_is_extern = self.is_extern;
 	self.is_extern = true;
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < ext.declarations.len) {
 		collect_declaration(self, ext.declarations.get(i));
-		i = i + 1UZ;
+		i = i + 1;
 	}
 	self.is_extern = prev_is_extern;
 }
@@ -312,9 +272,9 @@ pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 
 pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	val prog = as_program(program_node);
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < prog.declarations.len) {
 		collect_declaration(self, prog.declarations.get(i));
-		i = i + 1UZ;
+		i = i + 1;
 	}
 }
