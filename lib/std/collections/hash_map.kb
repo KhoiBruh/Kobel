@@ -42,9 +42,7 @@ impl HashMap<V> {
 	}
 
 	pub fn put(var self, key: str, value: V): void {
-		if (self.len * 10UZ >= self.cap * 7UZ) {
-			self.grow();
-		}
+		if (self.len * 10UZ >= self.cap * 7UZ) self.grow();
 
 		val h: usz = self.hash_key(key);
 		var idx: usz = h % self.cap;
@@ -68,9 +66,7 @@ impl HashMap<V> {
 		var idx: usz = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
-				return true;
-			}
+			if (self.keys[idx] == key) return true;
 			idx = (idx + 1UZ) % self.cap;
 		}
 		return false;
@@ -81,9 +77,7 @@ impl HashMap<V> {
 		var idx: usz = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
-				return self.values[idx];
-			}
+			if (self.keys[idx] == key) return self.values[idx];
 			idx = (idx + 1UZ) % self.cap;
 		}
 		return default_val;
@@ -115,9 +109,7 @@ impl HashMap<V> {
 
 		var i: usz = 0UZ;
 		while (i < old_cap) {
-			if (old_occ[i]) {
-				self.put(old_keys[i], old_vals[i]);
-			}
+			if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
 			i = i + 1UZ;
 		}
 

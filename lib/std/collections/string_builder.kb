@@ -3,7 +3,7 @@ mod std.collections.string_builder;
 extern "libc" {
 	fn malloc(size: usz): &u8;
 	fn realloc(ptr: &u8, size: usz): &u8;
-	fn free(ptr: &u8): void;
+	fn free(ptr: &u8);
 }
 
 struct StringRaw {
@@ -25,19 +25,15 @@ pub fn new_string_builder(): StringBuilder {
 }
 
 impl StringBuilder {
-	pub fn append_char(var self, c: char): void {
-		if (self.len + 2UZ >= self.cap) {
-			self.grow(self.len + 2UZ);
-		}
+	pub fn append_char(var self, c: char) {
+		if (self.len + 2UZ >= self.cap) self.grow(self.len + 2UZ);
 		self.buf[self.len] = c as u8;
 		self.len = self.len + 1UZ;
 	}
 
-	pub fn append_str(var self, s: str): void {
+	pub fn append_str(var self, s: str) {
 		val s_len: usz = s.len;
-		if (self.len + s_len + 1UZ >= self.cap) {
-			self.grow(self.len + s_len + 1UZ);
-		}
+		if (self.len + s_len + 1UZ >= self.cap) self.grow(self.len + s_len + 1UZ);
 		var i: usz = 0UZ;
 		while (i < s_len) {
 			self.buf[self.len + i] = s[i] as u8;
@@ -46,7 +42,7 @@ impl StringBuilder {
 		self.len = self.len + s_len;
 	}
 
-	pub fn append_i32(var self, n: i32): void {
+	pub fn append_i32(var self, n: i32) {
 		var val_n: i32 = n;
 		if (val_n == 0) {
 			self.append_char('0');
@@ -91,11 +87,11 @@ impl StringBuilder {
 		return res;
 	}
 
-	pub fn clear(var self): void {
+	pub fn clear(var self) {
 		self.len = 0UZ;
 	}
 
-	fn grow(var self, min_cap: usz): void {
+	fn grow(var self, min_cap: usz) {
 		var new_cap: usz = self.cap * 2UZ;
 		while (new_cap < min_cap) {
 			new_cap = new_cap * 2UZ;
@@ -105,7 +101,7 @@ impl StringBuilder {
 		self.cap = new_cap;
 	}
 
-	pub fn delete(self): void {
+	pub fn delete(self) {
 		free(self.buf);
 	}
 }

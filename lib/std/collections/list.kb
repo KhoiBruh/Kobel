@@ -18,7 +18,7 @@ mod std.collections.list;
 extern "libc" {
 	fn malloc(size: usz): &u8;
 	fn realloc(ptr: &u8, size: usz): &u8;
-	fn free(ptr: &u8): void;
+	fn free(ptr: &u8);
 }
 
 pub struct List<T> {
@@ -35,9 +35,7 @@ pub fn new_list<T>(): List<T> {
 
 pub fn list_with_capacity<T>(capacity: usz): List<T> {
 	var cap: usz = capacity;
-	if (cap == 0UZ) {
-		cap = 4UZ;
-	}
+	if (cap == 0UZ) cap = 4UZ;
 	val raw: &u8 = malloc(cap * T.size());
 	return List<T>(raw as &T, 0UZ, cap);
 }
@@ -51,14 +49,12 @@ impl List<T> {
 
 	pub fn is_empty(val self): bool => self.len == 0UZ;
 
-	pub fn set(var self, index: usz, value: T): void {
+	pub fn set(var self, index: usz, value: T) {
 		self.data[index] = value;
 	}
 
-	pub fn add(var self, value: T): void {
-		if (self.len == self.cap) {
-			self.grow();
-		}
+	pub fn add(var self, value: T) {
+		if (self.len == self.cap) self.grow();
 		self.data[self.len] = value;
 		self.len = self.len + 1UZ;
 	}
@@ -68,18 +64,18 @@ impl List<T> {
 		return self.data[self.len];
 	}
 
-	pub fn clear(var self): void {
+	pub fn clear(var self) {
 		self.len = 0UZ;
 	}
 
-	fn grow(var self): void {
+	fn grow(var self) {
 		val new_cap: usz = self.cap * 2UZ;
 		val new_raw: &u8 = realloc(self.data as &u8, new_cap * T.size());
 		self.data = new_raw as &T;
 		self.cap = new_cap;
 	}
 
-	pub fn reserve(var self, min_cap: usz): void {
+	pub fn reserve(var self, min_cap: usz) {
 		if (min_cap > self.cap) {
 			var new_cap: usz = self.cap;
 			while (new_cap < min_cap) {
@@ -91,7 +87,7 @@ impl List<T> {
 		}
 	}
 
-	pub fn delete(self): void {
+	pub fn delete(self) {
 		free(self.data as &u8);
 	}
 }

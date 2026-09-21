@@ -9,6 +9,4 @@ pub fn sys_exit(code: i32): void {
 	exit(code);
 }
 
-pub fn exec(cmd: str): i32 {
-	return system(cmd.c_str());
-}
+pub fn exec(cmd: str) => system(cmd.c_str());

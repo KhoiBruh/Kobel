@@ -1,24 +1,14 @@
 mod std.ascii;
 
-pub fn is_digit(c: char): bool {
-	return c >= '0' && c <= '9';
-}
+pub fn is_digit(c: char) => c >= '0' && c <= '9';
 
-pub fn is_alpha(c: char): bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
+pub fn is_alpha(c: char) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 
-pub fn is_alphanumeric(c: char): bool {
-	return is_alpha(c) || is_digit(c);
-}
+pub fn is_alphanumeric(c: char) => is_alpha(c) || is_digit(c);
 
-pub fn is_whitespace(c: char): bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
+pub fn is_whitespace(c: char) => c == ' ' || c == '\t' || c == '\n' || c == '\r';
 
-pub fn is_hex_digit(c: char): bool {
-	return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-}
+pub fn is_hex_digit(c: char) => is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 
 pub fn to_lower(c: char): char {
 	if (c >= 'A' && c <= 'Z') {

@@ -34,15 +34,15 @@ pub fn println(s: str): void {
 
 pub fn read_file(path: str): str {
 	val f = fopen(path.c_str(), "rb");
-	if (f == null) {
-		return "";
-	}
+	if (f == null) return "";
+
 	fseek(f, 0L, 2);
 	val size_i64: i64 = ftell(f);
 	if (size_i64 <= 0L) {
 		fclose(f);
 		return "";
 	}
+
 	fseek(f, 0L, 0);
 	val sz: usz = size_i64 as usz;
 	val buf: &u8 = malloc(sz + 1);
@@ -50,6 +50,7 @@ pub fn read_file(path: str): str {
 		fclose(f);
 		return "";
 	}
+
 	val read_bytes: usz = fread(buf, 1UZ, sz, f);
 	fclose(f);
 	buf[read_bytes] = 0UB;
@@ -67,9 +68,7 @@ pub fn read_file(path: str): str {
 
 pub fn write_file(path: str, content: str): bool {
 	val f = fopen(path.c_str(), "wb");
-	if (f == null) {
-		return false;
-	}
+	if (f == null) return false;
 	val written: usz = fwrite(content.c_str(), 1UZ, content.len, f);
 	fclose(f);
 	return written == content.len;
