@@ -2,16 +2,14 @@ mod bootstrap.parser.decl;
 
 use bootstrap.lexer.token.*;
 
+use bootstrap.ast.builder.*;
 use bootstrap.ast.node.AstNode;
 use bootstrap.ast.decl.*;
-
-use bootstrap.ast.builder.*;
 
 use bootstrap.parser.parser.*;
 
 use bootstrap.parser.types.parse_type;
 use bootstrap.parser.expr.*;
-
 use bootstrap.parser.stmt.*;
 
 use std.collections.list.*;
@@ -187,7 +185,7 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 	var type_params = parse_generic_params(self);
 	val first_name = consume(self, TokenType.IDENTIFIER, "Expected struct or trait name").text;
 
-	if (type_params.len == 0UZ && check(self, TokenType.LESS)) {
+	if (type_params.len == 0 && check(self, TokenType.LESS)) {
 		type_params = parse_generic_params(self);
 	}
 
@@ -200,10 +198,10 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 		struct_name = s_tok.text;
 		if (check(self, TokenType.LESS)) {
 			val s_params = parse_generic_params(self);
-			var sp_i: usz = 0UZ;
+			var sp_i: usz = 0;
 			while (sp_i < s_params.len) {
 				type_params.add(s_params.get(sp_i));
-				sp_i = sp_i + 1UZ;
+				sp_i = sp_i + 1;
 			}
 		}
 	}
@@ -357,5 +355,5 @@ pub fn parse_program(var self: &Parser): *AstNode {
 		declarations.add(parse_declaration(self));
 	}
 
-	return alloc_program(&self.arena, declarations, 1UZ, 1UZ);
+	return alloc_program(&self.arena, declarations, 1, 1);
 }

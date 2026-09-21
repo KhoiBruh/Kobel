@@ -4,11 +4,9 @@ use bootstrap.lexer.token.*;
 
 use bootstrap.ast.node.AstNode;
 use bootstrap.ast.expr.*;
-
 use bootstrap.ast.builder.*;
 
 use bootstrap.parser.parser.*;
-
 use bootstrap.parser.types.parse_type;
 
 use std.collections.list.*;

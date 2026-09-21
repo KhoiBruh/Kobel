@@ -12,7 +12,7 @@ pub struct Parser {
 }
 
 pub fn new_parser(tokens: List<Token>): Parser {
-	return Parser(tokens, 0UZ, new_arena(65536UZ), new_list<str>());
+	return Parser(tokens, 0, new_arena(65536), new_list<str>());
 }
 
 pub fn is_end(var self: &Parser): bool {
@@ -22,17 +22,17 @@ pub fn is_end(var self: &Parser): bool {
 }
 
 pub fn peek(var self: &Parser): Token {
-	if (self.current >= self.tokens.len) return self.tokens.get(self.tokens.len - 1UZ);
+	if (self.current >= self.tokens.len) return self.tokens.get(self.tokens.len - 1);
 	return self.tokens.get(self.current);
 }
 
 pub fn previous(var self: &Parser): Token {
-	if (self.current == 0UZ) return self.tokens.get(0UZ);
-	return self.tokens.get(self.current - 1UZ);
+	if (self.current == 0) return self.tokens.get(0);
+	return self.tokens.get(self.current - 1);
 }
 
 pub fn advance(var self: &Parser): Token {
-	if (!is_end(self)) self.current = self.current + 1UZ;
+	if (!is_end(self)) self.current = self.current + 1;
 	return previous(self);
 }
 
@@ -95,7 +95,7 @@ pub fn is_generic_args_ahead(var self: &Parser): bool {
 	// Check whether the position after '<' looks like type arguments ending with '>'
 	if (!check(self, TokenType.LESS)) return false;
 
-	var i = self.current + 1UZ;
+	var i = self.current + 1;
 	var depth = 1;
 
 	while (i < self.tokens.len) {
@@ -112,7 +112,7 @@ pub fn is_generic_args_ahead(var self: &Parser): bool {
 			TokenType.END_OF_FILE -> return false;
 			else -> {}
 		}
-		i = i + 1UZ;
+		i = i + 1;
 	}
 
 	return false;

@@ -3,8 +3,8 @@ mod bootstrap.parser.types;
 use bootstrap.lexer.token.*;
 
 use bootstrap.ast.node.AstNode;
-
 use bootstrap.ast.builder.*;
+
 use bootstrap.parser.parser.*;
 
 use std.collections.list.*;
@@ -32,16 +32,16 @@ pub fn parse_type(var self: &Parser): *AstNode {
 		val size_tok = consume(self, TokenType.NUMBER, "Expected integer literal for array size");
 		consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array size");
 
-		// Convert the size string to usz (default to 0UZ if empty)
-		var size: usz = 0UZ;
-		var i: usz = 0UZ;
+		// Convert the size string to usz (default to 0 if empty)
+		var size: usz = 0;
+		var i: usz = 0;
 		while (i < size_tok.text.len) {
 			val ch = size_tok.text[i];
 			if (ch >= '0' && ch <= '9') {
 				val digit = ((ch as i32) - ('0' as i32)) as usz;
-				size = size * 10UZ + digit;
+				size = size * 10 + digit;
 			}
-			i = i + 1UZ;
+			i = i + 1;
 		}
 
 		return alloc_array_type(&self.arena, elem_type, size, line, col);
@@ -68,24 +68,24 @@ pub fn parse_type(var self: &Parser): *AstNode {
 	}
 
 	// 4. Array type syntax per the spec: Array<T>(N)
-	if (full_name == "Array" && type_args.len == 1UZ && check(self, TokenType.OPEN_PAREN)) {
+	if (full_name == "Array" && type_args.len == 1 && check(self, TokenType.OPEN_PAREN)) {
 		consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
 		val size_tok = consume(self, TokenType.NUMBER, "Expected integer literal for array size");
 		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after array size");
 
 		// Convert the size string to usz
-		var size: usz = 0UZ;
-		var si: usz = 0UZ;
+		var size: usz = 0;
+		var si: usz = 0;
 		while (si < size_tok.text.len) {
 			val ch = size_tok.text[si];
 			if (ch >= '0' && ch <= '9') {
 				val digit = ((ch as i32) - ('0' as i32)) as usz;
-				size = size * 10UZ + digit;
+				size = size * 10 + digit;
 			}
-			si = si + 1UZ;
+			si = si + 1;
 		}
 
-		return alloc_array_type(&self.arena, type_args.get(0UZ), size, line, col);
+		return alloc_array_type(&self.arena, type_args.get(0), size, line, col);
 	}
 
 	return alloc_named_type(&self.arena, full_name, type_args, line, col);
