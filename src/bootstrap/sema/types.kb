@@ -184,23 +184,36 @@ pub fn alloc_fn_type(
 // Type Inspection & Semantic Queries
 // ============================================================================
 
-pub fn is_signed_integer(ty: *Type): bool => when (ty.kind) {
-	DataType.I8, DataType.I16, DataType.I32,
-	DataType.I64, DataType.ISZ -> true;
-	else -> false;
+pub fn is_signed_integer(ty: *Type): bool {
+	when (ty.kind) {
+		DataType.I8,
+		DataType.I16,
+		DataType.I32,
+		DataType.I64,
+		DataType.ISZ -> return true;
+		else -> return false;
+	}
 }
 
-pub fn is_unsigned_integer(ty: *Type): bool => when (ty.kind) {
-	DataType.U8, DataType.U16, DataType.U32,
-	DataType.U64, DataType.USZ -> return true;
-	else -> return false;
+pub fn is_unsigned_integer(ty: *Type): bool {
+	when (ty.kind) {
+		DataType.U8,
+		DataType.U16,
+		DataType.U32,
+		DataType.U64,
+		DataType.USZ -> return true;
+		else -> return false;
+	}
 }
 
 pub fn is_integer(ty: *Type): bool => is_signed_integer(ty) || is_unsigned_integer(ty);
 
-pub fn is_float(ty: *Type): bool => when (ty.kind) {
-	DataType.F32, DataType.F64 -> return true;
-	else -> return false;
+pub fn is_float(ty: *Type): bool {
+	when (ty.kind) {
+		DataType.F32,
+		DataType.F64 -> return true;
+		else -> return false;
+	}
 }
 
 pub fn is_numeric(ty: *Type): bool => is_integer(ty) || is_float(ty);

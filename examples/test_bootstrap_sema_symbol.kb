@@ -1,0 +1,170 @@
+mod test.bootstrap_sema_symbol;
+
+use std.io.print;
+use std.io.println;
+
+use bootstrap.sema.types.DataType;
+use bootstrap.sema.types.Type;
+use bootstrap.sema.types.type_i32;
+use bootstrap.sema.types.type_str;
+use bootstrap.sema.types.type_bool;
+
+use bootstrap.sema.symbol.SymbolKind;
+use bootstrap.sema.symbol.Symbol;
+use bootstrap.sema.symbol.Scope;
+use bootstrap.sema.symbol.SymbolTable;
+use bootstrap.sema.symbol.new_symbol_table;
+use bootstrap.sema.symbol.enter_scope;
+use bootstrap.sema.symbol.exit_scope;
+use bootstrap.sema.symbol.is_in_function;
+use bootstrap.sema.symbol.lookup_current;
+use bootstrap.sema.symbol.lookup;
+use bootstrap.sema.symbol.define;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_str(actual: str, expected: str, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		print(" | Expected: '");
+		print(expected);
+		print("', got: '");
+		print(actual);
+		println("'");
+	}
+}
+
+// ============================================================================
+// Test 1: Global Scope Define & Lookup
+// ============================================================================
+
+fn test_global_scope() {
+	var symtab = new_symbol_table();
+	var ty_i32 = type_i32();
+
+	val ok = define(&symtab, Symbol("global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	assert_true(ok, "Must successfully define global_var");
+
+	val sym = lookup(&symtab, "global_var");
+	assert_true(sym != null, "global_var must be found in symbol table");
+	assert_eq_str(sym.name, "global_var", "Symbol name must be 'global_var'");
+	assert_true(sym.kind == SymbolKind.VAR, "Symbol kind must be VAR");
+	assert_true(sym.is_pub, "Symbol must be pub");
+	assert_true(sym.type_ptr.kind == DataType.I32, "Symbol type must be i32");
+
+	val not_found = lookup(&symtab, "unknown_var");
+	assert_true(not_found == null, "Non-existent symbol must return null");
+
+	println("  [PASS] test_global_scope");
+}
+
+// ============================================================================
+// Test 2: Duplicate Definition Detection
+// ============================================================================
+
+fn test_duplicate_definition() {
+	var symtab = new_symbol_table();
+	var ty_i32 = type_i32();
+	var ty_bool = type_bool();
+
+	val ok1 = define(&symtab, Symbol("count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
+	assert_true(ok1, "First definition of 'count' must succeed");
+
+	// Thử định nghĩa lại 'count' trong cùng scope hiện tại
+	val ok2 = define(&symtab, Symbol("count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
+	assert_true(!ok2, "Redefinition of 'count' in the same scope must fail");
+
+	// Định nghĩa tên khác phải thành công
+	val ok3 = define(&symtab, Symbol("total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
+	assert_true(ok3, "Definition of new variable 'total' must succeed");
+
+	println("  [PASS] test_duplicate_definition");
+}
+
+// ============================================================================
+// Test 3: Lexical Scoping & Variable Shadowing
+// ============================================================================
+
+fn test_scoping_and_shadowing() {
+	var symtab = new_symbol_table();
+	var ty_i32 = type_i32();
+	var ty_str = type_str();
+
+	// Scope 0 (Global): x: i32
+	define(&symtab, Symbol("x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
+
+	// Vào Scope 1 (Local Block)
+	enter_scope(&symtab, false);
+
+	// Tra cứu 'x' trước khi che khuất -> phải thấy 'x: i32' từ cha
+	val outer_x = lookup(&symtab, "x");
+	assert_true(outer_x != null, "Parent 'x' must be visible in child scope");
+	assert_true(outer_x.type_ptr.kind == DataType.I32, "Parent 'x' must be i32");
+
+	// Trong Scope 1 hiện tại chưa có 'x'
+	val cur_x1 = lookup_current(&symtab, "x");
+	assert_true(cur_x1 == null, "Scope 1 does not yet define its own 'x'");
+
+	// Shadowing: Khai báo 'x: str' trong Scope 1
+	val shadow_ok = define(&symtab, Symbol("x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
+	assert_true(shadow_ok, "Shadowing definition of 'x' in child scope must succeed");
+
+	// Lúc này lookup 'x' phải ra 'x: str'
+	val shadowed_x = lookup(&symtab, "x");
+	assert_true(shadowed_x != null, "Shadowed 'x' must be found");
+	assert_true(shadowed_x.type_ptr.kind == DataType.STR, "Shadowed 'x' must be str");
+
+	// Thoát Scope 1 trở về Scope 0
+	exit_scope(&symtab);
+
+	// Bây giờ lookup 'x' phải trở lại 'x: i32'
+	val restored_x = lookup(&symtab, "x");
+	assert_true(restored_x != null, "Global 'x' must be restored");
+	assert_true(restored_x.type_ptr.kind == DataType.I32, "Global 'x' must be i32 again");
+
+	println("  [PASS] test_scoping_and_shadowing");
+}
+
+// ============================================================================
+// Test 4: Function Boundary Tracking
+// ============================================================================
+
+fn test_function_boundary() {
+	var symtab = new_symbol_table();
+
+	assert_true(!is_in_function(&symtab), "Global scope is not in function");
+
+	// Bắt đầu hàm: function boundary = true
+	enter_scope(&symtab, true);
+	assert_true(is_in_function(&symtab), "Must be in function");
+
+	// Block if/while lồng bên trong hàm: function boundary = false
+	enter_scope(&symtab, false);
+	assert_true(is_in_function(&symtab), "Nested block inside function is still in function");
+
+	// Thoát block
+	exit_scope(&symtab);
+	assert_true(is_in_function(&symtab), "Still in function after exiting inner block");
+
+	// Thoát hàm
+	exit_scope(&symtab);
+	assert_true(!is_in_function(&symtab), "Not in function after exiting function body");
+
+	println("  [PASS] test_function_boundary");
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap Semantic Symbol tests...");
+	test_global_scope();
+	test_duplicate_definition();
+	test_scoping_and_shadowing();
+	test_function_boundary();
+	println("[ALL PASSED] Bootstrap Semantic Symbol passed all tests successfully!");
+	return 0;
+}

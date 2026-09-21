@@ -1,0 +1,124 @@
+mod bootstrap.sema.symbol;
+
+use bootstrap.sema.types.Type;
+use std.collections.list.List;
+use std.collections.list.new_list;
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+
+// ============================================================================
+// SymbolKind Enumeration
+// ============================================================================
+
+pub enum SymbolKind {
+	VAR,
+	CONST,
+	PARAM,
+	FN,
+	STRUCT,
+	ENUM,
+	MODULE,
+	TYPE_ALIAS
+}
+
+// ============================================================================
+// Symbol Representation
+// ============================================================================
+
+pub struct Symbol {
+	pub name: str,
+	pub kind: SymbolKind,
+	pub type_ptr: *Type,
+	pub is_mut: bool,
+	pub is_pub: bool,
+	pub line: usz,
+	pub col: usz
+}
+
+// ============================================================================
+// Lexical Scope
+// ============================================================================
+
+pub struct Scope {
+	pub parent: *Scope,
+	pub symbols: List<*Symbol>,
+	pub is_fn_boundary: bool
+}
+
+// ============================================================================
+// Symbol Table
+// ============================================================================
+
+pub struct SymbolTable {
+	pub current_scope: *Scope,
+	pub arena: Arena
+}
+
+pub fn new_symbol_table(): SymbolTable {
+	var arena = new_arena(65536UZ);
+	val mem = arena.alloc_bytes(Scope.size(), 8UZ);
+	val root_scope = mem as *Scope;
+	*root_scope = Scope(null, new_list<*Symbol>(), false);
+	return SymbolTable(root_scope, arena);
+}
+
+pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
+	val mem = self.arena.alloc_bytes(Scope.size(), 8UZ);
+	val new_sc = mem as *Scope;
+	*new_sc = Scope(self.current_scope, new_list<*Symbol>(), is_fn_boundary);
+	self.current_scope = new_sc;
+	return new_sc;
+}
+
+pub fn exit_scope(var self: &SymbolTable) {
+	if (self.current_scope.parent != null) {
+		self.current_scope = self.current_scope.parent;
+	}
+}
+
+pub fn is_in_function(var self: &SymbolTable): bool {
+	var curr = self.current_scope;
+	while (curr != null) {
+		if (curr.is_fn_boundary) return true;
+		curr = curr.parent;
+	}
+	return false;
+}
+
+pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
+	val scope = self.current_scope;
+	var i: usz = 0UZ;
+	while (i < scope.symbols.len) {
+		val sym = scope.symbols.get(i);
+		if (sym.name == name) return sym;
+		i = i + 1UZ;
+	}
+	return null;
+}
+
+pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
+	var curr = self.current_scope;
+	while (curr != null) {
+		var i: usz = 0UZ;
+		while (i < curr.symbols.len) {
+			val sym = curr.symbols.get(i);
+			if (sym.name == name) return sym;
+			i = i + 1UZ;
+		}
+		curr = curr.parent;
+	}
+	return null;
+}
+
+pub fn define(var self: &SymbolTable, sym: Symbol): bool {
+	// Kiểm tra định nghĩa trùng lặp trong cùng một scope
+	val existing = lookup_current(self, sym.name);
+	if (existing != null) return false;
+
+	val mem = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+	val sym_ptr = mem as *Symbol;
+	*sym_ptr = sym;
+
+	self.current_scope.symbols.add(sym_ptr);
+	return true;
+}
