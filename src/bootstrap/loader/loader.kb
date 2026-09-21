@@ -1,0 +1,243 @@
+mod bootstrap.loader.loader;
+
+// ============================================================================
+// ModuleLoader
+//
+// Nạp file nguồn của entry point, rồi lần theo mọi `use a.b.c.Sym;` để nạp
+// các module phụ thuộc (đệ quy, không trùng lặp). Kết quả là một AST `Program`
+// gộp: mỗi module được chèn kèm khai báo `mod <tên module>;` để DeclPass/
+// BodyPass biết symbol nào thuộc module nào.
+//
+// Quy tắc tìm file (giống v0): module `a.b.c` -> `<root>/a/b/c.kb` với các root
+// theo thứ tự: thư mục của file entry -> các root truyền thêm (-I) -> "lib"
+// (thư viện chuẩn) -> "src" (mã nguồn bootstrap).
+// ============================================================================
+
+use bootstrap.ast.node.NodeKind;
+use bootstrap.ast.node.AstNode;
+
+use bootstrap.ast.decl.Program;
+use bootstrap.ast.decl.UseDecl;
+use bootstrap.ast.decl.ModuleDecl;
+
+use bootstrap.ast.builder.as_program;
+use bootstrap.ast.builder.as_use_decl;
+use bootstrap.ast.builder.as_module_decl;
+use bootstrap.ast.builder.alloc_module_decl;
+use bootstrap.ast.builder.alloc_program;
+
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.new_parser;
+use bootstrap.parser.decl.parse_program;
+
+use bootstrap.util.strutil.str_base_name;
+use bootstrap.util.strutil.str_concat;
+use bootstrap.util.strutil.str_concat3;
+use bootstrap.util.strutil.str_dir_of;
+use bootstrap.util.strutil.str_join_dots;
+use bootstrap.util.strutil.str_join_path;
+use bootstrap.util.strutil.str_module_to_rel;
+use bootstrap.util.strutil.str_path_to_module;
+use bootstrap.util.strutil.str_split_dots;
+
+use std.io.read_file;
+use std.collections.list.List;
+use std.collections.list.new_list;
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+
+pub struct LoadedModule {
+	pub name: str,
+	pub path: str,
+	pub program: *AstNode
+}
+
+pub struct ModuleFile {
+	pub found: bool,
+	pub path: str,
+	pub source: str
+}
+
+pub struct ModuleLoader {
+	pub roots: List<str>,
+	pub modules: List<LoadedModule>,
+	pub ordered: List<LoadedModule>,
+	pub errors: List<str>,
+	pub arena: Arena
+}
+
+pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
+	var roots = new_list<str>();
+	if (entry_dir.len > 0UZ) roots.add(entry_dir);
+
+	var i: usz = 0UZ;
+	while (i < extra_roots.len) {
+		roots.add(extra_roots.get(i));
+		i = i + 1UZ;
+	}
+
+	// Root mặc định: thư viện chuẩn (lib/) và mã nguồn bootstrap (src/)
+	roots.add("lib");
+	roots.add("src");
+
+	return ModuleLoader(
+		roots,
+		new_list<LoadedModule>(),
+		new_list<LoadedModule>(),
+		new_list<str>(),
+		new_arena(524288UZ)
+	);
+}
+
+pub fn loaded_module_count(self: &ModuleLoader): usz => self.ordered.len;
+
+// ============================================================================
+// Parsing
+// ============================================================================
+
+pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
+	var lexer = new_lexer(source);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val prog = parse_program(&parser);
+
+	if (parser.errors.len > 0UZ) {
+		var i: usz = 0UZ;
+		while (i < parser.errors.len) {
+			self.errors.add(str_concat3(path, ": ", parser.errors.get(i)));
+			i = i + 1UZ;
+		}
+		return null;
+	}
+
+	return prog;
+}
+
+// Tên module khai báo trong file (`mod a.b.c;`), "" nếu file không khai báo.
+pub fn declared_module_name(program_node: *AstNode): str {
+	if (program_node == null) return "";
+	val prog = as_program(program_node);
+	var i: usz = 0UZ;
+	while (i < prog.declarations.len) {
+		val decl = prog.declarations.get(i);
+		if (decl.kind == NodeKind.DECL_MODULE) return as_module_decl(decl).full_path;
+		i = i + 1UZ;
+	}
+	return "";
+}
+
+// ============================================================================
+// File Resolution
+// ============================================================================
+
+pub fn find_module(var self: &ModuleLoader, module_name: str): ModuleFile {
+	val rel = str_concat(str_module_to_rel(module_name), ".kb");
+	var i: usz = 0UZ;
+	while (i < self.roots.len) {
+		val candidate = str_join_path(self.roots.get(i), rel);
+		val src = read_file(candidate);
+		if (src.len > 0UZ) return ModuleFile(true, candidate, src);
+		i = i + 1UZ;
+	}
+	return ModuleFile(false, "", "");
+}
+
+pub fn is_known(self: &ModuleLoader, module_name: str): bool {
+	var i: usz = 0UZ;
+	while (i < self.modules.len) {
+		if (self.modules.get(i).name == module_name) return true;
+		i = i + 1UZ;
+	}
+	return false;
+}
+
+// Nạp một module (và mọi module mà nó `use`) nếu chưa nạp.
+pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
+	if (is_known(self, module_name)) return;
+
+	// Đánh dấu trước để tránh đệ quy vô hạn khi có vòng import
+	self.modules.add(LoadedModule(module_name, "", null));
+
+	val file = find_module(self, module_name);
+	if (!file.found) {
+		val msg = str_concat3("Module '", module_name, "' not found (searched the entry directory, -I roots, lib/, src/)");
+		self.errors.add(msg);
+		return;
+	}
+
+	val prog = parse_source(self, file.path, file.source);
+	if (prog == null) return;
+
+	val declared = declared_module_name(prog);
+	if (declared.len > 0UZ && declared != module_name) {
+		val msg = str_concat3(file.path, ": module declared as '", declared);
+		self.errors.add(str_concat3(msg, "' but imported as '", str_concat(module_name, "'")));
+		return;
+	}
+
+	// Nạp phụ thuộc trước, rồi mới thêm module này vào thứ tự gộp
+	process_uses(self, prog);
+	self.ordered.add(LoadedModule(module_name, file.path, prog));
+}
+
+pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
+	val prog = as_program(program_node);
+	var i: usz = 0UZ;
+	while (i < prog.declarations.len) {
+		val decl = prog.declarations.get(i);
+		if (decl.kind == NodeKind.DECL_USE) {
+			val u = as_use_decl(decl);
+			var mod_name = "";
+			if (u.is_wildcard) mod_name = str_join_dots(u.path, u.path.len);
+			else if (u.path.len >= 2UZ) mod_name = str_join_dots(u.path, u.path.len - 1UZ);
+			if (mod_name.len > 0UZ) ensure_module(self, mod_name);
+		}
+		i = i + 1UZ;
+	}
+}
+
+// ============================================================================
+// Entry Point
+// ============================================================================
+
+pub fn load_program(var self: &ModuleLoader, entry_path: str, entry_source: str): *AstNode {
+	val prog = parse_source(self, entry_path, entry_source);
+	if (prog == null) return null;
+
+	var entry_name = declared_module_name(prog);
+	if (entry_name.len == 0UZ) entry_name = str_path_to_module(str_base_name(entry_path));
+
+	self.modules.add(LoadedModule(entry_name, entry_path, prog));
+	process_uses(self, prog);
+	self.ordered.add(LoadedModule(entry_name, entry_path, prog));
+
+	return build_merged_program(self);
+}
+
+// Gộp mọi module (phụ thuộc trước, entry sau cùng) thành một Program duy nhất.
+pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
+	var decls = new_list<*AstNode>();
+
+	var i: usz = 0UZ;
+	while (i < self.ordered.len) {
+		val lm = self.ordered.get(i);
+		if (lm.program != null) {
+			// Chèn `mod <tên module>;` để các pass biết symbol thuộc module nào
+			decls.add(alloc_module_decl(&self.arena, str_split_dots(lm.name), lm.name, 0UZ, 0UZ));
+
+			val p = as_program(lm.program);
+			var j: usz = 0UZ;
+			while (j < p.declarations.len) {
+				decls.add(p.declarations.get(j));
+				j = j + 1UZ;
+			}
+		}
+		i = i + 1UZ;
+	}
+
+	return alloc_program(&self.arena, decls, 0UZ, 0UZ);
+}

@@ -48,7 +48,7 @@ fn test_global_scope() {
 	var symtab = new_symbol_table();
 	var ty_i32 = type_i32();
 
-	val ok = define(&symtab, Symbol("global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	val ok = define(&symtab, Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
 	assert_true(ok, "Must successfully define global_var");
 
 	val sym = lookup(&symtab, "global_var");
@@ -73,15 +73,15 @@ fn test_duplicate_definition() {
 	var ty_i32 = type_i32();
 	var ty_bool = type_bool();
 
-	val ok1 = define(&symtab, Symbol("count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
+	val ok1 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
 	assert_true(ok1, "First definition of 'count' must succeed");
 
 	// Thử định nghĩa lại 'count' trong cùng scope hiện tại
-	val ok2 = define(&symtab, Symbol("count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
+	val ok2 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
 	assert_true(!ok2, "Redefinition of 'count' in the same scope must fail");
 
 	// Định nghĩa tên khác phải thành công
-	val ok3 = define(&symtab, Symbol("total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
+	val ok3 = define(&symtab, Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
 	assert_true(ok3, "Definition of new variable 'total' must succeed");
 
 	println("  [PASS] test_duplicate_definition");
@@ -97,7 +97,7 @@ fn test_scoping_and_shadowing() {
 	var ty_str = type_str();
 
 	// Scope 0 (Global): x: i32
-	define(&symtab, Symbol("x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
+	define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
 
 	// Vào Scope 1 (Local Block)
 	enter_scope(&symtab, false);
@@ -112,7 +112,7 @@ fn test_scoping_and_shadowing() {
 	assert_true(cur_x1 == null, "Scope 1 does not yet define its own 'x'");
 
 	// Shadowing: Khai báo 'x: str' trong Scope 1
-	val shadow_ok = define(&symtab, Symbol("x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
+	val shadow_ok = define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
 	assert_true(shadow_ok, "Shadowing definition of 'x' in child scope must succeed");
 
 	// Lúc này lookup 'x' phải ra 'x: str'

@@ -75,5 +75,26 @@ pub fn parse_type(var self: &Parser): *AstNode {
 		consume(self, TokenType.GREATER, "Expected '>' after type arguments");
 	}
 
+	// 4. Cú pháp kiểu mảng theo đặc tả: Array<T>(N)
+	if (full_name == "Array" && type_args.len == 1UZ && check(self, TokenType.OPEN_PAREN)) {
+		consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
+		val size_tok = consume(self, TokenType.NUMBER, "Expected integer literal for array size");
+		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after array size");
+
+		// Chuyển chuỗi kích thước thành usz
+		var size: usz = 0UZ;
+		var si: usz = 0UZ;
+		while (si < size_tok.text.len) {
+			val ch = size_tok.text[si];
+			if (ch >= '0' && ch <= '9') {
+				val digit = ((ch as i32) - ('0' as i32)) as usz;
+				size = size * 10UZ + digit;
+			}
+			si = si + 1UZ;
+		}
+
+		return alloc_array_type(&self.arena, type_args.get(0UZ), size, line, col);
+	}
+
 	return alloc_named_type(&self.arena, full_name, type_args, line, col);
 }

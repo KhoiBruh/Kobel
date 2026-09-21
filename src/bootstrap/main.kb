@@ -6,13 +6,6 @@ use std.io.read_file;
 use std.io.write_file;
 use std.sys.exec;
 
-use bootstrap.lexer.lexer.Lexer;
-use bootstrap.lexer.lexer.new_lexer;
-use bootstrap.parser.parser.Parser;
-use bootstrap.parser.parser.new_parser;
-use bootstrap.parser.decl.parse_program;
-
-use bootstrap.sema.decl_pass.DeclPass;
 use bootstrap.sema.decl_pass.new_decl_pass;
 use bootstrap.sema.decl_pass.collect_program;
 
@@ -23,6 +16,17 @@ use bootstrap.sema.body_pass.check_program;
 use bootstrap.codegen.c_codegen.CCodeGen;
 use bootstrap.codegen.c_codegen.new_c_codegen;
 use bootstrap.codegen.c_codegen.gen_program;
+
+use bootstrap.loader.loader.ModuleLoader;
+use bootstrap.loader.loader.new_module_loader;
+use bootstrap.loader.loader.load_program;
+use bootstrap.loader.loader.loaded_module_count;
+
+use bootstrap.lexer.token.usz_to_str;
+use bootstrap.util.strutil.str_dir_of;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
 
 // ============================================================================
 // Libc and Memory Utilities
@@ -87,8 +91,18 @@ fn print_usage() {
 	println("  -o <file>        Specify output executable binary name");
 	println("  -emit-c <file>   Emit generated C99 source code and exit");
 	println("  --cc <compiler>  Specify backend C compiler (default: cl)");
+	println("  -I <dir>         Add directory to module search path");
 	println("  -v, --version    Display compiler version");
 	println("  -h, --help       Display this help message");
+}
+
+fn print_error_list(errors: List<str>) {
+	var e: usz = 0UZ;
+	while (e < errors.len) {
+		print("  [ERROR] ");
+		println(errors.get(e));
+		e = e + 1UZ;
+	}
 }
 
 // ============================================================================
@@ -106,6 +120,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	var emit_c_path = "";
 	var c_compiler = "cl";
 	var only_emit_c = false;
+	var extra_roots = new_list<str>();
 
 	var i: i32 = 1;
 	while (i < argc) {
@@ -143,6 +158,14 @@ fn main(argc: i32, argv: &*char): i32 {
 				println("Error: Missing argument after '--cc'");
 				return 1;
 			}
+		} else if (arg == "-I") {
+			i = i + 1;
+			if (i < argc) {
+				extra_roots.add(cstr_to_str(argv[i]));
+			} else {
+				println("Error: Missing argument after '-I'");
+				return 1;
+			}
 		} else if (arg.len > 0UZ && arg[0UZ] == '-') {
 			print("Error: Unknown option '");
 			print(arg);
@@ -165,54 +188,44 @@ fn main(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 
-	println("[1/4] Lexical analysis...");
-	var lexer = new_lexer(src);
-	val tokens = lexer.tokenize();
-
-	println("[2/4] Syntax analysis...");
-	var parser = new_parser(tokens);
-	val prog = parse_program(&parser);
-	if (parser.errors.len > 0UZ) {
-		print("Syntax Errors in ");
+	println("[1/4] Loading modules (lex + parse)...");
+	var loader = new_module_loader(str_dir_of(input_path), extra_roots);
+	val prog = load_program(&loader, input_path, src);
+	if (loader.errors.len > 0UZ) {
+		print("Module Errors in ");
 		print(input_path);
 		println(":");
-		var e: usz = 0UZ;
-		while (e < parser.errors.len) {
-			print("  [ERROR] ");
-			println(parser.errors.get(e));
-			e = e + 1UZ;
-		}
+		print_error_list(loader.errors);
 		return 1;
 	}
+	if (prog == null) {
+		print("Error: Could not parse source file: ");
+		println(input_path);
+		return 1;
+	}
+	print("  ");
+	print(usz_to_str(loaded_module_count(&loader)));
+	println(" module(s) loaded");
 
-	println("[3/4] Semantic analysis...");
+	println("[2/4] Semantic analysis (declarations)...");
 	var decl_p = new_decl_pass();
 	collect_program(&decl_p, prog);
 	if (decl_p.errors.len > 0UZ) {
 		print("Semantic Declaration Errors in ");
 		print(input_path);
 		println(":");
-		var e: usz = 0UZ;
-		while (e < decl_p.errors.len) {
-			print("  [ERROR] ");
-			println(decl_p.errors.get(e));
-			e = e + 1UZ;
-		}
+		print_error_list(decl_p.errors);
 		return 1;
 	}
 
+	println("[3/4] Semantic analysis (bodies)...");
 	var body_p = new_body_pass_with_symtab(decl_p.symtab);
 	check_program(&body_p, prog);
 	if (body_p.errors.len > 0UZ) {
 		print("Semantic Type Errors in ");
 		print(input_path);
 		println(":");
-		var e: usz = 0UZ;
-		while (e < body_p.errors.len) {
-			print("  [ERROR] ");
-			println(body_p.errors.get(e));
-			e = e + 1UZ;
-		}
+		print_error_list(body_p.errors);
 		return 1;
 	}
 

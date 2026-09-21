@@ -1,5 +1,6 @@
 /cmake-build-debug/
 /.idea/
+/.probe/
 
 # Compiler outputs and intermediate build files
 *.obj

@@ -27,6 +27,7 @@ pub enum SymbolKind {
 
 pub struct Symbol {
 	pub name: str,
+	pub c_name: str,
 	pub kind: SymbolKind,
 	pub type_ptr: *Type,
 	pub is_mut: bool,
@@ -46,12 +47,41 @@ pub struct Scope {
 }
 
 // ============================================================================
+// Module Scope & Imports
+// ============================================================================
+
+pub struct ModuleScope {
+	pub name: str,
+	pub symbols: List<*Symbol>
+}
+
+pub fn new_module_scope(name: str): ModuleScope {
+	return ModuleScope(name, new_list<*Symbol>());
+}
+
+// Một `use` đã resolve sang symbol của module khác.
+// Khi `is_wildcard` = true thì mọi symbol của `module_name` đều dùng được.
+pub struct ImportBinding {
+	pub module_name: str,
+	pub symbol_name: str,
+	pub local_name: str,
+	pub is_wildcard: bool
+}
+
+// ============================================================================
 // Symbol Table
 // ============================================================================
 
 pub struct SymbolTable {
 	pub current_scope: *Scope,
-	pub arena: Arena
+	pub arena: Arena,
+	pub current_module: str,
+	// NOTE: List<*ModuleScope> chứ không phải List<ModuleScope>:
+	// `List.get` trả về BẢN SAO giá trị (val), nên mọi thay đổi qua bản sao
+	// (vd `sc.symbols.add(...)`) sẽ không nhìn thấy được ở lần truy cập sau.
+	// Giữ con trỏ để define/lookup hoạt động đúng trên cả v0 lẫn v1.
+	pub modules: List<*ModuleScope>,
+	pub imports: List<ImportBinding>
 }
 
 pub fn new_symbol_table(): SymbolTable {
@@ -59,7 +89,7 @@ pub fn new_symbol_table(): SymbolTable {
 	val mem = arena.alloc_bytes(Scope.size(), 8UZ);
 	val root_scope = mem as *Scope;
 	*root_scope = Scope(null, new_list<*Symbol>(), false);
-	return SymbolTable(root_scope, arena);
+	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>());
 }
 
 pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
@@ -96,6 +126,8 @@ pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 	return null;
 }
 
+// Tra cứu tên: scope cục bộ -> khai báo của module hiện tại -> import của
+// module hiện tại -> tên C đã mangle (để resolve lại vẫn cho kết quả cũ).
 pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	var curr = self.current_scope;
 	while (curr != null) {
@@ -107,7 +139,34 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 		}
 		curr = curr.parent;
 	}
-	return null;
+
+	// 2. Khai báo cấp module của module hiện tại
+	val own = lookup_in_module(self, self.current_module, name);
+	if (own != null) return own;
+
+	// 3. Import tường minh (theo tên gốc hoặc alias)
+	var k: usz = 0UZ;
+	while (k < self.imports.len) {
+		val b = self.imports.get(k);
+		if (!b.is_wildcard && b.local_name == name) {
+			return lookup_in_module(self, b.module_name, b.symbol_name);
+		}
+		k = k + 1UZ;
+	}
+
+	// 4. Import dạng wildcard
+	var w: usz = 0UZ;
+	while (w < self.imports.len) {
+		val b2 = self.imports.get(w);
+		if (b2.is_wildcard) {
+			val found = lookup_in_module(self, b2.module_name, name);
+			if (found != null) return found;
+		}
+		w = w + 1UZ;
+	}
+
+	// 5. Tên C đã mangle (idempotent khi resolve lặp lại)
+	return lookup_c_name(self, name);
 }
 
 pub fn define(var self: &SymbolTable, sym: Symbol): bool {
@@ -121,4 +180,100 @@ pub fn define(var self: &SymbolTable, sym: Symbol): bool {
 
 	self.current_scope.symbols.add(sym_ptr);
 	return true;
+}
+
+// ============================================================================
+// Module Scopes & Imports
+// ============================================================================
+
+pub fn set_current_module(var self: &SymbolTable, name: str) {
+	self.current_module = name;
+}
+
+pub fn module_exists(self: &SymbolTable, name: str): bool {
+	var m: usz = 0UZ;
+	while (m < self.modules.len) {
+		if (self.modules.get(m).name == name) return true;
+		m = m + 1UZ;
+	}
+	return false;
+}
+
+// Định nghĩa một khai báo cấp module vào scope của module chỉ định.
+pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool {
+	var m: usz = 0UZ;
+	while (m < self.modules.len) {
+		// get() trả về BẢN SAO của ModuleScope; sau khi sửa phải set() ghi ngược
+		// lại, nếu không len/cap của bản gốc trong self.modules bị lệch -> hỏng heap.
+		val sc = self.modules.get(m);
+		if (sc.name == module_name) {
+			var i: usz = 0UZ;
+			while (i < sc.symbols.len) {
+				if (sc.symbols.get(i).name == sym.name) return false;
+				i = i + 1UZ;
+			}
+			val mem = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+			val sym_ptr = mem as *Symbol;
+			*sym_ptr = sym;
+			sc.symbols.add(sym_ptr);
+			self.modules.set(m, sc);
+			return true;
+		}
+		m = m + 1UZ;
+	}
+
+	// Module scope chưa tồn tại -> tạo mới (qua con trỏ) rồi thêm symbol vào đó
+	val mem2 = self.arena.alloc_bytes(ModuleScope.size(), 8UZ);
+	val fresh = mem2 as *ModuleScope;
+	*fresh = new_module_scope(module_name);
+	val mem3 = self.arena.alloc_bytes(Symbol.size(), 8UZ);
+	val sym_ptr2 = mem3 as *Symbol;
+	*sym_ptr2 = sym;
+	fresh.symbols.add(sym_ptr2);
+	self.modules.add(fresh);
+	return true;
+}
+
+// Định nghĩa một khai báo cấp module vào module đang được thu gom.
+pub fn define_global(var self: &SymbolTable, sym: Symbol): bool {
+	return define_in_module(self, self.current_module, sym);
+}
+
+pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
+	self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard));
+}
+
+pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
+	var m: usz = 0UZ;
+	while (m < self.modules.len) {
+		val sc = self.modules.get(m);
+		if (sc.name == module_name) {
+			var i: usz = 0UZ;
+			while (i < sc.symbols.len) {
+				val sym = sc.symbols.get(i);
+				if (sym.name == name) return sym;
+				i = i + 1UZ;
+			}
+			return null;
+		}
+		m = m + 1UZ;
+	}
+	return null;
+}
+
+// Tra cứu theo tên C đã phát sinh (dùng khi resolve lại tên đã mangle).
+pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
+	if (c_name.len == 0UZ) return null;
+	var m: usz = 0UZ;
+	while (m < self.modules.len) {
+		val sc = self.modules.get(m);
+		var i: usz = 0UZ;
+		while (i < sc.symbols.len) {
+			val sym = sc.symbols.get(i);
+			if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
+			i = i + 1UZ;
+		}
+		m = m + 1UZ;
+	}
+	return null;
 }

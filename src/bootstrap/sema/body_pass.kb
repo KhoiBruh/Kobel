@@ -32,6 +32,7 @@ use bootstrap.ast.decl.FnDecl;
 
 use bootstrap.ast.builder.as_program;
 use bootstrap.ast.builder.as_fn_decl;
+use bootstrap.ast.builder.as_module_decl;
 use bootstrap.ast.builder.as_literal;
 use bootstrap.ast.builder.as_identifier;
 use bootstrap.ast.builder.as_binary;
@@ -84,6 +85,7 @@ use bootstrap.sema.types.can_assign;
 use bootstrap.sema.types.type_equals;
 use bootstrap.sema.types.type_to_string;
 use bootstrap.lexer.token.format_loc;
+use bootstrap.util.strutil.str_concat3;
 
 use bootstrap.sema.symbol.SymbolKind;
 use bootstrap.sema.symbol.Symbol;
@@ -92,6 +94,7 @@ use bootstrap.sema.symbol.enter_scope;
 use bootstrap.sema.symbol.exit_scope;
 use bootstrap.sema.symbol.lookup;
 use bootstrap.sema.symbol.define;
+use bootstrap.sema.symbol.set_current_module;
 
 use bootstrap.sema.decl_pass.DeclPass;
 use bootstrap.sema.decl_pass.new_decl_pass;
@@ -113,32 +116,41 @@ pub struct BodyPass {
 	pub arena: Arena,
 	pub current_fn_return_type: *Type,
 	pub loop_depth: usz,
-	pub errors: List<str>
+	pub errors: List<str>,
+	// true khi SymbolTable được nạp sẵn từ bên ngoài (nhiều module)
+	pub has_symtab: bool
 }
 
 pub fn new_body_pass(): BodyPass {
 	var arena = new_arena(65536UZ);
 	var decl_p = new_decl_pass();
 	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(decl_p.symtab, arena, void_ty, 0UZ, new_list<str>());
+	return BodyPass(decl_p.symtab, arena, void_ty, 0UZ, new_list<str>(), false);
 }
 
 pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 	var arena = new_arena(65536UZ);
 	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(symtab, arena, void_ty, 0UZ, new_list<str>());
+	return BodyPass(symtab, arena, void_ty, 0UZ, new_list<str>(), true);
 }
 
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
+	// Prefix tên module (nếu có) để biết lỗi nằm ở module nào khi biên dịch nhiều module
+	var loc: str = "";
 	if (node != null) {
-		self.errors.add(format_loc(node.line, node.col) + msg);
+		loc = format_loc(node.line, node.col) + msg;
 	} else {
-		self.errors.add(msg);
+		loc = msg;
+	}
+	if (self.symtab.current_module.len > 0UZ) {
+		self.errors.add(str_concat3(self.symtab.current_module, ": ", loc));
+	} else {
+		self.errors.add(loc);
 	}
 }
 
 pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
-	var decl_p = DeclPass(self.symtab, self.arena, "", self.errors);
+	var decl_p = DeclPass(self.symtab, self.arena, self.symtab.current_module, self.errors, false);
 	val ty = resolve_ast_type(&decl_p, node);
 	self.arena = decl_p.arena;
 	self.errors = decl_p.errors;
@@ -191,12 +203,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 
 		NodeKind.EXPR_IDENTIFIER -> {
-			val id = as_identifier(node);
+			val id = as_identifier(node) as &IdentifierExpr;
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
 				report_error(self, node, "Undeclared identifier '" + id.name + "'");
 				return alloc_primitive(&self.arena, type_void());
 			}
+			// Đổi sang tên C đã mangle (alias import, symbol của module khác)
+			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
 			return sym.type_ptr;
 		}
 
@@ -462,7 +476,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 				}
 			}
 
-			val ok = define(&self.symtab, Symbol(vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
+			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
 			if (!ok) report_error(self, node, "Variable '" + vd.name + "' is already defined in this scope");
 		}
 
@@ -524,7 +538,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 	while (i < f.params.len) {
 		val p = f.params.get(i);
 		val p_ty = fn_info.param_types.get(i);
-		define(&self.symtab, Symbol(p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col));
+		define(&self.symtab, Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col));
 		i = i + 1UZ;
 	}
 
@@ -555,24 +569,33 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 }
 
 pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
-	// Bước 1: Thu gom khai báo cấp module qua DeclPass
-	var decl_p = new_decl_pass();
-	collect_program(&decl_p, program_node);
+	// Bước 1: Thu gom khai báo cấp module qua DeclPass.
+	// Khi symtab đã được nạp sẵn từ ModuleLoader (nhiều module) thì bỏ qua bước
+	// này để không thu gom/đổi tên khai báo hai lần.
+	if (!self.has_symtab) {
+		var decl_p = new_decl_pass();
+		collect_program(&decl_p, program_node);
 
-	// Kế thừa SymbolTable và gộp lỗi từ DeclPass
-	self.symtab = decl_p.symtab;
-	var i: usz = 0UZ;
-	while (i < decl_p.errors.len) {
-		self.errors.add(decl_p.errors.get(i));
-		i = i + 1UZ;
+		// Kế thừa SymbolTable và gộp lỗi từ DeclPass
+		self.symtab = decl_p.symtab;
+		var i: usz = 0UZ;
+		while (i < decl_p.errors.len) {
+			self.errors.add(decl_p.errors.get(i));
+			i = i + 1UZ;
+		}
 	}
 
-	// Bước 2: Phân tích thân từng hàm
+	// Bước 2: Phân tích thân từng hàm của từng module (chương trình đã gộp)
 	val prog = as_program(program_node);
 	var j: usz = 0UZ;
 	while (j < prog.declarations.len) {
 		val decl = prog.declarations.get(j);
-		if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
+		if (decl.kind == NodeKind.DECL_MODULE) {
+			val m = as_module_decl(decl);
+			set_current_module(&self.symtab, m.full_path);
+		} else if (decl.kind == NodeKind.DECL_FN) {
+			check_fn(self, decl);
+		}
 		j = j + 1UZ;
 	}
 }

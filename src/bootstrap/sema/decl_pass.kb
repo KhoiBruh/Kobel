@@ -60,6 +60,15 @@ use bootstrap.sema.symbol.SymbolTable;
 use bootstrap.sema.symbol.new_symbol_table;
 use bootstrap.sema.symbol.lookup;
 use bootstrap.sema.symbol.define;
+use bootstrap.sema.symbol.define_global;
+use bootstrap.sema.symbol.set_current_module;
+use bootstrap.sema.symbol.lookup_in_module;
+use bootstrap.sema.symbol.module_exists;
+use bootstrap.sema.symbol.add_import;
+
+use bootstrap.util.strutil.str_mangle_symbol;
+use bootstrap.util.strutil.str_join_dots;
+use bootstrap.util.strutil.str_concat3;
 
 use std.collections.list.List;
 use std.collections.list.new_list;
@@ -74,12 +83,22 @@ pub struct DeclPass {
 	pub symtab: SymbolTable,
 	pub arena: Arena,
 	pub current_module: str,
-	pub errors: List<str>
+	pub errors: List<str>,
+	// Đang thu gom khai báo bên trong khối `extern "libc" { ... }`
+	pub is_extern: bool
 }
 
 pub fn new_decl_pass(): DeclPass {
 	var arena = new_arena(65536UZ);
-	return DeclPass(new_symbol_table(), arena, "", new_list<str>());
+	return DeclPass(new_symbol_table(), arena, "", new_list<str>(), false);
+}
+
+// Tên C của một khai báo cấp module: các module được nạp thêm tiền tố module
+// để tránh trùng tên trong file C phẳng; `main` và hàm libc giữ nguyên tên.
+pub fn c_name_for(self: &DeclPass, name: str): str {
+	if (self.is_extern) return name;
+	if (name == "main") return name;
+	return str_mangle_symbol(self.current_module, name);
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
@@ -93,12 +112,23 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
 // AST Type to Semantic Type Resolution
 // ============================================================================
 
+// Báo lỗi kèm tên module hiện tại để khi biên dịch nhiều module gộp chung,
+// vẫn biết chính xác lỗi nằm ở module nào (thay vì bị gán cho file entry).
+pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
+	val loc = format_loc(node.line, node.col);
+	if (self.current_module.len > 0UZ) {
+		self.errors.add(str_concat3(self.current_module, ": ", loc + msg));
+	} else {
+		self.errors.add(loc + msg);
+	}
+}
+
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 	if (node == null) return alloc_primitive(&self.arena, type_void());
 
 	when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
-			val named = as_named_type(node);
+			val named = as_named_type(node) as &NamedType;
 			val name = named.name;
 
 			if (name == "void") return alloc_primitive(&self.arena, type_void());
@@ -121,10 +151,12 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			// Tra cứu kiểu người dùng định nghĩa (Struct / Enum)
 			val sym = lookup(&self.symtab, name);
 			if (sym != null) {
+				// Đổi sang tên C đã mangle (nếu có) để backend phát đúng tên
+				if (sym.c_name != name) named.name = sym.c_name;
 				return sym.type_ptr;
 			}
 
-			self.errors.add(format_loc(node.line, node.col) + "Unknown type '" + name + "'");
+			report_error(self, node, "Unknown type '" + name + "'");
 			return alloc_primitive(&self.arena, type_void());
 		}
 
@@ -151,23 +183,49 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 pub fn collect_module(var self: &DeclPass, node: *AstNode) {
 	val m = as_module_decl(node);
 	self.current_module = m.full_path;
-	val dummy_ty = alloc_primitive(&self.arena, type_void());
-	define(&self.symtab, Symbol(m.full_path, SymbolKind.MODULE, dummy_ty, false, false, node.line, node.col));
+	set_current_module(&self.symtab, m.full_path);
 }
 
+// `use a.b.c.Sym as Alias;` -> ghi một ImportBinding:
+// tên `Alias` (hoặc `Sym` khi không có alias) sẽ resolve sang `Sym` của module.
+// `use a.b.c.*;` -> wildcard import cả module a.b.c
 pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 	val u = as_use_decl(node);
-	var sym_name = u.symbol_name;
-	if (u.alias != "") sym_name = u.alias;
-	val dummy_ty = alloc_primitive(&self.arena, type_void());
-	define(&self.symtab, Symbol(sym_name, SymbolKind.MODULE, dummy_ty, false, false, node.line, node.col));
+
+	if (u.is_wildcard) {
+		val w_mod = str_join_dots(u.path, u.path.len);
+		if (!module_exists(&self.symtab, w_mod)) return;
+		add_import(&self.symtab, w_mod, "", "", true);
+		return;
+	}
+
+	// Đoạn cuối của path là tên symbol, phần còn lại là đường dẫn module
+	if (u.path.len < 2UZ) return;
+	val mod_name = str_join_dots(u.path, u.path.len - 1UZ);
+
+	// Module lỗi/không tồn tại đã được ModuleLoader báo cáo trước đó
+	if (!module_exists(&self.symtab, mod_name)) return;
+
+	val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
+	if (target == null) {
+		report_error(self, node, "Symbol '" + u.symbol_name + "' not found in module '" + mod_name + "'");
+		return;
+	}
+
+	var local_name = u.symbol_name;
+	if (u.alias != "") local_name = u.alias;
+	add_import(&self.symtab, mod_name, u.symbol_name, local_name, false);
 }
 
 pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
-	val s = as_struct_decl(node);
+	val s = as_struct_decl(node) as &StructDecl;
+	val c_name = c_name_for(self, s.name);
 	val s_type = alloc_struct_type(&self.arena, s.name, new_list<StructField>());
-	val ok = define(&self.symtab, Symbol(s.name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
-	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate struct declaration '" + s.name + "'");
+	val ok = define_global(&self.symtab, Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate struct declaration '" + s.name + "'");
+
+	// Đổi tên node AST sang tên C để backend phát ra tên duy nhất
+	s.name = c_name;
 
 	var i: usz = 0UZ;
 	while (i < s.fields.len) {
@@ -180,7 +238,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
-	val f = as_fn_decl(node);
+	val f = as_fn_decl(node) as &FnDecl;
 	var param_types = new_list<*Type>();
 
 	var i: usz = 0UZ;
@@ -195,35 +253,48 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
-	val ok = define(&self.symtab, Symbol(f.name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
-	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate function declaration '" + f.name + "'");
+	val c_name = c_name_for(self, f.name);
+	val ok = define_global(&self.symtab, Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate function declaration '" + f.name + "'");
+
+	// Đổi tên node AST sang tên C để backend phát ra tên duy nhất
+	f.name = c_name;
 }
 
 pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
-	val e = as_enum_decl(node);
+	val e = as_enum_decl(node) as &EnumDecl;
 	var under_type = alloc_primitive(&self.arena, type_i32());
 	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
 
-	val ok = define(&self.symtab, Symbol(e.name, SymbolKind.ENUM, under_type, false, e.is_pub, node.line, node.col));
-	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate enum declaration '" + e.name + "'");
+	val c_name = c_name_for(self, e.name);
+	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, under_type, false, e.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate enum declaration '" + e.name + "'");
+
+	e.name = c_name;
 }
 
 pub fn collect_const(var self: &DeclPass, node: *AstNode) {
-	val c = as_const_decl(node);
+	val c = as_const_decl(node) as &ConstDecl;
 	var c_type = alloc_primitive(&self.arena, type_i32());
 	if (c.type_node != null) c_type = resolve_ast_type(self, c.type_node);
 
-	val ok = define(&self.symtab, Symbol(c.name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
-	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate const declaration '" + c.name + "'");
+	val c_name = c_name_for(self, c.name);
+	val ok = define_global(&self.symtab, Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate const declaration '" + c.name + "'");
+
+	c.name = c_name;
 }
 
 pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	val ext = as_extern_block(node);
+	val prev_is_extern = self.is_extern;
+	self.is_extern = true;
 	var i: usz = 0UZ;
 	while (i < ext.declarations.len) {
 		collect_declaration(self, ext.declarations.get(i));
 		i = i + 1UZ;
 	}
+	self.is_extern = prev_is_extern;
 }
 
 pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
