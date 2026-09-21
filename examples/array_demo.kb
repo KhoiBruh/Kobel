@@ -3,24 +3,24 @@ extern "libc" {
 }
 
 fn main(): i32 {
-    // 1. Khai bao mang tinh voi suy luan kich thuoc (size = 5)
+    // 1. Declare a static array with inferred size (size = 5)
     val a: Array<i32> = [10, 20, 30, 40, 50];
 
-    // 2. Thuoc tinh .len
+    // 2. The .len property
     val len: i32 = a.len;
     if (len != 5) {
         puts("Error: a.len != 5");
         return 1;
     }
 
-    // 3. Sua phan tu tai cho (val cho phep sua noi dung phan tu)
+    // 3. Mutate an element in place (val still allows mutating element contents)
     a[0] = 100;
     if (a[0] != 100) {
         puts("Error: a[0] != 100");
         return 2;
     }
 
-    // 4. Tinh tong phan tu qua vong lap while
+    // 4. Sum the elements with a while loop
     var sum: i32 = 0;
     var i: i32 = 0;
     while (i < a.len) {
@@ -34,14 +34,14 @@ fn main(): i32 {
         return 3;
     }
 
-    // 5. Khai bao mang co kich thuoc tuong minh
+    // 5. Declare an array with an explicit size
     val b: Array<i32>(3) = [1, 2, 3];
     if (b.len != 3) {
         puts("Error: b.len != 3");
         return 4;
     }
 
-    // 6. Ep kieu array decay sang con tro *i32
+    // 6. Cast array decay to a *i32 pointer
     val ptr: *i32 = a as *i32;
     if (ptr[0] != 100) {
         puts("Error: ptr[0] != 100");

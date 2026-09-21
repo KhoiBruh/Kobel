@@ -75,7 +75,7 @@ fn test_collect_program() {
 	assert_eq_usz(decl_pass.errors.len, 0UZ, "DeclPass must have 0 errors");
 	assert_eq_str(decl_pass.current_module, "sample.math", "Current module must match");
 
-	// 1. Kiểm tra Symbol 'Point'
+	// 1. Check the Symbol 'Point'
 	val sym_pt = lookup(&decl_pass.symtab, "Point");
 	assert_true(sym_pt != null, "Point struct must be defined in symbol table");
 	assert_true(sym_pt.kind == SymbolKind.STRUCT, "Symbol kind must be STRUCT");
@@ -89,7 +89,7 @@ fn test_collect_program() {
 	assert_eq_str(s_info.fields.get(1UZ).name, "y", "Field 1 must be y");
 	assert_true(s_info.fields.get(1UZ).type_ptr.kind == DataType.I32, "Field y must be i32");
 
-	// 2. Kiểm tra Symbol 'add'
+	// 2. Check the Symbol 'add'
 	val sym_add = lookup(&decl_pass.symtab, "add");
 	assert_true(sym_add != null, "add function must be defined");
 	assert_true(sym_add.kind == SymbolKind.FN, "Symbol kind must be FN");
@@ -101,7 +101,7 @@ fn test_collect_program() {
 	assert_true(fn_add.param_types.get(1UZ).kind == DataType.I32, "Param 1 must be i32");
 	assert_true(fn_add.return_type.kind == DataType.I32, "add return type must be i32");
 
-	// 3. Kiểm tra Symbol 'scale' (sử dụng con trỏ tới struct Point)
+	// 3. Check the Symbol 'scale' (uses a pointer to struct Point)
 	val sym_scale = lookup(&decl_pass.symtab, "scale");
 	assert_true(sym_scale != null, "scale function must be defined");
 	val fn_scale = as_fn_type(sym_scale.type_ptr);

@@ -84,7 +84,7 @@ pub struct DeclPass {
 	pub arena: Arena,
 	pub current_module: str,
 	pub errors: List<str>,
-	// Đang thu gom khai báo bên trong khối `extern "libc" { ... }`
+	// Currently collecting declarations inside the `extern "libc" { ... }` block
 	pub is_extern: bool
 }
 
@@ -93,8 +93,8 @@ pub fn new_decl_pass(): DeclPass {
 	return DeclPass(new_symbol_table(), arena, "", new_list<str>(), false);
 }
 
-// Tên C của một khai báo cấp module: các module được nạp thêm tiền tố module
-// để tránh trùng tên trong file C phẳng; `main` và hàm libc giữ nguyên tên.
+// C name of a top-level declaration: modules get the module name as a prefix
+// to avoid name clashes in the flat C file; `main` and libc functions keep their names.
 pub fn c_name_for(self: &DeclPass, name: str): str {
 	if (self.is_extern) return name;
 	if (name == "main") return name;
@@ -112,8 +112,8 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
 // AST Type to Semantic Type Resolution
 // ============================================================================
 
-// Báo lỗi kèm tên module hiện tại để khi biên dịch nhiều module gộp chung,
-// vẫn biết chính xác lỗi nằm ở module nào (thay vì bị gán cho file entry).
+// Report errors with the current module name so when many modules are merged,
+// we still know exactly which module the error is in (instead of blaming the entry file).
 pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 	val loc = format_loc(node.line, node.col);
 	if (self.current_module.len > 0UZ) {
@@ -148,10 +148,10 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			if (name == "f64") return alloc_primitive(&self.arena, type_f64());
 			if (name == "str") return alloc_primitive(&self.arena, type_str());
 
-			// Tra cứu kiểu người dùng định nghĩa (Struct / Enum)
+			// Look up a user-defined type (Struct / Enum)
 			val sym = lookup(&self.symtab, name);
 			if (sym != null) {
-				// Đổi sang tên C đã mangle (nếu có) để backend phát đúng tên
+				// Switch to the mangled C name (if any) so the backend emits the right name
 				if (sym.c_name != name) named.name = sym.c_name;
 				return sym.type_ptr;
 			}
@@ -186,9 +186,9 @@ pub fn collect_module(var self: &DeclPass, node: *AstNode) {
 	set_current_module(&self.symtab, m.full_path);
 }
 
-// `use a.b.c.Sym as Alias;` -> ghi một ImportBinding:
-// tên `Alias` (hoặc `Sym` khi không có alias) sẽ resolve sang `Sym` của module.
-// `use a.b.c.*;` -> wildcard import cả module a.b.c
+// `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
+// the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
+// `use a.b.c.*;` -> wildcard import of the whole module a.b.c
 pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 	val u = as_use_decl(node);
 
@@ -199,11 +199,11 @@ pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 		return;
 	}
 
-	// Đoạn cuối của path là tên symbol, phần còn lại là đường dẫn module
+	// The last segment of the path is the symbol name, the rest is the module path
 	if (u.path.len < 2UZ) return;
 	val mod_name = str_join_dots(u.path, u.path.len - 1UZ);
 
-	// Module lỗi/không tồn tại đã được ModuleLoader báo cáo trước đó
+	// Missing/failed module was already reported by ModuleLoader
 	if (!module_exists(&self.symtab, mod_name)) return;
 
 	val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
@@ -224,7 +224,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	val ok = define_global(&self.symtab, Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
 	if (!ok) report_error(self, node, "Duplicate struct declaration '" + s.name + "'");
 
-	// Đổi tên node AST sang tên C để backend phát ra tên duy nhất
+	// Rename the AST node to the C name so the backend emits a unique name
 	s.name = c_name;
 
 	var i: usz = 0UZ;
@@ -257,7 +257,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	val ok = define_global(&self.symtab, Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
 	if (!ok) report_error(self, node, "Duplicate function declaration '" + f.name + "'");
 
-	// Đổi tên node AST sang tên C để backend phát ra tên duy nhất
+	// Rename the AST node to the C name so the backend emits a unique name
 	f.name = c_name;
 }
 

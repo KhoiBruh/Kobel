@@ -5,7 +5,7 @@ extern "libc" {
 }
 
 fn main(): i32 {
-	// 1. Tao list rong va kiem tra is_empty
+	// 1. Create an empty list and check is_empty
 	var nums = new_list<i32>();
 	if (!nums.is_empty()) {
 		puts("FAIL: new list should be empty");
@@ -16,7 +16,7 @@ fn main(): i32 {
 		return 2;
 	}
 
-	// 2. Them phan tu va kiem tra len
+	// 2. Add elements and check len
 	nums.add(10);
 	nums.add(20);
 	nums.add(30);
@@ -29,7 +29,7 @@ fn main(): i32 {
 		return 4;
 	}
 
-	// 3. Doc phan tu bang get
+	// 3. Read elements with get
 	if (nums.get(0UZ) != 10) {
 		puts("FAIL: get(0) should be 10");
 		return 5;
@@ -43,7 +43,7 @@ fn main(): i32 {
 		return 7;
 	}
 
-	// 4. first va last
+	// 4. first and last
 	if (nums.first() != 10) {
 		puts("FAIL: first() should be 10");
 		return 8;
@@ -53,14 +53,14 @@ fn main(): i32 {
 		return 9;
 	}
 
-	// 5. set — ghi de phan tu
+	// 5. set - overwrite an element
 	nums.set(1UZ, 99);
 	if (nums.get(1UZ) != 99) {
 		puts("FAIL: set(1, 99) then get(1) should be 99");
 		return 10;
 	}
 
-	// 6. pop — xoa phan tu cuoi
+	// 6. pop - remove the last element
 	val popped: i32 = nums.pop();
 	if (popped != 30) {
 		puts("FAIL: pop() should return 30");
@@ -71,7 +71,7 @@ fn main(): i32 {
 		return 12;
 	}
 
-	// 7. Auto-grow — them nhieu phan tu vuot cap mac dinh (4)
+	// 7. Auto-grow - add many elements beyond the default capacity (4)
 	var big = new_list<i32>();
 	var i: i32 = 0;
 	while (i < 100) {

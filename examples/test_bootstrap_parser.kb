@@ -85,7 +85,7 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 // ============================================================================
 
 fn test_expression_parsing() {
-	// Kiểm tra biểu thức kết hợp và ưu tiên: 1 + 2 * 3
+	// Check association and precedence of the expression: 1 + 2 * 3
 	val src = "1 + 2 * 3";
 	var lexer = new_lexer(src);
 	val tokens = lexer.tokenize();

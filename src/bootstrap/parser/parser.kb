@@ -51,7 +51,7 @@ pub fn match_token(var self: &Parser, t: TokenType): bool {
 }
 
 pub fn error(var self: &Parser, tok: Token, msg: str) {
-	// Ghi nhận lỗi phân tích cú pháp kèm số dòng và cột
+	// Record a parse error with line and column
 	self.errors.add(format_loc(tok.line, tok.col) + msg);
 }
 
@@ -92,7 +92,7 @@ pub fn synchronize(var self: &Parser) {
 }
 
 pub fn is_generic_args_ahead(var self: &Parser): bool {
-	// Kiểm tra xem vị trí hiện tại sau '<' có cấu trúc của Type arguments kết thúc bằng '>' không
+	// Check whether the position after '<' looks like type arguments ending with '>'
 	if (!check(self, TokenType.LESS)) return false;
 
 	var i = self.current + 1UZ;

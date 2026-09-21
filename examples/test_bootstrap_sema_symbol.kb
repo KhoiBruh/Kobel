@@ -76,11 +76,11 @@ fn test_duplicate_definition() {
 	val ok1 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
 	assert_true(ok1, "First definition of 'count' must succeed");
 
-	// Thử định nghĩa lại 'count' trong cùng scope hiện tại
+	// Try to redefine 'count' in the current scope
 	val ok2 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
 	assert_true(!ok2, "Redefinition of 'count' in the same scope must fail");
 
-	// Định nghĩa tên khác phải thành công
+	// Defining a different name must succeed
 	val ok3 = define(&symtab, Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
 	assert_true(ok3, "Definition of new variable 'total' must succeed");
 
@@ -99,31 +99,31 @@ fn test_scoping_and_shadowing() {
 	// Scope 0 (Global): x: i32
 	define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
 
-	// Vào Scope 1 (Local Block)
+	// Enter Scope 1 (Local Block)
 	enter_scope(&symtab, false);
 
-	// Tra cứu 'x' trước khi che khuất -> phải thấy 'x: i32' từ cha
+	// Look up 'x' before shadowing -> must see 'x: i32' from the parent
 	val outer_x = lookup(&symtab, "x");
 	assert_true(outer_x != null, "Parent 'x' must be visible in child scope");
 	assert_true(outer_x.type_ptr.kind == DataType.I32, "Parent 'x' must be i32");
 
-	// Trong Scope 1 hiện tại chưa có 'x'
+	// Scope 1 does not yet have 'x'
 	val cur_x1 = lookup_current(&symtab, "x");
 	assert_true(cur_x1 == null, "Scope 1 does not yet define its own 'x'");
 
-	// Shadowing: Khai báo 'x: str' trong Scope 1
+	// Shadowing: declare 'x: str' in Scope 1
 	val shadow_ok = define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
 	assert_true(shadow_ok, "Shadowing definition of 'x' in child scope must succeed");
 
-	// Lúc này lookup 'x' phải ra 'x: str'
+	// Now looking up 'x' must yield 'x: str'
 	val shadowed_x = lookup(&symtab, "x");
 	assert_true(shadowed_x != null, "Shadowed 'x' must be found");
 	assert_true(shadowed_x.type_ptr.kind == DataType.STR, "Shadowed 'x' must be str");
 
-	// Thoát Scope 1 trở về Scope 0
+	// Exit Scope 1 back to Scope 0
 	exit_scope(&symtab);
 
-	// Bây giờ lookup 'x' phải trở lại 'x: i32'
+	// Now looking up 'x' must return 'x: i32' again
 	val restored_x = lookup(&symtab, "x");
 	assert_true(restored_x != null, "Global 'x' must be restored");
 	assert_true(restored_x.type_ptr.kind == DataType.I32, "Global 'x' must be i32 again");
@@ -140,19 +140,19 @@ fn test_function_boundary() {
 
 	assert_true(!is_in_function(&symtab), "Global scope is not in function");
 
-	// Bắt đầu hàm: function boundary = true
+	// Start of function: function boundary = true
 	enter_scope(&symtab, true);
 	assert_true(is_in_function(&symtab), "Must be in function");
 
-	// Block if/while lồng bên trong hàm: function boundary = false
+	// if/while block nested inside the function: function boundary = false
 	enter_scope(&symtab, false);
 	assert_true(is_in_function(&symtab), "Nested block inside function is still in function");
 
-	// Thoát block
+	// Exit the block
 	exit_scope(&symtab);
 	assert_true(is_in_function(&symtab), "Still in function after exiting inner block");
 
-	// Thoát hàm
+	// Exit the function
 	exit_scope(&symtab);
 	assert_true(!is_in_function(&symtab), "Not in function after exiting function body");
 

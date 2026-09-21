@@ -229,7 +229,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.EXPR_CALL -> {
 			val call = as_call(node);
 
-			// Gọi phương thức tĩnh hoặc chuỗi: T.size() -> sizeof(T), s.c_str() -> s
+			// Static or string method call: T.size() -> sizeof(T), s.c_str() -> s
 			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
 				val mem = as_member(call.callee);
 				if (mem.member == "size") {
@@ -243,7 +243,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 
 			val callee_str = gen_expr(self, call.callee);
 
-			// Kiểm tra nếu gọi Struct Constructor: Point(1, 2) -> (Point){ 1, 2 }
+			// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
 			var is_struct = false;
 			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
 				val id = as_identifier(call.callee);
@@ -265,7 +265,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				return res + " }";
 			}
 
-			// Gọi hàm C thông thường: func(arg1, arg2)
+			// Ordinary C function call: func(arg1, arg2)
 			var res = callee_str + "(";
 			var i: usz = 0UZ;
 			while (i < call.args.len) {
@@ -583,7 +583,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 		"#include <stdlib.h>\n" +
 		"#include <string.h>\n\n";
 
-	// 2. Thu thập trước tên Struct, hàm và kiểu trả về
+	// 2. First collect struct names, function names and return types
 	var i: usz = 0UZ;
 	while (i < prog.declarations.len) {
 		val decl = prog.declarations.get(i);

@@ -3,14 +3,14 @@ mod bootstrap.loader.loader;
 // ============================================================================
 // ModuleLoader
 //
-// Nạp file nguồn của entry point, rồi lần theo mọi `use a.b.c.Sym;` để nạp
-// các module phụ thuộc (đệ quy, không trùng lặp). Kết quả là một AST `Program`
-// gộp: mỗi module được chèn kèm khai báo `mod <tên module>;` để DeclPass/
-// BodyPass biết symbol nào thuộc module nào.
+// Loads the entry point's source file, then follows every `use a.b.c.Sym;` to
+// load the dependent modules (recursively, without duplicates). The result is a
+// merged AST `Program`: each module is inserted with a `mod <module name>;`
+// declaration so DeclPass/BodyPass know which symbol belongs to which module.
 //
-// Quy tắc tìm file (giống v0): module `a.b.c` -> `<root>/a/b/c.kb` với các root
-// theo thứ tự: thư mục của file entry -> các root truyền thêm (-I) -> "lib"
-// (thư viện chuẩn) -> "src" (mã nguồn bootstrap).
+// File lookup rules (same as v0): module `a.b.c` -> `<root>/a/b/c.kb` with roots
+// in order: the entry file's directory -> extra roots passed in (-I) -> "lib"
+// (standard library) -> "src" (bootstrap source).
 // ============================================================================
 
 use bootstrap.ast.node.*;
@@ -61,7 +61,7 @@ pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
 		i = i + 1UZ;
 	}
 
-	// Root mặc định: thư viện chuẩn (lib/) và mã nguồn bootstrap (src/)
+	// Default roots: the standard library (lib/) and the bootstrap source (src/)
 	roots.add("lib");
 	roots.add("src");
 
@@ -99,7 +99,7 @@ pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
 	return prog;
 }
 
-// Tên module khai báo trong file (`mod a.b.c;`), "" nếu file không khai báo.
+// Module name declared in the file (`mod a.b.c;`), "" when the file declares none.
 pub fn declared_module_name(program_node: *AstNode): str {
 	if (program_node == null) return "";
 	val prog = as_program(program_node);
@@ -137,11 +137,11 @@ pub fn is_known(self: &ModuleLoader, module_name: str): bool {
 	return false;
 }
 
-// Nạp một module (và mọi module mà nó `use`) nếu chưa nạp.
+// Loads a module (and every module it `use`s) if not already loaded.
 pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 	if (is_known(self, module_name)) return;
 
-	// Đánh dấu trước để tránh đệ quy vô hạn khi có vòng import
+	// Mark it first to avoid infinite recursion when imports form a cycle
 	self.modules.add(LoadedModule(module_name, "", null));
 
 	val file = find_module(self, module_name);
@@ -161,7 +161,7 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 		return;
 	}
 
-	// Nạp phụ thuộc trước, rồi mới thêm module này vào thứ tự gộp
+	// Load dependencies first, then add this module to the merge order
 	process_uses(self, prog);
 	self.ordered.add(LoadedModule(module_name, file.path, prog));
 }
@@ -200,7 +200,7 @@ pub fn load_program(var self: &ModuleLoader, entry_path: str, entry_source: str)
 	return build_merged_program(self);
 }
 
-// Gộp mọi module (phụ thuộc trước, entry sau cùng) thành một Program duy nhất.
+// Merges every module (dependencies first, entry last) into a single Program.
 pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
 	var decls = new_list<*AstNode>();
 
@@ -208,7 +208,7 @@ pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
 	while (i < self.ordered.len) {
 		val lm = self.ordered.get(i);
 		if (lm.program != null) {
-			// Chèn `mod <tên module>;` để các pass biết symbol thuộc module nào
+			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
 			decls.add(alloc_module_decl(&self.arena, str_split_dots(lm.name), lm.name, 0UZ, 0UZ));
 
 			val p = as_program(lm.program);

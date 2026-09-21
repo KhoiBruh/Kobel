@@ -31,7 +31,7 @@ pub fn parse_block_stmt(var self: &Parser): *AstNode {
 }
 
 pub fn parse_var_decl_stmt(var self: &Parser): *AstNode {
-	val kw = advance(self); // val hoặc var
+	val kw = advance(self); // val or var
 	val is_mut = (kw.type == TokenType.KW_VAR);
 
 	val name_tok = consume(self, TokenType.IDENTIFIER, "Expected variable name");

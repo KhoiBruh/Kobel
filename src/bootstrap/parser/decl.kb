@@ -342,7 +342,7 @@ pub fn parse_declaration(var self: &Parser): *AstNode {
 		TokenType.KW_USE -> return parse_use_decl(self);
 		TokenType.KW_EXTERN -> return parse_extern_block(self);
 		else -> {
-			// Statement cấp top-level hoặc lỗi cú pháp
+			// Top-level statement or syntax error
 			if (is_pub) error(self, tok, "'pub' modifier is not allowed on this statement");
 			val stmt = parse_statement(self);
 			return stmt;

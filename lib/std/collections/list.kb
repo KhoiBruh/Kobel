@@ -1,12 +1,12 @@
 mod std.collections.list;
 
 /*
-	List<T> — dynamic array, heap-allocated
+	List<T> - dynamic array, heap-allocated
 
 	C ABI layout:
-		data:   &T  — pointer to heap of elements
-		len:    usz — current element count
-		cap:    usz — max capacity before need to realloc
+		data:   &T  - pointer to heap of elements
+		len:    usz - current element count
+		cap:    usz - max capacity before need to realloc
 
 	Usage:
 		val list = new_list<i32>();

@@ -155,7 +155,7 @@ pub fn alloc_struct_type(
 		i = i + 1UZ;
 	}
 
-	// Đệm cuối struct theo max_align
+	// Final struct padding to max_align
 	val total_rem = current_offset % max_align;
 	if (total_rem != 0UZ) current_offset = current_offset + (max_align - total_rem);
 
@@ -264,13 +264,13 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 pub fn can_assign(target: *Type, source: *Type): bool {
 	if (type_equals(target, source)) return true;
 
-	// 1. Cho phép gán giữa các kiểu số nguyên (integer coercion / literal assignment)
+	// 1. Allow assignment between integer types (integer coercion / literal assignment)
 	if (is_integer(target) && is_integer(source)) return true;
 
-	// 2. Cho phép gán giữa các kiểu số thực
+	// 2. Allow assignment between float types
 	if (is_float(target) && is_float(source)) return true;
 
-	// 3. Cho phép truyền/gán str cho *char, &char, *u8, &u8, *void
+	// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *void
 	if (source.kind == DataType.STR && target.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		if (
@@ -280,7 +280,7 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 		) return true;
 	}
 
-	// 4. Cho phép gán con trỏ char/u8 cho str
+	// 4. Allow assigning a char/u8 pointer to str
 	if (target.kind == DataType.STR && source.kind == DataType.POINTER) {
 		val s_ptr = as_pointer_type(source);
 		if (
@@ -289,14 +289,14 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 		) return true;
 	}
 
-	// 5. Cho phép con trỏ mutable gán cho con trỏ immutable: *mut T -> *T
+	// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		val s_ptr = as_pointer_type(source);
 		if (!t_ptr.is_mut && s_ptr.is_mut) return type_equals(t_ptr.pointee, s_ptr.pointee);
 	}
 
-	// 6. Cho phép con trỏ void (hoặc u8 pointer / null pointer) tương thích với các con trỏ khác
+	// 6. Allow void pointer (or u8 pointer / null pointer) to be compatible with other pointers
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		val s_ptr = as_pointer_type(source);

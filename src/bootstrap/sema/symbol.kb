@@ -59,8 +59,8 @@ pub fn new_module_scope(name: str): ModuleScope {
 	return ModuleScope(name, new_list<*Symbol>());
 }
 
-// Một `use` đã resolve sang symbol của module khác.
-// Khi `is_wildcard` = true thì mọi symbol của `module_name` đều dùng được.
+// A `use` that resolved to a symbol of another module.
+// When `is_wildcard` = true, every symbol of `module_name` is usable.
 pub struct ImportBinding {
 	pub module_name: str,
 	pub symbol_name: str,
@@ -76,10 +76,10 @@ pub struct SymbolTable {
 	pub current_scope: *Scope,
 	pub arena: Arena,
 	pub current_module: str,
-	// NOTE: List<*ModuleScope> chứ không phải List<ModuleScope>:
-	// `List.get` trả về BẢN SAO giá trị (val), nên mọi thay đổi qua bản sao
-	// (vd `sc.symbols.add(...)`) sẽ không nhìn thấy được ở lần truy cập sau.
-	// Giữ con trỏ để define/lookup hoạt động đúng trên cả v0 lẫn v1.
+	// NOTE: List<*ModuleScope> rather than List<ModuleScope>:
+	// `List.get` returns a COPY of the value (val), so any change through the copy
+	// (e.g. `sc.symbols.add(...)`) will not be visible on the next access.
+	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope>,
 	pub imports: List<ImportBinding>
 }
@@ -126,8 +126,8 @@ pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 	return null;
 }
 
-// Tra cứu tên: scope cục bộ -> khai báo của module hiện tại -> import của
-// module hiện tại -> tên C đã mangle (để resolve lại vẫn cho kết quả cũ).
+// Name lookup: local scope -> declarations of the current module -> imports of
+// the current module -> mangled C name (so re-resolution gives the same result).
 pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	var curr = self.current_scope;
 	while (curr != null) {
@@ -140,11 +140,11 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 		curr = curr.parent;
 	}
 
-	// 2. Khai báo cấp module của module hiện tại
+	// 2. Top-level declarations of the current module
 	val own = lookup_in_module(self, self.current_module, name);
 	if (own != null) return own;
 
-	// 3. Import tường minh (theo tên gốc hoặc alias)
+	// 3. Explicit imports (by original name or alias)
 	var k: usz = 0UZ;
 	while (k < self.imports.len) {
 		val b = self.imports.get(k);
@@ -154,7 +154,7 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 		k = k + 1UZ;
 	}
 
-	// 4. Import dạng wildcard
+	// 4. Wildcard imports
 	var w: usz = 0UZ;
 	while (w < self.imports.len) {
 		val b2 = self.imports.get(w);
@@ -165,12 +165,12 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 		w = w + 1UZ;
 	}
 
-	// 5. Tên C đã mangle (idempotent khi resolve lặp lại)
+	// 5. Mangled C name (idempotent on repeated resolution)
 	return lookup_c_name(self, name);
 }
 
 pub fn define(var self: &SymbolTable, sym: Symbol): bool {
-	// Kiểm tra định nghĩa trùng lặp trong cùng một scope
+	// Check for duplicate definitions in the same scope
 	val existing = lookup_current(self, sym.name);
 	if (existing != null) return false;
 
@@ -199,12 +199,12 @@ pub fn module_exists(self: &SymbolTable, name: str): bool {
 	return false;
 }
 
-// Định nghĩa một khai báo cấp module vào scope của module chỉ định.
+// Define a top-level declaration into the scope of the given module.
 pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool {
 	var m: usz = 0UZ;
 	while (m < self.modules.len) {
-		// get() trả về BẢN SAO của ModuleScope; sau khi sửa phải set() ghi ngược
-		// lại, nếu không len/cap của bản gốc trong self.modules bị lệch -> hỏng heap.
+		// get() returns a COPY of ModuleScope; after modifying you must set() it back,
+		// otherwise len/cap of the original in self.modules diverge -> heap corruption.
 		val sc = self.modules.get(m);
 		if (sc.name == module_name) {
 			var i: usz = 0UZ;
@@ -222,7 +222,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 		m = m + 1UZ;
 	}
 
-	// Module scope chưa tồn tại -> tạo mới (qua con trỏ) rồi thêm symbol vào đó
+	// Module scope does not exist yet -> create it (via pointer) then add the symbol
 	val mem2 = self.arena.alloc_bytes(ModuleScope.size(), 8UZ);
 	val fresh = mem2 as *ModuleScope;
 	*fresh = new_module_scope(module_name);
@@ -234,7 +234,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 	return true;
 }
 
-// Định nghĩa một khai báo cấp module vào module đang được thu gom.
+// Define a top-level declaration into the module currently being collected.
 pub fn define_global(var self: &SymbolTable, sym: Symbol): bool {
 	return define_in_module(self, self.current_module, sym);
 }
@@ -261,7 +261,7 @@ pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbo
 	return null;
 }
 
-// Tra cứu theo tên C đã phát sinh (dùng khi resolve lại tên đã mangle).
+// Look up by generated C name (used when re-resolving a mangled name).
 pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
 	if (c_name.len == 0UZ) return null;
 	var m: usz = 0UZ;

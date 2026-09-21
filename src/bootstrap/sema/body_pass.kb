@@ -117,7 +117,7 @@ pub struct BodyPass {
 	pub current_fn_return_type: *Type,
 	pub loop_depth: usz,
 	pub errors: List<str>,
-	// true khi SymbolTable được nạp sẵn từ bên ngoài (nhiều module)
+	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool
 }
 
@@ -135,7 +135,7 @@ pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 }
 
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
-	// Prefix tên module (nếu có) để biết lỗi nằm ở module nào khi biên dịch nhiều module
+	// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 	var loc: str = "";
 	if (node != null) {
 		loc = format_loc(node.line, node.col) + msg;
@@ -209,7 +209,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				report_error(self, node, "Undeclared identifier '" + id.name + "'");
 				return alloc_primitive(&self.arena, type_void());
 			}
-			// Đổi sang tên C đã mangle (alias import, symbol của module khác)
+			// Switch to the mangled C name (import alias, symbol from another module)
 			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
 			return sym.type_ptr;
 		}
@@ -224,7 +224,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val lt = check_expr(self, bin.left);
 			val rt = check_expr(self, bin.right);
 
-			// 1. Phép toán số học (+, -, *, /, %)
+			// 1. Arithmetic operators (+, -, *, /, %)
 			when (bin.op) {
 				TokenType.PLUS,
 				TokenType.MINUS,
@@ -239,14 +239,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					return lt;
 				}
 
-				// 2. So sánh bằng (==, !=)
+				// 2. Equality comparison (==, !=)
 				TokenType.EQUAL_EQUAL,
 				TokenType.BANG_EQUAL -> {
 					if (!can_assign(lt, rt) && !can_assign(rt, lt)) report_error(self, node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 
-				// 3. So sánh thứ tự (<, <=, >, >=)
+				// 3. Ordering comparison (<, <=, >, >=)
 				TokenType.LESS,
 				TokenType.LESS_EQUAL,
 				TokenType.GREATER,
@@ -286,7 +286,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 
 				TokenType.STAR -> {
-					// Con trỏ dereference (*ptr)
+					// Pointer dereference (*ptr)
 					if (op_ty.kind != DataType.POINTER) {
 						report_error(self, node, "Cannot dereference non-pointer type");
 						return op_ty;
@@ -295,7 +295,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					return p_info.pointee;
 				}
 
-				// Lấy địa chỉ (&expr)
+				// Take address (&expr)
 				TokenType.AMPERSAND -> return alloc_pointer_type(&self.arena, op_ty, true);
 
 				else -> return op_ty;
@@ -305,7 +305,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		NodeKind.EXPR_CALL -> {
 			val call = as_call(node);
 
-			// Kiểm tra truy vấn kích thước kiểu tĩnh: T.size()
+			// Check the static type size query: T.size()
 			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
 				val mem = as_member(call.callee);
 				if (mem.member == "size") {
@@ -315,7 +315,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			val callee_ty = check_expr(self, call.callee);
 
-			// 1. Gọi hàm
+			// 1. Function call
 			if (callee_ty.kind == DataType.FN) {
 				val fn_info = as_fn_type(callee_ty);
 				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
@@ -355,7 +355,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val mem = as_member(node);
 			var obj_ty = check_expr(self, mem.object);
 
-			// Tự động giải con trỏ: p.x khi p là *Point hoặc &Point
+			// Automatic pointer unwrapping: p.x when p is *Point or &Point
 			if (obj_ty.kind == DataType.POINTER) obj_ty = as_pointer_type(obj_ty).pointee;
 
 			if (obj_ty.kind == DataType.STR) {
@@ -468,7 +468,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 				var_ty = resolve_type(self, vd.type_annotation);
 				if (has_init && !can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '" + vd.name + "'");
 			} else {
-				// Type inference (suy luận kiểu tự động từ initializer)
+				// Type inference (deduce the type automatically from the initializer)
 				if (has_init) {
 					var_ty = init_ty;
 				} else {
@@ -533,7 +533,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 
 	enter_scope(&self.symtab, true);
 
-	// Đăng ký các tham số vào scope của hàm
+	// Register parameters into the function scope
 	var i: usz = 0UZ;
 	while (i < f.params.len) {
 		val p = f.params.get(i);
@@ -542,7 +542,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 		i = i + 1UZ;
 	}
 
-	// Phân tích thân hàm
+	// Analyze the function body
 	if (f.body != null) {
 		if (f.body.kind == NodeKind.STMT_BLOCK) {
 			val blk = as_block_stmt(f.body);
@@ -569,14 +569,14 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 }
 
 pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
-	// Bước 1: Thu gom khai báo cấp module qua DeclPass.
-	// Khi symtab đã được nạp sẵn từ ModuleLoader (nhiều module) thì bỏ qua bước
-	// này để không thu gom/đổi tên khai báo hai lần.
+	// Step 1: Collect top-level declarations via DeclPass.
+	// When symtab is already preloaded from ModuleLoader (multiple modules), skip this
+	// step so declarations are not collected/renamed twice.
 	if (!self.has_symtab) {
 		var decl_p = new_decl_pass();
 		collect_program(&decl_p, program_node);
 
-		// Kế thừa SymbolTable và gộp lỗi từ DeclPass
+		// Inherit SymbolTable and merge errors from DeclPass
 		self.symtab = decl_p.symtab;
 		var i: usz = 0UZ;
 		while (i < decl_p.errors.len) {
@@ -585,7 +585,7 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 		}
 	}
 
-	// Bước 2: Phân tích thân từng hàm của từng module (chương trình đã gộp)
+	// Step 2: Analyze each function body of each module (program already merged)
 	val prog = as_program(program_node);
 	var j: usz = 0UZ;
 	while (j < prog.declarations.len) {

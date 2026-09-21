@@ -350,7 +350,7 @@ Semantic Analyzer::analyze_binary_expr(const BinaryExpr *b) {
 		case TokenType::STAR:
 		case TokenType::SLASH:
 		case TokenType::PERCENT: {
-			// str + str → str (concatenation)
+			// str + str -> str (concatenation)
 			if (b->op == TokenType::PLUS && left_type->is_str() && right_type->is_str()) {
 				return make_str();
 			}
@@ -395,7 +395,7 @@ Semantic Analyzer::analyze_binary_expr(const BinaryExpr *b) {
 		case TokenType::BANG_EQUAL: {
 			if (left_type->is_pointer() && right_type->is_null()) return make_primitive(SemaType::BOOL);
 			if (left_type->is_null() && right_type->is_pointer()) return make_primitive(SemaType::BOOL);
-			// str == str / str != str → bool (content comparison)
+			// str == str / str != str -> bool (content comparison)
 			if (left_type->is_str() && right_type->is_str()) return make_primitive(SemaType::BOOL);
 			if (left_type != right_type) {
 				logger.error(
@@ -993,7 +993,7 @@ Semantic Analyzer::analyze_index_expr(const IndexExpr *idx) {
 
 	if (target_type->is_pointer() && target_type->pointee) return target_type->pointee;
 
-	// str[index] → char
+	// str[index] -> char
 	if (target_type->is_str()) return make_primitive(SemaType::CHAR);
 
 	logger.error(idx->line, idx->col, "Index operator '[]' is only applicable to array, pointer, or str types");

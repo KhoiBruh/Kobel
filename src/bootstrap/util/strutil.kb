@@ -197,7 +197,7 @@ pub fn str_split_dots(s: str): List<str> {
 // "std.io" + "println" -> "std__io__println"
 pub fn str_mangle_symbol(module_name: str, name: str): str {
 	if (module_name.len == 0UZ) return name;
-	// Mỗi '.' được ghi thành 2 ký tự '_', nên cấp phát dư (2x phần module) để an toàn.
+	// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 	val total = module_name.len * 2UZ + 2UZ + name.len;
 	val buf = malloc(total + 1UZ);
 	var i: usz = 0UZ;
