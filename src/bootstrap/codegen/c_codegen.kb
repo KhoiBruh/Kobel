@@ -88,7 +88,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 			val named = as_named_type(node);
 			val name = named.name;
 
-			if (name == "void") return "void";
+			if (name == "none") return "void";
 			if (name == "bool") return "bool";
 			if (name == "char") return "char";
 			if (name == "i8") return "int8_t";

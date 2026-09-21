@@ -192,7 +192,7 @@ bool test_parse_new_struct_and_impl() {
 		std::string_view code_struct_method =
 				"struct Widget {\n"
 				"    pub id: i32,\n"
-				"    pub fn render(val self): void {}\n"
+				"    pub fn render(val self): none {}\n"
 				"}\n";
 		Lexer lex_sm{code_struct_method};
 		Parser p_sm{lex_sm.tokenize()};
@@ -302,7 +302,7 @@ bool test_parse_enum() {
 
 bool test_parse_array() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    val a: Array<i32> = [1, 2, 3];\n"
 			"    val b: Array<u8>(4) = [1, 2, 3, 4];\n"
 			"    val c: i32 = a[0];\n"
@@ -355,21 +355,21 @@ bool test_parse_array() {
 
 	// Test invalid array size numbers
 	{
-		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10.5) = []; }\n";
+		std::string_view bad_code = "fn test(): none { val x: Array<i32>(10.5) = []; }\n";
 		Lexer bad_lex{bad_code};
 		Parser bad_p{bad_lex.tokenize()};
 		bad_p.parse_program();
 		ASSERT(bad_p.has_errors(), "Parser must reject float array size");
 	}
 	{
-		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10F) = []; }\n";
+		std::string_view bad_code = "fn test(): none { val x: Array<i32>(10F) = []; }\n";
 		Lexer bad_lex{bad_code};
 		Parser bad_p{bad_lex.tokenize()};
 		bad_p.parse_program();
 		ASSERT(bad_p.has_errors(), "Parser must reject float suffix F in array size");
 	}
 	{
-		std::string_view bad_code = "fn test(): void { val x: Array<i32>(10D) = []; }\n";
+		std::string_view bad_code = "fn test(): none { val x: Array<i32>(10D) = []; }\n";
 		Lexer bad_lex{bad_code};
 		Parser bad_p{bad_lex.tokenize()};
 		bad_p.parse_program();
@@ -387,7 +387,7 @@ bool test_parse_struct_methods() {
 			"}\n"
 			"impl Point {\n"
 			"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
-			"    fn translate(var self, dx: i32, dy: i32): void {\n"
+			"    fn translate(var self, dx: i32, dy: i32): none {\n"
 			"        self.x = self.x + dx;\n"
 			"        self.y = self.y + dy;\n"
 			"    }\n"
@@ -425,7 +425,7 @@ bool test_parse_struct_methods() {
 
 bool test_parse_logical_expressions() {
 	std::string_view code =
-			"fn test_logic(): void {\n"
+			"fn test_logic(): none {\n"
 			"    val r1: bool = a && b || c && !d;\n"
 			"    val r2: bool = (a || b) && c;\n"
 			"}\n";

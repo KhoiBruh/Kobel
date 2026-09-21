@@ -15,7 +15,7 @@ use bootstrap.sema.types.StructField;
 use bootstrap.sema.types.StructType;
 use bootstrap.sema.types.FnType;
 
-use bootstrap.sema.types.type_void;
+use bootstrap.sema.types.type_none;
 use bootstrap.sema.types.type_bool;
 use bootstrap.sema.types.type_i8;
 use bootstrap.sema.types.type_i16;

@@ -129,7 +129,7 @@ export struct Type {
 			case SemaType::F64: return "f64";
 			case SemaType::BOOL: return "bool";
 			case SemaType::CHAR: return "char";
-			case SemaType::VOID: return "void";
+			case SemaType::VOID: return "none";
 			case SemaType::STR: return "str";
 			case SemaType::NULL_TYPE: return "null";
 			case SemaType::POINTER:

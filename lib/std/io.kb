@@ -3,14 +3,14 @@ mod std.io;
 extern "libc" {
 	fn puts(s: *char): i32;
 	fn putchar(c: char): i32;
-	// The stdio file handle is opaque (`FILE*`): use `*void` so the generated C
+	// The stdio file handle is opaque (`FILE*`): use `*none` so the generated C
 	// passes it through without a FILE* / pointer mismatch warning.
-	fn fopen(filename: *char, mode: *char): *void;
-	fn fclose(stream: *void): i32;
-	fn fread(ptr: &u8, size: usz, count: usz, stream: *void): usz;
-	fn fwrite(ptr: *char, size: usz, count: usz, stream: *void): usz;
-	fn fseek(stream: *void, offset: i64, origin: i32): i32;
-	fn ftell(stream: *void): i64;
+	fn fopen(filename: *char, mode: *char): *none;
+	fn fclose(stream: *none): i32;
+	fn fread(ptr: &u8, size: usz, count: usz, stream: *none): usz;
+	fn fwrite(ptr: *char, size: usz, count: usz, stream: *none): usz;
+	fn fseek(stream: *none, offset: i64, origin: i32): i32;
+	fn ftell(stream: *none): i64;
 	fn malloc(size: usz): &u8;
 	fn free(ptr: &u8);
 }

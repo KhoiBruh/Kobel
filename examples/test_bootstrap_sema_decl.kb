@@ -60,7 +60,7 @@ fn test_collect_program() {
 		"    pub y: i32\n" +
 		"}\n" +
 		"fn add(a: i32, b: i32): i32 => a + b;\n" +
-		"fn scale(p: &Point, factor: i32): void {\n" +
+		"fn scale(p: &Point, factor: i32): none {\n" +
 		"}\n";
 
 	var lexer = new_lexer(src);

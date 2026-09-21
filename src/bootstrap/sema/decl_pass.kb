@@ -15,7 +15,7 @@ use bootstrap.sema.symbol.*;
 use bootstrap.sema.types.DataType;
 use bootstrap.sema.types.Type;
 use bootstrap.sema.types.StructField;
-use bootstrap.sema.types.type_void;
+use bootstrap.sema.types.type_none;
 use bootstrap.sema.types.type_bool;
 use bootstrap.sema.types.type_char;
 use bootstrap.sema.types.type_i8;
@@ -103,7 +103,7 @@ pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 }
 
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
-	if (node == null) return alloc_primitive(&self.arena, type_void());
+	if (node == null) return alloc_primitive(&self.arena, type_none());
 
 	when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
@@ -111,7 +111,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			val name = named.name;
 
 			when (name) {
-				"void" -> return alloc_primitive(&self.arena, type_void());
+				"none" -> return alloc_primitive(&self.arena, type_none());
 				"bool" -> return alloc_primitive(&self.arena, type_bool());
 				"char" -> return alloc_primitive(&self.arena, type_char());
 				"i8" -> return alloc_primitive(&self.arena, type_i8());
@@ -150,7 +150,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			}
 
 			report_error(self, node, "Unknown type '" + name + "'");
-			return alloc_primitive(&self.arena, type_void());
+			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.TYPE_POINTER -> {
 			val ptr_ast = as_pointer_type(node);
@@ -162,7 +162,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			val elem = resolve_ast_type(self, arr_ast.element_type);
 			return alloc_array_type(&self.arena, elem, arr_ast.size);
 		}
-		else -> return alloc_primitive(&self.arena, type_void());
+		else -> return alloc_primitive(&self.arena, type_none());
 	}
 }
 
@@ -247,7 +247,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 		i = i + 1;
 	}
 
-	var ret_type = alloc_primitive(&self.arena, type_void());
+	var ret_type = alloc_primitive(&self.arena, type_none());
 	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
@@ -396,7 +396,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 			pi = pi + 1;
 		}
 
-		var ret_type = alloc_primitive(&self.arena, type_void());
+		var ret_type = alloc_primitive(&self.arena, type_none());
 		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
@@ -558,7 +558,7 @@ pub fn find_inst(self: &DeclPass, name: str): *Symbol {
 
 pub fn type_token(self: &DeclPass, ty: *Type): str {
 	when (ty.kind) {
-		DataType.VOID -> return "void";
+		DataType.NONE -> return "none";
 		DataType.BOOL -> return "bool";
 		DataType.CHAR -> return "char";
 		DataType.I8 -> return "i8";
@@ -701,7 +701,7 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 	queue_decl(self, tmpl.module, sclone);
 
 	val sym = find_inst(self, cname);
-	if (sym == null) return alloc_primitive(&self.arena, type_void());
+	if (sym == null) return alloc_primitive(&self.arena, type_none());
 	return sym.type_ptr;
 }
 
@@ -744,7 +744,7 @@ pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 		param_types.add(resolve_ast_type(self, f.params.get(i).type_node));
 		i = i + 1;
 	}
-	var ret_type = alloc_primitive(&self.arena, type_void());
+	var ret_type = alloc_primitive(&self.arena, type_none());
 	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
@@ -794,7 +794,7 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			val at = ast_array(node);
 			return ast_alloc_array(&self.arena, clone_type(self, at.element_type, subst), at.size, node.line, node.col);
 		}
-		else -> return alloc_named_type(&self.arena, "void", new_list<*AstNode>(), node.line, node.col);
+		else -> return alloc_named_type(&self.arena, "none", new_list<*AstNode>(), node.line, node.col);
 	}
 }
 

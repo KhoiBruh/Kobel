@@ -78,7 +78,7 @@ impl Lexer {
 	pub fn make_token(val self, t: TokenType, start_cursor: usz, start_col: usz): Token =>
 		Token(t, self.sub(start_cursor), self.line, start_col);
 
-	pub fn newline(var self): void {
+	pub fn newline(var self): none {
 		val c = self.peek();
 		if (c == '\r') {
 			self.next();
@@ -88,7 +88,7 @@ impl Lexer {
 		self.col = 1;
 	}
 
-	pub fn skip_space(var self): void {
+	pub fn skip_space(var self): none {
 		while (!self.is_end()) {
 			val c = self.peek();
 			if (c == ' ' || c == '\t') self.next();
@@ -108,7 +108,7 @@ impl Lexer {
 		return Token(kw, text, self.line, start_col);
 	}
 
-	pub fn scan_decimal_digits_and_fraction(var self): void {
+	pub fn scan_decimal_digits_and_fraction(var self): none {
 		while (!self.is_end()) {
 			val c = self.peek();
 			if (is_digit(c) || c == '_') self.next();

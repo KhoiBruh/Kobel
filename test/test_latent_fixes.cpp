@@ -65,7 +65,7 @@ bool test_pointer_mutability_soundness() {
 	// 2a. &T can be parsed and assigned to *T (safe decay)
 	{
 		std::string_view code =
-				"fn test_decay(p_mut: &i32): void {\n"
+				"fn test_decay(p_mut: &i32): none {\n"
 				"    val p_const: *i32 = p_mut;\n"
 				"}\n";
 
@@ -83,7 +83,7 @@ bool test_pointer_mutability_soundness() {
 	// 2b. *T cannot be assigned to &T (loss of const safety)
 	{
 		std::string_view code =
-				"fn test_invalid(p_const: *i32): void {\n"
+				"fn test_invalid(p_const: *i32): none {\n"
 				"    val p_mut: &i32 = p_const;\n"
 				"}\n";
 
@@ -115,7 +115,7 @@ bool test_string_literal_escapes() {
 	// 3b. Unterminated string reaching EOF
 	{
 		std::string_view code =
-				"fn test(): void {\n"
+				"fn test(): none {\n"
 				"    val msg: *char = \"unclosed string;\n"
 				"}\n";
 		Lexer lex{code};
@@ -197,7 +197,7 @@ bool test_definite_return_analysis() {
 	// 4d. Void function does not require return
 	{
 		std::string_view code =
-				"fn do_something(): void {\n"
+				"fn do_something(): none {\n"
 				"    val a: i32 = 1;\n"
 				"}\n";
 
@@ -208,7 +208,7 @@ bool test_definite_return_analysis() {
 		DiagnosticEngine diag;
 		Analyzer sema{diag};
 		sema.analyze(prog);
-		ASSERT(!diag.has_errors(), "Void function should not require return");
+		ASSERT(!diag.has_errors(), "None function should not require return");
 	}
 
 	return true;
@@ -456,7 +456,7 @@ bool test_lexer_comment_stack_overflow_stress() {
 		for (int i = 0; i < 25000; ++i) {
 			block_comments += "/* block */ ";
 		}
-		block_comments += "fn foo(): void {}";
+		block_comments += "fn foo(): none {}";
 
 		Lexer lex{block_comments};
 		auto tokens = lex.tokenize();
@@ -604,11 +604,11 @@ bool test_ast_immutability_struct_and_impl() {
 
 bool test_str_free_internal_linkage() {
 	std::string_view code1 =
-			"pub fn test_str1(): void {\n"
+			"pub fn test_str1(): none {\n"
 			"    val s = \"hello\";\n"
 			"}\n";
 	std::string_view code2 =
-			"pub fn test_str2(): void {\n"
+			"pub fn test_str2(): none {\n"
 			"    val s = \"world\";\n"
 			"}\n";
 

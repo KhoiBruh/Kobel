@@ -8,7 +8,7 @@ use std.mem.arena.Arena;
 // ============================================================================
 
 pub enum DataType {
-	VOID,
+	NONE,
 	BOOL,
 	CHAR,
 	I8, I16, I32, I64, ISZ,
@@ -160,7 +160,7 @@ pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo {
 
 pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, null);
 
-pub fn type_void() => make_primitive(DataType.VOID, 0, 1);
+pub fn type_none() => make_primitive(DataType.NONE, 0, 1);
 pub fn type_bool() => make_primitive(DataType.BOOL, 1, 1);
 pub fn type_char() => make_primitive(DataType.CHAR, 1, 1);
 
@@ -358,13 +358,13 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	// 2. Allow assignment between float types
 	if (is_float(target) && is_float(source)) return true;
 
-	// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *void
+	// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
 	if (source.kind == DataType.STR && target.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		if (
 			t_ptr.pointee.kind == DataType.CHAR ||
 			t_ptr.pointee.kind == DataType.U8 ||
-			t_ptr.pointee.kind == DataType.VOID
+			t_ptr.pointee.kind == DataType.NONE
 		) return true;
 	}
 
@@ -384,14 +384,14 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 		if (!t_ptr.is_mut && s_ptr.is_mut) return type_equals(t_ptr.pointee, s_ptr.pointee);
 	}
 
-	// 6. Allow void pointer (or u8 pointer / null pointer) to be compatible with other pointers
+	// 6. Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		val s_ptr = as_pointer_type(source);
 		if (
 			t_ptr.pointee.kind == DataType.U8 ||
-			t_ptr.pointee.kind == DataType.VOID ||
-			s_ptr.pointee.kind == DataType.VOID
+			t_ptr.pointee.kind == DataType.NONE ||
+			s_ptr.pointee.kind == DataType.NONE
 		) return true;
 	}
 
@@ -400,7 +400,7 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 
 pub fn type_to_string(ty: *Type): str {
 	when (ty.kind) {
-		DataType.VOID -> return "void";
+		DataType.NONE -> return "none";
 		DataType.BOOL -> return "bool";
 		DataType.CHAR -> return "char";
 		DataType.I8 -> return "i8";

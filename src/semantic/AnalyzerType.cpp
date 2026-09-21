@@ -35,7 +35,7 @@ Semantic Analyzer::resolve_type_by_name(const std::string_view name, const size_
 
 	if (name == "bool") return make_primitive(SemaType::BOOL);
 	if (name == "char") return make_primitive(SemaType::CHAR);
-	if (name == "void") return make_primitive(SemaType::VOID);
+	if (name == "none") return make_primitive(SemaType::VOID);
 	if (name == "str") return make_str();
 
 	if (name == "Self" && current_self_type) return current_self_type;

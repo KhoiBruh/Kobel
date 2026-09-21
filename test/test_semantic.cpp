@@ -56,7 +56,7 @@ bool test_valid_program() {
 
 bool test_val_immutability_error() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    val x: i32 = 10;\n"
 			"    x = 20;\n" // Error: reassignment to val
 			"}\n";
@@ -76,7 +76,7 @@ bool test_val_immutability_error() {
 
 bool test_missing_type_annotation_error() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    var x;\n" // Error: missing type and initializer
 			"}\n";
 
@@ -94,7 +94,7 @@ bool test_missing_type_annotation_error() {
 
 bool test_strict_type_mismatch_error() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    val a: i32 = 1;\n"
 			"    val b: i64 = 2;\n"
 			"    val c: i32 = a + b;\n" // Error: i32 + i64 requires explicit cast
@@ -136,7 +136,7 @@ bool test_explicit_cast_success() {
 
 bool test_non_boolean_condition_error() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    val x: i32 = 1;\n"
 			"    if (x) {}\n" // Error: x has type i32, not bool
 			"}\n";
@@ -155,7 +155,7 @@ bool test_non_boolean_condition_error() {
 
 bool test_break_outside_loop_error() {
 	std::string_view code =
-			"fn test(): void {\n"
+			"fn test(): none {\n"
 			"    break;\n" // Error: break outside loop
 			"}\n";
 
@@ -234,7 +234,7 @@ bool test_semantic_array_errors() {
 	// 1. Array element count mismatch with explicit size
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val a: Array<i32>(4) = [1, 2, 3];\n"
 				"}\n";
 		Lexer lex{code};
@@ -249,7 +249,7 @@ bool test_semantic_array_errors() {
 	// 2. Cannot reassign val array variable (even though elements can be mutated)
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val a: Array<i32> = [1, 2, 3];\n"
 				"    a = [4, 5, 6];\n"
 				"}\n";
@@ -265,7 +265,7 @@ bool test_semantic_array_errors() {
 	// 3. Cannot assign value to read-only property .len
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val a: Array<i32> = [1, 2, 3];\n"
 				"    a.len = 10;\n"
 				"}\n";
@@ -289,7 +289,7 @@ bool test_semantic_struct_methods() {
 			"}\n"
 			"impl Point {\n"
 			"    fn distance_sq(val self): i32 => self.x * self.x + self.y * self.y;\n"
-			"    fn translate(var self, dx: i32, dy: i32): void {\n"
+			"    fn translate(var self, dx: i32, dy: i32): none {\n"
 			"        self.x = self.x + dx;\n"
 			"        self.y = self.y + dy;\n"
 			"    }\n"
@@ -319,7 +319,7 @@ bool test_semantic_struct_method_errors() {
 	{
 		std::string_view code =
 				"struct Point { x: i32, y: i32 }\n"
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val p: Point = Point(1);\n"
 				"}\n";
 		Lexer lex{code};
@@ -336,9 +336,9 @@ bool test_semantic_struct_method_errors() {
 		std::string_view code =
 				"struct Point { x: i32, y: i32 }\n"
 				"impl Point {\n"
-				"    fn modify(var self): void { self.x = 0; }\n"
+				"    fn modify(var self): none { self.x = 0; }\n"
 				"}\n"
-				"fn test_err(ptr: *Point): void {\n"
+				"fn test_err(ptr: *Point): none {\n"
 				"    ptr.modify();\n"
 				"}\n";
 		Lexer lex{code};
@@ -374,7 +374,7 @@ bool test_semantic_logical_operators() {
 	// 2. Type mismatch: integer instead of boolean for &&
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val res: bool = 10 && true;\n"
 				"}\n";
 		Lexer lex{code};
@@ -389,7 +389,7 @@ bool test_semantic_logical_operators() {
 	// 3. Type mismatch: integer instead of boolean for ||
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val res: bool = false || 20;\n"
 				"}\n";
 		Lexer lex{code};
@@ -404,7 +404,7 @@ bool test_semantic_logical_operators() {
 	// 4. Type mismatch: ! on integer
 	{
 		std::string_view code =
-				"fn test_err(): void {\n"
+				"fn test_err(): none {\n"
 				"    val res: bool = !42;\n"
 				"}\n";
 		Lexer lex{code};
@@ -1572,11 +1572,11 @@ bool test_semantic_new_struct_and_impl() {
 				"}\n"
 				"\n"
 				"impl List<T> {\n"
-				"    fn add(var self, value: T): void {\n"
+				"    fn add(var self, value: T): none {\n"
 				"        self.len = self.len + 1 as usz;\n"
 				"    }\n"
 				"\n"
-				"    fn free(self): void {\n"
+				"    fn free(self): none {\n"
 				"    }\n"
 				"}\n"
 				"\n"
@@ -1668,7 +1668,7 @@ bool test_semantic_new_struct_and_impl() {
 	{
 		std::string_view code =
 				"impl Ghost {\n"
-				"    fn haunt(self): void {}\n"
+				"    fn haunt(self): none {}\n"
 				"}\n";
 
 		Lexer lex{code};

@@ -2,7 +2,7 @@ mod std.collections.hash_map;
 
 extern "libc" {
 	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): void;
+	fn free(ptr: &u8): none;
 }
 
 pub struct HashMap<V> {
@@ -41,7 +41,7 @@ impl HashMap<V> {
 		return h;
 	}
 
-	pub fn put(var self, key: str, value: V): void {
+	pub fn put(var self, key: str, value: V): none {
 		if (self.len * 10UZ >= self.cap * 7UZ) self.grow();
 
 		val h: usz = self.hash_key(key);
@@ -83,7 +83,7 @@ impl HashMap<V> {
 		return default_val;
 	}
 
-	fn grow(var self): void {
+	fn grow(var self): none {
 		val old_cap: usz = self.cap;
 		val old_keys: &str = self.keys;
 		val old_vals: &V = self.values;
@@ -118,7 +118,7 @@ impl HashMap<V> {
 		free(old_occ as &u8);
 	}
 
-	pub fn delete(self): void {
+	pub fn delete(self): none {
 		free(self.keys as &u8);
 		free(self.values as &u8);
 		free(self.occupied as &u8);

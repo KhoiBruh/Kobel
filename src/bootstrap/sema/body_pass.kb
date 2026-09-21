@@ -71,14 +71,14 @@ pub struct BodyPass {
 pub fn new_body_pass(): BodyPass {
 	var arena = new_arena(65536);
 	var decl_p = new_decl_pass();
-	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(decl_p.symtab, arena, void_ty, 0, new_list<str>(), false);
+	val none_ty = alloc_primitive(&arena, type_none());
+	return BodyPass(decl_p.symtab, arena, none_ty, 0, new_list<str>(), false);
 }
 
 pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 	var arena = new_arena(65536);
-	val void_ty = alloc_primitive(&arena, type_void());
-	return BodyPass(symtab, arena, void_ty, 0, new_list<str>(), true);
+	val none_ty = alloc_primitive(&arena, type_none());
+	return BodyPass(symtab, arena, none_ty, 0, new_list<str>(), true);
 }
 
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
@@ -126,7 +126,7 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 // ============================================================================
 
 pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
-	if (node == null) return alloc_primitive(&self.arena, type_void());
+	if (node == null) return alloc_primitive(&self.arena, type_none());
 
 	when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
@@ -138,10 +138,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				LiteralKind.STRING -> return alloc_primitive(&self.arena, type_str());
 				LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_char());
 				LiteralKind.NULL_VAL -> {
-					val void_ty = alloc_primitive(&self.arena, type_void());
-					return alloc_pointer_type(&self.arena, void_ty, false);
+					val none_ty = alloc_primitive(&self.arena, type_none());
+					return alloc_pointer_type(&self.arena, none_ty, false);
 				}
-				else -> return alloc_primitive(&self.arena, type_void());
+				else -> return alloc_primitive(&self.arena, type_none());
 			}
 		}
 		NodeKind.EXPR_IDENTIFIER -> {
@@ -149,7 +149,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
 				report_error(self, node, "Undeclared identifier '" + id.name + "'");
-				return alloc_primitive(&self.arena, type_void());
+				return alloc_primitive(&self.arena, type_none());
 			}
 			// Switch to the mangled C name (import alias, symbol from another module)
 			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
@@ -364,7 +364,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			report_error(self, node, "Callee is not a function or struct");
-			return alloc_primitive(&self.arena, type_void());
+			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_MEMBER -> {
 			val mem = as_member(node) as &MemberExpr;
@@ -377,7 +377,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					val mi = enum_find_member(ei, mem.member);
 					if (mi == null) {
 						report_error(self, node, "Enum '" + enum_id.name + "' has no member '" + mem.member + "'");
-						return alloc_primitive(&self.arena, type_void());
+						return alloc_primitive(&self.arena, type_none());
 					}
 					// Reuse the node as a plain integer literal for the backend.
 					val lit = alloc_literal(&self.arena, LiteralKind.INT, i64_to_str(mi.value), node.line, node.col);
@@ -441,7 +441,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			if (obj_ty.kind != DataType.STRUCT) {
 				report_error(self, node, "Member access on non-struct type");
-				return alloc_primitive(&self.arena, type_void());
+				return alloc_primitive(&self.arena, type_none());
 			}
 
 			val s_info = sem_struct(obj_ty);
@@ -453,7 +453,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			report_error(self, node, "Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
-			return alloc_primitive(&self.arena, type_void());
+			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_INDEX -> {
 			val idx = as_index(node);
@@ -467,7 +467,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			if (target_ty.kind == DataType.STR) return alloc_primitive(&self.arena, type_char());
 
 			report_error(self, node, "Index access on non-indexable type");
-			return alloc_primitive(&self.arena, type_void());
+			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = as_assign(node);
@@ -515,12 +515,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			if (!has_else) {
 				report_error(self, node, "when expression requires an 'else' arm");
-				return alloc_primitive(&self.arena, type_void());
+				return alloc_primitive(&self.arena, type_none());
 			}
-			if (result_ty == null) return alloc_primitive(&self.arena, type_void());
+			if (result_ty == null) return alloc_primitive(&self.arena, type_none());
 			return result_ty;
 		}
-		else -> return alloc_primitive(&self.arena, type_void());
+		else -> return alloc_primitive(&self.arena, type_none());
 	}
 }
 
@@ -544,10 +544,10 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		}
 		NodeKind.STMT_VAR_DECL -> {
 			val vd = as_var_decl(node) as &VarDeclStmt;
-			var var_ty = alloc_primitive(&self.arena, type_void());
+			var var_ty = alloc_primitive(&self.arena, type_none());
 
 			var has_init = false;
-			var init_ty = alloc_primitive(&self.arena, type_void());
+			var init_ty = alloc_primitive(&self.arena, type_none());
 			if (vd.initializer != null) {
 				has_init = true;
 				init_ty = check_expr(self, vd.initializer);
@@ -594,7 +594,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			if (ret.value != null) {
 				val val_ty = check_expr(self, ret.value);
 				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
-			} else if (self.current_fn_return_type.kind != DataType.VOID) report_error(self, node, "Non-void function must return a value");
+			} else if (self.current_fn_return_type.kind != DataType.NONE) report_error(self, node, "Non-none function must return a value");
 		}
 		NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
 			if (self.loop_depth == 0) report_error(self, node, "Break or continue statement outside of loop");
@@ -643,7 +643,7 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
 			return ast_alloc_named(arena, st_name, new_list<*AstNode>(), 0, 0);
 		}
-		DataType.VOID -> return ast_alloc_named(arena, "void", new_list<*AstNode>(), 0, 0);
+		DataType.NONE -> return ast_alloc_named(arena, "none", new_list<*AstNode>(), 0, 0);
 		DataType.STR -> return ast_alloc_named(arena, "str", new_list<*AstNode>(), 0, 0);
 		DataType.BOOL -> return ast_alloc_named(arena, "bool", new_list<*AstNode>(), 0, 0);
 		DataType.CHAR -> return ast_alloc_named(arena, "char", new_list<*AstNode>(), 0, 0);

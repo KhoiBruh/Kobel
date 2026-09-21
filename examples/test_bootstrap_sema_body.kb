@@ -89,7 +89,7 @@ fn test_undeclared_identifier() {
 // ============================================================================
 
 fn test_type_mismatch() {
-	val src = "fn test(): void {\n" +
+	val src = "fn test(): none {\n" +
 		"    val x: i32 = \"this is a string\";\n" +
 		"}\n";
 
@@ -111,7 +111,7 @@ fn test_type_mismatch() {
 // ============================================================================
 
 fn test_condition_not_bool() {
-	val src = "fn test(): void {\n" +
+	val src = "fn test(): none {\n" +
 		"    if (100 + 200) {\n" +
 		"        val a = 1;\n" +
 		"    }\n" +
