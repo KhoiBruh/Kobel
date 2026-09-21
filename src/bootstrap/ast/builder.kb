@@ -1,13 +1,9 @@
 mod bootstrap.ast.builder;
 
 use bootstrap.ast.node.*;
-
 use bootstrap.ast.types.*;
-
 use bootstrap.ast.expr.*;
-
 use bootstrap.ast.stmt.*;
-
 use bootstrap.ast.decl.*;
 
 use bootstrap.lexer.token.TokenType;
@@ -25,7 +21,7 @@ pub fn alloc_node(
 	col: usz,
 	data: *u8
 ): *AstNode {
-	val mem = arena.alloc_bytes(AstNode.size(), 8UZ);
+	val mem = arena.alloc_bytes(AstNode.size(), 8);
 	val ptr = mem as *AstNode;
 	*ptr = AstNode(kind, line, col, data);
 	return ptr;
@@ -42,7 +38,7 @@ pub fn alloc_named_type(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(NamedType.size(), 8UZ);
+	val mem = arena.alloc_bytes(NamedType.size(), 8);
 	val ptr = mem as *NamedType;
 	*ptr = NamedType(name, type_args);
 	return alloc_node(arena, NodeKind.TYPE_NAMED, line, col, mem);
@@ -55,7 +51,7 @@ pub fn alloc_pointer_type(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(PointerType.size(), 8UZ);
+	val mem = arena.alloc_bytes(PointerType.size(), 8);
 	val ptr = mem as *PointerType;
 	*ptr = PointerType(is_mut, pointee);
 	return alloc_node(arena, NodeKind.TYPE_POINTER, line, col, mem);
@@ -68,7 +64,7 @@ pub fn alloc_array_type(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ArrayType.size(), 8UZ);
+	val mem = arena.alloc_bytes(ArrayType.size(), 8);
 	val ptr = mem as *ArrayType;
 	*ptr = ArrayType(elem, size);
 	return alloc_node(arena, NodeKind.TYPE_ARRAY, line, col, mem);
@@ -85,7 +81,7 @@ pub fn alloc_literal(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(LiteralExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(LiteralExpr.size(), 8);
 	val ptr = mem as *LiteralExpr;
 	*ptr = LiteralExpr(lk, raw);
 	return alloc_node(arena, NodeKind.EXPR_LITERAL, line, col, mem);
@@ -97,7 +93,7 @@ pub fn alloc_identifier(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(IdentifierExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(IdentifierExpr.size(), 8);
 	val ptr = mem as *IdentifierExpr;
 	*ptr = IdentifierExpr(name);
 	return alloc_node(arena, NodeKind.EXPR_IDENTIFIER, line, col, mem);
@@ -111,7 +107,7 @@ pub fn alloc_binary(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(BinaryExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(BinaryExpr.size(), 8);
 	val ptr = mem as *BinaryExpr;
 	*ptr = BinaryExpr(left, op, right);
 	return alloc_node(arena, NodeKind.EXPR_BINARY, line, col, mem);
@@ -124,7 +120,7 @@ pub fn alloc_unary(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(UnaryExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(UnaryExpr.size(), 8);
 	val ptr = mem as *UnaryExpr;
 	*ptr = UnaryExpr(op, operand);
 	return alloc_node(arena, NodeKind.EXPR_UNARY, line, col, mem);
@@ -138,7 +134,7 @@ pub fn alloc_call(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(CallExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(CallExpr.size(), 8);
 	val ptr = mem as *CallExpr;
 	*ptr = CallExpr(callee, args, type_args);
 	return alloc_node(arena, NodeKind.EXPR_CALL, line, col, mem);
@@ -151,7 +147,7 @@ pub fn alloc_member(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(MemberExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(MemberExpr.size(), 8);
 	val ptr = mem as *MemberExpr;
 	*ptr = MemberExpr(obj, member);
 	return alloc_node(arena, NodeKind.EXPR_MEMBER, line, col, mem);
@@ -164,7 +160,7 @@ pub fn alloc_index(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(IndexExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(IndexExpr.size(), 8);
 	val ptr = mem as *IndexExpr;
 	*ptr = IndexExpr(target, index);
 	return alloc_node(arena, NodeKind.EXPR_INDEX, line, col, mem);
@@ -177,7 +173,7 @@ pub fn alloc_assign(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(AssignExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(AssignExpr.size(), 8);
 	val ptr = mem as *AssignExpr;
 	*ptr = AssignExpr(target, value);
 	return alloc_node(arena, NodeKind.EXPR_ASSIGN, line, col, mem);
@@ -190,7 +186,7 @@ pub fn alloc_cast(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(CastExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(CastExpr.size(), 8);
 	val ptr = mem as *CastExpr;
 	*ptr = CastExpr(expr, target_type);
 	return alloc_node(arena, NodeKind.EXPR_CAST, line, col, mem);
@@ -202,7 +198,7 @@ pub fn alloc_group(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(GroupExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(GroupExpr.size(), 8);
 	val ptr = mem as *GroupExpr;
 	*ptr = GroupExpr(expr);
 	return alloc_node(arena, NodeKind.EXPR_GROUP, line, col, mem);
@@ -214,7 +210,7 @@ pub fn alloc_array_literal(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ArrayLiteralExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(ArrayLiteralExpr.size(), 8);
 	val ptr = mem as *ArrayLiteralExpr;
 	*ptr = ArrayLiteralExpr(elements);
 	return alloc_node(arena, NodeKind.EXPR_ARRAY_LITERAL, line, col, mem);
@@ -228,7 +224,7 @@ pub fn alloc_if_expr(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(IfExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(IfExpr.size(), 8);
 	val ptr = mem as *IfExpr;
 	*ptr = IfExpr(condition, then_branch, else_branch);
 	return alloc_node(arena, NodeKind.EXPR_IF, line, col, mem);
@@ -244,7 +240,7 @@ pub fn alloc_block_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(BlockStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(BlockStmt.size(), 8);
 	val ptr = mem as *BlockStmt;
 	*ptr = BlockStmt(statements);
 	return alloc_node(arena, NodeKind.STMT_BLOCK, line, col, mem);
@@ -256,7 +252,7 @@ pub fn alloc_expr_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ExprStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(ExprStmt.size(), 8);
 	val ptr = mem as *ExprStmt;
 	*ptr = ExprStmt(expr);
 	return alloc_node(arena, NodeKind.STMT_EXPR, line, col, mem);
@@ -271,7 +267,7 @@ pub fn alloc_var_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(VarDeclStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(VarDeclStmt.size(), 8);
 	val ptr = mem as *VarDeclStmt;
 	*ptr = VarDeclStmt(is_mut, name, type_annotation, initializer);
 	return alloc_node(arena, NodeKind.STMT_VAR_DECL, line, col, mem);
@@ -285,7 +281,7 @@ pub fn alloc_if_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(IfStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(IfStmt.size(), 8);
 	val ptr = mem as *IfStmt;
 	*ptr = IfStmt(condition, then_branch, else_branch);
 	return alloc_node(arena, NodeKind.STMT_IF, line, col, mem);
@@ -298,7 +294,7 @@ pub fn alloc_while_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(WhileStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(WhileStmt.size(), 8);
 	val ptr = mem as *WhileStmt;
 	*ptr = WhileStmt(condition, body);
 	return alloc_node(arena, NodeKind.STMT_WHILE, line, col, mem);
@@ -310,7 +306,7 @@ pub fn alloc_return_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ReturnStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(ReturnStmt.size(), 8);
 	val ptr = mem as *ReturnStmt;
 	*ptr = ReturnStmt(value);
 	return alloc_node(arena, NodeKind.STMT_RETURN, line, col, mem);
@@ -321,7 +317,7 @@ pub fn alloc_break_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(BreakStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(BreakStmt.size(), 8);
 	val ptr = mem as *BreakStmt;
 	*ptr = BreakStmt(0);
 	return alloc_node(arena, NodeKind.STMT_BREAK, line, col, mem);
@@ -332,7 +328,7 @@ pub fn alloc_continue_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ContinueStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(ContinueStmt.size(), 8);
 	val ptr = mem as *ContinueStmt;
 	*ptr = ContinueStmt(0);
 	return alloc_node(arena, NodeKind.STMT_CONTINUE, line, col, mem);
@@ -345,7 +341,7 @@ pub fn alloc_when_expr(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(WhenExpr.size(), 8UZ);
+	val mem = arena.alloc_bytes(WhenExpr.size(), 8);
 	val ptr = mem as *WhenExpr;
 	*ptr = WhenExpr(condition, arms);
 	return alloc_node(arena, NodeKind.EXPR_WHEN, line, col, mem);
@@ -358,7 +354,7 @@ pub fn alloc_when_stmt(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(WhenStmt.size(), 8UZ);
+	val mem = arena.alloc_bytes(WhenStmt.size(), 8);
 	val ptr = mem as *WhenStmt;
 	*ptr = WhenStmt(condition, arms);
 	return alloc_node(arena, NodeKind.STMT_WHEN, line, col, mem);
@@ -375,7 +371,7 @@ pub fn alloc_module_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ModuleDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(ModuleDecl.size(), 8);
 	val ptr = mem as *ModuleDecl;
 	*ptr = ModuleDecl(path, full_path);
 	return alloc_node(arena, NodeKind.DECL_MODULE, line, col, mem);
@@ -391,7 +387,7 @@ pub fn alloc_use_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(UseDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(UseDecl.size(), 8);
 	val ptr = mem as *UseDecl;
 	*ptr = UseDecl(path, full_path, symbol_name, alias, is_wildcard);
 	return alloc_node(arena, NodeKind.DECL_USE, line, col, mem);
@@ -408,7 +404,7 @@ pub fn alloc_fn_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(FnDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(FnDecl.size(), 8);
 	val ptr = mem as *FnDecl;
 	*ptr = FnDecl(name, type_params, params, return_type, body, is_pub);
 	return alloc_node(arena, NodeKind.DECL_FN, line, col, mem);
@@ -423,7 +419,7 @@ pub fn alloc_struct_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(StructDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(StructDecl.size(), 8);
 	val ptr = mem as *StructDecl;
 	*ptr = StructDecl(name, type_params, fields, is_pub);
 	return alloc_node(arena, NodeKind.DECL_STRUCT, line, col, mem);
@@ -439,7 +435,7 @@ pub fn alloc_trait_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(TraitDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(TraitDecl.size(), 8);
 	val ptr = mem as *TraitDecl;
 	*ptr = TraitDecl(name, type_params, bases, methods, is_pub);
 	return alloc_node(arena, NodeKind.DECL_TRAIT, line, col, mem);
@@ -454,7 +450,7 @@ pub fn alloc_impl_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ImplDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(ImplDecl.size(), 8);
 	val ptr = mem as *ImplDecl;
 	*ptr = ImplDecl(struct_name, type_params, trait_name, methods);
 	return alloc_node(arena, NodeKind.DECL_IMPL, line, col, mem);
@@ -469,7 +465,7 @@ pub fn alloc_enum_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(EnumDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(EnumDecl.size(), 8);
 	val ptr = mem as *EnumDecl;
 	*ptr = EnumDecl(name, underlying_type, members, is_pub);
 	return alloc_node(arena, NodeKind.DECL_ENUM, line, col, mem);
@@ -484,7 +480,7 @@ pub fn alloc_const_decl(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ConstDecl.size(), 8UZ);
+	val mem = arena.alloc_bytes(ConstDecl.size(), 8);
 	val ptr = mem as *ConstDecl;
 	*ptr = ConstDecl(name, type_node, value, is_pub);
 	return alloc_node(arena, NodeKind.DECL_CONST, line, col, mem);
@@ -497,7 +493,7 @@ pub fn alloc_extern_block(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(ExternBlock.size(), 8UZ);
+	val mem = arena.alloc_bytes(ExternBlock.size(), 8);
 	val ptr = mem as *ExternBlock;
 	*ptr = ExternBlock(abi, declarations);
 	return alloc_node(arena, NodeKind.DECL_EXTERN_BLOCK, line, col, mem);
@@ -509,7 +505,7 @@ pub fn alloc_program(
 	line: usz,
 	col: usz
 ): *AstNode {
-	val mem = arena.alloc_bytes(Program.size(), 8UZ);
+	val mem = arena.alloc_bytes(Program.size(), 8);
 	val ptr = mem as *Program;
 	*ptr = Program(declarations);
 	return alloc_node(arena, NodeKind.PROGRAM, line, col, mem);
