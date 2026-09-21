@@ -1,0 +1,84 @@
+mod test.bootstrap_codegen;
+
+use std.io.print;
+use std.io.println;
+use std.io.write_file;
+
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.new_parser;
+use bootstrap.parser.decl.parse_program;
+
+use bootstrap.sema.body_pass.BodyPass;
+use bootstrap.sema.body_pass.new_body_pass;
+use bootstrap.sema.body_pass.check_program;
+
+use bootstrap.codegen.c_codegen.CCodeGen;
+use bootstrap.codegen.c_codegen.new_c_codegen;
+use bootstrap.codegen.c_codegen.gen_program;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		println(" (usz mismatch)");
+	}
+}
+
+// ============================================================================
+// Test: Full End-to-End Pipeline (Kobel -> AST -> Sema -> C Code)
+// ============================================================================
+
+fn test_end_to_end_codegen() {
+	val src = "struct Point {\n" +
+		"    pub x: i32,\n" +
+		"    pub y: i32\n" +
+		"}\n" +
+		"fn add(a: i32, b: i32): i32 => a + b;\n" +
+		"fn main(): i32 {\n" +
+		"    val p = Point(10, 20);\n" +
+		"    val total = add(p.x, p.y);\n" +
+		"    return total;\n" +
+		"}\n";
+
+	// 1. Lexer
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	// 2. Parser
+	var parser = new_parser(tokens);
+	val prog = parse_program(&parser);
+	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
+
+	// 3. Semantic Analysis (DeclPass + BodyPass)
+	var bp = new_body_pass();
+	check_program(&bp, prog);
+	assert_eq_usz(bp.errors.len, 0UZ, "Semantic analysis must have 0 errors");
+
+	// 4. Code Generation (C Backend)
+	var codegen = new_c_codegen();
+	val c_code = gen_program(&codegen, prog);
+
+	assert_true(c_code.len > 100UZ, "Generated C code must not be empty");
+
+	// Ghi mã C ra file để có thể compile native
+	val ok_write = write_file("sample_pipeline_output.c", c_code);
+	assert_true(ok_write, "Must write generated C code to file");
+
+	println("  [PASS] test_end_to_end_codegen");
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap C CodeGen tests...");
+	test_end_to_end_codegen();
+	println("[ALL PASSED] Bootstrap C CodeGen passed all tests successfully!");
+	return 0;
+}

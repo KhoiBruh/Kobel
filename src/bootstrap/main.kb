@@ -1,5 +1,273 @@
+mod bootstrap.main;
 
+use std.io.print;
+use std.io.println;
+use std.io.read_file;
+use std.io.write_file;
+use std.sys.exec;
 
-fn main(): i32 {
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.new_parser;
+use bootstrap.parser.decl.parse_program;
 
+use bootstrap.sema.decl_pass.DeclPass;
+use bootstrap.sema.decl_pass.new_decl_pass;
+use bootstrap.sema.decl_pass.collect_program;
+
+use bootstrap.sema.body_pass.BodyPass;
+use bootstrap.sema.body_pass.new_body_pass_with_symtab;
+use bootstrap.sema.body_pass.check_program;
+
+use bootstrap.codegen.c_codegen.CCodeGen;
+use bootstrap.codegen.c_codegen.new_c_codegen;
+use bootstrap.codegen.c_codegen.gen_program;
+
+// ============================================================================
+// Libc and Memory Utilities
+// ============================================================================
+
+extern "libc" {
+	fn strlen(s: *char): usz;
+	fn malloc(size: usz): &u8;
+	fn free(ptr: &u8): void;
+}
+
+struct StringRaw {
+	pub data: *char,
+	pub len: usz,
+	pub cap: usz
+}
+
+fn cstr_to_str(s: *char): str {
+	val len: usz = strlen(s);
+	val raw_mem = malloc(24UZ);
+	val r = raw_mem as &StringRaw;
+	r.data = s;
+	r.len = len;
+	r.cap = len;
+	val sp: *str = r as *str;
+	val res: str = *sp;
+	free(raw_mem);
+	return res;
+}
+
+fn get_stem(path: str): str {
+	val len = path.len;
+	if (len > 3UZ && path[len - 3UZ] == '.' && path[len - 2UZ] == 'k' && path[len - 1UZ] == 'b') {
+		val new_len = len - 3UZ;
+		val buf = malloc(new_len + 1UZ);
+		var j: usz = 0UZ;
+		while (j < new_len) {
+			buf[j] = path[j] as u8;
+			j = j + 1UZ;
+		}
+		buf[new_len] = 0UB;
+		val raw_mem = malloc(24UZ);
+		val r = raw_mem as &StringRaw;
+		r.data = buf as *char;
+		r.len = new_len;
+		r.cap = new_len + 1UZ;
+		val sp: *str = r as *str;
+		val res: str = *sp;
+		free(raw_mem);
+		return res;
+	}
+	return path;
+}
+
+fn print_usage() {
+	println("============================================================");
+	println("  Kobel Compiler v1.0.0 (Self-Hosted Bootstrap C99 Backend)  ");
+	println("============================================================");
+	println("Usage: kobel [options] <source.kb>");
+	println("");
+	println("Options:");
+	println("  -o <file>        Specify output executable binary name");
+	println("  -emit-c <file>   Emit generated C99 source code and exit");
+	println("  --cc <compiler>  Specify backend C compiler (default: cl)");
+	println("  -v, --version    Display compiler version");
+	println("  -h, --help       Display this help message");
+}
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+fn main(argc: i32, argv: &*char): i32 {
+	if (argc < 2) {
+		print_usage();
+		return 1;
+	}
+
+	var input_path = "";
+	var output_bin = "";
+	var emit_c_path = "";
+	var c_compiler = "cl";
+	var only_emit_c = false;
+
+	var i: i32 = 1;
+	while (i < argc) {
+		val arg = cstr_to_str(argv[i]);
+		if (arg == "-h" || arg == "--help") {
+			print_usage();
+			return 0;
+		}
+		if (arg == "-v" || arg == "--version") {
+			println("Kobel Compiler v1.0.0 (Self-Hosted Bootstrap C99 Backend)");
+			return 0;
+		}
+		if (arg == "-o") {
+			i = i + 1;
+			if (i < argc) {
+				output_bin = cstr_to_str(argv[i]);
+			} else {
+				println("Error: Missing argument after '-o'");
+				return 1;
+			}
+		} else if (arg == "-emit-c") {
+			i = i + 1;
+			if (i < argc) {
+				emit_c_path = cstr_to_str(argv[i]);
+				only_emit_c = true;
+			} else {
+				println("Error: Missing argument after '-emit-c'");
+				return 1;
+			}
+		} else if (arg == "--cc") {
+			i = i + 1;
+			if (i < argc) {
+				c_compiler = cstr_to_str(argv[i]);
+			} else {
+				println("Error: Missing argument after '--cc'");
+				return 1;
+			}
+		} else if (arg.len > 0UZ && arg[0UZ] == '-') {
+			print("Error: Unknown option '");
+			print(arg);
+			println("'");
+			return 1;
+		} else input_path = arg;
+		i = i + 1;
+	}
+
+	if (input_path.len == 0UZ) {
+		println("Error: No input file specified");
+		return 1;
+	}
+
+	// 1. Read source
+	val src = read_file(input_path);
+	if (src.len == 0UZ) {
+		print("Error: Could not read source file or file is empty: ");
+		println(input_path);
+		return 1;
+	}
+
+	println("[1/4] Lexical analysis...");
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	println("[2/4] Syntax analysis...");
+	var parser = new_parser(tokens);
+	val prog = parse_program(&parser);
+	if (parser.errors.len > 0UZ) {
+		print("Syntax Errors in ");
+		print(input_path);
+		println(":");
+		var e: usz = 0UZ;
+		while (e < parser.errors.len) {
+			print("  [ERROR] ");
+			println(parser.errors.get(e));
+			e = e + 1UZ;
+		}
+		return 1;
+	}
+
+	println("[3/4] Semantic analysis...");
+	var decl_p = new_decl_pass();
+	collect_program(&decl_p, prog);
+	if (decl_p.errors.len > 0UZ) {
+		print("Semantic Declaration Errors in ");
+		print(input_path);
+		println(":");
+		var e: usz = 0UZ;
+		while (e < decl_p.errors.len) {
+			print("  [ERROR] ");
+			println(decl_p.errors.get(e));
+			e = e + 1UZ;
+		}
+		return 1;
+	}
+
+	var body_p = new_body_pass_with_symtab(decl_p.symtab);
+	check_program(&body_p, prog);
+	if (body_p.errors.len > 0UZ) {
+		print("Semantic Type Errors in ");
+		print(input_path);
+		println(":");
+		var e: usz = 0UZ;
+		while (e < body_p.errors.len) {
+			print("  [ERROR] ");
+			println(body_p.errors.get(e));
+			e = e + 1UZ;
+		}
+		return 1;
+	}
+
+	println("[4/4] Generating C99 code...");
+	var codegen = new_c_codegen();
+	val c_code = gen_program(&codegen, prog);
+
+	if (only_emit_c) {
+		val ok = write_file(emit_c_path, c_code);
+		if (!ok) {
+			print("Error: Failed to write output file: ");
+			println(emit_c_path);
+			return 1;
+		}
+		print("[SUCCESS] C99 source written to ");
+		println(emit_c_path);
+		return 0;
+	}
+
+	// Native binary compilation
+	var out_path = output_bin;
+	if (out_path.len == 0UZ) out_path = get_stem(input_path) + ".exe";
+
+	val c_tmp_path = get_stem(input_path) + ".tmp.c";
+	val write_ok = write_file(c_tmp_path, c_code);
+	if (!write_ok) {
+		print("Error: Failed to write temporary C file: ");
+		println(c_tmp_path);
+		return 1;
+	}
+
+	print("[BUILDING] Invoking backend compiler (");
+	print(c_compiler);
+	println(")...");
+
+	var compile_cmd = "";
+	if (c_compiler == "clang" || c_compiler == "gcc") {
+		compile_cmd = c_compiler + " -O2 -o \"" + out_path + "\" \"" + c_tmp_path + "\"";
+	} else {
+		// MSVC cl.exe: ensure environment is set up if not already in PATH
+		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"" + out_path + "\" \"" + c_tmp_path + "\"";
+	}
+
+	val exit_code = exec(compile_cmd);
+	if (exit_code != 0) {
+		print("Error: Backend C compiler failed with error code ");
+		println("1");
+		return exit_code;
+	}
+
+	// Clean up temporary C file
+	val del_c = "del \"" + c_tmp_path + "\" 2>nul";
+	exec(del_c);
+
+	print("[SUCCESS] Executable created: ");
+	println(out_path);
+	return 0;
 }

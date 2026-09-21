@@ -1,0 +1,15 @@
+struct Vector2 {
+	pub x: i32,
+	pub y: i32
+}
+
+fn dot_product(v1: Vector2, v2: Vector2): i32 {
+	return v1.x * v2.x + v1.y * v2.y;
+}
+
+fn main(): i32 {
+	val a = Vector2(3, 4);
+	val b = Vector2(5, 6);
+	val res = dot_product(a, b);
+	return res;
+}

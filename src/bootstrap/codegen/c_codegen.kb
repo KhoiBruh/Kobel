@@ -1,0 +1,524 @@
+mod bootstrap.codegen.c_codegen;
+
+use bootstrap.ast.node.NodeKind;
+use bootstrap.ast.node.AstNode;
+
+use bootstrap.ast.types.NamedType;
+use bootstrap.ast.types.PointerType;
+use bootstrap.ast.types.ArrayType;
+
+use bootstrap.ast.expr.LiteralKind;
+use bootstrap.ast.expr.LiteralExpr;
+use bootstrap.ast.expr.IdentifierExpr;
+use bootstrap.ast.expr.BinaryExpr;
+use bootstrap.ast.expr.UnaryExpr;
+use bootstrap.ast.expr.CallExpr;
+use bootstrap.ast.expr.MemberExpr;
+use bootstrap.ast.expr.IndexExpr;
+use bootstrap.ast.expr.AssignExpr;
+use bootstrap.ast.expr.CastExpr;
+use bootstrap.ast.expr.GroupExpr;
+use bootstrap.ast.expr.IfExpr;
+
+use bootstrap.ast.stmt.BlockStmt;
+use bootstrap.ast.stmt.ExprStmt;
+use bootstrap.ast.stmt.VarDeclStmt;
+use bootstrap.ast.stmt.IfStmt;
+use bootstrap.ast.stmt.WhileStmt;
+use bootstrap.ast.stmt.ReturnStmt;
+
+use bootstrap.ast.decl.Program;
+use bootstrap.ast.decl.FnDecl;
+use bootstrap.ast.decl.StructDecl;
+use bootstrap.ast.decl.EnumDecl;
+use bootstrap.ast.decl.ConstDecl;
+
+use bootstrap.ast.builder.as_program;
+use bootstrap.ast.builder.as_fn_decl;
+use bootstrap.ast.builder.as_struct_decl;
+use bootstrap.ast.builder.as_enum_decl;
+use bootstrap.ast.builder.as_const_decl;
+use bootstrap.ast.builder.as_literal;
+use bootstrap.ast.builder.as_identifier;
+use bootstrap.ast.builder.as_binary;
+use bootstrap.ast.builder.as_unary;
+use bootstrap.ast.builder.as_call;
+use bootstrap.ast.builder.as_member;
+use bootstrap.ast.builder.as_index;
+use bootstrap.ast.builder.as_assign;
+use bootstrap.ast.builder.as_cast;
+use bootstrap.ast.builder.as_group;
+use bootstrap.ast.builder.as_if_expr;
+use bootstrap.ast.builder.as_block_stmt;
+use bootstrap.ast.builder.as_expr_stmt;
+use bootstrap.ast.builder.as_var_decl;
+use bootstrap.ast.builder.as_if_stmt;
+use bootstrap.ast.builder.as_while_stmt;
+use bootstrap.ast.builder.as_return_stmt;
+use bootstrap.ast.builder.as_named_type;
+use bootstrap.ast.builder.as_pointer_type;
+use bootstrap.ast.builder.as_array_type;
+
+use bootstrap.lexer.token.TokenType;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+// ============================================================================
+// C99 Backend Code Generator
+// ============================================================================
+
+pub struct CCodeGen {
+	pub indent_level: usz,
+	pub struct_names: List<str>,
+	pub errors: List<str>
+}
+
+pub fn new_c_codegen() => CCodeGen(0UZ, new_list<str>(), new_list<str>());
+
+pub fn get_indent(level: usz): str {
+	var res = "";
+	var i: usz = 0UZ;
+	while (i < level) {
+		res = res + "    ";
+		i = i + 1UZ;
+	}
+	return res;
+}
+
+// ============================================================================
+// Type Mapping (Kobel -> C99 Standard Types)
+// ============================================================================
+
+pub fn c_type_from_ast(node: *AstNode): str {
+	if (node == null) return "void";
+
+	when (node.kind) {
+		NodeKind.TYPE_NAMED -> {
+			val named = as_named_type(node);
+			val name = named.name;
+
+			if (name == "void") return "void";
+			if (name == "bool") return "bool";
+			if (name == "i8") return "int8_t";
+			if (name == "i16") return "int16_t";
+			if (name == "i32") return "int32_t";
+			if (name == "i64") return "int64_t";
+			if (name == "isz") return "intptr_t";
+			if (name == "u8") return "uint8_t";
+			if (name == "u16") return "uint16_t";
+			if (name == "u32") return "uint32_t";
+			if (name == "u64") return "uint64_t";
+			if (name == "usz") return "size_t";
+			if (name == "f32") return "float";
+			if (name == "f64") return "double";
+			if (name == "str") return "const char*";
+
+			return name;
+		}
+
+		NodeKind.TYPE_POINTER -> {
+			val ptr = as_pointer_type(node);
+			val sub = c_type_from_ast(ptr.pointee);
+			if (ptr.is_mut) return sub + "*";
+			return "const " + sub + "*";
+		}
+
+		NodeKind.TYPE_ARRAY -> {
+			val arr = as_array_type(node);
+			val sub = c_type_from_ast(arr.element_type);
+			return sub + "*";
+		}
+
+		else -> return "void*";
+	}
+}
+
+// ============================================================================
+// Expression Code Generation
+// ============================================================================
+
+pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
+	if (node == null) return "";
+
+	when (node.kind) {
+		NodeKind.EXPR_LITERAL -> {
+			val lit = as_literal(node);
+			when (lit.literal_kind) {
+				LiteralKind.INT,
+				LiteralKind.FLOAT,
+				LiteralKind.BOOL -> return lit.raw_text;
+				LiteralKind.STRING -> return "\"" + lit.raw_text + "\"";
+				LiteralKind.CHAR -> return "'" + lit.raw_text + "'";
+				LiteralKind.NULL_VAL -> return "NULL";
+				else -> return lit.raw_text;
+			}
+		}
+
+		NodeKind.EXPR_IDENTIFIER -> return as_identifier(node).name;
+
+		NodeKind.EXPR_GROUP -> return "(" + gen_expr(self, as_group(node).expr) + ")";
+
+		NodeKind.EXPR_BINARY -> {
+			val bin = as_binary(node);
+			val l = gen_expr(self, bin.left);
+			val r = gen_expr(self, bin.right);
+			var op_str = "+";
+
+			when (bin.op) {
+				TokenType.PLUS -> op_str = "+";
+				TokenType.MINUS -> op_str = "-";
+				TokenType.STAR -> op_str = "*";
+				TokenType.SLASH -> op_str = "/";
+				TokenType.PERCENT -> op_str = "%";
+				TokenType.EQUAL_EQUAL -> op_str = "==";
+				TokenType.BANG_EQUAL -> op_str = "!=";
+				TokenType.LESS -> op_str = "<";
+				TokenType.LESS_EQUAL -> op_str = "<=";
+				TokenType.GREATER -> op_str = ">";
+				TokenType.GREATER_EQUAL -> op_str = ">=";
+				TokenType.AND_AND -> op_str = "&&";
+				TokenType.OR_OR -> op_str = "||";
+				else -> op_str = "+";
+			}
+
+			return "(" + l + " " + op_str + " " + r + ")";
+		}
+
+		NodeKind.EXPR_UNARY -> {
+			val un = as_unary(node);
+			val opnd = gen_expr(self, un.operand);
+
+			return when (un.op) {
+				TokenType.MINUS -> "(-" + opnd + ")";
+				TokenType.BANG -> "(!" + opnd + ")";
+				TokenType.STAR -> "(*" + opnd + ")";
+				TokenType.AMPERSAND -> "(&" + opnd + ")";
+				else -> opnd;
+			}
+		}
+
+		NodeKind.EXPR_CALL -> {
+			val call = as_call(node);
+			val callee_str = gen_expr(self, call.callee);
+
+			// Kiểm tra nếu gọi Struct Constructor: Point(1, 2) -> (Point){ 1, 2 }
+			var is_struct = false;
+			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id = as_identifier(call.callee);
+				var k: usz = 0UZ;
+				while (k < self.struct_names.len) {
+					if (self.struct_names.get(k) == id.name) is_struct = true;
+					k = k + 1UZ;
+				}
+			}
+
+			if (is_struct) {
+				var res = "(" + callee_str + "){ ";
+				var i: usz = 0UZ;
+				while (i < call.args.len) {
+					if (i > 0UZ) res = res + ", ";
+					res = res + gen_expr(self, call.args.get(i));
+					i = i + 1UZ;
+				}
+				return res + " }";
+			}
+
+			// Gọi hàm C thông thường: func(arg1, arg2)
+			var res = callee_str + "(";
+			var i: usz = 0UZ;
+			while (i < call.args.len) {
+				if (i > 0UZ) res = res + ", ";
+				res = res + gen_expr(self, call.args.get(i));
+				i = i + 1UZ;
+			}
+			return res + ")";
+		}
+
+		NodeKind.EXPR_MEMBER -> {
+			val mem = as_member(node);
+			val obj = gen_expr(self, mem.object);
+			return "(" + obj + ")." + mem.member;
+		}
+
+		NodeKind.EXPR_INDEX -> {
+			val idx = as_index(node);
+			return gen_expr(self, idx.target) + "[" + gen_expr(self, idx.index) + "]";
+		}
+
+		NodeKind.EXPR_ASSIGN -> {
+			val asgn = as_assign(node);
+			return gen_expr(self, asgn.target) + " = " + gen_expr(self, asgn.value);
+		}
+
+		NodeKind.EXPR_CAST -> {
+			val cst = as_cast(node);
+			val ty = c_type_from_ast(cst.target_type);
+			return "((" + ty + ")" + gen_expr(self, cst.expr) + ")";
+		}
+
+		NodeKind.EXPR_IF -> {
+			val if_e = as_if_expr(node);
+			val cond = gen_expr(self, if_e.condition);
+			val th = gen_expr(self, if_e.then_branch);
+			val el = gen_expr(self, if_e.else_branch);
+			return "(" + cond + " ? " + th + " : " + el + ")";
+		}
+
+		else -> return "";
+	}
+}
+
+pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
+	if (expr == null) return "int32_t";
+
+	when (expr.kind) {
+		NodeKind.EXPR_LITERAL -> {
+			val lit = as_literal(expr);
+			return when (lit.literal_kind) {
+				LiteralKind.STRING -> "const char*";
+				LiteralKind.FLOAT -> "double";
+				LiteralKind.BOOL -> "bool";
+				else -> "int32_t";
+			}
+		}
+
+		NodeKind.EXPR_CALL -> {
+			val call = as_call(expr);
+			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id = as_identifier(call.callee);
+				var k: usz = 0UZ;
+				while (k < self.struct_names.len) {
+					if (self.struct_names.get(k) == id.name) return id.name;
+					k = k + 1UZ;
+				}
+			}
+			return "int32_t";
+		}
+
+		NodeKind.EXPR_BINARY -> {
+			val bin = as_binary(expr);
+			return when (bin.op) {
+				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
+				TokenType.LESS, TokenType.LESS_EQUAL,
+				TokenType.GREATER, TokenType.GREATER_EQUAL,
+				TokenType.AND_AND, TokenType.OR_OR -> "bool";
+				else -> infer_type_from_expr(self, bin.left);
+			}
+		}
+
+		NodeKind.EXPR_UNARY -> {
+			val un = as_unary(expr);
+			if (un.op == TokenType.BANG) return "bool";
+			if (un.op == TokenType.AMPERSAND) {
+				val sub = infer_type_from_expr(self, un.operand);
+				return sub + "*";
+			}
+			return infer_type_from_expr(self, un.operand);
+		}
+
+		NodeKind.EXPR_GROUP -> return infer_type_from_expr(self, as_group(expr).expr);
+
+		else -> return "int32_t";
+	}
+}
+
+// ============================================================================
+// Statement Code Generation
+// ============================================================================
+
+pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
+	if (node == null) return "";
+
+	when (node.kind) {
+		NodeKind.STMT_BLOCK -> {
+			val blk = as_block_stmt(node);
+			val ind = get_indent(self.indent_level);
+			var res = ind + "{\n";
+			self.indent_level = self.indent_level + 1UZ;
+			var i: usz = 0UZ;
+			while (i < blk.statements.len) {
+				res = res + gen_statement(self, blk.statements.get(i));
+				i = i + 1UZ;
+			}
+			self.indent_level = self.indent_level - 1UZ;
+			return res + ind + "}\n";
+		}
+
+		NodeKind.STMT_VAR_DECL -> {
+			val vd = as_var_decl(node);
+			val ind = get_indent(self.indent_level);
+			var ty_str = "int32_t";
+			if (vd.type_annotation != null) ty_str = c_type_from_ast(vd.type_annotation);
+			else if (vd.initializer != null) ty_str = infer_type_from_expr(self, vd.initializer);
+
+			var res = ind + ty_str + " " + vd.name;
+			if (vd.initializer != null) res = res + " = " + gen_expr(self, vd.initializer);
+			return res + ";\n";
+		}
+
+		NodeKind.STMT_IF -> {
+			val ifs = as_if_stmt(node);
+			val ind = get_indent(self.indent_level);
+			var res = ind + "if (" + gen_expr(self, ifs.condition) + ") {\n";
+			self.indent_level = self.indent_level + 1UZ;
+			res = res + gen_statement(self, ifs.then_branch);
+			self.indent_level = self.indent_level - 1UZ;
+
+			if (ifs.else_branch != null) {
+				res = res + ind + "} else {\n";
+				self.indent_level = self.indent_level + 1UZ;
+				res = res + gen_statement(self, ifs.else_branch);
+				self.indent_level = self.indent_level - 1UZ;
+			}
+			return res + ind + "}\n";
+		}
+
+		NodeKind.STMT_WHILE -> {
+			val wh = as_while_stmt(node);
+			val ind = get_indent(self.indent_level);
+			var res = ind + "while (" + gen_expr(self, wh.condition) + ") {\n";
+			self.indent_level = self.indent_level + 1UZ;
+			res = res + gen_statement(self, wh.body);
+			self.indent_level = self.indent_level - 1UZ;
+			return res + ind + "}\n";
+		}
+
+		NodeKind.STMT_RETURN -> {
+			val ret = as_return_stmt(node);
+			val ind = get_indent(self.indent_level);
+			if (ret.value != null) return ind + "return " + gen_expr(self, ret.value) + ";\n";
+			return ind + "return;\n";
+		}
+
+		NodeKind.STMT_EXPR -> {
+			val es = as_expr_stmt(node);
+			val ind = get_indent(self.indent_level);
+			return ind + gen_expr(self, es.expr) + ";\n";
+		}
+
+		NodeKind.STMT_BREAK -> return get_indent(self.indent_level) + "break;\n";
+
+		NodeKind.STMT_CONTINUE -> return get_indent(self.indent_level) + "continue;\n";
+
+		else -> return "";
+	}
+}
+
+// ============================================================================
+// Declaration Code Generation
+// ============================================================================
+
+pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str {
+	val s = as_struct_decl(node);
+	self.struct_names.add(s.name);
+
+	var res = "struct " + s.name + " {\n";
+	var i: usz = 0UZ;
+	while (i < s.fields.len) {
+		val f = s.fields.get(i);
+		val ty = c_type_from_ast(f.type_node);
+		res = res + "    " + ty + " " + f.name + ";\n";
+		i = i + 1UZ;
+	}
+	return res + "};\n\n";
+}
+
+pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool): str {
+	val f = as_fn_decl(node);
+	var ret_ty = "void";
+	if (f.return_type != null) ret_ty = c_type_from_ast(f.return_type);
+
+	var proto = ret_ty + " " + f.name + "(";
+	if (f.params.len == 0UZ) proto = proto + "void";
+	else {
+		var i: usz = 0UZ;
+		while (i < f.params.len) {
+			if (i > 0UZ) proto = proto + ", ";
+			val p = f.params.get(i);
+			val p_ty = c_type_from_ast(p.type_node);
+			proto = proto + p_ty + " " + p.name;
+			i = i + 1UZ;
+		}
+	}
+	proto = proto + ")";
+
+	if (is_proto) return proto + ";\n";
+
+	if (f.body == null) return "";
+
+	var res = proto + " {\n";
+	self.indent_level = 1UZ;
+
+	if (f.body.kind == NodeKind.STMT_BLOCK) {
+		val blk = as_block_stmt(f.body);
+		var j: usz = 0UZ;
+		while (j < blk.statements.len) {
+			res = res + gen_statement(self, blk.statements.get(j));
+			j = j + 1UZ;
+		}
+	} else if (f.body.kind == NodeKind.STMT_EXPR) {
+		val es = as_expr_stmt(f.body);
+		if (ret_ty == "void") res = res + "    " + gen_expr(self, es.expr) + ";\n";
+		else res = res + "    return " + gen_expr(self, es.expr) + ";\n";
+	}
+
+	self.indent_level = 0UZ;
+	return res + "}\n\n";
+}
+
+// ============================================================================
+// Full Program Code Generation
+// ============================================================================
+
+pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
+	val prog = as_program(program_node);
+
+	// 1. C Standard Headers
+	var c_code = "/* Generated by Kobel Bootstrap Compiler v1 */\n" +
+		"#include <stdint.h>\n" +
+		"#include <stdbool.h>\n" +
+		"#include <stddef.h>\n" +
+		"#include <stdio.h>\n" +
+		"#include <stdlib.h>\n\n";
+
+	// 2. Thu thập trước tên Struct & Forward Declarations
+	var i: usz = 0UZ;
+	while (i < prog.declarations.len) {
+		val decl = prog.declarations.get(i);
+		if (decl.kind == NodeKind.DECL_STRUCT) {
+			val s = as_struct_decl(decl);
+			self.struct_names.add(s.name);
+			c_code = c_code + "typedef struct " + s.name + " " + s.name + ";\n";
+		}
+		i = i + 1UZ;
+	}
+	c_code = c_code + "\n";
+
+	// 3. Struct Definitions
+	var j: usz = 0UZ;
+	while (j < prog.declarations.len) {
+		val decl = prog.declarations.get(j);
+		if (decl.kind == NodeKind.DECL_STRUCT) c_code = c_code + gen_struct_decl(self, decl);
+		j = j + 1UZ;
+	}
+
+	// 4. Function Prototypes
+	var k: usz = 0UZ;
+	while (k < prog.declarations.len) {
+		val decl = prog.declarations.get(k);
+		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, true);
+		k = k + 1UZ;
+	}
+	c_code = c_code + "\n";
+
+	// 5. Function Implementations
+	var m: usz = 0UZ;
+	while (m < prog.declarations.len) {
+		val decl = prog.declarations.get(m);
+		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, false);
+		m = m + 1UZ;
+	}
+
+	return c_code;
+}
