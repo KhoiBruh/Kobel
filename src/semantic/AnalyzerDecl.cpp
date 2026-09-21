@@ -98,9 +98,12 @@ void Analyzer::check_and_apply_struct_traits(
 			}
 		}
 
+		std::string old_fn = current_function_name;
+		current_function_name = mangled;
 		Semantic ret_type = fn_decl->return_type
 			? resolve_type(fn_decl->return_type)
 			: infer_expression_body_return_type(fn_decl, p_types);
+		current_function_name = old_fn;
 		return FnSymbol{
 			.name = mangled,
 			.param_types = p_types,
@@ -489,7 +492,10 @@ void Analyzer::register_structs(const Program *program) {
 				}
 
 				if (!m_ret_sem) {
+					std::string old_fn = current_function_name;
+					current_function_name = mangled_name;
 					m_ret_sem = infer_expression_body_return_type(method, m_param_types);
+					current_function_name = old_fn;
 				}
 
 				FnSymbol fn_sym = {
@@ -846,6 +852,9 @@ Semantic Analyzer::infer_expression_body_return_type(
 void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_name) {
 	if (!fn->body) return; // Function prototype without body
 
+	std::string old_fn = current_function_name;
+	current_function_name = fn_lookup_name;
+
 	const auto &sym = functions[fn_lookup_name];
 	current_function_return_type = sym.return_type;
 
@@ -879,6 +888,7 @@ void Analyzer::check_function(const FnDecl *fn, const std::string &fn_lookup_nam
 
 	exit_scope();
 	current_function_return_type.reset();
+	current_function_name = old_fn;
 }
 
 bool Analyzer::has_definite_return(const Stmt *stmt) {

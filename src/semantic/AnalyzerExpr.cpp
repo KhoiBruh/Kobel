@@ -145,23 +145,23 @@ bool is_inferable_int_literal_expr(const Expr *expr, Semantic target_type) {
 void retype_int_literal_expr(
 	const Expr *expr,
 	Semantic target_type,
-	std::unordered_map<const Expr *, Semantic> &expr_types
+	Analyzer *analyzer
 ) {
-	if (!expr) return;
-	expr_types[expr] = target_type;
+	if (!expr || !analyzer) return;
+	analyzer->record_expr_type(expr, target_type);
 
 	if (isa<GroupExpr>(expr)) {
-		retype_int_literal_expr(as<GroupExpr>(expr)->expr, target_type, expr_types);
+		retype_int_literal_expr(as<GroupExpr>(expr)->expr, target_type, analyzer);
 		return;
 	}
 	if (isa<UnaryExpr>(expr)) {
-		retype_int_literal_expr(as<UnaryExpr>(expr)->operand, target_type, expr_types);
+		retype_int_literal_expr(as<UnaryExpr>(expr)->operand, target_type, analyzer);
 		return;
 	}
 	if (isa<BinaryExpr>(expr)) {
 		const auto *bin = as<BinaryExpr>(expr);
-		retype_int_literal_expr(bin->left, target_type, expr_types);
-		retype_int_literal_expr(bin->right, target_type, expr_types);
+		retype_int_literal_expr(bin->left, target_type, analyzer);
+		retype_int_literal_expr(bin->right, target_type, analyzer);
 	}
 }
 
@@ -176,7 +176,7 @@ Semantic Analyzer::coerce_int_literal_type(
 	if (!expected_type->is_integer() || !actual_type->is_integer()) return actual_type;
 	if (!is_inferable_int_literal_expr(expr, expected_type)) return actual_type;
 
-	retype_int_literal_expr(expr, expected_type, expr_types);
+	retype_int_literal_expr(expr, expected_type, this);
 	return expected_type;
 }
 
@@ -256,7 +256,7 @@ Semantic Analyzer::analyze_identifier_expr(const IdentifierExpr *id) {
 	// Lookup constant
 	std::string resolved_c = resolve_const_name(name, id->line, id->col);
 	if (!resolved_c.empty()) {
-		resolved_symbols[id] = resolved_c;
+		record_resolved_symbol(id, resolved_c);
 		return constants.at(resolved_c).type;
 	}
 
@@ -451,6 +451,17 @@ Semantic Analyzer::analyze_unary_expr(const UnaryExpr *u) {
 			}
 			return operand_type->pointee;
 
+		case TokenType::AMPERSAND: { // Address-of: &x
+			bool is_mut = true;
+			if (isa<IdentifierExpr>(u->operand)) {
+				auto id = as<IdentifierExpr>(u->operand);
+				if (auto sym = lookup_variable(id->name)) {
+					is_mut = sym->is_mut;
+				}
+			}
+			return make_pointer(operand_type, is_mut);
+		}
+
 		default:
 			return make_error();
 	}
@@ -505,7 +516,7 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 					logger.error(c->line, c->col, "Type size method '.size()' takes no arguments");
 					return make_error();
 				}
-				resolved_type_sizes[c] = type_sem;
+				record_resolved_type_size(c, type_sem);
 				return make_primitive(SemaType::USZ);
 			}
 		}
@@ -576,7 +587,7 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 			if (st_res == make_error() || !structs.contains(inst_name)) {
 				return make_error();
 			}
-			resolved_symbols[c] = inst_name;
+			record_resolved_symbol(c, inst_name);
 
 			const auto &st_sym = structs.at(inst_name);
 			if (c->args.size() != st_sym.field_order.size()) {
@@ -599,23 +610,21 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 			return make_struct(inst_name);
 		}
 
-		// 2. Check generic function call: id<i32>(42) or id(42)
+		// 2. Generic function call: id<i32>(10) or inferred id(10)
 		std::string gen_fn_name = resolve_generic_function_name(raw_callee_name, c->line, c->col);
 		if (!gen_fn_name.empty()) {
 			const auto *gen_fn = generic_functions.at(gen_fn_name);
 			std::vector<Semantic> resolved_type_args;
 
 			if (!c->type_args.empty()) {
-				// Explicit type arguments: id<i32>(42)
 				for (const auto *t_arg : c->type_args) {
 					resolved_type_args.push_back(resolve_type(t_arg));
 				}
 			} else {
-				// Inferred type arguments: id(42)
 				if (c->args.size() != gen_fn->params.size()) {
 					logger.error(
 						c->line, c->col,
-						"Function '" + raw_callee_name + "' expects " +
+						"Generic function '" + raw_callee_name + "' expects " +
 						std::to_string(gen_fn->params.size()) + " arguments, but got " +
 						std::to_string(c->args.size())
 					);
@@ -653,7 +662,7 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 			if (fn_res == make_error() || !functions.contains(inst_name)) {
 				return make_error();
 			}
-			resolved_symbols[c] = inst_name;
+			record_resolved_symbol(c, inst_name);
 
 			const auto &fn_sym = functions.at(inst_name);
 			if (c->args.size() != fn_sym.param_types.size()) {
@@ -678,7 +687,7 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 		// 3. Struct instantiation: Point(10, 20)
 		std::string resolved_st = resolve_struct_name(raw_callee_name, c->line, c->col);
 		if (!resolved_st.empty()) {
-			resolved_symbols[c] = resolved_st;
+			record_resolved_symbol(c, resolved_st);
 			const auto &st_sym = structs.at(resolved_st);
 			if (c->args.size() != st_sym.field_order.size()) {
 				logger.error(
@@ -703,7 +712,7 @@ Semantic Analyzer::analyze_call_expr(const CallExpr *c) {
 		// 4. Regular function call
 		std::string resolved_fn = resolve_function_name(raw_callee_name, c->line, c->col);
 		if (!resolved_fn.empty()) {
-			resolved_symbols[c] = resolved_fn;
+			record_resolved_symbol(c, resolved_fn);
 			const auto &fn_sym = functions.at(resolved_fn);
 			if (c->args.size() != fn_sym.param_types.size()) {
 				logger.error(
@@ -863,7 +872,7 @@ Semantic Analyzer::analyze_member_expr(const MemberExpr *m) {
 	if (auto path = get_symbol_path(m, this)) {
 		std::string resolved_const = resolve_const_name(*path, m->line, m->col);
 		if (!resolved_const.empty()) {
-			resolved_symbols[m] = resolved_const;
+			record_resolved_symbol(m, resolved_const);
 			return constants.at(resolved_const).type;
 		}
 	}
@@ -884,7 +893,7 @@ Semantic Analyzer::analyze_member_expr(const MemberExpr *m) {
 				);
 				return make_error();
 			}
-			resolved_symbols[m] = resolved_enum + "." + member_name;
+			record_resolved_symbol(m, resolved_enum + "." + member_name);
 			return make_enum(resolved_enum, enum_sym.underlying_type);
 		}
 	}
@@ -1014,12 +1023,25 @@ Semantic Analyzer::compute_expr_type(const Expr *expr) {
 Semantic Analyzer::analyze_expr(const Expr *expr) {
 	if (!expr) return make_error();
 	auto ty = compute_expr_type(expr);
-	expr_types[expr] = ty;
+	record_expr_type(expr, ty);
 	return ty;
 }
 
-Semantic Analyzer::get_expr_type(const Expr *expr) {
+Semantic Analyzer::get_expr_type(const Expr *expr, const std::string &fn_name) {
 	if (!expr) return make_error();
+	if (!fn_name.empty()) {
+		auto it_fn = fn_expr_types.find(fn_name);
+		if (it_fn != fn_expr_types.end()) {
+			auto it_e = it_fn->second.find(expr);
+			if (it_e != it_fn->second.end()) return it_e->second;
+		}
+	} else if (!current_function_name.empty()) {
+		auto it_fn = fn_expr_types.find(current_function_name);
+		if (it_fn != fn_expr_types.end()) {
+			auto it_e = it_fn->second.find(expr);
+			if (it_e != it_fn->second.end()) return it_e->second;
+		}
+	}
 	auto it = expr_types.find(expr);
 	if (it != expr_types.end()) return it->second;
 	return make_error();

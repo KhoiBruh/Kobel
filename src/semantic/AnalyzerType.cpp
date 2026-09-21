@@ -255,9 +255,12 @@ Semantic Analyzer::instantiate_struct(
 			}
 		}
 
+		std::string old_fn = current_function_name;
+		current_function_name = mangled_name;
 		Semantic return_type = method->return_type
 			? substitute_type(method->return_type, type_map)
 			: infer_expression_body_return_type(method, param_types);
+		current_function_name = old_fn;
 		FnSymbol fn_sym {
 			.name = mangled_name,
 			.param_types = std::move(param_types),
@@ -438,7 +441,10 @@ Semantic Analyzer::instantiate_function(
 	} else {
 		auto old_subst = active_type_substitutions;
 		active_type_substitutions = type_map;
+		std::string old_fn = current_function_name;
+		current_function_name = instantiated_name;
 		ret_sem = infer_expression_body_return_type(generic_fn, param_types);
+		current_function_name = old_fn;
 		active_type_substitutions = old_subst;
 	}
 

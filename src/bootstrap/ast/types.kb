@@ -1,0 +1,19 @@
+mod bootstrap.ast.types;
+
+use bootstrap.ast.node.AstNode;
+use std.collections.list.List;
+
+pub struct NamedType {
+	pub name: str,
+	pub type_args: List<*AstNode>
+}
+
+pub struct PointerType {
+	pub is_mut: bool,
+	pub pointee: *AstNode
+}
+
+pub struct ArrayType {
+	pub element_type: *AstNode,
+	pub size: usz
+}

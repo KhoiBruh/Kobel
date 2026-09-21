@@ -64,11 +64,11 @@ void CodeGen::emit_stmt(const Stmt *stmt) {
 			} else if (
 				isa<CallExpr>(v->initializer) &&
 				isa<IdentifierExpr>(as<CallExpr>(v->initializer)->callee) &&
-				analyzer && (
-					analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name) ||
-					(analyzer->resolved_symbols.contains(as<CallExpr>(v->initializer)) &&
-					 analyzer->structs.contains(analyzer->resolved_symbols.at(as<CallExpr>(v->initializer))))
-				)
+				analyzer && ([&]() {
+					if (analyzer->structs.contains(as<IdentifierExpr>(as<CallExpr>(v->initializer)->callee)->name)) return true;
+					auto opt_res = analyzer->get_resolved_symbol(as<CallExpr>(v->initializer), current_function_name);
+					return opt_res.has_value() && analyzer->structs.contains(*opt_res);
+				}())
 			) {
 				const auto *call = as<CallExpr>(v->initializer);
 				for (size_t i = 0; i < call->args.size(); ++i) {

@@ -372,6 +372,8 @@ export struct CodeGen {
 		}
 	}
 
+	std::string current_function_name;
+
 	llvm::AllocaInst *create_entry_block_alloca(llvm::Function *fn, llvm::Type *type, const std::string_view name) {
 		llvm::IRBuilder tmp_builder(&fn->getEntryBlock(), fn->getEntryBlock().begin());
 		return tmp_builder.CreateAlloca(type, nullptr, std::string(name));
@@ -390,7 +392,7 @@ export struct CodeGen {
 		}
 
 		if (analyzer) {
-			auto ty = analyzer->get_expr_type(expr);
+			auto ty = analyzer->get_expr_type(expr, current_function_name);
 			if (!ty->is_error()) return ty;
 		}
 

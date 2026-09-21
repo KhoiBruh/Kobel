@@ -53,9 +53,32 @@ void CodeGen::emit_struct_decl(const StructDecl *st) {
 
 	std::vector<llvm::Type *> field_types;
 
-	for (const auto &field: st->fields) {
-		auto sema_ty = analyzer->resolve_type(field.type);
-		field_types.push_back(get_llvm_type(sema_ty));
+	std::string old_mod;
+	if (analyzer) {
+		old_mod = analyzer->current_module;
+		if (!mod.empty()) analyzer->current_module = mod;
+	}
+
+	const StructSymbol *sym_ptr = nullptr;
+	if (analyzer) {
+		if (auto it = analyzer->structs.find(qual_name); it != analyzer->structs.end()) sym_ptr = &it->second;
+		else if (auto it = analyzer->structs.find(llvm_st_name); it != analyzer->structs.end()) sym_ptr = &it->second;
+	}
+
+	if (sym_ptr) {
+		for (const auto &f_name : sym_ptr->field_order) {
+			const auto &f_type = sym_ptr->field_types.at(f_name);
+			field_types.push_back(get_llvm_type(f_type));
+		}
+	} else {
+		for (const auto &field: st->fields) {
+			auto sema_ty = analyzer->resolve_type(field.type);
+			field_types.push_back(get_llvm_type(sema_ty));
+		}
+	}
+
+	if (analyzer) {
+		analyzer->current_module = old_mod;
 	}
 
 	llvm::StructType *struct_ty = llvm::StructType::getTypeByName(*context, llvm_st_name);
@@ -199,6 +222,9 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 	}
 	if (!fn || !fn->empty()) return; // Function body already emitted
 
+	std::string old_fn_name = current_function_name;
+	current_function_name = name;
+
 	std::string old_mod;
 	if (analyzer) {
 		old_mod = analyzer->current_module;
@@ -242,6 +268,7 @@ void CodeGen::emit_fn_body(const FnDecl *fn_decl, const std::string &fn_name_ove
 	if (analyzer) {
 		analyzer->current_module = old_mod;
 	}
+	current_function_name = old_fn_name;
 }
 
 void CodeGen::emit_fn_decl(const FnDecl *fn_decl, const std::string &fn_name_override) {

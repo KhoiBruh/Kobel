@@ -96,8 +96,8 @@ Expr *Parser::parse_prefix() {
 		return arena.alloc<GroupExpr>(expr, tok.line, tok.col);
 	}
 
-	// single prefix operator: -x, !x, *ptr
-	if (match(TokenType::MINUS) || match(TokenType::BANG) || match(TokenType::STAR)) {
+	// single prefix operator: -x, !x, *ptr, &x
+	if (match(TokenType::MINUS) || match(TokenType::BANG) || match(TokenType::STAR) || match(TokenType::AMPERSAND)) {
 		const auto op = previous();
 		auto operand = parse_expression(Precedence::UNARY);
 		return arena.alloc<UnaryExpr>(op.type, operand, op.line, op.col);

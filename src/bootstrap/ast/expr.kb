@@ -1,0 +1,87 @@
+mod bootstrap.ast.expr;
+
+use bootstrap.ast.node.AstNode;
+use bootstrap.lexer.token.TokenType;
+use std.collections.list.List;
+
+pub enum LiteralKind {
+	INT,
+	FLOAT,
+	BOOL,
+	CHAR,
+	STRING,
+	NULL_VAL
+}
+
+pub struct LiteralExpr {
+	pub literal_kind: LiteralKind,
+	pub raw_text: str
+}
+
+pub struct IdentifierExpr {
+	pub name: str
+}
+
+pub struct BinaryExpr {
+	pub left: *AstNode,
+	pub op: TokenType,
+	pub right: *AstNode
+}
+
+pub struct UnaryExpr {
+	pub op: TokenType,
+	pub operand: *AstNode
+}
+
+pub struct CallExpr {
+	pub callee: *AstNode,
+	pub args: List<*AstNode>,
+	pub type_args: List<*AstNode>
+}
+
+pub struct MemberExpr {
+	pub object: *AstNode,
+	pub member: str
+}
+
+pub struct IndexExpr {
+	pub target: *AstNode,
+	pub index: *AstNode
+}
+
+pub struct AssignExpr {
+	pub target: *AstNode,
+	pub value: *AstNode
+}
+
+pub struct CastExpr {
+	pub expr: *AstNode,
+	pub target_type: *AstNode
+}
+
+pub struct GroupExpr {
+	pub expr: *AstNode
+}
+
+pub struct ArrayLiteralExpr {
+	pub elements: List<*AstNode>
+}
+
+pub struct IfExpr {
+	pub condition: *AstNode,
+	pub then_branch: *AstNode,
+	pub else_branch: *AstNode
+}
+
+pub struct WhenArm {
+	pub patterns: List<*AstNode>,
+	pub is_else: bool,
+	pub body: *AstNode,
+	pub line: usz,
+	pub col: usz
+}
+
+pub struct WhenExpr {
+	pub condition: *AstNode,
+	pub arms: List<WhenArm>
+}

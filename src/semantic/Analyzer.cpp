@@ -62,6 +62,75 @@ export struct Analyzer {
 	std::unordered_map<const Expr *, std::string> resolved_symbols;
 	std::unordered_map<const Expr *, Semantic> resolved_type_sizes;
 
+	std::string current_function_name;
+	std::unordered_map<std::string, std::unordered_map<const Expr *, Semantic>> fn_expr_types;
+	std::unordered_map<std::string, std::unordered_map<const Expr *, std::string>> fn_resolved_symbols;
+	std::unordered_map<std::string, std::unordered_map<const Expr *, Semantic>> fn_resolved_type_sizes;
+
+	void record_expr_type(const Expr *expr, Semantic ty) {
+		expr_types[expr] = ty;
+		if (!current_function_name.empty()) {
+			fn_expr_types[current_function_name][expr] = ty;
+			fn_expr_types[to_llvm_name(current_function_name)][expr] = ty;
+		}
+	}
+
+	void record_resolved_symbol(const Expr *expr, const std::string &sym) {
+		resolved_symbols[expr] = sym;
+		if (!current_function_name.empty()) {
+			fn_resolved_symbols[current_function_name][expr] = sym;
+			fn_resolved_symbols[to_llvm_name(current_function_name)][expr] = sym;
+		}
+	}
+
+	void record_resolved_type_size(const Expr *expr, Semantic sem) {
+		resolved_type_sizes[expr] = sem;
+		if (!current_function_name.empty()) {
+			fn_resolved_type_sizes[current_function_name][expr] = sem;
+			fn_resolved_type_sizes[to_llvm_name(current_function_name)][expr] = sem;
+		}
+	}
+
+	std::optional<std::string> get_resolved_symbol(const Expr *expr, const std::string &fn_name = "") const {
+		if (!expr) return std::nullopt;
+		if (!fn_name.empty()) {
+			auto it_fn = fn_resolved_symbols.find(fn_name);
+			if (it_fn != fn_resolved_symbols.end()) {
+				auto it_e = it_fn->second.find(expr);
+				if (it_e != it_fn->second.end()) return it_e->second;
+			}
+		} else if (!current_function_name.empty()) {
+			auto it_fn = fn_resolved_symbols.find(current_function_name);
+			if (it_fn != fn_resolved_symbols.end()) {
+				auto it_e = it_fn->second.find(expr);
+				if (it_e != it_fn->second.end()) return it_e->second;
+			}
+		}
+		auto it = resolved_symbols.find(expr);
+		if (it != resolved_symbols.end()) return it->second;
+		return std::nullopt;
+	}
+
+	Semantic get_resolved_type_size(const Expr *expr, const std::string &fn_name = "") const {
+		if (!expr) return nullptr;
+		if (!fn_name.empty()) {
+			auto it_fn = fn_resolved_type_sizes.find(fn_name);
+			if (it_fn != fn_resolved_type_sizes.end()) {
+				auto it_e = it_fn->second.find(expr);
+				if (it_e != it_fn->second.end()) return it_e->second;
+			}
+		} else if (!current_function_name.empty()) {
+			auto it_fn = fn_resolved_type_sizes.find(current_function_name);
+			if (it_fn != fn_resolved_type_sizes.end()) {
+				auto it_e = it_fn->second.find(expr);
+				if (it_e != it_fn->second.end()) return it_e->second;
+			}
+		}
+		auto it = resolved_type_sizes.find(expr);
+		if (it != resolved_type_sizes.end()) return it->second;
+		return nullptr;
+	}
+
 	TypeContext type_ctx;
 
 	Semantic make_primitive(SemaType k) const { return type_ctx.make_primitive(k); }
@@ -226,7 +295,7 @@ export struct Analyzer {
 
 	Semantic analyze_expr(const Expr *expr);
 
-	Semantic get_expr_type(const Expr *expr);
+	Semantic get_expr_type(const Expr *expr, const std::string &fn_name = "");
 
 	Semantic check_and_coerce_arg(
 		const Expr *arg,

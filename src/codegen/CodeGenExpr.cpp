@@ -89,8 +89,8 @@ namespace {
 
 llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 	if (analyzer) {
-		if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
-			std::string const_lookup = to_llvm_name(it->second);
+		if (auto opt_sym = analyzer->get_resolved_symbol(expr, current_function_name)) {
+			std::string const_lookup = to_llvm_name(*opt_sym);
 			if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
 		}
 	}
@@ -103,8 +103,8 @@ llvm::Value *CodeGen::emit_lvalue(const Expr *expr) {
 
 		std::string const_lookup = name;
 		if (analyzer) {
-			if (auto it = analyzer->resolved_symbols.find(expr); it != analyzer->resolved_symbols.end()) {
-				const_lookup = to_llvm_name(it->second);
+			if (auto opt_sym = analyzer->get_resolved_symbol(expr, current_function_name)) {
+				const_lookup = to_llvm_name(*opt_sym);
 			}
 		}
 		if (const auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) return it_g->second;
@@ -351,8 +351,8 @@ llvm::Value *CodeGen::emit_identifier_expr(const IdentifierExpr *id) {
 
 	std::string const_lookup = name;
 	if (analyzer) {
-		if (auto it = analyzer->resolved_symbols.find(id); it != analyzer->resolved_symbols.end()) {
-			const_lookup = to_llvm_name(it->second);
+		if (auto opt_sym = analyzer->get_resolved_symbol(id, current_function_name)) {
+			const_lookup = to_llvm_name(*opt_sym);
 		}
 	}
 	if (auto it_g = global_consts.find(const_lookup); it_g != global_consts.end()) {
@@ -504,6 +504,9 @@ llvm::Value *CodeGen::emit_binary_expr(const BinaryExpr *b) {
 
 llvm::Value *CodeGen::emit_unary_expr(const UnaryExpr *u) {
 	if (!u) return nullptr;
+	if (u->op == TokenType::AMPERSAND) {
+		return emit_lvalue(u->operand);
+	}
 	auto *opnd = emit_expr(u->operand);
 
 	switch (u->op) {
@@ -523,44 +526,45 @@ llvm::Value *CodeGen::emit_call_expr(const CallExpr *c) {
 	if (!c) return nullptr;
 
 	// Static T.size() inquiry (e.g. Point.size(), i32.size(), str.size())
-	if (analyzer && analyzer->resolved_type_sizes.contains(c)) {
-		Semantic ty = analyzer->resolved_type_sizes.at(c);
-		if (ty->kind == SemaType::VOID) {
-			return builder->getInt64(0);
+	if (analyzer) {
+		if (Semantic ty = analyzer->get_resolved_type_size(c, current_function_name)) {
+			if (ty->kind == SemaType::VOID) {
+				return builder->getInt64(0);
+			}
+			llvm::Type *llvm_ty = get_llvm_type(ty);
+			uint64_t sz = module->getDataLayout().getTypeAllocSize(llvm_ty);
+			return builder->getInt64(sz);
 		}
-		llvm::Type *llvm_ty = get_llvm_type(ty);
-		uint64_t sz = module->getDataLayout().getTypeAllocSize(llvm_ty);
-		return builder->getInt64(sz);
 	}
 
 	// 6a. Direct call or struct instantiation by name
-	auto resolved_it = analyzer
-						   ? analyzer->resolved_symbols.find(c)
-						   : decltype(analyzer->resolved_symbols.find(c)){};
-	bool has_resolved = analyzer && resolved_it != analyzer->resolved_symbols.end();
+	auto opt_resolved = analyzer
+						   ? analyzer->get_resolved_symbol(c, current_function_name)
+						   : std::nullopt;
+	bool has_resolved = opt_resolved.has_value();
 
 	if (isa<IdentifierExpr>(c->callee) || has_resolved) {
 		std::string raw_name;
 		if (isa<IdentifierExpr>(c->callee)) {
 			raw_name = std::string(as<IdentifierExpr>(c->callee)->name);
 		} else if (has_resolved) {
-			raw_name = resolved_it->second;
+			raw_name = *opt_resolved;
 		}
 		std::string target_name = raw_name;
 		if (has_resolved) {
-			target_name = to_llvm_name(resolved_it->second);
+			target_name = to_llvm_name(*opt_resolved);
 		}
 
 		// Struct instantiation: Point(10, 20)
 		if (struct_types.contains(target_name) || (
 				analyzer && (analyzer->structs.contains(target_name) || (
 								 has_resolved && analyzer->structs.contains(
-									 resolved_it->second
+									 *opt_resolved
 								 ))))) {
 			llvm::Type *st_type = nullptr;
 			if (auto it = struct_types.find(target_name); it != struct_types.end()) st_type = it->second;
 			if (!st_type && has_resolved) {
-				const auto &sym_name = resolved_it->second;
+				const auto &sym_name = *opt_resolved;
 				if (auto it = struct_types.find(sym_name); it != struct_types.end()) st_type = it->second;
 				if (!st_type) {
 					if (auto it = struct_types.find(to_llvm_name(sym_name)); it != struct_types.end())
@@ -595,7 +599,7 @@ llvm::Value *CodeGen::emit_call_expr(const CallExpr *c) {
 		auto *callee = module->getFunction(target_name);
 		if (!callee && analyzer) {
 			std::string fn_lookup = has_resolved
-										? resolved_it->second
+										? *opt_resolved
 										: target_name;
 			auto it = analyzer->functions.find(fn_lookup);
 			if (it == analyzer->functions.end()) {
@@ -757,8 +761,8 @@ llvm::Value *CodeGen::emit_member_expr(const MemberExpr *m) {
 
 	// Resolved symbol (e.g. module-prefixed constant or enum member)
 	if (analyzer) {
-		if (auto it = analyzer->resolved_symbols.find(m); it != analyzer->resolved_symbols.end()) {
-			const auto &sym_name = it->second;
+		if (auto opt_sym = analyzer->get_resolved_symbol(m, current_function_name)) {
+			const auto &sym_name = *opt_sym;
 			size_t last_dot = sym_name.rfind('.');
 			if (last_dot != std::string::npos) {
 				std::string enum_part = sym_name.substr(0, last_dot);

@@ -1,0 +1,55 @@
+mod bootstrap.ast.stmt;
+
+use bootstrap.ast.node.AstNode;
+use std.collections.list.List;
+
+pub struct BlockStmt {
+	pub statements: List<*AstNode>
+}
+
+pub struct ExprStmt {
+	pub expr: *AstNode
+}
+
+pub struct VarDeclStmt {
+	pub is_mut: bool,
+	pub name: str,
+	pub type_annotation: *AstNode,
+	pub initializer: *AstNode
+}
+
+pub struct IfStmt {
+	pub condition: *AstNode,
+	pub then_branch: *AstNode,
+	pub else_branch: *AstNode
+}
+
+pub struct WhileStmt {
+	pub condition: *AstNode,
+	pub body: *AstNode
+}
+
+pub struct ReturnStmt {
+	pub value: *AstNode
+}
+
+pub struct BreakStmt {
+	pub dummy: i32
+}
+
+pub struct ContinueStmt {
+	pub dummy: i32
+}
+
+pub struct WhenStmtArm {
+	pub patterns: List<*AstNode>,
+	pub is_else: bool,
+	pub body: *AstNode,
+	pub line: usz,
+	pub col: usz
+}
+
+pub struct WhenStmt {
+	pub condition: *AstNode,
+	pub arms: List<WhenStmtArm>
+}

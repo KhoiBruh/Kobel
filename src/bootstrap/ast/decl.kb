@@ -1,0 +1,96 @@
+mod bootstrap.ast.decl;
+
+use bootstrap.ast.node.AstNode;
+use std.collections.list.List;
+
+pub struct ModuleDecl {
+	pub path: List<str>,
+	pub full_path: str
+}
+
+pub struct UseDecl {
+	pub path: List<str>,
+	pub full_path: str,
+	pub symbol_name: str,
+	pub alias: str,
+	pub is_wildcard: bool
+}
+
+pub struct Param {
+	pub name: str,
+	pub type_node: *AstNode,
+	pub is_mut: bool,
+	pub has_val: bool
+}
+
+pub struct GenericParam {
+	pub name: str,
+	pub bounds: List<str>
+}
+
+pub struct FnDecl {
+	pub name: str,
+	pub type_params: List<GenericParam>,
+	pub params: List<Param>,
+	pub return_type: *AstNode,
+	pub body: *AstNode,
+	pub is_pub: bool
+}
+
+pub struct StructField {
+	pub name: str,
+	pub type_node: *AstNode,
+	pub is_pub: bool
+}
+
+pub struct StructDecl {
+	pub name: str,
+	pub type_params: List<GenericParam>,
+	pub fields: List<StructField>,
+	pub is_pub: bool
+}
+
+pub struct TraitDecl {
+	pub name: str,
+	pub type_params: List<GenericParam>,
+	pub bases: List<str>,
+	pub methods: List<*AstNode>,
+	pub is_pub: bool
+}
+
+pub struct ImplDecl {
+	pub struct_name: str,
+	pub type_params: List<GenericParam>,
+	pub trait_name: str,
+	pub methods: List<*AstNode>
+}
+
+pub struct EnumMember {
+	pub name: str,
+	pub value: *AstNode,
+	pub line: usz,
+	pub col: usz
+}
+
+pub struct EnumDecl {
+	pub name: str,
+	pub underlying_type: *AstNode,
+	pub members: List<EnumMember>,
+	pub is_pub: bool
+}
+
+pub struct ConstDecl {
+	pub name: str,
+	pub type_node: *AstNode,
+	pub value: *AstNode,
+	pub is_pub: bool
+}
+
+pub struct ExternBlock {
+	pub abi: str,
+	pub declarations: List<*AstNode>
+}
+
+pub struct Program {
+	pub declarations: List<*AstNode>
+}
