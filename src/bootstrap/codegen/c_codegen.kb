@@ -74,7 +74,7 @@ pub struct CCodeGen {
 	pub errors: List<str>
 }
 
-pub fn new_c_codegen() => CCodeGen(0UZ, new_list<str>(), new_list<str>());
+pub fn new_c_codegen(): CCodeGen => CCodeGen(0UZ, new_list<str>(), new_list<str>());
 
 pub fn get_indent(level: usz): str {
 	var res = "";
@@ -195,7 +195,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				TokenType.STAR -> "(*" + opnd + ")";
 				TokenType.AMPERSAND -> "(&" + opnd + ")";
 				else -> opnd;
-			}
+			};
 		}
 
 		NodeKind.EXPR_CALL -> {
@@ -280,7 +280,7 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 				LiteralKind.FLOAT -> "double";
 				LiteralKind.BOOL -> "bool";
 				else -> "int32_t";
-			}
+			};
 		}
 
 		NodeKind.EXPR_CALL -> {
@@ -304,7 +304,7 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 				TokenType.GREATER, TokenType.GREATER_EQUAL,
 				TokenType.AND_AND, TokenType.OR_OR -> "bool";
 				else -> infer_type_from_expr(self, bin.left);
-			}
+			};
 		}
 
 		NodeKind.EXPR_UNARY -> {
