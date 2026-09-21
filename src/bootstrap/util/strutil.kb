@@ -24,11 +24,11 @@ struct StrRaw {
 
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
-	val raw_mem = malloc(24UZ);
+	val raw_mem = malloc(24);
 	val r = raw_mem as &StrRaw;
 	r.data = buf as *char;
 	r.len = len;
-	r.cap = len + 1UZ;
+	r.cap = len + 1;
 	val sp: *str = r as *str;
 	val res: str = *sp;
 	free(raw_mem);
@@ -37,157 +37,155 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 
 // Copies `count` bytes starting at `start` into a fresh NUL terminated `str`.
 pub fn str_slice(s: str, start: usz, count: usz): str {
-	val buf = malloc(count + 1UZ);
-	var i: usz = 0UZ;
+	val buf = malloc(count + 1);
+	var i: usz = 0;
 	while (i < count) {
 		buf[i] = s[start + i] as u8;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	buf[count] = 0UB;
+	buf[count] = 0;
 	return str_from_bytes(buf, count);
 }
 
 pub fn str_concat(a: str, b: str): str {
 	val total = a.len + b.len;
-	val buf = malloc(total + 1UZ);
-	var i: usz = 0UZ;
+	val buf = malloc(total + 1);
+	var i: usz = 0;
 	while (i < a.len) {
 		buf[i] = a[i] as u8;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	var j: usz = 0UZ;
+	var j: usz = 0;
 	while (j < b.len) {
 		buf[i] = b[j] as u8;
-		i = i + 1UZ;
-		j = j + 1UZ;
+		i = i + 1;
+		j = j + 1;
 	}
-	buf[total] = 0UB;
+	buf[total] = 0;
 	return str_from_bytes(buf, total);
 }
 
-pub fn str_concat3(a: str, b: str, c: str): str {
-	return str_concat(str_concat(a, b), c);
-}
+pub fn str_concat3(a: str, b: str, c: str) => str_concat(str_concat(a, b), c);
 
-pub fn str_is_sep(c: char): bool => c == '/' || c == '\\';
+pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
 // "std.io" -> "std/io" (module path -> relative file path, without extension)
 pub fn str_module_to_rel(module_name: str): str {
-	val buf = malloc(module_name.len + 1UZ);
-	var i: usz = 0UZ;
+	val buf = malloc(module_name.len + 1);
+	var i: usz = 0;
 	while (i < module_name.len) {
 		val c = module_name[i];
 		if (c == '.') buf[i] = '/' as u8;
 		else buf[i] = c as u8;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	buf[module_name.len] = 0UB;
+	buf[module_name.len] = 0;
 	return str_from_bytes(buf, module_name.len);
 }
 
 // "sub/x.kb" -> "sub.x"  (relative file path -> module name)
 pub fn str_path_to_module(rel_path: str): str {
 	val stem = str_strip_kb(rel_path);
-	val buf = malloc(stem.len + 1UZ);
-	var i: usz = 0UZ;
+	val buf = malloc(stem.len + 1);
+	var i: usz = 0;
 	while (i < stem.len) {
 		val c = stem[i];
 		if (str_is_sep(c)) buf[i] = '.' as u8;
 		else buf[i] = c as u8;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	buf[stem.len] = 0UB;
+	buf[stem.len] = 0;
 	return str_from_bytes(buf, stem.len);
 }
 
 pub fn str_has_kb_suffix(path: str): bool {
-	if (path.len < 3UZ) return false;
-	if (path[path.len - 3UZ] != '.') return false;
-	if (path[path.len - 2UZ] != 'k') return false;
-	return path[path.len - 1UZ] == 'b';
+	if (path.len < 3) return false;
+	if (path[path.len - 3] != '.') return false;
+	if (path[path.len - 2] != 'k') return false;
+	return path[path.len - 1] == 'b';
 }
 
 // Strips a trailing ".kb" extension when present.
 pub fn str_strip_kb(path: str): str {
 	if (!str_has_kb_suffix(path)) return path;
-	return str_slice(path, 0UZ, path.len - 3UZ);
+	return str_slice(path, 0, path.len - 3);
 }
 
 // Directory part of a path ("" when the path has no separator).
 pub fn str_dir_of(path: str): str {
-	var last: usz = 0UZ;
+	var last: usz = 0;
 	var found = false;
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < path.len) {
 		if (str_is_sep(path[i])) {
 			last = i;
 			found = true;
 		}
-		i = i + 1UZ;
+		i = i + 1;
 	}
 	if (!found) return "";
-	return str_slice(path, 0UZ, last);
+	return str_slice(path, 0, last);
 }
 
 // File name part of a path (input with separators included).
 pub fn str_base_name(path: str): str {
-	var start: usz = 0UZ;
-	var i: usz = 0UZ;
+	var start: usz = 0;
+	var i: usz = 0;
 	while (i < path.len) {
-		if (str_is_sep(path[i])) start = i + 1UZ;
-		i = i + 1UZ;
+		if (str_is_sep(path[i])) start = i + 1;
+		i = i + 1;
 	}
 	return str_slice(path, start, path.len - start);
 }
 
 // Joins a directory and a relative path with a single '/' separator.
 pub fn str_join_path(dir: str, rel: str): str {
-	if (dir.len == 0UZ) return rel;
+	if (dir.len == 0) return rel;
 	return str_concat3(dir, "/", rel);
 }
 
-pub fn str_is_empty_str(s: str): bool => s.len == 0UZ;
+pub fn str_is_empty_str(s: str) => s.len == 0;
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total: usz = 0UZ;
-	var i: usz = 0UZ;
+	var total: usz = 0;
+	var i: usz = 0;
 	while (i < count) {
 		total = total + parts.get(i).len;
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	if (count > 1UZ) total = total + (count - 1UZ);
+	if (count > 1) total = total + (count - 1);
 
-	val buf = malloc(total + 1UZ);
-	var w: usz = 0UZ;
-	i = 0UZ;
+	val buf = malloc(total + 1);
+	var w: usz = 0;
+	i = 0;
 	while (i < count) {
 		val p = parts.get(i);
-		var j: usz = 0UZ;
+		var j: usz = 0;
 		while (j < p.len) {
 			buf[w] = p[j] as u8;
-			w = w + 1UZ;
-			j = j + 1UZ;
+			w = w + 1;
+			j = j + 1;
 		}
-		if (i + 1UZ < count) {
+		if (i + 1 < count) {
 			buf[w] = '.' as u8;
-			w = w + 1UZ;
+			w = w + 1;
 		}
-		i = i + 1UZ;
+		i = i + 1;
 	}
-	buf[w] = 0UB;
+	buf[w] = 0;
 	return str_from_bytes(buf, w);
 }
 
 pub fn str_split_dots(s: str): List<str> {
 	var parts = new_list<str>();
-	var start: usz = 0UZ;
-	var i: usz = 0UZ;
+	var start: usz = 0;
+	var i: usz = 0;
 	while (i < s.len) {
 		if (s[i] == '.') {
 			parts.add(str_slice(s, start, i - start));
-			start = i + 1UZ;
+			start = i + 1;
 		}
-		i = i + 1UZ;
+		i = i + 1;
 	}
 	parts.add(str_slice(s, start, s.len - start));
 	return parts;
@@ -196,37 +194,37 @@ pub fn str_split_dots(s: str): List<str> {
 // Builds the C identifier used for a top-level symbol of `module_name`.
 // "std.io" + "println" -> "std__io__println"
 pub fn str_mangle_symbol(module_name: str, name: str): str {
-	if (module_name.len == 0UZ) return name;
+	if (module_name.len == 0) return name;
 	// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
-	val total = module_name.len * 2UZ + 2UZ + name.len;
-	val buf = malloc(total + 1UZ);
-	var i: usz = 0UZ;
-	var w: usz = 0UZ;
+	val total = module_name.len * 2 + 2 + name.len;
+	val buf = malloc(total + 1);
+	var i: usz = 0;
+	var w: usz = 0;
 	while (i < module_name.len) {
 		val c = module_name[i];
 		if (c == '.') {
 			buf[w] = '_' as u8;
-			buf[w + 1UZ] = '_' as u8;
-			w = w + 2UZ;
+			buf[w + 1] = '_' as u8;
+			w = w + 2;
 		} else if (c == '_' || c == '-') {
 			// keep '_' as is, map '-' to '_' to stay a valid C identifier
 			buf[w] = '_' as u8;
-			w = w + 1UZ;
+			w = w + 1;
 		} else {
 			buf[w] = c as u8;
-			w = w + 1UZ;
+			w = w + 1;
 		}
-		i = i + 1UZ;
+		i = i + 1;
 	}
 	buf[w] = '_' as u8;
-	buf[w + 1UZ] = '_' as u8;
-	w = w + 2UZ;
-	var k: usz = 0UZ;
+	buf[w + 1] = '_' as u8;
+	w = w + 2;
+	var k: usz = 0;
 	while (k < name.len) {
 		buf[w] = name[k] as u8;
-		w = w + 1UZ;
-		k = k + 1UZ;
+		w = w + 1;
+		k = k + 1;
 	}
-	buf[w] = 0UB;
+	buf[w] = 0;
 	return str_from_bytes(buf, w);
 }

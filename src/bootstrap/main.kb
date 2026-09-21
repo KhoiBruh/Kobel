@@ -1,32 +1,18 @@
 mod bootstrap.main;
 
-use std.io.print;
-use std.io.println;
-use std.io.read_file;
-use std.io.write_file;
+use std.io.*;
 use std.sys.exec;
+use std.collections.list.*;
 
-use bootstrap.sema.decl_pass.new_decl_pass;
-use bootstrap.sema.decl_pass.collect_program;
+use bootstrap.sema.decl_pass.*;
+use bootstrap.sema.body_pass.*;
 
-use bootstrap.sema.body_pass.BodyPass;
-use bootstrap.sema.body_pass.new_body_pass_with_symtab;
-use bootstrap.sema.body_pass.check_program;
+use bootstrap.codegen.c_codegen.*;
 
-use bootstrap.codegen.c_codegen.CCodeGen;
-use bootstrap.codegen.c_codegen.new_c_codegen;
-use bootstrap.codegen.c_codegen.gen_program;
-
-use bootstrap.loader.loader.ModuleLoader;
-use bootstrap.loader.loader.new_module_loader;
-use bootstrap.loader.loader.load_program;
-use bootstrap.loader.loader.loaded_module_count;
+use bootstrap.loader.loader.*;
 
 use bootstrap.lexer.token.usz_to_str;
 use bootstrap.util.strutil.str_dir_of;
-
-use std.collections.list.List;
-use std.collections.list.new_list;
 
 // ============================================================================
 // Libc and Memory Utilities
@@ -46,7 +32,7 @@ struct StringRaw {
 
 fn cstr_to_str(s: *char): str {
 	val len: usz = strlen(s);
-	val raw_mem = malloc(24UZ);
+	val raw_mem = malloc(24);
 	val r = raw_mem as &StringRaw;
 	r.data = s;
 	r.len = len;
@@ -59,20 +45,20 @@ fn cstr_to_str(s: *char): str {
 
 fn get_stem(path: str): str {
 	val len = path.len;
-	if (len > 3UZ && path[len - 3UZ] == '.' && path[len - 2UZ] == 'k' && path[len - 1UZ] == 'b') {
-		val new_len = len - 3UZ;
-		val buf = malloc(new_len + 1UZ);
-		var j: usz = 0UZ;
+	if (len > 3 && path[len - 3] == '.' && path[len - 2] == 'k' && path[len - 1] == 'b') {
+		val new_len = len - 3;
+		val buf = malloc(new_len + 1);
+		var j: usz = 0;
 		while (j < new_len) {
 			buf[j] = path[j] as u8;
-			j = j + 1UZ;
+			j = j + 1;
 		}
-		buf[new_len] = 0UB;
-		val raw_mem = malloc(24UZ);
+		buf[new_len] = 0;
+		val raw_mem = malloc(24);
 		val r = raw_mem as &StringRaw;
 		r.data = buf as *char;
 		r.len = new_len;
-		r.cap = new_len + 1UZ;
+		r.cap = new_len + 1;
 		val sp: *str = r as *str;
 		val res: str = *sp;
 		free(raw_mem);
@@ -97,11 +83,11 @@ fn print_usage() {
 }
 
 fn print_error_list(errors: List<str>) {
-	var e: usz = 0UZ;
+	var e: usz = 0;
 	while (e < errors.len) {
 		print("  [ERROR] ");
 		println(errors.get(e));
-		e = e + 1UZ;
+		e = e + 1;
 	}
 }
 
@@ -166,7 +152,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				println("Error: Missing argument after '-I'");
 				return 1;
 			}
-		} else if (arg.len > 0UZ && arg[0UZ] == '-') {
+		} else if (arg.len > 0 && arg[0] == '-') {
 			print("Error: Unknown option '");
 			print(arg);
 			println("'");
@@ -175,14 +161,14 @@ fn main(argc: i32, argv: &*char): i32 {
 		i = i + 1;
 	}
 
-	if (input_path.len == 0UZ) {
+	if (input_path.len == 0) {
 		println("Error: No input file specified");
 		return 1;
 	}
 
 	// 1. Read source
 	val src = read_file(input_path);
-	if (src.len == 0UZ) {
+	if (src.len == 0) {
 		print("Error: Could not read source file or file is empty: ");
 		println(input_path);
 		return 1;
@@ -191,7 +177,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	println("[1/4] Loading modules (lex + parse)...");
 	var loader = new_module_loader(str_dir_of(input_path), extra_roots);
 	val prog = load_program(&loader, input_path, src);
-	if (loader.errors.len > 0UZ) {
+	if (loader.errors.len > 0) {
 		print("Module Errors in ");
 		print(input_path);
 		println(":");
@@ -210,7 +196,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	println("[2/4] Semantic analysis (declarations)...");
 	var decl_p = new_decl_pass();
 	collect_program(&decl_p, prog);
-	if (decl_p.errors.len > 0UZ) {
+	if (decl_p.errors.len > 0) {
 		print("Semantic Declaration Errors in ");
 		print(input_path);
 		println(":");
@@ -221,7 +207,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	println("[3/4] Semantic analysis (bodies)...");
 	var body_p = new_body_pass_with_symtab(decl_p.symtab);
 	check_program(&body_p, prog);
-	if (body_p.errors.len > 0UZ) {
+	if (body_p.errors.len > 0) {
 		print("Semantic Type Errors in ");
 		print(input_path);
 		println(":");
@@ -247,7 +233,7 @@ fn main(argc: i32, argv: &*char): i32 {
 
 	// Native binary compilation
 	var out_path = output_bin;
-	if (out_path.len == 0UZ) out_path = get_stem(input_path) + ".exe";
+	if (out_path.len == 0) out_path = get_stem(input_path) + ".exe";
 
 	val c_tmp_path = get_stem(input_path) + ".tmp.c";
 	val write_ok = write_file(c_tmp_path, c_code);
