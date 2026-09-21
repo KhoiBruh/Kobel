@@ -278,6 +278,8 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				} else if (mem.object.kind == NodeKind.EXPR_LITERAL) {
 					val lit = as_literal(mem.object);
 					if (lit.literal_kind == LiteralKind.STRING) is_str = true;
+				} else if (infer_type_from_expr(self, mem.object) == "const char*") {
+					is_str = true;
 				}
 				if (is_str) return "(uint64_t)strlen(" + gen_expr(self, mem.object) + ")";
 			}
@@ -315,8 +317,47 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			return "(" + cond + " ? " + th + " : " + el + ")";
 		}
 
+		NodeKind.EXPR_WHEN -> {
+			val we = as_when_expr(node);
+			var cond = "";
+			if (we.condition != null) cond = gen_expr(self, we.condition);
+			var res = "0";
+			var i = we.arms.len;
+			while (i > 0) {
+				i = i - 1;
+				val arm = we.arms.get(i);
+				if (arm.is_else) res = gen_expr(self, arm.body);
+				else res = "(" + gen_when_test(self, cond, arm.patterns) + " ? " + gen_expr(self, arm.body) + " : " + res + ")";
+			}
+			return res;
+		}
+
 		else -> return "";
 	}
+}
+
+// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
+// For the boolean form (`cond` empty) each pattern is itself the test.
+// String patterns compare with strcmp since `str` lowers to `const char*`.
+pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str {
+	var res = "";
+	var i: usz = 0;
+	while (i < patterns.len) {
+		val p = patterns.get(i);
+		var test = "";
+		if (cond == "") {
+			test = gen_expr(self, p);
+		} else if (p.kind == NodeKind.EXPR_LITERAL && as_literal(p).literal_kind == LiteralKind.STRING) {
+			test = "strcmp(" + cond + ", " + gen_expr(self, p) + ") == 0";
+		} else {
+			test = "(" + cond + " == " + gen_expr(self, p) + ")";
+		}
+		if (i == 0) res = test;
+		else res = res + " || " + test;
+		i = i + 1;
+	}
+	if (res == "") res = "1";
+	return res;
 }
 
 pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
@@ -371,6 +412,18 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 		}
 
 		NodeKind.EXPR_GROUP -> return infer_type_from_expr(self, as_group(expr).expr);
+
+		NodeKind.EXPR_WHEN -> {
+			val we = as_when_expr(expr);
+			var i: usz = 0;
+			while (i < we.arms.len) {
+				val arm = we.arms.get(i);
+				if (arm.is_else) return infer_type_from_expr(self, arm.body);
+				i = i + 1;
+			}
+			if (we.arms.len > 0) return infer_type_from_expr(self, we.arms.get(0).body);
+			return "int32_t";
+		}
 
 		NodeKind.EXPR_CAST -> {
 			val cst = as_cast(expr);
@@ -472,6 +525,34 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.STMT_BREAK -> return get_indent(self.indent_level) + "break;\n";
 
 		NodeKind.STMT_CONTINUE -> return get_indent(self.indent_level) + "continue;\n";
+
+		NodeKind.STMT_WHEN -> {
+			val ws = as_when_stmt(node);
+			var cond = "";
+			if (ws.condition != null) cond = gen_expr(self, ws.condition);
+			val ind = get_indent(self.indent_level);
+			var res = "";
+			var first = true;
+			var i: usz = 0;
+			while (i < ws.arms.len) {
+				val arm = ws.arms.get(i);
+				if (arm.is_else) {
+					if (first) res = res + ind + "{\n";
+					else res = res + ind + "} else {\n";
+				} else {
+					val test = gen_when_test(self, cond, arm.patterns);
+					if (first) res = res + ind + "if (" + test + ") {\n";
+					else res = res + ind + "} else if (" + test + ") {\n";
+				}
+				self.indent_level = self.indent_level + 1;
+				res = res + gen_statement(self, arm.body);
+				self.indent_level = self.indent_level - 1;
+				first = false;
+				i = i + 1;
+			}
+			if (!first) res = res + ind + "}\n";
+			return res;
+		}
 
 		else -> return "";
 	}
@@ -591,6 +672,13 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 			val s = as_struct_decl(decl);
 			self.struct_names.add(s.name);
 			c_code = c_code + "typedef struct " + s.name + " " + s.name + ";\n";
+		} else if (decl.kind == NodeKind.DECL_ENUM) {
+			// Enums lower to their underlying integer type; member access becomes
+			// an integer literal during semantic analysis.
+			val e = as_enum_decl(decl);
+			var under = "int32_t";
+			if (e.underlying_type != null) under = c_type_from_ast(e.underlying_type);
+			c_code = c_code + "typedef " + under + " " + e.name + ";\n";
 		} else if (decl.kind == NodeKind.DECL_FN) {
 			val f = as_fn_decl(decl);
 			var ret_ty = "void";

@@ -27,7 +27,10 @@ use bootstrap.ast.builder.as_if_stmt;
 use bootstrap.ast.builder.as_while_stmt;
 use bootstrap.ast.builder.as_return_stmt;
 use bootstrap.ast.builder.as_impl_decl;
+use bootstrap.ast.builder.as_when_expr;
+use bootstrap.ast.builder.as_when_stmt;
 use bootstrap.ast.builder.alloc_identifier;
+use bootstrap.ast.builder.alloc_literal;
 use bootstrap.ast.builder.alloc_unary;
 
 use bootstrap.lexer.token.*;
@@ -310,10 +313,43 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 		NodeKind.EXPR_MEMBER -> {
 			val mem = as_member(node);
+
+			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
+			if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
+				val enum_id = as_identifier(mem.object);
+				val ei = find_enum_info(&self.symtab, enum_id.name);
+				if (ei != null) {
+					val mi = enum_find_member(ei, mem.member);
+					if (mi == null) {
+						report_error(self, node, "Enum '" + enum_id.name + "' has no member '" + mem.member + "'");
+						return alloc_primitive(&self.arena, type_void());
+					}
+					// Reuse the node as a plain integer literal for the backend.
+					val lit = alloc_literal(&self.arena, LiteralKind.INT, i64_to_str(mi.value), node.line, node.col);
+					val n = node as &AstNode;
+					n.kind = NodeKind.EXPR_LITERAL;
+					n.data = lit.data;
+					return ei.underlying;
+				}
+			}
+
 			var obj_ty = check_expr(self, mem.object);
 
 			// Automatic pointer unwrapping: p.x when p is *Point or &Point
-			if (obj_ty.kind == DataType.POINTER) obj_ty = as_pointer_type(obj_ty).pointee;
+			var obj_was_ptr = false;
+			if (obj_ty.kind == DataType.POINTER) {
+				obj_was_ptr = true;
+				obj_ty = as_pointer_type(obj_ty).pointee;
+			}
+
+			// Enum `.value`: identity on the underlying integer. The node is
+			// rewritten to the receiver so the backend emits it unchanged.
+			if (mem.member == "value" && !obj_was_ptr && is_enum_type(obj_ty)) {
+				val n = node as &AstNode;
+				n.kind = mem.object.kind;
+				n.data = mem.object.data;
+				return as_enum_info(obj_ty).underlying;
+			}
 
 			if (obj_ty.kind == DataType.STR) {
 				if (mem.member == "len" || mem.member == "size" || mem.member == "cap") {
@@ -381,6 +417,35 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val else_ty = check_expr(self, if_e.else_branch);
 			if (!can_assign(then_ty, else_ty)) report_error(self, node, "If expression branches have incompatible types");
 			return then_ty;
+		}
+		NodeKind.EXPR_WHEN -> {
+			val we = as_when_expr(node);
+			if (we.condition != null) check_expr(self, we.condition);
+
+			var result_ty: *Type = null;
+			var has_else = false;
+			var i: usz = 0;
+			while (i < we.arms.len) {
+				val arm = we.arms.get(i);
+				if (arm.is_else) has_else = true;
+				var p: usz = 0;
+				while (p < arm.patterns.len) {
+					val pat = arm.patterns.get(p);
+					val p_ty = check_expr(self, pat);
+					if (we.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
+					p = p + 1;
+				}
+				val body_ty = check_expr(self, arm.body);
+				if (result_ty == null) result_ty = body_ty;
+				i = i + 1;
+			}
+
+			if (!has_else) {
+				report_error(self, node, "when expression requires an 'else' arm");
+				return alloc_primitive(&self.arena, type_void());
+			}
+			if (result_ty == null) return alloc_primitive(&self.arena, type_void());
+			return result_ty;
 		}
 		else -> return alloc_primitive(&self.arena, type_void());
 	}
@@ -459,7 +524,30 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			val es = as_expr_stmt(node);
 			check_expr(self, es.expr);
 		}
+		NodeKind.STMT_WHEN -> {
+			val ws = as_when_stmt(node);
+			if (ws.condition != null) check_expr(self, ws.condition);
+			var i: usz = 0;
+			while (i < ws.arms.len) {
+				val arm = ws.arms.get(i);
+				var p: usz = 0;
+				while (p < arm.patterns.len) {
+					val pat = arm.patterns.get(p);
+					val p_ty = check_expr(self, pat);
+					if (ws.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
+					p = p + 1;
+				}
+				check_statement(self, arm.body);
+				i = i + 1;
+			}
+		}
 	}
+}
+
+// Renders a signed enum value as decimal text for a synthesized int literal.
+pub fn i64_to_str(v: i64): str {
+	if (v < 0) return "-" + usz_to_str((0 - v) as usz);
+	return usz_to_str(v as usz);
 }
 
 // ============================================================================

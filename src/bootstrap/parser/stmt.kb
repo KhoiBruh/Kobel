@@ -79,9 +79,12 @@ pub fn parse_return_stmt(var self: &Parser): *AstNode {
 
 pub fn parse_when_stmt(var self: &Parser): *AstNode {
 	val kw = advance(self); // 'when'
-	consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'when'");
-	val condition = parse_expression(self, PREC_NONE);
-	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+	// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
+	var condition: *AstNode = null;
+	if (match_token(self, TokenType.OPEN_PAREN)) {
+		condition = parse_expression(self, PREC_NONE);
+		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+	}
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before when statement arms");
 
 	var arms = new_list<WhenStmtArm>();

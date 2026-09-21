@@ -1,6 +1,7 @@
 mod bootstrap.sema.decl_pass;
 
 use bootstrap.lexer.token.format_loc;
+use bootstrap.lexer.token.TokenType;
 
 use bootstrap.ast.node.*;
 use bootstrap.ast.types.*;
@@ -33,6 +34,8 @@ use bootstrap.sema.types.alloc_struct_type;
 use bootstrap.sema.types.alloc_fn_type;
 use bootstrap.sema.types.as_struct_type_mut;
 use bootstrap.sema.types.MethodInfo;
+use bootstrap.sema.types.EnumInfo;
+use bootstrap.sema.types.EnumMemberInfo;
 
 use bootstrap.util.strutil.*;
 
@@ -227,11 +230,73 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 	var under_type = alloc_primitive(&self.arena, type_i32());
 	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
 
+	// Resolve member values: implicit members continue from the previous value.
+	var members = new_list<*EnumMemberInfo>();
+	var next_val: i64 = 0;
+	var i: usz = 0;
+	while (i < e.members.len) {
+		val m = e.members.get(i);
+		var v: i64 = next_val;
+		if (m.value != null) v = enum_const_i64(self, m.value);
+
+		val mem_mem = self.arena.alloc_bytes(EnumMemberInfo.size(), 8);
+		val mi = mem_mem as *EnumMemberInfo;
+		*mi = EnumMemberInfo(m.name, v);
+		members.add(mi);
+
+		next_val = v + 1;
+		i = i + 1;
+	}
+
 	val c_name = c_name_for(self, e.name);
-	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, under_type, false, e.is_pub, node.line, node.col));
+
+	val info_mem = self.arena.alloc_bytes(EnumInfo.size(), 8);
+	val info = info_mem as *EnumInfo;
+	*info = EnumInfo(e.name, c_name, under_type, members);
+
+	// The symbol's type is an integer type that carries the EnumInfo, so enum
+	// values stay usable in arithmetic/comparisons while `.value` is recognized.
+	val carrier_mem = self.arena.alloc_bytes(Type.size(), 8);
+	val carrier = carrier_mem as *Type;
+	*carrier = Type(under_type.kind, under_type.size, under_type.align, info_mem);
+
+	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col));
 	if (!ok) report_error(self, node, "Duplicate enum declaration '" + e.name + "'");
 
+	register_enum_info(&self.symtab, info);
+
 	e.name = c_name;
+}
+
+// Evaluates a constant enum member value (integer literal, optionally negated).
+pub fn enum_const_i64(var self: &DeclPass, expr: *AstNode): i64 {
+	if (expr.kind == NodeKind.EXPR_LITERAL) {
+		val lit = as_literal(expr);
+		return parse_decimal_i64(lit.raw_text);
+	}
+	if (expr.kind == NodeKind.EXPR_UNARY) {
+		val un = as_unary(expr);
+		if (un.op == TokenType.MINUS) return 0 - enum_const_i64(self, un.operand);
+	}
+	report_error(self, expr, "Enum member value must be an integer constant");
+	return 0;
+}
+
+pub fn parse_decimal_i64(s: str): i64 {
+	var v: i64 = 0;
+	var i: usz = 0;
+	while (i < s.len) {
+		val c = s[i];
+		if (c == '_') {
+			i = i + 1;
+		} else if (c >= '0' && c <= '9') {
+			v = v * 10 + (((c as i32) - 48) as i64);
+			i = i + 1;
+		} else {
+			break;
+		}
+	}
+	return v;
 }
 
 pub fn collect_const(var self: &DeclPass, node: *AstNode) {

@@ -110,17 +110,20 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'if'");
 			val condition = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
-			val then_branch = parse_expression(self, PREC_NONE);
+			val then_branch = parse_if_expr_branch(self);
 			consume(self, TokenType.KW_ELSE, "Expected 'else' in if expression");
-			val else_branch = parse_expression(self, PREC_NONE);
+			val else_branch = parse_if_expr_branch(self);
 			return alloc_if_expr(&self.arena, condition, then_branch, else_branch, line, col);
 		}
 
 		// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
 		TokenType.KW_WHEN -> {
-			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'when'");
-			val condition = parse_expression(self, PREC_NONE);
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+			// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
+			var condition: *AstNode = null;
+			if (match_token(self, TokenType.OPEN_PAREN)) {
+				condition = parse_expression(self, PREC_NONE);
+				consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+			}
 			consume(self, TokenType.OPEN_BRACE, "Expected '{' before when arms");
 
 			var arms = new_list<WhenArm>();
@@ -242,4 +245,14 @@ pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode {
 	}
 
 	return left;
+}
+
+// Branch of an if expression: either a plain expression or a `{ expr }` block.
+pub fn parse_if_expr_branch(var self: &Parser): *AstNode {
+	if (match_token(self, TokenType.OPEN_BRACE)) {
+		val e = parse_expression(self, PREC_NONE);
+		consume(self, TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
+		return e;
+	}
+	return parse_expression(self, PREC_NONE);
 }

@@ -1,6 +1,7 @@
 mod bootstrap.sema.symbol;
 
 use bootstrap.sema.types.Type;
+use bootstrap.sema.types.EnumInfo;
 
 use std.collections.list.*;
 use std.mem.arena.*;
@@ -80,7 +81,9 @@ pub struct SymbolTable {
 	// (e.g. `sc.symbols.add(...)`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope>,
-	pub imports: List<ImportBinding>
+	pub imports: List<ImportBinding>,
+	// Enum member tables, keyed by source name / mangled C name.
+	pub enums: List<*EnumInfo>
 }
 
 pub fn new_symbol_table(): SymbolTable {
@@ -88,7 +91,21 @@ pub fn new_symbol_table(): SymbolTable {
 	val mem = arena.alloc_bytes(Scope.size(), 8);
 	val root_scope = mem as *Scope;
 	*root_scope = Scope(null, new_list<*Symbol>(), false);
-	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>());
+	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>());
+}
+
+pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {
+	self.enums.add(info);
+}
+
+pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo {
+	var i: usz = 0;
+	while (i < self.enums.len) {
+		val e = self.enums.get(i);
+		if (e.name == name || e.c_name == name) return e;
+		i = i + 1;
+	}
+	return null;
 }
 
 pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {

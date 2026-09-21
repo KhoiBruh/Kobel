@@ -68,6 +68,31 @@ pub struct FnType {
 	pub return_type: *Type
 }
 
+// A single enum member with its resolved integer value.
+pub struct EnumMemberInfo {
+	pub name: str,
+	pub value: i64
+}
+
+// Payload registered for every `enum` declaration. The enum symbol's type is
+// its underlying integer type, so `EnumInfo` carries the member values.
+pub struct EnumInfo {
+	pub name: str,
+	pub c_name: str,
+	pub underlying: *Type,
+	pub members: List<*EnumMemberInfo>
+}
+
+pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo {
+	var i: usz = 0;
+	while (i < e.members.len) {
+		val m = e.members.get(i);
+		if (m.name == name) return m;
+		i = i + 1;
+	}
+	return null;
+}
+
 // ============================================================================
 // Downcast Helper Functions
 // ============================================================================
@@ -244,6 +269,18 @@ pub fn is_float(ty: *Type) => when (ty.kind) {
 };
 
 pub fn is_char(ty: *Type) => ty.kind == DataType.CHAR;
+
+// An enum value carries its `EnumInfo` in `data` while keeping an integer `kind`.
+pub fn is_enum_type(ty: *Type): bool {
+	if (ty.data == null) return false;
+	return when (ty.kind) {
+		DataType.I8, DataType.I16, DataType.I32, DataType.I64, DataType.ISZ,
+		DataType.U8, DataType.U16, DataType.U32, DataType.U64, DataType.USZ -> true;
+		else -> false;
+	};
+}
+
+pub fn as_enum_info(ty: *Type): *EnumInfo => ty.data as *EnumInfo;
 
 pub fn is_numeric(ty: *Type) => is_integer(ty) || is_float(ty);
 
