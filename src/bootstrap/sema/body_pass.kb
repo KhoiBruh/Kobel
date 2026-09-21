@@ -32,12 +32,22 @@ use bootstrap.ast.builder.as_when_stmt;
 use bootstrap.ast.builder.alloc_identifier;
 use bootstrap.ast.builder.alloc_literal;
 use bootstrap.ast.builder.alloc_unary;
+use bootstrap.ast.builder.alloc_call;
+use bootstrap.ast.builder.alloc_named_type as ast_alloc_named;
+use bootstrap.ast.builder.alloc_pointer_type as ast_alloc_pointer;
+use bootstrap.ast.builder.alloc_array_type as ast_alloc_array;
 
 use bootstrap.lexer.token.*;
 
 use bootstrap.util.strutil.str_concat3;
 
 use bootstrap.sema.types.*;
+
+// Disambiguate semantic-type accessors (builder.kb declares AST-named twins).
+use bootstrap.sema.types.as_pointer_type as sem_pointer;
+use bootstrap.sema.types.as_array_type as sem_array;
+use bootstrap.sema.types.as_struct_type as sem_struct;
+use bootstrap.sema.types.as_fn_type as sem_fn;
 use bootstrap.sema.symbol.*;
 use bootstrap.sema.decl_pass.*;
 
@@ -159,6 +169,15 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
 				TokenType.SLASH, TokenType.PERCENT -> {
 					if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
+						// Rewrite `str + str` into a runtime concat call so the C
+						// backend does not emit pointer arithmetic.
+						var cat_args = new_list<*AstNode>();
+						cat_args.add(bin.left);
+						cat_args.add(bin.right);
+						val cat_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_concat", node.line, node.col), cat_args, new_list<*AstNode>(), node.line, node.col);
+						val cat_n = node as &AstNode;
+						cat_n.kind = NodeKind.EXPR_CALL;
+						cat_n.data = cat_call.data;
 						return alloc_primitive(&self.arena, type_str());
 					}
 					if (is_numeric(lt) && is_numeric(rt)) return lt;
@@ -168,6 +187,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				// 2. Equality comparison (==, !=)
 				TokenType.EQUAL_EQUAL,
 				TokenType.BANG_EQUAL -> {
+					if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
+						// Content comparison instead of C pointer comparison.
+						val wrapped = make_str_eq(&self.arena, bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+						val eq_n = node as &AstNode;
+						eq_n.kind = wrapped.kind;
+						eq_n.data = wrapped.data;
+						return alloc_primitive(&self.arena, type_bool());
+					}
 					if (!can_assign(lt, rt) && !can_assign(rt, lt)) report_error(self, node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
@@ -209,7 +236,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						report_error(self, node, "Cannot dereference non-pointer type");
 						return op_ty;
 					}
-					val p_info = as_pointer_type(op_ty);
+					val p_info = sem_pointer(op_ty);
 					return p_info.pointee;
 				}
 				// Take address (&expr)
@@ -233,19 +260,47 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					return alloc_primitive(&self.arena, type_usz());
 				}
 
+				if (mem.member == "slice") {
+					val slice_recv = check_expr(self, mem.object);
+					if (slice_recv.kind != DataType.STR) report_error(self, node, "slice() requires a str receiver");
+					var ai: usz = 0;
+					while (ai < call.args.len) {
+						val at = check_expr(self, call.args.get(ai));
+						if (!is_integer(at)) report_error(self, node, "slice() bounds must be integers");
+						ai = ai + 1;
+					}
+					// Lower to kobel_slice(receiver, start, end); end defaults to length.
+					var sargs = new_list<*AstNode>();
+					sargs.add(mem.object);
+					if (call.args.len >= 1) sargs.add(call.args.get(0));
+					else sargs.add(alloc_literal(&self.arena, LiteralKind.INT, "0", node.line, node.col));
+					if (call.args.len >= 2) {
+						sargs.add(call.args.get(1));
+					} else {
+						var largs = new_list<*AstNode>();
+						largs.add(mem.object);
+						sargs.add(alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), largs, new_list<*AstNode>(), node.line, node.col));
+					}
+					val sl_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slice", node.line, node.col), sargs, new_list<*AstNode>(), node.line, node.col);
+					val sl_n = node as &AstNode;
+					sl_n.kind = NodeKind.EXPR_CALL;
+					sl_n.data = sl_call.data;
+					return alloc_primitive(&self.arena, type_str());
+				}
+
 				// Instance method call: obj.m(args) -> Struct_m(self, args)
 				val obj_raw_ty = check_expr(self, mem.object);
 				var obj_ty = obj_raw_ty;
 				var obj_is_ptr = false;
 				if (obj_ty.kind == DataType.POINTER) {
 					obj_is_ptr = true;
-					obj_ty = as_pointer_type(obj_ty).pointee;
+					obj_ty = sem_pointer(obj_ty).pointee;
 				}
 				if (obj_ty.kind == DataType.STRUCT) {
-					val s_info = as_struct_type(obj_ty);
+					val s_info = sem_struct(obj_ty);
 					val mi = struct_find_method(s_info, mem.member);
 					if (mi != null) {
-						val fn_info = as_fn_type(mi.fn_type);
+						val fn_info = sem_fn(mi.fn_type);
 						if (call.args.len + 1 != fn_info.param_types.len) {
 							report_error(self, node, "Argument count mismatch in method call '" + mem.member + "'");
 						} else {
@@ -278,7 +333,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			// 1. Function call
 			if (callee_ty.kind == DataType.FN) {
-				val fn_info = as_fn_type(callee_ty);
+				val fn_info = sem_fn(callee_ty);
 				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
 				else {
 					var i: usz = 0;
@@ -294,7 +349,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			// 2. Struct Constructor: Point(1, 2)
 			if (callee_ty.kind == DataType.STRUCT) {
-				val s_info = as_struct_type(callee_ty);
+				val s_info = sem_struct(callee_ty);
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
 					var i: usz = 0;
@@ -312,7 +367,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return alloc_primitive(&self.arena, type_void());
 		}
 		NodeKind.EXPR_MEMBER -> {
-			val mem = as_member(node);
+			val mem = as_member(node) as &MemberExpr;
 
 			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
 			if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
@@ -335,11 +390,18 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			var obj_ty = check_expr(self, mem.object);
 
+			// Pointer results that are not plain identifiers cannot be recognized
+			// by the backend's name-based pointer tracking, so dereference them
+			// here: `p.field` becomes `(*p).field`.
+			if (obj_ty.kind == DataType.POINTER && mem.object.kind != NodeKind.EXPR_IDENTIFIER) {
+				mem.object = alloc_unary(&self.arena, TokenType.STAR, mem.object, node.line, node.col);
+			}
+
 			// Automatic pointer unwrapping: p.x when p is *Point or &Point
 			var obj_was_ptr = false;
 			if (obj_ty.kind == DataType.POINTER) {
 				obj_was_ptr = true;
-				obj_ty = as_pointer_type(obj_ty).pointee;
+				obj_ty = sem_pointer(obj_ty).pointee;
 			}
 
 			// Enum `.value`: identity on the underlying integer. The node is
@@ -352,7 +414,18 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			if (obj_ty.kind == DataType.STR) {
-				if (mem.member == "len" || mem.member == "size" || mem.member == "cap") {
+				if (mem.member == "len" || mem.member == "size") {
+					// Lower to a runtime call: the C backend cannot tell that an
+					// arbitrary expression has type `str`.
+					var len_args = new_list<*AstNode>();
+					len_args.add(mem.object);
+					val len_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), len_args, new_list<*AstNode>(), node.line, node.col);
+					val len_n = node as &AstNode;
+					len_n.kind = NodeKind.EXPR_CALL;
+					len_n.data = len_call.data;
+					return alloc_primitive(&self.arena, type_usz());
+				}
+				if (mem.member == "cap") {
 					return alloc_primitive(&self.arena, type_usz());
 				}
 				if (mem.member == "c_str") {
@@ -371,7 +444,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				return alloc_primitive(&self.arena, type_void());
 			}
 
-			val s_info = as_struct_type(obj_ty);
+			val s_info = sem_struct(obj_ty);
 			var i: usz = 0;
 			while (i < s_info.fields.len) {
 				val f = s_info.fields.get(i);
@@ -389,8 +462,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
 
-			if (target_ty.kind == DataType.ARRAY) return as_array_type(target_ty).elem;
-			if (target_ty.kind == DataType.POINTER) return as_pointer_type(target_ty).pointee;
+			if (target_ty.kind == DataType.ARRAY) return sem_array(target_ty).elem;
+			if (target_ty.kind == DataType.POINTER) return sem_pointer(target_ty).pointee;
 			if (target_ty.kind == DataType.STR) return alloc_primitive(&self.arena, type_char());
 
 			report_error(self, node, "Index access on non-indexable type");
@@ -470,7 +543,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			exit_scope(&self.symtab);
 		}
 		NodeKind.STMT_VAR_DECL -> {
-			val vd = as_var_decl(node);
+			val vd = as_var_decl(node) as &VarDeclStmt;
 			var var_ty = alloc_primitive(&self.arena, type_void());
 
 			var has_init = false;
@@ -490,6 +563,12 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 				} else {
 					report_error(self, node, "Variable '" + vd.name + "' without type must have initializer");
 				}
+			}
+
+			// Give an inferred local an explicit type node so the C backend does
+			// not have to re-infer it (it cannot see struct field types).
+			if (vd.type_annotation == null && has_init) {
+				vd.type_annotation = ast_type_from_type(&self.arena, var_ty);
 			}
 
 			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
@@ -544,9 +623,57 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 	}
 }
 
+// Builds an AST type node for a resolved semantic type, so locals can carry an
+// explicit annotation the C backend understands.
+pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
+	if (is_enum_type(ty)) return ast_alloc_named(arena, as_enum_info(ty).c_name, new_list<*AstNode>(), 0, 0);
+
+	when (ty.kind) {
+		DataType.POINTER -> {
+			val pt = sem_pointer(ty);
+			return ast_alloc_pointer(arena, pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
+		}
+		DataType.ARRAY -> {
+			val at = sem_array(ty);
+			return ast_alloc_array(arena, ast_type_from_type(arena, at.elem), at.length, 0, 0);
+		}
+		DataType.STRUCT -> {
+			val st_info = sem_struct(ty);
+			var st_name = st_info.name;
+			if (st_info.c_name.len > 0) st_name = st_info.c_name;
+			return ast_alloc_named(arena, st_name, new_list<*AstNode>(), 0, 0);
+		}
+		DataType.STR -> return ast_alloc_named(arena, "str", new_list<*AstNode>(), 0, 0);
+		DataType.BOOL -> return ast_alloc_named(arena, "bool", new_list<*AstNode>(), 0, 0);
+		DataType.CHAR -> return ast_alloc_named(arena, "char", new_list<*AstNode>(), 0, 0);
+		DataType.I8 -> return ast_alloc_named(arena, "i8", new_list<*AstNode>(), 0, 0);
+		DataType.I16 -> return ast_alloc_named(arena, "i16", new_list<*AstNode>(), 0, 0);
+		DataType.I32 -> return ast_alloc_named(arena, "i32", new_list<*AstNode>(), 0, 0);
+		DataType.I64 -> return ast_alloc_named(arena, "i64", new_list<*AstNode>(), 0, 0);
+		DataType.ISZ -> return ast_alloc_named(arena, "isz", new_list<*AstNode>(), 0, 0);
+		DataType.U8 -> return ast_alloc_named(arena, "u8", new_list<*AstNode>(), 0, 0);
+		DataType.U16 -> return ast_alloc_named(arena, "u16", new_list<*AstNode>(), 0, 0);
+		DataType.U32 -> return ast_alloc_named(arena, "u32", new_list<*AstNode>(), 0, 0);
+		DataType.U64 -> return ast_alloc_named(arena, "u64", new_list<*AstNode>(), 0, 0);
+		DataType.USZ -> return ast_alloc_named(arena, "usz", new_list<*AstNode>(), 0, 0);
+		DataType.F32 -> return ast_alloc_named(arena, "f32", new_list<*AstNode>(), 0, 0);
+		DataType.F64 -> return ast_alloc_named(arena, "f64", new_list<*AstNode>(), 0, 0);
+		else -> return null;
+	}
+}
+
+// Builds `kobel_streq(a, b)`, optionally negated, for str equality.
+pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode {
+	var eargs = new_list<*AstNode>();
+	eargs.add(left);
+	eargs.add(right);
+	val eq_call = alloc_call(arena, alloc_identifier(arena, "kobel_streq", line, col), eargs, new_list<*AstNode>(), line, col);
+	if (is_neq) return alloc_unary(arena, TokenType.BANG, eq_call, line, col);
+	return eq_call;
+}
+
 // Renders a signed enum value as decimal text for a synthesized int literal.
-pub fn i64_to_str(v: i64): str {
-	if (v < 0) return "-" + usz_to_str((0 - v) as usz);
+pub fn i64_to_str(v: i64): str {	if (v < 0) return "-" + usz_to_str((0 - v) as usz);
 	return usz_to_str(v as usz);
 }
 
@@ -566,7 +693,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 	val f = as_fn_decl(fn_node);
 
-	val fn_info = as_fn_type(fn_type);
+	val fn_info = sem_fn(fn_type);
 	self.current_fn_return_type = fn_info.return_type;
 
 	enter_scope(&self.symtab, true);
@@ -610,7 +737,7 @@ pub fn check_impl(var self: &BodyPass, node: *AstNode) {
 	val im = as_impl_decl(node);
 	val st_sym = lookup(&self.symtab, im.struct_name);
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
-	val st_info = as_struct_type(st_sym.type_ptr);
+	val st_info = sem_struct(st_sym.type_ptr);
 
 	var i: usz = 0;
 	while (i < im.methods.len) {

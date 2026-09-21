@@ -59,6 +59,8 @@ pub struct MethodInfo {
 
 pub struct StructType {
 	pub name: str,
+	// Mangled C name; equal to `name` for monomorphized instances.
+	pub c_name: str,
 	pub fields: List<StructField>,
 	pub methods: List<*MethodInfo>
 }
@@ -103,6 +105,32 @@ pub fn as_struct_type(ty: *Type): *StructType => ty.data as *StructType;
 pub fn as_struct_type_mut(ty: *Type): &StructType => ty.data as &StructType;
 pub fn as_fn_type(ty: *Type): *FnType => ty.data as *FnType;
 pub fn as_fn_type_mut(ty: *Type): &FnType => ty.data as &FnType;
+
+// Recomputes field offsets, size and alignment of a struct type from its
+// current field list (fields are added after the type is allocated).
+pub fn layout_struct(ty: *Type) {
+	val st = as_struct_type_mut(ty);
+	var max_align: usz = 1;
+	var off: usz = 0;
+	var i: usz = 0;
+	while (i < st.fields.len) {
+		val f = st.fields.get(i);
+		val fa = f.type_ptr.align;
+		if (fa > max_align) max_align = fa;
+		val rem = off % fa;
+		if (rem != 0) off = off + (fa - rem);
+		f.offset = off;
+		st.fields.set(i, f);
+		off = off + f.type_ptr.size;
+		i = i + 1;
+	}
+	val tr = off % max_align;
+	if (tr != 0) off = off + (max_align - tr);
+
+	val t = ty as &Type;
+	t.size = off;
+	t.align = max_align;
+}
 
 // Look up a method by its source name (e.g. "peek").
 pub fn struct_find_method(st: *StructType, name: str): *MethodInfo {
@@ -217,7 +245,7 @@ pub fn alloc_struct_type(
 
 	val payload_mem = arena.alloc_bytes(StructType.size(), 8);
 	val struct_info = payload_mem as *StructType;
-	*struct_info = StructType(name, fields, new_list<*MethodInfo>());
+	*struct_info = StructType(name, name, fields, new_list<*MethodInfo>());
 
 	val type_mem = arena.alloc_bytes(Type.size(), 8);
 	val t_ptr = type_mem as *Type;

@@ -2,6 +2,7 @@ mod bootstrap.sema.symbol;
 
 use bootstrap.sema.types.Type;
 use bootstrap.sema.types.EnumInfo;
+use bootstrap.ast.node.AstNode;
 
 use std.collections.list.*;
 use std.mem.arena.*;
@@ -61,11 +62,48 @@ pub fn new_module_scope(name: str): ModuleScope {
 
 // A `use` that resolved to a symbol of another module.
 // When `is_wildcard` = true, every symbol of `module_name` is usable.
+// `owner_module` is the module the `use` was written in, so imports stay
+// scoped: two modules importing the same name do not affect each other.
 pub struct ImportBinding {
 	pub module_name: str,
 	pub symbol_name: str,
 	pub local_name: str,
-	pub is_wildcard: bool
+	pub is_wildcard: bool,
+	pub owner_module: str
+}
+
+// A generic declaration kept as a template until instantiated.
+pub struct GenTemplate {
+	pub name: str,
+	pub module: str,
+	pub node: *AstNode
+}
+
+// Monomorphization state, shared through the (single) SymbolTable.
+pub struct GenericReg {
+	pub struct_templates: List<*GenTemplate>,
+	pub fn_templates: List<*GenTemplate>,
+	pub impl_templates: List<*GenTemplate>,
+	pub inst_syms: List<*Symbol>,
+	pub inst_names: List<str>,
+	pub pending: List<*AstNode>
+}
+
+pub fn gen_find(list: List<*GenTemplate>, name: str): *GenTemplate {
+	var i: usz = 0;
+	while (i < list.len) {
+		val t = list.get(i);
+		if (t.name == name) return t;
+		i = i + 1;
+	}
+	return null;
+}
+
+pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol {
+	val mem = arena.alloc_bytes(Symbol.size(), 8);
+	val p = mem as *Symbol;
+	*p = sym;
+	return p;
 }
 
 // ============================================================================
@@ -83,7 +121,8 @@ pub struct SymbolTable {
 	pub modules: List<*ModuleScope>,
 	pub imports: List<ImportBinding>,
 	// Enum member tables, keyed by source name / mangled C name.
-	pub enums: List<*EnumInfo>
+	pub enums: List<*EnumInfo>,
+	pub gen: GenericReg
 }
 
 pub fn new_symbol_table(): SymbolTable {
@@ -91,7 +130,17 @@ pub fn new_symbol_table(): SymbolTable {
 	val mem = arena.alloc_bytes(Scope.size(), 8);
 	val root_scope = mem as *Scope;
 	*root_scope = Scope(null, new_list<*Symbol>(), false);
-	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>());
+
+	val gen = GenericReg(
+		new_list<*GenTemplate>(),
+		new_list<*GenTemplate>(),
+		new_list<*GenTemplate>(),
+		new_list<*Symbol>(),
+		new_list<str>(),
+		new_list<*AstNode>()
+	);
+
+	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), gen);
 }
 
 pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {
@@ -160,28 +209,36 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	val own = lookup_in_module(self, self.current_module, name);
 	if (own != null) return own;
 
-	// 3. Explicit imports (by original name or alias)
+	// 3. Explicit imports (by original name or alias), scoped to this module
 	var k: usz = 0;
 	while (k < self.imports.len) {
 		val b = self.imports.get(k);
-		if (!b.is_wildcard && b.local_name == name) {
+		if (!b.is_wildcard && b.local_name == name && b.owner_module == self.current_module) {
 			return lookup_in_module(self, b.module_name, b.symbol_name);
 		}
 		k = k + 1;
 	}
 
-	// 4. Wildcard imports
+	// 4. Wildcard imports, scoped to this module
 	var w: usz = 0;
 	while (w < self.imports.len) {
 		val b2 = self.imports.get(w);
-		if (b2.is_wildcard) {
+		if (b2.is_wildcard && b2.owner_module == self.current_module) {
 			val found = lookup_in_module(self, b2.module_name, name);
 			if (found != null) return found;
 		}
 		w = w + 1;
 	}
 
-	// 5. Mangled C name (idempotent on repeated resolution)
+	// 5. Instantiated generic symbols (their name already equals the mangled C name)
+	var g: usz = 0;
+	while (g < self.gen.inst_syms.len) {
+		val isym = self.gen.inst_syms.get(g);
+		if (isym.name == name) return isym;
+		g = g + 1;
+	}
+
+	// 6. Mangled C name (idempotent on repeated resolution)
 	return lookup_c_name(self, name);
 }
 
@@ -256,7 +313,7 @@ pub fn define_global(var self: &SymbolTable, sym: Symbol): bool {
 }
 
 pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
-	self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard));
+	self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
 }
 
 pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
