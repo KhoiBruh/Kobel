@@ -52,7 +52,7 @@ impl StringBuilder {
 			self.append_char('-');
 			val_n = -val_n;
 		}
-		val digits: [char; 12] = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
+		val digits: Array<char>(12) = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
 		var count: usz = 0UZ;
 		while (val_n > 0) {
 			val rem: i32 = val_n % 10;
@@ -101,5 +101,9 @@ impl StringBuilder {
 		self.cap = new_cap;
 	}
 
-	pub fn delete(self) => free(self.buf);
+	// NOTE: block body instead of `=> free(...)`:
+	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
+	pub fn delete(self) {
+		free(self.buf);
+	}
 }

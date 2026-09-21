@@ -87,5 +87,9 @@ impl List<T> {
 		}
 	}
 
-	pub fn delete(self) => free(self.data as &u8);
+	// NOTE: block body instead of `=> free(...)`:
+	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
+	pub fn delete(self) {
+		free(self.data as &u8);
+	}
 }
