@@ -134,7 +134,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			if (named.type_args.len > 0) {
 				val tmpl = gen_find(self.symtab.gen.struct_templates, name);
 				if (tmpl != null) {
-					val cty = instantiate_struct(self, tmpl, named.type_args, node.line, node.col);
+					val cty = instantiate_struct(self, tmpl, named.type_args);
 					named.name = sem_struct(cty).name;
 					named.type_args = new_list<*AstNode>();
 					return cty;
@@ -637,7 +637,7 @@ pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz {
 	}
 }
 
-pub fn template_param_names(self: &DeclPass, tmpl: *GenTemplate): List<str> {
+pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 	var names = new_list<str>();
 	if (tmpl.node.kind == NodeKind.DECL_STRUCT) {
 		val s = as_struct_decl(tmpl.node);
@@ -676,7 +676,7 @@ pub fn queue_decl(var self: &DeclPass, module: str, node: *AstNode) {
 	self.symtab.gen.pending.add(node);
 }
 
-pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>, line: usz, col: usz): *Type {
+pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
 	val base = str_mangle_symbol(tmpl.module, tmpl.name);
 	val cname = str_concat(base, str_concat("_", type_token_list(self, arg_asts)));
 
@@ -685,14 +685,14 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 
 	self.symtab.gen.inst_names.add(cname);
 
-	val subst = alloc_subst(self, template_param_names(self, tmpl), arg_asts);
+	val subst = alloc_subst(self, template_param_names(tmpl), arg_asts);
 
 	val sclone = clone_struct(self, tmpl.node, subst, cname);
 	collect_struct_as(self, sclone, cname);
 
 	val impl_tmpl = gen_find(self.symtab.gen.impl_templates, tmpl.name);
 	if (impl_tmpl != null) {
-		val isubst = alloc_subst(self, template_param_names(self, impl_tmpl), arg_asts);
+		val isubst = alloc_subst(self, template_param_names(impl_tmpl), arg_asts);
 		val iclone = clone_impl(self, impl_tmpl.node, isubst, cname);
 		collect_impl(self, iclone);
 		queue_decl(self, impl_tmpl.module, iclone);
@@ -705,7 +705,7 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 	return sym.type_ptr;
 }
 
-pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>, line: usz, col: usz): str {
+pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
 	val base = str_mangle_symbol(tmpl.module, tmpl.name);
 	val cname = str_concat(base, str_concat("_", type_token_list(self, arg_asts)));
 
@@ -713,7 +713,7 @@ pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*A
 
 	self.symtab.gen.inst_names.add(cname);
 
-	val subst = alloc_subst(self, template_param_names(self, tmpl), arg_asts);
+	val subst = alloc_subst(self, template_param_names(tmpl), arg_asts);
 	val fclone = clone_fn(self, tmpl.node, subst, cname);
 	collect_fn_as(self, fclone, cname);
 	queue_decl(self, tmpl.module, fclone);
@@ -773,7 +773,7 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 						args.add(clone_type(self, nt.type_args.get(i), subst));
 						i = i + 1;
 					}
-					val cty = instantiate_struct(self, tmpl, args, node.line, node.col);
+					val cty = instantiate_struct(self, tmpl, args);
 					return alloc_named_type(&self.arena, sem_struct(cty).name, new_list<*AstNode>(), node.line, node.col);
 				}
 			}
@@ -839,7 +839,7 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 						args.add(clone_type(self, c.type_args.get(i), subst));
 						i = i + 1;
 					}
-					val cname = instantiate_fn(self, ft, args, node.line, node.col);
+					val cname = instantiate_fn(self, ft, args);
 					var cargs = new_list<*AstNode>();
 					var j: usz = 0;
 					while (j < c.args.len) {
@@ -856,7 +856,7 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 						args2.add(clone_type(self, c.type_args.get(k), subst));
 						k = k + 1;
 					}
-					val cty = instantiate_struct(self, st, args2, node.line, node.col);
+					val cty = instantiate_struct(self, st, args2);
 					var cargs2 = new_list<*AstNode>();
 					var m2: usz = 0;
 					while (m2 < c.args.len) {
@@ -1043,7 +1043,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 			if (nt.type_args.len > 0) {
 				val tmpl = gen_find(self.symtab.gen.struct_templates, nt.name);
 				if (tmpl != null) {
-					val cty = instantiate_struct(self, tmpl, nt.type_args, node.line, node.col);
+					val cty = instantiate_struct(self, tmpl, nt.type_args);
 					nt.name = sem_struct(cty).name;
 					nt.type_args = new_list<*AstNode>();
 					return;
@@ -1064,13 +1064,13 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 				val cid = as_identifier(c.callee) as &IdentifierExpr;
 				val ft = gen_find(self.symtab.gen.fn_templates, cid.name);
 				if (ft != null) {
-					val cname = instantiate_fn(self, ft, c.type_args, node.line, node.col);
+					val cname = instantiate_fn(self, ft, c.type_args);
 					cid.name = cname;
 					c.type_args = new_list<*AstNode>();
 				} else {
 					val st = gen_find(self.symtab.gen.struct_templates, cid.name);
 					if (st != null) {
-						val cty = instantiate_struct(self, st, c.type_args, node.line, node.col);
+						val cty = instantiate_struct(self, st, c.type_args);
 						cid.name = sem_struct(cty).name;
 						c.type_args = new_list<*AstNode>();
 					}
