@@ -22,19 +22,15 @@ pub fn parse_type(var self: &Parser): *AstNode {
 	val line = tok.line;
 	val col = tok.col;
 
-	// 1. Pointer type: *T, *mut T, &T, &mut T
+	// 1. Pointer type: *T (read-only) or &T (read-write)
 	if (match_token(self, TokenType.STAR)) {
-		var is_mut = false;
-		if (match_token(self, TokenType.KW_VAR)) is_mut = true;
 		val pointee = parse_type(self);
-		return alloc_pointer_type(&self.arena, is_mut, pointee, line, col);
+		return alloc_pointer_type(&self.arena, false, pointee, line, col);
 	}
 
 	if (match_token(self, TokenType.AMPERSAND)) {
-		var is_mut = false;
-		if (match_token(self, TokenType.KW_VAR)) is_mut = true;
 		val pointee = parse_type(self);
-		return alloc_pointer_type(&self.arena, is_mut, pointee, line, col);
+		return alloc_pointer_type(&self.arena, true, pointee, line, col);
 	}
 
 	// 2. Fixed-size array type: [T; N]

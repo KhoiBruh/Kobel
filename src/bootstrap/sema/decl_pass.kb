@@ -1,0 +1,234 @@
+mod bootstrap.sema.decl_pass;
+
+use bootstrap.ast.node.NodeKind;
+use bootstrap.ast.node.AstNode;
+
+use bootstrap.ast.types.NamedType;
+use bootstrap.ast.types.PointerType;
+use bootstrap.ast.types.ArrayType;
+
+use bootstrap.ast.decl.Program;
+use bootstrap.ast.decl.ModuleDecl;
+use bootstrap.ast.decl.UseDecl;
+use bootstrap.ast.decl.StructDecl;
+use bootstrap.ast.decl.FnDecl;
+use bootstrap.ast.decl.EnumDecl;
+use bootstrap.ast.decl.ConstDecl;
+
+use bootstrap.ast.builder.as_program;
+use bootstrap.ast.builder.as_module_decl;
+use bootstrap.ast.builder.as_use_decl;
+use bootstrap.ast.builder.as_struct_decl;
+use bootstrap.ast.builder.as_fn_decl;
+use bootstrap.ast.builder.as_enum_decl;
+use bootstrap.ast.builder.as_const_decl;
+use bootstrap.ast.builder.as_named_type;
+use bootstrap.ast.builder.as_pointer_type;
+use bootstrap.ast.builder.as_array_type;
+
+use bootstrap.sema.types.DataType;
+use bootstrap.sema.types.Type;
+use bootstrap.sema.types.StructField;
+use bootstrap.sema.types.type_void;
+use bootstrap.sema.types.type_bool;
+use bootstrap.sema.types.type_i8;
+use bootstrap.sema.types.type_i16;
+use bootstrap.sema.types.type_i32;
+use bootstrap.sema.types.type_i64;
+use bootstrap.sema.types.type_isz;
+use bootstrap.sema.types.type_u8;
+use bootstrap.sema.types.type_u16;
+use bootstrap.sema.types.type_u32;
+use bootstrap.sema.types.type_u64;
+use bootstrap.sema.types.type_usz;
+use bootstrap.sema.types.type_f32;
+use bootstrap.sema.types.type_f64;
+use bootstrap.sema.types.type_str;
+use bootstrap.sema.types.alloc_pointer_type;
+use bootstrap.sema.types.alloc_array_type;
+use bootstrap.sema.types.alloc_struct_type;
+use bootstrap.sema.types.alloc_fn_type;
+
+use bootstrap.sema.symbol.SymbolKind;
+use bootstrap.sema.symbol.Symbol;
+use bootstrap.sema.symbol.SymbolTable;
+use bootstrap.sema.symbol.new_symbol_table;
+use bootstrap.sema.symbol.lookup;
+use bootstrap.sema.symbol.define;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+
+// ============================================================================
+// DeclPass - Top-level Declarations Collector
+// ============================================================================
+
+pub struct DeclPass {
+	pub symtab: SymbolTable,
+	pub arena: Arena,
+	pub current_module: str,
+	pub errors: List<str>
+}
+
+pub fn new_decl_pass(): DeclPass {
+	var arena = new_arena(65536UZ);
+	return DeclPass(new_symbol_table(), arena, "", new_list<str>());
+}
+
+pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
+	val mem = arena.alloc_bytes(Type.size(), 8UZ);
+	val ptr = mem as *Type;
+	*ptr = base;
+	return ptr;
+}
+
+// ============================================================================
+// AST Type to Semantic Type Resolution
+// ============================================================================
+
+pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
+	if (node == null) return alloc_primitive(&self.arena, type_void());
+
+	when (node.kind) {
+		NodeKind.TYPE_NAMED -> {
+			val named = as_named_type(node);
+			val name = named.name;
+
+			if (name == "void") return alloc_primitive(&self.arena, type_void());
+			if (name == "bool") return alloc_primitive(&self.arena, type_bool());
+			if (name == "i8") return alloc_primitive(&self.arena, type_i8());
+			if (name == "i16") return alloc_primitive(&self.arena, type_i16());
+			if (name == "i32") return alloc_primitive(&self.arena, type_i32());
+			if (name == "i64") return alloc_primitive(&self.arena, type_i64());
+			if (name == "isz") return alloc_primitive(&self.arena, type_isz());
+			if (name == "u8") return alloc_primitive(&self.arena, type_u8());
+			if (name == "u16") return alloc_primitive(&self.arena, type_u16());
+			if (name == "u32") return alloc_primitive(&self.arena, type_u32());
+			if (name == "u64") return alloc_primitive(&self.arena, type_u64());
+			if (name == "usz") return alloc_primitive(&self.arena, type_usz());
+			if (name == "f32") return alloc_primitive(&self.arena, type_f32());
+			if (name == "f64") return alloc_primitive(&self.arena, type_f64());
+			if (name == "str") return alloc_primitive(&self.arena, type_str());
+
+			// Tra cứu kiểu người dùng định nghĩa (Struct / Enum)
+			val sym = lookup(&self.symtab, name);
+			if (sym != null) {
+				return sym.type_ptr;
+			}
+
+			self.errors.add("Unknown type '" + name + "'");
+			return alloc_primitive(&self.arena, type_void());
+		}
+
+		NodeKind.TYPE_POINTER -> {
+			val ptr_ast = as_pointer_type(node);
+			val pointee = resolve_ast_type(self, ptr_ast.pointee);
+			return alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
+		}
+
+		NodeKind.TYPE_ARRAY -> {
+			val arr_ast = as_array_type(node);
+			val elem = resolve_ast_type(self, arr_ast.element_type);
+			return alloc_array_type(&self.arena, elem, arr_ast.size);
+		}
+
+		else -> return alloc_primitive(&self.arena, type_void());
+	}
+}
+
+// ============================================================================
+// Top-Level Collectors
+// ============================================================================
+
+pub fn collect_module(var self: &DeclPass, node: *AstNode) {
+	val m = as_module_decl(node);
+	self.current_module = m.full_path;
+	val dummy_ty = alloc_primitive(&self.arena, type_void());
+	define(&self.symtab, Symbol(m.full_path, SymbolKind.MODULE, dummy_ty, false, false, node.line, node.col));
+}
+
+pub fn collect_use(var self: &DeclPass, node: *AstNode) {
+	val u = as_use_decl(node);
+	var sym_name = u.symbol_name;
+	if (u.alias != "") sym_name = u.alias;
+	val dummy_ty = alloc_primitive(&self.arena, type_void());
+	define(&self.symtab, Symbol(sym_name, SymbolKind.MODULE, dummy_ty, false, false, node.line, node.col));
+}
+
+pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
+	val s = as_struct_decl(node);
+	var fields = new_list<StructField>();
+
+	var i: usz = 0UZ;
+	while (i < s.fields.len) {
+		val f = s.fields.get(i);
+		val f_type = resolve_ast_type(self, f.type_node);
+		fields.add(StructField(f.name, f_type, 0UZ));
+		i = i + 1UZ;
+	}
+
+	val s_type = alloc_struct_type(&self.arena, s.name, fields);
+	val ok = define(&self.symtab, Symbol(s.name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
+	if (!ok) self.errors.add("Duplicate struct declaration '" + s.name + "'");
+}
+
+pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
+	val f = as_fn_decl(node);
+	var param_types = new_list<*Type>();
+
+	var i: usz = 0UZ;
+	while (i < f.params.len) {
+		val p = f.params.get(i);
+		val p_type = resolve_ast_type(self, p.type_node);
+		param_types.add(p_type);
+		i = i + 1UZ;
+	}
+
+	var ret_type = alloc_primitive(&self.arena, type_void());
+	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+
+	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+	val ok = define(&self.symtab, Symbol(f.name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
+	if (!ok) self.errors.add("Duplicate function declaration '" + f.name + "'");
+}
+
+pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
+	val e = as_enum_decl(node);
+	var under_type = alloc_primitive(&self.arena, type_i32());
+	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
+
+	val ok = define(&self.symtab, Symbol(e.name, SymbolKind.ENUM, under_type, false, e.is_pub, node.line, node.col));
+	if (!ok) self.errors.add("Duplicate enum declaration '" + e.name + "'");
+}
+
+pub fn collect_const(var self: &DeclPass, node: *AstNode) {
+	val c = as_const_decl(node);
+	var c_type = alloc_primitive(&self.arena, type_i32());
+	if (c.type_node != null) c_type = resolve_ast_type(self, c.type_node);
+
+	val ok = define(&self.symtab, Symbol(c.name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
+	if (!ok) self.errors.add("Duplicate const declaration '" + c.name + "'");
+}
+
+pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
+	when (node.kind) {
+		NodeKind.DECL_MODULE -> collect_module(self, node);
+		NodeKind.DECL_USE -> collect_use(self, node);
+		NodeKind.DECL_STRUCT -> collect_struct(self, node);
+		NodeKind.DECL_FN -> collect_fn(self, node);
+		NodeKind.DECL_ENUM -> collect_enum(self, node);
+		NodeKind.DECL_CONST -> collect_const(self, node);
+		else -> {}
+	}
+}
+
+pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
+	val prog = as_program(program_node);
+	var i: usz = 0UZ;
+	while (i < prog.declarations.len) {
+		collect_declaration(self, prog.declarations.get(i));
+		i = i + 1UZ;
+	}
+}

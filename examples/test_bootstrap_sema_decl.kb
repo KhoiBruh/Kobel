@@ -1,0 +1,146 @@
+mod test.bootstrap_sema_decl;
+
+use std.io.print;
+use std.io.println;
+
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.new_parser;
+use bootstrap.parser.decl.parse_program;
+
+use bootstrap.sema.types.DataType;
+use bootstrap.sema.types.as_struct_type;
+use bootstrap.sema.types.as_fn_type;
+use bootstrap.sema.types.as_pointer_type;
+
+use bootstrap.sema.symbol.SymbolKind;
+use bootstrap.sema.symbol.lookup;
+
+use bootstrap.sema.decl_pass.DeclPass;
+use bootstrap.sema.decl_pass.new_decl_pass;
+use bootstrap.sema.decl_pass.collect_program;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_str(actual: str, expected: str, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		print(" | Expected: '");
+		print(expected);
+		print("', got: '");
+		print(actual);
+		println("'");
+	}
+}
+
+fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		println(" (usz mismatch)");
+	}
+}
+
+// ============================================================================
+// Test 1: Full Program Declaration Collection
+// ============================================================================
+
+fn test_collect_program() {
+	val src = "mod sample.math;\n" +
+		"use std.io.println;\n" +
+		"struct Point {\n" +
+		"    pub x: i32,\n" +
+		"    pub y: i32\n" +
+		"}\n" +
+		"fn add(a: i32, b: i32): i32 => a + b;\n" +
+		"fn scale(p: &Point, factor: i32): void {\n" +
+		"}\n";
+
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val program_node = parse_program(&parser);
+
+	var decl_pass = new_decl_pass();
+	collect_program(&decl_pass, program_node);
+
+	assert_eq_usz(decl_pass.errors.len, 0UZ, "DeclPass must have 0 errors");
+	assert_eq_str(decl_pass.current_module, "sample.math", "Current module must match");
+
+	// 1. Kiểm tra Symbol 'Point'
+	val sym_pt = lookup(&decl_pass.symtab, "Point");
+	assert_true(sym_pt != null, "Point struct must be defined in symbol table");
+	assert_true(sym_pt.kind == SymbolKind.STRUCT, "Symbol kind must be STRUCT");
+	assert_true(sym_pt.type_ptr.kind == DataType.STRUCT, "TypeKind must be STRUCT");
+
+	val s_info = as_struct_type(sym_pt.type_ptr);
+	assert_eq_str(s_info.name, "Point", "Struct name must match");
+	assert_eq_usz(s_info.fields.len, 2UZ, "Point struct must have 2 fields");
+	assert_eq_str(s_info.fields.get(0UZ).name, "x", "Field 0 must be x");
+	assert_true(s_info.fields.get(0UZ).type_ptr.kind == DataType.I32, "Field x must be i32");
+	assert_eq_str(s_info.fields.get(1UZ).name, "y", "Field 1 must be y");
+	assert_true(s_info.fields.get(1UZ).type_ptr.kind == DataType.I32, "Field y must be i32");
+
+	// 2. Kiểm tra Symbol 'add'
+	val sym_add = lookup(&decl_pass.symtab, "add");
+	assert_true(sym_add != null, "add function must be defined");
+	assert_true(sym_add.kind == SymbolKind.FN, "Symbol kind must be FN");
+	assert_true(sym_add.type_ptr.kind == DataType.FN, "TypeKind must be FN");
+
+	val fn_add = as_fn_type(sym_add.type_ptr);
+	assert_eq_usz(fn_add.param_types.len, 2UZ, "add must take 2 params");
+	assert_true(fn_add.param_types.get(0UZ).kind == DataType.I32, "Param 0 must be i32");
+	assert_true(fn_add.param_types.get(1UZ).kind == DataType.I32, "Param 1 must be i32");
+	assert_true(fn_add.return_type.kind == DataType.I32, "add return type must be i32");
+
+	// 3. Kiểm tra Symbol 'scale' (sử dụng con trỏ tới struct Point)
+	val sym_scale = lookup(&decl_pass.symtab, "scale");
+	assert_true(sym_scale != null, "scale function must be defined");
+	val fn_scale = as_fn_type(sym_scale.type_ptr);
+	assert_eq_usz(fn_scale.param_types.len, 2UZ, "scale must take 2 params");
+
+	val p0 = fn_scale.param_types.get(0UZ);
+	assert_true(p0.kind == DataType.POINTER, "Param 0 of scale must be pointer");
+	val p0_ptr = as_pointer_type(p0);
+	assert_true(p0_ptr.is_mut, "Param 0 must be mutable pointer (&Point)");
+	assert_true(p0_ptr.pointee.kind == DataType.STRUCT, "Pointee of scale param 0 must be Point struct");
+
+	println("  [PASS] test_collect_program");
+}
+
+// ============================================================================
+// Test 2: Duplicate Declaration Detection
+// ============================================================================
+
+fn test_duplicate_declarations() {
+	val src = "fn compute(): i32 => 1;\n" +
+		"fn compute(): i32 => 2;\n";
+
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val program_node = parse_program(&parser);
+
+	var decl_pass = new_decl_pass();
+	collect_program(&decl_pass, program_node);
+
+	assert_eq_usz(decl_pass.errors.len, 1UZ, "Must record 1 duplicate error");
+	println("  [PASS] test_duplicate_declarations");
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap Semantic DeclPass tests...");
+	test_collect_program();
+	test_duplicate_declarations();
+	println("[ALL PASSED] Bootstrap Semantic DeclPass passed all tests successfully!");
+	return 0;
+}
