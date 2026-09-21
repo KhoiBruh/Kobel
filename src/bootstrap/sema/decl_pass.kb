@@ -14,6 +14,7 @@ use bootstrap.ast.decl.StructDecl;
 use bootstrap.ast.decl.FnDecl;
 use bootstrap.ast.decl.EnumDecl;
 use bootstrap.ast.decl.ConstDecl;
+use bootstrap.ast.decl.ExternBlock;
 
 use bootstrap.ast.builder.as_program;
 use bootstrap.ast.builder.as_module_decl;
@@ -22,6 +23,7 @@ use bootstrap.ast.builder.as_struct_decl;
 use bootstrap.ast.builder.as_fn_decl;
 use bootstrap.ast.builder.as_enum_decl;
 use bootstrap.ast.builder.as_const_decl;
+use bootstrap.ast.builder.as_extern_block;
 use bootstrap.ast.builder.as_named_type;
 use bootstrap.ast.builder.as_pointer_type;
 use bootstrap.ast.builder.as_array_type;
@@ -31,6 +33,7 @@ use bootstrap.sema.types.Type;
 use bootstrap.sema.types.StructField;
 use bootstrap.sema.types.type_void;
 use bootstrap.sema.types.type_bool;
+use bootstrap.sema.types.type_char;
 use bootstrap.sema.types.type_i8;
 use bootstrap.sema.types.type_i16;
 use bootstrap.sema.types.type_i32;
@@ -48,6 +51,8 @@ use bootstrap.sema.types.alloc_pointer_type;
 use bootstrap.sema.types.alloc_array_type;
 use bootstrap.sema.types.alloc_struct_type;
 use bootstrap.sema.types.alloc_fn_type;
+use bootstrap.sema.types.as_struct_type_mut;
+use bootstrap.lexer.token.format_loc;
 
 use bootstrap.sema.symbol.SymbolKind;
 use bootstrap.sema.symbol.Symbol;
@@ -98,6 +103,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 
 			if (name == "void") return alloc_primitive(&self.arena, type_void());
 			if (name == "bool") return alloc_primitive(&self.arena, type_bool());
+			if (name == "char") return alloc_primitive(&self.arena, type_char());
 			if (name == "i8") return alloc_primitive(&self.arena, type_i8());
 			if (name == "i16") return alloc_primitive(&self.arena, type_i16());
 			if (name == "i32") return alloc_primitive(&self.arena, type_i32());
@@ -118,7 +124,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 				return sym.type_ptr;
 			}
 
-			self.errors.add("Unknown type '" + name + "'");
+			self.errors.add(format_loc(node.line, node.col) + "Unknown type '" + name + "'");
 			return alloc_primitive(&self.arena, type_void());
 		}
 
@@ -159,19 +165,18 @@ pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 
 pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	val s = as_struct_decl(node);
-	var fields = new_list<StructField>();
+	val s_type = alloc_struct_type(&self.arena, s.name, new_list<StructField>());
+	val ok = define(&self.symtab, Symbol(s.name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
+	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate struct declaration '" + s.name + "'");
 
 	var i: usz = 0UZ;
 	while (i < s.fields.len) {
 		val f = s.fields.get(i);
 		val f_type = resolve_ast_type(self, f.type_node);
-		fields.add(StructField(f.name, f_type, 0UZ));
+		val s_info = as_struct_type_mut(s_type);
+		s_info.fields.add(StructField(f.name, f_type, 0UZ));
 		i = i + 1UZ;
 	}
-
-	val s_type = alloc_struct_type(&self.arena, s.name, fields);
-	val ok = define(&self.symtab, Symbol(s.name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
-	if (!ok) self.errors.add("Duplicate struct declaration '" + s.name + "'");
 }
 
 pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
@@ -191,7 +196,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 	val ok = define(&self.symtab, Symbol(f.name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
-	if (!ok) self.errors.add("Duplicate function declaration '" + f.name + "'");
+	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate function declaration '" + f.name + "'");
 }
 
 pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
@@ -200,7 +205,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
 
 	val ok = define(&self.symtab, Symbol(e.name, SymbolKind.ENUM, under_type, false, e.is_pub, node.line, node.col));
-	if (!ok) self.errors.add("Duplicate enum declaration '" + e.name + "'");
+	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate enum declaration '" + e.name + "'");
 }
 
 pub fn collect_const(var self: &DeclPass, node: *AstNode) {
@@ -209,7 +214,16 @@ pub fn collect_const(var self: &DeclPass, node: *AstNode) {
 	if (c.type_node != null) c_type = resolve_ast_type(self, c.type_node);
 
 	val ok = define(&self.symtab, Symbol(c.name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
-	if (!ok) self.errors.add("Duplicate const declaration '" + c.name + "'");
+	if (!ok) self.errors.add(format_loc(node.line, node.col) + "Duplicate const declaration '" + c.name + "'");
+}
+
+pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
+	val ext = as_extern_block(node);
+	var i: usz = 0UZ;
+	while (i < ext.declarations.len) {
+		collect_declaration(self, ext.declarations.get(i));
+		i = i + 1UZ;
+	}
 }
 
 pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
@@ -220,6 +234,7 @@ pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 		NodeKind.DECL_FN -> collect_fn(self, node);
 		NodeKind.DECL_ENUM -> collect_enum(self, node);
 		NodeKind.DECL_CONST -> collect_const(self, node);
+		NodeKind.DECL_EXTERN_BLOCK -> collect_extern_block(self, node);
 		else -> {}
 	}
 }

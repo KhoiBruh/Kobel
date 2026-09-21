@@ -56,6 +56,7 @@ use bootstrap.sema.types.DataType;
 use bootstrap.sema.types.Type;
 use bootstrap.sema.types.type_void;
 use bootstrap.sema.types.type_bool;
+use bootstrap.sema.types.type_char;
 use bootstrap.sema.types.type_i8;
 use bootstrap.sema.types.type_i16;
 use bootstrap.sema.types.type_i32;
@@ -71,15 +72,18 @@ use bootstrap.sema.types.type_f64;
 use bootstrap.sema.types.type_str;
 use bootstrap.sema.types.alloc_pointer_type;
 use bootstrap.sema.types.alloc_array_type;
+use bootstrap.sema.types.alloc_fn_type;
 use bootstrap.sema.types.as_pointer_type;
 use bootstrap.sema.types.as_array_type;
 use bootstrap.sema.types.as_struct_type;
 use bootstrap.sema.types.as_fn_type;
+use bootstrap.sema.types.as_fn_type_mut;
 use bootstrap.sema.types.is_numeric;
 use bootstrap.sema.types.is_integer;
 use bootstrap.sema.types.can_assign;
 use bootstrap.sema.types.type_equals;
 use bootstrap.sema.types.type_to_string;
+use bootstrap.lexer.token.format_loc;
 
 use bootstrap.sema.symbol.SymbolKind;
 use bootstrap.sema.symbol.Symbol;
@@ -125,6 +129,43 @@ pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 	return BodyPass(symtab, arena, void_ty, 0UZ, new_list<str>());
 }
 
+pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
+	if (node != null) {
+		self.errors.add(format_loc(node.line, node.col) + msg);
+	} else {
+		self.errors.add(msg);
+	}
+}
+
+pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
+	var decl_p = DeclPass(self.symtab, self.arena, "", self.errors);
+	val ty = resolve_ast_type(&decl_p, node);
+	self.arena = decl_p.arena;
+	self.errors = decl_p.errors;
+	return ty;
+}
+
+pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
+	val len = raw.len;
+	if (len >= 2UZ) {
+		val last = raw[len - 1UZ];
+		val prev = raw[len - 2UZ];
+		if (prev == 'U' && last == 'B') return alloc_primitive(arena, type_u8());
+		if (prev == 'U' && last == 'S') return alloc_primitive(arena, type_u16());
+		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
+		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
+	}
+	if (len >= 1UZ) {
+		val last = raw[len - 1UZ];
+		if (last == 'U') return alloc_primitive(arena, type_u32());
+		if (last == 'L') return alloc_primitive(arena, type_i64());
+		if (last == 'S') return alloc_primitive(arena, type_i16());
+		if (last == 'Z') return alloc_primitive(arena, type_isz());
+		if (last == 'B') return alloc_primitive(arena, type_i8());
+	}
+	return alloc_primitive(arena, type_i32());
+}
+
 // ============================================================================
 // Expression Type Checking
 // ============================================================================
@@ -136,11 +177,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		NodeKind.EXPR_LITERAL -> {
 			val lit = as_literal(node);
 			when (lit.literal_kind) {
-				LiteralKind.INT -> return alloc_primitive(&self.arena, type_i32());
+				LiteralKind.INT -> return int_literal_type(&self.arena, lit.raw_text);
 				LiteralKind.FLOAT -> return alloc_primitive(&self.arena, type_f64());
 				LiteralKind.BOOL -> return alloc_primitive(&self.arena, type_bool());
 				LiteralKind.STRING -> return alloc_primitive(&self.arena, type_str());
-				LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_u8());
+				LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_char());
 				LiteralKind.NULL_VAL -> {
 					val void_ty = alloc_primitive(&self.arena, type_void());
 					return alloc_pointer_type(&self.arena, void_ty, false);
@@ -153,7 +194,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val id = as_identifier(node);
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
-				self.errors.add("Undeclared identifier '" + id.name + "'");
+				report_error(self, node, "Undeclared identifier '" + id.name + "'");
 				return alloc_primitive(&self.arena, type_void());
 			}
 			return sym.type_ptr;
@@ -180,14 +221,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						return alloc_primitive(&self.arena, type_str());
 					}
 					if (is_numeric(lt) && is_numeric(rt)) return lt;
-					self.errors.add("Arithmetic operator not supported for these types");
+					report_error(self, node, "Arithmetic operator not supported for these types");
 					return lt;
 				}
 
 				// 2. So sánh bằng (==, !=)
 				TokenType.EQUAL_EQUAL,
 				TokenType.BANG_EQUAL -> {
-					if (!can_assign(lt, rt) && !can_assign(rt, lt)) self.errors.add("Cannot compare different types");
+					if (!can_assign(lt, rt) && !can_assign(rt, lt)) report_error(self, node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 
@@ -196,7 +237,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				TokenType.LESS_EQUAL,
 				TokenType.GREATER,
 				TokenType.GREATER_EQUAL -> {
-					if (!is_numeric(lt) || !is_numeric(rt)) self.errors.add("Comparison requires numeric operands");
+					val is_num_comp = is_numeric(lt) && is_numeric(rt);
+					val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
+					if (!is_num_comp && !is_char_comp) report_error(self, node, "Comparison requires numeric or char operands");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 
@@ -204,7 +247,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				TokenType.AND_AND,
 				TokenType.OR_OR -> {
 					if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
-						self.errors.add("Logical operators require bool operands");
+						report_error(self, node, "Logical operators require bool operands");
 					}
 					return alloc_primitive(&self.arena, type_bool());
 				}
@@ -219,19 +262,19 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			when (un.op) {
 				TokenType.MINUS -> {
-					if (!is_numeric(op_ty)) self.errors.add("Unary minus requires numeric operand");
+					if (!is_numeric(op_ty)) report_error(self, node, "Unary minus requires numeric operand");
 					return op_ty;
 				}
 
 				TokenType.BANG -> {
-					if (op_ty.kind != DataType.BOOL) self.errors.add("Logical NOT requires bool operand");
+					if (op_ty.kind != DataType.BOOL) report_error(self, node, "Logical NOT requires bool operand");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 
 				TokenType.STAR -> {
 					// Con trỏ dereference (*ptr)
 					if (op_ty.kind != DataType.POINTER) {
-						self.errors.add("Cannot dereference non-pointer type");
+						report_error(self, node, "Cannot dereference non-pointer type");
 						return op_ty;
 					}
 					val p_info = as_pointer_type(op_ty);
@@ -247,18 +290,27 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 		NodeKind.EXPR_CALL -> {
 			val call = as_call(node);
+
+			// Kiểm tra truy vấn kích thước kiểu tĩnh: T.size()
+			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
+				val mem = as_member(call.callee);
+				if (mem.member == "size") {
+					return alloc_primitive(&self.arena, type_usz());
+				}
+			}
+
 			val callee_ty = check_expr(self, call.callee);
 
 			// 1. Gọi hàm
 			if (callee_ty.kind == DataType.FN) {
 				val fn_info = as_fn_type(callee_ty);
-				if (call.args.len != fn_info.param_types.len) self.errors.add("Argument count mismatch in function call");
+				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
 				else {
 					var i: usz = 0UZ;
 					while (i < call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val param_ty = fn_info.param_types.get(i);
-						if (!can_assign(param_ty, arg_ty)) self.errors.add("Argument type mismatch in function call");
+						if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in function call");
 						i = i + 1UZ;
 					}
 				}
@@ -268,20 +320,20 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			// 2. Struct Constructor: Point(1, 2)
 			if (callee_ty.kind == DataType.STRUCT) {
 				val s_info = as_struct_type(callee_ty);
-				if (call.args.len != s_info.fields.len) self.errors.add("Argument count mismatch in struct constructor");
+				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
 					var i: usz = 0UZ;
 					while (i < call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val f_ty = s_info.fields.get(i).type_ptr;
-						if (!can_assign(f_ty, arg_ty)) self.errors.add("Field type mismatch in struct constructor");
+						if (!can_assign(f_ty, arg_ty)) report_error(self, node, "Field type mismatch in struct constructor");
 						i = i + 1UZ;
 					}
 				}
 				return callee_ty;
 			}
 
-			self.errors.add("Callee is not a function or struct");
+			report_error(self, node, "Callee is not a function or struct");
 			return alloc_primitive(&self.arena, type_void());
 		}
 
@@ -292,8 +344,23 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			// Tự động giải con trỏ: p.x khi p là *Point hoặc &Point
 			if (obj_ty.kind == DataType.POINTER) obj_ty = as_pointer_type(obj_ty).pointee;
 
+			if (obj_ty.kind == DataType.STR) {
+				if (mem.member == "len" || mem.member == "size" || mem.member == "cap") {
+					return alloc_primitive(&self.arena, type_usz());
+				}
+				if (mem.member == "c_str") {
+					val char_ty = alloc_primitive(&self.arena, type_char());
+					val char_ptr = alloc_pointer_type(&self.arena, char_ty, false);
+					return alloc_fn_type(&self.arena, new_list<*Type>(), char_ptr);
+				}
+				if (mem.member == "data") {
+					val char_ty = alloc_primitive(&self.arena, type_char());
+					return alloc_pointer_type(&self.arena, char_ty, false);
+				}
+			}
+
 			if (obj_ty.kind != DataType.STRUCT) {
-				self.errors.add("Member access on non-struct type");
+				report_error(self, node, "Member access on non-struct type");
 				return alloc_primitive(&self.arena, type_void());
 			}
 
@@ -305,7 +372,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				i = i + 1UZ;
 			}
 
-			self.errors.add("Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
+			report_error(self, node, "Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
 			return alloc_primitive(&self.arena, type_void());
 		}
 
@@ -314,11 +381,13 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val target_ty = check_expr(self, idx.target);
 			val index_ty = check_expr(self, idx.index);
 
-			if (!is_integer(index_ty)) self.errors.add("Array index must be integer");
+			if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
 
 			if (target_ty.kind == DataType.ARRAY) return as_array_type(target_ty).elem;
+			if (target_ty.kind == DataType.POINTER) return as_pointer_type(target_ty).pointee;
+			if (target_ty.kind == DataType.STR) return alloc_primitive(&self.arena, type_char());
 
-			self.errors.add("Index access on non-array type");
+			report_error(self, node, "Index access on non-indexable type");
 			return alloc_primitive(&self.arena, type_void());
 		}
 
@@ -327,24 +396,23 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val target_ty = check_expr(self, asgn.target);
 			val val_ty = check_expr(self, asgn.value);
 
-			if (!can_assign(target_ty, val_ty)) self.errors.add("Type mismatch in assignment");
+			if (!can_assign(target_ty, val_ty)) report_error(self, node, "Type mismatch in assignment");
 			return target_ty;
 		}
 
 		NodeKind.EXPR_CAST -> {
 			val cst = as_cast(node);
 			check_expr(self, cst.expr);
-			var decl_p = new_decl_pass();
-			return resolve_ast_type(&decl_p, cst.target_type);
+			return resolve_type(self, cst.target_type);
 		}
 
 		NodeKind.EXPR_IF -> {
 			val if_e = as_if_expr(node);
 			val cond_ty = check_expr(self, if_e.condition);
-			if (cond_ty.kind != DataType.BOOL) self.errors.add("If expression condition must be bool");
+			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If expression condition must be bool");
 			val then_ty = check_expr(self, if_e.then_branch);
 			val else_ty = check_expr(self, if_e.else_branch);
-			if (!can_assign(then_ty, else_ty)) self.errors.add("If expression branches have incompatible types");
+			if (!can_assign(then_ty, else_ty)) report_error(self, node, "If expression branches have incompatible types");
 			return then_ty;
 		}
 
@@ -383,26 +451,25 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			}
 
 			if (vd.type_annotation != null) {
-				var decl_p = new_decl_pass();
-				var_ty = resolve_ast_type(&decl_p, vd.type_annotation);
-				if (has_init && !can_assign(var_ty, init_ty)) self.errors.add("Type mismatch in variable declaration for '" + vd.name + "'");
+				var_ty = resolve_type(self, vd.type_annotation);
+				if (has_init && !can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '" + vd.name + "'");
 			} else {
 				// Type inference (suy luận kiểu tự động từ initializer)
 				if (has_init) {
 					var_ty = init_ty;
 				} else {
-					self.errors.add("Variable '" + vd.name + "' without type must have initializer");
+					report_error(self, node, "Variable '" + vd.name + "' without type must have initializer");
 				}
 			}
 
 			val ok = define(&self.symtab, Symbol(vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
-			if (!ok) self.errors.add("Variable '" + vd.name + "' is already defined in this scope");
+			if (!ok) report_error(self, node, "Variable '" + vd.name + "' is already defined in this scope");
 		}
 
 		NodeKind.STMT_IF -> {
 			val if_s = as_if_stmt(node);
 			val cond_ty = check_expr(self, if_s.condition);
-			if (cond_ty.kind != DataType.BOOL) self.errors.add("If statement condition must be bool");
+			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If statement condition must be bool");
 			check_statement(self, if_s.then_branch);
 			if (if_s.else_branch != null) check_statement(self, if_s.else_branch);
 		}
@@ -410,7 +477,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		NodeKind.STMT_WHILE -> {
 			val wh = as_while_stmt(node);
 			val cond_ty = check_expr(self, wh.condition);
-			if (cond_ty.kind != DataType.BOOL) self.errors.add("While statement condition must be bool");
+			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "While statement condition must be bool");
 			self.loop_depth = self.loop_depth + 1UZ;
 			check_statement(self, wh.body);
 			self.loop_depth = self.loop_depth - 1UZ;
@@ -420,13 +487,13 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			val ret = as_return_stmt(node);
 			if (ret.value != null) {
 				val val_ty = check_expr(self, ret.value);
-				if (!can_assign(self.current_fn_return_type, val_ty)) self.errors.add("Return value type does not match function return type");
-			} else if (self.current_fn_return_type.kind != DataType.VOID) self.errors.add("Non-void function must return a value");
+				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
+			} else if (self.current_fn_return_type.kind != DataType.VOID) report_error(self, node, "Non-void function must return a value");
 		}
 
 		NodeKind.STMT_BREAK,
 		NodeKind.STMT_CONTINUE -> {
-			if (self.loop_depth == 0UZ) self.errors.add("Break or continue statement outside of loop");
+			if (self.loop_depth == 0UZ) report_error(self, node, "Break or continue statement outside of loop");
 		}
 
 		NodeKind.STMT_EXPR -> {
@@ -474,8 +541,12 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 			// Expression body: => expr;
 			val es = as_expr_stmt(f.body);
 			val body_ty = check_expr(self, es.expr);
-			if (!can_assign(self.current_fn_return_type, body_ty)) {
-				self.errors.add("Expression body type does not match function return type");
+			if (f.return_type == null) {
+				val fn_info_mut = as_fn_type_mut(sym.type_ptr);
+				fn_info_mut.return_type = body_ty;
+				self.current_fn_return_type = body_ty;
+			} else if (!can_assign(self.current_fn_return_type, body_ty)) {
+				report_error(self, fn_node, "Expression body type does not match function return type");
 			}
 		}
 	}

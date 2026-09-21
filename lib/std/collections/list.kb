@@ -87,7 +87,5 @@ impl List<T> {
 		}
 	}
 
-	pub fn delete(self) {
-		free(self.data as &u8);
-	}
+	pub fn delete(self) => free(self.data as &u8);
 }

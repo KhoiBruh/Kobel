@@ -97,8 +97,13 @@ pub fn parse_fn_decl(var self: &Parser, is_pub: bool): *AstNode {
 		else if (match_token(self, TokenType.KW_VAL)) has_val = true;
 
 		val pname = consume(self, TokenType.IDENTIFIER, "Expected parameter name");
-		consume(self, TokenType.COLON, "Expected ':' after parameter name");
-		val ptype = parse_type(self);
+		var ptype: *AstNode = null;
+		if (match_token(self, TokenType.COLON)) {
+			ptype = parse_type(self);
+		} else if (pname.text != "self") {
+			consume(self, TokenType.COLON, "Expected ':' after parameter name");
+			ptype = parse_type(self);
+		}
 		params.add(Param(pname.text, ptype, is_mut, has_val));
 
 		while (match_token(self, TokenType.COMMA)) {
@@ -108,8 +113,13 @@ pub fn parse_fn_decl(var self: &Parser, is_pub: bool): *AstNode {
 			else if (match_token(self, TokenType.KW_VAL)) p_has_val = true;
 
 			val p_name = consume(self, TokenType.IDENTIFIER, "Expected parameter name");
-			consume(self, TokenType.COLON, "Expected ':' after parameter name");
-			val p_type = parse_type(self);
+			var p_type: *AstNode = null;
+			if (match_token(self, TokenType.COLON)) {
+				p_type = parse_type(self);
+			} else if (p_name.text != "self") {
+				consume(self, TokenType.COLON, "Expected ':' after parameter name");
+				p_type = parse_type(self);
+			}
 			params.add(Param(p_name.text, p_type, p_is_mut, p_has_val));
 		}
 	}
@@ -196,8 +206,12 @@ pub fn parse_trait_decl(var self: &Parser, is_pub: bool): *AstNode {
 
 pub fn parse_impl_decl(var self: &Parser): *AstNode {
 	val kw = advance(self); // 'impl'
-	val type_params = parse_generic_params(self);
+	var type_params = parse_generic_params(self);
 	val first_name = consume(self, TokenType.IDENTIFIER, "Expected struct or trait name").text;
+
+	if (type_params.len == 0UZ && check(self, TokenType.LESS)) {
+		type_params = parse_generic_params(self);
+	}
 
 	var struct_name = first_name;
 	var trait_name = "";
@@ -206,6 +220,14 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 		trait_name = first_name;
 		val s_tok = consume(self, TokenType.IDENTIFIER, "Expected struct name after 'for'");
 		struct_name = s_tok.text;
+		if (check(self, TokenType.LESS)) {
+			val s_params = parse_generic_params(self);
+			var sp_i: usz = 0UZ;
+			while (sp_i < s_params.len) {
+				type_params.add(s_params.get(sp_i));
+				sp_i = sp_i + 1UZ;
+			}
+		}
 	}
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before impl body");

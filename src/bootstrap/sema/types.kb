@@ -11,6 +11,7 @@ use std.mem.arena.Arena;
 pub enum DataType {
 	VOID,
 	BOOL,
+	CHAR,
 	I8, I16, I32, I64, ISZ,
 	U8, U16, U32, U64, USZ,
 	F32, F64,
@@ -65,7 +66,9 @@ pub struct FnType {
 pub fn as_pointer_type(ty: *Type): *PointerType => ty.data as *PointerType;
 pub fn as_array_type(ty: *Type): *ArrayType => ty.data as *ArrayType;
 pub fn as_struct_type(ty: *Type): *StructType => ty.data as *StructType;
+pub fn as_struct_type_mut(ty: *Type): &StructType => ty.data as &StructType;
 pub fn as_fn_type(ty: *Type): *FnType => ty.data as *FnType;
+pub fn as_fn_type_mut(ty: *Type): &FnType => ty.data as &FnType;
 
 // ============================================================================
 // Primitive Types Constructors
@@ -75,6 +78,7 @@ pub fn make_primitive(kind: DataType, size: usz, align: usz): Type => Type(kind,
 
 pub fn type_void(): Type => make_primitive(DataType.VOID, 0UZ, 1UZ);
 pub fn type_bool(): Type => make_primitive(DataType.BOOL, 1UZ, 1UZ);
+pub fn type_char(): Type => make_primitive(DataType.CHAR, 1UZ, 1UZ);
 
 pub fn type_i8(): Type => make_primitive(DataType.I8, 1UZ, 1UZ);
 pub fn type_i16(): Type => make_primitive(DataType.I16, 2UZ, 2UZ);
@@ -216,6 +220,8 @@ pub fn is_float(ty: *Type): bool {
 	}
 }
 
+pub fn is_char(ty: *Type): bool => ty.kind == DataType.CHAR;
+
 pub fn is_numeric(ty: *Type): bool => is_integer(ty) || is_float(ty);
 
 pub fn type_equals(a: *Type, b: *Type): bool {
@@ -258,19 +264,46 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 pub fn can_assign(target: *Type, source: *Type): bool {
 	if (type_equals(target, source)) return true;
 
-	// 1. Cho phép con trỏ mutable gán cho con trỏ immutable: *mut T -> *T
+	// 1. Cho phép gán giữa các kiểu số nguyên (integer coercion / literal assignment)
+	if (is_integer(target) && is_integer(source)) return true;
+
+	// 2. Cho phép gán giữa các kiểu số thực
+	if (is_float(target) && is_float(source)) return true;
+
+	// 3. Cho phép truyền/gán str cho *char, &char, *u8, &u8, *void
+	if (source.kind == DataType.STR && target.kind == DataType.POINTER) {
+		val t_ptr = as_pointer_type(target);
+		if (
+			t_ptr.pointee.kind == DataType.CHAR ||
+			t_ptr.pointee.kind == DataType.U8 ||
+			t_ptr.pointee.kind == DataType.VOID
+		) return true;
+	}
+
+	// 4. Cho phép gán con trỏ char/u8 cho str
+	if (target.kind == DataType.STR && source.kind == DataType.POINTER) {
+		val s_ptr = as_pointer_type(source);
+		if (
+			s_ptr.pointee.kind == DataType.CHAR ||
+			s_ptr.pointee.kind == DataType.U8
+		) return true;
+	}
+
+	// 5. Cho phép con trỏ mutable gán cho con trỏ immutable: *mut T -> *T
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		val s_ptr = as_pointer_type(source);
 		if (!t_ptr.is_mut && s_ptr.is_mut) return type_equals(t_ptr.pointee, s_ptr.pointee);
 	}
 
-	// 2. Cho phép con trỏ void (hoặc u8 pointer) nhận các con trỏ khác nếu là raw pointer
+	// 6. Cho phép con trỏ void (hoặc u8 pointer / null pointer) tương thích với các con trỏ khác
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
+		val s_ptr = as_pointer_type(source);
 		if (
 			t_ptr.pointee.kind == DataType.U8 ||
-			t_ptr.pointee.kind == DataType.VOID
+			t_ptr.pointee.kind == DataType.VOID ||
+			s_ptr.pointee.kind == DataType.VOID
 		) return true;
 	}
 
@@ -281,6 +314,7 @@ pub fn type_to_string(ty: *Type): str {
 	when (ty.kind) {
 		DataType.VOID -> return "void";
 		DataType.BOOL -> return "bool";
+		DataType.CHAR -> return "char";
 		DataType.I8 -> return "i8";
 		DataType.I16 -> return "i16";
 		DataType.I32 -> return "i32";

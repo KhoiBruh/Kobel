@@ -2,6 +2,7 @@ mod bootstrap.parser.parser;
 
 use bootstrap.lexer.token.TokenType;
 use bootstrap.lexer.token.Token;
+use bootstrap.lexer.token.format_loc;
 use std.collections.list.List;
 use std.collections.list.new_list;
 use std.mem.arena.Arena;
@@ -54,8 +55,8 @@ pub fn match_token(var self: &Parser, t: TokenType): bool {
 }
 
 pub fn error(var self: &Parser, tok: Token, msg: str) {
-	// Ghi nhận lỗi phân tích cú pháp
-	self.errors.add(msg);
+	// Ghi nhận lỗi phân tích cú pháp kèm số dòng và cột
+	self.errors.add(format_loc(tok.line, tok.col) + msg);
 }
 
 pub fn consume(var self: &Parser, t: TokenType, msg: str): Token {

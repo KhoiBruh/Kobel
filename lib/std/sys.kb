@@ -1,12 +1,10 @@
 mod std.sys;
 
 extern "libc" {
-	fn exit(code: i32): void;
+	fn exit(code: i32);
 	fn system(cmd: *char): i32;
 }
 
-pub fn sys_exit(code: i32): void {
-	exit(code);
-}
+pub fn sys_exit(code: i32) => exit(code);
 
 pub fn exec(cmd: str) => system(cmd.c_str());

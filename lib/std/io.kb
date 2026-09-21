@@ -10,7 +10,7 @@ extern "libc" {
 	fn fseek(stream: &u8, offset: i64, origin: i32): i32;
 	fn ftell(stream: &u8): i64;
 	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): void;
+	fn free(ptr: &u8);
 }
 
 struct StringRaw {
@@ -19,7 +19,7 @@ struct StringRaw {
 	pub cap: usz
 }
 
-pub fn print(s: str): void {
+pub fn print(s: str) {
 	var i: usz = 0;
 	val len: usz = s.len;
 	while (i < len) {
@@ -28,9 +28,7 @@ pub fn print(s: str): void {
 	}
 }
 
-pub fn println(s: str): void {
-	puts(s.c_str());
-}
+pub fn println(s: str) => puts(s.c_str());
 
 pub fn read_file(path: str): str {
 	val f = fopen(path.c_str(), "rb");
