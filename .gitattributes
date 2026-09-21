@@ -1,0 +1,3 @@
+# The seed source is compiler output; keep it byte-for-byte identical so the
+# bootstrap fixpoint check (regenerated output == committed seed) stays valid.
+dist/bootstrap.c -text

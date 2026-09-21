@@ -2,7 +2,8 @@
 setlocal enabledelayedexpansion
 
 echo ============================================================
-echo   Building Kobel Bootstrap Compiler v1 (kobel_v1.exe)
+echo   Building Kobel seed compiler from dist\bootstrap.c
+echo   Output: build\seed\kobel_seed.exe
 echo ============================================================
 
 :: Setup MSVC if cl is not available in PATH
@@ -15,21 +16,14 @@ if %errorlevel% neq 0 (
     )
 )
 
-:: The seed compiler is built from dist\bootstrap.c; build it on demand.
-set "SEED=build\seed\kobel_seed.exe"
-if not exist "%SEED%" (
-    echo [INFO] Seed compiler not found, building it first...
-    call "%~dp0build_seed.bat"
-    if %errorlevel% neq 0 exit /b %errorlevel%
-)
+if not exist "build\seed" mkdir "build\seed"
 
-echo [BUILDING] Compiling src\bootstrap\main.kb to kobel_v1.exe ...
-"%SEED%" "src\bootstrap\main.kb" -o "kobel_v1.exe"
+echo [BUILDING] Compiling dist\bootstrap.c to build\seed\kobel_seed.exe ...
+cl /nologo /O2 /Fe:build\seed\kobel_seed.exe /Fo:build\seed\bootstrap.obj "dist\bootstrap.c"
 if %errorlevel% neq 0 (
-    echo [BUILD FAILED] Failed to compile bootstrap compiler.
+    echo [BUILD FAILED] Failed to compile the seed compiler.
     exit /b %errorlevel%
 )
 
-echo [SUCCESS] Successfully built kobel_v1.exe!
-kobel_v1.exe --version
+echo [SUCCESS] Seed compiler built at build\seed\kobel_seed.exe
 exit /b 0

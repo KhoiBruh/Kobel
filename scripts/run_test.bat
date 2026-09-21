@@ -19,9 +19,17 @@ if %errorlevel% neq 0 (
     )
 )
 
+:: The seed compiler is built from dist\bootstrap.c; build it on demand.
+set "SEED=build\seed\kobel_seed.exe"
+if not exist "%SEED%" (
+    echo [INFO] Seed compiler not found, building it first...
+    call "%~dp0build_seed.bat"
+    if %errorlevel% neq 0 exit /b %errorlevel%
+)
+
 :: Compile
 echo [BUILDING] Compiling %SOURCE_FILE% ...
-.\cmake-build-debug\Kobel.exe "%SOURCE_FILE%" -o "%OUT_EXE%"
+"%SEED%" "%SOURCE_FILE%" -o "%OUT_EXE%"
 if %errorlevel% neq 0 (
     echo [BUILD FAILED] Compilation aborted with error code %errorlevel%
     exit /b %errorlevel%

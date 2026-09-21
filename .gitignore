@@ -12,3 +12,9 @@
 *.tmp.*
 *.pdb
 *.ilk
+# Build output and distribution artifacts
+/build/
+/dist/*
+!/dist/bootstrap.c
+/out.c
+/sample_pipeline_output.c
