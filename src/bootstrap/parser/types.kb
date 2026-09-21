@@ -1,0 +1,83 @@
+mod bootstrap.parser.types;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+use bootstrap.ast.node.AstNode;
+use bootstrap.ast.builder.alloc_pointer_type;
+use bootstrap.ast.builder.alloc_array_type;
+use bootstrap.ast.builder.alloc_named_type;
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.is_end;
+use bootstrap.parser.parser.peek;
+use bootstrap.parser.parser.advance;
+use bootstrap.parser.parser.check;
+use bootstrap.parser.parser.match_token;
+use bootstrap.parser.parser.consume;
+use bootstrap.parser.parser.error;
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+pub fn parse_type(var self: &Parser): *AstNode {
+	val tok = peek(self);
+	val line = tok.line;
+	val col = tok.col;
+
+	// 1. Pointer type: *T, *mut T, &T, &mut T
+	if (match_token(self, TokenType.STAR)) {
+		var is_mut = false;
+		if (match_token(self, TokenType.KW_VAR)) is_mut = true;
+		val pointee = parse_type(self);
+		return alloc_pointer_type(&self.arena, is_mut, pointee, line, col);
+	}
+
+	if (match_token(self, TokenType.AMPERSAND)) {
+		var is_mut = false;
+		if (match_token(self, TokenType.KW_VAR)) is_mut = true;
+		val pointee = parse_type(self);
+		return alloc_pointer_type(&self.arena, is_mut, pointee, line, col);
+	}
+
+	// 2. Fixed-size array type: [T; N]
+	if (match_token(self, TokenType.OPEN_BRACKET)) {
+		val elem_type = parse_type(self);
+		consume(self, TokenType.SEMI_COLON, "Expected ';' after array element type");
+		val size_tok = consume(self, TokenType.NUMBER, "Expected integer literal for array size");
+		consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array size");
+
+		// Chuyển chuỗi kích thước thành usz (mặc định lấy 0UZ nếu rỗng)
+		var size: usz = 0UZ;
+		var i: usz = 0UZ;
+		while (i < size_tok.text.len) {
+			val ch = size_tok.text[i];
+			if (ch >= '0' && ch <= '9') {
+				val digit = ((ch as i32) - ('0' as i32)) as usz;
+				size = size * 10UZ + digit;
+			}
+			i = i + 1UZ;
+		}
+
+		return alloc_array_type(&self.arena, elem_type, size, line, col);
+	}
+
+	// 3. Named type / Path: Foo, std.collections.List, List<T>
+	val id_tok = consume(self, TokenType.IDENTIFIER, "Expected type name");
+	var full_name = id_tok.text;
+
+	while (match_token(self, TokenType.DOT)) {
+		val seg = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.' in type path");
+		full_name = full_name + "." + seg.text;
+	}
+
+	var type_args = new_list<*AstNode>();
+	if (match_token(self, TokenType.LESS)) {
+		if (!check(self, TokenType.GREATER)) {
+			type_args.add(parse_type(self));
+			while (match_token(self, TokenType.COMMA)) {
+				type_args.add(parse_type(self));
+			}
+		}
+		consume(self, TokenType.GREATER, "Expected '>' after type arguments");
+	}
+
+	return alloc_named_type(&self.arena, full_name, type_args, line, col);
+}

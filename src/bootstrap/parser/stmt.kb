@@ -1,0 +1,160 @@
+mod bootstrap.parser.stmt;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+use bootstrap.ast.node.AstNode;
+use bootstrap.ast.stmt.WhenStmtArm;
+use bootstrap.ast.builder.alloc_block_stmt;
+use bootstrap.ast.builder.alloc_expr_stmt;
+use bootstrap.ast.builder.alloc_var_decl;
+use bootstrap.ast.builder.alloc_if_stmt;
+use bootstrap.ast.builder.alloc_while_stmt;
+use bootstrap.ast.builder.alloc_return_stmt;
+use bootstrap.ast.builder.alloc_break_stmt;
+use bootstrap.ast.builder.alloc_continue_stmt;
+use bootstrap.ast.builder.alloc_when_stmt;
+
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.is_end;
+use bootstrap.parser.parser.peek;
+use bootstrap.parser.parser.advance;
+use bootstrap.parser.parser.check;
+use bootstrap.parser.parser.match_token;
+use bootstrap.parser.parser.consume;
+use bootstrap.parser.parser.error;
+use bootstrap.parser.types.parse_type;
+use bootstrap.parser.expr.parse_expression;
+use bootstrap.parser.expr.PREC_NONE;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+// ============================================================================
+// Statement Parsers
+// ============================================================================
+
+pub fn parse_block_stmt(var self: &Parser): *AstNode {
+	val lbrace = consume(self, TokenType.OPEN_BRACE, "Expected '{'");
+	var statements = new_list<*AstNode>();
+
+	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
+		statements.add(parse_statement(self));
+	}
+
+	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after block");
+	return alloc_block_stmt(&self.arena, statements, lbrace.line, lbrace.col);
+}
+
+pub fn parse_var_decl_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // val hoặc var
+	val is_mut = (kw.type == TokenType.KW_VAR);
+
+	val name_tok = consume(self, TokenType.IDENTIFIER, "Expected variable name");
+	var type_ann: *AstNode = null;
+	if (match_token(self, TokenType.COLON)) type_ann = parse_type(self);
+
+	var init: *AstNode = null;
+	if (match_token(self, TokenType.EQUAL)) init = parse_expression(self, PREC_NONE);
+
+	consume(self, TokenType.SEMI_COLON, "Expected ';' after variable declaration");
+	return alloc_var_decl(&self.arena, is_mut, name_tok.text, type_ann, init, kw.line, kw.col);
+}
+
+pub fn parse_if_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // 'if'
+	consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'if'");
+	val condition = parse_expression(self, PREC_NONE);
+	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
+
+	val then_branch = parse_statement(self);
+	var else_branch: *AstNode = null;
+
+	if (match_token(self, TokenType.KW_ELSE)) else_branch = parse_statement(self);
+
+	return alloc_if_stmt(&self.arena, condition, then_branch, else_branch, kw.line, kw.col);
+}
+
+pub fn parse_while_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // 'while'
+	consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'while'");
+	val condition = parse_expression(self, PREC_NONE);
+	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after while condition");
+
+	val body = parse_statement(self);
+	return alloc_while_stmt(&self.arena, condition, body, kw.line, kw.col);
+}
+
+pub fn parse_return_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // 'return'
+	var value: *AstNode = null;
+
+	if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
+
+	consume(self, TokenType.SEMI_COLON, "Expected ';' after return statement");
+	return alloc_return_stmt(&self.arena, value, kw.line, kw.col);
+}
+
+pub fn parse_when_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // 'when'
+	consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'when'");
+	val condition = parse_expression(self, PREC_NONE);
+	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+	consume(self, TokenType.OPEN_BRACE, "Expected '{' before when statement arms");
+
+	var arms = new_list<WhenStmtArm>();
+	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
+		val arm_line = peek(self).line;
+		val arm_col = peek(self).col;
+		var is_else = false;
+		var patterns = new_list<*AstNode>();
+
+		if (match_token(self, TokenType.KW_ELSE)) is_else = true;
+		else {
+			patterns.add(parse_expression(self, PREC_NONE));
+			while (match_token(self, TokenType.COMMA)) {
+				patterns.add(parse_expression(self, PREC_NONE));
+			}
+		}
+
+		consume(self, TokenType.ARROW, "Expected '->' after when arm pattern");
+		val body = parse_statement(self);
+		arms.add(WhenStmtArm(patterns, is_else, body, arm_line, arm_col));
+
+		match_token(self, TokenType.COMMA);
+		match_token(self, TokenType.SEMI_COLON);
+	}
+
+	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after when statement arms");
+	return alloc_when_stmt(&self.arena, condition, arms, kw.line, kw.col);
+}
+
+pub fn parse_statement(var self: &Parser): *AstNode {
+	val tok = peek(self);
+	val line = tok.line;
+	val col = tok.col;
+
+	when (tok.type) {
+		TokenType.OPEN_BRACE -> return parse_block_stmt(self);
+		TokenType.KW_VAL,
+		TokenType.KW_VAR -> return parse_var_decl_stmt(self);
+		TokenType.KW_IF -> return parse_if_stmt(self);
+		TokenType.KW_WHILE -> return parse_while_stmt(self);
+		TokenType.KW_RETURN -> return parse_return_stmt(self);
+		TokenType.KW_WHEN -> return parse_when_stmt(self);
+		TokenType.KW_BREAK -> {
+			advance(self);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after break");
+			return alloc_break_stmt(&self.arena, line, col);
+		}
+		TokenType.KW_CONTINUE -> {
+			advance(self);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
+			return alloc_continue_stmt(&self.arena, line, col);
+		}
+		else -> {
+			val expr = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
+			return alloc_expr_stmt(&self.arena, expr, line, col);
+		}
+	}
+}

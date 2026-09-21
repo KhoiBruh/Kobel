@@ -247,6 +247,18 @@ pub fn alloc_group(
 	return alloc_node(arena, NodeKind.EXPR_GROUP, line, col, mem);
 }
 
+pub fn alloc_array_literal(
+	var arena: &Arena,
+	elements: List<*AstNode>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ArrayLiteralExpr.size(), 8UZ);
+	val ptr = mem as *ArrayLiteralExpr;
+	*ptr = ArrayLiteralExpr(elements);
+	return alloc_node(arena, NodeKind.EXPR_ARRAY_LITERAL, line, col, mem);
+}
+
 pub fn alloc_if_expr(
 	var arena: &Arena,
 	condition: *AstNode,
@@ -343,9 +355,86 @@ pub fn alloc_return_stmt(
 	return alloc_node(arena, NodeKind.STMT_RETURN, line, col, mem);
 }
 
+pub fn alloc_break_stmt(
+	var arena: &Arena,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(BreakStmt.size(), 8UZ);
+	val ptr = mem as *BreakStmt;
+	*ptr = BreakStmt(0);
+	return alloc_node(arena, NodeKind.STMT_BREAK, line, col, mem);
+}
+
+pub fn alloc_continue_stmt(
+	var arena: &Arena,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ContinueStmt.size(), 8UZ);
+	val ptr = mem as *ContinueStmt;
+	*ptr = ContinueStmt(0);
+	return alloc_node(arena, NodeKind.STMT_CONTINUE, line, col, mem);
+}
+
+pub fn alloc_when_expr(
+	var arena: &Arena,
+	condition: *AstNode,
+	arms: List<WhenArm>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(WhenExpr.size(), 8UZ);
+	val ptr = mem as *WhenExpr;
+	*ptr = WhenExpr(condition, arms);
+	return alloc_node(arena, NodeKind.EXPR_WHEN, line, col, mem);
+}
+
+pub fn alloc_when_stmt(
+	var arena: &Arena,
+	condition: *AstNode,
+	arms: List<WhenStmtArm>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(WhenStmt.size(), 8UZ);
+	val ptr = mem as *WhenStmt;
+	*ptr = WhenStmt(condition, arms);
+	return alloc_node(arena, NodeKind.STMT_WHEN, line, col, mem);
+}
+
 // ----------------------------------------------------------------------------
 // Declaration Allocators
 // ----------------------------------------------------------------------------
+
+pub fn alloc_module_decl(
+	var arena: &Arena,
+	path: List<str>,
+	full_path: str,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ModuleDecl.size(), 8UZ);
+	val ptr = mem as *ModuleDecl;
+	*ptr = ModuleDecl(path, full_path);
+	return alloc_node(arena, NodeKind.DECL_MODULE, line, col, mem);
+}
+
+pub fn alloc_use_decl(
+	var arena: &Arena,
+	path: List<str>,
+	full_path: str,
+	symbol_name: str,
+	alias: str,
+	is_wildcard: bool,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(UseDecl.size(), 8UZ);
+	val ptr = mem as *UseDecl;
+	*ptr = UseDecl(path, full_path, symbol_name, alias, is_wildcard);
+	return alloc_node(arena, NodeKind.DECL_USE, line, col, mem);
+}
 
 pub fn alloc_fn_decl(
 	var arena: &Arena,
@@ -362,6 +451,95 @@ pub fn alloc_fn_decl(
 	val ptr = mem as *FnDecl;
 	*ptr = FnDecl(name, type_params, params, return_type, body, is_pub);
 	return alloc_node(arena, NodeKind.DECL_FN, line, col, mem);
+}
+
+pub fn alloc_struct_decl(
+	var arena: &Arena,
+	name: str,
+	type_params: List<GenericParam>,
+	fields: List<StructField>,
+	is_pub: bool,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(StructDecl.size(), 8UZ);
+	val ptr = mem as *StructDecl;
+	*ptr = StructDecl(name, type_params, fields, is_pub);
+	return alloc_node(arena, NodeKind.DECL_STRUCT, line, col, mem);
+}
+
+pub fn alloc_trait_decl(
+	var arena: &Arena,
+	name: str,
+	type_params: List<GenericParam>,
+	bases: List<str>,
+	methods: List<*AstNode>,
+	is_pub: bool,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(TraitDecl.size(), 8UZ);
+	val ptr = mem as *TraitDecl;
+	*ptr = TraitDecl(name, type_params, bases, methods, is_pub);
+	return alloc_node(arena, NodeKind.DECL_TRAIT, line, col, mem);
+}
+
+pub fn alloc_impl_decl(
+	var arena: &Arena,
+	struct_name: str,
+	type_params: List<GenericParam>,
+	trait_name: str,
+	methods: List<*AstNode>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ImplDecl.size(), 8UZ);
+	val ptr = mem as *ImplDecl;
+	*ptr = ImplDecl(struct_name, type_params, trait_name, methods);
+	return alloc_node(arena, NodeKind.DECL_IMPL, line, col, mem);
+}
+
+pub fn alloc_enum_decl(
+	var arena: &Arena,
+	name: str,
+	underlying_type: *AstNode,
+	members: List<EnumMember>,
+	is_pub: bool,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(EnumDecl.size(), 8UZ);
+	val ptr = mem as *EnumDecl;
+	*ptr = EnumDecl(name, underlying_type, members, is_pub);
+	return alloc_node(arena, NodeKind.DECL_ENUM, line, col, mem);
+}
+
+pub fn alloc_const_decl(
+	var arena: &Arena,
+	name: str,
+	type_node: *AstNode,
+	value: *AstNode,
+	is_pub: bool,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ConstDecl.size(), 8UZ);
+	val ptr = mem as *ConstDecl;
+	*ptr = ConstDecl(name, type_node, value, is_pub);
+	return alloc_node(arena, NodeKind.DECL_CONST, line, col, mem);
+}
+
+pub fn alloc_extern_block(
+	var arena: &Arena,
+	abi: str,
+	declarations: List<*AstNode>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val mem = arena.alloc_bytes(ExternBlock.size(), 8UZ);
+	val ptr = mem as *ExternBlock;
+	*ptr = ExternBlock(abi, declarations);
+	return alloc_node(arena, NodeKind.DECL_EXTERN_BLOCK, line, col, mem);
 }
 
 pub fn alloc_program(
@@ -404,10 +582,17 @@ pub fn as_var_decl(node: *AstNode): *VarDeclStmt => node.data as *VarDeclStmt;
 pub fn as_if_stmt(node: *AstNode): *IfStmt => node.data as *IfStmt;
 pub fn as_while_stmt(node: *AstNode): *WhileStmt => node.data as *WhileStmt;
 pub fn as_return_stmt(node: *AstNode): *ReturnStmt => node.data as *ReturnStmt;
+pub fn as_break_stmt(node: *AstNode): *BreakStmt => node.data as *BreakStmt;
+pub fn as_continue_stmt(node: *AstNode): *ContinueStmt => node.data as *ContinueStmt;
 pub fn as_when_stmt(node: *AstNode): *WhenStmt => node.data as *WhenStmt;
 
 pub fn as_fn_decl(node: *AstNode): *FnDecl => node.data as *FnDecl;
 pub fn as_struct_decl(node: *AstNode): *StructDecl => node.data as *StructDecl;
+pub fn as_trait_decl(node: *AstNode): *TraitDecl => node.data as *TraitDecl;
+pub fn as_impl_decl(node: *AstNode): *ImplDecl => node.data as *ImplDecl;
 pub fn as_enum_decl(node: *AstNode): *EnumDecl => node.data as *EnumDecl;
 pub fn as_const_decl(node: *AstNode): *ConstDecl => node.data as *ConstDecl;
+pub fn as_module_decl(node: *AstNode): *ModuleDecl => node.data as *ModuleDecl;
+pub fn as_use_decl(node: *AstNode): *UseDecl => node.data as *UseDecl;
+pub fn as_extern_block(node: *AstNode): *ExternBlock => node.data as *ExternBlock;
 pub fn as_program(node: *AstNode): *Program => node.data as *Program;

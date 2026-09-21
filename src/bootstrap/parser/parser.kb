@@ -1,0 +1,122 @@
+mod bootstrap.parser.parser;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+use std.collections.list.List;
+use std.collections.list.new_list;
+use std.mem.arena.Arena;
+use std.mem.arena.new_arena;
+
+pub struct Parser {
+	pub tokens: List<Token>,
+	pub current: usz,
+	pub arena: Arena,
+	pub errors: List<str>
+}
+
+pub fn new_parser(tokens: List<Token>): Parser {
+	return Parser(tokens, 0UZ, new_arena(65536UZ), new_list<str>());
+}
+
+pub fn is_end(var self: &Parser): bool {
+	if (self.current >= self.tokens.len) return true;
+	val tok = self.tokens.get(self.current);
+	return tok.type == TokenType.END_OF_FILE;
+}
+
+pub fn peek(var self: &Parser): Token {
+	if (self.current >= self.tokens.len) return self.tokens.get(self.tokens.len - 1UZ);
+	return self.tokens.get(self.current);
+}
+
+pub fn previous(var self: &Parser): Token {
+	if (self.current == 0UZ) return self.tokens.get(0UZ);
+	return self.tokens.get(self.current - 1UZ);
+}
+
+pub fn advance(var self: &Parser): Token {
+	if (!is_end(self)) self.current = self.current + 1UZ;
+	return previous(self);
+}
+
+pub fn check(var self: &Parser, t: TokenType): bool {
+	if (is_end(self)) return false;
+	val tok = peek(self);
+	return tok.type == t;
+}
+
+pub fn match_token(var self: &Parser, t: TokenType): bool {
+	if (check(self, t)) {
+		advance(self);
+		return true;
+	}
+	return false;
+}
+
+pub fn error(var self: &Parser, tok: Token, msg: str) {
+	// Ghi nhận lỗi phân tích cú pháp
+	self.errors.add(msg);
+}
+
+pub fn consume(var self: &Parser, t: TokenType, msg: str): Token {
+	if (check(self, t)) return advance(self);
+	val tok = peek(self);
+	error(self, tok, msg);
+	return tok;
+}
+
+pub fn synchronize(var self: &Parser) {
+	advance(self);
+
+	while (!is_end(self)) {
+		val prev = previous(self);
+		if (prev.type == TokenType.SEMI_COLON) return;
+
+		val cur = peek(self);
+		when (cur.type) {
+			TokenType.KW_FN,
+			TokenType.KW_STRUCT,
+			TokenType.KW_VAL,
+			TokenType.KW_VAR,
+			TokenType.KW_IF,
+			TokenType.KW_WHEN,
+			TokenType.KW_WHILE,
+			TokenType.KW_RETURN,
+			TokenType.KW_PUB,
+			TokenType.KW_MOD,
+			TokenType.KW_USE,
+			TokenType.KW_ENUM,
+			TokenType.KW_TRAIT,
+			TokenType.KW_IMPL,
+			TokenType.KW_EXTERN -> return;
+			else -> advance(self);
+		}
+	}
+}
+
+pub fn is_generic_args_ahead(var self: &Parser): bool {
+	// Kiểm tra xem vị trí hiện tại sau '<' có cấu trúc của Type arguments kết thúc bằng '>' không
+	if (!check(self, TokenType.LESS)) return false;
+
+	var i = self.current + 1UZ;
+	var depth = 1;
+
+	while (i < self.tokens.len) {
+		val tok = self.tokens.get(i);
+		when (tok.type) {
+			TokenType.LESS -> { depth = depth + 1; }
+			TokenType.GREATER -> {
+				depth = depth - 1;
+				if (depth == 0) return true;
+			}
+			TokenType.SEMI_COLON,
+			TokenType.OPEN_BRACE,
+			TokenType.CLOSE_BRACE,
+			TokenType.END_OF_FILE -> return false;
+			else -> {}
+		}
+		i = i + 1UZ;
+	}
+
+	return false;
+}

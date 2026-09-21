@@ -1,0 +1,264 @@
+mod test.bootstrap_parser;
+
+use std.io.print;
+use std.io.println;
+
+use bootstrap.lexer.lexer.Lexer;
+use bootstrap.lexer.lexer.new_lexer;
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+
+use bootstrap.ast.node.NodeKind;
+use bootstrap.ast.node.AstNode;
+
+use bootstrap.ast.types.NamedType;
+use bootstrap.ast.types.PointerType;
+use bootstrap.ast.expr.BinaryExpr;
+use bootstrap.ast.expr.UnaryExpr;
+use bootstrap.ast.expr.CallExpr;
+use bootstrap.ast.expr.MemberExpr;
+use bootstrap.ast.expr.LiteralExpr;
+use bootstrap.ast.expr.IdentifierExpr;
+
+use bootstrap.ast.stmt.BlockStmt;
+use bootstrap.ast.stmt.VarDeclStmt;
+use bootstrap.ast.stmt.IfStmt;
+use bootstrap.ast.stmt.ReturnStmt;
+use bootstrap.ast.stmt.WhileStmt;
+
+use bootstrap.ast.decl.Program;
+use bootstrap.ast.decl.ModuleDecl;
+use bootstrap.ast.decl.UseDecl;
+use bootstrap.ast.decl.StructDecl;
+use bootstrap.ast.decl.FnDecl;
+
+use bootstrap.ast.builder.as_program;
+use bootstrap.ast.builder.as_module_decl;
+use bootstrap.ast.builder.as_use_decl;
+use bootstrap.ast.builder.as_struct_decl;
+use bootstrap.ast.builder.as_fn_decl;
+use bootstrap.ast.builder.as_binary;
+use bootstrap.ast.builder.as_call;
+use bootstrap.ast.builder.as_member;
+use bootstrap.ast.builder.as_literal;
+use bootstrap.ast.builder.as_identifier;
+use bootstrap.ast.builder.as_var_decl;
+use bootstrap.ast.builder.as_named_type;
+
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.new_parser;
+use bootstrap.parser.expr.parse_expression;
+use bootstrap.parser.expr.PREC_NONE;
+use bootstrap.parser.types.parse_type;
+use bootstrap.parser.stmt.parse_statement;
+use bootstrap.parser.decl.parse_program;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_str(actual: str, expected: str, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		print(" | Expected: '");
+		print(expected);
+		print("', got: '");
+		print(actual);
+		println("'");
+	}
+}
+
+fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		println(" (usz mismatch)");
+	}
+}
+
+// ============================================================================
+// Test 1: Expression Precedence & Associativity (Pratt Parsing)
+// ============================================================================
+
+fn test_expression_parsing() {
+	// Kiểm tra biểu thức kết hợp và ưu tiên: 1 + 2 * 3
+	val src = "1 + 2 * 3";
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val expr = parse_expression(&parser, PREC_NONE);
+
+	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr");
+	val bin_root = as_binary(expr);
+	assert_true(bin_root.op == TokenType.PLUS, "Root operator must be '+'");
+
+	val left_node = bin_root.left;
+	assert_true(left_node.kind == NodeKind.EXPR_LITERAL, "Left child must be literal 1");
+	val left_lit = as_literal(left_node);
+	assert_eq_str(left_lit.raw_text, "1", "Left literal text must be 1");
+
+	val right_node = bin_root.right;
+	assert_true(right_node.kind == NodeKind.EXPR_BINARY, "Right child must be binary expr (2 * 3)");
+	val bin_mul = as_binary(right_node);
+	assert_true(bin_mul.op == TokenType.STAR, "Inner operator must be '*'");
+
+	println("  [PASS] test_expression_parsing");
+}
+
+// ============================================================================
+// Test 2: Call, Member Access and Arguments
+// ============================================================================
+
+fn test_call_and_member_parsing() {
+	val src = "player.move_to(100, 200 + 5)";
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val expr = parse_expression(&parser, PREC_NONE);
+
+	assert_true(expr.kind == NodeKind.EXPR_CALL, "Top node must be CallExpr");
+	val call_expr = as_call(expr);
+	assert_eq_usz(call_expr.args.len, 2UZ, "Call must have 2 arguments");
+
+	val callee = call_expr.callee;
+	assert_true(callee.kind == NodeKind.EXPR_MEMBER, "Callee must be MemberExpr");
+	val mem_expr = as_member(callee);
+	assert_eq_str(mem_expr.member, "move_to", "Member name must be 'move_to'");
+
+	val obj = mem_expr.object;
+	assert_true(obj.kind == NodeKind.EXPR_IDENTIFIER, "Object must be Identifier");
+	val id_expr = as_identifier(obj);
+	assert_eq_str(id_expr.name, "player", "Identifier name must be 'player'");
+
+	println("  [PASS] test_call_and_member_parsing");
+}
+
+// ============================================================================
+// Test 3: Type Parsing
+// ============================================================================
+
+fn test_type_parsing() {
+	val src = "std.collections.List<*Point>";
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val type_node = parse_type(&parser);
+
+	assert_true(type_node.kind == NodeKind.TYPE_NAMED, "Parsed type must be NamedType");
+	val named = as_named_type(type_node);
+	assert_eq_str(named.name, "std.collections.List", "Type path must match");
+	assert_eq_usz(named.type_args.len, 1UZ, "Type must have 1 generic argument");
+
+	val arg0 = named.type_args.get(0UZ);
+	assert_true(arg0.kind == NodeKind.TYPE_POINTER, "Generic argument must be PointerType");
+
+	println("  [PASS] test_type_parsing");
+}
+
+// ============================================================================
+// Test 4: Statement Parsing
+// ============================================================================
+
+fn test_statement_parsing() {
+	val src = "val total: i32 = (a + b) * 10;";
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val stmt = parse_statement(&parser);
+
+	assert_true(stmt.kind == NodeKind.STMT_VAR_DECL, "Must be VarDeclStmt");
+	val var_decl = as_var_decl(stmt);
+	assert_true(!var_decl.is_mut, "VarDecl must be immutable (val)");
+	assert_eq_str(var_decl.name, "total", "VarDecl name must be 'total'");
+	assert_true(var_decl.type_annotation != null, "VarDecl must have type annotation");
+	assert_true(var_decl.initializer != null, "VarDecl must have initializer");
+
+	println("  [PASS] test_statement_parsing");
+}
+
+// ============================================================================
+// Test 5: Full Program Parsing
+// ============================================================================
+
+fn test_full_program_parsing() {
+	val src = "mod sample.math;\n" +
+		"use std.io.println;\n" +
+		"pub struct Vector2D {\n" +
+		"    pub x: i32,\n" +
+		"    pub y: i32\n" +
+		"}\n" +
+		"pub fn add(a: i32, b: i32): i32 => a + b;\n" +
+		"fn main(): i32 {\n" +
+		"    val v: Vector2D = Vector2D(10, 20);\n" +
+		"    return add(v.x, v.y);\n" +
+		"}\n";
+
+	var lexer = new_lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = new_parser(tokens);
+	val program_node = parse_program(&parser);
+
+	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
+	assert_true(program_node.kind == NodeKind.PROGRAM, "Root node must be Program");
+
+	val prog = as_program(program_node);
+	assert_eq_usz(prog.declarations.len, 5UZ, "Program must contain 5 declarations");
+
+	// Decl 0: ModuleDecl
+	val d0 = prog.declarations.get(0UZ);
+	assert_true(d0.kind == NodeKind.DECL_MODULE, "Decl 0 must be DECL_MODULE");
+	val m_decl = as_module_decl(d0);
+	assert_eq_str(m_decl.full_path, "sample.math", "Module path must match");
+
+	// Decl 1: UseDecl
+	val d1 = prog.declarations.get(1UZ);
+	assert_true(d1.kind == NodeKind.DECL_USE, "Decl 1 must be DECL_USE");
+	val u_decl = as_use_decl(d1);
+	assert_eq_str(u_decl.full_path, "std.io.println", "Use path must match");
+
+	// Decl 2: StructDecl
+	val d2 = prog.declarations.get(2UZ);
+	assert_true(d2.kind == NodeKind.DECL_STRUCT, "Decl 2 must be DECL_STRUCT");
+	val s_decl = as_struct_decl(d2);
+	assert_eq_str(s_decl.name, "Vector2D", "Struct name must match");
+	assert_true(s_decl.is_pub, "Struct must be pub");
+	assert_eq_usz(s_decl.fields.len, 2UZ, "Struct must have 2 fields");
+
+	// Decl 3: FnDecl (add)
+	val d3 = prog.declarations.get(3UZ);
+	assert_true(d3.kind == NodeKind.DECL_FN, "Decl 3 must be DECL_FN");
+	val fn_add = as_fn_decl(d3);
+	assert_eq_str(fn_add.name, "add", "Function name must be 'add'");
+	assert_true(fn_add.is_pub, "Function must be pub");
+	assert_eq_usz(fn_add.params.len, 2UZ, "Function must have 2 params");
+
+	// Decl 4: FnDecl (main)
+	val d4 = prog.declarations.get(4UZ);
+	assert_true(d4.kind == NodeKind.DECL_FN, "Decl 4 must be DECL_FN");
+	val fn_main = as_fn_decl(d4);
+	assert_eq_str(fn_main.name, "main", "Function name must be 'main'");
+	assert_true(!fn_main.is_pub, "Function must not be pub");
+	assert_eq_usz(fn_main.params.len, 0UZ, "Main must have 0 params");
+
+	println("  [PASS] test_full_program_parsing");
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap Parser tests...");
+	test_expression_parsing();
+	test_call_and_member_parsing();
+	test_type_parsing();
+	test_statement_parsing();
+	test_full_program_parsing();
+	println("[ALL PASSED] Bootstrap Parser passed all tests successfully!");
+	return 0;
+}

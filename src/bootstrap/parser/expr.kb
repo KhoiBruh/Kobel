@@ -1,0 +1,267 @@
+mod bootstrap.parser.expr;
+
+use bootstrap.lexer.token.TokenType;
+use bootstrap.lexer.token.Token;
+use bootstrap.ast.node.AstNode;
+use bootstrap.ast.expr.LiteralKind;
+use bootstrap.ast.expr.WhenArm;
+use bootstrap.ast.builder.alloc_literal;
+use bootstrap.ast.builder.alloc_identifier;
+use bootstrap.ast.builder.alloc_binary;
+use bootstrap.ast.builder.alloc_unary;
+use bootstrap.ast.builder.alloc_call;
+use bootstrap.ast.builder.alloc_member;
+use bootstrap.ast.builder.alloc_index;
+use bootstrap.ast.builder.alloc_assign;
+use bootstrap.ast.builder.alloc_cast;
+use bootstrap.ast.builder.alloc_group;
+use bootstrap.ast.builder.alloc_array_literal;
+use bootstrap.ast.builder.alloc_if_expr;
+use bootstrap.ast.builder.alloc_when_expr;
+
+use bootstrap.parser.parser.Parser;
+use bootstrap.parser.parser.is_end;
+use bootstrap.parser.parser.peek;
+use bootstrap.parser.parser.advance;
+use bootstrap.parser.parser.check;
+use bootstrap.parser.parser.match_token;
+use bootstrap.parser.parser.consume;
+use bootstrap.parser.parser.error;
+use bootstrap.parser.parser.is_generic_args_ahead;
+use bootstrap.parser.types.parse_type;
+
+use std.collections.list.List;
+use std.collections.list.new_list;
+
+// ============================================================================
+// Operator Precedence Levels
+// ============================================================================
+
+pub const PREC_NONE: i32 = 0;
+pub const PREC_ASSIGN: i32 = 1;       // =
+pub const PREC_OR: i32 = 2;           // ||
+pub const PREC_AND: i32 = 3;          // &&
+pub const PREC_EQUALITY: i32 = 4;     // ==, !=
+pub const PREC_COMPARISON: i32 = 5;   // <, <=, >, >=
+pub const PREC_TERM: i32 = 6;         // +, -
+pub const PREC_FACTOR: i32 = 7;       // *, /, %
+pub const PREC_UNARY: i32 = 8;        // -, !, *, &, as
+pub const PREC_CALL: i32 = 9;         // ., (), [], <args>()
+pub const PREC_PRIMARY: i32 = 10;
+
+pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
+	when (t) {
+		TokenType.EQUAL -> return PREC_ASSIGN;
+		TokenType.OR_OR -> return PREC_OR;
+		TokenType.AND_AND -> return PREC_AND;
+		TokenType.EQUAL_EQUAL,
+		TokenType.BANG_EQUAL -> return PREC_EQUALITY;
+		TokenType.LESS_EQUAL,
+		TokenType.GREATER,
+		TokenType.GREATER_EQUAL -> return PREC_COMPARISON;
+		TokenType.LESS -> {
+			if (is_generic_args_ahead(self)) return PREC_CALL;
+			return PREC_COMPARISON;
+		}
+		TokenType.PLUS,
+		TokenType.MINUS -> return PREC_TERM;
+		TokenType.STAR,
+		TokenType.SLASH,
+		TokenType.PERCENT -> return PREC_FACTOR;
+		TokenType.KW_AS -> return PREC_UNARY;
+		TokenType.DOT,
+		TokenType.OPEN_PAREN,
+		TokenType.OPEN_BRACKET -> return PREC_CALL;
+		else -> return PREC_NONE;
+	}
+}
+
+// ============================================================================
+// Pratt Expression Parser
+// ============================================================================
+
+pub fn parse_prefix(var self: &Parser): *AstNode {
+	val tok = advance(self);
+	val line = tok.line;
+	val col = tok.col;
+
+	// Literals
+	when (tok.type) {
+		TokenType.NUMBER -> return alloc_literal(&self.arena, LiteralKind.INT, tok.text, line, col);
+		TokenType.STRING -> return alloc_literal(&self.arena, LiteralKind.STRING, tok.text, line, col);
+		TokenType.CHAR -> return alloc_literal(&self.arena, LiteralKind.CHAR, tok.text, line, col);
+		TokenType.KW_TRUE -> return alloc_literal(&self.arena, LiteralKind.BOOL, "true", line, col);
+		TokenType.KW_FALSE -> return alloc_literal(&self.arena, LiteralKind.BOOL, "false", line, col);
+		TokenType.KW_NULL -> return alloc_literal(&self.arena, LiteralKind.NULL_VAL, "null", line, col);
+		TokenType.IDENTIFIER -> return alloc_identifier(&self.arena, tok.text, line, col);
+
+		// Grouping: (expr)
+		TokenType.OPEN_PAREN -> {
+			val inner = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
+			return alloc_group(&self.arena, inner, line, col);
+		}
+
+		// Array Literal: [a, b, c]
+		TokenType.OPEN_BRACKET -> {
+			var elements = new_list<*AstNode>();
+			if (!check(self, TokenType.CLOSE_BRACKET)) {
+				elements.add(parse_expression(self, PREC_NONE));
+				while (match_token(self, TokenType.COMMA)) {
+					if (check(self, TokenType.CLOSE_BRACKET)) {
+						break;
+					}
+					elements.add(parse_expression(self, PREC_NONE));
+				}
+			}
+			consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
+			return alloc_array_literal(&self.arena, elements, line, col);
+		}
+
+		// Prefix Unary: -, !, *, &
+		TokenType.MINUS,
+		TokenType.BANG,
+		TokenType.STAR,
+		TokenType.AMPERSAND -> {
+			val operand = parse_expression(self, PREC_UNARY);
+			return alloc_unary(&self.arena, tok.type, operand, line, col);
+		}
+
+		// If Expression: if (cond) then_expr else else_expr
+		TokenType.KW_IF -> {
+			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'if'");
+			val condition = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
+			val then_branch = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.KW_ELSE, "Expected 'else' in if expression");
+			val else_branch = parse_expression(self, PREC_NONE);
+			return alloc_if_expr(&self.arena, condition, then_branch, else_branch, line, col);
+		}
+
+		// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
+		TokenType.KW_WHEN -> {
+			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'when'");
+			val condition = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+			consume(self, TokenType.OPEN_BRACE, "Expected '{' before when arms");
+
+			var arms = new_list<WhenArm>();
+			while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
+				val arm_line = peek(self).line;
+				val arm_col = peek(self).col;
+				var is_else = false;
+				var patterns = new_list<*AstNode>();
+
+				if (match_token(self, TokenType.KW_ELSE)) {
+					is_else = true;
+				} else {
+					patterns.add(parse_expression(self, PREC_NONE));
+					while (match_token(self, TokenType.COMMA)) {
+						patterns.add(parse_expression(self, PREC_NONE));
+					}
+				}
+
+				consume(self, TokenType.ARROW, "Expected '->' after when arm pattern");
+				val body = parse_expression(self, PREC_NONE);
+				arms.add(WhenArm(patterns, is_else, body, arm_line, arm_col));
+
+				match_token(self, TokenType.COMMA);
+				match_token(self, TokenType.SEMI_COLON);
+			}
+
+			consume(self, TokenType.CLOSE_BRACE, "Expected '}' after when arms");
+			return alloc_when_expr(&self.arena, condition, arms, line, col);
+		}
+
+		else -> {
+			error(self, tok, "Expected expression");
+			return alloc_identifier(&self.arena, "<error>", line, col);
+		}
+	}
+}
+
+pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
+	val tok = peek(self);
+	val line = tok.line;
+	val col = tok.col;
+
+	// 1. Assignment: left = right (right-associative)
+	if (match_token(self, TokenType.EQUAL)) {
+		val right = parse_expression(self, PREC_ASSIGN - 1);
+		return alloc_assign(&self.arena, left, right, line, col);
+	}
+
+	// 2. Member Access: left.member
+	if (match_token(self, TokenType.DOT)) {
+		val member_tok = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.'");
+		return alloc_member(&self.arena, left, member_tok.text, line, col);
+	}
+
+	// 3. Index Access: left[index]
+	if (match_token(self, TokenType.OPEN_BRACKET)) {
+		val index = parse_expression(self, PREC_NONE);
+		consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array index");
+		return alloc_index(&self.arena, left, index, line, col);
+	}
+
+	// 4. Type Cast: left as Type
+	if (match_token(self, TokenType.KW_AS)) {
+		val target_type = parse_type(self);
+		return alloc_cast(&self.arena, left, target_type, line, col);
+	}
+
+	// 5. Generic Call: left<T1, T2>(arg1, arg2)
+	if (check(self, TokenType.LESS) && is_generic_args_ahead(self)) {
+		advance(self); // consume '<'
+		var type_args = new_list<*AstNode>();
+		type_args.add(parse_type(self));
+		while (match_token(self, TokenType.COMMA)) {
+			type_args.add(parse_type(self));
+		}
+		consume(self, TokenType.GREATER, "Expected '>' after generic call type arguments");
+
+		consume(self, TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
+		var args = new_list<*AstNode>();
+		if (!check(self, TokenType.CLOSE_PAREN)) {
+			args.add(parse_expression(self, PREC_NONE));
+			while (match_token(self, TokenType.COMMA)) {
+				args.add(parse_expression(self, PREC_NONE));
+			}
+		}
+		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+		return alloc_call(&self.arena, left, args, type_args, line, col);
+	}
+
+	// 6. Normal Call: left(arg1, arg2)
+	if (match_token(self, TokenType.OPEN_PAREN)) {
+		var args = new_list<*AstNode>();
+		if (!check(self, TokenType.CLOSE_PAREN)) {
+			args.add(parse_expression(self, PREC_NONE));
+			while (match_token(self, TokenType.COMMA)) {
+				args.add(parse_expression(self, PREC_NONE));
+			}
+		}
+		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+		return alloc_call(&self.arena, left, args, new_list<*AstNode>(), line, col);
+	}
+
+	// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
+	val op_tok = advance(self);
+	val right = parse_expression(self, prec);
+	return alloc_binary(&self.arena, op_tok.type, left, right, line, col);
+}
+
+pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode {
+	var left = parse_prefix(self);
+
+	while (!is_end(self)) {
+		val next_tok = peek(self);
+		val prec = get_infix_precedence(self, next_tok.type);
+		if (prec <= min_prec) {
+			break;
+		}
+		left = parse_infix(self, left, prec);
+	}
+
+	return left;
+}
