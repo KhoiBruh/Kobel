@@ -83,8 +83,7 @@ pub fn c_name_for(self: &DeclPass, name: str): str {
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
-	val mem = arena.alloc_bytes(Type.size(), 8);
-	val ptr = mem as *Type;
+	val ptr = alloc<Type>(arena);
 	*ptr = base;
 	return ptr;
 }
@@ -244,8 +243,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 		val m_c_name = str_concat(st_c_name, str_concat("_", f.name));
 
-		val mi_mem = self.arena.alloc_bytes(MethodInfo.size(), 8);
-		val mi = mi_mem as *MethodInfo;
+		val mi = alloc<MethodInfo>(&self.arena);
 		*mi = MethodInfo(f.name, m_c_name, fn_type);
 		st_info.methods.add(mi);
 
@@ -297,8 +295,7 @@ pub fn register_template(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn gen_template(var self: &DeclPass, name: str, node: *AstNode): *GenTemplate {
-	val mem = self.arena.alloc_bytes(GenTemplate.size(), 8);
-	val t = mem as *GenTemplate;
+	val t = alloc<GenTemplate>(&self.arena);
 	*t = GenTemplate(name, self.current_module, node);
 	return t;
 }
@@ -438,8 +435,7 @@ pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 }
 
 pub fn alloc_subst(var self: &DeclPass, names: List<str>, args: List<*AstNode>): *GenSubst {
-	val mem = self.arena.alloc_bytes(GenSubst.size(), 8);
-	val s = mem as *GenSubst;
+	val s = alloc<GenSubst>(&self.arena);
 	*s = GenSubst(names, args);
 	return s;
 }

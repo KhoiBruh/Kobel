@@ -190,13 +190,11 @@ pub fn alloc_pointer_type(
 	pointee: *Type,
 	is_mut: bool
 ): *Type {
-	val payload_mem = arena.alloc_bytes(PointerType.size(), 8);
-	val ptr_info = payload_mem as *PointerType;
+	val ptr_info = alloc<PointerType>(arena);
 	*ptr_info = PointerType(pointee, is_mut);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8);
-	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.POINTER, 8, 8, payload_mem);
+	val t_ptr = alloc<Type>(arena);
+	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
 	return t_ptr;
 }
 
@@ -205,13 +203,11 @@ pub fn alloc_array_type(
 	elem: *Type,
 	length: usz
 ): *Type {
-	val payload_mem = arena.alloc_bytes(ArrayType.size(), 8);
-	val arr_info = payload_mem as *ArrayType;
+	val arr_info = alloc<ArrayType>(arena);
 	*arr_info = ArrayType(elem, length);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8);
-	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, payload_mem);
+	val t_ptr = alloc<Type>(arena);
+	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, arr_info as *u8);
 	return t_ptr;
 }
 
@@ -243,13 +239,11 @@ pub fn alloc_struct_type(
 	val total_rem = current_offset % max_align;
 	if (total_rem != 0) current_offset = current_offset + (max_align - total_rem);
 
-	val payload_mem = arena.alloc_bytes(StructType.size(), 8);
-	val struct_info = payload_mem as *StructType;
+	val struct_info = alloc<StructType>(arena);
 	*struct_info = StructType(name, name, fields, new_list<*MethodInfo>());
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8);
-	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, payload_mem);
+	val t_ptr = alloc<Type>(arena);
+	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, struct_info as *u8);
 	return t_ptr;
 }
 
@@ -258,13 +252,11 @@ pub fn alloc_fn_type(
 	param_types: List<*Type>,
 	return_type: *Type
 ): *Type {
-	val payload_mem = arena.alloc_bytes(FnType.size(), 8);
-	val fn_info = payload_mem as *FnType;
+	val fn_info = alloc<FnType>(arena);
 	*fn_info = FnType(param_types, return_type);
 
-	val type_mem = arena.alloc_bytes(Type.size(), 8);
-	val t_ptr = type_mem as *Type;
-	*t_ptr = Type(DataType.FN, 8, 8, payload_mem);
+	val t_ptr = alloc<Type>(arena);
+	*t_ptr = Type(DataType.FN, 8, 8, fn_info as *u8);
 	return t_ptr;
 }
 
