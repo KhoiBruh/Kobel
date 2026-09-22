@@ -255,10 +255,8 @@ pub struct GenSubst {
 
 pub fn subst_lookup(s: *GenSubst, name: str): *AstNode {
 	if (s == null) return null;
-	var i: usz = 0;
-	while (i < s.names.len) {
+	for (i in 0..<s.names.len) {
 		if (s.names.get(i) == name) return s.args.get(i);
-		i = i + 1;
 	}
 	return null;
 }
@@ -336,11 +334,9 @@ pub fn type_token(self: &DeclPass, ty: *Type): str {
 
 pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str {
 	var res = "";
-	var i: usz = 0;
-	while (i < args.len) {
+	for (i in 0..<args.len) {
 		if (i > 0) res = str_concat(res, "_");
 		res = str_concat(res, ast_type_token(self, args.get(i)));
-		i = i + 1;
 	}
 	return res;
 }
