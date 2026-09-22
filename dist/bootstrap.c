@@ -7289,11 +7289,15 @@ void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__Body
             if ((((*(f)->body)).kind == 16)) {
                 {
                     compiler__ast__stmt__BlockStmt* blk = compiler__ast__builder__as_block_stmt((f)->body);
-                    size_t j = 0;
-                    while ((j < ((blk)->statements).len)) {
-                        {
-                            compiler__sema__body_pass__check_statement(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(blk)->statements), j));
-                            j = (j + 1);
+                    {
+                        size_t __for_n = ((blk)->statements).len;
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__node__AstNode* stmt = ((blk)->statements).data[__for_i];
+                                compiler__sema__body_pass__check_statement(self, stmt);
+                                __for_i = (__for_i + 1);
+                            }
                         }
                     }
                 }
@@ -7330,16 +7334,19 @@ void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPas
         return;
     }
     compiler__sema__types__StructType* st_info = compiler__sema__types__as_struct_type((st_sym)->type_ptr);
-    size_t i = 0;
-    while ((i < ((im)->methods).len)) {
-        {
-            compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), i);
-            compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m_node);
-            compiler__sema__types__MethodInfo* mi = compiler__sema__types__struct_find_method_c(st_info, (f)->name);
-            if ((mi != NULL)) {
-                compiler__sema__body_program__check_fn_body(self, m_node, (mi)->fn_type);
+    {
+        size_t __for_n = ((im)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* m_node = ((im)->methods).data[__for_i];
+                compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m_node);
+                compiler__sema__types__MethodInfo* mi = compiler__sema__types__struct_find_method_c(st_info, (f)->name);
+                if ((mi != NULL)) {
+                    compiler__sema__body_program__check_fn_body(self, m_node, (mi)->fn_type);
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
 }
@@ -7350,35 +7357,42 @@ void compiler__sema__body_program__check_program(compiler__sema__body_pass__Body
             compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
             compiler__sema__decl_collect__collect_program((&decl_p), program_node);
             (self)->symtab = (decl_p).symtab;
-            size_t i = 0;
-            while ((i < ((decl_p).errors).len)) {
-                {
-                    std__collections__list__List_str_add((&(self)->errors), std__collections__list__List_str_get((&(decl_p).errors), i));
-                    i = (i + 1);
+            {
+                size_t __for_n = ((decl_p).errors).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* msg = ((decl_p).errors).data[__for_i];
+                        std__collections__list__List_str_add((&(self)->errors), msg);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
         }
     }
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
-    size_t j = 0;
-    while ((j < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
-            if (((decl)->kind == 26)) {
-                {
-                    compiler__ast__decl__ModuleDecl* m = compiler__ast__builder__as_module_decl(decl);
-                    compiler__sema__symbol__set_current_module((&(self)->symtab), (m)->full_path);
-                }
-            } else {
-                if (((decl)->kind == 28)) {
-                    compiler__sema__body_program__check_fn(self, decl);
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (((decl)->kind == 26)) {
+                    {
+                        compiler__ast__decl__ModuleDecl* m = compiler__ast__builder__as_module_decl(decl);
+                        compiler__sema__symbol__set_current_module((&(self)->symtab), (m)->full_path);
+                    }
                 } else {
-                    if (((decl)->kind == 31)) {
-                        compiler__sema__body_program__check_impl(self, decl);
+                    if (((decl)->kind == 28)) {
+                        compiler__sema__body_program__check_fn(self, decl);
+                    } else {
+                        if (((decl)->kind == 31)) {
+                            compiler__sema__body_program__check_impl(self, decl);
+                        }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            j = (j + 1);
         }
     }
 }

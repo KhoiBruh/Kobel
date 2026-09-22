@@ -64,10 +64,8 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 	if (f.body != null) {
 		if (f.body.kind == NodeKind.STMT_BLOCK) {
 			val blk = as_block_stmt(f.body);
-			var j: usz = 0;
-			while (j < blk.statements.len) {
-				check_statement(self, blk.statements.get(j));
-				j = j + 1;
+			for (stmt in blk.statements) {
+				check_statement(self, stmt);
 			}
 		} else if (f.body.kind == NodeKind.STMT_EXPR) {
 			// Expression body: => expr;
@@ -92,13 +90,10 @@ pub fn check_impl(var self: &BodyPass, node: *AstNode) {
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
 	val st_info = sem_struct(st_sym.type_ptr);
 
-	var i: usz = 0;
-	while (i < im.methods.len) {
-		val m_node = im.methods.get(i);
+	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node);
 		val mi = struct_find_method_c(st_info, f.name);
 		if (mi != null) check_fn_body(self, m_node, mi.fn_type);
-		i = i + 1;
 	}
 }
 
@@ -112,23 +107,16 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 
 		// Inherit SymbolTable and merge errors from DeclPass
 		self.symtab = decl_p.symtab;
-		var i: usz = 0;
-		while (i < decl_p.errors.len) {
-			self.errors.add(decl_p.errors.get(i));
-			i = i + 1;
-		}
+		for (msg in decl_p.errors) self.errors.add(msg);
 	}
 
 	// Step 2: Analyze each function body of each module (program already merged)
 	val prog = as_program(program_node);
-	var j: usz = 0;
-	while (j < prog.declarations.len) {
-		val decl = prog.declarations.get(j);
+	for (decl in prog.declarations) {
 		if (decl.kind == NodeKind.DECL_MODULE) {
 			val m = as_module_decl(decl);
 			set_current_module(&self.symtab, m.full_path);
 		} else if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
 		else if (decl.kind == NodeKind.DECL_IMPL) check_impl(self, decl);
-		j = j + 1;
 	}
 }
