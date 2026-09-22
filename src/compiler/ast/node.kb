@@ -20,6 +20,7 @@ pub enum NodeKind {
 	EXPR_ARRAY_LITERAL,
 	EXPR_IF,
 	EXPR_WHEN,
+	EXPR_INTERP,
 
 	// Statements
 	STMT_BLOCK,
@@ -74,6 +75,7 @@ pub fn node_kind_name(k: NodeKind): str => when (k) {
 	NodeKind.EXPR_ARRAY_LITERAL -> "EXPR_ARRAY_LITERAL",
 	NodeKind.EXPR_IF -> "EXPR_IF",
 	NodeKind.EXPR_WHEN -> "EXPR_WHEN",
+	NodeKind.EXPR_INTERP -> "EXPR_INTERP",
 
 	NodeKind.STMT_BLOCK -> "STMT_BLOCK",
 	NodeKind.STMT_EXPR -> "STMT_EXPR",

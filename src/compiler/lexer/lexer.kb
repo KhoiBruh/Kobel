@@ -202,10 +202,95 @@ impl Lexer {
 				self.newline();
 				continue;
 			}
+			// `${...}` is an interpolation hole: skip it (nesting-aware) so the
+			// closing quote of the string is found correctly. Where the braces
+			// are, and what the hole contains, is the parser's business.
+			if (c == '$' && self.peek_at(1) == '{') {
+				self.next(); // '$'
+				self.skip_hole();
+				continue;
+			}
 			self.next();
 		}
 		if (!closed) return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
 		return self.make_token(TokenType.STRING, start_cursor, start_col);
+	}
+
+	// Consumes a `${ ... }` hole body; the cursor sits on the '{'.
+	// Nested braces, string literals, char literals and nested `${...}` are all
+	// honoured so the matching '}' is the right one.
+	pub fn skip_hole(var self): none {
+		var depth: i32 = 0;
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (c == '{') {
+				depth = depth + 1;
+				self.next();
+				continue;
+			}
+			if (c == '}') {
+				depth = depth - 1;
+				self.next();
+				if (depth <= 0) return;
+				continue;
+			}
+			if (c == '"') {
+				self.skip_string_raw();
+				continue;
+			}
+			if (c == '\'') {
+				self.skip_char_raw();
+				continue;
+			}
+			if (c == '\r' || c == '\n') {
+				self.newline();
+				continue;
+			}
+			self.next();
+		}
+	}
+
+	// Skips a string literal that starts on the current '"' (may itself be
+	// interpolated).
+	pub fn skip_string_raw(var self): none {
+		self.next(); // opening quote
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (c == '"') {
+				self.next();
+				return;
+			}
+			if (c == '\\') {
+				self.next();
+				if (!self.is_end()) self.next();
+				continue;
+			}
+			if (c == '$' && self.peek_at(1) == '{') {
+				self.next(); // '$'
+				self.skip_hole();
+				continue;
+			}
+			if (c == '\r' || c == '\n') {
+				self.newline();
+				continue;
+			}
+			self.next();
+		}
+	}
+
+	// Skips a char literal that starts on the current '\''.
+	pub fn skip_char_raw(var self): none {
+		self.next(); // opening quote
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (c == '\\') {
+				self.next();
+				if (!self.is_end()) self.next();
+				continue;
+			}
+			self.next();
+			if (c == '\'') return;
+		}
 	}
 
 	pub fn scan_char(var self, start_cursor: usz, start_col: usz): Token {

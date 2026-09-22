@@ -613,6 +613,14 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			}
 			return alloc_when_expr(&self.arena, clone_expr(self, we.condition, subst), arms, node.line, node.col);
 		}
+		NodeKind.EXPR_INTERP -> {
+			val ie = as_interp(node);
+			var parts = new_list<InterpPart>();
+			for (part in ie.parts) {
+				parts.add(InterpPart(clone_expr(self, part.expr, subst), part.is_literal));
+			}
+			return alloc_interp(&self.arena, parts, node.line, node.col);
+		}
 		else -> return alloc_identifier(&self.arena, "<unsupported-expr>", node.line, node.col);
 	}
 }
@@ -794,6 +802,10 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 				for (pat in arm.patterns) rewrite_generics(self, pat);
 				rewrite_generics(self, arm.body);
 			}
+		}
+		NodeKind.EXPR_INTERP -> {
+			val ie = as_interp(node);
+			for (part in ie.parts) rewrite_generics(self, part.expr);
 		}
 
 		NodeKind.STMT_BLOCK -> {

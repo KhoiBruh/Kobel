@@ -30,6 +30,7 @@ use compiler.ast.builder.as_return_stmt;
 use compiler.ast.builder.as_impl_decl;
 use compiler.ast.builder.as_when_expr;
 use compiler.ast.builder.as_when_stmt;
+use compiler.ast.builder.as_interp;
 use compiler.ast.builder.alloc_identifier;
 use compiler.ast.builder.alloc_literal;
 use compiler.ast.builder.alloc_unary;
@@ -42,6 +43,7 @@ use compiler.ast.builder.alloc_var_decl;
 use compiler.ast.builder.alloc_block_stmt;
 use compiler.ast.builder.alloc_expr_stmt;
 use compiler.ast.builder.alloc_if_stmt;
+use compiler.ast.builder.alloc_if_expr;
 use compiler.ast.builder.alloc_while_stmt;
 use compiler.ast.builder.alloc_continue_stmt;
 use compiler.ast.builder.alloc_named_type as ast_alloc_named;
@@ -534,6 +536,29 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			if (result_ty == null) return alloc_primitive(&self.arena, type_none());
 			return result_ty;
 		}
+		NodeKind.EXPR_INTERP -> {
+			val ie = as_interp(node);
+
+			// Fold the parts into a `kobel_concat` chain; every hole is checked
+			// once and converted to `str` (see interp_piece).
+			var acc: *AstNode = null;
+			for (part in ie.parts) {
+				var piece = part.expr;
+				if (!part.is_literal) {
+					val pty = check_expr(self, piece);
+					piece = interp_piece(self, node, piece, pty);
+					if (piece == null) return alloc_primitive(&self.arena, type_str());
+				}
+				if (acc == null) acc = piece;
+				else acc = interp_concat(&self.arena, acc, piece, node.line, node.col);
+			}
+			if (acc == null) acc = alloc_literal(&self.arena, LiteralKind.STRING, "\"\"", node.line, node.col);
+
+			val in_n = node as &AstNode;
+			in_n.kind = acc.kind;
+			in_n.data = acc.data;
+			return alloc_primitive(&self.arena, type_str());
+		}
 		else -> return alloc_primitive(&self.arena, type_none());
 	}
 }
@@ -636,6 +661,44 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			}
 		}
 	}
+}
+
+// ============================================================================
+// String interpolation lowering
+//
+// `"a${x}b"` is lowered here into a `kobel_concat` chain; each hole is converted
+// to `str` according to its type. Nothing of this reaches the C backend beyond
+// calls to the prelude helpers, so codegen needs no new knowledge.
+// ============================================================================
+
+// A call to a prelude helper. Left unchecked on purpose: the prelude is emitted
+// by codegen and has no symbol table entry.
+pub fn interp_call(var arena: &Arena, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
+	var args = new_list<*AstNode>();
+	args.add(arg);
+	return alloc_call(arena, alloc_identifier(arena, name, line, col), args, new_list<*AstNode>(), line, col);
+}
+
+pub fn interp_concat(var arena: &Arena, a: *AstNode, b: *AstNode, line: usz, col: usz): *AstNode {
+	var args = new_list<*AstNode>();
+	args.add(a);
+	args.add(b);
+	return alloc_call(arena, alloc_identifier(arena, "kobel_concat", line, col), args, new_list<*AstNode>(), line, col);
+}
+
+// Converts one interpolation hole to `str`, or reports an error and returns null.
+pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
+	if (ty.kind == DataType.STR) return expr;
+	if (ty.kind == DataType.CHAR) return interp_call(&self.arena, "kobel_char_str", expr, node.line, node.col);
+	if (ty.kind == DataType.BOOL) return alloc_if_expr(&self.arena, expr,
+		alloc_literal(&self.arena, LiteralKind.STRING, "\"true\"", node.line, node.col),
+		alloc_literal(&self.arena, LiteralKind.STRING, "\"false\"", node.line, node.col),
+		node.line, node.col);
+	if (is_signed_integer(ty)) return interp_call(&self.arena, "kobel_i64_str", expr, node.line, node.col);
+	if (is_integer(ty)) return interp_call(&self.arena, "kobel_usz_str", expr, node.line, node.col);
+	if (is_float(ty)) return interp_call(&self.arena, "kobel_f64_str", expr, node.line, node.col);
+	report_error(self, node, "Interpolated value must be str, char, bool or numeric");
+	return null;
 }
 
 // ============================================================================

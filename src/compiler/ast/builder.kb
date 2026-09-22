@@ -340,6 +340,17 @@ pub fn alloc_when_expr(
 	return alloc_node(arena, NodeKind.EXPR_WHEN, line, col, ptr as *u8);
 }
 
+pub fn alloc_interp(
+	var arena: &Arena,
+	parts: List<InterpPart>,
+	line: usz,
+	col: usz
+): *AstNode {
+	val ptr = arena_alloc<InterpExpr>(arena);
+	*ptr = InterpExpr(parts);
+	return alloc_node(arena, NodeKind.EXPR_INTERP, line, col, ptr as *u8);
+}
+
 pub fn alloc_when_stmt(
 	var arena: &Arena,
 	condition: *AstNode,
@@ -514,6 +525,7 @@ pub fn as_group(node: *AstNode): *GroupExpr => node.data as *GroupExpr;
 pub fn as_array_literal(node: *AstNode): *ArrayLiteralExpr => node.data as *ArrayLiteralExpr;
 pub fn as_if_expr(node: *AstNode): *IfExpr => node.data as *IfExpr;
 pub fn as_when_expr(node: *AstNode): *WhenExpr => node.data as *WhenExpr;
+pub fn as_interp(node: *AstNode): *InterpExpr => node.data as *InterpExpr;
 
 pub fn as_block_stmt(node: *AstNode): *BlockStmt => node.data as *BlockStmt;
 pub fn as_expr_stmt(node: *AstNode): *ExprStmt => node.data as *ExprStmt;

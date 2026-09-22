@@ -1,0 +1,123 @@
+mod test.bootstrap_interp;
+
+use std.io.print;
+use std.io.println;
+use std.collections.list.*;
+
+// ============================================================================
+// String interpolation tests: "text ${expr} more"
+// ============================================================================
+
+struct Tally {
+	pub fails: i32
+}
+
+fn check(ok: bool, msg: str, var t: &Tally) {
+	if (!ok) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		println(msg);
+	}
+}
+
+fn check_str(got: str, want: str, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		print(": got '");
+		print(got);
+		print("' want '");
+		print(want);
+		println("'");
+	}
+}
+
+// Outside a hole, braces and `$` stay literal (the C backend emits strings
+// full of `{`/`}`).
+fn test_no_hole(var t: &Tally) {
+	val plain = "a{b}c";
+	check(plain.len == 5UZ, "plain string keeps braces", t);
+	val dollar = "a$b";
+	check(dollar.len == 3UZ, "a lone '$' is literal", t);
+	check_str("gia: \$5", "gia: $5", "`\\$` is a literal dollar", t);
+	check_str("{}", "{}", "empty braces are literal", t);
+}
+
+fn test_str_hole(var t: &Tally) {
+	val name = "Kobel";
+	check_str("hi ${name}!", "hi Kobel!", "str hole", t);
+	val empty = "";
+	check_str("[${empty}]", "[]", "empty str hole", t);
+	check_str("${name}", "Kobel", "whole string is one hole", t);
+}
+
+fn test_int_holes(var t: &Tally) {
+	val a: i32 = -7;
+	val b: usz = 42UZ;
+	val c: i64 = 123456789L;
+	val zero: i32 = 0;
+	check_str("${a}", "-7", "negative i32", t);
+	check_str("${b}", "42", "usz", t);
+	check_str("${c}", "123456789", "i64", t);
+	check_str("n=${zero}", "n=0", "zero", t);
+}
+
+fn test_char_bool(var t: &Tally) {
+	val c = 'A';
+	val yes = true;
+	val no = false;
+	check_str("<${c}>", "<A>", "char hole", t);
+	check_str("${yes}/${no}", "true/false", "bool holes", t);
+}
+
+fn test_multi_and_expr(var t: &Tally) {
+	var nums = new_list<i32>();
+	nums.add(10);
+	nums.add(20);
+	check_str("${nums.len}", "2", "member expression in a hole", t);
+	check_str("${nums.get(0)}-${nums.get(1)}", "10-20", "call inside a hole", t);
+	val a = "x";
+	val b = "y";
+	check_str("${a}${b}", "xy", "adjacent holes", t);
+	check_str("pre${a}mid${b}post", "prexmidypost", "literals between holes", t);
+	check_str("${a} and ${a}", "x and x", "hole used twice", t);
+	nums.delete();
+}
+
+fn concat2(a: str, b: str): str => a + b;
+
+// A hole may contain a string literal of its own (braces/strings nested in a
+// hole are scanned with their own nesting, so the quotes stay unescaped).
+fn test_nested_string_in_hole(var t: &Tally) {
+	check_str("${concat2("ab", "cd")}", "abcd", "nested string literal in a hole", t);
+}
+
+// Interpolation inside a generic body: monomorphization clones it.
+fn wrap<T>(x: T): str => "(${x})";
+
+fn test_in_generic(var t: &Tally) {
+	check_str(wrap<i32>(5), "(5)", "interpolation in a generic function", t);
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap string interpolation tests...");
+
+	var t = Tally(0);
+
+	test_no_hole(&t);
+	test_str_hole(&t);
+	test_int_holes(&t);
+	test_char_bool(&t);
+	test_multi_and_expr(&t);
+	test_nested_string_in_hole(&t);
+	test_in_generic(&t);
+
+	if (t.fails != 0) {
+		println("[FAILED] Bootstrap string interpolation tests");
+		return 1;
+	}
+
+	println("[ALL PASSED] Bootstrap string interpolation tests passed successfully!");
+	return 0;
+}

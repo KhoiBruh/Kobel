@@ -197,6 +197,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
 | `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
+| `"a${x}b"` | chuỗi `kobel_concat` + helper chuyển kiểu theo kiểu của hố: `str` nguyên xi, `char` → `kobel_char_str`, số có dấu → `kobel_i64_str`, số không dấu → `kobel_usz_str`, `f32/f64` → `kobel_f64_str`, `bool` → `if`-expr `"true"/"false"`. Kiểu khác là lỗi biên dịch |
 
 `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
 backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
@@ -219,8 +220,9 @@ vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sốn
 
 ### 6.3 Runtime helper trong C sinh ra
 
-Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`
-(hiện nhúng dưới dạng chuỗi trong `c_codegen.kb`; dự kiến tách ra `codegen/runtime.c.inc`).
+Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`, và bốn helper
+nội suy `kobel_i64_str`, `kobel_usz_str`, `kobel_char_str`, `kobel_f64_str`
+(hiện nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra `codegen/runtime.c.inc`).
 
 ### 6.4 Hạ tầng C
 
