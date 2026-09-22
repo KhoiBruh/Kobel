@@ -80,6 +80,7 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 
 	var is_range = false;
 	var is_open = false;
+	var is_half_open = false;
 	var iterable: *AstNode = null;
 	var range_start: *AstNode = null;
 	var range_end: *AstNode = null;
@@ -87,6 +88,9 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 	if (match_token(self, TokenType.DOT_DOT)) {
 		is_range = true;
 		range_start = first;
+		// `a..<b` excludes the end bound, so `for (i in 0..<seq.len)` is the
+		// index loop that never has to subtract one (which would wrap at 0).
+		if (match_token(self, TokenType.LESS)) is_half_open = true;
 		range_end = parse_expression(self, PREC_COMPARISON);
 	} else if (check(self, TokenType.GREATER) && peek_at(self, 1).type == TokenType.DOT_DOT) {
 		is_range = true;
@@ -103,7 +107,7 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
 	val body = parse_statement(self);
 	return alloc_for_stmt(
-		&self.arena, name_tok.text, is_range, is_open,
+		&self.arena, name_tok.text, is_range, is_open, is_half_open,
 		iterable, range_start, range_end, body, kw.line, kw.col
 	);
 }

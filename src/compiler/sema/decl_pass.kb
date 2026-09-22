@@ -651,7 +651,7 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		NodeKind.STMT_FOR -> {
 			val f = as_for_stmt(node);
 			return alloc_for_stmt(
-				&self.arena, f.var_name, f.is_range, f.is_open,
+				&self.arena, f.var_name, f.is_range, f.is_open, f.is_half_open,
 				clone_expr(self, f.iterable, subst),
 				clone_expr(self, f.range_start, subst),
 				clone_expr(self, f.range_end, subst),

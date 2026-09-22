@@ -399,6 +399,7 @@ struct compiler__ast__stmt__ForStmt {
     const char* var_name;
     bool is_range;
     bool is_open;
+    bool is_half_open;
     compiler__ast__node__AstNode* iterable;
     compiler__ast__node__AstNode* range_start;
     compiler__ast__node__AstNode* range_end;
@@ -1100,7 +1101,7 @@ compiler__ast__node__AstNode* compiler__ast__builder__alloc_expr_stmt(std__mem__
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_var_decl(std__mem__arena__Arena* arena, bool is_mut, const char* name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_if_stmt(std__mem__arena__Arena* arena, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_while_stmt(std__mem__arena__Arena* arena, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col);
-compiler__ast__node__AstNode* compiler__ast__builder__alloc_for_stmt(std__mem__arena__Arena* arena, const char* var_name, bool is_range, bool is_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__ast__builder__alloc_for_stmt(std__mem__arena__Arena* arena, const char* var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_return_stmt(std__mem__arena__Arena* arena, compiler__ast__node__AstNode* value, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_break_stmt(std__mem__arena__Arena* arena, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__ast__builder__alloc_continue_stmt(std__mem__arena__Arena* arena, size_t line, size_t col);
@@ -3755,9 +3756,9 @@ compiler__ast__node__AstNode* compiler__ast__builder__alloc_while_stmt(std__mem_
     return compiler__ast__builder__alloc_node(arena, 21, line, col, ((uint8_t*)ptr));
 }
 
-compiler__ast__node__AstNode* compiler__ast__builder__alloc_for_stmt(std__mem__arena__Arena* arena, const char* var_name, bool is_range, bool is_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+compiler__ast__node__AstNode* compiler__ast__builder__alloc_for_stmt(std__mem__arena__Arena* arena, const char* var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
     compiler__ast__stmt__ForStmt* ptr = std__mem__arena__arena_alloc_compiler__ast__stmt__ForStmt(arena);
-    (*ptr) = (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, iterable, range_start, range_end, body };
+    (*ptr) = (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body };
     return compiler__ast__builder__alloc_node(arena, 25, line, col, ((uint8_t*)ptr));
 }
 
@@ -5655,7 +5656,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_stmt(compiler__se
     } else if (((node)->kind == 25)) {
         {
             compiler__ast__stmt__ForStmt* f = compiler__ast__builder__as_for_stmt(node);
-            return compiler__ast__builder__alloc_for_stmt((&(self)->arena), (f)->var_name, (f)->is_range, (f)->is_open, compiler__sema__decl_pass__clone_expr(self, (f)->iterable, subst), compiler__sema__decl_pass__clone_expr(self, (f)->range_start, subst), compiler__sema__decl_pass__clone_expr(self, (f)->range_end, subst), compiler__sema__decl_pass__clone_stmt(self, (f)->body, subst), (node)->line, (node)->col);
+            return compiler__ast__builder__alloc_for_stmt((&(self)->arena), (f)->var_name, (f)->is_range, (f)->is_open, (f)->is_half_open, compiler__sema__decl_pass__clone_expr(self, (f)->iterable, subst), compiler__sema__decl_pass__clone_expr(self, (f)->range_start, subst), compiler__sema__decl_pass__clone_expr(self, (f)->range_end, subst), compiler__sema__decl_pass__clone_stmt(self, (f)->body, subst), (node)->line, (node)->col);
         }
     } else if (((node)->kind == 22)) {
         {
@@ -7264,7 +7265,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__desugar_for_range(std__
         }
     }
     std__collections__list__List_ptr_compiler__ast__node__AstNode_add(pre, compiler__ast__builder__alloc_var_decl(arena, true, "__for_go", NULL, compiler__ast__builder__alloc_literal(arena, 2, "false", line, col), line, col));
-    if ((fs)->is_open) {
+    if (((fs)->is_open || (fs)->is_half_open)) {
         {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(pre, compiler__sema__body_pass__for_by_dir(arena, compiler__sema__body_pass__for_set_go(arena, compiler__sema__body_pass__for_i_cmp(arena, 12, line, col), line, col), compiler__sema__body_pass__for_set_go(arena, compiler__sema__body_pass__for_i_cmp(arena, 11, line, col), line, col), line, col));
         }
@@ -7274,7 +7275,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__desugar_for_range(std__
         }
     }
     std__collections__list__List_ptr_compiler__ast__node__AstNode_add(head, compiler__ast__builder__alloc_var_decl(arena, false, (fs)->var_name, NULL, compiler__sema__body_pass__for_id(arena, "__for_i", line, col), line, col));
-    if ((fs)->is_open) {
+    if (((fs)->is_open || (fs)->is_half_open)) {
         {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(step, compiler__sema__body_pass__for_by_dir(arena, compiler__sema__body_pass__for_set_go(arena, compiler__ast__builder__alloc_binary(arena, 12, compiler__ast__builder__alloc_binary(arena, 6, compiler__sema__body_pass__for_id(arena, "__for_i", line, col), compiler__sema__body_pass__for_num(arena, "1", line, col), line, col), compiler__sema__body_pass__for_id(arena, "__for_e", line, col), line, col), line, col), compiler__sema__body_pass__for_set_go(arena, compiler__ast__builder__alloc_binary(arena, 11, compiler__ast__builder__alloc_binary(arena, 7, compiler__sema__body_pass__for_id(arena, "__for_i", line, col), compiler__sema__body_pass__for_num(arena, "1", line, col), line, col), compiler__sema__body_pass__for_id(arena, "__for_e", line, col), line, col), line, col), line, col));
         }
@@ -9698,6 +9699,7 @@ compiler__ast__node__AstNode* compiler__parser__stmt__parse_for_stmt(compiler__p
     compiler__ast__node__AstNode* first = compiler__parser__expr__parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
     bool is_range = false;
     bool is_open = false;
+    bool is_half_open = false;
     compiler__ast__node__AstNode* iterable = NULL;
     compiler__ast__node__AstNode* range_start = NULL;
     compiler__ast__node__AstNode* range_end = NULL;
@@ -9705,6 +9707,9 @@ compiler__ast__node__AstNode* compiler__parser__stmt__parse_for_stmt(compiler__p
         {
             is_range = true;
             range_start = first;
+            if (compiler__parser__parser__match_token(self, 12)) {
+                is_half_open = true;
+            }
             range_end = compiler__parser__expr__parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
         }
     } else {
@@ -9726,7 +9731,7 @@ compiler__ast__node__AstNode* compiler__parser__stmt__parse_for_stmt(compiler__p
     }
     compiler__parser__parser__consume(self, 16, "Expected ')' after for header");
     compiler__ast__node__AstNode* body = compiler__parser__stmt__parse_statement(self);
-    return compiler__ast__builder__alloc_for_stmt((&(self)->arena), (name_tok).text, is_range, is_open, iterable, range_start, range_end, body, (kw).line, (kw).col);
+    return compiler__ast__builder__alloc_for_stmt((&(self)->arena), (name_tok).text, is_range, is_open, is_half_open, iterable, range_start, range_end, body, (kw).line, (kw).col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__stmt__parse_return_stmt(compiler__parser__parser__Parser* self) {

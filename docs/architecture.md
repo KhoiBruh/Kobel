@@ -196,7 +196,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `arr.len` / `arr.size` (`arr: [T; N]`) | literal `usz` (kích thước biết lúc biên dịch) |
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
 | `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
-| `for (i in a..b)` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`) |
+| `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
 
 `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
 backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
@@ -210,7 +210,12 @@ backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của 
 - **Đếm an toàn tràn số**: bước nhảy chỉ chạy khi cờ "còn phần tử" còn đúng, nên biến đếm unsigned
   không bao giờ giảm xuống dưới biên.
 
-`for` hiện chưa có dạng nửa mở (`a..<b`) — xem §10.
+Ba dạng range (`a..b` đóng, `a..<b` nửa mở, `a>..<b` mở hai đầu) đều lấy kiểu biến đếm từ biên
+cuối, nên `for (i in 0..<n)` với `n: usz` duyệt unsigned và **không bao giờ tính `n - 1`**.
+
+⚠️ Biến vòng là `val` **trong scope thân vòng**, nên code dựa vào biến đếm *sau* vòng mà chuyển sang
+`for` sẽ **im lặng sai** (biến ngoài giữ nguyên giá trị cũ, không có lỗi biên dịch). Khi chuyển các
+vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sống qua vòng".
 
 ### 6.3 Runtime helper trong C sinh ra
 
@@ -358,9 +363,10 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 - **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; chưa hỗ trợ
   trait/bounds; `T.size()` hạ thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng).
 - **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
-  `for ((k, v) in map)` (cần destructuring). **Chưa có dạng nửa mở `a..<b`** — đây là lý do chính
-  khiến phần lớn vòng index kiểu `while (i < n)` trong nguồn compiler chưa hạ sang `for` được:
-  dạng đóng tương đương sẽ là `0..n-1`, và `n - 1` tràn khi `n` là unsigned bằng 0.
+  `for ((k, v) in map)` (cần destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
+  `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm
+  cần index cho việc khác (mảng song song, dấu phân cách, `set(i, …)`) hoặc con trỏ ghi sống qua
+  vòng — mỗi vòng đều có lý do giữ lại, xem ghi chú ⚠️ ở §6.2.
 - **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
   (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.

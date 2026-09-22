@@ -196,6 +196,71 @@ fn test_generic_for(var t: &Tally) {
 	nums.delete();
 }
 
+// Half-open ranges: the end bound is excluded, so `0..<n` works for an empty
+// container without ever computing `n - 1`.
+fn test_range_half_open(var t: &Tally) {
+	var sum: i32 = 0;
+	var count: i32 = 0;
+	for (i in 0..<5) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 5, "half-open 0..<5 must run 5 times", t);
+	check(sum == 10, "half-open 0..<5 sum must be 10", t);
+
+	sum = 0;
+	count = 0;
+	for (i in 5..<0) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 5, "half-open 5..<0 must run 5 times (5..1)", t);
+	check(sum == 15, "half-open 5..<0 sum must be 15", t);
+
+	count = 0;
+	for (i in 3..<3) count = count + 1;
+	check(count == 0, "half-open 3..<3 must be empty", t);
+
+	count = 0;
+	for (i in 2..<5) count = count + 1;
+	check(count == 3, "half-open 2..<5 must run 3 times", t);
+}
+
+// `0..<n` is the index-loop idiom: index any number of parallel containers.
+fn test_range_half_open_index(var t: &Tally) {
+	var nums = new_list<i32>();
+	nums.add(10);
+	nums.add(20);
+	nums.add(30);
+	var rev = new_list<i32>();
+	rev.add(1);
+	rev.add(2);
+	rev.add(3);
+
+	var sum: i32 = 0;
+	var seps: i32 = 0;
+	for (i in 0..<nums.len) {
+		if (i > 0) seps = seps + 1;
+		sum = sum + nums.get(i) + rev.get(i);
+	}
+	check(sum == 66, "indexed half-open loop must sum both lists", t);
+	check(seps == 2, "indexed half-open loop must see i > 0 twice", t);
+
+	nums.delete();
+	rev.delete();
+}
+
+// Empty container: `0..<len` with len = 0 must not iterate at all (the closed
+// form `0..len-1` would wrap and loop forever on an unsigned bound).
+fn test_range_half_open_empty(var t: &Tally, n: usz) {
+	var count: i32 = 0;
+	for (i in 0UZ..<n) {
+		val same: &usz = &i;
+		count = count + 1;
+	}
+	check(count == 0, "half-open 0..<0 must be empty", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap for-loop tests...");
 
@@ -204,6 +269,9 @@ fn main(): i32 {
 	test_range_closed_asc(&t);
 	test_range_closed_desc(&t);
 	test_range_open(&t);
+	test_range_half_open(&t);
+	test_range_half_open_index(&t);
+	test_range_half_open_empty(&t, 0UZ);
 	test_range_bound_type(&t, 5UZ);
 	test_iter_list(&t);
 	test_iter_str(&t);

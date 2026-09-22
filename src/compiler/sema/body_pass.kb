@@ -778,7 +778,8 @@ pub fn desugar_for_iterable(
 	return alloc_binary(arena, TokenType.LESS, for_id(arena, "__for_i", line, col), for_id(arena, "__for_n", line, col), line, col);
 }
 
-// `for (v in a..b)` (closed) / `for (v in a>..<b)` (open, exclusive ends).
+// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
+// `for (v in a>..<b)` (open, exclusive ends).
 // An unsuffixed end bound gives the counter its type, so `for (i in 0..n)` with
 // `n: usz` iterates unsigned while `for (i in 0..10)` stays i32.
 pub fn desugar_for_range(
@@ -806,7 +807,7 @@ pub fn desugar_for_range(
 
 	// var __for_go = false;  then the direction-dependent entry test.
 	pre.add(alloc_var_decl(arena, true, "__for_go", null, alloc_literal(arena, LiteralKind.BOOL, "false", line, col), line, col));
-	if (fs.is_open) {
+	if (fs.is_open || fs.is_half_open) {
 		pre.add(for_by_dir(arena,
 			for_set_go(arena, for_i_cmp(arena, TokenType.LESS, line, col), line, col),
 			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER, line, col), line, col),
@@ -822,7 +823,7 @@ pub fn desugar_for_range(
 	head.add(alloc_var_decl(arena, false, fs.var_name, null, for_id(arena, "__for_i", line, col), line, col));
 
 	// Is there another element? Then move the counter (never past the end).
-	if (fs.is_open) {
+	if (fs.is_open || fs.is_half_open) {
 		step.add(for_by_dir(arena,
 			for_set_go(arena, alloc_binary(arena, TokenType.LESS,
 				alloc_binary(arena, TokenType.PLUS, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),

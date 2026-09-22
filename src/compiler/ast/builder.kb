@@ -284,6 +284,7 @@ pub fn alloc_for_stmt(
 	var_name: str,
 	is_range: bool,
 	is_open: bool,
+	is_half_open: bool,
 	iterable: *AstNode,
 	range_start: *AstNode,
 	range_end: *AstNode,
@@ -292,7 +293,7 @@ pub fn alloc_for_stmt(
 	col: usz
 ): *AstNode {
 	val ptr = arena_alloc<ForStmt>(arena);
-	*ptr = ForStmt(var_name, is_range, is_open, iterable, range_start, range_end, body);
+	*ptr = ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body);
 	return alloc_node(arena, NodeKind.STMT_FOR, line, col, ptr as *u8);
 }
 
