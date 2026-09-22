@@ -75,12 +75,10 @@ pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 // "std.io" -> "std/io" (module path -> relative file path, without extension)
 pub fn str_module_to_rel(module_name: str): str {
 	val buf = raw_alloc(module_name.len + 1);
-	var i: usz = 0;
-	while (i < module_name.len) {
+	for (i in 0..<module_name.len) {
 		val c = module_name[i];
 		if (c == '.') buf[i] = '/' as u8;
 		else buf[i] = c as u8;
-		i = i + 1;
 	}
 	buf[module_name.len] = 0;
 	return str_from_bytes(buf, module_name.len);
@@ -90,12 +88,10 @@ pub fn str_module_to_rel(module_name: str): str {
 pub fn str_path_to_module(rel_path: str): str {
 	val stem = str_strip_kb(rel_path);
 	val buf = raw_alloc(stem.len + 1);
-	var i: usz = 0;
-	while (i < stem.len) {
+	for (i in 0..<stem.len) {
 		val c = stem[i];
 		if (str_is_sep(c)) buf[i] = '.' as u8;
 		else buf[i] = c as u8;
-		i = i + 1;
 	}
 	buf[stem.len] = 0;
 	return str_from_bytes(buf, stem.len);
@@ -118,13 +114,11 @@ pub fn str_strip_kb(path: str): str {
 pub fn str_dir_of(path: str): str {
 	var last: usz = 0;
 	var found = false;
-	var i: usz = 0;
-	while (i < path.len) {
+	for (i in 0..<path.len) {
 		if (str_is_sep(path[i])) {
 			last = i;
 			found = true;
 		}
-		i = i + 1;
 	}
 	if (!found) return "";
 	return str_slice(path, 0, last);
@@ -133,10 +127,8 @@ pub fn str_dir_of(path: str): str {
 // File name part of a path (input with separators included).
 pub fn str_base_name(path: str): str {
 	var start: usz = 0;
-	var i: usz = 0;
-	while (i < path.len) {
+	for (i in 0..<path.len) {
 		if (str_is_sep(path[i])) start = i + 1;
-		i = i + 1;
 	}
 	return str_slice(path, start, path.len - start);
 }
@@ -180,13 +172,11 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 pub fn str_split_dots(s: str): List<str> {
 	var parts = new_list<str>();
 	var start: usz = 0;
-	var i: usz = 0;
-	while (i < s.len) {
+	for (i in 0..<s.len) {
 		if (s[i] == '.') {
 			parts.add(str_slice(s, start, i - start));
 			start = i + 1;
 		}
-		i = i + 1;
 	}
 	parts.add(str_slice(s, start, s.len - start));
 	return parts;
