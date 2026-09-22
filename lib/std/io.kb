@@ -51,11 +51,11 @@ pub fn read_file(path: str): str {
 		return "";
 	}
 
-	val read_bytes: usz = fread(buf, 1UZ, sz, f);
+	val read_bytes: usz = fread(buf, 1, sz, f);
 	fclose(f);
-	buf[read_bytes] = 0UB;
+	buf[read_bytes] = 0;
 
-	val raw_mem = malloc(24UZ);
+	val raw_mem = malloc(24);
 	val r = raw_mem as &StringRaw;
 	r.data = buf as *char;
 	r.len = read_bytes;
@@ -69,7 +69,7 @@ pub fn read_file(path: str): str {
 pub fn write_file(path: str, content: str): bool {
 	val f = fopen(path.c_str(), "wb");
 	if (f == null) return false;
-	val written: usz = fwrite(content.c_str(), 1UZ, content.len, f);
+	val written: usz = fwrite(content.c_str(), 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
