@@ -178,6 +178,25 @@ fn test_overloads(var t: &Tally) {
 	check_i(c.add_to(5, 2), 17, "overload: two arguments", t);
 }
 
+// --- 8. Self inside an impl ------------------------------------------------
+
+struct Vec2 {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Vec2 {
+	fn shifted(val self, d: i32): Vec2 => Self(self.x + d, self.y + d);
+	fn origin(): Vec2 => Self(0, 0);
+}
+
+fn test_self(var t: &Tally) {
+	val v = Vec2(1, 2);
+	val w = v.shifted(3);
+	check_i(w.x, 4, "Self builds a value (x)", t);
+	check_i(w.y, 5, "Self builds a value (y)", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -190,6 +209,7 @@ fn main(): i32 {
 	test_two_impls(&t);
 	test_prim_methods(&t);
 	test_overloads(&t);
+	test_self(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

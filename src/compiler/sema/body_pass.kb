@@ -77,6 +77,8 @@ pub struct BodyPass {
 	pub current_fn_return_type: *Type,
 	pub loop_depth: usz,
 	pub errors: List<str>,
+	// Type being implemented, so `Self` resolves inside an `impl` body.
+	pub current_self_type: *Type,
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool
 }
@@ -85,13 +87,13 @@ pub fn new_body_pass(): BodyPass {
 	var arena = new_arena(65536);
 	var decl_p = new_decl_pass();
 	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(decl_p.symtab, arena, none_ty, 0, new_list<str>(), false);
+	return BodyPass(decl_p.symtab, arena, none_ty, 0, new_list<str>(), null, false);
 }
 
 pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 	var arena = new_arena(65536);
 	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(symtab, arena, none_ty, 0, new_list<str>(), true);
+	return BodyPass(symtab, arena, none_ty, 0, new_list<str>(), null, true);
 }
 
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
@@ -159,6 +161,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 		NodeKind.EXPR_IDENTIFIER -> {
 			val id = as_identifier(node) as &IdentifierExpr;
+
+			// `Self` names the type being implemented. Renaming it to the C
+			// name lets `Self(...)` build a value directly (no `new` factory).
+			if (id.name == "Self" && self.current_self_type != null) {
+				id.name = sem_struct(self.current_self_type).c_name;
+				return self.current_self_type;
+			}
+
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
 				report_error(self, node, "Undeclared identifier '${id.name}'");

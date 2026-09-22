@@ -99,11 +99,14 @@ pub fn check_impl(var self: &BodyPass, node: *AstNode) {
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
 	val st_info = sem_struct(st_sym.type_ptr);
 
+	// Make `Self` resolve to this struct inside every method body.
+	self.current_self_type = st_sym.type_ptr;
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node);
 		val mi = struct_find_method_c(st_info, f.name);
 		if (mi != null) check_fn_body(self, m_node, mi.fn_type);
 	}
+	self.current_self_type = null;
 }
 
 pub fn check_program(var self: &BodyPass, program_node: *AstNode) {

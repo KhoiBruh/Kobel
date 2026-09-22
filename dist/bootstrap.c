@@ -732,6 +732,7 @@ struct compiler__sema__body_pass__BodyPass {
     compiler__sema__types__Type* current_fn_return_type;
     size_t loop_depth;
     std__collections__list__List_str errors;
+    compiler__sema__types__Type* current_self_type;
     bool has_symtab;
 };
 
@@ -8271,13 +8272,13 @@ compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass(voi
     std__mem__arena__Arena arena = std__mem__arena__new_arena(65536);
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
     compiler__sema__types__Type* none_ty = compiler__sema__decl_pass__alloc_primitive((&arena), compiler__sema__types__type_none());
-    return (compiler__sema__body_pass__BodyPass){ (decl_p).symtab, arena, none_ty, 0, std__collections__list__new_list_str(), false };
+    return (compiler__sema__body_pass__BodyPass){ (decl_p).symtab, arena, none_ty, 0, std__collections__list__new_list_str(), NULL, false };
 }
 
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass_with_symtab(compiler__sema__symbol__SymbolTable symtab) {
     std__mem__arena__Arena arena = std__mem__arena__new_arena(65536);
     compiler__sema__types__Type* none_ty = compiler__sema__decl_pass__alloc_primitive((&arena), compiler__sema__types__type_none());
-    return (compiler__sema__body_pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__list__new_list_str(), true };
+    return (compiler__sema__body_pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__list__new_list_str(), NULL, true };
 }
 
 void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg) {
@@ -8376,6 +8377,12 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
     } else if (((node)->kind == 4)) {
         {
             compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)compiler__ast__builder__as_identifier(node));
+            if ((kobel_streq((id)->name, "Self") && ((self)->current_self_type != NULL))) {
+                {
+                    (id)->name = ((*compiler__sema__types__as_struct_type((self)->current_self_type))).c_name;
+                    return (self)->current_self_type;
+                }
+            }
             compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__lookup((&(self)->symtab), (id)->name);
             if ((sym == NULL)) {
                 {
@@ -9736,6 +9743,7 @@ void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPas
         return;
     }
     compiler__sema__types__StructType* st_info = compiler__sema__types__as_struct_type((st_sym)->type_ptr);
+    (self)->current_self_type = (st_sym)->type_ptr;
     {
         size_t __for_n = ((im)->methods).len;
         size_t __for_i = ((size_t)0ULL);
@@ -9751,6 +9759,7 @@ void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPas
             }
         }
     }
+    (self)->current_self_type = NULL;
 }
 
 void compiler__sema__body_program__check_program(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node) {
