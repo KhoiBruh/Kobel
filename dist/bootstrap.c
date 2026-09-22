@@ -1132,6 +1132,8 @@ compiler__sema__symbol__ModuleScope* std__mem__arena__arena_alloc_compiler__sema
 compiler__sema__types__Type** std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(size_t count);
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__new_list_ptr_compiler__sema__types__Type(void);
 compiler__sema__types__MethodInfo* std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo(std__mem__arena__Arena* arena);
+compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count);
+std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void);
 compiler__sema__symbol__GenTemplate* std__mem__arena__arena_alloc_compiler__sema__symbol__GenTemplate(std__mem__arena__Arena* arena);
 compiler__sema__decl_pass__GenSubst* std__mem__arena__arena_alloc_compiler__sema__decl_pass__GenSubst(std__mem__arena__Arena* arena);
 compiler__sema__types__StructField* std__mem__alloc__alloc_array_compiler__sema__types__StructField(size_t count);
@@ -1152,8 +1154,6 @@ compiler__sema__types__EnumMemberInfo** std__mem__alloc__alloc_array_ptr_compile
 std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo(void);
 compiler__sema__types__EnumMemberInfo* std__mem__arena__arena_alloc_compiler__sema__types__EnumMemberInfo(std__mem__arena__Arena* arena);
 compiler__sema__types__EnumInfo* std__mem__arena__arena_alloc_compiler__sema__types__EnumInfo(std__mem__arena__Arena* arena);
-compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count);
-std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void);
 compiler__sema__symbol__TraitMethod* std__mem__arena__arena_alloc_compiler__sema__symbol__TraitMethod(std__mem__arena__Arena* arena);
 compiler__sema__symbol__TraitInfo* std__mem__arena__arena_alloc_compiler__sema__symbol__TraitInfo(std__mem__arena__Arena* arena);
 compiler__lexer__token__Token* std__mem__alloc__alloc_array_compiler__lexer__token__Token(size_t count);
@@ -1342,6 +1342,8 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compile
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m);
+void compiler__sema__decl_pass__trait_effective(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, std__collections__list__List_str* seen);
 void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, const char* struct_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__subst_lookup(compiler__sema__decl_pass__GenSubst* s, const char* name);
 bool compiler__sema__decl_pass__is_template_decl(compiler__ast__node__AstNode* node);
@@ -3386,6 +3388,16 @@ compiler__sema__types__MethodInfo* std__mem__arena__arena_alloc_compiler__sema__
     return ((compiler__sema__types__MethodInfo*)raw);
 }
 
+compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count) {
+    return ((compiler__sema__symbol__TraitMethod**)std__mem__alloc__raw_alloc((count * 8)));
+}
+
+std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void) {
+    size_t init_cap = ((size_t)4ULL);
+    compiler__sema__symbol__TraitMethod** data = std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(init_cap);
+    return (std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod){ data, 0, init_cap };
+}
+
 compiler__sema__symbol__GenTemplate* std__mem__arena__arena_alloc_compiler__sema__symbol__GenTemplate(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 40, 8);
     return ((compiler__sema__symbol__GenTemplate*)raw);
@@ -3484,16 +3496,6 @@ compiler__sema__types__EnumMemberInfo* std__mem__arena__arena_alloc_compiler__se
 compiler__sema__types__EnumInfo* std__mem__arena__arena_alloc_compiler__sema__types__EnumInfo(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 64, 8);
     return ((compiler__sema__types__EnumInfo*)raw);
-}
-
-compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count) {
-    return ((compiler__sema__symbol__TraitMethod**)std__mem__alloc__raw_alloc((count * 8)));
-}
-
-std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void) {
-    size_t init_cap = ((size_t)4ULL);
-    compiler__sema__symbol__TraitMethod** data = std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(init_cap);
-    return (std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod){ data, 0, init_cap };
 }
 
 compiler__sema__symbol__TraitMethod* std__mem__arena__arena_alloc_compiler__sema__symbol__TraitMethod(std__mem__arena__Arena* arena) {
@@ -5680,6 +5682,99 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
     }
 }
 
+void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m) {
+    {
+        size_t __for_e = (out)->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (kobel_streq(((*std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_get(out, i))).name, (m)->name)) {
+                    {
+                        std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_set(out, i, m);
+                        return;
+                    }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_add(out, m);
+}
+
+void compiler__sema__decl_pass__trait_effective(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, std__collections__list__List_str* seen) {
+    if ((t == NULL)) {
+        return;
+    }
+    {
+        size_t __for_n = (seen)->len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* name = (seen)->data[__for_i];
+                if (kobel_streq(name, (t)->name)) {
+                    return;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    std__collections__list__List_str_add(seen, (t)->name);
+    {
+        size_t __for_n = ((t)->bases).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* bname = ((t)->bases).data[__for_i];
+                compiler__sema__decl_pass__trait_effective(self, compiler__sema__symbol__find_trait((&(self)->symtab), bname), out, seen);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    {
+        size_t __for_n = ((t)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__symbol__TraitMethod* m = ((t)->methods).data[__for_i];
+                compiler__sema__decl_pass__trait_put_method(out, m);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+}
+
 void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, const char* struct_name) {
     compiler__sema__symbol__TraitInfo* t = compiler__sema__symbol__find_trait((&(self)->symtab), (im)->trait_name);
     if ((t == NULL)) {
@@ -5688,6 +5783,9 @@ void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass*
             return;
         }
     }
+    std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod effective = std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod();
+    std__collections__list__List_str seen = std__collections__list__new_list_str();
+    compiler__sema__decl_pass__trait_effective(self, t, (&effective), (&seen));
     std__collections__list__List_str provided = std__collections__list__new_list_str();
     {
         size_t __for_n = ((im)->methods).len;
@@ -5701,11 +5799,11 @@ void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass*
         }
     }
     {
-        size_t __for_n = ((t)->methods).len;
+        size_t __for_n = (effective).len;
         size_t __for_i = ((size_t)0ULL);
         while ((__for_i < __for_n)) {
             {
-                compiler__sema__symbol__TraitMethod* tm = ((t)->methods).data[__for_i];
+                compiler__sema__symbol__TraitMethod* tm = (effective).data[__for_i];
                 bool have = false;
                 {
                     size_t __for_n = (provided).len;

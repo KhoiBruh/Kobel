@@ -244,6 +244,33 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 }
 
 
+// Inserts `m` into `out`, replacing a same-named entry so a derived trait's
+// method wins over the base one it inherits.
+fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
+	for (i in 0..<out.len) {
+		if (out.get(i).name == m.name) {
+			out.set(i, m);
+			return;
+		}
+	}
+	out.add(m);
+}
+
+// Flattens a trait and its base traits into one method list: base traits are
+// visited first, so a method declared in a derived trait replaces a same-named
+// inherited one. `seen` stops a cycle in a mis-declared `trait A : B` /
+// `trait B : A` chain.
+pub fn trait_effective(var self: &DeclPass, t: *TraitInfo, out: &List<*TraitMethod>, seen: &List<str>) {
+	if (t == null) return;
+	for (name in seen) {
+		if (name == t.name) return;
+	}
+	seen.add(t.name);
+
+	for (bname in t.bases) trait_effective(self, find_trait(&self.symtab, bname), out, seen);
+	for (m in t.methods) trait_put_method(out, m);
+}
+
 // Applies the trait named by `im.trait_name` to an `impl Trait for Struct`
 // block: every required method (one without a body) must be provided, and every
 // default method the impl left out is copied in. A copy is an ordinary method
@@ -256,10 +283,16 @@ pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_na
 		return;
 	}
 
+	// A trait inherits every method of its base traits, so the contract covers
+	// the flattened set rather than just the methods written in this trait.
+	var effective = new_list<*TraitMethod>();
+	var seen = new_list<str>();
+	trait_effective(self, t, &effective, &seen);
+
 	var provided = new_list<str>();
 	for (m in im.methods) provided.add(as_fn_decl(m).name);
 
-	for (tm in t.methods) {
+	for (tm in effective) {
 		var have = false;
 		for (name in provided) {
 			if (name == tm.name) have = true;
