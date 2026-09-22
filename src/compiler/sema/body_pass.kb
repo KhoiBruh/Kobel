@@ -420,6 +420,13 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					}
 				}
 
+				// Field construction is only allowed where the type is declared
+				// unless every field is `pub`; otherwise the type must expose a
+				// `new` constructor (handled above).
+				if (s_info.has_private && s_info.module != self.symtab.current_module) {
+					report_error(self, node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
+				}
+
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
 					for (i in 0..<call.args.len) {

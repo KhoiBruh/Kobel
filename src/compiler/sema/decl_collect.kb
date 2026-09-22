@@ -75,11 +75,16 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	// Rename the AST node to the C name so the backend emits a unique name
 	s.name = c_name;
 
+	var has_private = false;
 	for (f in s.fields) {
 		val f_type = resolve_ast_type(self, f.type_node);
 		val s_info = as_struct_type_mut(s_type);
 		s_info.fields.add(StructField(f.name, f_type, 0));
+		if (!f.is_pub) has_private = true;
 	}
+	val st_info = as_struct_type_mut(s_type);
+	st_info.module = self.current_module;
+	st_info.has_private = has_private;
 	layout_struct(s_type);
 }
 

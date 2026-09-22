@@ -618,6 +618,8 @@ struct compiler__sema__types__StructType {
     const char* c_name;
     std__collections__list__List_compiler__sema__types__StructField fields;
     std__collections__list__List_ptr_compiler__sema__types__MethodInfo methods;
+    const char* module;
+    bool has_private;
 };
 
 struct compiler__sema__types__FnType {
@@ -1413,7 +1415,7 @@ compiler__sema__decl_pass__GenSubst* compiler__sema__decl_pass__alloc_subst(comp
 void compiler__sema__decl_pass__queue_decl(compiler__sema__decl_pass__DeclPass* self, const char* module, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts);
 const char* compiler__sema__decl_pass__instantiate_fn(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts);
-void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name);
+void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name, const char* module);
 void compiler__sema__decl_pass__collect_fn_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__decl_pass__GenSubst* subst);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_expr(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__decl_pass__GenSubst* subst);
@@ -3393,7 +3395,7 @@ compiler__sema__types__ArrayType* std__mem__arena__arena_alloc_compiler__sema__t
 }
 
 compiler__sema__types__StructType* std__mem__arena__arena_alloc_compiler__sema__types__StructType(std__mem__arena__Arena* arena) {
-    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 80, 8);
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 104, 8);
     return ((compiler__sema__types__StructType*)raw);
 }
 
@@ -5192,7 +5194,7 @@ compiler__sema__types__Type* compiler__sema__types__alloc_struct_type(std__mem__
         current_offset = (current_offset + ((max_align - total_rem)));
     }
     compiler__sema__types__StructType* struct_info = std__mem__arena__arena_alloc_compiler__sema__types__StructType(arena);
-    (*struct_info) = (compiler__sema__types__StructType){ name, name, fields, std__collections__list__new_list_ptr_compiler__sema__types__MethodInfo() };
+    (*struct_info) = (compiler__sema__types__StructType){ name, name, fields, std__collections__list__new_list_ptr_compiler__sema__types__MethodInfo(), "", false };
     compiler__sema__types__Type* t_ptr = std__mem__arena__arena_alloc_compiler__sema__types__Type(arena);
     (*t_ptr) = (compiler__sema__types__Type){ 18, current_offset, max_align, ((uint8_t*)struct_info) };
     return t_ptr;
@@ -7101,7 +7103,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compi
     std__collections__list__List_str_add((&(((self)->symtab).gen).inst_names), cname);
     compiler__sema__decl_pass__GenSubst* subst = compiler__sema__decl_pass__alloc_subst(self, compiler__sema__decl_pass__template_param_names(tmpl), arg_asts);
     compiler__ast__node__AstNode* sclone = compiler__sema__decl_pass__clone_struct(self, (tmpl)->node, subst, cname);
-    compiler__sema__decl_pass__collect_struct_as(self, sclone, cname);
+    compiler__sema__decl_pass__collect_struct_as(self, sclone, cname, (tmpl)->module);
     compiler__sema__symbol__GenTemplate* impl_tmpl = compiler__sema__symbol__gen_find((((self)->symtab).gen).impl_templates, (tmpl)->name);
     if ((impl_tmpl != NULL)) {
         {
@@ -7134,11 +7136,12 @@ const char* compiler__sema__decl_pass__instantiate_fn(compiler__sema__decl_pass_
     return cname;
 }
 
-void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name) {
+void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name, const char* module) {
     compiler__ast__decl__StructDecl* s = ((compiler__ast__decl__StructDecl*)compiler__ast__builder__as_struct_decl(node));
     compiler__sema__types__Type* s_type = compiler__sema__types__alloc_struct_type((&(self)->arena), final_name, std__collections__list__new_list_compiler__sema__types__StructField());
     std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(((self)->symtab).gen).inst_syms), compiler__sema__symbol__box_symbol((&(self)->arena), (compiler__sema__symbol__Symbol){ final_name, final_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col }));
     (s)->name = final_name;
+    bool has_private = false;
     {
         size_t __for_n = ((s)->fields).len;
         size_t __for_i = ((size_t)0ULL);
@@ -7147,10 +7150,16 @@ void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__Dec
                 compiler__ast__decl__StructField f = ((s)->fields).data[__for_i];
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
                 std__collections__list__List_compiler__sema__types__StructField_add((&((*compiler__sema__types__as_struct_type_mut(s_type))).fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+                if ((!(f).is_pub)) {
+                    has_private = true;
+                }
                 __for_i = (__for_i + 1);
             }
         }
     }
+    compiler__sema__types__StructType* st_info = compiler__sema__types__as_struct_type_mut(s_type);
+    (st_info)->module = module;
+    (st_info)->has_private = has_private;
     compiler__sema__types__layout_struct(s_type);
 }
 
@@ -7984,6 +7993,7 @@ void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__Dec
         compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", (s)->name), "'"));
     }
     (s)->name = c_name;
+    bool has_private = false;
     {
         size_t __for_n = ((s)->fields).len;
         size_t __for_i = ((size_t)0ULL);
@@ -7993,10 +8003,16 @@ void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__Dec
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
                 compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
                 std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+                if ((!(f).is_pub)) {
+                    has_private = true;
+                }
                 __for_i = (__for_i + 1);
             }
         }
     }
+    compiler__sema__types__StructType* st_info = compiler__sema__types__as_struct_type_mut(s_type);
+    (st_info)->module = (self)->current_module;
+    (st_info)->has_private = has_private;
     compiler__sema__types__layout_struct(s_type);
 }
 
@@ -8877,6 +8893,11 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                                     return (n_info)->return_type;
                                 }
                             }
+                        }
+                    }
+                    if (((s_info)->has_private && (!kobel_streq((s_info)->module, ((self)->symtab).current_module)))) {
+                        {
+                            compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot construct '", (s_info)->name), "' from its fields: they are private to module '"), (s_info)->module), "'; add a 'new' constructor"));
                         }
                     }
                     if ((((call)->args).len != ((s_info)->fields).len)) {

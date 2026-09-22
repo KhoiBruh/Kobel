@@ -1,0 +1,16 @@
+mod testsupport.box;
+
+// ============================================================================
+// Test support: a type with a NON-pub field.
+//
+// Another module may not build it with `Boxed(...)`; it has to go through the
+// factory below. `test_bootstrap_trait` imports this to exercise the rule.
+// ============================================================================
+
+pub struct Boxed {
+	value: i32
+}
+
+pub fn make_box(v: i32): Boxed => Boxed(v);
+
+pub fn boxed_value(b: Boxed): i32 => b.value;

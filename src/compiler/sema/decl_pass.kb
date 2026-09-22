@@ -651,7 +651,7 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 	val subst = alloc_subst(self, template_param_names(tmpl), arg_asts);
 
 	val sclone = clone_struct(self, tmpl.node, subst, cname);
-	collect_struct_as(self, sclone, cname);
+	collect_struct_as(self, sclone, cname, tmpl.module);
 
 	val impl_tmpl = gen_find(self.symtab.gen.impl_templates, tmpl.name);
 	if (impl_tmpl != null) {
@@ -685,16 +685,22 @@ pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*A
 	return cname;
 }
 
-pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str) {
+pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, module: str) {
 	val s = as_struct_decl(node) as &StructDecl;
 	val s_type = alloc_struct_type(&self.arena, final_name, new_list<StructField>());
 	self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)));
 	s.name = final_name;
 
+	var has_private = false;
 	for (f in s.fields) {
 		val f_type = resolve_ast_type(self, f.type_node);
 		as_struct_type_mut(s_type).fields.add(StructField(f.name, f_type, 0));
+		if (!f.is_pub) has_private = true;
 	}
+	val st_info = as_struct_type_mut(s_type);
+	// A monomorphized instance belongs to the module that declared its template.
+	st_info.module = module;
+	st_info.has_private = has_private;
 	layout_struct(s_type);
 }
 
