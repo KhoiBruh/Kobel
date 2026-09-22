@@ -194,7 +194,7 @@ pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
 	}
 
 	val ti = arena_alloc<TraitInfo>(&self.arena);
-	*ti = TraitInfo(t.name, t.bases, methods);
+	*ti = TraitInfo(t.name, t.bases, methods, new_list<str>());
 	register_trait(&self.symtab, ti);
 }
 

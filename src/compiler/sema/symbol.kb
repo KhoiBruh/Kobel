@@ -92,7 +92,9 @@ pub struct TraitMethod {
 pub struct TraitInfo {
 	pub name: str,
 	pub bases: List<str>,
-	pub methods: List<*TraitMethod>
+	pub methods: List<*TraitMethod>,
+	// Source names of the structs with an `impl Trait for Struct` block.
+	pub impls: List<str>
 }
 
 // Monomorphization state, shared through the (single) SymbolTable.
@@ -173,6 +175,15 @@ pub fn trait_find_method(t: *TraitInfo, name: str): *TraitMethod {
 		if (m.name == name) return m;
 	}
 	return null;
+}
+
+// Whether some `impl Trait for Struct` block registered `struct_name` for this
+// trait (directly, not through a base trait).
+pub fn trait_has_impl(t: *TraitInfo, struct_name: str): bool {
+	for (s in t.impls) {
+		if (s == struct_name) return true;
+	}
+	return false;
 }
 
 pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {

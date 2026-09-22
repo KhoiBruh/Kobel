@@ -691,6 +691,7 @@ struct compiler__sema__symbol__TraitInfo {
     const char* name;
     std__collections__list__List_str bases;
     std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod methods;
+    std__collections__list__List_str impls;
 };
 
 struct compiler__sema__symbol__GenericReg {
@@ -1135,6 +1136,8 @@ compiler__sema__types__MethodInfo* std__mem__arena__arena_alloc_compiler__sema__
 compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count);
 std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void);
 compiler__sema__symbol__GenTemplate* std__mem__arena__arena_alloc_compiler__sema__symbol__GenTemplate(std__mem__arena__Arena* arena);
+compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count);
+std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__new_list_compiler__ast__decl__GenericParam(void);
 compiler__sema__decl_pass__GenSubst* std__mem__arena__arena_alloc_compiler__sema__decl_pass__GenSubst(std__mem__arena__Arena* arena);
 compiler__sema__types__StructField* std__mem__alloc__alloc_array_compiler__sema__types__StructField(size_t count);
 std__collections__list__List_compiler__sema__types__StructField std__collections__list__new_list_compiler__sema__types__StructField(void);
@@ -1146,8 +1149,6 @@ compiler__ast__stmt__WhenStmtArm* std__mem__alloc__alloc_array_compiler__ast__st
 std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__new_list_compiler__ast__stmt__WhenStmtArm(void);
 compiler__ast__decl__Param* std__mem__alloc__alloc_array_compiler__ast__decl__Param(size_t count);
 std__collections__list__List_compiler__ast__decl__Param std__collections__list__new_list_compiler__ast__decl__Param(void);
-compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count);
-std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__new_list_compiler__ast__decl__GenericParam(void);
 compiler__ast__decl__StructField* std__mem__alloc__alloc_array_compiler__ast__decl__StructField(size_t count);
 std__collections__list__List_compiler__ast__decl__StructField std__collections__list__new_list_compiler__ast__decl__StructField(void);
 compiler__sema__types__EnumMemberInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumMemberInfo(size_t count);
@@ -1319,6 +1320,7 @@ compiler__sema__symbol__SymbolTable compiler__sema__symbol__new_symbol_table(voi
 void compiler__sema__symbol__register_trait(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__TraitInfo* info);
 compiler__sema__symbol__TraitInfo* compiler__sema__symbol__find_trait(compiler__sema__symbol__SymbolTable* self, const char* name);
 compiler__sema__symbol__TraitMethod* compiler__sema__symbol__trait_find_method(compiler__sema__symbol__TraitInfo* t, const char* name);
+bool compiler__sema__symbol__trait_has_impl(compiler__sema__symbol__TraitInfo* t, const char* struct_name);
 void compiler__sema__symbol__register_enum_info(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__EnumInfo* info);
 compiler__sema__types__EnumInfo* compiler__sema__symbol__find_enum_info(compiler__sema__symbol__SymbolTable* self, const char* name);
 compiler__sema__symbol__Scope* compiler__sema__symbol__enter_scope(compiler__sema__symbol__SymbolTable* self, bool is_fn_boundary);
@@ -1342,6 +1344,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compile
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_pass__trait_record_impl(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, const char* struct_name);
 void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m);
 void compiler__sema__decl_pass__trait_effective(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, std__collections__list__List_str* seen);
 void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, const char* struct_name);
@@ -1356,6 +1359,8 @@ const char* compiler__sema__decl_pass__type_token_list(compiler__sema__decl_pass
 const char* compiler__sema__decl_pass__ast_type_token(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 size_t compiler__sema__decl_pass__ast_type_size(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 std__collections__list__List_str compiler__sema__decl_pass__template_param_names(compiler__sema__symbol__GenTemplate* tmpl);
+std__collections__list__List_compiler__ast__decl__GenericParam compiler__sema__decl_pass__template_params(compiler__sema__symbol__GenTemplate* tmpl);
+void compiler__sema__decl_pass__check_bounds(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts);
 compiler__sema__decl_pass__GenSubst* compiler__sema__decl_pass__alloc_subst(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_str names, std__collections__list__List_ptr_compiler__ast__node__AstNode args);
 void compiler__sema__decl_pass__queue_decl(compiler__sema__decl_pass__DeclPass* self, const char* module, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts);
@@ -3403,6 +3408,16 @@ compiler__sema__symbol__GenTemplate* std__mem__arena__arena_alloc_compiler__sema
     return ((compiler__sema__symbol__GenTemplate*)raw);
 }
 
+compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count) {
+    return ((compiler__ast__decl__GenericParam*)std__mem__alloc__raw_alloc((count * 40)));
+}
+
+std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__new_list_compiler__ast__decl__GenericParam(void) {
+    size_t init_cap = ((size_t)4ULL);
+    compiler__ast__decl__GenericParam* data = std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(init_cap);
+    return (std__collections__list__List_compiler__ast__decl__GenericParam){ data, 0, init_cap };
+}
+
 compiler__sema__decl_pass__GenSubst* std__mem__arena__arena_alloc_compiler__sema__decl_pass__GenSubst(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 48, 8);
     return ((compiler__sema__decl_pass__GenSubst*)raw);
@@ -3458,16 +3473,6 @@ std__collections__list__List_compiler__ast__decl__Param std__collections__list__
     return (std__collections__list__List_compiler__ast__decl__Param){ data, 0, init_cap };
 }
 
-compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count) {
-    return ((compiler__ast__decl__GenericParam*)std__mem__alloc__raw_alloc((count * 40)));
-}
-
-std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__new_list_compiler__ast__decl__GenericParam(void) {
-    size_t init_cap = ((size_t)4ULL);
-    compiler__ast__decl__GenericParam* data = std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(init_cap);
-    return (std__collections__list__List_compiler__ast__decl__GenericParam){ data, 0, init_cap };
-}
-
 compiler__ast__decl__StructField* std__mem__alloc__alloc_array_compiler__ast__decl__StructField(size_t count) {
     return ((compiler__ast__decl__StructField*)std__mem__alloc__raw_alloc((count * 32)));
 }
@@ -3504,7 +3509,7 @@ compiler__sema__symbol__TraitMethod* std__mem__arena__arena_alloc_compiler__sema
 }
 
 compiler__sema__symbol__TraitInfo* std__mem__arena__arena_alloc_compiler__sema__symbol__TraitInfo(std__mem__arena__Arena* arena) {
-    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 64, 8);
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 88, 8);
     return ((compiler__sema__symbol__TraitInfo*)raw);
 }
 
@@ -5142,6 +5147,23 @@ compiler__sema__symbol__TraitMethod* compiler__sema__symbol__trait_find_method(c
     return NULL;
 }
 
+bool compiler__sema__symbol__trait_has_impl(compiler__sema__symbol__TraitInfo* t, const char* struct_name) {
+    {
+        size_t __for_n = ((t)->impls).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* s = ((t)->impls).data[__for_i];
+                if (kobel_streq(s, struct_name)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return false;
+}
+
 void compiler__sema__symbol__register_enum_info(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__EnumInfo* info) {
     std__collections__list__List_ptr_compiler__sema__types__EnumInfo_add((&(self)->enums), info);
 }
@@ -5682,6 +5704,27 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
     }
 }
 
+void compiler__sema__decl_pass__trait_record_impl(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, const char* struct_name) {
+    if ((t == NULL)) {
+        return;
+    }
+    if (compiler__sema__symbol__trait_has_impl(t, struct_name)) {
+        return;
+    }
+    std__collections__list__List_str_add((&(t)->impls), struct_name);
+    {
+        size_t __for_n = ((t)->bases).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* bname = ((t)->bases).data[__for_i];
+                compiler__sema__decl_pass__trait_record_impl(self, compiler__sema__symbol__find_trait((&(self)->symtab), bname), struct_name);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+}
+
 void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m) {
     {
         size_t __for_e = (out)->len;
@@ -5783,6 +5826,7 @@ void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass*
             return;
         }
     }
+    compiler__sema__decl_pass__trait_record_impl(self, t, struct_name);
     std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod effective = std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod();
     std__collections__list__List_str seen = std__collections__list__new_list_str();
     compiler__sema__decl_pass__trait_effective(self, t, (&effective), (&seen));
@@ -6199,6 +6243,168 @@ std__collections__list__List_str compiler__sema__decl_pass__template_param_names
     return names;
 }
 
+std__collections__list__List_compiler__ast__decl__GenericParam compiler__sema__decl_pass__template_params(compiler__sema__symbol__GenTemplate* tmpl) {
+    if ((((*(tmpl)->node)).kind == 30)) {
+        return ((*compiler__ast__builder__as_struct_decl((tmpl)->node))).type_params;
+    }
+    if ((((*(tmpl)->node)).kind == 29)) {
+        return ((*compiler__ast__builder__as_fn_decl((tmpl)->node))).type_params;
+    }
+    if ((((*(tmpl)->node)).kind == 32)) {
+        return ((*compiler__ast__builder__as_impl_decl((tmpl)->node))).type_params;
+    }
+    return std__collections__list__new_list_compiler__ast__decl__GenericParam();
+}
+
+void compiler__sema__decl_pass__check_bounds(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts) {
+    std__collections__list__List_compiler__ast__decl__GenericParam params = compiler__sema__decl_pass__template_params(tmpl);
+    {
+        size_t __for_e = (params).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                compiler__ast__decl__GenericParam gp = std__collections__list__List_compiler__ast__decl__GenericParam_get((&params), i);
+                if (((((gp).bounds).len == 0) || (i >= (arg_asts).len))) {
+                    {
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+                compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&arg_asts), i);
+                if (((arg)->kind != 0)) {
+                    {
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+                const char* aname = ((*compiler__ast__builder__as_named_type(arg))).name;
+                compiler__sema__symbol__Symbol* asym = compiler__sema__symbol__lookup((&(self)->symtab), aname);
+                if (((asym == NULL) || (((*(asym)->type_ptr)).kind != 18))) {
+                    {
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+                {
+                    size_t __for_n = ((gp).bounds).len;
+                    size_t __for_i = ((size_t)0ULL);
+                    while ((__for_i < __for_n)) {
+                        {
+                            const char* b = ((gp).bounds).data[__for_i];
+                            compiler__sema__symbol__TraitInfo* bt = compiler__sema__symbol__find_trait((&(self)->symtab), b);
+                            if ((bt == NULL)) {
+                                {
+                                    compiler__sema__decl_pass__report_error(self, arg, kobel_concat(kobel_concat("Unknown trait bound '", b), "'"));
+                                    {
+                                        __for_i = (__for_i + 1);
+                                        continue;
+                                    }
+                                }
+                            }
+                            if ((!compiler__sema__symbol__trait_has_impl(bt, aname))) {
+                                {
+                                    compiler__sema__decl_pass__report_error(self, arg, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Type '", aname), "' does not implement trait '"), b), "'"));
+                                }
+                            }
+                            __for_i = (__for_i + 1);
+                        }
+                    }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 compiler__sema__decl_pass__GenSubst* compiler__sema__decl_pass__alloc_subst(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_str names, std__collections__list__List_ptr_compiler__ast__node__AstNode args) {
     compiler__sema__decl_pass__GenSubst* s = std__mem__arena__arena_alloc_compiler__sema__decl_pass__GenSubst((&(self)->arena));
     (*s) = (compiler__sema__decl_pass__GenSubst){ names, args };
@@ -6211,6 +6417,7 @@ void compiler__sema__decl_pass__queue_decl(compiler__sema__decl_pass__DeclPass* 
 }
 
 compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts) {
+    compiler__sema__decl_pass__check_bounds(self, tmpl, arg_asts);
     const char* base = util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
     const char* cname = util__strutil__str_concat(base, util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
     compiler__sema__symbol__Symbol* existing = compiler__sema__decl_pass__find_inst(self, cname);
@@ -6239,6 +6446,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compi
 }
 
 const char* compiler__sema__decl_pass__instantiate_fn(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts) {
+    compiler__sema__decl_pass__check_bounds(self, tmpl, arg_asts);
     const char* base = util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
     const char* cname = util__strutil__str_concat(base, util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
     if ((compiler__sema__decl_pass__find_inst(self, cname) != NULL)) {
@@ -7270,7 +7478,7 @@ void compiler__sema__decl_collect__collect_trait(compiler__sema__decl_pass__Decl
         }
     }
     compiler__sema__symbol__TraitInfo* ti = std__mem__arena__arena_alloc_compiler__sema__symbol__TraitInfo((&(self)->arena));
-    (*ti) = (compiler__sema__symbol__TraitInfo){ (t)->name, (t)->bases, methods };
+    (*ti) = (compiler__sema__symbol__TraitInfo){ (t)->name, (t)->bases, methods, std__collections__list__new_list_str() };
     compiler__sema__symbol__register_trait((&(self)->symtab), ti);
 }
 
