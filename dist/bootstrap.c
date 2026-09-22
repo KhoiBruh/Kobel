@@ -8993,17 +8993,20 @@ compiler__ast__node__AstNode* compiler__parser__types__parse_type(compiler__pars
             compiler__lexer__token__Token size_tok = compiler__parser__parser__consume(self, 30, "Expected integer literal for array size");
             compiler__parser__parser__consume(self, 14, "Expected ']' after array size");
             size_t size = 0;
-            size_t i = 0;
-            while ((i < kobel_slen((size_tok).text))) {
-                {
-                    char ch = (size_tok).text[i];
-                    if (((ch >= '0') && (ch <= '9'))) {
-                        {
-                            size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
-                            size = ((size * 10) + digit);
+            {
+                size_t __for_n = kobel_slen((size_tok).text);
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        char ch = (size_tok).text[__for_i];
+                        if (((ch >= '0') && (ch <= '9'))) {
+                            {
+                                size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
+                                size = ((size * 10) + digit);
+                            }
                         }
+                        __for_i = (__for_i + 1);
                     }
-                    i = (i + 1);
                 }
             }
             return compiler__ast__builder__alloc_array_type((&(self)->arena), elem_type, size, line, col);
@@ -9039,17 +9042,20 @@ compiler__ast__node__AstNode* compiler__parser__types__parse_type(compiler__pars
             compiler__lexer__token__Token size_tok = compiler__parser__parser__consume(self, 30, "Expected integer literal for array size");
             compiler__parser__parser__consume(self, 16, "Expected ')' after array size");
             size_t size = 0;
-            size_t si = 0;
-            while ((si < kobel_slen((size_tok).text))) {
-                {
-                    char ch = (size_tok).text[si];
-                    if (((ch >= '0') && (ch <= '9'))) {
-                        {
-                            size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
-                            size = ((size * 10) + digit);
+            {
+                size_t __for_n = kobel_slen((size_tok).text);
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        char ch = (size_tok).text[__for_i];
+                        if (((ch >= '0') && (ch <= '9'))) {
+                            {
+                                size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
+                                size = ((size * 10) + digit);
+                            }
                         }
+                        __for_i = (__for_i + 1);
                     }
-                    si = (si + 1);
                 }
             }
             return compiler__ast__builder__alloc_array_type((&(self)->arena), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&type_args), 0), size, line, col);

@@ -34,14 +34,11 @@ pub fn parse_type(var self: &Parser): *AstNode {
 
 		// Convert the size string to usz (default to 0 if empty)
 		var size: usz = 0;
-		var i: usz = 0;
-		while (i < size_tok.text.len) {
-			val ch = size_tok.text[i];
+		for (ch in size_tok.text) {
 			if (ch >= '0' && ch <= '9') {
 				val digit = ((ch as i32) - ('0' as i32)) as usz;
 				size = size * 10 + digit;
 			}
-			i = i + 1;
 		}
 
 		return alloc_array_type(&self.arena, elem_type, size, line, col);
@@ -75,14 +72,11 @@ pub fn parse_type(var self: &Parser): *AstNode {
 
 		// Convert the size string to usz
 		var size: usz = 0;
-		var si: usz = 0;
-		while (si < size_tok.text.len) {
-			val ch = size_tok.text[si];
+		for (ch in size_tok.text) {
 			if (ch >= '0' && ch <= '9') {
 				val digit = ((ch as i32) - ('0' as i32)) as usz;
 				size = size * 10 + digit;
 			}
-			si = si + 1;
 		}
 
 		return alloc_array_type(&self.arena, type_args.get(0), size, line, col);
