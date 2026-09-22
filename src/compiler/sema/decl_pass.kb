@@ -182,15 +182,10 @@ pub fn enum_const_i64(var self: &DeclPass, expr: *AstNode): i64 {
 
 pub fn parse_decimal_i64(s: str): i64 {
 	var v: i64 = 0;
-	var i: usz = 0;
-	while (i < s.len) {
-		val c = s[i];
-		if (c == '_') {
-			i = i + 1;
-		} else if (c >= '0' && c <= '9') {
+	for (c in s) {
+		if (c >= '0' && c <= '9') {
 			v = v * 10 + (((c as i32) - 48) as i64);
-			i = i + 1;
-		} else {
+		} else if (c != '_') {
 			break;
 		}
 	}
@@ -217,15 +212,11 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	// Rename so the backend can learn the receiver type of each method.
 	im.struct_name = st_c_name;
 
-	var i: usz = 0;
-	while (i < im.methods.len) {
-		val m_node = im.methods.get(i);
+	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
 		var param_types = new_list<*Type>();
 
-		var pi: usz = 0;
-		while (pi < f.params.len) {
-			val p = f.params.get(pi);
+		for (p in f.params) {
 			var pt: *Type = null;
 			if (p.name == "self" && p.type_node == null) {
 				// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
@@ -234,7 +225,6 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 				pt = resolve_ast_type(self, p.type_node);
 			}
 			param_types.add(pt);
-			pi = pi + 1;
 		}
 
 		var ret_type = alloc_primitive(&self.arena, type_none());
@@ -249,7 +239,6 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 
 		// Uniquify the AST name so the backend emits the mangled method name.
 		f.name = m_c_name;
-		i = i + 1;
 	}
 }
 
@@ -311,11 +300,8 @@ pub fn template_in_module(self: &DeclPass, module: str, name: str): bool {
 }
 
 pub fn find_inst(self: &DeclPass, name: str): *Symbol {
-	var i: usz = 0;
-	while (i < self.symtab.gen.inst_syms.len) {
-		val s = self.symtab.gen.inst_syms.get(i);
+	for (s in self.symtab.gen.inst_syms) {
 		if (s.name == name) return s;
-		i = i + 1;
 	}
 	return null;
 }
@@ -405,11 +391,7 @@ pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 	var names = new_list<str>();
 	if (tmpl.node.kind == NodeKind.DECL_STRUCT) {
 		val s = as_struct_decl(tmpl.node);
-		var i: usz = 0;
-		while (i < s.type_params.len) {
-			names.add(s.type_params.get(i).name);
-			i = i + 1;
-		}
+		for (tp in s.type_params) names.add(tp.name);
 	} else if (tmpl.node.kind == NodeKind.DECL_FN) {
 		val f = as_fn_decl(tmpl.node);
 		for (p in f.type_params) names.add(p.name);
@@ -481,12 +463,9 @@ pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 	self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)));
 	s.name = final_name;
 
-	var i: usz = 0;
-	while (i < s.fields.len) {
-		val f = s.fields.get(i);
+	for (f in s.fields) {
 		val f_type = resolve_ast_type(self, f.type_node);
 		as_struct_type_mut(s_type).fields.add(StructField(f.name, f_type, 0));
-		i = i + 1;
 	}
 	layout_struct(s_type);
 }
@@ -494,11 +473,7 @@ pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 	val f = as_fn_decl(node) as &FnDecl;
 	var param_types = new_list<*Type>();
-	var i: usz = 0;
-	while (i < f.params.len) {
-		param_types.add(resolve_ast_type(self, f.params.get(i).type_node));
-		i = i + 1;
-	}
+	for (p in f.params) param_types.add(resolve_ast_type(self, p.type_node));
 	var ret_type = alloc_primitive(&self.arena, type_none());
 	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
@@ -523,22 +498,14 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val tmpl = gen_find(self.symtab.gen.struct_templates, nt.name);
 				if (tmpl != null) {
 					var args = new_list<*AstNode>();
-					var i: usz = 0;
-					while (i < nt.type_args.len) {
-						args.add(clone_type(self, nt.type_args.get(i), subst));
-						i = i + 1;
-					}
+			for (ta in nt.type_args) args.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, tmpl, args);
 					return alloc_named_type(&self.arena, sem_struct(cty).name, new_list<*AstNode>(), node.line, node.col);
 				}
 			}
 
 			var targs = new_list<*AstNode>();
-			var j: usz = 0;
-			while (j < nt.type_args.len) {
-				targs.add(clone_type(self, nt.type_args.get(j), subst));
-				j = j + 1;
-			}
+			for (ta in nt.type_args) targs.add(clone_type(self, ta, subst));
 			return alloc_named_type(&self.arena, nt.name, targs, node.line, node.col);
 		}
 		NodeKind.TYPE_POINTER -> {
@@ -589,45 +556,25 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val ft = gen_find(self.symtab.gen.fn_templates, cid.name);
 				if (ft != null) {
 					var args = new_list<*AstNode>();
-					var i: usz = 0;
-					while (i < c.type_args.len) {
-						args.add(clone_type(self, c.type_args.get(i), subst));
-						i = i + 1;
-					}
+			for (ta in c.type_args) args.add(clone_type(self, ta, subst));
 					val cname = instantiate_fn(self, ft, args);
 					var cargs = new_list<*AstNode>();
-					var j: usz = 0;
-					while (j < c.args.len) {
-						cargs.add(clone_expr(self, c.args.get(j), subst));
-						j = j + 1;
-					}
+			for (a in c.args) cargs.add(clone_expr(self, a, subst));
 					return alloc_call(&self.arena, alloc_identifier(&self.arena, cname, node.line, node.col), cargs, new_list<*AstNode>(), node.line, node.col);
 				}
 				val st = gen_find(self.symtab.gen.struct_templates, cid.name);
 				if (st != null) {
 					var args2 = new_list<*AstNode>();
-					var k: usz = 0;
-					while (k < c.type_args.len) {
-						args2.add(clone_type(self, c.type_args.get(k), subst));
-						k = k + 1;
-					}
+			for (ta in c.type_args) args2.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, st, args2);
 					var cargs2 = new_list<*AstNode>();
-					var m2: usz = 0;
-					while (m2 < c.args.len) {
-						cargs2.add(clone_expr(self, c.args.get(m2), subst));
-						m2 = m2 + 1;
-					}
+			for (a in c.args) cargs2.add(clone_expr(self, a, subst));
 					return alloc_call(&self.arena, alloc_identifier(&self.arena, sem_struct(cty).name, node.line, node.col), cargs2, new_list<*AstNode>(), node.line, node.col);
 				}
 			}
 
 			var cargs3 = new_list<*AstNode>();
-			var q: usz = 0;
-			while (q < c.args.len) {
-				cargs3.add(clone_expr(self, c.args.get(q), subst));
-				q = q + 1;
-			}
+			for (a in c.args) cargs3.add(clone_expr(self, a, subst));
 			return alloc_call(&self.arena, clone_expr(self, c.callee, subst), cargs3, new_list<*AstNode>(), node.line, node.col);
 		}
 		NodeKind.EXPR_MEMBER -> {
@@ -657,27 +604,16 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = as_array_literal(node);
 			var els = new_list<*AstNode>();
-			var i: usz = 0;
-			while (i < al.elements.len) {
-				els.add(clone_expr(self, al.elements.get(i), subst));
-				i = i + 1;
-			}
+			for (e in al.elements) els.add(clone_expr(self, e, subst));
 			return alloc_array_literal(&self.arena, els, node.line, node.col);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = as_when_expr(node);
 			var arms = new_list<WhenArm>();
-			var i: usz = 0;
-			while (i < we.arms.len) {
-				val arm = we.arms.get(i);
+			for (arm in we.arms) {
 				var pats = new_list<*AstNode>();
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					pats.add(clone_expr(self, arm.patterns.get(p), subst));
-					p = p + 1;
-				}
+				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
 				arms.add(WhenArm(pats, arm.is_else, clone_expr(self, arm.body, subst), arm.line, arm.col));
-				i = i + 1;
 			}
 			return alloc_when_expr(&self.arena, clone_expr(self, we.condition, subst), arms, node.line, node.col);
 		}
@@ -691,11 +627,7 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		NodeKind.STMT_BLOCK -> {
 			val b = as_block_stmt(node);
 			var ss = new_list<*AstNode>();
-			var i: usz = 0;
-			while (i < b.statements.len) {
-				ss.add(clone_stmt(self, b.statements.get(i), subst));
-				i = i + 1;
-			}
+			for (s in b.statements) ss.add(clone_stmt(self, s, subst));
 			return alloc_block_stmt(&self.arena, ss, node.line, node.col);
 		}
 		NodeKind.STMT_EXPR -> {
@@ -736,17 +668,10 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		NodeKind.STMT_WHEN -> {
 			val w = as_when_stmt(node);
 			var arms = new_list<WhenStmtArm>();
-			var i: usz = 0;
-			while (i < w.arms.len) {
-				val arm = w.arms.get(i);
+			for (arm in w.arms) {
 				var pats = new_list<*AstNode>();
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					pats.add(clone_expr(self, arm.patterns.get(p), subst));
-					p = p + 1;
-				}
+				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
 				arms.add(WhenStmtArm(pats, arm.is_else, clone_stmt(self, arm.body, subst), arm.line, arm.col));
-				i = i + 1;
 			}
 			return alloc_when_stmt(&self.arena, clone_expr(self, w.condition, subst), arms, node.line, node.col);
 		}
@@ -757,13 +682,10 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
 	val f = as_fn_decl(node);
 	var params = new_list<Param>();
-	var i: usz = 0;
-	while (i < f.params.len) {
-		val p = f.params.get(i);
+	for (p in f.params) {
 		var pt: *AstNode = null;
 		if (p.type_node != null) pt = clone_type(self, p.type_node, subst);
 		params.add(Param(p.name, pt, p.is_mut, p.has_val));
-		i = i + 1;
 	}
 	var rt: *AstNode = null;
 	if (f.return_type != null) rt = clone_type(self, f.return_type, subst);
@@ -810,11 +732,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 					return;
 				}
 			}
-			var i: usz = 0;
-			while (i < nt.type_args.len) {
-				rewrite_generics(self, nt.type_args.get(i));
-				i = i + 1;
-			}
+			for (ta in nt.type_args) rewrite_generics(self, ta);
 		}
 		NodeKind.TYPE_POINTER -> rewrite_generics(self, as_pointer_type(node).pointee);
 		NodeKind.TYPE_ARRAY -> rewrite_generics(self, as_array_type(node).element_type);
@@ -838,11 +756,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 				}
 			}
 			rewrite_generics(self, c.callee);
-			var i: usz = 0;
-			while (i < c.args.len) {
-				rewrite_generics(self, c.args.get(i));
-				i = i + 1;
-			}
+			for (a in c.args) rewrite_generics(self, a);
 		}
 		NodeKind.EXPR_BINARY -> {
 			val b = as_binary(node);
@@ -875,35 +789,20 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 		}
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = as_array_literal(node);
-			var i: usz = 0;
-			while (i < al.elements.len) {
-				rewrite_generics(self, al.elements.get(i));
-				i = i + 1;
-			}
+			for (e in al.elements) rewrite_generics(self, e);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = as_when_expr(node);
 			rewrite_generics(self, we.condition);
-			var i: usz = 0;
-			while (i < we.arms.len) {
-				val arm = we.arms.get(i);
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					rewrite_generics(self, arm.patterns.get(p));
-					p = p + 1;
-				}
+			for (arm in we.arms) {
+				for (pat in arm.patterns) rewrite_generics(self, pat);
 				rewrite_generics(self, arm.body);
-				i = i + 1;
 			}
 		}
 
 		NodeKind.STMT_BLOCK -> {
 			val b = as_block_stmt(node);
-			var i: usz = 0;
-			while (i < b.statements.len) {
-				rewrite_generics(self, b.statements.get(i));
-				i = i + 1;
-			}
+			for (s in b.statements) rewrite_generics(self, s);
 		}
 		NodeKind.STMT_EXPR -> rewrite_generics(self, as_expr_stmt(node).expr);
 		NodeKind.STMT_VAR_DECL -> {
@@ -933,44 +832,25 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 		NodeKind.STMT_WHEN -> {
 			val w = as_when_stmt(node);
 			rewrite_generics(self, w.condition);
-			var i: usz = 0;
-			while (i < w.arms.len) {
-				val arm = w.arms.get(i);
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					rewrite_generics(self, arm.patterns.get(p));
-					p = p + 1;
-				}
+			for (arm in w.arms) {
+				for (pat in arm.patterns) rewrite_generics(self, pat);
 				rewrite_generics(self, arm.body);
-				i = i + 1;
 			}
 		}
 
 		NodeKind.DECL_STRUCT -> {
 			val s = as_struct_decl(node);
-			var i: usz = 0;
-			while (i < s.fields.len) {
-				rewrite_generics(self, s.fields.get(i).type_node);
-				i = i + 1;
-			}
+			for (fld in s.fields) rewrite_generics(self, fld.type_node);
 		}
 		NodeKind.DECL_FN -> {
 			val f = as_fn_decl(node);
-			var i: usz = 0;
-			while (i < f.params.len) {
-				rewrite_generics(self, f.params.get(i).type_node);
-				i = i + 1;
-			}
+			for (p in f.params) rewrite_generics(self, p.type_node);
 			rewrite_generics(self, f.return_type);
 			rewrite_generics(self, f.body);
 		}
 		NodeKind.DECL_IMPL -> {
 			val im = as_impl_decl(node);
-			var i: usz = 0;
-			while (i < im.methods.len) {
-				rewrite_generics(self, im.methods.get(i));
-				i = i + 1;
-			}
+			for (m in im.methods) rewrite_generics(self, m);
 		}
 		NodeKind.DECL_CONST -> {
 			val c = as_const_decl(node);
@@ -979,11 +859,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 		}
 		NodeKind.DECL_EXTERN_BLOCK -> {
 			val ext = as_extern_block(node);
-			var i: usz = 0;
-			while (i < ext.declarations.len) {
-				rewrite_generics(self, ext.declarations.get(i));
-				i = i + 1;
-			}
+			for (d in ext.declarations) rewrite_generics(self, d);
 		}
 		else -> {}
 	}
