@@ -1193,6 +1193,8 @@ const char* std__traits__to_str__fmt_u64(uint64_t n0);
 const char* std__traits__to_str__fmt_i64(int64_t v);
 const char* std__traits__to_str__fmt_char(char c);
 const char* std__traits__to_str__fmt_bool(bool b);
+const char* std__traits__to_str__fmt_zeros(size_t n);
+const char* std__traits__to_str__fmt_f64(double v);
 const char* bool_to_str(bool self);
 const char* char_to_str(char self);
 const char* str_to_str(const char* self);
@@ -1206,6 +1208,8 @@ const char* u16_to_str(uint16_t self);
 const char* u32_to_str(uint32_t self);
 const char* u64_to_str(uint64_t self);
 const char* usz_to_str(size_t self);
+const char* f32_to_str(float self);
+const char* f64_to_str(double self);
 void std__io__print(const char* s);
 int32_t std__io__println(const char* s);
 const char* std__io__read_file(const char* path);
@@ -3742,6 +3746,83 @@ const char* std__traits__to_str__fmt_bool(bool b) {
     return "false";
 }
 
+const char* std__traits__to_str__fmt_zeros(size_t n) {
+    if ((n == 0)) {
+        return "";
+    }
+    uint8_t* buf = std__mem__alloc__raw_alloc((n + 1));
+    size_t i = 0;
+    while ((i < n)) {
+        {
+            buf[i] = ((uint8_t)'0');
+            i = (i + 1);
+        }
+    }
+    buf[n] = 0;
+    return std__str__str_from_bytes(buf, n);
+}
+
+const char* std__traits__to_str__fmt_f64(double v) {
+    if ((v != v)) {
+        return "nan";
+    }
+    double diff = (v - v);
+    if ((diff != 0.0)) {
+        {
+            if ((v > 0.0)) {
+                return "inf";
+            }
+            return "-inf";
+        }
+    }
+    const char* sign = "";
+    double x = v;
+    if ((x < 0.0)) {
+        {
+            sign = "-";
+            x = (0.0 - x);
+        }
+    }
+    size_t prec = 6;
+    double scale = 1.0;
+    size_t k = 0;
+    while ((k < prec)) {
+        {
+            scale = (scale * 10.0);
+            k = (k + 1);
+        }
+    }
+    uint64_t ip = ((uint64_t)x);
+    uint64_t frac = ((uint64_t)(((((x - (((double)ip)))) * scale) + 0.5)));
+    if ((frac >= (((uint64_t)scale)))) {
+        {
+            ip = (ip + 1);
+            frac = 0;
+        }
+    }
+    const char* out = kobel_concat(sign, std__traits__to_str__fmt_u64(ip));
+    if ((frac == 0)) {
+        return out;
+    }
+    const char* digits = std__traits__to_str__fmt_u64(frac);
+    if ((kobel_slen(digits) < prec)) {
+        digits = kobel_concat(std__traits__to_str__fmt_zeros((prec - kobel_slen(digits))), digits);
+    }
+    size_t end = kobel_slen(digits);
+    while ((end > 0)) {
+        {
+            if ((digits[(end - 1)] != '0')) {
+                break;
+            }
+            end = (end - 1);
+        }
+    }
+    if ((end == 0)) {
+        return out;
+    }
+    return kobel_concat(kobel_concat(out, "."), kobel_slice(digits, 0, end));
+}
+
 const char* bool_to_str(bool self) {
     return std__traits__to_str__fmt_bool(self);
 }
@@ -3792,6 +3873,14 @@ const char* u64_to_str(uint64_t self) {
 
 const char* usz_to_str(size_t self) {
     return std__traits__to_str__fmt_u64(((uint64_t)self));
+}
+
+const char* f32_to_str(float self) {
+    return std__traits__to_str__fmt_f64(((double)self));
+}
+
+const char* f64_to_str(double self) {
+    return std__traits__to_str__fmt_f64(self);
 }
 
 void std__io__print(const char* s) {

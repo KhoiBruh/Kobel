@@ -79,6 +79,25 @@ fn test_float_literals(var t: &Tally) {
 	if (neg >= 0.0) t.fails = t.fails + 1;
 }
 
+fn test_float_to_str(var t: &Tally) {
+	val z: f64 = 0.0;
+	val whole: f64 = 3.0;
+	val half: f64 = 1.5;
+	val neg: f64 = -2.25;
+	val tenth: f64 = 0.1;
+	val third: f64 = 1.0 / 3.0;
+	val carry: f64 = 0.9999999;
+	val small: f32 = 2.5 as f32;
+	check_str(z.to_str(), "0", "float zero", t);
+	check_str(whole.to_str(), "3", "float whole number", t);
+	check_str(half.to_str(), "1.5", "float half", t);
+	check_str(neg.to_str(), "-2.25", "negative float", t);
+	check_str(tenth.to_str(), "0.1", "float tenth trims zeros", t);
+	check_str(third.to_str(), "0.333333", "one third is rounded", t);
+	check_str(carry.to_str(), "1", "rounding carries into the integer part", t);
+	check_str(small.to_str(), "2.5", "f32 uses the same printer", t);
+}
+
 // --- user struct implementing ToStr ----------------------------------------
 
 struct Point {
@@ -106,6 +125,7 @@ fn main(): i32 {
 	test_signed(&t);
 	test_unsigned(&t);
 	test_float_literals(&t);
+	test_float_to_str(&t);
 	test_user_struct(&t);
 
 	if (t.fails != 0) {

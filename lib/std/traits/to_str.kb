@@ -11,6 +11,9 @@ use std.str.str_from_bytes;
 // it too (import this module and write `impl ToStr for MyStruct`).
 //
 // One file per trait keeps std/traits/ organized as more traits are added.
+//
+// Floats use a fixed-point decimal printer (six fractional digits, trailing
+// zeros trimmed) so no libc is needed; there is no exponent notation.
 // ============================================================================
 
 pub trait ToStr {
@@ -56,6 +59,69 @@ fn fmt_char(c: char): str {
 fn fmt_bool(b: bool): str {
 	if (b) return "true";
 	return "false";
+}
+
+// `n` copies of the character '0'.
+fn fmt_zeros(n: usz): str {
+	if (n == 0) return "";
+	val buf = raw_alloc(n + 1);
+	var i: usz = 0;
+	while (i < n) {
+		buf[i] = '0' as u8;
+		i = i + 1;
+	}
+	buf[n] = 0;
+	return str_from_bytes(buf, n);
+}
+
+// Fixed-point decimal with up to six fractional digits, trailing zeros trimmed
+// ("1.5", "-2.25", "3"). No exponent notation, so very large or very small
+// magnitudes lose precision (see docs, section 6.6).
+fn fmt_f64(v: f64): str {
+	if (v != v) return "nan";
+	// `v - v` is NaN for an infinity and 0 for a finite value.
+	val diff = v - v;
+	if (diff != 0.0) {
+		if (v > 0.0) return "inf";
+		return "-inf";
+	}
+
+	var sign = "";
+	var x = v;
+	if (x < 0.0) {
+		sign = "-";
+		x = 0.0 - x;
+	}
+
+	val prec: usz = 6;
+	var scale: f64 = 1.0;
+	var k: usz = 0;
+	while (k < prec) {
+		scale = scale * 10.0;
+		k = k + 1;
+	}
+
+	var ip: u64 = x as u64;
+	var frac: u64 = ((x - (ip as f64)) * scale + 0.5) as u64;
+	if (frac >= (scale as u64)) {
+		// Rounding carried into the integer part (e.g. 0.9999999 -> 1.0).
+		ip = ip + 1;
+		frac = 0;
+	}
+
+	var out = sign + fmt_u64(ip);
+	if (frac == 0) return out;
+
+	var digits = fmt_u64(frac);
+	if (digits.len < prec) digits = fmt_zeros(prec - digits.len) + digits;
+
+	var end = digits.len;
+	while (end > 0) {
+		if (digits[end - 1] != '0') break;
+		end = end - 1;
+	}
+	if (end == 0) return out;
+	return out + "." + digits.slice(0, end);
 }
 
 // --- built-in implementations ----------------------------------------------
@@ -110,4 +176,12 @@ impl ToStr for u64 {
 
 impl ToStr for usz {
 	fn to_str(val self): str => fmt_u64(self as u64);
+}
+
+impl ToStr for f32 {
+	fn to_str(val self): str => fmt_f64(self as f64);
+}
+
+impl ToStr for f64 {
+	fn to_str(val self): str => fmt_f64(self);
 }
