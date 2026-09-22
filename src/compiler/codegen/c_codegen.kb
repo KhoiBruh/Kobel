@@ -35,19 +35,15 @@ pub fn new_c_codegen(): CCodeGen => CCodeGen(
 );
 
 pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
-	var i: usz = 0;
-	while (i < self.pointer_vars.len) {
-		if (self.pointer_vars.get(i) == name) return true;
-		i = i + 1;
+	for (v in self.pointer_vars) {
+		if (v == name) return true;
 	}
 	return false;
 }
 
 pub fn is_str_var(self: &CCodeGen, name: str): bool {
-	var i: usz = 0;
-	while (i < self.str_vars.len) {
-		if (self.str_vars.get(i) == name) return true;
-		i = i + 1;
+	for (v in self.str_vars) {
+		if (v == name) return true;
 	}
 	return false;
 }
@@ -250,10 +246,8 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			var is_struct = false;
 			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
 				val id = as_identifier(call.callee);
-				var k: usz = 0;
-				while (k < self.struct_names.len) {
-					if (self.struct_names.get(k) == id.name) is_struct = true;
-					k = k + 1;
+				for (sn in self.struct_names) {
+					if (sn == id.name) is_struct = true;
 				}
 			}
 
@@ -401,10 +395,8 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 				if (id.name == "kobel_slice") return "const char*";
 				if (id.name == "kobel_streq") return "bool";
 				if (id.name == "kobel_slen") return "size_t";
-				var k: usz = 0;
-				while (k < self.struct_names.len) {
-					if (self.struct_names.get(k) == id.name) return id.name;
-					k = k + 1;
+				for (sn in self.struct_names) {
+					if (sn == id.name) return id.name;
 				}
 				val ret_ty = lookup_fn_ret_type(self, id.name);
 				if (ret_ty != "") return ret_ty;
@@ -437,11 +429,8 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 
 		NodeKind.EXPR_WHEN -> {
 			val we = as_when_expr(expr);
-			var i: usz = 0;
-			while (i < we.arms.len) {
-				val arm = we.arms.get(i);
+			for (arm in we.arms) {
 				if (arm.is_else) return infer_type_from_expr(self, arm.body);
-				i = i + 1;
 			}
 			if (we.arms.len > 0) return infer_type_from_expr(self, we.arms.get(0).body);
 			return "int32_t";
@@ -469,10 +458,8 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			val ind = get_indent(self.indent_level);
 			var res = ind + "{\n";
 			self.indent_level = self.indent_level + 1;
-			var i: usz = 0;
-			while (i < blk.statements.len) {
-				res = res + gen_statement(self, blk.statements.get(i));
-				i = i + 1;
+			for (stmt in blk.statements) {
+				res = res + gen_statement(self, stmt);
 			}
 			self.indent_level = self.indent_level - 1;
 			return res + ind + "}\n";
@@ -555,9 +542,7 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			val ind = get_indent(self.indent_level);
 			var res = "";
 			var first = true;
-			var i: usz = 0;
-			while (i < ws.arms.len) {
-				val arm = ws.arms.get(i);
+			for (arm in ws.arms) {
 				if (arm.is_else) {
 					if (first) res = res + ind + "{\n";
 					else res = res + ind + "} else {\n";
@@ -570,7 +555,6 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 				res = res + gen_statement(self, arm.body);
 				self.indent_level = self.indent_level - 1;
 				first = false;
-				i = i + 1;
 			}
 			if (!first) res = res + ind + "}\n";
 			return res;

@@ -7357,26 +7357,34 @@ compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__new_c_codeg
 }
 
 bool compiler__codegen__c_codegen__is_pointer_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
-    size_t i = 0;
-    while ((i < ((self)->pointer_vars).len)) {
-        {
-            if (kobel_streq(std__collections__list__List_str_get((&(self)->pointer_vars), i), name)) {
-                return true;
+    {
+        size_t __for_n = ((self)->pointer_vars).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* v = ((self)->pointer_vars).data[__for_i];
+                if (kobel_streq(v, name)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return false;
 }
 
 bool compiler__codegen__c_codegen__is_str_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
-    size_t i = 0;
-    while ((i < ((self)->str_vars).len)) {
-        {
-            if (kobel_streq(std__collections__list__List_str_get((&(self)->str_vars), i), name)) {
-                return true;
+    {
+        size_t __for_n = ((self)->str_vars).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* v = ((self)->str_vars).data[__for_i];
+                if (kobel_streq(v, name)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return false;
@@ -7656,13 +7664,17 @@ const char* compiler__codegen__c_codegen__gen_expr(compiler__codegen__c_codegen_
             if ((((*(call)->callee)).kind == 4)) {
                 {
                     compiler__ast__expr__IdentifierExpr* id = compiler__ast__builder__as_identifier((call)->callee);
-                    size_t k = 0;
-                    while ((k < ((self)->struct_names).len)) {
-                        {
-                            if (kobel_streq(std__collections__list__List_str_get((&(self)->struct_names), k), (id)->name)) {
-                                is_struct = true;
+                    {
+                        size_t __for_n = ((self)->struct_names).len;
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                const char* sn = ((self)->struct_names).data[__for_i];
+                                if (kobel_streq(sn, (id)->name)) {
+                                    is_struct = true;
+                                }
+                                __for_i = (__for_i + 1);
                             }
-                            k = (k + 1);
                         }
                     }
                 }
@@ -7867,13 +7879,17 @@ const char* compiler__codegen__c_codegen__infer_type_from_expr(compiler__codegen
                     if (kobel_streq((id)->name, "kobel_slen")) {
                         return "size_t";
                     }
-                    size_t k = 0;
-                    while ((k < ((self)->struct_names).len)) {
-                        {
-                            if (kobel_streq(std__collections__list__List_str_get((&(self)->struct_names), k), (id)->name)) {
-                                return (id)->name;
+                    {
+                        size_t __for_n = ((self)->struct_names).len;
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                const char* sn = ((self)->struct_names).data[__for_i];
+                                if (kobel_streq(sn, (id)->name)) {
+                                    return (id)->name;
+                                }
+                                __for_i = (__for_i + 1);
                             }
-                            k = (k + 1);
                         }
                     }
                     const char* ret_ty = compiler__codegen__c_codegen__lookup_fn_ret_type(self, (id)->name);
@@ -7908,14 +7924,17 @@ const char* compiler__codegen__c_codegen__infer_type_from_expr(compiler__codegen
     } else if (((expr)->kind == 15)) {
         {
             compiler__ast__expr__WhenExpr* we = compiler__ast__builder__as_when_expr(expr);
-            size_t i = 0;
-            while ((i < ((we)->arms).len)) {
-                {
-                    compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_get((&(we)->arms), i);
-                    if ((arm).is_else) {
-                        return compiler__codegen__c_codegen__infer_type_from_expr(self, (arm).body);
+            {
+                size_t __for_n = ((we)->arms).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__expr__WhenArm arm = ((we)->arms).data[__for_i];
+                        if ((arm).is_else) {
+                            return compiler__codegen__c_codegen__infer_type_from_expr(self, (arm).body);
+                        }
+                        __for_i = (__for_i + 1);
                     }
-                    i = (i + 1);
                 }
             }
             if ((((we)->arms).len > 0)) {
@@ -7943,11 +7962,15 @@ const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_cod
             const char* ind = compiler__codegen__c_codegen__get_indent((self)->indent_level);
             const char* res = kobel_concat(ind, "{\n");
             (self)->indent_level = ((self)->indent_level + 1);
-            size_t i = 0;
-            while ((i < ((blk)->statements).len)) {
-                {
-                    res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(blk)->statements), i)));
-                    i = (i + 1);
+            {
+                size_t __for_n = ((blk)->statements).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* stmt = ((blk)->statements).data[__for_i];
+                        res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, stmt));
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             (self)->indent_level = ((self)->indent_level - 1);
@@ -8053,33 +8076,36 @@ const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_cod
             const char* ind = compiler__codegen__c_codegen__get_indent((self)->indent_level);
             const char* res = "";
             bool first = true;
-            size_t i = 0;
-            while ((i < ((ws)->arms).len)) {
-                {
-                    compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_get((&(ws)->arms), i);
-                    if ((arm).is_else) {
-                        {
-                            if (first) {
-                                res = kobel_concat(kobel_concat(res, ind), "{\n");
-                            } else {
-                                res = kobel_concat(kobel_concat(res, ind), "} else {\n");
+            {
+                size_t __for_n = ((ws)->arms).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__stmt__WhenStmtArm arm = ((ws)->arms).data[__for_i];
+                        if ((arm).is_else) {
+                            {
+                                if (first) {
+                                    res = kobel_concat(kobel_concat(res, ind), "{\n");
+                                } else {
+                                    res = kobel_concat(kobel_concat(res, ind), "} else {\n");
+                                }
+                            }
+                        } else {
+                            {
+                                const char* test = compiler__codegen__c_codegen__gen_when_test(self, cond, (arm).patterns);
+                                if (first) {
+                                    res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), test), ") {\n");
+                                } else {
+                                    res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "} else if ("), test), ") {\n");
+                                }
                             }
                         }
-                    } else {
-                        {
-                            const char* test = compiler__codegen__c_codegen__gen_when_test(self, cond, (arm).patterns);
-                            if (first) {
-                                res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), test), ") {\n");
-                            } else {
-                                res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "} else if ("), test), ") {\n");
-                            }
-                        }
+                        (self)->indent_level = ((self)->indent_level + 1);
+                        res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, (arm).body));
+                        (self)->indent_level = ((self)->indent_level - 1);
+                        first = false;
+                        __for_i = (__for_i + 1);
                     }
-                    (self)->indent_level = ((self)->indent_level + 1);
-                    res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, (arm).body));
-                    (self)->indent_level = ((self)->indent_level - 1);
-                    first = false;
-                    i = (i + 1);
                 }
             }
             if ((!first)) {
