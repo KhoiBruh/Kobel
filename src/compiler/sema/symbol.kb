@@ -90,11 +90,8 @@ pub struct GenericReg {
 }
 
 pub fn gen_find(list: List<*GenTemplate>, name: str): *GenTemplate {
-	var i: usz = 0;
-	while (i < list.len) {
-		val t = list.get(i);
+	for (t in list) {
 		if (t.name == name) return t;
-		i = i + 1;
 	}
 	return null;
 }
@@ -146,11 +143,8 @@ pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {
 }
 
 pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo {
-	var i: usz = 0;
-	while (i < self.enums.len) {
-		val e = self.enums.get(i);
+	for (e in self.enums) {
 		if (e.name == name || e.c_name == name) return e;
-		i = i + 1;
 	}
 	return null;
 }
@@ -179,11 +173,8 @@ pub fn is_in_function(var self: &SymbolTable): bool {
 
 pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 	val scope = self.current_scope;
-	var i: usz = 0;
-	while (i < scope.symbols.len) {
-		val sym = scope.symbols.get(i);
+	for (sym in scope.symbols) {
 		if (sym.name == name) return sym;
-		i = i + 1;
 	}
 	return null;
 }
@@ -193,11 +184,8 @@ pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	var curr = self.current_scope;
 	while (curr != null) {
-		var i: usz = 0;
-		while (i < curr.symbols.len) {
-			val sym = curr.symbols.get(i);
+		for (sym in curr.symbols) {
 			if (sym.name == name) return sym;
-			i = i + 1;
 		}
 		curr = curr.parent;
 	}
@@ -207,32 +195,23 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	if (own != null) return own;
 
 	// 3. Explicit imports (by original name or alias), scoped to this module
-	var k: usz = 0;
-	while (k < self.imports.len) {
-		val b = self.imports.get(k);
+	for (b in self.imports) {
 		if (!b.is_wildcard && b.local_name == name && b.owner_module == self.current_module) {
 			return lookup_in_module(self, b.module_name, b.symbol_name);
 		}
-		k = k + 1;
 	}
 
 	// 4. Wildcard imports, scoped to this module
-	var w: usz = 0;
-	while (w < self.imports.len) {
-		val b2 = self.imports.get(w);
+	for (b2 in self.imports) {
 		if (b2.is_wildcard && b2.owner_module == self.current_module) {
 			val found = lookup_in_module(self, b2.module_name, name);
 			if (found != null) return found;
 		}
-		w = w + 1;
 	}
 
 	// 5. Instantiated generic symbols (their name already equals the mangled C name)
-	var g: usz = 0;
-	while (g < self.gen.inst_syms.len) {
-		val isym = self.gen.inst_syms.get(g);
+	for (isym in self.gen.inst_syms) {
 		if (isym.name == name) return isym;
-		g = g + 1;
 	}
 
 	// 6. Mangled C name (idempotent on repeated resolution)
@@ -260,10 +239,8 @@ pub fn set_current_module(var self: &SymbolTable, name: str) {
 }
 
 pub fn module_exists(self: &SymbolTable, name: str): bool {
-	var m: usz = 0;
-	while (m < self.modules.len) {
-		if (self.modules.get(m).name == name) return true;
-		m = m + 1;
+	for (sc in self.modules) {
+		if (sc.name == name) return true;
 	}
 	return false;
 }
@@ -276,10 +253,8 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 		// otherwise len/cap of the original in self.modules diverge -> heap corruption.
 		val sc = self.modules.get(m);
 		if (sc.name == module_name) {
-			var i: usz = 0;
-			while (i < sc.symbols.len) {
-				if (sc.symbols.get(i).name == sym.name) return false;
-				i = i + 1;
+			for (existing in sc.symbols) {
+				if (existing.name == sym.name) return false;
 			}
 			val sym_ptr = arena_alloc<Symbol>(&self.arena);
 			*sym_ptr = sym;
@@ -310,19 +285,13 @@ pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, lo
 }
 
 pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
-	var m: usz = 0;
-	while (m < self.modules.len) {
-		val sc = self.modules.get(m);
+	for (sc in self.modules) {
 		if (sc.name == module_name) {
-			var i: usz = 0;
-			while (i < sc.symbols.len) {
-				val sym = sc.symbols.get(i);
+			for (sym in sc.symbols) {
 				if (sym.name == name) return sym;
-				i = i + 1;
 			}
 			return null;
 		}
-		m = m + 1;
 	}
 	return null;
 }
@@ -330,16 +299,10 @@ pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbo
 // Look up by generated C name (used when re-resolving a mangled name).
 pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
 	if (c_name.len == 0) return null;
-	var m: usz = 0;
-	while (m < self.modules.len) {
-		val sc = self.modules.get(m);
-		var i: usz = 0;
-		while (i < sc.symbols.len) {
-			val sym = sc.symbols.get(i);
+	for (sc in self.modules) {
+		for (sym in sc.symbols) {
 			if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
-			i = i + 1;
 		}
-		m = m + 1;
 	}
 	return null;
 }
