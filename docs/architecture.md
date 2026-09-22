@@ -235,7 +235,7 @@ helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi 
 | `struct S` | `typedef struct S S;` + `struct S { … };` |
 | `enum E` | `typedef int32_t E;` (thành viên → hằng số) |
 | `const X = …` cấp module | `#define X …` |
-| mọi thứ khác (fn, method) | tên mangle `<module__>Name`, method `<StructC>_<method>` |
+| mọi thứ khác (fn, method) | tên mangle `<module__>Name`, method `<StructC>_<method>`; method **overload** thêm hậu tố số đối số `<StructC>_<method>_<n>` (kèm `_<k>` nếu vẫn trùng) |
 | `*T` (read-only) | `T*` — **trừ** `*char`/`*str` giữ `const` (nhận string literal / `.c_str()`) |
 | `str` | `const char*` |
 | `T.size()` | `sizeof(<tên C>)` |
@@ -253,6 +253,10 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   dùng được như số nguyên vừa nhận diện được `.value`.
 - **Method**: `MethodInfo` gắn trực tiếp vào `StructType` (đi kèm `c_name`), nên gọi method dùng được
   **xuyên module** mà không cần import mangle.
+- **Overload method**: một `impl` được phép có nhiều method **cùng tên** khác **số đối số**. Mỗi cái
+  được mangle duy nhất (hậu tố arity), và gọi `obj.m(args)` chọn theo `args.len + 1` (kể cả receiver).
+  **Chỉ theo arity** — cùng tên + cùng arity (khác kiểu tham số) là **lỗi "Ambiguous call"**, không
+  chọn theo kiểu. Trait cũng nhận diện method theo `name + arity` (`TraitMethod.arity`).
 - **Monomorphization** (generic):
   - Pass 0 đăng ký *template* (`struct`/`fn`/`impl` có `<T>`), kèm `module`.
   - `List<X>` ở vị trí kiểu → instantiate; `f<X>(...)` / `Struct<X>(...)` → instantiate ở pass quét AST.

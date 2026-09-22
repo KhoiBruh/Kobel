@@ -135,6 +135,26 @@ pub fn struct_find_method(st: *StructType, name: str): *MethodInfo {
 	return null;
 }
 
+// Overload-aware lookup: the method with this name whose parameter count
+// (receiver included) is `argc`. Returns null when no overload matches, so the
+// caller can fall back to a plain name lookup for a better diagnostic.
+pub fn struct_find_method_arity(st: *StructType, name: str, argc: usz): *MethodInfo {
+	for (m in st.methods) {
+		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) return m;
+	}
+	return null;
+}
+
+// Number of overloads sharing this name and parameter count. Only arity-based
+// overloading is supported, so > 1 means the call is ambiguous.
+pub fn struct_count_method_arity(st: *StructType, name: str, argc: usz): usz {
+	var n: usz = 0;
+	for (m in st.methods) {
+		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n = n + 1;
+	}
+	return n;
+}
+
 // Look up a method by its mangled C name (used when re-visiting an `impl`).
 pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo {
 	for (m in st.methods) {

@@ -3,6 +3,7 @@ mod compiler.sema.symbol;
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
+use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.EnumInfo;
 use compiler.ast.node.AstNode;
 
@@ -85,6 +86,9 @@ pub struct GenTemplate {
 // trait provides a body (so the implementing type may leave it out).
 pub struct TraitMethod {
 	pub name: str,
+	// Parameter count (receiver included): two methods may share a name when
+	// they differ here, which is how overloaded trait methods are told apart.
+	pub arity: usz,
 	pub has_default: bool,
 	pub node: *AstNode
 }
@@ -178,6 +182,15 @@ pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) {
 pub fn find_prim_method(self: &SymbolTable, kind: DataType, name: str): *MethodInfo {
 	for (pm in self.prim_methods) {
 		if (pm.kind == kind && pm.info.name == name) return pm.info;
+	}
+	return null;
+}
+
+// Overload-aware variant of `find_prim_method` (parameter count includes the
+// receiver). Null when no overload matches, so the caller can fall back.
+pub fn find_prim_method_arity(self: &SymbolTable, kind: DataType, name: str, argc: usz): *MethodInfo {
+	for (pm in self.prim_methods) {
+		if (pm.kind == kind && pm.info.name == name && sem_fn(pm.info.fn_type).param_types.len == argc) return pm.info;
 	}
 	return null;
 }

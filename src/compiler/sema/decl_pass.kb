@@ -36,6 +36,7 @@ use compiler.sema.types.alloc_fn_type;
 use compiler.sema.types.as_struct_type_mut;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
+use compiler.sema.types.struct_find_method_c;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
 
@@ -97,6 +98,29 @@ pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 	if (self.current_module.len > 0) {
 		self.errors.add("${self.current_module}: ${loc}${msg}");
 	} else self.errors.add(loc + msg);
+}
+
+// Source names carried by more than one method of an impl, i.e. overloads.
+fn overloaded_names(im: &ImplDecl): List<str> {
+	var names = new_list<str>();
+	for (a in 0..<im.methods.len) {
+		val na = as_fn_decl(im.methods.get(a)).name;
+		if (list_has_str(names, na)) continue;
+		for (b in (a + 1)..<im.methods.len) {
+			if (as_fn_decl(im.methods.get(b)).name == na) {
+				names.add(na);
+				break;
+			}
+		}
+	}
+	return names;
+}
+
+fn list_has_str(list: List<str>, v: str): bool {
+	for (x in list) {
+		if (x == v) return true;
+	}
+	return false;
 }
 
 // The built-in type named `name`, or null when `name` is not a primitive.
@@ -228,6 +252,9 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	// `impl Trait for Struct`: verify the contract and pull in default methods.
 	if (im.trait_name != "") apply_trait(self, node, im, st_info.name);
 
+	// Methods may be overloaded, so each needs a distinct C name.
+	val overloaded = overloaded_names(im);
+
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
 		var param_types = new_list<*Type>();
@@ -247,7 +274,16 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
-		val m_c_name = str_concat(st_c_name, str_concat("_", f.name));
+
+		val base = str_concat(st_c_name, str_concat("_", f.name));
+		var m_c_name = base;
+		if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
+		// Two methods with the same name and arity still need distinct names.
+		var k: usz = 2;
+		while (struct_find_method_c(st_info, m_c_name) != null) {
+			m_c_name = "${base}_${param_types.len}_${k}";
+			k = k + 1;
+		}
 
 		val mi = arena_alloc<MethodInfo>(&self.arena);
 		*mi = MethodInfo(f.name, m_c_name, fn_type);
@@ -269,6 +305,9 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 	im.struct_name = "";
 
 	if (im.trait_name != "") apply_trait(self, node, im, prim_name);
+
+	val overloaded = overloaded_names(im);
+	var used = new_list<str>();
 
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
@@ -292,10 +331,19 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
-		val m_c_name = str_concat(prim_name, str_concat("_", f.name));
 
-		if (find_prim_method(&self.symtab, prim.kind, f.name) != null) {
-			report_error(self, m_node, "Duplicate method '${f.name}' for built-in type '${prim_name}'");
+		val base = str_concat(prim_name, str_concat("_", f.name));
+		var m_c_name = base;
+		if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
+		var k: usz = 2;
+		while (list_has_str(used, m_c_name)) {
+			m_c_name = "${base}_${param_types.len}_${k}";
+			k = k + 1;
+		}
+		used.add(m_c_name);
+
+		if (find_prim_method_arity(&self.symtab, prim.kind, f.name, f.params.len) != null) {
+			report_error(self, m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
 		}
 
 		val mi = arena_alloc<MethodInfo>(&self.arena);
@@ -324,7 +372,8 @@ pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) {
 // method wins over the base one it inherits.
 fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	for (i in 0..<out.len) {
-		if (out.get(i).name == m.name) {
+		val e = out.get(i);
+		if (e.name == m.name && e.arity == m.arity) {
 			out.set(i, m);
 			return;
 		}
@@ -368,13 +417,11 @@ pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_na
 	var seen = new_list<str>();
 	trait_effective(self, t, &effective, &seen);
 
-	var provided = new_list<str>();
-	for (m in im.methods) provided.add(as_fn_decl(m).name);
-
 	for (tm in effective) {
 		var have = false;
-		for (name in provided) {
-			if (name == tm.name) have = true;
+		for (m in im.methods) {
+			val f = as_fn_decl(m);
+			if (f.name == tm.name && f.params.len == tm.arity) have = true;
 		}
 		if (have) continue;
 

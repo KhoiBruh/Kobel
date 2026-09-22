@@ -675,6 +675,7 @@ struct compiler__sema__symbol__GenTemplate {
 
 struct compiler__sema__symbol__TraitMethod {
     const char* name;
+    size_t arity;
     bool has_default;
     compiler__ast__node__AstNode* node;
 };
@@ -1316,6 +1317,8 @@ compiler__sema__types__FnType* compiler__sema__types__as_fn_type(compiler__sema_
 compiler__sema__types__FnType* compiler__sema__types__as_fn_type_mut(compiler__sema__types__Type* ty);
 void compiler__sema__types__layout_struct(compiler__sema__types__Type* ty);
 compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method(compiler__sema__types__StructType* st, const char* name);
+compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method_arity(compiler__sema__types__StructType* st, const char* name, size_t argc);
+size_t compiler__sema__types__struct_count_method_arity(compiler__sema__types__StructType* st, const char* name, size_t argc);
 compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method_c(compiler__sema__types__StructType* st, const char* c_name);
 compiler__sema__types__Type compiler__sema__types__make_primitive(compiler__sema__types__DataType kind, size_t size, size_t align);
 compiler__sema__types__Type compiler__sema__types__type_none(void);
@@ -1355,6 +1358,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__are
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__new_symbol_table(void);
 void compiler__sema__symbol__register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__PrimMethod* pm);
 compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name);
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_arity(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name, size_t argc);
 compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_c(compiler__sema__symbol__SymbolTable* self, const char* c_name);
 void compiler__sema__symbol__register_trait(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__TraitInfo* info);
 compiler__sema__symbol__TraitInfo* compiler__sema__symbol__find_trait(compiler__sema__symbol__SymbolTable* self, const char* name);
@@ -1379,6 +1383,8 @@ compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__new_decl_pass(voi
 const char* compiler__sema__decl_pass__c_name_for(compiler__sema__decl_pass__DeclPass* self, const char* name);
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
 void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* msg);
+std__collections__list__List_str compiler__sema__decl_pass__overloaded_names(compiler__ast__decl__ImplDecl* im);
+bool compiler__sema__decl_pass__list_has_str(std__collections__list__List_str list, const char* v);
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name);
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
@@ -1422,7 +1428,7 @@ void compiler__sema__decl_collect__collect_fn(compiler__sema__decl_pass__DeclPas
 void compiler__sema__decl_collect__collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_collect__collect_const(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_collect__collect_extern_block(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name);
+compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name, size_t arity);
 void compiler__sema__decl_collect__collect_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_collect__collect_declaration(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_collect__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node);
@@ -3631,7 +3637,7 @@ compiler__sema__types__EnumInfo* std__mem__arena__arena_alloc_compiler__sema__ty
 }
 
 compiler__sema__symbol__TraitMethod* std__mem__arena__arena_alloc_compiler__sema__symbol__TraitMethod(std__mem__arena__Arena* arena) {
-    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 32, 8);
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 40, 8);
     return ((compiler__sema__symbol__TraitMethod*)raw);
 }
 
@@ -4988,6 +4994,41 @@ compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method(com
     return NULL;
 }
 
+compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method_arity(compiler__sema__types__StructType* st, const char* name, size_t argc) {
+    {
+        size_t __for_n = ((st)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__types__MethodInfo* m = ((st)->methods).data[__for_i];
+                if ((kobel_streq((m)->name, name) && ((((*compiler__sema__types__as_fn_type((m)->fn_type))).param_types).len == argc))) {
+                    return m;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return NULL;
+}
+
+size_t compiler__sema__types__struct_count_method_arity(compiler__sema__types__StructType* st, const char* name, size_t argc) {
+    size_t n = 0;
+    {
+        size_t __for_n = ((st)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__types__MethodInfo* m = ((st)->methods).data[__for_i];
+                if ((kobel_streq((m)->name, name) && ((((*compiler__sema__types__as_fn_type((m)->fn_type))).param_types).len == argc))) {
+                    n = (n + 1);
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return n;
+}
+
 compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method_c(compiler__sema__types__StructType* st, const char* c_name) {
     {
         size_t __for_n = ((st)->methods).len;
@@ -5450,6 +5491,23 @@ compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method(comp
     return NULL;
 }
 
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_arity(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name, size_t argc) {
+    {
+        size_t __for_n = ((self)->prim_methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__symbol__PrimMethod* pm = ((self)->prim_methods).data[__for_i];
+                if (((((pm)->kind == kind) && kobel_streq(((*(pm)->info)).name, name)) && ((((*compiler__sema__types__as_fn_type(((*(pm)->info)).fn_type))).param_types).len == argc))) {
+                    return (pm)->info;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return NULL;
+}
+
 compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_c(compiler__sema__symbol__SymbolTable* self, const char* c_name) {
     {
         size_t __for_n = ((self)->prim_methods).len;
@@ -5867,6 +5925,142 @@ void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass
     }
 }
 
+std__collections__list__List_str compiler__sema__decl_pass__overloaded_names(compiler__ast__decl__ImplDecl* im) {
+    std__collections__list__List_str names = std__collections__list__new_list_str();
+    {
+        size_t __for_e = ((im)->methods).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t a = __for_i;
+                const char* na = ((*compiler__ast__builder__as_fn_decl(std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), a)))).name;
+                if (compiler__sema__decl_pass__list_has_str(names, na)) {
+                    {
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+                {
+                    size_t __for_e = ((im)->methods).len;
+                    size_t __for_i = __for_e;
+                    __for_i = ((a + 1));
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        {
+                            __for_go = (__for_i < __for_e);
+                        }
+                    } else {
+                        {
+                            __for_go = (__for_i > __for_e);
+                        }
+                    }
+                    while (__for_go) {
+                        {
+                            size_t b = __for_i;
+                            if (kobel_streq(((*compiler__ast__builder__as_fn_decl(std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), b)))).name, na)) {
+                                {
+                                    std__collections__list__List_str_add((&names), na);
+                                    break;
+                                }
+                            }
+                            if (__for_up) {
+                                {
+                                    __for_go = ((__for_i + 1) < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = ((__for_i - 1) > __for_e);
+                                }
+                            }
+                            if (__for_go) {
+                                if (__for_up) {
+                                    {
+                                        __for_i = (__for_i + 1);
+                                    }
+                                } else {
+                                    {
+                                        __for_i = (__for_i - 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return names;
+}
+
+bool compiler__sema__decl_pass__list_has_str(std__collections__list__List_str list, const char* v) {
+    {
+        size_t __for_n = (list).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* x = (list).data[__for_i];
+                if (kobel_streq(x, v)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return false;
+}
+
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name) {
     if (strcmp(name, "none") == 0) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_none());
@@ -6030,6 +6224,7 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
     if ((!kobel_streq((im)->trait_name, ""))) {
         compiler__sema__decl_pass__apply_trait(self, node, im, (st_info)->name);
     }
+    std__collections__list__List_str overloaded = compiler__sema__decl_pass__overloaded_names(im);
     {
         size_t __for_n = ((im)->methods).len;
         size_t __for_i = ((size_t)0ULL);
@@ -6064,7 +6259,18 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
                     ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
                 }
                 compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
-                const char* m_c_name = util__strutil__str_concat(st_c_name, util__strutil__str_concat("_", (f)->name));
+                const char* base = util__strutil__str_concat(st_c_name, util__strutil__str_concat("_", (f)->name));
+                const char* m_c_name = base;
+                if (compiler__sema__decl_pass__list_has_str(overloaded, (f)->name)) {
+                    m_c_name = kobel_concat(kobel_concat(base, "_"), usz_to_str((param_types).len));
+                }
+                size_t k = 2;
+                while ((compiler__sema__types__struct_find_method_c(st_info, m_c_name) != NULL)) {
+                    {
+                        m_c_name = kobel_concat(kobel_concat(kobel_concat(kobel_concat(base, "_"), usz_to_str((param_types).len)), "_"), usz_to_str(k));
+                        k = (k + 1);
+                    }
+                }
                 compiler__sema__types__MethodInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo((&(self)->arena));
                 (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
                 std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
@@ -6081,6 +6287,8 @@ void compiler__sema__decl_pass__collect_prim_impl(compiler__sema__decl_pass__Dec
     if ((!kobel_streq((im)->trait_name, ""))) {
         compiler__sema__decl_pass__apply_trait(self, node, im, prim_name);
     }
+    std__collections__list__List_str overloaded = compiler__sema__decl_pass__overloaded_names(im);
+    std__collections__list__List_str used = std__collections__list__new_list_str();
     {
         size_t __for_n = ((im)->methods).len;
         size_t __for_i = ((size_t)0ULL);
@@ -6149,10 +6357,22 @@ void compiler__sema__decl_pass__collect_prim_impl(compiler__sema__decl_pass__Dec
                     ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
                 }
                 compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
-                const char* m_c_name = util__strutil__str_concat(prim_name, util__strutil__str_concat("_", (f)->name));
-                if ((compiler__sema__symbol__find_prim_method((&(self)->symtab), (prim)->kind, (f)->name) != NULL)) {
+                const char* base = util__strutil__str_concat(prim_name, util__strutil__str_concat("_", (f)->name));
+                const char* m_c_name = base;
+                if (compiler__sema__decl_pass__list_has_str(overloaded, (f)->name)) {
+                    m_c_name = kobel_concat(kobel_concat(base, "_"), usz_to_str((param_types).len));
+                }
+                size_t k = 2;
+                while (compiler__sema__decl_pass__list_has_str(used, m_c_name)) {
                     {
-                        compiler__sema__decl_pass__report_error(self, m_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", (f)->name), "' for built-in type '"), prim_name), "'"));
+                        m_c_name = kobel_concat(kobel_concat(kobel_concat(kobel_concat(base, "_"), usz_to_str((param_types).len)), "_"), usz_to_str(k));
+                        k = (k + 1);
+                    }
+                }
+                std__collections__list__List_str_add((&used), m_c_name);
+                if ((compiler__sema__symbol__find_prim_method_arity((&(self)->symtab), (prim)->kind, (f)->name, ((f)->params).len) != NULL)) {
+                    {
+                        compiler__sema__decl_pass__report_error(self, m_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", (f)->name), "' with "), usz_to_str(((f)->params).len)), " parameter(s) for built-in type '"), prim_name), "'"));
                     }
                 }
                 compiler__sema__types__MethodInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo((&(self)->arena));
@@ -6207,7 +6427,8 @@ void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_pt
         while (__for_go) {
             {
                 size_t i = __for_i;
-                if (kobel_streq(((*std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_get(out, i))).name, (m)->name)) {
+                compiler__sema__symbol__TraitMethod* e = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_get(out, i);
+                if ((kobel_streq((e)->name, (m)->name) && ((e)->arity == (m)->arity))) {
                     {
                         std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_set(out, i, m);
                         return;
@@ -6293,18 +6514,6 @@ void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass*
     std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod effective = std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod();
     std__collections__list__List_str seen = std__collections__list__new_list_str();
     compiler__sema__decl_pass__trait_effective(self, t, (&effective), (&seen));
-    std__collections__list__List_str provided = std__collections__list__new_list_str();
-    {
-        size_t __for_n = ((im)->methods).len;
-        size_t __for_i = ((size_t)0ULL);
-        while ((__for_i < __for_n)) {
-            {
-                compiler__ast__node__AstNode* m = ((im)->methods).data[__for_i];
-                std__collections__list__List_str_add((&provided), ((*compiler__ast__builder__as_fn_decl(m))).name);
-                __for_i = (__for_i + 1);
-            }
-        }
-    }
     {
         size_t __for_n = (effective).len;
         size_t __for_i = ((size_t)0ULL);
@@ -6313,12 +6522,13 @@ void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass*
                 compiler__sema__symbol__TraitMethod* tm = (effective).data[__for_i];
                 bool have = false;
                 {
-                    size_t __for_n = (provided).len;
+                    size_t __for_n = ((im)->methods).len;
                     size_t __for_i = ((size_t)0ULL);
                     while ((__for_i < __for_n)) {
                         {
-                            const char* name = (provided).data[__for_i];
-                            if (kobel_streq(name, (tm)->name)) {
+                            compiler__ast__node__AstNode* m = ((im)->methods).data[__for_i];
+                            compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m);
+                            if ((kobel_streq((f)->name, (tm)->name) && (((f)->params).len == (tm)->arity))) {
                                 have = true;
                             }
                             __for_i = (__for_i + 1);
@@ -7891,14 +8101,14 @@ void compiler__sema__decl_collect__collect_extern_block(compiler__sema__decl_pas
     (self)->is_extern = prev_is_extern;
 }
 
-compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name) {
+compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name, size_t arity) {
     {
         size_t __for_n = (list).len;
         size_t __for_i = ((size_t)0ULL);
         while ((__for_i < __for_n)) {
             {
                 compiler__sema__symbol__TraitMethod* m = (list).data[__for_i];
-                if (kobel_streq((m)->name, name)) {
+                if ((kobel_streq((m)->name, name) && ((m)->arity == arity))) {
                     return m;
                 }
                 __for_i = (__for_i + 1);
@@ -7924,9 +8134,9 @@ void compiler__sema__decl_collect__collect_trait(compiler__sema__decl_pass__Decl
             {
                 compiler__ast__node__AstNode* m = ((t)->methods).data[__for_i];
                 compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m);
-                if ((compiler__sema__decl_collect__trait_method_in(methods, (f)->name) != NULL)) {
+                if ((compiler__sema__decl_collect__trait_method_in(methods, (f)->name, ((f)->params).len) != NULL)) {
                     {
-                        compiler__sema__decl_pass__report_error(self, m, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", (f)->name), "' in trait '"), (t)->name), "'"));
+                        compiler__sema__decl_pass__report_error(self, m, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", (f)->name), "' with "), usz_to_str(((f)->params).len)), " parameter(s) in trait '"), (t)->name), "'"));
                         {
                             __for_i = (__for_i + 1);
                             continue;
@@ -7934,7 +8144,7 @@ void compiler__sema__decl_collect__collect_trait(compiler__sema__decl_pass__Decl
                     }
                 }
                 compiler__sema__symbol__TraitMethod* tm = std__mem__arena__arena_alloc_compiler__sema__symbol__TraitMethod((&(self)->arena));
-                (*tm) = (compiler__sema__symbol__TraitMethod){ (f)->name, ((f)->body != NULL), m };
+                (*tm) = (compiler__sema__symbol__TraitMethod){ (f)->name, ((f)->params).len, ((f)->body != NULL), m };
                 std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_add((&methods), tm);
                 __for_i = (__for_i + 1);
             }
@@ -8358,7 +8568,15 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                     if (((obj_ty)->kind == 18)) {
                         {
                             compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type(obj_ty);
-                            compiler__sema__types__MethodInfo* mi = compiler__sema__types__struct_find_method(s_info, (mem)->member);
+                            if ((compiler__sema__types__struct_count_method_arity(s_info, (mem)->member, (((call)->args).len + 1)) > 1)) {
+                                {
+                                    compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat("Ambiguous call to '", (mem)->member), "': overloading by parameter type is not supported"));
+                                }
+                            }
+                            compiler__sema__types__MethodInfo* mi = compiler__sema__types__struct_find_method_arity(s_info, (mem)->member, (((call)->args).len + 1));
+                            if ((mi == NULL)) {
+                                mi = compiler__sema__types__struct_find_method(s_info, (mem)->member);
+                            }
                             if ((mi != NULL)) {
                                 {
                                     compiler__sema__types__FnType* fn_info = compiler__sema__types__as_fn_type((mi)->fn_type);
@@ -8440,7 +8658,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                             }
                         }
                     }
-                    compiler__sema__types__MethodInfo* pmi = compiler__sema__symbol__find_prim_method((&(self)->symtab), (obj_ty)->kind, (mem)->member);
+                    compiler__sema__types__MethodInfo* pmi = compiler__sema__symbol__find_prim_method_arity((&(self)->symtab), (obj_ty)->kind, (mem)->member, (((call)->args).len + 1));
+                    if ((pmi == NULL)) {
+                        pmi = compiler__sema__symbol__find_prim_method((&(self)->symtab), (obj_ty)->kind, (mem)->member);
+                    }
                     if ((pmi != NULL)) {
                         {
                             compiler__sema__types__FnType* fn_info = compiler__sema__types__as_fn_type((pmi)->fn_type);

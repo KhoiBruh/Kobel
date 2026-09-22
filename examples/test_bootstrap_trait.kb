@@ -159,6 +159,25 @@ fn test_prim_methods(var t: &Tally) {
 	check_str(s.shout(), "hi!", "method on str", t);
 }
 
+// --- 7. overloaded methods in an impl --------------------------------------
+
+struct Counter {
+	pub n: i32
+}
+
+impl Counter {
+	fn add_to(val self): i32 => self.n;
+	fn add_to(val self, extra: i32): i32 => self.n + extra;
+	fn add_to(val self, a: i32, b: i32): i32 => self.n + a + b;
+}
+
+fn test_overloads(var t: &Tally) {
+	val c = Counter(10);
+	check_i(c.add_to(), 10, "overload: no argument", t);
+	check_i(c.add_to(5), 15, "overload: one argument", t);
+	check_i(c.add_to(5, 2), 17, "overload: two arguments", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -170,6 +189,7 @@ fn main(): i32 {
 	test_bounds(&t);
 	test_two_impls(&t);
 	test_prim_methods(&t);
+	test_overloads(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

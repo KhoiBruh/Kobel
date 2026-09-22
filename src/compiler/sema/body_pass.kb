@@ -309,7 +309,13 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 				if (obj_ty.kind == DataType.STRUCT) {
 					val s_info = sem_struct(obj_ty);
-					val mi = struct_find_method(s_info, mem.member);
+					// Pick the overload whose arity matches; fall back to a name
+					// lookup so an arity error still reads as before.
+					if (struct_count_method_arity(s_info, mem.member, call.args.len + 1) > 1) {
+						report_error(self, node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
+					}
+					var mi = struct_find_method_arity(s_info, mem.member, call.args.len + 1);
+					if (mi == null) mi = struct_find_method(s_info, mem.member);
 					if (mi != null) {
 						val fn_info = sem_fn(mi.fn_type);
 						if (call.args.len + 1 != fn_info.param_types.len) {
@@ -334,7 +340,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 
 				// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
-				val pmi = find_prim_method(&self.symtab, obj_ty.kind, mem.member);
+				var pmi = find_prim_method_arity(&self.symtab, obj_ty.kind, mem.member, call.args.len + 1);
+				if (pmi == null) pmi = find_prim_method(&self.symtab, obj_ty.kind, mem.member);
 				if (pmi != null) {
 					val fn_info = sem_fn(pmi.fn_type);
 					if (call.args.len + 1 != fn_info.param_types.len) {

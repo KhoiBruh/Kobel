@@ -163,9 +163,10 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	self.is_extern = prev_is_extern;
 }
 
-fn trait_method_in(list: List<*TraitMethod>, name: str): *TraitMethod {
+// A trait may declare overloads, so a method is identified by name + arity.
+fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {
 	for (m in list) {
-		if (m.name == name) return m;
+		if (m.name == name && m.arity == arity) return m;
 	}
 	return null;
 }
@@ -184,12 +185,12 @@ pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
 	var methods = new_list<*TraitMethod>();
 	for (m in t.methods) {
 		val f = as_fn_decl(m);
-		if (trait_method_in(methods, f.name) != null) {
-			report_error(self, m, "Duplicate method '${f.name}' in trait '${t.name}'");
+		if (trait_method_in(methods, f.name, f.params.len) != null) {
+			report_error(self, m, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) in trait '${t.name}'");
 			continue;
 		}
 		val tm = arena_alloc<TraitMethod>(&self.arena);
-		*tm = TraitMethod(f.name, f.body != null, m);
+		*tm = TraitMethod(f.name, f.params.len, f.body != null, m);
 		methods.add(tm);
 	}
 
