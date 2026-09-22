@@ -12,6 +12,8 @@
 *.tmp.*
 *.pdb
 *.ilk
+# Scratch file written by examples/std_demo.kb's io test
+/tmp_std_test.txt
 # Build output and distribution artifacts
 /build/
 /dist/*

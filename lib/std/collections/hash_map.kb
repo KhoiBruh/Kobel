@@ -2,12 +2,13 @@ mod std.collections.hash_map;
 
 use std.mem.alloc.*;
 
+// `len` is the public size accessor; the storage is internal.
 pub struct HashMap<V> {
-	pub keys: &str,
-	pub values: &V,
-	pub occupied: &bool,
+	keys: &str,
+	values: &V,
+	occupied: &bool,
 	pub len: usz,
-	pub cap: usz
+	cap: usz
 }
 
 pub fn new_hash_map<V>(): HashMap<V> {
@@ -110,14 +111,14 @@ impl HashMap<V> {
 			i = i + 1;
 		}
 
-		release(old_keys);
-		release(old_vals);
-		release(old_occ);
+		release<str>(old_keys);
+		release<V>(old_vals);
+		release<bool>(old_occ);
 	}
 
 	pub fn delete(self): none {
-		release(self.keys);
-		release(self.values);
-		release(self.occupied);
+		release<str>(self.keys);
+		release<V>(self.values);
+		release<bool>(self.occupied);
 	}
 }

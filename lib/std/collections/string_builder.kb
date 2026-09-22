@@ -3,15 +3,16 @@ mod std.collections.string_builder;
 use std.mem.alloc.*;
 
 struct StringRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
+	data: *char,
+	len: usz,
+	cap: usz
 }
 
+// `len` is the public size accessor; the buffer and capacity are internal.
 pub struct StringBuilder {
-	pub buf: &u8,
+	buf: &u8,
 	pub len: usz,
-	pub cap: usz
+	cap: usz
 }
 
 pub fn new_string_builder(): StringBuilder {
@@ -39,27 +40,30 @@ impl StringBuilder {
 	}
 
 	pub fn append_i32(var self, n: i32) {
-		var val_n = n;
-		if (val_n == 0) {
+		var v = n;
+		if (v == 0) {
 			self.append_char('0');
 			return;
 		}
-		if (val_n < 0) {
+		if (v < 0) {
 			self.append_char('-');
-			val_n = -val_n;
+			v = -v;
 		}
-		val digits: Array<char>(12) = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
-		var count = 0UZ;
-		while (val_n > 0) {
-			val rem = val_n % 10;
-			val char_code = rem + 48;
-			digits[count] = char_code as char;
-			count = count + 1;
-			val_n = val_n / 10;
+
+		// Emit from the most significant digit: find that digit's place value
+		// first, then peel digits off one at a time (no temporary array needed).
+		var place: i32 = 1;
+		var probe = v;
+		while (probe >= 10) {
+			probe = probe / 10;
+			place = place * 10;
 		}
-		while (count > 0) {
-			count = count - 1;
-			self.append_char(digits[count]);
+		var rest = v;
+		while (place > 0) {
+			val digit = rest / place;
+			self.append_char((digit + 48) as char);
+			rest = rest - digit * place;
+			place = place / 10;
 		}
 	}
 
@@ -70,13 +74,13 @@ impl StringBuilder {
 		}
 		str_data[self.len] = 0;
 
-		val raw = alloc<StringRaw>(24);
+		val raw = alloc<StringRaw>();
 		raw.data = str_data as *char;
 		raw.len = self.len;
 		raw.cap = self.len + 1;
 		val sp = raw as *str;
 		val res = *sp;
-		release(raw)
+		release<StringRaw>(raw);
 		return res;
 	}
 

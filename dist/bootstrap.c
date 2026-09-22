@@ -1484,6 +1484,7 @@ void compiler__sema__decl_collect__collect_declaration(compiler__sema__decl_pass
 void compiler__sema__decl_collect__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass(void);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass_with_symtab(compiler__sema__symbol__SymbolTable symtab);
+size_t compiler__sema__body_pass__prim_c_size(const char* name);
 void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg);
 compiler__sema__types__Type* compiler__sema__body_pass__resolve_type(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw);
@@ -8631,6 +8632,25 @@ compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass_wit
     return (compiler__sema__body_pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__list__new_list_str(), NULL, true };
 }
 
+size_t compiler__sema__body_pass__prim_c_size(const char* name) {
+    if ((((kobel_streq(name, "bool") || kobel_streq(name, "char")) || kobel_streq(name, "i8")) || kobel_streq(name, "u8"))) {
+        return 1;
+    }
+    if ((kobel_streq(name, "i16") || kobel_streq(name, "u16"))) {
+        return 2;
+    }
+    if (((kobel_streq(name, "i32") || kobel_streq(name, "u32")) || kobel_streq(name, "f32"))) {
+        return 4;
+    }
+    if (((((kobel_streq(name, "i64") || kobel_streq(name, "u64")) || kobel_streq(name, "isz")) || kobel_streq(name, "usz")) || kobel_streq(name, "f64"))) {
+        return 8;
+    }
+    if (kobel_streq(name, "str")) {
+        return 8;
+    }
+    return 0;
+}
+
 void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg) {
     const char* loc = "";
     if ((node != NULL)) {
@@ -8859,6 +8879,16 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                             if ((((*(mem)->object)).kind == 4)) {
                                 {
                                     compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)compiler__ast__builder__as_identifier((mem)->object));
+                                    size_t csize = compiler__sema__body_pass__prim_c_size((id)->name);
+                                    if ((csize > 0)) {
+                                        {
+                                            compiler__ast__node__AstNode* lit = compiler__ast__builder__alloc_literal((&(self)->arena), 0, kobel_concat(usz_to_str(csize), "UZ"), (node)->line, (node)->col);
+                                            compiler__ast__node__AstNode* lit_n = ((compiler__ast__node__AstNode*)node);
+                                            (lit_n)->kind = (lit)->kind;
+                                            (lit_n)->data = (lit)->data;
+                                            return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_usz());
+                                        }
+                                    }
                                     compiler__sema__symbol__Symbol* tsym = compiler__sema__symbol__lookup((&(self)->symtab), (id)->name);
                                     if (((tsym != NULL) && (!kobel_streq((tsym)->c_name, (id)->name)))) {
                                         (id)->name = (tsym)->c_name;

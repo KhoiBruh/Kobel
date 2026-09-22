@@ -96,6 +96,18 @@ pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 	return BodyPass(symtab, arena, none_ty, 0, new_list<str>(), null, true);
 }
 
+// C size (in bytes) of a primitive type name, or 0 when `name` is not one.
+// Mirrors `ast_type_size`: `str` is a C pointer, not the 16-byte slice value,
+// so an array of `str` has pointer stride.
+fn prim_c_size(name: str): usz {
+	if (name == "bool" || name == "char" || name == "i8" || name == "u8") return 1;
+	if (name == "i16" || name == "u16") return 2;
+	if (name == "i32" || name == "u32" || name == "f32") return 4;
+	if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") return 8;
+	if (name == "str") return 8;
+	return 0;
+}
+
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
 	// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 	var loc: str = "";
@@ -277,6 +289,18 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					// Mangle the type name so the backend emits sizeof(<c_name>).
 					if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
 						val id = as_identifier(mem.object) as &IdentifierExpr;
+
+						// A primitive type name has no C type of its own (`str`,
+						// `bool`, ...), so fold `.size()` to its C size literal.
+						val csize = prim_c_size(id.name);
+						if (csize > 0) {
+							val lit = alloc_literal(&self.arena, LiteralKind.INT, "${csize}UZ", node.line, node.col);
+							val lit_n = node as &AstNode;
+							lit_n.kind = lit.kind;
+							lit_n.data = lit.data;
+							return alloc_primitive(&self.arena, type_usz());
+						}
+
 						val tsym = lookup(&self.symtab, id.name);
 						if (tsym != null && tsym.c_name != id.name) id.name = tsym.c_name;
 					}
