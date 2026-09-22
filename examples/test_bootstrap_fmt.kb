@@ -1,0 +1,103 @@
+mod test.bootstrap_fmt;
+
+use std.io.print;
+use std.io.println;
+use std.fmt.*;
+
+// ============================================================================
+// std.fmt tests: the ToStr trait on built-in types and on user structs
+// ============================================================================
+
+struct Tally {
+	pub fails: i32
+}
+
+fn check_str(got: str, want: str, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		print(": got '");
+		print(got);
+		print("' want '");
+		print(want);
+		println("'");
+	}
+}
+
+fn test_bool(var t: &Tally) {
+	val yes = true;
+	val no = false;
+	check_str(yes.to_str(), "true", "bool true", t);
+	check_str(no.to_str(), "false", "bool false", t);
+}
+
+fn test_char(var t: &Tally) {
+	val a = 'A';
+	check_str(a.to_str(), "A", "char", t);
+}
+
+fn test_str(var t: &Tally) {
+	val s = "hi";
+	check_str(s.to_str(), "hi", "str identity", t);
+	check_str("".to_str(), "", "empty str", t);
+}
+
+fn test_signed(var t: &Tally) {
+	val z: i32 = 0;
+	val neg: i32 = -7;
+	val big: i64 = 123456789L;
+	val small: i8 = -5B;
+	check_str(z.to_str(), "0", "zero", t);
+	check_str(neg.to_str(), "-7", "negative i32", t);
+	check_str(big.to_str(), "123456789", "i64", t);
+	check_str(small.to_str(), "-5", "i8", t);
+}
+
+fn test_unsigned(var t: &Tally) {
+	val z: u64 = 0UL;
+	val n: usz = 1234UZ;
+	val b: u8 = 200UB;
+	val w: u16 = 60000US;
+	check_str(z.to_str(), "0", "zero unsigned", t);
+	check_str(n.to_str(), "1234", "usz", t);
+	check_str(b.to_str(), "200", "u8", t);
+	check_str(w.to_str(), "60000", "u16", t);
+}
+
+// --- user struct implementing ToStr ----------------------------------------
+
+struct Point {
+	pub x: i32,
+	pub y: i32
+}
+
+impl ToStr for Point {
+	fn to_str(val self): str => "${self.x.to_str()},${self.y.to_str()}";
+}
+
+fn test_user_struct(var t: &Tally) {
+	val p = Point(3, -4);
+	check_str(p.to_str(), "3,-4", "user struct ToStr", t);
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap std.fmt tests...");
+
+	var t = Tally(0);
+
+	test_bool(&t);
+	test_char(&t);
+	test_str(&t);
+	test_signed(&t);
+	test_unsigned(&t);
+	test_user_struct(&t);
+
+	if (t.fails != 0) {
+		println("[FAILED] Bootstrap std.fmt tests");
+		return 1;
+	}
+
+	println("[ALL PASSED] Bootstrap std.fmt tests passed successfully!");
+	return 0;
+}
