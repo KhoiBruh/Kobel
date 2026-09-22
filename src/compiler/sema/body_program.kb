@@ -27,7 +27,7 @@ use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.new_decl_pass;
-use compiler.sema.decl_pass.collect_program;
+use compiler.sema.decl_collect.collect_program;
 
 use compiler.sema.body_pass.*;
 

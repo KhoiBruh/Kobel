@@ -19,7 +19,7 @@ use compiler.sema.symbol.lookup;
 
 use compiler.sema.decl_pass.DeclPass;
 use compiler.sema.decl_pass.new_decl_pass;
-use compiler.sema.decl_pass.collect_program;
+use compiler.sema.decl_collect.collect_program;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

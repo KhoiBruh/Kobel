@@ -928,14 +928,14 @@ std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__
 std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__list__new_list_ptr_compiler__sema__symbol__ModuleScope(void);
 std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__new_list_compiler__sema__symbol__ImportBinding(void);
 std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumInfo(void);
-std__collections__list__List_compiler__sema__types__StructField std__collections__list__new_list_compiler__sema__types__StructField(void);
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__new_list_ptr_compiler__sema__types__Type(void);
-std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo(void);
+std__collections__list__List_compiler__sema__types__StructField std__collections__list__new_list_compiler__sema__types__StructField(void);
 std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__new_list_compiler__ast__expr__WhenArm(void);
 std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__new_list_compiler__ast__stmt__WhenStmtArm(void);
 std__collections__list__List_compiler__ast__decl__Param std__collections__list__new_list_compiler__ast__decl__Param(void);
 std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__new_list_compiler__ast__decl__GenericParam(void);
 std__collections__list__List_compiler__ast__decl__StructField std__collections__list__new_list_compiler__ast__decl__StructField(void);
+std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo(void);
 std__collections__list__List_compiler__lexer__token__Token std__collections__list__new_list_compiler__lexer__token__Token(void);
 std__collections__list__List_compiler__ast__decl__EnumMember std__collections__list__new_list_compiler__ast__decl__EnumMember(void);
 std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__new_list_compiler__loader__loader__LoadedModule(void);
@@ -1108,18 +1108,9 @@ const char* compiler__sema__decl_pass__c_name_for(compiler__sema__decl_pass__Dec
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
 void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* msg);
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_module(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_use(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
-void compiler__sema__decl_pass__collect_const(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_extern_block(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_declaration(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__decl_pass__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__subst_lookup(compiler__sema__decl_pass__GenSubst* s, const char* name);
 bool compiler__sema__decl_pass__is_template_decl(compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__register_template(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
@@ -1144,6 +1135,15 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_fn(compiler__sema
 compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__decl_pass__GenSubst* subst, const char* new_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__decl_pass__GenSubst* subst, const char* new_struct_name);
 void compiler__sema__decl_pass__rewrite_generics(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_module(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_use(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_const(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_extern_block(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_declaration(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_collect__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass(void);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass_with_symtab(compiler__sema__symbol__SymbolTable symtab);
 void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg);
@@ -2516,22 +2516,16 @@ std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collection
     return (std__collections__list__List_ptr_compiler__sema__types__EnumInfo){ ((compiler__sema__types__EnumInfo**)raw), ((size_t)0ULL), init_cap };
 }
 
-std__collections__list__List_compiler__sema__types__StructField std__collections__list__new_list_compiler__sema__types__StructField(void) {
-    size_t init_cap = ((size_t)4ULL);
-    uint8_t* raw = malloc((init_cap * 32));
-    return (std__collections__list__List_compiler__sema__types__StructField){ ((compiler__sema__types__StructField*)raw), ((size_t)0ULL), init_cap };
-}
-
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__new_list_ptr_compiler__sema__types__Type(void) {
     size_t init_cap = ((size_t)4ULL);
     uint8_t* raw = malloc((init_cap * 8));
     return (std__collections__list__List_ptr_compiler__sema__types__Type){ ((compiler__sema__types__Type**)raw), ((size_t)0ULL), init_cap };
 }
 
-std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo(void) {
+std__collections__list__List_compiler__sema__types__StructField std__collections__list__new_list_compiler__sema__types__StructField(void) {
     size_t init_cap = ((size_t)4ULL);
-    uint8_t* raw = malloc((init_cap * 8));
-    return (std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo){ ((compiler__sema__types__EnumMemberInfo**)raw), ((size_t)0ULL), init_cap };
+    uint8_t* raw = malloc((init_cap * 32));
+    return (std__collections__list__List_compiler__sema__types__StructField){ ((compiler__sema__types__StructField*)raw), ((size_t)0ULL), init_cap };
 }
 
 std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__new_list_compiler__ast__expr__WhenArm(void) {
@@ -2562,6 +2556,12 @@ std__collections__list__List_compiler__ast__decl__StructField std__collections__
     size_t init_cap = ((size_t)4ULL);
     uint8_t* raw = malloc((init_cap * 32));
     return (std__collections__list__List_compiler__ast__decl__StructField){ ((compiler__ast__decl__StructField*)raw), ((size_t)0ULL), init_cap };
+}
+
+std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo(void) {
+    size_t init_cap = ((size_t)4ULL);
+    uint8_t* raw = malloc((init_cap * 8));
+    return (std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo){ ((compiler__sema__types__EnumMemberInfo**)raw), ((size_t)0ULL), init_cap };
 }
 
 std__collections__list__List_compiler__lexer__token__Token std__collections__list__new_list_compiler__lexer__token__Token(void) {
@@ -4276,141 +4276,6 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compile
     }
 }
 
-void compiler__sema__decl_pass__collect_module(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__ModuleDecl* m = compiler__ast__builder__as_module_decl(node);
-    (self)->current_module = (m)->full_path;
-    compiler__sema__symbol__set_current_module((&(self)->symtab), (m)->full_path);
-}
-
-void compiler__sema__decl_pass__collect_use(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(node);
-    if ((u)->is_wildcard) {
-        {
-            const char* w_mod = compiler__util__strutil__str_join_dots((u)->path, ((u)->path).len);
-            if ((!compiler__sema__symbol__module_exists((&(self)->symtab), w_mod))) {
-                return;
-            }
-            compiler__sema__symbol__add_import((&(self)->symtab), w_mod, "", "", true);
-            return;
-        }
-    }
-    if ((((u)->path).len < 2)) {
-        return;
-    }
-    const char* mod_name = compiler__util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
-    if ((!compiler__sema__symbol__module_exists((&(self)->symtab), mod_name))) {
-        return;
-    }
-    compiler__sema__symbol__Symbol* target = compiler__sema__symbol__lookup_in_module((&(self)->symtab), mod_name, (u)->symbol_name);
-    if ((target == NULL)) {
-        {
-            if (compiler__sema__decl_pass__template_in_module(self, mod_name, (u)->symbol_name)) {
-                return;
-            }
-            compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Symbol '", (u)->symbol_name), "' not found in module '"), mod_name), "'"));
-            return;
-        }
-    }
-    const char* local_name = (u)->symbol_name;
-    if ((!kobel_streq((u)->alias, ""))) {
-        local_name = (u)->alias;
-    }
-    compiler__sema__symbol__add_import((&(self)->symtab), mod_name, (u)->symbol_name, local_name, false);
-}
-
-void compiler__sema__decl_pass__collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__StructDecl* s = ((compiler__ast__decl__StructDecl*)compiler__ast__builder__as_struct_decl(node));
-    if ((((s)->type_params).len > 0)) {
-        return;
-    }
-    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (s)->name);
-    compiler__sema__types__Type* s_type = compiler__sema__types__alloc_struct_type((&(self)->arena), (s)->name, std__collections__list__new_list_compiler__sema__types__StructField());
-    ((*compiler__sema__types__as_struct_type_mut(s_type))).c_name = c_name;
-    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (s)->name, c_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col });
-    if ((!ok)) {
-        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", (s)->name), "'"));
-    }
-    (s)->name = c_name;
-    size_t i = 0;
-    while ((i < ((s)->fields).len)) {
-        {
-            compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_get((&(s)->fields), i);
-            compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
-            compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
-            std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
-            i = (i + 1);
-        }
-    }
-    compiler__sema__types__layout_struct(s_type);
-}
-
-void compiler__sema__decl_pass__collect_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__FnDecl* f = ((compiler__ast__decl__FnDecl*)compiler__ast__builder__as_fn_decl(node));
-    if ((((f)->type_params).len > 0)) {
-        return;
-    }
-    std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__new_list_ptr_compiler__sema__types__Type();
-    size_t i = 0;
-    while ((i < ((f)->params).len)) {
-        {
-            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
-            compiler__sema__types__Type* p_type = compiler__sema__decl_pass__resolve_ast_type(self, (p).type_node);
-            std__collections__list__List_ptr_compiler__sema__types__Type_add((&param_types), p_type);
-            i = (i + 1);
-        }
-    }
-    compiler__sema__types__Type* ret_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
-    if (((f)->return_type != NULL)) {
-        ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
-    }
-    compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
-    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (f)->name);
-    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (f)->name, c_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col });
-    if ((!ok)) {
-        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate function declaration '", (f)->name), "'"));
-    }
-    (f)->name = c_name;
-}
-
-void compiler__sema__decl_pass__collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__EnumDecl* e = ((compiler__ast__decl__EnumDecl*)compiler__ast__builder__as_enum_decl(node));
-    compiler__sema__types__Type* under_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
-    if (((e)->underlying_type != NULL)) {
-        under_type = compiler__sema__decl_pass__resolve_ast_type(self, (e)->underlying_type);
-    }
-    std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo members = std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo();
-    int64_t next_val = 0;
-    size_t i = 0;
-    while ((i < ((e)->members).len)) {
-        {
-            compiler__ast__decl__EnumMember m = std__collections__list__List_compiler__ast__decl__EnumMember_get((&(e)->members), i);
-            int64_t v = next_val;
-            if (((m).value != NULL)) {
-                v = compiler__sema__decl_pass__enum_const_i64(self, (m).value);
-            }
-            uint8_t* mem_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__EnumMemberInfo), 8);
-            compiler__sema__types__EnumMemberInfo* mi = ((compiler__sema__types__EnumMemberInfo*)mem_mem);
-            (*mi) = (compiler__sema__types__EnumMemberInfo){ (m).name, v };
-            std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_add((&members), mi);
-            next_val = (v + 1);
-            i = (i + 1);
-        }
-    }
-    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (e)->name);
-    uint8_t* info_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__EnumInfo), 8);
-    compiler__sema__types__EnumInfo* info = ((compiler__sema__types__EnumInfo*)info_mem);
-    (*info) = (compiler__sema__types__EnumInfo){ (e)->name, c_name, under_type, members };
-    uint8_t* carrier_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__Type), 8);
-    compiler__sema__types__Type* carrier = ((compiler__sema__types__Type*)carrier_mem);
-    (*carrier) = (compiler__sema__types__Type){ (under_type)->kind, (under_type)->size, (under_type)->align, info_mem };
-    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (e)->name, c_name, 5, carrier, false, (e)->is_pub, (node)->line, (node)->col });
-    if ((!ok)) {
-        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate enum declaration '", (e)->name), "'"));
-    }
-    compiler__sema__symbol__register_enum_info((&(self)->symtab), info);
-    (e)->name = c_name;
-}
-
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr) {
     if (((expr)->kind == 3)) {
         {
@@ -4455,34 +4320,6 @@ int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s) {
         }
     }
     return v;
-}
-
-void compiler__sema__decl_pass__collect_const(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__ConstDecl* c = ((compiler__ast__decl__ConstDecl*)compiler__ast__builder__as_const_decl(node));
-    compiler__sema__types__Type* c_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
-    if (((c)->type_node != NULL)) {
-        c_type = compiler__sema__decl_pass__resolve_ast_type(self, (c)->type_node);
-    }
-    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (c)->name);
-    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (c)->name, c_name, 1, c_type, false, (c)->is_pub, (node)->line, (node)->col });
-    if ((!ok)) {
-        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate const declaration '", (c)->name), "'"));
-    }
-    (c)->name = c_name;
-}
-
-void compiler__sema__decl_pass__collect_extern_block(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    compiler__ast__decl__ExternBlock* ext = compiler__ast__builder__as_extern_block(node);
-    bool prev_is_extern = (self)->is_extern;
-    (self)->is_extern = true;
-    size_t i = 0;
-    while ((i < ((ext)->declarations).len)) {
-        {
-            compiler__sema__decl_pass__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(ext)->declarations), i));
-            i = (i + 1);
-        }
-    }
-    (self)->is_extern = prev_is_extern;
 }
 
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
@@ -4537,93 +4374,6 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
             std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
             (f)->name = m_c_name;
             i = (i + 1);
-        }
-    }
-}
-
-void compiler__sema__decl_pass__collect_declaration(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    if (((node)->kind == 25)) {
-        compiler__sema__decl_pass__collect_module(self, node);
-    } else if (((node)->kind == 26)) {
-        compiler__sema__decl_pass__collect_use(self, node);
-    } else if (((node)->kind == 28)) {
-        compiler__sema__decl_pass__collect_struct(self, node);
-    } else if (((node)->kind == 27)) {
-        compiler__sema__decl_pass__collect_fn(self, node);
-    } else if (((node)->kind == 31)) {
-        compiler__sema__decl_pass__collect_enum(self, node);
-    } else if (((node)->kind == 32)) {
-        compiler__sema__decl_pass__collect_const(self, node);
-    } else if (((node)->kind == 30)) {
-        compiler__sema__decl_pass__collect_impl(self, node);
-    } else if (((node)->kind == 33)) {
-        compiler__sema__decl_pass__collect_extern_block(self, node);
-    } else {
-        {
-        }
-    }
-}
-
-void compiler__sema__decl_pass__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node) {
-    compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
-    size_t t = 0;
-    while ((t < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* d0 = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), t);
-            if (((d0)->kind == 25)) {
-                compiler__sema__decl_pass__collect_module(self, d0);
-            } else {
-                compiler__sema__decl_pass__register_template(self, d0);
-            }
-            t = (t + 1);
-        }
-    }
-    size_t i = 0;
-    while ((i < ((prog)->declarations).len)) {
-        {
-            compiler__sema__decl_pass__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i));
-            i = (i + 1);
-        }
-    }
-    size_t j = 0;
-    while ((j < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* d = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
-            if (((d)->kind == 25)) {
-                {
-                    compiler__ast__decl__ModuleDecl* m2 = compiler__ast__builder__as_module_decl(d);
-                    (self)->current_module = (m2)->full_path;
-                    compiler__sema__symbol__set_current_module((&(self)->symtab), (m2)->full_path);
-                }
-            } else {
-                if ((!compiler__sema__decl_pass__is_template_decl(d))) {
-                    {
-                        compiler__sema__decl_pass__rewrite_generics(self, d);
-                    }
-                }
-            }
-            j = (j + 1);
-        }
-    }
-    if ((((((self)->symtab).gen).pending).len > 0)) {
-        {
-            std__collections__list__List_ptr_compiler__ast__node__AstNode combined = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
-            size_t p = 0;
-            while ((p < ((((self)->symtab).gen).pending).len)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(((self)->symtab).gen).pending), p));
-                    p = (p + 1);
-                }
-            }
-            size_t q = 0;
-            while ((q < ((prog)->declarations).len)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), q));
-                    q = (q + 1);
-                }
-            }
-            compiler__ast__decl__Program* p_info = ((compiler__ast__decl__Program*)compiler__ast__builder__as_program(program_node));
-            (p_info)->declarations = combined;
         }
     }
 }
@@ -5588,6 +5338,256 @@ void compiler__sema__decl_pass__rewrite_generics(compiler__sema__decl_pass__Decl
     }
 }
 
+void compiler__sema__decl_collect__collect_module(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__ModuleDecl* m = compiler__ast__builder__as_module_decl(node);
+    (self)->current_module = (m)->full_path;
+    compiler__sema__symbol__set_current_module((&(self)->symtab), (m)->full_path);
+}
+
+void compiler__sema__decl_collect__collect_use(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(node);
+    if ((u)->is_wildcard) {
+        {
+            const char* w_mod = compiler__util__strutil__str_join_dots((u)->path, ((u)->path).len);
+            if ((!compiler__sema__symbol__module_exists((&(self)->symtab), w_mod))) {
+                return;
+            }
+            compiler__sema__symbol__add_import((&(self)->symtab), w_mod, "", "", true);
+            return;
+        }
+    }
+    if ((((u)->path).len < 2)) {
+        return;
+    }
+    const char* mod_name = compiler__util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
+    if ((!compiler__sema__symbol__module_exists((&(self)->symtab), mod_name))) {
+        return;
+    }
+    compiler__sema__symbol__Symbol* target = compiler__sema__symbol__lookup_in_module((&(self)->symtab), mod_name, (u)->symbol_name);
+    if ((target == NULL)) {
+        {
+            if (compiler__sema__decl_pass__template_in_module(self, mod_name, (u)->symbol_name)) {
+                return;
+            }
+            compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Symbol '", (u)->symbol_name), "' not found in module '"), mod_name), "'"));
+            return;
+        }
+    }
+    const char* local_name = (u)->symbol_name;
+    if ((!kobel_streq((u)->alias, ""))) {
+        local_name = (u)->alias;
+    }
+    compiler__sema__symbol__add_import((&(self)->symtab), mod_name, (u)->symbol_name, local_name, false);
+}
+
+void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__StructDecl* s = ((compiler__ast__decl__StructDecl*)compiler__ast__builder__as_struct_decl(node));
+    if ((((s)->type_params).len > 0)) {
+        return;
+    }
+    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (s)->name);
+    compiler__sema__types__Type* s_type = compiler__sema__types__alloc_struct_type((&(self)->arena), (s)->name, std__collections__list__new_list_compiler__sema__types__StructField());
+    ((*compiler__sema__types__as_struct_type_mut(s_type))).c_name = c_name;
+    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (s)->name, c_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col });
+    if ((!ok)) {
+        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", (s)->name), "'"));
+    }
+    (s)->name = c_name;
+    size_t i = 0;
+    while ((i < ((s)->fields).len)) {
+        {
+            compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_get((&(s)->fields), i);
+            compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
+            compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
+            std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+            i = (i + 1);
+        }
+    }
+    compiler__sema__types__layout_struct(s_type);
+}
+
+void compiler__sema__decl_collect__collect_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__FnDecl* f = ((compiler__ast__decl__FnDecl*)compiler__ast__builder__as_fn_decl(node));
+    if ((((f)->type_params).len > 0)) {
+        return;
+    }
+    std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__new_list_ptr_compiler__sema__types__Type();
+    size_t i = 0;
+    while ((i < ((f)->params).len)) {
+        {
+            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
+            compiler__sema__types__Type* p_type = compiler__sema__decl_pass__resolve_ast_type(self, (p).type_node);
+            std__collections__list__List_ptr_compiler__sema__types__Type_add((&param_types), p_type);
+            i = (i + 1);
+        }
+    }
+    compiler__sema__types__Type* ret_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
+    if (((f)->return_type != NULL)) {
+        ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
+    }
+    compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
+    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (f)->name);
+    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (f)->name, c_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col });
+    if ((!ok)) {
+        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate function declaration '", (f)->name), "'"));
+    }
+    (f)->name = c_name;
+}
+
+void compiler__sema__decl_collect__collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__EnumDecl* e = ((compiler__ast__decl__EnumDecl*)compiler__ast__builder__as_enum_decl(node));
+    compiler__sema__types__Type* under_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
+    if (((e)->underlying_type != NULL)) {
+        under_type = compiler__sema__decl_pass__resolve_ast_type(self, (e)->underlying_type);
+    }
+    std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo members = std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo();
+    int64_t next_val = 0;
+    size_t i = 0;
+    while ((i < ((e)->members).len)) {
+        {
+            compiler__ast__decl__EnumMember m = std__collections__list__List_compiler__ast__decl__EnumMember_get((&(e)->members), i);
+            int64_t v = next_val;
+            if (((m).value != NULL)) {
+                v = compiler__sema__decl_pass__enum_const_i64(self, (m).value);
+            }
+            uint8_t* mem_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__EnumMemberInfo), 8);
+            compiler__sema__types__EnumMemberInfo* mi = ((compiler__sema__types__EnumMemberInfo*)mem_mem);
+            (*mi) = (compiler__sema__types__EnumMemberInfo){ (m).name, v };
+            std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_add((&members), mi);
+            next_val = (v + 1);
+            i = (i + 1);
+        }
+    }
+    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (e)->name);
+    uint8_t* info_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__EnumInfo), 8);
+    compiler__sema__types__EnumInfo* info = ((compiler__sema__types__EnumInfo*)info_mem);
+    (*info) = (compiler__sema__types__EnumInfo){ (e)->name, c_name, under_type, members };
+    uint8_t* carrier_mem = std__mem__arena__Arena_alloc_bytes((&(self)->arena), sizeof(compiler__sema__types__Type), 8);
+    compiler__sema__types__Type* carrier = ((compiler__sema__types__Type*)carrier_mem);
+    (*carrier) = (compiler__sema__types__Type){ (under_type)->kind, (under_type)->size, (under_type)->align, info_mem };
+    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (e)->name, c_name, 5, carrier, false, (e)->is_pub, (node)->line, (node)->col });
+    if ((!ok)) {
+        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate enum declaration '", (e)->name), "'"));
+    }
+    compiler__sema__symbol__register_enum_info((&(self)->symtab), info);
+    (e)->name = c_name;
+}
+
+void compiler__sema__decl_collect__collect_const(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__ConstDecl* c = ((compiler__ast__decl__ConstDecl*)compiler__ast__builder__as_const_decl(node));
+    compiler__sema__types__Type* c_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
+    if (((c)->type_node != NULL)) {
+        c_type = compiler__sema__decl_pass__resolve_ast_type(self, (c)->type_node);
+    }
+    const char* c_name = compiler__sema__decl_pass__c_name_for(self, (c)->name);
+    bool ok = compiler__sema__symbol__define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (c)->name, c_name, 1, c_type, false, (c)->is_pub, (node)->line, (node)->col });
+    if ((!ok)) {
+        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate const declaration '", (c)->name), "'"));
+    }
+    (c)->name = c_name;
+}
+
+void compiler__sema__decl_collect__collect_extern_block(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__decl__ExternBlock* ext = compiler__ast__builder__as_extern_block(node);
+    bool prev_is_extern = (self)->is_extern;
+    (self)->is_extern = true;
+    size_t i = 0;
+    while ((i < ((ext)->declarations).len)) {
+        {
+            compiler__sema__decl_collect__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(ext)->declarations), i));
+            i = (i + 1);
+        }
+    }
+    (self)->is_extern = prev_is_extern;
+}
+
+void compiler__sema__decl_collect__collect_declaration(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    if (((node)->kind == 25)) {
+        compiler__sema__decl_collect__collect_module(self, node);
+    } else if (((node)->kind == 26)) {
+        compiler__sema__decl_collect__collect_use(self, node);
+    } else if (((node)->kind == 28)) {
+        compiler__sema__decl_collect__collect_struct(self, node);
+    } else if (((node)->kind == 27)) {
+        compiler__sema__decl_collect__collect_fn(self, node);
+    } else if (((node)->kind == 31)) {
+        compiler__sema__decl_collect__collect_enum(self, node);
+    } else if (((node)->kind == 32)) {
+        compiler__sema__decl_collect__collect_const(self, node);
+    } else if (((node)->kind == 30)) {
+        compiler__sema__decl_pass__collect_impl(self, node);
+    } else if (((node)->kind == 33)) {
+        compiler__sema__decl_collect__collect_extern_block(self, node);
+    } else {
+        {
+        }
+    }
+}
+
+void compiler__sema__decl_collect__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node) {
+    compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
+    size_t t = 0;
+    while ((t < ((prog)->declarations).len)) {
+        {
+            compiler__ast__node__AstNode* d0 = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), t);
+            if (((d0)->kind == 25)) {
+                compiler__sema__decl_collect__collect_module(self, d0);
+            } else {
+                compiler__sema__decl_pass__register_template(self, d0);
+            }
+            t = (t + 1);
+        }
+    }
+    size_t i = 0;
+    while ((i < ((prog)->declarations).len)) {
+        {
+            compiler__sema__decl_collect__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i));
+            i = (i + 1);
+        }
+    }
+    size_t j = 0;
+    while ((j < ((prog)->declarations).len)) {
+        {
+            compiler__ast__node__AstNode* d = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
+            if (((d)->kind == 25)) {
+                {
+                    compiler__ast__decl__ModuleDecl* m2 = compiler__ast__builder__as_module_decl(d);
+                    (self)->current_module = (m2)->full_path;
+                    compiler__sema__symbol__set_current_module((&(self)->symtab), (m2)->full_path);
+                }
+            } else {
+                if ((!compiler__sema__decl_pass__is_template_decl(d))) {
+                    {
+                        compiler__sema__decl_pass__rewrite_generics(self, d);
+                    }
+                }
+            }
+            j = (j + 1);
+        }
+    }
+    if ((((((self)->symtab).gen).pending).len > 0)) {
+        {
+            std__collections__list__List_ptr_compiler__ast__node__AstNode combined = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
+            size_t p = 0;
+            while ((p < ((((self)->symtab).gen).pending).len)) {
+                {
+                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(((self)->symtab).gen).pending), p));
+                    p = (p + 1);
+                }
+            }
+            size_t q = 0;
+            while ((q < ((prog)->declarations).len)) {
+                {
+                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), q));
+                    q = (q + 1);
+                }
+            }
+            compiler__ast__decl__Program* p_info = ((compiler__ast__decl__Program*)compiler__ast__builder__as_program(program_node));
+            (p_info)->declarations = combined;
+        }
+    }
+}
+
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass(void) {
     std__mem__arena__Arena arena = std__mem__arena__new_arena(65536);
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
@@ -6481,7 +6481,7 @@ void compiler__sema__body_program__check_program(compiler__sema__body_pass__Body
     if ((!(self)->has_symtab)) {
         {
             compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
-            compiler__sema__decl_pass__collect_program((&decl_p), program_node);
+            compiler__sema__decl_collect__collect_program((&decl_p), program_node);
             (self)->symtab = (decl_p).symtab;
             size_t i = 0;
             while ((i < ((decl_p).errors).len)) {
@@ -9439,7 +9439,7 @@ int32_t main(int32_t argc, const char** argv) {
     std__io__println(" module(s) loaded");
     std__io__println("[2/4] Semantic analysis (declarations)...");
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
-    compiler__sema__decl_pass__collect_program((&decl_p), prog);
+    compiler__sema__decl_collect__collect_program((&decl_p), prog);
     if ((((decl_p).errors).len > 0)) {
         {
             std__io__print("Semantic Declaration Errors in ");

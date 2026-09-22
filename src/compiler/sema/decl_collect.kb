@@ -1,0 +1,250 @@
+mod compiler.sema.decl_collect;
+
+use compiler.lexer.token.*;
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+use compiler.ast.builder.*;
+
+use compiler.sema.types.*;
+use compiler.sema.types.StructField;
+use compiler.sema.symbol.*;
+use compiler.sema.decl_pass.*;
+
+use compiler.util.strutil.*;
+
+use std.collections.list.*;
+use std.mem.arena.*;
+
+
+// ============================================================================
+// Top-Level Collectors
+// ============================================================================
+
+pub fn collect_module(var self: &DeclPass, node: *AstNode) {
+	val m = as_module_decl(node);
+	self.current_module = m.full_path;
+	set_current_module(&self.symtab, m.full_path);
+}
+
+// `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
+// the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
+// `use a.b.c.*;` -> wildcard import of the whole module a.b.c
+pub fn collect_use(var self: &DeclPass, node: *AstNode) {
+	val u = as_use_decl(node);
+
+	if (u.is_wildcard) {
+		val w_mod = str_join_dots(u.path, u.path.len);
+		if (!module_exists(&self.symtab, w_mod)) return;
+		add_import(&self.symtab, w_mod, "", "", true);
+		return;
+	}
+
+	// The last segment of the path is the symbol name, the rest is the module path
+	if (u.path.len < 2) return;
+	val mod_name = str_join_dots(u.path, u.path.len - 1);
+
+	// Missing/failed module was already reported by ModuleLoader
+	if (!module_exists(&self.symtab, mod_name)) return;
+
+	val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
+	if (target == null) {
+		// Generic struct/function templates are not registered as symbols.
+		if (template_in_module(self, mod_name, u.symbol_name)) return;
+		report_error(self, node, "Symbol '" + u.symbol_name + "' not found in module '" + mod_name + "'");
+		return;
+	}
+
+	var local_name = u.symbol_name;
+	if (u.alias != "") local_name = u.alias;
+	add_import(&self.symtab, mod_name, u.symbol_name, local_name, false);
+}
+
+pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
+	val s = as_struct_decl(node) as &StructDecl;
+	// Generic structs are registered as templates and instantiated on use.
+	if (s.type_params.len > 0) return;
+	val c_name = c_name_for(self, s.name);
+	val s_type = alloc_struct_type(&self.arena, s.name, new_list<StructField>());
+	as_struct_type_mut(s_type).c_name = c_name;
+	val ok = define_global(&self.symtab, Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate struct declaration '" + s.name + "'");
+
+	// Rename the AST node to the C name so the backend emits a unique name
+	s.name = c_name;
+
+	var i: usz = 0;
+	while (i < s.fields.len) {
+		val f = s.fields.get(i);
+		val f_type = resolve_ast_type(self, f.type_node);
+		val s_info = as_struct_type_mut(s_type);
+		s_info.fields.add(StructField(f.name, f_type, 0));
+		i = i + 1;
+	}
+	layout_struct(s_type);
+}
+
+pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
+	val f = as_fn_decl(node) as &FnDecl;
+	// Generic functions are registered as templates and instantiated on use.
+	if (f.type_params.len > 0) return;
+	var param_types = new_list<*Type>();
+
+	var i: usz = 0;
+	while (i < f.params.len) {
+		val p = f.params.get(i);
+		val p_type = resolve_ast_type(self, p.type_node);
+		param_types.add(p_type);
+		i = i + 1;
+	}
+
+	var ret_type = alloc_primitive(&self.arena, type_none());
+	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+
+	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+	val c_name = c_name_for(self, f.name);
+	val ok = define_global(&self.symtab, Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate function declaration '" + f.name + "'");
+
+	// Rename the AST node to the C name so the backend emits a unique name
+	f.name = c_name;
+}
+
+pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
+	val e = as_enum_decl(node) as &EnumDecl;
+	var under_type = alloc_primitive(&self.arena, type_i32());
+	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
+
+	// Resolve member values: implicit members continue from the previous value.
+	var members = new_list<*EnumMemberInfo>();
+	var next_val: i64 = 0;
+	var i: usz = 0;
+	while (i < e.members.len) {
+		val m = e.members.get(i);
+		var v: i64 = next_val;
+		if (m.value != null) v = enum_const_i64(self, m.value);
+
+		val mem_mem = self.arena.alloc_bytes(EnumMemberInfo.size(), 8);
+		val mi = mem_mem as *EnumMemberInfo;
+		*mi = EnumMemberInfo(m.name, v);
+		members.add(mi);
+
+		next_val = v + 1;
+		i = i + 1;
+	}
+
+	val c_name = c_name_for(self, e.name);
+
+	val info_mem = self.arena.alloc_bytes(EnumInfo.size(), 8);
+	val info = info_mem as *EnumInfo;
+	*info = EnumInfo(e.name, c_name, under_type, members);
+
+	// The symbol's type is an integer type that carries the EnumInfo, so enum
+	// values stay usable in arithmetic/comparisons while `.value` is recognized.
+	val carrier_mem = self.arena.alloc_bytes(Type.size(), 8);
+	val carrier = carrier_mem as *Type;
+	*carrier = Type(under_type.kind, under_type.size, under_type.align, info_mem);
+
+	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate enum declaration '" + e.name + "'");
+
+	register_enum_info(&self.symtab, info);
+
+	e.name = c_name;
+}
+
+pub fn collect_const(var self: &DeclPass, node: *AstNode) {
+	val c = as_const_decl(node) as &ConstDecl;
+	var c_type = alloc_primitive(&self.arena, type_i32());
+	if (c.type_node != null) c_type = resolve_ast_type(self, c.type_node);
+
+	val c_name = c_name_for(self, c.name);
+	val ok = define_global(&self.symtab, Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
+	if (!ok) report_error(self, node, "Duplicate const declaration '" + c.name + "'");
+
+	c.name = c_name;
+}
+
+pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
+	val ext = as_extern_block(node);
+	val prev_is_extern = self.is_extern;
+	self.is_extern = true;
+	var i: usz = 0;
+	while (i < ext.declarations.len) {
+		collect_declaration(self, ext.declarations.get(i));
+		i = i + 1;
+	}
+	self.is_extern = prev_is_extern;
+}
+
+pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
+	when (node.kind) {
+		NodeKind.DECL_MODULE -> collect_module(self, node);
+		NodeKind.DECL_USE -> collect_use(self, node);
+		NodeKind.DECL_STRUCT -> collect_struct(self, node);
+		NodeKind.DECL_FN -> collect_fn(self, node);
+		NodeKind.DECL_ENUM -> collect_enum(self, node);
+		NodeKind.DECL_CONST -> collect_const(self, node);
+		NodeKind.DECL_IMPL -> collect_impl(self, node);
+		NodeKind.DECL_EXTERN_BLOCK -> collect_extern_block(self, node);
+		else -> {}
+	}
+}
+
+pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
+	val prog = as_program(program_node);
+
+	// Pass 0: register generic templates so any use can instantiate them.
+	// Module markers are processed here too, so each template records its module.
+	var t: usz = 0;
+	while (t < prog.declarations.len) {
+		val d0 = prog.declarations.get(t);
+		if (d0.kind == NodeKind.DECL_MODULE) collect_module(self, d0);
+		else register_template(self, d0);
+		t = t + 1;
+	}
+
+	// Pass 1: collect ordinary declarations (templates are skipped).
+	var i: usz = 0;
+	while (i < prog.declarations.len) {
+		collect_declaration(self, prog.declarations.get(i));
+		i = i + 1;
+	}
+
+	// Pass 2: rewrite generic uses across signatures and bodies, instantiating
+	// concrete structs / functions / methods as needed. Module markers are
+	// replayed so each declaration resolves names in its own module.
+	var j: usz = 0;
+	while (j < prog.declarations.len) {
+		val d = prog.declarations.get(j);
+		if (d.kind == NodeKind.DECL_MODULE) {
+			val m2 = as_module_decl(d);
+			self.current_module = m2.full_path;
+			set_current_module(&self.symtab, m2.full_path);
+		} else if (!is_template_decl(d)) {
+			rewrite_generics(self, d);
+		}
+		j = j + 1;
+	}
+
+	// Pass 3: place the monomorphized declarations first. Their struct
+	// definitions must precede the structs that embed them (e.g. a field of
+	// type List<T>), and each carries its own module marker.
+	if (self.symtab.gen.pending.len > 0) {
+		val combined = new_list<*AstNode>();
+		var p: usz = 0;
+		while (p < self.symtab.gen.pending.len) {
+			combined.add(self.symtab.gen.pending.get(p));
+			p = p + 1;
+		}
+		var q: usz = 0;
+		while (q < prog.declarations.len) {
+			combined.add(prog.declarations.get(q));
+			q = q + 1;
+		}
+		val p_info = as_program(program_node) as &Program;
+		p_info.declarations = combined;
+	}
+}
