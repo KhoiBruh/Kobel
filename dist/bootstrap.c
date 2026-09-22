@@ -8750,6 +8750,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                     }
                 }
             }
+            bool callee_is_self = false;
+            if (((((*(call)->callee)).kind == 4) && kobel_streq(((*compiler__ast__builder__as_identifier((call)->callee))).name, "Self"))) {
+                callee_is_self = true;
+            }
             compiler__sema__types__Type* callee_ty = compiler__sema__body_pass__check_expr(self, (call)->callee);
             if (((callee_ty)->kind == 19)) {
                 {
@@ -8812,6 +8816,69 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
             if (((callee_ty)->kind == 18)) {
                 {
                     compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type(callee_ty);
+                    if ((!callee_is_self)) {
+                        {
+                            if ((compiler__sema__types__struct_count_method_arity(s_info, "new", ((call)->args).len) > 1)) {
+                                {
+                                    compiler__sema__body_pass__report_error(self, node, "Ambiguous call to 'new': overloading by parameter type is not supported");
+                                }
+                            }
+                            compiler__sema__types__MethodInfo* nm = compiler__sema__types__struct_find_method_arity(s_info, "new", ((call)->args).len);
+                            if ((nm != NULL)) {
+                                {
+                                    compiler__sema__types__FnType* n_info = compiler__sema__types__as_fn_type((nm)->fn_type);
+                                    {
+                                        size_t __for_e = ((call)->args).len;
+                                        size_t __for_i = __for_e;
+                                        __for_i = 0;
+                                        bool __for_up = (__for_i <= __for_e);
+                                        bool __for_go = false;
+                                        if (__for_up) {
+                                            {
+                                                __for_go = (__for_i < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = (__for_i > __for_e);
+                                            }
+                                        }
+                                        while (__for_go) {
+                                            {
+                                                size_t i = __for_i;
+                                                compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
+                                                compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(n_info)->param_types), i);
+                                                if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
+                                                    compiler__sema__body_pass__report_error(self, node, "Argument type mismatch in call to 'new'");
+                                                }
+                                                if (__for_up) {
+                                                    {
+                                                        __for_go = ((__for_i + 1) < __for_e);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_go = ((__for_i - 1) > __for_e);
+                                                    }
+                                                }
+                                                if (__for_go) {
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_i = (__for_i + 1);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_i = (__for_i - 1);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    (call)->callee = compiler__ast__builder__alloc_identifier((&(self)->arena), (nm)->c_name, (node)->line, (node)->col);
+                                    return (n_info)->return_type;
+                                }
+                            }
+                        }
+                    }
                     if ((((call)->args).len != ((s_info)->fields).len)) {
                         compiler__sema__body_pass__report_error(self, node, "Argument count mismatch in struct constructor");
                     } else {

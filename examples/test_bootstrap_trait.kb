@@ -197,6 +197,29 @@ fn test_self(var t: &Tally) {
 	check_i(w.y, 5, "Self builds a value (y)", t);
 }
 
+// --- 9. Kotlin-style construction through `new` overloads ------------------
+
+struct Pair {
+	pub a: i32,
+	pub b: i32
+}
+
+impl Pair {
+	fn new(): Pair => Self(0, 0);
+	fn new(v: i32): Pair => Self(v, v);
+	fn new(a: i32, b: i32): Pair => Self(a, b);
+}
+
+fn test_new_overloads(var t: &Tally) {
+	val d = Pair();
+	check_i(d.a, 0, "Pair() dispatches to new()", t);
+	val s = Pair(7);
+	check_i(s.b, 7, "Pair(v) dispatches to new(v)", t);
+	val f = Pair(3, 4);
+	check_i(f.a, 3, "Pair(a,b) dispatches to new(a,b)", t);
+	check_i(f.b, 4, "Pair(a,b) dispatches to new(a,b) (b)", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -210,6 +233,7 @@ fn main(): i32 {
 	test_prim_methods(&t);
 	test_overloads(&t);
 	test_self(&t);
+	test_new_overloads(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

@@ -374,6 +374,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 			}
 
+			// `Self(...)` builds the value directly, so it never consults a
+			// `new` factory (that is what keeps `fn new() => Self(...)` from
+			// calling itself again).
+			var callee_is_self = false;
+			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && as_identifier(call.callee).name == "Self") callee_is_self = true;
+
 			val callee_ty = check_expr(self, call.callee);
 
 			// 1. Function call
@@ -390,9 +396,30 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				return fn_info.return_type;
 			}
 
-			// 2. Struct Constructor: Point(1, 2)
+			// 2. Struct construction: Point(1, 2)
 			if (callee_ty.kind == DataType.STRUCT) {
 				val s_info = sem_struct(callee_ty);
+
+				// Kotlin-style construction: `Type(args)` calls the `new`
+				// overload of matching arity when one exists; building from
+				// fields is only the fallback.
+				if (!callee_is_self) {
+					if (struct_count_method_arity(s_info, "new", call.args.len) > 1) {
+						report_error(self, node, "Ambiguous call to 'new': overloading by parameter type is not supported");
+					}
+					val nm = struct_find_method_arity(s_info, "new", call.args.len);
+					if (nm != null) {
+						val n_info = sem_fn(nm.fn_type);
+						for (i in 0..<call.args.len) {
+							val arg_ty = check_expr(self, call.args.get(i));
+							val param_ty = n_info.param_types.get(i);
+							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in call to 'new'");
+						}
+						call.callee = alloc_identifier(&self.arena, nm.c_name, node.line, node.col);
+						return n_info.return_type;
+					}
+				}
+
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
 					for (i in 0..<call.args.len) {

@@ -190,7 +190,9 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 |---|---|
 | `EnumType.MEMBER` | literal số nguyên |
 | `enumvar.value` | chính biểu thức enum |
-| `obj.method(args)` | `Struct_method(&obj, args)` (thêm `&` nếu `obj` là value) |
+| `obj.method(args)` | `Struct_method(&obj, args)` (thêm `&` nếu `obj` là value); chọn **overload theo arity** |
+| `Type(args)` | gọi overload `new` cùng arity nếu kiểu có (`Struct_new_<n>(args)`), ngược lại dựng theo field `(Struct){…}` |
+| `Self(args)` trong `impl` | dựng **thô** theo field, **bỏ qua** bước gọi `new` ở trên |
 | `a + b` với `a: str` | `kobel_concat(a, b)` |
 | `a == b` / `a != b` với `str` | `kobel_streq(a, b)` / `!kobel_streq(a, b)` |
 | `s.len` / `s.size` (`s: str`) | `kobel_slen(s)` |
@@ -257,6 +259,10 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   được mangle duy nhất (hậu tố arity), và gọi `obj.m(args)` chọn theo `args.len + 1` (kể cả receiver).
   **Chỉ theo arity** — cùng tên + cùng arity (khác kiểu tham số) là **lỗi "Ambiguous call"**, không
   chọn theo kiểu. Trait cũng nhận diện method theo `name + arity` (`TraitMethod.arity`).
+- **`Self` & dựng kiểu Kotlin**: trong thân `impl`, `Self` = kiểu đang impl (`BodyPass.current_self_type`).
+  `Self(args)` dựng **thô** theo field. Còn `Type(args)` **ưu tiên gọi overload `new`** cùng arity, chỉ
+  khi không có mới dựng theo field. `Self(...)` **luôn bỏ qua** bước gọi `new` — nhờ vậy
+  `fn new(v) => Self(v, v)` không tự gọi lại chính nó.
 - **Monomorphization** (generic):
   - Pass 0 đăng ký *template* (`struct`/`fn`/`impl` có `<T>`), kèm `module`.
   - `List<X>` ở vị trí kiểu → instantiate; `f<X>(...)` / `Struct<X>(...)` → instantiate ở pass quét AST.
