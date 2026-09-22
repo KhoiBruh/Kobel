@@ -83,29 +83,6 @@ pub struct Token {
 	pub col: usz
 }
 
-pub fn usz_to_str(n: usz): str {
-	if (n == 0) return "0";
-	val buf = raw_alloc(32);
-	var tmp = n;
-	var len = 0UZ;
-	while (tmp > 0) {
-		len = len + 1;
-		tmp = tmp / 10;
-	}
-	buf[len] = 0;
-	var i = len;
-	tmp = n;
-	while (tmp > 0) {
-		i = i - 1;
-		val digit = (tmp % 10) as u8;
-		buf[i] = (48 + digit) as u8;
-		tmp = tmp / 10;
-	}
-	return str_from_bytes(buf, len);
-}
-
-pub fn format_loc(line: usz, col: usz) => "Line " + usz_to_str(line) + ", Column " + usz_to_str(col) + ": ";
- 
 pub fn strip_suffix(s: str, n: usz): str {
 	if (s.len <= n) return "";
 	return str_slice(s, 0, s.len - n);

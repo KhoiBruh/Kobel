@@ -68,8 +68,6 @@ pub fn str_concat(a: str, b: str): str {
 	return str_from_bytes(buf, total);
 }
 
-pub fn str_concat3(a: str, b: str, c: str) => str_concat(str_concat(a, b), c);
-
 pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
 // "std.io" -> "std/io" (module path -> relative file path, without extension)
@@ -136,7 +134,7 @@ pub fn str_base_name(path: str): str {
 // Joins a directory and a relative path with a single '/' separator.
 pub fn str_join_path(dir: str, rel: str): str {
 	if (dir.len == 0) return rel;
-	return str_concat3(dir, "/", rel);
+	return "${dir}/${rel}";
 }
 
 pub fn str_is_empty_str(s: str) => s.len == 0;

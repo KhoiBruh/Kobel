@@ -1,8 +1,6 @@
 mod compiler.sema.decl_pass;
 
-use compiler.lexer.token.format_loc;
 use compiler.lexer.token.TokenType;
-use compiler.lexer.token.usz_to_str;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;
@@ -95,9 +93,9 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
 // Report errors with the current module name so when many modules are merged,
 // we still know exactly which module the error is in (instead of blaming the entry file).
 pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
-	val loc = format_loc(node.line, node.col);
+	val loc = "Line ${node.line}, Column ${node.col}: ";
 	if (self.current_module.len > 0) {
-		self.errors.add(str_concat3(self.current_module, ": ", loc + msg));
+		self.errors.add("${self.current_module}: ${loc}${msg}");
 	} else self.errors.add(loc + msg);
 }
 
@@ -325,7 +323,7 @@ pub fn type_token(self: &DeclPass, ty: *Type): str {
 		DataType.POINTER -> return str_concat("ptr_", type_token(self, sem_pointer(ty).pointee));
 		DataType.ARRAY -> {
 			val at = sem_array(ty);
-			return str_concat3("arr", str_concat(usz_to_str(at.length), "_"), type_token(self, at.elem));
+			return "arr${at.length}_${type_token(self, at.elem)}";
 		}
 		DataType.STRUCT -> return sem_struct(ty).name;
 		else -> return "x";
@@ -353,7 +351,7 @@ pub fn ast_type_token(self: &DeclPass, node: *AstNode): str {
 		NodeKind.TYPE_POINTER -> return str_concat("ptr_", ast_type_token(self, ast_pointer(node).pointee));
 		NodeKind.TYPE_ARRAY -> {
 			val a = ast_array(node);
-			return str_concat3("arr", str_concat(usz_to_str(a.size), "_"), ast_type_token(self, a.element_type));
+			return "arr${a.size}_${ast_type_token(self, a.element_type)}";
 		}
 		else -> return "x";
 	}
@@ -543,7 +541,7 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val m = as_member(c.callee);
 				if (m.member == "size" && m.object.kind == NodeKind.EXPR_IDENTIFIER) {
 					val sa = subst_lookup(subst, as_identifier(m.object).name);
-					if (sa != null) return alloc_literal(&self.arena, LiteralKind.INT, usz_to_str(ast_type_size(self, sa)), node.line, node.col);
+					if (sa != null) return alloc_literal(&self.arena, LiteralKind.INT, "${ast_type_size(self, sa)}", node.line, node.col);
 				}
 			}
 

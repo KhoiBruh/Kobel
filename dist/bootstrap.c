@@ -1114,7 +1114,6 @@ const char* util__strutil__str_from_bytes(uint8_t* buf, size_t len);
 const char* util__strutil__cstr_to_str(const char* s);
 const char* util__strutil__str_slice(const char* s, size_t start, size_t count);
 const char* util__strutil__str_concat(const char* a, const char* b);
-const char* util__strutil__str_concat3(const char* a, const char* b, const char* c);
 bool util__strutil__str_is_sep(char c);
 const char* util__strutil__str_module_to_rel(const char* module_name);
 const char* util__strutil__str_path_to_module(const char* rel_path);
@@ -1127,8 +1126,6 @@ bool util__strutil__str_is_empty_str(const char* s);
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
 std__collections__list__List_str util__strutil__str_split_dots(const char* s);
 const char* util__strutil__str_mangle_symbol(const char* module_name, const char* name);
-const char* compiler__lexer__token__usz_to_str(size_t n);
-const char* compiler__lexer__token__format_loc(size_t line, size_t col);
 const char* compiler__lexer__token__strip_suffix(const char* s, size_t n);
 compiler__ast__node__AstNode compiler__ast__node__new_node(compiler__ast__node__NodeKind kind, size_t line, size_t col, uint8_t* data);
 const char* compiler__ast__node__node_kind_name(compiler__ast__node__NodeKind k);
@@ -1338,7 +1335,6 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__desugar_for_range(std__
 void compiler__sema__body_pass__desugar_for(std__mem__arena__Arena* arena, compiler__ast__node__AstNode* node, compiler__ast__stmt__ForStmt* fs);
 compiler__ast__node__AstNode* compiler__sema__body_pass__ast_type_from_type(std__mem__arena__Arena* arena, compiler__sema__types__Type* ty);
 compiler__ast__node__AstNode* compiler__sema__body_pass__make_str_eq(std__mem__arena__Arena* arena, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
-const char* compiler__sema__body_pass__i64_to_str(int64_t v);
 void compiler__sema__body_program__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node);
 void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type);
 void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
@@ -3439,10 +3435,6 @@ const char* util__strutil__str_concat(const char* a, const char* b) {
     return util__strutil__str_from_bytes(buf, total);
 }
 
-const char* util__strutil__str_concat3(const char* a, const char* b, const char* c) {
-    return util__strutil__str_concat(util__strutil__str_concat(a, b), c);
-}
-
 bool util__strutil__str_is_sep(char c) {
     return ((c == '/') || (c == '\\'));
 }
@@ -3683,7 +3675,7 @@ const char* util__strutil__str_join_path(const char* dir, const char* rel) {
     if ((kobel_slen(dir) == 0)) {
         return rel;
     }
-    return util__strutil__str_concat3(dir, "/", rel);
+    return kobel_concat(kobel_concat(dir, "/"), rel);
 }
 
 bool util__strutil__str_is_empty_str(const char* s) {
@@ -3840,37 +3832,6 @@ const char* util__strutil__str_mangle_symbol(const char* module_name, const char
     }
     buf[w] = 0;
     return util__strutil__str_from_bytes(buf, w);
-}
-
-const char* compiler__lexer__token__usz_to_str(size_t n) {
-    if ((n == 0)) {
-        return "0";
-    }
-    uint8_t* buf = std__mem__alloc__raw_alloc(32);
-    size_t tmp = n;
-    size_t len = ((size_t)0ULL);
-    while ((tmp > 0)) {
-        {
-            len = (len + 1);
-            tmp = (tmp / 10);
-        }
-    }
-    buf[len] = 0;
-    size_t i = len;
-    tmp = n;
-    while ((tmp > 0)) {
-        {
-            i = (i - 1);
-            uint8_t digit = ((uint8_t)((tmp % 10)));
-            buf[i] = ((uint8_t)((48 + digit)));
-            tmp = (tmp / 10);
-        }
-    }
-    return util__strutil__str_from_bytes(buf, len);
-}
-
-const char* compiler__lexer__token__format_loc(size_t line, size_t col) {
-    return kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", compiler__lexer__token__usz_to_str(line)), ", Column "), compiler__lexer__token__usz_to_str(col)), ": ");
 }
 
 const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
@@ -5239,10 +5200,10 @@ compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem
 }
 
 void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* msg) {
-    const char* loc = compiler__lexer__token__format_loc((node)->line, (node)->col);
+    const char* loc = kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", kobel_usz_str((node)->line)), ", Column "), kobel_usz_str((node)->col)), ": ");
     if ((kobel_slen((self)->current_module) > 0)) {
         {
-            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3((self)->current_module, ": ", kobel_concat(loc, msg)));
+            std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(kobel_concat((self)->current_module, ": "), loc), msg));
         }
     } else {
         std__collections__list__List_str_add((&(self)->errors), kobel_concat(loc, msg));
@@ -5625,7 +5586,7 @@ const char* compiler__sema__decl_pass__type_token(compiler__sema__decl_pass__Dec
     } else if (((ty)->kind == 17)) {
         {
             compiler__sema__types__ArrayType* at = compiler__sema__types__as_array_type(ty);
-            return util__strutil__str_concat3("arr", util__strutil__str_concat(compiler__lexer__token__usz_to_str((at)->length), "_"), compiler__sema__decl_pass__type_token(self, (at)->elem));
+            return kobel_concat(kobel_concat(kobel_concat("arr", kobel_usz_str((at)->length)), "_"), compiler__sema__decl_pass__type_token(self, (at)->elem));
         }
     } else if (((ty)->kind == 18)) {
         return ((*compiler__sema__types__as_struct_type(ty))).name;
@@ -5698,7 +5659,7 @@ const char* compiler__sema__decl_pass__ast_type_token(compiler__sema__decl_pass_
     } else if (((node)->kind == 2)) {
         {
             compiler__ast__types__ArrayType* a = compiler__ast__builder__as_array_type(node);
-            return util__strutil__str_concat3("arr", util__strutil__str_concat(compiler__lexer__token__usz_to_str((a)->size), "_"), compiler__sema__decl_pass__ast_type_token(self, (a)->element_type));
+            return kobel_concat(kobel_concat(kobel_concat("arr", kobel_usz_str((a)->size)), "_"), compiler__sema__decl_pass__ast_type_token(self, (a)->element_type));
         }
     } else {
         return "x";
@@ -5993,7 +5954,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_expr(compiler__se
                         {
                             compiler__ast__node__AstNode* sa = compiler__sema__decl_pass__subst_lookup(subst, ((*compiler__ast__builder__as_identifier((m)->object))).name);
                             if ((sa != NULL)) {
-                                return compiler__ast__builder__alloc_literal((&(self)->arena), 0, compiler__lexer__token__usz_to_str(compiler__sema__decl_pass__ast_type_size(self, sa)), (node)->line, (node)->col);
+                                return compiler__ast__builder__alloc_literal((&(self)->arena), 0, kobel_usz_str(compiler__sema__decl_pass__ast_type_size(self, sa)), (node)->line, (node)->col);
                             }
                         }
                     }
@@ -6942,13 +6903,13 @@ compiler__sema__body_pass__BodyPass compiler__sema__body_pass__new_body_pass_wit
 void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg) {
     const char* loc = "";
     if ((node != NULL)) {
-        loc = kobel_concat(compiler__lexer__token__format_loc((node)->line, (node)->col), msg);
+        loc = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", kobel_usz_str((node)->line)), ", Column "), kobel_usz_str((node)->col)), ": "), msg);
     } else {
         loc = msg;
     }
     if ((kobel_slen(((self)->symtab).current_module) > 0)) {
         {
-            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(((self)->symtab).current_module, ": ", loc));
+            std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(((self)->symtab).current_module, ": "), loc));
         }
     } else {
         std__collections__list__List_str_add((&(self)->errors), loc);
@@ -7447,7 +7408,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                                     return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
                                 }
                             }
-                            compiler__ast__node__AstNode* lit = compiler__ast__builder__alloc_literal((&(self)->arena), 0, compiler__sema__body_pass__i64_to_str((mi)->value), (node)->line, (node)->col);
+                            compiler__ast__node__AstNode* lit = compiler__ast__builder__alloc_literal((&(self)->arena), 0, kobel_i64_str((mi)->value), (node)->line, (node)->col);
                             compiler__ast__node__AstNode* n = ((compiler__ast__node__AstNode*)node);
                             (n)->kind = 3;
                             (n)->data = (lit)->data;
@@ -7518,7 +7479,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                     compiler__sema__types__ArrayType* arr = compiler__sema__types__as_array_type(obj_ty);
                     if ((kobel_streq((mem)->member, "len") || kobel_streq((mem)->member, "size"))) {
                         {
-                            compiler__ast__node__AstNode* lit = compiler__ast__builder__alloc_literal((&(self)->arena), 0, kobel_concat(compiler__lexer__token__usz_to_str((arr)->length), "UZ"), (node)->line, (node)->col);
+                            compiler__ast__node__AstNode* lit = compiler__ast__builder__alloc_literal((&(self)->arena), 0, kobel_concat(kobel_usz_str((arr)->length), "UZ"), (node)->line, (node)->col);
                             compiler__ast__node__AstNode* ln = ((compiler__ast__node__AstNode*)node);
                             (ln)->kind = (lit)->kind;
                             (ln)->data = (lit)->data;
@@ -8185,13 +8146,6 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__make_str_eq(std__mem__a
         return compiler__ast__builder__alloc_unary(arena, 4, eq_call, line, col);
     }
     return eq_call;
-}
-
-const char* compiler__sema__body_pass__i64_to_str(int64_t v) {
-    if ((v < 0)) {
-        return kobel_concat("-", compiler__lexer__token__usz_to_str(((size_t)((0 - v)))));
-    }
-    return compiler__lexer__token__usz_to_str(((size_t)v));
 }
 
 void compiler__sema__body_program__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node) {
@@ -10324,7 +10278,7 @@ bool compiler__parser__parser__match_token(compiler__parser__parser__Parser* sel
 }
 
 void compiler__parser__parser__error(compiler__parser__parser__Parser* self, compiler__lexer__token__Token tok, const char* msg) {
-    std__collections__list__List_str_add((&(self)->errors), kobel_concat(compiler__lexer__token__format_loc((tok).line, (tok).col), msg));
+    std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", kobel_usz_str((tok).line)), ", Column "), kobel_usz_str((tok).col)), ": "), msg));
 }
 
 compiler__lexer__token__Token compiler__parser__parser__consume(compiler__parser__parser__Parser* self, compiler__lexer__token__TokenType t, const char* msg) {
@@ -11578,7 +11532,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__parse_source(compiler__l
                 while ((__for_i < __for_n)) {
                     {
                         const char* msg = ((parser).errors).data[__for_i];
-                        std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(path, ": ", msg));
+                        std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(path, ": "), msg));
                         __for_i = (__for_i + 1);
                     }
                 }
@@ -11655,7 +11609,7 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
     compiler__loader__loader__ModuleFile file = compiler__loader__loader__find_module(self, module_name);
     if ((!(file).found)) {
         {
-            const char* msg = util__strutil__str_concat3("Module '", module_name, "' not found (searched the entry directory, -I roots, lib/, src/)");
+            const char* msg = kobel_concat(kobel_concat("Module '", module_name), "' not found (searched the entry directory, -I roots, lib/, src/)");
             std__collections__list__List_str_add((&(self)->errors), msg);
             return;
         }
@@ -11667,8 +11621,8 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
     const char* declared = compiler__loader__loader__declared_module_name(prog);
     if (((kobel_slen(declared) > 0) && (!kobel_streq(declared, module_name)))) {
         {
-            const char* msg = util__strutil__str_concat3((file).path, ": module declared as '", declared);
-            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(msg, "' but imported as '", util__strutil__str_concat(module_name, "'")));
+            const char* msg = kobel_concat(kobel_concat((file).path, ": module declared as '"), declared);
+            std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(kobel_concat(msg, "' but imported as '"), module_name), "'"));
             return;
         }
     }
@@ -11924,7 +11878,7 @@ int32_t main(int32_t argc, const char** argv) {
         }
     }
     std__io__print("  ");
-    std__io__print(compiler__lexer__token__usz_to_str(compiler__loader__loader__loaded_module_count((&loader))));
+    std__io__print(kobel_usz_str(compiler__loader__loader__loaded_module_count((&loader))));
     std__io__println(" module(s) loaded");
     std__io__println("[2/4] Semantic analysis (declarations)...");
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();

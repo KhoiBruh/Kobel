@@ -82,7 +82,7 @@ pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
 	val prog = parse_program(&parser);
 
 	if (parser.errors.len > 0) {
-		for (msg in parser.errors) self.errors.add(str_concat3(path, ": ", msg));
+		for (msg in parser.errors) self.errors.add("${path}: ${msg}");
 		return null;
 	}
 
@@ -129,7 +129,7 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 
 	val file = find_module(self, module_name);
 	if (!file.found) {
-		val msg = str_concat3("Module '", module_name, "' not found (searched the entry directory, -I roots, lib/, src/)");
+		val msg = "Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)";
 		self.errors.add(msg);
 		return;
 	}
@@ -139,8 +139,8 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 
 	val declared = declared_module_name(prog);
 	if (declared.len > 0 && declared != module_name) {
-		val msg = str_concat3(file.path, ": module declared as '", declared);
-		self.errors.add(str_concat3(msg, "' but imported as '", str_concat(module_name, "'")));
+		val msg = "${file.path}: module declared as '${declared}";
+		self.errors.add("${msg}' but imported as '${module_name}'");
 		return;
 	}
 

@@ -52,7 +52,7 @@ use compiler.ast.builder.alloc_array_type as ast_alloc_array;
 
 use compiler.lexer.token.*;
 
-use util.strutil.str_concat3;
+use util.strutil.str_concat;
 
 use compiler.sema.types.*;
 
@@ -97,11 +97,11 @@ pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
 pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
 	// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 	var loc: str = "";
-	if (node != null) loc = format_loc(node.line, node.col) + msg;
+	if (node != null) loc = "Line ${node.line}, Column ${node.col}: ${msg}";
 	else loc = msg;
 
 	if (self.symtab.current_module.len > 0) {
-		self.errors.add(str_concat3(self.symtab.current_module, ": ", loc));
+		self.errors.add("${self.symtab.current_module}: ${loc}");
 	} else self.errors.add(loc);
 }
 
@@ -161,7 +161,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val id = as_identifier(node) as &IdentifierExpr;
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
-				report_error(self, node, "Undeclared identifier '" + id.name + "'");
+				report_error(self, node, "Undeclared identifier '${id.name}'");
 				return alloc_primitive(&self.arena, type_none());
 			}
 			// Switch to the mangled C name (import alias, symbol from another module)
@@ -313,12 +313,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					if (mi != null) {
 						val fn_info = sem_fn(mi.fn_type);
 						if (call.args.len + 1 != fn_info.param_types.len) {
-							report_error(self, node, "Argument count mismatch in method call '" + mem.member + "'");
+							report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
 						} else {
 							for (i in 0..<call.args.len) {
 								val arg_ty = check_expr(self, call.args.get(i));
 								val param_ty = fn_info.param_types.get(i + 1);
-								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '" + mem.member + "'");
+								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
 							}
 						}
 
@@ -377,11 +377,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (ei != null) {
 					val mi = enum_find_member(ei, mem.member);
 					if (mi == null) {
-						report_error(self, node, "Enum '" + enum_id.name + "' has no member '" + mem.member + "'");
+						report_error(self, node, "Enum '${enum_id.name}' has no member '${mem.member}'");
 						return alloc_primitive(&self.arena, type_none());
 					}
 					// Reuse the node as a plain integer literal for the backend.
-					val lit = alloc_literal(&self.arena, LiteralKind.INT, i64_to_str(mi.value), node.line, node.col);
+					val lit = alloc_literal(&self.arena, LiteralKind.INT, "${mi.value}", node.line, node.col);
 					val n = node as &AstNode;
 					n.kind = NodeKind.EXPR_LITERAL;
 					n.data = lit.data;
@@ -449,7 +449,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				val arr = sem_array(obj_ty);
 				if (mem.member == "len" || mem.member == "size") {
 					// The size of a fixed-size array is known at compile time.
-					val lit = alloc_literal(&self.arena, LiteralKind.INT, usz_to_str(arr.length) + "UZ", node.line, node.col);
+					val lit = alloc_literal(&self.arena, LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
 					val ln = node as &AstNode;
 					ln.kind = lit.kind;
 					ln.data = lit.data;
@@ -474,7 +474,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (f.name == mem.member) return f.type_ptr;
 			}
 
-			report_error(self, node, "Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
+			report_error(self, node, "Struct '${s_info.name}' has no member named '${mem.member}'");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_INDEX -> {
@@ -592,13 +592,13 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 
 			if (vd.type_annotation != null) {
 				var_ty = resolve_type(self, vd.type_annotation);
-				if (has_init && !can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '" + vd.name + "'");
+				if (has_init && !can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '${vd.name}'");
 			} else {
 				// Type inference (deduce the type automatically from the initializer)
 				if (has_init) {
 					var_ty = init_ty;
 				} else {
-					report_error(self, node, "Variable '" + vd.name + "' without type must have initializer");
+					report_error(self, node, "Variable '${vd.name}' without type must have initializer");
 				}
 			}
 
@@ -609,7 +609,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			}
 
 			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
-			if (!ok) report_error(self, node, "Variable '" + vd.name + "' is already defined in this scope");
+			if (!ok) report_error(self, node, "Variable '${vd.name}' is already defined in this scope");
 		}
 		NodeKind.STMT_IF -> {
 			val if_s = as_if_stmt(node);
@@ -989,6 +989,3 @@ pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstN
 }
 
 // Renders a signed enum value as decimal text for a synthesized int literal.
-pub fn i64_to_str(v: i64): str {	if (v < 0) return "-" + usz_to_str((0 - v) as usz);
-	return usz_to_str(v as usz);
-}

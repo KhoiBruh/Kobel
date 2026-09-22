@@ -59,7 +59,7 @@ pub fn match_token(var self: &Parser, t: TokenType): bool {
 
 pub fn error(var self: &Parser, tok: Token, msg: str) {
 	// Record a parse error with line and column
-	self.errors.add(format_loc(tok.line, tok.col) + msg);
+	self.errors.add("Line ${tok.line}, Column ${tok.col}: ${msg}");
 }
 
 pub fn consume(var self: &Parser, t: TokenType, msg: str): Token {
