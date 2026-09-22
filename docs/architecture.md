@@ -38,7 +38,7 @@ kobel_v2.exe  <src>           ──▶ output C99 **trùng byte** với v1   �
                 ┌─────────────── stdlib (lib/std) ───────────────┐
                 │  io.kb  sys.kb  ascii.kb                        │
                 │  collections/{list,hash_map,string_builder}.kb  │
-                │  mem/arena.kb                                   │
+                │  mem/{alloc,arena}.kb                           │
                 └───────────────▲─────────────────────────────────┘
                                 │  (chỉ phụ thuộc 1 chiều)
         ┌───────────────────────┴───────────────────────────────┐
@@ -151,14 +151,17 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `collections/list.kb` | `List<T>` (generic) + `new_list<T>` |
 | `collections/hash_map.kb` | `HashMap<V>` |
 | `collections/string_builder.kb` | `StringBuilder` |
-| `mem/arena.kb` | `Arena` + `alloc<T>(&Arena): *T` (cấp phát có kiểu, thay `alloc_bytes(...) as *T`) |
+| `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
+| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
 Quy ước ABI quan trọng:
 
 - **`str` = `const char*`** (không phải fat-pointer). `.len` phải qua `strlen`.
 - **`List<T>`** layout C: `{ T* data; size_t len; size_t cap; }`.
-- **Cấp phát có kiểu**: dùng `alloc<T>(&arena)` (trả `*T`) thay cho mẫu thủ công
-  `arena.alloc_bytes(T.size(), 8) as *T`; ví dụ `val n = alloc<AstNode>(&self.arena); *n = AstNode(...);`.
+- **Cấp phát có kiểu**: hai lối vào, đều tự ép kiểu (không cần `as *T`):
+  - **heap** — `alloc<T>()`, `alloc_array<T>(n)`, `resize<T>(p, n)`, `release<T>(p)` (`std.mem.alloc`).
+  - **arena** — `arena_alloc<T>(&arena)` (`std.mem.arena`); vùng nhớ chết theo arena.
+  - Mọi cấp phát thô (kể cả arena/list/string_builder/hash_map) đều đi qua facade `std.mem.alloc` (`raw_alloc`…).
 - Thao tác chuỗi không dùng toán tử: dùng helper `kobel_*` do codegen chèn (§6.3).
 
 ---

@@ -1,10 +1,9 @@
 mod std.collections.string_builder;
 
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn realloc(ptr: &u8, size: usz): &u8;
-	fn free(ptr: &u8);
-}
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_resize;
+use std.mem.alloc.raw_release;
+
 
 struct StringRaw {
 	pub data: *char,
@@ -20,7 +19,7 @@ pub struct StringBuilder {
 
 pub fn new_string_builder(): StringBuilder {
 	val init_cap: usz = 32;
-	val raw: &u8 = malloc(init_cap);
+	val raw: &u8 = raw_alloc(init_cap);
 	return StringBuilder(raw, 0, init_cap);
 }
 
@@ -68,7 +67,7 @@ impl StringBuilder {
 	}
 
 	pub fn to_str(val self): str {
-		val str_data: &u8 = malloc(self.len + 1);
+		val str_data: &u8 = raw_alloc(self.len + 1);
 		var i: usz = 0;
 		while (i < self.len) {
 			str_data[i] = self.buf[i];
@@ -76,14 +75,14 @@ impl StringBuilder {
 		}
 		str_data[self.len] = 0;
 
-		val raw_mem = malloc(24);
+		val raw_mem = raw_alloc(24);
 		val r = raw_mem as &StringRaw;
 		r.data = str_data as *char;
 		r.len = self.len;
 		r.cap = self.len + 1;
 		val sp: *str = r as *str;
 		val res: str = *sp;
-		free(raw_mem);
+		raw_release(raw_mem);
 		return res;
 	}
 
@@ -96,14 +95,14 @@ impl StringBuilder {
 		while (new_cap < min_cap) {
 			new_cap = new_cap * 2;
 		}
-		val new_raw: &u8 = realloc(self.buf, new_cap);
+		val new_raw: &u8 = raw_resize(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;
 	}
 
-	// NOTE: block body instead of `=> free(...)`:
+	// NOTE: block body instead of `=> raw_release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) {
-		free(self.buf);
+		raw_release(self.buf);
 	}
 }

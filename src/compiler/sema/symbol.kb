@@ -100,7 +100,7 @@ pub fn gen_find(list: List<*GenTemplate>, name: str): *GenTemplate {
 }
 
 pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol {
-	val p = alloc<Symbol>(arena);
+	val p = arena_alloc<Symbol>(arena);
 	*p = sym;
 	return p;
 }
@@ -126,7 +126,7 @@ pub struct SymbolTable {
 
 pub fn new_symbol_table(): SymbolTable {
 	var arena = new_arena(65536);
-	val root_scope = alloc<Scope>(&arena);
+	val root_scope = arena_alloc<Scope>(&arena);
 	*root_scope = Scope(null, new_list<*Symbol>(), false);
 
 	val gen = GenericReg(
@@ -156,7 +156,7 @@ pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo {
 }
 
 pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
-	val new_sc = alloc<Scope>(&self.arena);
+	val new_sc = arena_alloc<Scope>(&self.arena);
 	*new_sc = Scope(self.current_scope, new_list<*Symbol>(), is_fn_boundary);
 	self.current_scope = new_sc;
 	return new_sc;
@@ -244,7 +244,7 @@ pub fn define(var self: &SymbolTable, sym: Symbol): bool {
 	val existing = lookup_current(self, sym.name);
 	if (existing != null) return false;
 
-	val sym_ptr = alloc<Symbol>(&self.arena);
+	val sym_ptr = arena_alloc<Symbol>(&self.arena);
 	*sym_ptr = sym;
 
 	self.current_scope.symbols.add(sym_ptr);
@@ -281,7 +281,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 				if (sc.symbols.get(i).name == sym.name) return false;
 				i = i + 1;
 			}
-			val sym_ptr = alloc<Symbol>(&self.arena);
+			val sym_ptr = arena_alloc<Symbol>(&self.arena);
 			*sym_ptr = sym;
 			sc.symbols.add(sym_ptr);
 			self.modules.set(m, sc);
@@ -291,9 +291,9 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 	}
 
 	// Module scope does not exist yet -> create it (via pointer) then add the symbol
-	val fresh = alloc<ModuleScope>(&self.arena);
+	val fresh = arena_alloc<ModuleScope>(&self.arena);
 	*fresh = new_module_scope(module_name);
-	val sym_ptr2 = alloc<Symbol>(&self.arena);
+	val sym_ptr2 = arena_alloc<Symbol>(&self.arena);
 	*sym_ptr2 = sym;
 	fresh.symbols.add(sym_ptr2);
 	self.modules.add(fresh);

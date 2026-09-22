@@ -83,7 +83,7 @@ pub fn c_name_for(self: &DeclPass, name: str): str {
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
-	val ptr = alloc<Type>(arena);
+	val ptr = arena_alloc<Type>(arena);
 	*ptr = base;
 	return ptr;
 }
@@ -243,7 +243,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 		val m_c_name = str_concat(st_c_name, str_concat("_", f.name));
 
-		val mi = alloc<MethodInfo>(&self.arena);
+		val mi = arena_alloc<MethodInfo>(&self.arena);
 		*mi = MethodInfo(f.name, m_c_name, fn_type);
 		st_info.methods.add(mi);
 
@@ -295,7 +295,7 @@ pub fn register_template(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn gen_template(var self: &DeclPass, name: str, node: *AstNode): *GenTemplate {
-	val t = alloc<GenTemplate>(&self.arena);
+	val t = arena_alloc<GenTemplate>(&self.arena);
 	*t = GenTemplate(name, self.current_module, node);
 	return t;
 }
@@ -435,7 +435,7 @@ pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 }
 
 pub fn alloc_subst(var self: &DeclPass, names: List<str>, args: List<*AstNode>): *GenSubst {
-	val s = alloc<GenSubst>(&self.arena);
+	val s = arena_alloc<GenSubst>(&self.arena);
 	*s = GenSubst(names, args);
 	return s;
 }

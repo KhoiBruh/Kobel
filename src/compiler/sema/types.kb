@@ -190,10 +190,10 @@ pub fn alloc_pointer_type(
 	pointee: *Type,
 	is_mut: bool
 ): *Type {
-	val ptr_info = alloc<PointerType>(arena);
+	val ptr_info = arena_alloc<PointerType>(arena);
 	*ptr_info = PointerType(pointee, is_mut);
 
-	val t_ptr = alloc<Type>(arena);
+	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
 	return t_ptr;
 }
@@ -203,10 +203,10 @@ pub fn alloc_array_type(
 	elem: *Type,
 	length: usz
 ): *Type {
-	val arr_info = alloc<ArrayType>(arena);
+	val arr_info = arena_alloc<ArrayType>(arena);
 	*arr_info = ArrayType(elem, length);
 
-	val t_ptr = alloc<Type>(arena);
+	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, arr_info as *u8);
 	return t_ptr;
 }
@@ -239,10 +239,10 @@ pub fn alloc_struct_type(
 	val total_rem = current_offset % max_align;
 	if (total_rem != 0) current_offset = current_offset + (max_align - total_rem);
 
-	val struct_info = alloc<StructType>(arena);
+	val struct_info = arena_alloc<StructType>(arena);
 	*struct_info = StructType(name, name, fields, new_list<*MethodInfo>());
 
-	val t_ptr = alloc<Type>(arena);
+	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, struct_info as *u8);
 	return t_ptr;
 }
@@ -252,10 +252,10 @@ pub fn alloc_fn_type(
 	param_types: List<*Type>,
 	return_type: *Type
 ): *Type {
-	val fn_info = alloc<FnType>(arena);
+	val fn_info = arena_alloc<FnType>(arena);
 	*fn_info = FnType(param_types, return_type);
 
-	val t_ptr = alloc<Type>(arena);
+	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.FN, 8, 8, fn_info as *u8);
 	return t_ptr;
 }

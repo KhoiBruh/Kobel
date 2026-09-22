@@ -1,9 +1,8 @@
 mod std.collections.hash_map;
 
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): none;
-}
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_release;
+
 
 pub struct HashMap<V> {
 	pub keys: &str,
@@ -15,9 +14,9 @@ pub struct HashMap<V> {
 
 pub fn new_hash_map<V>(): HashMap<V> {
 	val init_cap: usz = 16;
-	val raw_keys: &u8 = malloc(init_cap * str.size());
-	val raw_vals: &u8 = malloc(init_cap * V.size());
-	val raw_occ: &u8 = malloc(init_cap * bool.size());
+	val raw_keys: &u8 = raw_alloc(init_cap * str.size());
+	val raw_vals: &u8 = raw_alloc(init_cap * V.size());
+	val raw_occ: &u8 = raw_alloc(init_cap * bool.size());
 
 	val occ: &bool = raw_occ as &bool;
 	var i: usz = 0;
@@ -90,9 +89,9 @@ impl HashMap<V> {
 		val old_occ: &bool = self.occupied;
 
 		val new_cap: usz = old_cap * 2;
-		val raw_keys: &u8 = malloc(new_cap * str.size());
-		val raw_vals: &u8 = malloc(new_cap * V.size());
-		val raw_occ: &u8 = malloc(new_cap * bool.size());
+		val raw_keys: &u8 = raw_alloc(new_cap * str.size());
+		val raw_vals: &u8 = raw_alloc(new_cap * V.size());
+		val raw_occ: &u8 = raw_alloc(new_cap * bool.size());
 
 		val new_occ: &bool = raw_occ as &bool;
 		var j: usz = 0;
@@ -113,14 +112,14 @@ impl HashMap<V> {
 			i = i + 1;
 		}
 
-		free(old_keys as &u8);
-		free(old_vals as &u8);
-		free(old_occ as &u8);
+		raw_release(old_keys as &u8);
+		raw_release(old_vals as &u8);
+		raw_release(old_occ as &u8);
 	}
 
 	pub fn delete(self): none {
-		free(self.keys as &u8);
-		free(self.values as &u8);
-		free(self.occupied as &u8);
+		raw_release(self.keys as &u8);
+		raw_release(self.values as &u8);
+		raw_release(self.occupied as &u8);
 	}
 }

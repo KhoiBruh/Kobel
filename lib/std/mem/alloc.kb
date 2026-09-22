@@ -1,0 +1,51 @@
+mod std.mem.alloc;
+
+// ============================================================================
+// std.mem.alloc - thin allocation facade
+//
+// A single place for every raw allocation in the standard library, so no module
+// has to repeat `extern "libc" { malloc; realloc; free; }`.
+//
+// Two clearly separated layers:
+//   * byte plane  - `raw_*`, untyped, works on bytes (no size checks yet).
+//   * typed plane - auto-casting generics, one call allocates one `T`.
+//
+// This layer does NO ownership tracking and NO bounds checking: the caller owns
+// whatever it allocates and must release it exactly once.
+// ============================================================================
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn realloc(ptr: &u8, size: usz): &u8;
+	fn free(ptr: &u8): none;
+}
+
+// ----------------------------------------------------------------------------
+// Byte plane - untyped, no bookkeeping.
+// ----------------------------------------------------------------------------
+
+pub fn raw_alloc(size: usz): &u8 => malloc(size);
+
+pub fn raw_resize(ptr: &u8, size: usz): &u8 => realloc(ptr, size);
+
+pub fn raw_release(ptr: &u8) {
+	free(ptr);
+}
+
+// ----------------------------------------------------------------------------
+// Typed plane - auto-cast through generics.
+// ----------------------------------------------------------------------------
+
+// One uninitialized `T` on the heap.
+pub fn alloc<T>(): *T => raw_alloc(T.size()) as *T;
+
+// `count` uninitialized `T`s on the heap (contiguous).
+pub fn alloc_array<T>(count: usz): *T => raw_alloc(count * T.size()) as *T;
+
+// Grow/shrink `ptr` to hold `count` elements of `T`.
+pub fn resize<T>(ptr: *T, count: usz): *T => raw_resize(ptr as &u8, count * T.size()) as *T;
+
+// Release a block obtained from alloc/alloc_array/resize.
+pub fn release<T>(ptr: *T) {
+	raw_release(ptr as &u8);
+}

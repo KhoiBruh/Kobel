@@ -2,18 +2,18 @@ mod util.strutil;
 
 use std.collections.list.List;
 use std.collections.list.new_list;
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_release;
 
 // ============================================================================
 // String utilities shared by the compiler
 //
-// These helpers build strings from raw byte buffers (malloc + StringRaw) so
+// These helpers build strings from raw byte buffers (raw_alloc + StrRaw) so
 // that they keep working regardless of how `str` is represented by the
 // active backend (they never rely on `str + str` operator overloading).
 // ============================================================================
 
 extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): none;
 	fn strlen(s: *char): usz;
 }
 
@@ -25,14 +25,14 @@ struct StrRaw {
 
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
-	val raw_mem = malloc(24);
+	val raw_mem = raw_alloc(24);
 	val r = raw_mem as &StrRaw;
 	r.data = buf as *char;
 	r.len = len;
 	r.cap = len + 1;
 	val sp: *str = r as *str;
 	val res: str = *sp;
-	free(raw_mem);
+	raw_release(raw_mem);
 	return res;
 }
 
@@ -42,7 +42,7 @@ pub fn cstr_to_str(s: *char): str => str_from_bytes(s as &u8, strlen(s));
 
 // Copies `count` bytes starting at `start` into a fresh NUL terminated `str`.
 pub fn str_slice(s: str, start: usz, count: usz): str {
-	val buf = malloc(count + 1);
+	val buf = raw_alloc(count + 1);
 	var i: usz = 0;
 	while (i < count) {
 		buf[i] = s[start + i] as u8;
@@ -54,7 +54,7 @@ pub fn str_slice(s: str, start: usz, count: usz): str {
 
 pub fn str_concat(a: str, b: str): str {
 	val total = a.len + b.len;
-	val buf = malloc(total + 1);
+	val buf = raw_alloc(total + 1);
 	var i: usz = 0;
 	while (i < a.len) {
 		buf[i] = a[i] as u8;
@@ -76,7 +76,7 @@ pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
 // "std.io" -> "std/io" (module path -> relative file path, without extension)
 pub fn str_module_to_rel(module_name: str): str {
-	val buf = malloc(module_name.len + 1);
+	val buf = raw_alloc(module_name.len + 1);
 	var i: usz = 0;
 	while (i < module_name.len) {
 		val c = module_name[i];
@@ -91,7 +91,7 @@ pub fn str_module_to_rel(module_name: str): str {
 // "sub/x.kb" -> "sub.x"  (relative file path -> module name)
 pub fn str_path_to_module(rel_path: str): str {
 	val stem = str_strip_kb(rel_path);
-	val buf = malloc(stem.len + 1);
+	val buf = raw_alloc(stem.len + 1);
 	var i: usz = 0;
 	while (i < stem.len) {
 		val c = stem[i];
@@ -160,7 +160,7 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	}
 	if (count > 1) total = total + (count - 1);
 
-	val buf = malloc(total + 1);
+	val buf = raw_alloc(total + 1);
 	var w: usz = 0;
 	i = 0;
 	while (i < count) {
@@ -202,7 +202,7 @@ pub fn str_mangle_symbol(module_name: str, name: str): str {
 	if (module_name.len == 0) return name;
 	// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 	val total = module_name.len * 2 + 2 + name.len;
-	val buf = malloc(total + 1);
+	val buf = raw_alloc(total + 1);
 	var i: usz = 0;
 	var w: usz = 0;
 	while (i < module_name.len) {

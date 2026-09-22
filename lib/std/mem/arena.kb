@@ -1,9 +1,7 @@
 mod std.mem.arena;
 
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): none;
-}
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_release;
 
 pub struct ArenaBlock {
 	pub data: &u8,
@@ -51,8 +49,8 @@ impl Arena {
 		var sz: usz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data: &u8 = malloc(sz);
-		val blk_mem: &u8 = malloc(ArenaBlock.size());
+		val data: &u8 = raw_alloc(sz);
+		val blk_mem: &u8 = raw_alloc(ArenaBlock.size());
 		val blk: &ArenaBlock = blk_mem as &ArenaBlock;
 		blk.data = data;
 		blk.size = sz;
@@ -75,8 +73,8 @@ impl Arena {
 		while (curr != null) {
 			val blk: &ArenaBlock = curr as &ArenaBlock;
 			val next_blk: *ArenaBlock = blk.next;
-			free(blk.data);
-			free(curr as &u8);
+			raw_release(blk.data);
+			raw_release(curr as &u8);
 			curr = next_blk;
 		}
 		self.current = null;
@@ -86,9 +84,9 @@ impl Arena {
 // Allocates room for one `T` in the arena and returns it already typed as `*T`,
 // so callers never have to write `arena.alloc_bytes(T.size(), 8) as *T`.
 //
-//	val node = alloc<AstNode>(&self.arena);
+//	val node = arena_alloc<AstNode>(&self.arena);
 //	*node = AstNode(...);
-pub fn alloc<T>(var arena: &Arena): *T {
+pub fn arena_alloc<T>(var arena: &Arena): *T {
 	val raw: &u8 = arena.alloc_bytes(T.size(), 8);
 	return raw as *T;
 }

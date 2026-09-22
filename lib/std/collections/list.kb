@@ -1,5 +1,9 @@
 mod std.collections.list;
 
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_resize;
+use std.mem.alloc.raw_release;
+
 /*
 	List<T> - dynamic array, heap-allocated
 
@@ -15,11 +19,6 @@ mod std.collections.list;
 		list.delete();
 */
 
-extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn realloc(ptr: &u8, size: usz): &u8;
-	fn free(ptr: &u8);
-}
 
 pub struct List<T> {
 	pub data: &T,
@@ -29,14 +28,14 @@ pub struct List<T> {
 
 pub fn new_list<T>(): List<T> {
 	val init_cap: usz = 4;
-	val raw: &u8 = malloc(init_cap * T.size());
+	val raw: &u8 = raw_alloc(init_cap * T.size());
 	return List<T>(raw as &T, 0, init_cap);
 }
 
 pub fn list_with_capacity<T>(capacity: usz): List<T> {
 	var cap: usz = capacity;
 	if (cap == 0) cap = 4;
-	val raw: &u8 = malloc(cap * T.size());
+	val raw: &u8 = raw_alloc(cap * T.size());
 	return List<T>(raw as &T, 0, cap);
 }
 
@@ -70,7 +69,7 @@ impl List<T> {
 
 	fn grow(var self) {
 		val new_cap: usz = self.cap * 2;
-		val new_raw: &u8 = realloc(self.data as &u8, new_cap * T.size());
+		val new_raw: &u8 = raw_resize(self.data as &u8, new_cap * T.size());
 		self.data = new_raw as &T;
 		self.cap = new_cap;
 	}
@@ -81,15 +80,15 @@ impl List<T> {
 			while (new_cap < min_cap) {
 				new_cap = new_cap * 2;
 			}
-			val new_raw: &u8 = realloc(self.data as &u8, new_cap * T.size());
+			val new_raw: &u8 = raw_resize(self.data as &u8, new_cap * T.size());
 			self.data = new_raw as &T;
 			self.cap = new_cap;
 		}
 	}
 
-	// NOTE: block body instead of `=> free(...)`:
+	// NOTE: block body instead of `=> raw_release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) {
-		free(self.data as &u8);
+		raw_release(self.data as &u8);
 	}
 }

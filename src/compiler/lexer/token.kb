@@ -2,10 +2,7 @@ mod compiler.lexer.token;
 
 use util.strutil.str_from_bytes;
 use util.strutil.str_slice;
-
-extern "libc" {
-	fn malloc(size: usz): &u8;
-}
+use std.mem.alloc.raw_alloc;
 
 pub enum TokenType {
 	// Single syntax
@@ -86,7 +83,7 @@ pub struct Token {
 
 pub fn usz_to_str(n: usz): str {
 	if (n == 0) return "0";
-	val buf = malloc(32);
+	val buf = raw_alloc(32);
 	var tmp = n;
 	var len = 0UZ;
 	while (tmp > 0) {

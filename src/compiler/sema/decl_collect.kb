@@ -126,7 +126,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 		var v: i64 = next_val;
 		if (m.value != null) v = enum_const_i64(self, m.value);
 
-		val mi = alloc<EnumMemberInfo>(&self.arena);
+		val mi = arena_alloc<EnumMemberInfo>(&self.arena);
 		*mi = EnumMemberInfo(m.name, v);
 		members.add(mi);
 
@@ -136,12 +136,12 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 
 	val c_name = c_name_for(self, e.name);
 
-	val info = alloc<EnumInfo>(&self.arena);
+	val info = arena_alloc<EnumInfo>(&self.arena);
 	*info = EnumInfo(e.name, c_name, under_type, members);
 
 	// The symbol's type is an integer type that carries the EnumInfo, so enum
 	// values stay usable in arithmetic/comparisons while `.value` is recognized.
-	val carrier = alloc<Type>(&self.arena);
+	val carrier = arena_alloc<Type>(&self.arena);
 	*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
 
 	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col));
