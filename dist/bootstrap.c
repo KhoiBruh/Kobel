@@ -1342,6 +1342,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compile
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, const char* struct_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__subst_lookup(compiler__sema__decl_pass__GenSubst* s, const char* name);
 bool compiler__sema__decl_pass__is_template_decl(compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__register_template(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
@@ -5631,6 +5632,9 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
     const char* st_c_name = (st_sym)->c_name;
     compiler__sema__types__StructType* st_info = compiler__sema__types__as_struct_type_mut(st_type);
     (im)->struct_name = st_c_name;
+    if ((!kobel_streq((im)->trait_name, ""))) {
+        compiler__sema__decl_pass__apply_trait(self, node, im, (st_info)->name);
+    }
     {
         size_t __for_n = ((im)->methods).len;
         size_t __for_i = ((size_t)0ULL);
@@ -5670,6 +5674,68 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
                 (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
                 std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
                 (f)->name = m_c_name;
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+}
+
+void compiler__sema__decl_pass__apply_trait(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, const char* struct_name) {
+    compiler__sema__symbol__TraitInfo* t = compiler__sema__symbol__find_trait((&(self)->symtab), (im)->trait_name);
+    if ((t == NULL)) {
+        {
+            compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Unknown trait '", (im)->trait_name), "'"));
+            return;
+        }
+    }
+    std__collections__list__List_str provided = std__collections__list__new_list_str();
+    {
+        size_t __for_n = ((im)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* m = ((im)->methods).data[__for_i];
+                std__collections__list__List_str_add((&provided), ((*compiler__ast__builder__as_fn_decl(m))).name);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    {
+        size_t __for_n = ((t)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__symbol__TraitMethod* tm = ((t)->methods).data[__for_i];
+                bool have = false;
+                {
+                    size_t __for_n = (provided).len;
+                    size_t __for_i = ((size_t)0ULL);
+                    while ((__for_i < __for_n)) {
+                        {
+                            const char* name = (provided).data[__for_i];
+                            if (kobel_streq(name, (tm)->name)) {
+                                have = true;
+                            }
+                            __for_i = (__for_i + 1);
+                        }
+                    }
+                }
+                if (have) {
+                    {
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if ((!(tm)->has_default)) {
+                    {
+                        compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Struct '", struct_name), "' does not implement required trait method '"), (tm)->name), "' of trait '"), (t)->name), "'"));
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(im)->methods), compiler__sema__decl_pass__clone_fn(self, (tm)->node, NULL, (tm)->name));
                 __for_i = (__for_i + 1);
             }
         }

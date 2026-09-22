@@ -210,6 +210,9 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	// Rename so the backend can learn the receiver type of each method.
 	im.struct_name = st_c_name;
 
+	// `impl Trait for Struct`: verify the contract and pull in default methods.
+	if (im.trait_name != "") apply_trait(self, node, im, st_info.name);
+
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
 		var param_types = new_list<*Type>();
@@ -240,6 +243,36 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	}
 }
 
+
+// Applies the trait named by `im.trait_name` to an `impl Trait for Struct`
+// block: every required method (one without a body) must be provided, and every
+// default method the impl left out is copied in. A copy is an ordinary method
+// AST node, so the backend emits it like a hand-written one. Generic impls
+// return earlier, so no type substitution is ever needed here.
+pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_name: str) {
+	val t = find_trait(&self.symtab, im.trait_name);
+	if (t == null) {
+		report_error(self, node, "Unknown trait '${im.trait_name}'");
+		return;
+	}
+
+	var provided = new_list<str>();
+	for (m in im.methods) provided.add(as_fn_decl(m).name);
+
+	for (tm in t.methods) {
+		var have = false;
+		for (name in provided) {
+			if (name == tm.name) have = true;
+		}
+		if (have) continue;
+
+		if (!tm.has_default) {
+			report_error(self, node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
+			continue;
+		}
+		im.methods.add(clone_fn(self, tm.node, null, tm.name));
+	}
+}
 
 // ============================================================================
 // Generic Templates & Monomorphization
