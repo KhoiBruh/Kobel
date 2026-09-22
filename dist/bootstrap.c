@@ -7550,13 +7550,48 @@ void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__Body
     compiler__sema__types__FnType* fn_info = compiler__sema__types__as_fn_type(fn_type);
     (self)->current_fn_return_type = (fn_info)->return_type;
     compiler__sema__symbol__enter_scope((&(self)->symtab), true);
-    size_t i = 0;
-    while ((i < ((f)->params).len)) {
-        {
-            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
-            compiler__sema__types__Type* p_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), i);
-            compiler__sema__symbol__define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (p).name, (p).name, 2, p_ty, (p).is_mut, false, (fn_node)->line, (fn_node)->col });
-            i = (i + 1);
+    {
+        size_t __for_e = ((f)->params).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
+                compiler__sema__types__Type* p_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), i);
+                compiler__sema__symbol__define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (p).name, (p).name, 2, p_ty, (p).is_mut, false, (fn_node)->line, (fn_node)->col });
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
         }
     }
     if (((f)->body != NULL)) {

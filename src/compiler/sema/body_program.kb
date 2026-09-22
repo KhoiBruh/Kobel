@@ -52,12 +52,10 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 	enter_scope(&self.symtab, true);
 
 	// Register parameters into the function scope
-	var i: usz = 0;
-	while (i < f.params.len) {
+	for (i in 0..<f.params.len) {
 		val p = f.params.get(i);
 		val p_ty = fn_info.param_types.get(i);
 		define(&self.symtab, Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col));
-		i = i + 1;
 	}
 
 	// Analyze the function body
