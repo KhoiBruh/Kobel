@@ -3,6 +3,7 @@ mod test.bootstrap_trait;
 use std.io.print;
 use std.io.println;
 use testsupport.box.*;
+use std.traits.new.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -228,6 +229,25 @@ fn test_private_fields(var t: &Tally) {
 	check_i(boxed_value(b), 42, "type with a private field built through its factory", t);
 }
 
+// --- 11. generic impl of a trait -------------------------------------------
+
+struct Pair<T> {
+	pub a: T,
+	pub b: T
+}
+
+impl New for Pair<T> {
+	fn new(): Pair<T> => Self(0 as T, 0 as T);
+	fn new(v: T): Pair<T> => Self(v, v);
+}
+
+fn test_generic_trait_impl(var t: &Tally) {
+	val p = Pair<i32>();
+	check_i(p.a, 0, "generic impl: Pair<i32>() uses new()", t);
+	val q = Pair<i32>(7);
+	check_i(q.b, 7, "generic impl: Pair<i32>(v) uses new(v)", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -243,6 +263,7 @@ fn main(): i32 {
 	test_self(&t);
 	test_new_overloads(&t);
 	test_private_fields(&t);
+	test_generic_trait_impl(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

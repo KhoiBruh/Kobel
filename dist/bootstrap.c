@@ -7618,7 +7618,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__clone_impl(compiler__se
             }
         }
     }
-    return compiler__ast__builder__alloc_impl_decl((&(self)->arena), new_struct_name, std__collections__list__new_list_compiler__ast__decl__GenericParam(), "", methods, (node)->line, (node)->col);
+    return compiler__ast__builder__alloc_impl_decl((&(self)->arena), new_struct_name, std__collections__list__new_list_compiler__ast__decl__GenericParam(), (im)->trait_name, methods, (node)->line, (node)->col);
 }
 
 void compiler__sema__decl_pass__rewrite_generics(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {

@@ -952,7 +952,9 @@ pub fn clone_impl(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_str
 		// concrete struct name and registers it for method lookup.
 		methods.add(clone_fn(self, m, subst, mf.name));
 	}
-	return alloc_impl_decl(&self.arena, new_struct_name, new_list<GenericParam>(), "", methods, node.line, node.col);
+	// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
+	// be checked against the trait and pick up its default methods.
+	return alloc_impl_decl(&self.arena, new_struct_name, new_list<GenericParam>(), im.trait_name, methods, node.line, node.col);
 }
 
 // ----------------------------------------------------------------------------
