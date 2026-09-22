@@ -18,12 +18,16 @@ use std.traits.new.New;
 		list.delete();
 */
 
-// Fields are not `pub`: another module cannot build a List from its fields and
-// must go through a constructor (`List<T>()`, `List<T>(capacity)` or the
+// `cap` is private: another module cannot build a List from its fields and must
+// go through a constructor (`List<T>()`, `List<T>(capacity)` or the
 // `new_list<T>()` / `list_with_capacity<T>()` helpers).
+//
+// `data` and `len` stay `pub` on purpose: the `for (x in seq)` lowering reads
+// `seq.len` / `seq.data` directly (see docs section 6.2), so they are part of
+// the container iteration contract rather than private state.
 pub struct List<T> {
-	data: &T,
-	len: usz,
+	pub data: &T,
+	pub len: usz,
 	cap: usz
 }
 

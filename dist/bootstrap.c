@@ -605,6 +605,7 @@ struct compiler__sema__types__StructField {
     const char* name;
     compiler__sema__types__Type* type_ptr;
     size_t offset;
+    bool is_pub;
 };
 
 struct compiler__sema__types__MethodInfo {
@@ -2390,7 +2391,7 @@ std__collections__list__List_compiler__ast__decl__EnumMember std__collections__l
 }
 
 compiler__sema__types__StructField* std__mem__alloc__resize_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr, size_t count) {
-    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 32)));
+    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
 }
 
 void std__mem__alloc__release_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr) {
@@ -2460,7 +2461,7 @@ void std__collections__list__List_compiler__sema__types__StructField_delete(cons
 }
 
 compiler__sema__types__StructField* std__mem__alloc__alloc_array_compiler__sema__types__StructField(size_t count) {
-    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_alloc((count * 32)));
+    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_alloc((count * 40)));
 }
 
 std__collections__list__List_compiler__sema__types__StructField std__collections__list__List_compiler__sema__types__StructField_new_0(void) {
@@ -7482,7 +7483,7 @@ void compiler__sema__decl_pass__collect_struct_as(compiler__sema__decl_pass__Dec
             {
                 compiler__ast__decl__StructField f = ((s)->fields).data[__for_i];
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
-                std__collections__list__List_compiler__sema__types__StructField_add((&((*compiler__sema__types__as_struct_type_mut(s_type))).fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+                std__collections__list__List_compiler__sema__types__StructField_add((&((*compiler__sema__types__as_struct_type_mut(s_type))).fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub });
                 if ((!(f).is_pub)) {
                     has_private = true;
                 }
@@ -8335,7 +8336,7 @@ void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__Dec
                 compiler__ast__decl__StructField f = ((s)->fields).data[__for_i];
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
                 compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
-                std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+                std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub });
                 if ((!(f).is_pub)) {
                     has_private = true;
                 }
@@ -9408,9 +9409,18 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                 while ((__for_i < __for_n)) {
                     {
                         compiler__sema__types__StructField f = ((s_info)->fields).data[__for_i];
-                        if (kobel_streq((f).name, (mem)->member)) {
-                            return (f).type_ptr;
+                        if ((!kobel_streq((f).name, (mem)->member))) {
+                            {
+                                __for_i = (__for_i + 1);
+                                continue;
+                            }
                         }
+                        if (((!(f).is_pub) && (!kobel_streq((s_info)->module, ((self)->symtab).current_module)))) {
+                            {
+                                compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Field '", (mem)->member), "' of '"), (s_info)->name), "' is private to module '"), (s_info)->module), "'"));
+                            }
+                        }
+                        return (f).type_ptr;
                         __for_i = (__for_i + 1);
                     }
                 }

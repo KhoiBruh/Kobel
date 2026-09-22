@@ -151,9 +151,9 @@ fn test_struct_layout() {
 	var t_i64 = type_i64();
 
 	var fields = new_list<StructField>();
-	fields.add(StructField("a", &t_u8, 0UZ));
-	fields.add(StructField("b", &t_i32, 0UZ));
-	fields.add(StructField("c", &t_i64, 0UZ));
+	fields.add(StructField("a", &t_u8, 0UZ, true));
+	fields.add(StructField("b", &t_i32, 0UZ, true));
+	fields.add(StructField("c", &t_i64, 0UZ, true));
 
 	val s_ty = alloc_struct_type(&arena, "Sample", fields);
 

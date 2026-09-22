@@ -260,10 +260,11 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   được mangle duy nhất (hậu tố arity), và gọi `obj.m(args)` chọn theo `args.len + 1` (kể cả receiver).
   **Chỉ theo arity** — cùng tên + cùng arity (khác kiểu tham số) là **lỗi "Ambiguous call"**, không
   chọn theo kiểu. Trait cũng nhận diện method theo `name + arity` (`TraitMethod.arity`).
-- **Field `pub`**: `StructType` mang `module` + `has_private`. Nếu struct có **bất kỳ field không `pub`**
-  thì module **khác** không được dựng trực tiếp bằng `Type(...)` (lỗi "fields are private"), buộc phải
-  đi qua hàm khởi tạo. Cùng module thì vẫn dựng được (chính `new` dùng điều này). Mới cưỡng chế ở
-  **dựng**, chưa cưỡng chế **đọc/ghi field**.
+- **Field `pub`**: `StructType` mang `module` + `has_private`; từng field mang `is_pub`. Một field
+  không `pub` **chỉ** dùng được trong module khai báo — cưỡng chế ở **cả ba** đường: dựng bằng
+  `Type(...)` (nếu struct có bất kỳ field riêng), **đọc** và **ghi** (`obj.field` / `obj.field = v`,
+  đều đi qua nhánh `EXPR_MEMBER`). Module khác phải đi qua hàm khởi tạo/accessor. Cùng module thì
+  không hạn chế (nên chính `new` dùng được).
 - **`Self` & dựng kiểu Kotlin**: trong thân `impl`, `Self` = kiểu đang impl (`BodyPass.current_self_type`).
   `Self(args)` dựng **thô** theo field. Còn `Type(args)` **ưu tiên gọi overload `new`** cùng arity, chỉ
   khi không có mới dựng theo field. `Self(...)` **luôn bỏ qua** bước gọi `new` — nhờ vậy

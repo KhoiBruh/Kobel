@@ -79,7 +79,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	for (f in s.fields) {
 		val f_type = resolve_ast_type(self, f.type_node);
 		val s_info = as_struct_type_mut(s_type);
-		s_info.fields.add(StructField(f.name, f_type, 0));
+		s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub));
 		if (!f.is_pub) has_private = true;
 	}
 	val st_info = as_struct_type_mut(s_type);

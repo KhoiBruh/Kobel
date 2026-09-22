@@ -545,7 +545,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			val s_info = sem_struct(obj_ty);
 			for (f in s_info.fields) {
-				if (f.name == mem.member) return f.type_ptr;
+				if (f.name != mem.member) continue;
+				// A non-pub field is only usable where the type is declared.
+				if (!f.is_pub && s_info.module != self.symtab.current_module) {
+					report_error(self, node, "Field '${mem.member}' of '${s_info.name}' is private to module '${s_info.module}'");
+				}
+				return f.type_ptr;
 			}
 
 			report_error(self, node, "Struct '${s_info.name}' has no member named '${mem.member}'");

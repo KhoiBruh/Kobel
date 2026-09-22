@@ -45,7 +45,10 @@ pub struct ArrayType {
 pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,
-	pub offset: usz
+	pub offset: usz,
+	// A field that is not `pub` is only readable/writable where the type is
+	// declared (see StructType.module).
+	pub is_pub: bool
 }
 
 // A method collected from an `impl` block.
