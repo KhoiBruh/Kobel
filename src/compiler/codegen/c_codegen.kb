@@ -49,10 +49,8 @@ pub fn is_str_var(self: &CCodeGen, name: str): bool {
 }
 
 pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str {
-	var i: usz = 0;
-	while (i < self.fn_names.len) {
+	for (i in 0..<self.fn_names.len) {
 		if (self.fn_names.get(i) == name) return self.fn_ret_types.get(i);
-		i = i + 1;
 	}
 	return "";
 }
@@ -253,22 +251,18 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 
 			if (is_struct) {
 				var res = "(" + callee_str + "){ ";
-				var i: usz = 0;
-				while (i < call.args.len) {
+				for (i in 0..<call.args.len) {
 					if (i > 0) res = res + ", ";
 					res = res + gen_expr(self, call.args.get(i));
-					i = i + 1;
 				}
 				return res + " }";
 			}
 
 			// Ordinary C function call: func(arg1, arg2)
 			var res = callee_str + "(";
-			var i: usz = 0;
-			while (i < call.args.len) {
+			for (i in 0..<call.args.len) {
 				if (i > 0) res = res + ", ";
 				res = res + gen_expr(self, call.args.get(i));
-				i = i + 1;
 			}
 			return res + ")";
 		}
@@ -346,8 +340,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 // String patterns compare with strcmp since `str` lowers to `const char*`.
 pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str {
 	var res = "";
-	var i: usz = 0;
-	while (i < patterns.len) {
+	for (i in 0..<patterns.len) {
 		val p = patterns.get(i);
 		var test = "";
 		if (cond == "") {
@@ -359,7 +352,6 @@ pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): 
 		}
 		if (i == 0) res = test;
 		else res = res + " || " + test;
-		i = i + 1;
 	}
 	if (res == "") res = "1";
 	return res;
