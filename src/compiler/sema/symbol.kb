@@ -79,6 +79,22 @@ pub struct GenTemplate {
 	pub node: *AstNode
 }
 
+// A method declared inside a `trait` block. `has_default` is true when the
+// trait provides a body (so the implementing type may leave it out).
+pub struct TraitMethod {
+	pub name: str,
+	pub has_default: bool,
+	pub node: *AstNode
+}
+
+// A collected `trait` declaration: its name, direct base traits (`trait A : B`)
+// and its methods. Kept as raw AST so signature resolution stays lazy.
+pub struct TraitInfo {
+	pub name: str,
+	pub bases: List<str>,
+	pub methods: List<*TraitMethod>
+}
+
 // Monomorphization state, shared through the (single) SymbolTable.
 pub struct GenericReg {
 	pub struct_templates: List<*GenTemplate>,
@@ -118,6 +134,8 @@ pub struct SymbolTable {
 	pub imports: List<ImportBinding>,
 	// Enum member tables, keyed by source name / mangled C name.
 	pub enums: List<*EnumInfo>,
+	// Collected `trait` declarations, by source name.
+	pub traits: List<*TraitInfo>,
 	pub gen: GenericReg
 }
 
@@ -135,7 +153,26 @@ pub fn new_symbol_table(): SymbolTable {
 		new_list<*AstNode>()
 	);
 
-	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), gen);
+	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), new_list<*TraitInfo>(), gen);
+}
+
+pub fn register_trait(var self: &SymbolTable, info: *TraitInfo) {
+	self.traits.add(info);
+}
+
+pub fn find_trait(self: &SymbolTable, name: str): *TraitInfo {
+	for (t in self.traits) {
+		if (t.name == name) return t;
+	}
+	return null;
+}
+
+// Look up one method of a trait by its source name.
+pub fn trait_find_method(t: *TraitInfo, name: str): *TraitMethod {
+	for (m in t.methods) {
+		if (m.name == name) return m;
+	}
+	return null;
 }
 
 pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {

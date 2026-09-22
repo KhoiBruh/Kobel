@@ -163,6 +163,41 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	self.is_extern = prev_is_extern;
 }
 
+fn trait_method_in(list: List<*TraitMethod>, name: str): *TraitMethod {
+	for (m in list) {
+		if (m.name == name) return m;
+	}
+	return null;
+}
+
+// Records a `trait` declaration so `impl Trait for Struct` blocks can be
+// checked against it and pick up its default methods. Method signatures are
+// resolved lazily; only the method names and whether each one has a body are
+// kept here.
+pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
+	val t = as_trait_decl(node);
+	if (find_trait(&self.symtab, t.name) != null) {
+		report_error(self, node, "Duplicate trait declaration '${t.name}'");
+		return;
+	}
+
+	var methods = new_list<*TraitMethod>();
+	for (m in t.methods) {
+		val f = as_fn_decl(m);
+		if (trait_method_in(methods, f.name) != null) {
+			report_error(self, m, "Duplicate method '${f.name}' in trait '${t.name}'");
+			continue;
+		}
+		val tm = arena_alloc<TraitMethod>(&self.arena);
+		*tm = TraitMethod(f.name, f.body != null, m);
+		methods.add(tm);
+	}
+
+	val ti = arena_alloc<TraitInfo>(&self.arena);
+	*ti = TraitInfo(t.name, t.bases, methods);
+	register_trait(&self.symtab, ti);
+}
+
 pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 	when (node.kind) {
 		NodeKind.DECL_MODULE -> collect_module(self, node);
@@ -172,6 +207,7 @@ pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 		NodeKind.DECL_ENUM -> collect_enum(self, node);
 		NodeKind.DECL_CONST -> collect_const(self, node);
 		NodeKind.DECL_IMPL -> collect_impl(self, node);
+		NodeKind.DECL_TRAIT -> {} // already recorded in Pass 0
 		NodeKind.DECL_EXTERN_BLOCK -> collect_extern_block(self, node);
 		else -> {}
 	}
@@ -184,6 +220,7 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// Module markers are processed here too, so each template records its module.
 	for (d0 in prog.declarations) {
 		if (d0.kind == NodeKind.DECL_MODULE) collect_module(self, d0);
+		else if (d0.kind == NodeKind.DECL_TRAIT) collect_trait(self, d0);
 		else register_template(self, d0);
 	}
 
