@@ -92,20 +92,31 @@ compiler.ast.builder       ← ast.*, lexer.token, std.list, std.arena
 compiler.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
 compiler.sema.types        ← std.list, std.arena
 compiler.sema.symbol       ← sema.types, ast.node, std.list, std.arena
-compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std
-compiler.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil, std
-compiler.codegen.c_codegen ← ast.*, lexer.token, std.list
+compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std   (core + monomorph)
+compiler.sema.decl_collect ← sema.decl_pass, ast.*, ast.builder, sema.{types,symbol}, strutil, std
+compiler.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil, std   (core)
+compiler.sema.body_program ← sema.body_pass, sema.decl_{pass,collect}, ast.*, sema.*, std
+compiler.codegen.c_codegen ← ast.*, lexer.token, std.list                            (core)
+compiler.codegen.c_program ← codegen.c_codegen, ast.*, lexer.token, std.list
 compiler.util.strutil      ← std.list
 compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, strutil, std
-main                        ← sema.{decl_pass,body_pass}, codegen, loader, std
+main                        ← sema.{decl_pass,decl_collect,body_pass,body_program}, codegen.{c_codegen,c_program}, loader, std
 ```
 
 Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`/`codegen` phụ thuộc `ast` nhưng
 **không** phụ thuộc lẫn nhau; `main` là nơi duy nhất ráp mọi thứ.
 
+**Vì sao mỗi pass tách đúng 2 file.** Mỗi pass lớn (`decl_pass`, `body_pass`, `c_codegen`) trước đây là
+một **SCC**: các hàm gọi đệ quy lẫn nhau qua lại (ví dụ `resolve_ast_type` ⟷ `instantiate_struct`, hay
+`check_expr` ⟷ `check_statement`). Ngôn ngữ **cấm import vòng** (loader xếp module theo post-order, một
+cạnh ngược sẽ khiến symbol của module kia chưa được nạp), nên không thể chẻ SCC theo chức năng
+(collect/resolve/monomorph) một cách tuỳ ý. Cách chẻ đã dùng: **giữ `struct` + toàn bộ phần core/monomorph
+ở module gốc, đưa các hàm *entry* (chỉ được gọi, không gọi ngược vào core) sang module mới**. Nhờ vậy đồ
+thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_pass`, `c_program → c_codegen`.
+
 ### 3.4 Đơn vị dữ liệu trung tâm
 
-- **AST** (`../src/compiler`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
+- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
   (`LiteralExpr`, `CallExpr`, `FnDecl`, …). Payload truy cập qua `as_*` (downcast), tạo qua `alloc_*`.
 - **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data }` với `data` trỏ tới payload
   (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`). `DataType = VOID→NONE | … | STRUCT | FN`.
@@ -303,7 +314,7 @@ và v1).
 | 0 | dọn rác: gitignore `/build/`, xoá `kobel_v*.exe`/`out.c`/`*.tmp.obj`/`tmp_diag.bat`, `git mv dac-ta-ngon-ngu.md docs/spec.md` | thấp |
 | 1 | `git mv` theo §9.1 (giữ lịch sử) + cập nhật path trong CMake, `.bat`, loader roots | thấp–vừa |
 | 2 | gộp build vào `tools/bootstrap.ps1` (`build\|self\|fixpoint\|test\|clean`) + `tools/msvc.ps1`; test tự khám phá | thấp |
-| 3 | chẻ file phình: `decl_pass.kb`→`collect/resolve/monomorph`; `body_pass.kb`→`check_expr/check_stmt/check_fn`; `c_codegen.kb`→`c_types/c_decl/c_expr/c_stmt`; tách `runtime.c.inc` | vừa |
+| 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl_pass`→`+decl_collect`, `body_pass`→`+body_program`, `c_codegen`→`+c_program`. Phần core/monomorph giữ nguyên ở module gốc vì là SCC. `runtime.c.inc`: chưa tách (prelude C vẫn trong `c_program`) | vừa |
 | 4 | **bỏ v0/LLVM**: commit `dist/bootstrap.c`, seed = C compiler | vừa (nhưng xoá ~12 700 LOC) |
 
 Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
