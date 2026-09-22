@@ -53,11 +53,7 @@ pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
 	var roots = new_list<str>();
 	if (entry_dir.len > 0) roots.add(entry_dir);
 
-	var i: usz = 0;
-	while (i < extra_roots.len) {
-		roots.add(extra_roots.get(i));
-		i = i + 1;
-	}
+	for (r in extra_roots) roots.add(r);
 
 	// Default roots: the standard library (lib/) and the compiler source (src/)
 	roots.add("lib");
@@ -86,11 +82,7 @@ pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
 	val prog = parse_program(&parser);
 
 	if (parser.errors.len > 0) {
-		var i: usz = 0;
-		while (i < parser.errors.len) {
-			self.errors.add(str_concat3(path, ": ", parser.errors.get(i)));
-			i = i + 1;
-		}
+		for (msg in parser.errors) self.errors.add(str_concat3(path, ": ", msg));
 		return null;
 	}
 
@@ -101,11 +93,8 @@ pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
 pub fn declared_module_name(program_node: *AstNode): str {
 	if (program_node == null) return "";
 	val prog = as_program(program_node);
-	var i: usz = 0;
-	while (i < prog.declarations.len) {
-		val decl = prog.declarations.get(i);
+	for (decl in prog.declarations) {
 		if (decl.kind == NodeKind.DECL_MODULE) return as_module_decl(decl).full_path;
-		i = i + 1;
 	}
 	return "";
 }
@@ -116,21 +105,17 @@ pub fn declared_module_name(program_node: *AstNode): str {
 
 pub fn find_module(var self: &ModuleLoader, module_name: str): ModuleFile {
 	val rel = str_concat(str_module_to_rel(module_name), ".kb");
-	var i: usz = 0;
-	while (i < self.roots.len) {
-		val candidate = str_join_path(self.roots.get(i), rel);
+	for (root in self.roots) {
+		val candidate = str_join_path(root, rel);
 		val src = read_file(candidate);
 		if (src.len > 0) return ModuleFile(true, candidate, src);
-		i = i + 1;
 	}
 	return ModuleFile(false, "", "");
 }
 
 pub fn is_known(self: &ModuleLoader, module_name: str): bool {
-	var i: usz = 0;
-	while (i < self.modules.len) {
-		if (self.modules.get(i).name == module_name) return true;
-		i = i + 1;
+	for (lm in self.modules) {
+		if (lm.name == module_name) return true;
 	}
 	return false;
 }
@@ -166,9 +151,7 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 
 pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
 	val prog = as_program(program_node);
-	var i: usz = 0;
-	while (i < prog.declarations.len) {
-		val decl = prog.declarations.get(i);
+	for (decl in prog.declarations) {
 		if (decl.kind == NodeKind.DECL_USE) {
 			val u = as_use_decl(decl);
 			var mod_name = "";
@@ -176,7 +159,6 @@ pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
 			else if (u.path.len >= 2) mod_name = str_join_dots(u.path, u.path.len - 1);
 			if (mod_name.len > 0) ensure_module(self, mod_name);
 		}
-		i = i + 1;
 	}
 }
 
@@ -202,21 +184,14 @@ pub fn load_program(var self: &ModuleLoader, entry_path: str, entry_source: str)
 pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
 	var decls = new_list<*AstNode>();
 
-	var i: usz = 0;
-	while (i < self.ordered.len) {
-		val lm = self.ordered.get(i);
+	for (lm in self.ordered) {
 		if (lm.program != null) {
 			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
 			decls.add(alloc_module_decl(&self.arena, str_split_dots(lm.name), lm.name, 0, 0));
 
 			val p = as_program(lm.program);
-			var j: usz = 0;
-			while (j < p.declarations.len) {
-				decls.add(p.declarations.get(j));
-				j = j + 1;
-			}
+			for (d in p.declarations) decls.add(d);
 		}
-		i = i + 1;
 	}
 
 	return alloc_program(&self.arena, decls, 0, 0);

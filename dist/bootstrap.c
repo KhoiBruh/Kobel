@@ -9948,11 +9948,15 @@ compiler__loader__loader__ModuleLoader compiler__loader__loader__new_module_load
     if ((kobel_slen(entry_dir) > 0)) {
         std__collections__list__List_str_add((&roots), entry_dir);
     }
-    size_t i = 0;
-    while ((i < (extra_roots).len)) {
-        {
-            std__collections__list__List_str_add((&roots), std__collections__list__List_str_get((&extra_roots), i));
-            i = (i + 1);
+    {
+        size_t __for_n = (extra_roots).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* r = (extra_roots).data[__for_i];
+                std__collections__list__List_str_add((&roots), r);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     std__collections__list__List_str_add((&roots), "lib");
@@ -9971,11 +9975,15 @@ compiler__ast__node__AstNode* compiler__loader__loader__parse_source(compiler__l
     compiler__ast__node__AstNode* prog = compiler__parser__decl__parse_program((&parser));
     if ((((parser).errors).len > 0)) {
         {
-            size_t i = 0;
-            while ((i < ((parser).errors).len)) {
-                {
-                    std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(path, ": ", std__collections__list__List_str_get((&(parser).errors), i)));
-                    i = (i + 1);
+            {
+                size_t __for_n = ((parser).errors).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* msg = ((parser).errors).data[__for_i];
+                        std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(path, ": ", msg));
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             return NULL;
@@ -9989,14 +9997,17 @@ const char* compiler__loader__loader__declared_module_name(compiler__ast__node__
         return "";
     }
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
-    size_t i = 0;
-    while ((i < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i);
-            if (((decl)->kind == 26)) {
-                return ((*compiler__ast__builder__as_module_decl(decl))).full_path;
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (((decl)->kind == 26)) {
+                    return ((*compiler__ast__builder__as_module_decl(decl))).full_path;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return "";
@@ -10004,28 +10015,36 @@ const char* compiler__loader__loader__declared_module_name(compiler__ast__node__
 
 compiler__loader__loader__ModuleFile compiler__loader__loader__find_module(compiler__loader__loader__ModuleLoader* self, const char* module_name) {
     const char* rel = util__strutil__str_concat(util__strutil__str_module_to_rel(module_name), ".kb");
-    size_t i = 0;
-    while ((i < ((self)->roots).len)) {
-        {
-            const char* candidate = util__strutil__str_join_path(std__collections__list__List_str_get((&(self)->roots), i), rel);
-            const char* src = std__io__read_file(candidate);
-            if ((kobel_slen(src) > 0)) {
-                return (compiler__loader__loader__ModuleFile){ true, candidate, src };
+    {
+        size_t __for_n = ((self)->roots).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* root = ((self)->roots).data[__for_i];
+                const char* candidate = util__strutil__str_join_path(root, rel);
+                const char* src = std__io__read_file(candidate);
+                if ((kobel_slen(src) > 0)) {
+                    return (compiler__loader__loader__ModuleFile){ true, candidate, src };
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return (compiler__loader__loader__ModuleFile){ false, "", "" };
 }
 
 bool compiler__loader__loader__is_known(compiler__loader__loader__ModuleLoader* self, const char* module_name) {
-    size_t i = 0;
-    while ((i < ((self)->modules).len)) {
-        {
-            if (kobel_streq((std__collections__list__List_compiler__loader__loader__LoadedModule_get((&(self)->modules), i)).name, module_name)) {
-                return true;
+    {
+        size_t __for_n = ((self)->modules).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__loader__loader__LoadedModule lm = ((self)->modules).data[__for_i];
+                if (kobel_streq((lm).name, module_name)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return false;
@@ -10062,27 +10081,30 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
 
 void compiler__loader__loader__process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node) {
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
-    size_t i = 0;
-    while ((i < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i);
-            if (((decl)->kind == 27)) {
-                {
-                    compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(decl);
-                    const char* mod_name = "";
-                    if ((u)->is_wildcard) {
-                        mod_name = util__strutil__str_join_dots((u)->path, ((u)->path).len);
-                    } else {
-                        if ((((u)->path).len >= 2)) {
-                            mod_name = util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (((decl)->kind == 27)) {
+                    {
+                        compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(decl);
+                        const char* mod_name = "";
+                        if ((u)->is_wildcard) {
+                            mod_name = util__strutil__str_join_dots((u)->path, ((u)->path).len);
+                        } else {
+                            if ((((u)->path).len >= 2)) {
+                                mod_name = util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
+                            }
+                        }
+                        if ((kobel_slen(mod_name) > 0)) {
+                            compiler__loader__loader__ensure_module(self, mod_name);
                         }
                     }
-                    if ((kobel_slen(mod_name) > 0)) {
-                        compiler__loader__loader__ensure_module(self, mod_name);
-                    }
                 }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
 }
@@ -10104,24 +10126,31 @@ compiler__ast__node__AstNode* compiler__loader__loader__load_program(compiler__l
 
 compiler__ast__node__AstNode* compiler__loader__loader__build_merged_program(compiler__loader__loader__ModuleLoader* self) {
     std__collections__list__List_ptr_compiler__ast__node__AstNode decls = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
-    size_t i = 0;
-    while ((i < ((self)->ordered).len)) {
-        {
-            compiler__loader__loader__LoadedModule lm = std__collections__list__List_compiler__loader__loader__LoadedModule_get((&(self)->ordered), i);
-            if (((lm).program != NULL)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), compiler__ast__builder__alloc_module_decl((&(self)->arena), util__strutil__str_split_dots((lm).name), (lm).name, 0, 0));
-                    compiler__ast__decl__Program* p = compiler__ast__builder__as_program((lm).program);
-                    size_t j = 0;
-                    while ((j < ((p)->declarations).len)) {
+    {
+        size_t __for_n = ((self)->ordered).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__loader__loader__LoadedModule lm = ((self)->ordered).data[__for_i];
+                if (((lm).program != NULL)) {
+                    {
+                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), compiler__ast__builder__alloc_module_decl((&(self)->arena), util__strutil__str_split_dots((lm).name), (lm).name, 0, 0));
+                        compiler__ast__decl__Program* p = compiler__ast__builder__as_program((lm).program);
                         {
-                            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(p)->declarations), j));
-                            j = (j + 1);
+                            size_t __for_n = ((p)->declarations).len;
+                            size_t __for_i = ((size_t)0ULL);
+                            while ((__for_i < __for_n)) {
+                                {
+                                    compiler__ast__node__AstNode* d = ((p)->declarations).data[__for_i];
+                                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), d);
+                                    __for_i = (__for_i + 1);
+                                }
+                            }
                         }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return compiler__ast__builder__alloc_program((&(self)->arena), decls, 0, 0);
