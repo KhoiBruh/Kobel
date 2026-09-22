@@ -158,6 +158,11 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
 | `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
+Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, và các struct nội bộ (`StringRaw` ở
+`io.kb`, `StrRaw` ở `str.kb`) **không** `pub` — module khác phải đi qua constructor/method. Riêng
+`List.data` / `List.len` giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2). `StringBuilder` và
+`HashMap` **chưa** áp được: hai tệp đó hiện không biên dịch (xem §10).
+
 Quy ước ABI quan trọng:
 
 - **`str` = `const char*`** (không phải fat-pointer). `.len` phải qua `strlen`.
@@ -451,5 +456,11 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.
 - **`none`**: đã thay `void` ở cả v0/v1; `void` giờ là lỗi biên dịch.
 - **Kiểu hàm bậc nhất** (`fn` type) chưa dùng trong `ast_type_from_type` (trả `null` → codegen tự suy).
+- **`lib/std/collections/hash_map.kb` và `string_builder.kb` đang không biên dịch được** (bit-rot, có
+  từ trước, không do thay đổi nào gần đây): `hash_map` gọi `release(...)` thiếu type argument (generic
+  function không có symbol nên báo "Undeclared identifier"), `string_builder` sai ở `to_str`
+  (`release(raw)` thiếu `;`) và ở `append_i32` (`val digits: Array<char>(12) = […]` — array literal
+  không khớp kiểu). Hệ quả: `examples/std_demo.kb` **không build được** và không nằm trong suite, nên
+  lỗi này không bị phát hiện. Cần một đợt "hồi sinh std collections" riêng + thêm `std_demo` vào suite.
 - Cảnh báo C khi build ở `/Wall`: còn `C5045` (Spectre note), `C4820` (padding) — mang tính thông tin.
 - Hai bản cài đặt sema (v0 và v1) song song ⇒ nguy cơ lệch hành vi; giảm dần bằng cách đóng băng seed.

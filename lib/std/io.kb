@@ -16,9 +16,9 @@ extern "libc" {
 }
 
 struct StringRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
+	data: *char,
+	len: usz,
+	cap: usz
 }
 
 pub fn print(s: str) {

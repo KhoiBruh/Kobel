@@ -2,16 +2,17 @@ mod std.mem.arena;
 
 use std.mem.alloc.*;
 
+// Fields are internal: an arena is used through `arena_alloc` / its methods.
 pub struct ArenaBlock {
-	pub data: &u8,
-	pub size: usz,
-	pub used: usz,
-	pub next: *ArenaBlock
+	data: &u8,
+	size: usz,
+	used: usz,
+	next: *ArenaBlock
 }
 
 pub struct Arena {
-	pub current: *ArenaBlock,
-	pub block_size: usz
+	current: *ArenaBlock,
+	block_size: usz
 }
 
 pub fn new_arena(default_block_size: usz): Arena {

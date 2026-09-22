@@ -13,9 +13,9 @@ use std.mem.alloc.raw_release;
 
 // Raw layout of a `str` value ({ data, len }); the same trick as util.strutil.
 struct StrRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
+	data: *char,
+	len: usz,
+	cap: usz
 }
 
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
