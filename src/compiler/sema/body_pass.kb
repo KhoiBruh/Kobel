@@ -712,15 +712,17 @@ pub fn interp_concat(var arena: &Arena, a: *AstNode, b: *AstNode, line: usz, col
 // Converts one interpolation hole to `str`, or reports an error and returns null.
 pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
 	if (ty.kind == DataType.STR) return expr;
-	if (ty.kind == DataType.CHAR) return interp_call(&self.arena, "kobel_char_str", expr, node.line, node.col);
-	if (ty.kind == DataType.BOOL) return alloc_if_expr(&self.arena, expr,
-		alloc_literal(&self.arena, LiteralKind.STRING, "\"true\"", node.line, node.col),
-		alloc_literal(&self.arena, LiteralKind.STRING, "\"false\"", node.line, node.col),
-		node.line, node.col);
-	if (is_signed_integer(ty)) return interp_call(&self.arena, "kobel_i64_str", expr, node.line, node.col);
-	if (is_integer(ty)) return interp_call(&self.arena, "kobel_usz_str", expr, node.line, node.col);
+
+	// Floats have no `ToStr` implementation (see std.fmt), so they keep the
+	// dedicated C helper.
 	if (is_float(ty)) return interp_call(&self.arena, "kobel_f64_str", expr, node.line, node.col);
-	report_error(self, node, "Interpolated value must be str, char, bool or numeric");
+
+	// Everything else goes through the `ToStr` trait; std.fmt provides the
+	// built-in implementations (see the driver, which always loads it).
+	val pmi = find_prim_method(&self.symtab, ty.kind, "to_str");
+	if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
+
+	report_error(self, node, "Interpolated value must be str, char, bool or an integer");
 	return null;
 }
 
