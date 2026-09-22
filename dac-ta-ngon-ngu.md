@@ -62,8 +62,11 @@ println("giá: \$5");                          // `\$` là ký tự `$` literal
   số), `f32`/`f64`. Kiểu khác là **lỗi biên dịch**, vì chưa có trait `to_str` nên không thể mở rộng
   tự động.
 - Hố được đánh giá **đúng một lần**, tại đúng vị trí của nó trong chuỗi.
-- Chưa có shorthand `$tên` (viết `${tên}`); `string` lồng trong hố chạy được, `"${...}"` lồng trong
-  hố thì chưa.
+- **Không có shorthand `$tên`** — quyết định là luôn viết `${tên}`. Lý do: shorthand kiểu `$tên` phải
+  lấy tên dài nhất (`"$numth"` là biến `numth`, không phải `num` + `"th"`), nên nối liền mạch với chữ
+  phía sau là cái bẫy im lặng; còn `${...}` là dạng tổng quát, nối được mọi trường hợp
+  (`"${num}th"` → `5th`) và cũng là dạng bắt buộc khi hố là biểu thức (`"${ordinal(i)}"`).
+- `string` lồng trong hố chạy được; `"${...}"` lồng trong hố thì chưa.
 - Hạ tầng: chuỗi nội suy được hạ trong sema thành chuỗi gọi `kobel_concat` + helper chuyển kiểu
   (xem `docs/architecture.md` §6.2) — không đụng tới codegen.
 
