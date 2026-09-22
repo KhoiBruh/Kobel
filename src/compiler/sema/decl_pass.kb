@@ -52,7 +52,7 @@ use compiler.ast.builder.as_pointer_type as ast_pointer;
 use compiler.ast.builder.as_array_type as ast_array;
 use compiler.ast.decl.StructField as AstStructField;
 
-use compiler.util.strutil.*;
+use util.strutil.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;

@@ -13,7 +13,7 @@ use compiler.sema.types.StructField;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
 
-use compiler.util.strutil.*;
+use util.strutil.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;

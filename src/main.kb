@@ -13,60 +13,13 @@ use compiler.codegen.c_program.*;
 use compiler.loader.loader.*;
 
 use compiler.lexer.token.usz_to_str;
-use compiler.util.strutil.str_dir_of;
+use util.strutil.str_dir_of;
+use util.strutil.str_strip_kb;
+use util.strutil.cstr_to_str;
 
 // ============================================================================
-// Libc and Memory Utilities
+// Main Entry Point
 // ============================================================================
-
-extern "libc" {
-	fn strlen(s: *char): usz;
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8): none;
-}
-
-struct StringRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
-}
-
-fn cstr_to_str(s: *char): str {
-	val len: usz = strlen(s);
-	val raw_mem = malloc(24);
-	val r = raw_mem as &StringRaw;
-	r.data = s;
-	r.len = len;
-	r.cap = len;
-	val sp: *str = r as *str;
-	val res: str = *sp;
-	free(raw_mem);
-	return res;
-}
-
-fn get_stem(path: str): str {
-	val len = path.len;
-	if (len > 3 && path[len - 3] == '.' && path[len - 2] == 'k' && path[len - 1] == 'b') {
-		val new_len = len - 3;
-		val buf = malloc(new_len + 1);
-		var j: usz = 0;
-		while (j < new_len) {
-			buf[j] = path[j] as u8;
-			j = j + 1;
-		}
-		buf[new_len] = 0;
-		val raw_mem = malloc(24);
-		val r = raw_mem as &StringRaw;
-		r.data = buf as *char;
-		r.len = new_len;
-		r.cap = new_len + 1;
-		val sp: *str = r as *str;
-		val res: str = *sp;
-		free(raw_mem);
-		return res;
-	}
-	return path;
-}
 
 fn print_usage() {
 	println("============================================================");
@@ -234,9 +187,9 @@ fn main(argc: i32, argv: &*char): i32 {
 
 	// Native binary compilation
 	var out_path = output_bin;
-	if (out_path.len == 0) out_path = get_stem(input_path) + ".exe";
+	if (out_path.len == 0) out_path = str_strip_kb(input_path) + ".exe";
 
-	val c_tmp_path = get_stem(input_path) + ".tmp.c";
+	val c_tmp_path = str_strip_kb(input_path) + ".tmp.c";
 	val write_ok = write_file(c_tmp_path, c_code);
 	if (!write_ok) {
 		print("Error: Failed to write temporary C file: ");

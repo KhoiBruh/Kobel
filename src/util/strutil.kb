@@ -1,10 +1,10 @@
-mod compiler.util.strutil;
+mod util.strutil;
 
 use std.collections.list.List;
 use std.collections.list.new_list;
 
 // ============================================================================
-// String utilities for the compiler compiler
+// String utilities shared by the compiler
 //
 // These helpers build strings from raw byte buffers (malloc + StringRaw) so
 // that they keep working regardless of how `str` is represented by the
@@ -14,6 +14,7 @@ use std.collections.list.new_list;
 extern "libc" {
 	fn malloc(size: usz): &u8;
 	fn free(ptr: &u8): none;
+	fn strlen(s: *char): usz;
 }
 
 struct StrRaw {
@@ -34,6 +35,10 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 	free(raw_mem);
 	return res;
 }
+
+// Views a NUL-terminated C string as a `str`. The buffer is shared, not copied,
+// so it must outlive the returned value (used for argv et al.).
+pub fn cstr_to_str(s: *char): str => str_from_bytes(s as &u8, strlen(s));
 
 // Copies `count` bytes starting at `start` into a fresh NUL terminated `str`.
 pub fn str_slice(s: str, start: usz, count: usz): str {

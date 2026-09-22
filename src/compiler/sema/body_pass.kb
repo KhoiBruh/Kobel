@@ -39,7 +39,7 @@ use compiler.ast.builder.alloc_array_type as ast_alloc_array;
 
 use compiler.lexer.token.*;
 
-use compiler.util.strutil.str_concat3;
+use util.strutil.str_concat3;
 
 use compiler.sema.types.*;
 

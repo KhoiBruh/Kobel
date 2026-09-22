@@ -60,9 +60,9 @@ v1 chỉ có **4 bước**, in ra dưới dạng `[n/4]`:
 | Bước | Gọi | Việc |
 |---|---|---|
 | 1 | `load_program(loader, input_path, src)` | `loader` nạp entry + mọi `use` (đệ quy), mỗi module: lex → parse → AST |
-| 2 | `collect_program(decl_pass, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphize |
-| 3 | `check_program(body_pass, prog)` | kiểm tra thân hàm, **desugar** (xem §6.2), gắn kiểu cho biến nội bộ |
-| 4 | `gen_program(codegen, prog)` | sinh C99 rồi `write_file`; nếu không `-emit-c` thì gọi C compiler + chạy |
+| 2 | `collect_program(decl_collect, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphize (core nằm ở `decl_pass`) |
+| 3 | `check_program(body_program, prog)` | kiểm tra thân hàm, **desugar** (xem §6.2), gắn kiểu cho biến nội bộ (core nằm ở `body_pass`) |
+| 4 | `gen_program(c_program, prog)` | sinh C99 rồi `write_file`; nếu không `-emit-c` thì gọi C compiler + chạy (core nằm ở `c_codegen`) |
 
 **Module search roots** (giống v0): thư mục file entry → các root `-I` → `lib` → `src`.
 
@@ -84,7 +84,7 @@ kobel [options] <source.kb>
 std.*                       (lá — không phụ thuộc compiler)
   ▲
   │
-compiler.lexer.token       (không phụ thuộc gì)
+compiler.lexer.token       ← util.strutil
 compiler.ast.node          │
 compiler.ast.{types,expr,stmt,decl}   ← node, lexer.token, std.list
 compiler.lexer.lexer       ← lexer.token, std.ascii, std.list
@@ -98,9 +98,9 @@ compiler.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil,
 compiler.sema.body_program ← sema.body_pass, sema.decl_{pass,collect}, ast.*, sema.*, std
 compiler.codegen.c_codegen ← ast.*, lexer.token, std.list                            (core)
 compiler.codegen.c_program ← codegen.c_codegen, ast.*, lexer.token, std.list
-compiler.util.strutil      ← std.list
-compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, strutil, std
-main                        ← sema.{decl_pass,decl_collect,body_pass,body_program}, codegen.{c_codegen,c_program}, loader, std
+util.strutil               ← std.list   (chuỗi/số dùng chung: str_*, usz_to_str, cstr_to_str)
+compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, util.strutil, std
+main                        ← sema.{decl_pass,decl_collect,body_pass,body_program}, codegen.{c_codegen,c_program}, loader, util.strutil, std
 ```
 
 Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`/`codegen` phụ thuộc `ast` nhưng
@@ -151,12 +151,14 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `collections/list.kb` | `List<T>` (generic) + `new_list<T>` |
 | `collections/hash_map.kb` | `HashMap<V>` |
 | `collections/string_builder.kb` | `StringBuilder` |
-| `mem/arena.kb` | `Arena` (cấp phát vùng) |
+| `mem/arena.kb` | `Arena` + `alloc<T>(&Arena): *T` (cấp phát có kiểu, thay `alloc_bytes(...) as *T`) |
 
 Quy ước ABI quan trọng:
 
 - **`str` = `const char*`** (không phải fat-pointer). `.len` phải qua `strlen`.
 - **`List<T>`** layout C: `{ T* data; size_t len; size_t cap; }`.
+- **Cấp phát có kiểu**: dùng `alloc<T>(&arena)` (trả `*T`) thay cho mẫu thủ công
+  `arena.alloc_bytes(T.size(), 8) as *T`; ví dụ `val n = alloc<AstNode>(&self.arena); *n = AstNode(...);`.
 - Thao tác chuỗi không dùng toán tử: dùng helper `kobel_*` do codegen chèn (§6.3).
 
 ---
@@ -334,6 +336,9 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 
 - **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; chưa hỗ trợ
   trait/bounds; `T.size()` hạ thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng).
+- **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
+  (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
+  (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.
 - **`none`**: đã thay `void` ở cả v0/v1; `void` giờ là lỗi biên dịch.
 - **Kiểu hàm bậc nhất** (`fn` type) chưa dùng trong `ast_type_from_type` (trả `null` → codegen tự suy).
 - Cảnh báo C khi build ở `/Wall`: còn `C5045` (Spectre note), `C4820` (padding) — mang tính thông tin.

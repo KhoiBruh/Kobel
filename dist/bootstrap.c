@@ -31,10 +31,10 @@ static size_t kobel_slen(const char* s) {
     return strlen(s);
 }
 
+typedef struct std__collections__list__List_str std__collections__list__List_str;
 typedef struct std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode;
 typedef struct std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__WhenArm;
 typedef struct std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stmt__WhenStmtArm;
-typedef struct std__collections__list__List_str std__collections__list__List_str;
 typedef struct std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam;
 typedef struct std__collections__list__List_compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Param;
 typedef struct std__collections__list__List_compiler__ast__decl__StructField std__collections__list__List_compiler__ast__decl__StructField;
@@ -51,9 +51,9 @@ typedef struct std__collections__list__List_ptr_compiler__sema__types__EnumInfo 
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
 typedef struct std__io__StringRaw std__io__StringRaw;
+typedef struct util__strutil__StrRaw util__strutil__StrRaw;
 typedef int32_t compiler__lexer__token__TokenType;
 typedef struct compiler__lexer__token__Token compiler__lexer__token__Token;
-typedef struct compiler__lexer__token__StringRaw compiler__lexer__token__StringRaw;
 typedef int32_t compiler__ast__node__NodeKind;
 typedef struct compiler__ast__node__AstNode compiler__ast__node__AstNode;
 typedef struct compiler__ast__types__NamedType compiler__ast__types__NamedType;
@@ -118,7 +118,6 @@ typedef struct compiler__sema__symbol__ImportBinding compiler__sema__symbol__Imp
 typedef struct compiler__sema__symbol__GenTemplate compiler__sema__symbol__GenTemplate;
 typedef struct compiler__sema__symbol__GenericReg compiler__sema__symbol__GenericReg;
 typedef struct compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable;
-typedef struct compiler__util__strutil__StrRaw compiler__util__strutil__StrRaw;
 typedef struct compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__DeclPass;
 typedef struct compiler__sema__decl_pass__GenSubst compiler__sema__decl_pass__GenSubst;
 typedef struct compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass;
@@ -139,8 +138,13 @@ typedef struct compiler__parser__parser__Parser compiler__parser__parser__Parser
 typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__LoadedModule;
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
-typedef struct main__StringRaw main__StringRaw;
 
+
+struct std__collections__list__List_str {
+    const char** data;
+    size_t len;
+    size_t cap;
+};
 
 struct std__collections__list__List_ptr_compiler__ast__node__AstNode {
     compiler__ast__node__AstNode** data;
@@ -156,12 +160,6 @@ struct std__collections__list__List_compiler__ast__expr__WhenArm {
 
 struct std__collections__list__List_compiler__ast__stmt__WhenStmtArm {
     compiler__ast__stmt__WhenStmtArm* data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__list__List_str {
-    const char** data;
     size_t len;
     size_t cap;
 };
@@ -262,17 +260,17 @@ struct std__io__StringRaw {
     size_t cap;
 };
 
+struct util__strutil__StrRaw {
+    const char* data;
+    size_t len;
+    size_t cap;
+};
+
 struct compiler__lexer__token__Token {
     compiler__lexer__token__TokenType type;
     const char* text;
     size_t line;
     size_t col;
-};
-
-struct compiler__lexer__token__StringRaw {
-    const char* data;
-    size_t len;
-    size_t cap;
 };
 
 struct compiler__ast__node__AstNode {
@@ -633,12 +631,6 @@ struct compiler__sema__symbol__SymbolTable {
     compiler__sema__symbol__GenericReg gen;
 };
 
-struct compiler__util__strutil__StrRaw {
-    const char* data;
-    size_t len;
-    size_t cap;
-};
-
 struct compiler__sema__decl_pass__DeclPass {
     compiler__sema__symbol__SymbolTable symtab;
     std__mem__arena__Arena arena;
@@ -705,12 +697,17 @@ struct compiler__loader__loader__ModuleLoader {
     std__mem__arena__Arena arena;
 };
 
-struct main__StringRaw {
-    const char* data;
-    size_t len;
-    size_t cap;
-};
-
+const char* std__collections__list__List_str_get(const std__collections__list__List_str* self, size_t index);
+const char* std__collections__list__List_str_first(const std__collections__list__List_str* self);
+const char* std__collections__list__List_str_last(const std__collections__list__List_str* self);
+bool std__collections__list__List_str_is_empty(const std__collections__list__List_str* self);
+void std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value);
+void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value);
+const char* std__collections__list__List_str_pop(std__collections__list__List_str* self);
+void std__collections__list__List_str_clear(std__collections__list__List_str* self);
+void std__collections__list__List_str_grow(std__collections__list__List_str* self);
+void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap);
+void std__collections__list__List_str_delete(const std__collections__list__List_str* self);
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_get(const std__collections__list__List_ptr_compiler__ast__node__AstNode* self, size_t index);
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_first(const std__collections__list__List_ptr_compiler__ast__node__AstNode* self);
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_last(const std__collections__list__List_ptr_compiler__ast__node__AstNode* self);
@@ -744,17 +741,6 @@ void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_clear(std__co
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_grow(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self);
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_reserve(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self, size_t min_cap);
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_delete(const std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self);
-const char* std__collections__list__List_str_get(const std__collections__list__List_str* self, size_t index);
-const char* std__collections__list__List_str_first(const std__collections__list__List_str* self);
-const char* std__collections__list__List_str_last(const std__collections__list__List_str* self);
-bool std__collections__list__List_str_is_empty(const std__collections__list__List_str* self);
-void std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value);
-void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value);
-const char* std__collections__list__List_str_pop(std__collections__list__List_str* self);
-void std__collections__list__List_str_clear(std__collections__list__List_str* self);
-void std__collections__list__List_str_grow(std__collections__list__List_str* self);
-void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap);
-void std__collections__list__List_str_delete(const std__collections__list__List_str* self);
 compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_get(const std__collections__list__List_compiler__ast__decl__GenericParam* self, size_t index);
 compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_first(const std__collections__list__List_compiler__ast__decl__GenericParam* self);
 compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_last(const std__collections__list__List_compiler__ast__decl__GenericParam* self);
@@ -920,6 +906,7 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_clear(s
 void std__collections__list__List_compiler__loader__loader__LoadedModule_grow(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_reserve(std__collections__list__List_compiler__loader__loader__LoadedModule* self, size_t min_cap);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(const std__collections__list__List_compiler__loader__loader__LoadedModule* self);
+std__collections__list__List_str std__collections__list__new_list_str(void);
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* arena);
 compiler__ast__types__NamedType* std__mem__arena__alloc_compiler__ast__types__NamedType(std__mem__arena__Arena* arena);
 compiler__ast__types__PointerType* std__mem__arena__alloc_compiler__ast__types__PointerType(std__mem__arena__Arena* arena);
@@ -966,7 +953,6 @@ std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections
 compiler__sema__symbol__Symbol* std__mem__arena__alloc_compiler__sema__symbol__Symbol(std__mem__arena__Arena* arena);
 compiler__sema__symbol__Scope* std__mem__arena__alloc_compiler__sema__symbol__Scope(std__mem__arena__Arena* arena);
 std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate std__collections__list__new_list_ptr_compiler__sema__symbol__GenTemplate(void);
-std__collections__list__List_str std__collections__list__new_list_str(void);
 std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__new_list_ptr_compiler__ast__node__AstNode(void);
 std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__list__new_list_ptr_compiler__sema__symbol__ModuleScope(void);
 std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__new_list_compiler__sema__symbol__ImportBinding(void);
@@ -994,6 +980,23 @@ const char* std__io__read_file(const char* path);
 bool std__io__write_file(const char* path, const char* content);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
+const char* util__strutil__str_from_bytes(uint8_t* buf, size_t len);
+const char* util__strutil__cstr_to_str(const char* s);
+const char* util__strutil__str_slice(const char* s, size_t start, size_t count);
+const char* util__strutil__str_concat(const char* a, const char* b);
+const char* util__strutil__str_concat3(const char* a, const char* b, const char* c);
+bool util__strutil__str_is_sep(char c);
+const char* util__strutil__str_module_to_rel(const char* module_name);
+const char* util__strutil__str_path_to_module(const char* rel_path);
+bool util__strutil__str_has_kb_suffix(const char* path);
+const char* util__strutil__str_strip_kb(const char* path);
+const char* util__strutil__str_dir_of(const char* path);
+const char* util__strutil__str_base_name(const char* path);
+const char* util__strutil__str_join_path(const char* dir, const char* rel);
+bool util__strutil__str_is_empty_str(const char* s);
+const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
+std__collections__list__List_str util__strutil__str_split_dots(const char* s);
+const char* util__strutil__str_mangle_symbol(const char* module_name, const char* name);
 const char* compiler__lexer__token__usz_to_str(size_t n);
 const char* compiler__lexer__token__format_loc(size_t line, size_t col);
 const char* compiler__lexer__token__strip_suffix(const char* s, size_t n);
@@ -1136,22 +1139,6 @@ bool compiler__sema__symbol__define_global(compiler__sema__symbol__SymbolTable* 
 void compiler__sema__symbol__add_import(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* symbol_name, const char* local_name, bool is_wildcard);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__lookup_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__lookup_c_name(compiler__sema__symbol__SymbolTable* self, const char* c_name);
-const char* compiler__util__strutil__str_from_bytes(uint8_t* buf, size_t len);
-const char* compiler__util__strutil__str_slice(const char* s, size_t start, size_t count);
-const char* compiler__util__strutil__str_concat(const char* a, const char* b);
-const char* compiler__util__strutil__str_concat3(const char* a, const char* b, const char* c);
-bool compiler__util__strutil__str_is_sep(char c);
-const char* compiler__util__strutil__str_module_to_rel(const char* module_name);
-const char* compiler__util__strutil__str_path_to_module(const char* rel_path);
-bool compiler__util__strutil__str_has_kb_suffix(const char* path);
-const char* compiler__util__strutil__str_strip_kb(const char* path);
-const char* compiler__util__strutil__str_dir_of(const char* path);
-const char* compiler__util__strutil__str_base_name(const char* path);
-const char* compiler__util__strutil__str_join_path(const char* dir, const char* rel);
-bool compiler__util__strutil__str_is_empty_str(const char* s);
-const char* compiler__util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
-std__collections__list__List_str compiler__util__strutil__str_split_dots(const char* s);
-const char* compiler__util__strutil__str_mangle_symbol(const char* module_name, const char* name);
 compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__new_decl_pass(void);
 const char* compiler__sema__decl_pass__c_name_for(compiler__sema__decl_pass__DeclPass* self, const char* name);
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
@@ -1295,11 +1282,73 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
 void compiler__loader__loader__process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node);
 compiler__ast__node__AstNode* compiler__loader__loader__load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__build_merged_program(compiler__loader__loader__ModuleLoader* self);
-const char* main__cstr_to_str(const char* s);
-const char* main__get_stem(const char* path);
 void main__print_usage(void);
 void main__print_error_list(std__collections__list__List_str errors);
 int32_t main(int32_t argc, const char** argv);
+
+const char* std__collections__list__List_str_get(const std__collections__list__List_str* self, size_t index) {
+    return (self)->data[index];
+}
+
+const char* std__collections__list__List_str_first(const std__collections__list__List_str* self) {
+    return (self)->data[((size_t)0ULL)];
+}
+
+const char* std__collections__list__List_str_last(const std__collections__list__List_str* self) {
+    return (self)->data[((self)->len - ((size_t)1ULL))];
+}
+
+bool std__collections__list__List_str_is_empty(const std__collections__list__List_str* self) {
+    return ((self)->len == ((size_t)0ULL));
+}
+
+void std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_str_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len = ((self)->len + ((size_t)1ULL));
+}
+
+const char* std__collections__list__List_str_pop(std__collections__list__List_str* self) {
+    (self)->len = ((self)->len - ((size_t)1ULL));
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_str_clear(std__collections__list__List_str* self) {
+    (self)->len = ((size_t)0ULL);
+}
+
+void std__collections__list__List_str_grow(std__collections__list__List_str* self) {
+    size_t new_cap = ((self)->cap * ((size_t)2ULL));
+    uint8_t* new_raw = realloc(((uint8_t*)(self)->data), (new_cap * 8));
+    (self)->data = ((const char**)new_raw);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap = (new_cap * ((size_t)2ULL));
+                }
+            }
+            uint8_t* new_raw = realloc(((uint8_t*)(self)->data), (new_cap * 8));
+            (self)->data = ((const char**)new_raw);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_str_delete(const std__collections__list__List_str* self) {
+    free(((uint8_t*)(self)->data));
+}
 
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_get(const std__collections__list__List_ptr_compiler__ast__node__AstNode* self, size_t index) {
     return (self)->data[index];
@@ -1490,70 +1539,6 @@ void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_reserve(std__
 }
 
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_delete(const std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self) {
-    free(((uint8_t*)(self)->data));
-}
-
-const char* std__collections__list__List_str_get(const std__collections__list__List_str* self, size_t index) {
-    return (self)->data[index];
-}
-
-const char* std__collections__list__List_str_first(const std__collections__list__List_str* self) {
-    return (self)->data[((size_t)0ULL)];
-}
-
-const char* std__collections__list__List_str_last(const std__collections__list__List_str* self) {
-    return (self)->data[((self)->len - ((size_t)1ULL))];
-}
-
-bool std__collections__list__List_str_is_empty(const std__collections__list__List_str* self) {
-    return ((self)->len == ((size_t)0ULL));
-}
-
-void std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value) {
-    (self)->data[index] = value;
-}
-
-void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value) {
-    if (((self)->len == (self)->cap)) {
-        std__collections__list__List_str_grow(self);
-    }
-    (self)->data[(self)->len] = value;
-    (self)->len = ((self)->len + ((size_t)1ULL));
-}
-
-const char* std__collections__list__List_str_pop(std__collections__list__List_str* self) {
-    (self)->len = ((self)->len - ((size_t)1ULL));
-    return (self)->data[(self)->len];
-}
-
-void std__collections__list__List_str_clear(std__collections__list__List_str* self) {
-    (self)->len = ((size_t)0ULL);
-}
-
-void std__collections__list__List_str_grow(std__collections__list__List_str* self) {
-    size_t new_cap = ((self)->cap * ((size_t)2ULL));
-    uint8_t* new_raw = realloc(((uint8_t*)(self)->data), (new_cap * 8));
-    (self)->data = ((const char**)new_raw);
-    (self)->cap = new_cap;
-}
-
-void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap) {
-    if ((min_cap > (self)->cap)) {
-        {
-            size_t new_cap = (self)->cap;
-            while ((new_cap < min_cap)) {
-                {
-                    new_cap = (new_cap * ((size_t)2ULL));
-                }
-            }
-            uint8_t* new_raw = realloc(((uint8_t*)(self)->data), (new_cap * 8));
-            (self)->data = ((const char**)new_raw);
-            (self)->cap = new_cap;
-        }
-    }
-}
-
-void std__collections__list__List_str_delete(const std__collections__list__List_str* self) {
     free(((uint8_t*)(self)->data));
 }
 
@@ -2517,6 +2502,12 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(
     free(((uint8_t*)(self)->data));
 }
 
+std__collections__list__List_str std__collections__list__new_list_str(void) {
+    size_t init_cap = ((size_t)4ULL);
+    uint8_t* raw = malloc((init_cap * 8));
+    return (std__collections__list__List_str){ ((const char**)raw), ((size_t)0ULL), init_cap };
+}
+
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 32, ((size_t)8ULL));
     return ((compiler__ast__node__AstNode*)raw);
@@ -2750,12 +2741,6 @@ std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate std__collec
     return (std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate){ ((compiler__sema__symbol__GenTemplate**)raw), ((size_t)0ULL), init_cap };
 }
 
-std__collections__list__List_str std__collections__list__new_list_str(void) {
-    size_t init_cap = ((size_t)4ULL);
-    uint8_t* raw = malloc((init_cap * 8));
-    return (std__collections__list__List_str){ ((const char**)raw), ((size_t)0ULL), init_cap };
-}
-
 std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__new_list_ptr_compiler__ast__node__AstNode(void) {
     size_t init_cap = ((size_t)4ULL);
     uint8_t* raw = malloc((init_cap * 8));
@@ -2945,6 +2930,274 @@ int32_t std__sys__exec(const char* cmd) {
     return system(cmd);
 }
 
+const char* util__strutil__str_from_bytes(uint8_t* buf, size_t len) {
+    uint8_t* raw_mem = malloc(24);
+    util__strutil__StrRaw* r = ((util__strutil__StrRaw*)raw_mem);
+    (r)->data = ((const char*)buf);
+    (r)->len = len;
+    (r)->cap = (len + 1);
+    const char** sp = ((const char**)r);
+    const char* res = (*sp);
+    free(raw_mem);
+    return res;
+}
+
+const char* util__strutil__cstr_to_str(const char* s) {
+    return util__strutil__str_from_bytes(((uint8_t*)s), strlen(s));
+}
+
+const char* util__strutil__str_slice(const char* s, size_t start, size_t count) {
+    uint8_t* buf = malloc((count + 1));
+    size_t i = 0;
+    while ((i < count)) {
+        {
+            buf[i] = ((uint8_t)s[(start + i)]);
+            i = (i + 1);
+        }
+    }
+    buf[count] = 0;
+    return util__strutil__str_from_bytes(buf, count);
+}
+
+const char* util__strutil__str_concat(const char* a, const char* b) {
+    size_t total = (kobel_slen(a) + kobel_slen(b));
+    uint8_t* buf = malloc((total + 1));
+    size_t i = 0;
+    while ((i < kobel_slen(a))) {
+        {
+            buf[i] = ((uint8_t)a[i]);
+            i = (i + 1);
+        }
+    }
+    size_t j = 0;
+    while ((j < kobel_slen(b))) {
+        {
+            buf[i] = ((uint8_t)b[j]);
+            i = (i + 1);
+            j = (j + 1);
+        }
+    }
+    buf[total] = 0;
+    return util__strutil__str_from_bytes(buf, total);
+}
+
+const char* util__strutil__str_concat3(const char* a, const char* b, const char* c) {
+    return util__strutil__str_concat(util__strutil__str_concat(a, b), c);
+}
+
+bool util__strutil__str_is_sep(char c) {
+    return ((c == '/') || (c == '\\'));
+}
+
+const char* util__strutil__str_module_to_rel(const char* module_name) {
+    uint8_t* buf = malloc((kobel_slen(module_name) + 1));
+    size_t i = 0;
+    while ((i < kobel_slen(module_name))) {
+        {
+            char c = module_name[i];
+            if ((c == '.')) {
+                buf[i] = ((uint8_t)'/');
+            } else {
+                buf[i] = ((uint8_t)c);
+            }
+            i = (i + 1);
+        }
+    }
+    buf[kobel_slen(module_name)] = 0;
+    return util__strutil__str_from_bytes(buf, kobel_slen(module_name));
+}
+
+const char* util__strutil__str_path_to_module(const char* rel_path) {
+    const char* stem = util__strutil__str_strip_kb(rel_path);
+    uint8_t* buf = malloc((kobel_slen(stem) + 1));
+    size_t i = 0;
+    while ((i < kobel_slen(stem))) {
+        {
+            char c = stem[i];
+            if (util__strutil__str_is_sep(c)) {
+                buf[i] = ((uint8_t)'.');
+            } else {
+                buf[i] = ((uint8_t)c);
+            }
+            i = (i + 1);
+        }
+    }
+    buf[kobel_slen(stem)] = 0;
+    return util__strutil__str_from_bytes(buf, kobel_slen(stem));
+}
+
+bool util__strutil__str_has_kb_suffix(const char* path) {
+    if ((kobel_slen(path) < 3)) {
+        return false;
+    }
+    if ((path[(kobel_slen(path) - 3)] != '.')) {
+        return false;
+    }
+    if ((path[(kobel_slen(path) - 2)] != 'k')) {
+        return false;
+    }
+    return (path[(kobel_slen(path) - 1)] == 'b');
+}
+
+const char* util__strutil__str_strip_kb(const char* path) {
+    if ((!util__strutil__str_has_kb_suffix(path))) {
+        return path;
+    }
+    return util__strutil__str_slice(path, 0, (kobel_slen(path) - 3));
+}
+
+const char* util__strutil__str_dir_of(const char* path) {
+    size_t last = 0;
+    bool found = false;
+    size_t i = 0;
+    while ((i < kobel_slen(path))) {
+        {
+            if (util__strutil__str_is_sep(path[i])) {
+                {
+                    last = i;
+                    found = true;
+                }
+            }
+            i = (i + 1);
+        }
+    }
+    if ((!found)) {
+        return "";
+    }
+    return util__strutil__str_slice(path, 0, last);
+}
+
+const char* util__strutil__str_base_name(const char* path) {
+    size_t start = 0;
+    size_t i = 0;
+    while ((i < kobel_slen(path))) {
+        {
+            if (util__strutil__str_is_sep(path[i])) {
+                start = (i + 1);
+            }
+            i = (i + 1);
+        }
+    }
+    return util__strutil__str_slice(path, start, (kobel_slen(path) - start));
+}
+
+const char* util__strutil__str_join_path(const char* dir, const char* rel) {
+    if ((kobel_slen(dir) == 0)) {
+        return rel;
+    }
+    return util__strutil__str_concat3(dir, "/", rel);
+}
+
+bool util__strutil__str_is_empty_str(const char* s) {
+    return (kobel_slen(s) == 0);
+}
+
+const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count) {
+    size_t total = 0;
+    size_t i = 0;
+    while ((i < count)) {
+        {
+            total = (total + kobel_slen(std__collections__list__List_str_get((&parts), i)));
+            i = (i + 1);
+        }
+    }
+    if ((count > 1)) {
+        total = (total + ((count - 1)));
+    }
+    uint8_t* buf = malloc((total + 1));
+    size_t w = 0;
+    i = 0;
+    while ((i < count)) {
+        {
+            const char* p = std__collections__list__List_str_get((&parts), i);
+            size_t j = 0;
+            while ((j < kobel_slen(p))) {
+                {
+                    buf[w] = ((uint8_t)p[j]);
+                    w = (w + 1);
+                    j = (j + 1);
+                }
+            }
+            if (((i + 1) < count)) {
+                {
+                    buf[w] = ((uint8_t)'.');
+                    w = (w + 1);
+                }
+            }
+            i = (i + 1);
+        }
+    }
+    buf[w] = 0;
+    return util__strutil__str_from_bytes(buf, w);
+}
+
+std__collections__list__List_str util__strutil__str_split_dots(const char* s) {
+    std__collections__list__List_str parts = std__collections__list__new_list_str();
+    size_t start = 0;
+    size_t i = 0;
+    while ((i < kobel_slen(s))) {
+        {
+            if ((s[i] == '.')) {
+                {
+                    std__collections__list__List_str_add((&parts), util__strutil__str_slice(s, start, (i - start)));
+                    start = (i + 1);
+                }
+            }
+            i = (i + 1);
+        }
+    }
+    std__collections__list__List_str_add((&parts), util__strutil__str_slice(s, start, (kobel_slen(s) - start)));
+    return parts;
+}
+
+const char* util__strutil__str_mangle_symbol(const char* module_name, const char* name) {
+    if ((kobel_slen(module_name) == 0)) {
+        return name;
+    }
+    size_t total = (((kobel_slen(module_name) * 2) + 2) + kobel_slen(name));
+    uint8_t* buf = malloc((total + 1));
+    size_t i = 0;
+    size_t w = 0;
+    while ((i < kobel_slen(module_name))) {
+        {
+            char c = module_name[i];
+            if ((c == '.')) {
+                {
+                    buf[w] = ((uint8_t)'_');
+                    buf[(w + 1)] = ((uint8_t)'_');
+                    w = (w + 2);
+                }
+            } else {
+                if (((c == '_') || (c == '-'))) {
+                    {
+                        buf[w] = ((uint8_t)'_');
+                        w = (w + 1);
+                    }
+                } else {
+                    {
+                        buf[w] = ((uint8_t)c);
+                        w = (w + 1);
+                    }
+                }
+            }
+            i = (i + 1);
+        }
+    }
+    buf[w] = ((uint8_t)'_');
+    buf[(w + 1)] = ((uint8_t)'_');
+    w = (w + 2);
+    size_t k = 0;
+    while ((k < kobel_slen(name))) {
+        {
+            buf[w] = ((uint8_t)name[k]);
+            w = (w + 1);
+            k = (k + 1);
+        }
+    }
+    buf[w] = 0;
+    return util__strutil__str_from_bytes(buf, w);
+}
+
 const char* compiler__lexer__token__usz_to_str(size_t n) {
     if ((n == 0)) {
         return "0";
@@ -2969,15 +3222,7 @@ const char* compiler__lexer__token__usz_to_str(size_t n) {
             tmp = (tmp / 10);
         }
     }
-    uint8_t* raw_mem = malloc(24);
-    compiler__lexer__token__StringRaw* r = ((compiler__lexer__token__StringRaw*)raw_mem);
-    (r)->data = ((const char*)buf);
-    (r)->len = len;
-    (r)->cap = 32;
-    const char** sp = ((const char**)r);
-    const char* res = (*sp);
-    free(raw_mem);
-    return res;
+    return util__strutil__str_from_bytes(buf, len);
 }
 
 const char* compiler__lexer__token__format_loc(size_t line, size_t col) {
@@ -2988,25 +3233,7 @@ const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
     if ((kobel_slen(s) <= n)) {
         return "";
     }
-    size_t new_len = (kobel_slen(s) - n);
-    uint8_t* buf = malloc((new_len + 1));
-    size_t i = ((size_t)0ULL);
-    while ((i < new_len)) {
-        {
-            buf[i] = ((uint8_t)s[i]);
-            i = (i + 1);
-        }
-    }
-    buf[new_len] = 0;
-    uint8_t* raw_mem = malloc(24);
-    compiler__lexer__token__StringRaw* r = ((compiler__lexer__token__StringRaw*)raw_mem);
-    (r)->data = ((const char*)buf);
-    (r)->len = new_len;
-    (r)->cap = (new_len + 1);
-    const char** sp = ((const char**)r);
-    const char* res = (*sp);
-    free(raw_mem);
-    return res;
+    return util__strutil__str_slice(s, 0, (kobel_slen(s) - n));
 }
 
 compiler__ast__node__AstNode compiler__ast__node__new_node(compiler__ast__node__NodeKind kind, size_t line, size_t col, uint8_t* data) {
@@ -4139,270 +4366,6 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__lookup_c_name(compiler__
     return NULL;
 }
 
-const char* compiler__util__strutil__str_from_bytes(uint8_t* buf, size_t len) {
-    uint8_t* raw_mem = malloc(24);
-    compiler__util__strutil__StrRaw* r = ((compiler__util__strutil__StrRaw*)raw_mem);
-    (r)->data = ((const char*)buf);
-    (r)->len = len;
-    (r)->cap = (len + 1);
-    const char** sp = ((const char**)r);
-    const char* res = (*sp);
-    free(raw_mem);
-    return res;
-}
-
-const char* compiler__util__strutil__str_slice(const char* s, size_t start, size_t count) {
-    uint8_t* buf = malloc((count + 1));
-    size_t i = 0;
-    while ((i < count)) {
-        {
-            buf[i] = ((uint8_t)s[(start + i)]);
-            i = (i + 1);
-        }
-    }
-    buf[count] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, count);
-}
-
-const char* compiler__util__strutil__str_concat(const char* a, const char* b) {
-    size_t total = (kobel_slen(a) + kobel_slen(b));
-    uint8_t* buf = malloc((total + 1));
-    size_t i = 0;
-    while ((i < kobel_slen(a))) {
-        {
-            buf[i] = ((uint8_t)a[i]);
-            i = (i + 1);
-        }
-    }
-    size_t j = 0;
-    while ((j < kobel_slen(b))) {
-        {
-            buf[i] = ((uint8_t)b[j]);
-            i = (i + 1);
-            j = (j + 1);
-        }
-    }
-    buf[total] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, total);
-}
-
-const char* compiler__util__strutil__str_concat3(const char* a, const char* b, const char* c) {
-    return compiler__util__strutil__str_concat(compiler__util__strutil__str_concat(a, b), c);
-}
-
-bool compiler__util__strutil__str_is_sep(char c) {
-    return ((c == '/') || (c == '\\'));
-}
-
-const char* compiler__util__strutil__str_module_to_rel(const char* module_name) {
-    uint8_t* buf = malloc((kobel_slen(module_name) + 1));
-    size_t i = 0;
-    while ((i < kobel_slen(module_name))) {
-        {
-            char c = module_name[i];
-            if ((c == '.')) {
-                buf[i] = ((uint8_t)'/');
-            } else {
-                buf[i] = ((uint8_t)c);
-            }
-            i = (i + 1);
-        }
-    }
-    buf[kobel_slen(module_name)] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, kobel_slen(module_name));
-}
-
-const char* compiler__util__strutil__str_path_to_module(const char* rel_path) {
-    const char* stem = compiler__util__strutil__str_strip_kb(rel_path);
-    uint8_t* buf = malloc((kobel_slen(stem) + 1));
-    size_t i = 0;
-    while ((i < kobel_slen(stem))) {
-        {
-            char c = stem[i];
-            if (compiler__util__strutil__str_is_sep(c)) {
-                buf[i] = ((uint8_t)'.');
-            } else {
-                buf[i] = ((uint8_t)c);
-            }
-            i = (i + 1);
-        }
-    }
-    buf[kobel_slen(stem)] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, kobel_slen(stem));
-}
-
-bool compiler__util__strutil__str_has_kb_suffix(const char* path) {
-    if ((kobel_slen(path) < 3)) {
-        return false;
-    }
-    if ((path[(kobel_slen(path) - 3)] != '.')) {
-        return false;
-    }
-    if ((path[(kobel_slen(path) - 2)] != 'k')) {
-        return false;
-    }
-    return (path[(kobel_slen(path) - 1)] == 'b');
-}
-
-const char* compiler__util__strutil__str_strip_kb(const char* path) {
-    if ((!compiler__util__strutil__str_has_kb_suffix(path))) {
-        return path;
-    }
-    return compiler__util__strutil__str_slice(path, 0, (kobel_slen(path) - 3));
-}
-
-const char* compiler__util__strutil__str_dir_of(const char* path) {
-    size_t last = 0;
-    bool found = false;
-    size_t i = 0;
-    while ((i < kobel_slen(path))) {
-        {
-            if (compiler__util__strutil__str_is_sep(path[i])) {
-                {
-                    last = i;
-                    found = true;
-                }
-            }
-            i = (i + 1);
-        }
-    }
-    if ((!found)) {
-        return "";
-    }
-    return compiler__util__strutil__str_slice(path, 0, last);
-}
-
-const char* compiler__util__strutil__str_base_name(const char* path) {
-    size_t start = 0;
-    size_t i = 0;
-    while ((i < kobel_slen(path))) {
-        {
-            if (compiler__util__strutil__str_is_sep(path[i])) {
-                start = (i + 1);
-            }
-            i = (i + 1);
-        }
-    }
-    return compiler__util__strutil__str_slice(path, start, (kobel_slen(path) - start));
-}
-
-const char* compiler__util__strutil__str_join_path(const char* dir, const char* rel) {
-    if ((kobel_slen(dir) == 0)) {
-        return rel;
-    }
-    return compiler__util__strutil__str_concat3(dir, "/", rel);
-}
-
-bool compiler__util__strutil__str_is_empty_str(const char* s) {
-    return (kobel_slen(s) == 0);
-}
-
-const char* compiler__util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count) {
-    size_t total = 0;
-    size_t i = 0;
-    while ((i < count)) {
-        {
-            total = (total + kobel_slen(std__collections__list__List_str_get((&parts), i)));
-            i = (i + 1);
-        }
-    }
-    if ((count > 1)) {
-        total = (total + ((count - 1)));
-    }
-    uint8_t* buf = malloc((total + 1));
-    size_t w = 0;
-    i = 0;
-    while ((i < count)) {
-        {
-            const char* p = std__collections__list__List_str_get((&parts), i);
-            size_t j = 0;
-            while ((j < kobel_slen(p))) {
-                {
-                    buf[w] = ((uint8_t)p[j]);
-                    w = (w + 1);
-                    j = (j + 1);
-                }
-            }
-            if (((i + 1) < count)) {
-                {
-                    buf[w] = ((uint8_t)'.');
-                    w = (w + 1);
-                }
-            }
-            i = (i + 1);
-        }
-    }
-    buf[w] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, w);
-}
-
-std__collections__list__List_str compiler__util__strutil__str_split_dots(const char* s) {
-    std__collections__list__List_str parts = std__collections__list__new_list_str();
-    size_t start = 0;
-    size_t i = 0;
-    while ((i < kobel_slen(s))) {
-        {
-            if ((s[i] == '.')) {
-                {
-                    std__collections__list__List_str_add((&parts), compiler__util__strutil__str_slice(s, start, (i - start)));
-                    start = (i + 1);
-                }
-            }
-            i = (i + 1);
-        }
-    }
-    std__collections__list__List_str_add((&parts), compiler__util__strutil__str_slice(s, start, (kobel_slen(s) - start)));
-    return parts;
-}
-
-const char* compiler__util__strutil__str_mangle_symbol(const char* module_name, const char* name) {
-    if ((kobel_slen(module_name) == 0)) {
-        return name;
-    }
-    size_t total = (((kobel_slen(module_name) * 2) + 2) + kobel_slen(name));
-    uint8_t* buf = malloc((total + 1));
-    size_t i = 0;
-    size_t w = 0;
-    while ((i < kobel_slen(module_name))) {
-        {
-            char c = module_name[i];
-            if ((c == '.')) {
-                {
-                    buf[w] = ((uint8_t)'_');
-                    buf[(w + 1)] = ((uint8_t)'_');
-                    w = (w + 2);
-                }
-            } else {
-                if (((c == '_') || (c == '-'))) {
-                    {
-                        buf[w] = ((uint8_t)'_');
-                        w = (w + 1);
-                    }
-                } else {
-                    {
-                        buf[w] = ((uint8_t)c);
-                        w = (w + 1);
-                    }
-                }
-            }
-            i = (i + 1);
-        }
-    }
-    buf[w] = ((uint8_t)'_');
-    buf[(w + 1)] = ((uint8_t)'_');
-    w = (w + 2);
-    size_t k = 0;
-    while ((k < kobel_slen(name))) {
-        {
-            buf[w] = ((uint8_t)name[k]);
-            w = (w + 1);
-            k = (k + 1);
-        }
-    }
-    buf[w] = 0;
-    return compiler__util__strutil__str_from_bytes(buf, w);
-}
-
 compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__new_decl_pass(void) {
     std__mem__arena__Arena arena = std__mem__arena__new_arena(65536);
     return (compiler__sema__decl_pass__DeclPass){ compiler__sema__symbol__new_symbol_table(), arena, "", std__collections__list__new_list_str(), false };
@@ -4412,7 +4375,7 @@ const char* compiler__sema__decl_pass__c_name_for(compiler__sema__decl_pass__Dec
     if (((self)->is_extern || kobel_streq(name, "main"))) {
         return name;
     }
-    return compiler__util__strutil__str_mangle_symbol((self)->current_module, name);
+    return util__strutil__str_mangle_symbol((self)->current_module, name);
 }
 
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base) {
@@ -4425,7 +4388,7 @@ void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass
     const char* loc = compiler__lexer__token__format_loc((node)->line, (node)->col);
     if ((kobel_slen((self)->current_module) > 0)) {
         {
-            std__collections__list__List_str_add((&(self)->errors), compiler__util__strutil__str_concat3((self)->current_module, ": ", kobel_concat(loc, msg)));
+            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3((self)->current_module, ": ", kobel_concat(loc, msg)));
         }
     } else {
         std__collections__list__List_str_add((&(self)->errors), kobel_concat(loc, msg));
@@ -4609,7 +4572,7 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
                 ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
             }
             compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
-            const char* m_c_name = compiler__util__strutil__str_concat(st_c_name, compiler__util__strutil__str_concat("_", (f)->name));
+            const char* m_c_name = util__strutil__str_concat(st_c_name, util__strutil__str_concat("_", (f)->name));
             compiler__sema__types__MethodInfo* mi = std__mem__arena__alloc_compiler__sema__types__MethodInfo((&(self)->arena));
             (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
             std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
@@ -4755,11 +4718,11 @@ const char* compiler__sema__decl_pass__type_token(compiler__sema__decl_pass__Dec
     } else if (((ty)->kind == 15)) {
         return "str";
     } else if (((ty)->kind == 16)) {
-        return compiler__util__strutil__str_concat("ptr_", compiler__sema__decl_pass__type_token(self, ((*compiler__sema__types__as_pointer_type(ty))).pointee));
+        return util__strutil__str_concat("ptr_", compiler__sema__decl_pass__type_token(self, ((*compiler__sema__types__as_pointer_type(ty))).pointee));
     } else if (((ty)->kind == 17)) {
         {
             compiler__sema__types__ArrayType* at = compiler__sema__types__as_array_type(ty);
-            return compiler__util__strutil__str_concat3("arr", compiler__util__strutil__str_concat(compiler__lexer__token__usz_to_str((at)->length), "_"), compiler__sema__decl_pass__type_token(self, (at)->elem));
+            return util__strutil__str_concat3("arr", util__strutil__str_concat(compiler__lexer__token__usz_to_str((at)->length), "_"), compiler__sema__decl_pass__type_token(self, (at)->elem));
         }
     } else if (((ty)->kind == 18)) {
         return ((*compiler__sema__types__as_struct_type(ty))).name;
@@ -4774,9 +4737,9 @@ const char* compiler__sema__decl_pass__type_token_list(compiler__sema__decl_pass
     while ((i < (args).len)) {
         {
             if ((i > 0)) {
-                res = compiler__util__strutil__str_concat(res, "_");
+                res = util__strutil__str_concat(res, "_");
             }
-            res = compiler__util__strutil__str_concat(res, compiler__sema__decl_pass__ast_type_token(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&args), i)));
+            res = util__strutil__str_concat(res, compiler__sema__decl_pass__ast_type_token(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&args), i)));
             i = (i + 1);
         }
     }
@@ -4793,11 +4756,11 @@ const char* compiler__sema__decl_pass__ast_type_token(compiler__sema__decl_pass_
             return ((*compiler__ast__builder__as_named_type(node))).name;
         }
     } else if (((node)->kind == 1)) {
-        return compiler__util__strutil__str_concat("ptr_", compiler__sema__decl_pass__ast_type_token(self, ((*compiler__ast__builder__as_pointer_type(node))).pointee));
+        return util__strutil__str_concat("ptr_", compiler__sema__decl_pass__ast_type_token(self, ((*compiler__ast__builder__as_pointer_type(node))).pointee));
     } else if (((node)->kind == 2)) {
         {
             compiler__ast__types__ArrayType* a = compiler__ast__builder__as_array_type(node);
-            return compiler__util__strutil__str_concat3("arr", compiler__util__strutil__str_concat(compiler__lexer__token__usz_to_str((a)->size), "_"), compiler__sema__decl_pass__ast_type_token(self, (a)->element_type));
+            return util__strutil__str_concat3("arr", util__strutil__str_concat(compiler__lexer__token__usz_to_str((a)->size), "_"), compiler__sema__decl_pass__ast_type_token(self, (a)->element_type));
         }
     } else {
         return "x";
@@ -4894,13 +4857,13 @@ compiler__sema__decl_pass__GenSubst* compiler__sema__decl_pass__alloc_subst(comp
 }
 
 void compiler__sema__decl_pass__queue_decl(compiler__sema__decl_pass__DeclPass* self, const char* module, compiler__ast__node__AstNode* node) {
-    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(((self)->symtab).gen).pending), compiler__ast__builder__alloc_module_decl((&(self)->arena), compiler__util__strutil__str_split_dots(module), module, (node)->line, (node)->col));
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(((self)->symtab).gen).pending), compiler__ast__builder__alloc_module_decl((&(self)->arena), util__strutil__str_split_dots(module), module, (node)->line, (node)->col));
     std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(((self)->symtab).gen).pending), node);
 }
 
 compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts) {
-    const char* base = compiler__util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
-    const char* cname = compiler__util__strutil__str_concat(base, compiler__util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
+    const char* base = util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
+    const char* cname = util__strutil__str_concat(base, util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
     compiler__sema__symbol__Symbol* existing = compiler__sema__decl_pass__find_inst(self, cname);
     if ((existing != NULL)) {
         return (existing)->type_ptr;
@@ -4927,8 +4890,8 @@ compiler__sema__types__Type* compiler__sema__decl_pass__instantiate_struct(compi
 }
 
 const char* compiler__sema__decl_pass__instantiate_fn(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__GenTemplate* tmpl, std__collections__list__List_ptr_compiler__ast__node__AstNode arg_asts) {
-    const char* base = compiler__util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
-    const char* cname = compiler__util__strutil__str_concat(base, compiler__util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
+    const char* base = util__strutil__str_mangle_symbol((tmpl)->module, (tmpl)->name);
+    const char* cname = util__strutil__str_concat(base, util__strutil__str_concat("_", compiler__sema__decl_pass__type_token_list(self, arg_asts)));
     if ((compiler__sema__decl_pass__find_inst(self, cname) != NULL)) {
         return cname;
     }
@@ -5587,7 +5550,7 @@ void compiler__sema__decl_collect__collect_use(compiler__sema__decl_pass__DeclPa
     compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(node);
     if ((u)->is_wildcard) {
         {
-            const char* w_mod = compiler__util__strutil__str_join_dots((u)->path, ((u)->path).len);
+            const char* w_mod = util__strutil__str_join_dots((u)->path, ((u)->path).len);
             if ((!compiler__sema__symbol__module_exists((&(self)->symtab), w_mod))) {
                 return;
             }
@@ -5598,7 +5561,7 @@ void compiler__sema__decl_collect__collect_use(compiler__sema__decl_pass__DeclPa
     if ((((u)->path).len < 2)) {
         return;
     }
-    const char* mod_name = compiler__util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
+    const char* mod_name = util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
     if ((!compiler__sema__symbol__module_exists((&(self)->symtab), mod_name))) {
         return;
     }
@@ -5846,7 +5809,7 @@ void compiler__sema__body_pass__report_error(compiler__sema__body_pass__BodyPass
     }
     if ((kobel_slen(((self)->symtab).current_module) > 0)) {
         {
-            std__collections__list__List_str_add((&(self)->errors), compiler__util__strutil__str_concat3(((self)->symtab).current_module, ": ", loc));
+            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(((self)->symtab).current_module, ": ", loc));
         }
     } else {
         std__collections__list__List_str_add((&(self)->errors), loc);
@@ -9310,7 +9273,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__parse_source(compiler__l
             size_t i = 0;
             while ((i < ((parser).errors).len)) {
                 {
-                    std__collections__list__List_str_add((&(self)->errors), compiler__util__strutil__str_concat3(path, ": ", std__collections__list__List_str_get((&(parser).errors), i)));
+                    std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(path, ": ", std__collections__list__List_str_get((&(parser).errors), i)));
                     i = (i + 1);
                 }
             }
@@ -9339,11 +9302,11 @@ const char* compiler__loader__loader__declared_module_name(compiler__ast__node__
 }
 
 compiler__loader__loader__ModuleFile compiler__loader__loader__find_module(compiler__loader__loader__ModuleLoader* self, const char* module_name) {
-    const char* rel = compiler__util__strutil__str_concat(compiler__util__strutil__str_module_to_rel(module_name), ".kb");
+    const char* rel = util__strutil__str_concat(util__strutil__str_module_to_rel(module_name), ".kb");
     size_t i = 0;
     while ((i < ((self)->roots).len)) {
         {
-            const char* candidate = compiler__util__strutil__str_join_path(std__collections__list__List_str_get((&(self)->roots), i), rel);
+            const char* candidate = util__strutil__str_join_path(std__collections__list__List_str_get((&(self)->roots), i), rel);
             const char* src = std__io__read_file(candidate);
             if ((kobel_slen(src) > 0)) {
                 return (compiler__loader__loader__ModuleFile){ true, candidate, src };
@@ -9375,7 +9338,7 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
     compiler__loader__loader__ModuleFile file = compiler__loader__loader__find_module(self, module_name);
     if ((!(file).found)) {
         {
-            const char* msg = compiler__util__strutil__str_concat3("Module '", module_name, "' not found (searched the entry directory, -I roots, lib/, src/)");
+            const char* msg = util__strutil__str_concat3("Module '", module_name, "' not found (searched the entry directory, -I roots, lib/, src/)");
             std__collections__list__List_str_add((&(self)->errors), msg);
             return;
         }
@@ -9387,8 +9350,8 @@ void compiler__loader__loader__ensure_module(compiler__loader__loader__ModuleLoa
     const char* declared = compiler__loader__loader__declared_module_name(prog);
     if (((kobel_slen(declared) > 0) && (!kobel_streq(declared, module_name)))) {
         {
-            const char* msg = compiler__util__strutil__str_concat3((file).path, ": module declared as '", declared);
-            std__collections__list__List_str_add((&(self)->errors), compiler__util__strutil__str_concat3(msg, "' but imported as '", compiler__util__strutil__str_concat(module_name, "'")));
+            const char* msg = util__strutil__str_concat3((file).path, ": module declared as '", declared);
+            std__collections__list__List_str_add((&(self)->errors), util__strutil__str_concat3(msg, "' but imported as '", util__strutil__str_concat(module_name, "'")));
             return;
         }
     }
@@ -9407,10 +9370,10 @@ void compiler__loader__loader__process_uses(compiler__loader__loader__ModuleLoad
                     compiler__ast__decl__UseDecl* u = compiler__ast__builder__as_use_decl(decl);
                     const char* mod_name = "";
                     if ((u)->is_wildcard) {
-                        mod_name = compiler__util__strutil__str_join_dots((u)->path, ((u)->path).len);
+                        mod_name = util__strutil__str_join_dots((u)->path, ((u)->path).len);
                     } else {
                         if ((((u)->path).len >= 2)) {
-                            mod_name = compiler__util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
+                            mod_name = util__strutil__str_join_dots((u)->path, (((u)->path).len - 1));
                         }
                     }
                     if ((kobel_slen(mod_name) > 0)) {
@@ -9430,7 +9393,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__load_program(compiler__l
     }
     const char* entry_name = compiler__loader__loader__declared_module_name(prog);
     if ((kobel_slen(entry_name) == 0)) {
-        entry_name = compiler__util__strutil__str_path_to_module(compiler__util__strutil__str_base_name(entry_path));
+        entry_name = util__strutil__str_path_to_module(util__strutil__str_base_name(entry_path));
     }
     std__collections__list__List_compiler__loader__loader__LoadedModule_add((&(self)->modules), (compiler__loader__loader__LoadedModule){ entry_name, entry_path, prog });
     compiler__loader__loader__process_uses(self, prog);
@@ -9446,7 +9409,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__build_merged_program(com
             compiler__loader__loader__LoadedModule lm = std__collections__list__List_compiler__loader__loader__LoadedModule_get((&(self)->ordered), i);
             if (((lm).program != NULL)) {
                 {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), compiler__ast__builder__alloc_module_decl((&(self)->arena), compiler__util__strutil__str_split_dots((lm).name), (lm).name, 0, 0));
+                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&decls), compiler__ast__builder__alloc_module_decl((&(self)->arena), util__strutil__str_split_dots((lm).name), (lm).name, 0, 0));
                     compiler__ast__decl__Program* p = compiler__ast__builder__as_program((lm).program);
                     size_t j = 0;
                     while ((j < ((p)->declarations).len)) {
@@ -9461,47 +9424,6 @@ compiler__ast__node__AstNode* compiler__loader__loader__build_merged_program(com
         }
     }
     return compiler__ast__builder__alloc_program((&(self)->arena), decls, 0, 0);
-}
-
-const char* main__cstr_to_str(const char* s) {
-    size_t len = strlen(s);
-    uint8_t* raw_mem = malloc(24);
-    main__StringRaw* r = ((main__StringRaw*)raw_mem);
-    (r)->data = s;
-    (r)->len = len;
-    (r)->cap = len;
-    const char** sp = ((const char**)r);
-    const char* res = (*sp);
-    free(raw_mem);
-    return res;
-}
-
-const char* main__get_stem(const char* path) {
-    size_t len = kobel_slen(path);
-    if (((((len > 3) && (path[(len - 3)] == '.')) && (path[(len - 2)] == 'k')) && (path[(len - 1)] == 'b'))) {
-        {
-            size_t new_len = (len - 3);
-            uint8_t* buf = malloc((new_len + 1));
-            size_t j = 0;
-            while ((j < new_len)) {
-                {
-                    buf[j] = ((uint8_t)path[j]);
-                    j = (j + 1);
-                }
-            }
-            buf[new_len] = 0;
-            uint8_t* raw_mem = malloc(24);
-            main__StringRaw* r = ((main__StringRaw*)raw_mem);
-            (r)->data = ((const char*)buf);
-            (r)->len = new_len;
-            (r)->cap = (new_len + 1);
-            const char** sp = ((const char**)r);
-            const char* res = (*sp);
-            free(raw_mem);
-            return res;
-        }
-    }
-    return path;
 }
 
 void main__print_usage(void) {
@@ -9546,7 +9468,7 @@ int32_t main(int32_t argc, const char** argv) {
     int32_t i = 1;
     while ((i < argc)) {
         {
-            const char* arg = main__cstr_to_str(argv[i]);
+            const char* arg = util__strutil__cstr_to_str(argv[i]);
             if ((kobel_streq(arg, "-h") || kobel_streq(arg, "--help"))) {
                 {
                     main__print_usage();
@@ -9564,7 +9486,7 @@ int32_t main(int32_t argc, const char** argv) {
                     i = (i + 1);
                     if ((i < argc)) {
                         {
-                            output_bin = main__cstr_to_str(argv[i]);
+                            output_bin = util__strutil__cstr_to_str(argv[i]);
                         }
                     } else {
                         {
@@ -9579,7 +9501,7 @@ int32_t main(int32_t argc, const char** argv) {
                         i = (i + 1);
                         if ((i < argc)) {
                             {
-                                emit_c_path = main__cstr_to_str(argv[i]);
+                                emit_c_path = util__strutil__cstr_to_str(argv[i]);
                                 only_emit_c = true;
                             }
                         } else {
@@ -9595,7 +9517,7 @@ int32_t main(int32_t argc, const char** argv) {
                             i = (i + 1);
                             if ((i < argc)) {
                                 {
-                                    c_compiler = main__cstr_to_str(argv[i]);
+                                    c_compiler = util__strutil__cstr_to_str(argv[i]);
                                 }
                             } else {
                                 {
@@ -9610,7 +9532,7 @@ int32_t main(int32_t argc, const char** argv) {
                                 i = (i + 1);
                                 if ((i < argc)) {
                                     {
-                                        std__collections__list__List_str_add((&extra_roots), main__cstr_to_str(argv[i]));
+                                        std__collections__list__List_str_add((&extra_roots), util__strutil__cstr_to_str(argv[i]));
                                     }
                                 } else {
                                     {
@@ -9652,7 +9574,7 @@ int32_t main(int32_t argc, const char** argv) {
         }
     }
     std__io__println("[1/4] Loading modules (lex + parse)...");
-    compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__new_module_loader(compiler__util__strutil__str_dir_of(input_path), extra_roots);
+    compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__new_module_loader(util__strutil__str_dir_of(input_path), extra_roots);
     compiler__ast__node__AstNode* prog = compiler__loader__loader__load_program((&loader), input_path, src);
     if ((((loader).errors).len > 0)) {
         {
@@ -9717,9 +9639,9 @@ int32_t main(int32_t argc, const char** argv) {
     }
     const char* out_path = output_bin;
     if ((kobel_slen(out_path) == 0)) {
-        out_path = kobel_concat(main__get_stem(input_path), ".exe");
+        out_path = kobel_concat(util__strutil__str_strip_kb(input_path), ".exe");
     }
-    const char* c_tmp_path = kobel_concat(main__get_stem(input_path), ".tmp.c");
+    const char* c_tmp_path = kobel_concat(util__strutil__str_strip_kb(input_path), ".tmp.c");
     bool write_ok = std__io__write_file(c_tmp_path, c_code);
     if ((!write_ok)) {
         {

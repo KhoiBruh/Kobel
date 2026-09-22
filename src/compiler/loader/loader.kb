@@ -23,7 +23,7 @@ use compiler.parser.parser.Parser;
 use compiler.parser.parser.new_parser;
 use compiler.parser.decl.parse_program;
 
-use compiler.util.strutil.*;
+use util.strutil.*;
 
 use std.io.read_file;
 use std.collections.list.*;
