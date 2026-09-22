@@ -258,6 +258,32 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
     để struct instance đứng trước struct dùng nó.
   - Chỉ hỗ trợ **type argument tường minh**; không suy luận type arg.
 
+### 6.6 Trait (tĩnh, monomorphized)
+
+Trait trong Kobel là **dispatch tĩnh kiểu Rust** — không có vtable/`dyn`; mọi lời gọi method đều
+phân giải về method của struct ngay ở sema.
+
+- **Gom trait** (Pass 0, `decl_collect.collect_trait`): mọi `trait` vào `SymbolTable.traits` dưới dạng
+  `TraitInfo { name, bases, methods, impls }`; mỗi `TraitMethod` chỉ giữ **tên** và **có thân hay
+  không**. Kiểu chữ ký để phân giải muộn, nên không phụ thuộc thứ tự khai báo.
+- **`impl Trait for Struct`** (`decl_pass.apply_trait`): đối chiếu hợp đồng —
+  - Gộp method của trait **và toàn bộ base** (`trait_effective`): base duyệt trước để trait dẫn xuất
+    ghi đè; danh sách `seen` chặn chu trình `trait A : B` / `trait B : A`.
+  - Method **không có thân** là bắt buộc: impl thiếu ⇒ lỗi `does not implement required trait method`.
+  - Method **có thân** mà impl bỏ trống ⇒ **nhân bản AST** (`clone_fn`) rồi thêm vào `im.methods`, nên
+    backend phát nó y hệt method viết tay (không cần biết gì về trait).
+- **Kế thừa**: `impl Derived for X` cũng đăng ký `X` vào `impls` của mọi base trait
+  (`trait_record_impl`), nên bound `<T: Base>` được thoả khi `X: Derived` và `Derived : Base`.
+- **Bound `<T: Trait>`** (`decl_pass.check_bounds`): kiểm ngay lúc **instantiate** generic
+  (`instantiate_fn` / `instantiate_struct`). Chỉ báo lỗi khi type arg là **struct đã biết** mà chưa có
+  `impl` tương ứng; type arg không phải struct (số, con trỏ, `str`…) được bỏ qua để tránh dương tính giả.
+- Sau `collect_impl`, method trait trở thành method bình thường của struct ⇒ `self.m()`/`obj.m()` do
+  `body_pass` hạ như mọi method khác (`Struct_m(&obj, …)`); codegen không biết trait là gì.
+
+⚠ Hạn chế: chưa có `dyn`/trait object; **generic impl của trait** (`impl Trait for List<T>`) bị bỏ qua
+(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); trait không áp
+được cho kiểu nguyên thuỷ.
+
 ---
 
 ## 7. Hợp đồng bootstrap & fixpoint
@@ -287,7 +313,7 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 |---|---|
 | Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
 | Build v1 | `scripts/build_bootstrap.bat` → `kobel_v1.exe` (seed biên dịch `src/main.kb`) |
-| Test v1 | `scripts/test_all_bootstrap.bat` (8 test) |
+| Test v1 | `scripts/test_all_bootstrap.bat` (11 test) |
 | Chạy 1 chương trình | `scripts/run_test.bat <file.kb>` |
 | Regenerate seed | `kobel_v1.exe src/main.kb -emit-c dist/bootstrap.c` |
 
@@ -362,8 +388,11 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 
 ## 10. Hạn chế đã biết (TODO kiến trúc)
 
-- **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; chưa hỗ trợ
-  trait/bounds; `T.size()` hạ thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng).
+- **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; `T.size()` hạ
+  thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng). **Bound `<T: Trait>` đã có**
+  (xem §6.6), nhưng **generic impl của trait** (`impl Trait for List<T>`) chưa được hỗ trợ.
+- **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method** (chưa so kiểu chữ
+  ký); không áp được cho kiểu nguyên thuỷ — chi tiết ở §6.6.
 - **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
   `for ((k, v) in map)` (cần destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
   `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm

@@ -1,0 +1,163 @@
+mod test.bootstrap_trait;
+
+use std.io.print;
+use std.io.println;
+
+// ============================================================================
+// Trait tests: required methods, default methods, inheritance, generic bounds
+// ============================================================================
+
+struct Tally {
+	pub fails: i32
+}
+
+fn check_i(got: i32, want: i32, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		println(": got ${got}, want ${want}");
+	}
+}
+
+fn check_str(got: str, want: str, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		print(": got '");
+		print(got);
+		print("' want '");
+		print(want);
+		println("'");
+	}
+}
+
+// --- 1. required method + default method -----------------------------------
+
+trait Greeter {
+	fn name(val self): str;
+	fn greet(val self): str => "Hello " + self.name();
+	fn shout(val self): str => self.greet() + "!";
+}
+
+struct Person {
+	pub who: str
+}
+
+impl Greeter for Person {
+	fn name(val self): str => self.who;
+}
+
+fn test_required_and_default(var t: &Tally) {
+	val p = Person("Kobel");
+	check_str(p.name(), "Kobel", "required method", t);
+	check_str(p.greet(), "Hello Kobel", "default calls a required method", t);
+	check_str(p.shout(), "Hello Kobel!", "default calls another default", t);
+}
+
+// --- 2. trait inheritance --------------------------------------------------
+
+trait Measurable {
+	fn measure(val self): i32;
+}
+
+trait Summarizable : Measurable {
+	fn summary(val self): i32 => self.measure() * 2;
+}
+
+struct Box {
+	pub w: i32,
+	pub h: i32
+}
+
+impl Summarizable for Box {
+	fn measure(val self): i32 => self.w * self.h;
+}
+
+fn test_inheritance(var t: &Tally) {
+	val b = Box(4, 5);
+	check_i(b.measure(), 20, "base method comes from the impl", t);
+	check_i(b.summary(), 40, "inherited default uses the base method", t);
+}
+
+// --- 3. overriding a default ----------------------------------------------
+
+struct Fake {
+	pub v: i32
+}
+
+impl Summarizable for Fake {
+	fn measure(val self): i32 => self.v;
+	fn summary(val self): i32 => 999;
+}
+
+fn test_override(var t: &Tally) {
+	val f = Fake(1);
+	check_i(f.summary(), 999, "an impl may override a default", t);
+}
+
+// --- 4. generic bounds -----------------------------------------------------
+
+fn announce<T: Greeter>(val item: T): str => item.greet();
+
+fn total<T: Measurable>(val item: T): i32 => item.measure();
+
+fn score<T: Summarizable>(val item: T): i32 => item.summary();
+
+fn test_bounds(var t: &Tally) {
+	val p = Person("Ada");
+	check_str(announce<Person>(p), "Hello Ada", "bound on the trait itself", t);
+	val b = Box(3, 7);
+	check_i(total<Box>(b), 21, "bound on a base trait", t);
+	check_i(score<Box>(b), 42, "bound satisfied through inheritance", t);
+}
+
+// --- 5. two structs implementing one trait ---------------------------------
+
+trait Named {
+	fn tag(val self): str;
+}
+
+struct Alpha {
+	pub id: i32
+}
+
+struct Beta {
+	pub id: i32
+}
+
+impl Named for Alpha {
+	fn tag(val self): str => "alpha";
+}
+
+impl Named for Beta {
+	fn tag(val self): str => "beta";
+}
+
+fn label<T: Named>(val item: T): str => item.tag();
+
+fn test_two_impls(var t: &Tally) {
+	check_str(label<Alpha>(Alpha(1)), "alpha", "first impl of a trait", t);
+	check_str(label<Beta>(Beta(2)), "beta", "second impl of the same trait", t);
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap trait tests...");
+
+	var t = Tally(0);
+
+	test_required_and_default(&t);
+	test_inheritance(&t);
+	test_override(&t);
+	test_bounds(&t);
+	test_two_impls(&t);
+
+	if (t.fails != 0) {
+		println("[FAILED] Bootstrap trait tests");
+		return 1;
+	}
+
+	println("[ALL PASSED] Bootstrap trait tests passed successfully!");
+	return 0;
+}
