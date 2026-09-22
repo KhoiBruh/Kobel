@@ -4041,22 +4041,57 @@ void compiler__sema__types__layout_struct(compiler__sema__types__Type* ty) {
     compiler__sema__types__StructType* st = compiler__sema__types__as_struct_type_mut(ty);
     size_t max_align = 1;
     size_t off = 0;
-    size_t i = 0;
-    while ((i < ((st)->fields).len)) {
-        {
-            compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_get((&(st)->fields), i);
-            size_t fa = ((*(f).type_ptr)).align;
-            if ((fa > max_align)) {
-                max_align = fa;
+    {
+        size_t __for_e = ((st)->fields).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
             }
-            size_t rem = (off % fa);
-            if ((rem != 0)) {
-                off = (off + ((fa - rem)));
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
             }
-            (f).offset = off;
-            std__collections__list__List_compiler__sema__types__StructField_set((&(st)->fields), i, f);
-            off = (off + ((*(f).type_ptr)).size);
-            i = (i + 1);
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_get((&(st)->fields), i);
+                size_t fa = ((*(f).type_ptr)).align;
+                if ((fa > max_align)) {
+                    max_align = fa;
+                }
+                size_t rem = (off % fa);
+                if ((rem != 0)) {
+                    off = (off + ((fa - rem)));
+                }
+                (f).offset = off;
+                std__collections__list__List_compiler__sema__types__StructField_set((&(st)->fields), i, f);
+                off = (off + ((*(f).type_ptr)).size);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
         }
     }
     size_t tr = (off % max_align);
@@ -4189,22 +4224,57 @@ compiler__sema__types__Type* compiler__sema__types__alloc_array_type(std__mem__a
 compiler__sema__types__Type* compiler__sema__types__alloc_struct_type(std__mem__arena__Arena* arena, const char* name, std__collections__list__List_compiler__sema__types__StructField fields) {
     size_t max_align = 1;
     size_t current_offset = 0;
-    size_t i = 0;
-    while ((i < (fields).len)) {
-        {
-            compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_get((&fields), i);
-            size_t f_align = ((*(f).type_ptr)).align;
-            if ((f_align > max_align)) {
-                max_align = f_align;
+    {
+        size_t __for_e = (fields).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
             }
-            size_t rem = (current_offset % f_align);
-            if ((rem != 0)) {
-                current_offset = (current_offset + ((f_align - rem)));
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
             }
-            (f).offset = current_offset;
-            std__collections__list__List_compiler__sema__types__StructField_set((&fields), i, f);
-            current_offset = (current_offset + ((*(f).type_ptr)).size);
-            i = (i + 1);
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_get((&fields), i);
+                size_t f_align = ((*(f).type_ptr)).align;
+                if ((f_align > max_align)) {
+                    max_align = f_align;
+                }
+                size_t rem = (current_offset % f_align);
+                if ((rem != 0)) {
+                    current_offset = (current_offset + ((f_align - rem)));
+                }
+                (f).offset = current_offset;
+                std__collections__list__List_compiler__sema__types__StructField_set((&fields), i, f);
+                current_offset = (current_offset + ((*(f).type_ptr)).size);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
         }
     }
     size_t total_rem = (current_offset % max_align);
@@ -4300,13 +4370,48 @@ bool compiler__sema__types__type_equals(compiler__sema__types__Type* a, compiler
             if ((!compiler__sema__types__type_equals((f_a)->return_type, (f_b)->return_type))) {
                 return false;
             }
-            size_t i = 0;
-            while ((i < ((f_a)->param_types).len)) {
-                {
-                    if ((!compiler__sema__types__type_equals(std__collections__list__List_ptr_compiler__sema__types__Type_get((&(f_a)->param_types), i), std__collections__list__List_ptr_compiler__sema__types__Type_get((&(f_b)->param_types), i)))) {
-                        return false;
+            {
+                size_t __for_e = ((f_a)->param_types).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
                     }
-                    i = (i + 1);
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((!compiler__sema__types__type_equals(std__collections__list__List_ptr_compiler__sema__types__Type_get((&(f_a)->param_types), i), std__collections__list__List_ptr_compiler__sema__types__Type_get((&(f_b)->param_types), i)))) {
+                            return false;
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             return true;
