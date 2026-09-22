@@ -3264,12 +3264,16 @@ const char* util__strutil__str_concat(const char* a, const char* b) {
             i = (i + 1);
         }
     }
-    size_t j = 0;
-    while ((j < kobel_slen(b))) {
-        {
-            buf[i] = ((uint8_t)b[j]);
-            i = (i + 1);
-            j = (j + 1);
+    {
+        size_t __for_n = kobel_slen(b);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = b[__for_i];
+                buf[i] = ((uint8_t)c);
+                i = (i + 1);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     buf[total] = 0;
@@ -3405,12 +3409,16 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
     while ((i < count)) {
         {
             const char* p = std__collections__list__List_str_get((&parts), i);
-            size_t j = 0;
-            while ((j < kobel_slen(p))) {
-                {
-                    buf[w] = ((uint8_t)p[j]);
-                    w = (w + 1);
-                    j = (j + 1);
+            {
+                size_t __for_n = kobel_slen(p);
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        char c = p[__for_i];
+                        buf[w] = ((uint8_t)c);
+                        w = (w + 1);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             if (((i + 1) < count)) {
@@ -3451,42 +3459,49 @@ const char* util__strutil__str_mangle_symbol(const char* module_name, const char
     }
     size_t total = (((kobel_slen(module_name) * 2) + 2) + kobel_slen(name));
     uint8_t* buf = std__mem__alloc__raw_alloc((total + 1));
-    size_t i = 0;
     size_t w = 0;
-    while ((i < kobel_slen(module_name))) {
-        {
-            char c = module_name[i];
-            if ((c == '.')) {
-                {
-                    buf[w] = ((uint8_t)'_');
-                    buf[(w + 1)] = ((uint8_t)'_');
-                    w = (w + 2);
-                }
-            } else {
-                if (((c == '_') || (c == '-'))) {
+    {
+        size_t __for_n = kobel_slen(module_name);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = module_name[__for_i];
+                if ((c == '.')) {
                     {
                         buf[w] = ((uint8_t)'_');
-                        w = (w + 1);
+                        buf[(w + 1)] = ((uint8_t)'_');
+                        w = (w + 2);
                     }
                 } else {
-                    {
-                        buf[w] = ((uint8_t)c);
-                        w = (w + 1);
+                    if (((c == '_') || (c == '-'))) {
+                        {
+                            buf[w] = ((uint8_t)'_');
+                            w = (w + 1);
+                        }
+                    } else {
+                        {
+                            buf[w] = ((uint8_t)c);
+                            w = (w + 1);
+                        }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     buf[w] = ((uint8_t)'_');
     buf[(w + 1)] = ((uint8_t)'_');
     w = (w + 2);
-    size_t k = 0;
-    while ((k < kobel_slen(name))) {
-        {
-            buf[w] = ((uint8_t)name[k]);
-            w = (w + 1);
-            k = (k + 1);
+    {
+        size_t __for_n = kobel_slen(name);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = name[__for_i];
+                buf[w] = ((uint8_t)c);
+                w = (w + 1);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     buf[w] = 0;
