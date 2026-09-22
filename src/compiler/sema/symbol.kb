@@ -247,8 +247,7 @@ pub fn module_exists(self: &SymbolTable, name: str): bool {
 
 // Define a top-level declaration into the scope of the given module.
 pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool {
-	var m: usz = 0;
-	while (m < self.modules.len) {
+	for (m in 0..<self.modules.len) {
 		// get() returns a COPY of ModuleScope; after modifying you must set() it back,
 		// otherwise len/cap of the original in self.modules diverge -> heap corruption.
 		val sc = self.modules.get(m);
@@ -262,7 +261,6 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 			self.modules.set(m, sc);
 			return true;
 		}
-		m = m + 1;
 	}
 
 	// Module scope does not exist yet -> create it (via pointer) then add the symbol

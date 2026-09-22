@@ -4629,33 +4629,68 @@ bool compiler__sema__symbol__module_exists(compiler__sema__symbol__SymbolTable* 
 }
 
 bool compiler__sema__symbol__define_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, compiler__sema__symbol__Symbol sym) {
-    size_t m = 0;
-    while ((m < ((self)->modules).len)) {
-        {
-            compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_get((&(self)->modules), m);
-            if (kobel_streq((sc)->name, module_name)) {
-                {
+    {
+        size_t __for_e = ((self)->modules).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t m = __for_i;
+                compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_get((&(self)->modules), m);
+                if (kobel_streq((sc)->name, module_name)) {
                     {
-                        size_t __for_n = ((sc)->symbols).len;
-                        size_t __for_i = ((size_t)0ULL);
-                        while ((__for_i < __for_n)) {
-                            {
-                                compiler__sema__symbol__Symbol* existing = ((sc)->symbols).data[__for_i];
-                                if (kobel_streq((existing)->name, (sym).name)) {
-                                    return false;
+                        {
+                            size_t __for_n = ((sc)->symbols).len;
+                            size_t __for_i = ((size_t)0ULL);
+                            while ((__for_i < __for_n)) {
+                                {
+                                    compiler__sema__symbol__Symbol* existing = ((sc)->symbols).data[__for_i];
+                                    if (kobel_streq((existing)->name, (sym).name)) {
+                                        return false;
+                                    }
+                                    __for_i = (__for_i + 1);
                                 }
-                                __for_i = (__for_i + 1);
                             }
                         }
+                        compiler__sema__symbol__Symbol* sym_ptr = std__mem__arena__arena_alloc_compiler__sema__symbol__Symbol((&(self)->arena));
+                        (*sym_ptr) = sym;
+                        std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(sc)->symbols), sym_ptr);
+                        std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_set((&(self)->modules), m, sc);
+                        return true;
                     }
-                    compiler__sema__symbol__Symbol* sym_ptr = std__mem__arena__arena_alloc_compiler__sema__symbol__Symbol((&(self)->arena));
-                    (*sym_ptr) = sym;
-                    std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(sc)->symbols), sym_ptr);
-                    std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_set((&(self)->modules), m, sc);
-                    return true;
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
                 }
             }
-            m = (m + 1);
         }
     }
     compiler__sema__symbol__ModuleScope* fresh = std__mem__arena__arena_alloc_compiler__sema__symbol__ModuleScope((&(self)->arena));
