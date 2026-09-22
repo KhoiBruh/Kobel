@@ -274,11 +274,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (mem.member == "slice") {
 					val slice_recv = check_expr(self, mem.object);
 					if (slice_recv.kind != DataType.STR) report_error(self, node, "slice() requires a str receiver");
-					var ai: usz = 0;
-					while (ai < call.args.len) {
-						val at = check_expr(self, call.args.get(ai));
+					for (arg in call.args) {
+						val at = check_expr(self, arg);
 						if (!is_integer(at)) report_error(self, node, "slice() bounds must be integers");
-						ai = ai + 1;
 					}
 					// Lower to kobel_slice(receiver, start, end); end defaults to length.
 					var sargs = new_list<*AstNode>();
@@ -328,11 +326,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						var new_args = new_list<*AstNode>();
 						if (obj_is_ptr) new_args.add(mem.object);
 						else new_args.add(alloc_unary(&self.arena, TokenType.AMPERSAND, mem.object, node.line, node.col));
-						var a: usz = 0;
-						while (a < call.args.len) {
-							new_args.add(call.args.get(a));
-							a = a + 1;
-						}
+						for (arg in call.args) new_args.add(arg);
 						call.args = new_args;
 						call.callee = alloc_identifier(&self.arena, mi.c_name, node.line, node.col);
 						return fn_info.return_type;
@@ -480,11 +474,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			val s_info = sem_struct(obj_ty);
-			var i: usz = 0;
-			while (i < s_info.fields.len) {
-				val f = s_info.fields.get(i);
+			for (f in s_info.fields) {
 				if (f.name == mem.member) return f.type_ptr;
-				i = i + 1;
 			}
 
 			report_error(self, node, "Struct '" + s_info.name + "' has no member named '" + mem.member + "'");
@@ -532,20 +523,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			var result_ty: *Type = null;
 			var has_else = false;
-			var i: usz = 0;
-			while (i < we.arms.len) {
-				val arm = we.arms.get(i);
+			for (arm in we.arms) {
 				if (arm.is_else) has_else = true;
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					val pat = arm.patterns.get(p);
+				for (pat in arm.patterns) {
 					val p_ty = check_expr(self, pat);
 					if (we.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
-					p = p + 1;
 				}
 				val body_ty = check_expr(self, arm.body);
 				if (result_ty == null) result_ty = body_ty;
-				i = i + 1;
 			}
 
 			if (!has_else) {
@@ -570,10 +555,8 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		NodeKind.STMT_BLOCK -> {
 			val blk = as_block_stmt(node);
 			enter_scope(&self.symtab, false);
-			var i: usz = 0;
-			while (i < blk.statements.len) {
-				check_statement(self, blk.statements.get(i));
-				i = i + 1;
+			for (stmt in blk.statements) {
+				check_statement(self, stmt);
 			}
 			exit_scope(&self.symtab);
 		}
@@ -650,18 +633,12 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		NodeKind.STMT_WHEN -> {
 			val ws = as_when_stmt(node);
 			if (ws.condition != null) check_expr(self, ws.condition);
-			var i: usz = 0;
-			while (i < ws.arms.len) {
-				val arm = ws.arms.get(i);
-				var p: usz = 0;
-				while (p < arm.patterns.len) {
-					val pat = arm.patterns.get(p);
+			for (arm in ws.arms) {
+				for (pat in arm.patterns) {
 					val p_ty = check_expr(self, pat);
 					if (ws.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
-					p = p + 1;
 				}
 				check_statement(self, arm.body);
-				i = i + 1;
 			}
 		}
 	}
@@ -744,10 +721,8 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 	when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
 			val b = as_block_stmt(node);
-			var i: usz = 0;
-			while (i < b.statements.len) {
-				for_inject_step(arena, b.statements.get(i), step);
-				i = i + 1;
+			for (stmt in b.statements) {
+				for_inject_step(arena, stmt, step);
 			}
 		}
 		NodeKind.STMT_IF -> {
@@ -757,19 +732,13 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 		}
 		NodeKind.STMT_WHEN -> {
 			val w = as_when_stmt(node);
-			var i: usz = 0;
-			while (i < w.arms.len) {
-				for_inject_step(arena, w.arms.get(i).body, step);
-				i = i + 1;
+			for (arm in w.arms) {
+				for_inject_step(arena, arm.body, step);
 			}
 		}
 		NodeKind.STMT_CONTINUE -> {
 			var stmts = new_list<*AstNode>();
-			var i: usz = 0;
-			while (i < step.len) {
-				stmts.add(step.get(i));
-				i = i + 1;
-			}
+			for (s in step) stmts.add(s);
 			stmts.add(alloc_continue_stmt(arena, node.line, node.col));
 			val blk = alloc_block_stmt(arena, stmts, node.line, node.col);
 			val n = node as &AstNode;
@@ -891,26 +860,14 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt) {
 
 	// Body: loop variable, the original statements, then the counter update.
 	var body_stmts = new_list<*AstNode>();
-	var i: usz = 0;
-	while (i < head.len) {
-		body_stmts.add(head.get(i));
-		i = i + 1;
-	}
+	for (s in head) body_stmts.add(s);
 	if (fs.body != null) {
 		if (fs.body.kind == NodeKind.STMT_BLOCK) {
 			val b = as_block_stmt(fs.body);
-			i = 0;
-			while (i < b.statements.len) {
-				body_stmts.add(b.statements.get(i));
-				i = i + 1;
-			}
+	for (s in b.statements) body_stmts.add(s);
 		} else body_stmts.add(fs.body);
 	}
-	i = 0;
-	while (i < step.len) {
-		body_stmts.add(step.get(i));
-		i = i + 1;
-	}
+	for (s in step) body_stmts.add(s);
 
 	// A `continue` inside the body must still advance the counter.
 	for_inject_step(arena, fs.body, &step);

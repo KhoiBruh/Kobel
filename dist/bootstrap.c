@@ -6472,14 +6472,18 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                             if (((slice_recv)->kind != 15)) {
                                 compiler__sema__body_pass__report_error(self, node, "slice() requires a str receiver");
                             }
-                            size_t ai = 0;
-                            while ((ai < ((call)->args).len)) {
-                                {
-                                    compiler__sema__types__Type* at = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), ai));
-                                    if ((!compiler__sema__types__is_integer(at))) {
-                                        compiler__sema__body_pass__report_error(self, node, "slice() bounds must be integers");
+                            {
+                                size_t __for_n = ((call)->args).len;
+                                size_t __for_i = ((size_t)0ULL);
+                                while ((__for_i < __for_n)) {
+                                    {
+                                        compiler__ast__node__AstNode* arg = ((call)->args).data[__for_i];
+                                        compiler__sema__types__Type* at = compiler__sema__body_pass__check_expr(self, arg);
+                                        if ((!compiler__sema__types__is_integer(at))) {
+                                            compiler__sema__body_pass__report_error(self, node, "slice() bounds must be integers");
+                                        }
+                                        __for_i = (__for_i + 1);
                                     }
-                                    ai = (ai + 1);
                                 }
                             }
                             std__collections__list__List_ptr_compiler__ast__node__AstNode sargs = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
@@ -6548,11 +6552,15 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                                     } else {
                                         std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), compiler__ast__builder__alloc_unary((&(self)->arena), 19, (mem)->object, (node)->line, (node)->col));
                                     }
-                                    size_t a = 0;
-                                    while ((a < ((call)->args).len)) {
-                                        {
-                                            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), a));
-                                            a = (a + 1);
+                                    {
+                                        size_t __for_n = ((call)->args).len;
+                                        size_t __for_i = ((size_t)0ULL);
+                                        while ((__for_i < __for_n)) {
+                                            {
+                                                compiler__ast__node__AstNode* arg = ((call)->args).data[__for_i];
+                                                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), arg);
+                                                __for_i = (__for_i + 1);
+                                            }
                                         }
                                     }
                                     (call)->args = new_args;
@@ -6725,14 +6733,17 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                 }
             }
             compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type(obj_ty);
-            size_t i = 0;
-            while ((i < ((s_info)->fields).len)) {
-                {
-                    compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_get((&(s_info)->fields), i);
-                    if (kobel_streq((f).name, (mem)->member)) {
-                        return (f).type_ptr;
+            {
+                size_t __for_n = ((s_info)->fields).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__sema__types__StructField f = ((s_info)->fields).data[__for_i];
+                        if (kobel_streq((f).name, (mem)->member)) {
+                            return (f).type_ptr;
+                        }
+                        __for_i = (__for_i + 1);
                     }
-                    i = (i + 1);
                 }
             }
             compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Struct '", (s_info)->name), "' has no member named '"), (mem)->member), "'"));
@@ -6796,29 +6807,35 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
             }
             compiler__sema__types__Type* result_ty = NULL;
             bool has_else = false;
-            size_t i = 0;
-            while ((i < ((we)->arms).len)) {
-                {
-                    compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_get((&(we)->arms), i);
-                    if ((arm).is_else) {
-                        has_else = true;
-                    }
-                    size_t p = 0;
-                    while ((p < ((arm).patterns).len)) {
-                        {
-                            compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p);
-                            compiler__sema__types__Type* p_ty = compiler__sema__body_pass__check_expr(self, pat);
-                            if ((((we)->condition == NULL) && ((p_ty)->kind != 1))) {
-                                compiler__sema__body_pass__report_error(self, pat, "Boolean when arm condition must be bool");
-                            }
-                            p = (p + 1);
+            {
+                size_t __for_n = ((we)->arms).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__expr__WhenArm arm = ((we)->arms).data[__for_i];
+                        if ((arm).is_else) {
+                            has_else = true;
                         }
+                        {
+                            size_t __for_n = ((arm).patterns).len;
+                            size_t __for_i = ((size_t)0ULL);
+                            while ((__for_i < __for_n)) {
+                                {
+                                    compiler__ast__node__AstNode* pat = ((arm).patterns).data[__for_i];
+                                    compiler__sema__types__Type* p_ty = compiler__sema__body_pass__check_expr(self, pat);
+                                    if ((((we)->condition == NULL) && ((p_ty)->kind != 1))) {
+                                        compiler__sema__body_pass__report_error(self, pat, "Boolean when arm condition must be bool");
+                                    }
+                                    __for_i = (__for_i + 1);
+                                }
+                            }
+                        }
+                        compiler__sema__types__Type* body_ty = compiler__sema__body_pass__check_expr(self, (arm).body);
+                        if ((result_ty == NULL)) {
+                            result_ty = body_ty;
+                        }
+                        __for_i = (__for_i + 1);
                     }
-                    compiler__sema__types__Type* body_ty = compiler__sema__body_pass__check_expr(self, (arm).body);
-                    if ((result_ty == NULL)) {
-                        result_ty = body_ty;
-                    }
-                    i = (i + 1);
                 }
             }
             if ((!has_else)) {
@@ -6845,11 +6862,15 @@ void compiler__sema__body_pass__check_statement(compiler__sema__body_pass__BodyP
         {
             compiler__ast__stmt__BlockStmt* blk = compiler__ast__builder__as_block_stmt(node);
             compiler__sema__symbol__enter_scope((&(self)->symtab), false);
-            size_t i = 0;
-            while ((i < ((blk)->statements).len)) {
-                {
-                    compiler__sema__body_pass__check_statement(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(blk)->statements), i));
-                    i = (i + 1);
+            {
+                size_t __for_n = ((blk)->statements).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* stmt = ((blk)->statements).data[__for_i];
+                        compiler__sema__body_pass__check_statement(self, stmt);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             compiler__sema__symbol__exit_scope((&(self)->symtab));
@@ -6963,23 +6984,29 @@ void compiler__sema__body_pass__check_statement(compiler__sema__body_pass__BodyP
             if (((ws)->condition != NULL)) {
                 compiler__sema__body_pass__check_expr(self, (ws)->condition);
             }
-            size_t i = 0;
-            while ((i < ((ws)->arms).len)) {
-                {
-                    compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_get((&(ws)->arms), i);
-                    size_t p = 0;
-                    while ((p < ((arm).patterns).len)) {
+            {
+                size_t __for_n = ((ws)->arms).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__stmt__WhenStmtArm arm = ((ws)->arms).data[__for_i];
                         {
-                            compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p);
-                            compiler__sema__types__Type* p_ty = compiler__sema__body_pass__check_expr(self, pat);
-                            if ((((ws)->condition == NULL) && ((p_ty)->kind != 1))) {
-                                compiler__sema__body_pass__report_error(self, pat, "Boolean when arm condition must be bool");
+                            size_t __for_n = ((arm).patterns).len;
+                            size_t __for_i = ((size_t)0ULL);
+                            while ((__for_i < __for_n)) {
+                                {
+                                    compiler__ast__node__AstNode* pat = ((arm).patterns).data[__for_i];
+                                    compiler__sema__types__Type* p_ty = compiler__sema__body_pass__check_expr(self, pat);
+                                    if ((((ws)->condition == NULL) && ((p_ty)->kind != 1))) {
+                                        compiler__sema__body_pass__report_error(self, pat, "Boolean when arm condition must be bool");
+                                    }
+                                    __for_i = (__for_i + 1);
+                                }
                             }
-                            p = (p + 1);
                         }
+                        compiler__sema__body_pass__check_statement(self, (arm).body);
+                        __for_i = (__for_i + 1);
                     }
-                    compiler__sema__body_pass__check_statement(self, (arm).body);
-                    i = (i + 1);
                 }
             }
         }
@@ -7041,11 +7068,15 @@ void compiler__sema__body_pass__for_inject_step(std__mem__arena__Arena* arena, c
     if (((node)->kind == 16)) {
         {
             compiler__ast__stmt__BlockStmt* b = compiler__ast__builder__as_block_stmt(node);
-            size_t i = 0;
-            while ((i < ((b)->statements).len)) {
-                {
-                    compiler__sema__body_pass__for_inject_step(arena, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(b)->statements), i), step);
-                    i = (i + 1);
+            {
+                size_t __for_n = ((b)->statements).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* stmt = ((b)->statements).data[__for_i];
+                        compiler__sema__body_pass__for_inject_step(arena, stmt, step);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
         }
@@ -7058,22 +7089,30 @@ void compiler__sema__body_pass__for_inject_step(std__mem__arena__Arena* arena, c
     } else if (((node)->kind == 20)) {
         {
             compiler__ast__stmt__WhenStmt* w = compiler__ast__builder__as_when_stmt(node);
-            size_t i = 0;
-            while ((i < ((w)->arms).len)) {
-                {
-                    compiler__sema__body_pass__for_inject_step(arena, (std__collections__list__List_compiler__ast__stmt__WhenStmtArm_get((&(w)->arms), i)).body, step);
-                    i = (i + 1);
+            {
+                size_t __for_n = ((w)->arms).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__stmt__WhenStmtArm arm = ((w)->arms).data[__for_i];
+                        compiler__sema__body_pass__for_inject_step(arena, (arm).body, step);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
         }
     } else if (((node)->kind == 24)) {
         {
             std__collections__list__List_ptr_compiler__ast__node__AstNode stmts = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
-            size_t i = 0;
-            while ((i < (step)->len)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&stmts), std__collections__list__List_ptr_compiler__ast__node__AstNode_get(step, i));
-                    i = (i + 1);
+            {
+                size_t __for_n = (step)->len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* s = (step)->data[__for_i];
+                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&stmts), s);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&stmts), compiler__ast__builder__alloc_continue_stmt(arena, (node)->line, (node)->col));
@@ -7143,11 +7182,15 @@ void compiler__sema__body_pass__desugar_for(std__mem__arena__Arena* arena, compi
         cond = compiler__sema__body_pass__desugar_for_iterable(arena, (&pre), (&head), (&step), fs, line, col);
     }
     std__collections__list__List_ptr_compiler__ast__node__AstNode body_stmts = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
-    size_t i = 0;
-    while ((i < (head).len)) {
-        {
-            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&head), i));
-            i = (i + 1);
+    {
+        size_t __for_n = (head).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* s = (head).data[__for_i];
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), s);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     if (((fs)->body != NULL)) {
@@ -7155,11 +7198,15 @@ void compiler__sema__body_pass__desugar_for(std__mem__arena__Arena* arena, compi
             if ((((*(fs)->body)).kind == 16)) {
                 {
                     compiler__ast__stmt__BlockStmt* b = compiler__ast__builder__as_block_stmt((fs)->body);
-                    i = 0;
-                    while ((i < ((b)->statements).len)) {
-                        {
-                            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(b)->statements), i));
-                            i = (i + 1);
+                    {
+                        size_t __for_n = ((b)->statements).len;
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__node__AstNode* s = ((b)->statements).data[__for_i];
+                                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), s);
+                                __for_i = (__for_i + 1);
+                            }
                         }
                     }
                 }
@@ -7168,11 +7215,15 @@ void compiler__sema__body_pass__desugar_for(std__mem__arena__Arena* arena, compi
             }
         }
     }
-    i = 0;
-    while ((i < (step).len)) {
-        {
-            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&step), i));
-            i = (i + 1);
+    {
+        size_t __for_n = (step).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* s = (step).data[__for_i];
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&body_stmts), s);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     compiler__sema__body_pass__for_inject_step(arena, (fs)->body, (&step));
