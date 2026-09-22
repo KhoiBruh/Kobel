@@ -1,7 +1,6 @@
 mod std.mem.arena;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_release;
+use std.mem.alloc.*;
 
 pub struct ArenaBlock {
 	pub data: &u8,

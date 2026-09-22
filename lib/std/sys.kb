@@ -5,9 +5,6 @@ extern "libc" {
 	fn system(cmd: *char): i32;
 }
 
-// NOTE: block body instead of `=> exit(code)`:
-// v0 emits broken IR for arrow bodies whose expression has void type
-// ("Found return instr that returns non-void in Function of void return type").
 pub fn sys_exit(code: i32) {
 	exit(code);
 }

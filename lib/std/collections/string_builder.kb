@@ -1,9 +1,6 @@
 mod std.collections.string_builder;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_resize;
-use std.mem.alloc.raw_release;
-
+use std.mem.alloc.*;
 
 struct StringRaw {
 	pub data: *char,
@@ -18,8 +15,8 @@ pub struct StringBuilder {
 }
 
 pub fn new_string_builder(): StringBuilder {
-	val init_cap: usz = 32;
-	val raw: &u8 = raw_alloc(init_cap);
+	val init_cap = 32UZ;
+	val raw = raw_alloc(init_cap);
 	return StringBuilder(raw, 0, init_cap);
 }
 
@@ -31,9 +28,9 @@ impl StringBuilder {
 	}
 
 	pub fn append_str(var self, s: str) {
-		val s_len: usz = s.len;
+		val s_len = s.len;
 		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
-		var i: usz = 0;
+		var i = 0UZ;
 		while (i < s_len) {
 			self.buf[self.len + i] = s[i] as u8;
 			i = i + 1;
@@ -42,7 +39,7 @@ impl StringBuilder {
 	}
 
 	pub fn append_i32(var self, n: i32) {
-		var val_n: i32 = n;
+		var val_n = n;
 		if (val_n == 0) {
 			self.append_char('0');
 			return;
@@ -52,10 +49,10 @@ impl StringBuilder {
 			val_n = -val_n;
 		}
 		val digits: Array<char>(12) = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
-		var count: usz = 0;
+		var count = 0UZ;
 		while (val_n > 0) {
-			val rem: i32 = val_n % 10;
-			val char_code: i32 = rem + 48;
+			val rem = val_n % 10;
+			val char_code = rem + 48;
 			digits[count] = char_code as char;
 			count = count + 1;
 			val_n = val_n / 10;
@@ -67,22 +64,21 @@ impl StringBuilder {
 	}
 
 	pub fn to_str(val self): str {
-		val str_data: &u8 = raw_alloc(self.len + 1);
-		var i: usz = 0;
+		val str_data = raw_alloc(self.len + 1);
+		var i = 0UZ;
 		while (i < self.len) {
 			str_data[i] = self.buf[i];
 			i = i + 1;
 		}
 		str_data[self.len] = 0;
 
-		val raw_mem = raw_alloc(24);
-		val r = raw_mem as &StringRaw;
-		r.data = str_data as *char;
-		r.len = self.len;
-		r.cap = self.len + 1;
-		val sp: *str = r as *str;
-		val res: str = *sp;
-		raw_release(raw_mem);
+		val raw = alloc<StringRaw>(24);
+		raw.data = str_data as *char;
+		raw.len = self.len;
+		raw.cap = self.len + 1;
+		val sp = raw as *str;
+		val res = *sp;
+		release(raw)
 		return res;
 	}
 
@@ -91,11 +87,11 @@ impl StringBuilder {
 	}
 
 	fn grow(var self, min_cap: usz) {
-		var new_cap: usz = self.cap * 2;
+		var new_cap = self.cap * 2;
 		while (new_cap < min_cap) {
 			new_cap = new_cap * 2;
 		}
-		val new_raw: &u8 = raw_resize(self.buf, new_cap);
+		val new_raw = raw_resize(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;
 	}

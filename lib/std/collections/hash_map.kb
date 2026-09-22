@@ -1,8 +1,6 @@
 mod std.collections.hash_map;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_release;
-
+use std.mem.alloc.*;
 
 pub struct HashMap<V> {
 	pub keys: &str,
@@ -13,13 +11,13 @@ pub struct HashMap<V> {
 }
 
 pub fn new_hash_map<V>(): HashMap<V> {
-	val init_cap: usz = 16;
-	val raw_keys: &u8 = raw_alloc(init_cap * str.size());
-	val raw_vals: &u8 = raw_alloc(init_cap * V.size());
-	val raw_occ: &u8 = raw_alloc(init_cap * bool.size());
+	val init_cap = 16UZ;
+	val raw_keys = raw_alloc(init_cap * str.size());
+	val raw_vals = raw_alloc(init_cap * V.size());
+	val raw_occ = raw_alloc(init_cap * bool.size());
 
-	val occ: &bool = raw_occ as &bool;
-	var i: usz = 0;
+	val occ = raw_occ as &bool;
+	var i = 0UZ;
 	while (i < init_cap) {
 		occ[i] = false;
 		i = i + 1;
@@ -29,11 +27,11 @@ pub fn new_hash_map<V>(): HashMap<V> {
 
 impl HashMap<V> {
 	fn hash_key(val self, key: str): usz {
-		var h: usz = 5381;
-		var i: usz = 0;
-		val len: usz = key.len;
+		var h = 5381UZ;
+		var i = 0UZ;
+		val len = key.len;
 		while (i < len) {
-			val c: usz = key[i] as usz;
+			val c = key[i] as usz;
 			h = h * 33 + c;
 			i = i + 1;
 		}
@@ -43,8 +41,8 @@ impl HashMap<V> {
 	pub fn put(var self, key: str, value: V): none {
 		if (self.len * 10 >= self.cap * 7) self.grow();
 
-		val h: usz = self.hash_key(key);
-		var idx: usz = h % self.cap;
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
 			if (self.keys[idx] == key) {
@@ -61,8 +59,8 @@ impl HashMap<V> {
 	}
 
 	pub fn contains(val self, key: str): bool {
-		val h: usz = self.hash_key(key);
-		var idx: usz = h % self.cap;
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
 			if (self.keys[idx] == key) return true;
@@ -72,8 +70,8 @@ impl HashMap<V> {
 	}
 
 	pub fn get_or(val self, key: str, default_val: V): V {
-		val h: usz = self.hash_key(key);
-		var idx: usz = h % self.cap;
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
 			if (self.keys[idx] == key) return self.values[idx];
@@ -83,18 +81,18 @@ impl HashMap<V> {
 	}
 
 	fn grow(var self): none {
-		val old_cap: usz = self.cap;
-		val old_keys: &str = self.keys;
-		val old_vals: &V = self.values;
-		val old_occ: &bool = self.occupied;
+		val old_cap = self.cap;
+		val old_keys = self.keys;
+		val old_vals = self.values;
+		val old_occ = self.occupied;
 
-		val new_cap: usz = old_cap * 2;
-		val raw_keys: &u8 = raw_alloc(new_cap * str.size());
-		val raw_vals: &u8 = raw_alloc(new_cap * V.size());
-		val raw_occ: &u8 = raw_alloc(new_cap * bool.size());
+		val new_cap = old_cap * 2;
+		val raw_keys = raw_alloc(new_cap * str.size());
+		val raw_vals = raw_alloc(new_cap * V.size());
+		val raw_occ = raw_alloc(new_cap * bool.size());
 
-		val new_occ: &bool = raw_occ as &bool;
-		var j: usz = 0;
+		val new_occ = raw_occ as &bool;
+		var j = 0UZ;
 		while (j < new_cap) {
 			new_occ[j] = false;
 			j = j + 1;
@@ -112,14 +110,14 @@ impl HashMap<V> {
 			i = i + 1;
 		}
 
-		raw_release(old_keys as &u8);
-		raw_release(old_vals as &u8);
-		raw_release(old_occ as &u8);
+		release(old_keys);
+		release(old_vals);
+		release(old_occ);
 	}
 
 	pub fn delete(self): none {
-		raw_release(self.keys as &u8);
-		raw_release(self.values as &u8);
-		raw_release(self.occupied as &u8);
+		release(self.keys);
+		release(self.values);
+		release(self.occupied);
 	}
 }

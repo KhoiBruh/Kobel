@@ -37,13 +37,13 @@ pub fn raw_release(ptr: &u8) {
 // ----------------------------------------------------------------------------
 
 // One uninitialized `T` on the heap.
-pub fn alloc<T>(): *T => raw_alloc(T.size()) as *T;
+pub fn alloc<T>() => raw_alloc(T.size()) as &T;
 
 // `count` uninitialized `T`s on the heap (contiguous).
-pub fn alloc_array<T>(count: usz): *T => raw_alloc(count * T.size()) as *T;
+pub fn alloc_array<T>(count: usz) => raw_alloc(count * T.size()) as &T;
 
 // Grow/shrink `ptr` to hold `count` elements of `T`.
-pub fn resize<T>(ptr: *T, count: usz): *T => raw_resize(ptr as &u8, count * T.size()) as *T;
+pub fn resize<T>(ptr: *T, count: usz) => raw_resize(ptr as &u8, count * T.size()) as &T;
 
 // Release a block obtained from alloc/alloc_array/resize.
 pub fn release<T>(ptr: *T) {

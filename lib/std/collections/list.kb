@@ -1,8 +1,6 @@
 mod std.collections.list;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_resize;
-use std.mem.alloc.raw_release;
+use std.mem.alloc.*;
 
 /*
 	List<T> - dynamic array, heap-allocated
@@ -19,7 +17,6 @@ use std.mem.alloc.raw_release;
 		list.delete();
 */
 
-
 pub struct List<T> {
 	pub data: &T,
 	pub len: usz,
@@ -27,16 +24,16 @@ pub struct List<T> {
 }
 
 pub fn new_list<T>(): List<T> {
-	val init_cap: usz = 4;
-	val raw: &u8 = raw_alloc(init_cap * T.size());
-	return List<T>(raw as &T, 0, init_cap);
+	val init_cap = 4UZ;
+	val data = alloc_array<T>(init_cap);
+	return List<T>(data, 0, init_cap);
 }
 
 pub fn list_with_capacity<T>(capacity: usz): List<T> {
-	var cap: usz = capacity;
+	var cap = capacity;
 	if (cap == 0) cap = 4;
-	val raw: &u8 = raw_alloc(cap * T.size());
-	return List<T>(raw as &T, 0, cap);
+	val data = alloc_array<T>(cap);
+	return List<T>(data, 0, cap);
 }
 
 impl List<T> {
@@ -46,7 +43,7 @@ impl List<T> {
 
 	pub fn last(val self): T => self.data[self.len - 1];
 
-	pub fn is_empty(val self): bool => self.len == 0;
+	pub fn is_empty(val self) => self.len == 0;
 
 	pub fn set(var self, index: usz, value: T) {
 		self.data[index] = value;
@@ -68,27 +65,23 @@ impl List<T> {
 	}
 
 	fn grow(var self) {
-		val new_cap: usz = self.cap * 2;
-		val new_raw: &u8 = raw_resize(self.data as &u8, new_cap * T.size());
-		self.data = new_raw as &T;
+		val new_cap = self.cap * 2;
+		self.data = resize<T>(self.data, new_cap);
 		self.cap = new_cap;
 	}
 
 	pub fn reserve(var self, min_cap: usz) {
 		if (min_cap > self.cap) {
-			var new_cap: usz = self.cap;
+			var new_cap = self.cap;
 			while (new_cap < min_cap) {
 				new_cap = new_cap * 2;
 			}
-			val new_raw: &u8 = raw_resize(self.data as &u8, new_cap * T.size());
-			self.data = new_raw as &T;
+			self.data = resize<T>(self.data, new_cap);
 			self.cap = new_cap;
 		}
 	}
 
 	// NOTE: block body instead of `=> raw_release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
-	pub fn delete(self) {
-		raw_release(self.data as &u8);
-	}
+	pub fn delete(self) => release<T>(self.data);
 }

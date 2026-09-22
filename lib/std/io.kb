@@ -22,8 +22,8 @@ struct StringRaw {
 }
 
 pub fn print(s: str) {
-	var i: usz = 0;
-	val len: usz = s.len;
+	var i = 0UZ;
+	val len = s.len;
 	while (i < len) {
 		putchar(s[i]);
 		i = i + 1;
@@ -37,21 +37,21 @@ pub fn read_file(path: str): str {
 	if (f == null) return "";
 
 	fseek(f, 0L, 2);
-	val size_i64: i64 = ftell(f);
+	val size_i64 = ftell(f);
 	if (size_i64 <= 0L) {
 		fclose(f);
 		return "";
 	}
 
 	fseek(f, 0L, 0);
-	val sz: usz = size_i64 as usz;
-	val buf: &u8 = malloc(sz + 1);
+	val sz = size_i64 as usz;
+	val buf = malloc(sz + 1);
 	if (buf == null) {
 		fclose(f);
 		return "";
 	}
 
-	val read_bytes: usz = fread(buf, 1, sz, f);
+	val read_bytes = fread(buf, 1, sz, f);
 	fclose(f);
 	buf[read_bytes] = 0;
 
@@ -60,8 +60,8 @@ pub fn read_file(path: str): str {
 	r.data = buf as *char;
 	r.len = read_bytes;
 	r.cap = sz + 1;
-	val sp: *str = r as *str;
-	val res: str = *sp;
+	val sp = r as *str;
+	val res = *sp;
 	free(raw_mem);
 	return res;
 }
@@ -69,7 +69,7 @@ pub fn read_file(path: str): str {
 pub fn write_file(path: str, content: str): bool {
 	val f = fopen(path.c_str(), "wb");
 	if (f == null) return false;
-	val written: usz = fwrite(content.c_str(), 1, content.len, f);
+	val written = fwrite(content.c_str(), 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
