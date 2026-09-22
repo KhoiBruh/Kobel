@@ -9706,11 +9706,15 @@ compiler__ast__node__AstNode* compiler__parser__decl__parse_impl_decl(compiler__
             if (compiler__parser__parser__check(self, 12)) {
                 {
                     std__collections__list__List_compiler__ast__decl__GenericParam s_params = compiler__parser__decl__parse_generic_params(self);
-                    size_t sp_i = 0;
-                    while ((sp_i < (s_params).len)) {
-                        {
-                            std__collections__list__List_compiler__ast__decl__GenericParam_add((&type_params), std__collections__list__List_compiler__ast__decl__GenericParam_get((&s_params), sp_i));
-                            sp_i = (sp_i + 1);
+                    {
+                        size_t __for_n = (s_params).len;
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__decl__GenericParam p = (s_params).data[__for_i];
+                                std__collections__list__List_compiler__ast__decl__GenericParam_add((&type_params), p);
+                                __for_i = (__for_i + 1);
+                            }
                         }
                     }
                 }

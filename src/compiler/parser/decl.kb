@@ -198,11 +198,7 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 		struct_name = s_tok.text;
 		if (check(self, TokenType.LESS)) {
 			val s_params = parse_generic_params(self);
-			var sp_i: usz = 0;
-			while (sp_i < s_params.len) {
-				type_params.add(s_params.get(sp_i));
-				sp_i = sp_i + 1;
-			}
+			for (p in s_params) type_params.add(p);
 		}
 	}
 
