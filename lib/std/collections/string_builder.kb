@@ -65,10 +65,8 @@ impl StringBuilder {
 
 	pub fn to_str(val self): str {
 		val str_data = raw_alloc(self.len + 1);
-		var i = 0UZ;
-		while (i < self.len) {
+		for (i in 0UZ..<self.len) {
 			str_data[i] = self.buf[i];
-			i = i + 1;
 		}
 		str_data[self.len] = 0;
 
