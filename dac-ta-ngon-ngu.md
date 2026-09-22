@@ -44,6 +44,29 @@ fn add(a: i32, b: i32): i32 => a + b;
 
 `isz`/`usz` = độ rộng theo kiến trúc máy (như `isize`/`usize` của Rust).
 
+### Nội suy chuỗi
+
+Trong chuỗi `"..."`, cặp `${` … `}` mở một **hố** chứa biểu thức; giá trị được chuyển thành `str`
+rồi ghép vào chuỗi. Ngoài hố, `{` và `}` vẫn là ký tự thường — nên chuỗi sinh mã C (`"{\n"`) không
+bị ảnh hưởng, và `$` không đi kèm `{` cũng là ký tự thường.
+
+```
+val name = "Kobel";
+val n = 42;
+println("Xin chào ${name}, n = ${n}");        // str, char, bool, số đều nội suy được
+println("${obj.describe()} | ${list.len}");   // hố chứa biểu thức đầy đủ
+println("giá: \$5");                          // `\$` là ký tự `$` literal
+```
+
+- Kiểu nội suy được: `str` (nguyên xi), `char`, `bool`, mọi kiểu số nguyên (kể cả enum — ra giá trị
+  số), `f32`/`f64`. Kiểu khác là **lỗi biên dịch**, vì chưa có trait `to_str` nên không thể mở rộng
+  tự động.
+- Hố được đánh giá **đúng một lần**, tại đúng vị trí của nó trong chuỗi.
+- Chưa có shorthand `$tên` (viết `${tên}`); `string` lồng trong hố chạy được, `"${...}"` lồng trong
+  hố thì chưa.
+- Hạ tầng: chuỗi nội suy được hạ trong sema thành chuỗi gọi `kobel_concat` + helper chuyển kiểu
+  (xem `docs/architecture.md` §6.2) — không đụng tới codegen.
+
 ### Nullable
 
 ```
@@ -272,6 +295,7 @@ val a = if (x > 0) 1 else -1;   // if/else là biểu thức
 
 for (i in 0..10) { ... }        // đóng-đóng
 for (i in 0>..<10) { ... }      // mở-mở
+for (i in 0..<10) { ... }      // nửa mở (loại trừ biên cuối)
 for (i in 10..0) { ... }        // ngược, đóng-đóng
 for (i in 10>..<0) { ... }      // ngược, mở-mở
 for (i in iterator) { ... }
@@ -286,6 +310,11 @@ val result = when (x) {          // when là biểu thức, dùng độc lập �
     else -> "other";
 };
 ```
+
+Ba dạng range (`a..b`, `a..<b`, `a>..<b`) đều **quyết định chiều tăng/giảm lúc chạy** theo thứ tự hai
+biên được viết (`10..0` chạy ngược). Biến vòng là **bản sao chỉ đọc**, chỉ sống trong thân vòng;
+`continue` vẫn bước biến đếm. Dạng nửa mở `a..<b` là idiom cho vòng chỉ mục vì không bao giờ phải
+tính `n - 1`: `for (i in 0..<seq.len)` chạy đúng cả khi `seq` rỗng.
 
 `break`/`continue` hỗ trợ label để thoát vòng lặp lồng nhau (cú pháp label cụ thể chưa chốt).
 
@@ -407,6 +436,7 @@ Hai biến thể: không nhận tham số dòng lệnh, hoặc có nhận tham s
 
 - **Lambda/closure** — dự định cú pháp kiểu Kotlin (`list.filter { it.is_blank() }`), cơ chế capture biến ngoài (theo giá trị hay tham chiếu, có cần khai báo tường minh) **chưa quyết định** — tạm gác, xem là tính năng cao cấp làm sau.
 - **Chế độ freestanding/no-libc** — đã bàn cơ chế (`syscall(...)` intrinsic, tự viết `_start`) nhưng hoãn, không nằm trong scope ban đầu.
+
 - **Cú pháp label cụ thể** cho `break`/`continue`.
 - **Chữ ký chi tiết của `main(args: ...)`** — kiểu dữ liệu tham số dòng lệnh.
 - **Smart pointer sở hữu** (kiểu `Box<T>`) cho struct tự tham chiếu — hiện dùng con trỏ thô thủ công.
