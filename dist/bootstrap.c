@@ -8510,25 +8510,60 @@ const char* compiler__codegen__c_program__gen_fn_decl(compiler__codegen__c_codeg
         proto = kobel_concat(proto, "void");
     } else {
         {
-            size_t i = 0;
-            while ((i < ((f)->params).len)) {
-                {
-                    if ((i > 0)) {
-                        proto = kobel_concat(proto, ", ");
+            {
+                size_t __for_e = ((f)->params).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
                     }
-                    compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
-                    const char* p_ty = compiler__codegen__c_codegen__c_type_from_ast((p).type_node);
-                    if ((((!kobel_streq(self_c_type, "")) && kobel_streq((p).name, "self")) && ((p).type_node == NULL))) {
-                        {
-                            if ((p).is_mut) {
-                                p_ty = kobel_concat(self_c_type, "*");
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > 0)) {
+                            proto = kobel_concat(proto, ", ");
+                        }
+                        compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
+                        const char* p_ty = compiler__codegen__c_codegen__c_type_from_ast((p).type_node);
+                        if ((((!kobel_streq(self_c_type, "")) && kobel_streq((p).name, "self")) && ((p).type_node == NULL))) {
+                            {
+                                if ((p).is_mut) {
+                                    p_ty = kobel_concat(self_c_type, "*");
+                                } else {
+                                    p_ty = kobel_concat(kobel_concat("const ", self_c_type), "*");
+                                }
+                            }
+                        }
+                        proto = kobel_concat(kobel_concat(kobel_concat(proto, p_ty), " "), (p).name);
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
                             } else {
-                                p_ty = kobel_concat(kobel_concat("const ", self_c_type), "*");
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
                             }
                         }
                     }
-                    proto = kobel_concat(kobel_concat(kobel_concat(proto, p_ty), " "), (p).name);
-                    i = (i + 1);
                 }
             }
         }

@@ -42,8 +42,7 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 	var proto = ret_ty + " " + f.name + "(";
 	if (f.params.len == 0) proto = proto + "void";
 	else {
-		var i: usz = 0;
-		while (i < f.params.len) {
+		for (i in 0..<f.params.len) {
 			if (i > 0) proto = proto + ", ";
 			val p = f.params.get(i);
 			var p_ty = c_type_from_ast(p.type_node);
@@ -52,7 +51,6 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 				else p_ty = "const " + self_c_type + "*";
 			}
 			proto = proto + p_ty + " " + p.name;
-			i = i + 1;
 		}
 	}
 	proto = proto + ")";
