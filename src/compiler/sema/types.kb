@@ -86,11 +86,8 @@ pub struct EnumInfo {
 }
 
 pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo {
-	var i: usz = 0;
-	while (i < e.members.len) {
-		val m = e.members.get(i);
+	for (m in e.members) {
 		if (m.name == name) return m;
-		i = i + 1;
 	}
 	return null;
 }
@@ -134,22 +131,16 @@ pub fn layout_struct(ty: *Type) {
 
 // Look up a method by its source name (e.g. "peek").
 pub fn struct_find_method(st: *StructType, name: str): *MethodInfo {
-	var i: usz = 0;
-	while (i < st.methods.len) {
-		val m = st.methods.get(i);
+	for (m in st.methods) {
 		if (m.name == name) return m;
-		i = i + 1;
 	}
 	return null;
 }
 
 // Look up a method by its mangled C name (used when re-visiting an `impl`).
 pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo {
-	var i: usz = 0;
-	while (i < st.methods.len) {
-		val m = st.methods.get(i);
+	for (m in st.methods) {
 		if (m.c_name == c_name) return m;
-		i = i + 1;
 	}
 	return null;
 }

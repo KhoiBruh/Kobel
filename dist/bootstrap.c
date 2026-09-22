@@ -3996,14 +3996,17 @@ compiler__ast__decl__Program* compiler__ast__builder__as_program(compiler__ast__
 }
 
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__enum_find_member(compiler__sema__types__EnumInfo* e, const char* name) {
-    size_t i = 0;
-    while ((i < ((e)->members).len)) {
-        {
-            compiler__sema__types__EnumMemberInfo* m = std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_get((&(e)->members), i);
-            if (kobel_streq((m)->name, name)) {
-                return m;
+    {
+        size_t __for_n = ((e)->members).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__types__EnumMemberInfo* m = ((e)->members).data[__for_i];
+                if (kobel_streq((m)->name, name)) {
+                    return m;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return NULL;
@@ -4065,28 +4068,34 @@ void compiler__sema__types__layout_struct(compiler__sema__types__Type* ty) {
 }
 
 compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method(compiler__sema__types__StructType* st, const char* name) {
-    size_t i = 0;
-    while ((i < ((st)->methods).len)) {
-        {
-            compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_get((&(st)->methods), i);
-            if (kobel_streq((m)->name, name)) {
-                return m;
+    {
+        size_t __for_n = ((st)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__types__MethodInfo* m = ((st)->methods).data[__for_i];
+                if (kobel_streq((m)->name, name)) {
+                    return m;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return NULL;
 }
 
 compiler__sema__types__MethodInfo* compiler__sema__types__struct_find_method_c(compiler__sema__types__StructType* st, const char* c_name) {
-    size_t i = 0;
-    while ((i < ((st)->methods).len)) {
-        {
-            compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_get((&(st)->methods), i);
-            if (kobel_streq((m)->c_name, c_name)) {
-                return m;
+    {
+        size_t __for_n = ((st)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__types__MethodInfo* m = ((st)->methods).data[__for_i];
+                if (kobel_streq((m)->c_name, c_name)) {
+                    return m;
+                }
+                __for_i = (__for_i + 1);
             }
-            i = (i + 1);
         }
     }
     return NULL;
