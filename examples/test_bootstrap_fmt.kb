@@ -65,6 +65,20 @@ fn test_unsigned(var t: &Tally) {
 	check_str(w.to_str(), "60000", "u16", t);
 }
 
+// --- float literals (the base the float ToStr impls stand on) --------------
+
+fn test_float_literals(var t: &Tally) {
+	val half: f64 = 1.5;
+	val whole = 2.0;
+	val third: f64 = 1.0 / 3.0;
+	if (half != 1.5) t.fails = t.fails + 1;
+	if (whole != 2.0) t.fails = t.fails + 1;
+	if (third <= 0.3) t.fails = t.fails + 1;
+	if (third >= 0.34) t.fails = t.fails + 1;
+	val neg: f64 = -0.5;
+	if (neg >= 0.0) t.fails = t.fails + 1;
+}
+
 // --- user struct implementing ToStr ----------------------------------------
 
 struct Point {
@@ -91,6 +105,7 @@ fn main(): i32 {
 	test_str(&t);
 	test_signed(&t);
 	test_unsigned(&t);
+	test_float_literals(&t);
 	test_user_struct(&t);
 
 	if (t.fails != 0) {

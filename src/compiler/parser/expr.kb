@@ -28,6 +28,16 @@ pub const PREC_UNARY: i32 = 8;        // -, !, *, &, as
 pub const PREC_CALL: i32 = 9;         // ., (), [], <args>()
 pub const PREC_PRIMARY: i32 = 10;
 
+// Whether a NUMBER token holds a float: the lexer scans the fractional part
+// into the same token, so a '.' in the text marks a float literal. Hex/binary
+// literals and suffixes never contain one.
+pub fn num_literal_is_float(text: str): bool {
+	for (c in text) {
+		if (c == '.') return true;
+	}
+	return false;
+}
+
 pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 	when (t) {
 		TokenType.EQUAL -> return PREC_ASSIGN;
@@ -66,7 +76,12 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 
 	// Literals
 	when (tok.type) {
-		TokenType.NUMBER -> return alloc_literal(&self.arena, LiteralKind.INT, tok.text, line, col);
+		// A number token keeps its fractional part, so a '.' in the text means
+		// the literal is a float (types are decided here, not by the lexer).
+		TokenType.NUMBER -> {
+			if (num_literal_is_float(tok.text)) return alloc_literal(&self.arena, LiteralKind.FLOAT, tok.text, line, col);
+			return alloc_literal(&self.arena, LiteralKind.INT, tok.text, line, col);
+		}
 		TokenType.STRING -> return parse_string_literal(self, tok, line, col);
 		TokenType.CHAR -> return alloc_literal(&self.arena, LiteralKind.CHAR, tok.text, line, col);
 		TokenType.KW_TRUE -> return alloc_literal(&self.arena, LiteralKind.BOOL, "true", line, col);

@@ -1516,6 +1516,7 @@ compiler__lexer__token__Token compiler__parser__parser__consume(compiler__parser
 void compiler__parser__parser__synchronize(compiler__parser__parser__Parser* self);
 bool compiler__parser__parser__is_generic_args_ahead(compiler__parser__parser__Parser* self);
 compiler__ast__node__AstNode* compiler__parser__types__parse_type(compiler__parser__parser__Parser* self);
+bool compiler__parser__expr__num_literal_is_float(const char* text);
 int32_t compiler__parser__expr__get_infix_precedence(compiler__parser__parser__Parser* self, compiler__lexer__token__TokenType t);
 compiler__ast__node__AstNode* compiler__parser__expr__parse_prefix(compiler__parser__parser__Parser* self);
 compiler__ast__node__AstNode* compiler__parser__expr__parse_infix(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* left, int32_t prec);
@@ -11614,6 +11615,23 @@ compiler__ast__node__AstNode* compiler__parser__types__parse_type(compiler__pars
     return compiler__ast__builder__alloc_named_type((&(self)->arena), full_name, type_args, line, col);
 }
 
+bool compiler__parser__expr__num_literal_is_float(const char* text) {
+    {
+        size_t __for_n = kobel_slen(text);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = text[__for_i];
+                if ((c == '.')) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return false;
+}
+
 int32_t compiler__parser__expr__get_infix_precedence(compiler__parser__parser__Parser* self, compiler__lexer__token__TokenType t) {
     if ((t == 5)) {
         return compiler__parser__expr__PREC_ASSIGN;
@@ -11650,7 +11668,12 @@ compiler__ast__node__AstNode* compiler__parser__expr__parse_prefix(compiler__par
     size_t line = (tok).line;
     size_t col = (tok).col;
     if (((tok).type == 30)) {
-        return compiler__ast__builder__alloc_literal((&(self)->arena), 0, (tok).text, line, col);
+        {
+            if (compiler__parser__expr__num_literal_is_float((tok).text)) {
+                return compiler__ast__builder__alloc_literal((&(self)->arena), 1, (tok).text, line, col);
+            }
+            return compiler__ast__builder__alloc_literal((&(self)->arena), 0, (tok).text, line, col);
+        }
     } else if (((tok).type == 31)) {
         return compiler__parser__expr__parse_string_literal(self, tok, line, col);
     } else if (((tok).type == 29)) {
