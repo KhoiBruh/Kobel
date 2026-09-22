@@ -313,12 +313,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						if (call.args.len + 1 != fn_info.param_types.len) {
 							report_error(self, node, "Argument count mismatch in method call '" + mem.member + "'");
 						} else {
-							var i: usz = 0;
-							while (i < call.args.len) {
+							for (i in 0..<call.args.len) {
 								val arg_ty = check_expr(self, call.args.get(i));
 								val param_ty = fn_info.param_types.get(i + 1);
 								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '" + mem.member + "'");
-								i = i + 1;
 							}
 						}
 
@@ -341,12 +339,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				val fn_info = sem_fn(callee_ty);
 				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
 				else {
-					var i: usz = 0;
-					while (i < call.args.len) {
+					for (i in 0..<call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val param_ty = fn_info.param_types.get(i);
 						if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in function call");
-						i = i + 1;
 					}
 				}
 				return fn_info.return_type;
@@ -357,12 +353,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				val s_info = sem_struct(callee_ty);
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
-					var i: usz = 0;
-					while (i < call.args.len) {
+					for (i in 0..<call.args.len) {
 						val arg_ty = check_expr(self, call.args.get(i));
 						val f_ty = s_info.fields.get(i).type_ptr;
 						if (!can_assign(f_ty, arg_ty)) report_error(self, node, "Field type mismatch in struct constructor");
-						i = i + 1;
 					}
 				}
 				return callee_ty;

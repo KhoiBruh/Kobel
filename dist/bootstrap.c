@@ -6652,15 +6652,50 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                                         }
                                     } else {
                                         {
-                                            size_t i = 0;
-                                            while ((i < ((call)->args).len)) {
-                                                {
-                                                    compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
-                                                    compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), (i + 1));
-                                                    if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
-                                                        compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat("Argument type mismatch in method call '", (mem)->member), "'"));
+                                            {
+                                                size_t __for_e = ((call)->args).len;
+                                                size_t __for_i = __for_e;
+                                                __for_i = 0;
+                                                bool __for_up = (__for_i <= __for_e);
+                                                bool __for_go = false;
+                                                if (__for_up) {
+                                                    {
+                                                        __for_go = (__for_i < __for_e);
                                                     }
-                                                    i = (i + 1);
+                                                } else {
+                                                    {
+                                                        __for_go = (__for_i > __for_e);
+                                                    }
+                                                }
+                                                while (__for_go) {
+                                                    {
+                                                        size_t i = __for_i;
+                                                        compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
+                                                        compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), (i + 1));
+                                                        if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
+                                                            compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat("Argument type mismatch in method call '", (mem)->member), "'"));
+                                                        }
+                                                        if (__for_up) {
+                                                            {
+                                                                __for_go = ((__for_i + 1) < __for_e);
+                                                            }
+                                                        } else {
+                                                            {
+                                                                __for_go = ((__for_i - 1) > __for_e);
+                                                            }
+                                                        }
+                                                        if (__for_go) {
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_i = (__for_i + 1);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_i = (__for_i - 1);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -6699,15 +6734,50 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                         compiler__sema__body_pass__report_error(self, node, "Argument count mismatch in function call");
                     } else {
                         {
-                            size_t i = 0;
-                            while ((i < ((call)->args).len)) {
-                                {
-                                    compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
-                                    compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), i);
-                                    if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
-                                        compiler__sema__body_pass__report_error(self, node, "Argument type mismatch in function call");
+                            {
+                                size_t __for_e = ((call)->args).len;
+                                size_t __for_i = __for_e;
+                                __for_i = 0;
+                                bool __for_up = (__for_i <= __for_e);
+                                bool __for_go = false;
+                                if (__for_up) {
+                                    {
+                                        __for_go = (__for_i < __for_e);
                                     }
-                                    i = (i + 1);
+                                } else {
+                                    {
+                                        __for_go = (__for_i > __for_e);
+                                    }
+                                }
+                                while (__for_go) {
+                                    {
+                                        size_t i = __for_i;
+                                        compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
+                                        compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), i);
+                                        if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
+                                            compiler__sema__body_pass__report_error(self, node, "Argument type mismatch in function call");
+                                        }
+                                        if (__for_up) {
+                                            {
+                                                __for_go = ((__for_i + 1) < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = ((__for_i - 1) > __for_e);
+                                            }
+                                        }
+                                        if (__for_go) {
+                                            if (__for_up) {
+                                                {
+                                                    __for_i = (__for_i + 1);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_i = (__for_i - 1);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -6722,15 +6792,50 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                         compiler__sema__body_pass__report_error(self, node, "Argument count mismatch in struct constructor");
                     } else {
                         {
-                            size_t i = 0;
-                            while ((i < ((call)->args).len)) {
-                                {
-                                    compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
-                                    compiler__sema__types__Type* f_ty = (std__collections__list__List_compiler__sema__types__StructField_get((&(s_info)->fields), i)).type_ptr;
-                                    if ((!compiler__sema__types__can_assign(f_ty, arg_ty))) {
-                                        compiler__sema__body_pass__report_error(self, node, "Field type mismatch in struct constructor");
+                            {
+                                size_t __for_e = ((call)->args).len;
+                                size_t __for_i = __for_e;
+                                __for_i = 0;
+                                bool __for_up = (__for_i <= __for_e);
+                                bool __for_go = false;
+                                if (__for_up) {
+                                    {
+                                        __for_go = (__for_i < __for_e);
                                     }
-                                    i = (i + 1);
+                                } else {
+                                    {
+                                        __for_go = (__for_i > __for_e);
+                                    }
+                                }
+                                while (__for_go) {
+                                    {
+                                        size_t i = __for_i;
+                                        compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
+                                        compiler__sema__types__Type* f_ty = (std__collections__list__List_compiler__sema__types__StructField_get((&(s_info)->fields), i)).type_ptr;
+                                        if ((!compiler__sema__types__can_assign(f_ty, arg_ty))) {
+                                            compiler__sema__body_pass__report_error(self, node, "Field type mismatch in struct constructor");
+                                        }
+                                        if (__for_up) {
+                                            {
+                                                __for_go = ((__for_i + 1) < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = ((__for_i - 1) > __for_e);
+                                            }
+                                        }
+                                        if (__for_go) {
+                                            if (__for_up) {
+                                                {
+                                                    __for_i = (__for_i + 1);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_i = (__for_i - 1);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
