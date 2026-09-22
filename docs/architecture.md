@@ -148,6 +148,7 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `io.kb` | `print/println`, `read_file/write_file`; handle stdio là `*none` (opaque `FILE*`) |
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
+| `fmt.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str` và các kiểu số nguyên; nền của nội suy `${...}` |
 | `collections/list.kb` | `List<T>` (generic) + `new_list<T>` |
 | `collections/hash_map.kb` | `HashMap<V>` |
 | `collections/string_builder.kb` | `StringBuilder` |
@@ -197,7 +198,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
 | `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
-| `"a${x}b"` | chuỗi `kobel_concat` + helper chuyển kiểu theo kiểu của hố: `str` nguyên xi, `char` → `kobel_char_str`, số có dấu → `kobel_i64_str`, số không dấu → `kobel_usz_str`, `f32/f64` → `kobel_f64_str`, `bool` → `if`-expr `"true"/"false"`. Kiểu khác là lỗi biên dịch |
+| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` từ `std.fmt`) — riêng `str` giữ nguyên xi và `f32/f64` dùng `kobel_f64_str`. Không có impl `ToStr` cho kiểu đó ⇒ lỗi biên dịch |
 
 `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
 backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
@@ -220,9 +221,9 @@ vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sốn
 
 ### 6.3 Runtime helper trong C sinh ra
 
-Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`, và bốn helper
-nội suy `kobel_i64_str`, `kobel_usz_str`, `kobel_char_str`, `kobel_f64_str`
-(hiện nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra `codegen/runtime.c.inc`).
+Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`, và **một**
+helper nội suy còn lại là `kobel_f64_str` (chuyển `f32/f64` → `str`; các kiểu khác đi qua trait `ToStr`
+ở `std.fmt`). Tất cả nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra `codegen/runtime.c.inc`.
 
 ### 6.4 Hạ tầng C
 
@@ -280,9 +281,24 @@ phân giải về method của struct ngay ở sema.
 - Sau `collect_impl`, method trait trở thành method bình thường của struct ⇒ `self.m()`/`obj.m()` do
   `body_pass` hạ như mọi method khác (`Struct_m(&obj, …)`); codegen không biết trait là gì.
 
+**Method cho kiểu nguyên thuỷ** (`impl i32 { … }`, `impl str { … }`): primitive không phải struct và
+`make_primitive` trả `Type` **mới mỗi lần gọi** (không phải singleton), nên method không gắn vào `Type`
+được. Thay vào đó:
+- `collect_impl` nhận ra tên kiểu qua `resolve_primitive_name` và gọi `collect_prim_impl`: điền kiểu
+  tường minh cho tham số `self` (để backend truyền **theo giá trị**, vd `int32_t self`) rồi ghi method
+  vào bảng `SymbolTable.prim_methods` (khoá theo `DataType`), tên C = `<prim>_<method>` (`i32_to_str`).
+- `body_pass` tra `find_prim_method(kind, name)` khi receiver là kiểu nguyên thuỷ ⇒ hạ `x.m(args)` thành
+  `<prim>_m(x, args)` (receiver theo giá trị, tự `*` nếu receiver là con trỏ).
+- `check_impl` nhận diện impl nguyên thuỷ qua `struct_name == ""` và kiểm body bằng `find_prim_method_c`.
+
+Nền tảng này nuôi **trait `ToStr`** (`lib/std/fmt.kb`). Driver (`src/main.kb`) **luôn nạp `std.fmt`**
+(nếu tìm thấy) để impl `ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay
+không — nhờ vậy nội suy `${x}` hạ được thành `x.to_str()`.
+
 ⚠ Hạn chế: chưa có `dyn`/trait object; **generic impl của trait** (`impl Trait for List<T>`) bị bỏ qua
-(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); trait không áp
-được cho kiểu nguyên thuỷ.
+(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); chưa có `ToStr`
+cho `f32/f64` (nội suy số thực vẫn dùng `kobel_f64_str`); method nguyên thuỷ dùng tên C toàn cục
+(`i32_to_str`) nên hai module cùng impl một method cho một kiểu sẽ đụng tên.
 
 ---
 
@@ -313,7 +329,7 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 |---|---|
 | Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
 | Build v1 | `scripts/build_bootstrap.bat` → `kobel_v1.exe` (seed biên dịch `src/main.kb`) |
-| Test v1 | `scripts/test_all_bootstrap.bat` (11 test) |
+| Test v1 | `scripts/test_all_bootstrap.bat` (12 test) |
 | Chạy 1 chương trình | `scripts/run_test.bat <file.kb>` |
 | Regenerate seed | `kobel_v1.exe src/main.kb -emit-c dist/bootstrap.c` |
 
@@ -392,7 +408,9 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng). **Bound `<T: Trait>` đã có**
   (xem §6.6), nhưng **generic impl của trait** (`impl Trait for List<T>`) chưa được hỗ trợ.
 - **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method** (chưa so kiểu chữ
-  ký); không áp được cho kiểu nguyên thuỷ — chi tiết ở §6.6.
+  ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`) — chi tiết ở §6.6.
+- **Nội suy chuỗi** phụ thuộc `std.fmt` (trait `ToStr`): driver nạp ngầm module này; nếu không tìm thấy
+  `lib/std/fmt.kb`, nội suy không-hố-`str` sẽ báo lỗi biên dịch. Số thực (`f32/f64`) chưa có `ToStr`.
 - **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
   `for ((k, v) in map)` (cần destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
   `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm
