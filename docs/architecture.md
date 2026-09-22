@@ -200,7 +200,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
 | `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
-| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` từ `std.fmt`) — riêng `str` giữ nguyên xi và `f32/f64` dùng `kobel_f64_str`. Không có impl `ToStr` cho kiểu đó ⇒ lỗi biên dịch |
+| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi. Kiểu không có impl `ToStr` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
 
 `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
 backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
@@ -223,9 +223,10 @@ vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sốn
 
 ### 6.3 Runtime helper trong C sinh ra
 
-Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`, và **một**
-helper nội suy còn lại là `kobel_f64_str` (chuyển `f32/f64` → `str`; các kiểu khác đi qua trait `ToStr`
-ở `std.fmt`). Tất cả nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra `codegen/runtime.c.inc`.
+Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`. **Không còn
+helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi qua trait `ToStr` viết thuần Kobel ở
+`std/traits/to_str.kb`. Tất cả nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra
+`codegen/runtime.c.inc`.
 
 ### 6.4 Hạ tầng C
 
@@ -299,9 +300,10 @@ Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo th
 `${x}` hạ được thành `x.to_str()`.
 
 ⚠ Hạn chế: chưa có `dyn`/trait object; **generic impl của trait** (`impl Trait for List<T>`) bị bỏ qua
-(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); chưa có `ToStr`
-cho `f32/f64` (nội suy số thực vẫn dùng `kobel_f64_str`); method nguyên thuỷ dùng tên C toàn cục
-(`i32_to_str`) nên hai module cùng impl một method cho một kiểu sẽ đụng tên.
+(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); method nguyên
+thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu sẽ đụng tên.
+Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
+có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
 ---
 
@@ -412,8 +414,9 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   (xem §6.6), nhưng **generic impl của trait** (`impl Trait for List<T>`) chưa được hỗ trợ.
 - **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method** (chưa so kiểu chữ
   ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`) — chi tiết ở §6.6.
-- **Nội suy chuỗi** phụ thuộc `std.fmt` (trait `ToStr`): driver nạp ngầm module này; nếu không tìm thấy
-  `lib/std/fmt.kb`, nội suy không-hố-`str` sẽ báo lỗi biên dịch. Số thực (`f32/f64`) chưa có `ToStr`.
+- **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không
+  tìm thấy `lib/std/fmt.kb`, nội suy hố khác `str` sẽ báo lỗi biên dịch. **Literal số thực** (`1.5`)
+  đã có; `ToStr` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).
 - **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
   `for ((k, v) in map)` (cần destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
   `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm

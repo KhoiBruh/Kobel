@@ -93,6 +93,17 @@ fn test_nested_string_in_hole(var t: &Tally) {
 	check_str("${concat2("ab", "cd")}", "abcd", "nested string literal in a hole", t);
 }
 
+fn test_float_holes(var t: &Tally) {
+	val a: f64 = 1.5;
+	val b: f64 = -0.25;
+	val c: f64 = 3.0;
+	val d: f32 = 0.5 as f32;
+	check_str("${a}", "1.5", "f64 hole", t);
+	check_str("${b}", "-0.25", "negative f64 hole", t);
+	check_str("${c}", "3", "whole float hole", t);
+	check_str("${d}", "0.5", "f32 hole", t);
+}
+
 // Interpolation inside a generic body: monomorphization clones it.
 fn wrap<T>(x: T): str => "(${x})";
 
@@ -111,6 +122,7 @@ fn main(): i32 {
 	test_char_bool(&t);
 	test_multi_and_expr(&t);
 	test_nested_string_in_hole(&t);
+	test_float_holes(&t);
 	test_in_generic(&t);
 
 	if (t.fails != 0) {

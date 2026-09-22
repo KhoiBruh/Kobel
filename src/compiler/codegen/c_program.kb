@@ -147,13 +147,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 		"static int kobel_streq(const char* a, const char* b) {\n" +
 		"    return strcmp(a, b) == 0;\n" +
 		"}\n" +
-		"/* interpolation helper for floats (integers/chars/bools go through\n" +
-		"   the ToStr trait in std.fmt) */\n" +
-		"static const char* kobel_f64_str(double v) {\n" +
-		"    char* r = (char*)malloc(32);\n" +
-		"    snprintf(r, 32, \"%g\", v);\n" +
-		"    return r;\n" +
-		"}\n\n" +
+
 		"/* str length helper */\n" +
 		"static size_t kobel_slen(const char* s) {\n" +
 		"    return strlen(s);\n" +
