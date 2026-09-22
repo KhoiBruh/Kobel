@@ -21,12 +21,9 @@ pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str {
 	self.struct_names.add(s.name);
 
 	var res = "struct " + s.name + " {\n";
-	var i: usz = 0;
-	while (i < s.fields.len) {
-		val f = s.fields.get(i);
+	for (f in s.fields) {
 		val ty = c_type_from_ast(f.type_node);
 		res = res + "    " + ty + " " + f.name + ";\n";
-		i = i + 1;
 	}
 	return res + "};\n\n";
 }
@@ -66,9 +63,7 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 
 	self.pointer_vars = new_list<str>();
 	self.str_vars = new_list<str>();
-	var p_idx: usz = 0;
-	while (p_idx < f.params.len) {
-		val p = f.params.get(p_idx);
+	for (p in f.params) {
 		if (self_c_type != "" && p.name == "self" && p.type_node == null) {
 			self.pointer_vars.add(p.name);
 		} else if (p.type_node != null) {
@@ -79,7 +74,6 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 				if (named.name == "str") self.str_vars.add(p.name);
 			}
 		}
-		p_idx = p_idx + 1;
 	}
 
 	var res = proto + " {\n";
@@ -87,10 +81,8 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 
 	if (f.body.kind == NodeKind.STMT_BLOCK) {
 		val blk = as_block_stmt(f.body);
-		var j: usz = 0;
-		while (j < blk.statements.len) {
-			res = res + gen_statement(self, blk.statements.get(j));
-			j = j + 1;
+		for (stmt in blk.statements) {
+			res = res + gen_statement(self, stmt);
 		}
 	} else if (f.body.kind == NodeKind.STMT_EXPR) {
 		val es = as_expr_stmt(f.body);
@@ -163,13 +155,8 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 		"}\n\n";
 
 	// 2. First collect struct names, function names and return types
-	var i: usz = 0;
-	while (i < prog.declarations.len) {
-		val decl = prog.declarations.get(i);
-		if (is_generic_decl(decl)) {
-			i = i + 1;
-			continue;
-		}
+	for (decl in prog.declarations) {
+		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_STRUCT) {
 			val s = as_struct_decl(decl);
 			self.struct_names.add(s.name);
@@ -186,93 +173,62 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 			val c = as_const_decl(decl);
 			c_code = c_code + "#define " + c.name + " " + gen_expr(self, c.value) + "\n";
 		}
-		i = i + 1;
 	}
 	c_code = c_code + "\n";
 
 	// 2b. Register function return types (arrow bodies are inferred). Done after
 	// all struct names are known so inference can resolve struct constructors.
-	var ir: usz = 0;
-	while (ir < prog.declarations.len) {
-		val decl2 = prog.declarations.get(ir);
-		if (is_generic_decl(decl2)) {
-			ir = ir + 1;
-			continue;
-		}
+	for (decl2 in prog.declarations) {
+		if (is_generic_decl(decl2)) continue;
 		if (decl2.kind == NodeKind.DECL_FN) {
 			val f = as_fn_decl(decl2);
 			register_fn(self, f.name, fn_ret_c_type(self, f));
 		} else if (decl2.kind == NodeKind.DECL_IMPL) {
 			val im = as_impl_decl(decl2);
-			var mi: usz = 0;
-			while (mi < im.methods.len) {
-				val f = as_fn_decl(im.methods.get(mi));
+			for (mnode in im.methods) {
+				val f = as_fn_decl(mnode);
 				register_fn(self, f.name, fn_ret_c_type(self, f));
-				mi = mi + 1;
 			}
 		} else if (decl2.kind == NodeKind.DECL_EXTERN_BLOCK) {
 			val ext = as_extern_block(decl2);
-			var e_idx: usz = 0;
-			while (e_idx < ext.declarations.len) {
-				val e_decl = ext.declarations.get(e_idx);
+			for (e_decl in ext.declarations) {
 				if (e_decl.kind == NodeKind.DECL_FN) {
 					val f = as_fn_decl(e_decl);
 					register_fn(self, f.name, fn_ret_c_type(self, f));
 				}
-				e_idx = e_idx + 1;
 			}
 		}
-		ir = ir + 1;
 	}
 	c_code = c_code + "\n";
 
 	// 3. Struct Definitions
-	var j: usz = 0;
-	while (j < prog.declarations.len) {
-		val decl = prog.declarations.get(j);
+	for (decl in prog.declarations) {
 		if (!is_generic_decl(decl) && decl.kind == NodeKind.DECL_STRUCT) c_code = c_code + gen_struct_decl(self, decl);
-		j = j + 1;
 	}
 
 	// 4. Function Prototypes
-	var k: usz = 0;
-	while (k < prog.declarations.len) {
-		val decl = prog.declarations.get(k);
-		if (is_generic_decl(decl)) {
-			k = k + 1;
-			continue;
-		}
+	for (decl in prog.declarations) {
+		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, true, "");
 		else if (decl.kind == NodeKind.DECL_IMPL) {
 			val im = as_impl_decl(decl);
-			var mi: usz = 0;
-			while (mi < im.methods.len) {
-				c_code = c_code + gen_fn_decl(self, im.methods.get(mi), true, im.struct_name);
-				mi = mi + 1;
+			for (mnode in im.methods) {
+				c_code = c_code + gen_fn_decl(self, mnode, true, im.struct_name);
 			}
 		}
-		k = k + 1;
 	}
 	c_code = c_code + "\n";
 
 	// 5. Function Implementations
-	var m: usz = 0;
-	while (m < prog.declarations.len) {
-		val decl = prog.declarations.get(m);
-		if (is_generic_decl(decl)) {
-			m = m + 1;
-			continue;
-		}
+	for (decl in prog.declarations) {
+		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, false, "");
 		else if (decl.kind == NodeKind.DECL_IMPL) {
 			val im = as_impl_decl(decl);
-			var mi: usz = 0;
-			while (mi < im.methods.len) {
-				c_code = c_code + gen_fn_decl(self, im.methods.get(mi), false, im.struct_name);
-				mi = mi + 1;
+			for (mnode in im.methods) {
+				c_code = c_code + gen_fn_decl(self, mnode, false, im.struct_name);
 			}
 		}
-		m = m + 1;
 	}
 
 	return c_code;

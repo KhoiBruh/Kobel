@@ -8122,13 +8122,16 @@ const char* compiler__codegen__c_program__gen_struct_decl(compiler__codegen__c_c
     compiler__ast__decl__StructDecl* s = compiler__ast__builder__as_struct_decl(node);
     std__collections__list__List_str_add((&(self)->struct_names), (s)->name);
     const char* res = kobel_concat(kobel_concat("struct ", (s)->name), " {\n");
-    size_t i = 0;
-    while ((i < ((s)->fields).len)) {
-        {
-            compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_get((&(s)->fields), i);
-            const char* ty = compiler__codegen__c_codegen__c_type_from_ast((f).type_node);
-            res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, "    "), ty), " "), (f).name), ";\n");
-            i = (i + 1);
+    {
+        size_t __for_n = ((s)->fields).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__decl__StructField f = ((s)->fields).data[__for_i];
+                const char* ty = compiler__codegen__c_codegen__c_type_from_ast((f).type_node);
+                res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, "    "), ty), " "), (f).name), ";\n");
+                __for_i = (__for_i + 1);
+            }
         }
     }
     return kobel_concat(res, "};\n\n");
@@ -8184,35 +8187,38 @@ const char* compiler__codegen__c_program__gen_fn_decl(compiler__codegen__c_codeg
     }
     (self)->pointer_vars = std__collections__list__new_list_str();
     (self)->str_vars = std__collections__list__new_list_str();
-    size_t p_idx = 0;
-    while ((p_idx < ((f)->params).len)) {
-        {
-            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), p_idx);
-            if ((((!kobel_streq(self_c_type, "")) && kobel_streq((p).name, "self")) && ((p).type_node == NULL))) {
-                {
-                    std__collections__list__List_str_add((&(self)->pointer_vars), (p).name);
-                }
-            } else {
-                if (((p).type_node != NULL)) {
+    {
+        size_t __for_n = ((f)->params).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__decl__Param p = ((f)->params).data[__for_i];
+                if ((((!kobel_streq(self_c_type, "")) && kobel_streq((p).name, "self")) && ((p).type_node == NULL))) {
                     {
-                        if ((((*(p).type_node)).kind == 1)) {
-                            {
-                                std__collections__list__List_str_add((&(self)->pointer_vars), (p).name);
-                            }
-                        } else {
-                            if ((((*(p).type_node)).kind == 0)) {
+                        std__collections__list__List_str_add((&(self)->pointer_vars), (p).name);
+                    }
+                } else {
+                    if (((p).type_node != NULL)) {
+                        {
+                            if ((((*(p).type_node)).kind == 1)) {
                                 {
-                                    compiler__ast__types__NamedType* named = compiler__ast__builder__as_named_type((p).type_node);
-                                    if (kobel_streq((named)->name, "str")) {
-                                        std__collections__list__List_str_add((&(self)->str_vars), (p).name);
+                                    std__collections__list__List_str_add((&(self)->pointer_vars), (p).name);
+                                }
+                            } else {
+                                if ((((*(p).type_node)).kind == 0)) {
+                                    {
+                                        compiler__ast__types__NamedType* named = compiler__ast__builder__as_named_type((p).type_node);
+                                        if (kobel_streq((named)->name, "str")) {
+                                            std__collections__list__List_str_add((&(self)->str_vars), (p).name);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            p_idx = (p_idx + 1);
         }
     }
     const char* res = kobel_concat(proto, " {\n");
@@ -8220,11 +8226,15 @@ const char* compiler__codegen__c_program__gen_fn_decl(compiler__codegen__c_codeg
     if ((((*(f)->body)).kind == 16)) {
         {
             compiler__ast__stmt__BlockStmt* blk = compiler__ast__builder__as_block_stmt((f)->body);
-            size_t j = 0;
-            while ((j < ((blk)->statements).len)) {
-                {
-                    res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(blk)->statements), j)));
-                    j = (j + 1);
+            {
+                size_t __for_n = ((blk)->statements).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* stmt = ((blk)->statements).data[__for_i];
+                        res = kobel_concat(res, compiler__codegen__c_codegen__gen_statement(self, stmt));
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
         }
@@ -8273,165 +8283,195 @@ bool compiler__codegen__c_program__is_generic_decl(compiler__ast__node__AstNode*
 const char* compiler__codegen__c_program__gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node) {
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
     const char* c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("/* Generated by Kobel compiler Compiler v1 */\n", "#include <stdint.h>\n"), "#include <stdbool.h>\n"), "#include <stddef.h>\n"), "#include <stdio.h>\n"), "#include <stdlib.h>\n"), "#include <string.h>\n\n"), "/* str.slice(start, end) helper */\n"), "static const char* kobel_slice(const char* s, size_t start, size_t end) {\n"), "    size_t n = (end > start) ? (end - start) : 0;\n"), "    char* r = (char*)malloc(n + 1);\n"), "    for (size_t i = 0; i < n; i++) r[i] = s[start + i];\n"), "    r[n] = 0;\n"), "    return r;\n"), "}\n"), "/* str + str helper */\n"), "static const char* kobel_concat(const char* a, const char* b) {\n"), "    size_t la = strlen(a), lb = strlen(b);\n"), "    char* r = (char*)malloc(la + lb + 1);\n"), "    memcpy(r, a, la);\n"), "    memcpy(r + la, b, lb + 1);\n"), "    return r;\n"), "}\n"), "/* str == str helper */\n"), "static int kobel_streq(const char* a, const char* b) {\n"), "    return strcmp(a, b) == 0;\n"), "}\n"), "/* str length helper */\n"), "static size_t kobel_slen(const char* s) {\n"), "    return strlen(s);\n"), "}\n\n");
-    size_t i = 0;
-    while ((i < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i);
-            if (compiler__codegen__c_program__is_generic_decl(decl)) {
-                {
-                    i = (i + 1);
-                    continue;
-                }
-            }
-            if (((decl)->kind == 29)) {
-                {
-                    compiler__ast__decl__StructDecl* s = compiler__ast__builder__as_struct_decl(decl);
-                    std__collections__list__List_str_add((&(self)->struct_names), (s)->name);
-                    c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "typedef struct "), (s)->name), " "), (s)->name), ";\n");
-                }
-            } else {
-                if (((decl)->kind == 32)) {
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (compiler__codegen__c_program__is_generic_decl(decl)) {
                     {
-                        compiler__ast__decl__EnumDecl* e = compiler__ast__builder__as_enum_decl(decl);
-                        const char* under = "int32_t";
-                        if (((e)->underlying_type != NULL)) {
-                            under = compiler__codegen__c_codegen__c_type_from_ast((e)->underlying_type);
-                        }
-                        c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "typedef "), under), " "), (e)->name), ";\n");
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if (((decl)->kind == 29)) {
+                    {
+                        compiler__ast__decl__StructDecl* s = compiler__ast__builder__as_struct_decl(decl);
+                        std__collections__list__List_str_add((&(self)->struct_names), (s)->name);
+                        c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "typedef struct "), (s)->name), " "), (s)->name), ";\n");
                     }
                 } else {
-                    if (((decl)->kind == 33)) {
+                    if (((decl)->kind == 32)) {
                         {
-                            compiler__ast__decl__ConstDecl* c = compiler__ast__builder__as_const_decl(decl);
-                            c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "#define "), (c)->name), " "), compiler__codegen__c_codegen__gen_expr(self, (c)->value)), "\n");
+                            compiler__ast__decl__EnumDecl* e = compiler__ast__builder__as_enum_decl(decl);
+                            const char* under = "int32_t";
+                            if (((e)->underlying_type != NULL)) {
+                                under = compiler__codegen__c_codegen__c_type_from_ast((e)->underlying_type);
+                            }
+                            c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "typedef "), under), " "), (e)->name), ";\n");
                         }
-                    }
-                }
-            }
-            i = (i + 1);
-        }
-    }
-    c_code = kobel_concat(c_code, "\n");
-    size_t ir = 0;
-    while ((ir < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl2 = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), ir);
-            if (compiler__codegen__c_program__is_generic_decl(decl2)) {
-                {
-                    ir = (ir + 1);
-                    continue;
-                }
-            }
-            if (((decl2)->kind == 28)) {
-                {
-                    compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(decl2);
-                    compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
-                }
-            } else {
-                if (((decl2)->kind == 31)) {
-                    {
-                        compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl2);
-                        size_t mi = 0;
-                        while ((mi < ((im)->methods).len)) {
+                    } else {
+                        if (((decl)->kind == 33)) {
                             {
-                                compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi));
-                                compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
-                                mi = (mi + 1);
+                                compiler__ast__decl__ConstDecl* c = compiler__ast__builder__as_const_decl(decl);
+                                c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_code, "#define "), (c)->name), " "), compiler__codegen__c_codegen__gen_expr(self, (c)->value)), "\n");
                             }
                         }
                     }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    c_code = kobel_concat(c_code, "\n");
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl2 = ((prog)->declarations).data[__for_i];
+                if (compiler__codegen__c_program__is_generic_decl(decl2)) {
+                    {
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if (((decl2)->kind == 28)) {
+                    {
+                        compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(decl2);
+                        compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
+                    }
                 } else {
-                    if (((decl2)->kind == 34)) {
+                    if (((decl2)->kind == 31)) {
                         {
-                            compiler__ast__decl__ExternBlock* ext = compiler__ast__builder__as_extern_block(decl2);
-                            size_t e_idx = 0;
-                            while ((e_idx < ((ext)->declarations).len)) {
+                            compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl2);
+                            {
+                                size_t __for_n = ((im)->methods).len;
+                                size_t __for_i = ((size_t)0ULL);
+                                while ((__for_i < __for_n)) {
+                                    {
+                                        compiler__ast__node__AstNode* mnode = ((im)->methods).data[__for_i];
+                                        compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(mnode);
+                                        compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
+                                        __for_i = (__for_i + 1);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        if (((decl2)->kind == 34)) {
+                            {
+                                compiler__ast__decl__ExternBlock* ext = compiler__ast__builder__as_extern_block(decl2);
                                 {
-                                    compiler__ast__node__AstNode* e_decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(ext)->declarations), e_idx);
-                                    if (((e_decl)->kind == 28)) {
+                                    size_t __for_n = ((ext)->declarations).len;
+                                    size_t __for_i = ((size_t)0ULL);
+                                    while ((__for_i < __for_n)) {
                                         {
-                                            compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(e_decl);
-                                            compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
+                                            compiler__ast__node__AstNode* e_decl = ((ext)->declarations).data[__for_i];
+                                            if (((e_decl)->kind == 28)) {
+                                                {
+                                                    compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(e_decl);
+                                                    compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
+                                                }
+                                            }
+                                            __for_i = (__for_i + 1);
                                         }
                                     }
-                                    e_idx = (e_idx + 1);
                                 }
                             }
                         }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            ir = (ir + 1);
         }
     }
     c_code = kobel_concat(c_code, "\n");
-    size_t j = 0;
-    while ((j < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
-            if (((!compiler__codegen__c_program__is_generic_decl(decl)) && ((decl)->kind == 29))) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_struct_decl(self, decl));
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (((!compiler__codegen__c_program__is_generic_decl(decl)) && ((decl)->kind == 29))) {
+                    c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_struct_decl(self, decl));
+                }
+                __for_i = (__for_i + 1);
             }
-            j = (j + 1);
         }
     }
-    size_t k = 0;
-    while ((k < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), k);
-            if (compiler__codegen__c_program__is_generic_decl(decl)) {
-                {
-                    k = (k + 1);
-                    continue;
-                }
-            }
-            if (((decl)->kind == 28)) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, true, ""));
-            } else {
-                if (((decl)->kind == 31)) {
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (compiler__codegen__c_program__is_generic_decl(decl)) {
                     {
-                        compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl);
-                        size_t mi = 0;
-                        while ((mi < ((im)->methods).len)) {
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if (((decl)->kind == 28)) {
+                    c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, true, ""));
+                } else {
+                    if (((decl)->kind == 31)) {
+                        {
+                            compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl);
                             {
-                                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), true, (im)->struct_name));
-                                mi = (mi + 1);
+                                size_t __for_n = ((im)->methods).len;
+                                size_t __for_i = ((size_t)0ULL);
+                                while ((__for_i < __for_n)) {
+                                    {
+                                        compiler__ast__node__AstNode* mnode = ((im)->methods).data[__for_i];
+                                        c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, mnode, true, (im)->struct_name));
+                                        __for_i = (__for_i + 1);
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            k = (k + 1);
         }
     }
     c_code = kobel_concat(c_code, "\n");
-    size_t m = 0;
-    while ((m < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), m);
-            if (compiler__codegen__c_program__is_generic_decl(decl)) {
-                {
-                    m = (m + 1);
-                    continue;
-                }
-            }
-            if (((decl)->kind == 28)) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, false, ""));
-            } else {
-                if (((decl)->kind == 31)) {
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = ((prog)->declarations).data[__for_i];
+                if (compiler__codegen__c_program__is_generic_decl(decl)) {
                     {
-                        compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl);
-                        size_t mi = 0;
-                        while ((mi < ((im)->methods).len)) {
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if (((decl)->kind == 28)) {
+                    c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, false, ""));
+                } else {
+                    if (((decl)->kind == 31)) {
+                        {
+                            compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(decl);
                             {
-                                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), false, (im)->struct_name));
-                                mi = (mi + 1);
+                                size_t __for_n = ((im)->methods).len;
+                                size_t __for_i = ((size_t)0ULL);
+                                while ((__for_i < __for_n)) {
+                                    {
+                                        compiler__ast__node__AstNode* mnode = ((im)->methods).data[__for_i];
+                                        c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, mnode, false, (im)->struct_name));
+                                        __for_i = (__for_i + 1);
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            m = (m + 1);
         }
     }
     return c_code;
