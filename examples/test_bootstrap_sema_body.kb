@@ -11,7 +11,7 @@ use compiler.parser.decl.parse_program;
 
 use compiler.sema.body_pass.BodyPass;
 use compiler.sema.body_pass.new_body_pass;
-use compiler.sema.body_pass.check_program;
+use compiler.sema.body_program.check_program;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

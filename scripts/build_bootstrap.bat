@@ -15,7 +15,7 @@ if %errorlevel% neq 0 (
     )
 )
 
-:: The seed compiler is built from dist\compiler.c; build it on demand.
+:: The seed compiler is built from dist\bootstrap.c; build it on demand.
 set "SEED=build\seed\kobel_seed.exe"
 if not exist "%SEED%" (
     echo [INFO] Seed compiler not found, building it first...
@@ -23,7 +23,7 @@ if not exist "%SEED%" (
     if %errorlevel% neq 0 exit /b %errorlevel%
 )
 
-echo [BUILDING] Compiling src\compiler\main.kb to kobel_v1.exe ...
+echo [BUILDING] Compiling src\main.kb to kobel_v1.exe ...
 "%SEED%" "src\main.kb" -o "kobel_v1.exe"
 if %errorlevel% neq 0 (
     echo [BUILD FAILED] Failed to compile compiler.

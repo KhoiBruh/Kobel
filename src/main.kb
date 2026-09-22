@@ -4,6 +4,7 @@ use std.collections.list.*;
 
 use compiler.sema.decl_pass.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.body_program.*;
 
 use compiler.codegen.c_codegen.*;
 

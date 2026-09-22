@@ -1154,10 +1154,10 @@ void compiler__sema__body_pass__check_statement(compiler__sema__body_pass__BodyP
 compiler__ast__node__AstNode* compiler__sema__body_pass__ast_type_from_type(std__mem__arena__Arena* arena, compiler__sema__types__Type* ty);
 compiler__ast__node__AstNode* compiler__sema__body_pass__make_str_eq(std__mem__arena__Arena* arena, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
 const char* compiler__sema__body_pass__i64_to_str(int64_t v);
-void compiler__sema__body_pass__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node);
-void compiler__sema__body_pass__check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type);
-void compiler__sema__body_pass__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
-void compiler__sema__body_pass__check_program(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node);
+void compiler__sema__body_program__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node);
+void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type);
+void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__body_program__check_program(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node);
 compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__new_c_codegen(void);
 bool compiler__codegen__c_codegen__is_pointer_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name);
 bool compiler__codegen__c_codegen__is_str_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name);
@@ -6394,16 +6394,16 @@ const char* compiler__sema__body_pass__i64_to_str(int64_t v) {
     return compiler__lexer__token__usz_to_str(((size_t)v));
 }
 
-void compiler__sema__body_pass__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node) {
+void compiler__sema__body_program__check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node) {
     compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(fn_node);
     compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__lookup((&(self)->symtab), (f)->name);
     if (((sym == NULL) || (((*(sym)->type_ptr)).kind != 19))) {
         return;
     }
-    compiler__sema__body_pass__check_fn_body(self, fn_node, (sym)->type_ptr);
+    compiler__sema__body_program__check_fn_body(self, fn_node, (sym)->type_ptr);
 }
 
-void compiler__sema__body_pass__check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type) {
+void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type) {
     compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(fn_node);
     compiler__sema__types__FnType* fn_info = compiler__sema__types__as_fn_type(fn_type);
     (self)->current_fn_return_type = (fn_info)->return_type;
@@ -6456,7 +6456,7 @@ void compiler__sema__body_pass__check_fn_body(compiler__sema__body_pass__BodyPas
     compiler__sema__symbol__exit_scope((&(self)->symtab));
 }
 
-void compiler__sema__body_pass__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
+void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(node);
     compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__lookup((&(self)->symtab), (im)->struct_name);
     if (((st_sym == NULL) || (((*(st_sym)->type_ptr)).kind != 18))) {
@@ -6470,14 +6470,14 @@ void compiler__sema__body_pass__check_impl(compiler__sema__body_pass__BodyPass* 
             compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m_node);
             compiler__sema__types__MethodInfo* mi = compiler__sema__types__struct_find_method_c(st_info, (f)->name);
             if ((mi != NULL)) {
-                compiler__sema__body_pass__check_fn_body(self, m_node, (mi)->fn_type);
+                compiler__sema__body_program__check_fn_body(self, m_node, (mi)->fn_type);
             }
             i = (i + 1);
         }
     }
 }
 
-void compiler__sema__body_pass__check_program(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node) {
+void compiler__sema__body_program__check_program(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node) {
     if ((!(self)->has_symtab)) {
         {
             compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__new_decl_pass();
@@ -6504,10 +6504,10 @@ void compiler__sema__body_pass__check_program(compiler__sema__body_pass__BodyPas
                 }
             } else {
                 if (((decl)->kind == 27)) {
-                    compiler__sema__body_pass__check_fn(self, decl);
+                    compiler__sema__body_program__check_fn(self, decl);
                 } else {
                     if (((decl)->kind == 30)) {
-                        compiler__sema__body_pass__check_impl(self, decl);
+                        compiler__sema__body_program__check_impl(self, decl);
                     }
                 }
             }
@@ -9451,7 +9451,7 @@ int32_t main(int32_t argc, const char** argv) {
     }
     std__io__println("[3/4] Semantic analysis (bodies)...");
     compiler__sema__body_pass__BodyPass body_p = compiler__sema__body_pass__new_body_pass_with_symtab((decl_p).symtab);
-    compiler__sema__body_pass__check_program((&body_p), prog);
+    compiler__sema__body_program__check_program((&body_p), prog);
     if ((((body_p).errors).len > 0)) {
         {
             std__io__print("Semantic Type Errors in ");
