@@ -7,6 +7,7 @@ use compiler.sema.body_pass.*;
 use compiler.sema.body_program.*;
 
 use compiler.codegen.c_codegen.*;
+use compiler.codegen.c_program.*;
 
 use compiler.loader.loader.*;
 

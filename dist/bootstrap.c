@@ -1170,11 +1170,11 @@ const char* compiler__codegen__c_codegen__gen_expr(compiler__codegen__c_codegen_
 const char* compiler__codegen__c_codegen__gen_when_test(compiler__codegen__c_codegen__CCodeGen* self, const char* cond, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns);
 const char* compiler__codegen__c_codegen__infer_type_from_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* expr);
 const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node);
-const char* compiler__codegen__c_codegen__gen_struct_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node);
-const char* compiler__codegen__c_codegen__gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node, bool is_proto, const char* self_c_type);
-const char* compiler__codegen__c_codegen__fn_ret_c_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f);
-bool compiler__codegen__c_codegen__is_generic_decl(compiler__ast__node__AstNode* node);
-const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node);
+const char* compiler__codegen__c_program__gen_struct_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node);
+const char* compiler__codegen__c_program__gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node, bool is_proto, const char* self_c_type);
+const char* compiler__codegen__c_program__fn_ret_c_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f);
+bool compiler__codegen__c_program__is_generic_decl(compiler__ast__node__AstNode* node);
+const char* compiler__codegen__c_program__gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node);
 bool std__ascii__is_digit(char c);
 bool std__ascii__is_alpha(char c);
 bool std__ascii__is_alphanumeric(char c);
@@ -7256,7 +7256,7 @@ const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_cod
     }
 }
 
-const char* compiler__codegen__c_codegen__gen_struct_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node) {
+const char* compiler__codegen__c_program__gen_struct_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node) {
     compiler__ast__decl__StructDecl* s = compiler__ast__builder__as_struct_decl(node);
     std__collections__list__List_str_add((&(self)->struct_names), (s)->name);
     const char* res = kobel_concat(kobel_concat("struct ", (s)->name), " {\n");
@@ -7272,7 +7272,7 @@ const char* compiler__codegen__c_codegen__gen_struct_decl(compiler__codegen__c_c
     return kobel_concat(res, "};\n\n");
 }
 
-const char* compiler__codegen__c_codegen__gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node, bool is_proto, const char* self_c_type) {
+const char* compiler__codegen__c_program__gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node, bool is_proto, const char* self_c_type) {
     compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(node);
     const char* ret_ty = "void";
     if (((f)->return_type != NULL)) {
@@ -7382,7 +7382,7 @@ const char* compiler__codegen__c_codegen__gen_fn_decl(compiler__codegen__c_codeg
     return kobel_concat(res, "}\n\n");
 }
 
-const char* compiler__codegen__c_codegen__fn_ret_c_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f) {
+const char* compiler__codegen__c_program__fn_ret_c_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f) {
     if (((f)->return_type != NULL)) {
         return compiler__codegen__c_codegen__c_type_from_ast((f)->return_type);
     }
@@ -7395,7 +7395,7 @@ const char* compiler__codegen__c_codegen__fn_ret_c_type(compiler__codegen__c_cod
     return "void";
 }
 
-bool compiler__codegen__c_codegen__is_generic_decl(compiler__ast__node__AstNode* node) {
+bool compiler__codegen__c_program__is_generic_decl(compiler__ast__node__AstNode* node) {
     if (((node)->kind == 28)) {
         return ((((*compiler__ast__builder__as_struct_decl(node))).type_params).len > 0);
     }
@@ -7408,14 +7408,14 @@ bool compiler__codegen__c_codegen__is_generic_decl(compiler__ast__node__AstNode*
     return false;
 }
 
-const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node) {
+const char* compiler__codegen__c_program__gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node) {
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
     const char* c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("/* Generated by Kobel compiler Compiler v1 */\n", "#include <stdint.h>\n"), "#include <stdbool.h>\n"), "#include <stddef.h>\n"), "#include <stdio.h>\n"), "#include <stdlib.h>\n"), "#include <string.h>\n\n"), "/* str.slice(start, end) helper */\n"), "static const char* kobel_slice(const char* s, size_t start, size_t end) {\n"), "    size_t n = (end > start) ? (end - start) : 0;\n"), "    char* r = (char*)malloc(n + 1);\n"), "    for (size_t i = 0; i < n; i++) r[i] = s[start + i];\n"), "    r[n] = 0;\n"), "    return r;\n"), "}\n"), "/* str + str helper */\n"), "static const char* kobel_concat(const char* a, const char* b) {\n"), "    size_t la = strlen(a), lb = strlen(b);\n"), "    char* r = (char*)malloc(la + lb + 1);\n"), "    memcpy(r, a, la);\n"), "    memcpy(r + la, b, lb + 1);\n"), "    return r;\n"), "}\n"), "/* str == str helper */\n"), "static int kobel_streq(const char* a, const char* b) {\n"), "    return strcmp(a, b) == 0;\n"), "}\n"), "/* str length helper */\n"), "static size_t kobel_slen(const char* s) {\n"), "    return strlen(s);\n"), "}\n\n");
     size_t i = 0;
     while ((i < ((prog)->declarations).len)) {
         {
             compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i);
-            if (compiler__codegen__c_codegen__is_generic_decl(decl)) {
+            if (compiler__codegen__c_program__is_generic_decl(decl)) {
                 {
                     i = (i + 1);
                     continue;
@@ -7454,7 +7454,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
     while ((ir < ((prog)->declarations).len)) {
         {
             compiler__ast__node__AstNode* decl2 = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), ir);
-            if (compiler__codegen__c_codegen__is_generic_decl(decl2)) {
+            if (compiler__codegen__c_program__is_generic_decl(decl2)) {
                 {
                     ir = (ir + 1);
                     continue;
@@ -7463,7 +7463,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
             if (((decl2)->kind == 27)) {
                 {
                     compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(decl2);
-                    compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_codegen__fn_ret_c_type(self, f));
+                    compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
                 }
             } else {
                 if (((decl2)->kind == 30)) {
@@ -7473,7 +7473,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
                         while ((mi < ((im)->methods).len)) {
                             {
                                 compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi));
-                                compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_codegen__fn_ret_c_type(self, f));
+                                compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
                                 mi = (mi + 1);
                             }
                         }
@@ -7489,7 +7489,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
                                     if (((e_decl)->kind == 27)) {
                                         {
                                             compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(e_decl);
-                                            compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_codegen__fn_ret_c_type(self, f));
+                                            compiler__codegen__c_codegen__register_fn(self, (f)->name, compiler__codegen__c_program__fn_ret_c_type(self, f));
                                         }
                                     }
                                     e_idx = (e_idx + 1);
@@ -7507,8 +7507,8 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
     while ((j < ((prog)->declarations).len)) {
         {
             compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
-            if (((!compiler__codegen__c_codegen__is_generic_decl(decl)) && ((decl)->kind == 28))) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_codegen__gen_struct_decl(self, decl));
+            if (((!compiler__codegen__c_program__is_generic_decl(decl)) && ((decl)->kind == 28))) {
+                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_struct_decl(self, decl));
             }
             j = (j + 1);
         }
@@ -7517,14 +7517,14 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
     while ((k < ((prog)->declarations).len)) {
         {
             compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), k);
-            if (compiler__codegen__c_codegen__is_generic_decl(decl)) {
+            if (compiler__codegen__c_program__is_generic_decl(decl)) {
                 {
                     k = (k + 1);
                     continue;
                 }
             }
             if (((decl)->kind == 27)) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_codegen__gen_fn_decl(self, decl, true, ""));
+                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, true, ""));
             } else {
                 if (((decl)->kind == 30)) {
                     {
@@ -7532,7 +7532,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
                         size_t mi = 0;
                         while ((mi < ((im)->methods).len)) {
                             {
-                                c_code = kobel_concat(c_code, compiler__codegen__c_codegen__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), true, (im)->struct_name));
+                                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), true, (im)->struct_name));
                                 mi = (mi + 1);
                             }
                         }
@@ -7547,14 +7547,14 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
     while ((m < ((prog)->declarations).len)) {
         {
             compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), m);
-            if (compiler__codegen__c_codegen__is_generic_decl(decl)) {
+            if (compiler__codegen__c_program__is_generic_decl(decl)) {
                 {
                     m = (m + 1);
                     continue;
                 }
             }
             if (((decl)->kind == 27)) {
-                c_code = kobel_concat(c_code, compiler__codegen__c_codegen__gen_fn_decl(self, decl, false, ""));
+                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, decl, false, ""));
             } else {
                 if (((decl)->kind == 30)) {
                     {
@@ -7562,7 +7562,7 @@ const char* compiler__codegen__c_codegen__gen_program(compiler__codegen__c_codeg
                         size_t mi = 0;
                         while ((mi < ((im)->methods).len)) {
                             {
-                                c_code = kobel_concat(c_code, compiler__codegen__c_codegen__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), false, (im)->struct_name));
+                                c_code = kobel_concat(c_code, compiler__codegen__c_program__gen_fn_decl(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(im)->methods), mi), false, (im)->struct_name));
                                 mi = (mi + 1);
                             }
                         }
@@ -9463,7 +9463,7 @@ int32_t main(int32_t argc, const char** argv) {
     }
     std__io__println("[4/4] Generating C99 code...");
     compiler__codegen__c_codegen__CCodeGen codegen = compiler__codegen__c_codegen__new_c_codegen();
-    const char* c_code = compiler__codegen__c_codegen__gen_program((&codegen), prog);
+    const char* c_code = compiler__codegen__c_program__gen_program((&codegen), prog);
     if (only_emit_c) {
         {
             bool ok = std__io__write_file(emit_c_path, c_code);

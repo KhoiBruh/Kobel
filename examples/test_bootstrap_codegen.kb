@@ -16,7 +16,7 @@ use compiler.sema.body_program.check_program;
 
 use compiler.codegen.c_codegen.CCodeGen;
 use compiler.codegen.c_codegen.new_c_codegen;
-use compiler.codegen.c_codegen.gen_program;
+use compiler.codegen.c_program.gen_program;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
