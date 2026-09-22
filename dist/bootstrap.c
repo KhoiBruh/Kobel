@@ -5999,14 +5999,17 @@ void compiler__sema__decl_collect__collect_struct(compiler__sema__decl_pass__Dec
         compiler__sema__decl_pass__report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", (s)->name), "'"));
     }
     (s)->name = c_name;
-    size_t i = 0;
-    while ((i < ((s)->fields).len)) {
-        {
-            compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_get((&(s)->fields), i);
-            compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
-            compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
-            std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
-            i = (i + 1);
+    {
+        size_t __for_n = ((s)->fields).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__decl__StructField f = ((s)->fields).data[__for_i];
+                compiler__sema__types__Type* f_type = compiler__sema__decl_pass__resolve_ast_type(self, (f).type_node);
+                compiler__sema__types__StructType* s_info = compiler__sema__types__as_struct_type_mut(s_type);
+                std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0 });
+                __for_i = (__for_i + 1);
+            }
         }
     }
     compiler__sema__types__layout_struct(s_type);
@@ -6018,13 +6021,16 @@ void compiler__sema__decl_collect__collect_fn(compiler__sema__decl_pass__DeclPas
         return;
     }
     std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__new_list_ptr_compiler__sema__types__Type();
-    size_t i = 0;
-    while ((i < ((f)->params).len)) {
-        {
-            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
-            compiler__sema__types__Type* p_type = compiler__sema__decl_pass__resolve_ast_type(self, (p).type_node);
-            std__collections__list__List_ptr_compiler__sema__types__Type_add((&param_types), p_type);
-            i = (i + 1);
+    {
+        size_t __for_n = ((f)->params).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__decl__Param p = ((f)->params).data[__for_i];
+                compiler__sema__types__Type* p_type = compiler__sema__decl_pass__resolve_ast_type(self, (p).type_node);
+                std__collections__list__List_ptr_compiler__sema__types__Type_add((&param_types), p_type);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     compiler__sema__types__Type* ret_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
@@ -6048,19 +6054,22 @@ void compiler__sema__decl_collect__collect_enum(compiler__sema__decl_pass__DeclP
     }
     std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo members = std__collections__list__new_list_ptr_compiler__sema__types__EnumMemberInfo();
     int64_t next_val = 0;
-    size_t i = 0;
-    while ((i < ((e)->members).len)) {
-        {
-            compiler__ast__decl__EnumMember m = std__collections__list__List_compiler__ast__decl__EnumMember_get((&(e)->members), i);
-            int64_t v = next_val;
-            if (((m).value != NULL)) {
-                v = compiler__sema__decl_pass__enum_const_i64(self, (m).value);
+    {
+        size_t __for_n = ((e)->members).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__decl__EnumMember m = ((e)->members).data[__for_i];
+                int64_t v = next_val;
+                if (((m).value != NULL)) {
+                    v = compiler__sema__decl_pass__enum_const_i64(self, (m).value);
+                }
+                compiler__sema__types__EnumMemberInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__EnumMemberInfo((&(self)->arena));
+                (*mi) = (compiler__sema__types__EnumMemberInfo){ (m).name, v };
+                std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_add((&members), mi);
+                next_val = (v + 1);
+                __for_i = (__for_i + 1);
             }
-            compiler__sema__types__EnumMemberInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__EnumMemberInfo((&(self)->arena));
-            (*mi) = (compiler__sema__types__EnumMemberInfo){ (m).name, v };
-            std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_add((&members), mi);
-            next_val = (v + 1);
-            i = (i + 1);
         }
     }
     const char* c_name = compiler__sema__decl_pass__c_name_for(self, (e)->name);
@@ -6094,11 +6103,15 @@ void compiler__sema__decl_collect__collect_extern_block(compiler__sema__decl_pas
     compiler__ast__decl__ExternBlock* ext = compiler__ast__builder__as_extern_block(node);
     bool prev_is_extern = (self)->is_extern;
     (self)->is_extern = true;
-    size_t i = 0;
-    while ((i < ((ext)->declarations).len)) {
-        {
-            compiler__sema__decl_collect__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(ext)->declarations), i));
-            i = (i + 1);
+    {
+        size_t __for_n = ((ext)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* d = ((ext)->declarations).data[__for_i];
+                compiler__sema__decl_collect__collect_declaration(self, d);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     (self)->is_extern = prev_is_extern;
@@ -6129,60 +6142,78 @@ void compiler__sema__decl_collect__collect_declaration(compiler__sema__decl_pass
 
 void compiler__sema__decl_collect__collect_program(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* program_node) {
     compiler__ast__decl__Program* prog = compiler__ast__builder__as_program(program_node);
-    size_t t = 0;
-    while ((t < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* d0 = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), t);
-            if (((d0)->kind == 26)) {
-                compiler__sema__decl_collect__collect_module(self, d0);
-            } else {
-                compiler__sema__decl_pass__register_template(self, d0);
-            }
-            t = (t + 1);
-        }
-    }
-    size_t i = 0;
-    while ((i < ((prog)->declarations).len)) {
-        {
-            compiler__sema__decl_collect__collect_declaration(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), i));
-            i = (i + 1);
-        }
-    }
-    size_t j = 0;
-    while ((j < ((prog)->declarations).len)) {
-        {
-            compiler__ast__node__AstNode* d = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), j);
-            if (((d)->kind == 26)) {
-                {
-                    compiler__ast__decl__ModuleDecl* m2 = compiler__ast__builder__as_module_decl(d);
-                    (self)->current_module = (m2)->full_path;
-                    compiler__sema__symbol__set_current_module((&(self)->symtab), (m2)->full_path);
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* d0 = ((prog)->declarations).data[__for_i];
+                if (((d0)->kind == 26)) {
+                    compiler__sema__decl_collect__collect_module(self, d0);
+                } else {
+                    compiler__sema__decl_pass__register_template(self, d0);
                 }
-            } else {
-                if ((!compiler__sema__decl_pass__is_template_decl(d))) {
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* d1 = ((prog)->declarations).data[__for_i];
+                compiler__sema__decl_collect__collect_declaration(self, d1);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    {
+        size_t __for_n = ((prog)->declarations).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* d = ((prog)->declarations).data[__for_i];
+                if (((d)->kind == 26)) {
                     {
-                        compiler__sema__decl_pass__rewrite_generics(self, d);
+                        compiler__ast__decl__ModuleDecl* m2 = compiler__ast__builder__as_module_decl(d);
+                        (self)->current_module = (m2)->full_path;
+                        compiler__sema__symbol__set_current_module((&(self)->symtab), (m2)->full_path);
+                    }
+                } else {
+                    if ((!compiler__sema__decl_pass__is_template_decl(d))) {
+                        {
+                            compiler__sema__decl_pass__rewrite_generics(self, d);
+                        }
                     }
                 }
+                __for_i = (__for_i + 1);
             }
-            j = (j + 1);
         }
     }
     if ((((((self)->symtab).gen).pending).len > 0)) {
         {
             std__collections__list__List_ptr_compiler__ast__node__AstNode combined = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
-            size_t p = 0;
-            while ((p < ((((self)->symtab).gen).pending).len)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(((self)->symtab).gen).pending), p));
-                    p = (p + 1);
+            {
+                size_t __for_n = ((((self)->symtab).gen).pending).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* pn = ((((self)->symtab).gen).pending).data[__for_i];
+                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), pn);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
-            size_t q = 0;
-            while ((q < ((prog)->declarations).len)) {
-                {
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(prog)->declarations), q));
-                    q = (q + 1);
+            {
+                size_t __for_n = ((prog)->declarations).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* d = ((prog)->declarations).data[__for_i];
+                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&combined), d);
+                        __for_i = (__for_i + 1);
+                    }
                 }
             }
             compiler__ast__decl__Program* p_info = ((compiler__ast__decl__Program*)compiler__ast__builder__as_program(program_node));

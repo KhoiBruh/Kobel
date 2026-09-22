@@ -75,13 +75,10 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	// Rename the AST node to the C name so the backend emits a unique name
 	s.name = c_name;
 
-	var i: usz = 0;
-	while (i < s.fields.len) {
-		val f = s.fields.get(i);
+	for (f in s.fields) {
 		val f_type = resolve_ast_type(self, f.type_node);
 		val s_info = as_struct_type_mut(s_type);
 		s_info.fields.add(StructField(f.name, f_type, 0));
-		i = i + 1;
 	}
 	layout_struct(s_type);
 }
@@ -92,12 +89,9 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	if (f.type_params.len > 0) return;
 	var param_types = new_list<*Type>();
 
-	var i: usz = 0;
-	while (i < f.params.len) {
-		val p = f.params.get(i);
+	for (p in f.params) {
 		val p_type = resolve_ast_type(self, p.type_node);
 		param_types.add(p_type);
-		i = i + 1;
 	}
 
 	var ret_type = alloc_primitive(&self.arena, type_none());
@@ -120,9 +114,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 	// Resolve member values: implicit members continue from the previous value.
 	var members = new_list<*EnumMemberInfo>();
 	var next_val: i64 = 0;
-	var i: usz = 0;
-	while (i < e.members.len) {
-		val m = e.members.get(i);
+	for (m in e.members) {
 		var v: i64 = next_val;
 		if (m.value != null) v = enum_const_i64(self, m.value);
 
@@ -131,7 +123,6 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 		members.add(mi);
 
 		next_val = v + 1;
-		i = i + 1;
 	}
 
 	val c_name = c_name_for(self, e.name);
@@ -168,11 +159,7 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	val ext = as_extern_block(node);
 	val prev_is_extern = self.is_extern;
 	self.is_extern = true;
-	var i: usz = 0;
-	while (i < ext.declarations.len) {
-		collect_declaration(self, ext.declarations.get(i));
-		i = i + 1;
-	}
+	for (d in ext.declarations) collect_declaration(self, d);
 	self.is_extern = prev_is_extern;
 }
 
@@ -195,27 +182,18 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 
 	// Pass 0: register generic templates so any use can instantiate them.
 	// Module markers are processed here too, so each template records its module.
-	var t: usz = 0;
-	while (t < prog.declarations.len) {
-		val d0 = prog.declarations.get(t);
+	for (d0 in prog.declarations) {
 		if (d0.kind == NodeKind.DECL_MODULE) collect_module(self, d0);
 		else register_template(self, d0);
-		t = t + 1;
 	}
 
 	// Pass 1: collect ordinary declarations (templates are skipped).
-	var i: usz = 0;
-	while (i < prog.declarations.len) {
-		collect_declaration(self, prog.declarations.get(i));
-		i = i + 1;
-	}
+	for (d1 in prog.declarations) collect_declaration(self, d1);
 
 	// Pass 2: rewrite generic uses across signatures and bodies, instantiating
 	// concrete structs / functions / methods as needed. Module markers are
 	// replayed so each declaration resolves names in its own module.
-	var j: usz = 0;
-	while (j < prog.declarations.len) {
-		val d = prog.declarations.get(j);
+	for (d in prog.declarations) {
 		if (d.kind == NodeKind.DECL_MODULE) {
 			val m2 = as_module_decl(d);
 			self.current_module = m2.full_path;
@@ -223,7 +201,6 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 		} else if (!is_template_decl(d)) {
 			rewrite_generics(self, d);
 		}
-		j = j + 1;
 	}
 
 	// Pass 3: place the monomorphized declarations first. Their struct
@@ -231,16 +208,8 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// type List<T>), and each carries its own module marker.
 	if (self.symtab.gen.pending.len > 0) {
 		val combined = new_list<*AstNode>();
-		var p: usz = 0;
-		while (p < self.symtab.gen.pending.len) {
-			combined.add(self.symtab.gen.pending.get(p));
-			p = p + 1;
-		}
-		var q: usz = 0;
-		while (q < prog.declarations.len) {
-			combined.add(prog.declarations.get(q));
-			q = q + 1;
-		}
+		for (pn in self.symtab.gen.pending) combined.add(pn);
+		for (d in prog.declarations) combined.add(d);
 		val p_info = as_program(program_node) as &Program;
 		p_info.declarations = combined;
 	}
