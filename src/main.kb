@@ -1,18 +1,16 @@
-mod bootstrap.main;
-
 use std.io.*;
 use std.sys.exec;
 use std.collections.list.*;
 
-use bootstrap.sema.decl_pass.*;
-use bootstrap.sema.body_pass.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.body_pass.*;
 
-use bootstrap.codegen.c_codegen.*;
+use compiler.codegen.c_codegen.*;
 
-use bootstrap.loader.loader.*;
+use compiler.loader.loader.*;
 
-use bootstrap.lexer.token.usz_to_str;
-use bootstrap.util.strutil.str_dir_of;
+use compiler.lexer.token.usz_to_str;
+use compiler.util.strutil.str_dir_of;
 
 // ============================================================================
 // Libc and Memory Utilities
@@ -69,7 +67,7 @@ fn get_stem(path: str): str {
 
 fn print_usage() {
 	println("============================================================");
-	println("  Kobel Compiler v1.0.0 (Self-Hosted Bootstrap C99 Backend)  ");
+	println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
 	println("============================================================");
 	println("Usage: kobel [options] <source.kb>");
 	println("");
@@ -116,7 +114,7 @@ fn main(argc: i32, argv: &*char): i32 {
 			return 0;
 		}
 		if (arg == "-v" || arg == "--version") {
-			println("Kobel Compiler v1.0.0 (Self-Hosted Bootstrap C99 Backend)");
+			println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
 			return 0;
 		}
 		if (arg == "-o") {

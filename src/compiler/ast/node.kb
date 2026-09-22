@@ -1,4 +1,4 @@
-mod bootstrap.ast.node;
+mod compiler.ast.node;
 
 pub enum NodeKind {
 	// Syntactic Types

@@ -1,4 +1,4 @@
-mod bootstrap.loader.loader;
+mod compiler.loader.loader;
 
 // ============================================================================
 // ModuleLoader
@@ -10,20 +10,20 @@ mod bootstrap.loader.loader;
 //
 // File lookup rules (same as v0): module `a.b.c` -> `<root>/a/b/c.kb` with roots
 // in order: the entry file's directory -> extra roots passed in (-I) -> "lib"
-// (standard library) -> "src" (bootstrap source).
+// (standard library) -> "src" (compiler source).
 // ============================================================================
 
-use bootstrap.lexer.lexer.*;
+use compiler.lexer.lexer.*;
 
-use bootstrap.ast.builder.*;
-use bootstrap.ast.node.*;
-use bootstrap.ast.decl.*;
+use compiler.ast.builder.*;
+use compiler.ast.node.*;
+use compiler.ast.decl.*;
 
-use bootstrap.parser.parser.Parser;
-use bootstrap.parser.parser.new_parser;
-use bootstrap.parser.decl.parse_program;
+use compiler.parser.parser.Parser;
+use compiler.parser.parser.new_parser;
+use compiler.parser.decl.parse_program;
 
-use bootstrap.util.strutil.*;
+use compiler.util.strutil.*;
 
 use std.io.read_file;
 use std.collections.list.*;
@@ -59,7 +59,7 @@ pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
 		i = i + 1;
 	}
 
-	// Default roots: the standard library (lib/) and the bootstrap source (src/)
+	// Default roots: the standard library (lib/) and the compiler source (src/)
 	roots.add("lib");
 	roots.add("src");
 

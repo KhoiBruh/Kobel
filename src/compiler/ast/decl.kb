@@ -1,6 +1,6 @@
-mod bootstrap.ast.decl;
+mod compiler.ast.decl;
 
-use bootstrap.ast.node.AstNode;
+use compiler.ast.node.AstNode;
 use std.collections.list.List;
 
 pub struct ModuleDecl {

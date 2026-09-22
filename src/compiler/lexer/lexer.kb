@@ -1,6 +1,6 @@
-mod bootstrap.lexer.lexer;
+mod compiler.lexer.lexer;
 
-use bootstrap.lexer.token.*;
+use compiler.lexer.token.*;
 
 use std.ascii.*;
 

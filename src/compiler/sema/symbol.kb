@@ -1,8 +1,8 @@
-mod bootstrap.sema.symbol;
+mod compiler.sema.symbol;
 
-use bootstrap.sema.types.Type;
-use bootstrap.sema.types.EnumInfo;
-use bootstrap.ast.node.AstNode;
+use compiler.sema.types.Type;
+use compiler.sema.types.EnumInfo;
+use compiler.ast.node.AstNode;
 
 use std.collections.list.*;
 use std.mem.arena.*;

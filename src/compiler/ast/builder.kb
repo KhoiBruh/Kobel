@@ -1,12 +1,12 @@
-mod bootstrap.ast.builder;
+mod compiler.ast.builder;
 
-use bootstrap.ast.node.*;
-use bootstrap.ast.types.*;
-use bootstrap.ast.expr.*;
-use bootstrap.ast.stmt.*;
-use bootstrap.ast.decl.*;
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
 
-use bootstrap.lexer.token.TokenType;
+use compiler.lexer.token.TokenType;
 use std.collections.list.List;
 use std.mem.arena.Arena;
 

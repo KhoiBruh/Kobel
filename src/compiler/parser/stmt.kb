@@ -1,14 +1,14 @@
-mod bootstrap.parser.stmt;
+mod compiler.parser.stmt;
 
-use bootstrap.lexer.token.*;
+use compiler.lexer.token.*;
 
-use bootstrap.ast.node.AstNode;
-use bootstrap.ast.stmt.WhenStmtArm;
-use bootstrap.ast.builder.*;
-use bootstrap.parser.parser.*;
+use compiler.ast.node.AstNode;
+use compiler.ast.stmt.WhenStmtArm;
+use compiler.ast.builder.*;
+use compiler.parser.parser.*;
 
-use bootstrap.parser.types.parse_type;
-use bootstrap.parser.expr.*;
+use compiler.parser.types.parse_type;
+use compiler.parser.expr.*;
 
 use std.collections.list.*;
 

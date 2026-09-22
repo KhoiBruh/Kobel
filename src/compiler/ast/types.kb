@@ -1,6 +1,6 @@
-mod bootstrap.ast.types;
+mod compiler.ast.types;
 
-use bootstrap.ast.node.AstNode;
+use compiler.ast.node.AstNode;
 use std.collections.list.List;
 
 pub struct NamedType {

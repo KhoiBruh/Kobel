@@ -1,10 +1,10 @@
-mod bootstrap.util.strutil;
+mod compiler.util.strutil;
 
 use std.collections.list.List;
 use std.collections.list.new_list;
 
 // ============================================================================
-// String utilities for the bootstrap compiler
+// String utilities for the compiler compiler
 //
 // These helpers build strings from raw byte buffers (malloc + StringRaw) so
 // that they keep working regardless of how `str` is represented by the

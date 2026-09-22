@@ -1,6 +1,6 @@
-mod bootstrap.parser.parser;
+mod compiler.parser.parser;
 
-use bootstrap.lexer.token.*;
+use compiler.lexer.token.*;
 use std.collections.list.*;
 use std.mem.arena.*;
 

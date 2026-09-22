@@ -1,7 +1,7 @@
-mod bootstrap.ast.expr;
+mod compiler.ast.expr;
 
-use bootstrap.ast.node.AstNode;
-use bootstrap.lexer.token.TokenType;
+use compiler.ast.node.AstNode;
+use compiler.lexer.token.TokenType;
 use std.collections.list.List;
 
 pub enum LiteralKind {

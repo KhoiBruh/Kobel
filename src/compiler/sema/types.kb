@@ -1,4 +1,4 @@
-mod bootstrap.sema.types;
+mod compiler.sema.types;
 
 use std.collections.list.*;
 use std.mem.arena.Arena;
