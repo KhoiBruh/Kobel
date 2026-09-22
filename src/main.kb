@@ -37,11 +37,9 @@ fn print_usage() {
 }
 
 fn print_error_list(errors: List<str>) {
-	var e: usz = 0;
-	while (e < errors.len) {
+	for (msg in errors) {
 		print("  [ERROR] ");
-		println(errors.get(e));
-		e = e + 1;
+		println(msg);
 	}
 }
 

@@ -10102,12 +10102,16 @@ void main__print_usage(void) {
 }
 
 void main__print_error_list(std__collections__list__List_str errors) {
-    size_t e = 0;
-    while ((e < (errors).len)) {
-        {
-            std__io__print("  [ERROR] ");
-            std__io__println(std__collections__list__List_str_get((&errors), e));
-            e = (e + 1);
+    {
+        size_t __for_n = (errors).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* msg = (errors).data[__for_i];
+                std__io__print("  [ERROR] ");
+                std__io__println(msg);
+                __for_i = (__for_i + 1);
+            }
         }
     }
 }
