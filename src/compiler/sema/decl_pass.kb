@@ -653,8 +653,10 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 	val sclone = clone_struct(self, tmpl.node, subst, cname);
 	collect_struct_as(self, sclone, cname, tmpl.module);
 
-	val impl_tmpl = gen_find(self.symtab.gen.impl_templates, tmpl.name);
-	if (impl_tmpl != null) {
+	// A generic type may have several `impl` blocks (an inherent one plus any
+	// number of trait impls), so instantiate every matching template.
+	for (impl_tmpl in self.symtab.gen.impl_templates) {
+		if (impl_tmpl.name != tmpl.name) continue;
 		val isubst = alloc_subst(self, template_param_names(impl_tmpl), arg_asts);
 		val iclone = clone_impl(self, impl_tmpl.node, isubst, cname);
 		collect_impl(self, iclone);

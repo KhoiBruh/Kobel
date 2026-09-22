@@ -1,6 +1,7 @@
 mod std.collections.list;
 
 use std.mem.alloc.*;
+use std.traits.new.New;
 
 /*
 	List<T> - dynamic array, heap-allocated
@@ -17,10 +18,13 @@ use std.mem.alloc.*;
 		list.delete();
 */
 
+// Fields are not `pub`: another module cannot build a List from its fields and
+// must go through a constructor (`List<T>()`, `List<T>(capacity)` or the
+// `new_list<T>()` / `list_with_capacity<T>()` helpers).
 pub struct List<T> {
-	pub data: &T,
-	pub len: usz,
-	pub cap: usz
+	data: &T,
+	len: usz,
+	cap: usz
 }
 
 pub fn new_list<T>(): List<T> {
@@ -84,4 +88,18 @@ impl List<T> {
 	// NOTE: block body instead of `=> raw_release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) => release<T>(self.data);
+}
+
+// Kotlin-style constructors: `List<T>()` and `List<T>(capacity)`.
+// This impl must come *after* the inherent one above: the seed compiler in use
+// while bootstrapping picks only the first impl template per type, and it must
+// be the one carrying the methods the compiler itself calls.
+impl New for List<T> {
+	pub fn new(): List<T> => Self(alloc_array<T>(4UZ), 0, 4UZ);
+
+	pub fn new(capacity: usz): List<T> {
+		var cap = capacity;
+		if (cap == 0) cap = 4;
+		return Self(alloc_array<T>(cap), 0, cap);
+	}
 }

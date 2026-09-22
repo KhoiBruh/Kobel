@@ -149,9 +149,10 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
 | `str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
-| `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str` và các kiểu số nguyên; nền của nội suy `${...}` |
+| `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str`, số nguyên, `f32/f64`; nền của nội suy `${...}` |
+| `traits/new.kb` | trait `New { fn new() }` — dấu hiệu "dựng được"; kiểu tự thêm các overload `new` khác, gọi bằng cú pháp Kotlin `Type(args)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
-| `collections/list.kb` | `List<T>` (generic) + `new_list<T>` |
+| `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl trait `New`) hoặc `new_list<T>` |
 | `collections/hash_map.kb` | `HashMap<V>` |
 | `collections/string_builder.kb` | `StringBuilder` |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
@@ -275,6 +276,9 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   - Instance đăng ký vào `inst_syms` (tra cứu toàn cục) và được **chèn lên đầu** `program.declarations`
     để struct instance đứng trước struct dùng nó.
   - Chỉ hỗ trợ **type argument tường minh**; không suy luận type arg.
+  - Một kiểu generic có thể có **nhiều `impl`** (impl inherent + impl trait); khi instantiate, **mọi**
+    template cùng tên đều được nhân bản (`instantiate_struct` duyệt hết `impl_templates`), và
+    `clone_impl` **giữ `trait_name`** nên hợp đồng trait được kiểm cả trên bản monomorphized.
 
 ### 6.6 Trait (tĩnh, monomorphized)
 
@@ -313,9 +317,11 @@ Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo th
 `ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay không; nhờ vậy nội suy
 `${x}` hạ được thành `x.to_str()`.
 
-⚠ Hạn chế: chưa có `dyn`/trait object; **generic impl của trait** (`impl Trait for List<T>`) bị bỏ qua
-(`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); method nguyên
-thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu sẽ đụng tên.
+⚠ Hạn chế: chưa có `dyn`/trait object; hợp đồng so theo **tên method + arity** (chưa so kiểu chữ ký);
+method nguyên thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu
+sẽ đụng tên; hợp đồng của `impl Trait for Generic<T>` chỉ được kiểm **khi instantiate**, không kiểm trên
+template. Bootstrapping: khi một kiểu generic có cả impl inherent lẫn impl trait, impl inherent phải
+đứng **trước** trong tệp (seed đang dùng chỉ lấy impl template đầu tiên — xem §6.5).
 Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
 có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
@@ -426,8 +432,11 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 - **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; `T.size()` hạ
   thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng). **Bound `<T: Trait>` đã có**
   (xem §6.6), nhưng **generic impl của trait** (`impl Trait for List<T>`) chưa được hỗ trợ.
-- **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method** (chưa so kiểu chữ
-  ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`) — chi tiết ở §6.6.
+- **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method + arity** (chưa so
+  kiểu chữ ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`) và cho **kiểu generic**
+  (`impl New for List<T>`) — chi tiết ở §6.6.
+- **Dựng giá trị**: `Type(args)` ưu tiên `new` overload; `Self(...)` dựng thô; struct có field không
+  `pub` thì module khác **không** dựng trực tiếp được (phải qua `new`).
 - **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không
   tìm thấy `lib/std/fmt.kb`, nội suy hố khác `str` sẽ báo lỗi biên dịch. **Literal số thực** (`1.5`)
   đã có; `ToStr` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).

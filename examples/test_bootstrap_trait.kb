@@ -4,6 +4,7 @@ use std.io.print;
 use std.io.println;
 use testsupport.box.*;
 use std.traits.new.*;
+use std.collections.list.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -248,6 +249,21 @@ fn test_generic_trait_impl(var t: &Tally) {
 	check_i(q.b, 7, "generic impl: Pair<i32>(v) uses new(v)", t);
 }
 
+// --- 12. std.List built through the New trait -------------------------------
+
+fn test_list_ctor(var t: &Tally) {
+	var xs = List<i32>();
+	check_i(xs.len, 0, "List<i32>() starts empty", t);
+	xs.add(7);
+	check_i(xs.len, 1, "List<i32>() is usable", t);
+	check_i(xs.get(0), 7, "List<i32>() holds the value", t);
+	xs.delete();
+
+	var ys = List<i32>(16UZ);
+	check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
+	ys.delete();
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -264,6 +280,7 @@ fn main(): i32 {
 	test_new_overloads(&t);
 	test_private_fields(&t);
 	test_generic_trait_impl(&t);
+	test_list_ctor(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");
