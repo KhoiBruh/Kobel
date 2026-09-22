@@ -3,23 +3,23 @@ mod test.bootstrap_sema_symbol;
 use std.io.print;
 use std.io.println;
 
-use bootstrap.sema.types.DataType;
-use bootstrap.sema.types.Type;
-use bootstrap.sema.types.type_i32;
-use bootstrap.sema.types.type_str;
-use bootstrap.sema.types.type_bool;
+use compiler.sema.types.DataType;
+use compiler.sema.types.Type;
+use compiler.sema.types.type_i32;
+use compiler.sema.types.type_str;
+use compiler.sema.types.type_bool;
 
-use bootstrap.sema.symbol.SymbolKind;
-use bootstrap.sema.symbol.Symbol;
-use bootstrap.sema.symbol.Scope;
-use bootstrap.sema.symbol.SymbolTable;
-use bootstrap.sema.symbol.new_symbol_table;
-use bootstrap.sema.symbol.enter_scope;
-use bootstrap.sema.symbol.exit_scope;
-use bootstrap.sema.symbol.is_in_function;
-use bootstrap.sema.symbol.lookup_current;
-use bootstrap.sema.symbol.lookup;
-use bootstrap.sema.symbol.define;
+use compiler.sema.symbol.SymbolKind;
+use compiler.sema.symbol.Symbol;
+use compiler.sema.symbol.Scope;
+use compiler.sema.symbol.SymbolTable;
+use compiler.sema.symbol.new_symbol_table;
+use compiler.sema.symbol.enter_scope;
+use compiler.sema.symbol.exit_scope;
+use compiler.sema.symbol.is_in_function;
+use compiler.sema.symbol.lookup_current;
+use compiler.sema.symbol.lookup;
+use compiler.sema.symbol.define;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

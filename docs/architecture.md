@@ -14,7 +14,7 @@ Dự án có **hai trình biên dịch** cho cùng một ngôn ngữ (Kobel):
 | | **v0 — seed** | **v1 — self-hosted** |
 |---|---|---|
 | Ngôn ngữ viết | C++20 + LLVM | Kobel |
-| Nguồn | `src/**` (trừ `src/bootstrap`) | `src/bootstrap/**` |
+| Nguồn | nhánh `v0-cpp` (C++/LLVM) | `src/main.kb` + `src/compiler/**` |
 | Backend | LLVM IR → native | sinh **C99** → gọi C compiler (`cl` mặc định) |
 | LOC | ~8 200 (+ ~4 500 test C++) | ~5 900 (+ 450 stdlib) |
 | Vai trò | **hạt giống**: chỉ cần đủ hiểu ngôn ngữ hiện tại để build v1 | **trình biên dịch thật**, là nguồn sự thật về ngôn ngữ |
@@ -42,7 +42,7 @@ kobel_v2.exe  <src>           ──▶ output C99 **trùng byte** với v1   �
                 └───────────────▲─────────────────────────────────┘
                                 │  (chỉ phụ thuộc 1 chiều)
         ┌───────────────────────┴───────────────────────────────┐
-        │                 compiler v1 (src/bootstrap)            │
+        │                 compiler v1 (src/compiler)             │
         │  main → loader → lexer → parser → ast → sema → codegen │
         └───────────────────────┬───────────────────────────────┘
                                 │ sinh C99
@@ -53,7 +53,7 @@ kobel_v2.exe  <src>           ──▶ output C99 **trùng byte** với v1   �
 
 ## 3. Kiến trúc v1 (trình biên dịch thật)
 
-### 3.1 Pipeline (`src/bootstrap/main.kb`)
+### 3.1 Pipeline (`src/compiler`, entry `src/main.kb`)
 
 v1 chỉ có **4 bước**, in ra dưới dạng `[n/4]`:
 
@@ -84,20 +84,20 @@ kobel [options] <source.kb>
 std.*                       (lá — không phụ thuộc compiler)
   ▲
   │
-bootstrap.lexer.token       (không phụ thuộc gì)
-bootstrap.ast.node          │
-bootstrap.ast.{types,expr,stmt,decl}   ← node, lexer.token, std.list
-bootstrap.lexer.lexer       ← lexer.token, std.ascii, std.list
-bootstrap.ast.builder       ← ast.*, lexer.token, std.list, std.arena
-bootstrap.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
-bootstrap.sema.types        ← std.list, std.arena
-bootstrap.sema.symbol       ← sema.types, ast.node, std.list, std.arena
-bootstrap.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std
-bootstrap.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil, std
-bootstrap.codegen.c_codegen ← ast.*, lexer.token, std.list
-bootstrap.util.strutil      ← std.list
-bootstrap.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, strutil, std
-bootstrap.main              ← sema.{decl_pass,body_pass}, codegen, loader, std
+compiler.lexer.token       (không phụ thuộc gì)
+compiler.ast.node          │
+compiler.ast.{types,expr,stmt,decl}   ← node, lexer.token, std.list
+compiler.lexer.lexer       ← lexer.token, std.ascii, std.list
+compiler.ast.builder       ← ast.*, lexer.token, std.list, std.arena
+compiler.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
+compiler.sema.types        ← std.list, std.arena
+compiler.sema.symbol       ← sema.types, ast.node, std.list, std.arena
+compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std
+compiler.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil, std
+compiler.codegen.c_codegen ← ast.*, lexer.token, std.list
+compiler.util.strutil      ← std.list
+compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, strutil, std
+main                        ← sema.{decl_pass,body_pass}, codegen, loader, std
 ```
 
 Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`/`codegen` phụ thuộc `ast` nhưng
@@ -105,7 +105,7 @@ Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`
 
 ### 3.4 Đơn vị dữ liệu trung tâm
 
-- **AST** (`src/bootstrap/ast`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
+- **AST** (`../src/compiler`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
   (`LiteralExpr`, `CallExpr`, `FnDecl`, …). Payload truy cập qua `as_*` (downcast), tạo qua `alloc_*`.
 - **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data }` với `data` trỏ tới payload
   (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`). `DataType = VOID→NONE | … | STRUCT | FN`.
@@ -221,14 +221,14 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
 
 ## 7. Hợp đồng bootstrap & fixpoint
 
-**Hợp đồng**: `compiler/self` chỉ được dùng cú pháp/typing mà `seed` hiểu. Khi thêm cú pháp mới, phải
+**Hợp đồng**: `src/compiler` chỉ được dùng cú pháp/typing mà `seed` hiểu. Khi thêm cú pháp mới, phải
 hoặc (a) thêm vào seed, hoặc (b) chấp nhận rằng bản seed cũ không build được nguồn mới.
 
 **Fixpoint**: hai lần biên dịch liên tiếp cho **cùng output**:
 
 ```
-kobel_v1.exe src/bootstrap/main.kb -emit-c a.c
-kobel_v2.exe src/bootstrap/main.kb -emit-c b.c     # v2 dựng từ a.c
+kobel_v1.exe src/main.kb -emit-c a.c
+kobel_v2.exe src/main.kb -emit-c b.c     # v2 dựng từ a.c
 sha256(a.c) == sha256(b.c)
 ```
 
@@ -244,25 +244,32 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 
 | Việc | Lệnh |
 |---|---|
-| Build v0 (C++/LLVM) | `cmake --build cmake-build-debug` (CMake + vcpkg/LLVM env) |
-| Build v1 | `scripts/build_bootstrap.bat` → `kobel_v1.exe` |
+| Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
+| Build v1 | `scripts/build_bootstrap.bat` → `kobel_v1.exe` (seed biên dịch `src/main.kb`) |
 | Test v1 | `scripts/test_all_bootstrap.bat` (8 test) |
 | Chạy 1 chương trình | `scripts/run_test.bat <file.kb>` |
-| Test v0 | `test/test_*.exe` (7 bộ: ast, lexer, parser, semantic, codegen, optimization, latent_fixes) |
+| Regenerate seed | `kobel_v1.exe src/main.kb -emit-c dist/bootstrap.c` |
+
+v0 (C++/LLVM) nằm ở nhánh **`v0-cpp`**: build bằng `cmake --build cmake-build-debug` (CMake + vcpkg/LLVM
+env), test bằng `test/test_*.cpp` (7 bộ). Master (nhánh này) không còn mã C++.
 
 ⚠ Các test **có bước link** phải chạy trong môi trường MSVC (`vcvars64`), nếu không sẽ báo thiếu
 `libcmt.lib`. Chạy từ Developer Prompt hoặc gọi qua wrapper.
 
 ### 8.2 Vấn đề cần dọn
 
-- Artifact (`kobel_v1/v2/v3.exe`, `out.c`, `*.tmp.obj`) rơi vào **gốc repo**.
+- Artifact (`kobel_v1/v2/v3.exe`, `out.c`, `*.tmp.obj`) rơi vào **gốc repo** (đã gitignore; nên gom vào `build/`).
 - Test của v1 nằm lẫn trong `examples/` (`test_bootstrap_*.kb`); danh sách test **hardcode** trong `.bat`.
-- Mỗi `.bat` tự dò `vcvars`; có `scripts/tmp_diag.bat` là rác scratch.
+- Mỗi `.bat` tự dò `vcvars`; ~~`scripts/tmp_diag.bat`~~ (đã xoá).
 - Không có script `clean`/`fixpoint`.
 
 ---
 
 ## 9. Bố cục đích & lộ trình tái cấu trúc
+
+> **Trạng thái (chốt gần nhất):** lần tái cấu trúc hiện tại **giữ** bố cục đang dùng —
+> `src/main.kb` + `src/compiler/**`, `lib/std`, `examples`, `scripts` — và module prefix `compiler.`.
+> Bố cục `compiler/self` + `kobel.` bên dưới là **phương án dự phòng**, chưa thực thi.
 
 ### 9.1 Bố cục đích
 

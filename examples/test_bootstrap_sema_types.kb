@@ -7,48 +7,48 @@ use std.mem.arena.new_arena;
 use std.collections.list.List;
 use std.collections.list.new_list;
 
-use bootstrap.sema.types.DataType;
-use bootstrap.sema.types.Type;
-use bootstrap.sema.types.PointerType;
-use bootstrap.sema.types.ArrayType;
-use bootstrap.sema.types.StructField;
-use bootstrap.sema.types.StructType;
-use bootstrap.sema.types.FnType;
+use compiler.sema.types.DataType;
+use compiler.sema.types.Type;
+use compiler.sema.types.PointerType;
+use compiler.sema.types.ArrayType;
+use compiler.sema.types.StructField;
+use compiler.sema.types.StructType;
+use compiler.sema.types.FnType;
 
-use bootstrap.sema.types.type_none;
-use bootstrap.sema.types.type_bool;
-use bootstrap.sema.types.type_i8;
-use bootstrap.sema.types.type_i16;
-use bootstrap.sema.types.type_i32;
-use bootstrap.sema.types.type_i64;
-use bootstrap.sema.types.type_isz;
-use bootstrap.sema.types.type_u8;
-use bootstrap.sema.types.type_u16;
-use bootstrap.sema.types.type_u32;
-use bootstrap.sema.types.type_u64;
-use bootstrap.sema.types.type_usz;
-use bootstrap.sema.types.type_f32;
-use bootstrap.sema.types.type_f64;
-use bootstrap.sema.types.type_str;
+use compiler.sema.types.type_none;
+use compiler.sema.types.type_bool;
+use compiler.sema.types.type_i8;
+use compiler.sema.types.type_i16;
+use compiler.sema.types.type_i32;
+use compiler.sema.types.type_i64;
+use compiler.sema.types.type_isz;
+use compiler.sema.types.type_u8;
+use compiler.sema.types.type_u16;
+use compiler.sema.types.type_u32;
+use compiler.sema.types.type_u64;
+use compiler.sema.types.type_usz;
+use compiler.sema.types.type_f32;
+use compiler.sema.types.type_f64;
+use compiler.sema.types.type_str;
 
-use bootstrap.sema.types.alloc_pointer_type;
-use bootstrap.sema.types.alloc_array_type;
-use bootstrap.sema.types.alloc_struct_type;
-use bootstrap.sema.types.alloc_fn_type;
+use compiler.sema.types.alloc_pointer_type;
+use compiler.sema.types.alloc_array_type;
+use compiler.sema.types.alloc_struct_type;
+use compiler.sema.types.alloc_fn_type;
 
-use bootstrap.sema.types.as_pointer_type;
-use bootstrap.sema.types.as_array_type;
-use bootstrap.sema.types.as_struct_type;
-use bootstrap.sema.types.as_fn_type;
+use compiler.sema.types.as_pointer_type;
+use compiler.sema.types.as_array_type;
+use compiler.sema.types.as_struct_type;
+use compiler.sema.types.as_fn_type;
 
-use bootstrap.sema.types.is_integer;
-use bootstrap.sema.types.is_signed_integer;
-use bootstrap.sema.types.is_unsigned_integer;
-use bootstrap.sema.types.is_float;
-use bootstrap.sema.types.is_numeric;
-use bootstrap.sema.types.type_equals;
-use bootstrap.sema.types.can_assign;
-use bootstrap.sema.types.type_to_string;
+use compiler.sema.types.is_integer;
+use compiler.sema.types.is_signed_integer;
+use compiler.sema.types.is_unsigned_integer;
+use compiler.sema.types.is_float;
+use compiler.sema.types.is_numeric;
+use compiler.sema.types.type_equals;
+use compiler.sema.types.can_assign;
+use compiler.sema.types.type_to_string;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

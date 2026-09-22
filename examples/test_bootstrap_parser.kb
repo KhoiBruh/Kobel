@@ -3,55 +3,55 @@ mod test.bootstrap_parser;
 use std.io.print;
 use std.io.println;
 
-use bootstrap.lexer.lexer.Lexer;
-use bootstrap.lexer.lexer.new_lexer;
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
+use compiler.lexer.lexer.Lexer;
+use compiler.lexer.lexer.new_lexer;
+use compiler.lexer.token.TokenType;
+use compiler.lexer.token.Token;
 
-use bootstrap.ast.node.NodeKind;
-use bootstrap.ast.node.AstNode;
+use compiler.ast.node.NodeKind;
+use compiler.ast.node.AstNode;
 
-use bootstrap.ast.types.NamedType;
-use bootstrap.ast.types.PointerType;
-use bootstrap.ast.expr.BinaryExpr;
-use bootstrap.ast.expr.UnaryExpr;
-use bootstrap.ast.expr.CallExpr;
-use bootstrap.ast.expr.MemberExpr;
-use bootstrap.ast.expr.LiteralExpr;
-use bootstrap.ast.expr.IdentifierExpr;
+use compiler.ast.types.NamedType;
+use compiler.ast.types.PointerType;
+use compiler.ast.expr.BinaryExpr;
+use compiler.ast.expr.UnaryExpr;
+use compiler.ast.expr.CallExpr;
+use compiler.ast.expr.MemberExpr;
+use compiler.ast.expr.LiteralExpr;
+use compiler.ast.expr.IdentifierExpr;
 
-use bootstrap.ast.stmt.BlockStmt;
-use bootstrap.ast.stmt.VarDeclStmt;
-use bootstrap.ast.stmt.IfStmt;
-use bootstrap.ast.stmt.ReturnStmt;
-use bootstrap.ast.stmt.WhileStmt;
+use compiler.ast.stmt.BlockStmt;
+use compiler.ast.stmt.VarDeclStmt;
+use compiler.ast.stmt.IfStmt;
+use compiler.ast.stmt.ReturnStmt;
+use compiler.ast.stmt.WhileStmt;
 
-use bootstrap.ast.decl.Program;
-use bootstrap.ast.decl.ModuleDecl;
-use bootstrap.ast.decl.UseDecl;
-use bootstrap.ast.decl.StructDecl;
-use bootstrap.ast.decl.FnDecl;
+use compiler.ast.decl.Program;
+use compiler.ast.decl.ModuleDecl;
+use compiler.ast.decl.UseDecl;
+use compiler.ast.decl.StructDecl;
+use compiler.ast.decl.FnDecl;
 
-use bootstrap.ast.builder.as_program;
-use bootstrap.ast.builder.as_module_decl;
-use bootstrap.ast.builder.as_use_decl;
-use bootstrap.ast.builder.as_struct_decl;
-use bootstrap.ast.builder.as_fn_decl;
-use bootstrap.ast.builder.as_binary;
-use bootstrap.ast.builder.as_call;
-use bootstrap.ast.builder.as_member;
-use bootstrap.ast.builder.as_literal;
-use bootstrap.ast.builder.as_identifier;
-use bootstrap.ast.builder.as_var_decl;
-use bootstrap.ast.builder.as_named_type;
+use compiler.ast.builder.as_program;
+use compiler.ast.builder.as_module_decl;
+use compiler.ast.builder.as_use_decl;
+use compiler.ast.builder.as_struct_decl;
+use compiler.ast.builder.as_fn_decl;
+use compiler.ast.builder.as_binary;
+use compiler.ast.builder.as_call;
+use compiler.ast.builder.as_member;
+use compiler.ast.builder.as_literal;
+use compiler.ast.builder.as_identifier;
+use compiler.ast.builder.as_var_decl;
+use compiler.ast.builder.as_named_type;
 
-use bootstrap.parser.parser.Parser;
-use bootstrap.parser.parser.new_parser;
-use bootstrap.parser.expr.parse_expression;
-use bootstrap.parser.expr.PREC_NONE;
-use bootstrap.parser.types.parse_type;
-use bootstrap.parser.stmt.parse_statement;
-use bootstrap.parser.decl.parse_program;
+use compiler.parser.parser.Parser;
+use compiler.parser.parser.new_parser;
+use compiler.parser.expr.parse_expression;
+use compiler.parser.expr.PREC_NONE;
+use compiler.parser.types.parse_type;
+use compiler.parser.stmt.parse_statement;
+use compiler.parser.decl.parse_program;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

@@ -3,11 +3,11 @@ mod test.bootstrap_lexer;
 use std.io.print;
 use std.io.println;
 
-use bootstrap.lexer.token.TokenType;
-use bootstrap.lexer.token.Token;
+use compiler.lexer.token.TokenType;
+use compiler.lexer.token.Token;
 
-use bootstrap.lexer.lexer.Lexer;
-use bootstrap.lexer.lexer.new_lexer;
+use compiler.lexer.lexer.Lexer;
+use compiler.lexer.lexer.new_lexer;
 
 use std.collections.list.List;
 
