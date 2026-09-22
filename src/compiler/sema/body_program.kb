@@ -84,6 +84,17 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 
 pub fn check_impl(var self: &BodyPass, node: *AstNode) {
 	val im = as_impl_decl(node);
+
+	// A primitive impl has no struct name; find its methods by mangled name.
+	if (im.struct_name == "") {
+		for (m_node in im.methods) {
+			val f = as_fn_decl(m_node);
+			val mi = find_prim_method_c(&self.symtab, f.name);
+			if (mi != null) check_fn_body(self, m_node, mi.fn_type);
+		}
+		return;
+	}
+
 	val st_sym = lookup(&self.symtab, im.struct_name);
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
 	val st_info = sem_struct(st_sym.type_ptr);

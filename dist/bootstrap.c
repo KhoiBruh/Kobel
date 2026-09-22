@@ -74,6 +74,7 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__ModuleSc
 typedef struct std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding;
 typedef struct std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collections__list__List_ptr_compiler__sema__types__EnumInfo;
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo;
+typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
 typedef struct std__io__StringRaw std__io__StringRaw;
@@ -147,6 +148,7 @@ typedef struct compiler__sema__symbol__ImportBinding compiler__sema__symbol__Imp
 typedef struct compiler__sema__symbol__GenTemplate compiler__sema__symbol__GenTemplate;
 typedef struct compiler__sema__symbol__TraitMethod compiler__sema__symbol__TraitMethod;
 typedef struct compiler__sema__symbol__TraitInfo compiler__sema__symbol__TraitInfo;
+typedef struct compiler__sema__symbol__PrimMethod compiler__sema__symbol__PrimMethod;
 typedef struct compiler__sema__symbol__GenericReg compiler__sema__symbol__GenericReg;
 typedef struct compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable;
 typedef struct compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__DeclPass;
@@ -287,6 +289,12 @@ struct std__collections__list__List_ptr_compiler__sema__types__EnumInfo {
 
 struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo {
     compiler__sema__symbol__TraitInfo** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod {
+    compiler__sema__symbol__PrimMethod** data;
     size_t len;
     size_t cap;
 };
@@ -694,6 +702,11 @@ struct compiler__sema__symbol__TraitInfo {
     std__collections__list__List_str impls;
 };
 
+struct compiler__sema__symbol__PrimMethod {
+    compiler__sema__types__DataType kind;
+    compiler__sema__types__MethodInfo* info;
+};
+
 struct compiler__sema__symbol__GenericReg {
     std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate struct_templates;
     std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate fn_templates;
@@ -711,6 +724,7 @@ struct compiler__sema__symbol__SymbolTable {
     std__collections__list__List_compiler__sema__symbol__ImportBinding imports;
     std__collections__list__List_ptr_compiler__sema__types__EnumInfo enums;
     std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo traits;
+    std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod prim_methods;
     compiler__sema__symbol__GenericReg gen;
 };
 
@@ -1040,6 +1054,19 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_clear(st
 void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_grow(std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo* self);
 void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_reserve(std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo* self, size_t min_cap);
 void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_delete(const std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo* self);
+compiler__sema__symbol__PrimMethod** std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr, size_t count);
+void std__mem__alloc__release_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr);
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_get(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t index);
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_first(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_last(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+bool std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_is_empty(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_set(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t index, compiler__sema__symbol__PrimMethod* value);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_add(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, compiler__sema__symbol__PrimMethod* value);
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_pop(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_clear(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_grow(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_reserve(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t min_cap);
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_delete(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
 compiler__lexer__token__Token* std__mem__alloc__resize_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr, size_t count);
 void std__mem__alloc__release_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr);
 compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token_get(const std__collections__list__List_compiler__lexer__token__Token* self, size_t index);
@@ -1129,10 +1156,13 @@ compiler__sema__types__EnumInfo** std__mem__alloc__alloc_array_ptr_compiler__sem
 std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collections__list__new_list_ptr_compiler__sema__types__EnumInfo(void);
 compiler__sema__symbol__TraitInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitInfo(size_t count);
 std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collections__list__new_list_ptr_compiler__sema__symbol__TraitInfo(void);
+compiler__sema__symbol__PrimMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(size_t count);
+std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__new_list_ptr_compiler__sema__symbol__PrimMethod(void);
 compiler__sema__symbol__ModuleScope* std__mem__arena__arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__arena__Arena* arena);
 compiler__sema__types__Type** std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(size_t count);
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__new_list_ptr_compiler__sema__types__Type(void);
 compiler__sema__types__MethodInfo* std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo(std__mem__arena__Arena* arena);
+compiler__sema__symbol__PrimMethod* std__mem__arena__arena_alloc_compiler__sema__symbol__PrimMethod(std__mem__arena__Arena* arena);
 compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count);
 std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__new_list_ptr_compiler__sema__symbol__TraitMethod(void);
 compiler__sema__symbol__GenTemplate* std__mem__arena__arena_alloc_compiler__sema__symbol__GenTemplate(std__mem__arena__Arena* arena);
@@ -1317,6 +1347,9 @@ compiler__sema__symbol__ModuleScope compiler__sema__symbol__new_module_scope(con
 compiler__sema__symbol__GenTemplate* compiler__sema__symbol__gen_find(std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate list, const char* name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__arena__Arena* arena, compiler__sema__symbol__Symbol sym);
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__new_symbol_table(void);
+void compiler__sema__symbol__register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__PrimMethod* pm);
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name);
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_c(compiler__sema__symbol__SymbolTable* self, const char* c_name);
 void compiler__sema__symbol__register_trait(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__TraitInfo* info);
 compiler__sema__symbol__TraitInfo* compiler__sema__symbol__find_trait(compiler__sema__symbol__SymbolTable* self, const char* name);
 compiler__sema__symbol__TraitMethod* compiler__sema__symbol__trait_find_method(compiler__sema__symbol__TraitInfo* t, const char* name);
@@ -1340,10 +1373,12 @@ compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__new_decl_pass(voi
 const char* compiler__sema__decl_pass__c_name_for(compiler__sema__decl_pass__DeclPass* self, const char* name);
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
 void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* msg);
+compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name);
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 int64_t compiler__sema__decl_pass__enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_pass__collect_prim_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, compiler__sema__types__Type* prim);
 void compiler__sema__decl_pass__trait_record_impl(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, const char* struct_name);
 void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m);
 void compiler__sema__decl_pass__trait_effective(compiler__sema__decl_pass__DeclPass* self, compiler__sema__symbol__TraitInfo* t, std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, std__collections__list__List_str* seen);
@@ -2918,6 +2953,76 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_delete(c
     std__mem__alloc__release_ptr_compiler__sema__symbol__TraitInfo((self)->data);
 }
 
+compiler__sema__symbol__PrimMethod** std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr, size_t count) {
+    return ((compiler__sema__symbol__PrimMethod**)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 8)));
+}
+
+void std__mem__alloc__release_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_get(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t index) {
+    return (self)->data[index];
+}
+
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_first(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    return (self)->data[0];
+}
+
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_last(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_is_empty(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    return ((self)->len == 0);
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_set(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t index, compiler__sema__symbol__PrimMethod* value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_add(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, compiler__sema__symbol__PrimMethod* value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len = ((self)->len + 1);
+}
+
+compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_pop(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    (self)->len = ((self)->len - 1);
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_clear(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    (self)->len = 0;
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_grow(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_reserve(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap = (new_cap * 2);
+                }
+            }
+            (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_delete(const std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
+    std__mem__alloc__release_ptr_compiler__sema__symbol__PrimMethod((self)->data);
+}
+
 compiler__lexer__token__Token* std__mem__alloc__resize_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr, size_t count) {
     return ((compiler__lexer__token__Token*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
 }
@@ -3373,6 +3478,16 @@ std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collecti
     return (std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo){ data, 0, init_cap };
 }
 
+compiler__sema__symbol__PrimMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(size_t count) {
+    return ((compiler__sema__symbol__PrimMethod**)std__mem__alloc__raw_alloc((count * 8)));
+}
+
+std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__new_list_ptr_compiler__sema__symbol__PrimMethod(void) {
+    size_t init_cap = ((size_t)4ULL);
+    compiler__sema__symbol__PrimMethod** data = std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(init_cap);
+    return (std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod){ data, 0, init_cap };
+}
+
 compiler__sema__symbol__ModuleScope* std__mem__arena__arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 40, 8);
     return ((compiler__sema__symbol__ModuleScope*)raw);
@@ -3391,6 +3506,11 @@ std__collections__list__List_ptr_compiler__sema__types__Type std__collections__l
 compiler__sema__types__MethodInfo* std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo(std__mem__arena__Arena* arena) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 40, 8);
     return ((compiler__sema__types__MethodInfo*)raw);
+}
+
+compiler__sema__symbol__PrimMethod* std__mem__arena__arena_alloc_compiler__sema__symbol__PrimMethod(std__mem__arena__Arena* arena) {
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(arena, 16, 8);
+    return ((compiler__sema__symbol__PrimMethod*)raw);
 }
 
 compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count) {
@@ -5106,7 +5226,45 @@ compiler__sema__symbol__SymbolTable compiler__sema__symbol__new_symbol_table(voi
     compiler__sema__symbol__Scope* root_scope = std__mem__arena__arena_alloc_compiler__sema__symbol__Scope((&arena));
     (*root_scope) = (compiler__sema__symbol__Scope){ NULL, std__collections__list__new_list_ptr_compiler__sema__symbol__Symbol(), false };
     compiler__sema__symbol__GenericReg gen = (compiler__sema__symbol__GenericReg){ std__collections__list__new_list_ptr_compiler__sema__symbol__GenTemplate(), std__collections__list__new_list_ptr_compiler__sema__symbol__GenTemplate(), std__collections__list__new_list_ptr_compiler__sema__symbol__GenTemplate(), std__collections__list__new_list_ptr_compiler__sema__symbol__Symbol(), std__collections__list__new_list_str(), std__collections__list__new_list_ptr_compiler__ast__node__AstNode() };
-    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__new_list_ptr_compiler__sema__symbol__ModuleScope(), std__collections__list__new_list_compiler__sema__symbol__ImportBinding(), std__collections__list__new_list_ptr_compiler__sema__types__EnumInfo(), std__collections__list__new_list_ptr_compiler__sema__symbol__TraitInfo(), gen };
+    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__new_list_ptr_compiler__sema__symbol__ModuleScope(), std__collections__list__new_list_compiler__sema__symbol__ImportBinding(), std__collections__list__new_list_ptr_compiler__sema__types__EnumInfo(), std__collections__list__new_list_ptr_compiler__sema__symbol__TraitInfo(), std__collections__list__new_list_ptr_compiler__sema__symbol__PrimMethod(), gen };
+}
+
+void compiler__sema__symbol__register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__PrimMethod* pm) {
+    std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_add((&(self)->prim_methods), pm);
+}
+
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name) {
+    {
+        size_t __for_n = ((self)->prim_methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__symbol__PrimMethod* pm = ((self)->prim_methods).data[__for_i];
+                if ((((pm)->kind == kind) && kobel_streq(((*(pm)->info)).name, name))) {
+                    return (pm)->info;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return NULL;
+}
+
+compiler__sema__types__MethodInfo* compiler__sema__symbol__find_prim_method_c(compiler__sema__symbol__SymbolTable* self, const char* c_name) {
+    {
+        size_t __for_n = ((self)->prim_methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__sema__symbol__PrimMethod* pm = ((self)->prim_methods).data[__for_i];
+                if (kobel_streq(((*(pm)->info)).c_name, c_name)) {
+                    return (pm)->info;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return NULL;
 }
 
 void compiler__sema__symbol__register_trait(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__TraitInfo* info) {
@@ -5509,6 +5667,44 @@ void compiler__sema__decl_pass__report_error(compiler__sema__decl_pass__DeclPass
     }
 }
 
+compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name) {
+    if (strcmp(name, "none") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_none());
+    } else if (strcmp(name, "bool") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_bool());
+    } else if (strcmp(name, "char") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_char());
+    } else if (strcmp(name, "i8") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i8());
+    } else if (strcmp(name, "i16") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i16());
+    } else if (strcmp(name, "i32") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i32());
+    } else if (strcmp(name, "i64") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i64());
+    } else if (strcmp(name, "isz") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_isz());
+    } else if (strcmp(name, "u8") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u8());
+    } else if (strcmp(name, "u16") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u16());
+    } else if (strcmp(name, "u32") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u32());
+    } else if (strcmp(name, "u64") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u64());
+    } else if (strcmp(name, "usz") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_usz());
+    } else if (strcmp(name, "f32") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_f32());
+    } else if (strcmp(name, "f64") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_f64());
+    } else if (strcmp(name, "str") == 0) {
+        return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_str());
+    } else {
+        return NULL;
+    }
+}
+
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
     if ((node == NULL)) {
         return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
@@ -5517,41 +5713,9 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_ast_type(compile
         {
             compiler__ast__types__NamedType* named = ((compiler__ast__types__NamedType*)compiler__ast__builder__as_named_type(node));
             const char* name = (named)->name;
-            if (strcmp(name, "none") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
-            } else if (strcmp(name, "bool") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_bool());
-            } else if (strcmp(name, "char") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_char());
-            } else if (strcmp(name, "i8") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i8());
-            } else if (strcmp(name, "i16") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i16());
-            } else if (strcmp(name, "i32") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
-            } else if (strcmp(name, "i64") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i64());
-            } else if (strcmp(name, "isz") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_isz());
-            } else if (strcmp(name, "u8") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_u8());
-            } else if (strcmp(name, "u16") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_u16());
-            } else if (strcmp(name, "u32") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_u32());
-            } else if (strcmp(name, "u64") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_u64());
-            } else if (strcmp(name, "usz") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_usz());
-            } else if (strcmp(name, "f32") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f32());
-            } else if (strcmp(name, "f64") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f64());
-            } else if (strcmp(name, "str") == 0) {
-                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_str());
-            } else {
-                {
-                }
+            compiler__sema__types__Type* prim = compiler__sema__decl_pass__resolve_primitive_name((&(self)->arena), name);
+            if ((prim != NULL)) {
+                return prim;
             }
             if ((((named)->type_args).len > 0)) {
                 {
@@ -5645,6 +5809,13 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
     if ((((im)->type_params).len > 0)) {
         return;
     }
+    compiler__sema__types__Type* prim = compiler__sema__decl_pass__resolve_primitive_name((&(self)->arena), (im)->struct_name);
+    if ((prim != NULL)) {
+        {
+            compiler__sema__decl_pass__collect_prim_impl(self, node, im, prim);
+            return;
+        }
+    }
     compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__lookup((&(self)->symtab), (im)->struct_name);
     if (((st_sym == NULL) || (((*(st_sym)->type_ptr)).kind != 18))) {
         {
@@ -5697,6 +5868,98 @@ void compiler__sema__decl_pass__collect_impl(compiler__sema__decl_pass__DeclPass
                 compiler__sema__types__MethodInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo((&(self)->arena));
                 (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
                 std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
+                (f)->name = m_c_name;
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+}
+
+void compiler__sema__decl_pass__collect_prim_impl(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__ImplDecl* im, compiler__sema__types__Type* prim) {
+    const char* prim_name = (im)->struct_name;
+    (im)->struct_name = "";
+    if ((!kobel_streq((im)->trait_name, ""))) {
+        compiler__sema__decl_pass__apply_trait(self, node, im, prim_name);
+    }
+    {
+        size_t __for_n = ((im)->methods).len;
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* m_node = ((im)->methods).data[__for_i];
+                compiler__ast__decl__FnDecl* f = ((compiler__ast__decl__FnDecl*)compiler__ast__builder__as_fn_decl(m_node));
+                std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__new_list_ptr_compiler__sema__types__Type();
+                {
+                    size_t __for_e = ((f)->params).len;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        {
+                            __for_go = (__for_i < __for_e);
+                        }
+                    } else {
+                        {
+                            __for_go = (__for_i > __for_e);
+                        }
+                    }
+                    while (__for_go) {
+                        {
+                            size_t i = __for_i;
+                            compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
+                            compiler__sema__types__Type* pt = NULL;
+                            if ((kobel_streq((p).name, "self") && ((p).type_node == NULL))) {
+                                {
+                                    pt = prim;
+                                    compiler__ast__node__AstNode* rt = compiler__ast__builder__alloc_named_type((&(self)->arena), prim_name, std__collections__list__new_list_ptr_compiler__ast__node__AstNode(), (node)->line, (node)->col);
+                                    std__collections__list__List_compiler__ast__decl__Param_set((&(f)->params), i, (compiler__ast__decl__Param){ (p).name, rt, (p).is_mut, (p).has_val });
+                                }
+                            } else {
+                                {
+                                    pt = compiler__sema__decl_pass__resolve_ast_type(self, (p).type_node);
+                                }
+                            }
+                            std__collections__list__List_ptr_compiler__sema__types__Type_add((&param_types), pt);
+                            if (__for_up) {
+                                {
+                                    __for_go = ((__for_i + 1) < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = ((__for_i - 1) > __for_e);
+                                }
+                            }
+                            if (__for_go) {
+                                if (__for_up) {
+                                    {
+                                        __for_i = (__for_i + 1);
+                                    }
+                                } else {
+                                    {
+                                        __for_i = (__for_i - 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                compiler__sema__types__Type* ret_type = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
+                if (((f)->return_type != NULL)) {
+                    ret_type = compiler__sema__decl_pass__resolve_ast_type(self, (f)->return_type);
+                }
+                compiler__sema__types__Type* fn_type = compiler__sema__types__alloc_fn_type((&(self)->arena), param_types, ret_type);
+                const char* m_c_name = util__strutil__str_concat(prim_name, util__strutil__str_concat("_", (f)->name));
+                if ((compiler__sema__symbol__find_prim_method((&(self)->symtab), (prim)->kind, (f)->name) != NULL)) {
+                    {
+                        compiler__sema__decl_pass__report_error(self, m_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", (f)->name), "' for built-in type '"), prim_name), "'"));
+                    }
+                }
+                compiler__sema__types__MethodInfo* mi = std__mem__arena__arena_alloc_compiler__sema__types__MethodInfo((&(self)->arena));
+                (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
+                compiler__sema__symbol__PrimMethod* pm = std__mem__arena__arena_alloc_compiler__sema__symbol__PrimMethod((&(self)->arena));
+                (*pm) = (compiler__sema__symbol__PrimMethod){ (prim)->kind, mi };
+                compiler__sema__symbol__register_prim_method((&(self)->symtab), pm);
                 (f)->name = m_c_name;
                 __for_i = (__for_i + 1);
             }
@@ -7977,6 +8240,86 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
                             }
                         }
                     }
+                    compiler__sema__types__MethodInfo* pmi = compiler__sema__symbol__find_prim_method((&(self)->symtab), (obj_ty)->kind, (mem)->member);
+                    if ((pmi != NULL)) {
+                        {
+                            compiler__sema__types__FnType* fn_info = compiler__sema__types__as_fn_type((pmi)->fn_type);
+                            if (((((call)->args).len + 1) != ((fn_info)->param_types).len)) {
+                                {
+                                    compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat("Argument count mismatch in method call '", (mem)->member), "'"));
+                                }
+                            } else {
+                                {
+                                    {
+                                        size_t __for_e = ((call)->args).len;
+                                        size_t __for_i = __for_e;
+                                        __for_i = 0;
+                                        bool __for_up = (__for_i <= __for_e);
+                                        bool __for_go = false;
+                                        if (__for_up) {
+                                            {
+                                                __for_go = (__for_i < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = (__for_i > __for_e);
+                                            }
+                                        }
+                                        while (__for_go) {
+                                            {
+                                                size_t i = __for_i;
+                                                compiler__sema__types__Type* arg_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(call)->args), i));
+                                                compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), (i + 1));
+                                                if ((!compiler__sema__types__can_assign(param_ty, arg_ty))) {
+                                                    compiler__sema__body_pass__report_error(self, node, kobel_concat(kobel_concat("Argument type mismatch in method call '", (mem)->member), "'"));
+                                                }
+                                                if (__for_up) {
+                                                    {
+                                                        __for_go = ((__for_i + 1) < __for_e);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_go = ((__for_i - 1) > __for_e);
+                                                    }
+                                                }
+                                                if (__for_go) {
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_i = (__for_i + 1);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_i = (__for_i - 1);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__new_list_ptr_compiler__ast__node__AstNode();
+                            if (obj_is_ptr) {
+                                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), compiler__ast__builder__alloc_unary((&(self)->arena), 8, (mem)->object, (node)->line, (node)->col));
+                            } else {
+                                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), (mem)->object);
+                            }
+                            {
+                                size_t __for_n = ((call)->args).len;
+                                size_t __for_i = ((size_t)0ULL);
+                                while ((__for_i < __for_n)) {
+                                    {
+                                        compiler__ast__node__AstNode* arg = ((call)->args).data[__for_i];
+                                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&new_args), arg);
+                                        __for_i = (__for_i + 1);
+                                    }
+                                }
+                            }
+                            (call)->args = new_args;
+                            (call)->callee = compiler__ast__builder__alloc_identifier((&(self)->arena), (pmi)->c_name, (node)->line, (node)->col);
+                            return (fn_info)->return_type;
+                        }
+                    }
                 }
             }
             compiler__sema__types__Type* callee_ty = compiler__sema__body_pass__check_expr(self, (call)->callee);
@@ -8958,6 +9301,26 @@ void compiler__sema__body_program__check_fn_body(compiler__sema__body_pass__Body
 
 void compiler__sema__body_program__check_impl(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__decl__ImplDecl* im = compiler__ast__builder__as_impl_decl(node);
+    if (kobel_streq((im)->struct_name, "")) {
+        {
+            {
+                size_t __for_n = ((im)->methods).len;
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* m_node = ((im)->methods).data[__for_i];
+                        compiler__ast__decl__FnDecl* f = compiler__ast__builder__as_fn_decl(m_node);
+                        compiler__sema__types__MethodInfo* mi = compiler__sema__symbol__find_prim_method_c((&(self)->symtab), (f)->name);
+                        if ((mi != NULL)) {
+                            compiler__sema__body_program__check_fn_body(self, m_node, (mi)->fn_type);
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            return;
+        }
+    }
     compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__lookup((&(self)->symtab), (im)->struct_name);
     if (((st_sym == NULL) || (((*(st_sym)->type_ptr)).kind != 18))) {
         return;

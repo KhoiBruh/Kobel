@@ -1,6 +1,8 @@
 mod compiler.sema.symbol;
 
 use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
+use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.ast.node.AstNode;
 
@@ -97,6 +99,14 @@ pub struct TraitInfo {
 	pub impls: List<str>
 }
 
+// A method declared by an `impl <primitive> { ... }` block. Primitives are not
+// structs, so their methods live here keyed by the built-in kind instead of on
+// a `StructType`.
+pub struct PrimMethod {
+	pub kind: DataType,
+	pub info: *MethodInfo
+}
+
 // Monomorphization state, shared through the (single) SymbolTable.
 pub struct GenericReg {
 	pub struct_templates: List<*GenTemplate>,
@@ -138,6 +148,8 @@ pub struct SymbolTable {
 	pub enums: List<*EnumInfo>,
 	// Collected `trait` declarations, by source name.
 	pub traits: List<*TraitInfo>,
+	// Methods extending the built-in (primitive) types.
+	pub prim_methods: List<*PrimMethod>,
 	pub gen: GenericReg
 }
 
@@ -155,7 +167,27 @@ pub fn new_symbol_table(): SymbolTable {
 		new_list<*AstNode>()
 	);
 
-	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), new_list<*TraitInfo>(), gen);
+	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), new_list<*TraitInfo>(), new_list<*PrimMethod>(), gen);
+}
+
+pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) {
+	self.prim_methods.add(pm);
+}
+
+// Method of a primitive type by its source name (used by `x.m()` resolution).
+pub fn find_prim_method(self: &SymbolTable, kind: DataType, name: str): *MethodInfo {
+	for (pm in self.prim_methods) {
+		if (pm.kind == kind && pm.info.name == name) return pm.info;
+	}
+	return null;
+}
+
+// Primitive method by its mangled C name (used when re-visiting an impl).
+pub fn find_prim_method_c(self: &SymbolTable, c_name: str): *MethodInfo {
+	for (pm in self.prim_methods) {
+		if (pm.info.c_name == c_name) return pm.info;
+	}
+	return null;
 }
 
 pub fn register_trait(var self: &SymbolTable, info: *TraitInfo) {

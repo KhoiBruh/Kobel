@@ -142,6 +142,23 @@ fn test_two_impls(var t: &Tally) {
 	check_str(label<Beta>(Beta(2)), "beta", "second impl of the same trait", t);
 }
 
+// --- 6. methods on built-in types ------------------------------------------
+
+impl i32 {
+	fn twice(val self): i32 => self * 2;
+}
+
+impl str {
+	fn shout(val self): str => self + "!";
+}
+
+fn test_prim_methods(var t: &Tally) {
+	val n: i32 = 21;
+	check_i(n.twice(), 42, "method on a built-in numeric type", t);
+	val s = "hi";
+	check_str(s.shout(), "hi!", "method on str", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -152,6 +169,7 @@ fn main(): i32 {
 	test_override(&t);
 	test_bounds(&t);
 	test_two_impls(&t);
+	test_prim_methods(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

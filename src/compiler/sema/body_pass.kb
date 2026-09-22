@@ -332,6 +332,29 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						return fn_info.return_type;
 					}
 				}
+
+				// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
+				val pmi = find_prim_method(&self.symtab, obj_ty.kind, mem.member);
+				if (pmi != null) {
+					val fn_info = sem_fn(pmi.fn_type);
+					if (call.args.len + 1 != fn_info.param_types.len) {
+						report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
+					} else {
+						for (i in 0..<call.args.len) {
+							val arg_ty = check_expr(self, call.args.get(i));
+							val param_ty = fn_info.param_types.get(i + 1);
+							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
+						}
+					}
+
+					var new_args = new_list<*AstNode>();
+					if (obj_is_ptr) new_args.add(alloc_unary(&self.arena, TokenType.STAR, mem.object, node.line, node.col));
+					else new_args.add(mem.object);
+					for (arg in call.args) new_args.add(arg);
+					call.args = new_args;
+					call.callee = alloc_identifier(&self.arena, pmi.c_name, node.line, node.col);
+					return fn_info.return_type;
+				}
 			}
 
 			val callee_ty = check_expr(self, call.callee);

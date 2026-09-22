@@ -99,6 +99,31 @@ pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 	} else self.errors.add(loc + msg);
 }
 
+// The built-in type named `name`, or null when `name` is not a primitive.
+// Primitives are not registered as symbols, so this name table is also how
+// `impl <primitive>` blocks are recognized.
+pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type {
+	when (name) {
+		"none" -> return alloc_primitive(arena, type_none());
+		"bool" -> return alloc_primitive(arena, type_bool());
+		"char" -> return alloc_primitive(arena, type_char());
+		"i8" -> return alloc_primitive(arena, type_i8());
+		"i16" -> return alloc_primitive(arena, type_i16());
+		"i32" -> return alloc_primitive(arena, type_i32());
+		"i64" -> return alloc_primitive(arena, type_i64());
+		"isz" -> return alloc_primitive(arena, type_isz());
+		"u8" -> return alloc_primitive(arena, type_u8());
+		"u16" -> return alloc_primitive(arena, type_u16());
+		"u32" -> return alloc_primitive(arena, type_u32());
+		"u64" -> return alloc_primitive(arena, type_u64());
+		"usz" -> return alloc_primitive(arena, type_usz());
+		"f32" -> return alloc_primitive(arena, type_f32());
+		"f64" -> return alloc_primitive(arena, type_f64());
+		"str" -> return alloc_primitive(arena, type_str());
+		else -> return null;
+	}
+}
+
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 	if (node == null) return alloc_primitive(&self.arena, type_none());
 
@@ -107,25 +132,8 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			val named = as_named_type(node) as &NamedType;
 			val name = named.name;
 
-			when (name) {
-				"none" -> return alloc_primitive(&self.arena, type_none());
-				"bool" -> return alloc_primitive(&self.arena, type_bool());
-				"char" -> return alloc_primitive(&self.arena, type_char());
-				"i8" -> return alloc_primitive(&self.arena, type_i8());
-				"i16" -> return alloc_primitive(&self.arena, type_i16());
-				"i32" -> return alloc_primitive(&self.arena, type_i32());
-				"i64" -> return alloc_primitive(&self.arena, type_i64());
-				"isz" -> return alloc_primitive(&self.arena, type_isz());
-				"u8" -> return alloc_primitive(&self.arena, type_u8());
-				"u16" -> return alloc_primitive(&self.arena, type_u16());
-				"u32" -> return alloc_primitive(&self.arena, type_u32());
-				"u64" -> return alloc_primitive(&self.arena, type_u64());
-				"usz" -> return alloc_primitive(&self.arena, type_usz());
-				"f32" -> return alloc_primitive(&self.arena, type_f32());
-				"f64" -> return alloc_primitive(&self.arena, type_f64());
-				"str" -> return alloc_primitive(&self.arena, type_str());
-				else -> {}
-			}
+			val prim = resolve_primitive_name(&self.arena, name);
+			if (prim != null) return prim;
 
 			// Generic struct instantiation: List<i32> -> concrete struct.
 			if (named.type_args.len > 0) {
@@ -197,6 +205,13 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	// Generic impls (e.g. `impl List<T>`) are lowered by monomorphization; skip here.
 	if (im.type_params.len > 0) return;
 
+	// `impl <primitive> { ... }`: the methods extend a built-in type.
+	val prim = resolve_primitive_name(&self.arena, im.struct_name);
+	if (prim != null) {
+		collect_prim_impl(self, node, im, prim);
+		return;
+	}
+
 	val st_sym = lookup(&self.symtab, im.struct_name);
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
 		report_error(self, node, "Cannot impl methods for unknown type '" + im.struct_name + "'");
@@ -243,6 +258,56 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	}
 }
 
+
+// Registers the methods of `impl <primitive> { ... }`. There is no C struct to
+// hang them on, so the receiver is typed explicitly as the primitive name (the
+// backend then passes it by value), and each method goes into the primitive
+// method table so `x.m()` can find it.
+pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, prim: *Type) {
+	val prim_name = im.struct_name;
+	// Clear the name so codegen does not treat `self` as a pointer receiver.
+	im.struct_name = "";
+
+	if (im.trait_name != "") apply_trait(self, node, im, prim_name);
+
+	for (m_node in im.methods) {
+		val f = as_fn_decl(m_node) as &FnDecl;
+		var param_types = new_list<*Type>();
+
+		for (i in 0..<f.params.len) {
+			val p = f.params.get(i);
+			var pt: *Type = null;
+			if (p.name == "self" && p.type_node == null) {
+				// Receiver by value: spell its type so the backend emits `i32 self`.
+				pt = prim;
+				val rt = alloc_named_type(&self.arena, prim_name, new_list<*AstNode>(), node.line, node.col);
+				f.params.set(i, Param(p.name, rt, p.is_mut, p.has_val));
+			} else {
+				pt = resolve_ast_type(self, p.type_node);
+			}
+			param_types.add(pt);
+		}
+
+		var ret_type = alloc_primitive(&self.arena, type_none());
+		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+
+		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+		val m_c_name = str_concat(prim_name, str_concat("_", f.name));
+
+		if (find_prim_method(&self.symtab, prim.kind, f.name) != null) {
+			report_error(self, m_node, "Duplicate method '${f.name}' for built-in type '${prim_name}'");
+		}
+
+		val mi = arena_alloc<MethodInfo>(&self.arena);
+		*mi = MethodInfo(f.name, m_c_name, fn_type);
+		val pm = arena_alloc<PrimMethod>(&self.arena);
+		*pm = PrimMethod(prim.kind, mi);
+		register_prim_method(&self.symtab, pm);
+
+		// Uniquify the AST name so the backend emits the mangled method name.
+		f.name = m_c_name;
+	}
+}
 
 // Records that `struct_name` implements `t` and, transitively, every trait that
 // `t` inherits: implementing a trait means implementing its base traits too, so
