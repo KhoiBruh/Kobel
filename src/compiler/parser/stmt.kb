@@ -67,6 +67,47 @@ pub fn parse_while_stmt(var self: &Parser): *AstNode {
 	return alloc_while_stmt(&self.arena, condition, body, kw.line, kw.col);
 }
 
+// `for (x in <expr>) <stmt>` where `<expr>` is either an iterable value or one
+// of the range forms `a..b` (closed) / `a>..<b` (open). Bounds are parsed with a
+// precedence that stops before comparison operators so `a>..<b` keeps its `>`.
+pub fn parse_for_stmt(var self: &Parser): *AstNode {
+	val kw = advance(self); // 'for'
+	consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'for'");
+	val name_tok = consume(self, TokenType.IDENTIFIER, "Expected loop variable name");
+	consume(self, TokenType.KW_IN, "Expected 'in' after loop variable");
+
+	val first = parse_expression(self, PREC_COMPARISON);
+
+	var is_range = false;
+	var is_open = false;
+	var iterable: *AstNode = null;
+	var range_start: *AstNode = null;
+	var range_end: *AstNode = null;
+
+	if (match_token(self, TokenType.DOT_DOT)) {
+		is_range = true;
+		range_start = first;
+		range_end = parse_expression(self, PREC_COMPARISON);
+	} else if (check(self, TokenType.GREATER) && peek_at(self, 1).type == TokenType.DOT_DOT) {
+		is_range = true;
+		is_open = true;
+		range_start = first;
+		advance(self); // '>'
+		consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
+		consume(self, TokenType.LESS, "Expected '<' to close an open range");
+		range_end = parse_expression(self, PREC_COMPARISON);
+	} else {
+		iterable = first;
+	}
+
+	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
+	val body = parse_statement(self);
+	return alloc_for_stmt(
+		&self.arena, name_tok.text, is_range, is_open,
+		iterable, range_start, range_end, body, kw.line, kw.col
+	);
+}
+
 pub fn parse_return_stmt(var self: &Parser): *AstNode {
 	val kw = advance(self); // 'return'
 	var value: *AstNode = null;
@@ -125,6 +166,7 @@ pub fn parse_statement(var self: &Parser): *AstNode {
 		TokenType.KW_VAR -> return parse_var_decl_stmt(self);
 		TokenType.KW_IF -> return parse_if_stmt(self);
 		TokenType.KW_WHILE -> return parse_while_stmt(self);
+		TokenType.KW_FOR -> return parse_for_stmt(self);
 		TokenType.KW_RETURN -> return parse_return_stmt(self);
 		TokenType.KW_WHEN -> return parse_when_stmt(self);
 		TokenType.KW_BREAK -> {

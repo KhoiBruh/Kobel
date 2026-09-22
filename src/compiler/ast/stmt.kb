@@ -29,6 +29,20 @@ pub struct WhileStmt {
 	pub body: *AstNode
 }
 
+// `for (name in <iterable>)` or `for (name in <start>..<end>)`.
+// The range forms keep the bounds here instead of an `iterable` expression, so
+// the parser does not need a first-class range expression node. `is_open` picks
+// the `a>..<b` form (exclusive on both ends) over the closed `a..b` form.
+pub struct ForStmt {
+	pub var_name: str,
+	pub is_range: bool,
+	pub is_open: bool,
+	pub iterable: *AstNode,
+	pub range_start: *AstNode,
+	pub range_end: *AstNode,
+	pub body: *AstNode
+}
+
 pub struct ReturnStmt {
 	pub value: *AstNode
 }

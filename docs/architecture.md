@@ -193,6 +193,24 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `s.len` / `s.size` (`s: str`) | `kobel_slen(s)` |
 | `s.slice(a, b)` | `kobel_slice(s, a, b)` (`b` mặc định `kobel_slen(s)`) |
 | `T.size()` trong code generic | literal theo kích thước C |
+| `arr.len` / `arr.size` (`arr: [T; N]`) | literal `usz` (kích thước biết lúc biên dịch) |
+| `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
+| `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
+| `for (i in a..b)` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`) |
+
+`STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
+backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
+
+- **Chỉ nhận lvalue** làm đối tượng duyệt (`x in self.items` được, `x in f()` không): thân vòng
+  dùng lại biểu thức đó mỗi vòng, nên biểu thức tạm sẽ treo còn lời gọi hàm sẽ chạy lặp.
+- **Độ dài chốt lúc vào vòng** (`__for_n`): vòng không giãn ra nếu thân vòng thêm phần tử; với
+  `str` việc này còn bỏ được một lời gọi `strlen` mỗi vòng.
+- **`continue` vẫn bước tiếp biến đếm**: `for_inject_step` chèn bước nhảy vào trước mọi `continue`
+  thuộc vòng này (không đụng `continue` của vòng lồng bên trong).
+- **Đếm an toàn tràn số**: bước nhảy chỉ chạy khi cờ "còn phần tử" còn đúng, nên biến đếm unsigned
+  không bao giờ giảm xuống dưới biên.
+
+`for` hiện chưa có dạng nửa mở (`a..<b`) — xem §10.
 
 ### 6.3 Runtime helper trong C sinh ra
 
@@ -339,6 +357,10 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 
 - **Generics**: chỉ type arg tường minh; generic impl phải cùng tên struct template; chưa hỗ trợ
   trait/bounds; `T.size()` hạ thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng).
+- **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
+  `for ((k, v) in map)` (cần destructuring). **Chưa có dạng nửa mở `a..<b`** — đây là lý do chính
+  khiến phần lớn vòng index kiểu `while (i < n)` trong nguồn compiler chưa hạ sang `for` được:
+  dạng đóng tương đương sẽ là `0..n-1`, và `n - 1` tràn khi `n` là unsigned bằng 0.
 - **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
   (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.

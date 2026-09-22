@@ -25,6 +25,7 @@ use compiler.ast.builder.as_expr_stmt;
 use compiler.ast.builder.as_var_decl;
 use compiler.ast.builder.as_if_stmt;
 use compiler.ast.builder.as_while_stmt;
+use compiler.ast.builder.as_for_stmt;
 use compiler.ast.builder.as_return_stmt;
 use compiler.ast.builder.as_impl_decl;
 use compiler.ast.builder.as_when_expr;
@@ -33,6 +34,16 @@ use compiler.ast.builder.alloc_identifier;
 use compiler.ast.builder.alloc_literal;
 use compiler.ast.builder.alloc_unary;
 use compiler.ast.builder.alloc_call;
+use compiler.ast.builder.alloc_binary;
+use compiler.ast.builder.alloc_assign;
+use compiler.ast.builder.alloc_member;
+use compiler.ast.builder.alloc_index;
+use compiler.ast.builder.alloc_var_decl;
+use compiler.ast.builder.alloc_block_stmt;
+use compiler.ast.builder.alloc_expr_stmt;
+use compiler.ast.builder.alloc_if_stmt;
+use compiler.ast.builder.alloc_while_stmt;
+use compiler.ast.builder.alloc_continue_stmt;
 use compiler.ast.builder.alloc_named_type as ast_alloc_named;
 use compiler.ast.builder.alloc_pointer_type as ast_alloc_pointer;
 use compiler.ast.builder.alloc_array_type as ast_alloc_array;
@@ -434,8 +445,32 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					return alloc_fn_type(&self.arena, new_list<*Type>(), char_ptr);
 				}
 				if (mem.member == "data") {
+					// `str` lowers to a bare `const char*`, so `.data` is the
+					// pointer itself: rewrite the access to its receiver.
 					val char_ty = alloc_primitive(&self.arena, type_char());
+					val dn = node as &AstNode;
+					dn.kind = mem.object.kind;
+					dn.data = mem.object.data;
 					return alloc_pointer_type(&self.arena, char_ty, false);
+				}
+			}
+
+			if (obj_ty.kind == DataType.ARRAY) {
+				val arr = sem_array(obj_ty);
+				if (mem.member == "len" || mem.member == "size") {
+					// The size of a fixed-size array is known at compile time.
+					val lit = alloc_literal(&self.arena, LiteralKind.INT, usz_to_str(arr.length) + "UZ", node.line, node.col);
+					val ln = node as &AstNode;
+					ln.kind = lit.kind;
+					ln.data = lit.data;
+					return alloc_primitive(&self.arena, type_usz());
+				}
+				if (mem.member == "data") {
+					// A fixed-size array already is a pointer to its first element.
+					val dn = node as &AstNode;
+					dn.kind = mem.object.kind;
+					dn.data = mem.object.data;
+					return alloc_pointer_type(&self.arena, arr.elem, true);
 				}
 			}
 
@@ -589,6 +624,15 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			check_statement(self, wh.body);
 			self.loop_depth = self.loop_depth - 1;
 		}
+		NodeKind.STMT_FOR -> {
+			val fs = as_for_stmt(node) as &ForStmt;
+			if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
+				report_error(self, node, "The iterated expression of a 'for' must be a variable or a field");
+			}
+			desugar_for(&self.arena, node, fs);
+			// `node` now holds the lowered block; check it through the normal path.
+			check_statement(self, node);
+		}
 		NodeKind.STMT_RETURN -> {
 			val ret = as_return_stmt(node);
 			if (ret.value != null) {
@@ -621,6 +665,262 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			}
 		}
 	}
+}
+
+// ============================================================================
+// `for` lowering
+//
+// `for` is lowered here into plain while-loops plus hidden locals, so the C
+// backend never sees STMT_FOR and needs no new type knowledge. The lowering
+// deliberately avoids needing the element type: it only uses the uniform
+// `.len` / `.data` members that `str`, `[T; N]` and the std containers expose.
+//
+// Range lowering is overflow safe: the "is there another element?" test is
+// evaluated before the counter is moved, and the counter only moves while that
+// test holds, so an unsigned counter never wraps below its end bound.
+// ============================================================================
+
+// The iterated expression is re-evaluated on every iteration, so only lvalues
+// are accepted: a temporary would dangle and a call would run once per element.
+pub fn for_is_lvalue(node: *AstNode): bool {
+	if (node == null) return false;
+	if (node.kind == NodeKind.EXPR_IDENTIFIER) return true;
+	if (node.kind == NodeKind.EXPR_MEMBER) return for_is_lvalue(as_member(node).object);
+	if (node.kind == NodeKind.EXPR_GROUP) return for_is_lvalue(as_group(node).expr);
+	return false;
+}
+
+pub fn for_usz_type(var arena: &Arena, line: usz, col: usz): *AstNode =>
+	ast_alloc_named(arena, "usz", new_list<*AstNode>(), line, col);
+
+pub fn for_id(var arena: &Arena, name: str, line: usz, col: usz): *AstNode =>
+	alloc_identifier(arena, name, line, col);
+
+pub fn for_num(var arena: &Arena, text: str, line: usz, col: usz): *AstNode =>
+	alloc_literal(arena, LiteralKind.INT, text, line, col);
+
+// `__for_i <cmp> __for_e`
+pub fn for_i_cmp(var arena: &Arena, op: TokenType, line: usz, col: usz): *AstNode =>
+	alloc_binary(arena, op, for_id(arena, "__for_i", line, col), for_id(arena, "__for_e", line, col), line, col);
+
+// `__for_go = <value>;`
+pub fn for_set_go(var arena: &Arena, value: *AstNode, line: usz, col: usz): *AstNode =>
+	alloc_expr_stmt(arena, alloc_assign(arena, for_id(arena, "__for_go", line, col), value, line, col), line, col);
+
+// `__for_i = __for_i <+|-> 1;`
+pub fn for_bump(var arena: &Arena, op: TokenType, line: usz, col: usz): *AstNode =>
+	alloc_expr_stmt(
+		arena,
+		alloc_assign(
+			arena,
+			for_id(arena, "__for_i", line, col),
+			alloc_binary(arena, op, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
+			line, col
+		),
+		line, col
+	);
+
+// `if (__for_up) { <up_stmt> } else { <down_stmt> }`
+pub fn for_by_dir(var arena: &Arena, up_stmt: *AstNode, down_stmt: *AstNode, line: usz, col: usz): *AstNode {
+	var up_stmts = new_list<*AstNode>();
+	up_stmts.add(up_stmt);
+	var down_stmts = new_list<*AstNode>();
+	down_stmts.add(down_stmt);
+	return alloc_if_stmt(
+		arena,
+		for_id(arena, "__for_up", line, col),
+		alloc_block_stmt(arena, up_stmts, line, col),
+		alloc_block_stmt(arena, down_stmts, line, col),
+		line, col
+	);
+}
+
+// Replaces every `continue` belonging to this loop with `{ <step>; continue; }`
+// so `continue` cannot skip the counter update. Bodies of nested loops are left
+// alone: their `continue` targets the inner loop.
+pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>) {
+	if (node == null) return;
+
+	when (node.kind) {
+		NodeKind.STMT_BLOCK -> {
+			val b = as_block_stmt(node);
+			var i: usz = 0;
+			while (i < b.statements.len) {
+				for_inject_step(arena, b.statements.get(i), step);
+				i = i + 1;
+			}
+		}
+		NodeKind.STMT_IF -> {
+			val s = as_if_stmt(node);
+			for_inject_step(arena, s.then_branch, step);
+			for_inject_step(arena, s.else_branch, step);
+		}
+		NodeKind.STMT_WHEN -> {
+			val w = as_when_stmt(node);
+			var i: usz = 0;
+			while (i < w.arms.len) {
+				for_inject_step(arena, w.arms.get(i).body, step);
+				i = i + 1;
+			}
+		}
+		NodeKind.STMT_CONTINUE -> {
+			var stmts = new_list<*AstNode>();
+			var i: usz = 0;
+			while (i < step.len) {
+				stmts.add(step.get(i));
+				i = i + 1;
+			}
+			stmts.add(alloc_continue_stmt(arena, node.line, node.col));
+			val blk = alloc_block_stmt(arena, stmts, node.line, node.col);
+			val n = node as &AstNode;
+			n.kind = NodeKind.STMT_BLOCK;
+			n.data = blk.data;
+		}
+		else -> {}
+	}
+}
+
+// `for (v in <iterable>)`: index over the container's `.data` storage, caching
+// `.len` up front (for `str` that also removes a strlen call per iteration).
+pub fn desugar_for_iterable(
+	var arena: &Arena,
+	pre: &List<*AstNode>,
+	head: &List<*AstNode>,
+	step: &List<*AstNode>,
+	fs: *ForStmt,
+	line: usz,
+	col: usz
+): *AstNode {
+	// val __for_n: usz = <iterable>.len;
+	pre.add(alloc_var_decl(arena, false, "__for_n", for_usz_type(arena, line, col),
+		alloc_member(arena, fs.iterable, "len", line, col), line, col));
+	// var __for_i: usz = 0;
+	pre.add(alloc_var_decl(arena, true, "__for_i", for_usz_type(arena, line, col),
+		for_num(arena, "0UZ", line, col), line, col));
+
+	// val <v> = <iterable>.data[__for_i];
+	head.add(alloc_var_decl(arena, false, fs.var_name, null,
+		alloc_index(arena, alloc_member(arena, fs.iterable, "data", line, col), for_id(arena, "__for_i", line, col), line, col),
+		line, col));
+
+	step.add(for_bump(arena, TokenType.PLUS, line, col));
+
+	// __for_i < __for_n
+	return alloc_binary(arena, TokenType.LESS, for_id(arena, "__for_i", line, col), for_id(arena, "__for_n", line, col), line, col);
+}
+
+// `for (v in a..b)` (closed) / `for (v in a>..<b)` (open, exclusive ends).
+// An unsuffixed end bound gives the counter its type, so `for (i in 0..n)` with
+// `n: usz` iterates unsigned while `for (i in 0..10)` stays i32.
+pub fn desugar_for_range(
+	var arena: &Arena,
+	pre: &List<*AstNode>,
+	head: &List<*AstNode>,
+	step: &List<*AstNode>,
+	fs: *ForStmt,
+	line: usz,
+	col: usz
+): *AstNode {
+	// val __for_e = <end>;
+	pre.add(alloc_var_decl(arena, false, "__for_e", null, fs.range_end, line, col));
+	// var __for_i = __for_e;  then __for_i = <start>; -- the initializer only
+	// exists to give the counter the bound's type.
+	pre.add(alloc_var_decl(arena, true, "__for_i", null, for_id(arena, "__for_e", line, col), line, col));
+	pre.add(alloc_expr_stmt(arena, alloc_assign(arena, for_id(arena, "__for_i", line, col), fs.range_start, line, col), line, col));
+	// val __for_up = __for_i <= __for_e;
+	pre.add(alloc_var_decl(arena, false, "__for_up", null, for_i_cmp(arena, TokenType.LESS_EQUAL, line, col), line, col));
+
+	if (fs.is_open) {
+		// Open range: skip the written start endpoint.
+		pre.add(for_by_dir(arena, for_bump(arena, TokenType.PLUS, line, col), for_bump(arena, TokenType.MINUS, line, col), line, col));
+	}
+
+	// var __for_go = false;  then the direction-dependent entry test.
+	pre.add(alloc_var_decl(arena, true, "__for_go", null, alloc_literal(arena, LiteralKind.BOOL, "false", line, col), line, col));
+	if (fs.is_open) {
+		pre.add(for_by_dir(arena,
+			for_set_go(arena, for_i_cmp(arena, TokenType.LESS, line, col), line, col),
+			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER, line, col), line, col),
+			line, col));
+	} else {
+		pre.add(for_by_dir(arena,
+			for_set_go(arena, for_i_cmp(arena, TokenType.LESS_EQUAL, line, col), line, col),
+			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER_EQUAL, line, col), line, col),
+			line, col));
+	}
+
+	// val <v> = __for_i;
+	head.add(alloc_var_decl(arena, false, fs.var_name, null, for_id(arena, "__for_i", line, col), line, col));
+
+	// Is there another element? Then move the counter (never past the end).
+	if (fs.is_open) {
+		step.add(for_by_dir(arena,
+			for_set_go(arena, alloc_binary(arena, TokenType.LESS,
+				alloc_binary(arena, TokenType.PLUS, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
+				for_id(arena, "__for_e", line, col), line, col), line, col),
+			for_set_go(arena, alloc_binary(arena, TokenType.GREATER,
+				alloc_binary(arena, TokenType.MINUS, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
+				for_id(arena, "__for_e", line, col), line, col), line, col),
+			line, col));
+	} else {
+		step.add(for_by_dir(arena,
+			for_set_go(arena, for_i_cmp(arena, TokenType.LESS, line, col), line, col),
+			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER, line, col), line, col),
+			line, col));
+	}
+	step.add(alloc_if_stmt(arena, for_id(arena, "__for_go", line, col),
+		for_by_dir(arena, for_bump(arena, TokenType.PLUS, line, col), for_bump(arena, TokenType.MINUS, line, col), line, col),
+		null, line, col));
+
+	return for_id(arena, "__for_go", line, col);
+}
+
+// Lowers `node` (a STMT_FOR) in place into a block holding hidden locals plus a
+// while-loop, so every later pass sees an ordinary block.
+pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt) {
+	val line = node.line;
+	val col = node.col;
+
+	var pre = new_list<*AstNode>();
+	var head = new_list<*AstNode>();
+	var step = new_list<*AstNode>();
+	var cond: *AstNode = null;
+
+	if (fs.is_range) cond = desugar_for_range(arena, &pre, &head, &step, fs, line, col);
+	else cond = desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
+
+	// Body: loop variable, the original statements, then the counter update.
+	var body_stmts = new_list<*AstNode>();
+	var i: usz = 0;
+	while (i < head.len) {
+		body_stmts.add(head.get(i));
+		i = i + 1;
+	}
+	if (fs.body != null) {
+		if (fs.body.kind == NodeKind.STMT_BLOCK) {
+			val b = as_block_stmt(fs.body);
+			i = 0;
+			while (i < b.statements.len) {
+				body_stmts.add(b.statements.get(i));
+				i = i + 1;
+			}
+		} else body_stmts.add(fs.body);
+	}
+	i = 0;
+	while (i < step.len) {
+		body_stmts.add(step.get(i));
+		i = i + 1;
+	}
+
+	// A `continue` inside the body must still advance the counter.
+	for_inject_step(arena, fs.body, &step);
+
+	pre.add(alloc_while_stmt(arena, cond, alloc_block_stmt(arena, body_stmts, line, col), line, col));
+
+	val blk = alloc_block_stmt(arena, pre, line, col);
+	val n = node as &AstNode;
+	n.kind = NodeKind.STMT_BLOCK;
+	n.data = blk.data;
 }
 
 // Builds an AST type node for a resolved semantic type, so locals can carry an

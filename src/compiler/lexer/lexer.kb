@@ -40,6 +40,7 @@ pub fn lookup_keyword(text: str) => when (text) {
 	"trait" -> TokenType.KW_TRAIT,
 	"impl" -> TokenType.KW_IMPL,
 	"for" -> TokenType.KW_FOR,
+	"in" -> TokenType.KW_IN,
 	else -> TokenType.IDENTIFIER
 };
 
@@ -225,7 +226,10 @@ impl Lexer {
 
 			when (c) {
 				',' -> return self.make_token(TokenType.COMMA, start_cursor, start_col);
-				'.' -> return self.make_token(TokenType.DOT, start_cursor, start_col);
+				'.' -> {
+					if (self.match('.')) return self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
+					return self.make_token(TokenType.DOT, start_cursor, start_col);
+				}
 				':' -> return self.make_token(TokenType.COLON, start_cursor, start_col);
 				';' -> return self.make_token(TokenType.SEMI_COLON, start_cursor, start_col);
 				'(' -> return self.make_token(TokenType.OPEN_PAREN, start_cursor, start_col);

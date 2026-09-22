@@ -1,0 +1,223 @@
+mod test.bootstrap_for;
+
+use std.io.print;
+use std.io.println;
+use std.collections.list.*;
+
+// ============================================================================
+// `for` loop tests (phase 1: iterable lowering + closed/open ranges)
+// ============================================================================
+
+struct Bundle {
+	pub name: str,
+	pub id: i32
+}
+
+struct Tally {
+	pub fails: i32
+}
+
+fn check(ok: bool, msg: str, var t: &Tally) {
+	if (!ok) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		println(msg);
+	}
+}
+
+// -- ranges (closed, both directions) ----------------------------------------
+
+fn test_range_closed_asc(var t: &Tally) {
+	var sum: i32 = 0;
+	var count: i32 = 0;
+	for (i in 0..4) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 5, "closed 0..4 must run 5 times", t);
+	check(sum == 10, "closed 0..4 sum must be 10", t);
+}
+
+fn test_range_closed_desc(var t: &Tally) {
+	var sum: i32 = 0;
+	var count: i32 = 0;
+	for (i in 4..0) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 5, "closed 4..0 must run 5 times", t);
+	check(sum == 10, "closed 4..0 sum must be 10", t);
+
+	count = 0;
+	for (i in 3..3) count = count + 1;
+	check(count == 1, "closed 3..3 must run exactly once", t);
+}
+
+fn test_range_open(var t: &Tally) {
+	var sum: i32 = 0;
+	var count: i32 = 0;
+	for (i in 0>..<4) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 3, "open 0>..<4 must run 3 times", t);
+	check(sum == 6, "open 0>..<4 sum must be 6", t);
+
+	sum = 0;
+	count = 0;
+	for (i in 4>..<0) {
+		sum = sum + i;
+		count = count + 1;
+	}
+	check(count == 3, "open 4>..<0 must run 3 times", t);
+	check(sum == 6, "open 4>..<0 sum must be 6", t);
+
+	count = 0;
+	for (i in 1>..<2) count = count + 1;
+	check(count == 0, "open 1>..<2 must be empty", t);
+
+	count = 0;
+	for (i in 2>..<1) count = count + 1;
+	check(count == 0, "open 2>..<1 must be empty", t);
+}
+
+// The counter takes the type of the end bound: `n: usz` must make `i` a usz.
+fn test_range_bound_type(var t: &Tally, n: usz) {
+	var total: usz = 0;
+	for (i in 0..n) {
+		val same: &usz = &i;
+		total = total + i;
+	}
+	check(total == 15UZ, "0..5(usz) sum must be 15", t);
+}
+
+// -- iterables ----------------------------------------------------------------
+
+fn test_iter_list(var t: &Tally) {
+	var nums = new_list<i32>();
+	nums.add(10);
+	nums.add(20);
+	nums.add(30);
+
+	var sum: i32 = 0;
+	var count: i32 = 0;
+	for (x in nums) {
+		sum = sum + x;
+		count = count + 1;
+	}
+	check(count == 3, "list iteration must run 3 times", t);
+	check(sum == 60, "list iteration sum must be 60", t);
+
+	// The list is borrowed, not moved: it must stay usable after the loop.
+	check(nums.len == 3UZ, "list must keep its length after the loop", t);
+	nums.add(40);
+	check(nums.len == 4UZ, "list must still be appendable after the loop", t);
+	nums.delete();
+}
+
+fn test_iter_str(var t: &Tally) {
+	val s = "hello";
+	var count: i32 = 0;
+	var hits: i32 = 0;
+	for (c in s) {
+		count = count + 1;
+		if (c == 'e') hits = hits + 1;
+		if (c == 'o') hits = hits + 1;
+	}
+	check(count == 5, "str iteration must run 5 times", t);
+	check(hits == 2, "str iteration must find 'e' and 'o'", t);
+}
+
+fn test_iter_member(var t: &Tally) {
+	val box = Bundle("abc", 7);
+	var count: i32 = 0;
+	var last: char = '?';
+	for (c in box.name) {
+		count = count + 1;
+		last = c;
+	}
+	check(count == 3, "member str iteration must run 3 times", t);
+	check(last == 'c', "member str iteration must see the last char", t);
+}
+
+fn test_nested(var t: &Tally) {
+	var count: i32 = 0;
+	for (i in 0..2) {
+		for (j in 0..2) count = count + 1;
+	}
+	check(count == 9, "nested for must run 9 times", t);
+}
+
+// `continue` must not skip the counter update; the loop must still terminate.
+fn test_break_continue(var t: &Tally) {
+	var count: i32 = 0;
+	for (i in 0..10) {
+		if (i == 3) continue;
+		if (i == 7) break;
+		count = count + 1;
+	}
+	check(count == 6, "continue must still advance the counter", t);
+
+	// `continue` inside a `when` arm
+	var sum: i32 = 0;
+	for (i in 0..6) {
+		when (i) {
+			1 -> continue;
+			2, 3 -> sum = sum + 10;
+			else -> sum = sum + 1;
+		}
+	}
+	check(sum == 24, "continue in a when arm must still advance the counter", t);
+}
+
+// The loop variable is read-only and fresh on every iteration.
+fn test_loop_var_is_fresh(var t: &Tally) {
+	var sum = new_list<i32>();
+	for (i in 0..3) sum.add(i);
+	val a = sum.get(0);
+	val b = sum.get(2);
+	check(a == 0 && b == 2, "loop variable must be fresh per iteration", t);
+	sum.delete();
+}
+
+// A generic function body containing `for` (exercises monomorphization + clone).
+fn count_items<T>(xs: List<T>): i32 {
+	var n: i32 = 0;
+	for (x in xs) n = n + 1;
+	return n;
+}
+
+fn test_generic_for(var t: &Tally) {
+	var nums = new_list<i32>();
+	nums.add(5);
+	nums.add(6);
+	val n = count_items<i32>(nums);
+	check(n == 2, "generic function with for must count 2", t);
+	nums.delete();
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap for-loop tests...");
+
+	var t = Tally(0);
+
+	test_range_closed_asc(&t);
+	test_range_closed_desc(&t);
+	test_range_open(&t);
+	test_range_bound_type(&t, 5UZ);
+	test_iter_list(&t);
+	test_iter_str(&t);
+	test_iter_member(&t);
+	test_nested(&t);
+	test_break_continue(&t);
+	test_loop_var_is_fresh(&t);
+	test_generic_for(&t);
+
+	if (t.fails != 0) {
+		println("[FAILED] Bootstrap for-loop tests");
+		return 1;
+	}
+
+	println("[ALL PASSED] Bootstrap for-loop tests passed successfully!");
+	return 0;
+}

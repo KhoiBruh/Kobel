@@ -279,6 +279,23 @@ pub fn alloc_while_stmt(
 	return alloc_node(arena, NodeKind.STMT_WHILE, line, col, ptr as *u8);
 }
 
+pub fn alloc_for_stmt(
+	var arena: &Arena,
+	var_name: str,
+	is_range: bool,
+	is_open: bool,
+	iterable: *AstNode,
+	range_start: *AstNode,
+	range_end: *AstNode,
+	body: *AstNode,
+	line: usz,
+	col: usz
+): *AstNode {
+	val ptr = arena_alloc<ForStmt>(arena);
+	*ptr = ForStmt(var_name, is_range, is_open, iterable, range_start, range_end, body);
+	return alloc_node(arena, NodeKind.STMT_FOR, line, col, ptr as *u8);
+}
+
 pub fn alloc_return_stmt(
 	var arena: &Arena,
 	value: *AstNode,
@@ -502,6 +519,7 @@ pub fn as_expr_stmt(node: *AstNode): *ExprStmt => node.data as *ExprStmt;
 pub fn as_var_decl(node: *AstNode): *VarDeclStmt => node.data as *VarDeclStmt;
 pub fn as_if_stmt(node: *AstNode): *IfStmt => node.data as *IfStmt;
 pub fn as_while_stmt(node: *AstNode): *WhileStmt => node.data as *WhileStmt;
+pub fn as_for_stmt(node: *AstNode): *ForStmt => node.data as *ForStmt;
 pub fn as_return_stmt(node: *AstNode): *ReturnStmt => node.data as *ReturnStmt;
 pub fn as_break_stmt(node: *AstNode): *BreakStmt => node.data as *BreakStmt;
 pub fn as_continue_stmt(node: *AstNode): *ContinueStmt => node.data as *ContinueStmt;

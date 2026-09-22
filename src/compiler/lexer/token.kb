@@ -36,6 +36,7 @@ pub enum TokenType {
 	OR_OR,         // ||
 	FAT_ARROW,     // =>
 	ARROW,         // ->
+	DOT_DOT,       // ..
 
 	// Literals
 	CHAR,
@@ -68,6 +69,7 @@ pub enum TokenType {
 	KW_TRAIT,
 	KW_IMPL,
 	KW_FOR,
+	KW_IN,
 
 	// Specials
 	END_OF_FILE,
