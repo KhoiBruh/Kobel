@@ -129,8 +129,9 @@ fn main(argc: i32, argv: &*char): i32 {
 	var loader = new_module_loader(str_dir_of(input_path), extra_roots);
 
 	// String interpolation lowers to the `ToStr` trait, whose built-in
-	// implementations live in std.fmt. Load it whenever it is available so the
-	// primitive methods exist even when the input does not import std.fmt.
+	// implementations live under std/traits (reachable through std.fmt). Load
+	// it whenever it is available so the primitive methods exist even when the
+	// input does not import the formatting module.
 	if (find_module(&loader, "std.fmt").found) ensure_module(&loader, "std.fmt");
 
 	val prog = load_program(&loader, input_path, src);

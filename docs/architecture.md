@@ -148,7 +148,9 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `io.kb` | `print/println`, `read_file/write_file`; handle stdio là `*none` (opaque `FILE*`) |
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
-| `fmt.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str` và các kiểu số nguyên; nền của nội suy `${...}` |
+| `str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
+| `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str` và các kiểu số nguyên; nền của nội suy `${...}` |
+| `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
 | `collections/list.kb` | `List<T>` (generic) + `new_list<T>` |
 | `collections/hash_map.kb` | `HashMap<V>` |
 | `collections/string_builder.kb` | `StringBuilder` |
@@ -291,9 +293,10 @@ phân giải về method của struct ngay ở sema.
   `<prim>_m(x, args)` (receiver theo giá trị, tự `*` nếu receiver là con trỏ).
 - `check_impl` nhận diện impl nguyên thuỷ qua `struct_name == ""` và kiểm body bằng `find_prim_method_c`.
 
-Nền tảng này nuôi **trait `ToStr`** (`lib/std/fmt.kb`). Driver (`src/main.kb`) **luôn nạp `std.fmt`**
-(nếu tìm thấy) để impl `ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay
-không — nhờ vậy nội suy `${x}` hạ được thành `x.to_str()`.
+Nền tảng này nuôi **trait `ToStr`** (`lib/std/traits/to_str.kb`, gom qua umbrella `lib/std/fmt.kb`).
+Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.traits.to_str` — để impl
+`ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay không; nhờ vậy nội suy
+`${x}` hạ được thành `x.to_str()`.
 
 ⚠ Hạn chế: chưa có `dyn`/trait object; **generic impl của trait** (`impl Trait for List<T>`) bị bỏ qua
 (`clone_impl` xoá `trait_name`); hợp đồng so theo **tên method** (chưa so kiểu chữ ký); chưa có `ToStr`

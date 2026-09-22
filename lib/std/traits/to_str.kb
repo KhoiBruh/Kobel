@@ -1,0 +1,113 @@
+mod std.traits.to_str;
+
+use std.mem.alloc.raw_alloc;
+use std.str.str_from_bytes;
+
+// ============================================================================
+// std.traits.to_str - the `ToStr` trait
+//
+// `ToStr` is the trait behind string interpolation and `x.to_str()`. It comes
+// with implementations for the built-in value types; user structs may implement
+// it too (import this module and write `impl ToStr for MyStruct`).
+//
+// One file per trait keeps std/traits/ organized as more traits are added.
+// ============================================================================
+
+pub trait ToStr {
+	fn to_str(val self): str;
+}
+
+// --- helpers ---------------------------------------------------------------
+
+// Decimal string of an unsigned 64-bit value. The digit count is computed
+// first so the digits can be written forward into an exactly sized buffer.
+fn fmt_u64(n0: u64): str {
+	var n = n0;
+	var digits: usz = 1;
+	var probe = n;
+	while (probe >= 10) {
+		probe = probe / 10;
+		digits = digits + 1;
+	}
+
+	val buf = raw_alloc(digits + 1);
+	buf[digits] = 0;
+	var i = digits;
+	while (i > 0) {
+		i = i - 1;
+		buf[i] = (48UL + (n % 10)) as u8;
+		n = n / 10;
+	}
+	return str_from_bytes(buf, digits);
+}
+
+fn fmt_i64(v: i64): str {
+	if (v < 0) return "-" + fmt_u64((0 - v) as u64);
+	return fmt_u64(v as u64);
+}
+
+fn fmt_char(c: char): str {
+	val buf = raw_alloc(2);
+	buf[0] = c as u8;
+	buf[1] = 0;
+	return str_from_bytes(buf, 1);
+}
+
+fn fmt_bool(b: bool): str {
+	if (b) return "true";
+	return "false";
+}
+
+// --- built-in implementations ----------------------------------------------
+
+impl ToStr for bool {
+	fn to_str(val self): str => fmt_bool(self);
+}
+
+impl ToStr for char {
+	fn to_str(val self): str => fmt_char(self);
+}
+
+impl ToStr for str {
+	fn to_str(val self): str => self;
+}
+
+impl ToStr for i8 {
+	fn to_str(val self): str => fmt_i64(self as i64);
+}
+
+impl ToStr for i16 {
+	fn to_str(val self): str => fmt_i64(self as i64);
+}
+
+impl ToStr for i32 {
+	fn to_str(val self): str => fmt_i64(self as i64);
+}
+
+impl ToStr for i64 {
+	fn to_str(val self): str => fmt_i64(self);
+}
+
+impl ToStr for isz {
+	fn to_str(val self): str => fmt_i64(self as i64);
+}
+
+impl ToStr for u8 {
+	fn to_str(val self): str => fmt_u64(self as u64);
+}
+
+impl ToStr for u16 {
+	fn to_str(val self): str => fmt_u64(self as u64);
+}
+
+impl ToStr for u32 {
+	fn to_str(val self): str => fmt_u64(self as u64);
+}
+
+impl ToStr for u64 {
+	fn to_str(val self): str => fmt_u64(self);
+}
+
+impl ToStr for usz {
+	fn to_str(val self): str => fmt_u64(self as u64);
+}

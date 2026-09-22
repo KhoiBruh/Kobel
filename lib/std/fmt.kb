@@ -1,136 +1,14 @@
 mod std.fmt;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_release;
-
 // ============================================================================
-// std.fmt - value formatting
+// std.fmt - formatting umbrella
 //
-// `ToStr` is the trait behind string interpolation and `x.to_str()`. It is
-// implemented here for the built-in value types; user structs may implement it
-// too (import this module and write `impl ToStr for MyStruct`).
+// One trait per file under std/traits/, so that directory can grow as more
+// traits appear. This module is the single "formatting" entry point: importing
+// it pulls in the built-in implementations of every formatting trait.
 //
-// Floats (`f32`/`f64`) are intentionally left out: formatting them without libc
-// would need a full float printer, so interpolation keeps a dedicated helper
-// for them (see docs/architecture.md, section 6.6).
+//   use std.fmt.*;              // everything below
+//   use std.traits.to_str.*;    // just the ToStr trait
 // ============================================================================
 
-// Raw layout of a `str` value ({ data, len }); the same trick as util.strutil.
-// Building strings from byte buffers keeps this module independent of how the
-// backend represents `str`.
-struct FmtStrRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
-}
-
-fn str_from_bytes(buf: &u8, len: usz): str {
-	val raw_mem = raw_alloc(24);
-	val r = raw_mem as &FmtStrRaw;
-	r.data = buf as *char;
-	r.len = len;
-	r.cap = len + 1;
-	val sp: *str = r as *str;
-	val res: str = *sp;
-	raw_release(raw_mem);
-	return res;
-}
-
-pub trait ToStr {
-	fn to_str(val self): str;
-}
-
-// --- helpers ---------------------------------------------------------------
-
-// Decimal string of an unsigned 64-bit value. The digit count is computed
-// first so the digits can be written forward into an exactly sized buffer.
-fn fmt_u64(n0: u64): str {
-	var n = n0;
-	var digits: usz = 1;
-	var probe = n;
-	while (probe >= 10) {
-		probe = probe / 10;
-		digits = digits + 1;
-	}
-
-	val buf = raw_alloc(digits + 1);
-	buf[digits] = 0;
-	var i = digits;
-	while (i > 0) {
-		i = i - 1;
-		buf[i] = (48UL + (n % 10)) as u8;
-		n = n / 10;
-	}
-	return str_from_bytes(buf, digits);
-}
-
-fn fmt_i64(v: i64): str {
-	if (v < 0) return "-" + fmt_u64((0 - v) as u64);
-	return fmt_u64(v as u64);
-}
-
-fn fmt_char(c: char): str {
-	val buf = raw_alloc(2);
-	buf[0] = c as u8;
-	buf[1] = 0;
-	return str_from_bytes(buf, 1);
-}
-
-fn fmt_bool(b: bool): str {
-	if (b) return "true";
-	return "false";
-}
-
-// --- built-in implementations ----------------------------------------------
-
-impl ToStr for bool {
-	fn to_str(val self): str => fmt_bool(self);
-}
-
-impl ToStr for char {
-	fn to_str(val self): str => fmt_char(self);
-}
-
-impl ToStr for str {
-	fn to_str(val self): str => self;
-}
-
-impl ToStr for i8 {
-	fn to_str(val self): str => fmt_i64(self as i64);
-}
-
-impl ToStr for i16 {
-	fn to_str(val self): str => fmt_i64(self as i64);
-}
-
-impl ToStr for i32 {
-	fn to_str(val self): str => fmt_i64(self as i64);
-}
-
-impl ToStr for i64 {
-	fn to_str(val self): str => fmt_i64(self);
-}
-
-impl ToStr for isz {
-	fn to_str(val self): str => fmt_i64(self as i64);
-}
-
-impl ToStr for u8 {
-	fn to_str(val self): str => fmt_u64(self as u64);
-}
-
-impl ToStr for u16 {
-	fn to_str(val self): str => fmt_u64(self as u64);
-}
-
-impl ToStr for u32 {
-	fn to_str(val self): str => fmt_u64(self as u64);
-}
-
-impl ToStr for u64 {
-	fn to_str(val self): str => fmt_u64(self);
-}
-
-impl ToStr for usz {
-	fn to_str(val self): str => fmt_u64(self as u64);
-}
+use std.traits.to_str.*;

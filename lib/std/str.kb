@@ -1,0 +1,32 @@
+mod std.str;
+
+use std.mem.alloc.raw_alloc;
+use std.mem.alloc.raw_release;
+
+// ============================================================================
+// std.str - low-level `str` construction
+//
+// The shared base for every formatter in std (traits/, etc.): it turns a heap
+// byte buffer into a `str` value without relying on how the backend represents
+// `str`, so a formatter only has to fill a buffer.
+// ============================================================================
+
+// Raw layout of a `str` value ({ data, len }); the same trick as util.strutil.
+struct StrRaw {
+	pub data: *char,
+	pub len: usz,
+	pub cap: usz
+}
+
+// Wraps a heap byte buffer (already NUL terminated) into a `str` value.
+pub fn str_from_bytes(buf: &u8, len: usz): str {
+	val raw_mem = raw_alloc(24);
+	val r = raw_mem as &StrRaw;
+	r.data = buf as *char;
+	r.len = len;
+	r.cap = len + 1;
+	val sp: *str = r as *str;
+	val res: str = *sp;
+	raw_release(raw_mem);
+	return res;
+}

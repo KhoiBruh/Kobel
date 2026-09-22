@@ -62,7 +62,7 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInf
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
-typedef struct std__fmt__FmtStrRaw std__fmt__FmtStrRaw;
+typedef struct std__str__StrRaw std__str__StrRaw;
 typedef struct std__io__StringRaw std__io__StringRaw;
 typedef struct util__strutil__StrRaw util__strutil__StrRaw;
 typedef int32_t compiler__lexer__token__TokenType;
@@ -297,7 +297,7 @@ struct std__collections__list__List_compiler__loader__loader__LoadedModule {
     size_t cap;
 };
 
-struct std__fmt__FmtStrRaw {
+struct std__str__StrRaw {
     const char* data;
     size_t len;
     size_t cap;
@@ -1188,11 +1188,11 @@ std__collections__list__List_compiler__loader__loader__LoadedModule std__collect
 uint8_t* std__mem__alloc__raw_alloc(size_t size);
 uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size);
 void std__mem__alloc__raw_release(uint8_t* ptr);
-const char* std__fmt__str_from_bytes(uint8_t* buf, size_t len);
-const char* std__fmt__fmt_u64(uint64_t n0);
-const char* std__fmt__fmt_i64(int64_t v);
-const char* std__fmt__fmt_char(char c);
-const char* std__fmt__fmt_bool(bool b);
+const char* std__str__str_from_bytes(uint8_t* buf, size_t len);
+const char* std__traits__to_str__fmt_u64(uint64_t n0);
+const char* std__traits__to_str__fmt_i64(int64_t v);
+const char* std__traits__to_str__fmt_char(char c);
+const char* std__traits__to_str__fmt_bool(bool b);
 const char* bool_to_str(bool self);
 const char* char_to_str(char self);
 const char* str_to_str(const char* self);
@@ -3685,9 +3685,9 @@ void std__mem__alloc__raw_release(uint8_t* ptr) {
     free(ptr);
 }
 
-const char* std__fmt__str_from_bytes(uint8_t* buf, size_t len) {
+const char* std__str__str_from_bytes(uint8_t* buf, size_t len) {
     uint8_t* raw_mem = std__mem__alloc__raw_alloc(24);
-    std__fmt__FmtStrRaw* r = ((std__fmt__FmtStrRaw*)raw_mem);
+    std__str__StrRaw* r = ((std__str__StrRaw*)raw_mem);
     (r)->data = ((const char*)buf);
     (r)->len = len;
     (r)->cap = (len + 1);
@@ -3697,7 +3697,7 @@ const char* std__fmt__str_from_bytes(uint8_t* buf, size_t len) {
     return res;
 }
 
-const char* std__fmt__fmt_u64(uint64_t n0) {
+const char* std__traits__to_str__fmt_u64(uint64_t n0) {
     uint64_t n = n0;
     size_t digits = 1;
     uint64_t probe = n;
@@ -3717,24 +3717,24 @@ const char* std__fmt__fmt_u64(uint64_t n0) {
             n = (n / 10);
         }
     }
-    return std__fmt__str_from_bytes(buf, digits);
+    return std__str__str_from_bytes(buf, digits);
 }
 
-const char* std__fmt__fmt_i64(int64_t v) {
+const char* std__traits__to_str__fmt_i64(int64_t v) {
     if ((v < 0)) {
-        return kobel_concat("-", std__fmt__fmt_u64(((uint64_t)((0 - v)))));
+        return kobel_concat("-", std__traits__to_str__fmt_u64(((uint64_t)((0 - v)))));
     }
-    return std__fmt__fmt_u64(((uint64_t)v));
+    return std__traits__to_str__fmt_u64(((uint64_t)v));
 }
 
-const char* std__fmt__fmt_char(char c) {
+const char* std__traits__to_str__fmt_char(char c) {
     uint8_t* buf = std__mem__alloc__raw_alloc(2);
     buf[0] = ((uint8_t)c);
     buf[1] = 0;
-    return std__fmt__str_from_bytes(buf, 1);
+    return std__str__str_from_bytes(buf, 1);
 }
 
-const char* std__fmt__fmt_bool(bool b) {
+const char* std__traits__to_str__fmt_bool(bool b) {
     if (b) {
         return "true";
     }
@@ -3742,11 +3742,11 @@ const char* std__fmt__fmt_bool(bool b) {
 }
 
 const char* bool_to_str(bool self) {
-    return std__fmt__fmt_bool(self);
+    return std__traits__to_str__fmt_bool(self);
 }
 
 const char* char_to_str(char self) {
-    return std__fmt__fmt_char(self);
+    return std__traits__to_str__fmt_char(self);
 }
 
 const char* str_to_str(const char* self) {
@@ -3754,43 +3754,43 @@ const char* str_to_str(const char* self) {
 }
 
 const char* i8_to_str(int8_t self) {
-    return std__fmt__fmt_i64(((int64_t)self));
+    return std__traits__to_str__fmt_i64(((int64_t)self));
 }
 
 const char* i16_to_str(int16_t self) {
-    return std__fmt__fmt_i64(((int64_t)self));
+    return std__traits__to_str__fmt_i64(((int64_t)self));
 }
 
 const char* i32_to_str(int32_t self) {
-    return std__fmt__fmt_i64(((int64_t)self));
+    return std__traits__to_str__fmt_i64(((int64_t)self));
 }
 
 const char* i64_to_str(int64_t self) {
-    return std__fmt__fmt_i64(self);
+    return std__traits__to_str__fmt_i64(self);
 }
 
 const char* isz_to_str(intptr_t self) {
-    return std__fmt__fmt_i64(((int64_t)self));
+    return std__traits__to_str__fmt_i64(((int64_t)self));
 }
 
 const char* u8_to_str(uint8_t self) {
-    return std__fmt__fmt_u64(((uint64_t)self));
+    return std__traits__to_str__fmt_u64(((uint64_t)self));
 }
 
 const char* u16_to_str(uint16_t self) {
-    return std__fmt__fmt_u64(((uint64_t)self));
+    return std__traits__to_str__fmt_u64(((uint64_t)self));
 }
 
 const char* u32_to_str(uint32_t self) {
-    return std__fmt__fmt_u64(((uint64_t)self));
+    return std__traits__to_str__fmt_u64(((uint64_t)self));
 }
 
 const char* u64_to_str(uint64_t self) {
-    return std__fmt__fmt_u64(self);
+    return std__traits__to_str__fmt_u64(self);
 }
 
 const char* usz_to_str(size_t self) {
-    return std__fmt__fmt_u64(((uint64_t)self));
+    return std__traits__to_str__fmt_u64(((uint64_t)self));
 }
 
 void std__io__print(const char* s) {
