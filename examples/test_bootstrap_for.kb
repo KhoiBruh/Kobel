@@ -4,6 +4,7 @@ use std.io.print;
 use std.io.println;
 use std.collections.list.*;
 use std.traits.iterable.*;
+use std.collections.string_builder.*;
 
 // ============================================================================
 // `for` loop tests (phase 1: iterable lowering + closed/open ranges)
@@ -293,6 +294,59 @@ fn test_iterable_trait(var t: &Tally) {
 	check(hits == 0, "Iterable: empty container runs zero times", t);
 }
 
+// -- Iterable: std containers and non-scalar elements ------------------------
+
+fn test_iter_string_builder(var t: &Tally) {
+	var sb = StringBuilder();
+	sb.append_str("abc");
+	sb.append_i32(7);
+
+	var count: i32 = 0;
+	var first: char = '?';
+	var last: char = '?';
+	for (c in sb) {
+		if (count == 0) first = c;
+		last = c;
+		count = count + 1;
+	}
+	check(count == 4, "StringBuilder iteration must run len times", t);
+	check(first == 'a', "StringBuilder iteration must start at the first char", t);
+	check(last == '7', "StringBuilder iteration must see appended digits", t);
+	sb.delete();
+}
+
+fn test_iter_struct_elements(var t: &Tally) {
+	var items = List<Bundle>();
+	items.add(Bundle("one", 1));
+	items.add(Bundle("two", 2));
+
+	var ids: i32 = 0;
+	var count: i32 = 0;
+	for (b in items) {
+		ids = ids + b.id;
+		count = count + 1;
+	}
+	check(count == 2, "List<struct> iteration must run twice", t);
+	check(ids == 3, "List<struct> iteration must yield whole elements", t);
+	items.delete();
+}
+
+// A `for` over a container that lives in a field goes through the same path.
+struct Bag {
+	pub items: List<i32>
+}
+
+fn test_iter_list_field(var t: &Tally) {
+	var bag = Bag(List<i32>());
+	bag.items.add(4);
+	bag.items.add(5);
+
+	var sum: i32 = 0;
+	for (n in bag.items) sum = sum + n;
+	check(sum == 9, "iteration over a List field", t);
+	bag.items.delete();
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap for-loop tests...");
 
@@ -313,6 +367,9 @@ fn main(): i32 {
 	test_loop_var_is_fresh(&t);
 	test_generic_for(&t);
 	test_iterable_trait(&t);
+	test_iter_string_builder(&t);
+	test_iter_struct_elements(&t);
+	test_iter_list_field(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap for-loop tests");

@@ -155,7 +155,7 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
 | `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl `New`); impl `Iterable` nên `for (x in list)` chạy |
 | `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (impl `New`) |
-| `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (impl `New`) |
+| `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (impl `New`); impl `Iterable` nên `for (c in sb)` duyệt từng ký tự |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
 | `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (impl `New`) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
@@ -456,9 +456,12 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 - **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không
   tìm thấy `lib/std/fmt.kb`, nội suy hố khác `str` sẽ báo lỗi biên dịch. **Literal số thực** (`1.5`)
   đã có; `ToStr` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).
-- **`for`**: chỉ duyệt lvalue; trait `Iterable` đã có nên container **không** cần mảng phẳng, nhưng
-  `HashMap` **chưa** impl `Iterable` (kho lưu thưa ⇒ cần cursor, hoặc `for ((k, v) in map)` cần
-  destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
+- **`for`**: chỉ duyệt lvalue; trait `Iterable` đã có nên container **không** cần mảng phẳng —
+  `List<T>` (kể cả phần tử là struct) và `StringBuilder` (theo ký tự) đã impl. `str` / `[T; N]` đi
+  đường `.len`/`.data` dựng sẵn (mảng cố định hiện **chưa tạo được giá trị**: không có array literal và
+  `TYPE_ARRAY` emit thành `T*`, xem mục array literal ở trên). `HashMap` **chưa** impl `Iterable` (kho
+  lưu thưa ⇒ cần cursor, hoặc `for ((k, v) in map)` cần destructuring). Dạng nửa mở `a..<b` **đã có**,
+  nên idiom index
   `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm
   cần index cho việc khác (mảng song song, dấu phân cách, `set(i, …)`) hoặc con trỏ ghi sống qua
   vòng — mỗi vòng đều có lý do giữ lại, xem ghi chú ⚠️ ở §6.2.

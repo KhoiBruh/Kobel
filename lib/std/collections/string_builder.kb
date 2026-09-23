@@ -2,6 +2,7 @@ mod std.collections.string_builder;
 
 use std.mem.alloc.*;
 use std.traits.new.New;
+use std.traits.iterable.Iterable;
 
 struct StringRaw {
 	data: *char,
@@ -25,6 +26,13 @@ impl New for StringBuilder {
 		val raw = raw_alloc(init_cap);
 		return Self(raw, 0, init_cap);
 	}
+}
+
+// `for (c in sb)` walks the built characters.
+impl Iterable for StringBuilder {
+	pub fn count(val self): usz => self.len;
+
+	pub fn at(val self, i: usz): char => self.buf[i] as char;
 }
 
 impl StringBuilder {
