@@ -40,6 +40,7 @@ use compiler.ast.builder.alloc_var_decl;
 use compiler.ast.builder.alloc_if_stmt;
 use compiler.ast.builder.alloc_return_stmt;
 use compiler.ast.builder.alloc_fn_decl;
+use compiler.ast.builder.alloc_program;
 
 use compiler.ast.builder.as_literal;
 use compiler.ast.builder.as_identifier;
@@ -52,6 +53,8 @@ use compiler.ast.builder.as_var_decl;
 use compiler.ast.builder.as_if_stmt;
 use compiler.ast.builder.as_return_stmt;
 use compiler.ast.builder.as_fn_decl;
+use compiler.ast.builder.as_program;
+use compiler.ast.decl.Program;
 
 use compiler.lexer.token.TokenType;
 use std.collections.list.List;
@@ -216,6 +219,33 @@ fn test_declaration_nodes(): bool {
 	return true;
 }
 
+fn test_program_iterable(): bool {
+	var arena = Arena();
+	var decls = List<*AstNode>();
+	val d1 = alloc_fn_decl(&arena, "f1", List<GenericParam>(), List<Param>(), null, null, true, 1UZ, 1UZ);
+	val d2 = alloc_fn_decl(&arena, "f2", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
+	decls.add(d1);
+	decls.add(d2);
+	val prog_node = alloc_program(&arena, decls, 1UZ, 1UZ);
+	val prog = as_program(prog_node);
+
+	var count: usz = 0;
+	for (d in prog) {
+		count = count + 1UZ;
+	}
+	if (count != 2UZ) return false;
+
+	val p_val = *prog;
+	var count2: usz = 0;
+	for (d in p_val) {
+		count2 = count2 + 1UZ;
+	}
+	if (count2 != 2UZ) return false;
+
+	arena.delete();
+	return true;
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap AST tests...");
 
@@ -235,6 +265,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_declaration_nodes");
+
+	if (!test_program_iterable()) {
+		println("  [FAIL] test_program_iterable");
+		return 1;
+	}
+	println("  [PASS] test_program_iterable");
 
 	println("[ALL PASSED] Bootstrap AST passed all tests successfully!");
 	return 0;

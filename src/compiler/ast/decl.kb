@@ -2,6 +2,7 @@ mod compiler.ast.decl;
 
 use compiler.ast.node.AstNode;
 use std.collections.list.List;
+use std.traits.iterable.Iterable;
 
 pub struct ModuleDecl {
 	pub path: List<str>,
@@ -93,4 +94,14 @@ pub struct ExternBlock {
 
 pub struct Program {
 	pub declarations: List<*AstNode>
+}
+
+impl Iterable for ExternBlock {
+	pub fn count(val self): usz => self.declarations.len;
+	pub fn at(val self, i: usz): *AstNode => self.declarations.get(i);
+}
+
+impl Iterable for Program {
+	pub fn count(val self): usz => self.declarations.len;
+	pub fn at(val self, i: usz): *AstNode => self.declarations.get(i);
 }

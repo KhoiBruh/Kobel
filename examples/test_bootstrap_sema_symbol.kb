@@ -12,6 +12,7 @@ use compiler.sema.types.type_bool;
 use compiler.sema.symbol.SymbolKind;
 use compiler.sema.symbol.Symbol;
 use compiler.sema.symbol.Scope;
+use compiler.sema.symbol.ModuleScope;
 use compiler.sema.symbol.SymbolTable;
 use compiler.sema.symbol.enter_scope;
 use compiler.sema.symbol.exit_scope;
@@ -59,6 +60,23 @@ fn test_global_scope() {
 
 	val not_found = lookup(&symtab, "unknown_var");
 	assert_true(not_found == null, "Non-existent symbol must return null");
+
+	// Test iterating over current_scope (Scope implements Iterable)
+	var scope_sym_count: usz = 0;
+	for (s in symtab.current_scope) {
+		scope_sym_count = scope_sym_count + 1UZ;
+	}
+	assert_true(scope_sym_count == 1UZ, "Scope must be iterable via for loop");
+
+	// Test iterating over ModuleScope (ModuleScope implements Iterable)
+	var ms = ModuleScope("my_mod");
+	val sym_m = Symbol("m_sym", "m_sym", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ);
+	ms.symbols.add(&sym_m);
+	var ms_count: usz = 0;
+	for (s in ms) {
+		ms_count = ms_count + 1UZ;
+	}
+	assert_true(ms_count == 1UZ, "ModuleScope must be iterable via for loop");
 
 	println("  [PASS] test_global_scope");
 }

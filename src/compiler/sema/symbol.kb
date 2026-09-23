@@ -9,6 +9,7 @@ use compiler.ast.node.AstNode;
 
 use std.collections.list.*;
 use std.mem.arena.*;
+use std.traits.iterable.Iterable;
 
 // ============================================================================
 // SymbolKind Enumeration
@@ -50,6 +51,11 @@ pub struct Scope {
 	pub is_fn_boundary: bool
 }
 
+impl Iterable for Scope {
+	pub fn count(val self): usz => self.symbols.len;
+	pub fn at(val self, i: usz): *Symbol => self.symbols.get(i);
+}
+
 // ============================================================================
 // Module Scope & Imports
 // ============================================================================
@@ -61,6 +67,11 @@ pub struct ModuleScope {
 
 impl ModuleScope {
 	pub fn new(name: str): ModuleScope => Self(name, List<*Symbol>());
+}
+
+impl Iterable for ModuleScope {
+	pub fn count(val self): usz => self.symbols.len;
+	pub fn at(val self, i: usz): *Symbol => self.symbols.get(i);
 }
 
 // A `use` that resolved to a symbol of another module.

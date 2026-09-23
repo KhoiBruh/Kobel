@@ -216,15 +216,16 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `arr.len` / `arr.size` (`arr: [T; N]`) | literal `usz` (kích thước biết lúc biên dịch) |
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
 | `for (x in seq)` — `seq` là `str`/`[T; N]`/struct có `.len`+`.data` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
-| `for (x in seq)` — kiểu của `seq` có `impl Iterable` | `val __for_n = seq.count(); var __for_i = 0UZ; while (__for_i < __for_n) { val x = seq.at(__for_i); …; __for_i += 1 }` — phần tử lấy từ trait, container **không** cần là mảng phẳng |
+| `for (x in seq)` — kiểu của `seq` (hoặc con trỏ `*T`/`&T`) có `impl Iterable` | `val __for_n = seq.count(); var __for_i = 0UZ; while (__for_i < __for_n) { val x = seq.at(__for_i); …; __for_i += 1 }` — phần tử lấy từ trait, container **không** cần là mảng phẳng; hỗ trợ cả container theo giá trị lẫn con trỏ |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
 | `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi. Kiểu không có impl `ToStr` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
 
-`for` có **hai đường**: nếu kiểu của đối tượng duyệt có `impl Iterable` thì đi qua trait
-(`count()`/`at(i)`, phần tử lấy kiểu từ `at`); ngược lại dùng `.len`/`.data` dựng sẵn (cho `str`,
-`[T; N]`, và struct nào có đúng hai field đó). `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó
-thành block + `while` ngay khi kiểm tra, nên backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa
-của pha 1:
+`for` có **hai đường**: nếu kiểu của đối tượng duyệt (hoặc kiểu con trỏ trỏ tới nó) có `impl Iterable`
+thì đi qua trait (`count()`/`at(i)`, phần tử lấy kiểu từ `at`; các container danh sách định nghĩa của
+compiler như `Program`, `ExternBlock`, `Scope`, `ModuleScope` đều đã `impl Iterable`); ngược lại dùng
+`.len`/`.data` dựng sẵn (cho `str`, `[T; N]`, và struct nào có đúng hai field đó). `STMT_FOR` **không**
+đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên backend C không cần biết
+gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
 
 - **Chỉ nhận lvalue** làm đối tượng duyệt (`x in self.items` được, `x in f()` không): thân vòng
   dùng lại biểu thức đó mỗi vòng, nên biểu thức tạm sẽ treo còn lời gọi hàm sẽ chạy lặp.

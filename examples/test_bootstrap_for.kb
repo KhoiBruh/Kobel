@@ -292,6 +292,14 @@ fn test_iterable_trait(var t: &Tally) {
 	var hits: i32 = 0;
 	for (v in e) hits = hits + 1;
 	check(hits == 0, "Iterable: empty container runs zero times", t);
+
+	// Pointer to an Iterable container must also be loopable
+	val s_ptr = &s;
+	var ptr_sum: i32 = 0;
+	for (v in s_ptr) {
+		ptr_sum = ptr_sum + v;
+	}
+	check(ptr_sum == 30, "Iterable: pointer to container can be iterated", t);
 }
 
 // -- fixed-size arrays and array literals ------------------------------------
