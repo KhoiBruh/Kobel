@@ -5,6 +5,9 @@ use std.io.println;
 use testsupport.box.*;
 use std.traits.new.*;
 use std.collections.list.*;
+use std.collections.hash_map.*;
+use std.collections.string_builder.*;
+use std.mem.arena.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -264,6 +267,33 @@ fn test_list_ctor(var t: &Tally) {
 	ys.delete();
 }
 
+// --- 13. std types built through New ---------------------------------------
+//
+// Arena / HashMap / StringBuilder now take constructor syntax; their private
+// fields mean this is the only way to build them from another module.
+
+fn test_std_ctors(var t: &Tally) {
+	var a = Arena(4096UZ);
+	val p = arena_alloc<i32>(&a);
+	*p = 7;
+	check_i(*p, 7, "Arena(block_size) + arena_alloc", t);
+	a.delete();
+
+	var dflt = Arena();
+	dflt.delete();
+
+	var m = HashMap<i32>();
+	m.put("k", 5);
+	check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
+	m.delete();
+
+	var sb = StringBuilder();
+	sb.append_str("hi");
+	sb.append_i32(42);
+	check_str(sb.to_str(), "hi42", "StringBuilder() ctor", t);
+	sb.delete();
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap trait tests...");
 
@@ -281,6 +311,7 @@ fn main(): i32 {
 	test_private_fields(&t);
 	test_generic_trait_impl(&t);
 	test_list_ctor(&t);
+	test_std_ctors(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

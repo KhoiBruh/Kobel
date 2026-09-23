@@ -153,15 +153,20 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `traits/new.kb` | trait `New { fn new() }` — dấu hiệu "dựng được"; kiểu tự thêm các overload `new` khác, gọi bằng cú pháp Kotlin `Type(args)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
 | `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl trait `New`) hoặc `new_list<T>` |
-| `collections/hash_map.kb` | `HashMap<V>` |
-| `collections/string_builder.kb` | `StringBuilder` |
+| `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (impl `New`) |
+| `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (impl `New`) |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
-| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
+| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (impl `New`) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
 Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, của `StringBuilder`/`HashMap` (trừ `len`
 là accessor công khai), và các struct nội bộ (`StringRaw` ở `io.kb`/`string_builder.kb`, `StrRaw` ở
 `str.kb`) **không** `pub` — module khác phải đi qua constructor/method. Riêng `List.data` / `List.len`
 giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2).
+
+Các kiểu container đều dựng bằng cú pháp Kotlin (impl trait `New`): `List<T>()`, `List<T>(capacity)`,
+`HashMap<V>()`, `StringBuilder()`, `Arena()`, `Arena(block_size)`. Các hàm `new_list` /
+`list_with_capacity` / `new_hash_map` / `new_string_builder` / `new_arena` vẫn còn nhưng chỉ là
+**wrapper mỏng** gọi lại constructor (`=> List<T>()` …).
 
 Quy ước ABI quan trọng:
 
@@ -326,8 +331,8 @@ Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo th
 ⚠ Hạn chế: chưa có `dyn`/trait object; hợp đồng so theo **tên method + arity** (chưa so kiểu chữ ký);
 method nguyên thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu
 sẽ đụng tên; hợp đồng của `impl Trait for Generic<T>` chỉ được kiểm **khi instantiate**, không kiểm trên
-template. Bootstrapping: khi một kiểu generic có cả impl inherent lẫn impl trait, impl inherent phải
-đứng **trước** trong tệp (seed đang dùng chỉ lấy impl template đầu tiên — xem §6.5).
+template. Thứ tự các `impl` trong tệp **không** còn quan trọng (đã kiểm chứng: đặt `impl New for
+List<T>` trước `impl List<T>` vẫn build được).
 Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
 có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
