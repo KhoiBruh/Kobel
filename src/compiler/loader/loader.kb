@@ -94,7 +94,7 @@ pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
 pub fn declared_module_name(program_node: *AstNode): str {
 	if (program_node == null) return "";
 	val prog = as_program(program_node);
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (decl.kind == NodeKind.DECL_MODULE) return as_module_decl(decl).full_path;
 	}
 	return "";
@@ -152,7 +152,7 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 
 pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
 	val prog = as_program(program_node);
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (decl.kind == NodeKind.DECL_USE) {
 			val u = as_use_decl(decl);
 			var mod_name = "";
@@ -191,7 +191,7 @@ pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
 			decls.add(alloc_module_decl(&self.arena, str_split_dots(lm.name), lm.name, 0, 0));
 
 			val p = as_program(lm.program);
-			for (d in p.declarations) decls.add(d);
+			for (d in p) decls.add(d);
 		}
 	}
 

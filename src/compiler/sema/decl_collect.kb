@@ -164,7 +164,7 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	val ext = as_extern_block(node);
 	val prev_is_extern = self.is_extern;
 	self.is_extern = true;
-	for (d in ext.declarations) collect_declaration(self, d);
+	for (d in ext) collect_declaration(self, d);
 	self.is_extern = prev_is_extern;
 }
 
@@ -224,19 +224,19 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 
 	// Pass 0: register generic templates so any use can instantiate them.
 	// Module markers are processed here too, so each template records its module.
-	for (d0 in prog.declarations) {
+	for (d0 in prog) {
 		if (d0.kind == NodeKind.DECL_MODULE) collect_module(self, d0);
 		else if (d0.kind == NodeKind.DECL_TRAIT) collect_trait(self, d0);
 		else register_template(self, d0);
 	}
 
 	// Pass 1: collect ordinary declarations (templates are skipped).
-	for (d1 in prog.declarations) collect_declaration(self, d1);
+	for (d1 in prog) collect_declaration(self, d1);
 
 	// Pass 2: rewrite generic uses across signatures and bodies, instantiating
 	// concrete structs / functions / methods as needed. Module markers are
 	// replayed so each declaration resolves names in its own module.
-	for (d in prog.declarations) {
+	for (d in prog) {
 		if (d.kind == NodeKind.DECL_MODULE) {
 			val m2 = as_module_decl(d);
 			self.current_module = m2.full_path;
@@ -252,7 +252,7 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	if (self.symtab.gen.pending.len > 0) {
 		val combined = List<*AstNode>();
 		for (pn in self.symtab.gen.pending) combined.add(pn);
-		for (d in prog.declarations) combined.add(d);
+		for (d in prog) combined.add(d);
 		val p_info = as_program(program_node) as &Program;
 		p_info.declarations = combined;
 	}

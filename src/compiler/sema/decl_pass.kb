@@ -1132,7 +1132,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 		}
 		NodeKind.DECL_EXTERN_BLOCK -> {
 			val ext = as_extern_block(node);
-			for (d in ext.declarations) rewrite_generics(self, d);
+			for (d in ext) rewrite_generics(self, d);
 		}
 		else -> {}
 	}

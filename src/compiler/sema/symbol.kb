@@ -279,7 +279,7 @@ pub fn is_in_function(var self: &SymbolTable): bool {
 
 pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 	val scope = self.current_scope;
-	for (sym in scope.symbols) {
+	for (sym in scope) {
 		if (sym.name == name) return sym;
 	}
 	return null;
@@ -290,7 +290,7 @@ pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
 pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 	var curr = self.current_scope;
 	while (curr != null) {
-		for (sym in curr.symbols) {
+		for (sym in curr) {
 			if (sym.name == name) return sym;
 		}
 		curr = curr.parent;
@@ -358,7 +358,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 		// otherwise len/cap of the original in self.modules diverge -> heap corruption.
 		val sc = self.modules.get(m);
 		if (sc.name == module_name) {
-			for (existing in sc.symbols) {
+			for (existing in sc) {
 				if (existing.name == sym.name) return false;
 			}
 			val sym_ptr = arena_alloc<Symbol>(&self.arena);
@@ -391,7 +391,7 @@ pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, lo
 pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
 	for (sc in self.modules) {
 		if (sc.name == module_name) {
-			for (sym in sc.symbols) {
+			for (sym in sc) {
 				if (sym.name == name) return sym;
 			}
 			return null;
@@ -404,7 +404,7 @@ pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbo
 pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
 	if (c_name.len == 0) return null;
 	for (sc in self.modules) {
-		for (sym in sc.symbols) {
+		for (sym in sc) {
 			if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
 		}
 	}

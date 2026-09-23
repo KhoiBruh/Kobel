@@ -154,7 +154,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 		"}\n\n";
 
 	// 2. First collect struct names, function names and return types
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_STRUCT) {
 			val s = as_struct_decl(decl);
@@ -177,7 +177,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 
 	// 2b. Register function return types (arrow bodies are inferred). Done after
 	// all struct names are known so inference can resolve struct constructors.
-	for (decl2 in prog.declarations) {
+	for (decl2 in prog) {
 		if (is_generic_decl(decl2)) continue;
 		if (decl2.kind == NodeKind.DECL_FN) {
 			val f = as_fn_decl(decl2);
@@ -190,7 +190,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 			}
 		} else if (decl2.kind == NodeKind.DECL_EXTERN_BLOCK) {
 			val ext = as_extern_block(decl2);
-			for (e_decl in ext.declarations) {
+			for (e_decl in ext) {
 				if (e_decl.kind == NodeKind.DECL_FN) {
 					val f = as_fn_decl(e_decl);
 					register_fn(self, f.name, fn_ret_c_type(self, f));
@@ -201,12 +201,12 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	c_code = c_code + "\n";
 
 	// 3. Struct Definitions
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (!is_generic_decl(decl) && decl.kind == NodeKind.DECL_STRUCT) c_code = c_code + gen_struct_decl(self, decl);
 	}
 
 	// 4. Function Prototypes
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, true, "");
 		else if (decl.kind == NodeKind.DECL_IMPL) {
@@ -219,7 +219,7 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	c_code = c_code + "\n";
 
 	// 5. Function Implementations
-	for (decl in prog.declarations) {
+	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
 		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, false, "");
 		else if (decl.kind == NodeKind.DECL_IMPL) {
