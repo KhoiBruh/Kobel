@@ -3,8 +3,8 @@ mod std.mem.arena;
 use std.mem.alloc.*;
 use std.traits.new.New;
 
-// Fields are internal: an arena is used through `arena_alloc` / its methods.
-pub struct ArenaBlock {
+// Internal block of an arena: not exported, and its fields are private.
+struct ArenaBlock {
 	data: &u8,
 	size: usz,
 	used: usz,
