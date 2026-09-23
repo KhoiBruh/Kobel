@@ -67,7 +67,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	// Generic structs are registered as templates and instantiated on use.
 	if (s.type_params.len > 0) return;
 	val c_name = c_name_for(self, s.name);
-	val s_type = alloc_struct_type(&self.arena, s.name, new_list<StructField>());
+	val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
 	as_struct_type_mut(s_type).c_name = c_name;
 	val ok = define_global(&self.symtab, Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
 	if (!ok) report_error(self, node, "Duplicate struct declaration '" + s.name + "'");
@@ -92,7 +92,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	val f = as_fn_decl(node) as &FnDecl;
 	// Generic functions are registered as templates and instantiated on use.
 	if (f.type_params.len > 0) return;
-	var param_types = new_list<*Type>();
+	var param_types = List<*Type>();
 
 	for (p in f.params) {
 		val p_type = resolve_ast_type(self, p.type_node);
@@ -117,7 +117,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
 
 	// Resolve member values: implicit members continue from the previous value.
-	var members = new_list<*EnumMemberInfo>();
+	var members = List<*EnumMemberInfo>();
 	var next_val: i64 = 0;
 	for (m in e.members) {
 		var v: i64 = next_val;
@@ -187,7 +187,7 @@ pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
 		return;
 	}
 
-	var methods = new_list<*TraitMethod>();
+	var methods = List<*TraitMethod>();
 	for (m in t.methods) {
 		val f = as_fn_decl(m);
 		if (trait_method_in(methods, f.name, f.params.len) != null) {
@@ -200,7 +200,7 @@ pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
 	}
 
 	val ti = arena_alloc<TraitInfo>(&self.arena);
-	*ti = TraitInfo(t.name, t.bases, methods, new_list<str>());
+	*ti = TraitInfo(t.name, t.bases, methods, List<str>());
 	register_trait(&self.symtab, ti);
 }
 
@@ -250,7 +250,7 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// definitions must precede the structs that embed them (e.g. a field of
 	// type List<T>), and each carries its own module marker.
 	if (self.symtab.gen.pending.len > 0) {
-		val combined = new_list<*AstNode>();
+		val combined = List<*AstNode>();
 		for (pn in self.symtab.gen.pending) combined.add(pn);
 		for (d in prog.declarations) combined.add(d);
 		val p_info = as_program(program_node) as &Program;

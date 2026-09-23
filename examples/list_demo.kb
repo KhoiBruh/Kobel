@@ -6,7 +6,7 @@ extern "libc" {
 
 fn main(): i32 {
 	// 1. Create an empty list and check is_empty
-	var nums = new_list<i32>();
+	var nums = List<i32>();
 	if (!nums.is_empty()) {
 		puts("FAIL: new list should be empty");
 		return 1;
@@ -72,7 +72,7 @@ fn main(): i32 {
 	}
 
 	// 7. Auto-grow - add many elements beyond the default capacity (4)
-	var big = new_list<i32>();
+	var big = List<i32>();
 	var i: i32 = 0;
 	while (i < 100) {
 		big.add(i * i);
@@ -91,8 +91,8 @@ fn main(): i32 {
 		return 15;
 	}
 
-	// 8. list_with_capacity
-	var pre = list_with_capacity<i32>(64UZ);
+	// 8. List
+	var pre = List<i32>(64UZ);
 	if (pre.cap != 64UZ) {
 		puts("FAIL: pre-allocated cap should be 64");
 		return 16;

@@ -14,6 +14,8 @@
 *.ilk
 # Scratch file written by examples/std_demo.kb's io test
 /tmp_std_test.txt
+# Unrelated JS tooling that may appear in the workspace
+/node_modules/
 # Build output and distribution artifacts
 /build/
 /dist/*

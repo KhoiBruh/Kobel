@@ -57,7 +57,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	var emit_c_path = "";
 	var c_compiler = "cl";
 	var only_emit_c = false;
-	var extra_roots = new_list<str>();
+	var extra_roots = List<str>();
 
 	var i: i32 = 1;
 	while (i < argc) {

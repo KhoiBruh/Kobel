@@ -50,7 +50,7 @@ pub struct ModuleLoader {
 }
 
 pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
-	var roots = new_list<str>();
+	var roots = List<str>();
 	if (entry_dir.len > 0) roots.add(entry_dir);
 
 	for (r in extra_roots) roots.add(r);
@@ -61,10 +61,10 @@ pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
 
 	return ModuleLoader(
 		roots,
-		new_list<LoadedModule>(),
-		new_list<LoadedModule>(),
-		new_list<str>(),
-		new_arena(524288)
+		List<LoadedModule>(),
+		List<LoadedModule>(),
+		List<str>(),
+		Arena(524288)
 	);
 }
 
@@ -182,7 +182,7 @@ pub fn load_program(var self: &ModuleLoader, entry_path: str, entry_source: str)
 
 // Merges every module (dependencies first, entry last) into a single Program.
 pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
-	var decls = new_list<*AstNode>();
+	var decls = List<*AstNode>();
 
 	for (lm in self.ordered) {
 		if (lm.program != null) {

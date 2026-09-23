@@ -70,8 +70,8 @@ pub struct DeclPass {
 }
 
 pub fn new_decl_pass(): DeclPass {
-	var arena = new_arena(65536);
-	return DeclPass(new_symbol_table(), arena, "", new_list<str>(), false);
+	var arena = Arena(65536);
+	return DeclPass(new_symbol_table(), arena, "", List<str>(), false);
 }
 
 // C name of a top-level declaration: modules get the module name as a prefix
@@ -102,7 +102,7 @@ pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 
 // Source names carried by more than one method of an impl, i.e. overloads.
 fn overloaded_names(im: &ImplDecl): List<str> {
-	var names = new_list<str>();
+	var names = List<str>();
 	for (a in 0..<im.methods.len) {
 		val na = as_fn_decl(im.methods.get(a)).name;
 		if (list_has_str(names, na)) continue;
@@ -165,7 +165,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 				if (tmpl != null) {
 					val cty = instantiate_struct(self, tmpl, named.type_args);
 					named.name = sem_struct(cty).name;
-					named.type_args = new_list<*AstNode>();
+					named.type_args = List<*AstNode>();
 					return cty;
 				}
 			}
@@ -257,7 +257,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
-		var param_types = new_list<*Type>();
+		var param_types = List<*Type>();
 
 		for (p in f.params) {
 			var pt: *Type = null;
@@ -307,11 +307,11 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 	if (im.trait_name != "") apply_trait(self, node, im, prim_name);
 
 	val overloaded = overloaded_names(im);
-	var used = new_list<str>();
+	var used = List<str>();
 
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
-		var param_types = new_list<*Type>();
+		var param_types = List<*Type>();
 
 		for (i in 0..<f.params.len) {
 			val p = f.params.get(i);
@@ -319,7 +319,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 			if (p.name == "self" && p.type_node == null) {
 				// Receiver by value: spell its type so the backend emits `i32 self`.
 				pt = prim;
-				val rt = alloc_named_type(&self.arena, prim_name, new_list<*AstNode>(), node.line, node.col);
+				val rt = alloc_named_type(&self.arena, prim_name, List<*AstNode>(), node.line, node.col);
 				f.params.set(i, Param(p.name, rt, p.is_mut, p.has_val));
 			} else {
 				pt = resolve_ast_type(self, p.type_node);
@@ -413,8 +413,8 @@ pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_na
 
 	// A trait inherits every method of its base traits, so the contract covers
 	// the flattened set rather than just the methods written in this trait.
-	var effective = new_list<*TraitMethod>();
-	var seen = new_list<str>();
+	var effective = List<*TraitMethod>();
+	var seen = List<str>();
 	trait_effective(self, t, &effective, &seen);
 
 	for (tm in effective) {
@@ -574,7 +574,7 @@ pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz {
 }
 
 pub fn template_param_names(tmpl: *GenTemplate): List<str> {
-	var names = new_list<str>();
+	var names = List<str>();
 	if (tmpl.node.kind == NodeKind.DECL_STRUCT) {
 		val s = as_struct_decl(tmpl.node);
 		for (tp in s.type_params) names.add(tp.name);
@@ -594,7 +594,7 @@ pub fn template_params(tmpl: *GenTemplate): List<GenericParam> {
 	if (tmpl.node.kind == NodeKind.DECL_STRUCT) return as_struct_decl(tmpl.node).type_params;
 	if (tmpl.node.kind == NodeKind.DECL_FN) return as_fn_decl(tmpl.node).type_params;
 	if (tmpl.node.kind == NodeKind.DECL_IMPL) return as_impl_decl(tmpl.node).type_params;
-	return new_list<GenericParam>();
+	return List<GenericParam>();
 }
 
 // Checks the trait bounds of an instantiation: for every `T: Trait` parameter
@@ -689,7 +689,7 @@ pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*A
 
 pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, module: str) {
 	val s = as_struct_decl(node) as &StructDecl;
-	val s_type = alloc_struct_type(&self.arena, final_name, new_list<StructField>());
+	val s_type = alloc_struct_type(&self.arena, final_name, List<StructField>());
 	self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)));
 	s.name = final_name;
 
@@ -708,7 +708,7 @@ pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, m
 
 pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 	val f = as_fn_decl(node) as &FnDecl;
-	var param_types = new_list<*Type>();
+	var param_types = List<*Type>();
 	for (p in f.params) param_types.add(resolve_ast_type(self, p.type_node));
 	var ret_type = alloc_primitive(&self.arena, type_none());
 	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
@@ -733,14 +733,14 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			if (nt.type_args.len > 0) {
 				val tmpl = gen_find(self.symtab.gen.struct_templates, nt.name);
 				if (tmpl != null) {
-					var args = new_list<*AstNode>();
+					var args = List<*AstNode>();
 			for (ta in nt.type_args) args.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, tmpl, args);
-					return alloc_named_type(&self.arena, sem_struct(cty).name, new_list<*AstNode>(), node.line, node.col);
+					return alloc_named_type(&self.arena, sem_struct(cty).name, List<*AstNode>(), node.line, node.col);
 				}
 			}
 
-			var targs = new_list<*AstNode>();
+			var targs = List<*AstNode>();
 			for (ta in nt.type_args) targs.add(clone_type(self, ta, subst));
 			return alloc_named_type(&self.arena, nt.name, targs, node.line, node.col);
 		}
@@ -752,7 +752,7 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			val at = ast_array(node);
 			return ast_alloc_array(&self.arena, clone_type(self, at.element_type, subst), at.size, node.line, node.col);
 		}
-		else -> return alloc_named_type(&self.arena, "none", new_list<*AstNode>(), node.line, node.col);
+		else -> return alloc_named_type(&self.arena, "none", List<*AstNode>(), node.line, node.col);
 	}
 }
 
@@ -791,27 +791,27 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val cid = as_identifier(c.callee);
 				val ft = gen_find(self.symtab.gen.fn_templates, cid.name);
 				if (ft != null) {
-					var args = new_list<*AstNode>();
+					var args = List<*AstNode>();
 			for (ta in c.type_args) args.add(clone_type(self, ta, subst));
 					val cname = instantiate_fn(self, ft, args);
-					var cargs = new_list<*AstNode>();
+					var cargs = List<*AstNode>();
 			for (a in c.args) cargs.add(clone_expr(self, a, subst));
-					return alloc_call(&self.arena, alloc_identifier(&self.arena, cname, node.line, node.col), cargs, new_list<*AstNode>(), node.line, node.col);
+					return alloc_call(&self.arena, alloc_identifier(&self.arena, cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
 				}
 				val st = gen_find(self.symtab.gen.struct_templates, cid.name);
 				if (st != null) {
-					var args2 = new_list<*AstNode>();
+					var args2 = List<*AstNode>();
 			for (ta in c.type_args) args2.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, st, args2);
-					var cargs2 = new_list<*AstNode>();
+					var cargs2 = List<*AstNode>();
 			for (a in c.args) cargs2.add(clone_expr(self, a, subst));
-					return alloc_call(&self.arena, alloc_identifier(&self.arena, sem_struct(cty).name, node.line, node.col), cargs2, new_list<*AstNode>(), node.line, node.col);
+					return alloc_call(&self.arena, alloc_identifier(&self.arena, sem_struct(cty).name, node.line, node.col), cargs2, List<*AstNode>(), node.line, node.col);
 				}
 			}
 
-			var cargs3 = new_list<*AstNode>();
+			var cargs3 = List<*AstNode>();
 			for (a in c.args) cargs3.add(clone_expr(self, a, subst));
-			return alloc_call(&self.arena, clone_expr(self, c.callee, subst), cargs3, new_list<*AstNode>(), node.line, node.col);
+			return alloc_call(&self.arena, clone_expr(self, c.callee, subst), cargs3, List<*AstNode>(), node.line, node.col);
 		}
 		NodeKind.EXPR_MEMBER -> {
 			val m = as_member(node);
@@ -839,15 +839,15 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		}
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = as_array_literal(node);
-			var els = new_list<*AstNode>();
+			var els = List<*AstNode>();
 			for (e in al.elements) els.add(clone_expr(self, e, subst));
 			return alloc_array_literal(&self.arena, els, node.line, node.col);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = as_when_expr(node);
-			var arms = new_list<WhenArm>();
+			var arms = List<WhenArm>();
 			for (arm in we.arms) {
-				var pats = new_list<*AstNode>();
+				var pats = List<*AstNode>();
 				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
 				arms.add(WhenArm(pats, arm.is_else, clone_expr(self, arm.body, subst), arm.line, arm.col));
 			}
@@ -855,7 +855,7 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		}
 		NodeKind.EXPR_INTERP -> {
 			val ie = as_interp(node);
-			var parts = new_list<InterpPart>();
+			var parts = List<InterpPart>();
 			for (part in ie.parts) {
 				parts.add(InterpPart(clone_expr(self, part.expr, subst), part.is_literal));
 			}
@@ -870,7 +870,7 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 	when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
 			val b = as_block_stmt(node);
-			var ss = new_list<*AstNode>();
+			var ss = List<*AstNode>();
 			for (s in b.statements) ss.add(clone_stmt(self, s, subst));
 			return alloc_block_stmt(&self.arena, ss, node.line, node.col);
 		}
@@ -911,9 +911,9 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		NodeKind.STMT_CONTINUE -> return alloc_continue_stmt(&self.arena, node.line, node.col);
 		NodeKind.STMT_WHEN -> {
 			val w = as_when_stmt(node);
-			var arms = new_list<WhenStmtArm>();
+			var arms = List<WhenStmtArm>();
 			for (arm in w.arms) {
-				var pats = new_list<*AstNode>();
+				var pats = List<*AstNode>();
 				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
 				arms.add(WhenStmtArm(pats, arm.is_else, clone_stmt(self, arm.body, subst), arm.line, arm.col));
 			}
@@ -925,7 +925,7 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 
 pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
 	val f = as_fn_decl(node);
-	var params = new_list<Param>();
+	var params = List<Param>();
 	for (p in f.params) {
 		var pt: *AstNode = null;
 		if (p.type_node != null) pt = clone_type(self, p.type_node, subst);
@@ -933,21 +933,21 @@ pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name:
 	}
 	var rt: *AstNode = null;
 	if (f.return_type != null) rt = clone_type(self, f.return_type, subst);
-	return alloc_fn_decl(&self.arena, new_name, new_list<GenericParam>(), params, rt, clone_stmt(self, f.body, subst), f.is_pub, node.line, node.col);
+	return alloc_fn_decl(&self.arena, new_name, List<GenericParam>(), params, rt, clone_stmt(self, f.body, subst), f.is_pub, node.line, node.col);
 }
 
 pub fn clone_struct(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
 	val s = as_struct_decl(node);
-	var fields = new_list<AstStructField>();
+	var fields = List<AstStructField>();
 	for (f in s.fields) {
 		fields.add(AstStructField(f.name, clone_type(self, f.type_node, subst), f.is_pub));
 	}
-	return alloc_struct_decl(&self.arena, new_name, new_list<GenericParam>(), fields, s.is_pub, node.line, node.col);
+	return alloc_struct_decl(&self.arena, new_name, List<GenericParam>(), fields, s.is_pub, node.line, node.col);
 }
 
 pub fn clone_impl(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_struct_name: str): *AstNode {
 	val im = as_impl_decl(node);
-	var methods = new_list<*AstNode>();
+	var methods = List<*AstNode>();
 	for (m in im.methods) {
 		val mf = as_fn_decl(m);
 		// Keep the source method name: collect_impl mangles it against the
@@ -956,7 +956,7 @@ pub fn clone_impl(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_str
 	}
 	// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
 	// be checked against the trait and pick up its default methods.
-	return alloc_impl_decl(&self.arena, new_struct_name, new_list<GenericParam>(), im.trait_name, methods, node.line, node.col);
+	return alloc_impl_decl(&self.arena, new_struct_name, List<GenericParam>(), im.trait_name, methods, node.line, node.col);
 }
 
 // ----------------------------------------------------------------------------
@@ -974,7 +974,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 				if (tmpl != null) {
 					val cty = instantiate_struct(self, tmpl, nt.type_args);
 					nt.name = sem_struct(cty).name;
-					nt.type_args = new_list<*AstNode>();
+					nt.type_args = List<*AstNode>();
 					return;
 				}
 			}
@@ -991,13 +991,13 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 				if (ft != null) {
 					val cname = instantiate_fn(self, ft, c.type_args);
 					cid.name = cname;
-					c.type_args = new_list<*AstNode>();
+					c.type_args = List<*AstNode>();
 				} else {
 					val st = gen_find(self.symtab.gen.struct_templates, cid.name);
 					if (st != null) {
 						val cty = instantiate_struct(self, st, c.type_args);
 						cid.name = sem_struct(cty).name;
-						c.type_args = new_list<*AstNode>();
+						c.type_args = List<*AstNode>();
 					}
 				}
 			}

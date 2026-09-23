@@ -60,7 +60,7 @@ pub struct ModuleScope {
 }
 
 pub fn new_module_scope(name: str): ModuleScope {
-	return ModuleScope(name, new_list<*Symbol>());
+	return ModuleScope(name, List<*Symbol>());
 }
 
 // A `use` that resolved to a symbol of another module.
@@ -158,20 +158,20 @@ pub struct SymbolTable {
 }
 
 pub fn new_symbol_table(): SymbolTable {
-	var arena = new_arena(65536);
+	var arena = Arena(65536);
 	val root_scope = arena_alloc<Scope>(&arena);
-	*root_scope = Scope(null, new_list<*Symbol>(), false);
+	*root_scope = Scope(null, List<*Symbol>(), false);
 
 	val gen = GenericReg(
-		new_list<*GenTemplate>(),
-		new_list<*GenTemplate>(),
-		new_list<*GenTemplate>(),
-		new_list<*Symbol>(),
-		new_list<str>(),
-		new_list<*AstNode>()
+		List<*GenTemplate>(),
+		List<*GenTemplate>(),
+		List<*GenTemplate>(),
+		List<*Symbol>(),
+		List<str>(),
+		List<*AstNode>()
 	);
 
-	return SymbolTable(root_scope, arena, "", new_list<*ModuleScope>(), new_list<ImportBinding>(), new_list<*EnumInfo>(), new_list<*TraitInfo>(), new_list<*PrimMethod>(), gen);
+	return SymbolTable(root_scope, arena, "", List<*ModuleScope>(), List<ImportBinding>(), List<*EnumInfo>(), List<*TraitInfo>(), List<*PrimMethod>(), gen);
 }
 
 pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) {
@@ -244,7 +244,7 @@ pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo {
 
 pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
 	val new_sc = arena_alloc<Scope>(&self.arena);
-	*new_sc = Scope(self.current_scope, new_list<*Symbol>(), is_fn_boundary);
+	*new_sc = Scope(self.current_scope, List<*Symbol>(), is_fn_boundary);
 	self.current_scope = new_sc;
 	return new_sc;
 }

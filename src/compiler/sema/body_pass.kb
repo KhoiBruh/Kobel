@@ -85,16 +85,16 @@ pub struct BodyPass {
 }
 
 pub fn new_body_pass(): BodyPass {
-	var arena = new_arena(65536);
+	var arena = Arena(65536);
 	var decl_p = new_decl_pass();
 	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(decl_p.symtab, arena, none_ty, 0, new_list<str>(), null, false);
+	return BodyPass(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
 }
 
 pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
-	var arena = new_arena(65536);
+	var arena = Arena(65536);
 	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(symtab, arena, none_ty, 0, new_list<str>(), null, true);
+	return BodyPass(symtab, arena, none_ty, 0, List<str>(), null, true);
 }
 
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.
@@ -207,10 +207,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
 						// Rewrite `str + str` into a runtime concat call so the C
 						// backend does not emit pointer arithmetic.
-						var cat_args = new_list<*AstNode>();
+						var cat_args = List<*AstNode>();
 						cat_args.add(bin.left);
 						cat_args.add(bin.right);
-						val cat_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_concat", node.line, node.col), cat_args, new_list<*AstNode>(), node.line, node.col);
+						val cat_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
 						val cat_n = node as &AstNode;
 						cat_n.kind = NodeKind.EXPR_CALL;
 						cat_n.data = cat_call.data;
@@ -316,18 +316,18 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						if (!is_integer(at)) report_error(self, node, "slice() bounds must be integers");
 					}
 					// Lower to kobel_slice(receiver, start, end); end defaults to length.
-					var sargs = new_list<*AstNode>();
+					var sargs = List<*AstNode>();
 					sargs.add(mem.object);
 					if (call.args.len >= 1) sargs.add(call.args.get(0));
 					else sargs.add(alloc_literal(&self.arena, LiteralKind.INT, "0", node.line, node.col));
 					if (call.args.len >= 2) {
 						sargs.add(call.args.get(1));
 					} else {
-						var largs = new_list<*AstNode>();
+						var largs = List<*AstNode>();
 						largs.add(mem.object);
-						sargs.add(alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), largs, new_list<*AstNode>(), node.line, node.col));
+						sargs.add(alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
 					}
-					val sl_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slice", node.line, node.col), sargs, new_list<*AstNode>(), node.line, node.col);
+					val sl_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
 					val sl_n = node as &AstNode;
 					sl_n.kind = NodeKind.EXPR_CALL;
 					sl_n.data = sl_call.data;
@@ -364,7 +364,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						}
 
 						// Desugar to a free-function call with the receiver as first argument.
-						var new_args = new_list<*AstNode>();
+						var new_args = List<*AstNode>();
 						if (obj_is_ptr) new_args.add(mem.object);
 						else new_args.add(alloc_unary(&self.arena, TokenType.AMPERSAND, mem.object, node.line, node.col));
 						for (arg in call.args) new_args.add(arg);
@@ -389,7 +389,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						}
 					}
 
-					var new_args = new_list<*AstNode>();
+					var new_args = List<*AstNode>();
 					if (obj_is_ptr) new_args.add(alloc_unary(&self.arena, TokenType.STAR, mem.object, node.line, node.col));
 					else new_args.add(mem.object);
 					for (arg in call.args) new_args.add(arg);
@@ -517,9 +517,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (mem.member == "len" || mem.member == "size") {
 					// Lower to a runtime call: the C backend cannot tell that an
 					// arbitrary expression has type `str`.
-					var len_args = new_list<*AstNode>();
+					var len_args = List<*AstNode>();
 					len_args.add(mem.object);
-					val len_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), len_args, new_list<*AstNode>(), node.line, node.col);
+					val len_call = alloc_call(&self.arena, alloc_identifier(&self.arena, "kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
 					val len_n = node as &AstNode;
 					len_n.kind = NodeKind.EXPR_CALL;
 					len_n.data = len_call.data;
@@ -531,7 +531,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (mem.member == "c_str") {
 					val char_ty = alloc_primitive(&self.arena, type_char());
 					val char_ptr = alloc_pointer_type(&self.arena, char_ty, false);
-					return alloc_fn_type(&self.arena, new_list<*Type>(), char_ptr);
+					return alloc_fn_type(&self.arena, List<*Type>(), char_ptr);
 				}
 				if (mem.member == "data") {
 					// `str` lowers to a bare `const char*`, so `.data` is the
@@ -801,16 +801,16 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 // A call to a prelude helper. Left unchecked on purpose: the prelude is emitted
 // by codegen and has no symbol table entry.
 pub fn interp_call(var arena: &Arena, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
-	var args = new_list<*AstNode>();
+	var args = List<*AstNode>();
 	args.add(arg);
-	return alloc_call(arena, alloc_identifier(arena, name, line, col), args, new_list<*AstNode>(), line, col);
+	return alloc_call(arena, alloc_identifier(arena, name, line, col), args, List<*AstNode>(), line, col);
 }
 
 pub fn interp_concat(var arena: &Arena, a: *AstNode, b: *AstNode, line: usz, col: usz): *AstNode {
-	var args = new_list<*AstNode>();
+	var args = List<*AstNode>();
 	args.add(a);
 	args.add(b);
-	return alloc_call(arena, alloc_identifier(arena, "kobel_concat", line, col), args, new_list<*AstNode>(), line, col);
+	return alloc_call(arena, alloc_identifier(arena, "kobel_concat", line, col), args, List<*AstNode>(), line, col);
 }
 
 // Converts one interpolation hole to `str`, or reports an error and returns null.
@@ -850,7 +850,7 @@ pub fn for_is_lvalue(node: *AstNode): bool {
 }
 
 pub fn for_usz_type(var arena: &Arena, line: usz, col: usz): *AstNode =>
-	ast_alloc_named(arena, "usz", new_list<*AstNode>(), line, col);
+	ast_alloc_named(arena, "usz", List<*AstNode>(), line, col);
 
 pub fn for_id(var arena: &Arena, name: str, line: usz, col: usz): *AstNode =>
 	alloc_identifier(arena, name, line, col);
@@ -881,9 +881,9 @@ pub fn for_bump(var arena: &Arena, op: TokenType, line: usz, col: usz): *AstNode
 
 // `if (__for_up) { <up_stmt> } else { <down_stmt> }`
 pub fn for_by_dir(var arena: &Arena, up_stmt: *AstNode, down_stmt: *AstNode, line: usz, col: usz): *AstNode {
-	var up_stmts = new_list<*AstNode>();
+	var up_stmts = List<*AstNode>();
 	up_stmts.add(up_stmt);
-	var down_stmts = new_list<*AstNode>();
+	var down_stmts = List<*AstNode>();
 	down_stmts.add(down_stmt);
 	return alloc_if_stmt(
 		arena,
@@ -919,7 +919,7 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 			}
 		}
 		NodeKind.STMT_CONTINUE -> {
-			var stmts = new_list<*AstNode>();
+			var stmts = List<*AstNode>();
 			for (s in step) stmts.add(s);
 			stmts.add(alloc_continue_stmt(arena, node.line, node.col));
 			val blk = alloc_block_stmt(arena, stmts, node.line, node.col);
@@ -978,16 +978,16 @@ pub fn desugar_for_iter_method(
 	col: usz
 ): *AstNode {
 	// val __for_n: usz = <iterable>.count();
-	val count_call = alloc_call(arena, alloc_member(arena, fs.iterable, "count", line, col), new_list<*AstNode>(), new_list<*AstNode>(), line, col);
+	val count_call = alloc_call(arena, alloc_member(arena, fs.iterable, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
 	pre.add(alloc_var_decl(arena, false, "__for_n", for_usz_type(arena, line, col), count_call, line, col));
 	// var __for_i: usz = 0;
 	pre.add(alloc_var_decl(arena, true, "__for_i", for_usz_type(arena, line, col),
 		for_num(arena, "0UZ", line, col), line, col));
 
 	// val <v> = <iterable>.at(__for_i);
-	var at_args = new_list<*AstNode>();
+	var at_args = List<*AstNode>();
 	at_args.add(for_id(arena, "__for_i", line, col));
-	val at_call = alloc_call(arena, alloc_member(arena, fs.iterable, "at", line, col), at_args, new_list<*AstNode>(), line, col);
+	val at_call = alloc_call(arena, alloc_member(arena, fs.iterable, "at", line, col), at_args, List<*AstNode>(), line, col);
 	head.add(alloc_var_decl(arena, false, fs.var_name, null, at_call, line, col));
 
 	step.add(for_bump(arena, TokenType.PLUS, line, col));
@@ -1098,9 +1098,9 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_tra
 	val line = node.line;
 	val col = node.col;
 
-	var pre = new_list<*AstNode>();
-	var head = new_list<*AstNode>();
-	var step = new_list<*AstNode>();
+	var pre = List<*AstNode>();
+	var head = List<*AstNode>();
+	var step = List<*AstNode>();
 	var cond: *AstNode = null;
 
 	if (fs.is_range) cond = desugar_for_range(arena, &pre, &head, &step, fs, line, col);
@@ -1108,7 +1108,7 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_tra
 	else cond = desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
 
 	// Body: loop variable, the original statements, then the counter update.
-	var body_stmts = new_list<*AstNode>();
+	var body_stmts = List<*AstNode>();
 	for (s in head) body_stmts.add(s);
 	if (fs.body != null) {
 		if (fs.body.kind == NodeKind.STMT_BLOCK) {
@@ -1132,7 +1132,7 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_tra
 // Builds an AST type node for a resolved semantic type, so locals can carry an
 // explicit annotation the C backend understands.
 pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
-	if (is_enum_type(ty)) return ast_alloc_named(arena, as_enum_info(ty).c_name, new_list<*AstNode>(), 0, 0);
+	if (is_enum_type(ty)) return ast_alloc_named(arena, as_enum_info(ty).c_name, List<*AstNode>(), 0, 0);
 
 	when (ty.kind) {
 		DataType.POINTER -> {
@@ -1147,34 +1147,34 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 			val st_info = sem_struct(ty);
 			var st_name = st_info.name;
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
-			return ast_alloc_named(arena, st_name, new_list<*AstNode>(), 0, 0);
+			return ast_alloc_named(arena, st_name, List<*AstNode>(), 0, 0);
 		}
-		DataType.NONE -> return ast_alloc_named(arena, "none", new_list<*AstNode>(), 0, 0);
-		DataType.STR -> return ast_alloc_named(arena, "str", new_list<*AstNode>(), 0, 0);
-		DataType.BOOL -> return ast_alloc_named(arena, "bool", new_list<*AstNode>(), 0, 0);
-		DataType.CHAR -> return ast_alloc_named(arena, "char", new_list<*AstNode>(), 0, 0);
-		DataType.I8 -> return ast_alloc_named(arena, "i8", new_list<*AstNode>(), 0, 0);
-		DataType.I16 -> return ast_alloc_named(arena, "i16", new_list<*AstNode>(), 0, 0);
-		DataType.I32 -> return ast_alloc_named(arena, "i32", new_list<*AstNode>(), 0, 0);
-		DataType.I64 -> return ast_alloc_named(arena, "i64", new_list<*AstNode>(), 0, 0);
-		DataType.ISZ -> return ast_alloc_named(arena, "isz", new_list<*AstNode>(), 0, 0);
-		DataType.U8 -> return ast_alloc_named(arena, "u8", new_list<*AstNode>(), 0, 0);
-		DataType.U16 -> return ast_alloc_named(arena, "u16", new_list<*AstNode>(), 0, 0);
-		DataType.U32 -> return ast_alloc_named(arena, "u32", new_list<*AstNode>(), 0, 0);
-		DataType.U64 -> return ast_alloc_named(arena, "u64", new_list<*AstNode>(), 0, 0);
-		DataType.USZ -> return ast_alloc_named(arena, "usz", new_list<*AstNode>(), 0, 0);
-		DataType.F32 -> return ast_alloc_named(arena, "f32", new_list<*AstNode>(), 0, 0);
-		DataType.F64 -> return ast_alloc_named(arena, "f64", new_list<*AstNode>(), 0, 0);
+		DataType.NONE -> return ast_alloc_named(arena, "none", List<*AstNode>(), 0, 0);
+		DataType.STR -> return ast_alloc_named(arena, "str", List<*AstNode>(), 0, 0);
+		DataType.BOOL -> return ast_alloc_named(arena, "bool", List<*AstNode>(), 0, 0);
+		DataType.CHAR -> return ast_alloc_named(arena, "char", List<*AstNode>(), 0, 0);
+		DataType.I8 -> return ast_alloc_named(arena, "i8", List<*AstNode>(), 0, 0);
+		DataType.I16 -> return ast_alloc_named(arena, "i16", List<*AstNode>(), 0, 0);
+		DataType.I32 -> return ast_alloc_named(arena, "i32", List<*AstNode>(), 0, 0);
+		DataType.I64 -> return ast_alloc_named(arena, "i64", List<*AstNode>(), 0, 0);
+		DataType.ISZ -> return ast_alloc_named(arena, "isz", List<*AstNode>(), 0, 0);
+		DataType.U8 -> return ast_alloc_named(arena, "u8", List<*AstNode>(), 0, 0);
+		DataType.U16 -> return ast_alloc_named(arena, "u16", List<*AstNode>(), 0, 0);
+		DataType.U32 -> return ast_alloc_named(arena, "u32", List<*AstNode>(), 0, 0);
+		DataType.U64 -> return ast_alloc_named(arena, "u64", List<*AstNode>(), 0, 0);
+		DataType.USZ -> return ast_alloc_named(arena, "usz", List<*AstNode>(), 0, 0);
+		DataType.F32 -> return ast_alloc_named(arena, "f32", List<*AstNode>(), 0, 0);
+		DataType.F64 -> return ast_alloc_named(arena, "f64", List<*AstNode>(), 0, 0);
 		else -> return null;
 	}
 }
 
 // Builds `kobel_streq(a, b)`, optionally negated, for str equality.
 pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode {
-	var eargs = new_list<*AstNode>();
+	var eargs = List<*AstNode>();
 	eargs.add(left);
 	eargs.add(right);
-	val eq_call = alloc_call(arena, alloc_identifier(arena, "kobel_streq", line, col), eargs, new_list<*AstNode>(), line, col);
+	val eq_call = alloc_call(arena, alloc_identifier(arena, "kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
 	if (is_neq) return alloc_unary(arena, TokenType.BANG, eq_call, line, col);
 	return eq_call;
 }

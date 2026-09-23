@@ -256,7 +256,7 @@ pub fn alloc_struct_type(
 	if (total_rem != 0) current_offset = current_offset + (max_align - total_rem);
 
 	val struct_info = arena_alloc<StructType>(arena);
-	*struct_info = StructType(name, name, fields, new_list<*MethodInfo>(), "", false);
+	*struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
 
 	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, struct_info as *u8);

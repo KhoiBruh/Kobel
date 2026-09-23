@@ -19,12 +19,12 @@ use std.collections.list.*;
 // ============================================================================
 
 pub fn parse_generic_params(var self: &Parser): List<GenericParam> {
-	var params = new_list<GenericParam>();
+	var params = List<GenericParam>();
 	if (!match_token(self, TokenType.LESS)) return params;
 
 	if (!check(self, TokenType.GREATER)) {
 		val p_tok = consume(self, TokenType.IDENTIFIER, "Expected generic parameter name");
-		var bounds = new_list<str>();
+		var bounds = List<str>();
 		if (match_token(self, TokenType.COLON)) {
 			val b_tok = consume(self, TokenType.IDENTIFIER, "Expected trait bound name");
 			bounds.add(b_tok.text);
@@ -37,7 +37,7 @@ pub fn parse_generic_params(var self: &Parser): List<GenericParam> {
 
 		while (match_token(self, TokenType.COMMA)) {
 			val next_p = consume(self, TokenType.IDENTIFIER, "Expected generic parameter name");
-			var next_bounds = new_list<str>();
+			var next_bounds = List<str>();
 			if (match_token(self, TokenType.COLON)) {
 				val b_tok = consume(self, TokenType.IDENTIFIER, "Expected trait bound name");
 				next_bounds.add(b_tok.text);
@@ -64,7 +64,7 @@ pub fn parse_fn_decl(var self: &Parser, is_pub: bool): *AstNode {
 	val type_params = parse_generic_params(self);
 
 	consume(self, TokenType.OPEN_PAREN, "Expected '(' after function name");
-	var params = new_list<Param>();
+	var params = List<Param>();
 
 	if (!check(self, TokenType.CLOSE_PAREN)) {
 		var is_mut = false;
@@ -128,7 +128,7 @@ pub fn parse_struct_decl(var self: &Parser, is_pub: bool): *AstNode {
 	val type_params = parse_generic_params(self);
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before struct fields");
-	var fields = new_list<StructField>();
+	var fields = List<StructField>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		var f_pub = false;
@@ -152,7 +152,7 @@ pub fn parse_trait_decl(var self: &Parser, is_pub: bool): *AstNode {
 	val name_tok = consume(self, TokenType.IDENTIFIER, "Expected trait name");
 	val type_params = parse_generic_params(self);
 
-	var bases = new_list<str>();
+	var bases = List<str>();
 	if (match_token(self, TokenType.COLON)) {
 		val base1 = consume(self, TokenType.IDENTIFIER, "Expected base trait name");
 		bases.add(base1.text);
@@ -163,7 +163,7 @@ pub fn parse_trait_decl(var self: &Parser, is_pub: bool): *AstNode {
 	}
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before trait body");
-	var methods = new_list<*AstNode>();
+	var methods = List<*AstNode>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		var m_pub = false;
@@ -203,7 +203,7 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 	}
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before impl body");
-	var methods = new_list<*AstNode>();
+	var methods = List<*AstNode>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		var m_pub = false;
@@ -228,7 +228,7 @@ pub fn parse_enum_decl(var self: &Parser, is_pub: bool): *AstNode {
 	if (match_token(self, TokenType.COLON)) underlying_type = parse_type(self);
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before enum members");
-	var members = new_list<EnumMember>();
+	var members = List<EnumMember>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		val m_tok = consume(self, TokenType.IDENTIFIER, "Expected enum member name");
@@ -259,7 +259,7 @@ pub fn parse_const_decl(var self: &Parser, is_pub: bool): *AstNode {
 
 pub fn parse_module_decl(var self: &Parser): *AstNode {
 	val kw = advance(self); // 'mod'
-	var path = new_list<str>();
+	var path = List<str>();
 	val first_seg = consume(self, TokenType.IDENTIFIER, "Expected module path segment").text;
 	path.add(first_seg);
 	var full_path = first_seg;
@@ -276,7 +276,7 @@ pub fn parse_module_decl(var self: &Parser): *AstNode {
 
 pub fn parse_use_decl(var self: &Parser): *AstNode {
 	val kw = advance(self); // 'use'
-	var path = new_list<str>();
+	var path = List<str>();
 	val first_seg = consume(self, TokenType.IDENTIFIER, "Expected path in use declaration").text;
 	path.add(first_seg);
 	var full_path = first_seg;
@@ -310,7 +310,7 @@ pub fn parse_extern_block(var self: &Parser): *AstNode {
 	if (check(self, TokenType.STRING)) abi = advance(self).text;
 
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before extern declarations");
-	var declarations = new_list<*AstNode>();
+	var declarations = List<*AstNode>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		declarations.add(parse_declaration(self));
@@ -345,7 +345,7 @@ pub fn parse_declaration(var self: &Parser): *AstNode {
 }
 
 pub fn parse_program(var self: &Parser): *AstNode {
-	var declarations = new_list<*AstNode>();
+	var declarations = List<*AstNode>();
 
 	while (!is_end(self)) {
 		declarations.add(parse_declaration(self));

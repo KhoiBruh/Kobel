@@ -12,7 +12,7 @@ pub struct Parser {
 }
 
 pub fn new_parser(tokens: List<Token>): Parser {
-	return Parser(tokens, 0, new_arena(65536), new_list<str>());
+	return Parser(tokens, 0, Arena(65536), List<str>());
 }
 
 pub fn is_end(var self: &Parser): bool {

@@ -11,16 +11,12 @@ use std.io.write_file;
 use std.io.read_file;
 
 use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
 
 use std.collections.list.List;
-use std.collections.list.new_list;
 
 use std.collections.hash_map.HashMap;
-use std.collections.hash_map.new_hash_map;
 
 use std.collections.string_builder.StringBuilder;
-use std.collections.string_builder.new_string_builder;
 
 fn test_ascii(): bool {
 	if (!is_digit('5')) return false;
@@ -32,7 +28,7 @@ fn test_ascii(): bool {
 }
 
 fn test_arena(): bool {
-	var arena: Arena = new_arena(1024UZ);
+	var arena: Arena = Arena(1024UZ);
 	val p1: &u8 = arena.alloc_bytes(64UZ, 8UZ);
 	val p2: &u8 = arena.alloc_bytes(128UZ, 8UZ);
 	if (p1 == null || p2 == null) return false;
@@ -45,7 +41,7 @@ fn test_arena(): bool {
 
 fn test_collections(): bool {
 	// 1. List
-	var list: List<i32> = new_list<i32>();
+	var list: List<i32> = List<i32>();
 	list.add(10);
 	list.add(20);
 	list.add(30);
@@ -56,7 +52,7 @@ fn test_collections(): bool {
 	list.delete();
 
 	// 2. HashMap
-	var map: HashMap<i32> = new_hash_map<i32>();
+	var map: HashMap<i32> = HashMap<i32>();
 	map.put("first", 100);
 	map.put("second", 200);
 	map.put("third", 300);
@@ -68,7 +64,7 @@ fn test_collections(): bool {
 	map.delete();
 
 	// 3. StringBuilder
-	var sb: StringBuilder = new_string_builder();
+	var sb: StringBuilder = StringBuilder();
 	sb.append_str("Kobel");
 	sb.append_char(' ');
 	sb.append_str("Compiler v");

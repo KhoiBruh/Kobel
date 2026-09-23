@@ -18,7 +18,7 @@ use std.collections.list.*;
 
 pub fn parse_block_stmt(var self: &Parser): *AstNode {
 	val lbrace = consume(self, TokenType.OPEN_BRACE, "Expected '{'");
-	var statements = new_list<*AstNode>();
+	var statements = List<*AstNode>();
 
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		statements.add(parse_statement(self));
@@ -132,12 +132,12 @@ pub fn parse_when_stmt(var self: &Parser): *AstNode {
 	}
 	consume(self, TokenType.OPEN_BRACE, "Expected '{' before when statement arms");
 
-	var arms = new_list<WhenStmtArm>();
+	var arms = List<WhenStmtArm>();
 	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 		val arm_line = peek(self).line;
 		val arm_col = peek(self).col;
 		var is_else = false;
-		var patterns = new_list<*AstNode>();
+		var patterns = List<*AstNode>();
 
 		if (match_token(self, TokenType.KW_ELSE)) is_else = true;
 		else {

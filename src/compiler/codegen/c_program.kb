@@ -59,8 +59,8 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 
 	if (f.body == null) return "";
 
-	self.pointer_vars = new_list<str>();
-	self.str_vars = new_list<str>();
+	self.pointer_vars = List<str>();
+	self.str_vars = List<str>();
 	for (p in f.params) {
 		if (self_c_type != "" && p.name == "self" && p.type_node == null) {
 			self.pointer_vars.add(p.name);

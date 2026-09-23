@@ -1,7 +1,6 @@
 mod util.strutil;
 
 use std.collections.list.List;
-use std.collections.list.new_list;
 use std.mem.alloc.raw_alloc;
 use std.mem.alloc.raw_release;
 
@@ -168,7 +167,7 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 }
 
 pub fn str_split_dots(s: str): List<str> {
-	var parts = new_list<str>();
+	var parts = List<str>();
 	var start: usz = 0;
 	for (i in 0..<s.len) {
 		if (s[i] == '.') {

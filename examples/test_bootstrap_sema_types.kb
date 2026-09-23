@@ -3,9 +3,7 @@ mod test.bootstrap_sema_types;
 use std.io.print;
 use std.io.println;
 use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
 use std.collections.list.List;
-use std.collections.list.new_list;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
@@ -113,7 +111,7 @@ fn test_primitive_types() {
 // ============================================================================
 
 fn test_pointer_and_array_types() {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	var t_i32 = type_i32();
 	val ptr_mut = alloc_pointer_type(&arena, &t_i32, true);
@@ -139,7 +137,7 @@ fn test_pointer_and_array_types() {
 // ============================================================================
 
 fn test_struct_layout() {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	// struct Sample { a: u8, b: i32, c: i64 }
 	// - a: u8  -> offset 0, size 1 (rem 3 bytes padding)
@@ -150,7 +148,7 @@ fn test_struct_layout() {
 	var t_i32 = type_i32();
 	var t_i64 = type_i64();
 
-	var fields = new_list<StructField>();
+	var fields = List<StructField>();
 	fields.add(StructField("a", &t_u8, 0UZ, true));
 	fields.add(StructField("b", &t_i32, 0UZ, true));
 	fields.add(StructField("c", &t_i64, 0UZ, true));
@@ -177,7 +175,7 @@ fn test_struct_layout() {
 // ============================================================================
 
 fn test_type_equality_and_assignability() {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	var t_i32_1 = type_i32();
 	var t_i32_2 = type_i32();

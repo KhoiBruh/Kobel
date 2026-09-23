@@ -55,9 +55,7 @@ use compiler.ast.builder.as_fn_decl;
 
 use compiler.lexer.token.TokenType;
 use std.collections.list.List;
-use std.collections.list.new_list;
 use std.mem.arena.Arena;
-use std.mem.arena.new_arena;
 
 // Simple string-to-int helper for our test evaluator
 fn parse_i32(s: str): i32 {
@@ -103,7 +101,7 @@ fn eval_expr(node: *AstNode): i32 {
 }
 
 fn test_expression_tree(): bool {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	// Build: (10 + 20) * 3
 	val lit10 = alloc_literal(&arena, LiteralKind.INT, "10", 1UZ, 2UZ);
@@ -136,10 +134,10 @@ fn test_expression_tree(): bool {
 }
 
 fn test_statement_nodes(): bool {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	// var count: i32 = 42;
-	val ty_i32 = alloc_named_type(&arena, "i32", new_list<*AstNode>(), 1UZ, 12UZ);
+	val ty_i32 = alloc_named_type(&arena, "i32", List<*AstNode>(), 1UZ, 12UZ);
 	val lit42 = alloc_literal(&arena, LiteralKind.INT, "42", 1UZ, 18UZ);
 	val var_stmt = alloc_var_decl(&arena, true, "count", ty_i32, lit42, 1UZ, 1UZ);
 
@@ -155,7 +153,7 @@ fn test_statement_nodes(): bool {
 	if (ret_stmt.kind != NodeKind.STMT_RETURN) return false;
 
 	// { return count; }
-	var stmts = new_list<*AstNode>();
+	var stmts = List<*AstNode>();
 	stmts.add(ret_stmt);
 	val block = alloc_block_stmt(&arena, stmts, 2UZ, 1UZ);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
@@ -177,11 +175,11 @@ fn test_statement_nodes(): bool {
 }
 
 fn test_declaration_nodes(): bool {
-	var arena = new_arena(16384UZ);
+	var arena = Arena(16384UZ);
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
-	var params = new_list<Param>();
-	val ty_i32 = alloc_named_type(&arena, "i32", new_list<*AstNode>(), 1UZ, 1UZ);
+	var params = List<Param>();
+	val ty_i32 = alloc_named_type(&arena, "i32", List<*AstNode>(), 1UZ, 1UZ);
 	params.add(Param("a", ty_i32, false, false));
 	params.add(Param("b", ty_i32, false, false));
 
@@ -190,14 +188,14 @@ fn test_declaration_nodes(): bool {
 	val add_expr = alloc_binary(&arena, TokenType.PLUS, id_a, id_b, 1UZ, 1UZ);
 	val ret_stmt = alloc_return_stmt(&arena, add_expr, 1UZ, 1UZ);
 
-	var body_stmts = new_list<*AstNode>();
+	var body_stmts = List<*AstNode>();
 	body_stmts.add(ret_stmt);
 	val body = alloc_block_stmt(&arena, body_stmts, 1UZ, 1UZ);
 
 	val fn_node = alloc_fn_decl(
 		&arena,
 		"add",
-		new_list<GenericParam>(),
+		List<GenericParam>(),
 		params,
 		ty_i32,
 		body,

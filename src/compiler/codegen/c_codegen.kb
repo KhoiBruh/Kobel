@@ -29,12 +29,12 @@ pub struct CCodeGen {
 
 pub fn new_c_codegen(): CCodeGen => CCodeGen(
 	0,
-	new_list<str>(),
-	new_list<str>(),
-	new_list<str>(),
-	new_list<str>(),
-	new_list<str>(),
-	new_list<str>(),
+	List<str>(),
+	List<str>(),
+	List<str>(),
+	List<str>(),
+	List<str>(),
+	List<str>(),
 	""
 );
 

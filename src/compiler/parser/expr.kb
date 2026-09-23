@@ -98,7 +98,7 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 
 		// Array Literal: [a, b, c]
 		TokenType.OPEN_BRACKET -> {
-			var elements = new_list<*AstNode>();
+			var elements = List<*AstNode>();
 			if (!check(self, TokenType.CLOSE_BRACKET)) {
 				elements.add(parse_expression(self, PREC_NONE));
 				while (match_token(self, TokenType.COMMA)) {
@@ -142,12 +142,12 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 			}
 			consume(self, TokenType.OPEN_BRACE, "Expected '{' before when arms");
 
-			var arms = new_list<WhenArm>();
+			var arms = List<WhenArm>();
 			while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
 				val arm_line = peek(self).line;
 				val arm_col = peek(self).col;
 				var is_else = false;
-				var patterns = new_list<*AstNode>();
+				var patterns = List<*AstNode>();
 
 				if (match_token(self, TokenType.KW_ELSE)) {
 					is_else = true;
@@ -210,7 +210,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 	// 5. Generic Call: left<T1, T2>(arg1, arg2)
 	if (check(self, TokenType.LESS) && is_generic_args_ahead(self)) {
 		advance(self); // consume '<'
-		var type_args = new_list<*AstNode>();
+		var type_args = List<*AstNode>();
 		type_args.add(parse_type(self));
 		while (match_token(self, TokenType.COMMA)) {
 			type_args.add(parse_type(self));
@@ -218,7 +218,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 		consume(self, TokenType.GREATER, "Expected '>' after generic call type arguments");
 
 		consume(self, TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
-		var args = new_list<*AstNode>();
+		var args = List<*AstNode>();
 		if (!check(self, TokenType.CLOSE_PAREN)) {
 			args.add(parse_expression(self, PREC_NONE));
 			while (match_token(self, TokenType.COMMA)) {
@@ -231,7 +231,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 
 	// 6. Normal Call: left(arg1, arg2)
 	if (match_token(self, TokenType.OPEN_PAREN)) {
-		var args = new_list<*AstNode>();
+		var args = List<*AstNode>();
 		if (!check(self, TokenType.CLOSE_PAREN)) {
 			args.add(parse_expression(self, PREC_NONE));
 			while (match_token(self, TokenType.COMMA)) {
@@ -239,7 +239,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 			}
 		}
 		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-		return alloc_call(&self.arena, left, args, new_list<*AstNode>(), line, col);
+		return alloc_call(&self.arena, left, args, List<*AstNode>(), line, col);
 	}
 
 	// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
@@ -396,7 +396,7 @@ pub fn interp_skip_char_lit(text: str, start: usz): usz {
 }
 
 pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *AstNode {
-	var parts = new_list<InterpPart>();
+	var parts = List<InterpPart>();
 	val end = text.len - 1;   // index of the closing quote
 	var i: usz = 1;           // skip the opening quote
 	var lit = "";

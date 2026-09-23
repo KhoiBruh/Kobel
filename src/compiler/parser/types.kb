@@ -53,7 +53,7 @@ pub fn parse_type(var self: &Parser): *AstNode {
 		full_name = full_name + "." + seg.text;
 	}
 
-	var type_args = new_list<*AstNode>();
+	var type_args = List<*AstNode>();
 	if (match_token(self, TokenType.LESS)) {
 		if (!check(self, TokenType.GREATER)) {
 			type_args.add(parse_type(self));

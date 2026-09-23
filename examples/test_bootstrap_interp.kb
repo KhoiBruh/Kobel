@@ -72,7 +72,7 @@ fn test_char_bool(var t: &Tally) {
 }
 
 fn test_multi_and_expr(var t: &Tally) {
-	var nums = new_list<i32>();
+	var nums = List<i32>();
 	nums.add(10);
 	nums.add(20);
 	check_str("${nums.len}", "2", "member expression in a hole", t);

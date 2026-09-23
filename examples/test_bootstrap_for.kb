@@ -96,7 +96,7 @@ fn test_range_bound_type(var t: &Tally, n: usz) {
 // -- iterables ----------------------------------------------------------------
 
 fn test_iter_list(var t: &Tally) {
-	var nums = new_list<i32>();
+	var nums = List<i32>();
 	nums.add(10);
 	nums.add(20);
 	nums.add(30);
@@ -174,7 +174,7 @@ fn test_break_continue(var t: &Tally) {
 
 // The loop variable is read-only and fresh on every iteration.
 fn test_loop_var_is_fresh(var t: &Tally) {
-	var sum = new_list<i32>();
+	var sum = List<i32>();
 	for (i in 0..3) sum.add(i);
 	val a = sum.get(0);
 	val b = sum.get(2);
@@ -190,7 +190,7 @@ fn count_items<T>(xs: List<T>): i32 {
 }
 
 fn test_generic_for(var t: &Tally) {
-	var nums = new_list<i32>();
+	var nums = List<i32>();
 	nums.add(5);
 	nums.add(6);
 	val n = count_items<i32>(nums);
@@ -230,11 +230,11 @@ fn test_range_half_open(var t: &Tally) {
 
 // `0..<n` is the index-loop idiom: index any number of parallel containers.
 fn test_range_half_open_index(var t: &Tally) {
-	var nums = new_list<i32>();
+	var nums = List<i32>();
 	nums.add(10);
 	nums.add(20);
 	nums.add(30);
-	var rev = new_list<i32>();
+	var rev = List<i32>();
 	rev.add(1);
 	rev.add(2);
 	rev.add(3);

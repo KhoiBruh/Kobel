@@ -401,7 +401,7 @@ impl Lexer {
 	}
 
 	pub fn tokenize(var self): List<Token> {
-		var tokens = new_list<Token>();
+		var tokens = List<Token>();
 		while (true) {
 			val tok = self.next_token();
 			tokens.add(tok);
