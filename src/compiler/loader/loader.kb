@@ -20,7 +20,6 @@ use compiler.ast.node.*;
 use compiler.ast.decl.*;
 
 use compiler.parser.parser.Parser;
-use compiler.parser.parser.new_parser;
 use compiler.parser.decl.parse_program;
 
 use util.strutil.*;
@@ -49,23 +48,25 @@ pub struct ModuleLoader {
 	pub arena: Arena
 }
 
-pub fn new_module_loader(entry_dir: str, extra_roots: List<str>): ModuleLoader {
-	var roots = List<str>();
-	if (entry_dir.len > 0) roots.add(entry_dir);
+impl ModuleLoader {
+	pub fn new(entry_dir: str, extra_roots: List<str>): ModuleLoader {
+		var roots = List<str>();
+		if (entry_dir.len > 0) roots.add(entry_dir);
 
-	for (r in extra_roots) roots.add(r);
+		for (r in extra_roots) roots.add(r);
 
-	// Default roots: the standard library (lib/) and the compiler source (src/)
-	roots.add("lib");
-	roots.add("src");
+		// Default roots: the standard library (lib/) and the compiler source (src/)
+		roots.add("lib");
+		roots.add("src");
 
-	return ModuleLoader(
-		roots,
-		List<LoadedModule>(),
-		List<LoadedModule>(),
-		List<str>(),
-		Arena(524288)
-	);
+		return Self(
+			roots,
+			List<LoadedModule>(),
+			List<LoadedModule>(),
+			List<str>(),
+			Arena(524288)
+		);
+	}
 }
 
 pub fn loaded_module_count(self: &ModuleLoader): usz => self.ordered.len;
@@ -75,10 +76,10 @@ pub fn loaded_module_count(self: &ModuleLoader): usz => self.ordered.len;
 // ============================================================================
 
 pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
-	var lexer = new_lexer(source);
+	var lexer = Lexer(source);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val prog = parse_program(&parser);
 
 	if (parser.errors.len > 0) {

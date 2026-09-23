@@ -3,7 +3,6 @@ mod test.bootstrap_trait;
 use std.io.print;
 use std.io.println;
 use testsupport.box.*;
-use std.traits.new.*;
 use std.collections.list.*;
 use std.collections.hash_map.*;
 use std.collections.string_builder.*;
@@ -240,7 +239,7 @@ struct Pair<T> {
 	pub b: T
 }
 
-impl New for Pair<T> {
+impl Pair<T> {
 	fn new(): Pair<T> => Self(0 as T, 0 as T);
 	fn new(v: T): Pair<T> => Self(v, v);
 }

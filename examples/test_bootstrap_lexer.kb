@@ -7,13 +7,12 @@ use compiler.lexer.token.TokenType;
 use compiler.lexer.token.Token;
 
 use compiler.lexer.lexer.Lexer;
-use compiler.lexer.lexer.new_lexer;
 
 use std.collections.list.List;
 
 fn test_keywords(): bool {
 	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	if (tokens.len != 24UZ) {
@@ -52,7 +51,7 @@ fn test_keywords(): bool {
 
 fn test_operators(): bool {
 	val code: str = "= == => + - -> * / % < <= > >= ! != && || : ; , . [ ] ( ) { } &";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	if (tokens.get(0UZ).type != TokenType.EQUAL) return false;
@@ -91,7 +90,7 @@ fn test_operators(): bool {
 
 fn test_literals(): bool {
 	val code: str = "123 45.67 \"hello world\" 'a' '\\n'";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	if (tokens.len != 6UZ) return false;
@@ -120,7 +119,7 @@ fn test_literals(): bool {
 
 fn test_numeric_prefixes_and_suffixes(): bool {
 	val code: str = "0xFF 0b1010 0o77 1_000_000 100L 50U 10_000_US 3.14F 2.5D";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	if (tokens.len != 10UZ) return false;
@@ -142,7 +141,7 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 
 fn test_comments_and_whitespace(): bool {
 	val code: str = "val a = 1; // single line comment\nval b = 2; /* multi\nline\ncomment */ val c = 3;";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	if (tokens.len != 16UZ) return false;
@@ -173,7 +172,7 @@ fn test_comments_and_whitespace(): bool {
 
 fn test_line_col_tracking(): bool {
 	val code: str = "val x = 1;\nval y = 2;";
-	var lex: Lexer = new_lexer(code);
+	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 
 	val t0: Token = tokens.get(0UZ);

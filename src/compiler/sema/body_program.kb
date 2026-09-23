@@ -26,7 +26,7 @@ use compiler.sema.types.*;
 use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.symbol.*;
-use compiler.sema.decl_pass.new_decl_pass;
+use compiler.sema.decl_pass.DeclPass;
 use compiler.sema.decl_collect.collect_program;
 
 use compiler.sema.body_pass.*;
@@ -114,7 +114,7 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 	// When symtab is already preloaded from ModuleLoader (multiple modules), skip this
 	// step so declarations are not collected/renamed twice.
 	if (!self.has_symtab) {
-		var decl_p = new_decl_pass();
+		var decl_p = DeclPass();
 		collect_program(&decl_p, program_node);
 
 		// Inherit SymbolTable and merge errors from DeclPass

@@ -4,7 +4,6 @@ use std.io.print;
 use std.io.println;
 
 use compiler.lexer.lexer.Lexer;
-use compiler.lexer.lexer.new_lexer;
 use compiler.lexer.token.TokenType;
 use compiler.lexer.token.Token;
 
@@ -46,7 +45,6 @@ use compiler.ast.builder.as_var_decl;
 use compiler.ast.builder.as_named_type;
 
 use compiler.parser.parser.Parser;
-use compiler.parser.parser.new_parser;
 use compiler.parser.expr.parse_expression;
 use compiler.parser.expr.PREC_NONE;
 use compiler.parser.types.parse_type;
@@ -87,10 +85,10 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 fn test_expression_parsing() {
 	// Check association and precedence of the expression: 1 + 2 * 3
 	val src = "1 + 2 * 3";
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val expr = parse_expression(&parser, PREC_NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr");
@@ -116,10 +114,10 @@ fn test_expression_parsing() {
 
 fn test_call_and_member_parsing() {
 	val src = "player.move_to(100, 200 + 5)";
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val expr = parse_expression(&parser, PREC_NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_CALL, "Top node must be CallExpr");
@@ -145,10 +143,10 @@ fn test_call_and_member_parsing() {
 
 fn test_type_parsing() {
 	val src = "std.collections.List<*Point>";
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val type_node = parse_type(&parser);
 
 	assert_true(type_node.kind == NodeKind.TYPE_NAMED, "Parsed type must be NamedType");
@@ -168,10 +166,10 @@ fn test_type_parsing() {
 
 fn test_statement_parsing() {
 	val src = "val total: i32 = (a + b) * 10;";
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val stmt = parse_statement(&parser);
 
 	assert_true(stmt.kind == NodeKind.STMT_VAR_DECL, "Must be VarDeclStmt");
@@ -201,10 +199,10 @@ fn test_full_program_parsing() {
 		"    return add(v.x, v.y);\n" +
 		"}\n";
 
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val program_node = parse_program(&parser);
 
 	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");

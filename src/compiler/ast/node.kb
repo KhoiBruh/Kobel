@@ -54,9 +54,6 @@ pub struct AstNode {
 	pub data: *u8
 }
 
-pub fn new_node(kind: NodeKind, line: usz, col: usz, data: *u8): AstNode =>
-	AstNode(kind, line, col, data);
-
 pub fn node_kind_name(k: NodeKind): str => when (k) {
 	NodeKind.TYPE_NAMED -> "TYPE_NAMED",
 	NodeKind.TYPE_POINTER -> "TYPE_POINTER",

@@ -1,7 +1,6 @@
 mod std.collections.string_builder;
 
 use std.mem.alloc.*;
-use std.traits.new.New;
 use std.traits.iterable.Iterable;
 
 struct StringRaw {
@@ -18,7 +17,7 @@ pub struct StringBuilder {
 }
 
 // Kotlin-style constructor: `StringBuilder()`.
-impl New for StringBuilder {
+impl StringBuilder {
 	pub fn new(): StringBuilder {
 		val init_cap = 32UZ;
 		val raw = raw_alloc(init_cap);

@@ -425,9 +425,9 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 				return alloc_literal(&self.arena, LiteralKind.STRING, text, line, col);
 			}
 			val src = text.slice(h_start, h_end);
-			var sub_lexer = new_lexer(src);
+			var sub_lexer = Lexer(src);
 			val sub_tokens = sub_lexer.tokenize();
-			var sub = new_parser(sub_tokens);
+			var sub = Parser(sub_tokens);
 			val hole = parse_expression(&sub, PREC_NONE);
 			if (sub.errors.len > 0) {
 				for (msg in sub.errors) self.errors.add("in interpolation hole: " + msg);

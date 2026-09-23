@@ -11,8 +11,8 @@ pub struct Parser {
 	pub errors: List<str>
 }
 
-pub fn new_parser(tokens: List<Token>): Parser {
-	return Parser(tokens, 0, Arena(65536), List<str>());
+impl Parser {
+	pub fn new(tokens: List<Token>): Parser => Self(tokens, 0, Arena(65536), List<str>());
 }
 
 pub fn is_end(var self: &Parser): bool {

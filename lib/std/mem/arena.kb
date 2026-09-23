@@ -1,7 +1,6 @@
 mod std.mem.arena;
 
 use std.mem.alloc.*;
-use std.traits.new.New;
 
 // Internal block of an arena: not exported, and its fields are private.
 struct ArenaBlock {
@@ -16,8 +15,7 @@ pub struct Arena {
 	block_size: usz
 }
 
-// Kotlin-style constructors: `Arena()` (64 KiB blocks) and `Arena(block_size)`.
-impl New for Arena {
+impl Arena {
 	pub fn new(): Arena => Self(null, 65536UZ);
 
 	pub fn new(block_size: usz): Arena {
@@ -25,9 +23,6 @@ impl New for Arena {
 		if (bs == 0) bs = 65536;
 		return Self(null, bs);
 	}
-}
-
-impl Arena {
 	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
 		var al: usz = align;
 		if (al == 0) al = 8;

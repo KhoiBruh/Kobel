@@ -59,8 +59,8 @@ pub struct ModuleScope {
 	pub symbols: List<*Symbol>
 }
 
-pub fn new_module_scope(name: str): ModuleScope {
-	return ModuleScope(name, List<*Symbol>());
+impl ModuleScope {
+	pub fn new(name: str): ModuleScope => Self(name, List<*Symbol>());
 }
 
 // A `use` that resolved to a symbol of another module.
@@ -157,21 +157,23 @@ pub struct SymbolTable {
 	pub gen: GenericReg
 }
 
-pub fn new_symbol_table(): SymbolTable {
-	var arena = Arena(65536);
-	val root_scope = arena_alloc<Scope>(&arena);
-	*root_scope = Scope(null, List<*Symbol>(), false);
+impl SymbolTable {
+	pub fn new(): SymbolTable {
+		var arena = Arena(65536);
+		val root_scope = arena_alloc<Scope>(&arena);
+		*root_scope = Scope(null, List<*Symbol>(), false);
 
-	val gen = GenericReg(
-		List<*GenTemplate>(),
-		List<*GenTemplate>(),
-		List<*GenTemplate>(),
-		List<*Symbol>(),
-		List<str>(),
-		List<*AstNode>()
-	);
+		val gen = GenericReg(
+			List<*GenTemplate>(),
+			List<*GenTemplate>(),
+			List<*GenTemplate>(),
+			List<*Symbol>(),
+			List<str>(),
+			List<*AstNode>()
+		);
 
-	return SymbolTable(root_scope, arena, "", List<*ModuleScope>(), List<ImportBinding>(), List<*EnumInfo>(), List<*TraitInfo>(), List<*PrimMethod>(), gen);
+		return Self(root_scope, arena, "", List<*ModuleScope>(), List<ImportBinding>(), List<*EnumInfo>(), List<*TraitInfo>(), List<*PrimMethod>(), gen);
+	}
 }
 
 pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) {
@@ -358,7 +360,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 
 	// Module scope does not exist yet -> create it (via pointer) then add the symbol
 	val fresh = arena_alloc<ModuleScope>(&self.arena);
-	*fresh = new_module_scope(module_name);
+	*fresh = ModuleScope(module_name);
 	val sym_ptr2 = arena_alloc<Symbol>(&self.arena);
 	*sym_ptr2 = sym;
 	fresh.symbols.add(sym_ptr2);

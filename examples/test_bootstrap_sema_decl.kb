@@ -4,9 +4,7 @@ use std.io.print;
 use std.io.println;
 
 use compiler.lexer.lexer.Lexer;
-use compiler.lexer.lexer.new_lexer;
 use compiler.parser.parser.Parser;
-use compiler.parser.parser.new_parser;
 use compiler.parser.decl.parse_program;
 
 use compiler.sema.types.DataType;
@@ -18,7 +16,6 @@ use compiler.sema.symbol.SymbolKind;
 use compiler.sema.symbol.lookup;
 
 use compiler.sema.decl_pass.DeclPass;
-use compiler.sema.decl_pass.new_decl_pass;
 use compiler.sema.decl_collect.collect_program;
 
 fn assert_true(cond: bool, msg: str) {
@@ -63,13 +60,13 @@ fn test_collect_program() {
 		"fn scale(p: &Point, factor: i32): none {\n" +
 		"}\n";
 
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val program_node = parse_program(&parser);
 
-	var decl_pass = new_decl_pass();
+	var decl_pass = DeclPass();
 	collect_program(&decl_pass, program_node);
 
 	assert_eq_usz(decl_pass.errors.len, 0UZ, "DeclPass must have 0 errors");
@@ -124,13 +121,13 @@ fn test_duplicate_declarations() {
 	val src = "fn compute(): i32 => 1;\n" +
 		"fn compute(): i32 => 2;\n";
 
-	var lexer = new_lexer(src);
+	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
 
-	var parser = new_parser(tokens);
+	var parser = Parser(tokens);
 	val program_node = parse_program(&parser);
 
-	var decl_pass = new_decl_pass();
+	var decl_pass = DeclPass();
 	collect_program(&decl_pass, program_node);
 
 	assert_eq_usz(decl_pass.errors.len, 1UZ, "Must record 1 duplicate error");

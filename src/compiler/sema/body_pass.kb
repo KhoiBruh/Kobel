@@ -84,17 +84,19 @@ pub struct BodyPass {
 	pub has_symtab: bool
 }
 
-pub fn new_body_pass(): BodyPass {
-	var arena = Arena(65536);
-	var decl_p = new_decl_pass();
-	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
-}
+impl BodyPass {
+	pub fn new(): BodyPass {
+		var arena = Arena(65536);
+		var decl_p = DeclPass();
+		val none_ty = alloc_primitive(&arena, type_none());
+		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
+	}
 
-pub fn new_body_pass_with_symtab(symtab: SymbolTable): BodyPass {
-	var arena = Arena(65536);
-	val none_ty = alloc_primitive(&arena, type_none());
-	return BodyPass(symtab, arena, none_ty, 0, List<str>(), null, true);
+	pub fn new(symtab: SymbolTable): BodyPass {
+		var arena = Arena(65536);
+		val none_ty = alloc_primitive(&arena, type_none());
+		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+	}
 }
 
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.
@@ -121,7 +123,7 @@ pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
 }
 
 pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
-	var decl_p = DeclPass(self.symtab, self.arena, self.symtab.current_module, self.errors, false);
+	var decl_p = DeclPass(self.symtab, self.arena, self.symtab.current_module, self.errors, false, self.current_self_type);
 	val ty = resolve_ast_type(&decl_p, node);
 	self.arena = decl_p.arena;
 	self.errors = decl_p.errors;

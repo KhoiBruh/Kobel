@@ -13,7 +13,6 @@ use compiler.sema.symbol.SymbolKind;
 use compiler.sema.symbol.Symbol;
 use compiler.sema.symbol.Scope;
 use compiler.sema.symbol.SymbolTable;
-use compiler.sema.symbol.new_symbol_table;
 use compiler.sema.symbol.enter_scope;
 use compiler.sema.symbol.exit_scope;
 use compiler.sema.symbol.is_in_function;
@@ -45,7 +44,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 // ============================================================================
 
 fn test_global_scope() {
-	var symtab = new_symbol_table();
+	var symtab = SymbolTable();
 	var ty_i32 = type_i32();
 
 	val ok = define(&symtab, Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
@@ -69,7 +68,7 @@ fn test_global_scope() {
 // ============================================================================
 
 fn test_duplicate_definition() {
-	var symtab = new_symbol_table();
+	var symtab = SymbolTable();
 	var ty_i32 = type_i32();
 	var ty_bool = type_bool();
 
@@ -92,7 +91,7 @@ fn test_duplicate_definition() {
 // ============================================================================
 
 fn test_scoping_and_shadowing() {
-	var symtab = new_symbol_table();
+	var symtab = SymbolTable();
 	var ty_i32 = type_i32();
 	var ty_str = type_str();
 
@@ -136,7 +135,7 @@ fn test_scoping_and_shadowing() {
 // ============================================================================
 
 fn test_function_boundary() {
-	var symtab = new_symbol_table();
+	var symtab = SymbolTable();
 
 	assert_true(!is_in_function(&symtab), "Global scope is not in function");
 

@@ -1,6 +1,5 @@
 mod compiler.codegen.c_codegen;
 
-use std.traits.new.New;
 use std.collections.list.*;
 
 use compiler.lexer.token.*;
@@ -28,7 +27,7 @@ pub struct CCodeGen {
 	pub array_elem_hint: str
 }
 
-impl New for CCodeGen {
+impl CCodeGen {
 
 	pub fn new() => Self(
 		0,

@@ -66,12 +66,15 @@ pub struct DeclPass {
 	pub current_module: str,
 	pub errors: List<str>,
 	// Currently collecting declarations inside the `extern "libc" { ... }` block
-	pub is_extern: bool
+	pub is_extern: bool,
+	pub current_self_type: *Type
 }
 
-pub fn new_decl_pass(): DeclPass {
-	var arena = Arena(65536);
-	return DeclPass(new_symbol_table(), arena, "", List<str>(), false);
+impl DeclPass {
+	pub fn new(): DeclPass {
+		var arena = Arena(65536);
+		return Self(SymbolTable(), arena, "", List<str>(), false, null);
+	}
 }
 
 // C name of a top-level declaration: modules get the module name as a prefix
@@ -155,6 +158,13 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 		NodeKind.TYPE_NAMED -> {
 			val named = as_named_type(node) as &NamedType;
 			val name = named.name;
+
+			if (name == "Self" && self.current_self_type != null) {
+				val sinfo = sem_struct(self.current_self_type);
+				if (sinfo.c_name != "") named.name = sinfo.c_name;
+				else named.name = sinfo.name;
+				return self.current_self_type;
+			}
 
 			val prim = resolve_primitive_name(&self.arena, name);
 			if (prim != null) return prim;
@@ -246,6 +256,8 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	val st_c_name = st_sym.c_name;
 	val st_info = as_struct_type_mut(st_type);
 
+	self.current_self_type = st_type;
+
 	// Rename so the backend can learn the receiver type of each method.
 	im.struct_name = st_c_name;
 
@@ -257,6 +269,15 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 
 	for (m_node in im.methods) {
 		val f = as_fn_decl(m_node) as &FnDecl;
+
+		if (f.name == "new") {
+			for (p in f.params) {
+				if (p.name == "self") {
+					report_error(self, m_node, "Constructor 'new' cannot have a 'self' parameter in struct '${st_info.name}'");
+				}
+			}
+		}
+
 		var param_types = List<*Type>();
 
 		for (p in f.params) {
@@ -292,6 +313,8 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		// Uniquify the AST name so the backend emits the mangled method name.
 		f.name = m_c_name;
 	}
+
+	self.current_self_type = null;
 }
 
 

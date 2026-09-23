@@ -1,7 +1,6 @@
 mod std.collections.hash_map;
 
 use std.mem.alloc.*;
-use std.traits.new.New;
 
 // `len` is the public size accessor; the storage is internal.
 pub struct HashMap<V> {
@@ -13,7 +12,7 @@ pub struct HashMap<V> {
 }
 
 // Kotlin-style constructor: `HashMap<V>()`.
-impl New for HashMap<V> {
+impl HashMap<V> {
 	pub fn new(): HashMap<V> {
 		val init_cap = 16UZ;
 		val raw_keys = raw_alloc(init_cap * str.size());

@@ -150,24 +150,27 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
 | `str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
 | `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str`, số nguyên, `f32/f64`; nền của nội suy `${...}` |
-| `traits/new.kb` | trait `New { fn new() }` — dấu hiệu "dựng được"; kiểu tự thêm các overload `new` khác, gọi bằng cú pháp Kotlin `Type(args)` |
 | `traits/iterable.kb` | trait `Iterable { fn count(val self): usz; fn at(val self, i: usz) }` — kiểu impl nó thì `for (x in seq)` dùng `count()`/`at(i)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
-| `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl `New`); impl `Iterable` nên `for (x in list)` chạy |
-| `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (impl `New`) |
-| `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (impl `New`); impl `Iterable` nên `for (c in sb)` duyệt từng ký tự |
+| `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (constructor inherent); impl `Iterable` nên `for (x in list)` chạy |
+| `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (constructor inherent) |
+| `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (constructor inherent); impl `Iterable` nên `for (c in sb)` duyệt từng ký tự |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
-| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (impl `New`) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
+| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
 Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, của `StringBuilder`/`HashMap` (trừ `len`
 là accessor công khai), và các struct nội bộ (`StringRaw` ở `io.kb`/`string_builder.kb`, `StrRaw` ở
 `str.kb`) **không** `pub` — module khác phải đi qua constructor/method. Riêng `List.data` / `List.len`
 giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2).
 
-Các kiểu container **chỉ** dựng bằng cú pháp Kotlin (impl trait `New`): `List<T>()`, `List<T>(capacity)`,
-`HashMap<V>()`, `StringBuilder()`, `Arena()`, `Arena(block_size)`. Các hàm factory cũ (`new_list` /
-`list_with_capacity` / `new_hash_map` / `new_string_builder` / `new_arena`) đã **gỡ bỏ** — toàn bộ
-nguồn (compiler + std + examples) đã chuyển sang constructor, không còn hai lối khởi tạo.
+Toàn bộ các kiểu container (stdlib) và các pass/bộ nạp của compiler **chỉ** dựng bằng cú pháp constructor
+Kotlin-style: `List<T>()`, `List<T>(capacity)`, `HashMap<V>()`, `StringBuilder()`, `Arena()`,
+`Arena(block_size)`, `Lexer(src)`, `Parser(tokens)`, `ModuleLoader(dir, roots)`, `DeclPass()`,
+`BodyPass()`, `SymbolTable()`, `CCodeGen()`.
+Hàm khởi tạo được khai báo qua `pub fn new(...)` trong khối `impl Struct` (inherent constructor, **không**
+dùng trait `New` để tránh trói buộc chữ ký arity), cấm tham số `self`. Toàn bộ hàm factory cũ kiểu C
+(`new_*`) đã **gỡ bỏ hoàn toàn** — toàn bộ nguồn (compiler + std + examples) đã chuyển sang constructor,
+không còn hai lối khởi tạo.
 
 Quy ước ABI quan trọng:
 
@@ -282,7 +285,9 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   `Type(...)` (nếu struct có bất kỳ field riêng), **đọc** và **ghi** (`obj.field` / `obj.field = v`,
   đều đi qua nhánh `EXPR_MEMBER`). Module khác phải đi qua hàm khởi tạo/accessor. Cùng module thì
   không hạn chế (nên chính `new` dùng được).
-- **`Self` & dựng kiểu Kotlin**: trong thân `impl`, `Self` = kiểu đang impl (`BodyPass.current_self_type`).
+- **`Self` & dựng kiểu Kotlin**: trong thân `impl`, `Self` = kiểu đang impl (`DeclPass.current_self_type` và
+  `BodyPass.current_self_type`). Chữ ký `pub fn new(...): Self` trả về chính struct đang impl.
+  Hàm khởi tạo `new` là constructor inherent (cấm tham số `self`); không thể gọi `Type.new(...)` hay `obj.new(...)`.
   `Self(args)` dựng **thô** theo field. Còn `Type(args)` **ưu tiên gọi overload `new`** cùng arity, chỉ
   khi không có mới dựng theo field. `Self(...)` **luôn bỏ qua** bước gọi `new` — nhờ vậy
   `fn new(v) => Self(v, v)` không tự gọi lại chính nó.
@@ -338,8 +343,7 @@ Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo th
 ⚠ Hạn chế: chưa có `dyn`/trait object; hợp đồng so theo **tên method + arity** (chưa so kiểu chữ ký);
 method nguyên thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu
 sẽ đụng tên; hợp đồng của `impl Trait for Generic<T>` chỉ được kiểm **khi instantiate**, không kiểm trên
-template. Thứ tự các `impl` trong tệp **không** còn quan trọng (đã kiểm chứng: đặt `impl New for
-List<T>` trước `impl List<T>` vẫn build được).
+template. Thứ tự các `impl` trong tệp **không** còn quan trọng.
 Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
 có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
@@ -451,8 +455,8 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   thành literal theo layout của v1 (khớp thực tế cho các kiểu đang dùng). **Bound `<T: Trait>` đã có**
   (xem §6.6), nhưng **generic impl của trait** (`impl Trait for List<T>`) chưa được hỗ trợ.
 - **Trait**: dispatch **tĩnh** (không vtable/`dyn`); hợp đồng so theo **tên method + arity** (chưa so
-  kiểu chữ ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`) và cho **kiểu generic**
-  (`impl New for List<T>`) — chi tiết ở §6.6.
+  kiểu chữ ký). Đã áp được cho **kiểu nguyên thuỷ** (`impl i32 { … }`). Kiểu container dùng
+  constructor inherent `new(...)` trong khối `impl Struct` (không cần trait `New`).
 - **Dựng giá trị**: `Type(args)` ưu tiên `new` overload; `Self(...)` dựng thô; struct có field không
   `pub` thì module khác **không** dựng trực tiếp được (phải qua `new`).
 - **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không

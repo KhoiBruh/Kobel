@@ -1,7 +1,6 @@
 mod std.collections.list;
 
 use std.mem.alloc.*;
-use std.traits.new.New;
 use std.traits.iterable.Iterable;
 
 /*
@@ -38,8 +37,7 @@ impl Iterable for List<T> {
 	pub fn at(val self, i: usz): T => self.data[i];
 }
 
-// constructors: `List<T>()` and `List<T>(capacity)`.
-impl New for List<T> {
+impl List<T> {
 	pub fn new() => Self(alloc_array<T>(4UZ), 0, 4UZ);
 
 	pub fn new(capacity: usz): List<T> {
@@ -47,9 +45,7 @@ impl New for List<T> {
 		if (cap == 0) cap = 4;
 		return Self(alloc_array<T>(cap), 0, cap);
 	}
-}
 
-impl List<T> {
 	pub fn get(val self, index: usz): T => self.data[index];
 
 	pub fn first(val self): T => self.data[0];
