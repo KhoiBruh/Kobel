@@ -24,7 +24,7 @@ use std.mem.arena.*;
 // ============================================================================
 
 pub fn collect_module(var self: &DeclPass, node: *AstNode) {
-	val m = as_module_decl(node);
+	val m = node.to<ModuleDecl>();
 	self.current_module = m.full_path;
 	set_current_module(&self.symtab, m.full_path);
 }
@@ -33,7 +33,7 @@ pub fn collect_module(var self: &DeclPass, node: *AstNode) {
 // the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
 // `use a.b.c.*;` -> wildcard import of the whole module a.b.c
 pub fn collect_use(var self: &DeclPass, node: *AstNode) {
-	val u = as_use_decl(node);
+	val u = node.to<UseDecl>();
 
 	if (u.is_wildcard) {
 		val w_mod = str_join_dots(u.path, u.path.len);
@@ -64,7 +64,7 @@ pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
-	val s = as_struct_decl(node) as &StructDecl;
+	val s = node.to<StructDecl>() as &StructDecl;
 	// Generic structs are registered as templates and instantiated on use.
 	if (s.type_params.len > 0) return;
 	val c_name = c_name_for(self, s.name);
@@ -90,7 +90,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
-	val f = as_fn_decl(node) as &FnDecl;
+	val f = node.to<FnDecl>() as &FnDecl;
 	// Generic functions are registered as templates and instantiated on use.
 	if (f.type_params.len > 0) return;
 	var param_types = List<*Type>();
@@ -113,7 +113,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
-	val e = as_enum_decl(node) as &EnumDecl;
+	val e = node.to<EnumDecl>() as &EnumDecl;
 	var under_type = alloc_primitive(&self.arena, type_i32());
 	if (e.underlying_type != null) under_type = resolve_ast_type(self, e.underlying_type);
 
@@ -150,7 +150,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_const(var self: &DeclPass, node: *AstNode) {
-	val c = as_const_decl(node) as &ConstDecl;
+	val c = node.to<ConstDecl>() as &ConstDecl;
 	var c_type = alloc_primitive(&self.arena, type_i32());
 	if (c.type_node != null) c_type = resolve_ast_type(self, c.type_node);
 
@@ -162,7 +162,7 @@ pub fn collect_const(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
-	val ext = as_extern_block(node);
+	val ext = node.to<ExternBlock>();
 	val prev_is_extern = self.is_extern;
 	self.is_extern = true;
 	for (d in ext) collect_declaration(self, d);
@@ -182,7 +182,7 @@ fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMetho
 // resolved lazily; only the method names and whether each one has a body are
 // kept here.
 pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
-	val t = as_trait_decl(node);
+	val t = node.to<TraitDecl>();
 	if (find_trait(&self.symtab, t.name) != null) {
 		report_error(self, node, "Duplicate trait declaration '${t.name}'");
 		return;
@@ -190,7 +190,7 @@ pub fn collect_trait(var self: &DeclPass, node: *AstNode) {
 
 	var methods = List<*TraitMethod>();
 	for (m in t.methods) {
-		val f = as_fn_decl(m);
+		val f = m.to<FnDecl>();
 		if (trait_method_in(methods, f.name, f.params.len) != null) {
 			report_error(self, m, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) in trait '${t.name}'");
 			continue;
@@ -221,7 +221,7 @@ pub fn collect_declaration(var self: &DeclPass, node: *AstNode) {
 }
 
 pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
-	val prog = as_program(program_node);
+	val prog = program_node.to<Program>();
 
 	// Pass 0: register generic templates so any use can instantiate them.
 	// Module markers are processed here too, so each template records its module.
@@ -239,7 +239,7 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// replayed so each declaration resolves names in its own module.
 	for (d in prog) {
 		if (d.kind == NodeKind.DECL_MODULE) {
-			val m2 = as_module_decl(d);
+			val m2 = d.to<ModuleDecl>();
 			self.current_module = m2.full_path;
 			set_current_module(&self.symtab, m2.full_path);
 		} else if (!is_template_decl(d)) {
@@ -254,7 +254,7 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 		val combined = List<*AstNode>();
 		for (pn in self.symtab.gen.pending) combined.add(pn);
 		for (d in prog) combined.add(d);
-		val p_info = as_program(program_node) as &Program;
+		val p_info = program_node.to<Program>() as &Program;
 		p_info.declarations = combined;
 	}
 }

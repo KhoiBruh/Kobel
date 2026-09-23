@@ -13,12 +13,7 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
-use compiler.ast.builder.as_program;
-use compiler.ast.builder.as_fn_decl;
-use compiler.ast.builder.as_module_decl;
-use compiler.ast.builder.as_block_stmt;
-use compiler.ast.builder.as_expr_stmt;
-use compiler.ast.builder.as_impl_decl;
+use compiler.ast.builder.to;
 
 use compiler.lexer.token.*;
 
@@ -35,7 +30,7 @@ use std.collections.list.*;
 use std.mem.arena.*;
 
 pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
-	val f = as_fn_decl(fn_node);
+	val f = fn_node.to<FnDecl>();
 	val sym = lookup(&self.symtab, f.name);
 	if (sym == null || sym.type_ptr.kind != DataType.FN) return;
 	check_fn_body(self, fn_node, sym.type_ptr);
@@ -44,7 +39,7 @@ pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 // Shared body checker: works for free functions and impl methods. `fn_type`
 // is the signature already built by DeclPass (methods have no global symbol).
 pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
-	val f = as_fn_decl(fn_node);
+	val f = fn_node.to<FnDecl>();
 
 	val fn_info = sem_fn(fn_type);
 	self.current_fn_return_type = fn_info.return_type;
@@ -61,13 +56,13 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 	// Analyze the function body
 	if (f.body != null) {
 		if (f.body.kind == NodeKind.STMT_BLOCK) {
-			val blk = as_block_stmt(f.body);
+			val blk = f.body.to<BlockStmt>();
 			for (stmt in blk.statements) {
 				check_statement(self, stmt);
 			}
 		} else if (f.body.kind == NodeKind.STMT_EXPR) {
 			// Expression body: => expr;
-			val es = as_expr_stmt(f.body);
+			val es = f.body.to<ExprStmt>();
 			val body_ty = check_expr(self, es.expr);
 			if (f.return_type == null) {
 				val fn_info_mut = as_fn_type_mut(fn_type);
@@ -83,12 +78,12 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 }
 
 pub fn check_impl(var self: &BodyPass, node: *AstNode) {
-	val im = as_impl_decl(node);
+	val im = node.to<ImplDecl>();
 
 	// A primitive impl has no struct name; find its methods by mangled name.
 	if (im.struct_name == "") {
 		for (m_node in im.methods) {
-			val f = as_fn_decl(m_node);
+			val f = m_node.to<FnDecl>();
 			val mi = find_prim_method_c(&self.symtab, f.name);
 			if (mi != null) check_fn_body(self, m_node, mi.fn_type);
 		}
@@ -102,7 +97,7 @@ pub fn check_impl(var self: &BodyPass, node: *AstNode) {
 	// Make `Self` resolve to this struct inside every method body.
 	self.current_self_type = st_sym.type_ptr;
 	for (m_node in im.methods) {
-		val f = as_fn_decl(m_node);
+		val f = m_node.to<FnDecl>();
 		val mi = struct_find_method_c(st_info, f.name);
 		if (mi != null) check_fn_body(self, m_node, mi.fn_type);
 	}
@@ -123,10 +118,10 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 	}
 
 	// Step 2: Analyze each function body of each module (program already merged)
-	val prog = as_program(program_node);
+	val prog = program_node.to<Program>();
 	for (decl in prog) {
 		if (decl.kind == NodeKind.DECL_MODULE) {
-			val m = as_module_decl(decl);
+			val m = decl.to<ModuleDecl>();
 			set_current_module(&self.symtab, m.full_path);
 		} else if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
 		else if (decl.kind == NodeKind.DECL_IMPL) check_impl(self, decl);

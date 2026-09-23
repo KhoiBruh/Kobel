@@ -29,18 +29,7 @@ use compiler.ast.decl.FnDecl;
 
 use compiler.ast.builder.AstBuilder;
 
-use compiler.ast.builder.as_literal;
-use compiler.ast.builder.as_identifier;
-use compiler.ast.builder.as_binary;
-use compiler.ast.builder.as_unary;
-use compiler.ast.builder.as_group;
-use compiler.ast.builder.as_named_type;
-use compiler.ast.builder.as_block_stmt;
-use compiler.ast.builder.as_var_decl;
-use compiler.ast.builder.as_if_stmt;
-use compiler.ast.builder.as_return_stmt;
-use compiler.ast.builder.as_fn_decl;
-use compiler.ast.builder.as_program;
+use compiler.ast.builder.to;
 use compiler.ast.decl.Program;
 
 use compiler.lexer.token.TokenType;
@@ -64,15 +53,15 @@ fn parse_i32(s: str): i32 {
 fn eval_expr(node: *AstNode): i32 {
 	when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
-			val lit = as_literal(node);
+			val lit = node.to<LiteralExpr>();
 			return parse_i32(lit.raw_text);
 		}
 		NodeKind.EXPR_GROUP -> {
-			val grp = as_group(node);
+			val grp = node.to<GroupExpr>();
 			return eval_expr(grp.expr);
 		}
 		NodeKind.EXPR_BINARY -> {
-			val bin = as_binary(node);
+			val bin = node.to<BinaryExpr>();
 			val l = eval_expr(bin.left);
 			val r = eval_expr(bin.right);
 			when (bin.op) {
@@ -103,15 +92,15 @@ fn test_expression_tree(): bool {
 
 	if (mul_expr.kind != NodeKind.EXPR_BINARY) return false;
 
-	val bin = as_binary(mul_expr);
+	val bin = mul_expr.to<BinaryExpr>();
 	if (bin.op != TokenType.STAR) return false;
 	if (bin.right.kind != NodeKind.EXPR_LITERAL) return false;
 
-	val r_lit = as_literal(bin.right);
+	val r_lit = bin.right.to<LiteralExpr>();
 	if (r_lit.raw_text != "3") return false;
 
 	if (bin.left.kind != NodeKind.EXPR_GROUP) return false;
-	val grp = as_group(bin.left);
+	val grp = bin.left.to<GroupExpr>();
 	if (grp.expr.kind != NodeKind.EXPR_BINARY) return false;
 
 	// Evaluate tree
@@ -132,7 +121,7 @@ fn test_statement_nodes(): bool {
 	val var_stmt = b.var_decl(true, "count", ty_i32, lit42, 1UZ, 1UZ);
 
 	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
-	val vd = as_var_decl(var_stmt);
+	val vd = var_stmt.to<VarDeclStmt>();
 	if (!vd.is_mut || vd.name != "count") return false;
 	if (vd.type_annotation.kind != NodeKind.TYPE_NAMED) return false;
 	if (vd.initializer.kind != NodeKind.EXPR_LITERAL) return false;
@@ -147,7 +136,7 @@ fn test_statement_nodes(): bool {
 	stmts.add(ret_stmt);
 	val block = b.block_stmt(stmts, 2UZ, 1UZ);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
-	val blk = as_block_stmt(block);
+	val blk = block.to<BlockStmt>();
 	if (blk.statements.len != 1UZ) return false;
 
 	// if (count > 0) { return count; }
@@ -156,7 +145,7 @@ fn test_statement_nodes(): bool {
 	val if_stmt = b.if_stmt(cond, block, null, 3UZ, 1UZ);
 
 	if (if_stmt.kind != NodeKind.STMT_IF) return false;
-	val ifs = as_if_stmt(if_stmt);
+	val ifs = if_stmt.to<IfStmt>();
 	if (ifs.condition.kind != NodeKind.EXPR_BINARY) return false;
 	if (ifs.then_branch.kind != NodeKind.STMT_BLOCK) return false;
 
@@ -195,7 +184,7 @@ fn test_declaration_nodes(): bool {
 	);
 
 	if (fn_node.kind != NodeKind.DECL_FN) return false;
-	val fn_d = as_fn_decl(fn_node);
+	val fn_d = fn_node.to<FnDecl>();
 	if (fn_d.name != "add") return false;
 	if (!fn_d.is_pub) return false;
 	if (fn_d.params.len != 2UZ) return false;
@@ -215,7 +204,7 @@ fn test_program_iterable(): bool {
 	decls.add(d1);
 	decls.add(d2);
 	val prog_node = b.program(decls, 1UZ, 1UZ);
-	val prog = as_program(prog_node);
+	val prog = prog_node.to<Program>();
 
 	var count: usz = 0;
 	for (d in prog) {
@@ -239,19 +228,19 @@ fn test_ast_builder_and_methods(): bool {
 	var b = AstBuilder(&arena);
 
 	val lit_node = b.literal(LiteralKind.INT, "123", 1UZ, 1UZ);
-	val lit = lit_node.as_literal();
+	val lit = lit_node.to<LiteralExpr>();
 	if (lit.raw_text != "123") return false;
 	val lit_to = lit_node.to<LiteralExpr>();
 	if (lit_to.raw_text != "123") return false;
 
 	val id_node = b.identifier("x", 1UZ, 5UZ);
-	val id = id_node.as_identifier();
+	val id = id_node.to<IdentifierExpr>();
 	if (id.name != "x") return false;
 	val id_to = id_node.to<IdentifierExpr>();
 	if (id_to.name != "x") return false;
 
 	val bin_node = b.binary(TokenType.PLUS, lit_node, id_node, 1UZ, 3UZ);
-	val bin = bin_node.as_binary();
+	val bin = bin_node.to<BinaryExpr>();
 	if (bin.op != TokenType.PLUS) return false;
 	if (bin.left.to<LiteralExpr>().raw_text != "123") return false;
 	if (bin.right.to<IdentifierExpr>().name != "x") return false;

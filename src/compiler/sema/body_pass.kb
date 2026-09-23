@@ -6,32 +6,7 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
-use compiler.ast.builder.as_program;
-use compiler.ast.builder.as_fn_decl;
-use compiler.ast.builder.as_module_decl;
-use compiler.ast.builder.as_literal;
-use compiler.ast.builder.as_identifier;
-use compiler.ast.builder.as_binary;
-use compiler.ast.builder.as_unary;
-use compiler.ast.builder.as_call;
-use compiler.ast.builder.as_member;
-use compiler.ast.builder.as_index;
-use compiler.ast.builder.as_assign;
-use compiler.ast.builder.as_cast;
-use compiler.ast.builder.as_group;
-use compiler.ast.builder.as_if_expr;
-use compiler.ast.builder.as_block_stmt;
-use compiler.ast.builder.as_expr_stmt;
-use compiler.ast.builder.as_var_decl;
-use compiler.ast.builder.as_if_stmt;
-use compiler.ast.builder.as_while_stmt;
-use compiler.ast.builder.as_for_stmt;
-use compiler.ast.builder.as_return_stmt;
-use compiler.ast.builder.as_impl_decl;
-use compiler.ast.builder.as_when_expr;
-use compiler.ast.builder.as_when_stmt;
-use compiler.ast.builder.as_interp;
-use compiler.ast.builder.as_array_literal;
+use compiler.ast.builder.to;
 use compiler.ast.builder.AstBuilder;
 
 use compiler.lexer.token.*;
@@ -149,7 +124,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 	when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
-			val lit = as_literal(node);
+			val lit = node.to<LiteralExpr>();
 			when (lit.literal_kind) {
 				LiteralKind.INT -> return int_literal_type(&self.arena, lit.raw_text);
 				LiteralKind.FLOAT -> return alloc_primitive(&self.arena, type_f64());
@@ -164,7 +139,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 		}
 		NodeKind.EXPR_IDENTIFIER -> {
-			val id = as_identifier(node) as &IdentifierExpr;
+			val id = node.to<IdentifierExpr>() as &IdentifierExpr;
 
 			// `Self` names the type being implemented. Renaming it to the C
 			// name lets `Self(...)` build a value directly (no `new` factory).
@@ -183,11 +158,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return sym.type_ptr;
 		}
 		NodeKind.EXPR_GROUP -> {
-			val grp = as_group(node);
+			val grp = node.to<GroupExpr>();
 			return check_expr(self, grp.expr);
 		}
 		NodeKind.EXPR_BINARY -> {
-			val bin = as_binary(node);
+			val bin = node.to<BinaryExpr>();
 			val lt = check_expr(self, bin.left);
 			val rt = check_expr(self, bin.right);
 
@@ -245,7 +220,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 		}
 		NodeKind.EXPR_UNARY -> {
-			val un = as_unary(node);
+			val un = node.to<UnaryExpr>();
 			val op_ty = check_expr(self, un.operand);
 
 			when (un.op) {
@@ -272,15 +247,15 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 		}
 		NodeKind.EXPR_CALL -> {
-			val call = as_call(node) as &CallExpr;
+			val call = node.to<CallExpr>() as &CallExpr;
 
 			// Check the static type size query: T.size()
 			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
-				val mem = as_member(call.callee);
+				val mem = call.callee.to<MemberExpr>();
 				if (mem.member == "size") {
 					// Mangle the type name so the backend emits sizeof(<c_name>).
 					if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-						val id = as_identifier(mem.object) as &IdentifierExpr;
+						val id = mem.object.to<IdentifierExpr>() as &IdentifierExpr;
 
 						// A primitive type name has no C type of its own (`str`,
 						// `bool`, ...), so fold `.size()` to its C size literal.
@@ -394,7 +369,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			// `new` factory (that is what keeps `fn new() => Self(...)` from
 			// calling itself again).
 			var callee_is_self = false;
-			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && as_identifier(call.callee).name == "Self") callee_is_self = true;
+			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.callee.to<IdentifierExpr>().name == "Self") callee_is_self = true;
 
 			val callee_ty = check_expr(self, call.callee);
 
@@ -458,11 +433,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_MEMBER -> {
-			val mem = as_member(node) as &MemberExpr;
+			val mem = node.to<MemberExpr>() as &MemberExpr;
 
 			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
 			if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-				val enum_id = as_identifier(mem.object);
+				val enum_id = mem.object.to<IdentifierExpr>();
 				val ei = find_enum_info(&self.symtab, enum_id.name);
 				if (ei != null) {
 					val mi = enum_find_member(ei, mem.member);
@@ -573,7 +548,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_INDEX -> {
-			val idx = as_index(node);
+			val idx = node.to<IndexExpr>();
 			val target_ty = check_expr(self, idx.target);
 			val index_ty = check_expr(self, idx.index);
 
@@ -587,7 +562,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_ASSIGN -> {
-			val asgn = as_assign(node);
+			val asgn = node.to<AssignExpr>();
 			val target_ty = check_expr(self, asgn.target);
 			val val_ty = check_expr(self, asgn.value);
 
@@ -595,12 +570,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return target_ty;
 		}
 		NodeKind.EXPR_CAST -> {
-			val cst = as_cast(node);
+			val cst = node.to<CastExpr>();
 			check_expr(self, cst.expr);
 			return resolve_type(self, cst.target_type);
 		}
 		NodeKind.EXPR_IF -> {
-			val if_e = as_if_expr(node);
+			val if_e = node.to<IfExpr>();
 			val cond_ty = check_expr(self, if_e.condition);
 			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If expression condition must be bool");
 			val then_ty = check_expr(self, if_e.then_branch);
@@ -609,7 +584,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return then_ty;
 		}
 		NodeKind.EXPR_WHEN -> {
-			val we = as_when_expr(node);
+			val we = node.to<WhenExpr>();
 			if (we.condition != null) check_expr(self, we.condition);
 
 			var result_ty: *Type = null;
@@ -632,7 +607,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return result_ty;
 		}
 		NodeKind.EXPR_ARRAY_LITERAL -> {
-			val al = as_array_literal(node);
+			val al = node.to<ArrayLiteralExpr>();
 
 			// The element type comes from the first element; an empty literal
 			// has nothing to infer from (use an annotated `[T; 0]` variable).
@@ -649,7 +624,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			return alloc_array_type(&self.arena, elem_ty, al.elements.len);
 		}
 		NodeKind.EXPR_INTERP -> {
-			val ie = as_interp(node);
+			val ie = node.to<InterpExpr>();
 
 			// Fold the parts into a `kobel_concat` chain; every hole is checked
 			// once and converted to `str` (see interp_piece).
@@ -684,7 +659,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 
 	when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
-			val blk = as_block_stmt(node);
+			val blk = node.to<BlockStmt>();
 			enter_scope(&self.symtab, false);
 			for (stmt in blk.statements) {
 				check_statement(self, stmt);
@@ -692,7 +667,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			exit_scope(&self.symtab);
 		}
 		NodeKind.STMT_VAR_DECL -> {
-			val vd = as_var_decl(node) as &VarDeclStmt;
+			val vd = node.to<VarDeclStmt>() as &VarDeclStmt;
 			var var_ty = alloc_primitive(&self.arena, type_none());
 
 			var has_init = false;
@@ -724,14 +699,14 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			if (!ok) report_error(self, node, "Variable '${vd.name}' is already defined in this scope");
 		}
 		NodeKind.STMT_IF -> {
-			val if_s = as_if_stmt(node);
+			val if_s = node.to<IfStmt>();
 			val cond_ty = check_expr(self, if_s.condition);
 			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If statement condition must be bool");
 			check_statement(self, if_s.then_branch);
 			if (if_s.else_branch != null) check_statement(self, if_s.else_branch);
 		}
 		NodeKind.STMT_WHILE -> {
-			val wh = as_while_stmt(node);
+			val wh = node.to<WhileStmt>();
 			val cond_ty = check_expr(self, wh.condition);
 			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "While statement condition must be bool");
 			self.loop_depth = self.loop_depth + 1;
@@ -739,7 +714,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			self.loop_depth = self.loop_depth - 1;
 		}
 		NodeKind.STMT_FOR -> {
-			val fs = as_for_stmt(node) as &ForStmt;
+			val fs = node.to<ForStmt>() as &ForStmt;
 			if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
 				report_error(self, node, "The iterated expression of a 'for' must be a variable or a field");
 			}
@@ -754,7 +729,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			check_statement(self, node);
 		}
 		NodeKind.STMT_RETURN -> {
-			val ret = as_return_stmt(node);
+			val ret = node.to<ReturnStmt>();
 			if (ret.value != null) {
 				val val_ty = check_expr(self, ret.value);
 				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
@@ -764,11 +739,11 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			if (self.loop_depth == 0) report_error(self, node, "Break or continue statement outside of loop");
 		}
 		NodeKind.STMT_EXPR -> {
-			val es = as_expr_stmt(node);
+			val es = node.to<ExprStmt>();
 			check_expr(self, es.expr);
 		}
 		NodeKind.STMT_WHEN -> {
-			val ws = as_when_stmt(node);
+			val ws = node.to<WhenStmt>();
 			if (ws.condition != null) check_expr(self, ws.condition);
 			for (arm in ws.arms) {
 				for (pat in arm.patterns) {
@@ -853,8 +828,8 @@ pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Ty
 pub fn for_is_lvalue(node: *AstNode): bool {
 	if (node == null) return false;
 	if (node.kind == NodeKind.EXPR_IDENTIFIER) return true;
-	if (node.kind == NodeKind.EXPR_MEMBER) return for_is_lvalue(as_member(node).object);
-	if (node.kind == NodeKind.EXPR_GROUP) return for_is_lvalue(as_group(node).expr);
+	if (node.kind == NodeKind.EXPR_MEMBER) return for_is_lvalue(node.to<MemberExpr>().object);
+	if (node.kind == NodeKind.EXPR_GROUP) return for_is_lvalue(node.to<GroupExpr>().expr);
 	return false;
 }
 
@@ -921,18 +896,18 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 
 	when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
-			val b = as_block_stmt(node);
+			val b = node.to<BlockStmt>();
 			for (stmt in b.statements) {
 				for_inject_step(arena, stmt, step);
 			}
 		}
 		NodeKind.STMT_IF -> {
-			val s = as_if_stmt(node);
+			val s = node.to<IfStmt>();
 			for_inject_step(arena, s.then_branch, step);
 			for_inject_step(arena, s.else_branch, step);
 		}
 		NodeKind.STMT_WHEN -> {
-			val w = as_when_stmt(node);
+			val w = node.to<WhenStmt>();
 			for (arm in w.arms) {
 				for_inject_step(arena, arm.body, step);
 			}
@@ -956,16 +931,16 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 // is lowered and re-checked.
 fn for_iterable_type(self: &BodyPass, node: *AstNode): *Type {
 	if (node == null) return null;
-	if (node.kind == NodeKind.EXPR_GROUP) return for_iterable_type(self, as_group(node).expr);
+	if (node.kind == NodeKind.EXPR_GROUP) return for_iterable_type(self, node.to<GroupExpr>().expr);
 
 	if (node.kind == NodeKind.EXPR_IDENTIFIER) {
-		val sym = lookup(&self.symtab, as_identifier(node).name);
+		val sym = lookup(&self.symtab, node.to<IdentifierExpr>().name);
 		if (sym != null) return sym.type_ptr;
 		return null;
 	}
 
 	if (node.kind == NodeKind.EXPR_MEMBER) {
-		val mem = as_member(node);
+		val mem = node.to<MemberExpr>();
 		var obj = for_iterable_type(self, mem.object);
 		if (obj == null) return null;
 		if (obj.kind == DataType.POINTER) obj = sem_pointer(obj).pointee;
@@ -1138,7 +1113,7 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_tra
 	for (s in head) body_stmts.add(s);
 	if (fs.body != null) {
 		if (fs.body.kind == NodeKind.STMT_BLOCK) {
-			val b = as_block_stmt(fs.body);
+			val b = fs.body.to<BlockStmt>();
 	for (s in b.statements) body_stmts.add(s);
 		} else body_stmts.add(fs.body);
 	}
