@@ -226,6 +226,14 @@ fn test_range_half_open(var t: &Tally) {
 	count = 0;
 	for (i in 2..<5) count = count + 1;
 	check(count == 3, "half-open 2..<5 must run 3 times", t);
+
+	var evens = 0;
+	for (i in 0..<10) {
+		if (i % 2 != 0) continue;
+		if (i > 6) break;
+		evens = evens + 1;
+	}
+	check(evens == 4, "half-open 0..<10 with continue and break (0, 2, 4, 6)", t);
 }
 
 // `0..<n` is the index-loop idiom: index any number of parallel containers.

@@ -42,10 +42,8 @@ impl StringBuilder {
 	pub fn append_str(var self, s: str) {
 		val s_len = s.len;
 		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
-		var i = 0UZ;
-		while (i < s_len) {
+		for (i in 0..<s_len) {
 			self.buf[self.len + i] = s[i] as u8;
-			i = i + 1;
 		}
 		self.len = self.len + s_len;
 	}

@@ -65,10 +65,8 @@ fn fmt_bool(b: bool): str {
 fn fmt_zeros(n: usz): str {
 	if (n == 0) return "";
 	val buf = raw_alloc(n + 1);
-	var i: usz = 0;
-	while (i < n) {
+	for (i in 0..<n) {
 		buf[i] = '0' as u8;
-		i = i + 1;
 	}
 	buf[n] = 0;
 	return str_from_bytes(buf, n);
@@ -95,10 +93,8 @@ fn fmt_f64(v: f64): str {
 
 	val prec: usz = 6;
 	var scale: f64 = 1.0;
-	var k: usz = 0;
-	while (k < prec) {
+	for (k in 0..<prec) {
 		scale = scale * 10.0;
-		k = k + 1;
 	}
 
 	var ip: u64 = x as u64;

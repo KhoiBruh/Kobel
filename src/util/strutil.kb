@@ -42,10 +42,8 @@ pub fn cstr_to_str(s: *char): str => str_from_bytes(s as &u8, strlen(s));
 // Copies `count` bytes starting at `start` into a fresh NUL terminated `str`.
 pub fn str_slice(s: str, start: usz, count: usz): str {
 	val buf = raw_alloc(count + 1);
-	var i: usz = 0;
-	while (i < count) {
+	for (i in 0..<count) {
 		buf[i] = s[start + i] as u8;
-		i = i + 1;
 	}
 	buf[count] = 0;
 	return str_from_bytes(buf, count);
@@ -54,14 +52,11 @@ pub fn str_slice(s: str, start: usz, count: usz): str {
 pub fn str_concat(a: str, b: str): str {
 	val total = a.len + b.len;
 	val buf = raw_alloc(total + 1);
-	var i: usz = 0;
-	while (i < a.len) {
+	for (i in 0..<a.len) {
 		buf[i] = a[i] as u8;
-		i = i + 1;
 	}
-	for (c in b) {
-		buf[i] = c as u8;
-		i = i + 1;
+	for (i in 0..<b.len) {
+		buf[a.len + i] = b[i] as u8;
 	}
 	buf[total] = 0;
 	return str_from_bytes(buf, total);
@@ -140,17 +135,14 @@ pub fn str_is_empty_str(s: str) => s.len == 0;
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;
-	var i: usz = 0;
-	while (i < count) {
+	for (i in 0..<count) {
 		total = total + parts.get(i).len;
-		i = i + 1;
 	}
 	if (count > 1) total = total + (count - 1);
 
 	val buf = raw_alloc(total + 1);
 	var w: usz = 0;
-	i = 0;
-	while (i < count) {
+	for (i in 0..<count) {
 		val p = parts.get(i);
 		for (c in p) {
 			buf[w] = c as u8;
@@ -160,7 +152,6 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 			buf[w] = '.' as u8;
 			w = w + 1;
 		}
-		i = i + 1;
 	}
 	buf[w] = 0;
 	return str_from_bytes(buf, w);

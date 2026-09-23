@@ -22,11 +22,8 @@ struct StringRaw {
 }
 
 pub fn print(s: str) {
-	var i = 0UZ;
-	val len = s.len;
-	while (i < len) {
+	for (i in 0..<s.len) {
 		putchar(s[i]);
-		i = i + 1;
 	}
 }
 

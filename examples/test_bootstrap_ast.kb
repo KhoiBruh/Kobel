@@ -63,14 +63,12 @@ use std.mem.arena.Arena;
 // Simple string-to-int helper for our test evaluator
 fn parse_i32(s: str): i32 {
 	var res: i32 = 0;
-	var i: usz = 0UZ;
-	while (i < s.len) {
+	for (i in 0..<s.len) {
 		val c = s[i];
 		if (c >= '0' && c <= '9') {
 			val digit = (c as i32) - ('0' as i32);
 			res = res * 10 + digit;
 		}
-		i = i + 1UZ;
 	}
 	return res;
 }

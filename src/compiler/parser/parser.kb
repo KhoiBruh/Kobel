@@ -103,10 +103,9 @@ pub fn is_generic_args_ahead(var self: &Parser): bool {
 	// Check whether the position after '<' looks like type arguments ending with '>'
 	if (!check(self, TokenType.LESS)) return false;
 
-	var i = self.current + 1;
 	var depth = 1;
 
-	while (i < self.tokens.len) {
+	for (i in (self.current + 1)..<self.tokens.len) {
 		val tok = self.tokens.get(i);
 		when (tok.type) {
 			TokenType.LESS -> { depth = depth + 1; }
@@ -120,7 +119,6 @@ pub fn is_generic_args_ahead(var self: &Parser): bool {
 			TokenType.END_OF_FILE -> return false;
 			else -> {}
 		}
-		i = i + 1;
 	}
 
 	return false;

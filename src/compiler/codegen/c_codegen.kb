@@ -70,10 +70,8 @@ pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
 
 pub fn get_indent(level: usz): str {
 	var res = "";
-	var i: usz = 0;
-	while (i < level) {
+	for (i in 0..<level) {
 		res = res + "    ";
-		i = i + 1;
 	}
 	return res;
 }

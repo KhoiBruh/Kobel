@@ -467,11 +467,11 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   `List<T>` (kể cả phần tử là struct) và `StringBuilder` (theo ký tự) đã impl. `str` / `[T; N]` đi
   đường `.len`/`.data` dựng sẵn (mảng cố định hiện **chưa tạo được giá trị**: không có array literal và
   `TYPE_ARRAY` emit thành `T*`, xem mục array literal ở trên). `HashMap` **chưa** impl `Iterable` (kho
-  lưu thưa ⇒ cần cursor, hoặc `for ((k, v) in map)` cần destructuring). Dạng nửa mở `a..<b` **đã có**,
-  nên idiom index
-  `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm
-  cần index cho việc khác (mảng song song, dấu phân cách, `set(i, …)`) hoặc con trỏ ghi sống qua
-  vòng — mỗi vòng đều có lý do giữ lại, xem ghi chú ⚠️ ở §6.2.
+  lưu thưa ⇒ cần cursor, hoặc `for ((k, v) in map)` cần destructuring). Dạng nửa mở `a..<b` đã được
+  áp dụng toàn diện thay thế toàn bộ các vòng `while (i < n)` đếm index thủ công trong compiler (`strutil`,
+  `c_codegen`, `parser`), stdlib (`to_str`, `io`, `string_builder`, `hash_map`) và test suite; các vòng
+  `while` còn lại đều là nhóm đặc thù có lý do giữ lại (bước nhảy biến động phân tích CLI, tiêu thụ token
+  stream động trong lexer/parser, hoặc nhân đôi dung lượng theo cấp số nhân).
 - **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
   (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.

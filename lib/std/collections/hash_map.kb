@@ -20,10 +20,8 @@ impl HashMap<V> {
 		val raw_occ = raw_alloc(init_cap * bool.size());
 
 		val occ = raw_occ as &bool;
-		var i = 0UZ;
-		while (i < init_cap) {
+		for (i in 0..<init_cap) {
 			occ[i] = false;
-			i = i + 1;
 		}
 		return Self(raw_keys as &str, raw_vals as &V, occ, 0, init_cap);
 	}
@@ -32,12 +30,9 @@ impl HashMap<V> {
 impl HashMap<V> {
 	fn hash_key(val self, key: str): usz {
 		var h = 5381UZ;
-		var i = 0UZ;
-		val len = key.len;
-		while (i < len) {
+		for (i in 0..<key.len) {
 			val c = key[i] as usz;
 			h = h * 33 + c;
-			i = i + 1;
 		}
 		return h;
 	}
@@ -96,10 +91,8 @@ impl HashMap<V> {
 		val raw_occ = raw_alloc(new_cap * bool.size());
 
 		val new_occ = raw_occ as &bool;
-		var j = 0UZ;
-		while (j < new_cap) {
+		for (j in 0..<new_cap) {
 			new_occ[j] = false;
-			j = j + 1;
 		}
 
 		self.keys = raw_keys as &str;
@@ -108,10 +101,8 @@ impl HashMap<V> {
 		self.cap = new_cap;
 		self.len = 0;
 
-		var i: usz = 0;
-		while (i < old_cap) {
+		for (i in 0..<old_cap) {
 			if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
-			i = i + 1;
 		}
 
 		release<str>(old_keys);
