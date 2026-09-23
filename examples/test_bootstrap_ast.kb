@@ -251,19 +251,23 @@ fn test_ast_builder_and_methods(): bool {
 	val lit_node = b.literal(LiteralKind.INT, "123", 1UZ, 1UZ);
 	val lit = lit_node.as_literal();
 	if (lit.raw_text != "123") return false;
+	val lit_to = lit_node.to<LiteralExpr>();
+	if (lit_to.raw_text != "123") return false;
 
 	val id_node = b.identifier("x", 1UZ, 5UZ);
 	val id = id_node.as_identifier();
 	if (id.name != "x") return false;
+	val id_to = id_node.to<IdentifierExpr>();
+	if (id_to.name != "x") return false;
 
 	val bin_node = b.binary(TokenType.PLUS, lit_node, id_node, 1UZ, 3UZ);
 	val bin = bin_node.as_binary();
 	if (bin.op != TokenType.PLUS) return false;
-	if (bin.left.as_literal().raw_text != "123") return false;
-	if (bin.right.as_identifier().name != "x") return false;
+	if (bin.left.to<LiteralExpr>().raw_text != "123") return false;
+	if (bin.right.to<IdentifierExpr>().name != "x") return false;
 
 	val fn_node = b.fn_decl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
-	val fn_d = fn_node.as_fn_decl();
+	val fn_d = fn_node.to<FnDecl>();
 	if (fn_d.name != "test_fn") return false;
 	if (!fn_d.is_pub) return false;
 
