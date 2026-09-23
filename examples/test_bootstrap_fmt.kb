@@ -3,6 +3,7 @@ mod test.bootstrap_fmt;
 use std.io.print;
 use std.io.println;
 use std.fmt.*;
+use std.collections.string_builder.StringBuilder;
 
 // ============================================================================
 // std.fmt tests: the ToStr trait on built-in types and on user structs
@@ -112,6 +113,16 @@ impl ToStr for Point {
 fn test_user_struct(var t: &Tally) {
 	val p = Point(3, -4);
 	check_str(p.to_str(), "3,-4", "user struct ToStr", t);
+	check_str("${p}", "3,-4", "user struct direct string interpolation", t);
+	val p_ptr = &p;
+	check_str("${p_ptr}", "3,-4", "user struct pointer string interpolation", t);
+
+	var sb = StringBuilder();
+	sb.append_str("hello");
+	sb.append_char(' ');
+	sb.append_str("world");
+	check_str("${sb}", "hello world", "StringBuilder string interpolation", t);
+	sb.delete();
 }
 
 fn main(): i32 {

@@ -2,6 +2,7 @@ mod compiler.sema.types;
 
 use std.collections.list.*;
 use std.mem.arena.Arena;
+use std.traits.to_str.*;
 
 // ============================================================================
 // DataType Enumeration
@@ -424,12 +425,12 @@ pub fn type_to_string(ty: *Type): str {
 		DataType.STR -> return "str";
 		DataType.POINTER -> {
 			val ptr = as_pointer_type(ty);
-			if (ptr.is_mut) return "*mut " + type_to_string(ptr.pointee);
-			return "*" + type_to_string(ptr.pointee);
+			if (ptr.is_mut) return "*mut ${type_to_string(ptr.pointee)}";
+			return "*${type_to_string(ptr.pointee)}";
 		}
 		DataType.ARRAY -> {
 			val arr = as_array_type(ty);
-			return "[" + type_to_string(arr.elem) + "]";
+			return "[${type_to_string(arr.elem)}]";
 		}
 		DataType.STRUCT -> {
 			val s = as_struct_type(ty);
@@ -438,4 +439,8 @@ pub fn type_to_string(ty: *Type): str {
 		DataType.FN -> return "fn(...)";
 		else -> return "unknown";
 	}
+}
+
+impl ToStr for Type {
+	pub fn to_str(val self): str => type_to_string(self as *Type);
 }

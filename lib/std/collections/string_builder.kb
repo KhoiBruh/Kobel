@@ -2,6 +2,7 @@ mod std.collections.string_builder;
 
 use std.mem.alloc.*;
 use std.traits.iterable.Iterable;
+use std.traits.to_str.*;
 
 struct StringRaw {
 	data: *char,
@@ -76,23 +77,6 @@ impl StringBuilder {
 		}
 	}
 
-	pub fn to_str(val self): str {
-		val str_data = raw_alloc(self.len + 1);
-		for (i in 0UZ..<self.len) {
-			str_data[i] = self.buf[i];
-		}
-		str_data[self.len] = 0;
-
-		val raw = alloc<StringRaw>();
-		raw.data = str_data as *char;
-		raw.len = self.len;
-		raw.cap = self.len + 1;
-		val sp = raw as *str;
-		val res = *sp;
-		release<StringRaw>(raw);
-		return res;
-	}
-
 	pub fn clear(var self) {
 		self.len = 0;
 	}
@@ -111,5 +95,24 @@ impl StringBuilder {
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) {
 		raw_release(self.buf);
+	}
+}
+
+impl ToStr for StringBuilder {
+	pub fn to_str(val self): str {
+		val str_data = raw_alloc(self.len + 1);
+		for (i in 0UZ..<self.len) {
+			str_data[i] = self.buf[i];
+		}
+		str_data[self.len] = 0;
+
+		val raw = alloc<StringRaw>();
+		raw.data = str_data as *char;
+		raw.len = self.len;
+		raw.cap = self.len + 1;
+		val sp = raw as *str;
+		val res = *sp;
+		release<StringRaw>(raw);
+		return res;
 	}
 }

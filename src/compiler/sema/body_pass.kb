@@ -824,6 +824,22 @@ pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Ty
 	val pmi = find_prim_method(&self.symtab, ty.kind, "to_str");
 	if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
 
+	var cur_ty = ty;
+	var is_ptr = false;
+	if (cur_ty.kind == DataType.POINTER) {
+		is_ptr = true;
+		cur_ty = sem_pointer(cur_ty).pointee;
+	}
+	if (cur_ty.kind == DataType.STRUCT) {
+		val st_info = sem_struct(cur_ty);
+		val mi = struct_find_method(st_info, "to_str");
+		if (mi != null) {
+			var arg = expr;
+			if (!is_ptr) arg = alloc_unary(&self.arena, TokenType.AMPERSAND, expr, node.line, node.col);
+			return interp_call(&self.arena, mi.c_name, arg, node.line, node.col);
+		}
+	}
+
 	report_error(self, node, "Interpolated value must implement ToStr");
 	return null;
 }

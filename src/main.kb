@@ -199,30 +199,26 @@ fn main(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 
-	print("[BUILDING] Invoking backend compiler (");
-	print(c_compiler);
-	println(")...");
+	println("[BUILDING] Invoking backend compiler (${c_compiler})...");
 
 	var compile_cmd = "";
 	if (c_compiler == "clang" || c_compiler == "gcc") {
-		compile_cmd = c_compiler + " -O2 -o \"" + out_path + "\" \"" + c_tmp_path + "\"";
+		compile_cmd = "${c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\"";
 	} else {
 		// MSVC cl.exe: ensure environment is set up if not already in PATH
-		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"" + out_path + "\" \"" + c_tmp_path + "\"";
+		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" \"${c_tmp_path}\"";
 	}
 
 	val exit_code = exec(compile_cmd);
 	if (exit_code != 0) {
-		print("Error: Backend C compiler failed with error code ");
-		println("1");
+		println("Error: Backend C compiler failed with error code 1");
 		return exit_code;
 	}
 
 	// Clean up temporary C file
-	val del_c = "del \"" + c_tmp_path + "\" 2>nul";
+	val del_c = "del \"${c_tmp_path}\" 2>nul";
 	exec(del_c);
 
-	print("[SUCCESS] Executable created: ");
-	println(out_path);
+	println("[SUCCESS] Executable created: ${out_path}");
 	return 0;
 }

@@ -188,7 +188,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 				return sym.type_ptr;
 			}
 
-			report_error(self, node, "Unknown type '" + name + "'");
+			report_error(self, node, "Unknown type '${name}'");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.TYPE_POINTER -> {
@@ -248,7 +248,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 
 	val st_sym = lookup(&self.symtab, im.struct_name);
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
-		report_error(self, node, "Cannot impl methods for unknown type '" + im.struct_name + "'");
+		report_error(self, node, "Cannot impl methods for unknown type '${im.struct_name}'");
 		return;
 	}
 

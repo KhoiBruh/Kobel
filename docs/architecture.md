@@ -218,7 +218,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `for (x in seq)` — `seq` là `str`/`[T; N]`/struct có `.len`+`.data` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
 | `for (x in seq)` — kiểu của `seq` (hoặc con trỏ `*T`/`&T`) có `impl Iterable` | `val __for_n = seq.count(); var __for_i = 0UZ; while (__for_i < __for_n) { val x = seq.at(__for_i); …; __for_i += 1 }` — phần tử lấy từ trait, container **không** cần là mảng phẳng; hỗ trợ cả container theo giá trị lẫn con trỏ |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
-| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi. Kiểu không có impl `ToStr` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
+| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `x.to_str()` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi; hỗ trợ cả kiểu nguyên thuỷ, struct và con trỏ `*Struct`/`&Struct` impl `ToStr`. Kiểu không có `to_str` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
 
 `for` có **hai đường**: nếu kiểu của đối tượng duyệt (hoặc kiểu con trỏ trỏ tới nó) có `impl Iterable`
 thì đi qua trait (`count()`/`at(i)`, phần tử lấy kiểu từ `at`; các container danh sách định nghĩa của

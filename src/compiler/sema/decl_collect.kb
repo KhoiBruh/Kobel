@@ -53,7 +53,8 @@ pub fn collect_use(var self: &DeclPass, node: *AstNode) {
 	if (target == null) {
 		// Generic struct/function templates are not registered as symbols.
 		if (template_in_module(self, mod_name, u.symbol_name)) return;
-		report_error(self, node, "Symbol '" + u.symbol_name + "' not found in module '" + mod_name + "'");
+		if (find_trait(&self.symtab, u.symbol_name) != null) return;
+		report_error(self, node, "Symbol '${u.symbol_name}' not found in module '${mod_name}'");
 		return;
 	}
 
@@ -70,7 +71,7 @@ pub fn collect_struct(var self: &DeclPass, node: *AstNode) {
 	val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
 	as_struct_type_mut(s_type).c_name = c_name;
 	val ok = define_global(&self.symtab, Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col));
-	if (!ok) report_error(self, node, "Duplicate struct declaration '" + s.name + "'");
+	if (!ok) report_error(self, node, "Duplicate struct declaration '${s.name}'");
 
 	// Rename the AST node to the C name so the backend emits a unique name
 	s.name = c_name;
@@ -105,7 +106,7 @@ pub fn collect_fn(var self: &DeclPass, node: *AstNode) {
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 	val c_name = c_name_for(self, f.name);
 	val ok = define_global(&self.symtab, Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col));
-	if (!ok) report_error(self, node, "Duplicate function declaration '" + f.name + "'");
+	if (!ok) report_error(self, node, "Duplicate function declaration '${f.name}'");
 
 	// Rename the AST node to the C name so the backend emits a unique name
 	f.name = c_name;
@@ -141,7 +142,7 @@ pub fn collect_enum(var self: &DeclPass, node: *AstNode) {
 	*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
 
 	val ok = define_global(&self.symtab, Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col));
-	if (!ok) report_error(self, node, "Duplicate enum declaration '" + e.name + "'");
+	if (!ok) report_error(self, node, "Duplicate enum declaration '${e.name}'");
 
 	register_enum_info(&self.symtab, info);
 
@@ -155,7 +156,7 @@ pub fn collect_const(var self: &DeclPass, node: *AstNode) {
 
 	val c_name = c_name_for(self, c.name);
 	val ok = define_global(&self.symtab, Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col));
-	if (!ok) report_error(self, node, "Duplicate const declaration '" + c.name + "'");
+	if (!ok) report_error(self, node, "Duplicate const declaration '${c.name}'");
 
 	c.name = c_name;
 }

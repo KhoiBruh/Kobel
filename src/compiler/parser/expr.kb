@@ -430,7 +430,7 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 			var sub = Parser(sub_tokens);
 			val hole = parse_expression(&sub, PREC_NONE);
 			if (sub.errors.len > 0) {
-				for (msg in sub.errors) self.errors.add("in interpolation hole: " + msg);
+				for (msg in sub.errors) self.errors.add("in interpolation hole: ${msg}");
 			}
 			parts.add(InterpPart(hole, false));
 			i = h_end + 1;
@@ -441,6 +441,6 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 		i = i + 1;
 	}
 
-	if (has_lit) parts.add(InterpPart(alloc_literal(&self.arena, LiteralKind.STRING, "\"" + lit + "\"", line, col), true));
+	if (has_lit) parts.add(InterpPart(alloc_literal(&self.arena, LiteralKind.STRING, "\"${lit}\"", line, col), true));
 	return alloc_interp(&self.arena, parts, line, col);
 }

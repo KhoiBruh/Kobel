@@ -118,16 +118,16 @@ pub fn c_type_from_ast(node: *AstNode): str {
 				// results can be passed. Other read-only pointers are emitted as
 				// plain pointers: the language does not enforce const-correctness
 				// and the compiler's own source writes through `*T`.
-				if (named.name == "str") return sub + "*";
-				if (named.name == "char") return "const " + sub + "*";
+				if (named.name == "str") return "${sub}*";
+				if (named.name == "char") return "const ${sub}*";
 			}
-			return sub + "*";
+			return "${sub}*";
 		}
 
 		NodeKind.TYPE_ARRAY -> {
 			val arr = as_array_type(node);
 			val sub = c_type_from_ast(arr.element_type);
-			return sub + "*";
+			return "${sub}*";
 		}
 
 		else -> return "void*";
@@ -139,18 +139,18 @@ pub fn c_format_int_literal(raw: str): str {
 	if (len >= 2) {
 		val last = raw[len - 1];
 		val prev = raw[len - 2];
-		if (prev == 'U' && last == 'Z') return "((size_t)" + strip_suffix(raw, 2) + "ULL)";
-		if (prev == 'U' && last == 'L') return strip_suffix(raw, 2) + "ULL";
-		if (prev == 'U' && last == 'B') return "((uint8_t)" + strip_suffix(raw, 2) + ")";
-		if (prev == 'U' && last == 'S') return "((uint16_t)" + strip_suffix(raw, 2) + ")";
+		if (prev == 'U' && last == 'Z') return "((size_t)${strip_suffix(raw, 2)}ULL)";
+		if (prev == 'U' && last == 'L') return "${strip_suffix(raw, 2)}ULL";
+		if (prev == 'U' && last == 'B') return "((uint8_t)${strip_suffix(raw, 2)})";
+		if (prev == 'U' && last == 'S') return "((uint16_t)${strip_suffix(raw, 2)})";
 	}
 	if (len >= 1) {
 		val last = raw[len - 1];
-		if (last == 'L') return strip_suffix(raw, 1) + "LL";
-		if (last == 'Z') return "((intptr_t)" + strip_suffix(raw, 1) + "LL)";
-		if (last == 'B') return "((int8_t)" + strip_suffix(raw, 1) + ")";
-		if (last == 'S') return "((int16_t)" + strip_suffix(raw, 1) + ")";
-		if (last == 'U') return strip_suffix(raw, 1) + "U";
+		if (last == 'L') return "${strip_suffix(raw, 1)}LL";
+		if (last == 'Z') return "((intptr_t)${strip_suffix(raw, 1)}LL)";
+		if (last == 'B') return "((int8_t)${strip_suffix(raw, 1)})";
+		if (last == 'S') return "((int16_t)${strip_suffix(raw, 1)})";
+		if (last == 'U') return "${strip_suffix(raw, 1)}U";
 	}
 	return raw;
 }

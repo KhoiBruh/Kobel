@@ -20,12 +20,12 @@ pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str {
 	val s = as_struct_decl(node);
 	self.struct_names.add(s.name);
 
-	var res = "struct " + s.name + " {\n";
+	var res = "struct ${s.name} {\n";
 	for (f in s.fields) {
 		val ty = c_type_from_ast(f.type_node);
-		res = res + "    " + ty + " " + f.name + ";\n";
+		res = "${res}    ${ty} ${f.name};\n";
 	}
-	return res + "};\n\n";
+	return "${res}};\n\n";
 }
 
 // `self_c_type` is the C name of the enclosing struct when generating an impl
@@ -39,23 +39,23 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 		ret_ty = infer_type_from_expr(self, es.expr);
 	}
 
-	var proto = ret_ty + " " + f.name + "(";
-	if (f.params.len == 0) proto = proto + "void";
+	var proto = "${ret_ty} ${f.name}(";
+	if (f.params.len == 0) proto = "${proto}void";
 	else {
 		for (i in 0..<f.params.len) {
-			if (i > 0) proto = proto + ", ";
+			if (i > 0) proto = "${proto}, ";
 			val p = f.params.get(i);
 			var p_ty = c_type_from_ast(p.type_node);
 			if (self_c_type != "" && p.name == "self" && p.type_node == null) {
-				if (p.is_mut) p_ty = self_c_type + "*";
-				else p_ty = "const " + self_c_type + "*";
+				if (p.is_mut) p_ty = "${self_c_type}*";
+				else p_ty = "const ${self_c_type}*";
 			}
-			proto = proto + p_ty + " " + p.name;
+			proto = "${proto}${p_ty} ${p.name}";
 		}
 	}
-	proto = proto + ")";
+	proto = "${proto})";
 
-	if (is_proto) return proto + ";\n";
+	if (is_proto) return "${proto};\n";
 
 	if (f.body == null) return "";
 
@@ -74,22 +74,22 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 		}
 	}
 
-	var res = proto + " {\n";
+	var res = "${proto} {\n";
 	self.indent_level = 1;
 
 	if (f.body.kind == NodeKind.STMT_BLOCK) {
 		val blk = as_block_stmt(f.body);
 		for (stmt in blk.statements) {
-			res = res + gen_statement(self, stmt);
+			res = "${res}${gen_statement(self, stmt)}";
 		}
 	} else if (f.body.kind == NodeKind.STMT_EXPR) {
 		val es = as_expr_stmt(f.body);
-		if (ret_ty == "void") res = res + "    " + gen_expr(self, es.expr) + ";\n";
-		else res = res + "    return " + gen_expr(self, es.expr) + ";\n";
+		if (ret_ty == "void") res = "${res}    ${gen_expr(self, es.expr)};\n";
+		else res = "${res}    return ${gen_expr(self, es.expr)};\n";
 	}
 
 	self.indent_level = 0;
-	return res + "}\n\n";
+	return "${res}}\n\n";
 }
 
 // ============================================================================

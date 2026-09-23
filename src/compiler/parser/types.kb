@@ -50,7 +50,7 @@ pub fn parse_type(var self: &Parser): *AstNode {
 
 	while (match_token(self, TokenType.DOT)) {
 		val seg = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.' in type path");
-		full_name = full_name + "." + seg.text;
+		full_name = "${full_name}.${seg.text}";
 	}
 
 	var type_args = List<*AstNode>();

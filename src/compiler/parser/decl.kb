@@ -267,7 +267,7 @@ pub fn parse_module_decl(var self: &Parser): *AstNode {
 	while (match_token(self, TokenType.DOT)) {
 		val seg = consume(self, TokenType.IDENTIFIER, "Expected module path segment after '.'").text;
 		path.add(seg);
-		full_path = full_path + "." + seg;
+		full_path = "${full_path}.${seg}";
 	}
 
 	consume(self, TokenType.SEMI_COLON, "Expected ';' after module declaration");
@@ -287,13 +287,13 @@ pub fn parse_use_decl(var self: &Parser): *AstNode {
 	while (match_token(self, TokenType.DOT)) {
 		if (match_token(self, TokenType.STAR)) {
 			is_wildcard = true;
-			full_path = full_path + ".*";
+			full_path = "${full_path}.*";
 			break;
 		}
 		val seg = consume(self, TokenType.IDENTIFIER, "Expected path segment after '.'").text;
 		path.add(seg);
 		symbol_name = seg;
-		full_path = full_path + "." + seg;
+		full_path = "${full_path}.${seg}";
 	}
 
 	if (match_token(self, TokenType.KW_AS)) {
