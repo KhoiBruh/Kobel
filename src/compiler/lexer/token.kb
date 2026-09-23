@@ -1,8 +1,6 @@
 mod compiler.lexer.token;
 
-use util.strutil.str_from_bytes;
 use util.strutil.str_slice;
-use std.mem.alloc.raw_alloc;
 
 pub enum TokenType {
 	// Single syntax

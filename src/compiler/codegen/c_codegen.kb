@@ -1,5 +1,6 @@
 mod compiler.codegen.c_codegen;
 
+use std.traits.new.New;
 use std.collections.list.*;
 
 use compiler.lexer.token.*;
@@ -27,16 +28,20 @@ pub struct CCodeGen {
 	pub array_elem_hint: str
 }
 
-pub fn new_c_codegen(): CCodeGen => CCodeGen(
-	0,
-	List<str>(),
-	List<str>(),
-	List<str>(),
-	List<str>(),
-	List<str>(),
-	List<str>(),
-	""
-);
+impl New for CCodeGen {
+
+	pub fn new() => Self(
+		0,
+		List<str>(),
+		List<str>(),
+		List<str>(),
+		List<str>(),
+		List<str>(),
+		List<str>(),
+		""
+	);
+
+}
 
 pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
 	for (v in self.pointer_vars) {

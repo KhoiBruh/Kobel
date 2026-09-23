@@ -12,8 +12,6 @@ pub struct HashMap<V> {
 	cap: usz
 }
 
-pub fn new_hash_map<V>(): HashMap<V> => HashMap<V>();
-
 // Kotlin-style constructor: `HashMap<V>()`.
 impl New for HashMap<V> {
 	pub fn new(): HashMap<V> {

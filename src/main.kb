@@ -12,9 +12,7 @@ use compiler.codegen.c_program.*;
 
 use compiler.loader.loader.*;
 
-use util.strutil.str_dir_of;
-use util.strutil.str_strip_kb;
-use util.strutil.cstr_to_str;
+use util.strutil.*;
 
 // ============================================================================
 // Main Entry Point
@@ -174,7 +172,7 @@ fn main(argc: i32, argv: &*char): i32 {
 	}
 
 	println("[4/4] Generating C99 code...");
-	var codegen = new_c_codegen();
+	var codegen = CCodeGen();
 	val c_code = gen_program(&codegen, prog);
 
 	if (only_emit_c) {

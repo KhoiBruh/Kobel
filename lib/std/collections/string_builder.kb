@@ -17,8 +17,6 @@ pub struct StringBuilder {
 	cap: usz
 }
 
-pub fn new_string_builder(): StringBuilder => StringBuilder();
-
 // Kotlin-style constructor: `StringBuilder()`.
 impl New for StringBuilder {
 	pub fn new(): StringBuilder {

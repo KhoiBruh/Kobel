@@ -164,10 +164,10 @@ là accessor công khai), và các struct nội bộ (`StringRaw` ở `io.kb`/`s
 `str.kb`) **không** `pub` — module khác phải đi qua constructor/method. Riêng `List.data` / `List.len`
 giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2).
 
-Các kiểu container đều dựng bằng cú pháp Kotlin (impl trait `New`): `List<T>()`, `List<T>(capacity)`,
-`HashMap<V>()`, `StringBuilder()`, `Arena()`, `Arena(block_size)`. Các hàm `new_list` /
-`list_with_capacity` / `new_hash_map` / `new_string_builder` / `new_arena` vẫn còn nhưng chỉ là
-**wrapper mỏng** gọi lại constructor (`=> List<T>()` …).
+Các kiểu container **chỉ** dựng bằng cú pháp Kotlin (impl trait `New`): `List<T>()`, `List<T>(capacity)`,
+`HashMap<V>()`, `StringBuilder()`, `Arena()`, `Arena(block_size)`. Các hàm factory cũ (`new_list` /
+`list_with_capacity` / `new_hash_map` / `new_string_builder` / `new_arena`) đã **gỡ bỏ** — toàn bộ
+nguồn (compiler + std + examples) đã chuyển sang constructor, không còn hai lối khởi tạo.
 
 Quy ước ABI quan trọng:
 

@@ -16,8 +16,6 @@ pub struct Arena {
 	block_size: usz
 }
 
-pub fn new_arena(default_block_size: usz): Arena => Arena(default_block_size);
-
 // Kotlin-style constructors: `Arena()` (64 KiB blocks) and `Arena(block_size)`.
 impl New for Arena {
 	pub fn new(): Arena => Self(null, 65536UZ);

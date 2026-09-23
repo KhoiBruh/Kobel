@@ -13,15 +13,14 @@ use std.traits.iterable.Iterable;
 		cap:    usz - max capacity before need to realloc
 
 	Usage:
-		val list = new_list<i32>();
+		var list = List<i32>();
 		list.add(42);
 		val x = list.get(0);
 		list.delete();
 */
 
 // `cap` is private: another module cannot build a List from its fields and must
-// go through a constructor (`List<T>()`, `List<T>(capacity)` or the
-// `new_list<T>()` / `list_with_capacity<T>()` helpers).
+// go through a constructor (`List<T>()` or `List<T>(capacity)`).
 //
 // `data` and `len` stay `pub` on purpose: the `for (x in seq)` lowering reads
 // `seq.len` / `seq.data` directly (see docs section 6.2), so they are part of
@@ -34,14 +33,14 @@ pub struct List<T> {
 
 // `for (x in list)` support: `for` calls `count()` and `at(i)`.
 impl Iterable for List<T> {
-	pub fn count(val self): usz => self.len;
+	pub fn count(val self) => self.len;
 
 	pub fn at(val self, i: usz): T => self.data[i];
 }
 
-// Kotlin-style constructors: `List<T>()` and `List<T>(capacity)`.
+// constructors: `List<T>()` and `List<T>(capacity)`.
 impl New for List<T> {
-	pub fn new(): List<T> => Self(alloc_array<T>(4UZ), 0, 4UZ);
+	pub fn new() => Self(alloc_array<T>(4UZ), 0, 4UZ);
 
 	pub fn new(capacity: usz): List<T> {
 		var cap = capacity;
@@ -49,10 +48,6 @@ impl New for List<T> {
 		return Self(alloc_array<T>(cap), 0, cap);
 	}
 }
-
-pub fn new_list<T>(): List<T> => List<T>();
-
-pub fn list_with_capacity<T>(capacity: usz): List<T> => List<T>(capacity);
 
 impl List<T> {
 	pub fn get(val self, index: usz): T => self.data[index];
@@ -99,7 +94,5 @@ impl List<T> {
 		}
 	}
 
-	// NOTE: block body instead of `=> raw_release(...)`:
-	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) => release<T>(self.data);
 }
