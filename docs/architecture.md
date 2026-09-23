@@ -256,7 +256,9 @@ helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi 
 | mọi thứ khác (fn, method) | tên mangle `<module__>Name`, method `<StructC>_<method>`; method **overload** thêm hậu tố số đối số `<StructC>_<method>_<n>` (kèm `_<k>` nếu vẫn trùng) |
 | `*T` (read-only) | `T*` — **trừ** `*char`/`*str` giữ `const` (nhận string literal / `.c_str()`) |
 | `str` | `const char*` |
-| `T.size()` | `sizeof(<tên C>)` |
+| `T.size()` | `sizeof(<tên C>)`; với tên kiểu **nguyên thuỷ** thì sema fold thành literal kích thước C (không có kiểu C tên `str`/`bool`) |
+| `[T; N]` | `T*` — **không** phải mảng C inline, nên `[T; N]` không dùng được làm field struct (layout sema ≠ layout C) |
+| `[a, b, c]` (array literal) | compound literal C99 `(T[]){a, b, c}`, decay thành con trỏ; phần tử `T` lấy từ annotation `[T; N]` nếu có, ngược lại suy từ phần tử đầu |
 
 Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → đăng ký return type hàm →
 định nghĩa struct → prototype hàm → định nghĩa hàm/method.
@@ -470,9 +472,17 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.
 - **`none`**: đã thay `void` ở cả v0/v1; `void` giờ là lỗi biên dịch.
 - **Kiểu hàm bậc nhất** (`fn` type) chưa dùng trong `ast_type_from_type` (trả `null` → codegen tự suy).
-- **Array literal chưa được hỗ trợ**: `EXPR_ARRAY_LITERAL` không có nhánh trong `check_expr` (mang
-  kiểu `none`) lẫn trong codegen, và `TYPE_ARRAY` emit thành `T*` chứ không phải mảng C. Nên
-  `val a: [T; N] = […]` chưa dùng được cho tới khi làm trọn vẹn (sema + codegen).
+- **Mảng cố định**: `val a: [T; N] = [x, y, z]` đã dùng được (sema định kiểu bằng phần tử đầu, codegen
+  phát compound literal `(T[]){…}`). Còn hạn chế:
+  - `[T; N]` được biểu diễn bằng **con trỏ**, storage của literal là **tự động** (compound literal) —
+    không được trả về từ hàm hay giữ quá scope của nó;
+  - literal **rỗng** `[]` là lỗi (không suy được kiểu phần tử);
+  - khi không có annotation, kiểu phần tử do codegen suy từ **phần tử đầu**; nếu phần tử là biến
+    không thuộc dạng literal/call biết kiểu, phải ghi annotation `[T; N]`;
+  - `[T; N]` **không** dùng được làm field struct (sema tính `N × sizeof(T)` còn C phát con trỏ).
+- **Mảng cố định không có trait**: `[T; N]` không phải struct nên không viết được `impl Iterable for
+  [T; N]`; `for` xử lý mảng bằng đường `.len`/`.data` dựng sẵn (xem §6.2). Muốn "list-like" dùng chung
+  trong code generic thì cần thêm associated type (hoặc generic method) cho trait — hiện chưa có.
 - **`.size()` trên tên kiểu nguyên thuỷ** (`str.size()`, `bool.size()`) được sema **fold thành literal
   theo kích thước C** (`prim_c_size` trong `body_pass`), vì backend không có kiểu C tên `str`/`bool`.
   `str` tính là con trỏ (8 byte), khớp `ast_type_size` dùng cho đường generic.

@@ -294,6 +294,34 @@ fn test_iterable_trait(var t: &Tally) {
 	check(hits == 0, "Iterable: empty container runs zero times", t);
 }
 
+// -- fixed-size arrays and array literals ------------------------------------
+
+struct Vec2 {
+	pub x: i32,
+	pub y: i32
+}
+
+fn test_array_literal(var t: &Tally) {
+	val a: [i32; 3] = [1, 2, 3];
+	check(a.len == 3UZ, "array literal: .len is the element count", t);
+	check(a[0] == 1 && a[2] == 3, "array literal: indexed access", t);
+
+	var sum: i32 = 0;
+	for (x in a) sum = sum + x;
+	check(sum == 6, "for over a fixed-size array", t);
+
+	val words: [str; 2] = ["ab", "cde"];
+	check(words[1].len == 3UZ, "array of str elements", t);
+
+	val pts: [Vec2; 2] = [Vec2(1, 2), Vec2(3, 4)];
+	var total: i32 = 0;
+	for (p in pts) total = total + p.x + p.y;
+	check(total == 10, "for over an array of structs", t);
+
+	val inferred = [7, 8];
+	check(inferred.len == 2UZ && inferred[1] == 8, "array literal without annotation", t);
+}
+
 // -- Iterable: std containers and non-scalar elements ------------------------
 
 fn test_iter_string_builder(var t: &Tally) {
@@ -367,6 +395,7 @@ fn main(): i32 {
 	test_loop_var_is_fresh(&t);
 	test_generic_for(&t);
 	test_iterable_trait(&t);
+	test_array_literal(&t);
 	test_iter_string_builder(&t);
 	test_iter_struct_elements(&t);
 	test_iter_list_field(&t);

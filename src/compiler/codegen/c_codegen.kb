@@ -21,7 +21,10 @@ pub struct CCodeGen {
 	pub str_vars: List<str>,
 	pub fn_names: List<str>,
 	pub fn_ret_types: List<str>,
-	pub errors: List<str>
+	pub errors: List<str>,
+	// C element type for the array literal being emitted, when the surrounding
+	// declaration already knows it (`val a: [T; N] = [...]`).
+	pub array_elem_hint: str
 }
 
 pub fn new_c_codegen(): CCodeGen => CCodeGen(
@@ -31,7 +34,8 @@ pub fn new_c_codegen(): CCodeGen => CCodeGen(
 	new_list<str>(),
 	new_list<str>(),
 	new_list<str>(),
-	new_list<str>()
+	new_list<str>(),
+	""
 );
 
 pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
@@ -217,6 +221,22 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				TokenType.AMPERSAND -> "(&" + opnd + ")";
 				else -> opnd;
 			};
+		}
+
+		// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
+		// to a pointer, which is how this backend represents an array value.
+		NodeKind.EXPR_ARRAY_LITERAL -> {
+			val al = as_array_literal(node);
+			var elem_c = self.array_elem_hint;
+			if (elem_c == "" && al.elements.len > 0) elem_c = infer_type_from_expr(self, al.elements.get(0));
+			if (elem_c == "") elem_c = "int32_t";
+
+			var res = "(" + elem_c + "[]){";
+			for (i in 0..<al.elements.len) {
+				if (i > 0) res = res + ", ";
+				res = res + gen_expr(self, al.elements.get(i));
+			}
+			return res + "}";
 		}
 
 		NodeKind.EXPR_CALL -> {
@@ -419,6 +439,12 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 
 		NodeKind.EXPR_GROUP -> return infer_type_from_expr(self, as_group(expr).expr);
 
+		NodeKind.EXPR_ARRAY_LITERAL -> {
+			val al = as_array_literal(expr);
+			if (al.elements.len > 0) return infer_type_from_expr(self, al.elements.get(0)) + "*";
+			return "int32_t*";
+		}
+
 		NodeKind.EXPR_WHEN -> {
 			val we = as_when_expr(expr);
 			for (arm in we.arms) {
@@ -463,9 +489,17 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			var ty_str = "int32_t";
 			var is_ptr = false;
 
+			var elem_hint = "";
 			if (vd.type_annotation != null) {
 				ty_str = c_type_from_ast(vd.type_annotation);
 				if (vd.type_annotation.kind == NodeKind.TYPE_POINTER) is_ptr = true;
+				// `[T; N]` is emitted as a pointer, and its literal needs the
+				// element type spelled out.
+				if (vd.type_annotation.kind == NodeKind.TYPE_ARRAY) {
+					is_ptr = true;
+					val arr_ast = as_array_type(vd.type_annotation);
+					elem_hint = c_type_from_ast(arr_ast.element_type);
+				}
 			} else if (vd.initializer != null) {
 				ty_str = infer_type_from_expr(self, vd.initializer);
 				if (vd.initializer.kind == NodeKind.EXPR_CAST) {
@@ -479,7 +513,12 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			if (ty_str == "const char*") self.str_vars.add(vd.name);
 
 			var res = ind + ty_str + " " + vd.name;
-			if (vd.initializer != null) res = res + " = " + gen_expr(self, vd.initializer);
+			if (vd.initializer != null) {
+				val saved_hint = self.array_elem_hint;
+				self.array_elem_hint = elem_hint;
+				res = res + " = " + gen_expr(self, vd.initializer);
+				self.array_elem_hint = saved_hint;
+			}
 			return res + ";\n";
 		}
 

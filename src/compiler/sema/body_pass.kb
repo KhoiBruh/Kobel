@@ -31,6 +31,7 @@ use compiler.ast.builder.as_impl_decl;
 use compiler.ast.builder.as_when_expr;
 use compiler.ast.builder.as_when_stmt;
 use compiler.ast.builder.as_interp;
+use compiler.ast.builder.as_array_literal;
 use compiler.ast.builder.alloc_identifier;
 use compiler.ast.builder.alloc_literal;
 use compiler.ast.builder.alloc_unary;
@@ -638,6 +639,23 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 			if (result_ty == null) return alloc_primitive(&self.arena, type_none());
 			return result_ty;
+		}
+		NodeKind.EXPR_ARRAY_LITERAL -> {
+			val al = as_array_literal(node);
+
+			// The element type comes from the first element; an empty literal
+			// has nothing to infer from (use an annotated `[T; 0]` variable).
+			if (al.elements.len == 0) {
+				report_error(self, node, "Cannot infer the element type of an empty array literal");
+				return alloc_primitive(&self.arena, type_none());
+			}
+
+			val elem_ty = check_expr(self, al.elements.get(0));
+			for (i in 1..<al.elements.len) {
+				val t = check_expr(self, al.elements.get(i));
+				if (!can_assign(elem_ty, t)) report_error(self, al.elements.get(i), "Array literal element type mismatch");
+			}
+			return alloc_array_type(&self.arena, elem_ty, al.elements.len);
 		}
 		NodeKind.EXPR_INTERP -> {
 			val ie = as_interp(node);

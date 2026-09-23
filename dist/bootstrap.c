@@ -747,6 +747,7 @@ struct compiler__codegen__c_codegen__CCodeGen {
     std__collections__list__List_str fn_names;
     std__collections__list__List_str fn_ret_types;
     std__collections__list__List_str errors;
+    const char* array_elem_hint;
 };
 
 struct compiler__lexer__lexer__Lexer {
@@ -9755,6 +9756,63 @@ compiler__sema__types__Type* compiler__sema__body_pass__check_expr(compiler__sem
             }
             return result_ty;
         }
+    } else if (((node)->kind == 13)) {
+        {
+            compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__builder__as_array_literal(node);
+            if ((((al)->elements).len == 0)) {
+                {
+                    compiler__sema__body_pass__report_error(self, node, "Cannot infer the element type of an empty array literal");
+                    return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
+                }
+            }
+            compiler__sema__types__Type* elem_ty = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), 0));
+            {
+                size_t __for_e = ((al)->elements).len;
+                size_t __for_i = __for_e;
+                __for_i = 1;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        compiler__sema__types__Type* t = compiler__sema__body_pass__check_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), i));
+                        if ((!compiler__sema__types__can_assign(elem_ty, t))) {
+                            compiler__sema__body_pass__report_error(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), i), "Array literal element type mismatch");
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return compiler__sema__types__alloc_array_type((&(self)->arena), elem_ty, ((al)->elements).len);
+        }
     } else if (((node)->kind == 16)) {
         {
             compiler__ast__expr__InterpExpr* ie = compiler__ast__builder__as_interp(node);
@@ -10543,7 +10601,7 @@ void compiler__sema__body_program__check_program(compiler__sema__body_pass__Body
 }
 
 compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__new_c_codegen(void) {
-    return (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str() };
+    return (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), std__collections__list__new_list_str(), "" };
 }
 
 bool compiler__codegen__c_codegen__is_pointer_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
@@ -10854,6 +10912,64 @@ const char* compiler__codegen__c_codegen__gen_expr(compiler__codegen__c_codegen_
             compiler__ast__expr__UnaryExpr* un = compiler__ast__builder__as_unary(node);
             const char* opnd = compiler__codegen__c_codegen__gen_expr(self, (un)->operand);
             return (((un)->op == 7) ? kobel_concat(kobel_concat("(-", opnd), ")") : (((un)->op == 4) ? kobel_concat(kobel_concat("(!", opnd), ")") : (((un)->op == 8) ? kobel_concat(kobel_concat("(*", opnd), ")") : (((un)->op == 19) ? kobel_concat(kobel_concat("(&", opnd), ")") : opnd))));
+        }
+    } else if (((node)->kind == 13)) {
+        {
+            compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__builder__as_array_literal(node);
+            const char* elem_c = (self)->array_elem_hint;
+            if ((kobel_streq(elem_c, "") && (((al)->elements).len > 0))) {
+                elem_c = compiler__codegen__c_codegen__infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), 0));
+            }
+            if (kobel_streq(elem_c, "")) {
+                elem_c = "int32_t";
+            }
+            const char* res = kobel_concat(kobel_concat("(", elem_c), "[]){");
+            {
+                size_t __for_e = ((al)->elements).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > 0)) {
+                            res = kobel_concat(res, ", ");
+                        }
+                        res = kobel_concat(res, compiler__codegen__c_codegen__gen_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), i)));
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return kobel_concat(res, "}");
         }
     } else if (((node)->kind == 7)) {
         {
@@ -11251,6 +11367,14 @@ const char* compiler__codegen__c_codegen__infer_type_from_expr(compiler__codegen
         }
     } else if (((expr)->kind == 12)) {
         return compiler__codegen__c_codegen__infer_type_from_expr(self, ((*compiler__ast__builder__as_group(expr))).expr);
+    } else if (((expr)->kind == 13)) {
+        {
+            compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__builder__as_array_literal(expr);
+            if ((((al)->elements).len > 0)) {
+                return kobel_concat(compiler__codegen__c_codegen__infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), 0)), "*");
+            }
+            return "int32_t*";
+        }
     } else if (((expr)->kind == 15)) {
         {
             compiler__ast__expr__WhenExpr* we = compiler__ast__builder__as_when_expr(expr);
@@ -11312,11 +11436,19 @@ const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_cod
             const char* ind = compiler__codegen__c_codegen__get_indent((self)->indent_level);
             const char* ty_str = "int32_t";
             bool is_ptr = false;
+            const char* elem_hint = "";
             if (((vd)->type_annotation != NULL)) {
                 {
                     ty_str = compiler__codegen__c_codegen__c_type_from_ast((vd)->type_annotation);
                     if ((((*(vd)->type_annotation)).kind == 1)) {
                         is_ptr = true;
+                    }
+                    if ((((*(vd)->type_annotation)).kind == 2)) {
+                        {
+                            is_ptr = true;
+                            compiler__ast__types__ArrayType* arr_ast = compiler__ast__builder__as_array_type((vd)->type_annotation);
+                            elem_hint = compiler__codegen__c_codegen__c_type_from_ast((arr_ast)->element_type);
+                        }
                     }
                 }
             } else {
@@ -11345,7 +11477,12 @@ const char* compiler__codegen__c_codegen__gen_statement(compiler__codegen__c_cod
             }
             const char* res = kobel_concat(kobel_concat(kobel_concat(ind, ty_str), " "), (vd)->name);
             if (((vd)->initializer != NULL)) {
-                res = kobel_concat(kobel_concat(res, " = "), compiler__codegen__c_codegen__gen_expr(self, (vd)->initializer));
+                {
+                    const char* saved_hint = (self)->array_elem_hint;
+                    (self)->array_elem_hint = elem_hint;
+                    res = kobel_concat(kobel_concat(res, " = "), compiler__codegen__c_codegen__gen_expr(self, (vd)->initializer));
+                    (self)->array_elem_hint = saved_hint;
+                }
             }
             return kobel_concat(res, ";\n");
         }
