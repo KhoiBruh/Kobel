@@ -151,8 +151,9 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
 | `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str`, số nguyên, `f32/f64`; nền của nội suy `${...}` |
 | `traits/new.kb` | trait `New { fn new() }` — dấu hiệu "dựng được"; kiểu tự thêm các overload `new` khác, gọi bằng cú pháp Kotlin `Type(args)` |
+| `traits/iterable.kb` | trait `Iterable { fn count(val self): usz; fn at(val self, i: usz) }` — kiểu impl nó thì `for (x in seq)` dùng `count()`/`at(i)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
-| `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl trait `New`) hoặc `new_list<T>` |
+| `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (impl `New`); impl `Iterable` nên `for (x in list)` chạy |
 | `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (impl `New`) |
 | `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (impl `New`) |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
@@ -211,12 +212,16 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `T.size()` trong code generic | literal theo kích thước C |
 | `arr.len` / `arr.size` (`arr: [T; N]`) | literal `usz` (kích thước biết lúc biên dịch) |
 | `s.data` / `arr.data` (`str`, `[T; N]`) | chính biểu thức đó (con trỏ tới phần tử đầu) |
-| `for (x in seq)` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
+| `for (x in seq)` — `seq` là `str`/`[T; N]`/struct có `.len`+`.data` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
+| `for (x in seq)` — kiểu của `seq` có `impl Iterable` | `val __for_n = seq.count(); var __for_i = 0UZ; while (__for_i < __for_n) { val x = seq.at(__for_i); …; __for_i += 1 }` — phần tử lấy từ trait, container **không** cần là mảng phẳng |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
 | `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `<prim>_to_str(x)` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi. Kiểu không có impl `ToStr` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
 
-`STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên
-backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
+`for` có **hai đường**: nếu kiểu của đối tượng duyệt có `impl Iterable` thì đi qua trait
+(`count()`/`at(i)`, phần tử lấy kiểu từ `at`); ngược lại dùng `.len`/`.data` dựng sẵn (cho `str`,
+`[T; N]`, và struct nào có đúng hai field đó). `STMT_FOR` **không** đi tới codegen: `body_pass` hạ nó
+thành block + `while` ngay khi kiểm tra, nên backend C không cần biết gì về `for`. Bốn ghi chú ngữ nghĩa
+của pha 1:
 
 - **Chỉ nhận lvalue** làm đối tượng duyệt (`x in self.items` được, `x in f()` không): thân vòng
   dùng lại biểu thức đó mỗi vòng, nên biểu thức tạm sẽ treo còn lời gọi hàm sẽ chạy lặp.
@@ -451,8 +456,9 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 - **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không
   tìm thấy `lib/std/fmt.kb`, nội suy hố khác `str` sẽ báo lỗi biên dịch. **Literal số thực** (`1.5`)
   đã có; `ToStr` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).
-- **`for`**: chỉ duyệt lvalue; chưa hỗ trợ `Map`/`HashMap` (kho lưu thưa, cần cursor) và
-  `for ((k, v) in map)` (cần destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
+- **`for`**: chỉ duyệt lvalue; trait `Iterable` đã có nên container **không** cần mảng phẳng, nhưng
+  `HashMap` **chưa** impl `Iterable` (kho lưu thưa ⇒ cần cursor, hoặc `for ((k, v) in map)` cần
+  destructuring). Dạng nửa mở `a..<b` **đã có**, nên idiom index
   `while (i < n)` hạ được sang `for (i in 0..<n)`; vòng `while` còn lại trong nguồn compiler là nhóm
   cần index cho việc khác (mảng song song, dấu phân cách, `set(i, …)`) hoặc con trỏ ghi sống qua
   vòng — mỗi vòng đều có lý do giữ lại, xem ghi chú ⚠️ ở §6.2.

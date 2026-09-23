@@ -734,7 +734,13 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
 				report_error(self, node, "The iterated expression of a 'for' must be a variable or a field");
 			}
-			desugar_for(&self.arena, node, fs);
+			// Containers that implement `Iterable` are walked through the trait
+			// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
+			// lowering (see desugar_for_iterable).
+			var use_iter_trait = false;
+			if (!fs.is_range) use_iter_trait = struct_implements_iterable(self, for_iterable_type(self, fs.iterable));
+
+			desugar_for(&self.arena, node, fs, use_iter_trait);
 			// `node` now holds the lowered block; check it through the normal path.
 			check_statement(self, node);
 		}
@@ -907,6 +913,71 @@ pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>)
 	}
 }
 
+// Best-effort static type of a `for` iterable (a variable or a field chain).
+// Reports nothing and rewrites nothing, so it is safe to call before the loop
+// is lowered and re-checked.
+fn for_iterable_type(self: &BodyPass, node: *AstNode): *Type {
+	if (node == null) return null;
+
+	if (node.kind == NodeKind.EXPR_IDENTIFIER) {
+		val sym = lookup(&self.symtab, as_identifier(node).name);
+		if (sym != null) return sym.type_ptr;
+		return null;
+	}
+
+	if (node.kind == NodeKind.EXPR_MEMBER) {
+		val mem = as_member(node);
+		var obj = for_iterable_type(self, mem.object);
+		if (obj == null) return null;
+		if (obj.kind == DataType.POINTER) obj = sem_pointer(obj).pointee;
+		if (obj.kind != DataType.STRUCT) return null;
+		val s_mem = sem_struct(obj);
+		for (f in s_mem.fields) {
+			if (f.name == mem.member) return f.type_ptr;
+		}
+	}
+	return null;
+}
+
+// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
+// iterates through the trait (`count()` / `at(i)`) instead of the built-in
+// `.len` / `.data`, so containment no longer has to look like a flat array.
+fn struct_implements_iterable(self: &BodyPass, ty: *Type): bool {
+	if (ty == null || ty.kind != DataType.STRUCT) return false;
+	val t = find_trait(&self.symtab, "Iterable");
+	if (t == null) return false;
+	return trait_has_impl(t, sem_struct(ty).name);
+}
+
+// `for (v in seq)` where `seq` implements `Iterable`: index through the trait.
+pub fn desugar_for_iter_method(
+	var arena: &Arena,
+	pre: &List<*AstNode>,
+	head: &List<*AstNode>,
+	step: &List<*AstNode>,
+	fs: *ForStmt,
+	line: usz,
+	col: usz
+): *AstNode {
+	// val __for_n: usz = <iterable>.count();
+	val count_call = alloc_call(arena, alloc_member(arena, fs.iterable, "count", line, col), new_list<*AstNode>(), new_list<*AstNode>(), line, col);
+	pre.add(alloc_var_decl(arena, false, "__for_n", for_usz_type(arena, line, col), count_call, line, col));
+	// var __for_i: usz = 0;
+	pre.add(alloc_var_decl(arena, true, "__for_i", for_usz_type(arena, line, col),
+		for_num(arena, "0UZ", line, col), line, col));
+
+	// val <v> = <iterable>.at(__for_i);
+	var at_args = new_list<*AstNode>();
+	at_args.add(for_id(arena, "__for_i", line, col));
+	val at_call = alloc_call(arena, alloc_member(arena, fs.iterable, "at", line, col), at_args, new_list<*AstNode>(), line, col);
+	head.add(alloc_var_decl(arena, false, fs.var_name, null, at_call, line, col));
+
+	step.add(for_bump(arena, TokenType.PLUS, line, col));
+
+	// __for_i < __for_n
+	return alloc_binary(arena, TokenType.LESS, for_id(arena, "__for_i", line, col), for_id(arena, "__for_n", line, col), line, col);
+}
+
 // `for (v in <iterable>)`: index over the container's `.data` storage, caching
 // `.len` up front (for `str` that also removes a strlen call per iteration).
 pub fn desugar_for_iterable(
@@ -1005,7 +1076,7 @@ pub fn desugar_for_range(
 
 // Lowers `node` (a STMT_FOR) in place into a block holding hidden locals plus a
 // while-loop, so every later pass sees an ordinary block.
-pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt) {
+pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_trait: bool) {
 	val line = node.line;
 	val col = node.col;
 
@@ -1015,6 +1086,7 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt) {
 	var cond: *AstNode = null;
 
 	if (fs.is_range) cond = desugar_for_range(arena, &pre, &head, &step, fs, line, col);
+	else if (use_iter_trait) cond = desugar_for_iter_method(arena, &pre, &head, &step, fs, line, col);
 	else cond = desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
 
 	// Body: loop variable, the original statements, then the counter update.

@@ -2,6 +2,7 @@ mod std.collections.list;
 
 use std.mem.alloc.*;
 use std.traits.new.New;
+use std.traits.iterable.Iterable;
 
 /*
 	List<T> - dynamic array, heap-allocated
@@ -31,9 +32,14 @@ pub struct List<T> {
 	cap: usz
 }
 
+// `for (x in list)` support: `for` calls `count()` and `at(i)`.
+impl Iterable for List<T> {
+	pub fn count(val self): usz => self.len;
+
+	pub fn at(val self, i: usz): T => self.data[i];
+}
+
 // Kotlin-style constructors: `List<T>()` and `List<T>(capacity)`.
-// (Placed before the inherent impl on purpose, to prove impl order no longer
-// matters: the compiler instantiates every matching impl template.)
 impl New for List<T> {
 	pub fn new(): List<T> => Self(alloc_array<T>(4UZ), 0, 4UZ);
 

@@ -3,6 +3,7 @@ mod test.bootstrap_for;
 use std.io.print;
 use std.io.println;
 use std.collections.list.*;
+use std.traits.iterable.*;
 
 // ============================================================================
 // `for` loop tests (phase 1: iterable lowering + closed/open ranges)
@@ -261,6 +262,37 @@ fn test_range_half_open_empty(var t: &Tally, n: usz) {
 	check(count == 0, "half-open 0..<0 must be empty", t);
 }
 
+// -- Iterable trait: a container that is not a flat array ---------------------
+
+struct Steps {
+	pub n: i32
+}
+
+// Elements are computed from the index, so this type has no `.data` array at
+// all: only the `Iterable` contract makes it loopable.
+impl Iterable for Steps {
+	fn count(val self): usz => self.n as usz;
+	fn at(val self, i: usz): i32 => (i as i32) * 10;
+}
+
+fn test_iterable_trait(var t: &Tally) {
+	val s = Steps(3);
+	var sum: i32 = 0;
+	var seen: i32 = 0;
+	for (v in s) {
+		sum = sum + v;
+		seen = seen + 1;
+	}
+	check(seen == 3, "Iterable: loop runs count() times", t);
+	check(sum == 30, "Iterable: elements come from at(i)", t);
+
+	// An empty container must not run the body at all.
+	val e = Steps(0);
+	var hits: i32 = 0;
+	for (v in e) hits = hits + 1;
+	check(hits == 0, "Iterable: empty container runs zero times", t);
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap for-loop tests...");
 
@@ -280,6 +312,7 @@ fn main(): i32 {
 	test_break_continue(&t);
 	test_loop_var_is_fresh(&t);
 	test_generic_for(&t);
+	test_iterable_trait(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap for-loop tests");

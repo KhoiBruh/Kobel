@@ -1,0 +1,24 @@
+mod std.traits.iterable;
+
+// ============================================================================
+// std.traits.iterable - the `Iterable` trait
+//
+// A type implements `count`/`at` to become usable in a `for (x in seq)` loop:
+//
+//	impl Iterable for MyType {
+//		pub fn count(val self): usz => self.n;
+//		pub fn at(val self, i: usz): Elem => ...;
+//	}
+//
+// `for` lowers to `seq.count()` plus `seq.at(i)` and takes the element type
+// from the `at` implementation, so `at` deliberately declares no return type
+// here (the element type differs per container and the trait has no associated
+// types). `str` and `[T; N]` do not need this trait: `for` reads their built-in
+// `.len` / `.data`.
+// ============================================================================
+
+pub trait Iterable {
+	fn count(val self): usz;
+
+	fn at(val self, i: usz);
+}
