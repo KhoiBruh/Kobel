@@ -812,14 +812,14 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 
 			if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
 				val mem = as_member(c.callee);
-				if (mem.member == "to") {
+				if (mem.member == "to" || mem.member == "make") {
 					val mem_obj = clone_expr(self, mem.object, subst);
 					var new_type_args = List<*AstNode>();
 					for (ta in c.type_args) new_type_args.add(clone_type(self, ta, subst));
 					var new_args = List<*AstNode>();
 					new_args.add(mem_obj);
 					for (a in c.args) new_args.add(clone_expr(self, a, subst));
-					val ft = gen_find(self.symtab.gen.fn_templates, "to");
+					val ft = gen_find(self.symtab.gen.fn_templates, mem.member);
 					if (ft != null) {
 						val cname = instantiate_fn(self, ft, new_type_args);
 						return alloc_call(&self.arena, alloc_identifier(&self.arena, cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
@@ -1027,9 +1027,9 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 			val c = as_call(node) as &CallExpr;
 			if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
 				val mem = as_member(c.callee);
-				if (mem.member == "to") {
+				if (mem.member == "to" || mem.member == "make") {
 					val mem_obj = mem.object;
-					c.callee = alloc_identifier(&self.arena, "to", node.line, node.col);
+					c.callee = alloc_identifier(&self.arena, mem.member, node.line, node.col);
 					var new_args = List<*AstNode>();
 					new_args.add(mem_obj);
 					for (a in c.args) new_args.add(a);

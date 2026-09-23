@@ -271,6 +271,19 @@ fn test_ast_builder_and_methods(): bool {
 	if (fn_d.name != "test_fn") return false;
 	if (!fn_d.is_pub) return false;
 
+	// Test b.make<T>()
+	val m_lit = b.make<LiteralExpr>(NodeKind.EXPR_LITERAL, LiteralExpr(LiteralKind.INT, "456"), 3UZ, 1UZ);
+	if (m_lit.to<LiteralExpr>().raw_text != "456") return false;
+
+	val m_id = b.make<IdentifierExpr>(NodeKind.EXPR_IDENTIFIER, IdentifierExpr("y"), 3UZ, 5UZ);
+	if (m_id.to<IdentifierExpr>().name != "y") return false;
+
+	val m_bin = b.make<BinaryExpr>(NodeKind.EXPR_BINARY, BinaryExpr(m_lit, TokenType.STAR, m_id), 3UZ, 3UZ);
+	val bin_d = m_bin.to<BinaryExpr>();
+	if (bin_d.op != TokenType.STAR) return false;
+	if (bin_d.left.to<LiteralExpr>().raw_text != "456") return false;
+	if (bin_d.right.to<IdentifierExpr>().name != "y") return false;
+
 	arena.delete();
 	return true;
 }

@@ -520,6 +520,18 @@ impl AstBuilder {
 pub fn to<T>(node: *AstNode): *T => node.data as *T;
 
 // ============================================================================
+// Generic Node Factory: b.make<T>(kind, data, line, col)
+// ============================================================================
+
+pub fn make<T>(b: AstBuilder, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
+	val ptr = arena_alloc<T>(b.arena);
+	*ptr = data;
+	val node_ptr = arena_alloc<AstNode>(b.arena);
+	*node_ptr = AstNode(kind, line, col, ptr as *u8);
+	return node_ptr;
+}
+
+// ============================================================================
 // Legacy Node Allocator Helpers (forwarding to AstBuilder)
 // ============================================================================
 
