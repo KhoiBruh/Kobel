@@ -79,21 +79,21 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 		// A number token keeps its fractional part, so a '.' in the text means
 		// the literal is a float (types are decided here, not by the lexer).
 		TokenType.NUMBER -> {
-			if (num_literal_is_float(tok.text)) return alloc_literal(&self.arena, LiteralKind.FLOAT, tok.text, line, col);
-			return alloc_literal(&self.arena, LiteralKind.INT, tok.text, line, col);
+			if (num_literal_is_float(tok.text)) return self.b().literal(LiteralKind.FLOAT, tok.text, line, col);
+			return self.b().literal(LiteralKind.INT, tok.text, line, col);
 		}
 		TokenType.STRING -> return parse_string_literal(self, tok, line, col);
-		TokenType.CHAR -> return alloc_literal(&self.arena, LiteralKind.CHAR, tok.text, line, col);
-		TokenType.KW_TRUE -> return alloc_literal(&self.arena, LiteralKind.BOOL, "true", line, col);
-		TokenType.KW_FALSE -> return alloc_literal(&self.arena, LiteralKind.BOOL, "false", line, col);
-		TokenType.KW_NULL -> return alloc_literal(&self.arena, LiteralKind.NULL_VAL, "null", line, col);
-		TokenType.IDENTIFIER -> return alloc_identifier(&self.arena, tok.text, line, col);
+		TokenType.CHAR -> return self.b().literal(LiteralKind.CHAR, tok.text, line, col);
+		TokenType.KW_TRUE -> return self.b().literal(LiteralKind.BOOL, "true", line, col);
+		TokenType.KW_FALSE -> return self.b().literal(LiteralKind.BOOL, "false", line, col);
+		TokenType.KW_NULL -> return self.b().literal(LiteralKind.NULL_VAL, "null", line, col);
+		TokenType.IDENTIFIER -> return self.b().identifier(tok.text, line, col);
 
 		// Grouping: (expr)
 		TokenType.OPEN_PAREN -> {
 			val inner = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
-			return alloc_group(&self.arena, inner, line, col);
+			return self.b().group(inner, line, col);
 		}
 
 		// Array Literal: [a, b, c]
@@ -109,7 +109,7 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 				}
 			}
 			consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
-			return alloc_array_literal(&self.arena, elements, line, col);
+			return self.b().array_literal(elements, line, col);
 		}
 
 		// Prefix Unary: -, !, *, &
@@ -118,7 +118,7 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 		TokenType.STAR,
 		TokenType.AMPERSAND -> {
 			val operand = parse_expression(self, PREC_UNARY);
-			return alloc_unary(&self.arena, tok.type, operand, line, col);
+			return self.b().unary(tok.type, operand, line, col);
 		}
 
 		// If Expression: if (cond) then_expr else else_expr
@@ -129,7 +129,7 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 			val then_branch = parse_if_expr_branch(self);
 			consume(self, TokenType.KW_ELSE, "Expected 'else' in if expression");
 			val else_branch = parse_if_expr_branch(self);
-			return alloc_if_expr(&self.arena, condition, then_branch, else_branch, line, col);
+			return self.b().if_expr(condition, then_branch, else_branch, line, col);
 		}
 
 		// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
@@ -167,12 +167,12 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 			}
 
 			consume(self, TokenType.CLOSE_BRACE, "Expected '}' after when arms");
-			return alloc_when_expr(&self.arena, condition, arms, line, col);
+			return self.b().when_expr(condition, arms, line, col);
 		}
 
 		else -> {
 			error(self, tok, "Expected expression");
-			return alloc_identifier(&self.arena, "<error>", line, col);
+			return self.b().identifier("<error>", line, col);
 		}
 	}
 }
@@ -185,26 +185,26 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 	// 1. Assignment: left = right (right-associative)
 	if (match_token(self, TokenType.EQUAL)) {
 		val right = parse_expression(self, PREC_ASSIGN - 1);
-		return alloc_assign(&self.arena, left, right, line, col);
+		return self.b().assign(left, right, line, col);
 	}
 
 	// 2. Member Access: left.member
 	if (match_token(self, TokenType.DOT)) {
 		val member_tok = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.'");
-		return alloc_member(&self.arena, left, member_tok.text, line, col);
+		return self.b().member(left, member_tok.text, line, col);
 	}
 
 	// 3. Index Access: left[index]
 	if (match_token(self, TokenType.OPEN_BRACKET)) {
 		val index = parse_expression(self, PREC_NONE);
 		consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array index");
-		return alloc_index(&self.arena, left, index, line, col);
+		return self.b().index(left, index, line, col);
 	}
 
 	// 4. Type Cast: left as Type
 	if (match_token(self, TokenType.KW_AS)) {
 		val target_type = parse_type(self);
-		return alloc_cast(&self.arena, left, target_type, line, col);
+		return self.b().cast(left, target_type, line, col);
 	}
 
 	// 5. Generic Call: left<T1, T2>(arg1, arg2)
@@ -226,7 +226,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 			}
 		}
 		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-		return alloc_call(&self.arena, left, args, type_args, line, col);
+		return self.b().call(left, args, type_args, line, col);
 	}
 
 	// 6. Normal Call: left(arg1, arg2)
@@ -239,13 +239,13 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 			}
 		}
 		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-		return alloc_call(&self.arena, left, args, List<*AstNode>(), line, col);
+		return self.b().call(left, args, List<*AstNode>(), line, col);
 	}
 
 	// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
 	val op_tok = advance(self);
 	val right = parse_expression(self, prec);
-	return alloc_binary(&self.arena, op_tok.type, left, right, line, col);
+	return self.b().binary(op_tok.type, left, right, line, col);
 }
 
 pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode {
@@ -299,7 +299,7 @@ pub fn str_has_hole(text: str): bool {
 
 pub fn parse_string_literal(var self: &Parser, tok: Token, line: usz, col: usz): *AstNode {
 	if (str_has_hole(tok.text)) return parse_interp_string(self, tok.text, line, col);
-	return alloc_literal(&self.arena, LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
+	return self.b().literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
 }
 
 // `\$` means a literal '$' in any string literal. The parser rewrites it so the
@@ -414,7 +414,7 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 		}
 		if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 			if (has_lit) {
-				parts.add(InterpPart(alloc_literal(&self.arena, LiteralKind.STRING, "\"" + lit + "\"", line, col), true));
+				parts.add(InterpPart(self.b().literal(LiteralKind.STRING, "\"" + lit + "\"", line, col), true));
 				lit = "";
 				has_lit = false;
 			}
@@ -422,7 +422,7 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 			val h_end = interp_find_close(text, h_start);
 			if (h_end < 0) {
 				self.errors.add("Unterminated interpolation hole in string literal");
-				return alloc_literal(&self.arena, LiteralKind.STRING, text, line, col);
+				return self.b().literal(LiteralKind.STRING, text, line, col);
 			}
 			val src = text.slice(h_start, h_end);
 			var sub_lexer = Lexer(src);
@@ -441,6 +441,6 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 		i = i + 1;
 	}
 
-	if (has_lit) parts.add(InterpPart(alloc_literal(&self.arena, LiteralKind.STRING, "\"${lit}\"", line, col), true));
-	return alloc_interp(&self.arena, parts, line, col);
+	if (has_lit) parts.add(InterpPart(self.b().literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
+	return self.b().interp(parts, line, col);
 }

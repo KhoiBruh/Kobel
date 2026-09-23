@@ -9,12 +9,16 @@ pub struct Parser {
 	pub tokens: List<Token>,
 	pub current: usz,
 	pub arena: Arena,
-	pub errors: List<str>
+	pub errors: List<str>,
+	pub builder: AstBuilder
 }
 
 impl Parser {
-	pub fn new(tokens: List<Token>): Parser => Self(tokens, 0, Arena(65536), List<str>());
-	pub fn b(var self: &Parser): AstBuilder => AstBuilder(&self.arena);
+	pub fn new(tokens: List<Token>): Parser => Self(tokens, 0, Arena(65536), List<str>(), AstBuilder(null));
+	pub fn b(var self: &Parser): &AstBuilder {
+		self.builder.arena = &self.arena;
+		return &self.builder;
+	}
 }
 
 pub fn is_end(var self: &Parser): bool {

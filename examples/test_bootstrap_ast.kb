@@ -27,19 +27,6 @@ use compiler.ast.decl.Param;
 use compiler.ast.decl.GenericParam;
 use compiler.ast.decl.FnDecl;
 
-use compiler.ast.builder.alloc_literal;
-use compiler.ast.builder.alloc_identifier;
-use compiler.ast.builder.alloc_binary;
-use compiler.ast.builder.alloc_unary;
-use compiler.ast.builder.alloc_group;
-use compiler.ast.builder.alloc_named_type;
-use compiler.ast.builder.alloc_block_stmt;
-use compiler.ast.builder.alloc_expr_stmt;
-use compiler.ast.builder.alloc_var_decl;
-use compiler.ast.builder.alloc_if_stmt;
-use compiler.ast.builder.alloc_return_stmt;
-use compiler.ast.builder.alloc_fn_decl;
-use compiler.ast.builder.alloc_program;
 use compiler.ast.builder.AstBuilder;
 
 use compiler.ast.builder.as_literal;
@@ -103,15 +90,16 @@ fn eval_expr(node: *AstNode): i32 {
 
 fn test_expression_tree(): bool {
 	var arena = Arena(16384UZ);
+	var b = AstBuilder(&arena);
 
 	// Build: (10 + 20) * 3
-	val lit10 = alloc_literal(&arena, LiteralKind.INT, "10", 1UZ, 2UZ);
-	val lit20 = alloc_literal(&arena, LiteralKind.INT, "20", 1UZ, 7UZ);
-	val add_expr = alloc_binary(&arena, TokenType.PLUS, lit10, lit20, 1UZ, 5UZ);
-	val group_expr = alloc_group(&arena, add_expr, 1UZ, 1UZ);
+	val lit10 = b.literal(LiteralKind.INT, "10", 1UZ, 2UZ);
+	val lit20 = b.literal(LiteralKind.INT, "20", 1UZ, 7UZ);
+	val add_expr = b.binary(TokenType.PLUS, lit10, lit20, 1UZ, 5UZ);
+	val group_expr = b.group(add_expr, 1UZ, 1UZ);
 
-	val lit3 = alloc_literal(&arena, LiteralKind.INT, "3", 1UZ, 13UZ);
-	val mul_expr = alloc_binary(&arena, TokenType.STAR, group_expr, lit3, 1UZ, 11UZ);
+	val lit3 = b.literal(LiteralKind.INT, "3", 1UZ, 13UZ);
+	val mul_expr = b.binary(TokenType.STAR, group_expr, lit3, 1UZ, 11UZ);
 
 	if (mul_expr.kind != NodeKind.EXPR_BINARY) return false;
 
@@ -136,11 +124,12 @@ fn test_expression_tree(): bool {
 
 fn test_statement_nodes(): bool {
 	var arena = Arena(16384UZ);
+	var b = AstBuilder(&arena);
 
 	// var count: i32 = 42;
-	val ty_i32 = alloc_named_type(&arena, "i32", List<*AstNode>(), 1UZ, 12UZ);
-	val lit42 = alloc_literal(&arena, LiteralKind.INT, "42", 1UZ, 18UZ);
-	val var_stmt = alloc_var_decl(&arena, true, "count", ty_i32, lit42, 1UZ, 1UZ);
+	val ty_i32 = b.named_type("i32", List<*AstNode>(), 1UZ, 12UZ);
+	val lit42 = b.literal(LiteralKind.INT, "42", 1UZ, 18UZ);
+	val var_stmt = b.var_decl(true, "count", ty_i32, lit42, 1UZ, 1UZ);
 
 	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
 	val vd = as_var_decl(var_stmt);
@@ -149,22 +138,22 @@ fn test_statement_nodes(): bool {
 	if (vd.initializer.kind != NodeKind.EXPR_LITERAL) return false;
 
 	// return count;
-	val id_count = alloc_identifier(&arena, "count", 2UZ, 8UZ);
-	val ret_stmt = alloc_return_stmt(&arena, id_count, 2UZ, 1UZ);
+	val id_count = b.identifier("count", 2UZ, 8UZ);
+	val ret_stmt = b.return_stmt(id_count, 2UZ, 1UZ);
 	if (ret_stmt.kind != NodeKind.STMT_RETURN) return false;
 
 	// { return count; }
 	var stmts = List<*AstNode>();
 	stmts.add(ret_stmt);
-	val block = alloc_block_stmt(&arena, stmts, 2UZ, 1UZ);
+	val block = b.block_stmt(stmts, 2UZ, 1UZ);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
 	val blk = as_block_stmt(block);
 	if (blk.statements.len != 1UZ) return false;
 
 	// if (count > 0) { return count; }
-	val lit0 = alloc_literal(&arena, LiteralKind.INT, "0", 3UZ, 13UZ);
-	val cond = alloc_binary(&arena, TokenType.GREATER, id_count, lit0, 3UZ, 11UZ);
-	val if_stmt = alloc_if_stmt(&arena, cond, block, null, 3UZ, 1UZ);
+	val lit0 = b.literal(LiteralKind.INT, "0", 3UZ, 13UZ);
+	val cond = b.binary(TokenType.GREATER, id_count, lit0, 3UZ, 11UZ);
+	val if_stmt = b.if_stmt(cond, block, null, 3UZ, 1UZ);
 
 	if (if_stmt.kind != NodeKind.STMT_IF) return false;
 	val ifs = as_if_stmt(if_stmt);
@@ -177,24 +166,24 @@ fn test_statement_nodes(): bool {
 
 fn test_declaration_nodes(): bool {
 	var arena = Arena(16384UZ);
+	var b = AstBuilder(&arena);
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
-	val ty_i32 = alloc_named_type(&arena, "i32", List<*AstNode>(), 1UZ, 1UZ);
+	val ty_i32 = b.named_type("i32", List<*AstNode>(), 1UZ, 1UZ);
 	params.add(Param("a", ty_i32, false, false));
 	params.add(Param("b", ty_i32, false, false));
 
-	val id_a = alloc_identifier(&arena, "a", 1UZ, 1UZ);
-	val id_b = alloc_identifier(&arena, "b", 1UZ, 1UZ);
-	val add_expr = alloc_binary(&arena, TokenType.PLUS, id_a, id_b, 1UZ, 1UZ);
-	val ret_stmt = alloc_return_stmt(&arena, add_expr, 1UZ, 1UZ);
+	val id_a = b.identifier("a", 1UZ, 1UZ);
+	val id_b = b.identifier("b", 1UZ, 1UZ);
+	val add_expr = b.binary(TokenType.PLUS, id_a, id_b, 1UZ, 1UZ);
+	val ret_stmt = b.return_stmt(add_expr, 1UZ, 1UZ);
 
 	var body_stmts = List<*AstNode>();
 	body_stmts.add(ret_stmt);
-	val body = alloc_block_stmt(&arena, body_stmts, 1UZ, 1UZ);
+	val body = b.block_stmt(body_stmts, 1UZ, 1UZ);
 
-	val fn_node = alloc_fn_decl(
-		&arena,
+	val fn_node = b.fn_decl(
 		"add",
 		List<GenericParam>(),
 		params,
@@ -219,12 +208,13 @@ fn test_declaration_nodes(): bool {
 
 fn test_program_iterable(): bool {
 	var arena = Arena();
+	var b = AstBuilder(&arena);
 	var decls = List<*AstNode>();
-	val d1 = alloc_fn_decl(&arena, "f1", List<GenericParam>(), List<Param>(), null, null, true, 1UZ, 1UZ);
-	val d2 = alloc_fn_decl(&arena, "f2", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
+	val d1 = b.fn_decl("f1", List<GenericParam>(), List<Param>(), null, null, true, 1UZ, 1UZ);
+	val d2 = b.fn_decl("f2", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
 	decls.add(d1);
 	decls.add(d2);
-	val prog_node = alloc_program(&arena, decls, 1UZ, 1UZ);
+	val prog_node = b.program(decls, 1UZ, 1UZ);
 	val prog = as_program(prog_node);
 
 	var count: usz = 0;

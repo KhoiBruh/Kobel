@@ -25,7 +25,7 @@ pub fn parse_block_stmt(var self: &Parser): *AstNode {
 	}
 
 	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after block");
-	return alloc_block_stmt(&self.arena, statements, lbrace.line, lbrace.col);
+	return self.b().block_stmt(statements, lbrace.line, lbrace.col);
 }
 
 pub fn parse_var_decl_stmt(var self: &Parser): *AstNode {
@@ -40,7 +40,7 @@ pub fn parse_var_decl_stmt(var self: &Parser): *AstNode {
 	if (match_token(self, TokenType.EQUAL)) init = parse_expression(self, PREC_NONE);
 
 	consume(self, TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-	return alloc_var_decl(&self.arena, is_mut, name_tok.text, type_ann, init, kw.line, kw.col);
+	return self.b().var_decl(is_mut, name_tok.text, type_ann, init, kw.line, kw.col);
 }
 
 pub fn parse_if_stmt(var self: &Parser): *AstNode {
@@ -54,7 +54,7 @@ pub fn parse_if_stmt(var self: &Parser): *AstNode {
 
 	if (match_token(self, TokenType.KW_ELSE)) else_branch = parse_statement(self);
 
-	return alloc_if_stmt(&self.arena, condition, then_branch, else_branch, kw.line, kw.col);
+	return self.b().if_stmt(condition, then_branch, else_branch, kw.line, kw.col);
 }
 
 pub fn parse_while_stmt(var self: &Parser): *AstNode {
@@ -64,7 +64,7 @@ pub fn parse_while_stmt(var self: &Parser): *AstNode {
 	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 
 	val body = parse_statement(self);
-	return alloc_while_stmt(&self.arena, condition, body, kw.line, kw.col);
+	return self.b().while_stmt(condition, body, kw.line, kw.col);
 }
 
 // `for (x in <expr>) <stmt>` where `<expr>` is either an iterable value or one
@@ -106,8 +106,8 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 
 	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
 	val body = parse_statement(self);
-	return alloc_for_stmt(
-		&self.arena, name_tok.text, is_range, is_open, is_half_open,
+	return self.b().for_stmt(
+		name_tok.text, is_range, is_open, is_half_open,
 		iterable, range_start, range_end, body, kw.line, kw.col
 	);
 }
@@ -119,7 +119,7 @@ pub fn parse_return_stmt(var self: &Parser): *AstNode {
 	if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
 
 	consume(self, TokenType.SEMI_COLON, "Expected ';' after return statement");
-	return alloc_return_stmt(&self.arena, value, kw.line, kw.col);
+	return self.b().return_stmt(value, kw.line, kw.col);
 }
 
 pub fn parse_when_stmt(var self: &Parser): *AstNode {
@@ -156,7 +156,7 @@ pub fn parse_when_stmt(var self: &Parser): *AstNode {
 	}
 
 	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after when statement arms");
-	return alloc_when_stmt(&self.arena, condition, arms, kw.line, kw.col);
+	return self.b().when_stmt(condition, arms, kw.line, kw.col);
 }
 
 pub fn parse_statement(var self: &Parser): *AstNode {
@@ -176,17 +176,17 @@ pub fn parse_statement(var self: &Parser): *AstNode {
 		TokenType.KW_BREAK -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after break");
-			return alloc_break_stmt(&self.arena, line, col);
+			return self.b().break_stmt(line, col);
 		}
 		TokenType.KW_CONTINUE -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
-			return alloc_continue_stmt(&self.arena, line, col);
+			return self.b().continue_stmt(line, col);
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
-			return alloc_expr_stmt(&self.arena, expr, line, col);
+			return self.b().expr_stmt(expr, line, col);
 		}
 	}
 }

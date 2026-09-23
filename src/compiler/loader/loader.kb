@@ -45,7 +45,8 @@ pub struct ModuleLoader {
 	pub modules: List<LoadedModule>,
 	pub ordered: List<LoadedModule>,
 	pub errors: List<str>,
-	pub arena: Arena
+	pub arena: Arena,
+	pub builder: AstBuilder
 }
 
 impl ModuleLoader {
@@ -64,8 +65,14 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<LoadedModule>(),
 			List<str>(),
-			Arena(524288)
+			Arena(524288),
+			AstBuilder(null)
 		);
+	}
+
+	pub fn b(var self: &ModuleLoader): &AstBuilder {
+		self.builder.arena = &self.arena;
+		return &self.builder;
 	}
 }
 
@@ -188,12 +195,12 @@ pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
 	for (lm in self.ordered) {
 		if (lm.program != null) {
 			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-			decls.add(alloc_module_decl(&self.arena, str_split_dots(lm.name), lm.name, 0, 0));
+			decls.add(self.b().module_decl(str_split_dots(lm.name), lm.name, 0, 0));
 
 			val p = as_program(lm.program);
 			for (d in p) decls.add(d);
 		}
 	}
 
-	return alloc_program(&self.arena, decls, 0, 0);
+	return self.b().program(decls, 0, 0);
 }

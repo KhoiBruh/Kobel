@@ -17,12 +17,12 @@ pub fn parse_type(var self: &Parser): *AstNode {
 	// 1. Pointer type: *T (read-only) or &T (read-write)
 	if (match_token(self, TokenType.STAR)) {
 		val pointee = parse_type(self);
-		return alloc_pointer_type(&self.arena, false, pointee, line, col);
+		return self.b().pointer_type(false, pointee, line, col);
 	}
 
 	if (match_token(self, TokenType.AMPERSAND)) {
 		val pointee = parse_type(self);
-		return alloc_pointer_type(&self.arena, true, pointee, line, col);
+		return self.b().pointer_type(true, pointee, line, col);
 	}
 
 	// 2. Fixed-size array type: [T; N]
@@ -41,7 +41,7 @@ pub fn parse_type(var self: &Parser): *AstNode {
 			}
 		}
 
-		return alloc_array_type(&self.arena, elem_type, size, line, col);
+		return self.b().array_type(elem_type, size, line, col);
 	}
 
 	// 3. Named type / Path: Foo, std.collections.List, List<T>
@@ -79,8 +79,8 @@ pub fn parse_type(var self: &Parser): *AstNode {
 			}
 		}
 
-		return alloc_array_type(&self.arena, type_args.get(0), size, line, col);
+		return self.b().array_type(type_args.get(0), size, line, col);
 	}
 
-	return alloc_named_type(&self.arena, full_name, type_args, line, col);
+	return self.b().named_type(full_name, type_args, line, col);
 }
