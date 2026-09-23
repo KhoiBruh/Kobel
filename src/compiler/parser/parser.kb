@@ -1,6 +1,7 @@
 mod compiler.parser.parser;
 
 use compiler.lexer.token.*;
+use compiler.ast.builder.AstBuilder;
 use std.collections.list.*;
 use std.mem.arena.*;
 
@@ -13,6 +14,7 @@ pub struct Parser {
 
 impl Parser {
 	pub fn new(tokens: List<Token>): Parser => Self(tokens, 0, Arena(65536), List<str>());
+	pub fn b(var self: &Parser): AstBuilder => AstBuilder(&self.arena);
 }
 
 pub fn is_end(var self: &Parser): bool {
