@@ -291,8 +291,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 			param_types.add(pt);
 		}
 
-		var ret_type = alloc_primitive(&self.arena, type_none());
-		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+		val ret_type = if (f.return_type != null) resolve_ast_type(self, f.return_type) else alloc_primitive(&self.arena, type_none());
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
@@ -350,8 +349,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 			param_types.add(pt);
 		}
 
-		var ret_type = alloc_primitive(&self.arena, type_none());
-		if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+		val ret_type = if (f.return_type != null) resolve_ast_type(self, f.return_type) else alloc_primitive(&self.arena, type_none());
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
@@ -936,9 +934,10 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			for (arm in we.arms) {
 				var pats = List<*AstNode>();
 				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
-				var arm_body: *AstNode = null;
-				if (arm.body.kind == NodeKind.STMT_BLOCK) arm_body = clone_stmt(self, arm.body, subst);
-				else arm_body = clone_expr(self, arm.body, subst);
+				val arm_body = if (arm.body.kind == NodeKind.STMT_BLOCK)
+					clone_stmt(self, arm.body, subst)
+				else
+					clone_expr(self, arm.body, subst);
 				arms.add(WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col));
 			}
 
@@ -971,8 +970,7 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		}
 		NodeKind.STMT_VAR_DECL -> {
 			val v = node.to<VarDeclStmt>();
-			var ta: *AstNode = null;
-			if (v.type_annotation != null) ta = clone_type(self, v.type_annotation, subst);
+			val ta = if (v.type_annotation != null) clone_type(self, v.type_annotation, subst) else null;
 			yield self.b().var_decl(v.is_mut, v.name, ta, clone_expr(self, v.initializer, subst), node.line, node.col);
 		}
 		NodeKind.STMT_IF -> {
@@ -1031,12 +1029,10 @@ pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name:
 	val f = node.to<FnDecl>();
 	var params = List<Param>();
 	for (p in f.params) {
-		var pt: *AstNode = null;
-		if (p.type_node != null) pt = clone_type(self, p.type_node, subst);
+		val pt = if (p.type_node != null) clone_type(self, p.type_node, subst) else null;
 		params.add(Param(p.name, pt, p.is_mut, p.has_val));
 	}
-	var rt: *AstNode = null;
-	if (f.return_type != null) rt = clone_type(self, f.return_type, subst);
+	val rt = if (f.return_type != null) clone_type(self, f.return_type, subst) else null;
 	return self.b().fn_decl(
 		new_name,
 		List<GenericParam>(),

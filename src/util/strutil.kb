@@ -126,10 +126,7 @@ pub fn str_base_name(path: str): str {
 }
 
 // Joins a directory and a relative path with a single '/' separator.
-pub fn str_join_path(dir: str, rel: str): str {
-	if (dir.len == 0) return rel;
-	return "${dir}/${rel}";
-}
+pub fn str_join_path(dir: str, rel: str): str => if (dir.len == 0) rel else "${dir}/${rel}";
 
 pub fn str_is_empty_str(s: str) => s.len == 0;
 
