@@ -159,7 +159,12 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 				}
 
 				consume(self, TokenType.ARROW, "Expected '->' after when arm pattern");
-				val body = parse_expression(self, PREC_NONE);
+				var body: *AstNode = null;
+				if (check(self, TokenType.OPEN_BRACE)) {
+					body = parse_arm_block(self);
+				} else {
+					body = parse_expression(self, PREC_NONE);
+				}
 				arms.add(WhenArm(patterns, is_else, body, arm_line, arm_col));
 
 				match_token(self, TokenType.COMMA);
@@ -271,6 +276,37 @@ pub fn parse_if_expr_branch(var self: &Parser): *AstNode {
 		return e;
 	}
 	return parse_expression(self, PREC_NONE);
+}
+
+pub fn parse_arm_block(var self: &Parser): *AstNode {
+	val lbrace = consume(self, TokenType.OPEN_BRACE, "Expected '{'");
+	var stmts = List<*AstNode>();
+	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
+		val tok = peek(self);
+		val line = tok.line;
+		val col = tok.col;
+		if (match_token(self, TokenType.KW_VAL) || match_token(self, TokenType.KW_VAR)) {
+			val is_mut = previous(self).type == TokenType.KW_VAR;
+			val id_tok = consume(self, TokenType.IDENTIFIER, "Expected variable name");
+			var ty_node: *AstNode = null;
+			if (match_token(self, TokenType.COLON)) ty_node = parse_type(self);
+			var init_node: *AstNode = null;
+			if (match_token(self, TokenType.EQUAL)) init_node = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after variable declaration");
+			stmts.add(self.b().var_decl(is_mut, id_tok.text, ty_node, init_node, line, col));
+		} else if (match_token(self, TokenType.KW_YIELD)) {
+			var value: *AstNode = null;
+			if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after yield");
+			stmts.add(self.b().yield_stmt(value, line, col));
+		} else {
+			val expr = parse_expression(self, PREC_NONE);
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
+			stmts.add(self.b().expr_stmt(expr, line, col));
+		}
+	}
+	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after block");
+	return self.b().block_stmt(stmts, lbrace.line, lbrace.col);
 }
 
 // ============================================================================

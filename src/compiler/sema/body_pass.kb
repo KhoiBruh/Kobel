@@ -40,7 +40,8 @@ pub struct BodyPass {
 	pub current_self_type: *Type,
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool,
-	pub builder: AstBuilder
+	pub builder: AstBuilder,
+	pub when_depth: usz
 }
 
 impl BodyPass {
@@ -48,13 +49,13 @@ impl BodyPass {
 		var arena = Arena(65536);
 		var decl_p = DeclPass();
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, AstBuilder(null));
+		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, AstBuilder(null), 0UZ);
 	}
 
 	pub fn new(symtab: SymbolTable): BodyPass {
 		var arena = Arena(65536);
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, AstBuilder(null));
+		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, AstBuilder(null), 0UZ);
 	}
 
 	pub fn b(var self: &BodyPass): &AstBuilder {
@@ -587,6 +588,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val we = node.to<WhenExpr>();
 			if (we.condition != null) check_expr(self, we.condition);
 
+			self.when_depth = self.when_depth + 1;
 			var result_ty: *Type = null;
 			var has_else = false;
 			for (arm in we.arms) {
@@ -595,9 +597,13 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					val p_ty = check_expr(self, pat);
 					if (we.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
 				}
-				val body_ty = check_expr(self, arm.body);
+				val body_ty = check_when_arm_body(self, arm.body);
 				if (result_ty == null) result_ty = body_ty;
+				else if (!can_assign(result_ty, body_ty)) {
+					report_error(self, arm.body, "When arm type does not match previous arms");
+				}
 			}
+			self.when_depth = self.when_depth - 1;
 
 			if (!has_else) {
 				report_error(self, node, "when expression requires an 'else' arm");
@@ -753,7 +759,36 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 				check_statement(self, arm.body);
 			}
 		}
+		NodeKind.STMT_YIELD -> {
+			val ys = node.to<YieldStmt>();
+			if (self.when_depth == 0) report_error(self, node, "Yield statement outside of when expression");
+			if (ys.value != null) check_expr(self, ys.value);
+		}
 	}
+}
+
+pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type {
+	if (body.kind == NodeKind.STMT_BLOCK) {
+		val blk = body.to<BlockStmt>();
+		var yield_ty: *Type = null;
+		enter_scope(&self.symtab, false);
+		for (stmt in blk.statements) {
+			if (stmt.kind == NodeKind.STMT_YIELD) {
+				val ys = stmt.to<YieldStmt>();
+				if (ys.value != null) yield_ty = check_expr(self, ys.value);
+				else yield_ty = alloc_primitive(&self.arena, type_none());
+			} else {
+				check_statement(self, stmt);
+			}
+		}
+		exit_scope(&self.symtab);
+		if (yield_ty == null) {
+			report_error(self, body, "When arm block must yield a value");
+			return alloc_primitive(&self.arena, type_none());
+		}
+		return yield_ty;
+	}
+	return check_expr(self, body);
 }
 
 // ============================================================================

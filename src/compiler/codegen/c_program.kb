@@ -84,7 +84,9 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 		}
 	} else if (f.body.kind == NodeKind.STMT_EXPR) {
 		val es = f.body.to<ExprStmt>();
-		if (ret_ty == "void") res = "${res}    ${gen_expr(self, es.expr)};\n";
+		if (ret_ty != "void" && es.expr.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(es.expr.to<WhenExpr>())) {
+			res = "${res}${gen_when_with_target(self, es.expr.to<WhenExpr>(), "", true)}";
+		} else if (ret_ty == "void") res = "${res}    ${gen_expr(self, es.expr)};\n";
 		else res = "${res}    return ${gen_expr(self, es.expr)};\n";
 	}
 

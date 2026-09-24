@@ -1,0 +1,106 @@
+mod examples.test_bootstrap_when_yield;
+
+use std.io.*;
+
+fn test_val_when_with_yield(): bool {
+	val x: i32 = 2;
+	val res = when (x) {
+		1 -> "one";
+		2 -> {
+			val prefix = "number_";
+			val n = 2;
+			yield "${prefix}${n}";
+		}
+		else -> "other";
+	};
+
+	if (res != "number_2") return false;
+
+	val y: i32 = 1;
+	val res_y = when (y) {
+		1 -> "one";
+		2 -> {
+			yield "two";
+		}
+		else -> "other";
+	};
+
+	if (res_y != "one") return false;
+	return true;
+}
+
+fn helper_return_when(k: i32): str {
+	return when (k) {
+		10 -> "ten";
+		20 -> {
+			val doubled = k * 2;
+			yield "calculated_${doubled}";
+		}
+		else -> {
+			yield "default_value";
+		}
+	};
+}
+
+fn helper_expr_body_when(k: i32): str => when (k) {
+	10 -> "ten";
+	20 -> {
+		val doubled = k * 2;
+		yield "calculated_${doubled}";
+	}
+	else -> {
+		yield "default_value";
+	}
+};
+
+fn test_return_when_with_yield(): bool {
+	if (helper_return_when(10) != "ten") return false;
+	if (helper_return_when(20) != "calculated_40") return false;
+	if (helper_return_when(99) != "default_value") return false;
+
+	if (helper_expr_body_when(10) != "ten") return false;
+	if (helper_expr_body_when(20) != "calculated_40") return false;
+	if (helper_expr_body_when(99) != "default_value") return false;
+	return true;
+}
+
+fn test_boolean_when_with_yield(): bool {
+	val a = 5;
+	val b = 10;
+	val category = when {
+		a > b -> "greater";
+		a < b -> {
+			val diff = b - a;
+			yield "smaller_by_${diff}";
+		}
+		else -> "equal";
+	};
+
+	if (category != "smaller_by_5") return false;
+	return true;
+}
+
+fn main(): i32 {
+	println("[RUNNING] Bootstrap when yield tests...");
+
+	if (!test_val_when_with_yield()) {
+		println("  [FAIL] test_val_when_with_yield");
+		return 1;
+	}
+	println("  [PASS] test_val_when_with_yield");
+
+	if (!test_return_when_with_yield()) {
+		println("  [FAIL] test_return_when_with_yield");
+		return 1;
+	}
+	println("  [PASS] test_return_when_with_yield");
+
+	if (!test_boolean_when_with_yield()) {
+		println("  [FAIL] test_boolean_when_with_yield");
+		return 1;
+	}
+	println("  [PASS] test_boolean_when_with_yield");
+
+	println("[ALL PASSED] Bootstrap when yield passed all tests successfully!");
+	return 0;
+}

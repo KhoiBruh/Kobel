@@ -183,6 +183,15 @@ pub fn parse_statement(var self: &Parser): *AstNode {
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
 			return self.b().continue_stmt(line, col);
 		}
+		TokenType.KW_YIELD -> {
+			advance(self);
+			var value: *AstNode = null;
+			if (!check(self, TokenType.SEMI_COLON)) {
+				value = parse_expression(self, PREC_NONE);
+			}
+			consume(self, TokenType.SEMI_COLON, "Expected ';' after yield");
+			return self.b().yield_stmt(value, line, col);
+		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");

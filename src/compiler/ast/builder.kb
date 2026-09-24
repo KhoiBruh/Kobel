@@ -133,6 +133,9 @@ impl AstBuilder {
 	pub fn when_stmt(var self: &AstBuilder, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
 		=> make<WhenStmt>(*self, NodeKind.STMT_WHEN, WhenStmt(condition, arms), line, col);
 
+	pub fn yield_stmt(var self: &AstBuilder, value: *AstNode, line: usz, col: usz): *AstNode
+		=> make<YieldStmt>(*self, NodeKind.STMT_YIELD, YieldStmt(value), line, col);
+
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------

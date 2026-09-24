@@ -24,7 +24,9 @@ pub struct CCodeGen {
 	pub errors: List<str>,
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
-	pub array_elem_hint: str
+	pub array_elem_hint: str,
+	pub yield_target: str,
+	pub is_yield_return: bool
 }
 
 impl CCodeGen {
@@ -37,7 +39,9 @@ impl CCodeGen {
 		List<str>(),
 		List<str>(),
 		List<str>(),
-		""
+		"",
+		"",
+		false
 	);
 
 }
@@ -450,9 +454,18 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 		NodeKind.EXPR_WHEN -> {
 			val we = expr.to<WhenExpr>();
 			for (arm in we.arms) {
-				if (arm.is_else) return infer_type_from_expr(self, arm.body);
+				if (arm.body.kind == NodeKind.STMT_BLOCK) {
+					val blk = arm.body.to<BlockStmt>();
+					for (s in blk.statements) {
+						if (s.kind == NodeKind.STMT_YIELD) {
+							val ys = s.to<YieldStmt>();
+							if (ys.value != null) return infer_type_from_expr(self, ys.value);
+						}
+					}
+				} else {
+					return infer_type_from_expr(self, arm.body);
+				}
 			}
-			if (we.arms.len > 0) return infer_type_from_expr(self, we.arms.get(0).body);
 			return "int32_t";
 		}
 
@@ -468,6 +481,13 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 // ============================================================================
 // Statement Code Generation
 // ============================================================================
+
+pub fn when_expr_has_blocks(we: *WhenExpr): bool {
+	for (arm in we.arms) {
+		if (arm.body.kind == NodeKind.STMT_BLOCK) return true;
+	}
+	return false;
+}
 
 pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 	if (node == null) return "";
@@ -514,6 +534,12 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			if (is_ptr) self.pointer_vars.add(vd.name);
 			if (ty_str == "const char*") self.str_vars.add(vd.name);
 
+			if (vd.initializer != null && vd.initializer.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(vd.initializer.to<WhenExpr>())) {
+				var res = ind + ty_str + " " + vd.name + ";\n";
+				res = res + gen_when_with_target(self, vd.initializer.to<WhenExpr>(), vd.name, false);
+				return res;
+			}
+
 			var res = ind + ty_str + " " + vd.name;
 			if (vd.initializer != null) {
 				val saved_hint = self.array_elem_hint;
@@ -554,7 +580,12 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.STMT_RETURN -> {
 			val ret = node.to<ReturnStmt>();
 			val ind = get_indent(self.indent_level);
-			if (ret.value != null) return ind + "return " + gen_expr(self, ret.value) + ";\n";
+			if (ret.value != null) {
+				if (ret.value.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(ret.value.to<WhenExpr>())) {
+					return gen_when_with_target(self, ret.value.to<WhenExpr>(), "", true);
+				}
+				return ind + "return " + gen_expr(self, ret.value) + ";\n";
+			}
 			return ind + "return;\n";
 		}
 
@@ -567,6 +598,21 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.STMT_BREAK -> return get_indent(self.indent_level) + "break;\n";
 
 		NodeKind.STMT_CONTINUE -> return get_indent(self.indent_level) + "continue;\n";
+
+		NodeKind.STMT_YIELD -> {
+			val ys = node.to<YieldStmt>();
+			val ind = get_indent(self.indent_level);
+			if (self.is_yield_return) {
+				if (ys.value != null) return ind + "return " + gen_expr(self, ys.value) + ";\n";
+				return ind + "return;\n";
+			}
+			if (self.yield_target != "") {
+				if (ys.value != null) return ind + self.yield_target + " = " + gen_expr(self, ys.value) + ";\n";
+				return "";
+			}
+			if (ys.value != null) return ind + gen_expr(self, ys.value) + ";\n";
+			return "";
+		}
 
 		NodeKind.STMT_WHEN -> {
 			val ws = node.to<WhenStmt>();
@@ -595,4 +641,49 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 
 		else -> return "";
 	}
+}
+
+pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str, is_ret: bool): str {
+	var cond = "";
+	if (we.condition != null) cond = gen_expr(self, we.condition);
+	val ind = get_indent(self.indent_level);
+	var res = "";
+	var first = true;
+
+	val prev_target = self.yield_target;
+	val prev_is_ret = self.is_yield_return;
+	self.yield_target = target_name;
+	self.is_yield_return = is_ret;
+
+	for (arm in we.arms) {
+		if (arm.is_else) {
+			if (first) res = res + ind + "{\n";
+			else res = res + ind + "} else {\n";
+		} else {
+			val test = gen_when_test(self, cond, arm.patterns);
+			if (first) res = res + ind + "if (" + test + ") {\n";
+			else res = res + ind + "} else if (" + test + ") {\n";
+		}
+		self.indent_level = self.indent_level + 1;
+		if (arm.body.kind == NodeKind.STMT_BLOCK) {
+			val blk = arm.body.to<BlockStmt>();
+			for (s in blk.statements) {
+				res = res + gen_statement(self, s);
+			}
+		} else {
+			val arm_ind = get_indent(self.indent_level);
+			if (is_ret) {
+				res = res + arm_ind + "return " + gen_expr(self, arm.body) + ";\n";
+			} else {
+				res = res + arm_ind + target_name + " = " + gen_expr(self, arm.body) + ";\n";
+			}
+		}
+		self.indent_level = self.indent_level - 1;
+		first = false;
+	}
+	if (!first) res = res + ind + "}\n";
+
+	self.yield_target = prev_target;
+	self.is_yield_return = prev_is_ret;
+	return res;
 }

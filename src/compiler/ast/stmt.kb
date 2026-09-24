@@ -69,3 +69,7 @@ pub struct WhenStmt {
 	pub condition: *AstNode,
 	pub arms: List<WhenStmtArm>
 }
+
+pub struct YieldStmt {
+	pub value: *AstNode
+}

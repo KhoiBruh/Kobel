@@ -69,6 +69,7 @@ pub enum TokenType {
 	KW_IMPL,
 	KW_FOR,
 	KW_IN,
+	KW_YIELD,
 
 	// Specials
 	END_OF_FILE,

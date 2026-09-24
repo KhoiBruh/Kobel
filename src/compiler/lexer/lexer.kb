@@ -43,6 +43,7 @@ pub fn lookup_keyword(text: str) => when (text) {
 	"impl" -> TokenType.KW_IMPL,
 	"for" -> TokenType.KW_FOR,
 	"in" -> TokenType.KW_IN,
+	"yield" -> TokenType.KW_YIELD,
 	else -> TokenType.IDENTIFIER
 };
 
