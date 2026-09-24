@@ -617,17 +617,105 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val target_ty = check_expr(self, idx.target);
 			val index_ty = check_expr(self, idx.index);
 
-			if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+			// 1. Raw array [T; N]
+			if (target_ty.kind == DataType.ARRAY) {
+				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				return sem_array(target_ty).elem;
+			}
 
-			if (target_ty.kind == DataType.ARRAY) return sem_array(target_ty).elem;
-			if (target_ty.kind == DataType.POINTER) return sem_pointer(target_ty).pointee;
-			if (target_ty.kind == DataType.STR) return alloc_primitive(&self.arena, type_char());
+			// 2. String indexing str[i] -> char
+			if (target_ty.kind == DataType.STR) {
+				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				return alloc_primitive(&self.arena, type_char());
+			}
+
+			// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
+			if (target_ty.kind == DataType.POINTER) {
+				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				return sem_pointer(target_ty).pointee;
+			}
+
+			// 4. Custom container struct with get(index) method (List<T>, etc.)
+			if (target_ty.kind == DataType.STRUCT) {
+				val s_info = sem_struct(target_ty);
+				var mi = struct_find_method_arity(s_info, "get", 2);
+				if (mi == null) mi = struct_find_method(s_info, "get");
+				if (mi != null) {
+					val fn_info = sem_fn(mi.fn_type);
+					val param_ty = fn_info.param_types.get(1);
+					if (is_list_type(param_ty)) coerce_to_list(self, idx.index, param_ty);
+					if (!can_assign(param_ty, index_ty)) report_error(self, node, "Argument type mismatch in index access");
+
+					var new_args = List<*AstNode>();
+					new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+					new_args.add(idx.index);
+
+					val call_node = self.b().call(self.b().identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					val n = node as &AstNode;
+					n.kind = NodeKind.EXPR_CALL;
+					n.data = call_node.data;
+					return fn_info.return_type;
+				}
+			}
 
 			report_error(self, node, "Index access on non-indexable type");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = node.to<AssignExpr>();
+
+			// Index assignment desugaring: container[i] = val -> container.set(i, val)
+			var target_expr = asgn.target;
+			while (target_expr.kind == NodeKind.EXPR_GROUP) target_expr = target_expr.to<GroupExpr>().expr;
+
+			if (target_expr.kind == NodeKind.EXPR_INDEX) {
+				val idx = target_expr.to<IndexExpr>();
+				val target_raw_ty = check_expr(self, idx.target);
+				if (target_raw_ty.kind == DataType.STRUCT) {
+					val s_info = sem_struct(target_raw_ty);
+					var mi = struct_find_method_arity(s_info, "set", 3);
+					if (mi == null) mi = struct_find_method(s_info, "set");
+					if (mi != null) {
+						val fn_info = sem_fn(mi.fn_type);
+						val idx_param_ty = fn_info.param_types.get(1);
+						val val_param_ty = fn_info.param_types.get(2);
+
+						var val_expr = asgn.value;
+						if (asgn.op != TokenType.EQUAL) {
+							val bin_op = when (asgn.op) {
+								TokenType.PLUS_EQUAL -> TokenType.PLUS,
+								TokenType.MINUS_EQUAL -> TokenType.MINUS,
+								TokenType.STAR_EQUAL -> TokenType.STAR,
+								TokenType.SLASH_EQUAL -> TokenType.SLASH,
+								TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
+								else -> TokenType.PLUS
+							};
+							val get_expr = self.b().index(idx.target, idx.index, node.line, node.col);
+							val_expr = self.b().binary(bin_op, get_expr, asgn.value, node.line, node.col);
+						}
+
+						if (is_list_type(idx_param_ty)) coerce_to_list(self, idx.index, idx_param_ty);
+						val idx_ty = check_expr(self, idx.index);
+						if (!can_assign(idx_param_ty, idx_ty)) report_error(self, node, "Index type mismatch in index assignment");
+
+						if (is_list_type(val_param_ty)) coerce_to_list(self, val_expr, val_param_ty);
+						val val_ty = check_expr(self, val_expr);
+						if (!can_assign(val_param_ty, val_ty)) report_error(self, node, "Value type mismatch in index assignment");
+
+						var new_args = List<*AstNode>();
+						new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+						new_args.add(idx.index);
+						new_args.add(val_expr);
+
+						val call_node = self.b().call(self.b().identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						val n = node as &AstNode;
+						n.kind = NodeKind.EXPR_CALL;
+						n.data = call_node.data;
+						return val_param_ty;
+					}
+				}
+			}
+
 			val target_ty = check_expr(self, asgn.target);
 			if (is_list_type(target_ty)) coerce_to_list(self, asgn.value, target_ty);
 			val val_ty = check_expr(self, asgn.value);
