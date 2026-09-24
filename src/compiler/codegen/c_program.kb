@@ -168,24 +168,24 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 			NodeKind.DECL_STRUCT -> {
 				val s = decl.to<StructDecl>();
 				self.struct_names.add(s.name);
-				c_code = c_code + "typedef struct " + s.name + " " + s.name + ";\n";
+				c_code = "${c_code}typedef struct ${s.name} ${s.name};\n";
 			}
 			NodeKind.DECL_ENUM -> {
 				// Enums lower to their underlying integer type; member access becomes
 				// an integer literal during semantic analysis.
 				val e = decl.to<EnumDecl>();
 				val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
-				c_code = c_code + "typedef " + under + " " + e.name + ";\n";
+				c_code = "${c_code}typedef ${under} ${e.name};\n";
 			}
 			NodeKind.DECL_CONST -> {
 				// Module-level constants become preprocessor macros.
 				val c = decl.to<ConstDecl>();
-				c_code = c_code + "#define " + c.name + " " + gen_expr(self, c.value) + "\n";
+				c_code = "${c_code}#define ${c.name} ${gen_expr(self, c.value)}\n";
 			}
 			else -> {}
 		}
 	}
-	c_code = c_code + "\n";
+	c_code = "${c_code}\n";
 
 	// 2b. Register function return types (arrow bodies are inferred). Done after
 	// all struct names are known so inference can resolve struct constructors.
@@ -215,38 +215,38 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 			else -> {}
 		}
 	}
-	c_code = c_code + "\n";
+	c_code = "${c_code}\n";
 
 	// 3. Struct Definitions
 	for (decl in prog) {
-		if (!is_generic_decl(decl) && decl.kind == NodeKind.DECL_STRUCT) c_code = c_code + gen_struct_decl(self, decl);
+		if (!is_generic_decl(decl) && decl.kind == NodeKind.DECL_STRUCT) c_code = "${c_code}${gen_struct_decl(self, decl)}";
 	}
 
 	// 4. Function Prototypes
 	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
 		when (decl.kind) {
-			NodeKind.DECL_FN -> c_code = c_code + gen_fn_decl(self, decl, true, "");
+			NodeKind.DECL_FN -> c_code = "${c_code}${gen_fn_decl(self, decl, true, "")}";
 			NodeKind.DECL_IMPL -> {
 				val im = decl.to<ImplDecl>();
 				for (mnode in im.methods) {
-					c_code = c_code + gen_fn_decl(self, mnode, true, im.struct_name);
+					c_code = "${c_code}${gen_fn_decl(self, mnode, true, im.struct_name)}";
 				}
 			}
 			else -> {}
 		}
 	}
-	c_code = c_code + "\n";
+	c_code = "${c_code}\n";
 
 	// 5. Function Implementations
 	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
 		when (decl.kind) {
-			NodeKind.DECL_FN -> c_code = c_code + gen_fn_decl(self, decl, false, "");
+			NodeKind.DECL_FN -> c_code = "${c_code}${gen_fn_decl(self, decl, false, "")}";
 			NodeKind.DECL_IMPL -> {
 				val im = decl.to<ImplDecl>();
 				for (mnode in im.methods) {
-					c_code = c_code + gen_fn_decl(self, mnode, false, im.struct_name);
+					c_code = "${c_code}${gen_fn_decl(self, mnode, false, im.struct_name)}";
 				}
 			}
 			else -> {}

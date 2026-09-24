@@ -112,7 +112,7 @@ pub fn declared_module_name(program_node: *AstNode): str {
 // ============================================================================
 
 pub fn find_module(var self: &ModuleLoader, module_name: str): ModuleFile {
-	val rel = str_concat(str_module_to_rel(module_name), ".kb");
+	val rel = "${str_module_to_rel(module_name)}.kb";
 	for (root in self.roots) {
 		val candidate = str_join_path(root, rel);
 		val src = read_file(candidate);

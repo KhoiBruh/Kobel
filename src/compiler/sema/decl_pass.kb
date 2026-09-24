@@ -295,7 +295,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
-		val base = str_concat(st_c_name, str_concat("_", f.name));
+		val base = "${st_c_name}_${f.name}";
 		var m_c_name = base;
 		if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
 		// Two methods with the same name and arity still need distinct names.
@@ -353,7 +353,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
-		val base = str_concat(prim_name, str_concat("_", f.name));
+		val base = "${prim_name}_${f.name}";
 		var m_c_name = base;
 		if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
 		var k: usz = 2;
@@ -537,7 +537,7 @@ pub fn type_token(self: &DeclPass, ty: *Type): str => when (ty.kind) {
 	DataType.F32 -> "f32";
 	DataType.F64 -> "f64";
 	DataType.STR -> "str";
-	DataType.POINTER -> str_concat("ptr_", type_token(self, sem_pointer(ty).pointee));
+	DataType.POINTER -> "ptr_${type_token(self, sem_pointer(ty).pointee)}";
 	DataType.ARRAY -> {
 		val at = sem_array(ty);
 		yield "arr${at.length}_${type_token(self, at.elem)}";
@@ -549,8 +549,8 @@ pub fn type_token(self: &DeclPass, ty: *Type): str => when (ty.kind) {
 pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str {
 	var res = "";
 	for (i in 0..<args.len) {
-		if (i > 0) res = str_concat(res, "_");
-		res = str_concat(res, ast_type_token(self, args.get(i)));
+		if (i > 0) res = "${res}_${ast_type_token(self, args.get(i))}";
+		else res = ast_type_token(self, args.get(i));
 	}
 	return res;
 }
@@ -564,7 +564,7 @@ pub fn ast_type_token(self: &DeclPass, node: *AstNode): str {
 			resolve_ast_type(self, node);
 			yield node.to<NamedType>().name;
 		}
-		NodeKind.TYPE_POINTER -> str_concat("ptr_", ast_type_token(self, node.to<PointerType>().pointee));
+		NodeKind.TYPE_POINTER -> "ptr_${ast_type_token(self, node.to<PointerType>().pointee)}";
 		NodeKind.TYPE_ARRAY -> {
 			val a = node.to<ArrayType>();
 			yield "arr${a.size}_${ast_type_token(self, a.element_type)}";
@@ -670,7 +670,7 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 	check_bounds(self, tmpl, arg_asts);
 
 	val base = str_mangle_symbol(tmpl.module, tmpl.name);
-	val cname = str_concat(base, str_concat("_", type_token_list(self, arg_asts)));
+	val cname = "${base}_${type_token_list(self, arg_asts)}";
 
 	val existing = find_inst(self, cname);
 	if (existing != null) return existing.type_ptr;
@@ -703,7 +703,7 @@ pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*A
 	check_bounds(self, tmpl, arg_asts);
 
 	val base = str_mangle_symbol(tmpl.module, tmpl.name);
-	val cname = str_concat(base, str_concat("_", type_token_list(self, arg_asts)));
+	val cname = "${base}_${type_token_list(self, arg_asts)}";
 
 	if (find_inst(self, cname) != null) return cname;
 

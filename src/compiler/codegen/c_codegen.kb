@@ -175,11 +175,11 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				LiteralKind.BOOL -> return lit.raw_text;
 				LiteralKind.STRING -> {
 					if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') return lit.raw_text;
-					return "\"" + lit.raw_text + "\"";
+					return "\"${lit.raw_text}\"";
 				}
 				LiteralKind.CHAR -> {
 					if (lit.raw_text.len >= 2 && lit.raw_text[0] == '\'') return lit.raw_text;
-					return "'" + lit.raw_text + "'";
+					return "'${lit.raw_text}'";
 				}
 				LiteralKind.NULL_VAL -> return "NULL";
 				else -> return lit.raw_text;
@@ -188,7 +188,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 
 		NodeKind.EXPR_IDENTIFIER -> return node.to<IdentifierExpr>().name;
 
-		NodeKind.EXPR_GROUP -> return "(" + gen_expr(self, node.to<GroupExpr>().expr) + ")";
+		NodeKind.EXPR_GROUP -> return "(${gen_expr(self, node.to<GroupExpr>().expr)})";
 
 		NodeKind.EXPR_BINARY -> {
 			val bin = node.to<BinaryExpr>();
@@ -213,7 +213,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				else -> op_str = "+";
 			}
 
-			return "(" + l + " " + op_str + " " + r + ")";
+			return "(${l} ${op_str} ${r})";
 		}
 
 		NodeKind.EXPR_UNARY -> {
@@ -221,10 +221,10 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			val opnd = gen_expr(self, un.operand);
 
 			return when (un.op) {
-				TokenType.MINUS -> "(-" + opnd + ")";
-				TokenType.BANG -> "(!" + opnd + ")";
-				TokenType.STAR -> "(*" + opnd + ")";
-				TokenType.AMPERSAND -> "(&" + opnd + ")";
+				TokenType.MINUS -> "(-${opnd})",
+				TokenType.BANG -> "(!${opnd})",
+				TokenType.STAR -> "(*${opnd})",
+				TokenType.AMPERSAND -> "(&${opnd})",
 				else -> opnd;
 			};
 		}
@@ -253,13 +253,13 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				val mem = call.callee.to<MemberExpr>();
 				if (mem.member == "size") {
 					val obj_name = gen_expr(self, mem.object);
-					return "sizeof(" + obj_name + ")";
+					return "sizeof(${obj_name})";
 				}
 				if (mem.member == "c_str") return gen_expr(self, mem.object);
 				if (mem.member == "slice") {
 					val slice_obj = gen_expr(self, mem.object);
-					if (call.args.len >= 2) return "kobel_slice(" + slice_obj + ", " + gen_expr(self, call.args.get(0)) + ", " + gen_expr(self, call.args.get(1)) + ")";
-					if (call.args.len == 1) return "kobel_slice(" + slice_obj + ", " + gen_expr(self, call.args.get(0)) + ", strlen(" + slice_obj + "))";
+					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.get(0))}, ${gen_expr(self, call.args.get(1))})";
+					if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.get(0))}, strlen(${slice_obj}))";
 					return slice_obj;
 				}
 			}
@@ -276,21 +276,21 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			}
 
 			if (is_struct) {
-				var res = "(" + callee_str + "){ ";
+				var res = "(${callee_str}){ ";
 				for (i in 0..<call.args.len) {
-					if (i > 0) res = res + ", ";
-					res = res + gen_expr(self, call.args.get(i));
+					if (i > 0) res = "${res}, ";
+					res = "${res}${gen_expr(self, call.args.get(i))}";
 				}
-				return res + " }";
+				return "${res} }";
 			}
 
 			// Ordinary C function call: func(arg1, arg2)
-			var res = callee_str + "(";
+			var res = "${callee_str}(";
 			for (i in 0..<call.args.len) {
-				if (i > 0) res = res + ", ";
-				res = res + gen_expr(self, call.args.get(i));
+				if (i > 0) res = "${res}, ";
+				res = "${res}${gen_expr(self, call.args.get(i))}";
 			}
-			return res + ")";
+			return "${res})";
 		}
 
 		NodeKind.EXPR_MEMBER -> {
@@ -301,7 +301,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 					NodeKind.EXPR_LITERAL -> mem.object.to<LiteralExpr>().literal_kind == LiteralKind.STRING,
 					else -> infer_type_from_expr(self, mem.object) == "const char*"
 				};
-				if (is_str) return "(uint64_t)strlen(" + gen_expr(self, mem.object) + ")";
+				if (is_str) return "(uint64_t)strlen(${gen_expr(self, mem.object)})";
 			}
 			val obj = gen_expr(self, mem.object);
 			var is_ptr = false;
@@ -309,24 +309,24 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				val id = mem.object.to<IdentifierExpr>();
 				is_ptr = is_pointer_var(self, id.name);
 			}
-			if (is_ptr) return "(" + obj + ")->" + mem.member;
-			return "(" + obj + ")." + mem.member;
+			if (is_ptr) return "(${obj})->${mem.member}";
+			return "(${obj}).${mem.member}";
 		}
 
 		NodeKind.EXPR_INDEX -> {
 			val idx = node.to<IndexExpr>();
-			return gen_expr(self, idx.target) + "[" + gen_expr(self, idx.index) + "]";
+			return "${gen_expr(self, idx.target)}[${gen_expr(self, idx.index)}]";
 		}
 
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = node.to<AssignExpr>();
-			return gen_expr(self, asgn.target) + " = " + gen_expr(self, asgn.value);
+			return "${gen_expr(self, asgn.target)} = ${gen_expr(self, asgn.value)}";
 		}
 
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
 			val ty = c_type_from_ast(cst.target_type);
-			return "((" + ty + ")" + gen_expr(self, cst.expr) + ")";
+			return "((${ty})${gen_expr(self, cst.expr)})";
 		}
 
 		NodeKind.EXPR_IF -> {
@@ -334,7 +334,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			val cond = gen_expr(self, if_e.condition);
 			val th = gen_expr(self, if_e.then_branch);
 			val el = gen_expr(self, if_e.else_branch);
-			return "(" + cond + " ? " + th + " : " + el + ")";
+			return "(${cond} ? ${th} : ${el})";
 		}
 
 		NodeKind.EXPR_WHEN -> {
@@ -528,46 +528,46 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			if (ty_str == "const char*") self.str_vars.add(vd.name);
 
 			if (vd.initializer != null && vd.initializer.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(vd.initializer.to<WhenExpr>())) {
-				var res = ind + ty_str + " " + vd.name + ";\n";
-				res = res + gen_when_with_target(self, vd.initializer.to<WhenExpr>(), vd.name, false);
+				var res = "${ind}${ty_str} ${vd.name};\n";
+				res = "${res}${gen_when_with_target(self, vd.initializer.to<WhenExpr>(), vd.name, false)}";
 				return res;
 			}
 
-			var res = ind + ty_str + " " + vd.name;
+			var res = "${ind}${ty_str} ${vd.name}";
 			if (vd.initializer != null) {
 				val saved_hint = self.array_elem_hint;
 				self.array_elem_hint = elem_hint;
-				res = res + " = " + gen_expr(self, vd.initializer);
+				res = "${res} = ${gen_expr(self, vd.initializer)}";
 				self.array_elem_hint = saved_hint;
 			}
-			return res + ";\n";
+			return "${res};\n";
 		}
 
 		NodeKind.STMT_IF -> {
 			val ifs = node.to<IfStmt>();
 			val ind = get_indent(self.indent_level);
-			var res = ind + "if (" + gen_expr(self, ifs.condition) + ") {\n";
+			var res = "${ind}if (${gen_expr(self, ifs.condition)}) {\n";
 			self.indent_level = self.indent_level + 1;
-			res = res + gen_statement(self, ifs.then_branch);
+			res = "${res}${gen_statement(self, ifs.then_branch)}";
 			self.indent_level = self.indent_level - 1;
 
 			if (ifs.else_branch != null) {
-				res = res + ind + "} else {\n";
+				res = "${res}${ind}} else {\n";
 				self.indent_level = self.indent_level + 1;
-				res = res + gen_statement(self, ifs.else_branch);
+				res = "${res}${gen_statement(self, ifs.else_branch)}";
 				self.indent_level = self.indent_level - 1;
 			}
-			return res + ind + "}\n";
+			return "${res}${ind}}\n";
 		}
 
 		NodeKind.STMT_WHILE -> {
 			val wh = node.to<WhileStmt>();
 			val ind = get_indent(self.indent_level);
-			var res = ind + "while (" + gen_expr(self, wh.condition) + ") {\n";
+			var res = "${ind}while (${gen_expr(self, wh.condition)}) {\n";
 			self.indent_level = self.indent_level + 1;
-			res = res + gen_statement(self, wh.body);
+			res = "${res}${gen_statement(self, wh.body)}";
 			self.indent_level = self.indent_level - 1;
-			return res + ind + "}\n";
+			return "${res}${ind}}\n";
 		}
 
 		NodeKind.STMT_RETURN -> {
@@ -577,33 +577,33 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 				if (ret.value.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(ret.value.to<WhenExpr>())) {
 					return gen_when_with_target(self, ret.value.to<WhenExpr>(), "", true);
 				}
-				return ind + "return " + gen_expr(self, ret.value) + ";\n";
+				return "${ind}return ${gen_expr(self, ret.value)};\n";
 			}
-			return ind + "return;\n";
+			return "${ind}return;\n";
 		}
 
 		NodeKind.STMT_EXPR -> {
 			val es = node.to<ExprStmt>();
 			val ind = get_indent(self.indent_level);
-			return ind + gen_expr(self, es.expr) + ";\n";
+			return "${ind}${gen_expr(self, es.expr)};\n";
 		}
 
-		NodeKind.STMT_BREAK -> return get_indent(self.indent_level) + "break;\n";
+		NodeKind.STMT_BREAK -> return "${get_indent(self.indent_level)}break;\n";
 
-		NodeKind.STMT_CONTINUE -> return get_indent(self.indent_level) + "continue;\n";
+		NodeKind.STMT_CONTINUE -> return "${get_indent(self.indent_level)}continue;\n";
 
 		NodeKind.STMT_YIELD -> {
 			val ys = node.to<YieldStmt>();
 			val ind = get_indent(self.indent_level);
 			if (self.is_yield_return) {
-				if (ys.value != null) return ind + "return " + gen_expr(self, ys.value) + ";\n";
-				return ind + "return;\n";
+				if (ys.value != null) return "${ind}return ${gen_expr(self, ys.value)};\n";
+				return "${ind}return;\n";
 			}
 			if (self.yield_target != "") {
-				if (ys.value != null) return ind + self.yield_target + " = " + gen_expr(self, ys.value) + ";\n";
+				if (ys.value != null) return "${ind}${self.yield_target} = ${gen_expr(self, ys.value)};\n";
 				return "";
 			}
-			if (ys.value != null) return ind + gen_expr(self, ys.value) + ";\n";
+			if (ys.value != null) return "${ind}${gen_expr(self, ys.value)};\n";
 			return "";
 		}
 

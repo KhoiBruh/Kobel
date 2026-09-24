@@ -11,8 +11,6 @@ use compiler.ast.builder.AstBuilder;
 
 use compiler.lexer.token.*;
 
-use util.strutil.str_concat;
-
 use compiler.sema.types.*;
 
 // Disambiguate semantic-type accessors (builder.kb declares AST-named twins).

@@ -196,9 +196,9 @@ fn main(argc: i32, argv: &*char): i32 {
 
 	// Native binary compilation
 	var out_path = output_bin;
-	if (out_path.len == 0) out_path = str_strip_kb(input_path) + ".exe";
+	if (out_path.len == 0) out_path = "${str_strip_kb(input_path)}.exe";
 
-	val c_tmp_path = str_strip_kb(input_path) + ".tmp.c";
+	val c_tmp_path = "${str_strip_kb(input_path)}.tmp.c";
 	val write_ok = write_file(c_tmp_path, c_code);
 	if (!write_ok) {
 		print("Error: Failed to write temporary C file: ");
