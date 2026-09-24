@@ -170,3 +170,9 @@ pub fn str_mangle_symbol(module_name: str, name: str): str {
 	buf[w] = 0;
 	return str_from_bytes(buf, w);
 }
+
+pub fn str_starts_with(s: str, prefix: str): bool {
+	if (s.len < prefix.len) return false;
+	return s.slice(0, prefix.len) == prefix;
+}
+

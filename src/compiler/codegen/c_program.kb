@@ -11,6 +11,7 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
 use compiler.codegen.c_codegen.*;
+use util.strutil.*;
 
 // ============================================================================
 // Declaration Code Generation
@@ -25,7 +26,8 @@ pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str {
 		val ty = c_type_from_ast(f.type_node);
 		res = "${res}    ${ty} ${f.name};\n";
 	}
-	return "${res}};\n\n";
+	res = "${res}};\n";
+	return "${res}\n";
 }
 
 // `self_c_type` is the C name of the enclosing struct when generating an impl
@@ -220,6 +222,26 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	// 3. Struct Definitions
 	for (decl in prog) {
 		if (!is_generic_decl(decl) && decl.kind == NodeKind.DECL_STRUCT) c_code = "${c_code}${gen_struct_decl(self, decl)}";
+	}
+
+	// 3b. List constructors (emitted after all struct types are fully defined)
+	for (decl_list in prog) {
+		if (!is_generic_decl(decl_list) && decl_list.kind == NodeKind.DECL_STRUCT) {
+			val s = decl_list.to<StructDecl>();
+			if (str_starts_with(s.name, "std__collections__list__List")) {
+				c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n" +
+					"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n" +
+					"    size_t cap = (n < 4) ? 4 : n;\n" +
+					"    void* data = malloc(cap * elem_size);\n" +
+					"    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n" +
+					"    ${s.name} l;\n" +
+					"    l.data = data;\n" +
+					"    l.len = n;\n" +
+					"    l.cap = cap;\n" +
+					"    return l;\n" +
+					"}\n\n";
+			}
+		}
 	}
 
 	// 4. Function Prototypes

@@ -927,7 +927,7 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			val al = node.to<ArrayLiteralExpr>();
 			var els = List<*AstNode>();
 			for (e in al.elements) els.add(clone_expr(self, e, subst));
-			yield self.b().array_literal(els, node.line, node.col);
+			yield self.b().list_literal(els, al.list_struct_name, al.elem_type_node, node.line, node.col);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = node.to<WhenExpr>();

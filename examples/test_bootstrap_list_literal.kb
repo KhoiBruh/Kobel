@@ -1,0 +1,110 @@
+use std.collections.list.*;
+use std.io.*;
+
+fn sum_list(list: List<i32>): i32 {
+	var total = 0;
+	for (x in list) total += x;
+	return total;
+}
+
+fn make_strings(): List<str> {
+	return ["kobel", "bootstrap", "list", "literal"];
+}
+
+fn arrow_list(): List<i32> => [100, 200, 300];
+
+struct Team {
+	pub name: str,
+	pub members: List<str>
+}
+
+fn main(): i32 {
+	println("=== Test 1: Basic List literal ===");
+	val nums: List<i32> = [1, 2, 3, 4, 5];
+	if (nums.len != 5) {
+		println("FAIL: nums.len != 5");
+		return 1;
+	}
+	if (nums.get(0) != 1 || nums.get(4) != 5) {
+		println("FAIL: nums elements mismatch");
+		return 1;
+	}
+	println("Test 1 PASS");
+
+	println("=== Test 2: Empty List literal + add ===");
+	var empty: List<str> = [];
+	if (empty.len != 0) {
+		println("FAIL: empty.len != 0");
+		return 1;
+	}
+	empty.add("first");
+	empty.add("second");
+	if (empty.len != 2 || empty.get(0) != "first" || empty.get(1) != "second") {
+		println("FAIL: empty.add failed");
+		return 1;
+	}
+	println("Test 2 PASS");
+
+	println("=== Test 3: Pass List literal directly to function call ===");
+	val s = sum_list([10, 20, 30, 40]);
+	if (s != 100) {
+		println("FAIL: sum_list([10, 20, 30, 40]) != 100");
+		return 1;
+	}
+	println("Test 3 PASS");
+
+	println("=== Test 4: Return List literal from block function ===");
+	val words = make_strings();
+	if (words.len != 4 || words.get(0) != "kobel" || words.get(3) != "literal") {
+		println("FAIL: words return mismatch");
+		return 1;
+	}
+	println("Test 4 PASS");
+
+	println("=== Test 5: Return List literal from arrow function ===");
+	val arr = arrow_list();
+	if (arr.len != 3 || arr.get(0) != 100 || arr.get(2) != 300) {
+		println("FAIL: arrow_list return mismatch");
+		return 1;
+	}
+	println("Test 5 PASS");
+
+	println("=== Test 6: Reassignment with List literal ===");
+	var mut_list: List<i32> = [1, 2];
+	if (mut_list.len != 2) return 1;
+	mut_list = [10, 20, 30, 40, 50, 60];
+	if (mut_list.len != 6 || mut_list.get(5) != 60) {
+		println("FAIL: reassignment failed");
+		return 1;
+	}
+	println("Test 6 PASS");
+
+	println("=== Test 7: Nested List literal ===");
+	val matrix: List<List<i32>> = [[1, 2], [3, 4, 5]];
+	if (matrix.len != 2) {
+		println("FAIL: matrix.len != 2");
+		return 1;
+	}
+	val row0 = matrix.get(0);
+	if (row0.len != 2 || row0.get(1) != 2) {
+		println("FAIL: matrix[0] mismatch");
+		return 1;
+	}
+	val row1 = matrix.get(1);
+	if (row1.len != 3 || row1.get(2) != 5) {
+		println("FAIL: matrix[1] mismatch");
+		return 1;
+	}
+	println("Test 7 PASS");
+
+	println("=== Test 8: Struct with List field constructor ===");
+	val team = Team("Devs", ["Alice", "Bob", "Charlie"]);
+	if (team.members.len != 3 || team.members.get(1) != "Bob") {
+		println("FAIL: team.members mismatch");
+		return 1;
+	}
+	println("Test 8 PASS");
+
+	println("=== ALL LIST LITERAL TESTS PASSED! ===");
+	return 0;
+}

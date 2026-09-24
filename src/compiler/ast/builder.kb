@@ -91,7 +91,10 @@ impl AstBuilder {
 		=> make<GroupExpr>(*self, NodeKind.EXPR_GROUP, GroupExpr(expr), line, col);
 
 	pub fn array_literal(var self: &AstBuilder, elements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> make<ArrayLiteralExpr>(*self, NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements), line, col);
+		=> make<ArrayLiteralExpr>(*self, NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements, "", null), line, col);
+
+	pub fn list_literal(var self: &AstBuilder, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
+		=> make<ArrayLiteralExpr>(*self, NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
 
 	pub fn if_expr(var self: &AstBuilder, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
 		=> make<IfExpr>(*self, NodeKind.EXPR_IF, IfExpr(condition, then_branch, else_branch), line, col);

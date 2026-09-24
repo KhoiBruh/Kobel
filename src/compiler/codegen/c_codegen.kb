@@ -234,8 +234,20 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = node.to<ArrayLiteralExpr>();
 			var elem_c = self.array_elem_hint;
-			if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
+			if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
+			else if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
 			if (elem_c == "") elem_c = "int32_t";
+
+			if (al.list_struct_name != "") {
+				if (al.elements.is_empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
+				var arr_res = "(${elem_c}[]){";
+				for (i in 0..<al.elements.len) {
+					if (i > 0) arr_res = "${arr_res}, ";
+					arr_res = "${arr_res}${gen_expr(self, al.elements.get(i))}";
+				}
+				arr_res = "${arr_res}}";
+				return "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
+			}
 
 			var res = "(${elem_c}[]){";
 			for (i in 0..<al.elements.len) {
@@ -391,11 +403,11 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 		NodeKind.EXPR_LITERAL -> {
 			val lit = expr.to<LiteralExpr>();
 			return when (lit.literal_kind) {
-				LiteralKind.STRING -> "const char*";
-				LiteralKind.CHAR -> "char";
-				LiteralKind.FLOAT -> "double";
-				LiteralKind.BOOL -> "bool";
-				else -> "int32_t";
+				LiteralKind.STRING -> "const char*",
+				LiteralKind.CHAR -> "char",
+				LiteralKind.FLOAT -> "double",
+				LiteralKind.BOOL -> "bool",
+				else -> "int32_t"
 			};
 		}
 
@@ -448,8 +460,12 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = expr.to<ArrayLiteralExpr>();
-			if (!al.elements.is_empty()) return "${infer_type_from_expr(self, al.elements.first())}*";
-			return "int32_t*";
+			if (al.list_struct_name != "") return al.list_struct_name;
+			var elem_c = self.array_elem_hint;
+			if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
+			else if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
+			if (elem_c == "") elem_c = "int32_t";
+			return "${elem_c}*";
 		}
 
 		NodeKind.EXPR_WHEN -> {

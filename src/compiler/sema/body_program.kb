@@ -65,6 +65,9 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 			NodeKind.STMT_EXPR -> {
 				// Expression body: => expr;
 				val es = f.body.to<ExprStmt>();
+				if (f.return_type != null && is_list_type(self.current_fn_return_type)) {
+					coerce_to_list(self, es.expr, self.current_fn_return_type);
+				}
 				val body_ty = check_expr(self, es.expr);
 				if (f.return_type == null) {
 					val fn_info_mut = as_fn_type_mut(fn_type);

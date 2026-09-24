@@ -23,6 +23,7 @@ use compiler.sema.decl_pass.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;
+use util.strutil.*;
 
 // ============================================================================
 // BodyPass - Type Checker & Body Analyzer
@@ -116,6 +117,57 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 		if (last == 'B') return alloc_primitive(arena, type_i8());
 	}
 	return alloc_primitive(arena, type_i32());
+}
+
+pub fn is_list_type(ty: *Type): bool {
+	if (ty == null || ty.kind != DataType.STRUCT) return false;
+	val s = sem_struct(ty);
+	if (s.module != "std.collections.list") return false;
+	return str_starts_with(s.name, "std__collections__list__List") || str_starts_with(s.c_name, "std__collections__list__List");
+}
+
+pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) {
+	if (node == null || list_ty == null) return;
+	when (node.kind) {
+		NodeKind.EXPR_ARRAY_LITERAL -> {
+			val al = node.to<ArrayLiteralExpr>() as &ArrayLiteralExpr;
+			val s = sem_struct(list_ty);
+			al.list_struct_name = s.c_name;
+
+			if (s.fields.is_empty()) return;
+			val f0 = s.fields.first();
+			if (f0.type_ptr.kind != DataType.POINTER) return;
+			val elem_ty = sem_pointer(f0.type_ptr).pointee;
+			al.elem_type_node = ast_type_from_type(&self.arena, elem_ty);
+
+			for (i in 0..<al.elements.len) {
+				val el = al.elements.get(i);
+				if (is_list_type(elem_ty)) {
+					coerce_to_list(self, el, elem_ty);
+				}
+				val el_ty = check_expr(self, el);
+				if (!can_assign(elem_ty, el_ty)) {
+					report_error(self, el, "Element type mismatch in List literal");
+				}
+			}
+		}
+		NodeKind.EXPR_IF -> {
+			val ife = node.to<IfExpr>();
+			coerce_to_list(self, ife.then_branch, list_ty);
+			coerce_to_list(self, ife.else_branch, list_ty);
+		}
+		NodeKind.EXPR_GROUP -> {
+			val grp = node.to<GroupExpr>();
+			coerce_to_list(self, grp.expr, list_ty);
+		}
+		NodeKind.EXPR_WHEN -> {
+			val we = node.to<WhenExpr>();
+			for (arm in we.arms) {
+				coerce_to_list(self, arm.body, list_ty);
+			}
+		}
+		else -> {}
+	}
 }
 
 // ============================================================================
@@ -326,8 +378,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 							report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
 						} else {
 							for (i in 0..<call.args.len) {
-								val arg_ty = check_expr(self, call.args.get(i));
 								val param_ty = fn_info.param_types.get(i + 1);
+								val arg_n = call.args.get(i);
+								if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
+								val arg_ty = check_expr(self, arg_n);
 								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
 							}
 						}
@@ -352,8 +406,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
 					} else {
 						for (i in 0..<call.args.len) {
-							val arg_ty = check_expr(self, call.args.get(i));
 							val param_ty = fn_info.param_types.get(i + 1);
+							val arg_n = call.args.get(i);
+							if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
+							val arg_ty = check_expr(self, arg_n);
 							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
 						}
 					}
@@ -382,8 +438,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
 				else {
 					for (i in 0..<call.args.len) {
-						val arg_ty = check_expr(self, call.args.get(i));
 						val param_ty = fn_info.param_types.get(i);
+						val arg_n = call.args.get(i);
+						if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
+						val arg_ty = check_expr(self, arg_n);
 						if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in function call");
 					}
 				}
@@ -405,8 +463,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					if (nm != null) {
 						val n_info = sem_fn(nm.fn_type);
 						for (i in 0..<call.args.len) {
-							val arg_ty = check_expr(self, call.args.get(i));
 							val param_ty = n_info.param_types.get(i);
+							val arg_n = call.args.get(i);
+							if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
+							val arg_ty = check_expr(self, arg_n);
 							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in call to 'new'");
 						}
 						call.callee = self.b().identifier(nm.c_name, node.line, node.col);
@@ -424,8 +484,10 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
 				else {
 					for (i in 0..<call.args.len) {
-						val arg_ty = check_expr(self, call.args.get(i));
 						val f_ty = s_info.fields.get(i).type_ptr;
+						val arg_n = call.args.get(i);
+						if (is_list_type(f_ty)) coerce_to_list(self, arg_n, f_ty);
+						val arg_ty = check_expr(self, arg_n);
 						if (!can_assign(f_ty, arg_ty)) report_error(self, node, "Field type mismatch in struct constructor");
 					}
 				}
@@ -567,6 +629,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = node.to<AssignExpr>();
 			val target_ty = check_expr(self, asgn.target);
+			if (is_list_type(target_ty)) coerce_to_list(self, asgn.value, target_ty);
 			val val_ty = check_expr(self, asgn.value);
 
 			// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
@@ -634,6 +697,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = node.to<ArrayLiteralExpr>();
 
+			if (al.list_struct_name != "") {
+				val sym = lookup(&self.symtab, al.list_struct_name);
+				if (sym != null) return sym.type_ptr;
+			}
+
 			// The element type comes from the first element; an empty literal
 			// has nothing to infer from (use an annotated `[T; 0]` variable).
 			if (al.elements.is_empty()) {
@@ -697,17 +765,19 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 
 			var has_init = false;
 			var init_ty = alloc_primitive(&self.arena, type_none());
-			if (vd.initializer != null) {
-				has_init = true;
-				init_ty = check_expr(self, vd.initializer);
-			}
 
 			if (vd.type_annotation != null) {
 				var_ty = resolve_type(self, vd.type_annotation);
-				if (has_init && !can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '${vd.name}'");
+				if (vd.initializer != null) {
+					has_init = true;
+					if (is_list_type(var_ty)) coerce_to_list(self, vd.initializer, var_ty);
+					init_ty = check_expr(self, vd.initializer);
+					if (!can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '${vd.name}'");
+				}
 			} else {
-				// Type inference (deduce the type automatically from the initializer)
-				if (has_init) {
+				if (vd.initializer != null) {
+					has_init = true;
+					init_ty = check_expr(self, vd.initializer);
 					var_ty = init_ty;
 				} else {
 					report_error(self, node, "Variable '${vd.name}' without type must have initializer");
@@ -756,6 +826,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 		NodeKind.STMT_RETURN -> {
 			val ret = node.to<ReturnStmt>();
 			if (ret.value != null) {
+				if (is_list_type(self.current_fn_return_type)) coerce_to_list(self, ret.value, self.current_fn_return_type);
 				val val_ty = check_expr(self, ret.value);
 				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
 			} else if (self.current_fn_return_type.kind != DataType.NONE) report_error(self, node, "Non-none function must return a value");

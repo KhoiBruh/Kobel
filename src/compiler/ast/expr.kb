@@ -65,7 +65,9 @@ pub struct GroupExpr {
 }
 
 pub struct ArrayLiteralExpr {
-	pub elements: List<*AstNode>
+	pub elements: List<*AstNode>,
+	pub list_struct_name: str,
+	pub elem_type_node: *AstNode
 }
 
 pub struct IfExpr {
