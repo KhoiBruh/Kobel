@@ -312,35 +312,35 @@ impl Lexer {
 			val start_col = self.col;
 			val c = self.next();
 
-			when (c) {
-				',' -> return self.make_token(TokenType.COMMA, start_cursor, start_col);
+			return when (c) {
+				',' -> self.make_token(TokenType.COMMA, start_cursor, start_col);
 				'.' -> {
 					if (self.match('.')) return self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
-					return self.make_token(TokenType.DOT, start_cursor, start_col);
+					yield self.make_token(TokenType.DOT, start_cursor, start_col);
 				}
-				':' -> return self.make_token(TokenType.COLON, start_cursor, start_col);
-				';' -> return self.make_token(TokenType.SEMI_COLON, start_cursor, start_col);
-				'(' -> return self.make_token(TokenType.OPEN_PAREN, start_cursor, start_col);
-				')' -> return self.make_token(TokenType.CLOSE_PAREN, start_cursor, start_col);
-				'{' -> return self.make_token(TokenType.OPEN_BRACE, start_cursor, start_col);
-				'}' -> return self.make_token(TokenType.CLOSE_BRACE, start_cursor, start_col);
-				'[' -> return self.make_token(TokenType.OPEN_BRACKET, start_cursor, start_col);
-				']' -> return self.make_token(TokenType.CLOSE_BRACKET, start_cursor, start_col);
-				'%' -> return self.make_token(TokenType.PERCENT, start_cursor, start_col);
-				'+' -> return self.make_token(TokenType.PLUS, start_cursor, start_col);
-				'*' -> return self.make_token(TokenType.STAR, start_cursor, start_col);
-				'"' -> return self.scan_string(start_cursor, start_col);
-				'\'' -> return self.scan_char(start_cursor, start_col);
+				':' -> self.make_token(TokenType.COLON, start_cursor, start_col);
+				';' -> self.make_token(TokenType.SEMI_COLON, start_cursor, start_col);
+				'(' -> self.make_token(TokenType.OPEN_PAREN, start_cursor, start_col);
+				')' -> self.make_token(TokenType.CLOSE_PAREN, start_cursor, start_col);
+				'{' -> self.make_token(TokenType.OPEN_BRACE, start_cursor, start_col);
+				'}' -> self.make_token(TokenType.CLOSE_BRACE, start_cursor, start_col);
+				'[' -> self.make_token(TokenType.OPEN_BRACKET, start_cursor, start_col);
+				']' -> self.make_token(TokenType.CLOSE_BRACKET, start_cursor, start_col);
+				'%' -> self.make_token(TokenType.PERCENT, start_cursor, start_col);
+				'+' -> self.make_token(TokenType.PLUS, start_cursor, start_col);
+				'*' -> self.make_token(TokenType.STAR, start_cursor, start_col);
+				'"' -> self.scan_string(start_cursor, start_col);
+				'\'' -> self.scan_char(start_cursor, start_col);
 
 				'=' -> {
-					if (self.match('=')) return self.make_token(TokenType.EQUAL_EQUAL, start_cursor, start_col);
-					if (self.match('>')) return self.make_token(TokenType.FAT_ARROW, start_cursor, start_col);
-					return self.make_token(TokenType.EQUAL, start_cursor, start_col);
+					if (self.match('=')) yield self.make_token(TokenType.EQUAL_EQUAL, start_cursor, start_col);
+					if (self.match('>')) yield self.make_token(TokenType.FAT_ARROW, start_cursor, start_col);
+					yield self.make_token(TokenType.EQUAL, start_cursor, start_col);
 				}
 
 				'-' -> {
-					if (self.match('>')) return self.make_token(TokenType.ARROW, start_cursor, start_col);
-					return self.make_token(TokenType.MINUS, start_cursor, start_col);
+					if (self.match('>')) yield self.make_token(TokenType.ARROW, start_cursor, start_col);
+					yield self.make_token(TokenType.MINUS, start_cursor, start_col);
 				}
 
 				'/' -> {
@@ -365,40 +365,40 @@ impl Lexer {
 						}
 						continue;
 					}
-					return self.make_token(TokenType.SLASH, start_cursor, start_col);
+					yield self.make_token(TokenType.SLASH, start_cursor, start_col);
 				}
 
 				'<' -> {
-					if (self.match('=')) return self.make_token(TokenType.LESS_EQUAL, start_cursor, start_col);
-					return self.make_token(TokenType.LESS, start_cursor, start_col);
+					if (self.match('=')) yield self.make_token(TokenType.LESS_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.LESS, start_cursor, start_col);
 				}
 
 				'>' -> {
-					if (self.match('=')) return self.make_token(TokenType.GREATER_EQUAL, start_cursor, start_col);
-					return self.make_token(TokenType.GREATER, start_cursor, start_col);
+					if (self.match('=')) yield self.make_token(TokenType.GREATER_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.GREATER, start_cursor, start_col);
 				}
 
 				'&' -> {
-					if (self.match('&')) return self.make_token(TokenType.AND_AND, start_cursor, start_col);
-					return self.make_token(TokenType.AMPERSAND, start_cursor, start_col);
+					if (self.match('&')) yield self.make_token(TokenType.AND_AND, start_cursor, start_col);
+					yield self.make_token(TokenType.AMPERSAND, start_cursor, start_col);
 				}
 
 				'!' -> {
-					if (self.match('=')) return self.make_token(TokenType.BANG_EQUAL, start_cursor, start_col);
-					return self.make_token(TokenType.BANG, start_cursor, start_col);
+					if (self.match('=')) yield self.make_token(TokenType.BANG_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.BANG, start_cursor, start_col);
 				}
 
 				'|' -> {
-					if (self.match('|')) return self.make_token(TokenType.OR_OR, start_cursor, start_col);
-					return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+					if (self.match('|')) yield self.make_token(TokenType.OR_OR, start_cursor, start_col);
+					yield self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
 				}
 
 				else -> {
-					if (is_alpha(c) || c == '_') return self.scan_identifier(start_cursor, start_col);
-					if (is_digit(c)) return self.scan_number(start_cursor, start_col);
-					return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+					if (is_alpha(c) || c == '_') yield self.scan_identifier(start_cursor, start_col);
+					if (is_digit(c)) yield self.scan_number(start_cursor, start_col);
+					yield self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
 				}
-			}
+			};
 		}
 		return Token(TokenType.UNKNOWN, "", self.line, self.col);
 	}

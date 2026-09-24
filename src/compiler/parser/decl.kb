@@ -325,23 +325,23 @@ pub fn parse_declaration(var self: &Parser): *AstNode {
 	if (match_token(self, TokenType.KW_PUB)) is_pub = true;
 
 	val tok = peek(self);
-	when (tok.type) {
-		TokenType.KW_FN -> return parse_fn_decl(self, is_pub);
-		TokenType.KW_STRUCT -> return parse_struct_decl(self, is_pub);
-		TokenType.KW_TRAIT -> return parse_trait_decl(self, is_pub);
-		TokenType.KW_IMPL -> return parse_impl_decl(self);
-		TokenType.KW_ENUM -> return parse_enum_decl(self, is_pub);
-		TokenType.KW_CONST -> return parse_const_decl(self, is_pub);
-		TokenType.KW_MOD -> return parse_module_decl(self);
-		TokenType.KW_USE -> return parse_use_decl(self);
-		TokenType.KW_EXTERN -> return parse_extern_block(self);
+	return when (tok.type) {
+		TokenType.KW_FN -> parse_fn_decl(self, is_pub);
+		TokenType.KW_STRUCT -> parse_struct_decl(self, is_pub);
+		TokenType.KW_TRAIT -> parse_trait_decl(self, is_pub);
+		TokenType.KW_IMPL -> parse_impl_decl(self);
+		TokenType.KW_ENUM -> parse_enum_decl(self, is_pub);
+		TokenType.KW_CONST -> parse_const_decl(self, is_pub);
+		TokenType.KW_MOD -> parse_module_decl(self);
+		TokenType.KW_USE -> parse_use_decl(self);
+		TokenType.KW_EXTERN -> parse_extern_block(self);
 		else -> {
 			// Top-level statement or syntax error
 			if (is_pub) error(self, tok, "'pub' modifier is not allowed on this statement");
 			val stmt = parse_statement(self);
-			return stmt;
+			yield stmt;
 		}
-	}
+	};
 }
 
 pub fn parse_program(var self: &Parser): *AstNode {

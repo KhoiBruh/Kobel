@@ -88,7 +88,11 @@ pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
 }
 
 pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
-	var decl_p = DeclPass(self.symtab, self.arena, self.symtab.current_module, self.errors, false, self.current_self_type, AstBuilder(null));
+	var decl_p = DeclPass(
+		self.symtab, self.arena, self.symtab.current_module,
+		self.errors, false, self.current_self_type, AstBuilder(null)
+	);
+
 	val ty = resolve_ast_type(&decl_p, node);
 	self.arena = decl_p.arena;
 	self.errors = decl_p.errors;
@@ -1172,39 +1176,39 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 	var b = AstBuilder(arena);
 	if (is_enum_type(ty)) return b.named_type(as_enum_info(ty).c_name, List<*AstNode>(), 0, 0);
 
-	when (ty.kind) {
+	return when (ty.kind) {
 		DataType.POINTER -> {
 			val pt = sem_pointer(ty);
-			return b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
+			yield b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
 		}
 		DataType.ARRAY -> {
 			val at = sem_array(ty);
-			return b.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
+			yield b.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
 		}
 		DataType.STRUCT -> {
 			val st_info = sem_struct(ty);
 			var st_name = st_info.name;
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
-			return b.named_type(st_name, List<*AstNode>(), 0, 0);
+			yield b.named_type(st_name, List<*AstNode>(), 0, 0);
 		}
-		DataType.NONE -> return b.named_type("none", List<*AstNode>(), 0, 0);
-		DataType.STR -> return b.named_type("str", List<*AstNode>(), 0, 0);
-		DataType.BOOL -> return b.named_type("bool", List<*AstNode>(), 0, 0);
-		DataType.CHAR -> return b.named_type("char", List<*AstNode>(), 0, 0);
-		DataType.I8 -> return b.named_type("i8", List<*AstNode>(), 0, 0);
-		DataType.I16 -> return b.named_type("i16", List<*AstNode>(), 0, 0);
-		DataType.I32 -> return b.named_type("i32", List<*AstNode>(), 0, 0);
-		DataType.I64 -> return b.named_type("i64", List<*AstNode>(), 0, 0);
-		DataType.ISZ -> return b.named_type("isz", List<*AstNode>(), 0, 0);
-		DataType.U8 -> return b.named_type("u8", List<*AstNode>(), 0, 0);
-		DataType.U16 -> return b.named_type("u16", List<*AstNode>(), 0, 0);
-		DataType.U32 -> return b.named_type("u32", List<*AstNode>(), 0, 0);
-		DataType.U64 -> return b.named_type("u64", List<*AstNode>(), 0, 0);
-		DataType.USZ -> return b.named_type("usz", List<*AstNode>(), 0, 0);
-		DataType.F32 -> return b.named_type("f32", List<*AstNode>(), 0, 0);
-		DataType.F64 -> return b.named_type("f64", List<*AstNode>(), 0, 0);
-		else -> return null;
-	}
+		DataType.NONE -> b.named_type("none", List<*AstNode>(), 0, 0);
+		DataType.STR -> b.named_type("str", List<*AstNode>(), 0, 0);
+		DataType.BOOL -> b.named_type("bool", List<*AstNode>(), 0, 0);
+		DataType.CHAR -> b.named_type("char", List<*AstNode>(), 0, 0);
+		DataType.I8 -> b.named_type("i8", List<*AstNode>(), 0, 0);
+		DataType.I16 -> b.named_type("i16", List<*AstNode>(), 0, 0);
+		DataType.I32 -> b.named_type("i32", List<*AstNode>(), 0, 0);
+		DataType.I64 -> b.named_type("i64", List<*AstNode>(), 0, 0);
+		DataType.ISZ -> b.named_type("isz", List<*AstNode>(), 0, 0);
+		DataType.U8 -> b.named_type("u8", List<*AstNode>(), 0, 0);
+		DataType.U16 -> b.named_type("u16", List<*AstNode>(), 0, 0);
+		DataType.U32 -> b.named_type("u32", List<*AstNode>(), 0, 0);
+		DataType.U64 -> b.named_type("u64", List<*AstNode>(), 0, 0);
+		DataType.USZ -> b.named_type("usz", List<*AstNode>(), 0, 0);
+		DataType.F32 -> b.named_type("f32", List<*AstNode>(), 0, 0);
+		DataType.F64 -> b.named_type("f64", List<*AstNode>(), 0, 0);
+		else -> null;
+	};
 }
 
 // Builds `kobel_streq(a, b)`, optionally negated, for str equality.
@@ -1217,5 +1221,3 @@ pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstN
 	if (is_neq) return b.unary(TokenType.BANG, eq_call, line, col);
 	return eq_call;
 }
-
-// Renders a signed enum value as decimal text for a synthesized int literal.

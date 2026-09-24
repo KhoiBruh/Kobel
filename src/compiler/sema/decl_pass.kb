@@ -131,32 +131,30 @@ fn list_has_str(list: List<str>, v: str): bool {
 // The built-in type named `name`, or null when `name` is not a primitive.
 // Primitives are not registered as symbols, so this name table is also how
 // `impl <primitive>` blocks are recognized.
-pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type {
-	when (name) {
-		"none" -> return alloc_primitive(arena, type_none());
-		"bool" -> return alloc_primitive(arena, type_bool());
-		"char" -> return alloc_primitive(arena, type_char());
-		"i8" -> return alloc_primitive(arena, type_i8());
-		"i16" -> return alloc_primitive(arena, type_i16());
-		"i32" -> return alloc_primitive(arena, type_i32());
-		"i64" -> return alloc_primitive(arena, type_i64());
-		"isz" -> return alloc_primitive(arena, type_isz());
-		"u8" -> return alloc_primitive(arena, type_u8());
-		"u16" -> return alloc_primitive(arena, type_u16());
-		"u32" -> return alloc_primitive(arena, type_u32());
-		"u64" -> return alloc_primitive(arena, type_u64());
-		"usz" -> return alloc_primitive(arena, type_usz());
-		"f32" -> return alloc_primitive(arena, type_f32());
-		"f64" -> return alloc_primitive(arena, type_f64());
-		"str" -> return alloc_primitive(arena, type_str());
-		else -> return null;
-	}
-}
+pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type => when (name) {
+	"none" -> alloc_primitive(arena, type_none());
+	"bool" -> alloc_primitive(arena, type_bool());
+	"char" -> alloc_primitive(arena, type_char());
+	"i8" -> alloc_primitive(arena, type_i8());
+	"i16" -> alloc_primitive(arena, type_i16());
+	"i32" -> alloc_primitive(arena, type_i32());
+	"i64" -> alloc_primitive(arena, type_i64());
+	"isz" -> alloc_primitive(arena, type_isz());
+	"u8" -> alloc_primitive(arena, type_u8());
+	"u16" -> alloc_primitive(arena, type_u16());
+	"u32" -> alloc_primitive(arena, type_u32());
+	"u64" -> alloc_primitive(arena, type_u64());
+	"usz" -> alloc_primitive(arena, type_usz());
+	"f32" -> alloc_primitive(arena, type_f32());
+	"f64" -> alloc_primitive(arena, type_f64());
+	"str" -> alloc_primitive(arena, type_str());
+	else -> null;
+};
 
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 	if (node == null) return alloc_primitive(&self.arena, type_none());
 
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
 			val named = node.to<NamedType>() as &NamedType;
 			val name = named.name;
@@ -165,11 +163,11 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 				val sinfo = sem_struct(self.current_self_type);
 				if (sinfo.c_name != "") named.name = sinfo.c_name;
 				else named.name = sinfo.name;
-				return self.current_self_type;
+				yield self.current_self_type;
 			}
 
 			val prim = resolve_primitive_name(&self.arena, name);
-			if (prim != null) return prim;
+			if (prim != null) yield prim;
 
 			// Generic struct instantiation: List<i32> -> concrete struct.
 			if (named.type_args.len > 0) {
@@ -178,7 +176,7 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 					val cty = instantiate_struct(self, tmpl, named.type_args);
 					named.name = sem_struct(cty).name;
 					named.type_args = List<*AstNode>();
-					return cty;
+					yield cty;
 				}
 			}
 
@@ -187,24 +185,24 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			if (sym != null) {
 				// Switch to the mangled C name (if any) so the backend emits the right name
 				if (sym.c_name != name) named.name = sym.c_name;
-				return sym.type_ptr;
+				yield sym.type_ptr;
 			}
 
 			report_error(self, node, "Unknown type '${name}'");
-			return alloc_primitive(&self.arena, type_none());
+			yield alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.TYPE_POINTER -> {
 			val ptr_ast = node.to<PointerType>();
 			val pointee = resolve_ast_type(self, ptr_ast.pointee);
-			return alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
+			yield alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
 		}
 		NodeKind.TYPE_ARRAY -> {
 			val arr_ast = node.to<ArrayType>();
 			val elem = resolve_ast_type(self, arr_ast.element_type);
-			return alloc_array_type(&self.arena, elem, arr_ast.size);
+			yield alloc_array_type(&self.arena, elem, arr_ast.size);
 		}
-		else -> return alloc_primitive(&self.arena, type_none());
-	}
+		else -> alloc_primitive(&self.arena, type_none());
+	};
 }
 
 
@@ -519,33 +517,31 @@ pub fn find_inst(self: &DeclPass, name: str): *Symbol {
 	return null;
 }
 
-pub fn type_token(self: &DeclPass, ty: *Type): str {
-	when (ty.kind) {
-		DataType.NONE -> return "none";
-		DataType.BOOL -> return "bool";
-		DataType.CHAR -> return "char";
-		DataType.I8 -> return "i8";
-		DataType.I16 -> return "i16";
-		DataType.I32 -> return "i32";
-		DataType.I64 -> return "i64";
-		DataType.ISZ -> return "isz";
-		DataType.U8 -> return "u8";
-		DataType.U16 -> return "u16";
-		DataType.U32 -> return "u32";
-		DataType.U64 -> return "u64";
-		DataType.USZ -> return "usz";
-		DataType.F32 -> return "f32";
-		DataType.F64 -> return "f64";
-		DataType.STR -> return "str";
-		DataType.POINTER -> return str_concat("ptr_", type_token(self, sem_pointer(ty).pointee));
-		DataType.ARRAY -> {
-			val at = sem_array(ty);
-			return "arr${at.length}_${type_token(self, at.elem)}";
-		}
-		DataType.STRUCT -> return sem_struct(ty).name;
-		else -> return "x";
+pub fn type_token(self: &DeclPass, ty: *Type): str => when (ty.kind) {
+	DataType.NONE -> "none";
+	DataType.BOOL -> "bool";
+	DataType.CHAR -> "char";
+	DataType.I8 -> "i8";
+	DataType.I16 -> "i16";
+	DataType.I32 -> "i32";
+	DataType.I64 -> "i64";
+	DataType.ISZ -> "isz";
+	DataType.U8 -> "u8";
+	DataType.U16 -> "u16";
+	DataType.U32 -> "u32";
+	DataType.U64 -> "u64";
+	DataType.USZ -> "usz";
+	DataType.F32 -> "f32";
+	DataType.F64 -> "f64";
+	DataType.STR -> "str";
+	DataType.POINTER -> str_concat("ptr_", type_token(self, sem_pointer(ty).pointee));
+	DataType.ARRAY -> {
+		val at = sem_array(ty);
+		yield "arr${at.length}_${type_token(self, at.elem)}";
 	}
-}
+	DataType.STRUCT -> sem_struct(ty).name;
+	else -> "x";
+};
 
 pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str {
 	var res = "";
@@ -560,42 +556,42 @@ pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str {
 // same-named structs from different modules never share an instantiation.
 pub fn ast_type_token(self: &DeclPass, node: *AstNode): str {
 	if (node == null) return "x";
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
 			resolve_ast_type(self, node);
-			return node.to<NamedType>().name;
+			yield node.to<NamedType>().name;
 		}
-		NodeKind.TYPE_POINTER -> return str_concat("ptr_", ast_type_token(self, node.to<PointerType>().pointee));
+		NodeKind.TYPE_POINTER -> str_concat("ptr_", ast_type_token(self, node.to<PointerType>().pointee));
 		NodeKind.TYPE_ARRAY -> {
 			val a = node.to<ArrayType>();
-			return "arr${a.size}_${ast_type_token(self, a.element_type)}";
+			yield "arr${a.size}_${ast_type_token(self, a.element_type)}";
 		}
-		else -> return "x";
-	}
+		else -> "x";
+	};
 }
 
 // C-level size of a type node (used to lower `T.size()`).
 pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz {
 	if (node == null) return 8;
-	when (node.kind) {
-		NodeKind.TYPE_POINTER -> return 8;
+	return when (node.kind) {
+		NodeKind.TYPE_POINTER -> 8;
 		NodeKind.TYPE_ARRAY -> {
 			val a = node.to<ArrayType>();
-			return a.size * ast_type_size(self, a.element_type);
+			yield a.size * ast_type_size(self, a.element_type);
 		}
 		NodeKind.TYPE_NAMED -> {
 			val name = node.to<NamedType>().name;
-			if (name == "str") return 8;
-			if (name == "i8" || name == "u8" || name == "bool" || name == "char") return 1;
-			if (name == "i16" || name == "u16") return 2;
-			if (name == "i32" || name == "u32" || name == "f32") return 4;
-			if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") return 8;
+			if (name == "str") yield 8;
+			if (name == "i8" || name == "u8" || name == "bool" || name == "char") yield 1;
+			if (name == "i16" || name == "u16") yield 2;
+			if (name == "i32" || name == "u32" || name == "f32") yield 4;
+			if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") yield 8;
 			val sym = lookup(&self.symtab, name);
-			if (sym != null) return sym.type_ptr.size;
-			return 8;
+			if (sym != null) yield sym.type_ptr.size;
+			yield 8;
 		}
-		else -> return 8;
-	}
+		else -> 8;
+	};
 }
 
 pub fn template_param_names(tmpl: *GenTemplate): List<str> {
@@ -749,56 +745,61 @@ pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 
 pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode {
 	if (node == null) return null;
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
 			val nt = node.to<NamedType>();
 			val sa = subst_lookup(subst, nt.name);
-			if (sa != null) return clone_type(self, sa, null);
+			if (sa != null) yield clone_type(self, sa, null);
 
 			if (nt.type_args.len > 0) {
 				val tmpl = gen_find(self.symtab.gen.struct_templates, nt.name);
 				if (tmpl != null) {
 					var args = List<*AstNode>();
-			for (ta in nt.type_args) args.add(clone_type(self, ta, subst));
+					for (ta in nt.type_args) args.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, tmpl, args);
-					return self.b().named_type(sem_struct(cty).name, List<*AstNode>(), node.line, node.col);
+					yield self.b().named_type(sem_struct(cty).name, List<*AstNode>(), node.line, node.col);
 				}
 			}
 
 			var targs = List<*AstNode>();
 			for (ta in nt.type_args) targs.add(clone_type(self, ta, subst));
-			return self.b().named_type(nt.name, targs, node.line, node.col);
+			yield self.b().named_type(nt.name, targs, node.line, node.col);
 		}
 		NodeKind.TYPE_POINTER -> {
 			val pt = node.to<PointerType>();
-			return self.b().pointer_type(pt.is_mut, clone_type(self, pt.pointee, subst), node.line, node.col);
+			yield self.b().pointer_type(pt.is_mut, clone_type(self, pt.pointee, subst), node.line, node.col);
 		}
 		NodeKind.TYPE_ARRAY -> {
 			val at = node.to<ArrayType>();
-			return self.b().array_type(clone_type(self, at.element_type, subst), at.size, node.line, node.col);
+			yield self.b().array_type(clone_type(self, at.element_type, subst), at.size, node.line, node.col);
 		}
-		else -> return self.b().named_type("none", List<*AstNode>(), node.line, node.col);
-	}
+		else -> self.b().named_type("none", List<*AstNode>(), node.line, node.col);
+	};
 }
 
 pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode {
 	if (node == null) return null;
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
 			val l = node.to<LiteralExpr>();
-			return self.b().literal(l.literal_kind, l.raw_text, node.line, node.col);
+			yield self.b().literal(l.literal_kind, l.raw_text, node.line, node.col);
 		}
 		NodeKind.EXPR_IDENTIFIER -> {
 			val id = node.to<IdentifierExpr>();
-			return self.b().identifier(id.name, node.line, node.col);
+			yield self.b().identifier(id.name, node.line, node.col);
 		}
 		NodeKind.EXPR_BINARY -> {
 			val b = node.to<BinaryExpr>();
-			return self.b().binary(b.op, clone_expr(self, b.left, subst), clone_expr(self, b.right, subst), node.line, node.col);
+			yield self.b().binary(
+				b.op,
+				clone_expr(self, b.left, subst),
+				clone_expr(self, b.right, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.EXPR_UNARY -> {
 			val u = node.to<UnaryExpr>();
-			return self.b().unary(u.op, clone_expr(self, u.operand, subst), node.line, node.col);
+			yield self.b().unary(u.op, clone_expr(self, u.operand, subst), node.line, node.col);
 		}
 		NodeKind.EXPR_CALL -> {
 			val c = node.to<CallExpr>();
@@ -808,7 +809,11 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val m = c.callee.to<MemberExpr>();
 				if (m.member == "size" && m.object.kind == NodeKind.EXPR_IDENTIFIER) {
 					val sa = subst_lookup(subst, m.object.to<IdentifierExpr>().name);
-					if (sa != null) return self.b().literal(LiteralKind.INT, "${ast_type_size(self, sa)}", node.line, node.col);
+					if (sa != null) yield self.b().literal(
+						LiteralKind.INT,
+						"${ast_type_size(self, sa)}",
+						node.line, node.col
+					);
 				}
 			}
 
@@ -822,9 +827,13 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 					new_args.add(mem_obj);
 					for (a in c.args) new_args.add(clone_expr(self, a, subst));
 					val ft = gen_find(self.symtab.gen.fn_templates, mem.member);
+
 					if (ft != null) {
 						val cname = instantiate_fn(self, ft, new_type_args);
-						return self.b().call(self.b().identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						yield self.b().call(
+							self.b().identifier(cname, node.line, node.col),
+							new_args, List<*AstNode>(), node.line, node.col
+						);
 					}
 				}
 			}
@@ -834,56 +843,82 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				val ft = gen_find(self.symtab.gen.fn_templates, cid.name);
 				if (ft != null) {
 					var args = List<*AstNode>();
-			for (ta in c.type_args) args.add(clone_type(self, ta, subst));
+					for (ta in c.type_args) args.add(clone_type(self, ta, subst));
 					val cname = instantiate_fn(self, ft, args);
 					var cargs = List<*AstNode>();
-			for (a in c.args) cargs.add(clone_expr(self, a, subst));
-					return self.b().call(self.b().identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+					for (a in c.args) cargs.add(clone_expr(self, a, subst));
+
+					yield self.b().call(
+						self.b().identifier(cname, node.line, node.col),
+						cargs, List<*AstNode>(), node.line, node.col
+					);
 				}
+
 				val st = gen_find(self.symtab.gen.struct_templates, cid.name);
 				if (st != null) {
 					var args2 = List<*AstNode>();
-			for (ta in c.type_args) args2.add(clone_type(self, ta, subst));
+					for (ta in c.type_args) args2.add(clone_type(self, ta, subst));
 					val cty = instantiate_struct(self, st, args2);
 					var cargs2 = List<*AstNode>();
-			for (a in c.args) cargs2.add(clone_expr(self, a, subst));
-					return self.b().call(self.b().identifier(sem_struct(cty).name, node.line, node.col), cargs2, List<*AstNode>(), node.line, node.col);
+					for (a in c.args) cargs2.add(clone_expr(self, a, subst));
+
+					yield self.b().call(
+						self.b().identifier(sem_struct(cty).name, node.line, node.col),
+						cargs2, List<*AstNode>(), node.line, node.col
+					);
 				}
 			}
 
 			var cargs3 = List<*AstNode>();
 			for (a in c.args) cargs3.add(clone_expr(self, a, subst));
-			return self.b().call(clone_expr(self, c.callee, subst), cargs3, List<*AstNode>(), node.line, node.col);
+			yield self.b().call(clone_expr(self, c.callee, subst), cargs3, List<*AstNode>(), node.line, node.col);
 		}
 		NodeKind.EXPR_MEMBER -> {
 			val m = node.to<MemberExpr>();
-			return self.b().member(clone_expr(self, m.object, subst), m.member, node.line, node.col);
+			yield self.b().member(clone_expr(self, m.object, subst), m.member, node.line, node.col);
 		}
 		NodeKind.EXPR_INDEX -> {
 			val ix = node.to<IndexExpr>();
-			return self.b().index(clone_expr(self, ix.target, subst), clone_expr(self, ix.index, subst), node.line, node.col);
+			yield self.b().index(
+				clone_expr(self, ix.target, subst),
+				clone_expr(self, ix.index, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.EXPR_ASSIGN -> {
 			val a = node.to<AssignExpr>();
-			return self.b().assign(clone_expr(self, a.target, subst), clone_expr(self, a.value, subst), node.line, node.col);
+			yield self.b().assign(
+				clone_expr(self, a.target, subst),
+				clone_expr(self, a.value, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
-			return self.b().cast(clone_expr(self, cst.expr, subst), clone_type(self, cst.target_type, subst), node.line, node.col);
+			yield self.b().cast(
+				clone_expr(self, cst.expr, subst),
+				clone_type(self, cst.target_type, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.EXPR_GROUP -> {
 			val g = node.to<GroupExpr>();
-			return self.b().group(clone_expr(self, g.expr, subst), node.line, node.col);
+			yield self.b().group(clone_expr(self, g.expr, subst), node.line, node.col);
 		}
 		NodeKind.EXPR_IF -> {
 			val ie = node.to<IfExpr>();
-			return self.b().if_expr(clone_expr(self, ie.condition, subst), clone_expr(self, ie.then_branch, subst), clone_expr(self, ie.else_branch, subst), node.line, node.col);
+			yield self.b().if_expr(
+				clone_expr(self, ie.condition, subst),
+				clone_expr(self, ie.then_branch, subst),
+				clone_expr(self, ie.else_branch, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = node.to<ArrayLiteralExpr>();
 			var els = List<*AstNode>();
 			for (e in al.elements) els.add(clone_expr(self, e, subst));
-			return self.b().array_literal(els, node.line, node.col);
+			yield self.b().array_literal(els, node.line, node.col);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = node.to<WhenExpr>();
@@ -891,9 +926,13 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			for (arm in we.arms) {
 				var pats = List<*AstNode>();
 				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
-				arms.add(WhenArm(pats, arm.is_else, clone_expr(self, arm.body, subst), arm.line, arm.col));
+				var arm_body: *AstNode = null;
+				if (arm.body.kind == NodeKind.STMT_BLOCK) arm_body = clone_stmt(self, arm.body, subst);
+				else arm_body = clone_expr(self, arm.body, subst);
+				arms.add(WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col));
 			}
-			return self.b().when_expr(clone_expr(self, we.condition, subst), arms, node.line, node.col);
+
+			yield self.b().when_expr(clone_expr(self, we.condition, subst), arms, node.line, node.col);
 		}
 		NodeKind.EXPR_INTERP -> {
 			val ie = node.to<InterpExpr>();
@@ -901,42 +940,51 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			for (part in ie.parts) {
 				parts.add(InterpPart(clone_expr(self, part.expr, subst), part.is_literal));
 			}
-			return self.b().interp(parts, node.line, node.col);
+			yield self.b().interp(parts, node.line, node.col);
 		}
-		else -> return self.b().identifier("<unsupported-expr>", node.line, node.col);
-	}
+		else -> self.b().identifier("<unsupported-expr>", node.line, node.col);
+	};
 }
 
 pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode {
 	if (node == null) return null;
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
 			val b = node.to<BlockStmt>();
 			var ss = List<*AstNode>();
 			for (s in b.statements) ss.add(clone_stmt(self, s, subst));
-			return self.b().block_stmt(ss, node.line, node.col);
+			yield self.b().block_stmt(ss, node.line, node.col);
 		}
 		NodeKind.STMT_EXPR -> {
 			val e = node.to<ExprStmt>();
-			return self.b().expr_stmt(clone_expr(self, e.expr, subst), node.line, node.col);
+			yield self.b().expr_stmt(clone_expr(self, e.expr, subst), node.line, node.col);
 		}
 		NodeKind.STMT_VAR_DECL -> {
 			val v = node.to<VarDeclStmt>();
 			var ta: *AstNode = null;
 			if (v.type_annotation != null) ta = clone_type(self, v.type_annotation, subst);
-			return self.b().var_decl(v.is_mut, v.name, ta, clone_expr(self, v.initializer, subst), node.line, node.col);
+			yield self.b().var_decl(v.is_mut, v.name, ta, clone_expr(self, v.initializer, subst), node.line, node.col);
 		}
 		NodeKind.STMT_IF -> {
 			val s = node.to<IfStmt>();
-			return self.b().if_stmt(clone_expr(self, s.condition, subst), clone_stmt(self, s.then_branch, subst), clone_stmt(self, s.else_branch, subst), node.line, node.col);
+			yield self.b().if_stmt(
+				clone_expr(self, s.condition, subst),
+				clone_stmt(self, s.then_branch, subst),
+				clone_stmt(self, s.else_branch, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.STMT_WHILE -> {
 			val w = node.to<WhileStmt>();
-			return self.b().while_stmt(clone_expr(self, w.condition, subst), clone_stmt(self, w.body, subst), node.line, node.col);
+			yield self.b().while_stmt(
+				clone_expr(self, w.condition, subst),
+				clone_stmt(self, w.body, subst),
+				node.line, node.col
+			);
 		}
 		NodeKind.STMT_FOR -> {
 			val f = node.to<ForStmt>();
-			return self.b().for_stmt(
+			yield self.b().for_stmt(
 				f.var_name, f.is_range, f.is_open, f.is_half_open,
 				clone_expr(self, f.iterable, subst),
 				clone_expr(self, f.range_start, subst),
@@ -947,10 +995,14 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		}
 		NodeKind.STMT_RETURN -> {
 			val r = node.to<ReturnStmt>();
-			return self.b().return_stmt(clone_expr(self, r.value, subst), node.line, node.col);
+			yield self.b().return_stmt(clone_expr(self, r.value, subst), node.line, node.col);
 		}
-		NodeKind.STMT_BREAK -> return self.b().break_stmt(node.line, node.col);
-		NodeKind.STMT_CONTINUE -> return self.b().continue_stmt(node.line, node.col);
+		NodeKind.STMT_YIELD -> {
+			val y = node.to<YieldStmt>();
+			yield self.b().yield_stmt(clone_expr(self, y.value, subst), node.line, node.col);
+		}
+		NodeKind.STMT_BREAK -> self.b().break_stmt(node.line, node.col);
+		NodeKind.STMT_CONTINUE -> self.b().continue_stmt(node.line, node.col);
 		NodeKind.STMT_WHEN -> {
 			val w = node.to<WhenStmt>();
 			var arms = List<WhenStmtArm>();
@@ -959,10 +1011,10 @@ pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				for (pat in arm.patterns) pats.add(clone_expr(self, pat, subst));
 				arms.add(WhenStmtArm(pats, arm.is_else, clone_stmt(self, arm.body, subst), arm.line, arm.col));
 			}
-			return self.b().when_stmt(clone_expr(self, w.condition, subst), arms, node.line, node.col);
+			yield self.b().when_stmt(clone_expr(self, w.condition, subst), arms, node.line, node.col);
 		}
-		else -> return null;
-	}
+		else -> null;
+	};
 }
 
 pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
@@ -975,7 +1027,13 @@ pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name:
 	}
 	var rt: *AstNode = null;
 	if (f.return_type != null) rt = clone_type(self, f.return_type, subst);
-	return self.b().fn_decl(new_name, List<GenericParam>(), params, rt, clone_stmt(self, f.body, subst), f.is_pub, node.line, node.col);
+	return self.b().fn_decl(
+		new_name,
+		List<GenericParam>(),
+		params, rt,
+		clone_stmt(self, f.body, subst),
+		f.is_pub, node.line, node.col
+	);
 }
 
 pub fn clone_struct(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
@@ -1132,6 +1190,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 			rewrite_generics(self, f.body);
 		}
 		NodeKind.STMT_RETURN -> rewrite_generics(self, node.to<ReturnStmt>().value);
+		NodeKind.STMT_YIELD -> rewrite_generics(self, node.to<YieldStmt>().value);
 		NodeKind.STMT_WHEN -> {
 			val w = node.to<WhenStmt>();
 			rewrite_generics(self, w.condition);

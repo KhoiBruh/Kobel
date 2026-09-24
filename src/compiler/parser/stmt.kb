@@ -100,9 +100,7 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 		consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
 		consume(self, TokenType.LESS, "Expected '<' to close an open range");
 		range_end = parse_expression(self, PREC_COMPARISON);
-	} else {
-		iterable = first;
-	}
+	} else iterable = first;
 
 	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
 	val body = parse_statement(self);
@@ -164,38 +162,35 @@ pub fn parse_statement(var self: &Parser): *AstNode {
 	val line = tok.line;
 	val col = tok.col;
 
-	when (tok.type) {
-		TokenType.OPEN_BRACE -> return parse_block_stmt(self);
-		TokenType.KW_VAL,
-		TokenType.KW_VAR -> return parse_var_decl_stmt(self);
-		TokenType.KW_IF -> return parse_if_stmt(self);
-		TokenType.KW_WHILE -> return parse_while_stmt(self);
-		TokenType.KW_FOR -> return parse_for_stmt(self);
-		TokenType.KW_RETURN -> return parse_return_stmt(self);
-		TokenType.KW_WHEN -> return parse_when_stmt(self);
+	return when (tok.type) {
+		TokenType.OPEN_BRACE -> parse_block_stmt(self);
+		TokenType.KW_VAL, TokenType.KW_VAR -> parse_var_decl_stmt(self);
+		TokenType.KW_IF -> parse_if_stmt(self);
+		TokenType.KW_WHILE -> parse_while_stmt(self);
+		TokenType.KW_FOR -> parse_for_stmt(self);
+		TokenType.KW_RETURN -> parse_return_stmt(self);
+		TokenType.KW_WHEN -> parse_when_stmt(self);
 		TokenType.KW_BREAK -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after break");
-			return self.b().break_stmt(line, col);
+			yield self.b().break_stmt(line, col);
 		}
 		TokenType.KW_CONTINUE -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
-			return self.b().continue_stmt(line, col);
+			yield self.b().continue_stmt(line, col);
 		}
 		TokenType.KW_YIELD -> {
 			advance(self);
 			var value: *AstNode = null;
-			if (!check(self, TokenType.SEMI_COLON)) {
-				value = parse_expression(self, PREC_NONE);
-			}
+			if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after yield");
-			return self.b().yield_stmt(value, line, col);
+			yield self.b().yield_stmt(value, line, col);
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
-			return self.b().expr_stmt(expr, line, col);
+			yield self.b().expr_stmt(expr, line, col);
 		}
-	}
+	};
 }

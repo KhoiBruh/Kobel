@@ -281,16 +281,11 @@ pub fn alloc_fn_type(
 // Type Inspection & Semantic Queries
 // ============================================================================
 
-pub fn is_signed_integer(ty: *Type): bool {
-	when (ty.kind) {
-		DataType.I8,
-		DataType.I16,
-		DataType.I32,
-		DataType.I64,
-		DataType.ISZ -> return true;
-		else -> return false;
-	}
-}
+pub fn is_signed_integer(ty: *Type) => when (ty.kind) {
+	DataType.I8, DataType.I16, DataType.I32,
+	DataType.I64, DataType.ISZ -> true;
+	else -> false;
+};
 
 pub fn is_unsigned_integer(ty: *Type) => when (ty.kind) {
 	DataType.U8, DataType.U16, DataType.U32,
@@ -311,8 +306,10 @@ pub fn is_char(ty: *Type) => ty.kind == DataType.CHAR;
 pub fn is_enum_type(ty: *Type): bool {
 	if (ty.data == null) return false;
 	return when (ty.kind) {
-		DataType.I8, DataType.I16, DataType.I32, DataType.I64, DataType.ISZ,
-		DataType.U8, DataType.U16, DataType.U32, DataType.U64, DataType.USZ -> true;
+		DataType.I8, DataType.I16, DataType.I32,
+		DataType.I64, DataType.ISZ, DataType.U8,
+		DataType.U16, DataType.U32, DataType.U64,
+		DataType.USZ -> true;
 		else -> false;
 	};
 }
@@ -325,35 +322,35 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 	if (a == b) return true;
 	if (a.kind != b.kind) return false;
 
-	when (a.kind) {
+	return when (a.kind) {
 		DataType.POINTER -> {
 			val p_a = as_pointer_type(a);
 			val p_b = as_pointer_type(b);
-			return (p_a.is_mut == p_b.is_mut) && type_equals(p_a.pointee, p_b.pointee);
+			yield (p_a.is_mut == p_b.is_mut) && type_equals(p_a.pointee, p_b.pointee);
 		}
 		DataType.ARRAY -> {
 			val arr_a = as_array_type(a);
 			val arr_b = as_array_type(b);
-			return (arr_a.length == arr_b.length) && type_equals(arr_a.elem, arr_b.elem);
+			yield (arr_a.length == arr_b.length) && type_equals(arr_a.elem, arr_b.elem);
 		}
 		DataType.STRUCT -> {
 			val s_a = as_struct_type(a);
 			val s_b = as_struct_type(b);
-			return s_a.name == s_b.name;
+			yield s_a.name == s_b.name;
 		}
 		DataType.FN -> {
 			val f_a = as_fn_type(a);
 			val f_b = as_fn_type(b);
-			if (f_a.param_types.len != f_b.param_types.len) return false;
-			if (!type_equals(f_a.return_type, f_b.return_type)) return false;
+			if (f_a.param_types.len != f_b.param_types.len) yield false;
+			if (!type_equals(f_a.return_type, f_b.return_type)) yield false;
 
 			for (i in 0..<f_a.param_types.len) {
-				if (!type_equals(f_a.param_types.get(i), f_b.param_types.get(i))) return false;
+				if (!type_equals(f_a.param_types.get(i), f_b.param_types.get(i))) yield false;
 			}
-			return true;
+			yield true;
 		}
-		else -> return true;
-	}
+		else -> true;
+	};
 }
 
 pub fn can_assign(target: *Type, source: *Type): bool {
@@ -405,41 +402,39 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	return false;
 }
 
-pub fn type_to_string(ty: *Type): str {
-	when (ty.kind) {
-		DataType.NONE -> return "none";
-		DataType.BOOL -> return "bool";
-		DataType.CHAR -> return "char";
-		DataType.I8 -> return "i8";
-		DataType.I16 -> return "i16";
-		DataType.I32 -> return "i32";
-		DataType.I64 -> return "i64";
-		DataType.ISZ -> return "isz";
-		DataType.U8 -> return "u8";
-		DataType.U16 -> return "u16";
-		DataType.U32 -> return "u32";
-		DataType.U64 -> return "u64";
-		DataType.USZ -> return "usz";
-		DataType.F32 -> return "f32";
-		DataType.F64 -> return "f64";
-		DataType.STR -> return "str";
-		DataType.POINTER -> {
-			val ptr = as_pointer_type(ty);
-			if (ptr.is_mut) return "*mut ${type_to_string(ptr.pointee)}";
-			return "*${type_to_string(ptr.pointee)}";
-		}
-		DataType.ARRAY -> {
-			val arr = as_array_type(ty);
-			return "[${type_to_string(arr.elem)}]";
-		}
-		DataType.STRUCT -> {
-			val s = as_struct_type(ty);
-			return s.name;
-		}
-		DataType.FN -> return "fn(...)";
-		else -> return "unknown";
+pub fn type_to_string(ty: *Type): str => when (ty.kind) {
+	DataType.NONE -> "none";
+	DataType.BOOL -> "bool";
+	DataType.CHAR -> "char";
+	DataType.I8 -> "i8";
+	DataType.I16 -> "i16";
+	DataType.I32 -> "i32";
+	DataType.I64 -> "i64";
+	DataType.ISZ -> "isz";
+	DataType.U8 -> "u8";
+	DataType.U16 -> "u16";
+	DataType.U32 -> "u32";
+	DataType.U64 -> "u64";
+	DataType.USZ -> "usz";
+	DataType.F32 -> "f32";
+	DataType.F64 -> "f64";
+	DataType.STR -> "str";
+	DataType.POINTER -> {
+		val ptr = as_pointer_type(ty);
+		if (ptr.is_mut) yield "*mut ${type_to_string(ptr.pointee)}";
+		yield "*${type_to_string(ptr.pointee)}";
 	}
-}
+	DataType.ARRAY -> {
+		val arr = as_array_type(ty);
+		yield "[${type_to_string(arr.elem)}]";
+	}
+	DataType.STRUCT -> {
+		val s = as_struct_type(ty);
+		yield s.name;
+	}
+	DataType.FN -> "fn(...)";
+	else -> "unknown";
+};
 
 impl ToStr for Type {
 	pub fn to_str(val self): str => type_to_string(self as *Type);
