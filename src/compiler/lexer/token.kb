@@ -1,6 +1,5 @@
 mod compiler.lexer.token;
 
-use util.strutil.str_slice;
 use std.traits.to_str.*;
 
 pub enum TokenType {
@@ -87,7 +86,5 @@ impl ToStr for Token {
 	pub fn to_str(val self): str => self.text;
 }
 
-pub fn strip_suffix(s: str, n: usz): str {
-	if (s.len <= n) return "";
-	return str_slice(s, 0, s.len - n);
-}
+pub fn strip_suffix(s: str, n: usz): str =>
+	if (s.len <= n) "" else s.slice(0, s.len - n);
