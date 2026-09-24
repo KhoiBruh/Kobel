@@ -79,7 +79,7 @@ pub fn parse_type(var self: &Parser): *AstNode {
 			}
 		}
 
-		return self.b().array_type(type_args.get(0), size, line, col);
+		return self.b().array_type(type_args.first(), size, line, col);
 	}
 
 	return self.b().named_type(full_name, type_args, line, col);

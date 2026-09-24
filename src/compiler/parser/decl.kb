@@ -184,7 +184,7 @@ pub fn parse_impl_decl(var self: &Parser): *AstNode {
 	var type_params = parse_generic_params(self);
 	val first_name = consume(self, TokenType.IDENTIFIER, "Expected struct or trait name").text;
 
-	if (type_params.len == 0 && check(self, TokenType.LESS)) {
+	if (type_params.is_empty() && check(self, TokenType.LESS)) {
 		type_params = parse_generic_params(self);
 	}
 

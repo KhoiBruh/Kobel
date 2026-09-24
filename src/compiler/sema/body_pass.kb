@@ -287,7 +287,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					// Lower to kobel_slice(receiver, start, end); end defaults to length.
 					var sargs = List<*AstNode>();
 					sargs.add(mem.object);
-					if (call.args.len >= 1) sargs.add(call.args.get(0));
+					if (!call.args.is_empty()) sargs.add(call.args.first());
 					else sargs.add(self.b().literal(LiteralKind.INT, "0", node.line, node.col));
 					if (call.args.len >= 2) {
 						sargs.add(call.args.get(1));
@@ -619,12 +619,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			// The element type comes from the first element; an empty literal
 			// has nothing to infer from (use an annotated `[T; 0]` variable).
-			if (al.elements.len == 0) {
+			if (al.elements.is_empty()) {
 				report_error(self, node, "Cannot infer the element type of an empty array literal");
 				return alloc_primitive(&self.arena, type_none());
 			}
 
-			val elem_ty = check_expr(self, al.elements.get(0));
+			val elem_ty = check_expr(self, al.elements.first());
 			for (i in 1..<al.elements.len) {
 				val t = check_expr(self, al.elements.get(i));
 				if (!can_assign(elem_ty, t)) report_error(self, al.elements.get(i), "Array literal element type mismatch");

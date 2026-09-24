@@ -89,18 +89,14 @@ pub fn str_path_to_module(rel_path: str): str {
 	return str_from_bytes(buf, stem.len);
 }
 
-pub fn str_has_kb_suffix(path: str): bool {
-	if (path.len < 3) return false;
-	if (path[path.len - 3] != '.') return false;
-	if (path[path.len - 2] != 'k') return false;
-	return path[path.len - 1] == 'b';
-}
+pub fn str_has_kb_suffix(path: str) => path.len >= 3 &&
+	path[path.len - 3] == '.' &&
+	path[path.len - 2] == 'k' &&
+	path[path.len - 1] == 'b';
 
 // Strips a trailing ".kb" extension when present.
-pub fn str_strip_kb(path: str): str {
-	if (!str_has_kb_suffix(path)) return path;
-	return str_slice(path, 0, path.len - 3);
-}
+pub fn str_strip_kb(path: str) =>
+	if (str_has_kb_suffix(path)) str_slice(path, 0, path.len - 3) else path;
 
 // Directory part of a path ("" when the path has no separator).
 pub fn str_dir_of(path: str): str {
@@ -126,9 +122,7 @@ pub fn str_base_name(path: str): str {
 }
 
 // Joins a directory and a relative path with a single '/' separator.
-pub fn str_join_path(dir: str, rel: str): str => if (dir.len == 0) rel else "${dir}/${rel}";
-
-pub fn str_is_empty_str(s: str) => s.len == 0;
+pub fn str_join_path(dir: str, rel: str) => if (dir.len == 0) rel else "${dir}/${rel}";
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;

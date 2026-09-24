@@ -28,19 +28,19 @@ pub fn is_end(var self: &Parser): bool {
 }
 
 pub fn peek(var self: &Parser): Token {
-	if (self.current >= self.tokens.len) return self.tokens.get(self.tokens.len - 1);
+	if (self.current >= self.tokens.len) return self.tokens.last();
 	return self.tokens.get(self.current);
 }
 
 // Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
 pub fn peek_at(var self: &Parser, offset: usz): Token {
 	val idx = self.current + offset;
-	if (idx >= self.tokens.len) return self.tokens.get(self.tokens.len - 1);
+	if (idx >= self.tokens.len) return self.tokens.last();
 	return self.tokens.get(idx);
 }
 
 pub fn previous(var self: &Parser): Token {
-	if (self.current == 0) return self.tokens.get(0);
+	if (self.current == 0) return self.tokens.first();
 	return self.tokens.get(self.current - 1);
 }
 

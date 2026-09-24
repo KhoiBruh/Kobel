@@ -75,7 +75,7 @@ pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
 pub fn get_indent(level: usz): str {
 	var res = "";
 	for (i in 0..<level) {
-		res = res + "    ";
+		res = "${res}    ";
 	}
 	return res;
 }
@@ -234,15 +234,15 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = node.to<ArrayLiteralExpr>();
 			var elem_c = self.array_elem_hint;
-			if (elem_c == "" && al.elements.len > 0) elem_c = infer_type_from_expr(self, al.elements.get(0));
+			if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
 			if (elem_c == "") elem_c = "int32_t";
 
-			var res = "(" + elem_c + "[]){";
+			var res = "(${elem_c}[]){";
 			for (i in 0..<al.elements.len) {
-				if (i > 0) res = res + ", ";
-				res = res + gen_expr(self, al.elements.get(i));
+				if (i > 0) res = "${res}, ";
+				res = "${res}${gen_expr(self, al.elements.get(i))}";
 			}
-			return res + "}";
+			return "${res}}";
 		}
 
 		NodeKind.EXPR_CALL -> {
@@ -258,8 +258,8 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				if (mem.member == "c_str") return gen_expr(self, mem.object);
 				if (mem.member == "slice") {
 					val slice_obj = gen_expr(self, mem.object);
-					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.get(0))}, ${gen_expr(self, call.args.get(1))})";
-					if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.get(0))}, strlen(${slice_obj}))";
+					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, ${gen_expr(self, call.args.get(1))})";
+					if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, strlen(${slice_obj}))";
 					return slice_obj;
 				}
 			}
@@ -347,7 +347,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				i = i - 1;
 				val arm = we.arms.get(i);
 				if (arm.is_else) res = gen_expr(self, arm.body);
-				else res = "(" + gen_when_test(self, cond, arm.patterns) + " ? " + gen_expr(self, arm.body) + " : " + res + ")";
+				else res = "(${gen_when_test(self, cond, arm.patterns)} ? ${gen_expr(self, arm.body)} : ${res})";
 			}
 			return res;
 		}
@@ -366,11 +366,11 @@ pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): 
 		val test = when {
 			cond == "" -> gen_expr(self, p),
 			p.kind == NodeKind.EXPR_LITERAL && p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->
-				"strcmp(" + cond + ", " + gen_expr(self, p) + ") == 0",
-			else -> "(" + cond + " == " + gen_expr(self, p) + ")"
+				"strcmp(${cond}, ${gen_expr(self, p)}) == 0",
+			else -> "(${cond} == ${gen_expr(self, p)})"
 		};
 		if (i == 0) res = test;
-		else res = res + " || " + test;
+		else res = "${res} || ${test}";
 	}
 	if (res == "") res = "1";
 	return res;
@@ -440,7 +440,7 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = expr.to<ArrayLiteralExpr>();
-			if (al.elements.len > 0) return infer_type_from_expr(self, al.elements.get(0)) + "*";
+			if (!al.elements.is_empty()) return "${infer_type_from_expr(self, al.elements.first())}*";
 			return "int32_t*";
 		}
 

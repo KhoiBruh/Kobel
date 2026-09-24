@@ -634,7 +634,7 @@ pub fn check_bounds(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*Ast
 	val params = template_params(tmpl);
 	for (i in 0..<params.len) {
 		val gp = params.get(i);
-		if (gp.bounds.len == 0 || i >= arg_asts.len) continue;
+		if (gp.bounds.is_empty() || i >= arg_asts.len) continue;
 
 		val arg = arg_asts.get(i);
 		if (arg.kind != NodeKind.TYPE_NAMED) continue;

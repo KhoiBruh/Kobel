@@ -147,8 +147,7 @@ pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
 
 	val declared = declared_module_name(prog);
 	if (declared.len > 0 && declared != module_name) {
-		val msg = "${file.path}: module declared as '${declared}";
-		self.errors.add("${msg}' but imported as '${module_name}'");
+		self.errors.add("${file.path}: module declared as '${declared}' but imported as '${module_name}'");
 		return;
 	}
 
