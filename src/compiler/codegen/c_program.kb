@@ -65,11 +65,13 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 		if (self_c_type != "" && p.name == "self" && p.type_node == null) {
 			self.pointer_vars.add(p.name);
 		} else if (p.type_node != null) {
-			if (p.type_node.kind == NodeKind.TYPE_POINTER) {
-				self.pointer_vars.add(p.name);
-			} else if (p.type_node.kind == NodeKind.TYPE_NAMED) {
-				val named = p.type_node.to<NamedType>();
-				if (named.name == "str") self.str_vars.add(p.name);
+			when (p.type_node.kind) {
+				NodeKind.TYPE_POINTER -> self.pointer_vars.add(p.name);
+				NodeKind.TYPE_NAMED -> {
+					val named = p.type_node.to<NamedType>();
+					if (named.name == "str") self.str_vars.add(p.name);
+				}
+				else -> {}
 			}
 		}
 	}
@@ -77,17 +79,21 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 	var res = "${proto} {\n";
 	self.indent_level = 1;
 
-	if (f.body.kind == NodeKind.STMT_BLOCK) {
-		val blk = f.body.to<BlockStmt>();
-		for (stmt in blk.statements) {
-			res = "${res}${gen_statement(self, stmt)}";
+	when (f.body.kind) {
+		NodeKind.STMT_BLOCK -> {
+			val blk = f.body.to<BlockStmt>();
+			for (stmt in blk.statements) {
+				res = "${res}${gen_statement(self, stmt)}";
+			}
 		}
-	} else if (f.body.kind == NodeKind.STMT_EXPR) {
-		val es = f.body.to<ExprStmt>();
-		if (ret_ty != "void" && es.expr.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(es.expr.to<WhenExpr>())) {
-			res = "${res}${gen_when_with_target(self, es.expr.to<WhenExpr>(), "", true)}";
-		} else if (ret_ty == "void") res = "${res}    ${gen_expr(self, es.expr)};\n";
-		else res = "${res}    return ${gen_expr(self, es.expr)};\n";
+		NodeKind.STMT_EXPR -> {
+			val es = f.body.to<ExprStmt>();
+			if (ret_ty != "void" && es.expr.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(es.expr.to<WhenExpr>())) {
+				res = "${res}${gen_when_with_target(self, es.expr.to<WhenExpr>(), "", true)}";
+			} else if (ret_ty == "void") res = "${res}    ${gen_expr(self, es.expr)};\n";
+			else res = "${res}    return ${gen_expr(self, es.expr)};\n";
+		}
+		else -> {}
 	}
 
 	self.indent_level = 0;
@@ -158,21 +164,25 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	// 2. First collect struct names, function names and return types
 	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
-		if (decl.kind == NodeKind.DECL_STRUCT) {
-			val s = decl.to<StructDecl>();
-			self.struct_names.add(s.name);
-			c_code = c_code + "typedef struct " + s.name + " " + s.name + ";\n";
-		} else if (decl.kind == NodeKind.DECL_ENUM) {
-			// Enums lower to their underlying integer type; member access becomes
-			// an integer literal during semantic analysis.
-			val e = decl.to<EnumDecl>();
-			var under = "int32_t";
-			if (e.underlying_type != null) under = c_type_from_ast(e.underlying_type);
-			c_code = c_code + "typedef " + under + " " + e.name + ";\n";
-		} else if (decl.kind == NodeKind.DECL_CONST) {
-			// Module-level constants become preprocessor macros.
-			val c = decl.to<ConstDecl>();
-			c_code = c_code + "#define " + c.name + " " + gen_expr(self, c.value) + "\n";
+		when (decl.kind) {
+			NodeKind.DECL_STRUCT -> {
+				val s = decl.to<StructDecl>();
+				self.struct_names.add(s.name);
+				c_code = c_code + "typedef struct " + s.name + " " + s.name + ";\n";
+			}
+			NodeKind.DECL_ENUM -> {
+				// Enums lower to their underlying integer type; member access becomes
+				// an integer literal during semantic analysis.
+				val e = decl.to<EnumDecl>();
+				val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
+				c_code = c_code + "typedef " + under + " " + e.name + ";\n";
+			}
+			NodeKind.DECL_CONST -> {
+				// Module-level constants become preprocessor macros.
+				val c = decl.to<ConstDecl>();
+				c_code = c_code + "#define " + c.name + " " + gen_expr(self, c.value) + "\n";
+			}
+			else -> {}
 		}
 	}
 	c_code = c_code + "\n";
@@ -181,23 +191,28 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	// all struct names are known so inference can resolve struct constructors.
 	for (decl2 in prog) {
 		if (is_generic_decl(decl2)) continue;
-		if (decl2.kind == NodeKind.DECL_FN) {
-			val f = decl2.to<FnDecl>();
-			register_fn(self, f.name, fn_ret_c_type(self, f));
-		} else if (decl2.kind == NodeKind.DECL_IMPL) {
-			val im = decl2.to<ImplDecl>();
-			for (mnode in im.methods) {
-				val f = mnode.to<FnDecl>();
+		when (decl2.kind) {
+			NodeKind.DECL_FN -> {
+				val f = decl2.to<FnDecl>();
 				register_fn(self, f.name, fn_ret_c_type(self, f));
 			}
-		} else if (decl2.kind == NodeKind.DECL_EXTERN_BLOCK) {
-			val ext = decl2.to<ExternBlock>();
-			for (e_decl in ext) {
-				if (e_decl.kind == NodeKind.DECL_FN) {
-					val f = e_decl.to<FnDecl>();
+			NodeKind.DECL_IMPL -> {
+				val im = decl2.to<ImplDecl>();
+				for (mnode in im.methods) {
+					val f = mnode.to<FnDecl>();
 					register_fn(self, f.name, fn_ret_c_type(self, f));
 				}
 			}
+			NodeKind.DECL_EXTERN_BLOCK -> {
+				val ext = decl2.to<ExternBlock>();
+				for (e_decl in ext) {
+					if (e_decl.kind == NodeKind.DECL_FN) {
+						val f = e_decl.to<FnDecl>();
+						register_fn(self, f.name, fn_ret_c_type(self, f));
+					}
+				}
+			}
+			else -> {}
 		}
 	}
 	c_code = c_code + "\n";
@@ -210,12 +225,15 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	// 4. Function Prototypes
 	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
-		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, true, "");
-		else if (decl.kind == NodeKind.DECL_IMPL) {
-			val im = decl.to<ImplDecl>();
-			for (mnode in im.methods) {
-				c_code = c_code + gen_fn_decl(self, mnode, true, im.struct_name);
+		when (decl.kind) {
+			NodeKind.DECL_FN -> c_code = c_code + gen_fn_decl(self, decl, true, "");
+			NodeKind.DECL_IMPL -> {
+				val im = decl.to<ImplDecl>();
+				for (mnode in im.methods) {
+					c_code = c_code + gen_fn_decl(self, mnode, true, im.struct_name);
+				}
 			}
+			else -> {}
 		}
 	}
 	c_code = c_code + "\n";
@@ -223,12 +241,15 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	// 5. Function Implementations
 	for (decl in prog) {
 		if (is_generic_decl(decl)) continue;
-		if (decl.kind == NodeKind.DECL_FN) c_code = c_code + gen_fn_decl(self, decl, false, "");
-		else if (decl.kind == NodeKind.DECL_IMPL) {
-			val im = decl.to<ImplDecl>();
-			for (mnode in im.methods) {
-				c_code = c_code + gen_fn_decl(self, mnode, false, im.struct_name);
+		when (decl.kind) {
+			NodeKind.DECL_FN -> c_code = c_code + gen_fn_decl(self, decl, false, "");
+			NodeKind.DECL_IMPL -> {
+				val im = decl.to<ImplDecl>();
+				for (mnode in im.methods) {
+					c_code = c_code + gen_fn_decl(self, mnode, false, im.struct_name);
+				}
 			}
+			else -> {}
 		}
 	}
 

@@ -296,16 +296,11 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.EXPR_MEMBER -> {
 			val mem = node.to<MemberExpr>();
 			if (mem.member == "len" || mem.member == "size") {
-				var is_str = false;
-				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-					val id = mem.object.to<IdentifierExpr>();
-					is_str = is_str_var(self, id.name);
-				} else if (mem.object.kind == NodeKind.EXPR_LITERAL) {
-					val lit = mem.object.to<LiteralExpr>();
-					if (lit.literal_kind == LiteralKind.STRING) is_str = true;
-				} else if (infer_type_from_expr(self, mem.object) == "const char*") {
-					is_str = true;
-				}
+				val is_str = when (mem.object.kind) {
+					NodeKind.EXPR_IDENTIFIER -> is_str_var(self, mem.object.to<IdentifierExpr>().name),
+					NodeKind.EXPR_LITERAL -> mem.object.to<LiteralExpr>().literal_kind == LiteralKind.STRING,
+					else -> infer_type_from_expr(self, mem.object) == "const char*"
+				};
 				if (is_str) return "(uint64_t)strlen(" + gen_expr(self, mem.object) + ")";
 			}
 			val obj = gen_expr(self, mem.object);
@@ -368,14 +363,12 @@ pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): 
 	var res = "";
 	for (i in 0..<patterns.len) {
 		val p = patterns.get(i);
-		var test = "";
-		if (cond == "") {
-			test = gen_expr(self, p);
-		} else if (p.kind == NodeKind.EXPR_LITERAL && p.to<LiteralExpr>().literal_kind == LiteralKind.STRING) {
-			test = "strcmp(" + cond + ", " + gen_expr(self, p) + ") == 0";
-		} else {
-			test = "(" + cond + " == " + gen_expr(self, p) + ")";
-		}
+		val test = when {
+			cond == "" -> gen_expr(self, p),
+			p.kind == NodeKind.EXPR_LITERAL && p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->
+				"strcmp(" + cond + ", " + gen_expr(self, p) + ") == 0",
+			else -> "(" + cond + " == " + gen_expr(self, p) + ")"
+		};
 		if (i == 0) res = test;
 		else res = res + " || " + test;
 	}

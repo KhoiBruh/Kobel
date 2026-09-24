@@ -474,23 +474,28 @@ pub fn subst_lookup(s: *GenSubst, name: str): *AstNode {
 	return null;
 }
 
-pub fn is_template_decl(node: *AstNode): bool {
-	if (node.kind == NodeKind.DECL_STRUCT) return node.to<StructDecl>().type_params.len > 0;
-	if (node.kind == NodeKind.DECL_FN) return node.to<FnDecl>().type_params.len > 0;
-	if (node.kind == NodeKind.DECL_IMPL) return node.to<ImplDecl>().type_params.len > 0;
-	return false;
-}
+pub fn is_template_decl(node: *AstNode): bool => when (node.kind) {
+	NodeKind.DECL_STRUCT -> node.to<StructDecl>().type_params.len > 0,
+	NodeKind.DECL_FN -> node.to<FnDecl>().type_params.len > 0,
+	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0,
+	else -> false
+};
 
 pub fn register_template(var self: &DeclPass, node: *AstNode) {
-	if (node.kind == NodeKind.DECL_STRUCT) {
-		val s = node.to<StructDecl>();
-		if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(gen_template(self, s.name, node));
-	} else if (node.kind == NodeKind.DECL_FN) {
-		val f = node.to<FnDecl>();
-		if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(gen_template(self, f.name, node));
-	} else if (node.kind == NodeKind.DECL_IMPL) {
-		val im = node.to<ImplDecl>();
-		if (im.type_params.len > 0) self.symtab.gen.impl_templates.add(gen_template(self, im.struct_name, node));
+	when (node.kind) {
+		NodeKind.DECL_STRUCT -> {
+			val s = node.to<StructDecl>();
+			if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(gen_template(self, s.name, node));
+		}
+		NodeKind.DECL_FN -> {
+			val f = node.to<FnDecl>();
+			if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(gen_template(self, f.name, node));
+		}
+		NodeKind.DECL_IMPL -> {
+			val im = node.to<ImplDecl>();
+			if (im.type_params.len > 0) self.symtab.gen.impl_templates.add(gen_template(self, im.struct_name, node));
+		}
+		else -> {}
 	}
 }
 
@@ -596,27 +601,32 @@ pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz {
 
 pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 	var names = List<str>();
-	if (tmpl.node.kind == NodeKind.DECL_STRUCT) {
-		val s = tmpl.node.to<StructDecl>();
-		for (tp in s.type_params) names.add(tp.name);
-	} else if (tmpl.node.kind == NodeKind.DECL_FN) {
-		val f = tmpl.node.to<FnDecl>();
-		for (p in f.type_params) names.add(p.name);
-	} else if (tmpl.node.kind == NodeKind.DECL_IMPL) {
-		val im = tmpl.node.to<ImplDecl>();
-		for (p in im.type_params) names.add(p.name);
+	when (tmpl.node.kind) {
+		NodeKind.DECL_STRUCT -> {
+			val s = tmpl.node.to<StructDecl>();
+			for (tp in s.type_params) names.add(tp.name);
+		}
+		NodeKind.DECL_FN -> {
+			val f = tmpl.node.to<FnDecl>();
+			for (p in f.type_params) names.add(p.name);
+		}
+		NodeKind.DECL_IMPL -> {
+			val im = tmpl.node.to<ImplDecl>();
+			for (p in im.type_params) names.add(p.name);
+		}
+		else -> {}
 	}
 	return names;
 }
 
 // The declared generic parameters of a template (empty for an impl template,
 // whose parameters live on the struct it belongs to).
-pub fn template_params(tmpl: *GenTemplate): List<GenericParam> {
-	if (tmpl.node.kind == NodeKind.DECL_STRUCT) return tmpl.node.to<StructDecl>().type_params;
-	if (tmpl.node.kind == NodeKind.DECL_FN) return tmpl.node.to<FnDecl>().type_params;
-	if (tmpl.node.kind == NodeKind.DECL_IMPL) return tmpl.node.to<ImplDecl>().type_params;
-	return List<GenericParam>();
-}
+pub fn template_params(tmpl: *GenTemplate): List<GenericParam> => when (tmpl.node.kind) {
+	NodeKind.DECL_STRUCT -> tmpl.node.to<StructDecl>().type_params,
+	NodeKind.DECL_FN -> tmpl.node.to<FnDecl>().type_params,
+	NodeKind.DECL_IMPL -> tmpl.node.to<ImplDecl>().type_params,
+	else -> List<GenericParam>()
+};
 
 // Checks the trait bounds of an instantiation: for every `T: Trait` parameter
 // the concrete argument must be a struct with a matching `impl Trait for`

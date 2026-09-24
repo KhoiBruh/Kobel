@@ -162,9 +162,11 @@ pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
 	for (decl in prog) {
 		if (decl.kind == NodeKind.DECL_USE) {
 			val u = decl.to<UseDecl>();
-			var mod_name = "";
-			if (u.is_wildcard) mod_name = str_join_dots(u.path, u.path.len);
-			else if (u.path.len >= 2) mod_name = str_join_dots(u.path, u.path.len - 1);
+			val mod_name = when {
+				u.is_wildcard -> str_join_dots(u.path, u.path.len),
+				u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
+				else -> ""
+			};
 			if (mod_name.len > 0) ensure_module(self, mod_name);
 		}
 	}

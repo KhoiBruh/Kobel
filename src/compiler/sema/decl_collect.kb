@@ -225,9 +225,11 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// Pass 0: register generic templates so any use can instantiate them.
 	// Module markers are processed here too, so each template records its module.
 	for (d0 in prog) {
-		if (d0.kind == NodeKind.DECL_MODULE) collect_module(self, d0);
-		else if (d0.kind == NodeKind.DECL_TRAIT) collect_trait(self, d0);
-		else register_template(self, d0);
+		when (d0.kind) {
+			NodeKind.DECL_MODULE -> collect_module(self, d0);
+			NodeKind.DECL_TRAIT -> collect_trait(self, d0);
+			else -> register_template(self, d0);
+		}
 	}
 
 	// Pass 1: collect ordinary declarations (templates are skipped).
@@ -237,12 +239,14 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 	// concrete structs / functions / methods as needed. Module markers are
 	// replayed so each declaration resolves names in its own module.
 	for (d in prog) {
-		if (d.kind == NodeKind.DECL_MODULE) {
-			val m2 = d.to<ModuleDecl>();
-			self.current_module = m2.full_path;
-			set_current_module(&self.symtab, m2.full_path);
-		} else if (!is_template_decl(d)) {
-			rewrite_generics(self, d);
+		when {
+			d.kind == NodeKind.DECL_MODULE -> {
+				val m2 = d.to<ModuleDecl>();
+				self.current_module = m2.full_path;
+				set_current_module(&self.symtab, m2.full_path);
+			}
+			!is_template_decl(d) -> rewrite_generics(self, d);
+			else -> {}
 		}
 	}
 

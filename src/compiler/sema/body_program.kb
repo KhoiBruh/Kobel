@@ -55,22 +55,26 @@ pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
 
 	// Analyze the function body
 	if (f.body != null) {
-		if (f.body.kind == NodeKind.STMT_BLOCK) {
-			val blk = f.body.to<BlockStmt>();
-			for (stmt in blk.statements) {
-				check_statement(self, stmt);
+		when (f.body.kind) {
+			NodeKind.STMT_BLOCK -> {
+				val blk = f.body.to<BlockStmt>();
+				for (stmt in blk.statements) {
+					check_statement(self, stmt);
+				}
 			}
-		} else if (f.body.kind == NodeKind.STMT_EXPR) {
-			// Expression body: => expr;
-			val es = f.body.to<ExprStmt>();
-			val body_ty = check_expr(self, es.expr);
-			if (f.return_type == null) {
-				val fn_info_mut = as_fn_type_mut(fn_type);
-				fn_info_mut.return_type = body_ty;
-				self.current_fn_return_type = body_ty;
-			} else if (!can_assign(self.current_fn_return_type, body_ty)) {
-				report_error(self, fn_node, "Expression body type does not match function return type");
+			NodeKind.STMT_EXPR -> {
+				// Expression body: => expr;
+				val es = f.body.to<ExprStmt>();
+				val body_ty = check_expr(self, es.expr);
+				if (f.return_type == null) {
+					val fn_info_mut = as_fn_type_mut(fn_type);
+					fn_info_mut.return_type = body_ty;
+					self.current_fn_return_type = body_ty;
+				} else if (!can_assign(self.current_fn_return_type, body_ty)) {
+					report_error(self, fn_node, "Expression body type does not match function return type");
+				}
 			}
+			else -> {}
 		}
 	}
 
@@ -120,10 +124,14 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 	// Step 2: Analyze each function body of each module (program already merged)
 	val prog = program_node.to<Program>();
 	for (decl in prog) {
-		if (decl.kind == NodeKind.DECL_MODULE) {
-			val m = decl.to<ModuleDecl>();
-			set_current_module(&self.symtab, m.full_path);
-		} else if (decl.kind == NodeKind.DECL_FN) check_fn(self, decl);
-		else if (decl.kind == NodeKind.DECL_IMPL) check_impl(self, decl);
+		when (decl.kind) {
+			NodeKind.DECL_MODULE -> {
+				val m = decl.to<ModuleDecl>();
+				set_current_module(&self.symtab, m.full_path);
+			}
+			NodeKind.DECL_FN -> check_fn(self, decl);
+			NodeKind.DECL_IMPL -> check_impl(self, decl);
+			else -> {}
+		}
 	}
 }
