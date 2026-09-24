@@ -134,6 +134,11 @@ pub fn c_type_from_ast(node: *AstNode): str {
 			return "${sub}*";
 		}
 
+		NodeKind.TYPE_NULLABLE -> {
+			val null_t = node.to<NullableType>();
+			return c_type_from_ast(null_t.inner);
+		}
+
 		else -> return "void*";
 	}
 }
@@ -192,6 +197,11 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 
 		NodeKind.EXPR_BINARY -> {
 			val bin = node.to<BinaryExpr>();
+			if (bin.op == TokenType.QUESTION_COLON) {
+				val l = gen_expr(self, bin.left);
+				val r = gen_expr(self, bin.right);
+				return "(${l} != NULL ? ${l} : ${r})";
+			}
 			val l = gen_expr(self, bin.left);
 			val r = gen_expr(self, bin.right);
 			var op_str = "+";
@@ -531,7 +541,7 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			var elem_hint = "";
 			if (vd.type_annotation != null) {
 				ty_str = c_type_from_ast(vd.type_annotation);
-				if (vd.type_annotation.kind == NodeKind.TYPE_POINTER) is_ptr = true;
+				if (vd.type_annotation.kind == NodeKind.TYPE_POINTER || vd.type_annotation.kind == NodeKind.TYPE_NULLABLE) is_ptr = true;
 				// `[T; N]` is emitted as a pointer, and its literal needs the
 				// element type spelled out.
 				if (vd.type_annotation.kind == NodeKind.TYPE_ARRAY) {
@@ -543,7 +553,7 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 				ty_str = infer_type_from_expr(self, vd.initializer);
 				if (vd.initializer.kind == NodeKind.EXPR_CAST) {
 					val cst = vd.initializer.to<CastExpr>();
-					if (cst.target_type != null && cst.target_type.kind == NodeKind.TYPE_POINTER) is_ptr = true;
+					if (cst.target_type != null && (cst.target_type.kind == NodeKind.TYPE_POINTER || cst.target_type.kind == NodeKind.TYPE_NULLABLE)) is_ptr = true;
 				}
 				if (ty_str.len > 0 && ty_str[ty_str.len - 1] == '*') is_ptr = true;
 			}
@@ -554,6 +564,25 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			if (vd.initializer != null && vd.initializer.kind == NodeKind.EXPR_WHEN && when_expr_has_blocks(vd.initializer.to<WhenExpr>())) {
 				var res = "${ind}${ty_str} ${vd.name};\n";
 				res = "${res}${gen_when_with_target(self, vd.initializer.to<WhenExpr>(), vd.name, false)}";
+				return res;
+			}
+
+			if (vd.initializer != null && vd.initializer.kind == NodeKind.EXPR_BINARY && vd.initializer.to<BinaryExpr>().op == TokenType.QUESTION_COLON) {
+				val bin = vd.initializer.to<BinaryExpr>();
+				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+					bin.right.kind == NodeKind.STMT_BREAK ||
+					bin.right.kind == NodeKind.STMT_CONTINUE;
+
+				var res = "${ind}${ty_str} ${vd.name} = ${gen_expr(self, bin.left)};\n";
+				if (is_jump) {
+					res = "${res}${ind}if (${vd.name} == NULL) {\n";
+					self.indent_level = self.indent_level + 1;
+					res = "${res}${gen_statement(self, bin.right)}";
+					self.indent_level = self.indent_level - 1;
+					res = "${res}${ind}}\n";
+				} else {
+					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${gen_expr(self, bin.right)};\n";
+				}
 				return res;
 			}
 
@@ -609,6 +638,40 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 		NodeKind.STMT_EXPR -> {
 			val es = node.to<ExprStmt>();
 			val ind = get_indent(self.indent_level);
+			if (es.expr.kind == NodeKind.EXPR_ASSIGN) {
+				val asg = es.expr.to<AssignExpr>();
+				if (asg.value.kind == NodeKind.EXPR_BINARY && asg.value.to<BinaryExpr>().op == TokenType.QUESTION_COLON) {
+					val bin = asg.value.to<BinaryExpr>();
+					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+						bin.right.kind == NodeKind.STMT_BREAK ||
+						bin.right.kind == NodeKind.STMT_CONTINUE;
+					if (is_jump) {
+						val tgt = gen_expr(self, asg.target);
+						var res = "${ind}${tgt} = ${gen_expr(self, bin.left)};\n";
+						res = "${res}${ind}if (${tgt} == NULL) {\n";
+						self.indent_level = self.indent_level + 1;
+						res = "${res}${gen_statement(self, bin.right)}";
+						self.indent_level = self.indent_level - 1;
+						res = "${res}${ind}}\n";
+						return res;
+					}
+				}
+			}
+			if (es.expr.kind == NodeKind.EXPR_BINARY && es.expr.to<BinaryExpr>().op == TokenType.QUESTION_COLON) {
+				val bin = es.expr.to<BinaryExpr>();
+				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+					bin.right.kind == NodeKind.STMT_BREAK ||
+					bin.right.kind == NodeKind.STMT_CONTINUE;
+
+				if (is_jump) {
+					var res = "${ind}if (${gen_expr(self, bin.left)} == NULL) {\n";
+					self.indent_level = self.indent_level + 1;
+					res = "${res}${gen_statement(self, bin.right)}";
+					self.indent_level = self.indent_level - 1;
+					res = "${res}${ind}}\n";
+					return res;
+				}
+			}
 			return "${ind}${gen_expr(self, es.expr)};\n";
 		}
 

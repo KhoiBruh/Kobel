@@ -35,7 +35,8 @@ pub struct Type {
 
 pub struct PointerType {
 	pub pointee: *Type,
-	pub is_mut: bool
+	pub is_mut: bool,
+	pub is_nullable: bool
 }
 
 pub struct ArrayType {
@@ -210,7 +211,20 @@ pub fn alloc_pointer_type(
 	is_mut: bool
 ): *Type {
 	val ptr_info = arena_alloc<PointerType>(arena);
-	*ptr_info = PointerType(pointee, is_mut);
+	*ptr_info = PointerType(pointee, is_mut, false);
+
+	val t_ptr = arena_alloc<Type>(arena);
+	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
+	return t_ptr;
+}
+
+pub fn alloc_nullable_pointer_type(
+	var arena: &Arena,
+	pointee: *Type,
+	is_mut: bool
+): *Type {
+	val ptr_info = arena_alloc<PointerType>(arena);
+	*ptr_info = PointerType(pointee, is_mut, true);
 
 	val t_ptr = arena_alloc<Type>(arena);
 	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
@@ -326,7 +340,7 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 		DataType.POINTER -> {
 			val p_a = as_pointer_type(a);
 			val p_b = as_pointer_type(b);
-			yield (p_a.is_mut == p_b.is_mut) && type_equals(p_a.pointee, p_b.pointee);
+			yield (p_a.is_mut == p_b.is_mut) && (p_a.is_nullable == p_b.is_nullable) && type_equals(p_a.pointee, p_b.pointee);
 		}
 		DataType.ARRAY -> {
 			val arr_a = as_array_type(a);
@@ -375,23 +389,27 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	// 4. Allow assigning a char/u8 pointer to str
 	if (target.kind == DataType.STR && source.kind == DataType.POINTER) {
 		val s_ptr = as_pointer_type(source);
+		if (s_ptr.is_nullable) return false;
 		if (
 			s_ptr.pointee.kind == DataType.CHAR ||
 			s_ptr.pointee.kind == DataType.U8
 		) return true;
 	}
 
-	// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T
+	// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T,
+	// and allow assigning a non-nullable pointer to a nullable pointer: *T -> *T?
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 		val t_ptr = as_pointer_type(target);
 		val s_ptr = as_pointer_type(source);
-		if (!t_ptr.is_mut && s_ptr.is_mut) return type_equals(t_ptr.pointee, s_ptr.pointee);
-	}
 
-	// 6. Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
-	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
-		val t_ptr = as_pointer_type(target);
-		val s_ptr = as_pointer_type(source);
+		// Nullable pointer cannot be assigned to non-nullable pointer
+		if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
+
+		if (!t_ptr.is_mut || s_ptr.is_mut) {
+			if (type_equals(t_ptr.pointee, s_ptr.pointee)) return true;
+		}
+
+		// Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
 		if (
 			t_ptr.pointee.kind == DataType.U8 ||
 			t_ptr.pointee.kind == DataType.NONE ||
@@ -421,8 +439,9 @@ pub fn type_to_string(ty: *Type): str => when (ty.kind) {
 	DataType.STR -> "str";
 	DataType.POINTER -> {
 		val ptr = as_pointer_type(ty);
-		if (ptr.is_mut) yield "*mut ${type_to_string(ptr.pointee)}";
-		yield "*${type_to_string(ptr.pointee)}";
+		val q = if (ptr.is_nullable) "?" else "";
+		if (ptr.is_mut) yield "*mut ${type_to_string(ptr.pointee)}${q}";
+		yield "*${type_to_string(ptr.pointee)}${q}";
 	}
 	DataType.ARRAY -> {
 		val arr = as_array_type(ty);

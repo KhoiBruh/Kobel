@@ -30,6 +30,7 @@ use compiler.sema.types.type_f32;
 use compiler.sema.types.type_f64;
 use compiler.sema.types.type_str;
 use compiler.sema.types.alloc_pointer_type;
+use compiler.sema.types.alloc_nullable_pointer_type;
 use compiler.sema.types.alloc_array_type;
 use compiler.sema.types.alloc_struct_type;
 use compiler.sema.types.alloc_fn_type;
@@ -200,6 +201,18 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 			val arr_ast = node.to<ArrayType>();
 			val elem = resolve_ast_type(self, arr_ast.element_type);
 			yield alloc_array_type(&self.arena, elem, arr_ast.size);
+		}
+		NodeKind.TYPE_NULLABLE -> {
+			val null_ast = node.to<NullableType>();
+			val inner_ty = resolve_ast_type(self, null_ast.inner);
+			var res_ty = inner_ty;
+			if (inner_ty.kind == DataType.POINTER) {
+				val pt = sem_pointer(inner_ty);
+				res_ty = alloc_nullable_pointer_type(&self.arena, pt.pointee, pt.is_mut);
+			} else {
+				report_error(self, node, "Nullable modifier '?' is only supported on pointer types");
+			}
+			yield res_ty;
 		}
 		else -> alloc_primitive(&self.arena, type_none());
 	};
@@ -781,12 +794,21 @@ pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 			val at = node.to<ArrayType>();
 			yield self.b().array_type(clone_type(self, at.element_type, subst), at.size, node.line, node.col);
 		}
+		NodeKind.TYPE_NULLABLE -> {
+			val nt = node.to<NullableType>();
+			yield self.b().nullable_type(clone_type(self, nt.inner, subst), node.line, node.col);
+		}
 		else -> self.b().named_type("none", List<*AstNode>(), node.line, node.col);
 	};
 }
 
 pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode {
 	if (node == null) return null;
+	if (
+		node.kind == NodeKind.STMT_RETURN ||
+		node.kind == NodeKind.STMT_BREAK ||
+		node.kind == NodeKind.STMT_CONTINUE
+	) return clone_stmt(self, node, subst);
 	return when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
 			val l = node.to<LiteralExpr>();

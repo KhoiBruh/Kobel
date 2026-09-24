@@ -5,6 +5,7 @@ pub enum NodeKind {
 	TYPE_NAMED,
 	TYPE_POINTER,
 	TYPE_ARRAY,
+	TYPE_NULLABLE,
 
 	// Expressions
 	EXPR_LITERAL,

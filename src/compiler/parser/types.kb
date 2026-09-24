@@ -9,19 +9,19 @@ use compiler.parser.parser.*;
 
 use std.collections.list.*;
 
-pub fn parse_type(var self: &Parser): *AstNode {
+pub fn parse_single_type(var self: &Parser): *AstNode {
 	val tok = peek(self);
 	val line = tok.line;
 	val col = tok.col;
 
 	// 1. Pointer type: *T (read-only) or &T (read-write)
 	if (match_token(self, TokenType.STAR)) {
-		val pointee = parse_type(self);
+		val pointee = parse_single_type(self);
 		return self.b().pointer_type(false, pointee, line, col);
 	}
 
 	if (match_token(self, TokenType.AMPERSAND)) {
-		val pointee = parse_type(self);
+		val pointee = parse_single_type(self);
 		return self.b().pointer_type(true, pointee, line, col);
 	}
 
@@ -83,4 +83,12 @@ pub fn parse_type(var self: &Parser): *AstNode {
 	}
 
 	return self.b().named_type(full_name, type_args, line, col);
+}
+
+pub fn parse_type(var self: &Parser): *AstNode {
+	var ty = parse_single_type(self);
+	while (match_token(self, TokenType.QUESTION)) {
+		ty = self.b().nullable_type(ty, ty.line, ty.col);
+	}
+	return ty;
 }

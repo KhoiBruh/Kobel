@@ -53,6 +53,9 @@ impl AstBuilder {
 	pub fn array_type(var self: &AstBuilder, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
 		=> make<ArrayType>(*self, NodeKind.TYPE_ARRAY, ArrayType(elem, size), line, col);
 
+	pub fn nullable_type(var self: &AstBuilder, inner: *AstNode, line: usz, col: usz): *AstNode
+		=> make<NullableType>(*self, NodeKind.TYPE_NULLABLE, NullableType(inner), line, col);
+
 	// ------------------------------------------------------------------------
 	// Expressions
 	// ------------------------------------------------------------------------

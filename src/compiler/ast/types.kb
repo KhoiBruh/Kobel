@@ -17,3 +17,7 @@ pub struct ArrayType {
 	pub element_type: *AstNode,
 	pub size: usz
 }
+
+pub struct NullableType {
+	pub inner: *AstNode
+}

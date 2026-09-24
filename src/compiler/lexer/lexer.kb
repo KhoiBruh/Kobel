@@ -414,6 +414,11 @@ impl Lexer {
 					yield self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
 				}
 
+				'?' -> {
+					if (self.match(':')) yield self.make_token(TokenType.QUESTION_COLON, start_cursor, start_col);
+					yield self.make_token(TokenType.QUESTION, start_cursor, start_col);
+				}
+
 				else -> {
 					if (is_alpha(c) || c == '_') yield self.scan_identifier(start_cursor, start_col);
 					if (is_digit(c)) yield self.scan_number(start_cursor, start_col);

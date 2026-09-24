@@ -18,15 +18,16 @@ use std.collections.list.*;
 
 pub const PREC_NONE: i32 = 0;
 pub const PREC_ASSIGN: i32 = 1;       // =
-pub const PREC_OR: i32 = 2;           // ||
-pub const PREC_AND: i32 = 3;          // &&
-pub const PREC_EQUALITY: i32 = 4;     // ==, !=
-pub const PREC_COMPARISON: i32 = 5;   // <, <=, >, >=
-pub const PREC_TERM: i32 = 6;         // +, -
-pub const PREC_FACTOR: i32 = 7;       // *, /, %
-pub const PREC_UNARY: i32 = 8;        // -, !, *, &, as
-pub const PREC_CALL: i32 = 9;         // ., (), [], <args>()
-pub const PREC_PRIMARY: i32 = 10;
+pub const PREC_ELVIS: i32 = 2;        // ?:
+pub const PREC_OR: i32 = 3;           // ||
+pub const PREC_AND: i32 = 4;          // &&
+pub const PREC_EQUALITY: i32 = 5;     // ==, !=
+pub const PREC_COMPARISON: i32 = 6;   // <, <=, >, >=
+pub const PREC_TERM: i32 = 7;         // +, -
+pub const PREC_FACTOR: i32 = 8;       // *, /, %
+pub const PREC_UNARY: i32 = 9;        // -, !, *, &, as
+pub const PREC_CALL: i32 = 10;        // ., (), [], <args>()
+pub const PREC_PRIMARY: i32 = 11;
 
 // Whether a NUMBER token holds a float: the lexer scans the fractional part
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
@@ -46,6 +47,7 @@ pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 		TokenType.STAR_EQUAL,
 		TokenType.SLASH_EQUAL,
 		TokenType.PERCENT_EQUAL -> return PREC_ASSIGN;
+		TokenType.QUESTION_COLON -> return PREC_ELVIS;
 		TokenType.OR_OR -> return PREC_OR;
 		TokenType.AND_AND -> return PREC_AND;
 		TokenType.EQUAL_EQUAL,
@@ -207,7 +209,32 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 		else -> {}
 	}
 
-	// 2. Member Access: left.member
+	// 2. Elvis operator: left ?: right (right can be expression or jump statement)
+	if (match_token(self, TokenType.QUESTION_COLON)) {
+		var right: *AstNode = null;
+		if (match_token(self, TokenType.KW_RETURN)) {
+			val kw_line = previous(self).line;
+			val kw_col = previous(self).col;
+			var value: *AstNode = null;
+			if (!check(self, TokenType.SEMI_COLON) && !check(self, TokenType.CLOSE_BRACE) && !check(self, TokenType.CLOSE_PAREN)) {
+				value = parse_expression(self, PREC_NONE);
+			}
+			right = self.b().return_stmt(value, kw_line, kw_col);
+		} else if (match_token(self, TokenType.KW_BREAK)) {
+			val kw_line = previous(self).line;
+			val kw_col = previous(self).col;
+			right = self.b().break_stmt(kw_line, kw_col);
+		} else if (match_token(self, TokenType.KW_CONTINUE)) {
+			val kw_line = previous(self).line;
+			val kw_col = previous(self).col;
+			right = self.b().continue_stmt(kw_line, kw_col);
+		} else {
+			right = parse_expression(self, PREC_ELVIS - 1);
+		}
+		return self.b().binary(TokenType.QUESTION_COLON, left, right, line, col);
+	}
+
+	// 3. Member Access: left.member
 	if (match_token(self, TokenType.DOT)) {
 		val member_tok = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.'");
 		return self.b().member(left, member_tok.text, line, col);

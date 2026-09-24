@@ -218,6 +218,33 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 		NodeKind.EXPR_BINARY -> {
 			val bin = node.to<BinaryExpr>();
+			if (bin.op == TokenType.QUESTION_COLON) {
+				val lt = check_expr(self, bin.left);
+				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR) {
+					report_error(self, bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
+				}
+				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+					bin.right.kind == NodeKind.STMT_BREAK ||
+					bin.right.kind == NodeKind.STMT_CONTINUE;
+
+				if (is_jump) {
+					check_statement(self, bin.right);
+				} else {
+					val rt = check_expr(self, bin.right);
+					if (!can_assign(lt, rt)) {
+						report_error(self, bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
+					}
+				}
+
+				if (lt.kind == DataType.POINTER) {
+					val pt = sem_pointer(lt);
+					if (pt.is_nullable) {
+						return alloc_pointer_type(&self.arena, pt.pointee, pt.is_mut);
+					}
+				}
+				return lt;
+			}
+
 			val lt = check_expr(self, bin.left);
 			val rt = check_expr(self, bin.right);
 
@@ -1353,7 +1380,9 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 	return when (ty.kind) {
 		DataType.POINTER -> {
 			val pt = sem_pointer(ty);
-			yield b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
+			val base_ptr = b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
+			if (pt.is_nullable) yield b.nullable_type(base_ptr, 0, 0);
+			yield base_ptr;
 		}
 		DataType.ARRAY -> {
 			val at = sem_array(ty);
