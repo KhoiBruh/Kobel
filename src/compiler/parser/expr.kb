@@ -40,7 +40,12 @@ pub fn num_literal_is_float(text: str): bool {
 
 pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 	when (t) {
-		TokenType.EQUAL -> return PREC_ASSIGN;
+		TokenType.EQUAL,
+		TokenType.PLUS_EQUAL,
+		TokenType.MINUS_EQUAL,
+		TokenType.STAR_EQUAL,
+		TokenType.SLASH_EQUAL,
+		TokenType.PERCENT_EQUAL -> return PREC_ASSIGN;
 		TokenType.OR_OR -> return PREC_OR;
 		TokenType.AND_AND -> return PREC_AND;
 		TokenType.EQUAL_EQUAL,
@@ -187,10 +192,19 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 	val line = tok.line;
 	val col = tok.col;
 
-	// 1. Assignment: left = right (right-associative)
-	if (match_token(self, TokenType.EQUAL)) {
-		val right = parse_expression(self, PREC_ASSIGN - 1);
-		return self.b().assign(left, right, line, col);
+	// 1. Assignment: left = right, left += right, ... (right-associative)
+	when (tok.type) {
+		TokenType.EQUAL,
+		TokenType.PLUS_EQUAL,
+		TokenType.MINUS_EQUAL,
+		TokenType.STAR_EQUAL,
+		TokenType.SLASH_EQUAL,
+		TokenType.PERCENT_EQUAL -> {
+			val op_tok = advance(self);
+			val right = parse_expression(self, PREC_ASSIGN - 1);
+			return self.b().compound_assign(op_tok.type, left, right, line, col);
+		}
+		else -> {}
 	}
 
 	// 2. Member Access: left.member

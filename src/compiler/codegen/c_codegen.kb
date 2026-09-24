@@ -320,7 +320,15 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 
 		NodeKind.EXPR_ASSIGN -> {
 			val asgn = node.to<AssignExpr>();
-			return "${gen_expr(self, asgn.target)} = ${gen_expr(self, asgn.value)}";
+			val op_str = when (asgn.op) {
+				TokenType.PLUS_EQUAL -> "+=",
+				TokenType.MINUS_EQUAL -> "-=",
+				TokenType.STAR_EQUAL -> "*=",
+				TokenType.SLASH_EQUAL -> "/=",
+				TokenType.PERCENT_EQUAL -> "%=",
+				else -> "="
+			};
+			return "${gen_expr(self, asgn.target)} ${op_str} ${gen_expr(self, asgn.value)}";
 		}
 
 		NodeKind.EXPR_CAST -> {

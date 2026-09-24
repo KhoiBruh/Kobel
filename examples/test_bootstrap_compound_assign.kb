@@ -1,0 +1,95 @@
+mod examples.test_bootstrap_compound_assign;
+
+use std.io.*;
+
+struct Counter {
+	pub count: i32
+}
+
+fn test_numeric_compound_assign(): bool {
+	var x: i32 = 10;
+	x += 5;
+	if (x != 15) return false;
+
+	x -= 3;
+	if (x != 12) return false;
+
+	x *= 2;
+	if (x != 24) return false;
+
+	x /= 4;
+	if (x != 6) return false;
+
+	x %= 4;
+	if (x != 2) return false;
+
+	return true;
+}
+
+fn test_str_compound_assign(): bool {
+	var s: str = "hello";
+	s += " ";
+	s += "world";
+	if (s != "hello world") return false;
+
+	s += "!";
+	if (s != "hello world!") return false;
+
+	return true;
+}
+
+fn test_loop_compound_assign(): bool {
+	var total: i32 = 0;
+	for (i in 0..<5) {
+		total += i;
+	}
+	// 0 + 1 + 2 + 3 + 4 = 10
+	if (total != 10) return false;
+
+	return true;
+}
+
+fn test_struct_field_compound_assign(): bool {
+	var c = Counter(10);
+	c.count += 5;
+	if (c.count != 15) return false;
+
+	c.count -= 2;
+	if (c.count != 13) return false;
+
+	c.count *= 3;
+	if (c.count != 39) return false;
+
+	return true;
+}
+
+fn main(): i32 {
+	println("--- Testing Compound Assignment ---");
+
+	if (!test_numeric_compound_assign()) {
+		println("FAILED: test_numeric_compound_assign");
+		return 1;
+	}
+	println("PASS: test_numeric_compound_assign");
+
+	if (!test_str_compound_assign()) {
+		println("FAILED: test_str_compound_assign");
+		return 1;
+	}
+	println("PASS: test_str_compound_assign");
+
+	if (!test_loop_compound_assign()) {
+		println("FAILED: test_loop_compound_assign");
+		return 1;
+	}
+	println("PASS: test_loop_compound_assign");
+
+	if (!test_struct_field_compound_assign()) {
+		println("FAILED: test_struct_field_compound_assign");
+		return 1;
+	}
+	println("PASS: test_struct_field_compound_assign");
+
+	println("All compound assignment tests PASSED!");
+	return 0;
+}

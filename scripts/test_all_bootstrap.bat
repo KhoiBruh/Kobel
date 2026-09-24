@@ -9,7 +9,7 @@ set "FAILED_TESTS="
 set "PASS_COUNT=0"
 set "FAIL_COUNT=0"
 
-set "TEST_FILES=examples\test_bootstrap_lexer.kb examples\test_bootstrap_ast.kb examples\test_bootstrap_parser.kb examples\test_bootstrap_sema_types.kb examples\test_bootstrap_sema_symbol.kb examples\test_bootstrap_sema_decl.kb examples\test_bootstrap_sema_body.kb examples\test_bootstrap_codegen.kb examples\test_bootstrap_for.kb examples\test_bootstrap_interp.kb examples\test_bootstrap_trait.kb examples\test_bootstrap_fmt.kb examples\test_bootstrap_when_yield.kb examples\std_demo.kb"
+set "TEST_FILES=examples\test_bootstrap_lexer.kb examples\test_bootstrap_ast.kb examples\test_bootstrap_parser.kb examples\test_bootstrap_sema_types.kb examples\test_bootstrap_sema_symbol.kb examples\test_bootstrap_sema_decl.kb examples\test_bootstrap_sema_body.kb examples\test_bootstrap_codegen.kb examples\test_bootstrap_for.kb examples\test_bootstrap_interp.kb examples\test_bootstrap_trait.kb examples\test_bootstrap_fmt.kb examples\test_bootstrap_when_yield.kb examples\test_bootstrap_compound_assign.kb examples\std_demo.kb"
 
 for %%F in (%TEST_FILES%) do (
     if exist "%%F" (

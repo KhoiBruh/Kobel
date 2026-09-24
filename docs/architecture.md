@@ -209,6 +209,7 @@ chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cậ
 | `Type(args)` | gọi overload `new` cùng arity nếu kiểu có (`Struct_new_<n>(args)`), ngược lại dựng theo field `(Struct){…}` |
 | `Self(args)` trong `impl` | dựng **thô** theo field, **bỏ qua** bước gọi `new` ở trên |
 | `a + b` với `a: str` | `kobel_concat(a, b)` |
+| `a += b` với `a: str` | `a = kobel_concat(a, b)` |
 | `a == b` / `a != b` với `str` | `kobel_streq(a, b)` / `!kobel_streq(a, b)` |
 | `s.len` / `s.size` (`s: str`) | `kobel_slen(s)` |
 | `s.slice(a, b)` | `kobel_slice(s, a, b)` (`b` mặc định `kobel_slen(s)`) |
@@ -474,6 +475,7 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   stream động trong lexer/parser, hoặc nhân đôi dung lượng theo cấp số nhân).
 - **AST Builder & Node Downcast**: struct `AstBuilder { arena: &Arena }` (trong `compiler.ast.builder`) đóng gói việc cấp phát toàn bộ các node AST (`b.literal(...)`, `b.binary(...)`, `b.fn_decl(...)`...), loại bỏ tham số `&Arena` lặp lại ở từng lời gọi; `Parser`, `DeclPass`, `BodyPass`, `ModuleLoader` cung cấp `.b()` để tạo/truy cập builder. Hỗ trợ hàm generic downcast `node.to<T>()` và hàm generic factory `make<T>(b, ...)` / `b.make<T>(kind, data, line, col)` (desugar tự động sang monomorphized generic call), giúp thu gọn toàn bộ các hàm ép kiểu và cấp phát riêng lẻ (`node.to<LiteralExpr>()`, `b.make<BinaryExpr>(...)`...). Toàn bộ 50 hàm cấp phát tự do cũ `alloc_*(&arena, ...)` và 74 hàm/method downcast cũ (`as_*` / `node.as_*`) đã được xóa sổ hoàn toàn khỏi codebase; toàn bộ các method của `AstBuilder` được rút gọn thành 1-liner expression body ủy quyền qua `make<T>(*self, ...)`.
 - **`yield` trong biểu thức `when`**: Hỗ trợ từ khóa `yield <expr>;` bên trong các nhánh block `{ ... }` của biểu thức `when` (pattern matching). Cho phép một nhánh thực hiện tính toán nhiều bước với biến cục bộ trước khi sinh ra giá trị trả về cho biểu thức (`val x = when (...) { ... yield res; }` hoặc `return when (...) { ... yield res; }` / `fn f() => when (...) { ... yield res; }`). Codegen tự động hạ cấp cấu trúc `when` phức tạp thành chuỗi `if-else` C99 tối ưu và chuẩn xác.
+- **Toán tử gán kết hợp (`+=`, `-=`, `*=`, `/=`, `%=`)**: Hỗ trợ đầy đủ cho các kiểu số học và nối chuỗi (`str += str` được sema tự động hạ thành `kobel_concat`). Backend C99 phát sinh trực tiếp các toán tử gán kết hợp tương ứng; toán tử được lưu trữ trong `AssignExpr.op` (`TokenType`). Đã được xác nhận đạt chuẩn self-host fixpoint 100%.
 - **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
   (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.

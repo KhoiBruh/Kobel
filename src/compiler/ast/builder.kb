@@ -79,7 +79,10 @@ impl AstBuilder {
 		=> make<IndexExpr>(*self, NodeKind.EXPR_INDEX, IndexExpr(target, index), line, col);
 
 	pub fn assign(var self: &AstBuilder, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> make<AssignExpr>(*self, NodeKind.EXPR_ASSIGN, AssignExpr(target, value), line, col);
+		=> make<AssignExpr>(*self, NodeKind.EXPR_ASSIGN, AssignExpr(target, TokenType.EQUAL, value), line, col);
+
+	pub fn compound_assign(var self: &AstBuilder, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
+		=> make<AssignExpr>(*self, NodeKind.EXPR_ASSIGN, AssignExpr(target, op, value), line, col);
 
 	pub fn cast(var self: &AstBuilder, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
 		=> make<CastExpr>(*self, NodeKind.EXPR_CAST, CastExpr(expr, target_type), line, col);

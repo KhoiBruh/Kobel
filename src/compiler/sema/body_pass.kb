@@ -569,6 +569,23 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val target_ty = check_expr(self, asgn.target);
 			val val_ty = check_expr(self, asgn.value);
 
+			// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
+			if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
+				var cat_args = List<*AstNode>();
+				cat_args.add(asgn.target);
+				cat_args.add(asgn.value);
+				val cat_call = self.b().call(self.b().identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+				asgn.value = cat_call;
+				asgn.op = TokenType.EQUAL;
+				return target_ty;
+			}
+
+			if (asgn.op != TokenType.EQUAL) {
+				if (!is_numeric(target_ty) || !is_numeric(val_ty)) {
+					report_error(self, node, "Compound assignment operator requires numeric operands");
+				}
+			}
+
 			if (!can_assign(target_ty, val_ty)) report_error(self, node, "Type mismatch in assignment");
 			return target_ty;
 		}

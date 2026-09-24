@@ -336,9 +336,18 @@ impl Lexer {
 				'}' -> self.make_token(TokenType.CLOSE_BRACE, start_cursor, start_col);
 				'[' -> self.make_token(TokenType.OPEN_BRACKET, start_cursor, start_col);
 				']' -> self.make_token(TokenType.CLOSE_BRACKET, start_cursor, start_col);
-				'%' -> self.make_token(TokenType.PERCENT, start_cursor, start_col);
-				'+' -> self.make_token(TokenType.PLUS, start_cursor, start_col);
-				'*' -> self.make_token(TokenType.STAR, start_cursor, start_col);
+				'%' -> {
+					if (self.match('=')) yield self.make_token(TokenType.PERCENT_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.PERCENT, start_cursor, start_col);
+				}
+				'+' -> {
+					if (self.match('=')) yield self.make_token(TokenType.PLUS_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.PLUS, start_cursor, start_col);
+				}
+				'*' -> {
+					if (self.match('=')) yield self.make_token(TokenType.STAR_EQUAL, start_cursor, start_col);
+					yield self.make_token(TokenType.STAR, start_cursor, start_col);
+				}
 				'"' -> self.scan_string(start_cursor, start_col);
 				'\'' -> self.scan_char(start_cursor, start_col);
 
@@ -349,6 +358,7 @@ impl Lexer {
 				}
 
 				'-' -> {
+					if (self.match('=')) yield self.make_token(TokenType.MINUS_EQUAL, start_cursor, start_col);
 					if (self.match('>')) yield self.make_token(TokenType.ARROW, start_cursor, start_col);
 					yield self.make_token(TokenType.MINUS, start_cursor, start_col);
 				}
@@ -375,6 +385,7 @@ impl Lexer {
 						}
 						continue;
 					}
+					if (self.match('=')) yield self.make_token(TokenType.SLASH_EQUAL, start_cursor, start_col);
 					yield self.make_token(TokenType.SLASH, start_cursor, start_col);
 				}
 

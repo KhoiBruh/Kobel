@@ -895,7 +895,8 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 		}
 		NodeKind.EXPR_ASSIGN -> {
 			val a = node.to<AssignExpr>();
-			yield self.b().assign(
+			yield self.b().compound_assign(
+				a.op,
 				clone_expr(self, a.target, subst),
 				clone_expr(self, a.value, subst),
 				node.line, node.col
