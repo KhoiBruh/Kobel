@@ -117,7 +117,7 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 ### 3.4 Đơn vị dữ liệu trung tâm
 
 - **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
-  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). Payload truy cập qua `to<T>()` / `as_*` (downcast), tạo qua `AstBuilder` (`b.*`) hoặc generic factory `b.make<T>()`.
+  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). Payload truy cập qua generic downcast `node.to<T>()`, tạo qua `AstBuilder` (`b.*`) hoặc generic factory `b.make<T>()`. Toàn bộ các method của `AstBuilder` được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
 - **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data }` với `data` trỏ tới payload
   (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`). `DataType = VOID→NONE | … | STRUCT | FN`.
 - **Bảng ký hiệu** (`sema/symbol.kb`): scope lồng nhau + module scope + import + registry enum + registry generic.
@@ -472,7 +472,7 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
   `c_codegen`, `parser`), stdlib (`to_str`, `io`, `string_builder`, `hash_map`) và test suite; các vòng
   `while` còn lại đều là nhóm đặc thù có lý do giữ lại (bước nhảy biến động phân tích CLI, tiêu thụ token
   stream động trong lexer/parser, hoặc nhân đôi dung lượng theo cấp số nhân).
-- **AST Builder & Node Downcast**: struct `AstBuilder { arena: &Arena }` (trong `compiler.ast.builder`) đóng gói việc cấp phát toàn bộ các node AST (`b.literal(...)`, `b.binary(...)`, `b.fn_decl(...)`...), loại bỏ tham số `&Arena` lặp lại ở từng lời gọi; `Parser`, `DeclPass`, `BodyPass`, `ModuleLoader` cung cấp `.b()` để tạo/truy cập builder. Hỗ trợ hàm generic downcast `to<T>(node)` / `node.to<T>()` và hàm generic factory `make<T>(b, ...)` / `b.make<T>(kind, data, line, col)` (desugar tự động sang monomorphized generic call), giúp thu gọn toàn bộ các hàm ép kiểu và cấp phát riêng lẻ (`node.to<LiteralExpr>()`, `b.make<BinaryExpr>(...)`...). Toàn bộ các hàm cấp phát tự do cũ `alloc_*(&arena, ...)` đã được loại bỏ hoàn toàn khỏi codebase; các phương thức downcast `node.as_*()` và hàm helper `as_*(node)` được giữ lại để tiện sử dụng.
+- **AST Builder & Node Downcast**: struct `AstBuilder { arena: &Arena }` (trong `compiler.ast.builder`) đóng gói việc cấp phát toàn bộ các node AST (`b.literal(...)`, `b.binary(...)`, `b.fn_decl(...)`...), loại bỏ tham số `&Arena` lặp lại ở từng lời gọi; `Parser`, `DeclPass`, `BodyPass`, `ModuleLoader` cung cấp `.b()` để tạo/truy cập builder. Hỗ trợ hàm generic downcast `node.to<T>()` và hàm generic factory `make<T>(b, ...)` / `b.make<T>(kind, data, line, col)` (desugar tự động sang monomorphized generic call), giúp thu gọn toàn bộ các hàm ép kiểu và cấp phát riêng lẻ (`node.to<LiteralExpr>()`, `b.make<BinaryExpr>(...)`...). Toàn bộ 50 hàm cấp phát tự do cũ `alloc_*(&arena, ...)` và 74 hàm/method downcast cũ (`as_*` / `node.as_*`) đã được xóa sổ hoàn toàn khỏi codebase; toàn bộ các method của `AstBuilder` được rút gọn thành 1-liner expression body ủy quyền qua `make<T>(*self, ...)`.
 - **Generic method** (`impl S { fn f<T>() }`) **không** được hỗ trợ: tham số `T` rò nguyên vào C
   (`error C2065: 'T' undeclared`). Vì vậy cấp phát có kiểu phải là **free generic function**
   (`alloc<T>(&arena)`), không thể là method `arena.alloc<T>()`.

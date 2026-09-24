@@ -12,23 +12,29 @@ use std.mem.arena.Arena;
 use std.mem.arena.arena_alloc;
 
 // ============================================================================
-// AstBuilder Struct & Methods
+// AstBuilder Struct & Generic Factory
 // ============================================================================
 
 pub struct AstBuilder {
 	pub arena: &Arena
 }
 
+// Generic Node Factory: make<T>(b, kind, data, line, col)
+pub fn make<T>(b: AstBuilder, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
+	val ptr = arena_alloc<T>(b.arena);
+	*ptr = data;
+	val node_ptr = arena_alloc<AstNode>(b.arena);
+	*node_ptr = AstNode(kind, line, col, ptr as *u8);
+	return node_ptr;
+}
+
+// Generic Downcast Helper: node.to<T>()
+pub fn to<T>(node: *AstNode): *T => node.data as *T;
+
 impl AstBuilder {
 	pub fn new(arena: &Arena): AstBuilder => Self(arena);
 
-	pub fn node(
-		var self: &AstBuilder,
-		kind: NodeKind,
-		line: usz,
-		col: usz,
-		data: *u8
-	): *AstNode {
+	pub fn node(var self: &AstBuilder, kind: NodeKind, line: usz, col: usz, data: *u8): *AstNode {
 		val ptr = arena_alloc<AstNode>(self.arena);
 		*ptr = AstNode(kind, line, col, data);
 		return ptr;
@@ -38,495 +44,126 @@ impl AstBuilder {
 	// Types
 	// ------------------------------------------------------------------------
 
-	pub fn named_type(
-		var self: &AstBuilder,
-		name: str,
-		type_args: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<NamedType>(self.arena);
-		*ptr = NamedType(name, type_args);
-		return self.node(NodeKind.TYPE_NAMED, line, col, ptr as *u8);
-	}
+	pub fn named_type(var self: &AstBuilder, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<NamedType>(*self, NodeKind.TYPE_NAMED, NamedType(name, type_args), line, col);
 
-	pub fn pointer_type(
-		var self: &AstBuilder,
-		is_mut: bool,
-		pointee: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<PointerType>(self.arena);
-		*ptr = PointerType(is_mut, pointee);
-		return self.node(NodeKind.TYPE_POINTER, line, col, ptr as *u8);
-	}
+	pub fn pointer_type(var self: &AstBuilder, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
+		=> make<PointerType>(*self, NodeKind.TYPE_POINTER, PointerType(is_mut, pointee), line, col);
 
-	pub fn array_type(
-		var self: &AstBuilder,
-		elem: *AstNode,
-		size: usz,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ArrayType>(self.arena);
-		*ptr = ArrayType(elem, size);
-		return self.node(NodeKind.TYPE_ARRAY, line, col, ptr as *u8);
-	}
+	pub fn array_type(var self: &AstBuilder, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
+		=> make<ArrayType>(*self, NodeKind.TYPE_ARRAY, ArrayType(elem, size), line, col);
 
 	// ------------------------------------------------------------------------
 	// Expressions
 	// ------------------------------------------------------------------------
 
-	pub fn literal(
-		var self: &AstBuilder,
-		lk: LiteralKind,
-		raw: str,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<LiteralExpr>(self.arena);
-		*ptr = LiteralExpr(lk, raw);
-		return self.node(NodeKind.EXPR_LITERAL, line, col, ptr as *u8);
-	}
+	pub fn literal(var self: &AstBuilder, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
+		=> make<LiteralExpr>(*self, NodeKind.EXPR_LITERAL, LiteralExpr(lk, raw), line, col);
 
-	pub fn identifier(
-		var self: &AstBuilder,
-		name: str,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<IdentifierExpr>(self.arena);
-		*ptr = IdentifierExpr(name);
-		return self.node(NodeKind.EXPR_IDENTIFIER, line, col, ptr as *u8);
-	}
+	pub fn identifier(var self: &AstBuilder, name: str, line: usz, col: usz): *AstNode
+		=> make<IdentifierExpr>(*self, NodeKind.EXPR_IDENTIFIER, IdentifierExpr(name), line, col);
 
-	pub fn binary(
-		var self: &AstBuilder,
-		op: TokenType,
-		left: *AstNode,
-		right: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<BinaryExpr>(self.arena);
-		*ptr = BinaryExpr(left, op, right);
-		return self.node(NodeKind.EXPR_BINARY, line, col, ptr as *u8);
-	}
+	pub fn binary(var self: &AstBuilder, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
+		=> make<BinaryExpr>(*self, NodeKind.EXPR_BINARY, BinaryExpr(left, op, right), line, col);
 
-	pub fn unary(
-		var self: &AstBuilder,
-		op: TokenType,
-		operand: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<UnaryExpr>(self.arena);
-		*ptr = UnaryExpr(op, operand);
-		return self.node(NodeKind.EXPR_UNARY, line, col, ptr as *u8);
-	}
+	pub fn unary(var self: &AstBuilder, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
+		=> make<UnaryExpr>(*self, NodeKind.EXPR_UNARY, UnaryExpr(op, operand), line, col);
 
-	pub fn call(
-		var self: &AstBuilder,
-		callee: *AstNode,
-		args: List<*AstNode>,
-		type_args: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<CallExpr>(self.arena);
-		*ptr = CallExpr(callee, args, type_args);
-		return self.node(NodeKind.EXPR_CALL, line, col, ptr as *u8);
-	}
+	pub fn call(var self: &AstBuilder, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<CallExpr>(*self, NodeKind.EXPR_CALL, CallExpr(callee, args, type_args), line, col);
 
-	pub fn member(
-		var self: &AstBuilder,
-		obj: *AstNode,
-		member: str,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<MemberExpr>(self.arena);
-		*ptr = MemberExpr(obj, member);
-		return self.node(NodeKind.EXPR_MEMBER, line, col, ptr as *u8);
-	}
+	pub fn member(var self: &AstBuilder, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
+		=> make<MemberExpr>(*self, NodeKind.EXPR_MEMBER, MemberExpr(obj, member), line, col);
 
-	pub fn index(
-		var self: &AstBuilder,
-		target: *AstNode,
-		index: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<IndexExpr>(self.arena);
-		*ptr = IndexExpr(target, index);
-		return self.node(NodeKind.EXPR_INDEX, line, col, ptr as *u8);
-	}
+	pub fn index(var self: &AstBuilder, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
+		=> make<IndexExpr>(*self, NodeKind.EXPR_INDEX, IndexExpr(target, index), line, col);
 
-	pub fn assign(
-		var self: &AstBuilder,
-		target: *AstNode,
-		value: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<AssignExpr>(self.arena);
-		*ptr = AssignExpr(target, value);
-		return self.node(NodeKind.EXPR_ASSIGN, line, col, ptr as *u8);
-	}
+	pub fn assign(var self: &AstBuilder, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
+		=> make<AssignExpr>(*self, NodeKind.EXPR_ASSIGN, AssignExpr(target, value), line, col);
 
-	pub fn cast(
-		var self: &AstBuilder,
-		expr: *AstNode,
-		target_type: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<CastExpr>(self.arena);
-		*ptr = CastExpr(expr, target_type);
-		return self.node(NodeKind.EXPR_CAST, line, col, ptr as *u8);
-	}
+	pub fn cast(var self: &AstBuilder, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
+		=> make<CastExpr>(*self, NodeKind.EXPR_CAST, CastExpr(expr, target_type), line, col);
 
-	pub fn group(
-		var self: &AstBuilder,
-		expr: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<GroupExpr>(self.arena);
-		*ptr = GroupExpr(expr);
-		return self.node(NodeKind.EXPR_GROUP, line, col, ptr as *u8);
-	}
+	pub fn group(var self: &AstBuilder, expr: *AstNode, line: usz, col: usz): *AstNode
+		=> make<GroupExpr>(*self, NodeKind.EXPR_GROUP, GroupExpr(expr), line, col);
 
-	pub fn array_literal(
-		var self: &AstBuilder,
-		elements: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ArrayLiteralExpr>(self.arena);
-		*ptr = ArrayLiteralExpr(elements);
-		return self.node(NodeKind.EXPR_ARRAY_LITERAL, line, col, ptr as *u8);
-	}
+	pub fn array_literal(var self: &AstBuilder, elements: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<ArrayLiteralExpr>(*self, NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements), line, col);
 
-	pub fn if_expr(
-		var self: &AstBuilder,
-		condition: *AstNode,
-		then_branch: *AstNode,
-		else_branch: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<IfExpr>(self.arena);
-		*ptr = IfExpr(condition, then_branch, else_branch);
-		return self.node(NodeKind.EXPR_IF, line, col, ptr as *u8);
-	}
+	pub fn if_expr(var self: &AstBuilder, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
+		=> make<IfExpr>(*self, NodeKind.EXPR_IF, IfExpr(condition, then_branch, else_branch), line, col);
 
-	pub fn when_expr(
-		var self: &AstBuilder,
-		condition: *AstNode,
-		arms: List<WhenArm>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<WhenExpr>(self.arena);
-		*ptr = WhenExpr(condition, arms);
-		return self.node(NodeKind.EXPR_WHEN, line, col, ptr as *u8);
-	}
+	pub fn when_expr(var self: &AstBuilder, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
+		=> make<WhenExpr>(*self, NodeKind.EXPR_WHEN, WhenExpr(condition, arms), line, col);
 
-	pub fn interp(
-		var self: &AstBuilder,
-		parts: List<InterpPart>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<InterpExpr>(self.arena);
-		*ptr = InterpExpr(parts);
-		return self.node(NodeKind.EXPR_INTERP, line, col, ptr as *u8);
-	}
+	pub fn interp(var self: &AstBuilder, parts: List<InterpPart>, line: usz, col: usz): *AstNode
+		=> make<InterpExpr>(*self, NodeKind.EXPR_INTERP, InterpExpr(parts), line, col);
 
 	// ------------------------------------------------------------------------
 	// Statements
 	// ------------------------------------------------------------------------
 
-	pub fn block_stmt(
-		var self: &AstBuilder,
-		statements: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<BlockStmt>(self.arena);
-		*ptr = BlockStmt(statements);
-		return self.node(NodeKind.STMT_BLOCK, line, col, ptr as *u8);
-	}
+	pub fn block_stmt(var self: &AstBuilder, statements: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<BlockStmt>(*self, NodeKind.STMT_BLOCK, BlockStmt(statements), line, col);
 
-	pub fn expr_stmt(
-		var self: &AstBuilder,
-		expr: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ExprStmt>(self.arena);
-		*ptr = ExprStmt(expr);
-		return self.node(NodeKind.STMT_EXPR, line, col, ptr as *u8);
-	}
+	pub fn expr_stmt(var self: &AstBuilder, expr: *AstNode, line: usz, col: usz): *AstNode
+		=> make<ExprStmt>(*self, NodeKind.STMT_EXPR, ExprStmt(expr), line, col);
 
-	pub fn var_decl(
-		var self: &AstBuilder,
-		is_mut: bool,
-		name: str,
-		type_annotation: *AstNode,
-		initializer: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<VarDeclStmt>(self.arena);
-		*ptr = VarDeclStmt(is_mut, name, type_annotation, initializer);
-		return self.node(NodeKind.STMT_VAR_DECL, line, col, ptr as *u8);
-	}
+	pub fn var_decl(var self: &AstBuilder, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
+		=> make<VarDeclStmt>(*self, NodeKind.STMT_VAR_DECL, VarDeclStmt(is_mut, name, type_annotation, initializer), line, col);
 
-	pub fn if_stmt(
-		var self: &AstBuilder,
-		condition: *AstNode,
-		then_branch: *AstNode,
-		else_branch: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<IfStmt>(self.arena);
-		*ptr = IfStmt(condition, then_branch, else_branch);
-		return self.node(NodeKind.STMT_IF, line, col, ptr as *u8);
-	}
+	pub fn if_stmt(var self: &AstBuilder, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
+		=> make<IfStmt>(*self, NodeKind.STMT_IF, IfStmt(condition, then_branch, else_branch), line, col);
 
-	pub fn while_stmt(
-		var self: &AstBuilder,
-		condition: *AstNode,
-		body: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<WhileStmt>(self.arena);
-		*ptr = WhileStmt(condition, body);
-		return self.node(NodeKind.STMT_WHILE, line, col, ptr as *u8);
-	}
+	pub fn while_stmt(var self: &AstBuilder, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
+		=> make<WhileStmt>(*self, NodeKind.STMT_WHILE, WhileStmt(condition, body), line, col);
 
-	pub fn for_stmt(
-		var self: &AstBuilder,
-		var_name: str,
-		is_range: bool,
-		is_open: bool,
-		is_half_open: bool,
-		iterable: *AstNode,
-		range_start: *AstNode,
-		range_end: *AstNode,
-		body: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ForStmt>(self.arena);
-		*ptr = ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body);
-		return self.node(NodeKind.STMT_FOR, line, col, ptr as *u8);
-	}
+	pub fn for_stmt(var self: &AstBuilder, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
+		=> make<ForStmt>(*self, NodeKind.STMT_FOR, ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body), line, col);
 
-	pub fn return_stmt(
-		var self: &AstBuilder,
-		value: *AstNode,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ReturnStmt>(self.arena);
-		*ptr = ReturnStmt(value);
-		return self.node(NodeKind.STMT_RETURN, line, col, ptr as *u8);
-	}
+	pub fn return_stmt(var self: &AstBuilder, value: *AstNode, line: usz, col: usz): *AstNode
+		=> make<ReturnStmt>(*self, NodeKind.STMT_RETURN, ReturnStmt(value), line, col);
 
-	pub fn break_stmt(
-		var self: &AstBuilder,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<BreakStmt>(self.arena);
-		*ptr = BreakStmt(0);
-		return self.node(NodeKind.STMT_BREAK, line, col, ptr as *u8);
-	}
+	pub fn break_stmt(var self: &AstBuilder, line: usz, col: usz): *AstNode
+		=> make<BreakStmt>(*self, NodeKind.STMT_BREAK, BreakStmt(0), line, col);
 
-	pub fn continue_stmt(
-		var self: &AstBuilder,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ContinueStmt>(self.arena);
-		*ptr = ContinueStmt(0);
-		return self.node(NodeKind.STMT_CONTINUE, line, col, ptr as *u8);
-	}
+	pub fn continue_stmt(var self: &AstBuilder, line: usz, col: usz): *AstNode
+		=> make<ContinueStmt>(*self, NodeKind.STMT_CONTINUE, ContinueStmt(0), line, col);
 
-	pub fn when_stmt(
-		var self: &AstBuilder,
-		condition: *AstNode,
-		arms: List<WhenStmtArm>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<WhenStmt>(self.arena);
-		*ptr = WhenStmt(condition, arms);
-		return self.node(NodeKind.STMT_WHEN, line, col, ptr as *u8);
-	}
+	pub fn when_stmt(var self: &AstBuilder, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
+		=> make<WhenStmt>(*self, NodeKind.STMT_WHEN, WhenStmt(condition, arms), line, col);
 
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------
 
-	pub fn module_decl(
-		var self: &AstBuilder,
-		path: List<str>,
-		full_path: str,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ModuleDecl>(self.arena);
-		*ptr = ModuleDecl(path, full_path);
-		return self.node(NodeKind.DECL_MODULE, line, col, ptr as *u8);
-	}
+	pub fn module_decl(var self: &AstBuilder, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
+		=> make<ModuleDecl>(*self, NodeKind.DECL_MODULE, ModuleDecl(path, full_path), line, col);
 
-	pub fn use_decl(
-		var self: &AstBuilder,
-		path: List<str>,
-		full_path: str,
-		symbol_name: str,
-		alias: str,
-		is_wildcard: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<UseDecl>(self.arena);
-		*ptr = UseDecl(path, full_path, symbol_name, alias, is_wildcard);
-		return self.node(NodeKind.DECL_USE, line, col, ptr as *u8);
-	}
+	pub fn use_decl(var self: &AstBuilder, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
+		=> make<UseDecl>(*self, NodeKind.DECL_USE, UseDecl(path, full_path, symbol_name, alias, is_wildcard), line, col);
 
-	pub fn fn_decl(
-		var self: &AstBuilder,
-		name: str,
-		type_params: List<GenericParam>,
-		params: List<Param>,
-		return_type: *AstNode,
-		body: *AstNode,
-		is_pub: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<FnDecl>(self.arena);
-		*ptr = FnDecl(name, type_params, params, return_type, body, is_pub);
-		return self.node(NodeKind.DECL_FN, line, col, ptr as *u8);
-	}
+	pub fn fn_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
+		=> make<FnDecl>(*self, NodeKind.DECL_FN, FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
 
-	pub fn struct_decl(
-		var self: &AstBuilder,
-		name: str,
-		type_params: List<GenericParam>,
-		fields: List<StructField>,
-		is_pub: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<StructDecl>(self.arena);
-		*ptr = StructDecl(name, type_params, fields, is_pub);
-		return self.node(NodeKind.DECL_STRUCT, line, col, ptr as *u8);
-	}
+	pub fn struct_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
+		=> make<StructDecl>(*self, NodeKind.DECL_STRUCT, StructDecl(name, type_params, fields, is_pub), line, col);
 
-	pub fn trait_decl(
-		var self: &AstBuilder,
-		name: str,
-		type_params: List<GenericParam>,
-		bases: List<str>,
-		methods: List<*AstNode>,
-		is_pub: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<TraitDecl>(self.arena);
-		*ptr = TraitDecl(name, type_params, bases, methods, is_pub);
-		return self.node(NodeKind.DECL_TRAIT, line, col, ptr as *u8);
-	}
+	pub fn trait_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
+		=> make<TraitDecl>(*self, NodeKind.DECL_TRAIT, TraitDecl(name, type_params, bases, methods, is_pub), line, col);
 
-	pub fn impl_decl(
-		var self: &AstBuilder,
-		struct_name: str,
-		type_params: List<GenericParam>,
-		trait_name: str,
-		methods: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ImplDecl>(self.arena);
-		*ptr = ImplDecl(struct_name, type_params, trait_name, methods);
-		return self.node(NodeKind.DECL_IMPL, line, col, ptr as *u8);
-	}
+	pub fn impl_decl(var self: &AstBuilder, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<ImplDecl>(*self, NodeKind.DECL_IMPL, ImplDecl(struct_name, type_params, trait_name, methods), line, col);
 
-	pub fn enum_decl(
-		var self: &AstBuilder,
-		name: str,
-		underlying_type: *AstNode,
-		members: List<EnumMember>,
-		is_pub: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<EnumDecl>(self.arena);
-		*ptr = EnumDecl(name, underlying_type, members, is_pub);
-		return self.node(NodeKind.DECL_ENUM, line, col, ptr as *u8);
-	}
+	pub fn enum_decl(var self: &AstBuilder, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz): *AstNode
+		=> make<EnumDecl>(*self, NodeKind.DECL_ENUM, EnumDecl(name, underlying_type, members, is_pub), line, col);
 
-	pub fn const_decl(
-		var self: &AstBuilder,
-		name: str,
-		type_node: *AstNode,
-		value: *AstNode,
-		is_pub: bool,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ConstDecl>(self.arena);
-		*ptr = ConstDecl(name, type_node, value, is_pub);
-		return self.node(NodeKind.DECL_CONST, line, col, ptr as *u8);
-	}
+	pub fn const_decl(var self: &AstBuilder, name: str, type_node: *AstNode, value: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
+		=> make<ConstDecl>(*self, NodeKind.DECL_CONST, ConstDecl(name, type_node, value, is_pub), line, col);
 
-	pub fn extern_block(
-		var self: &AstBuilder,
-		abi: str,
-		declarations: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<ExternBlock>(self.arena);
-		*ptr = ExternBlock(abi, declarations);
-		return self.node(NodeKind.DECL_EXTERN_BLOCK, line, col, ptr as *u8);
-	}
+	pub fn extern_block(var self: &AstBuilder, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<ExternBlock>(*self, NodeKind.DECL_EXTERN_BLOCK, ExternBlock(abi, declarations), line, col);
 
-	pub fn program(
-		var self: &AstBuilder,
-		declarations: List<*AstNode>,
-		line: usz,
-		col: usz
-	): *AstNode {
-		val ptr = arena_alloc<Program>(self.arena);
-		*ptr = Program(declarations);
-		return self.node(NodeKind.PROGRAM, line, col, ptr as *u8);
-	}
-}
-
-// ============================================================================
-// Generic Downcast Helper: to<T>(node)
-// ============================================================================
-
-pub fn to<T>(node: *AstNode): *T => node.data as *T;
-
-// ============================================================================
-// Generic Node Factory: b.make<T>(kind, data, line, col)
-// ============================================================================
-
-pub fn make<T>(b: AstBuilder, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-	val ptr = arena_alloc<T>(b.arena);
-	*ptr = data;
-	val node_ptr = arena_alloc<AstNode>(b.arena);
-	*node_ptr = AstNode(kind, line, col, ptr as *u8);
-	return node_ptr;
+	pub fn program(var self: &AstBuilder, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> make<Program>(*self, NodeKind.PROGRAM, Program(declarations), line, col);
 }
