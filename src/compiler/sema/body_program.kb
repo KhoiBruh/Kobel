@@ -29,6 +29,8 @@ use compiler.sema.body_pass.*;
 use std.collections.list.*;
 use std.mem.arena.*;
 
+impl BodyPass {
+
 pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
 	val f = fn_node.to<FnDecl>();
 	val sym = lookup(&self.symtab, f.name);
@@ -138,3 +140,10 @@ pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
 		}
 	}
 }
+
+}
+
+pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) { self.check_fn(fn_node); }
+pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) { self.check_fn_body(fn_node, fn_type); }
+pub fn check_impl(var self: &BodyPass, node: *AstNode) { self.check_impl(node); }
+pub fn check_program(var self: &BodyPass, program_node: *AstNode) { self.check_program(program_node); }

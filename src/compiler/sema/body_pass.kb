@@ -62,6 +62,29 @@ impl BodyPass {
 		self.builder.arena = &self.arena;
 		return &self.builder;
 	}
+
+	pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
+		// Prefix the module name (if any) so we know which module an error is in for multi-module builds
+		var loc: str = "";
+		if (node != null) loc = "Line ${node.line}, Column ${node.col}: ${msg}";
+		else loc = msg;
+
+		if (self.symtab.current_module.len > 0) {
+			self.errors.add("${self.symtab.current_module}: ${loc}");
+		} else self.errors.add(loc);
+	}
+
+	pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, self.current_self_type, AstBuilder(null)
+		);
+
+		val ty = resolve_ast_type(&decl_p, node);
+		self.arena = decl_p.arena;
+		self.errors = decl_p.errors;
+		return ty;
+	}
 }
 
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.
@@ -74,29 +97,6 @@ fn prim_c_size(name: str): usz {
 	if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") return 8;
 	if (name == "str") return 8;
 	return 0;
-}
-
-pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
-	// Prefix the module name (if any) so we know which module an error is in for multi-module builds
-	var loc: str = "";
-	if (node != null) loc = "Line ${node.line}, Column ${node.col}: ${msg}";
-	else loc = msg;
-
-	if (self.symtab.current_module.len > 0) {
-		self.errors.add("${self.symtab.current_module}: ${loc}");
-	} else self.errors.add(loc);
-}
-
-pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
-	var decl_p = DeclPass(
-		self.symtab, self.arena, self.symtab.current_module,
-		self.errors, false, self.current_self_type, AstBuilder(null)
-	);
-
-	val ty = resolve_ast_type(&decl_p, node);
-	self.arena = decl_p.arena;
-	self.errors = decl_p.errors;
-	return ty;
 }
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
@@ -126,6 +126,8 @@ pub fn is_list_type(ty: *Type): bool {
 	if (s.module != "std.collections.list") return false;
 	return str_starts_with(s.name, "std__collections__list__List") || str_starts_with(s.c_name, "std__collections__list__List");
 }
+
+impl BodyPass {
 
 pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) {
 	if (node == null || list_ty == null) return;
@@ -1056,6 +1058,8 @@ pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type {
 	return check_expr(self, body);
 }
 
+}
+
 // ============================================================================
 // String interpolation lowering
 //
@@ -1080,6 +1084,8 @@ pub fn interp_concat(var arena: &Arena, a: *AstNode, b_node: *AstNode, line: usz
 	var b = AstBuilder(arena);
 	return b.call(b.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
 }
+
+impl BodyPass {
 
 // Converts one interpolation hole to `str`, or reports an error and returns null.
 pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
@@ -1164,7 +1170,7 @@ fn struct_implements_iterable(self: &BodyPass, ty: *Type): bool {
 	return trait_has_impl(t, sem_struct(cur).name);
 }
 
-
+}
 
 // Builds an AST type node for a resolved semantic type, so locals can carry an
 // explicit annotation the C backend understands.
@@ -1219,3 +1225,13 @@ pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstN
 	if (is_neq) return b.unary(TokenType.BANG, eq_call, line, col);
 	return eq_call;
 }
+
+pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) { self.report_error(node, msg); }
+pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type => self.resolve_type(node);
+pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) { self.coerce_to_list(node, list_ty); }
+pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type => self.check_expr(node);
+pub fn check_statement(var self: &BodyPass, node: *AstNode) { self.check_statement(node); }
+pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type => self.check_when_arm_body(body);
+pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode => self.interp_piece(node, expr, ty);
+fn for_iterable_type(self: &BodyPass, node: *AstNode): *Type => self.for_iterable_type(node);
+fn struct_implements_iterable(self: &BodyPass, ty: *Type): bool => self.struct_implements_iterable(ty);
