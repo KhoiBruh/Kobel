@@ -12,7 +12,6 @@ use compiler.sema.body_pass.BodyPass;
 use compiler.sema.body_program.check_program;
 
 use compiler.codegen.c_codegen.CCodeGen;
-use compiler.codegen.c_program.gen_program;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -61,7 +60,7 @@ fn test_end_to_end_codegen() {
 
 	// 4. Code Generation (C Backend)
 	var codegen = CCodeGen();
-	val c_code = gen_program(&codegen, prog);
+	val c_code = codegen.gen_program(prog);
 
 	assert_true(c_code.len > 100UZ, "Generated C code must not be empty");
 

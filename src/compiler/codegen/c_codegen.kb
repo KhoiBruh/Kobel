@@ -44,39 +44,32 @@ impl CCodeGen {
 		false
 	);
 
-	pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
+	pub fn is_pointer_var(self, name: str): bool {
 		for (v in self.pointer_vars) {
 			if (v == name) return true;
 		}
 		return false;
 	}
 
-	pub fn is_str_var(self: &CCodeGen, name: str): bool {
+	pub fn is_str_var(self, name: str): bool {
 		for (v in self.str_vars) {
 			if (v == name) return true;
 		}
 		return false;
 	}
 
-	pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str {
+	pub fn lookup_fn_ret_type(self, name: str): str {
 		for (i in 0..<self.fn_names.len) {
 			if (self.fn_names[i] == name) return self.fn_ret_types[i];
 		}
 		return "";
 	}
 
-	pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
+	pub fn register_fn(var self, name: str, ret_type: str) {
 		self.fn_names.add(name);
 		self.fn_ret_types.add(ret_type);
 	}
 
-}
-
-pub fn is_pointer_var(self: &CCodeGen, name: str): bool => self.is_pointer_var(name);
-pub fn is_str_var(self: &CCodeGen, name: str): bool => self.is_str_var(name);
-pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str => self.lookup_fn_ret_type(name);
-pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
-	self.register_fn(name, ret_type);
 }
 
 pub fn get_indent(level: usz): str {
@@ -184,351 +177,349 @@ pub fn c_format_int_literal(raw: str): str {
 
 impl CCodeGen {
 
-pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
-	if (node == null) return "";
+	pub fn gen_expr(var self, node: *AstNode): str {
+		if (node == null) return "";
 
-	when (node.kind) {
-		NodeKind.EXPR_LITERAL -> {
-			val lit = node.to<LiteralExpr>();
-			when (lit.literal_kind) {
-				LiteralKind.INT -> return c_format_int_literal(lit.raw_text);
-				LiteralKind.FLOAT,
-				LiteralKind.BOOL -> return lit.raw_text;
-				LiteralKind.STRING -> {
-					if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') return lit.raw_text;
-					return "\"${lit.raw_text}\"";
+		when (node.kind) {
+			NodeKind.EXPR_LITERAL -> {
+				val lit = node.to<LiteralExpr>();
+				when (lit.literal_kind) {
+					LiteralKind.INT -> return c_format_int_literal(lit.raw_text);
+					LiteralKind.FLOAT,
+					LiteralKind.BOOL -> return lit.raw_text;
+					LiteralKind.STRING -> {
+						if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') return lit.raw_text;
+						return "\"${lit.raw_text}\"";
+					}
+					LiteralKind.CHAR -> {
+						if (lit.raw_text.len >= 2 && lit.raw_text[0] == '\'') return lit.raw_text;
+						return "'${lit.raw_text}'";
+					}
+					LiteralKind.NULL_VAL -> return "NULL";
+					else -> return lit.raw_text;
 				}
-				LiteralKind.CHAR -> {
-					if (lit.raw_text.len >= 2 && lit.raw_text[0] == '\'') return lit.raw_text;
-					return "'${lit.raw_text}'";
+			}
+
+			NodeKind.EXPR_IDENTIFIER -> return node.to<IdentifierExpr>().name;
+
+			NodeKind.EXPR_GROUP -> return "(${self.gen_expr(node.to<GroupExpr>().expr)})";
+
+			NodeKind.EXPR_BINARY -> {
+				val bin = node.to<BinaryExpr>();
+				if (bin.op == TokenType.QUESTION_COLON) {
+					val l = self.gen_expr(bin.left);
+					val r = self.gen_expr(bin.right);
+					return "(${l} != NULL ? ${l} : ${r})";
 				}
-				LiteralKind.NULL_VAL -> return "NULL";
-				else -> return lit.raw_text;
+				val l = self.gen_expr(bin.left);
+				val r = self.gen_expr(bin.right);
+				val op_str = when (bin.op) {
+					TokenType.MINUS -> "-";
+					TokenType.STAR -> "*";
+					TokenType.SLASH -> "/";
+					TokenType.PERCENT -> "%";
+					TokenType.EQUAL_EQUAL -> "==";
+					TokenType.BANG_EQUAL -> "!=";
+					TokenType.LESS -> "<";
+					TokenType.LESS_EQUAL -> "<=";
+					TokenType.GREATER -> ">";
+					TokenType.GREATER_EQUAL -> ">=";
+					TokenType.AND_AND -> "&&";
+					TokenType.OR_OR -> "||";
+					else -> "+";
+				};
+
+				return "(${l} ${op_str} ${r})";
 			}
-		}
 
-		NodeKind.EXPR_IDENTIFIER -> return node.to<IdentifierExpr>().name;
+			NodeKind.EXPR_UNARY -> {
+				val un = node.to<UnaryExpr>();
+				val opnd = self.gen_expr(un.operand);
 
-		NodeKind.EXPR_GROUP -> return "(${gen_expr(self, node.to<GroupExpr>().expr)})";
-
-		NodeKind.EXPR_BINARY -> {
-			val bin = node.to<BinaryExpr>();
-			if (bin.op == TokenType.QUESTION_COLON) {
-				val l = gen_expr(self, bin.left);
-				val r = gen_expr(self, bin.right);
-				return "(${l} != NULL ? ${l} : ${r})";
+				return when (un.op) {
+					TokenType.MINUS -> "(-${opnd})",
+					TokenType.BANG -> "(!${opnd})",
+					TokenType.STAR -> "(*${opnd})",
+					TokenType.AMPERSAND -> "(&${opnd})",
+					else -> opnd;
+				};
 			}
-			val l = gen_expr(self, bin.left);
-			val r = gen_expr(self, bin.right);
-			val op_str = when (bin.op) {
-				TokenType.MINUS -> "-";
-				TokenType.STAR -> "*";
-				TokenType.SLASH -> "/";
-				TokenType.PERCENT -> "%";
-				TokenType.EQUAL_EQUAL -> "==";
-				TokenType.BANG_EQUAL -> "!=";
-				TokenType.LESS -> "<";
-				TokenType.LESS_EQUAL -> "<=";
-				TokenType.GREATER -> ">";
-				TokenType.GREATER_EQUAL -> ">=";
-				TokenType.AND_AND -> "&&";
-				TokenType.OR_OR -> "||";
-				else -> "+";
-			};
 
-			return "(${l} ${op_str} ${r})";
-		}
+			// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
+			// to a pointer, which is how this backend represents an array value.
+			NodeKind.EXPR_ARRAY_LITERAL -> {
+				val al = node.to<ArrayLiteralExpr>();
+				var elem_c = self.array_elem_hint;
+				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
+				else if (elem_c == "" && !al.elements.is_empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				if (elem_c == "") elem_c = "int32_t";
 
-		NodeKind.EXPR_UNARY -> {
-			val un = node.to<UnaryExpr>();
-			val opnd = gen_expr(self, un.operand);
+				if (al.list_struct_name != "") {
+					if (al.elements.is_empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
+					var arr_res = "(${elem_c}[]){";
+					for (i in 0..<al.elements.len) {
+						if (i > 0) arr_res = "${arr_res}, ";
+						arr_res = "${arr_res}${self.gen_expr(al.elements[i])}";
+					}
+					arr_res = "${arr_res}}";
+					return "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
+				}
 
-			return when (un.op) {
-				TokenType.MINUS -> "(-${opnd})",
-				TokenType.BANG -> "(!${opnd})",
-				TokenType.STAR -> "(*${opnd})",
-				TokenType.AMPERSAND -> "(&${opnd})",
-				else -> opnd;
-			};
-		}
-
-		// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
-		// to a pointer, which is how this backend represents an array value.
-		NodeKind.EXPR_ARRAY_LITERAL -> {
-			val al = node.to<ArrayLiteralExpr>();
-			var elem_c = self.array_elem_hint;
-			if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-			else if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
-			if (elem_c == "") elem_c = "int32_t";
-
-			if (al.list_struct_name != "") {
-				if (al.elements.is_empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
-				var arr_res = "(${elem_c}[]){";
+				var res = "(${elem_c}[]){";
 				for (i in 0..<al.elements.len) {
-					if (i > 0) arr_res = "${arr_res}, ";
-					arr_res = "${arr_res}${gen_expr(self, al.elements[i])}";
+					if (i > 0) res = "${res}, ";
+					res = "${res}${self.gen_expr(al.elements[i])}";
 				}
-				arr_res = "${arr_res}}";
-				return "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
+				return "${res}}";
 			}
 
-			var res = "(${elem_c}[]){";
-			for (i in 0..<al.elements.len) {
-				if (i > 0) res = "${res}, ";
-				res = "${res}${gen_expr(self, al.elements[i])}";
-			}
-			return "${res}}";
-		}
+			NodeKind.EXPR_CALL -> {
+				val call = node.to<CallExpr>();
 
-		NodeKind.EXPR_CALL -> {
-			val call = node.to<CallExpr>();
-
-			// Static or string method call: T.size() -> sizeof(T), s.c_str() -> s
-			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
-				val mem = call.callee.to<MemberExpr>();
-				if (mem.member == "size") {
-					val obj_name = gen_expr(self, mem.object);
-					return "sizeof(${obj_name})";
+				// Static or string method call: T.size() -> sizeof(T), s.c_str() -> s
+				if (call.callee.kind == NodeKind.EXPR_MEMBER) {
+					val mem = call.callee.to<MemberExpr>();
+					if (mem.member == "size") {
+						val obj_name = self.gen_expr(mem.object);
+						return "sizeof(${obj_name})";
+					}
+					if (mem.member == "c_str") return self.gen_expr(mem.object);
+					if (mem.member == "slice") {
+						val slice_obj = self.gen_expr(mem.object);
+						if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${self.gen_expr(call.args.first())}, ${self.gen_expr(call.args[1])})";
+						if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${self.gen_expr(call.args.first())}, strlen(${slice_obj}))";
+						return slice_obj;
+					}
 				}
-				if (mem.member == "c_str") return gen_expr(self, mem.object);
-				if (mem.member == "slice") {
-					val slice_obj = gen_expr(self, mem.object);
-					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, ${gen_expr(self, call.args[1])})";
-					if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, strlen(${slice_obj}))";
-					return slice_obj;
+
+				val callee_str = self.gen_expr(call.callee);
+
+				// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
+				var is_struct = false;
+				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
+					val id = call.callee.to<IdentifierExpr>();
+					for (sn in self.struct_names) {
+						if (sn == id.name) is_struct = true;
+					}
 				}
-			}
 
-			val callee_str = gen_expr(self, call.callee);
-
-			// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
-			var is_struct = false;
-			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = call.callee.to<IdentifierExpr>();
-				for (sn in self.struct_names) {
-					if (sn == id.name) is_struct = true;
+				if (is_struct) {
+					var res = "(${callee_str}){ ";
+					for (i in 0..<call.args.len) {
+						if (i > 0) res = "${res}, ";
+						res = "${res}${self.gen_expr(call.args[i])}";
+					}
+					return "${res} }";
 				}
-			}
 
-			if (is_struct) {
-				var res = "(${callee_str}){ ";
+				// Ordinary C function call: func(arg1, arg2)
+				var res = "${callee_str}(";
 				for (i in 0..<call.args.len) {
 					if (i > 0) res = "${res}, ";
-					res = "${res}${gen_expr(self, call.args[i])}";
+					res = "${res}${self.gen_expr(call.args[i])}";
 				}
-				return "${res} }";
+				return "${res})";
 			}
 
-			// Ordinary C function call: func(arg1, arg2)
-			var res = "${callee_str}(";
-			for (i in 0..<call.args.len) {
-				if (i > 0) res = "${res}, ";
-				res = "${res}${gen_expr(self, call.args[i])}";
+			NodeKind.EXPR_MEMBER -> {
+				val mem = node.to<MemberExpr>();
+				if (mem.member == "len" || mem.member == "size") {
+					val is_str = when (mem.object.kind) {
+						NodeKind.EXPR_IDENTIFIER -> self.is_str_var(mem.object.to<IdentifierExpr>().name),
+						NodeKind.EXPR_LITERAL -> mem.object.to<LiteralExpr>().literal_kind == LiteralKind.STRING,
+						else -> self.infer_type_from_expr(mem.object) == "const char*"
+					};
+					if (is_str) return "(uint64_t)strlen(${self.gen_expr(mem.object)})";
+				}
+				val obj = self.gen_expr(mem.object);
+				var is_ptr = false;
+				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
+					val id = mem.object.to<IdentifierExpr>();
+					is_ptr = self.is_pointer_var(id.name);
+				}
+				if (is_ptr) return "(${obj})->${mem.member}";
+				return "(${obj}).${mem.member}";
 			}
-			return "${res})";
-		}
 
-		NodeKind.EXPR_MEMBER -> {
-			val mem = node.to<MemberExpr>();
-			if (mem.member == "len" || mem.member == "size") {
-				val is_str = when (mem.object.kind) {
-					NodeKind.EXPR_IDENTIFIER -> is_str_var(self, mem.object.to<IdentifierExpr>().name),
-					NodeKind.EXPR_LITERAL -> mem.object.to<LiteralExpr>().literal_kind == LiteralKind.STRING,
-					else -> infer_type_from_expr(self, mem.object) == "const char*"
+			NodeKind.EXPR_INDEX -> {
+				val idx = node.to<IndexExpr>();
+				return "${self.gen_expr(idx.target)}[${self.gen_expr(idx.index)}]";
+			}
+
+			NodeKind.EXPR_ASSIGN -> {
+				val asgn = node.to<AssignExpr>();
+				val op_str = when (asgn.op) {
+					TokenType.PLUS_EQUAL -> "+=",
+					TokenType.MINUS_EQUAL -> "-=",
+					TokenType.STAR_EQUAL -> "*=",
+					TokenType.SLASH_EQUAL -> "/=",
+					TokenType.PERCENT_EQUAL -> "%=",
+					else -> "="
 				};
-				if (is_str) return "(uint64_t)strlen(${gen_expr(self, mem.object)})";
+				return "${self.gen_expr(asgn.target)} ${op_str} ${self.gen_expr(asgn.value)}";
 			}
-			val obj = gen_expr(self, mem.object);
-			var is_ptr = false;
-			if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = mem.object.to<IdentifierExpr>();
-				is_ptr = is_pointer_var(self, id.name);
+
+			NodeKind.EXPR_UPDATE -> {
+				val u = node.to<UpdateExpr>();
+				val op_str = if (u.op == TokenType.PLUS_PLUS) "++" else "--";
+				return "${self.gen_expr(u.target)}${op_str}";
 			}
-			if (is_ptr) return "(${obj})->${mem.member}";
-			return "(${obj}).${mem.member}";
-		}
 
-		NodeKind.EXPR_INDEX -> {
-			val idx = node.to<IndexExpr>();
-			return "${gen_expr(self, idx.target)}[${gen_expr(self, idx.index)}]";
-		}
-
-		NodeKind.EXPR_ASSIGN -> {
-			val asgn = node.to<AssignExpr>();
-			val op_str = when (asgn.op) {
-				TokenType.PLUS_EQUAL -> "+=",
-				TokenType.MINUS_EQUAL -> "-=",
-				TokenType.STAR_EQUAL -> "*=",
-				TokenType.SLASH_EQUAL -> "/=",
-				TokenType.PERCENT_EQUAL -> "%=",
-				else -> "="
-			};
-			return "${gen_expr(self, asgn.target)} ${op_str} ${gen_expr(self, asgn.value)}";
-		}
-
-		NodeKind.EXPR_UPDATE -> {
-			val u = node.to<UpdateExpr>();
-			val op_str = if (u.op == TokenType.PLUS_PLUS) "++" else "--";
-			return "${gen_expr(self, u.target)}${op_str}";
-		}
-
-		NodeKind.EXPR_CAST -> {
-			val cst = node.to<CastExpr>();
-			val ty = c_type_from_ast(cst.target_type);
-			return "((${ty})${gen_expr(self, cst.expr)})";
-		}
-
-		NodeKind.EXPR_IF -> {
-			val if_e = node.to<IfExpr>();
-			val cond = gen_expr(self, if_e.condition);
-			val th = gen_expr(self, if_e.then_branch);
-			val el = gen_expr(self, if_e.else_branch);
-			return "(${cond} ? ${th} : ${el})";
-		}
-
-		NodeKind.EXPR_WHEN -> {
-			val we = node.to<WhenExpr>();
-			var cond = "";
-			if (we.condition != null) cond = gen_expr(self, we.condition);
-			var res = "0";
-			var i = we.arms.len;
-			while (i > 0) {
-				i--;
-				val arm = we.arms[i];
-				if (arm.is_else) res = gen_expr(self, arm.body);
-				else res = "(${gen_when_test(self, cond, arm.patterns)} ? ${gen_expr(self, arm.body)} : ${res})";
+			NodeKind.EXPR_CAST -> {
+				val cst = node.to<CastExpr>();
+				val ty = c_type_from_ast(cst.target_type);
+				return "((${ty})${self.gen_expr(cst.expr)})";
 			}
-			return res;
-		}
 
-		else -> return "";
+			NodeKind.EXPR_IF -> {
+				val if_e = node.to<IfExpr>();
+				val cond = self.gen_expr(if_e.condition);
+				val th = self.gen_expr(if_e.then_branch);
+				val el = self.gen_expr(if_e.else_branch);
+				return "(${cond} ? ${th} : ${el})";
+			}
+
+			NodeKind.EXPR_WHEN -> {
+				val we = node.to<WhenExpr>();
+				var cond = "";
+				if (we.condition != null) cond = self.gen_expr(we.condition);
+				var res = "0";
+				var i = we.arms.len;
+				while (i > 0) {
+					i--;
+					val arm = we.arms[i];
+					res = if (arm.is_else) self.gen_expr(arm.body)
+					else "(${self.gen_when_test(cond, arm.patterns)} ? ${self.gen_expr(arm.body)} : ${res})";
+				}
+				return res;
+			}
+
+			else -> return "";
+		}
 	}
-}
 
-// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
-// For the boolean form (`cond` empty) each pattern is itself the test.
-// String patterns compare with strcmp since `str` lowers to `const char*`.
-pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str {
-	var res = "";
-	for (i in 0..<patterns.len) {
-		val p = patterns[i];
-		val test = when {
-			cond == "" -> gen_expr(self, p),
-			p.kind == NodeKind.EXPR_LITERAL && p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->
-				"strcmp(${cond}, ${gen_expr(self, p)}) == 0",
-			else -> "(${cond} == ${gen_expr(self, p)})"
-		};
-		if (i == 0) res = test;
-		else res = "${res} || ${test}";
-	}
-	if (res == "") res = "1";
-	return res;
-}
+	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
+	// For the boolean form (`cond` empty) each pattern is itself the test.
+	// String patterns compare with strcmp since `str` lowers to `const char*`.
+	pub fn gen_when_test(var self, cond: str, patterns: List<*AstNode>): str {
+		var res = "";
+		for (i in 0..<patterns.len) {
+			val p = patterns[i];
+			val test = when {
+				cond == "" -> self.gen_expr(p),
 
-pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
-	if (expr == null) return "int32_t";
+				p.kind == NodeKind.EXPR_LITERAL &&
+				p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->
+					"strcmp(${cond}, ${self.gen_expr(p)}) == 0",
 
-	when (expr.kind) {
-		NodeKind.EXPR_LITERAL -> {
-			val lit = expr.to<LiteralExpr>();
-			return when (lit.literal_kind) {
-				LiteralKind.STRING -> "const char*",
-				LiteralKind.CHAR -> "char",
-				LiteralKind.FLOAT -> "double",
-				LiteralKind.BOOL -> "bool",
-				else -> "int32_t"
+				else -> "(${cond} == ${self.gen_expr(p)})"
 			};
+			res = if (i == 0) test else "${res} || ${test}";
 		}
+		if (res == "") res = "1";
+		return res;
+	}
 
-		NodeKind.EXPR_CALL -> {
-			val call = expr.to<CallExpr>();
-			if (call.callee.kind == NodeKind.EXPR_MEMBER) {
-				val m = call.callee.to<MemberExpr>();
-				if (m.member == "c_str" || m.member == "slice" || m.member == "data") return "const char*";
-				if (m.member == "len" || m.member == "size" || m.member == "cap") return "size_t";
+	pub fn infer_type_from_expr(var self, expr: *AstNode): str {
+		if (expr == null) return "int32_t";
+
+		when (expr.kind) {
+			NodeKind.EXPR_LITERAL -> {
+				val lit = expr.to<LiteralExpr>();
+				return when (lit.literal_kind) {
+					LiteralKind.STRING -> "const char*",
+					LiteralKind.CHAR -> "char",
+					LiteralKind.FLOAT -> "double",
+					LiteralKind.BOOL -> "bool",
+					else -> "int32_t"
+				};
+			}
+
+			NodeKind.EXPR_CALL -> {
+				val call = expr.to<CallExpr>();
+				if (call.callee.kind == NodeKind.EXPR_MEMBER) {
+					val m = call.callee.to<MemberExpr>();
+					if (m.member == "c_str" || m.member == "slice" || m.member == "data") return "const char*";
+					if (m.member == "len" || m.member == "size" || m.member == "cap") return "size_t";
+					return "int32_t";
+				}
+				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
+					val id = call.callee.to<IdentifierExpr>();
+					// Runtime string helpers injected by the semantic analyzer.
+					if (id.name == "kobel_concat") return "const char*";
+					if (id.name == "kobel_slice") return "const char*";
+					if (id.name == "kobel_streq") return "bool";
+					if (id.name == "kobel_slen") return "size_t";
+					for (sn in self.struct_names) {
+						if (sn == id.name) return id.name;
+					}
+					val ret_ty = self.lookup_fn_ret_type(id.name);
+					if (ret_ty != "") return ret_ty;
+				}
 				return "int32_t";
 			}
-			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = call.callee.to<IdentifierExpr>();
-				// Runtime string helpers injected by the semantic analyzer.
-				if (id.name == "kobel_concat") return "const char*";
-				if (id.name == "kobel_slice") return "const char*";
-				if (id.name == "kobel_streq") return "bool";
-				if (id.name == "kobel_slen") return "size_t";
-				for (sn in self.struct_names) {
-					if (sn == id.name) return id.name;
+
+			NodeKind.EXPR_BINARY -> {
+				val bin = expr.to<BinaryExpr>();
+				return when (bin.op) {
+					TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
+					TokenType.LESS, TokenType.LESS_EQUAL,
+					TokenType.GREATER, TokenType.GREATER_EQUAL,
+					TokenType.AND_AND, TokenType.OR_OR -> "bool";
+					else -> self.infer_type_from_expr(bin.left);
+				};
+			}
+
+			NodeKind.EXPR_UNARY -> {
+				val un = expr.to<UnaryExpr>();
+				if (un.op == TokenType.BANG) return "bool";
+				if (un.op == TokenType.AMPERSAND) {
+					val sub = self.infer_type_from_expr(un.operand);
+					return sub + "*";
 				}
-				val ret_ty = lookup_fn_ret_type(self, id.name);
-				if (ret_ty != "") return ret_ty;
+				return self.infer_type_from_expr(un.operand);
 			}
-			return "int32_t";
-		}
 
-		NodeKind.EXPR_BINARY -> {
-			val bin = expr.to<BinaryExpr>();
-			return when (bin.op) {
-				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
-				TokenType.LESS, TokenType.LESS_EQUAL,
-				TokenType.GREATER, TokenType.GREATER_EQUAL,
-				TokenType.AND_AND, TokenType.OR_OR -> "bool";
-				else -> infer_type_from_expr(self, bin.left);
-			};
-		}
+			NodeKind.EXPR_GROUP -> return self.infer_type_from_expr(expr.to<GroupExpr>().expr);
 
-		NodeKind.EXPR_UNARY -> {
-			val un = expr.to<UnaryExpr>();
-			if (un.op == TokenType.BANG) return "bool";
-			if (un.op == TokenType.AMPERSAND) {
-				val sub = infer_type_from_expr(self, un.operand);
-				return sub + "*";
+			NodeKind.EXPR_ARRAY_LITERAL -> {
+				val al = expr.to<ArrayLiteralExpr>();
+				if (al.list_struct_name != "") return al.list_struct_name;
+				var elem_c = self.array_elem_hint;
+				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
+				else if (elem_c == "" && !al.elements.is_empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				if (elem_c == "") elem_c = "int32_t";
+				return "${elem_c}*";
 			}
-			return infer_type_from_expr(self, un.operand);
-		}
 
-		NodeKind.EXPR_GROUP -> return infer_type_from_expr(self, expr.to<GroupExpr>().expr);
-
-		NodeKind.EXPR_ARRAY_LITERAL -> {
-			val al = expr.to<ArrayLiteralExpr>();
-			if (al.list_struct_name != "") return al.list_struct_name;
-			var elem_c = self.array_elem_hint;
-			if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-			else if (elem_c == "" && !al.elements.is_empty()) elem_c = infer_type_from_expr(self, al.elements.first());
-			if (elem_c == "") elem_c = "int32_t";
-			return "${elem_c}*";
-		}
-
-		NodeKind.EXPR_WHEN -> {
-			val we = expr.to<WhenExpr>();
-			for (arm in we.arms) {
-				if (arm.body.kind == NodeKind.STMT_BLOCK) {
-					val blk = arm.body.to<BlockStmt>();
-					for (s in blk.statements) {
-						if (s.kind == NodeKind.STMT_YIELD) {
-							val ys = s.to<YieldStmt>();
-							if (ys.value != null) return infer_type_from_expr(self, ys.value);
+			NodeKind.EXPR_WHEN -> {
+				val we = expr.to<WhenExpr>();
+				for (arm in we.arms) {
+					if (arm.body.kind == NodeKind.STMT_BLOCK) {
+						val blk = arm.body.to<BlockStmt>();
+						for (s in blk.statements) {
+							if (s.kind == NodeKind.STMT_YIELD) {
+								val ys = s.to<YieldStmt>();
+								if (ys.value != null) return self.infer_type_from_expr(ys.value);
+							}
 						}
+					} else {
+						return self.infer_type_from_expr(arm.body);
 					}
-				} else {
-					return infer_type_from_expr(self, arm.body);
 				}
+				return "int32_t";
 			}
-			return "int32_t";
-		}
 
-		NodeKind.EXPR_CAST -> {
-			val cst = expr.to<CastExpr>();
-			return c_type_from_ast(cst.target_type);
-		}
+			NodeKind.EXPR_CAST -> {
+				val cst = expr.to<CastExpr>();
+				return c_type_from_ast(cst.target_type);
+			}
 
-		else -> return "int32_t";
+			else -> return "int32_t";
+		}
 	}
-}
 
 }
-
-pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str => self.gen_expr(node);
-pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str => self.gen_when_test(cond, patterns);
-pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str => self.infer_type_from_expr(expr);
 
 // ============================================================================
 // Statement Code Generation
@@ -543,286 +534,279 @@ pub fn when_expr_has_blocks(we: *WhenExpr): bool {
 
 impl CCodeGen {
 
-pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
-	if (node == null) return "";
+	pub fn gen_statement(var self, node: *AstNode): str {
+		if (node == null) return "";
 
-	return when (node.kind) {
-		NodeKind.STMT_BLOCK -> {
-			val blk = node.to<BlockStmt>();
-			val ind = get_indent(self.indent_level);
-			var res = ind + "{\n";
-			self.indent_level++;
-			for (stmt in blk.statements) {
-				res += gen_statement(self, stmt);
-			}
-			self.indent_level--;
-			yield res + ind + "}\n";
-		}
-
-		NodeKind.STMT_VAR_DECL -> {
-			val vd = node.to<VarDeclStmt>();
-			val ind = get_indent(self.indent_level);
-			var ty_str = "int32_t";
-			var is_ptr = false;
-
-			var elem_hint = "";
-			if (vd.type_annotation != null) {
-				ty_str = c_type_from_ast(vd.type_annotation);
-				if (
-					vd.type_annotation.kind == NodeKind.TYPE_POINTER ||
-					vd.type_annotation.kind == NodeKind.TYPE_NULLABLE
-				) is_ptr = true;
-
-				// `[T; N]` is emitted as a pointer, and its literal needs the
-				// element type spelled out.
-				if (vd.type_annotation.kind == NodeKind.TYPE_ARRAY) {
-					is_ptr = true;
-					val arr_ast = vd.type_annotation.to<ArrayType>();
-					elem_hint = c_type_from_ast(arr_ast.element_type);
-				}
-			} else if (vd.initializer != null) {
-				ty_str = infer_type_from_expr(self, vd.initializer);
-				if (vd.initializer.kind == NodeKind.EXPR_CAST) {
-					val cst = vd.initializer.to<CastExpr>();
-					if (
-						cst.target_type != null && (
-							cst.target_type.kind == NodeKind.TYPE_POINTER ||
-							cst.target_type.kind == NodeKind.TYPE_NULLABLE
-						)
-					) is_ptr = true;
-				}
-				if (ty_str.len > 0 && ty_str[ty_str.len - 1] == '*') is_ptr = true;
-			}
-
-			if (is_ptr) self.pointer_vars.add(vd.name);
-			if (ty_str == "const char*") self.str_vars.add(vd.name);
-
-			if (
-				vd.initializer != null &&
-				vd.initializer.kind == NodeKind.EXPR_WHEN &&
-				when_expr_has_blocks(vd.initializer.to<WhenExpr>())
-			) {
-				var res = "${ind}${ty_str} ${vd.name};\n";
-				res = "${res}${gen_when_with_target(self, vd.initializer.to<WhenExpr>(), vd.name, false)}";
-				yield res;
-			}
-
-			if (
-				vd.initializer != null &&
-				vd.initializer.kind == NodeKind.EXPR_BINARY &&
-				vd.initializer.to<BinaryExpr>().op == TokenType.QUESTION_COLON
-			) {
-				val bin = vd.initializer.to<BinaryExpr>();
-				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-					bin.right.kind == NodeKind.STMT_BREAK ||
-					bin.right.kind == NodeKind.STMT_CONTINUE;
-
-				var res = "${ind}${ty_str} ${vd.name} = ${gen_expr(self, bin.left)};\n";
-				if (is_jump) {
-					res = "${res}${ind}if (${vd.name} == NULL) {\n";
-					self.indent_level++;
-					res = "${res}${gen_statement(self, bin.right)}";
-					self.indent_level--;
-					res = "${res}${ind}}\n";
-				} else res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${gen_expr(self, bin.right)};\n";
-
-				yield res;
-			}
-
-			var res = "${ind}${ty_str} ${vd.name}";
-			if (vd.initializer != null) {
-				val saved_hint = self.array_elem_hint;
-				self.array_elem_hint = elem_hint;
-				res = "${res} = ${gen_expr(self, vd.initializer)}";
-				self.array_elem_hint = saved_hint;
-			}
-
-			yield "${res};\n";
-		}
-
-		NodeKind.STMT_IF -> {
-			val ifs = node.to<IfStmt>();
-			val ind = get_indent(self.indent_level);
-			var res = "${ind}if (${gen_expr(self, ifs.condition)}) {\n";
-			self.indent_level++;
-			res = "${res}${gen_statement(self, ifs.then_branch)}";
-			self.indent_level--;
-
-			if (ifs.else_branch != null) {
-				res = "${res}${ind}} else {\n";
+		return when (node.kind) {
+			NodeKind.STMT_BLOCK -> {
+				val blk = node.to<BlockStmt>();
+				val ind = get_indent(self.indent_level);
+				var res = ind + "{\n";
 				self.indent_level++;
-				res = "${res}${gen_statement(self, ifs.else_branch)}";
+				for (stmt in blk.statements) {
+					res += self.gen_statement(stmt);
+				}
 				self.indent_level--;
-			}
-			yield "${res}${ind}}\n";
-		}
-
-		NodeKind.STMT_WHILE -> {
-			val wh = node.to<WhileStmt>();
-			val ind = get_indent(self.indent_level);
-			var res = "${ind}while (${gen_expr(self, wh.condition)}) {\n";
-			self.indent_level++;
-			res = "${res}${gen_statement(self, wh.body)}";
-			self.indent_level--;
-			yield "${res}${ind}}\n";
-		}
-
-		NodeKind.STMT_RETURN -> {
-			val ret = node.to<ReturnStmt>();
-			val ind = get_indent(self.indent_level);
-
-			if (ret.value != null) {
-				if (
-					ret.value.kind == NodeKind.EXPR_WHEN &&
-					when_expr_has_blocks(ret.value.to<WhenExpr>())
-				) yield gen_when_with_target(self, ret.value.to<WhenExpr>(), "", true);
-
-				yield "${ind}return ${gen_expr(self, ret.value)};\n";
+				yield res + ind + "}\n";
 			}
 
-			yield "${ind}return;\n";
-		}
+			NodeKind.STMT_VAR_DECL -> {
+				val vd = node.to<VarDeclStmt>();
+				val ind = get_indent(self.indent_level);
+				var ty_str = "int32_t";
+				var is_ptr = false;
 
-		NodeKind.STMT_EXPR -> {
-			val es = node.to<ExprStmt>();
-			val ind = get_indent(self.indent_level);
-			if (es.expr.kind == NodeKind.EXPR_ASSIGN) {
-				val asg = es.expr.to<AssignExpr>();
+				var elem_hint = "";
+				if (vd.type_annotation != null) {
+					ty_str = c_type_from_ast(vd.type_annotation);
+					if (
+						vd.type_annotation.kind == NodeKind.TYPE_POINTER ||
+						vd.type_annotation.kind == NodeKind.TYPE_NULLABLE
+					) is_ptr = true;
+
+					// `[T; N]` is emitted as a pointer, and its literal needs the
+					// element type spelled out.
+					if (vd.type_annotation.kind == NodeKind.TYPE_ARRAY) {
+						is_ptr = true;
+						val arr_ast = vd.type_annotation.to<ArrayType>();
+						elem_hint = c_type_from_ast(arr_ast.element_type);
+					}
+				} else if (vd.initializer != null) {
+					ty_str = self.infer_type_from_expr(vd.initializer);
+					if (vd.initializer.kind == NodeKind.EXPR_CAST) {
+						val cst = vd.initializer.to<CastExpr>();
+						if (
+							cst.target_type != null && (
+								cst.target_type.kind == NodeKind.TYPE_POINTER ||
+								cst.target_type.kind == NodeKind.TYPE_NULLABLE
+							)
+						) is_ptr = true;
+					}
+					if (ty_str.len > 0 && ty_str[ty_str.len - 1] == '*') is_ptr = true;
+				}
+
+				if (is_ptr) self.pointer_vars.add(vd.name);
+				if (ty_str == "const char*") self.str_vars.add(vd.name);
+
 				if (
-					asg.value.kind == NodeKind.EXPR_BINARY &&
-					asg.value.to<BinaryExpr>().op == TokenType.QUESTION_COLON
+					vd.initializer != null &&
+					vd.initializer.kind == NodeKind.EXPR_WHEN &&
+					when_expr_has_blocks(vd.initializer.to<WhenExpr>())
 				) {
-					val bin = asg.value.to<BinaryExpr>();
+					var res = "${ind}${ty_str} ${vd.name};\n";
+					res = "${res}${self.gen_when_with_target(vd.initializer.to<WhenExpr>(), vd.name, false)}";
+					yield res;
+				}
+
+				if (
+					vd.initializer != null &&
+					vd.initializer.kind == NodeKind.EXPR_BINARY &&
+					vd.initializer.to<BinaryExpr>().op == TokenType.QUESTION_COLON
+				) {
+					val bin = vd.initializer.to<BinaryExpr>();
 					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 						bin.right.kind == NodeKind.STMT_BREAK ||
 						bin.right.kind == NodeKind.STMT_CONTINUE;
+
+					var res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(bin.left)};\n";
 					if (is_jump) {
-						val tgt = gen_expr(self, asg.target);
-						var res = "${ind}${tgt} = ${gen_expr(self, bin.left)};\n";
-						res = "${res}${ind}if (${tgt} == NULL) {\n";
+						res = "${res}${ind}if (${vd.name} == NULL) {\n";
 						self.indent_level++;
-						res = "${res}${gen_statement(self, bin.right)}";
+						res = "${res}${self.gen_statement(bin.right)}";
+						self.indent_level--;
+						res = "${res}${ind}}\n";
+					} else res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(bin.right)};\n";
+
+					yield res;
+				}
+
+				var res = "${ind}${ty_str} ${vd.name}";
+				if (vd.initializer != null) {
+					val saved_hint = self.array_elem_hint;
+					self.array_elem_hint = elem_hint;
+					res = "${res} = ${self.gen_expr(vd.initializer)}";
+					self.array_elem_hint = saved_hint;
+				}
+
+				yield "${res};\n";
+			}
+
+			NodeKind.STMT_IF -> {
+				val ifs = node.to<IfStmt>();
+				val ind = get_indent(self.indent_level);
+				var res = "${ind}if (${self.gen_expr(ifs.condition)}) {\n";
+				self.indent_level++;
+				res = "${res}${self.gen_statement(ifs.then_branch)}";
+				self.indent_level--;
+
+				if (ifs.else_branch != null) {
+					res = "${res}${ind}} else {\n";
+					self.indent_level++;
+					res = "${res}${self.gen_statement(ifs.else_branch)}";
+					self.indent_level--;
+				}
+				yield "${res}${ind}}\n";
+			}
+
+			NodeKind.STMT_WHILE -> {
+				val wh = node.to<WhileStmt>();
+				val ind = get_indent(self.indent_level);
+				var res = "${ind}while (${self.gen_expr(wh.condition)}) {\n";
+				self.indent_level++;
+				res = "${res}${self.gen_statement(wh.body)}";
+				self.indent_level--;
+				yield "${res}${ind}}\n";
+			}
+
+			NodeKind.STMT_RETURN -> {
+				val ret = node.to<ReturnStmt>();
+				val ind = get_indent(self.indent_level);
+
+				if (ret.value != null) {
+					if (
+						ret.value.kind == NodeKind.EXPR_WHEN &&
+						when_expr_has_blocks(ret.value.to<WhenExpr>())
+					) yield self.gen_when_with_target(ret.value.to<WhenExpr>(), "", true);
+
+					yield "${ind}return ${self.gen_expr(ret.value)};\n";
+				}
+
+				yield "${ind}return;\n";
+			}
+
+			NodeKind.STMT_EXPR -> {
+				val es = node.to<ExprStmt>();
+				val ind = get_indent(self.indent_level);
+				if (es.expr.kind == NodeKind.EXPR_ASSIGN) {
+					val asg = es.expr.to<AssignExpr>();
+					if (
+						asg.value.kind == NodeKind.EXPR_BINARY &&
+						asg.value.to<BinaryExpr>().op == TokenType.QUESTION_COLON
+					) {
+						val bin = asg.value.to<BinaryExpr>();
+						val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+							bin.right.kind == NodeKind.STMT_BREAK ||
+							bin.right.kind == NodeKind.STMT_CONTINUE;
+						if (is_jump) {
+							val tgt = self.gen_expr(asg.target);
+							var res = "${ind}${tgt} = ${self.gen_expr(bin.left)};\n";
+							res = "${res}${ind}if (${tgt} == NULL) {\n";
+							self.indent_level++;
+							res = "${res}${self.gen_statement(bin.right)}";
+							self.indent_level--;
+							res = "${res}${ind}}\n";
+							yield res;
+						}
+					}
+				}
+				if (
+					es.expr.kind == NodeKind.EXPR_BINARY &&
+					es.expr.to<BinaryExpr>().op == TokenType.QUESTION_COLON
+				) {
+					val bin = es.expr.to<BinaryExpr>();
+					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+						bin.right.kind == NodeKind.STMT_BREAK ||
+						bin.right.kind == NodeKind.STMT_CONTINUE;
+
+					if (is_jump) {
+						var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
+						self.indent_level++;
+						res = "${res}${self.gen_statement(bin.right)}";
 						self.indent_level--;
 						res = "${res}${ind}}\n";
 						yield res;
 					}
 				}
+				yield "${ind}${self.gen_expr(es.expr)};\n";
 			}
-			if (
-				es.expr.kind == NodeKind.EXPR_BINARY &&
-				es.expr.to<BinaryExpr>().op == TokenType.QUESTION_COLON
-			) {
-				val bin = es.expr.to<BinaryExpr>();
-				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-					bin.right.kind == NodeKind.STMT_BREAK ||
-					bin.right.kind == NodeKind.STMT_CONTINUE;
 
-				if (is_jump) {
-					var res = "${ind}if (${gen_expr(self, bin.left)} == NULL) {\n";
-					self.indent_level++;
-					res = "${res}${gen_statement(self, bin.right)}";
-					self.indent_level--;
-					res = "${res}${ind}}\n";
-					yield res;
+			NodeKind.STMT_BREAK -> "${get_indent(self.indent_level)}break;\n";
+
+			NodeKind.STMT_CONTINUE -> "${get_indent(self.indent_level)}continue;\n";
+
+			NodeKind.STMT_YIELD -> {
+				val ys = node.to<YieldStmt>();
+				val ind = get_indent(self.indent_level);
+				if (self.is_yield_return) {
+					if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value)};\n";
+					yield "${ind}return;\n";
 				}
-			}
-			yield "${ind}${gen_expr(self, es.expr)};\n";
-		}
-
-		NodeKind.STMT_BREAK -> "${get_indent(self.indent_level)}break;\n";
-
-		NodeKind.STMT_CONTINUE -> "${get_indent(self.indent_level)}continue;\n";
-
-		NodeKind.STMT_YIELD -> {
-			val ys = node.to<YieldStmt>();
-			val ind = get_indent(self.indent_level);
-			if (self.is_yield_return) {
-				if (ys.value != null) return "${ind}return ${gen_expr(self, ys.value)};\n";
-				yield "${ind}return;\n";
-			}
-			if (self.yield_target != "") {
-				if (ys.value != null) yield "${ind}${self.yield_target} = ${gen_expr(self, ys.value)};\n";
+				if (self.yield_target != "") {
+					if (ys.value != null) yield "${ind}${self.yield_target} = ${self.gen_expr(ys.value)};\n";
+					yield "";
+				}
+				if (ys.value != null) yield "${ind}${self.gen_expr(ys.value)};\n";
 				yield "";
 			}
-			if (ys.value != null) yield "${ind}${gen_expr(self, ys.value)};\n";
-			yield "";
-		}
 
-		NodeKind.STMT_WHEN -> {
-			val ws = node.to<WhenStmt>();
-			var cond = "";
-			if (ws.condition != null) cond = gen_expr(self, ws.condition);
-			val ind = get_indent(self.indent_level);
-			var res = "";
-			var first = true;
-			for (arm in ws.arms) {
-				if (arm.is_else) {
-					if (first) res += ind + "{\n";
-					else res += ind + "} else {\n";
-				} else {
-					val test = gen_when_test(self, cond, arm.patterns);
-					if (first) res += ind + "if (" + test + ") {\n";
-					else res += ind + "} else if (" + test + ") {\n";
+			NodeKind.STMT_WHEN -> {
+				val ws = node.to<WhenStmt>();
+				var cond = "";
+				if (ws.condition != null) cond = self.gen_expr(ws.condition);
+				val ind = get_indent(self.indent_level);
+				var res = "";
+				var first = true;
+				for (arm in ws.arms) {
+					if (arm.is_else) {
+						if (first) res += ind + "{\n";
+						else res += ind + "} else {\n";
+					} else {
+						val test = self.gen_when_test(cond, arm.patterns);
+						if (first) res += ind + "if (" + test + ") {\n";
+						else res += ind + "} else if (" + test + ") {\n";
+					}
+					self.indent_level++;
+					res += self.gen_statement(arm.body);
+					self.indent_level--;
+					first = false;
 				}
-				self.indent_level++;
-				res += gen_statement(self, arm.body);
-				self.indent_level--;
-				first = false;
+				if (!first) res += ind + "}\n";
+				yield res;
 			}
-			if (!first) res += ind + "}\n";
-			yield res;
-		}
 
-		else -> "";
-	};
-}
-
-pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str, is_ret: bool): str {
-	var cond = "";
-	if (we.condition != null) cond = gen_expr(self, we.condition);
-	val ind = get_indent(self.indent_level);
-	var res = "";
-	var first = true;
-
-	val prev_target = self.yield_target;
-	val prev_is_ret = self.is_yield_return;
-	self.yield_target = target_name;
-	self.is_yield_return = is_ret;
-
-	for (arm in we.arms) {
-		if (arm.is_else) {
-			if (first) res += ind + "{\n";
-			else res += ind + "} else {\n";
-		} else {
-			val test = gen_when_test(self, cond, arm.patterns);
-			if (first) res += ind + "if (" + test + ") {\n";
-			else res += ind + "} else if (" + test + ") {\n";
-		}
-		self.indent_level++;
-		if (arm.body.kind == NodeKind.STMT_BLOCK) {
-			val blk = arm.body.to<BlockStmt>();
-			for (s in blk.statements) {
-				res += gen_statement(self, s);
-			}
-		} else {
-			val arm_ind = get_indent(self.indent_level);
-			if (is_ret) {
-				res += arm_ind + "return " + gen_expr(self, arm.body) + ";\n";
-			} else {
-				res += arm_ind + target_name + " = " + gen_expr(self, arm.body) + ";\n";
-			}
-		}
-		self.indent_level--;
-		first = false;
+			else -> "";
+		};
 	}
-	if (!first) res += ind + "}\n";
 
-	self.yield_target = prev_target;
-	self.is_yield_return = prev_is_ret;
-	return res;
+	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool): str {
+		var cond = "";
+		if (we.condition != null) cond = self.gen_expr(we.condition);
+		val ind = get_indent(self.indent_level);
+		var res = "";
+		var first = true;
+
+		val prev_target = self.yield_target;
+		val prev_is_ret = self.is_yield_return;
+		self.yield_target = target_name;
+		self.is_yield_return = is_ret;
+
+		for (arm in we.arms) {
+			if (arm.is_else) {
+				res += if (first) ind + "{\n" else ind + "} else {\n";
+			} else {
+				val test = self.gen_when_test(cond, arm.patterns);
+				res += if (first) ind + "if (" + test + ") {\n"
+				else ind + "} else if (" + test + ") {\n";
+			}
+			self.indent_level++;
+			if (arm.body.kind == NodeKind.STMT_BLOCK) {
+				val blk = arm.body.to<BlockStmt>();
+				for (s in blk.statements) {
+					res += self.gen_statement(s);
+				}
+			} else {
+				val arm_ind = get_indent(self.indent_level);
+				res += if (is_ret) arm_ind + "return " + self.gen_expr(arm.body) + ";\n"
+				else arm_ind + target_name + " = " + self.gen_expr(arm.body) + ";\n";
+			}
+			self.indent_level--;
+			first = false;
+		}
+		if (!first) res += ind + "}\n";
+
+		self.yield_target = prev_target;
+		self.is_yield_return = prev_is_ret;
+		return res;
+	}
+
 }
-
-}
-
-pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str => self.gen_statement(node);
-pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str, is_ret: bool): str => self.gen_when_with_target(we, target_name, is_ret);
