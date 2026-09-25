@@ -341,6 +341,7 @@ impl Lexer {
 					yield self.make_token(TokenType.PERCENT, start_cursor, start_col);
 				}
 				'+' -> {
+					if (self.match('+')) yield self.make_token(TokenType.PLUS_PLUS, start_cursor, start_col);
 					if (self.match('=')) yield self.make_token(TokenType.PLUS_EQUAL, start_cursor, start_col);
 					yield self.make_token(TokenType.PLUS, start_cursor, start_col);
 				}
@@ -358,6 +359,7 @@ impl Lexer {
 				}
 
 				'-' -> {
+					if (self.match('-')) yield self.make_token(TokenType.MINUS_MINUS, start_cursor, start_col);
 					if (self.match('=')) yield self.make_token(TokenType.MINUS_EQUAL, start_cursor, start_col);
 					if (self.match('>')) yield self.make_token(TokenType.ARROW, start_cursor, start_col);
 					yield self.make_token(TokenType.MINUS, start_cursor, start_col);

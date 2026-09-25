@@ -36,6 +36,8 @@ pub enum TokenType {
 	FAT_ARROW,     // =>
 	ARROW,         // ->
 	DOT_DOT,       // ..
+	PLUS_PLUS,     // ++
+	MINUS_MINUS,   // --
 	PLUS_EQUAL,    // +=
 	MINUS_EQUAL,   // -=
 	STAR_EQUAL,    // *=

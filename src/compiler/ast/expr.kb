@@ -55,6 +55,11 @@ pub struct AssignExpr {
 	pub value: *AstNode
 }
 
+pub struct UpdateExpr {
+	pub op: TokenType,
+	pub target: *AstNode
+}
+
 pub struct CastExpr {
 	pub expr: *AstNode,
 	pub target_type: *AstNode

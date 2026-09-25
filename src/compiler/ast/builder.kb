@@ -87,6 +87,9 @@ impl AstBuilder {
 	pub fn compound_assign(var self: &AstBuilder, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
 		=> make<AssignExpr>(*self, NodeKind.EXPR_ASSIGN, AssignExpr(target, op, value), line, col);
 
+	pub fn update(var self: &AstBuilder, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
+		=> make<UpdateExpr>(*self, NodeKind.EXPR_UPDATE, UpdateExpr(op, target), line, col);
+
 	pub fn cast(var self: &AstBuilder, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
 		=> make<CastExpr>(*self, NodeKind.EXPR_CAST, CastExpr(expr, target_type), line, col);
 

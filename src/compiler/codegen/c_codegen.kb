@@ -62,7 +62,7 @@ pub fn is_str_var(self: &CCodeGen, name: str): bool {
 
 pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str {
 	for (i in 0..<self.fn_names.len) {
-		if (self.fn_names.get(i) == name) return self.fn_ret_types.get(i);
+		if (self.fn_names[i] == name) return self.fn_ret_types[i];
 	}
 	return "";
 }
@@ -253,7 +253,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				var arr_res = "(${elem_c}[]){";
 				for (i in 0..<al.elements.len) {
 					if (i > 0) arr_res = "${arr_res}, ";
-					arr_res = "${arr_res}${gen_expr(self, al.elements.get(i))}";
+					arr_res = "${arr_res}${gen_expr(self, al.elements[i])}";
 				}
 				arr_res = "${arr_res}}";
 				return "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
@@ -262,7 +262,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			var res = "(${elem_c}[]){";
 			for (i in 0..<al.elements.len) {
 				if (i > 0) res = "${res}, ";
-				res = "${res}${gen_expr(self, al.elements.get(i))}";
+				res = "${res}${gen_expr(self, al.elements[i])}";
 			}
 			return "${res}}";
 		}
@@ -280,7 +280,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				if (mem.member == "c_str") return gen_expr(self, mem.object);
 				if (mem.member == "slice") {
 					val slice_obj = gen_expr(self, mem.object);
-					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, ${gen_expr(self, call.args.get(1))})";
+					if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, ${gen_expr(self, call.args[1])})";
 					if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${gen_expr(self, call.args.first())}, strlen(${slice_obj}))";
 					return slice_obj;
 				}
@@ -301,7 +301,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 				var res = "(${callee_str}){ ";
 				for (i in 0..<call.args.len) {
 					if (i > 0) res = "${res}, ";
-					res = "${res}${gen_expr(self, call.args.get(i))}";
+					res = "${res}${gen_expr(self, call.args[i])}";
 				}
 				return "${res} }";
 			}
@@ -310,7 +310,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			var res = "${callee_str}(";
 			for (i in 0..<call.args.len) {
 				if (i > 0) res = "${res}, ";
-				res = "${res}${gen_expr(self, call.args.get(i))}";
+				res = "${res}${gen_expr(self, call.args[i])}";
 			}
 			return "${res})";
 		}
@@ -353,6 +353,12 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			return "${gen_expr(self, asgn.target)} ${op_str} ${gen_expr(self, asgn.value)}";
 		}
 
+		NodeKind.EXPR_UPDATE -> {
+			val u = node.to<UpdateExpr>();
+			val op_str = if (u.op == TokenType.PLUS_PLUS) "++" else "--";
+			return "${gen_expr(self, u.target)}${op_str}";
+		}
+
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
 			val ty = c_type_from_ast(cst.target_type);
@@ -375,7 +381,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			var i = we.arms.len;
 			while (i > 0) {
 				i = i - 1;
-				val arm = we.arms.get(i);
+				val arm = we.arms[i];
 				if (arm.is_else) res = gen_expr(self, arm.body);
 				else res = "(${gen_when_test(self, cond, arm.patterns)} ? ${gen_expr(self, arm.body)} : ${res})";
 			}
@@ -392,7 +398,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str {
 	var res = "";
 	for (i in 0..<patterns.len) {
-		val p = patterns.get(i);
+		val p = patterns[i];
 		val test = when {
 			cond == "" -> gen_expr(self, p),
 			p.kind == NodeKind.EXPR_LITERAL && p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->

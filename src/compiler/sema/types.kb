@@ -121,13 +121,13 @@ pub fn layout_struct(ty: *Type) {
 	var max_align: usz = 1;
 	var off: usz = 0;
 	for (i in 0..<st.fields.len) {
-		val f = st.fields.get(i);
+		val f = st.fields[i];
 		val fa = f.type_ptr.align;
 		if (fa > max_align) max_align = fa;
 		val rem = off % fa;
 		if (rem != 0) off = off + (fa - rem);
 		f.offset = off;
-		st.fields.set(i, f);
+		st.fields[i] = f;
 		off = off + f.type_ptr.size;
 	}
 	val tr = off % max_align;
@@ -253,7 +253,7 @@ pub fn alloc_struct_type(
 	var current_offset: usz = 0;
 
 	for (i in 0..<fields.len) {
-		var f = fields.get(i);
+		var f = fields[i];
 		val f_align = f.type_ptr.align;
 		if (f_align > max_align) max_align = f_align;
 
@@ -262,7 +262,7 @@ pub fn alloc_struct_type(
 		if (rem != 0) current_offset = current_offset + (f_align - rem);
 
 		f.offset = current_offset;
-		fields.set(i, f);
+		fields[i] = f;
 		current_offset = current_offset + f.type_ptr.size;
 	}
 
@@ -359,7 +359,7 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 			if (!type_equals(f_a.return_type, f_b.return_type)) yield false;
 
 			for (i in 0..<f_a.param_types.len) {
-				if (!type_equals(f_a.param_types.get(i), f_b.param_types.get(i))) yield false;
+				if (!type_equals(f_a.param_types[i], f_b.param_types[i])) yield false;
 			}
 			yield true;
 		}

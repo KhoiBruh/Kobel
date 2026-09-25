@@ -104,14 +104,14 @@ pub fn str_join_path(dir: str, rel: str): str => if (dir.len == 0) rel else "${d
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;
 	for (i in 0..<count) {
-		total = total + parts.get(i).len;
+		total = total + parts[i].len;
 	}
 	if (count > 1) total = total + (count - 1);
 
 	val buf = raw_alloc(total + 1);
 	var w: usz = 0;
 	for (i in 0..<count) {
-		val p = parts.get(i);
+		val p = parts[i];
 		for (c in p) {
 			buf[w] = c as u8;
 			w = w + 1;

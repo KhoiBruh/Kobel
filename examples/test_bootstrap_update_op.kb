@@ -1,0 +1,143 @@
+mod examples.test_bootstrap_update_op;
+
+use std.io.*;
+use std.collections.list.*;
+
+struct Counter {
+	pub count: i32
+}
+
+fn test_int_update(): bool {
+	var x: i32 = 10;
+	x++;
+	if (x != 11) return false;
+
+	x--;
+	if (x != 10) return false;
+
+	var u: usz = 100;
+	u++;
+	if (u != 101) return false;
+
+	u--;
+	if (u != 100) return false;
+
+	return true;
+}
+
+fn test_float_update(): bool {
+	var f: f32 = 1.5;
+	f++;
+	if (f != 2.5) return false;
+
+	f--;
+	if (f != 1.5) return false;
+
+	var d: f64 = 10.0;
+	d++;
+	if (d != 11.0) return false;
+
+	d--;
+	if (d != 10.0) return false;
+
+	return true;
+}
+
+fn test_struct_field_update(): bool {
+	var c = Counter(41);
+	c.count++;
+	if (c.count != 42) return false;
+
+	c.count--;
+	if (c.count != 41) return false;
+
+	return true;
+}
+
+fn test_index_update(): bool {
+	var list: List<i32> = [10, 20, 30];
+	list[0]++;
+	list[1]--;
+	list[2]++;
+
+	if (list[0] != 11) return false;
+	if (list[1] != 19) return false;
+	if (list[2] != 31) return false;
+
+	return true;
+}
+
+fn test_control_flow_update(): bool {
+	var i = 0;
+	while (i < 5) {
+		i++;
+	}
+	if (i != 5) return false;
+
+	var flag = true;
+	if (flag) i++;
+	else i--;
+	if (i != 6) return false;
+
+	flag = false;
+	if (flag) i++;
+	else i--;
+	if (i != 5) return false;
+
+	return true;
+}
+
+fn test_when_arm_update(): bool {
+	var res = 10;
+	val opt = 1;
+	when (opt) {
+		1 -> res++;
+		else -> res--;
+	}
+	if (res != 11) return false;
+
+	return true;
+}
+
+fn main(): i32 {
+	println("--- Testing Update Operators (++ and --) ---");
+
+	if (!test_int_update()) {
+		println("FAIL: test_int_update");
+		return 1;
+	}
+	println("PASS: test_int_update");
+
+	if (!test_float_update()) {
+		println("FAIL: test_float_update");
+		return 1;
+	}
+	println("PASS: test_float_update");
+
+	if (!test_struct_field_update()) {
+		println("FAIL: test_struct_field_update");
+		return 1;
+	}
+	println("PASS: test_struct_field_update");
+
+	if (!test_index_update()) {
+		println("FAIL: test_index_update");
+		return 1;
+	}
+	println("PASS: test_index_update");
+
+	if (!test_control_flow_update()) {
+		println("FAIL: test_control_flow_update");
+		return 1;
+	}
+	println("PASS: test_control_flow_update");
+
+	if (!test_when_arm_update()) {
+		println("FAIL: test_when_arm_update");
+		return 1;
+	}
+	println("PASS: test_when_arm_update");
+
+	println("All update operator tests PASSED!");
+	return 0;
+}

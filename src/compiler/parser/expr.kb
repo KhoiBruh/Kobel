@@ -423,6 +423,15 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
+			if (match_token(self, TokenType.PLUS_PLUS)) {
+				val op_tok = previous(self);
+				consume(self, TokenType.SEMI_COLON, "Expected ';' after '++'");
+				return self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
+			} else if (match_token(self, TokenType.MINUS_MINUS)) {
+				val op_tok = previous(self);
+				consume(self, TokenType.SEMI_COLON, "Expected ';' after '--'");
+				return self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
+			}
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
 			return self.b().expr_stmt(expr, line, col);
 		}

@@ -110,10 +110,10 @@ pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 fn overloaded_names(im: &ImplDecl): List<str> {
 	var names = List<str>();
 	for (a in 0..<im.methods.len) {
-		val na = im.methods.get(a).to<FnDecl>().name;
+		val na = im.methods[a].to<FnDecl>().name;
 		if (list_has_str(names, na)) continue;
 		for (b in (a + 1)..<im.methods.len) {
-			if (im.methods.get(b).to<FnDecl>().name == na) {
+			if (im.methods[b].to<FnDecl>().name == na) {
 				names.add(na);
 				break;
 			}
@@ -349,13 +349,13 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 		var param_types = List<*Type>();
 
 		for (i in 0..<f.params.len) {
-			val p = f.params.get(i);
+			val p = f.params[i];
 			var pt: *Type = null;
 			if (p.name == "self" && p.type_node == null) {
 				// Receiver by value: spell its type so the backend emits `i32 self`.
 				pt = prim;
 				val rt = self.b().named_type(prim_name, List<*AstNode>(), node.line, node.col);
-				f.params.set(i, Param(p.name, rt, p.is_mut, p.has_val));
+				f.params[i] = Param(p.name, rt, p.is_mut, p.has_val);
 			} else {
 				pt = resolve_ast_type(self, p.type_node);
 			}
@@ -406,9 +406,9 @@ pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) {
 // method wins over the base one it inherits.
 fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	for (i in 0..<out.len) {
-		val e = out.get(i);
+		val e = (*out)[i];
 		if (e.name == m.name && e.arity == m.arity) {
-			out.set(i, m);
+			(*out)[i] = m;
 			return;
 		}
 	}
@@ -480,7 +480,7 @@ pub struct GenSubst {
 pub fn subst_lookup(s: *GenSubst, name: str): *AstNode {
 	if (s == null) return null;
 	for (i in 0..<s.names.len) {
-		if (s.names.get(i) == name) return s.args.get(i);
+		if (s.names[i] == name) return s.args[i];
 	}
 	return null;
 }
@@ -562,8 +562,8 @@ pub fn type_token(self: &DeclPass, ty: *Type): str => when (ty.kind) {
 pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str {
 	var res = "";
 	for (i in 0..<args.len) {
-		if (i > 0) res = "${res}_${ast_type_token(self, args.get(i))}";
-		else res = ast_type_token(self, args.get(i));
+		if (i > 0) res = "${res}_${ast_type_token(self, args[i])}";
+		else res = ast_type_token(self, args[i]);
 	}
 	return res;
 }
@@ -646,10 +646,10 @@ pub fn template_params(tmpl: *GenTemplate): List<GenericParam> => when (tmpl.nod
 pub fn check_bounds(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>) {
 	val params = template_params(tmpl);
 	for (i in 0..<params.len) {
-		val gp = params.get(i);
+		val gp = params[i];
 		if (gp.bounds.is_empty() || i >= arg_asts.len) continue;
 
-		val arg = arg_asts.get(i);
+		val arg = arg_asts[i];
 		if (arg.kind != NodeKind.TYPE_NAMED) continue;
 		val aname = arg.to<NamedType>().name;
 		val asym = lookup(&self.symtab, aname);
@@ -924,6 +924,14 @@ pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNo
 				node.line, node.col
 			);
 		}
+		NodeKind.EXPR_UPDATE -> {
+			val u = node.to<UpdateExpr>();
+			yield self.b().update(
+				u.op,
+				clone_expr(self, u.target, subst),
+				node.line, node.col
+			);
+		}
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
 			yield self.b().cast(
@@ -1161,6 +1169,7 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 			rewrite_generics(self, a.target);
 			rewrite_generics(self, a.value);
 		}
+		NodeKind.EXPR_UPDATE -> rewrite_generics(self, node.to<UpdateExpr>().target);
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
 			rewrite_generics(self, cst.expr);

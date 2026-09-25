@@ -46,7 +46,7 @@ pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_t
 	else {
 		for (i in 0..<f.params.len) {
 			if (i > 0) proto = "${proto}, ";
-			val p = f.params.get(i);
+			val p = f.params[i];
 			var p_ty = c_type_from_ast(p.type_node);
 			if (self_c_type != "" && p.name == "self" && p.type_node == null) {
 				if (p.is_mut) p_ty = "${self_c_type}*";
