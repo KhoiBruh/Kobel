@@ -50,10 +50,7 @@ pub fn lookup_keyword(text: str) => when (text) {
 impl Lexer {
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
-	pub fn peek(val self): char {
-		if (self.is_end()) return '\0';
-		return self.src[self.cursor];
-	}
+	pub fn peek(val self) => if (self.is_end()) '\0' else self.src[self.cursor];
 
 	pub fn peek_at(val self, offset: usz): char {
 		val idx = self.cursor + offset;
@@ -79,10 +76,12 @@ impl Lexer {
 		return true;
 	}
 
-	pub fn make_token(val self, t: TokenType, start_cursor: usz, start_col: usz): Token =>
-		Token(t, self.sub(start_cursor), self.line, start_col);
+	pub fn make_token(
+		val self, type: TokenType,
+		start_cursor: usz, start_col: usz
+	) => Token(type, self.sub(start_cursor), self.line, start_col);
 
-	pub fn newline(var self): none {
+	pub fn newline(var self) {
 		val c = self.peek();
 		if (c == '\r') {
 			self.next();
@@ -92,7 +91,7 @@ impl Lexer {
 		self.col = 1;
 	}
 
-	pub fn skip_space(var self): none {
+	pub fn skip_space(var self) {
 		while (!self.is_end()) {
 			val c = self.peek();
 			if (c == ' ' || c == '\t') self.next();
@@ -104,26 +103,28 @@ impl Lexer {
 	pub fn scan_identifier(var self, start_cursor: usz, start_col: usz): Token {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (is_alphanumeric(c) || c == '_') self.next();
-			else break;
+			if (is_alphanumeric(c) || c == '_') self.next(); else break;
 		}
 		val text = self.sub(start_cursor);
 		val kw = lookup_keyword(text);
 		return Token(kw, text, self.line, start_col);
 	}
 
-	pub fn scan_decimal_digits_and_fraction(var self): none {
+	pub fn scan_decimal_digits_and_fraction(var self) {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (is_digit(c) || c == '_') self.next();
-			else break;
+			if (is_digit(c) || c == '_') self.next(); else break;
 		}
-		if (self.peek() == '.' && self.cursor + 1 < self.src.len && is_digit(self.src[self.cursor + 1])) {
+
+		if (
+			self.peek() == '.' &&
+			self.cursor + 1 < self.src.len &&
+			is_digit(self.src[self.cursor + 1])
+		) {
 			self.next(); // consume '.'
 			while (!self.is_end()) {
 				val c = self.peek();
-				if (is_digit(c) || c == '_') self.next();
-				else break;
+				if (is_digit(c) || c == '_') self.next(); else break;
 			}
 		}
 	}
@@ -137,24 +138,21 @@ impl Lexer {
 					self.next(); // consume 'x' or 'X'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if (is_hex_digit(c) || c == '_') self.next();
-						else break;
+						if (is_hex_digit(c) || c == '_') self.next(); else break;
 					}
 				}
 				'b', 'B' -> {
 					self.next(); // consume 'b' or 'B'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if (c == '0' || c == '1' || c == '_') self.next();
-						else break;
+						if (c == '0' || c == '1' || c == '_') self.next(); else break;
 					}
 				}
 				'o', 'O' -> {
 					self.next(); // consume 'o' or 'O'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if ((c >= '0' && c <= '7') || c == '_') self.next();
-						else break;
+						if ((c >= '0' && c <= '7') || c == '_') self.next(); else break;
 					}
 				}
 				else -> self.scan_decimal_digits_and_fraction();
@@ -232,7 +230,7 @@ impl Lexer {
 	// Consumes a `${ ... }` hole body; the cursor sits on the '{'.
 	// Nested braces, string literals, char literals and nested `${...}` are all
 	// honoured so the matching '}' is the right one.
-	pub fn skip_hole(var self): none {
+	pub fn skip_hole(var self) {
 		var depth: i32 = 0;
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -265,7 +263,7 @@ impl Lexer {
 
 	// Skips a string literal that starts on the current '"' (may itself be
 	// interpolated).
-	pub fn skip_string_raw(var self): none {
+	pub fn skip_string_raw(var self) {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -292,7 +290,7 @@ impl Lexer {
 	}
 
 	// Skips a char literal that starts on the current '\''.
-	pub fn skip_char_raw(var self): none {
+	pub fn skip_char_raw(var self) {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -378,7 +376,11 @@ impl Lexer {
 								self.newline();
 								continue;
 							}
-							if (self.peek() == '*' && self.cursor + 1 < self.src.len && self.src[self.cursor + 1] == '/') {
+							if (
+								self.peek() == '*' &&
+								self.cursor + 1 < self.src.len &&
+								self.src[self.cursor + 1] == '/'
+							) {
 								self.next(); // '*'
 								self.next(); // '/'
 								break;
@@ -428,6 +430,7 @@ impl Lexer {
 				}
 			};
 		}
+
 		return Token(TokenType.UNKNOWN, "", self.line, self.col);
 	}
 

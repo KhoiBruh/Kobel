@@ -405,7 +405,10 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 		// Nullable pointer cannot be assigned to non-nullable pointer
 		if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
 
-		if ((!t_ptr.is_mut || s_ptr.is_mut) && type_equals(t_ptr.pointee, s_ptr.pointee)) return true;
+		if (
+			(!t_ptr.is_mut || s_ptr.is_mut) &&
+			type_equals(t_ptr.pointee, s_ptr.pointee)
+		) return true;
 
 		// Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
 		if (

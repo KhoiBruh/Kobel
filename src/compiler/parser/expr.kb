@@ -165,7 +165,7 @@ pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 		TokenType.GREATER,
 		TokenType.GREATER_EQUAL -> return PREC_COMPARISON;
 		TokenType.LESS -> {
-			if (is_generic_args_ahead(self)) return PREC_CALL;
+			if (self.is_generic_args_ahead()) return PREC_CALL;
 			return PREC_COMPARISON;
 		}
 		TokenType.PLUS,
@@ -186,7 +186,7 @@ pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 // ============================================================================
 
 pub fn parse_prefix(var self: &Parser): *AstNode {
-	val tok = advance(self);
+	val tok = self.advance();
 	val line = tok.line;
 	val col = tok.col;
 
@@ -208,23 +208,23 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 		// Grouping: (expr)
 		TokenType.OPEN_PAREN -> {
 			val inner = parse_expression(self, PREC_NONE);
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
 			return self.b().group(inner, line, col);
 		}
 
 		// Array Literal: [a, b, c]
 		TokenType.OPEN_BRACKET -> {
 			var elements = List<*AstNode>();
-			if (!check(self, TokenType.CLOSE_BRACKET)) {
+			if (!self.check(TokenType.CLOSE_BRACKET)) {
 				elements.add(parse_expression(self, PREC_NONE));
-				while (match_token(self, TokenType.COMMA)) {
-					if (check(self, TokenType.CLOSE_BRACKET)) {
+				while (self.match_token(TokenType.COMMA)) {
+					if (self.check(TokenType.CLOSE_BRACKET)) {
 						break;
 					}
 					elements.add(parse_expression(self, PREC_NONE));
 				}
 			}
-			consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
+			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
 			return self.b().array_literal(elements, line, col);
 		}
 
@@ -239,11 +239,11 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 
 		// If Expression: if (cond) then_expr else else_expr
 		TokenType.KW_IF -> {
-			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'if'");
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
 			val condition = parse_expression(self, PREC_NONE);
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 			val then_branch = parse_if_expr_branch(self);
-			consume(self, TokenType.KW_ELSE, "Expected 'else' in if expression");
+			self.consume(TokenType.KW_ELSE, "Expected 'else' in if expression");
 			val else_branch = parse_if_expr_branch(self);
 			return self.b().if_expr(condition, then_branch, else_branch, line, col);
 		}
@@ -252,54 +252,54 @@ pub fn parse_prefix(var self: &Parser): *AstNode {
 		TokenType.KW_WHEN -> {
 			// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
 			var condition: *AstNode = null;
-			if (match_token(self, TokenType.OPEN_PAREN)) {
+			if (self.match_token(TokenType.OPEN_PAREN)) {
 				condition = parse_expression(self, PREC_NONE);
-				consume(self, TokenType.CLOSE_PAREN, "Expected ')' after when condition");
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after when condition");
 			}
-			consume(self, TokenType.OPEN_BRACE, "Expected '{' before when arms");
+			self.consume(TokenType.OPEN_BRACE, "Expected '{' before when arms");
 
 			var arms = List<WhenArm>();
-			while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
-				val arm_line = peek(self).line;
-				val arm_col = peek(self).col;
+			while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
+				val arm_line = self.peek().line;
+				val arm_col = self.peek().col;
 				var is_else = false;
 				var patterns = List<*AstNode>();
 
-				if (match_token(self, TokenType.KW_ELSE)) {
+				if (self.match_token(TokenType.KW_ELSE)) {
 					is_else = true;
 				} else {
 					patterns.add(parse_expression(self, PREC_NONE));
-					while (match_token(self, TokenType.COMMA)) {
+					while (self.match_token(TokenType.COMMA)) {
 						patterns.add(parse_expression(self, PREC_NONE));
 					}
 				}
 
-				consume(self, TokenType.ARROW, "Expected '->' after when arm pattern");
+				self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 				var body: *AstNode = null;
-				if (check(self, TokenType.OPEN_BRACE)) {
+				if (self.check(TokenType.OPEN_BRACE)) {
 					body = parse_arm_block(self);
 				} else {
 					body = parse_expression(self, PREC_NONE);
 				}
 				arms.add(WhenArm(patterns, is_else, body, arm_line, arm_col));
 
-				match_token(self, TokenType.COMMA);
-				match_token(self, TokenType.SEMI_COLON);
+				self.match_token(TokenType.COMMA);
+				self.match_token(TokenType.SEMI_COLON);
 			}
 
-			consume(self, TokenType.CLOSE_BRACE, "Expected '}' after when arms");
+			self.consume(TokenType.CLOSE_BRACE, "Expected '}' after when arms");
 			return self.b().when_expr(condition, arms, line, col);
 		}
 
 		else -> {
-			error(self, tok, "Expected expression");
+			self.error(tok, "Expected expression");
 			return self.b().identifier("<error>", line, col);
 		}
 	}
 }
 
 pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
-	val tok = peek(self);
+	val tok = self.peek();
 	val line = tok.line;
 	val col = tok.col;
 
@@ -311,7 +311,7 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 		TokenType.STAR_EQUAL,
 		TokenType.SLASH_EQUAL,
 		TokenType.PERCENT_EQUAL -> {
-			val op_tok = advance(self);
+			val op_tok = self.advance();
 			val right = parse_expression(self, PREC_ASSIGN - 1);
 			return self.b().compound_assign(op_tok.type, left, right, line, col);
 		}
@@ -319,23 +319,23 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 	}
 
 	// 2. Elvis operator: left ?: right (right can be expression or jump statement)
-	if (match_token(self, TokenType.QUESTION_COLON)) {
+	if (self.match_token(TokenType.QUESTION_COLON)) {
 		var right: *AstNode = null;
-		if (match_token(self, TokenType.KW_RETURN)) {
-			val kw_line = previous(self).line;
-			val kw_col = previous(self).col;
+		if (self.match_token(TokenType.KW_RETURN)) {
+			val kw_line = self.previous().line;
+			val kw_col = self.previous().col;
 			var value: *AstNode = null;
-			if (!check(self, TokenType.SEMI_COLON) && !check(self, TokenType.CLOSE_BRACE) && !check(self, TokenType.CLOSE_PAREN)) {
+			if (!self.check(TokenType.SEMI_COLON) && !self.check(TokenType.CLOSE_BRACE) && !self.check(TokenType.CLOSE_PAREN)) {
 				value = parse_expression(self, PREC_NONE);
 			}
 			right = self.b().return_stmt(value, kw_line, kw_col);
-		} else if (match_token(self, TokenType.KW_BREAK)) {
-			val kw_line = previous(self).line;
-			val kw_col = previous(self).col;
+		} else if (self.match_token(TokenType.KW_BREAK)) {
+			val kw_line = self.previous().line;
+			val kw_col = self.previous().col;
 			right = self.b().break_stmt(kw_line, kw_col);
-		} else if (match_token(self, TokenType.KW_CONTINUE)) {
-			val kw_line = previous(self).line;
-			val kw_col = previous(self).col;
+		} else if (self.match_token(TokenType.KW_CONTINUE)) {
+			val kw_line = self.previous().line;
+			val kw_col = self.previous().col;
 			right = self.b().continue_stmt(kw_line, kw_col);
 		} else {
 			right = parse_expression(self, PREC_ELVIS - 1);
@@ -344,61 +344,61 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 	}
 
 	// 3. Member Access: left.member
-	if (match_token(self, TokenType.DOT)) {
-		val member_tok = consume(self, TokenType.IDENTIFIER, "Expected identifier after '.'");
+	if (self.match_token(TokenType.DOT)) {
+		val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
 		return self.b().member(left, member_tok.text, line, col);
 	}
 
 	// 3. Index Access: left[index]
-	if (match_token(self, TokenType.OPEN_BRACKET)) {
+	if (self.match_token(TokenType.OPEN_BRACKET)) {
 		val index = parse_expression(self, PREC_NONE);
-		consume(self, TokenType.CLOSE_BRACKET, "Expected ']' after array index");
+		self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array index");
 		return self.b().index(left, index, line, col);
 	}
 
 	// 4. Type Cast: left as Type
-	if (match_token(self, TokenType.KW_AS)) {
+	if (self.match_token(TokenType.KW_AS)) {
 		val target_type = parse_type(self);
 		return self.b().cast(left, target_type, line, col);
 	}
 
 	// 5. Generic Call: left<T1, T2>(arg1, arg2)
-	if (check(self, TokenType.LESS) && is_generic_args_ahead(self)) {
-		advance(self); // consume '<'
+	if (self.check(TokenType.LESS) && self.is_generic_args_ahead()) {
+		self.advance(); // consume '<'
 		var type_args = List<*AstNode>();
 		type_args.add(parse_type(self));
-		while (match_token(self, TokenType.COMMA)) {
+		while (self.match_token(TokenType.COMMA)) {
 			type_args.add(parse_type(self));
 		}
-		consume(self, TokenType.GREATER, "Expected '>' after generic call type arguments");
+		self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
 
-		consume(self, TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
+		self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
 		var args = List<*AstNode>();
-		if (!check(self, TokenType.CLOSE_PAREN)) {
+		if (!self.check(TokenType.CLOSE_PAREN)) {
 			args.add(parse_expression(self, PREC_NONE));
-			while (match_token(self, TokenType.COMMA)) {
+			while (self.match_token(TokenType.COMMA)) {
 				args.add(parse_expression(self, PREC_NONE));
 			}
 		}
-		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
 		return self.b().call(left, args, type_args, line, col);
 	}
 
 	// 6. Normal Call: left(arg1, arg2)
-	if (match_token(self, TokenType.OPEN_PAREN)) {
+	if (self.match_token(TokenType.OPEN_PAREN)) {
 		var args = List<*AstNode>();
-		if (!check(self, TokenType.CLOSE_PAREN)) {
+		if (!self.check(TokenType.CLOSE_PAREN)) {
 			args.add(parse_expression(self, PREC_NONE));
-			while (match_token(self, TokenType.COMMA)) {
+			while (self.match_token(TokenType.COMMA)) {
 				args.add(parse_expression(self, PREC_NONE));
 			}
 		}
-		consume(self, TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
 		return self.b().call(left, args, List<*AstNode>(), line, col);
 	}
 
 	// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
-	val op_tok = advance(self);
+	val op_tok = self.advance();
 	val right = parse_expression(self, prec);
 	return self.b().binary(op_tok.type, left, right, line, col);
 }
@@ -406,8 +406,8 @@ pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode {
 pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode {
 	var left = parse_prefix(self);
 
-	while (!is_end(self)) {
-		val next_tok = peek(self);
+	while (!self.is_end()) {
+		val next_tok = self.peek();
 		val prec = get_infix_precedence(self, next_tok.type);
 		if (prec <= min_prec) {
 			break;
@@ -420,57 +420,57 @@ pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode {
 
 // Branch of an if expression: either a plain expression or a `{ expr }` block.
 pub fn parse_if_expr_branch(var self: &Parser): *AstNode {
-	if (match_token(self, TokenType.OPEN_BRACE)) {
+	if (self.match_token(TokenType.OPEN_BRACE)) {
 		val e = parse_expression(self, PREC_NONE);
-		consume(self, TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
+		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
 		return e;
 	}
 	return parse_expression(self, PREC_NONE);
 }
 
 pub fn parse_arm_statement(var self: &Parser): *AstNode {
-	val tok = peek(self);
+	val tok = self.peek();
 	val line = tok.line;
 	val col = tok.col;
 
 	return when (tok.type) {
 		TokenType.OPEN_BRACE -> parse_arm_block(self);
 		TokenType.KW_VAL, TokenType.KW_VAR -> {
-			advance(self);
+			self.advance();
 			val is_mut = tok.type == TokenType.KW_VAR;
-			val id_tok = consume(self, TokenType.IDENTIFIER, "Expected variable name");
-			val ty_node = if (match_token(self, TokenType.COLON)) parse_type(self) else null;
-			val init_node = if (match_token(self, TokenType.EQUAL)) parse_expression(self, PREC_NONE)
+			val id_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
+			val ty_node = if (self.match_token(TokenType.COLON)) parse_type(self) else null;
+			val init_node = if (self.match_token(TokenType.EQUAL)) parse_expression(self, PREC_NONE)
 			else null;
 
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after variable declaration");
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
 
 			yield self.b().var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
 		}
 		TokenType.KW_IF -> {
-			advance(self);
-			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'if'");
+			self.advance();
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
 			val condition = parse_expression(self, PREC_NONE);
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 			val then_branch = parse_arm_statement(self);
-			val else_branch = if (match_token(self, TokenType.KW_ELSE)) parse_arm_statement(self) else null;
+			val else_branch = if (self.match_token(TokenType.KW_ELSE)) parse_arm_statement(self) else null;
 
 			yield self.b().if_stmt(condition, then_branch, else_branch, line, col);
 		}
 		TokenType.KW_WHILE -> {
-			val kw = advance(self);
-			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'while'");
+			val kw = self.advance();
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'while'");
 			val condition = parse_expression(self, PREC_NONE);
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after while condition");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 			val body = parse_arm_statement(self);
 
 			yield self.b().while_stmt(condition, body, kw.line, kw.col);
 		}
 		TokenType.KW_FOR -> {
-			val kw = advance(self);
-			consume(self, TokenType.OPEN_PAREN, "Expected '(' after 'for'");
-			val name_tok = consume(self, TokenType.IDENTIFIER, "Expected loop variable name");
-			consume(self, TokenType.KW_IN, "Expected 'in' after loop variable");
+			val kw = self.advance();
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
+			val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
+			self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
 			val first = parse_expression(self, PREC_COMPARISON);
 
@@ -481,22 +481,22 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 			var range_start: *AstNode = null;
 			var range_end: *AstNode = null;
 
-			if (match_token(self, TokenType.DOT_DOT)) {
+			if (self.match_token(TokenType.DOT_DOT)) {
 				is_range = true;
 				range_start = first;
-				if (match_token(self, TokenType.LESS)) is_half_open = true;
+				if (self.match_token(TokenType.LESS)) is_half_open = true;
 				range_end = parse_expression(self, PREC_COMPARISON);
-			} else if (check(self, TokenType.GREATER) && peek_at(self, 1).type == TokenType.DOT_DOT) {
+			} else if (self.check(TokenType.GREATER) && self.peek_at(1).type == TokenType.DOT_DOT) {
 				is_range = true;
 				is_open = true;
 				range_start = first;
-				advance(self);
-				consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
-				consume(self, TokenType.LESS, "Expected '<' to close an open range");
+				self.advance();
+				self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
+				self.consume(TokenType.LESS, "Expected '<' to close an open range");
 				range_end = parse_expression(self, PREC_COMPARISON);
 			} else iterable = first;
 
-			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 			val body = parse_arm_statement(self);
 			yield self.b().for_stmt(
 				name_tok.text, is_range, is_open, is_half_open,
@@ -504,51 +504,51 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 			);
 		}
 		TokenType.KW_BREAK -> {
-			advance(self);
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after break");
+			self.advance();
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after break");
 			yield self.b().break_stmt(line, col);
 		}
 		TokenType.KW_CONTINUE -> {
-			advance(self);
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
+			self.advance();
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after continue");
 			yield self.b().continue_stmt(line, col);
 		}
 		TokenType.KW_YIELD -> {
-			advance(self);
-			val value = if (!check(self, TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after yield");
+			self.advance();
+			val value = if (!self.check(TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
 			yield self.b().yield_stmt(value, line, col);
 		}
 		TokenType.KW_RETURN -> {
-			advance(self);
-			val value = if (!check(self, TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after return");
+			self.advance();
+			val value = if (!self.check(TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after return");
 			yield self.b().return_stmt(value, line, col);
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
-			if (match_token(self, TokenType.PLUS_PLUS)) {
-				val op_tok = previous(self);
-				consume(self, TokenType.SEMI_COLON, "Expected ';' after '++'");
+			if (self.match_token(TokenType.PLUS_PLUS)) {
+				val op_tok = self.previous();
+				self.consume(TokenType.SEMI_COLON, "Expected ';' after '++'");
 				yield self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
-			} else if (match_token(self, TokenType.MINUS_MINUS)) {
-				val op_tok = previous(self);
-				consume(self, TokenType.SEMI_COLON, "Expected ';' after '--'");
+			} else if (self.match_token(TokenType.MINUS_MINUS)) {
+				val op_tok = self.previous();
+				self.consume(TokenType.SEMI_COLON, "Expected ';' after '--'");
 				yield self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
 			}
-			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
 			yield self.b().expr_stmt(expr, line, col);
 		}
 	};
 }
 
 pub fn parse_arm_block(var self: &Parser): *AstNode {
-	val lbrace = consume(self, TokenType.OPEN_BRACE, "Expected '{'");
+	val lbrace = self.consume(TokenType.OPEN_BRACE, "Expected '{'");
 	var stmts = List<*AstNode>();
-	while (!check(self, TokenType.CLOSE_BRACE) && !is_end(self)) {
+	while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 		stmts.add(parse_arm_statement(self));
 	}
-	consume(self, TokenType.CLOSE_BRACE, "Expected '}' after block");
+	self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
 	return self.b().block_stmt(stmts, lbrace.line, lbrace.col);
 }
 

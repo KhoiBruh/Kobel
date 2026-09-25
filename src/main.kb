@@ -137,9 +137,9 @@ fn main(argc: i32, argv: &*char): i32 {
 	// implementations live under std/traits (reachable through std.fmt). Load
 	// it whenever it is available so the primitive methods exist even when the
 	// input does not import the formatting module.
-	if (find_module(&loader, "std.fmt").found) ensure_module(&loader, "std.fmt");
+	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
 
-	val prog = load_program(&loader, input_path, src);
+	val prog = loader.load_program(input_path, src);
 	if (loader.errors.len > 0) {
 		print("Module Errors in ");
 		print(input_path);
@@ -153,7 +153,7 @@ fn main(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 	print("  ");
-	print("${loaded_module_count(&loader)}");
+	print("${loader.count()}");
 	println(" module(s) loaded");
 
 	println("[2/4] Semantic analysis (declarations)...");

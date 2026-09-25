@@ -50,7 +50,8 @@ pub struct ModuleLoader {
 }
 
 impl ModuleLoader {
-	pub fn new(entry_dir: str, extra_roots: List<str>): ModuleLoader {
+
+	pub fn new(entry_dir: str, extra_roots: List<str>): Self {
 		var roots = List<str>();
 		if (entry_dir.len > 0) roots.add(entry_dir);
 
@@ -70,31 +71,131 @@ impl ModuleLoader {
 		);
 	}
 
-	pub fn b(var self: &ModuleLoader): &AstBuilder {
+	pub fn b(var self): &AstBuilder {
 		self.builder.arena = &self.arena;
 		return &self.builder;
 	}
-}
 
-pub fn loaded_module_count(self: &ModuleLoader): usz => self.ordered.len;
+	pub fn count(self): usz => self.ordered.len;
 
-// ============================================================================
-// Parsing
-// ============================================================================
+	// ============================================================================
+	// Parsing
+	// ============================================================================
 
-pub fn parse_source(var self: &ModuleLoader, path: str, source: str): *AstNode {
-	var lexer = Lexer(source);
-	val tokens = lexer.tokenize();
+	pub fn parse_source(var self, path: str, source: str): *AstNode {
+		var lexer = Lexer(source);
+		val tokens = lexer.tokenize();
 
-	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+		var parser = Parser(tokens);
+		val prog = parse_program(&parser);
 
-	if (parser.errors.len > 0) {
-		for (msg in parser.errors) self.errors.add("${path}: ${msg}");
-		return null;
+		if (parser.errors.len > 0) {
+			for (msg in parser.errors) self.errors.add("${path}: ${msg}");
+			return null;
+		}
+
+		return prog;
 	}
 
-	return prog;
+	// ============================================================================
+	// File Resolution
+	// ============================================================================
+
+	pub fn find_module(var self, module_name: str): ModuleFile {
+		val rel = "${str_module_to_rel(module_name)}.kb";
+		for (root in self.roots) {
+			val candidate = str_join_path(root, rel);
+			val src = read_file(candidate);
+			if (src.len > 0) return ModuleFile(true, candidate, src);
+		}
+		return ModuleFile(false, "", "");
+	}
+
+	pub fn is_known(self, module_name: str): bool {
+		for (lm in self.modules) {
+			if (lm.name == module_name) return true;
+		}
+		return false;
+	}
+
+	// Loads a module (and every module it `use`s) if not already loaded.
+	pub fn ensure_module(var self, module_name: str) {
+		if (self.is_known(module_name)) return;
+
+		// Mark it first to avoid infinite recursion when imports form a cycle
+		self.modules.add(LoadedModule(module_name, "", null));
+
+		val file = self.find_module(module_name);
+		if (!file.found) {
+			val msg = "Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)";
+			self.errors.add(msg);
+			return;
+		}
+
+		val prog = self.parse_source(file.path, file.source);
+		if (prog == null) return;
+
+		val declared = declared_module_name(prog);
+		if (declared.len > 0 && declared != module_name) {
+			self.errors.add("${file.path}: module declared as '${declared}' but imported as '${module_name}'");
+			return;
+		}
+
+		// Load dependencies first, then add this module to the merge order
+		self.process_uses(prog);
+		self.ordered.add(LoadedModule(module_name, file.path, prog));
+	}
+
+	pub fn process_uses(var self, program_node: *AstNode) {
+		val prog = program_node.to<Program>();
+		for (decl in prog) {
+			if (decl.kind == NodeKind.DECL_USE) {
+				val u = decl.to<UseDecl>();
+				val mod_name = when {
+					u.is_wildcard -> str_join_dots(u.path, u.path.len),
+					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
+					else -> ""
+				};
+				if (mod_name.len > 0) self.ensure_module(mod_name);
+			}
+		}
+	}
+
+	// ============================================================================
+	// Entry Point
+	// ============================================================================
+
+	pub fn load_program(var self, entry_path: str, entry_source: str): *AstNode {
+		val prog = self.parse_source(entry_path, entry_source);
+		if (prog == null) return null;
+
+		var entry_name = declared_module_name(prog);
+		if (entry_name.len == 0) entry_name = str_path_to_module(str_base_name(entry_path));
+
+		self.modules.add(LoadedModule(entry_name, entry_path, prog));
+		self.process_uses(prog);
+		self.ordered.add(LoadedModule(entry_name, entry_path, prog));
+
+		return self.build_merged_program();
+	}
+
+	// Merges every module (dependencies first, entry last) into a single Program.
+	pub fn build_merged_program(var self): *AstNode {
+		var decls = List<*AstNode>();
+
+		for (lm in self.ordered) {
+			if (lm.program != null) {
+				// Insert `mod <module name>;` so the passes know which symbol belongs to which module
+				decls.add(self.b().module_decl(str_split_dots(lm.name), lm.name, 0, 0));
+
+				val p = lm.program.to<Program>();
+				for (d in p) decls.add(d);
+			}
+		}
+
+		return self.b().program(decls, 0, 0);
+	}
+
 }
 
 // Module name declared in the file (`mod a.b.c;`), "" when the file declares none.
@@ -105,103 +206,4 @@ pub fn declared_module_name(program_node: *AstNode): str {
 		if (decl.kind == NodeKind.DECL_MODULE) return decl.to<ModuleDecl>().full_path;
 	}
 	return "";
-}
-
-// ============================================================================
-// File Resolution
-// ============================================================================
-
-pub fn find_module(var self: &ModuleLoader, module_name: str): ModuleFile {
-	val rel = "${str_module_to_rel(module_name)}.kb";
-	for (root in self.roots) {
-		val candidate = str_join_path(root, rel);
-		val src = read_file(candidate);
-		if (src.len > 0) return ModuleFile(true, candidate, src);
-	}
-	return ModuleFile(false, "", "");
-}
-
-pub fn is_known(self: &ModuleLoader, module_name: str): bool {
-	for (lm in self.modules) {
-		if (lm.name == module_name) return true;
-	}
-	return false;
-}
-
-// Loads a module (and every module it `use`s) if not already loaded.
-pub fn ensure_module(var self: &ModuleLoader, module_name: str) {
-	if (is_known(self, module_name)) return;
-
-	// Mark it first to avoid infinite recursion when imports form a cycle
-	self.modules.add(LoadedModule(module_name, "", null));
-
-	val file = find_module(self, module_name);
-	if (!file.found) {
-		val msg = "Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)";
-		self.errors.add(msg);
-		return;
-	}
-
-	val prog = parse_source(self, file.path, file.source);
-	if (prog == null) return;
-
-	val declared = declared_module_name(prog);
-	if (declared.len > 0 && declared != module_name) {
-		self.errors.add("${file.path}: module declared as '${declared}' but imported as '${module_name}'");
-		return;
-	}
-
-	// Load dependencies first, then add this module to the merge order
-	process_uses(self, prog);
-	self.ordered.add(LoadedModule(module_name, file.path, prog));
-}
-
-pub fn process_uses(var self: &ModuleLoader, program_node: *AstNode) {
-	val prog = program_node.to<Program>();
-	for (decl in prog) {
-		if (decl.kind == NodeKind.DECL_USE) {
-			val u = decl.to<UseDecl>();
-			val mod_name = when {
-				u.is_wildcard -> str_join_dots(u.path, u.path.len),
-				u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
-				else -> ""
-			};
-			if (mod_name.len > 0) ensure_module(self, mod_name);
-		}
-	}
-}
-
-// ============================================================================
-// Entry Point
-// ============================================================================
-
-pub fn load_program(var self: &ModuleLoader, entry_path: str, entry_source: str): *AstNode {
-	val prog = parse_source(self, entry_path, entry_source);
-	if (prog == null) return null;
-
-	var entry_name = declared_module_name(prog);
-	if (entry_name.len == 0) entry_name = str_path_to_module(str_base_name(entry_path));
-
-	self.modules.add(LoadedModule(entry_name, entry_path, prog));
-	process_uses(self, prog);
-	self.ordered.add(LoadedModule(entry_name, entry_path, prog));
-
-	return build_merged_program(self);
-}
-
-// Merges every module (dependencies first, entry last) into a single Program.
-pub fn build_merged_program(var self: &ModuleLoader): *AstNode {
-	var decls = List<*AstNode>();
-
-	for (lm in self.ordered) {
-		if (lm.program != null) {
-			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-			decls.add(self.b().module_decl(str_split_dots(lm.name), lm.name, 0, 0));
-
-			val p = lm.program.to<Program>();
-			for (d in p) decls.add(d);
-		}
-	}
-
-	return self.b().program(decls, 0, 0);
 }
