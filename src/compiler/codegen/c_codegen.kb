@@ -44,32 +44,39 @@ impl CCodeGen {
 		false
 	);
 
-}
-
-pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
-	for (v in self.pointer_vars) {
-		if (v == name) return true;
+	pub fn is_pointer_var(self: &CCodeGen, name: str): bool {
+		for (v in self.pointer_vars) {
+			if (v == name) return true;
+		}
+		return false;
 	}
-	return false;
-}
 
-pub fn is_str_var(self: &CCodeGen, name: str): bool {
-	for (v in self.str_vars) {
-		if (v == name) return true;
+	pub fn is_str_var(self: &CCodeGen, name: str): bool {
+		for (v in self.str_vars) {
+			if (v == name) return true;
+		}
+		return false;
 	}
-	return false;
-}
 
-pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str {
-	for (i in 0..<self.fn_names.len) {
-		if (self.fn_names[i] == name) return self.fn_ret_types[i];
+	pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str {
+		for (i in 0..<self.fn_names.len) {
+			if (self.fn_names[i] == name) return self.fn_ret_types[i];
+		}
+		return "";
 	}
-	return "";
+
+	pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
+		self.fn_names.add(name);
+		self.fn_ret_types.add(ret_type);
+	}
+
 }
 
+pub fn is_pointer_var(self: &CCodeGen, name: str): bool => self.is_pointer_var(name);
+pub fn is_str_var(self: &CCodeGen, name: str): bool => self.is_str_var(name);
+pub fn lookup_fn_ret_type(self: &CCodeGen, name: str): str => self.lookup_fn_ret_type(name);
 pub fn register_fn(var self: &CCodeGen, name: str, ret_type: str) {
-	self.fn_names.add(name);
-	self.fn_ret_types.add(ret_type);
+	self.register_fn(name, ret_type);
 }
 
 pub fn get_indent(level: usz): str {
@@ -174,6 +181,8 @@ pub fn c_format_int_literal(raw: str): str {
 // ============================================================================
 // Expression Code Generation
 // ============================================================================
+
+impl CCodeGen {
 
 pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 	if (node == null) return "";
@@ -515,6 +524,12 @@ pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str {
 	}
 }
 
+}
+
+pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str => self.gen_expr(node);
+pub fn gen_when_test(var self: &CCodeGen, cond: str, patterns: List<*AstNode>): str => self.gen_when_test(cond, patterns);
+pub fn infer_type_from_expr(var self: &CCodeGen, expr: *AstNode): str => self.infer_type_from_expr(expr);
+
 // ============================================================================
 // Statement Code Generation
 // ============================================================================
@@ -525,6 +540,8 @@ pub fn when_expr_has_blocks(we: *WhenExpr): bool {
 	}
 	return false;
 }
+
+impl CCodeGen {
 
 pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 	if (node == null) return "";
@@ -804,3 +821,8 @@ pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str
 	self.is_yield_return = prev_is_ret;
 	return res;
 }
+
+}
+
+pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str => self.gen_statement(node);
+pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str, is_ret: bool): str => self.gen_when_with_target(we, target_name, is_ret);

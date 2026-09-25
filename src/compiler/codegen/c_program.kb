@@ -17,6 +17,8 @@ use util.strutil.*;
 // Declaration Code Generation
 // ============================================================================
 
+impl CCodeGen {
+
 pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str {
 	val s = node.to<StructDecl>();
 	self.struct_names.add(s.name);
@@ -117,6 +119,8 @@ pub fn fn_ret_c_type(var self: &CCodeGen, f: *FnDecl): str {
 	return "void";
 }
 
+}
+
 // Generic declarations are templates: monomorphized instances are appended by
 // the semantic analyzer, so the backend must skip the templates themselves.
 pub fn is_generic_decl(node: *AstNode) => when (node.kind) {
@@ -125,6 +129,8 @@ pub fn is_generic_decl(node: *AstNode) => when (node.kind) {
 	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0;
 	else -> false;
 };
+
+impl CCodeGen {
 
 pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	val prog = program_node.to<Program>();
@@ -277,3 +283,10 @@ pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 
 	return c_code;
 }
+
+}
+
+pub fn gen_struct_decl(var self: &CCodeGen, node: *AstNode): str => self.gen_struct_decl(node);
+pub fn gen_fn_decl(var self: &CCodeGen, node: *AstNode, is_proto: bool, self_c_type: str): str => self.gen_fn_decl(node, is_proto, self_c_type);
+pub fn fn_ret_c_type(var self: &CCodeGen, f: *FnDecl): str => self.fn_ret_c_type(f);
+pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str => self.gen_program(program_node);
