@@ -324,19 +324,19 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 	val line = tok.line;
 	val col = tok.col;
 
-	when (tok.type) {
-		TokenType.OPEN_BRACE -> return parse_arm_block(self);
-		TokenType.KW_VAL,
-		TokenType.KW_VAR -> {
+	return when (tok.type) {
+		TokenType.OPEN_BRACE -> parse_arm_block(self);
+		TokenType.KW_VAL, TokenType.KW_VAR -> {
 			advance(self);
 			val is_mut = tok.type == TokenType.KW_VAR;
 			val id_tok = consume(self, TokenType.IDENTIFIER, "Expected variable name");
-			var ty_node: *AstNode = null;
-			if (match_token(self, TokenType.COLON)) ty_node = parse_type(self);
-			var init_node: *AstNode = null;
-			if (match_token(self, TokenType.EQUAL)) init_node = parse_expression(self, PREC_NONE);
+			val ty_node = if (match_token(self, TokenType.COLON)) parse_type(self) else null;
+			val init_node = if (match_token(self, TokenType.EQUAL)) parse_expression(self, PREC_NONE)
+			else null;
+
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-			return self.b().var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
+
+			yield self.b().var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
 		}
 		TokenType.KW_IF -> {
 			advance(self);
@@ -344,11 +344,9 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 			val condition = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 			val then_branch = parse_arm_statement(self);
-			var else_branch: *AstNode = null;
-			if (match_token(self, TokenType.KW_ELSE)) {
-				else_branch = parse_arm_statement(self);
-			}
-			return self.b().if_stmt(condition, then_branch, else_branch, line, col);
+			val else_branch = if (match_token(self, TokenType.KW_ELSE)) parse_arm_statement(self) else null;
+
+			yield self.b().if_stmt(condition, then_branch, else_branch, line, col);
 		}
 		TokenType.KW_WHILE -> {
 			val kw = advance(self);
@@ -356,7 +354,8 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 			val condition = parse_expression(self, PREC_NONE);
 			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 			val body = parse_arm_statement(self);
-			return self.b().while_stmt(condition, body, kw.line, kw.col);
+
+			yield self.b().while_stmt(condition, body, kw.line, kw.col);
 		}
 		TokenType.KW_FOR -> {
 			val kw = advance(self);
@@ -386,13 +385,11 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 				consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
 				consume(self, TokenType.LESS, "Expected '<' to close an open range");
 				range_end = parse_expression(self, PREC_COMPARISON);
-			} else {
-				iterable = first;
-			}
+			} else iterable = first;
 
 			consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
 			val body = parse_arm_statement(self);
-			return self.b().for_stmt(
+			yield self.b().for_stmt(
 				name_tok.text, is_range, is_open, is_half_open,
 				iterable, range_start, range_end, body, kw.line, kw.col
 			);
@@ -400,42 +397,40 @@ pub fn parse_arm_statement(var self: &Parser): *AstNode {
 		TokenType.KW_BREAK -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after break");
-			return self.b().break_stmt(line, col);
+			yield self.b().break_stmt(line, col);
 		}
 		TokenType.KW_CONTINUE -> {
 			advance(self);
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after continue");
-			return self.b().continue_stmt(line, col);
+			yield self.b().continue_stmt(line, col);
 		}
 		TokenType.KW_YIELD -> {
 			advance(self);
-			var value: *AstNode = null;
-			if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
+			val value = if (!check(self, TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after yield");
-			return self.b().yield_stmt(value, line, col);
+			yield self.b().yield_stmt(value, line, col);
 		}
 		TokenType.KW_RETURN -> {
 			advance(self);
-			var value: *AstNode = null;
-			if (!check(self, TokenType.SEMI_COLON)) value = parse_expression(self, PREC_NONE);
+			val value = if (!check(self, TokenType.SEMI_COLON)) parse_expression(self, PREC_NONE) else null;
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after return");
-			return self.b().return_stmt(value, line, col);
+			yield self.b().return_stmt(value, line, col);
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
 			if (match_token(self, TokenType.PLUS_PLUS)) {
 				val op_tok = previous(self);
 				consume(self, TokenType.SEMI_COLON, "Expected ';' after '++'");
-				return self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
+				yield self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
 			} else if (match_token(self, TokenType.MINUS_MINUS)) {
 				val op_tok = previous(self);
 				consume(self, TokenType.SEMI_COLON, "Expected ';' after '--'");
-				return self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
+				yield self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
 			}
 			consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
-			return self.b().expr_stmt(expr, line, col);
+			yield self.b().expr_stmt(expr, line, col);
 		}
-	}
+	};
 }
 
 pub fn parse_arm_block(var self: &Parser): *AstNode {

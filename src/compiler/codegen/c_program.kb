@@ -119,12 +119,12 @@ pub fn fn_ret_c_type(var self: &CCodeGen, f: *FnDecl): str {
 
 // Generic declarations are templates: monomorphized instances are appended by
 // the semantic analyzer, so the backend must skip the templates themselves.
-pub fn is_generic_decl(node: *AstNode): bool {
-	if (node.kind == NodeKind.DECL_STRUCT) return node.to<StructDecl>().type_params.len > 0;
-	if (node.kind == NodeKind.DECL_FN) return node.to<FnDecl>().type_params.len > 0;
-	if (node.kind == NodeKind.DECL_IMPL) return node.to<ImplDecl>().type_params.len > 0;
-	return false;
-}
+pub fn is_generic_decl(node: *AstNode) => when (node.kind) {
+	NodeKind.DECL_STRUCT -> node.to<StructDecl>().type_params.len > 0;
+	NodeKind.DECL_FN -> node.to<FnDecl>().type_params.len > 0;
+	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0;
+	else -> false;
+};
 
 pub fn gen_program(var self: &CCodeGen, program_node: *AstNode): str {
 	val prog = program_node.to<Program>();

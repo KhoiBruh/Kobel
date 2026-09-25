@@ -302,9 +302,11 @@ pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
 
 	// 3. Explicit imports (by original name or alias), scoped to this module
 	for (b in self.imports) {
-		if (!b.is_wildcard && b.local_name == name && b.owner_module == self.current_module) {
-			return lookup_in_module(self, b.module_name, b.symbol_name);
-		}
+		if (
+			!b.is_wildcard &&
+			b.local_name == name &&
+			b.owner_module == self.current_module
+		) return lookup_in_module(self, b.module_name, b.symbol_name);
 	}
 
 	// 4. Wildcard imports, scoped to this module
@@ -378,9 +380,7 @@ pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): 
 }
 
 // Define a top-level declaration into the module currently being collected.
-pub fn define_global(var self: &SymbolTable, sym: Symbol): bool {
-	return define_in_module(self, self.current_module, sym);
-}
+pub fn define_global(var self: &SymbolTable, sym: Symbol) => define_in_module(self, self.current_module, sym);
 
 pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
 	self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));

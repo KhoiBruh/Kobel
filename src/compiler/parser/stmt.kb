@@ -80,22 +80,29 @@ pub fn parse_for_stmt(var self: &Parser): *AstNode {
 	var range_start: *AstNode = null;
 	var range_end: *AstNode = null;
 
-	if (match_token(self, TokenType.DOT_DOT)) {
-		is_range = true;
-		range_start = first;
-		// `a..<b` excludes the end bound, so `for (i in 0..<seq.len)` is the
-		// index loop that never has to subtract one (which would wrap at 0).
-		if (match_token(self, TokenType.LESS)) is_half_open = true;
-		range_end = parse_expression(self, PREC_COMPARISON);
-	} else if (check(self, TokenType.GREATER) && peek_at(self, 1).type == TokenType.DOT_DOT) {
-		is_range = true;
-		is_open = true;
-		range_start = first;
-		advance(self); // '>'
-		consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
-		consume(self, TokenType.LESS, "Expected '<' to close an open range");
-		range_end = parse_expression(self, PREC_COMPARISON);
-	} else iterable = first;
+	when {
+		match_token(self, TokenType.DOT_DOT) -> {
+			is_range = true;
+			range_start = first;
+			// `a..<b` excludes the end bound, so `for (i in 0..<seq.len)` is the
+			// index loop that never has to subtract one (which would wrap at 0).
+			if (match_token(self, TokenType.LESS)) is_half_open = true;
+			range_end = parse_expression(self, PREC_COMPARISON);
+		}
+
+		check(self, TokenType.GREATER) &&
+		peek_at(self, 1).type == TokenType.DOT_DOT -> {
+			is_range = true;
+			is_open = true;
+			range_start = first;
+			advance(self); // '>'
+			consume(self, TokenType.DOT_DOT, "Expected '..' in open range");
+			consume(self, TokenType.LESS, "Expected '<' to close an open range");
+			range_end = parse_expression(self, PREC_COMPARISON);
+		}
+
+		else -> iterable = first;
+	}
 
 	consume(self, TokenType.CLOSE_PAREN, "Expected ')' after for header");
 	val body = parse_statement(self);
@@ -182,19 +189,23 @@ pub fn parse_statement(var self: &Parser): *AstNode {
 		}
 		else -> {
 			val expr = parse_expression(self, PREC_NONE);
-			var res_stmt: *AstNode = null;
-			if (match_token(self, TokenType.PLUS_PLUS)) {
-				val op_tok = previous(self);
-				consume(self, TokenType.SEMI_COLON, "Expected ';' after '++'");
-				res_stmt = self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
-			} else if (match_token(self, TokenType.MINUS_MINUS)) {
-				val op_tok = previous(self);
-				consume(self, TokenType.SEMI_COLON, "Expected ';' after '--'");
-				res_stmt = self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
-			} else {
-				consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
-				res_stmt = self.b().expr_stmt(expr, line, col);
-			}
+			val res_stmt = when {
+				match_token(self, TokenType.PLUS_PLUS) -> {
+					val op_tok = previous(self);
+					consume(self, TokenType.SEMI_COLON, "Expected ';' after '++'");
+					yield self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
+				}
+				match_token(self, TokenType.MINUS_MINUS) -> {
+					val op_tok = previous(self);
+					consume(self, TokenType.SEMI_COLON, "Expected ';' after '--'");
+					yield self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
+				}
+				else -> {
+					consume(self, TokenType.SEMI_COLON, "Expected ';' after expression statement");
+					yield self.b().expr_stmt(expr, line, col);
+				}
+			};
+
 			yield res_stmt;
 		}
 	};
