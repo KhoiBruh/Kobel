@@ -54,7 +54,7 @@ impl HashMap<V> {
 		self.keys[idx] = key;
 		self.values[idx] = value;
 		self.occupied[idx] = true;
-		self.len = self.len + 1;
+		self.len++;
 	}
 
 	pub fn contains(val self, key: str): bool {

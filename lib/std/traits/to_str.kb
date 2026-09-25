@@ -29,17 +29,17 @@ fn fmt_u64(n0: u64): str {
 	var digits: usz = 1;
 	var probe = n;
 	while (probe >= 10) {
-		probe = probe / 10;
-		digits = digits + 1;
+		probe /= 10;
+		digits++;
 	}
 
 	val buf = raw_alloc(digits + 1);
 	buf[digits] = 0;
 	var i = digits;
 	while (i > 0) {
-		i = i - 1;
+		i--;
 		buf[i] = (48UL + (n % 10)) as u8;
-		n = n / 10;
+		n /= 10;
 	}
 	return str_from_bytes(buf, digits);
 }
@@ -94,14 +94,14 @@ fn fmt_f64(v: f64): str {
 	val prec: usz = 6;
 	var scale: f64 = 1.0;
 	for (k in 0..<prec) {
-		scale = scale * 10.0;
+		scale *= 10.0;
 	}
 
 	var ip: u64 = x as u64;
 	var frac: u64 = ((x - (ip as f64)) * scale + 0.5) as u64;
 	if (frac >= (scale as u64)) {
 		// Rounding carried into the integer part (e.g. 0.9999999 -> 1.0).
-		ip = ip + 1;
+		ip++;
 		frac = 0;
 	}
 
@@ -114,7 +114,7 @@ fn fmt_f64(v: f64): str {
 	var end = digits.len;
 	while (end > 0) {
 		if (digits[end - 1] != '0') break;
-		end = end - 1;
+		end--;
 	}
 	if (end == 0) return out;
 	return out + "." + digits.slice(0, end);

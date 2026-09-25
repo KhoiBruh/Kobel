@@ -380,7 +380,7 @@ pub fn gen_expr(var self: &CCodeGen, node: *AstNode): str {
 			var res = "0";
 			var i = we.arms.len;
 			while (i > 0) {
-				i = i - 1;
+				i--;
 				val arm = we.arms[i];
 				if (arm.is_else) res = gen_expr(self, arm.body);
 				else res = "(${gen_when_test(self, cond, arm.patterns)} ? ${gen_expr(self, arm.body)} : ${res})";
@@ -530,11 +530,11 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			val blk = node.to<BlockStmt>();
 			val ind = get_indent(self.indent_level);
 			var res = ind + "{\n";
-			self.indent_level = self.indent_level + 1;
+			self.indent_level++;
 			for (stmt in blk.statements) {
-				res = res + gen_statement(self, stmt);
+				res += gen_statement(self, stmt);
 			}
-			self.indent_level = self.indent_level - 1;
+			self.indent_level--;
 			return res + ind + "}\n";
 		}
 
@@ -582,9 +582,9 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 				var res = "${ind}${ty_str} ${vd.name} = ${gen_expr(self, bin.left)};\n";
 				if (is_jump) {
 					res = "${res}${ind}if (${vd.name} == NULL) {\n";
-					self.indent_level = self.indent_level + 1;
+					self.indent_level++;
 					res = "${res}${gen_statement(self, bin.right)}";
-					self.indent_level = self.indent_level - 1;
+					self.indent_level--;
 					res = "${res}${ind}}\n";
 				} else {
 					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${gen_expr(self, bin.right)};\n";
@@ -606,15 +606,15 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			val ifs = node.to<IfStmt>();
 			val ind = get_indent(self.indent_level);
 			var res = "${ind}if (${gen_expr(self, ifs.condition)}) {\n";
-			self.indent_level = self.indent_level + 1;
+			self.indent_level++;
 			res = "${res}${gen_statement(self, ifs.then_branch)}";
-			self.indent_level = self.indent_level - 1;
+			self.indent_level--;
 
 			if (ifs.else_branch != null) {
 				res = "${res}${ind}} else {\n";
-				self.indent_level = self.indent_level + 1;
+				self.indent_level++;
 				res = "${res}${gen_statement(self, ifs.else_branch)}";
-				self.indent_level = self.indent_level - 1;
+				self.indent_level--;
 			}
 			return "${res}${ind}}\n";
 		}
@@ -623,9 +623,9 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			val wh = node.to<WhileStmt>();
 			val ind = get_indent(self.indent_level);
 			var res = "${ind}while (${gen_expr(self, wh.condition)}) {\n";
-			self.indent_level = self.indent_level + 1;
+			self.indent_level++;
 			res = "${res}${gen_statement(self, wh.body)}";
-			self.indent_level = self.indent_level - 1;
+			self.indent_level--;
 			return "${res}${ind}}\n";
 		}
 
@@ -655,9 +655,9 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 						val tgt = gen_expr(self, asg.target);
 						var res = "${ind}${tgt} = ${gen_expr(self, bin.left)};\n";
 						res = "${res}${ind}if (${tgt} == NULL) {\n";
-						self.indent_level = self.indent_level + 1;
+						self.indent_level++;
 						res = "${res}${gen_statement(self, bin.right)}";
-						self.indent_level = self.indent_level - 1;
+						self.indent_level--;
 						res = "${res}${ind}}\n";
 						return res;
 					}
@@ -671,9 +671,9 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 
 				if (is_jump) {
 					var res = "${ind}if (${gen_expr(self, bin.left)} == NULL) {\n";
-					self.indent_level = self.indent_level + 1;
+					self.indent_level++;
 					res = "${res}${gen_statement(self, bin.right)}";
-					self.indent_level = self.indent_level - 1;
+					self.indent_level--;
 					res = "${res}${ind}}\n";
 					return res;
 				}
@@ -709,19 +709,19 @@ pub fn gen_statement(var self: &CCodeGen, node: *AstNode): str {
 			var first = true;
 			for (arm in ws.arms) {
 				if (arm.is_else) {
-					if (first) res = res + ind + "{\n";
-					else res = res + ind + "} else {\n";
+					if (first) res += ind + "{\n";
+					else res += ind + "} else {\n";
 				} else {
 					val test = gen_when_test(self, cond, arm.patterns);
-					if (first) res = res + ind + "if (" + test + ") {\n";
-					else res = res + ind + "} else if (" + test + ") {\n";
+					if (first) res += ind + "if (" + test + ") {\n";
+					else res += ind + "} else if (" + test + ") {\n";
 				}
-				self.indent_level = self.indent_level + 1;
-				res = res + gen_statement(self, arm.body);
-				self.indent_level = self.indent_level - 1;
+				self.indent_level++;
+				res += gen_statement(self, arm.body);
+				self.indent_level--;
 				first = false;
 			}
-			if (!first) res = res + ind + "}\n";
+			if (!first) res += ind + "}\n";
 			return res;
 		}
 
@@ -743,31 +743,31 @@ pub fn gen_when_with_target(var self: &CCodeGen, we: *WhenExpr, target_name: str
 
 	for (arm in we.arms) {
 		if (arm.is_else) {
-			if (first) res = res + ind + "{\n";
-			else res = res + ind + "} else {\n";
+			if (first) res += ind + "{\n";
+			else res += ind + "} else {\n";
 		} else {
 			val test = gen_when_test(self, cond, arm.patterns);
-			if (first) res = res + ind + "if (" + test + ") {\n";
-			else res = res + ind + "} else if (" + test + ") {\n";
+			if (first) res += ind + "if (" + test + ") {\n";
+			else res += ind + "} else if (" + test + ") {\n";
 		}
-		self.indent_level = self.indent_level + 1;
+		self.indent_level++;
 		if (arm.body.kind == NodeKind.STMT_BLOCK) {
 			val blk = arm.body.to<BlockStmt>();
 			for (s in blk.statements) {
-				res = res + gen_statement(self, s);
+				res += gen_statement(self, s);
 			}
 		} else {
 			val arm_ind = get_indent(self.indent_level);
 			if (is_ret) {
-				res = res + arm_ind + "return " + gen_expr(self, arm.body) + ";\n";
+				res += arm_ind + "return " + gen_expr(self, arm.body) + ";\n";
 			} else {
-				res = res + arm_ind + target_name + " = " + gen_expr(self, arm.body) + ";\n";
+				res += arm_ind + target_name + " = " + gen_expr(self, arm.body) + ";\n";
 			}
 		}
-		self.indent_level = self.indent_level - 1;
+		self.indent_level--;
 		first = false;
 	}
-	if (!first) res = res + ind + "}\n";
+	if (!first) res += ind + "}\n";
 
 	self.yield_target = prev_target;
 	self.is_yield_return = prev_is_ret;

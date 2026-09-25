@@ -37,7 +37,7 @@ impl StringBuilder {
 	pub fn append_char(var self, c: char) {
 		if (self.len + 2 >= self.cap) self.grow(self.len + 2);
 		self.buf[self.len] = c as u8;
-		self.len = self.len + 1;
+		self.len++;
 	}
 
 	pub fn append_str(var self, s: str) {
@@ -46,7 +46,7 @@ impl StringBuilder {
 		for (i in 0..<s_len) {
 			self.buf[self.len + i] = s[i] as u8;
 		}
-		self.len = self.len + s_len;
+		self.len += s_len;
 	}
 
 	pub fn append_i32(var self, n: i32) {
@@ -65,15 +65,15 @@ impl StringBuilder {
 		var place: i32 = 1;
 		var probe = v;
 		while (probe >= 10) {
-			probe = probe / 10;
-			place = place * 10;
+			probe /= 10;
+			place *= 10;
 		}
 		var rest = v;
 		while (place > 0) {
 			val digit = rest / place;
 			self.append_char((digit + 48) as char);
-			rest = rest - digit * place;
-			place = place / 10;
+			rest -= digit * place;
+			place /= 10;
 		}
 	}
 
@@ -84,7 +84,7 @@ impl StringBuilder {
 	fn grow(var self, min_cap: usz) {
 		var new_cap = self.cap * 2;
 		while (new_cap < min_cap) {
-			new_cap = new_cap * 2;
+			new_cap *= 2;
 		}
 		val new_raw = raw_resize(self.buf, new_cap);
 		self.buf = new_raw;

@@ -45,7 +45,7 @@ pub fn previous(var self: &Parser): Token {
 }
 
 pub fn advance(var self: &Parser): Token {
-	if (!is_end(self)) self.current = self.current + 1;
+	if (!is_end(self)) self.current++;
 	return previous(self);
 }
 
@@ -114,9 +114,9 @@ pub fn is_generic_args_ahead(var self: &Parser): bool {
 	for (i in (self.current + 1)..<self.tokens.len) {
 		val tok = self.tokens[i];
 		when (tok.type) {
-			TokenType.LESS -> { depth = depth + 1; }
+			TokenType.LESS -> { depth++; }
 			TokenType.GREATER -> {
-				depth = depth - 1;
+				depth--;
 				if (depth == 0) return true;
 			}
 			TokenType.SEMI_COLON,

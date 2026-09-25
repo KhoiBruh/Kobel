@@ -70,7 +70,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				return 0;
 			}
 			"-o" -> {
-				i = i + 1;
+				i++;
 				if (i < argc) {
 					output_bin = cstr_to_str(argv[i]);
 				} else {
@@ -79,7 +79,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				}
 			}
 			"-emit-c" -> {
-				i = i + 1;
+				i++;
 				if (i < argc) {
 					emit_c_path = cstr_to_str(argv[i]);
 					only_emit_c = true;
@@ -89,7 +89,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				}
 			}
 			"--cc" -> {
-				i = i + 1;
+				i++;
 				if (i < argc) {
 					c_compiler = cstr_to_str(argv[i]);
 				} else {
@@ -98,7 +98,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				}
 			}
 			"-I" -> {
-				i = i + 1;
+				i++;
 				if (i < argc) {
 					extra_roots.add(cstr_to_str(argv[i]));
 				} else {
@@ -114,7 +114,7 @@ fn main(argc: i32, argv: &*char): i32 {
 				input_path = arg;
 			}
 		}
-		i = i + 1;
+		i++;
 	}
 
 	if (input_path.len == 0) {

@@ -844,7 +844,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			val we = node.to<WhenExpr>();
 			if (we.condition != null) check_expr(self, we.condition);
 
-			self.when_depth = self.when_depth + 1;
+			self.when_depth++;
 			var result_ty: *Type = null;
 			var has_else = false;
 			for (arm in we.arms) {
@@ -859,7 +859,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					report_error(self, arm.body, "When arm type does not match previous arms");
 				}
 			}
-			self.when_depth = self.when_depth - 1;
+			self.when_depth--;
 
 			if (!has_else) {
 				report_error(self, node, "when expression requires an 'else' arm");
@@ -978,9 +978,9 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			val wh = node.to<WhileStmt>();
 			val cond_ty = check_expr(self, wh.condition);
 			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "While statement condition must be bool");
-			self.loop_depth = self.loop_depth + 1;
+			self.loop_depth++;
 			check_statement(self, wh.body);
-			self.loop_depth = self.loop_depth - 1;
+			self.loop_depth--;
 		}
 		NodeKind.STMT_FOR -> {
 			val fs = node.to<ForStmt>() as &ForStmt;

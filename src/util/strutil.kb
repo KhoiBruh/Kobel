@@ -104,9 +104,9 @@ pub fn str_join_path(dir: str, rel: str): str => if (dir.len == 0) rel else "${d
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;
 	for (i in 0..<count) {
-		total = total + parts[i].len;
+		total += parts[i].len;
 	}
-	if (count > 1) total = total + (count - 1);
+	if (count > 1) total += (count - 1);
 
 	val buf = raw_alloc(total + 1);
 	var w: usz = 0;
@@ -114,11 +114,11 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 		val p = parts[i];
 		for (c in p) {
 			buf[w] = c as u8;
-			w = w + 1;
+			w++;
 		}
 		if (i + 1 < count) {
 			buf[w] = '.' as u8;
-			w = w + 1;
+			w++;
 		}
 	}
 	buf[w] = 0;
@@ -150,22 +150,22 @@ pub fn str_mangle_symbol(module_name: str, name: str): str {
 		if (c == '.') {
 			buf[w] = '_' as u8;
 			buf[w + 1] = '_' as u8;
-			w = w + 2;
+			w += 2;
 		} else if (c == '_' || c == '-') {
 			// keep '_' as is, map '-' to '_' to stay a valid C identifier
 			buf[w] = '_' as u8;
-			w = w + 1;
+			w++;
 		} else {
 			buf[w] = c as u8;
-			w = w + 1;
+			w++;
 		}
 	}
 	buf[w] = '_' as u8;
 	buf[w + 1] = '_' as u8;
-	w = w + 2;
+	w += 2;
 	for (c in name) {
 		buf[w] = c as u8;
-		w = w + 1;
+		w++;
 	}
 	buf[w] = 0;
 	return str_from_bytes(buf, w);

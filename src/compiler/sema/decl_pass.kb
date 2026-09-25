@@ -315,7 +315,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		var k: usz = 2;
 		while (struct_find_method_c(st_info, m_c_name) != null) {
 			m_c_name = "${base}_${param_types.len}_${k}";
-			k = k + 1;
+			k++;
 		}
 
 		val mi = arena_alloc<MethodInfo>(&self.arena);
@@ -372,7 +372,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 		var k: usz = 2;
 		while (list_has_str(used, m_c_name)) {
 			m_c_name = "${base}_${param_types.len}_${k}";
-			k = k + 1;
+			k++;
 		}
 		used.add(m_c_name);
 

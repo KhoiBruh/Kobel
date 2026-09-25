@@ -125,13 +125,13 @@ pub fn layout_struct(ty: *Type) {
 		val fa = f.type_ptr.align;
 		if (fa > max_align) max_align = fa;
 		val rem = off % fa;
-		if (rem != 0) off = off + (fa - rem);
+		if (rem != 0) off += (fa - rem);
 		f.offset = off;
 		st.fields[i] = f;
-		off = off + f.type_ptr.size;
+		off += f.type_ptr.size;
 	}
 	val tr = off % max_align;
-	if (tr != 0) off = off + (max_align - tr);
+	if (tr != 0) off += (max_align - tr);
 
 	val t = ty as &Type;
 	t.size = off;
@@ -161,7 +161,7 @@ pub fn struct_find_method_arity(st: *StructType, name: str, argc: usz): *MethodI
 pub fn struct_count_method_arity(st: *StructType, name: str, argc: usz): usz {
 	var n: usz = 0;
 	for (m in st.methods) {
-		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n = n + 1;
+		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n++;
 	}
 	return n;
 }
@@ -259,16 +259,16 @@ pub fn alloc_struct_type(
 
 		// Align current_offset theo f_align
 		val rem = current_offset % f_align;
-		if (rem != 0) current_offset = current_offset + (f_align - rem);
+		if (rem != 0) current_offset += (f_align - rem);
 
 		f.offset = current_offset;
 		fields[i] = f;
-		current_offset = current_offset + f.type_ptr.size;
+		current_offset += f.type_ptr.size;
 	}
 
 	// Final struct padding to max_align
 	val total_rem = current_offset % max_align;
-	if (total_rem != 0) current_offset = current_offset + (max_align - total_rem);
+	if (total_rem != 0) current_offset += (max_align - total_rem);
 
 	val struct_info = arena_alloc<StructType>(arena);
 	*struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);

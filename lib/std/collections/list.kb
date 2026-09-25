@@ -61,11 +61,11 @@ impl List<T> {
 	pub fn add(var self, value: T) {
 		if (self.len == self.cap) self.grow();
 		self.data[self.len] = value;
-		self.len = self.len + 1;
+		self.len++;
 	}
 
 	pub fn pop(var self): T {
-		self.len = self.len - 1;
+		self.len--;
 		return self.data[self.len];
 	}
 
@@ -83,7 +83,7 @@ impl List<T> {
 		if (min_cap > self.cap) {
 			var new_cap = self.cap;
 			while (new_cap < min_cap) {
-				new_cap = new_cap * 2;
+				new_cap *= 2;
 			}
 			self.data = resize<T>(self.data, new_cap);
 			self.cap = new_cap;
