@@ -39,6 +39,115 @@ pub fn num_literal_is_float(text: str): bool {
 	return false;
 }
 
+// True when the raw token text (quotes included) contains an unescaped `${`.
+pub fn str_has_hole(text: str): bool {
+	var i: usz = 0;
+	while (i < text.len) {
+		val c = text[i];
+		if (c == '\\') {
+			i += 2;
+			continue;
+		}
+		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') return true;
+		i++;
+	}
+	return false;
+}
+
+// `\$` means a literal '$' in any string literal. The parser rewrites it so the
+// C backend never sees the invalid escape `\$` (plain strings included).
+pub fn str_has_esc_dollar(text: str): bool {
+	if (text.len < 2) return false;
+	for (i in 0..<(text.len - 1)) {
+		if (text[i] == '\\' && text[i + 1] == '$') return true;
+	}
+	return false;
+}
+
+pub fn normalize_esc_dollar(text: str): str {
+	if (!str_has_esc_dollar(text)) return text;
+	var out = "";
+	var i: usz = 0;
+	while (i < text.len) {
+		if (text[i] == '\\' && i + 1 < text.len && text[i + 1] == '$') {
+			out = "${out}$";
+			i += 2;
+			continue;
+		}
+		out = "${out}${text.slice(i, i + 1)}";
+		i++;
+	}
+	return out;
+}
+
+// Skips a '...' literal inside a hole.
+pub fn interp_skip_char_lit(text: str, start: usz): usz {
+	var i = start + 1;
+	while (i < text.len) {
+		val c = text[i];
+		if (c == '\\') {
+			i += 2;
+			continue;
+		}
+		if (c == '\'') return i + 1;
+		i++;
+	}
+	return text.len;
+}
+
+// Skips a "..." literal inside a hole (it may itself contain `${...}`).
+pub fn interp_skip_quoted(text: str, start: usz): usz {
+	var i = start + 1;
+	while (i < text.len) {
+		val c = text[i];
+		if (c == '\\') {
+			i += 2;
+			continue;
+		}
+		if (c == '"') return i + 1;
+		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
+			val e = interp_find_close(text, i + 2);
+			if (e < 0) return text.len;
+			i = e + 1;
+			continue;
+		}
+		i++;
+	}
+	return text.len;
+}
+
+// Index of the '}' closing a `${` hole whose body starts at `start`, or -1.
+pub fn interp_find_close(text: str, start: usz): isz {
+	var depth: i32 = 1;
+	var i = start;
+	while (i < text.len) {
+		val c = text[i];
+		if (c == '{') {
+			depth++;
+			i++;
+			continue;
+		}
+		if (c == '}') {
+			depth--;
+			if (depth == 0) return i;
+			i++;
+			continue;
+		}
+		if (c == '"') {
+			i = interp_skip_quoted(text, i);
+			continue;
+		}
+		if (c == '\'') {
+			i = interp_skip_char_lit(text, i);
+			continue;
+		}
+		i++;
+	}
+	return -1;
+}
+
+impl Parser {
+
 pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 {
 	when (t) {
 		TokenType.EQUAL,
@@ -443,125 +552,9 @@ pub fn parse_arm_block(var self: &Parser): *AstNode {
 	return self.b().block_stmt(stmts, lbrace.line, lbrace.col);
 }
 
-// ============================================================================
-// String interpolation
-//
-// A string token whose text holds an unescaped `${` is split into literal
-// chunks and hole expressions. Each hole is parsed with a fresh lexer/parser
-// over its own text, so it may contain any expression (calls, member access,
-// nested plain strings, ...).
-// ============================================================================
-
-// True when the raw token text (quotes included) contains an unescaped `${`.
-pub fn str_has_hole(text: str): bool {
-	var i: usz = 0;
-	while (i < text.len) {
-		val c = text[i];
-		if (c == '\\') {
-			i += 2;
-			continue;
-		}
-		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') return true;
-		i++;
-	}
-	return false;
-}
-
 pub fn parse_string_literal(var self: &Parser, tok: Token, line: usz, col: usz): *AstNode {
 	if (str_has_hole(tok.text)) return parse_interp_string(self, tok.text, line, col);
 	return self.b().literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
-}
-
-// `\$` means a literal '$' in any string literal. The parser rewrites it so the
-// C backend never sees the invalid escape `\$` (plain strings included).
-pub fn str_has_esc_dollar(text: str): bool {
-	if (text.len < 2) return false;
-	for (i in 0..<(text.len - 1)) {
-		if (text[i] == '\\' && text[i + 1] == '$') return true;
-	}
-	return false;
-}
-
-pub fn normalize_esc_dollar(text: str): str {
-	if (!str_has_esc_dollar(text)) return text;
-	var out = "";
-	var i: usz = 0;
-	while (i < text.len) {
-		if (text[i] == '\\' && i + 1 < text.len && text[i + 1] == '$') {
-			out = "${out}$";
-			i += 2;
-			continue;
-		}
-		out = "${out}${text.slice(i, i + 1)}";
-		i++;
-	}
-	return out;
-}
-
-// Index of the '}' closing a `${` hole whose body starts at `start`, or -1.
-pub fn interp_find_close(text: str, start: usz): isz {
-	var depth: i32 = 1;
-	var i = start;
-	while (i < text.len) {
-		val c = text[i];
-		if (c == '{') {
-			depth++;
-			i++;
-			continue;
-		}
-		if (c == '}') {
-			depth--;
-			if (depth == 0) return i;
-			i++;
-			continue;
-		}
-		if (c == '"') {
-			i = interp_skip_quoted(text, i);
-			continue;
-		}
-		if (c == '\'') {
-			i = interp_skip_char_lit(text, i);
-			continue;
-		}
-		i++;
-	}
-	return -1;
-}
-
-// Skips a "..." literal inside a hole (it may itself contain `${...}`).
-pub fn interp_skip_quoted(text: str, start: usz): usz {
-	var i = start + 1;
-	while (i < text.len) {
-		val c = text[i];
-		if (c == '\\') {
-			i += 2;
-			continue;
-		}
-		if (c == '"') return i + 1;
-		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
-			val e = interp_find_close(text, i + 2);
-			if (e < 0) return text.len;
-			i = e + 1;
-			continue;
-		}
-		i++;
-	}
-	return text.len;
-}
-
-// Skips a '...' literal inside a hole.
-pub fn interp_skip_char_lit(text: str, start: usz): usz {
-	var i = start + 1;
-	while (i < text.len) {
-		val c = text[i];
-		if (c == '\\') {
-			i += 2;
-			continue;
-		}
-		if (c == '\'') return i + 1;
-		i++;
-	}
-	return text.len;
 }
 
 pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *AstNode {
@@ -613,3 +606,15 @@ pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *
 	if (has_lit) parts.add(InterpPart(self.b().literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
 	return self.b().interp(parts, line, col);
 }
+
+}
+
+pub fn get_infix_precedence(var self: &Parser, t: TokenType): i32 => self.get_infix_precedence(t);
+pub fn parse_prefix(var self: &Parser): *AstNode => self.parse_prefix();
+pub fn parse_infix(var self: &Parser, left: *AstNode, prec: i32): *AstNode => self.parse_infix(left, prec);
+pub fn parse_expression(var self: &Parser, min_prec: i32): *AstNode => self.parse_expression(min_prec);
+pub fn parse_if_expr_branch(var self: &Parser): *AstNode => self.parse_if_expr_branch();
+pub fn parse_arm_statement(var self: &Parser): *AstNode => self.parse_arm_statement();
+pub fn parse_arm_block(var self: &Parser): *AstNode => self.parse_arm_block();
+pub fn parse_string_literal(var self: &Parser, tok: Token, line: usz, col: usz): *AstNode => self.parse_string_literal(tok, line, col);
+pub fn parse_interp_string(var self: &Parser, text: str, line: usz, col: usz): *AstNode => self.parse_interp_string(text, line, col);
