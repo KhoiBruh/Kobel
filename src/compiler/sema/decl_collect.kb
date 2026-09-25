@@ -18,9 +18,15 @@ use util.strutil.*;
 use std.collections.list.*;
 use std.mem.arena.*;
 
-// ============================================================================
-// Top-Level Collectors
-// ============================================================================
+// A trait may declare overloads, so a method is identified by name + arity.
+fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {
+	for (m in list) {
+		if (m.name == name && m.arity == arity) return m;
+	}
+	return null;
+}
+
+impl DeclPass {
 
 pub fn collect_module(var self: &DeclPass, node: *AstNode) {
 	val m = node.to<ModuleDecl>();
@@ -168,13 +174,7 @@ pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) {
 	self.is_extern = prev_is_extern;
 }
 
-// A trait may declare overloads, so a method is identified by name + arity.
-fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {
-	for (m in list) {
-		if (m.name == name && m.arity == arity) return m;
-	}
-	return null;
-}
+
 
 // Records a `trait` declaration so `impl Trait for Struct` blocks can be
 // checked against it and pick up its default methods. Method signatures are
@@ -261,3 +261,16 @@ pub fn collect_program(var self: &DeclPass, program_node: *AstNode) {
 		p_info.declarations = combined;
 	}
 }
+
+}
+
+pub fn collect_module(var self: &DeclPass, node: *AstNode) { self.collect_module(node); }
+pub fn collect_use(var self: &DeclPass, node: *AstNode) { self.collect_use(node); }
+pub fn collect_trait(var self: &DeclPass, node: *AstNode) { self.collect_trait(node); }
+pub fn collect_enum(var self: &DeclPass, node: *AstNode) { self.collect_enum(node); }
+pub fn collect_const(var self: &DeclPass, node: *AstNode) { self.collect_const(node); }
+pub fn collect_fn(var self: &DeclPass, node: *AstNode) { self.collect_fn(node); }
+pub fn collect_struct(var self: &DeclPass, node: *AstNode) { self.collect_struct(node); }
+pub fn collect_extern_block(var self: &DeclPass, node: *AstNode) { self.collect_extern_block(node); }
+pub fn collect_declaration(var self: &DeclPass, node: *AstNode) { self.collect_declaration(node); }
+pub fn collect_program(var self: &DeclPass, program_node: *AstNode) { self.collect_program(program_node); }

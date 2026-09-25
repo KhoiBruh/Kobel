@@ -78,13 +78,11 @@ impl DeclPass {
 		self.builder.arena = &self.arena;
 		return &self.builder;
 	}
-}
 
-// C name of a top-level declaration: modules get the module name as a prefix
-// to avoid name clashes in the flat C file; `main` and libc functions keep their names.
-pub fn c_name_for(self: &DeclPass, name: str): str {
-	if (self.is_extern || name == "main") return name;
-	return str_mangle_symbol(self.current_module, name);
+	pub fn c_name_for(self: &DeclPass, name: str): str {
+		if (self.is_extern || name == "main") return name;
+		return str_mangle_symbol(self.current_module, name);
+	}
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
@@ -99,11 +97,15 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
 
 // Report errors with the current module name so when many modules are merged,
 // we still know exactly which module the error is in (instead of blaming the entry file).
+impl DeclPass {
+
 pub fn report_error(var self: &DeclPass, node: *AstNode, msg: str) {
 	val loc = "Line ${node.line}, Column ${node.col}: ";
 	if (self.current_module.len > 0) {
 		self.errors.add("${self.current_module}: ${loc}${msg}");
 	} else self.errors.add(loc + msg);
+}
+
 }
 
 // Source names carried by more than one method of an impl, i.e. overloads.
@@ -151,6 +153,8 @@ pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type => when (name
 	"str" -> alloc_primitive(arena, type_str());
 	else -> null;
 };
+
+impl DeclPass {
 
 pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 	if (node == null) return alloc_primitive(&self.arena, type_none());
@@ -233,6 +237,8 @@ pub fn enum_const_i64(var self: &DeclPass, expr: *AstNode): i64 {
 	return 0;
 }
 
+}
+
 pub fn parse_decimal_i64(s: str): i64 {
 	var v: i64 = 0;
 	for (c in s) {
@@ -245,6 +251,7 @@ pub fn parse_decimal_i64(s: str): i64 {
 	return v;
 }
 
+impl DeclPass {
 
 pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	val im = node.to<ImplDecl>() as &ImplDecl;
@@ -402,6 +409,8 @@ pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) {
 	for (bname in t.bases) trait_record_impl(self, find_trait(&self.symtab, bname), struct_name);
 }
 
+}
+
 // Inserts `m` into `out`, replacing a same-named entry so a derived trait's
 // method wins over the base one it inherits.
 fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
@@ -414,6 +423,8 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	}
 	out.add(m);
 }
+
+impl DeclPass {
 
 // Flattens a trait and its base traits into one method list: base traits are
 // visited first, so a method declared in a derived trait replaces a same-named
@@ -467,6 +478,8 @@ pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_na
 	}
 }
 
+}
+
 // ============================================================================
 // Generic Templates & Monomorphization
 // ============================================================================
@@ -491,6 +504,8 @@ pub fn is_template_decl(node: *AstNode): bool => when (node.kind) {
 	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0,
 	else -> false
 };
+
+impl DeclPass {
 
 pub fn register_template(var self: &DeclPass, node: *AstNode) {
 	when (node.kind) {
@@ -610,6 +625,8 @@ pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz {
 	};
 }
 
+}
+
 pub fn template_param_names(tmpl: *GenTemplate): List<str> {
 	var names = List<str>();
 	when (tmpl.node.kind) {
@@ -638,6 +655,8 @@ pub fn template_params(tmpl: *GenTemplate): List<GenericParam> => when (tmpl.nod
 	NodeKind.DECL_IMPL -> tmpl.node.to<ImplDecl>().type_params,
 	else -> List<GenericParam>()
 };
+
+impl DeclPass {
 
 // Checks the trait bounds of an instantiation: for every `T: Trait` parameter
 // the concrete argument must be a struct with a matching `impl Trait for`
@@ -1264,3 +1283,41 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 		else -> {}
 	}
 }
+
+}
+
+// ============================================================================
+// Forwarders for backwards compatibility
+// ============================================================================
+
+pub fn c_name_for(self: &DeclPass, name: str): str => self.c_name_for(name);
+pub fn report_error(self: &DeclPass, node: *AstNode, msg: str) => self.report_error(node, msg);
+pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type => self.resolve_ast_type(node);
+pub fn enum_const_i64(self: &DeclPass, e: *AstNode): i64 => self.enum_const_i64(e);
+pub fn collect_impl(var self: &DeclPass, node: *AstNode) => self.collect_impl(node);
+pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, prim: *Type) => self.collect_prim_impl(node, im, prim);
+pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) => self.trait_record_impl(t, struct_name);
+pub fn trait_effective(var self: &DeclPass, t: *TraitInfo, out: &List<*TraitMethod>, seen: &List<str>) => self.trait_effective(t, out, seen);
+pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_name: str) => self.apply_trait(node, im, struct_name);
+pub fn register_template(var self: &DeclPass, node: *AstNode) => self.register_template(node);
+pub fn gen_template(var self: &DeclPass, name: str, node: *AstNode): *GenTemplate => self.gen_template(name, node);
+pub fn template_in_module(self: &DeclPass, module: str, name: str): bool => self.template_in_module(module, name);
+pub fn find_inst(self: &DeclPass, name: str): *Symbol => self.find_inst(name);
+pub fn type_token(self: &DeclPass, ty: *Type): str => self.type_token(ty);
+pub fn type_token_list(self: &DeclPass, args: List<*AstNode>): str => self.type_token_list(args);
+pub fn ast_type_token(self: &DeclPass, node: *AstNode): str => self.ast_type_token(node);
+pub fn ast_type_size(self: &DeclPass, node: *AstNode): usz => self.ast_type_size(node);
+pub fn check_bounds(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>) => self.check_bounds(tmpl, arg_asts);
+pub fn alloc_subst(var self: &DeclPass, names: List<str>, args: List<*AstNode>): *GenSubst => self.alloc_subst(names, args);
+pub fn queue_decl(var self: &DeclPass, module: str, node: *AstNode) => self.queue_decl(module, node);
+pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type => self.instantiate_struct(tmpl, arg_asts);
+pub fn instantiate_fn(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str => self.instantiate_fn(tmpl, arg_asts);
+pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, module: str) => self.collect_struct_as(node, final_name, module);
+pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) => self.collect_fn_as(node, final_name);
+pub fn clone_type(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode => self.clone_type(node, subst);
+pub fn clone_expr(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode => self.clone_expr(node, subst);
+pub fn clone_stmt(var self: &DeclPass, node: *AstNode, subst: *GenSubst): *AstNode => self.clone_stmt(node, subst);
+pub fn clone_fn(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode => self.clone_fn(node, subst, new_name);
+pub fn clone_struct(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode => self.clone_struct(node, subst, new_name);
+pub fn clone_impl(var self: &DeclPass, node: *AstNode, subst: *GenSubst, new_target: str): *AstNode => self.clone_impl(node, subst, new_target);
+pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) => self.rewrite_generics(node);
