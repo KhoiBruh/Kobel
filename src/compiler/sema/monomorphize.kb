@@ -198,7 +198,7 @@ impl DeclPass {
 				if (name == "i16" || name == "u16") yield 2;
 				if (name == "i32" || name == "u32" || name == "f32") yield 4;
 				if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") yield 8;
-				val sym = lookup(&self.symtab, name);
+				val sym = self.symtab.lookup(name);
 				if (sym != null) yield sym.type_ptr.size;
 				yield 8;
 			}
@@ -219,16 +219,16 @@ impl DeclPass {
 			val arg = arg_asts[i];
 			if (arg.kind != NodeKind.TYPE_NAMED) continue;
 			val aname = arg.to<NamedType>().name;
-			val asym = lookup(&self.symtab, aname);
+			val asym = self.symtab.lookup(aname);
 			if (asym == null || asym.type_ptr.kind != DataType.STRUCT) continue;
 
 			for (b in gp.bounds) {
-				val bt = find_trait(&self.symtab, b);
+				val bt = self.symtab.find_trait(b);
 				if (bt == null) {
 					self.report_error(arg, "Unknown trait bound '${b}'");
 					continue;
 				}
-				if (!trait_has_impl(bt, aname)) {
+				if (!bt.has_impl(aname)) {
 					self.report_error(arg, "Type '${aname}' does not implement trait '${b}'");
 				}
 			}

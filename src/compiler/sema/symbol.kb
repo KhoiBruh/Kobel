@@ -419,36 +419,3 @@ impl SymbolTable {
 		return null;
 	}
 }
-
-// ============================================================================
-// Backward-compatibility forwarders (free functions)
-// ============================================================================
-
-// Look up one method of a trait by its source name.
-pub fn trait_find_method(t: *TraitInfo, name: str): *TraitMethod => t.find_method(name);
-
-// Whether some `impl Trait for Struct` block registered `struct_name` for this
-// trait (directly, not through a base trait).
-pub fn trait_has_impl(t: *TraitInfo, struct_name: str): bool => t.has_impl(struct_name);
-
-pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) => self.register_prim_method(pm);
-pub fn find_prim_method(self: &SymbolTable, kind: DataType, name: str): *MethodInfo => self.find_prim_method(kind, name);
-pub fn find_prim_method_arity(self: &SymbolTable, kind: DataType, name: str, argc: usz): *MethodInfo => self.find_prim_method_arity(kind, name, argc);
-pub fn find_prim_method_c(self: &SymbolTable, c_name: str): *MethodInfo => self.find_prim_method_c(c_name);
-pub fn register_trait(var self: &SymbolTable, info: *TraitInfo) => self.register_trait(info);
-pub fn find_trait(self: &SymbolTable, name: str): *TraitInfo => self.find_trait(name);
-pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) => self.register_enum_info(info);
-pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo => self.find_enum_info(name);
-pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope => self.enter_scope(is_fn_boundary);
-pub fn exit_scope(var self: &SymbolTable) => self.exit_scope();
-pub fn is_in_function(var self: &SymbolTable): bool => self.is_in_function();
-pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol => self.lookup_current(name);
-pub fn lookup(var self: &SymbolTable, name: str): *Symbol => self.lookup(name);
-pub fn define(var self: &SymbolTable, sym: Symbol): bool => self.define(sym);
-pub fn set_current_module(var self: &SymbolTable, name: str) => self.set_current_module(name);
-pub fn module_exists(self: &SymbolTable, name: str): bool => self.module_exists(name);
-pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool => self.define_in_module(module_name, sym);
-pub fn define_global(var self: &SymbolTable, sym: Symbol): bool => self.define_global(sym);
-pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) => self.add_import(module_name, symbol_name, local_name, is_wildcard);
-pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol => self.lookup_in_module(module_name, name);
-pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol => self.lookup_c_name(c_name);

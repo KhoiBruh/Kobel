@@ -32,7 +32,7 @@ impl DeclPass {
 	pub fn collect_module(var self, node: *AstNode) {
 		val m = node.to<ModuleDecl>();
 		self.current_module = m.full_path;
-		set_current_module(&self.symtab, m.full_path);
+		self.symtab.set_current_module(m.full_path);
 	}
 
 // `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
@@ -43,8 +43,8 @@ impl DeclPass {
 
 		if (u.is_wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
-			if (!module_exists(&self.symtab, w_mod)) return;
-			add_import(&self.symtab, w_mod, "", "", true);
+			if (!self.symtab.module_exists(w_mod)) return;
+			self.symtab.add_import(w_mod, "", "", true);
 			return;
 		}
 
@@ -53,20 +53,20 @@ impl DeclPass {
 		val mod_name = str_join_dots(u.path, u.path.len - 1);
 
 		// Missing/failed module was already reported by ModuleLoader
-		if (!module_exists(&self.symtab, mod_name)) return;
+		if (!self.symtab.module_exists(mod_name)) return;
 
-		val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
+		val target = self.symtab.lookup_in_module(mod_name, u.symbol_name);
 		if (target == null) {
 			// Generic struct/function templates are not registered as symbols.
 			if (self.template_in_module(mod_name, u.symbol_name)) return;
-			if (find_trait(&self.symtab, u.symbol_name) != null) return;
+			if (self.symtab.find_trait(u.symbol_name) != null) return;
 			self.report_error(node, "Symbol '${u.symbol_name}' not found in module '${mod_name}'");
 			return;
 		}
 
 		var local_name = u.symbol_name;
 		if (u.alias != "") local_name = u.alias;
-		add_import(&self.symtab, mod_name, u.symbol_name, local_name, false);
+		self.symtab.add_import(mod_name, u.symbol_name, local_name, false);
 	}
 
 	pub fn collect_struct(var self, node: *AstNode) {
@@ -76,8 +76,7 @@ impl DeclPass {
 		val c_name = self.c_name_for(s.name);
 		val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
 		as_struct_type_mut(s_type).c_name = c_name;
-		val ok = define_global(
-			&self.symtab,
+		val ok = self.symtab.define_global(
 			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)
 		);
 		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
@@ -114,8 +113,7 @@ impl DeclPass {
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 		val c_name = self.c_name_for(f.name);
-		val ok = define_global(
-			&self.symtab,
+		val ok = self.symtab.define_global(
 			Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)
 		);
 		if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
@@ -153,13 +151,12 @@ impl DeclPass {
 		val carrier = arena_alloc<Type>(&self.arena);
 		*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
 
-		val ok = define_global(
-			&self.symtab,
+		val ok = self.symtab.define_global(
 			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col)
 		);
 		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
 
-		register_enum_info(&self.symtab, info);
+		self.symtab.register_enum_info(info);
 
 		e.name = c_name;
 	}
@@ -170,8 +167,7 @@ impl DeclPass {
 		if (c.type_node != null) c_type = self.resolve_ast_type(c.type_node);
 	
 		val c_name = self.c_name_for(c.name);
-		val ok = define_global(
-			&self.symtab, 
+		val ok = self.symtab.define_global(
 			Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col)
 		);
 		if (!ok) self.report_error(node, "Duplicate const declaration '${c.name}'");
@@ -193,7 +189,7 @@ impl DeclPass {
 	// kept here.
 	pub fn collect_trait(var self, node: *AstNode) {
 		val t = node.to<TraitDecl>();
-		if (find_trait(&self.symtab, t.name) != null) {
+		if (self.symtab.find_trait(t.name) != null) {
 			self.report_error(node, "Duplicate trait declaration '${t.name}'");
 			return;
 		}
@@ -212,7 +208,7 @@ impl DeclPass {
 	
 		val ti = arena_alloc<TraitInfo>(&self.arena);
 		*ti = TraitInfo(t.name, t.bases, methods, List<str>());
-		register_trait(&self.symtab, ti);
+		self.symtab.register_trait(ti);
 	}
 
 	pub fn collect_declaration(var self, node: *AstNode) {
@@ -254,7 +250,7 @@ impl DeclPass {
 				d.kind == NodeKind.DECL_MODULE -> {
 					val m2 = d.to<ModuleDecl>();
 					self.current_module = m2.full_path;
-					set_current_module(&self.symtab, m2.full_path);
+					self.symtab.set_current_module(m2.full_path);
 				}
 				!is_template_decl(d) -> self.rewrite_generics(d);
 				else -> {}

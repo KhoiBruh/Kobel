@@ -32,7 +32,7 @@ impl BodyPass {
 
 	pub fn check_fn(var self, fn_node: *AstNode) {
 		val f = fn_node.to<FnDecl>();
-		val sym = lookup(&self.symtab, f.name);
+		val sym = self.symtab.lookup(f.name);
 		if (sym == null || sym.type_ptr.kind != DataType.FN) return;
 		self.check_fn_body(fn_node, sym.type_ptr);
 	}
@@ -45,14 +45,13 @@ impl BodyPass {
 		val fn_info = sem_fn(fn_type);
 		self.current_fn_return_type = fn_info.return_type;
 
-		enter_scope(&self.symtab, true);
+		self.symtab.enter_scope(true);
 
 		// Register parameters into the function scope
 		for (i in 0..<f.params.len) {
 			val p = f.params[i];
 			val p_ty = fn_info.param_types[i];
-			define(
-				&self.symtab,
+			self.symtab.define(
 				Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col)
 			);
 		}
@@ -87,7 +86,7 @@ impl BodyPass {
 			}
 		}
 
-		exit_scope(&self.symtab);
+		self.symtab.exit_scope();
 	}
 
 	pub fn check_impl(var self, node: *AstNode) {
@@ -97,13 +96,13 @@ impl BodyPass {
 		if (im.struct_name == "") {
 			for (m_node in im.methods) {
 				val f = m_node.to<FnDecl>();
-				val mi = find_prim_method_c(&self.symtab, f.name);
+				val mi = self.symtab.find_prim_method_c(f.name);
 				if (mi != null) self.check_fn_body(m_node, mi.fn_type);
 			}
 			return;
 		}
 
-		val st_sym = lookup(&self.symtab, im.struct_name);
+		val st_sym = self.symtab.lookup(im.struct_name);
 		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
 		val st_info = sem_struct(st_sym.type_ptr);
 
@@ -136,7 +135,7 @@ impl BodyPass {
 			when (decl.kind) {
 				NodeKind.DECL_MODULE -> {
 					val m = decl.to<ModuleDecl>();
-					set_current_module(&self.symtab, m.full_path);
+					self.symtab.set_current_module(m.full_path);
 				}
 				NodeKind.DECL_FN -> self.check_fn(decl);
 				NodeKind.DECL_IMPL -> self.check_impl(decl);

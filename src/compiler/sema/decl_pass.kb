@@ -198,7 +198,7 @@ impl DeclPass {
 				}
 
 				// Look up a user-defined type (Struct / Enum)
-				val sym = lookup(&self.symtab, name);
+				val sym = self.symtab.lookup(name);
 				if (sym != null) {
 					// Switch to the mangled C name (if any) so the backend emits the right name
 					if (sym.c_name != name) named.name = sym.c_name;
@@ -261,7 +261,7 @@ impl DeclPass {
 			return;
 		}
 
-		val st_sym = lookup(&self.symtab, im.struct_name);
+		val st_sym = self.symtab.lookup(im.struct_name);
 		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
 			self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
 			return;
@@ -378,7 +378,7 @@ impl DeclPass {
 			}
 			used.add(m_c_name);
 
-			if (find_prim_method_arity(&self.symtab, prim.kind, f.name, f.params.len) != null) {
+			if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
 				self.report_error(m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
 			}
 
@@ -386,7 +386,7 @@ impl DeclPass {
 			*mi = MethodInfo(f.name, m_c_name, fn_type);
 			val pm = arena_alloc<PrimMethod>(&self.arena);
 			*pm = PrimMethod(prim.kind, mi);
-			register_prim_method(&self.symtab, pm);
+			self.symtab.register_prim_method(pm);
 
 			// Uniquify the AST name so the backend emits the mangled method name.
 			f.name = m_c_name;
@@ -399,9 +399,9 @@ impl DeclPass {
 // `Derived : Base`. The already-recorded test also breaks a cyclic base chain.
 	pub fn trait_record_impl(var self, t: *TraitInfo, struct_name: str) {
 		if (t == null) return;
-		if (trait_has_impl(t, struct_name)) return;
+		if (t.has_impl(struct_name)) return;
 		t.impls.add(struct_name);
-		for (bname in t.bases) self.trait_record_impl(find_trait(&self.symtab, bname), struct_name);
+		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
 // Flattens a trait and its base traits into one method list: base traits are
@@ -415,7 +415,7 @@ impl DeclPass {
 		}
 		seen.add(t.name);
 
-		for (bname in t.bases) self.trait_effective(find_trait(&self.symtab, bname), out, seen);
+		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
 		for (m in t.methods) trait_put_method(out, m);
 	}
 
@@ -425,7 +425,7 @@ impl DeclPass {
 // AST node, so the backend emits it like a hand-written one. Generic impls
 // return earlier, so no type substitution is ever needed here.
 	pub fn apply_trait(var self, node: *AstNode, im: &ImplDecl, struct_name: str) {
-		val t = find_trait(&self.symtab, im.trait_name);
+		val t = self.symtab.find_trait(im.trait_name);
 		if (t == null) {
 			self.report_error(node, "Unknown trait '${im.trait_name}'");
 			return;

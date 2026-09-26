@@ -208,7 +208,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				return self.current_self_type;
 			}
 
-			val sym = lookup(&self.symtab, id.name);
+			val sym = self.symtab.lookup(id.name);
 			if (sym == null) {
 				self.report_error(node, "Undeclared identifier '${id.name}'");
 				return alloc_primitive(&self.arena, type_none());
@@ -355,7 +355,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 							return alloc_primitive(&self.arena, type_usz());
 						}
 
-						val tsym = lookup(&self.symtab, id.name);
+						val tsym = self.symtab.lookup(id.name);
 						if (tsym != null && tsym.c_name != id.name) id.name = tsym.c_name;
 					}
 					return alloc_primitive(&self.arena, type_usz());
@@ -430,8 +430,8 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				}
 
 				// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
-				var pmi = find_prim_method_arity(&self.symtab, obj_ty.kind, mem.member, call.args.len + 1);
-				if (pmi == null) pmi = find_prim_method(&self.symtab, obj_ty.kind, mem.member);
+				var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, call.args.len + 1);
+				if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
 				if (pmi != null) {
 					val fn_info = sem_fn(pmi.fn_type);
 					if (call.args.len + 1 != fn_info.param_types.len) {
@@ -535,9 +535,9 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
 			if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
 				val enum_id = mem.object.to<IdentifierExpr>();
-				val ei = find_enum_info(&self.symtab, enum_id.name);
+				val ei = self.symtab.find_enum_info(enum_id.name);
 				if (ei != null) {
-					val mi = enum_find_member(ei, mem.member);
+					val mi = ei.find_member(mem.member);
 					if (mi == null) {
 						self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
 						return alloc_primitive(&self.arena, type_none());
@@ -875,7 +875,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			val al = node.to<ArrayLiteralExpr>();
 
 			if (al.list_struct_name != "") {
-				val sym = lookup(&self.symtab, al.list_struct_name);
+				val sym = self.symtab.lookup(al.list_struct_name);
 				if (sym != null) return sym.type_ptr;
 			}
 
@@ -930,11 +930,11 @@ pub fn check_statement(var self, node: *AstNode) {
 	when (node.kind) {
 		NodeKind.STMT_BLOCK -> {
 			val blk = node.to<BlockStmt>();
-			enter_scope(&self.symtab, false);
+			self.symtab.enter_scope(false);
 			for (stmt in blk.statements) {
 				self.check_statement(stmt);
 			}
-			exit_scope(&self.symtab);
+			self.symtab.exit_scope();
 		}
 		NodeKind.STMT_VAR_DECL -> {
 			val vd = node.to<VarDeclStmt>() as &VarDeclStmt;
@@ -967,7 +967,7 @@ pub fn check_statement(var self, node: *AstNode) {
 				vd.type_annotation = ast_type_from_type(&self.arena, var_ty);
 			}
 
-			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
+			val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
 			if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
 		}
 		NodeKind.STMT_IF -> {
@@ -1043,7 +1043,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 	if (body.kind == NodeKind.STMT_BLOCK) {
 		val blk = body.to<BlockStmt>();
 		var yield_ty: *Type = null;
-		enter_scope(&self.symtab, false);
+		self.symtab.enter_scope(false);
 		for (stmt in blk.statements) {
 			if (stmt.kind == NodeKind.STMT_YIELD) {
 				val ys = stmt.to<YieldStmt>();
@@ -1053,7 +1053,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 				self.check_statement(stmt);
 			}
 		}
-		exit_scope(&self.symtab);
+		self.symtab.exit_scope();
 		if (yield_ty == null) {
 			self.report_error(body, "When arm block must yield a value");
 			return alloc_primitive(&self.arena, type_none());
@@ -1069,7 +1069,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 
 		// Everything else goes through the `ToStr` trait; std.traits.to_str (loaded
 		// by the driver) provides the built-in implementations.
-		val pmi = find_prim_method(&self.symtab, ty.kind, "to_str");
+		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
 		if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
 
 		var cur_ty = ty;
@@ -1114,7 +1114,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 		NodeKind.EXPR_GROUP -> self.for_iterable_type(node.to<GroupExpr>().expr);
 
 		NodeKind.EXPR_IDENTIFIER -> {
-			val sym = lookup(&self.symtab, node.to<IdentifierExpr>().name);
+			val sym = self.symtab.lookup(node.to<IdentifierExpr>().name);
 			if (sym != null) yield sym.type_ptr;
 			yield null;
 		}
@@ -1144,9 +1144,9 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 		var cur = ty;
 		if (cur != null && cur.kind == DataType.POINTER) cur = sem_pointer(cur).pointee;
 		if (cur == null || cur.kind != DataType.STRUCT) return false;
-		val t = find_trait(&self.symtab, "Iterable");
+		val t = self.symtab.find_trait("Iterable");
 		if (t == null) return false;
-		return trait_has_impl(t, sem_struct(cur).name);
+		return t.has_impl(sem_struct(cur).name);
 	}
 
 }

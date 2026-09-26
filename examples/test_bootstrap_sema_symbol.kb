@@ -14,12 +14,6 @@ use compiler.sema.symbol.Symbol;
 use compiler.sema.symbol.Scope;
 use compiler.sema.symbol.ModuleScope;
 use compiler.sema.symbol.SymbolTable;
-use compiler.sema.symbol.enter_scope;
-use compiler.sema.symbol.exit_scope;
-use compiler.sema.symbol.is_in_function;
-use compiler.sema.symbol.lookup_current;
-use compiler.sema.symbol.lookup;
-use compiler.sema.symbol.define;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -48,17 +42,17 @@ fn test_global_scope() {
 	var symtab = SymbolTable();
 	var ty_i32 = type_i32();
 
-	val ok = define(&symtab, Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	val ok = symtab.define(Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
 	assert_true(ok, "Must successfully define global_var");
 
-	val sym = lookup(&symtab, "global_var");
+	val sym = symtab.lookup("global_var");
 	assert_true(sym != null, "global_var must be found in symbol table");
 	assert_eq_str(sym.name, "global_var", "Symbol name must be 'global_var'");
 	assert_true(sym.kind == SymbolKind.VAR, "Symbol kind must be VAR");
 	assert_true(sym.is_pub, "Symbol must be pub");
 	assert_true(sym.type_ptr.kind == DataType.I32, "Symbol type must be i32");
 
-	val not_found = lookup(&symtab, "unknown_var");
+	val not_found = symtab.lookup("unknown_var");
 	assert_true(not_found == null, "Non-existent symbol must return null");
 
 	// Test iterating over current_scope (Scope implements Iterable)
@@ -90,15 +84,15 @@ fn test_duplicate_definition() {
 	var ty_i32 = type_i32();
 	var ty_bool = type_bool();
 
-	val ok1 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
+	val ok1 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
 	assert_true(ok1, "First definition of 'count' must succeed");
 
 	// Try to redefine 'count' in the current scope
-	val ok2 = define(&symtab, Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
+	val ok2 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
 	assert_true(!ok2, "Redefinition of 'count' in the same scope must fail");
 
 	// Defining a different name must succeed
-	val ok3 = define(&symtab, Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
+	val ok3 = symtab.define(Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
 	assert_true(ok3, "Definition of new variable 'total' must succeed");
 
 	println("  [PASS] test_duplicate_definition");
@@ -114,34 +108,34 @@ fn test_scoping_and_shadowing() {
 	var ty_str = type_str();
 
 	// Scope 0 (Global): x: i32
-	define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
+	symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
 
 	// Enter Scope 1 (Local Block)
-	enter_scope(&symtab, false);
+	symtab.enter_scope(false);
 
 	// Look up 'x' before shadowing -> must see 'x: i32' from the parent
-	val outer_x = lookup(&symtab, "x");
+	val outer_x = symtab.lookup("x");
 	assert_true(outer_x != null, "Parent 'x' must be visible in child scope");
 	assert_true(outer_x.type_ptr.kind == DataType.I32, "Parent 'x' must be i32");
 
 	// Scope 1 does not yet have 'x'
-	val cur_x1 = lookup_current(&symtab, "x");
+	val cur_x1 = symtab.lookup_current("x");
 	assert_true(cur_x1 == null, "Scope 1 does not yet define its own 'x'");
 
 	// Shadowing: declare 'x: str' in Scope 1
-	val shadow_ok = define(&symtab, Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
+	val shadow_ok = symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
 	assert_true(shadow_ok, "Shadowing definition of 'x' in child scope must succeed");
 
 	// Now looking up 'x' must yield 'x: str'
-	val shadowed_x = lookup(&symtab, "x");
+	val shadowed_x = symtab.lookup("x");
 	assert_true(shadowed_x != null, "Shadowed 'x' must be found");
 	assert_true(shadowed_x.type_ptr.kind == DataType.STR, "Shadowed 'x' must be str");
 
 	// Exit Scope 1 back to Scope 0
-	exit_scope(&symtab);
+	symtab.exit_scope();
 
 	// Now looking up 'x' must return 'x: i32' again
-	val restored_x = lookup(&symtab, "x");
+	val restored_x = symtab.lookup("x");
 	assert_true(restored_x != null, "Global 'x' must be restored");
 	assert_true(restored_x.type_ptr.kind == DataType.I32, "Global 'x' must be i32 again");
 
@@ -155,23 +149,23 @@ fn test_scoping_and_shadowing() {
 fn test_function_boundary() {
 	var symtab = SymbolTable();
 
-	assert_true(!is_in_function(&symtab), "Global scope is not in function");
+	assert_true(!symtab.is_in_function(), "Global scope is not in function");
 
 	// Start of function: function boundary = true
-	enter_scope(&symtab, true);
-	assert_true(is_in_function(&symtab), "Must be in function");
+	symtab.enter_scope(true);
+	assert_true(symtab.is_in_function(), "Must be in function");
 
 	// if/while block nested inside the function: function boundary = false
-	enter_scope(&symtab, false);
-	assert_true(is_in_function(&symtab), "Nested block inside function is still in function");
+	symtab.enter_scope(false);
+	assert_true(symtab.is_in_function(), "Nested block inside function is still in function");
 
 	// Exit the block
-	exit_scope(&symtab);
-	assert_true(is_in_function(&symtab), "Still in function after exiting inner block");
+	symtab.exit_scope();
+	assert_true(symtab.is_in_function(), "Still in function after exiting inner block");
 
 	// Exit the function
-	exit_scope(&symtab);
-	assert_true(!is_in_function(&symtab), "Not in function after exiting function body");
+	symtab.exit_scope();
+	assert_true(!symtab.is_in_function(), "Not in function after exiting function body");
 
 	println("  [PASS] test_function_boundary");
 }
