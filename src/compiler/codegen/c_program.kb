@@ -17,115 +17,6 @@ use util.strutil.*;
 // Declaration Code Generation
 // ============================================================================
 
-impl CCodeGen {
-
-	pub fn gen_struct_decl(var self, node: *AstNode): str {
-		val s = node.to<StructDecl>();
-		self.struct_names.add(s.name);
-
-		var res = "struct ${s.name} {\n";
-		for (f in s.fields) {
-			val ty = c_type_from_ast(f.type_node);
-			res = "${res}    ${ty} ${f.name};\n";
-		}
-		res = "${res}};\n";
-		return "${res}\n";
-	}
-
-	// `self_c_type` is the C name of the enclosing struct when generating an impl
-	// method ("" for free functions). It types the untyped `self` receiver.
-	pub fn gen_fn_decl(var self, node: *AstNode, is_proto: bool, self_c_type: str): str {
-		val f = node.to<FnDecl>();
-		var ret_ty = "void";
-		if (f.return_type != null) ret_ty = c_type_from_ast(f.return_type);
-		else if (f.body != null && f.body.kind == NodeKind.STMT_EXPR) {
-			val es = f.body.to<ExprStmt>();
-			ret_ty = self.infer_type_from_expr(es.expr);
-		}
-
-		var proto = "${ret_ty} ${f.name}(";
-		if (f.params.is_empty()) proto = "${proto}void";
-		else {
-			for (i in 0..<f.params.len) {
-				if (i > 0) proto = "${proto}, ";
-				val p = f.params[i];
-				var p_ty = c_type_from_ast(p.type_node);
-				if (self_c_type != "" && p.name == "self" && p.type_node == null) {
-					p_ty = if (p.is_mut) "${self_c_type}*"
-					else "const ${self_c_type}*";
-				}
-				proto = "${proto}${p_ty} ${p.name}";
-			}
-		}
-		proto = "${proto})";
-
-		if (is_proto) return "${proto};\n";
-		if (f.body == null) return "";
-
-		self.pointer_vars = List<str>();
-		self.str_vars = List<str>();
-		for (p in f.params) {
-			if (self_c_type != "" && p.name == "self" && p.type_node == null) {
-				self.pointer_vars.add(p.name);
-			} else if (p.type_node != null) {
-				when (p.type_node.kind) {
-					NodeKind.TYPE_POINTER -> self.pointer_vars.add(p.name);
-					NodeKind.TYPE_NAMED -> {
-						val named = p.type_node.to<NamedType>();
-						if (named.name == "str") self.str_vars.add(p.name);
-					}
-					else -> {}
-				}
-			}
-		}
-
-		var res = "${proto} {\n";
-		self.indent_level = 1;
-
-		when (f.body.kind) {
-			NodeKind.STMT_BLOCK -> {
-				val blk = f.body.to<BlockStmt>();
-				for (stmt in blk.statements) {
-					res = "${res}${self.gen_statement(stmt)}";
-				}
-			}
-			NodeKind.STMT_EXPR -> {
-				val es = f.body.to<ExprStmt>();
-				res = when {
-					ret_ty != "void" &&
-					es.expr.kind == NodeKind.EXPR_WHEN &&
-					when_expr_has_blocks(es.expr.to<WhenExpr>()) -> "${res}${self.gen_when_with_target(es.expr.to<WhenExpr>(), "", true)}";
-
-					ret_ty == "void" -> "${res}    ${self.gen_expr(es.expr)};\n";
-
-					else -> "${res}    return ${self.gen_expr(es.expr)};\n";
-				};
-
-			}
-			else -> {}
-		}
-
-		self.indent_level = 0;
-		return "${res}}\n\n";
-	}
-
-// ============================================================================
-// Full Program Code Generation
-// ============================================================================
-
-// C return type of a function: explicit annotation, else inferred from an
-// arrow body (used by both the prototype and the definition).
-	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
-		if (f.return_type != null) return c_type_from_ast(f.return_type);
-		if (f.body != null && f.body.kind == NodeKind.STMT_EXPR) {
-			val es = f.body.to<ExprStmt>();
-			return self.infer_type_from_expr(es.expr);
-		}
-		return "void";
-	}
-
-}
-
 // Generic declarations are templates: monomorphized instances are appended by
 // the semantic analyzer, so the backend must skip the templates themselves.
 pub fn is_generic_decl(node: *AstNode) => when (node.kind) {
@@ -290,6 +181,111 @@ impl CCodeGen {
 		}
 
 		return c_code;
+	}
+
+	pub fn gen_struct_decl(var self, node: *AstNode): str {
+		val s = node.to<StructDecl>();
+		self.struct_names.add(s.name);
+
+		var res = "struct ${s.name} {\n";
+		for (f in s.fields) {
+			val ty = c_type_from_ast(f.type_node);
+			res = "${res}    ${ty} ${f.name};\n";
+		}
+		res = "${res}};\n";
+		return "${res}\n";
+	}
+
+	// `self_c_type` is the C name of the enclosing struct when generating an impl
+	// method ("" for free functions). It types the untyped `self` receiver.
+	pub fn gen_fn_decl(var self, node: *AstNode, is_proto: bool, self_c_type: str): str {
+		val f = node.to<FnDecl>();
+		var ret_ty = "void";
+		if (f.return_type != null) ret_ty = c_type_from_ast(f.return_type);
+		else if (f.body != null && f.body.kind == NodeKind.STMT_EXPR) {
+			val es = f.body.to<ExprStmt>();
+			ret_ty = self.infer_type_from_expr(es.expr);
+		}
+
+		var proto = "${ret_ty} ${f.name}(";
+		if (f.params.is_empty()) proto = "${proto}void";
+		else {
+			for (i in 0..<f.params.len) {
+				if (i > 0) proto = "${proto}, ";
+				val p = f.params[i];
+				var p_ty = c_type_from_ast(p.type_node);
+				if (self_c_type != "" && p.name == "self" && p.type_node == null) {
+					p_ty = if (p.is_mut) "${self_c_type}*"
+					else "const ${self_c_type}*";
+				}
+				proto = "${proto}${p_ty} ${p.name}";
+			}
+		}
+		proto = "${proto})";
+
+		if (is_proto) return "${proto};\n";
+		if (f.body == null) return "";
+
+		self.pointer_vars = List<str>();
+		self.str_vars = List<str>();
+		for (p in f.params) {
+			if (self_c_type != "" && p.name == "self" && p.type_node == null) {
+				self.pointer_vars.add(p.name);
+			} else if (p.type_node != null) {
+				when (p.type_node.kind) {
+					NodeKind.TYPE_POINTER -> self.pointer_vars.add(p.name);
+					NodeKind.TYPE_NAMED -> {
+						val named = p.type_node.to<NamedType>();
+						if (named.name == "str") self.str_vars.add(p.name);
+					}
+					else -> {}
+				}
+			}
+		}
+
+		var res = "${proto} {\n";
+		self.indent_level = 1;
+
+		when (f.body.kind) {
+			NodeKind.STMT_BLOCK -> {
+				val blk = f.body.to<BlockStmt>();
+				for (stmt in blk.statements) {
+					res = "${res}${self.gen_statement(stmt)}";
+				}
+			}
+			NodeKind.STMT_EXPR -> {
+				val es = f.body.to<ExprStmt>();
+				res = when {
+					ret_ty != "void" &&
+					es.expr.kind == NodeKind.EXPR_WHEN &&
+					when_expr_has_blocks(es.expr.to<WhenExpr>()) -> "${res}${self.gen_when_with_target(es.expr.to<WhenExpr>(), "", true)}";
+
+					ret_ty == "void" -> "${res}    ${self.gen_expr(es.expr)};\n";
+
+					else -> "${res}    return ${self.gen_expr(es.expr)};\n";
+				};
+
+			}
+			else -> {}
+		}
+
+		self.indent_level = 0;
+		return "${res}}\n\n";
+	}
+
+// ============================================================================
+// Full Program Code Generation
+// ============================================================================
+
+// C return type of a function: explicit annotation, else inferred from an
+// arrow body (used by both the prototype and the definition).
+	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
+		if (f.return_type != null) return c_type_from_ast(f.return_type);
+		if (f.body != null && f.body.kind == NodeKind.STMT_EXPR) {
+			val es = f.body.to<ExprStmt>();
+			return self.infer_type_from_expr(es.expr);
+		}
+		return "void";
 	}
 
 }

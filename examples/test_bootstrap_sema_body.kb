@@ -50,7 +50,7 @@ fn test_valid_program() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 
 	var bp = BodyPass();
 	check_program(&bp, prog);
@@ -72,7 +72,7 @@ fn test_undeclared_identifier() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 
 	var bp = BodyPass();
 	check_program(&bp, prog);
@@ -94,7 +94,7 @@ fn test_type_mismatch() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 
 	var bp = BodyPass();
 	check_program(&bp, prog);
@@ -118,7 +118,7 @@ fn test_condition_not_bool() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 
 	var bp = BodyPass();
 	check_program(&bp, prog);
@@ -140,7 +140,7 @@ fn test_return_type_mismatch() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 
 	var bp = BodyPass();
 	check_program(&bp, prog);

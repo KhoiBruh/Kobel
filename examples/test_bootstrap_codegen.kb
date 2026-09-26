@@ -12,6 +12,7 @@ use compiler.sema.body_pass.BodyPass;
 use compiler.sema.body_program.check_program;
 
 use compiler.codegen.c_codegen.CCodeGen;
+use compiler.codegen.c_program.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -50,12 +51,12 @@ fn test_end_to_end_codegen() {
 
 	// 2. Parser
 	var parser = Parser(tokens);
-	val prog = parse_program(&parser);
+	val prog = parser.parse_program();
 	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
 
 	// 3. Semantic Analysis (DeclPass + BodyPass)
 	var bp = BodyPass();
-	check_program(&bp, prog);
+	bp.check_program(prog);
 	assert_eq_usz(bp.errors.len, 0UZ, "Semantic analysis must have 0 errors");
 
 	// 4. Code Generation (C Backend)

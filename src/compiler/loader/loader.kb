@@ -76,7 +76,7 @@ impl ModuleLoader {
 		return &self.builder;
 	}
 
-	pub fn count(self): usz => self.ordered.len;
+	pub fn count(self) => self.ordered.len;
 
 	// ============================================================================
 	// Parsing
@@ -87,7 +87,7 @@ impl ModuleLoader {
 		val tokens = lexer.tokenize();
 
 		var parser = Parser(tokens);
-		val prog = parse_program(&parser);
+		val prog = parser.parse_program();
 
 		if (parser.errors.len > 0) {
 			for (msg in parser.errors) self.errors.add("${path}: ${msg}");

@@ -64,7 +64,7 @@ fn test_collect_program() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val program_node = parse_program(&parser);
+	val program_node = parser.parse_program();
 
 	var decl_pass = DeclPass();
 	collect_program(&decl_pass, program_node);
@@ -125,7 +125,7 @@ fn test_duplicate_declarations() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val program_node = parse_program(&parser);
+	val program_node = parser.parse_program();
 
 	var decl_pass = DeclPass();
 	collect_program(&decl_pass, program_node);

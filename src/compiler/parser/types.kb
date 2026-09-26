@@ -1,5 +1,7 @@
 mod compiler.parser.types;
 
+use std.collections.list.*;
+
 use compiler.lexer.token.*;
 
 use compiler.ast.node.AstNode;
@@ -7,88 +9,90 @@ use compiler.ast.builder.*;
 
 use compiler.parser.parser.*;
 
-use std.collections.list.*;
+impl Parser {
 
-pub fn parse_single_type(var self: &Parser): *AstNode {
-	val tok = self.peek();
-	val line = tok.line;
-	val col = tok.col;
+	pub fn parse_single_type(var self): *AstNode {
+		val tok = self.peek();
+		val line = tok.line;
+		val col = tok.col;
 
-	// 1. Pointer type: *T (read-only) or &T (read-write)
-	if (self.match_token(TokenType.STAR)) {
-		val pointee = parse_single_type(self);
-		return self.b().pointer_type(false, pointee, line, col);
-	}
-
-	if (self.match_token(TokenType.AMPERSAND)) {
-		val pointee = parse_single_type(self);
-		return self.b().pointer_type(true, pointee, line, col);
-	}
-
-	// 2. Fixed-size array type: [T; N]
-	if (self.match_token(TokenType.OPEN_BRACKET)) {
-		val elem_type = parse_type(self);
-		self.consume(TokenType.SEMI_COLON, "Expected ';' after array element type");
-		val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
-		self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
-
-		// Convert the size string to usz (default to 0 if empty)
-		var size: usz = 0;
-		for (ch in size_tok.text) {
-			if (ch >= '0' && ch <= '9') {
-				val digit = ((ch as i32) - ('0' as i32)) as usz;
-				size = size * 10 + digit;
-			}
+		// 1. Pointer type: *T (read-only) or &T (read-write)
+		if (self.match_token(TokenType.STAR)) {
+			val pointee = self.parse_single_type();
+			return self.b().pointer_type(false, pointee, line, col);
 		}
 
-		return self.b().array_type(elem_type, size, line, col);
-	}
-
-	// 3. Named type / Path: Foo, std.collections.List, List<T>
-	val id_tok = self.consume(TokenType.IDENTIFIER, "Expected type name");
-	var full_name = id_tok.text;
-
-	while (self.match_token(TokenType.DOT)) {
-		val seg = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.' in type path");
-		full_name = "${full_name}.${seg.text}";
-	}
-
-	var type_args = List<*AstNode>();
-	if (self.match_token(TokenType.LESS)) {
-		if (!self.check(TokenType.GREATER)) {
-			type_args.add(parse_type(self));
-			while (self.match_token(TokenType.COMMA)) {
-				type_args.add(parse_type(self));
-			}
-		}
-		self.consume(TokenType.GREATER, "Expected '>' after type arguments");
-	}
-
-	// 4. Array type syntax per the spec: Array<T>(N)
-	if (full_name == "Array" && type_args.len == 1 && self.check(TokenType.OPEN_PAREN)) {
-		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
-		val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
-		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
-
-		// Convert the size string to usz
-		var size: usz = 0;
-		for (ch in size_tok.text) {
-			if (ch >= '0' && ch <= '9') {
-				val digit = ((ch as i32) - ('0' as i32)) as usz;
-				size = size * 10 + digit;
-			}
+		if (self.match_token(TokenType.AMPERSAND)) {
+			val pointee = self.parse_single_type();
+			return self.b().pointer_type(true, pointee, line, col);
 		}
 
-		return self.b().array_type(type_args.first(), size, line, col);
+		// 2. Fixed-size array type: [T; N]
+		if (self.match_token(TokenType.OPEN_BRACKET)) {
+			val elem_type = self.parse_type();
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after array element type");
+			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
+			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
+
+			// Convert the size string to usz (default to 0 if empty)
+			var size: usz = 0;
+			for (ch in size_tok.text) {
+				if (ch >= '0' && ch <= '9') {
+					val digit = ((ch as i32) - ('0' as i32)) as usz;
+					size *= 10 + digit;
+				}
+			}
+
+			return self.b().array_type(elem_type, size, line, col);
+		}
+
+		// 3. Named type / Path: Foo, std.collections.List, List<T>
+		val id_tok = self.consume(TokenType.IDENTIFIER, "Expected type name");
+		var full_name = id_tok.text;
+
+		while (self.match_token(TokenType.DOT)) {
+			val seg = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.' in type path");
+			full_name = "${full_name}.${seg.text}";
+		}
+
+		var type_args = List<*AstNode>();
+		if (self.match_token(TokenType.LESS)) {
+			if (!self.check(TokenType.GREATER)) {
+				type_args.add(self.parse_type());
+				while (self.match_token(TokenType.COMMA)) {
+					type_args.add(self.parse_type());
+				}
+			}
+			self.consume(TokenType.GREATER, "Expected '>' after type arguments");
+		}
+
+		// 4. Array type syntax per the spec: Array<T>(N)
+		if (full_name == "Array" && type_args.len == 1 && self.check(TokenType.OPEN_PAREN)) {
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
+			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
+
+			// Convert the size string to usz
+			var size: usz = 0;
+			for (ch in size_tok.text) {
+				if (ch >= '0' && ch <= '9') {
+					val digit = ((ch as i32) - ('0' as i32)) as usz;
+					size = size * 10 + digit;
+				}
+			}
+
+			return self.b().array_type(type_args.first(), size, line, col);
+		}
+
+		return self.b().named_type(full_name, type_args, line, col);
 	}
 
-	return self.b().named_type(full_name, type_args, line, col);
-}
-
-pub fn parse_type(var self: &Parser): *AstNode {
-	var ty = parse_single_type(self);
-	while (self.match_token(TokenType.QUESTION)) {
-		ty = self.b().nullable_type(ty, ty.line, ty.col);
+	pub fn parse_type(var self): *AstNode {
+		var type = self.parse_single_type();
+		while (self.match_token(TokenType.QUESTION)) {
+			type = self.b().nullable_type(type, type.line, type.col);
+		}
+		return type;
 	}
-	return ty;
+
 }
