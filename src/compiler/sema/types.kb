@@ -96,12 +96,16 @@ pub struct EnumInfo {
 	pub members: List<*EnumMemberInfo>
 }
 
-pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo {
-	for (m in e.members) {
-		if (m.name == name) return m;
+impl EnumInfo {
+	pub fn find_member(self, name: str): *EnumMemberInfo {
+		for (m in self.members) {
+			if (m.name == name) return m;
+		}
+		return null;
 	}
-	return null;
 }
+
+pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo => e.find_member(name);
 
 // ============================================================================
 // Downcast Helper Functions
@@ -138,41 +142,41 @@ pub fn layout_struct(ty: *Type) {
 	t.align = max_align;
 }
 
-// Look up a method by its source name (e.g. "peek").
-pub fn struct_find_method(st: *StructType, name: str): *MethodInfo {
-	for (m in st.methods) {
-		if (m.name == name) return m;
+impl StructType {
+	pub fn find_method(self, name: str): *MethodInfo {
+		for (m in self.methods) {
+			if (m.name == name) return m;
+		}
+		return null;
 	}
-	return null;
+
+	pub fn find_method_arity(self, name: str, argc: usz): *MethodInfo {
+		for (m in self.methods) {
+			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) return m;
+		}
+		return null;
+	}
+
+	pub fn count_method_arity(self, name: str, argc: usz): usz {
+		var n: usz = 0;
+		for (m in self.methods) {
+			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n++;
+		}
+		return n;
+	}
+
+	pub fn find_method_c(self, c_name: str): *MethodInfo {
+		for (m in self.methods) {
+			if (m.c_name == c_name) return m;
+		}
+		return null;
+	}
 }
 
-// Overload-aware lookup: the method with this name whose parameter count
-// (receiver included) is `argc`. Returns null when no overload matches, so the
-// caller can fall back to a plain name lookup for a better diagnostic.
-pub fn struct_find_method_arity(st: *StructType, name: str, argc: usz): *MethodInfo {
-	for (m in st.methods) {
-		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) return m;
-	}
-	return null;
-}
-
-// Number of overloads sharing this name and parameter count. Only arity-based
-// overloading is supported, so > 1 means the call is ambiguous.
-pub fn struct_count_method_arity(st: *StructType, name: str, argc: usz): usz {
-	var n: usz = 0;
-	for (m in st.methods) {
-		if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n++;
-	}
-	return n;
-}
-
-// Look up a method by its mangled C name (used when re-visiting an `impl`).
-pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo {
-	for (m in st.methods) {
-		if (m.c_name == c_name) return m;
-	}
-	return null;
-}
+pub fn struct_find_method(st: *StructType, name: str): *MethodInfo => st.find_method(name);
+pub fn struct_find_method_arity(st: *StructType, name: str, argc: usz): *MethodInfo => st.find_method_arity(name, argc);
+pub fn struct_count_method_arity(st: *StructType, name: str, argc: usz): usz => st.count_method_arity(name, argc);
+pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo => st.find_method_c(c_name);
 
 // ============================================================================
 // Primitive Types Constructors
@@ -292,45 +296,62 @@ pub fn alloc_fn_type(
 }
 
 // ============================================================================
-// Type Inspection & Semantic Queries
-// ============================================================================
+impl Type {
+	pub fn as_pointer(self): *PointerType => self.data as *PointerType;
+	pub fn as_array(self): *ArrayType => self.data as *ArrayType;
+	pub fn as_struct(self): *StructType => self.data as *StructType;
+	pub fn as_struct_mut(self): &StructType => self.data as &StructType;
+	pub fn as_fn(self): *FnType => self.data as *FnType;
+	pub fn as_fn_mut(self): &FnType => self.data as &FnType;
+	pub fn as_enum(self): *EnumInfo => self.data as *EnumInfo;
 
-pub fn is_signed_integer(ty: *Type) => when (ty.kind) {
-	DataType.I8, DataType.I16, DataType.I32,
-	DataType.I64, DataType.ISZ -> true;
-	else -> false;
-};
-
-pub fn is_unsigned_integer(ty: *Type) => when (ty.kind) {
-	DataType.U8, DataType.U16, DataType.U32,
-	DataType.U64, DataType.USZ -> true;
-	else -> false;
-};
-
-pub fn is_integer(ty: *Type) => is_signed_integer(ty) || is_unsigned_integer(ty);
-
-pub fn is_float(ty: *Type) => when (ty.kind) {
-	DataType.F32, DataType.F64 -> true;
-	else -> false;
-};
-
-pub fn is_char(ty: *Type) => ty.kind == DataType.CHAR;
-
-// An enum value carries its `EnumInfo` in `data` while keeping an integer `kind`.
-pub fn is_enum_type(ty: *Type): bool {
-	if (ty.data == null) return false;
-	return when (ty.kind) {
+	pub fn is_signed_integer(self): bool => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
-		DataType.I64, DataType.ISZ, DataType.U8,
-		DataType.U16, DataType.U32, DataType.U64,
-		DataType.USZ -> true;
+		DataType.I64, DataType.ISZ -> true;
 		else -> false;
 	};
+
+	pub fn is_unsigned_integer(self): bool => when (self.kind) {
+		DataType.U8, DataType.U16, DataType.U32,
+		DataType.U64, DataType.USZ -> true;
+		else -> false;
+	};
+
+	pub fn is_integer(self): bool => self.is_signed_integer() || self.is_unsigned_integer();
+
+	pub fn is_float(self): bool => when (self.kind) {
+		DataType.F32, DataType.F64 -> true;
+		else -> false;
+	};
+
+	pub fn is_char(self): bool => self.kind == DataType.CHAR;
+
+	pub fn is_enum(self): bool {
+		if (self.data == null) return false;
+		return when (self.kind) {
+			DataType.I8, DataType.I16, DataType.I32,
+			DataType.I64, DataType.ISZ, DataType.U8,
+			DataType.U16, DataType.U32, DataType.U64,
+			DataType.USZ -> true;
+			else -> false;
+		};
+	}
+
+	pub fn is_numeric(self): bool => self.is_integer() || self.is_float();
+
+	pub fn equals(self, other: *Type): bool => type_equals(self as *Type, other);
+	pub fn can_assign_from(self, source: *Type): bool => can_assign(self as *Type, source);
+	pub fn to_string(self): str => type_to_string(self as *Type);
 }
 
-pub fn as_enum_info(ty: *Type): *EnumInfo => ty.data as *EnumInfo;
-
-pub fn is_numeric(ty: *Type) => is_integer(ty) || is_float(ty);
+pub fn is_signed_integer(ty: *Type): bool => ty.is_signed_integer();
+pub fn is_unsigned_integer(ty: *Type): bool => ty.is_unsigned_integer();
+pub fn is_integer(ty: *Type): bool => ty.is_integer();
+pub fn is_float(ty: *Type): bool => ty.is_float();
+pub fn is_char(ty: *Type): bool => ty.is_char();
+pub fn is_enum_type(ty: *Type): bool => ty.is_enum();
+pub fn as_enum_info(ty: *Type): *EnumInfo => ty.as_enum();
+pub fn is_numeric(ty: *Type): bool => ty.is_numeric();
 
 pub fn type_equals(a: *Type, b: *Type): bool {
 	if (a == b) return true;
