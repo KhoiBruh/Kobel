@@ -51,6 +51,15 @@ pub struct Scope {
 	pub is_fn_boundary: bool
 }
 
+impl Scope {
+	pub fn lookup(self, name: str): *Symbol {
+		for (sym in self.symbols) {
+			if (sym.name == name) return sym;
+		}
+		return null;
+	}
+}
+
 impl Iterable for Scope {
 	pub fn count(val self): usz => self.symbols.len;
 	pub fn at(val self, i: usz): *Symbol => self.symbols[i];
@@ -67,6 +76,13 @@ pub struct ModuleScope {
 
 impl ModuleScope {
 	pub fn new(name: str): ModuleScope => Self(name, List<*Symbol>());
+
+	pub fn lookup(self, name: str): *Symbol {
+		for (sym in self.symbols) {
+			if (sym.name == name) return sym;
+		}
+		return null;
+	}
 }
 
 impl Iterable for ModuleScope {
@@ -112,6 +128,22 @@ pub struct TraitInfo {
 	pub methods: List<*TraitMethod>,
 	// Source names of the structs with an `impl Trait for Struct` block.
 	pub impls: List<str>
+}
+
+impl TraitInfo {
+	pub fn find_method(self, name: str): *TraitMethod {
+		for (m in self.methods) {
+			if (m.name == name) return m;
+		}
+		return null;
+	}
+
+	pub fn has_impl(self, struct_name: str): bool {
+		for (s in self.impls) {
+			if (s == struct_name) return true;
+		}
+		return false;
+	}
 }
 
 // A method declared by an `impl <primitive> { ... }` block. Primitives are not
@@ -185,226 +217,238 @@ impl SymbolTable {
 
 		return Self(root_scope, arena, "", List<*ModuleScope>(), List<ImportBinding>(), List<*EnumInfo>(), List<*TraitInfo>(), List<*PrimMethod>(), gen);
 	}
-}
 
-pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) {
-	self.prim_methods.add(pm);
-}
-
-// Method of a primitive type by its source name (used by `x.m()` resolution).
-pub fn find_prim_method(self: &SymbolTable, kind: DataType, name: str): *MethodInfo {
-	for (pm in self.prim_methods) {
-		if (pm.kind == kind && pm.info.name == name) return pm.info;
+	pub fn register_prim_method(var self, pm: *PrimMethod) {
+		self.prim_methods.add(pm);
 	}
-	return null;
-}
 
-// Overload-aware variant of `find_prim_method` (parameter count includes the
-// receiver). Null when no overload matches, so the caller can fall back.
-pub fn find_prim_method_arity(self: &SymbolTable, kind: DataType, name: str, argc: usz): *MethodInfo {
-	for (pm in self.prim_methods) {
-		if (pm.kind == kind && pm.info.name == name && sem_fn(pm.info.fn_type).param_types.len == argc) return pm.info;
+	// Method of a primitive type by its source name (used by `x.m()` resolution).
+	pub fn find_prim_method(self, kind: DataType, name: str): *MethodInfo {
+		for (pm in self.prim_methods) {
+			if (pm.kind == kind && pm.info.name == name) return pm.info;
+		}
+		return null;
 	}
-	return null;
-}
 
-// Primitive method by its mangled C name (used when re-visiting an impl).
-pub fn find_prim_method_c(self: &SymbolTable, c_name: str): *MethodInfo {
-	for (pm in self.prim_methods) {
-		if (pm.info.c_name == c_name) return pm.info;
+	// Overload-aware variant of `find_prim_method` (parameter count includes the
+	// receiver). Null when no overload matches, so the caller can fall back.
+	pub fn find_prim_method_arity(self, kind: DataType, name: str, argc: usz): *MethodInfo {
+		for (pm in self.prim_methods) {
+			if (pm.kind == kind && pm.info.name == name && sem_fn(pm.info.fn_type).param_types.len == argc) return pm.info;
+		}
+		return null;
 	}
-	return null;
-}
 
-pub fn register_trait(var self: &SymbolTable, info: *TraitInfo) {
-	self.traits.add(info);
-}
-
-pub fn find_trait(self: &SymbolTable, name: str): *TraitInfo {
-	for (t in self.traits) {
-		if (t.name == name) return t;
+	// Primitive method by its mangled C name (used when re-visiting an impl).
+	pub fn find_prim_method_c(self, c_name: str): *MethodInfo {
+		for (pm in self.prim_methods) {
+			if (pm.info.c_name == c_name) return pm.info;
+		}
+		return null;
 	}
-	return null;
+
+	pub fn register_trait(var self, info: *TraitInfo) {
+		self.traits.add(info);
+	}
+
+	pub fn find_trait(self, name: str): *TraitInfo {
+		for (t in self.traits) {
+			if (t.name == name) return t;
+		}
+		return null;
+	}
+
+	pub fn register_enum_info(var self, info: *EnumInfo) {
+		self.enums.add(info);
+	}
+
+	pub fn find_enum_info(self, name: str): *EnumInfo {
+		for (e in self.enums) {
+			if (e.name == name || e.c_name == name) return e;
+		}
+		return null;
+	}
+
+	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
+		val new_sc = arena_alloc<Scope>(&self.arena);
+		*new_sc = Scope(self.current_scope, List<*Symbol>(), is_fn_boundary);
+		self.current_scope = new_sc;
+		return new_sc;
+	}
+
+	pub fn exit_scope(var self) {
+		if (self.current_scope.parent != null) {
+			self.current_scope = self.current_scope.parent;
+		}
+	}
+
+	pub fn is_in_function(var self): bool {
+		var curr = self.current_scope;
+		while (curr != null) {
+			if (curr.is_fn_boundary) return true;
+			curr = curr.parent;
+		}
+		return false;
+	}
+
+	pub fn lookup_current(var self, name: str): *Symbol {
+		val scope = self.current_scope;
+		for (sym in scope) {
+			if (sym.name == name) return sym;
+		}
+		return null;
+	}
+
+	// Name lookup: local scope -> declarations of the current module -> imports of
+	// the current module -> mangled C name (so re-resolution gives the same result).
+	pub fn lookup(var self, name: str): *Symbol {
+		var curr = self.current_scope;
+		while (curr != null) {
+			for (sym in curr) {
+				if (sym.name == name) return sym;
+			}
+			curr = curr.parent;
+		}
+
+		// 2. Top-level declarations of the current module
+		val own = self.lookup_in_module(self.current_module, name);
+		if (own != null) return own;
+
+		// 3. Explicit imports (by original name or alias), scoped to this module
+		for (b in self.imports) {
+			if (
+				!b.is_wildcard &&
+				b.local_name == name &&
+				b.owner_module == self.current_module
+			) return self.lookup_in_module(b.module_name, b.symbol_name);
+		}
+
+		// 4. Wildcard imports, scoped to this module
+		for (b2 in self.imports) {
+			if (b2.is_wildcard && b2.owner_module == self.current_module) {
+				val found = self.lookup_in_module(b2.module_name, name);
+				if (found != null) return found;
+			}
+		}
+
+		// 5. Instantiated generic symbols (their name already equals the mangled C name)
+		for (isym in self.gen.inst_syms) {
+			if (isym.name == name) return isym;
+		}
+
+		// 6. Mangled C name (idempotent on repeated resolution)
+		return self.lookup_c_name(name);
+	}
+
+	pub fn define(var self, sym: Symbol): bool {
+		// Check for duplicate definitions in the same scope
+		val existing = self.lookup_current(sym.name);
+		if (existing != null) return false;
+
+		val sym_ptr = arena_alloc<Symbol>(&self.arena);
+		*sym_ptr = sym;
+
+		self.current_scope.symbols.add(sym_ptr);
+		return true;
+	}
+
+	pub fn set_current_module(var self, name: str) {
+		self.current_module = name;
+	}
+
+	pub fn module_exists(self, name: str): bool {
+		for (sc in self.modules) {
+			if (sc.name == name) return true;
+		}
+		return false;
+	}
+
+	// Define a top-level declaration into the scope of the given module.
+	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
+		for (m in 0..<self.modules.len) {
+			val sc = self.modules[m];
+			if (sc.name == module_name) {
+				for (existing in sc) {
+					if (existing.name == sym.name) return false;
+				}
+				val sym_ptr = arena_alloc<Symbol>(&self.arena);
+				*sym_ptr = sym;
+				sc.symbols.add(sym_ptr);
+				self.modules[m] = sc;
+				return true;
+			}
+		}
+
+		// Module scope does not exist yet -> create it (via pointer) then add the symbol
+		val fresh = arena_alloc<ModuleScope>(&self.arena);
+		*fresh = ModuleScope(module_name);
+		val sym_ptr2 = arena_alloc<Symbol>(&self.arena);
+		*sym_ptr2 = sym;
+		fresh.symbols.add(sym_ptr2);
+		self.modules.add(fresh);
+		return true;
+	}
+
+	// Define a top-level declaration into the module currently being collected.
+	pub fn define_global(var self, sym: Symbol): bool => self.define_in_module(self.current_module, sym);
+
+	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
+		self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
+	}
+
+	pub fn lookup_in_module(self, module_name: str, name: str): *Symbol {
+		for (sc in self.modules) {
+			if (sc.name == module_name) {
+				for (sym in sc) {
+					if (sym.name == name) return sym;
+				}
+				return null;
+			}
+		}
+		return null;
+	}
+
+	// Look up by generated C name (used when re-resolving a mangled name).
+	pub fn lookup_c_name(self, c_name: str): *Symbol {
+		if (c_name.len == 0) return null;
+		for (sc in self.modules) {
+			for (sym in sc) {
+				if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
+			}
+		}
+		return null;
+	}
 }
+
+// ============================================================================
+// Backward-compatibility forwarders (free functions)
+// ============================================================================
 
 // Look up one method of a trait by its source name.
-pub fn trait_find_method(t: *TraitInfo, name: str): *TraitMethod {
-	for (m in t.methods) {
-		if (m.name == name) return m;
-	}
-	return null;
-}
+pub fn trait_find_method(t: *TraitInfo, name: str): *TraitMethod => t.find_method(name);
 
 // Whether some `impl Trait for Struct` block registered `struct_name` for this
 // trait (directly, not through a base trait).
-pub fn trait_has_impl(t: *TraitInfo, struct_name: str): bool {
-	for (s in t.impls) {
-		if (s == struct_name) return true;
-	}
-	return false;
-}
+pub fn trait_has_impl(t: *TraitInfo, struct_name: str): bool => t.has_impl(struct_name);
 
-pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) {
-	self.enums.add(info);
-}
-
-pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo {
-	for (e in self.enums) {
-		if (e.name == name || e.c_name == name) return e;
-	}
-	return null;
-}
-
-pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope {
-	val new_sc = arena_alloc<Scope>(&self.arena);
-	*new_sc = Scope(self.current_scope, List<*Symbol>(), is_fn_boundary);
-	self.current_scope = new_sc;
-	return new_sc;
-}
-
-pub fn exit_scope(var self: &SymbolTable) {
-	if (self.current_scope.parent != null) {
-		self.current_scope = self.current_scope.parent;
-	}
-}
-
-pub fn is_in_function(var self: &SymbolTable): bool {
-	var curr = self.current_scope;
-	while (curr != null) {
-		if (curr.is_fn_boundary) return true;
-		curr = curr.parent;
-	}
-	return false;
-}
-
-pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol {
-	val scope = self.current_scope;
-	for (sym in scope) {
-		if (sym.name == name) return sym;
-	}
-	return null;
-}
-
-// Name lookup: local scope -> declarations of the current module -> imports of
-// the current module -> mangled C name (so re-resolution gives the same result).
-pub fn lookup(var self: &SymbolTable, name: str): *Symbol {
-	var curr = self.current_scope;
-	while (curr != null) {
-		for (sym in curr) {
-			if (sym.name == name) return sym;
-		}
-		curr = curr.parent;
-	}
-
-	// 2. Top-level declarations of the current module
-	val own = lookup_in_module(self, self.current_module, name);
-	if (own != null) return own;
-
-	// 3. Explicit imports (by original name or alias), scoped to this module
-	for (b in self.imports) {
-		if (
-			!b.is_wildcard &&
-			b.local_name == name &&
-			b.owner_module == self.current_module
-		) return lookup_in_module(self, b.module_name, b.symbol_name);
-	}
-
-	// 4. Wildcard imports, scoped to this module
-	for (b2 in self.imports) {
-		if (b2.is_wildcard && b2.owner_module == self.current_module) {
-			val found = lookup_in_module(self, b2.module_name, name);
-			if (found != null) return found;
-		}
-	}
-
-	// 5. Instantiated generic symbols (their name already equals the mangled C name)
-	for (isym in self.gen.inst_syms) {
-		if (isym.name == name) return isym;
-	}
-
-	// 6. Mangled C name (idempotent on repeated resolution)
-	return lookup_c_name(self, name);
-}
-
-pub fn define(var self: &SymbolTable, sym: Symbol): bool {
-	// Check for duplicate definitions in the same scope
-	val existing = lookup_current(self, sym.name);
-	if (existing != null) return false;
-
-	val sym_ptr = arena_alloc<Symbol>(&self.arena);
-	*sym_ptr = sym;
-
-	self.current_scope.symbols.add(sym_ptr);
-	return true;
-}
-
-// ============================================================================
-// Module Scopes & Imports
-// ============================================================================
-
-pub fn set_current_module(var self: &SymbolTable, name: str) {
-	self.current_module = name;
-}
-
-pub fn module_exists(self: &SymbolTable, name: str): bool {
-	for (sc in self.modules) {
-		if (sc.name == name) return true;
-	}
-	return false;
-}
-
-// Define a top-level declaration into the scope of the given module.
-pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool {
-	for (m in 0..<self.modules.len) {
-		val sc = self.modules[m];
-		if (sc.name == module_name) {
-			for (existing in sc) {
-				if (existing.name == sym.name) return false;
-			}
-			val sym_ptr = arena_alloc<Symbol>(&self.arena);
-			*sym_ptr = sym;
-			sc.symbols.add(sym_ptr);
-			self.modules[m] = sc;
-			return true;
-		}
-	}
-
-	// Module scope does not exist yet -> create it (via pointer) then add the symbol
-	val fresh = arena_alloc<ModuleScope>(&self.arena);
-	*fresh = ModuleScope(module_name);
-	val sym_ptr2 = arena_alloc<Symbol>(&self.arena);
-	*sym_ptr2 = sym;
-	fresh.symbols.add(sym_ptr2);
-	self.modules.add(fresh);
-	return true;
-}
-
-// Define a top-level declaration into the module currently being collected.
-pub fn define_global(var self: &SymbolTable, sym: Symbol) => define_in_module(self, self.current_module, sym);
-
-pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
-	self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
-}
-
-pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol {
-	for (sc in self.modules) {
-		if (sc.name == module_name) {
-			for (sym in sc) {
-				if (sym.name == name) return sym;
-			}
-			return null;
-		}
-	}
-	return null;
-}
-
-// Look up by generated C name (used when re-resolving a mangled name).
-pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol {
-	if (c_name.len == 0) return null;
-	for (sc in self.modules) {
-		for (sym in sc) {
-			if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
-		}
-	}
-	return null;
-}
+pub fn register_prim_method(var self: &SymbolTable, pm: *PrimMethod) => self.register_prim_method(pm);
+pub fn find_prim_method(self: &SymbolTable, kind: DataType, name: str): *MethodInfo => self.find_prim_method(kind, name);
+pub fn find_prim_method_arity(self: &SymbolTable, kind: DataType, name: str, argc: usz): *MethodInfo => self.find_prim_method_arity(kind, name, argc);
+pub fn find_prim_method_c(self: &SymbolTable, c_name: str): *MethodInfo => self.find_prim_method_c(c_name);
+pub fn register_trait(var self: &SymbolTable, info: *TraitInfo) => self.register_trait(info);
+pub fn find_trait(self: &SymbolTable, name: str): *TraitInfo => self.find_trait(name);
+pub fn register_enum_info(var self: &SymbolTable, info: *EnumInfo) => self.register_enum_info(info);
+pub fn find_enum_info(self: &SymbolTable, name: str): *EnumInfo => self.find_enum_info(name);
+pub fn enter_scope(var self: &SymbolTable, is_fn_boundary: bool): *Scope => self.enter_scope(is_fn_boundary);
+pub fn exit_scope(var self: &SymbolTable) => self.exit_scope();
+pub fn is_in_function(var self: &SymbolTable): bool => self.is_in_function();
+pub fn lookup_current(var self: &SymbolTable, name: str): *Symbol => self.lookup_current(name);
+pub fn lookup(var self: &SymbolTable, name: str): *Symbol => self.lookup(name);
+pub fn define(var self: &SymbolTable, sym: Symbol): bool => self.define(sym);
+pub fn set_current_module(var self: &SymbolTable, name: str) => self.set_current_module(name);
+pub fn module_exists(self: &SymbolTable, name: str): bool => self.module_exists(name);
+pub fn define_in_module(var self: &SymbolTable, module_name: str, sym: Symbol): bool => self.define_in_module(module_name, sym);
+pub fn define_global(var self: &SymbolTable, sym: Symbol): bool => self.define_global(sym);
+pub fn add_import(var self: &SymbolTable, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) => self.add_import(module_name, symbol_name, local_name, is_wildcard);
+pub fn lookup_in_module(self: &SymbolTable, module_name: str, name: str): *Symbol => self.lookup_in_module(module_name, name);
+pub fn lookup_c_name(self: &SymbolTable, c_name: str): *Symbol => self.lookup_c_name(c_name);

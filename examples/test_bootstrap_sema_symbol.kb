@@ -176,12 +176,50 @@ fn test_function_boundary() {
 	println("  [PASS] test_function_boundary");
 }
 
+// ============================================================================
+// Test 5: OOP Methods on SymbolTable, Scope, and ModuleScope
+// ============================================================================
+
+fn test_symbol_table_oop() {
+	var symtab = SymbolTable();
+	var ty_i32 = type_i32();
+
+	// Test OOP define and lookup on SymbolTable
+	val ok = symtab.define(Symbol("oop_var", "oop_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	assert_true(ok, "symtab.define must succeed");
+
+	val s = symtab.lookup("oop_var");
+	assert_true(s != null, "symtab.lookup must find oop_var");
+	assert_eq_str(s.name, "oop_var", "Symbol name must match");
+
+	// Test scope OOP lookup
+	val sc = symtab.current_scope;
+	val in_sc = sc.lookup("oop_var");
+	assert_true(in_sc != null, "sc.lookup must find oop_var");
+
+	// Test ModuleScope OOP lookup
+	var ms = ModuleScope("test_mod");
+	val m_sym = Symbol("ms_var", "ms_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ);
+	ms.symbols.add(&m_sym);
+	val found_ms = ms.lookup("ms_var");
+	assert_true(found_ms != null, "ms.lookup must find ms_var");
+
+	// Test OOP scope management
+	symtab.enter_scope(true);
+	assert_true(symtab.is_in_function(), "symtab.is_in_function must be true");
+	symtab.exit_scope();
+	assert_true(!symtab.is_in_function(), "symtab.is_in_function must be false after exit");
+
+	println("  [PASS] test_symbol_table_oop");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic Symbol tests...");
 	test_global_scope();
 	test_duplicate_definition();
 	test_scoping_and_shadowing();
 	test_function_boundary();
+	test_symbol_table_oop();
 	println("[ALL PASSED] Bootstrap Semantic Symbol passed all tests successfully!");
 	return 0;
 }
