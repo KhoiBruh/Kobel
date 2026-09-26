@@ -57,7 +57,7 @@ pub fn collect_use(var self, node: *AstNode) {
 	val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
 	if (target == null) {
 		// Generic struct/function templates are not registered as symbols.
-		if (template_in_module(self, mod_name, u.symbol_name)) return;
+		if (self.template_in_module(mod_name, u.symbol_name)) return;
 		if (find_trait(&self.symtab, u.symbol_name) != null) return;
 		self.report_error(node, "Symbol '${u.symbol_name}' not found in module '${mod_name}'");
 		return;
