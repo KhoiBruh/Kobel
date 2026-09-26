@@ -44,21 +44,21 @@ impl CCodeGen {
 		false
 	);
 
-	pub fn is_pointer_var(self, name: str): bool {
+	pub fn is_pointer_var(val self, name: str): bool {
 		for (v in self.pointer_vars) {
 			if (v == name) return true;
 		}
 		return false;
 	}
 
-	pub fn is_str_var(self, name: str): bool {
+	pub fn is_str_var(val self, name: str): bool {
 		for (v in self.str_vars) {
 			if (v == name) return true;
 		}
 		return false;
 	}
 
-	pub fn lookup_fn_ret_type(self, name: str): str {
+	pub fn lookup_fn_ret_type(val self, name: str): str {
 		for (i in 0..<self.fn_names.len) {
 			if (self.fn_names[i] == name) return self.fn_ret_types[i];
 		}
@@ -87,60 +87,63 @@ pub fn get_indent(level: usz): str {
 pub fn c_type_from_ast(node: *AstNode): str {
 	if (node == null) return "void";
 
-	when (node.kind) {
+	return when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
 			val named = node.to<NamedType>();
 			val name = named.name;
 
-			if (name == "none") return "void";
-			if (name == "bool") return "bool";
-			if (name == "char") return "char";
-			if (name == "i8") return "int8_t";
-			if (name == "i16") return "int16_t";
-			if (name == "i32") return "int32_t";
-			if (name == "i64") return "int64_t";
-			if (name == "isz") return "intptr_t";
-			if (name == "u8") return "uint8_t";
-			if (name == "u16") return "uint16_t";
-			if (name == "u32") return "uint32_t";
-			if (name == "u64") return "uint64_t";
-			if (name == "usz") return "size_t";
-			if (name == "f32") return "float";
-			if (name == "f64") return "double";
-			if (name == "str") return "const char*";
-
-			return name;
+			yield when (name) {
+				"none" -> "void";
+				"bool" -> "bool";
+				"char" -> "char";
+				"i8" -> "int8_t";
+				"i16" -> "int16_t";
+				"i32" -> "int32_t";
+				"i64" -> "int64_t";
+				"isz" -> "intptr_t";
+				"u8" -> "uint8_t";
+				"u16" -> "uint16_t";
+				"u32" -> "uint32_t";
+				"u64" -> "uint64_t";
+				"usz" -> "size_t";
+				"f32" -> "float";
+				"f64" -> "double";
+				"str" -> "const char*";
+				else -> name;
+			};
 		}
 
 		NodeKind.TYPE_POINTER -> {
 			val ptr = node.to<PointerType>();
 			val sub = c_type_from_ast(ptr.pointee);
 			if (ptr.is_mut) return sub + "*";
+
 			if (ptr.pointee.kind == NodeKind.TYPE_NAMED) {
 				val named = ptr.pointee.to<NamedType>();
 				// `str` and `*char` stay const so string literals and `.c_str()`
 				// results can be passed. Other read-only pointers are emitted as
 				// plain pointers: the language does not enforce const-correctness
 				// and the compiler's own source writes through `*T`.
-				if (named.name == "str") return "${sub}*";
-				if (named.name == "char") return "const ${sub}*";
+				if (named.name == "str") yield "${sub}*";
+				if (named.name == "char") yield "const ${sub}*";
 			}
-			return "${sub}*";
+
+			yield "${sub}*";
 		}
 
 		NodeKind.TYPE_ARRAY -> {
 			val arr = node.to<ArrayType>();
 			val sub = c_type_from_ast(arr.element_type);
-			return "${sub}*";
+			yield "${sub}*";
 		}
 
 		NodeKind.TYPE_NULLABLE -> {
 			val null_t = node.to<NullableType>();
-			return c_type_from_ast(null_t.inner);
+			yield c_type_from_ast(null_t.inner);
 		}
 
-		else -> return "void*";
-	}
+		else -> "void*";
+	};
 }
 
 pub fn c_format_int_literal(raw: str): str {
@@ -183,21 +186,29 @@ impl CCodeGen {
 		when (node.kind) {
 			NodeKind.EXPR_LITERAL -> {
 				val lit = node.to<LiteralExpr>();
-				when (lit.literal_kind) {
-					LiteralKind.INT -> return c_format_int_literal(lit.raw_text);
-					LiteralKind.FLOAT,
-					LiteralKind.BOOL -> return lit.raw_text;
+
+				return when (lit.literal_kind) {
+					LiteralKind.INT -> c_format_int_literal(lit.raw_text);
+					LiteralKind.FLOAT, LiteralKind.BOOL -> lit.raw_text;
 					LiteralKind.STRING -> {
-						if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') return lit.raw_text;
-						return "\"${lit.raw_text}\"";
+						if (
+							lit.raw_text.len >= 2 &&
+							lit.raw_text[0] == '"'
+						) yield lit.raw_text;
+
+						yield "\"${lit.raw_text}\"";
 					}
 					LiteralKind.CHAR -> {
-						if (lit.raw_text.len >= 2 && lit.raw_text[0] == '\'') return lit.raw_text;
-						return "'${lit.raw_text}'";
+						if (
+							lit.raw_text.len >= 2 &&
+							lit.raw_text[0] == '\''
+						) yield lit.raw_text;
+
+						yield "'${lit.raw_text}'";
 					}
-					LiteralKind.NULL_VAL -> return "NULL";
-					else -> return lit.raw_text;
-				}
+					LiteralKind.NULL_VAL -> "NULL";
+					else -> lit.raw_text;
+				};
 			}
 
 			NodeKind.EXPR_IDENTIFIER -> return node.to<IdentifierExpr>().name;
@@ -437,24 +448,29 @@ impl CCodeGen {
 
 			NodeKind.EXPR_CALL -> {
 				val call = expr.to<CallExpr>();
-				if (call.callee.kind == NodeKind.EXPR_MEMBER) {
-					val m = call.callee.to<MemberExpr>();
-					if (m.member == "c_str" || m.member == "slice" || m.member == "data") return "const char*";
-					if (m.member == "len" || m.member == "size" || m.member == "cap") return "size_t";
-					return "int32_t";
-				}
-				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
-					val id = call.callee.to<IdentifierExpr>();
-					// Runtime string helpers injected by the semantic analyzer.
-					if (id.name == "kobel_concat") return "const char*";
-					if (id.name == "kobel_slice") return "const char*";
-					if (id.name == "kobel_streq") return "bool";
-					if (id.name == "kobel_slen") return "size_t";
-					for (sn in self.struct_names) {
-						if (sn == id.name) return id.name;
+				when (call.callee.kind) {
+					NodeKind.EXPR_MEMBER -> {
+						val m = call.callee.to<MemberExpr>();
+						return when (m.member) {
+							"c_str", "slice", "data" -> "const char*";
+							"len", "size", "cap" -> "size_t";
+							else -> "int32_t";
+						};
 					}
-					val ret_ty = self.lookup_fn_ret_type(id.name);
-					if (ret_ty != "") return ret_ty;
+					NodeKind.EXPR_IDENTIFIER -> {
+						val id = call.callee.to<IdentifierExpr>();
+						// Runtime string helpers injected by the semantic analyzer.
+						if (id.name == "kobel_concat") return "const char*";
+						if (id.name == "kobel_slice") return "const char*";
+						if (id.name == "kobel_streq") return "bool";
+						if (id.name == "kobel_slen") return "size_t";
+						for (sn in self.struct_names) {
+							if (sn == id.name) return id.name;
+						}
+						val ret_ty = self.lookup_fn_ret_type(id.name);
+						if (ret_ty != "") return ret_ty;
+					}
+					else -> return "int32_t";
 				}
 				return "int32_t";
 			}
@@ -472,12 +488,14 @@ impl CCodeGen {
 
 			NodeKind.EXPR_UNARY -> {
 				val un = expr.to<UnaryExpr>();
-				if (un.op == TokenType.BANG) return "bool";
-				if (un.op == TokenType.AMPERSAND) {
-					val sub = self.infer_type_from_expr(un.operand);
-					return sub + "*";
-				}
-				return self.infer_type_from_expr(un.operand);
+				return when (un.op) {
+					TokenType.BANG -> "bool";
+					TokenType.AMPERSAND -> {
+						val sub = self.infer_type_from_expr(un.operand);
+						yield sub + "*";
+					}
+					else -> self.infer_type_from_expr(un.operand);
+				};
 			}
 
 			NodeKind.EXPR_GROUP -> return self.infer_type_from_expr(expr.to<GroupExpr>().expr);

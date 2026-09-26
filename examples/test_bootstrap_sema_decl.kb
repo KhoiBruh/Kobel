@@ -16,7 +16,7 @@ use compiler.sema.symbol.SymbolKind;
 use compiler.sema.symbol.lookup;
 
 use compiler.sema.decl_pass.DeclPass;
-use compiler.sema.decl_collect.collect_program;
+use compiler.sema.decl_collect.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -67,7 +67,7 @@ fn test_collect_program() {
 	val program_node = parser.parse_program();
 
 	var decl_pass = DeclPass();
-	collect_program(&decl_pass, program_node);
+	decl_pass.collect_program(program_node);
 
 	assert_eq_usz(decl_pass.errors.len, 0UZ, "DeclPass must have 0 errors");
 	assert_eq_str(decl_pass.current_module, "sample.math", "Current module must match");
@@ -128,7 +128,7 @@ fn test_duplicate_declarations() {
 	val program_node = parser.parse_program();
 
 	var decl_pass = DeclPass();
-	collect_program(&decl_pass, program_node);
+	decl_pass.collect_program(program_node);
 
 	assert_eq_usz(decl_pass.errors.len, 1UZ, "Must record 1 duplicate error");
 	println("  [PASS] test_duplicate_declarations");

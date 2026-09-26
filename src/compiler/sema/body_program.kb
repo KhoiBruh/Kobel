@@ -22,6 +22,7 @@ use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.DeclPass;
+use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
 
 use std.collections.list.*;
@@ -29,7 +30,7 @@ use std.mem.arena.*;
 
 impl BodyPass {
 
-	pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
+	pub fn check_fn(var self, fn_node: *AstNode) {
 		val f = fn_node.to<FnDecl>();
 		val sym = lookup(&self.symtab, f.name);
 		if (sym == null || sym.type_ptr.kind != DataType.FN) return;
@@ -38,7 +39,7 @@ impl BodyPass {
 
 	// Shared body checker: works for free functions and impl methods. `fn_type`
 	// is the signature already built by DeclPass (methods have no global symbol).
-	pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
+	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
 		val f = fn_node.to<FnDecl>();
 
 		val fn_info = sem_fn(fn_type);
@@ -89,7 +90,7 @@ impl BodyPass {
 		exit_scope(&self.symtab);
 	}
 
-	pub fn check_impl(var self: &BodyPass, node: *AstNode) {
+	pub fn check_impl(var self, node: *AstNode) {
 		val im = node.to<ImplDecl>();
 
 		// A primitive impl has no struct name; find its methods by mangled name.
@@ -116,7 +117,7 @@ impl BodyPass {
 		self.current_self_type = null;
 	}
 
-	pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
+	pub fn check_program(var self, program_node: *AstNode) {
 		// Step 1: Collect top-level declarations via DeclPass.
 		// When symtab is already preloaded from ModuleLoader (multiple modules), skip this
 		// step so declarations are not collected/renamed twice.
