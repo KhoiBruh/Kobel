@@ -3,8 +3,10 @@ use std.sys.exec;
 use std.collections.list.*;
 
 use compiler.sema.decl_pass.*;
+use compiler.sema.monomorphize.*;
 use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.desugar_interp.*;
 use compiler.sema.body_program.*;
 
 use compiler.codegen.c_codegen.*;

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>contactEmailRot13</key>
+	<string></string>
+	<key>contactName</key>
+	<string>Kobel Team</string>
+	<key>description</key>
+	<string>Kobel Language Bundle</string>
+	<key>name</key>
+	<string>Kobel</string>
+	<key>uuid</key>
+	<string>7B9A23E4-4821-4F5B-9753-29472A5BD5A1</string>
+</dict>
+</plist>

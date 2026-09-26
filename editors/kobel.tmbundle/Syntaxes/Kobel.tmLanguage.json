@@ -1,0 +1,309 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kobel",
+  "scopeName": "source.kobel",
+  "fileTypes": ["kb", "kobel"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#characters" },
+    { "include": "#attributes" },
+    { "include": "#enums" },
+    { "include": "#enum-access" },
+    { "include": "#member-access" },
+    { "include": "#declarations" },
+    { "include": "#keywords" },
+    { "include": "#special-types" },
+    { "include": "#generics" },
+    { "include": "#function-calls" },
+    { "include": "#types" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape",
+              "match": "\\\\(?:[\\\\\"'nrt0$]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4})"
+            },
+            {
+              "name": "meta.template.expression",
+              "begin": "\\$\\{",
+              "beginCaptures": {
+                "0": { "name": "punctuation" }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": { "name": "punctuation" }
+              },
+              "patterns": [
+                { "include": "$self" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "characters": {
+      "patterns": [
+        {
+          "name": "string",
+          "match": "'(?:\\\\[\\\\\"'nrt0]|[^'\\\\])'"
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name",
+          "match": "@(?:operator|infix|[a-zA-Z_][a-zA-Z0-9_]*)"
+        }
+      ]
+    },
+    "enums": {
+      "patterns": [
+        {
+          "name": "meta.enum",
+          "begin": "(?:\\b(pub)\\s+)?\\b(enum)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(:)\\s*([a-zA-Z_][a-zA-Z0-9_]*))?\\s*(\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "keyword" },
+            "3": { "name": "entity.name.class" },
+            "4": { "name": "punctuation" },
+            "5": { "name": "support.type entity.name.class" },
+            "6": { "name": "punctuation" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#numbers" },
+            {
+              "name": "constant",
+              "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*(?:=|,|\\}|//|/\\*|$))"
+            },
+            { "include": "$self" }
+          ]
+        }
+      ]
+    },
+    "enum-access": {
+      "patterns": [
+        {
+          "match": "\\b([A-Z][a-zA-Z0-9_]*)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*[^\\(\\w]|$)",
+          "captures": {
+            "1": { "name": "entity.name.class" },
+            "2": { "name": "punctuation" },
+            "3": { "name": "constant" }
+          }
+        },
+        {
+          "name": "constant",
+          "match": "\\b[A-Z][A-Z0-9_]{1,}\\b"
+        }
+      ]
+    },
+    "member-access": {
+      "patterns": [
+        {
+          "match": "\\b(self)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "punctuation" },
+            "3": { "name": "entity.name.function" }
+          }
+        },
+        {
+          "match": "\\b(self)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "punctuation" },
+            "3": { "name": "variable.other.property.kobel" }
+          }
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "entity.name.function" }
+          }
+        },
+        {
+          "match": "\\b(mod)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)",
+          "captures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "entity.name" }
+          }
+        },
+        {
+          "match": "\\b(use)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\\.\\*)?)",
+          "captures": {
+            "1": { "name": "keyword" },
+            "2": { "name": "entity.name" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword",
+          "match": "\\b(val|var|const|pub|extern|if|else|when|for|in|while|loop|break|continue|return|yield|defer|as\\?|as|null|true|false|self|impl|struct|trait|fault|alias|fn)\\b"
+        }
+      ]
+    },
+    "special-types": {
+      "patterns": [
+        {
+          "name": "entity.name.function",
+          "match": "\\b(List|Iterable|Self)\\b"
+        }
+      ]
+    },
+    "generics": {
+      "patterns": [
+        {
+          "begin": "(?<=[a-zA-Z0-9_])<(?=[a-zA-Z0-9_&*,\\s<>]+>)",
+          "beginCaptures": {
+            "0": { "name": "punctuation" }
+          },
+          "end": ">",
+          "endCaptures": {
+            "0": { "name": "punctuation" }
+          },
+          "patterns": [
+            { "include": "#primitive-types" },
+            { "include": "#special-types" },
+            { "include": "#generics" },
+            {
+              "name": "entity.name.type.parameter.kobel",
+              "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+            },
+            {
+              "name": "punctuation",
+              "match": "[,&*]"
+            }
+          ]
+        },
+        {
+          "name": "entity.name.type.parameter.kobel",
+          "match": "\\b[A-Z]\\b"
+        }
+      ]
+    },
+    "primitive-types": {
+      "patterns": [
+        {
+          "name": "support.type",
+          "match": "\\b(i8|i16|i32|i64|isz|u8|u16|u32|u64|usz|f16|f32|f64|bool|char|str|none)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        { "include": "#primitive-types" },
+        {
+          "name": "entity.name.class",
+          "match": "\\b(Array|Slice|Map|HashMap|Pair)\\b"
+        },
+        {
+          "name": "entity.name.class",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric",
+          "match": "\\b0[xX][0-9a-fA-F_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
+        },
+        {
+          "name": "constant.numeric",
+          "match": "\\b0[bB][01_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
+        },
+        {
+          "name": "constant.numeric",
+          "match": "\\b0[oO][0-7_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
+        },
+        {
+          "name": "constant.numeric",
+          "match": "\\b[0-9][0-9_]*\\.[0-9][0-9_]*(?:[eE][+-]?[0-9_]+)?(?:[FD])?\\b"
+        },
+        {
+          "name": "constant.numeric",
+          "match": "\\b[0-9][0-9_]*(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z|F|D))?\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator",
+          "match": "(=>|->)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(\\.\\.<|>\\.\\.<|\\.\\.)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(\\?:|!:)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(&&|\\|\\||!)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(\\+=|-=|\\*=|/=|%=|=)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(\\+\\+|--|\\+|-|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator",
+          "match": "(&|\\|\\|?|\\^|~|<<|>>)"
+        }
+      ]
+    },
+    "function-calls": {
+      "patterns": [
+        {
+          "name": "entity.name.function",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*(?:<[^>]+>)?\\s*\\()"
+        }
+      ]
+    }
+  }
+}

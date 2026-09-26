@@ -1,0 +1,35 @@
+{
+  "name": "kobel",
+  "displayName": "Kobel Language Support",
+  "description": "Syntax highlighting and language support for the Kobel programming language",
+  "version": "0.1.0",
+  "publisher": "kobel-lang",
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kobel",
+        "aliases": [
+          "Kobel",
+          "kobel"
+        ],
+        "extensions": [
+          ".kb"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kobel",
+        "scopeName": "source.kobel",
+        "path": "./Syntaxes/Kobel.tmLanguage.json"
+      }
+    ]
+  }
+}

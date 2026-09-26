@@ -12,6 +12,7 @@ use compiler.sema.types.*;
 use compiler.sema.types.StructField;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
+use compiler.sema.monomorphize.*;
 
 use util.strutil.*;
 
@@ -28,140 +29,140 @@ fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMetho
 
 impl DeclPass {
 
-pub fn collect_module(var self, node: *AstNode) {
-	val m = node.to<ModuleDecl>();
-	self.current_module = m.full_path;
-	set_current_module(&self.symtab, m.full_path);
-}
+	pub fn collect_module(var self, node: *AstNode) {
+		val m = node.to<ModuleDecl>();
+		self.current_module = m.full_path;
+		set_current_module(&self.symtab, m.full_path);
+	}
 
 // `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
 // the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
 // `use a.b.c.*;` -> wildcard import of the whole module a.b.c
-pub fn collect_use(var self, node: *AstNode) {
-	val u = node.to<UseDecl>();
+	pub fn collect_use(var self, node: *AstNode) {
+		val u = node.to<UseDecl>();
 
-	if (u.is_wildcard) {
-		val w_mod = str_join_dots(u.path, u.path.len);
-		if (!module_exists(&self.symtab, w_mod)) return;
-		add_import(&self.symtab, w_mod, "", "", true);
-		return;
+		if (u.is_wildcard) {
+			val w_mod = str_join_dots(u.path, u.path.len);
+			if (!module_exists(&self.symtab, w_mod)) return;
+			add_import(&self.symtab, w_mod, "", "", true);
+			return;
+		}
+
+		// The last segment of the path is the symbol name, the rest is the module path
+		if (u.path.len < 2) return;
+		val mod_name = str_join_dots(u.path, u.path.len - 1);
+
+		// Missing/failed module was already reported by ModuleLoader
+		if (!module_exists(&self.symtab, mod_name)) return;
+
+		val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
+		if (target == null) {
+			// Generic struct/function templates are not registered as symbols.
+			if (self.template_in_module(mod_name, u.symbol_name)) return;
+			if (find_trait(&self.symtab, u.symbol_name) != null) return;
+			self.report_error(node, "Symbol '${u.symbol_name}' not found in module '${mod_name}'");
+			return;
+		}
+
+		var local_name = u.symbol_name;
+		if (u.alias != "") local_name = u.alias;
+		add_import(&self.symtab, mod_name, u.symbol_name, local_name, false);
 	}
 
-	// The last segment of the path is the symbol name, the rest is the module path
-	if (u.path.len < 2) return;
-	val mod_name = str_join_dots(u.path, u.path.len - 1);
+	pub fn collect_struct(var self, node: *AstNode) {
+		val s = node.to<StructDecl>() as &StructDecl;
+		// Generic structs are registered as templates and instantiated on use.
+		if (s.type_params.len > 0) return;
+		val c_name = self.c_name_for(s.name);
+		val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
+		as_struct_type_mut(s_type).c_name = c_name;
+		val ok = define_global(
+			&self.symtab,
+			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)
+		);
+		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 
-	// Missing/failed module was already reported by ModuleLoader
-	if (!module_exists(&self.symtab, mod_name)) return;
+		// Rename the AST node to the C name so the backend emits a unique name
+		s.name = c_name;
 
-	val target = lookup_in_module(&self.symtab, mod_name, u.symbol_name);
-	if (target == null) {
-		// Generic struct/function templates are not registered as symbols.
-		if (self.template_in_module(mod_name, u.symbol_name)) return;
-		if (find_trait(&self.symtab, u.symbol_name) != null) return;
-		self.report_error(node, "Symbol '${u.symbol_name}' not found in module '${mod_name}'");
-		return;
+		var has_private = false;
+		for (f in s.fields) {
+			val f_type = self.resolve_ast_type(f.type_node);
+			val s_info = as_struct_type_mut(s_type);
+			s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub));
+			if (!f.is_pub) has_private = true;
+		}
+		val st_info = as_struct_type_mut(s_type);
+		st_info.module = self.current_module;
+		st_info.has_private = has_private;
+		layout_struct(s_type);
 	}
 
-	var local_name = u.symbol_name;
-	if (u.alias != "") local_name = u.alias;
-	add_import(&self.symtab, mod_name, u.symbol_name, local_name, false);
-}
+	pub fn collect_fn(var self, node: *AstNode) {
+		val f = node.to<FnDecl>() as &FnDecl;
+		// Generic functions are registered as templates and instantiated on use.
+		if (f.type_params.len > 0) return;
+		var param_types = List<*Type>();
 
-pub fn collect_struct(var self, node: *AstNode) {
-	val s = node.to<StructDecl>() as &StructDecl;
-	// Generic structs are registered as templates and instantiated on use.
-	if (s.type_params.len > 0) return;
-	val c_name = self.c_name_for(s.name);
-	val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
-	as_struct_type_mut(s_type).c_name = c_name;
-	val ok = define_global(
-		&self.symtab, 
-		Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)
-	);
-	if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
+		for (p in f.params) {
+			val p_type = self.resolve_ast_type(p.type_node);
+			param_types.add(p_type);
+		}
 
-	// Rename the AST node to the C name so the backend emits a unique name
-	s.name = c_name;
+		var ret_type = alloc_primitive(&self.arena, type_none());
+		if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
 
-	var has_private = false;
-	for (f in s.fields) {
-		val f_type = self.resolve_ast_type(f.type_node);
-		val s_info = as_struct_type_mut(s_type);
-		s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub));
-		if (!f.is_pub) has_private = true;
-	}
-	val st_info = as_struct_type_mut(s_type);
-	st_info.module = self.current_module;
-	st_info.has_private = has_private;
-	layout_struct(s_type);
-}
+		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+		val c_name = self.c_name_for(f.name);
+		val ok = define_global(
+			&self.symtab,
+			Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)
+		);
+		if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
 
-pub fn collect_fn(var self, node: *AstNode) {
-	val f = node.to<FnDecl>() as &FnDecl;
-	// Generic functions are registered as templates and instantiated on use.
-	if (f.type_params.len > 0) return;
-	var param_types = List<*Type>();
-
-	for (p in f.params) {
-		val p_type = self.resolve_ast_type(p.type_node);
-		param_types.add(p_type);
+		// Rename the AST node to the C name so the backend emits a unique name
+		f.name = c_name;
 	}
 
-	var ret_type = alloc_primitive(&self.arena, type_none());
-	if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
+	pub fn collect_enum(var self, node: *AstNode) {
+		val e = node.to<EnumDecl>() as &EnumDecl;
+		var under_type = alloc_primitive(&self.arena, type_i32());
+		if (e.underlying_type != null) under_type = self.resolve_ast_type(e.underlying_type);
 
-	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
-	val c_name = self.c_name_for(f.name);
-	val ok = define_global(
-		&self.symtab, 
-		Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)
-	);
-	if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
+		// Resolve member values: implicit members continue from the previous value.
+		var members = List<*EnumMemberInfo>();
+		var next_val: i64 = 0;
+		for (m in e.members) {
+			var v: i64 = next_val;
+			if (m.value != null) v = self.enum_const_i64(m.value);
 
-	// Rename the AST node to the C name so the backend emits a unique name
-	f.name = c_name;
-}
+			val mi = arena_alloc<EnumMemberInfo>(&self.arena);
+			*mi = EnumMemberInfo(m.name, v);
+			members.add(mi);
 
-pub fn collect_enum(var self, node: *AstNode) {
-	val e = node.to<EnumDecl>() as &EnumDecl;
-	var under_type = alloc_primitive(&self.arena, type_i32());
-	if (e.underlying_type != null) under_type = self.resolve_ast_type(e.underlying_type);
+			next_val = v + 1;
+		}
 
-	// Resolve member values: implicit members continue from the previous value.
-	var members = List<*EnumMemberInfo>();
-	var next_val: i64 = 0;
-	for (m in e.members) {
-		var v: i64 = next_val;
-		if (m.value != null) v = self.enum_const_i64(m.value);
+		val c_name = self.c_name_for(e.name);
 
-		val mi = arena_alloc<EnumMemberInfo>(&self.arena);
-		*mi = EnumMemberInfo(m.name, v);
-		members.add(mi);
+		val info = arena_alloc<EnumInfo>(&self.arena);
+		*info = EnumInfo(e.name, c_name, under_type, members);
 
-		next_val = v + 1;
+		// The symbol's type is an integer type that carries the EnumInfo, so enum
+		// values stay usable in arithmetic/comparisons while `.value` is recognized.
+		val carrier = arena_alloc<Type>(&self.arena);
+		*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
+
+		val ok = define_global(
+			&self.symtab,
+			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col)
+		);
+		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
+
+		register_enum_info(&self.symtab, info);
+
+		e.name = c_name;
 	}
-
-	val c_name = self.c_name_for(e.name);
-
-	val info = arena_alloc<EnumInfo>(&self.arena);
-	*info = EnumInfo(e.name, c_name, under_type, members);
-
-	// The symbol's type is an integer type that carries the EnumInfo, so enum
-	// values stay usable in arithmetic/comparisons while `.value` is recognized.
-	val carrier = arena_alloc<Type>(&self.arena);
-	*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
-
-	val ok = define_global(
-		&self.symtab, 
-		Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col)
-	);
-	if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
-
-	register_enum_info(&self.symtab, info);
-
-	e.name = c_name;
-}
 
 	pub fn collect_const(var self, node: *AstNode) {
 		val c = node.to<ConstDecl>() as &ConstDecl;
