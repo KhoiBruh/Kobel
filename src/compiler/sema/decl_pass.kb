@@ -193,28 +193,28 @@ pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type {
 				yield sym.type_ptr;
 			}
 
-			report_error(self, node, "Unknown type '${name}'");
+			self.report_error(node, "Unknown type '${name}'");
 			yield alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.TYPE_POINTER -> {
 			val ptr_ast = node.to<PointerType>();
-			val pointee = resolve_ast_type(self, ptr_ast.pointee);
+			val pointee = self.resolve_ast_type(ptr_ast.pointee);
 			yield alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
 		}
 		NodeKind.TYPE_ARRAY -> {
 			val arr_ast = node.to<ArrayType>();
-			val elem = resolve_ast_type(self, arr_ast.element_type);
+			val elem = self.resolve_ast_type(arr_ast.element_type);
 			yield alloc_array_type(&self.arena, elem, arr_ast.size);
 		}
 		NodeKind.TYPE_NULLABLE -> {
 			val null_ast = node.to<NullableType>();
-			val inner_ty = resolve_ast_type(self, null_ast.inner);
+			val inner_ty = self.resolve_ast_type(null_ast.inner);
 			var res_ty = inner_ty;
 			if (inner_ty.kind == DataType.POINTER) {
 				val pt = sem_pointer(inner_ty);
 				res_ty = alloc_nullable_pointer_type(&self.arena, pt.pointee, pt.is_mut);
 			} else {
-				report_error(self, node, "Nullable modifier '?' is only supported on pointer types");
+				self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
 			}
 			yield res_ty;
 		}
@@ -231,9 +231,9 @@ pub fn enum_const_i64(var self: &DeclPass, expr: *AstNode): i64 {
 	}
 	if (expr.kind == NodeKind.EXPR_UNARY) {
 		val un = expr.to<UnaryExpr>();
-		if (un.op == TokenType.MINUS) return 0 - enum_const_i64(self, un.operand);
+		if (un.op == TokenType.MINUS) return 0 - self.enum_const_i64(un.operand);
 	}
-	report_error(self, expr, "Enum member value must be an integer constant");
+	self.report_error(expr, "Enum member value must be an integer constant");
 	return 0;
 }
 
@@ -262,13 +262,13 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	// `impl <primitive> { ... }`: the methods extend a built-in type.
 	val prim = resolve_primitive_name(&self.arena, im.struct_name);
 	if (prim != null) {
-		collect_prim_impl(self, node, im, prim);
+		self.collect_prim_impl(node, im, prim);
 		return;
 	}
 
 	val st_sym = lookup(&self.symtab, im.struct_name);
 	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
-		report_error(self, node, "Cannot impl methods for unknown type '${im.struct_name}'");
+		self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
 		return;
 	}
 
@@ -282,7 +282,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 	im.struct_name = st_c_name;
 
 	// `impl Trait for Struct`: verify the contract and pull in default methods.
-	if (im.trait_name != "") apply_trait(self, node, im, st_info.name);
+	if (im.trait_name != "") self.apply_trait(node, im, st_info.name);
 
 	// Methods may be overloaded, so each needs a distinct C name.
 	val overloaded = overloaded_names(im);
@@ -293,7 +293,7 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 		if (f.name == "new") {
 			for (p in f.params) {
 				if (p.name == "self") {
-					report_error(self, m_node, "Constructor 'new' cannot have a 'self' parameter in struct '${st_info.name}'");
+					self.report_error(m_node, "Constructor 'new' cannot have a 'self' parameter in struct '${st_info.name}'");
 				}
 			}
 		}
@@ -306,12 +306,12 @@ pub fn collect_impl(var self: &DeclPass, node: *AstNode) {
 				// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
 				pt = alloc_pointer_type(&self.arena, st_type, p.is_mut);
 			} else {
-				pt = resolve_ast_type(self, p.type_node);
+				pt = self.resolve_ast_type(p.type_node);
 			}
 			param_types.add(pt);
 		}
 
-		val ret_type = if (f.return_type != null) resolve_ast_type(self, f.return_type) else alloc_primitive(&self.arena, type_none());
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
@@ -346,7 +346,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 	// Clear the name so codegen does not treat `self` as a pointer receiver.
 	im.struct_name = "";
 
-	if (im.trait_name != "") apply_trait(self, node, im, prim_name);
+	if (im.trait_name != "") self.apply_trait(node, im, prim_name);
 
 	val overloaded = overloaded_names(im);
 	var used = List<str>();
@@ -364,12 +364,12 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 				val rt = self.b().named_type(prim_name, List<*AstNode>(), node.line, node.col);
 				f.params[i] = Param(p.name, rt, p.is_mut, p.has_val);
 			} else {
-				pt = resolve_ast_type(self, p.type_node);
+				pt = self.resolve_ast_type(p.type_node);
 			}
 			param_types.add(pt);
 		}
 
-		val ret_type = if (f.return_type != null) resolve_ast_type(self, f.return_type) else alloc_primitive(&self.arena, type_none());
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
 
 		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 
@@ -384,7 +384,7 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 		used.add(m_c_name);
 
 		if (find_prim_method_arity(&self.symtab, prim.kind, f.name, f.params.len) != null) {
-			report_error(self, m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
+			self.report_error(m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
 		}
 
 		val mi = arena_alloc<MethodInfo>(&self.arena);
@@ -402,12 +402,12 @@ pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, pri
 // `t` inherits: implementing a trait means implementing its base traits too, so
 // a `<T: Base>` bound is satisfied by an `impl Derived for T` when
 // `Derived : Base`. The already-recorded test also breaks a cyclic base chain.
-pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) {
-	if (t == null) return;
-	if (trait_has_impl(t, struct_name)) return;
-	t.impls.add(struct_name);
-	for (bname in t.bases) trait_record_impl(self, find_trait(&self.symtab, bname), struct_name);
-}
+	pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) {
+		if (t == null) return;
+		if (trait_has_impl(t, struct_name)) return;
+		t.impls.add(struct_name);
+		for (bname in t.bases) self.trait_record_impl(find_trait(&self.symtab, bname), struct_name);
+	}
 
 }
 
@@ -437,7 +437,7 @@ pub fn trait_effective(var self: &DeclPass, t: *TraitInfo, out: &List<*TraitMeth
 	}
 	seen.add(t.name);
 
-	for (bname in t.bases) trait_effective(self, find_trait(&self.symtab, bname), out, seen);
+	for (bname in t.bases) self.trait_effective(find_trait(&self.symtab, bname), out, seen);
 	for (m in t.methods) trait_put_method(out, m);
 }
 
@@ -449,18 +449,18 @@ pub fn trait_effective(var self: &DeclPass, t: *TraitInfo, out: &List<*TraitMeth
 pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_name: str) {
 	val t = find_trait(&self.symtab, im.trait_name);
 	if (t == null) {
-		report_error(self, node, "Unknown trait '${im.trait_name}'");
+		self.report_error(node, "Unknown trait '${im.trait_name}'");
 		return;
 	}
 
 	// Remember the implementation so a `<T: Trait>` bound can be checked later.
-	trait_record_impl(self, t, struct_name);
+	self.trait_record_impl(t, struct_name);
 
 	// A trait inherits every method of its base traits, so the contract covers
 	// the flattened set rather than just the methods written in this trait.
 	var effective = List<*TraitMethod>();
 	var seen = List<str>();
-	trait_effective(self, t, &effective, &seen);
+	self.trait_effective(t, &effective, &seen);
 
 	for (tm in effective) {
 		var have = false;
@@ -471,7 +471,7 @@ pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_na
 		if (have) continue;
 
 		if (!tm.has_default) {
-			report_error(self, node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
+			self.report_error(node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
 			continue;
 		}
 		im.methods.add(clone_fn(self, tm.node, null, tm.name));
@@ -511,15 +511,15 @@ pub fn register_template(var self: &DeclPass, node: *AstNode) {
 	when (node.kind) {
 		NodeKind.DECL_STRUCT -> {
 			val s = node.to<StructDecl>();
-			if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(gen_template(self, s.name, node));
+			if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(self.gen_template(s.name, node));
 		}
 		NodeKind.DECL_FN -> {
 			val f = node.to<FnDecl>();
-			if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(gen_template(self, f.name, node));
+			if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(self.gen_template(f.name, node));
 		}
 		NodeKind.DECL_IMPL -> {
 			val im = node.to<ImplDecl>();
-			if (im.type_params.len > 0) self.symtab.gen.impl_templates.add(gen_template(self, im.struct_name, node));
+			if (im.type_params.len > 0) self.symtab.gen.impl_templates.add(self.gen_template(im.struct_name, node));
 		}
 		else -> {}
 	}
@@ -589,7 +589,7 @@ pub fn ast_type_token(self: &DeclPass, node: *AstNode): str {
 	if (node == null) return "x";
 	return when (node.kind) {
 		NodeKind.TYPE_NAMED -> {
-			resolve_ast_type(self, node);
+			self.resolve_ast_type(node);
 			yield node.to<NamedType>().name;
 		}
 		NodeKind.TYPE_POINTER -> "ptr_${ast_type_token(self, node.to<PointerType>().pointee)}";
@@ -677,11 +677,11 @@ pub fn check_bounds(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: List<*Ast
 		for (b in gp.bounds) {
 			val bt = find_trait(&self.symtab, b);
 			if (bt == null) {
-				report_error(self, arg, "Unknown trait bound '${b}'");
+				self.report_error(arg, "Unknown trait bound '${b}'");
 				continue;
 			}
 			if (!trait_has_impl(bt, aname)) {
-				report_error(self, arg, "Type '${aname}' does not implement trait '${b}'");
+				self.report_error(arg, "Type '${aname}' does not implement trait '${b}'");
 			}
 		}
 	}
@@ -720,7 +720,7 @@ pub fn instantiate_struct(var self: &DeclPass, tmpl: *GenTemplate, arg_asts: Lis
 		if (impl_tmpl.name != tmpl.name) continue;
 		val isubst = alloc_subst(self, template_param_names(impl_tmpl), arg_asts);
 		val iclone = clone_impl(self, impl_tmpl.node, isubst, cname);
-		collect_impl(self, iclone);
+		self.collect_impl(iclone);
 		queue_decl(self, impl_tmpl.module, iclone);
 	}
 
@@ -756,7 +756,7 @@ pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, m
 
 	var has_private = false;
 	for (f in s.fields) {
-		val f_type = resolve_ast_type(self, f.type_node);
+		val f_type = self.resolve_ast_type(f.type_node);
 		as_struct_type_mut(s_type).fields.add(StructField(f.name, f_type, 0, f.is_pub));
 		if (!f.is_pub) has_private = true;
 	}
@@ -770,9 +770,9 @@ pub fn collect_struct_as(var self: &DeclPass, node: *AstNode, final_name: str, m
 pub fn collect_fn_as(var self: &DeclPass, node: *AstNode, final_name: str) {
 	val f = node.to<FnDecl>() as &FnDecl;
 	var param_types = List<*Type>();
-	for (p in f.params) param_types.add(resolve_ast_type(self, p.type_node));
+	for (p in f.params) param_types.add(self.resolve_ast_type(p.type_node));
 	var ret_type = alloc_primitive(&self.arena, type_none());
-	if (f.return_type != null) ret_type = resolve_ast_type(self, f.return_type);
+	if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
 
 	val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
 	self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)));
@@ -1290,17 +1290,6 @@ pub fn rewrite_generics(var self: &DeclPass, node: *AstNode) {
 // Forwarders for backwards compatibility
 // ============================================================================
 
-pub fn c_name_for(self: &DeclPass, name: str): str => self.c_name_for(name);
-pub fn report_error(self: &DeclPass, node: *AstNode, msg: str) => self.report_error(node, msg);
-pub fn resolve_ast_type(var self: &DeclPass, node: *AstNode): *Type => self.resolve_ast_type(node);
-pub fn enum_const_i64(self: &DeclPass, e: *AstNode): i64 => self.enum_const_i64(e);
-pub fn collect_impl(var self: &DeclPass, node: *AstNode) => self.collect_impl(node);
-pub fn collect_prim_impl(var self: &DeclPass, node: *AstNode, im: &ImplDecl, prim: *Type) => self.collect_prim_impl(node, im, prim);
-pub fn trait_record_impl(var self: &DeclPass, t: *TraitInfo, struct_name: str) => self.trait_record_impl(t, struct_name);
-pub fn trait_effective(var self: &DeclPass, t: *TraitInfo, out: &List<*TraitMethod>, seen: &List<str>) => self.trait_effective(t, out, seen);
-pub fn apply_trait(var self: &DeclPass, node: *AstNode, im: &ImplDecl, struct_name: str) => self.apply_trait(node, im, struct_name);
-pub fn register_template(var self: &DeclPass, node: *AstNode) => self.register_template(node);
-pub fn gen_template(var self: &DeclPass, name: str, node: *AstNode): *GenTemplate => self.gen_template(name, node);
 pub fn template_in_module(self: &DeclPass, module: str, name: str): bool => self.template_in_module(module, name);
 pub fn find_inst(self: &DeclPass, name: str): *Symbol => self.find_inst(name);
 pub fn type_token(self: &DeclPass, ty: *Type): str => self.type_token(ty);

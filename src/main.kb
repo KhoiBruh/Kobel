@@ -158,7 +158,7 @@ fn main(argc: i32, argv: &*char): i32 {
 
 	println("[2/4] Semantic analysis (declarations)...");
 	var decl_p = DeclPass();
-	collect_program(&decl_p, prog);
+	decl_p.collect_program(prog);
 	if (decl_p.errors.len > 0) {
 		print("Semantic Declaration Errors in ");
 		print(input_path);
@@ -169,7 +169,7 @@ fn main(argc: i32, argv: &*char): i32 {
 
 	println("[3/4] Semantic analysis (bodies)...");
 	var body_p = BodyPass(decl_p.symtab);
-	check_program(&body_p, prog);
+	body_p.check_program(prog);
 	if (body_p.errors.len > 0) {
 		print("Semantic Type Errors in ");
 		print(input_path);

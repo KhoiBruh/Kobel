@@ -58,12 +58,12 @@ impl BodyPass {
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, AstBuilder(null), 0UZ);
 	}
 
-	pub fn b(var self: &BodyPass): &AstBuilder {
+	pub fn b(var self): &AstBuilder {
 		self.builder.arena = &self.arena;
 		return &self.builder;
 	}
 
-	pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) {
+	pub fn report_error(var self, node: *AstNode, msg: str) {
 		// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 		var loc: str = "";
 		if (node != null) loc = "Line ${node.line}, Column ${node.col}: ${msg}";
@@ -74,13 +74,13 @@ impl BodyPass {
 		} else self.errors.add(loc);
 	}
 
-	pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type {
+	pub fn resolve_type(var self, node: *AstNode): *Type {
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type, AstBuilder(null)
 		);
 
-		val ty = resolve_ast_type(&decl_p, node);
+		val ty = decl_p.resolve_ast_type(node);
 		self.arena = decl_p.arena;
 		self.errors = decl_p.errors;
 		return ty;
@@ -90,14 +90,13 @@ impl BodyPass {
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.
 // Mirrors `ast_type_size`: `str` is a C pointer, not the 16-byte slice value,
 // so an array of `str` has pointer stride.
-fn prim_c_size(name: str): usz {
-	if (name == "bool" || name == "char" || name == "i8" || name == "u8") return 1;
-	if (name == "i16" || name == "u16") return 2;
-	if (name == "i32" || name == "u32" || name == "f32") return 4;
-	if (name == "i64" || name == "u64" || name == "isz" || name == "usz" || name == "f64") return 8;
-	if (name == "str") return 8;
-	return 0;
-}
+fn prim_c_size(name: str): usz => when (name) {
+	"bool", "char", "i8", "u8" -> 1;
+	"i16", "u16" -> 2;
+	"i32", "u32", "f32" -> 4;
+	"i64", "u64", "isz", "usz", "f64" -> 8;
+	else -> 0;
+};
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 	val len = raw.len;
@@ -109,6 +108,7 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
 		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
 	}
+
 	if (len >= 1) {
 		val last = raw[len - 1];
 		if (last == 'U') return alloc_primitive(arena, type_u32());
@@ -117,6 +117,7 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 		if (last == 'Z') return alloc_primitive(arena, type_isz());
 		if (last == 'B') return alloc_primitive(arena, type_i8());
 	}
+
 	return alloc_primitive(arena, type_i32());
 }
 
@@ -129,7 +130,7 @@ pub fn is_list_type(ty: *Type): bool {
 
 impl BodyPass {
 
-pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) {
+pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 	if (node == null || list_ty == null) return;
 	when (node.kind) {
 		NodeKind.EXPR_ARRAY_LITERAL -> {
@@ -146,27 +147,27 @@ pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) {
 			for (i in 0..<al.elements.len) {
 				val el = al.elements[i];
 				if (is_list_type(elem_ty)) {
-					coerce_to_list(self, el, elem_ty);
+					self.coerce_to_list(el, elem_ty);
 				}
-				val el_ty = check_expr(self, el);
+				val el_ty = self.check_expr(el);
 				if (!can_assign(elem_ty, el_ty)) {
-					report_error(self, el, "Element type mismatch in List literal");
+					self.report_error(el, "Element type mismatch in List literal");
 				}
 			}
 		}
 		NodeKind.EXPR_IF -> {
 			val ife = node.to<IfExpr>();
-			coerce_to_list(self, ife.then_branch, list_ty);
-			coerce_to_list(self, ife.else_branch, list_ty);
+			self.coerce_to_list(ife.then_branch, list_ty);
+			self.coerce_to_list(ife.else_branch, list_ty);
 		}
 		NodeKind.EXPR_GROUP -> {
 			val grp = node.to<GroupExpr>();
-			coerce_to_list(self, grp.expr, list_ty);
+			self.coerce_to_list(grp.expr, list_ty);
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = node.to<WhenExpr>();
 			for (arm in we.arms) {
-				coerce_to_list(self, arm.body, list_ty);
+				self.coerce_to_list(arm.body, list_ty);
 			}
 		}
 		else -> {}
@@ -177,7 +178,7 @@ pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) {
 // Expression Type Checking
 // ============================================================================
 
-pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
+pub fn check_expr(var self, node: *AstNode): *Type {
 	if (node == null) return alloc_primitive(&self.arena, type_none());
 
 	when (node.kind) {
@@ -208,7 +209,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			val sym = lookup(&self.symtab, id.name);
 			if (sym == null) {
-				report_error(self, node, "Undeclared identifier '${id.name}'");
+				self.report_error(node, "Undeclared identifier '${id.name}'");
 				return alloc_primitive(&self.arena, type_none());
 			}
 			// Switch to the mangled C name (import alias, symbol from another module)
@@ -217,25 +218,25 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 		NodeKind.EXPR_GROUP -> {
 			val grp = node.to<GroupExpr>();
-			return check_expr(self, grp.expr);
+			return self.check_expr(grp.expr);
 		}
 		NodeKind.EXPR_BINARY -> {
 			val bin = node.to<BinaryExpr>();
 			if (bin.op == TokenType.QUESTION_COLON) {
-				val lt = check_expr(self, bin.left);
+				val lt = self.check_expr(bin.left);
 				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR) {
-					report_error(self, bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
+					self.report_error(bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
 				}
 				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 					bin.right.kind == NodeKind.STMT_BREAK ||
 					bin.right.kind == NodeKind.STMT_CONTINUE;
 
 				if (is_jump) {
-					check_statement(self, bin.right);
+					self.check_statement(bin.right);
 				} else {
-					val rt = check_expr(self, bin.right);
+					val rt = self.check_expr(bin.right);
 					if (!can_assign(lt, rt)) {
-						report_error(self, bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
+						self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
 					}
 				}
 
@@ -248,8 +249,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				return lt;
 			}
 
-			val lt = check_expr(self, bin.left);
-			val rt = check_expr(self, bin.right);
+			val lt = self.check_expr(bin.left);
+			val rt = self.check_expr(bin.right);
 
 			// 1. Arithmetic operators (+, -, *, /, %)
 			when (bin.op) {
@@ -268,7 +269,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						return alloc_primitive(&self.arena, type_str());
 					}
 					if (is_numeric(lt) && is_numeric(rt)) return lt;
-					report_error(self, node, "Arithmetic operator not supported for these types");
+					self.report_error(node, "Arithmetic operator not supported for these types");
 					return lt;
 				}
 				// 2. Equality comparison (==, !=)
@@ -282,7 +283,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						eq_n.data = wrapped.data;
 						return alloc_primitive(&self.arena, type_bool());
 					}
-					if (!can_assign(lt, rt) && !can_assign(rt, lt)) report_error(self, node, "Cannot compare different types");
+					if (!can_assign(lt, rt) && !can_assign(rt, lt)) self.report_error(node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 				// 3. Ordering comparison (<, <=, >, >=)
@@ -290,14 +291,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				TokenType.GREATER, TokenType.GREATER_EQUAL -> {
 					val is_num_comp = is_numeric(lt) && is_numeric(rt);
 					val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
-					if (!is_num_comp && !is_char_comp) report_error(self, node, "Comparison requires numeric or char operands");
+					if (!is_num_comp && !is_char_comp) self.report_error(node, "Comparison requires numeric or char operands");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 				// 4. Logic (&&, ||)
 				TokenType.AND_AND,
 				TokenType.OR_OR -> {
 					if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
-						report_error(self, node, "Logical operators require bool operands");
+						self.report_error(node, "Logical operators require bool operands");
 					}
 					return alloc_primitive(&self.arena, type_bool());
 				}
@@ -306,21 +307,21 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 		}
 		NodeKind.EXPR_UNARY -> {
 			val un = node.to<UnaryExpr>();
-			val op_ty = check_expr(self, un.operand);
+			val op_ty = self.check_expr(un.operand);
 
 			when (un.op) {
 				TokenType.MINUS -> {
-					if (!is_numeric(op_ty)) report_error(self, node, "Unary minus requires numeric operand");
+					if (!is_numeric(op_ty)) self.report_error(node, "Unary minus requires numeric operand");
 					return op_ty;
 				}
 				TokenType.BANG -> {
-					if (op_ty.kind != DataType.BOOL) report_error(self, node, "Logical NOT requires bool operand");
+					if (op_ty.kind != DataType.BOOL) self.report_error(node, "Logical NOT requires bool operand");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 				TokenType.STAR -> {
 					// Pointer dereference (*ptr)
 					if (op_ty.kind != DataType.POINTER) {
-						report_error(self, node, "Cannot dereference non-pointer type");
+						self.report_error(node, "Cannot dereference non-pointer type");
 						return op_ty;
 					}
 					val p_info = sem_pointer(op_ty);
@@ -360,11 +361,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 
 				if (mem.member == "slice") {
-					val slice_recv = check_expr(self, mem.object);
-					if (slice_recv.kind != DataType.STR) report_error(self, node, "slice() requires a str receiver");
+					val slice_recv = self.check_expr(mem.object);
+					if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
 					for (arg in call.args) {
-						val at = check_expr(self, arg);
-						if (!is_integer(at)) report_error(self, node, "slice() bounds must be integers");
+						val at = self.check_expr(arg);
+						if (!is_integer(at)) self.report_error(node, "slice() bounds must be integers");
 					}
 					// Lower to kobel_slice(receiver, start, end); end defaults to length.
 					var sargs = List<*AstNode>();
@@ -386,7 +387,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 
 				// Instance method call: obj.m(args) -> Struct_m(self, args)
-				val obj_raw_ty = check_expr(self, mem.object);
+				val obj_raw_ty = self.check_expr(mem.object);
 				var obj_ty = obj_raw_ty;
 				var obj_is_ptr = false;
 				if (obj_ty.kind == DataType.POINTER) {
@@ -398,21 +399,21 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 					// Pick the overload whose arity matches; fall back to a name
 					// lookup so an arity error still reads as before.
 					if (struct_count_method_arity(s_info, mem.member, call.args.len + 1) > 1) {
-						report_error(self, node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
+						self.report_error(node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
 					}
 					var mi = struct_find_method_arity(s_info, mem.member, call.args.len + 1);
 					if (mi == null) mi = struct_find_method(s_info, mem.member);
 					if (mi != null) {
 						val fn_info = sem_fn(mi.fn_type);
 						if (call.args.len + 1 != fn_info.param_types.len) {
-							report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
+							self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 						} else {
 							for (i in 0..<call.args.len) {
 								val param_ty = fn_info.param_types[i + 1];
 								val arg_n = call.args[i];
-								if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
-								val arg_ty = check_expr(self, arg_n);
-								if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
+								if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+								val arg_ty = self.check_expr(arg_n);
+								if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
 							}
 						}
 
@@ -433,14 +434,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (pmi != null) {
 					val fn_info = sem_fn(pmi.fn_type);
 					if (call.args.len + 1 != fn_info.param_types.len) {
-						report_error(self, node, "Argument count mismatch in method call '${mem.member}'");
+						self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 					} else {
 						for (i in 0..<call.args.len) {
 							val param_ty = fn_info.param_types[i + 1];
 							val arg_n = call.args[i];
-							if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
-							val arg_ty = check_expr(self, arg_n);
-							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in method call '${mem.member}'");
+							if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+							val arg_ty = self.check_expr(arg_n);
+							if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
 						}
 					}
 
@@ -460,19 +461,19 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			var callee_is_self = false;
 			if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.callee.to<IdentifierExpr>().name == "Self") callee_is_self = true;
 
-			val callee_ty = check_expr(self, call.callee);
+			val callee_ty = self.check_expr(call.callee);
 
 			// 1. Function call
 			if (callee_ty.kind == DataType.FN) {
 				val fn_info = sem_fn(callee_ty);
-				if (call.args.len != fn_info.param_types.len) report_error(self, node, "Argument count mismatch in function call");
+				if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 				else {
 					for (i in 0..<call.args.len) {
 						val param_ty = fn_info.param_types[i];
 						val arg_n = call.args[i];
-						if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
-						val arg_ty = check_expr(self, arg_n);
-						if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in function call");
+						if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+						val arg_ty = self.check_expr(arg_n);
+						if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in function call");
 					}
 				}
 				return fn_info.return_type;
@@ -487,7 +488,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				// fields is only the fallback.
 				if (!callee_is_self) {
 					if (struct_count_method_arity(s_info, "new", call.args.len) > 1) {
-						report_error(self, node, "Ambiguous call to 'new': overloading by parameter type is not supported");
+						self.report_error(node, "Ambiguous call to 'new': overloading by parameter type is not supported");
 					}
 					val nm = struct_find_method_arity(s_info, "new", call.args.len);
 					if (nm != null) {
@@ -495,9 +496,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						for (i in 0..<call.args.len) {
 							val param_ty = n_info.param_types[i];
 							val arg_n = call.args[i];
-							if (is_list_type(param_ty)) coerce_to_list(self, arg_n, param_ty);
-							val arg_ty = check_expr(self, arg_n);
-							if (!can_assign(param_ty, arg_ty)) report_error(self, node, "Argument type mismatch in call to 'new'");
+							if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+							val arg_ty = self.check_expr(arg_n);
+							if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in call to 'new'");
 						}
 						call.callee = self.b().identifier(nm.c_name, node.line, node.col);
 						return n_info.return_type;
@@ -508,23 +509,23 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				// unless every field is `pub`; otherwise the type must expose a
 				// `new` constructor (handled above).
 				if (s_info.has_private && s_info.module != self.symtab.current_module) {
-					report_error(self, node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
+					self.report_error(node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
 				}
 
-				if (call.args.len != s_info.fields.len) report_error(self, node, "Argument count mismatch in struct constructor");
+				if (call.args.len != s_info.fields.len) self.report_error(node, "Argument count mismatch in struct constructor");
 				else {
 					for (i in 0..<call.args.len) {
 						val f_ty = s_info.fields[i].type_ptr;
 						val arg_n = call.args[i];
-						if (is_list_type(f_ty)) coerce_to_list(self, arg_n, f_ty);
-						val arg_ty = check_expr(self, arg_n);
-						if (!can_assign(f_ty, arg_ty)) report_error(self, node, "Field type mismatch in struct constructor");
+						if (is_list_type(f_ty)) self.coerce_to_list(arg_n, f_ty);
+						val arg_ty = self.check_expr(arg_n);
+						if (!can_assign(f_ty, arg_ty)) self.report_error(node, "Field type mismatch in struct constructor");
 					}
 				}
 				return callee_ty;
 			}
 
-			report_error(self, node, "Callee is not a function or struct");
+			self.report_error(node, "Callee is not a function or struct");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_MEMBER -> {
@@ -537,7 +538,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (ei != null) {
 					val mi = enum_find_member(ei, mem.member);
 					if (mi == null) {
-						report_error(self, node, "Enum '${enum_id.name}' has no member '${mem.member}'");
+						self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
 						return alloc_primitive(&self.arena, type_none());
 					}
 					// Reuse the node as a plain integer literal for the backend.
@@ -549,7 +550,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 			}
 
-			var obj_ty = check_expr(self, mem.object);
+			var obj_ty = self.check_expr(mem.object);
 
 			// Pointer results that are not plain identifiers cannot be recognized
 			// by the backend's name-based pointer tracking, so dereference them
@@ -625,7 +626,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			}
 
 			if (obj_ty.kind != DataType.STRUCT) {
-				report_error(self, node, "Member access on non-struct type");
+				self.report_error(node, "Member access on non-struct type");
 				return alloc_primitive(&self.arena, type_none());
 			}
 
@@ -634,34 +635,34 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (f.name != mem.member) continue;
 				// A non-pub field is only usable where the type is declared.
 				if (!f.is_pub && s_info.module != self.symtab.current_module) {
-					report_error(self, node, "Field '${mem.member}' of '${s_info.name}' is private to module '${s_info.module}'");
+					self.report_error(node, "Field '${mem.member}' of '${s_info.name}' is private to module '${s_info.module}'");
 				}
 				return f.type_ptr;
 			}
 
-			report_error(self, node, "Struct '${s_info.name}' has no member named '${mem.member}'");
+			self.report_error(node, "Struct '${s_info.name}' has no member named '${mem.member}'");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_INDEX -> {
 			val idx = node.to<IndexExpr>();
-			val target_ty = check_expr(self, idx.target);
-			val index_ty = check_expr(self, idx.index);
+			val target_ty = self.check_expr(idx.target);
+			val index_ty = self.check_expr(idx.index);
 
 			// 1. Raw array [T; N]
 			if (target_ty.kind == DataType.ARRAY) {
-				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				if (!is_integer(index_ty)) self.report_error(node, "Index must be integer");
 				return sem_array(target_ty).elem;
 			}
 
 			// 2. String indexing str[i] -> char
 			if (target_ty.kind == DataType.STR) {
-				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				if (!is_integer(index_ty)) self.report_error(node, "Index must be integer");
 				return alloc_primitive(&self.arena, type_char());
 			}
 
 			// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
 			if (target_ty.kind == DataType.POINTER) {
-				if (!is_integer(index_ty)) report_error(self, node, "Index must be integer");
+				if (!is_integer(index_ty)) self.report_error(node, "Index must be integer");
 				return sem_pointer(target_ty).pointee;
 			}
 
@@ -673,8 +674,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				if (mi != null) {
 					val fn_info = sem_fn(mi.fn_type);
 					val param_ty = fn_info.param_types[1];
-					if (is_list_type(param_ty)) coerce_to_list(self, idx.index, param_ty);
-					if (!can_assign(param_ty, index_ty)) report_error(self, node, "Argument type mismatch in index access");
+					if (is_list_type(param_ty)) self.coerce_to_list(idx.index, param_ty);
+					if (!can_assign(param_ty, index_ty)) self.report_error(node, "Argument type mismatch in index access");
 
 					var new_args = List<*AstNode>();
 					new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -688,7 +689,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 			}
 
-			report_error(self, node, "Index access on non-indexable type");
+			self.report_error(node, "Index access on non-indexable type");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		NodeKind.EXPR_ASSIGN -> {
@@ -700,7 +701,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			if (target_expr.kind == NodeKind.EXPR_INDEX) {
 				val idx = target_expr.to<IndexExpr>();
-				val target_raw_ty = check_expr(self, idx.target);
+				val target_raw_ty = self.check_expr(idx.target);
 				if (target_raw_ty.kind == DataType.STRUCT) {
 					val s_info = sem_struct(target_raw_ty);
 					var mi = struct_find_method_arity(s_info, "set", 3);
@@ -724,13 +725,13 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 							val_expr = self.b().binary(bin_op, get_expr, asgn.value, node.line, node.col);
 						}
 
-						if (is_list_type(idx_param_ty)) coerce_to_list(self, idx.index, idx_param_ty);
-						val idx_ty = check_expr(self, idx.index);
-						if (!can_assign(idx_param_ty, idx_ty)) report_error(self, node, "Index type mismatch in index assignment");
+						if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
+						val idx_ty = self.check_expr(idx.index);
+						if (!can_assign(idx_param_ty, idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
 
-						if (is_list_type(val_param_ty)) coerce_to_list(self, val_expr, val_param_ty);
-						val val_ty = check_expr(self, val_expr);
-						if (!can_assign(val_param_ty, val_ty)) report_error(self, node, "Value type mismatch in index assignment");
+						if (is_list_type(val_param_ty)) self.coerce_to_list(val_expr, val_param_ty);
+						val val_ty = self.check_expr(val_expr);
+						if (!can_assign(val_param_ty, val_ty)) self.report_error(node, "Value type mismatch in index assignment");
 
 						var new_args = List<*AstNode>();
 						new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -746,9 +747,9 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 			}
 
-			val target_ty = check_expr(self, asgn.target);
-			if (is_list_type(target_ty)) coerce_to_list(self, asgn.value, target_ty);
-			val val_ty = check_expr(self, asgn.value);
+			val target_ty = self.check_expr(asgn.target);
+			if (is_list_type(target_ty)) self.coerce_to_list(asgn.value, target_ty);
+			val val_ty = self.check_expr(asgn.value);
 
 			// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
 			if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
@@ -763,11 +764,11 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 
 			if (asgn.op != TokenType.EQUAL) {
 				if (!is_numeric(target_ty) || !is_numeric(val_ty)) {
-					report_error(self, node, "Compound assignment operator requires numeric operands");
+					self.report_error(node, "Compound assignment operator requires numeric operands");
 				}
 			}
 
-			if (!can_assign(target_ty, val_ty)) report_error(self, node, "Type mismatch in assignment");
+			if (!can_assign(target_ty, val_ty)) self.report_error(node, "Type mismatch in assignment");
 			return target_ty;
 		}
 		NodeKind.EXPR_UPDATE -> {
@@ -776,17 +777,17 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			var target_expr = u.target;
 			while (target_expr.kind == NodeKind.EXPR_GROUP) target_expr = target_expr.to<GroupExpr>().expr;
 
-			if (target_expr.kind != NodeKind.EXPR_IDENTIFIER &&
+			if (
+				target_expr.kind != NodeKind.EXPR_IDENTIFIER &&
 				target_expr.kind != NodeKind.EXPR_MEMBER &&
 				target_expr.kind != NodeKind.EXPR_INDEX &&
-				target_expr.kind != NodeKind.EXPR_UNARY) {
-				report_error(self, node, "Invalid target for increment/decrement operator");
-			}
+				target_expr.kind != NodeKind.EXPR_UNARY
+			) self.report_error(node, "Invalid target for increment/decrement operator");
 
 			// Index assignment desugaring: container[i]++ -> container.set(i, container.get(i) + 1)
 			if (target_expr.kind == NodeKind.EXPR_INDEX) {
 				val idx = target_expr.to<IndexExpr>();
-				val target_raw_ty = check_expr(self, idx.target);
+				val target_raw_ty = self.check_expr(idx.target);
 				if (target_raw_ty.kind == DataType.STRUCT) {
 					val s_info = sem_struct(target_raw_ty);
 					var mi = struct_find_method_arity(s_info, "set", 3);
@@ -802,12 +803,12 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 						val get_expr = self.b().index(idx.target, idx.index, node.line, node.col);
 						val val_expr = self.b().binary(bin_op, get_expr, one_node, node.line, node.col);
 
-						if (is_list_type(idx_param_ty)) coerce_to_list(self, idx.index, idx_param_ty);
-						val idx_ty = check_expr(self, idx.index);
-						if (!can_assign(idx_param_ty, idx_ty)) report_error(self, node, "Index type mismatch in index update");
+						if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
+						val idx_ty = self.check_expr(idx.index);
+						if (!can_assign(idx_param_ty, idx_ty)) self.report_error(node, "Index type mismatch in index update");
 
-						val v_ty = check_expr(self, val_expr);
-						if (!can_assign(val_param_ty, v_ty)) report_error(self, node, "Value type mismatch in index update");
+						val v_ty = self.check_expr(val_expr);
+						if (!can_assign(val_param_ty, v_ty)) self.report_error(node, "Value type mismatch in index update");
 
 						var new_args = List<*AstNode>();
 						new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -823,29 +824,27 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 				}
 			}
 
-			val target_ty = check_expr(self, u.target);
-			if (!is_numeric(target_ty)) {
-				report_error(self, node, "Increment/decrement operator requires numeric operand");
-			}
+			val target_ty = self.check_expr(u.target);
+			if (!is_numeric(target_ty)) self.report_error(node, "Increment/decrement operator requires numeric operand");
 			return target_ty;
 		}
 		NodeKind.EXPR_CAST -> {
 			val cst = node.to<CastExpr>();
-			check_expr(self, cst.expr);
-			return resolve_type(self, cst.target_type);
+			self.check_expr(cst.expr);
+			return self.resolve_type(cst.target_type);
 		}
 		NodeKind.EXPR_IF -> {
 			val if_e = node.to<IfExpr>();
-			val cond_ty = check_expr(self, if_e.condition);
-			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If expression condition must be bool");
-			val then_ty = check_expr(self, if_e.then_branch);
-			val else_ty = check_expr(self, if_e.else_branch);
-			if (!can_assign(then_ty, else_ty)) report_error(self, node, "If expression branches have incompatible types");
+			val cond_ty = self.check_expr(if_e.condition);
+			if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If expression condition must be bool");
+			val then_ty = self.check_expr(if_e.then_branch);
+			val else_ty = self.check_expr(if_e.else_branch);
+			if (!can_assign(then_ty, else_ty)) self.report_error(node, "If expression branches have incompatible types");
 			return then_ty;
 		}
 		NodeKind.EXPR_WHEN -> {
 			val we = node.to<WhenExpr>();
-			if (we.condition != null) check_expr(self, we.condition);
+			if (we.condition != null) self.check_expr(we.condition);
 
 			self.when_depth++;
 			var result_ty: *Type = null;
@@ -853,19 +852,19 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			for (arm in we.arms) {
 				if (arm.is_else) has_else = true;
 				for (pat in arm.patterns) {
-					val p_ty = check_expr(self, pat);
-					if (we.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
+					val p_ty = self.check_expr(pat);
+					if (we.condition == null && p_ty.kind != DataType.BOOL) self.report_error(pat, "Boolean when arm condition must be bool");
 				}
-				val body_ty = check_when_arm_body(self, arm.body);
+				val body_ty = self.check_when_arm_body(arm.body);
 				if (result_ty == null) result_ty = body_ty;
 				else if (!can_assign(result_ty, body_ty)) {
-					report_error(self, arm.body, "When arm type does not match previous arms");
+					self.report_error(arm.body, "When arm type does not match previous arms");
 				}
 			}
 			self.when_depth--;
 
 			if (!has_else) {
-				report_error(self, node, "when expression requires an 'else' arm");
+				self.report_error(node, "when expression requires an 'else' arm");
 				return alloc_primitive(&self.arena, type_none());
 			}
 			if (result_ty == null) return alloc_primitive(&self.arena, type_none());
@@ -882,14 +881,14 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			// The element type comes from the first element; an empty literal
 			// has nothing to infer from (use an annotated `[T; 0]` variable).
 			if (al.elements.is_empty()) {
-				report_error(self, node, "Cannot infer the element type of an empty array literal");
+				self.report_error(node, "Cannot infer the element type of an empty array literal");
 				return alloc_primitive(&self.arena, type_none());
 			}
 
-			val elem_ty = check_expr(self, al.elements.first());
+			val elem_ty = self.check_expr(al.elements.first());
 			for (i in 1..<al.elements.len) {
-				val t = check_expr(self, al.elements[i]);
-				if (!can_assign(elem_ty, t)) report_error(self, al.elements[i], "Array literal element type mismatch");
+				val t = self.check_expr(al.elements[i]);
+				if (!can_assign(elem_ty, t)) self.report_error(al.elements[i], "Array literal element type mismatch");
 			}
 			return alloc_array_type(&self.arena, elem_ty, al.elements.len);
 		}
@@ -902,8 +901,8 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 			for (part in ie.parts) {
 				var piece = part.expr;
 				if (!part.is_literal) {
-					val pty = check_expr(self, piece);
-					piece = interp_piece(self, node, piece, pty);
+					val pty = self.check_expr(piece);
+					piece = self.interp_piece(node, piece, pty);
 					if (piece == null) return alloc_primitive(&self.arena, type_str());
 				}
 				if (acc == null) acc = piece;
@@ -924,7 +923,7 @@ pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type {
 // Statement Type Checking
 // ============================================================================
 
-pub fn check_statement(var self: &BodyPass, node: *AstNode) {
+pub fn check_statement(var self, node: *AstNode) {
 	if (node == null) return;
 
 	when (node.kind) {
@@ -932,7 +931,7 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			val blk = node.to<BlockStmt>();
 			enter_scope(&self.symtab, false);
 			for (stmt in blk.statements) {
-				check_statement(self, stmt);
+				self.check_statement(stmt);
 			}
 			exit_scope(&self.symtab);
 		}
@@ -944,20 +943,20 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			var init_ty = alloc_primitive(&self.arena, type_none());
 
 			if (vd.type_annotation != null) {
-				var_ty = resolve_type(self, vd.type_annotation);
+				var_ty = self.resolve_type(vd.type_annotation);
 				if (vd.initializer != null) {
 					has_init = true;
-					if (is_list_type(var_ty)) coerce_to_list(self, vd.initializer, var_ty);
-					init_ty = check_expr(self, vd.initializer);
-					if (!can_assign(var_ty, init_ty)) report_error(self, node, "Type mismatch in variable declaration for '${vd.name}'");
+					if (is_list_type(var_ty)) self.coerce_to_list(vd.initializer, var_ty);
+					init_ty = self.check_expr(vd.initializer);
+					if (!can_assign(var_ty, init_ty)) self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
 				}
 			} else {
 				if (vd.initializer != null) {
 					has_init = true;
-					init_ty = check_expr(self, vd.initializer);
+					init_ty = self.check_expr(vd.initializer);
 					var_ty = init_ty;
 				} else {
-					report_error(self, node, "Variable '${vd.name}' without type must have initializer");
+					self.report_error(node, "Variable '${vd.name}' without type must have initializer");
 				}
 			}
 
@@ -968,73 +967,78 @@ pub fn check_statement(var self: &BodyPass, node: *AstNode) {
 			}
 
 			val ok = define(&self.symtab, Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
-			if (!ok) report_error(self, node, "Variable '${vd.name}' is already defined in this scope");
+			if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
 		}
 		NodeKind.STMT_IF -> {
 			val if_s = node.to<IfStmt>();
-			val cond_ty = check_expr(self, if_s.condition);
-			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "If statement condition must be bool");
-			check_statement(self, if_s.then_branch);
-			if (if_s.else_branch != null) check_statement(self, if_s.else_branch);
+			val cond_ty = self.check_expr(if_s.condition);
+			if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If statement condition must be bool");
+			self.check_statement(if_s.then_branch);
+			if (if_s.else_branch != null) self.check_statement(if_s.else_branch);
 		}
 		NodeKind.STMT_WHILE -> {
 			val wh = node.to<WhileStmt>();
-			val cond_ty = check_expr(self, wh.condition);
-			if (cond_ty.kind != DataType.BOOL) report_error(self, node, "While statement condition must be bool");
+			val cond_ty = self.check_expr(wh.condition);
+			if (cond_ty.kind != DataType.BOOL) self.report_error(node, "While statement condition must be bool");
 			self.loop_depth++;
-			check_statement(self, wh.body);
+			self.check_statement(wh.body);
 			self.loop_depth--;
 		}
 		NodeKind.STMT_FOR -> {
 			val fs = node.to<ForStmt>() as &ForStmt;
 			if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
-				report_error(self, node, "The iterated expression of a 'for' must be a variable or a field");
+				self.report_error(node, "The iterated expression of a 'for' must be a variable or a field");
 			}
 			// Containers that implement `Iterable` are walked through the trait
 			// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
 			// lowering (see desugar_for_iterable).
 			var use_iter_trait = false;
-			if (!fs.is_range) use_iter_trait = struct_implements_iterable(self, for_iterable_type(self, fs.iterable));
+			if (!fs.is_range) use_iter_trait = self.struct_implements_iterable(self.for_iterable_type(fs.iterable));
 
 			desugar_for(&self.arena, node, fs, use_iter_trait);
 			// `node` now holds the lowered block; check it through the normal path.
-			check_statement(self, node);
+			self.check_statement(node);
 		}
 		NodeKind.STMT_RETURN -> {
 			val ret = node.to<ReturnStmt>();
 			if (ret.value != null) {
-				if (is_list_type(self.current_fn_return_type)) coerce_to_list(self, ret.value, self.current_fn_return_type);
-				val val_ty = check_expr(self, ret.value);
-				if (!can_assign(self.current_fn_return_type, val_ty)) report_error(self, node, "Return value type does not match function return type");
-			} else if (self.current_fn_return_type.kind != DataType.NONE) report_error(self, node, "Non-none function must return a value");
+				if (is_list_type(self.current_fn_return_type))
+					self.coerce_to_list(ret.value, self.current_fn_return_type);
+
+				val val_ty = self.check_expr(ret.value);
+
+				if (!can_assign(self.current_fn_return_type, val_ty))
+					self.report_error(node, "Return value type does not match function return type");
+			} else if (self.current_fn_return_type.kind != DataType.NONE)
+				self.report_error(node, "Non-none function must return a value");
 		}
 		NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
-			if (self.loop_depth == 0) report_error(self, node, "Break or continue statement outside of loop");
+			if (self.loop_depth == 0) self.report_error(node, "Break or continue statement outside of loop");
 		}
 		NodeKind.STMT_EXPR -> {
 			val es = node.to<ExprStmt>();
-			check_expr(self, es.expr);
+			self.check_expr(es.expr);
 		}
 		NodeKind.STMT_WHEN -> {
 			val ws = node.to<WhenStmt>();
-			if (ws.condition != null) check_expr(self, ws.condition);
+			if (ws.condition != null) self.check_expr(ws.condition);
 			for (arm in ws.arms) {
 				for (pat in arm.patterns) {
-					val p_ty = check_expr(self, pat);
-					if (ws.condition == null && p_ty.kind != DataType.BOOL) report_error(self, pat, "Boolean when arm condition must be bool");
+					val p_ty = self.check_expr(pat);
+					if (ws.condition == null && p_ty.kind != DataType.BOOL) self.report_error(pat, "Boolean when arm condition must be bool");
 				}
-				check_statement(self, arm.body);
+				self.check_statement(arm.body);
 			}
 		}
 		NodeKind.STMT_YIELD -> {
 			val ys = node.to<YieldStmt>();
-			if (self.when_depth == 0) report_error(self, node, "Yield statement outside of when expression");
-			if (ys.value != null) check_expr(self, ys.value);
+			if (self.when_depth == 0) self.report_error(node, "Yield statement outside of when expression");
+			if (ys.value != null) self.check_expr(ys.value);
 		}
 	}
 }
 
-pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type {
+pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 	if (body.kind == NodeKind.STMT_BLOCK) {
 		val blk = body.to<BlockStmt>();
 		var yield_ty: *Type = null;
@@ -1042,20 +1046,20 @@ pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type {
 		for (stmt in blk.statements) {
 			if (stmt.kind == NodeKind.STMT_YIELD) {
 				val ys = stmt.to<YieldStmt>();
-				if (ys.value != null) yield_ty = check_expr(self, ys.value);
+				if (ys.value != null) yield_ty = self.check_expr(ys.value);
 				else yield_ty = alloc_primitive(&self.arena, type_none());
 			} else {
-				check_statement(self, stmt);
+				self.check_statement(stmt);
 			}
 		}
 		exit_scope(&self.symtab);
 		if (yield_ty == null) {
-			report_error(self, body, "When arm block must yield a value");
+			self.report_error(body, "When arm block must yield a value");
 			return alloc_primitive(&self.arena, type_none());
 		}
 		return yield_ty;
 	}
-	return check_expr(self, body);
+	return self.check_expr(body);
 }
 
 }
@@ -1088,87 +1092,90 @@ pub fn interp_concat(var arena: &Arena, a: *AstNode, b_node: *AstNode, line: usz
 impl BodyPass {
 
 // Converts one interpolation hole to `str`, or reports an error and returns null.
-pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
-	if (ty.kind == DataType.STR) return expr;
+	pub fn interp_piece(var self, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
+		if (ty.kind == DataType.STR) return expr;
 
-	// Everything else goes through the `ToStr` trait; std.traits.to_str (loaded
-	// by the driver) provides the built-in implementations.
-	val pmi = find_prim_method(&self.symtab, ty.kind, "to_str");
-	if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
+		// Everything else goes through the `ToStr` trait; std.traits.to_str (loaded
+		// by the driver) provides the built-in implementations.
+		val pmi = find_prim_method(&self.symtab, ty.kind, "to_str");
+		if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
 
-	var cur_ty = ty;
-	var is_ptr = false;
-	if (cur_ty.kind == DataType.POINTER) {
-		is_ptr = true;
-		cur_ty = sem_pointer(cur_ty).pointee;
-	}
-	if (cur_ty.kind == DataType.STRUCT) {
-		val st_info = sem_struct(cur_ty);
-		val mi = struct_find_method(st_info, "to_str");
-		if (mi != null) {
-			var arg = expr;
-			if (!is_ptr) arg = self.b().unary(TokenType.AMPERSAND, expr, node.line, node.col);
-			return interp_call(&self.arena, mi.c_name, arg, node.line, node.col);
+		var cur_ty = ty;
+		var is_ptr = false;
+		if (cur_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			cur_ty = sem_pointer(cur_ty).pointee;
 		}
-	}
+		if (cur_ty.kind == DataType.STRUCT) {
+			val st_info = sem_struct(cur_ty);
+			val mi = struct_find_method(st_info, "to_str");
+			if (mi != null) {
+				var arg = expr;
+				if (!is_ptr) arg = self.b().unary(TokenType.AMPERSAND, expr, node.line, node.col);
+				return interp_call(&self.arena, mi.c_name, arg, node.line, node.col);
+			}
+		}
 
-	report_error(self, node, "Interpolated value must implement ToStr");
-	return null;
-}
-
-// ============================================================================
-// `for` lowering
-//
-// `for` is lowered here into plain while-loops plus hidden locals, so the C
-// backend never sees STMT_FOR and needs no new type knowledge. The lowering
-// deliberately avoids needing the element type: it only uses the uniform
-// `.len` / `.data` members that `str`, `[T; N]` and the std containers expose.
-//
-// Range lowering is overflow safe: the "is there another element?" test is
-// evaluated before the counter is moved, and the counter only moves while that
-// test holds, so an unsigned counter never wraps below its end bound.
-// ============================================================================
-
-
-
-// Best-effort static type of a `for` iterable (a variable or a field chain).
-// Reports nothing and rewrites nothing, so it is safe to call before the loop
-// is lowered and re-checked.
-fn for_iterable_type(self: &BodyPass, node: *AstNode): *Type {
-	if (node == null) return null;
-	if (node.kind == NodeKind.EXPR_GROUP) return for_iterable_type(self, node.to<GroupExpr>().expr);
-
-	if (node.kind == NodeKind.EXPR_IDENTIFIER) {
-		val sym = lookup(&self.symtab, node.to<IdentifierExpr>().name);
-		if (sym != null) return sym.type_ptr;
+		self.report_error(node, "Interpolated value must implement ToStr");
 		return null;
 	}
 
-	if (node.kind == NodeKind.EXPR_MEMBER) {
-		val mem = node.to<MemberExpr>();
-		var obj = for_iterable_type(self, mem.object);
-		if (obj == null) return null;
-		if (obj.kind == DataType.POINTER) obj = sem_pointer(obj).pointee;
-		if (obj.kind != DataType.STRUCT) return null;
-		val s_mem = sem_struct(obj);
-		for (f in s_mem.fields) {
-			if (f.name == mem.member) return f.type_ptr;
-		}
-	}
-	return null;
-}
+	// ============================================================================
+	// `for` lowering
+	//
+	// `for` is lowered here into plain while-loops plus hidden locals, so the C
+	// backend never sees STMT_FOR and needs no new type knowledge. The lowering
+	// deliberately avoids needing the element type: it only uses the uniform
+	// `.len` / `.data` members that `str`, `[T; N]` and the std containers expose.
+	//
+	// Range lowering is overflow safe: the "is there another element?" test is
+	// evaluated before the counter is moved, and the counter only moves while that
+	// test holds, so an unsigned counter never wraps below its end bound.
+	// ============================================================================
 
-// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
-// iterates through the trait (`count()` / `at(i)`) instead of the built-in
-// `.len` / `.data`, so containment no longer has to look like a flat array.
-fn struct_implements_iterable(self: &BodyPass, ty: *Type): bool {
-	var cur = ty;
-	if (cur != null && cur.kind == DataType.POINTER) cur = sem_pointer(cur).pointee;
-	if (cur == null || cur.kind != DataType.STRUCT) return false;
-	val t = find_trait(&self.symtab, "Iterable");
-	if (t == null) return false;
-	return trait_has_impl(t, sem_struct(cur).name);
-}
+
+
+	// Best-effort static type of a `for` iterable (a variable or a field chain).
+	// Reports nothing and rewrites nothing, so it is safe to call before the loop
+	// is lowered and re-checked.
+	fn for_iterable_type(self, node: *AstNode): *Type => when (node.kind) {
+		NodeKind.EXPR_GROUP -> self.for_iterable_type(node.to<GroupExpr>().expr);
+
+		NodeKind.EXPR_IDENTIFIER -> {
+			val sym = lookup(&self.symtab, node.to<IdentifierExpr>().name);
+			if (sym != null) yield sym.type_ptr;
+			yield null;
+		}
+
+		NodeKind.EXPR_MEMBER -> {
+			val mem = node.to<MemberExpr>();
+			var obj = self.for_iterable_type(mem.object);
+			if (obj == null) yield null;
+
+			if (obj.kind == DataType.POINTER) obj = sem_pointer(obj).pointee;
+			if (obj.kind != DataType.STRUCT) yield null;
+
+			val s_mem = sem_struct(obj);
+			for (f in s_mem.fields) {
+				if (f.name == mem.member) yield f.type_ptr;
+			}
+			yield null;
+		}
+
+		else -> null;
+	};
+
+	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
+	// iterates through the trait (`count()` / `at(i)`) instead of the built-in
+	// `.len` / `.data`, so containment no longer has to look like a flat array.
+	fn struct_implements_iterable(self, ty: *Type): bool {
+		var cur = ty;
+		if (cur != null && cur.kind == DataType.POINTER) cur = sem_pointer(cur).pointee;
+		if (cur == null || cur.kind != DataType.STRUCT) return false;
+		val t = find_trait(&self.symtab, "Iterable");
+		if (t == null) return false;
+		return trait_has_impl(t, sem_struct(cur).name);
+	}
 
 }
 
@@ -1225,13 +1232,3 @@ pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstN
 	if (is_neq) return b.unary(TokenType.BANG, eq_call, line, col);
 	return eq_call;
 }
-
-pub fn report_error(var self: &BodyPass, node: *AstNode, msg: str) { self.report_error(node, msg); }
-pub fn resolve_type(var self: &BodyPass, node: *AstNode): *Type => self.resolve_type(node);
-pub fn coerce_to_list(var self: &BodyPass, node: *AstNode, list_ty: *Type) { self.coerce_to_list(node, list_ty); }
-pub fn check_expr(var self: &BodyPass, node: *AstNode): *Type => self.check_expr(node);
-pub fn check_statement(var self: &BodyPass, node: *AstNode) { self.check_statement(node); }
-pub fn check_when_arm_body(var self: &BodyPass, body: *AstNode): *Type => self.check_when_arm_body(body);
-pub fn interp_piece(var self: &BodyPass, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode => self.interp_piece(node, expr, ty);
-fn for_iterable_type(self: &BodyPass, node: *AstNode): *Type => self.for_iterable_type(node);
-fn struct_implements_iterable(self: &BodyPass, ty: *Type): bool => self.struct_implements_iterable(ty);

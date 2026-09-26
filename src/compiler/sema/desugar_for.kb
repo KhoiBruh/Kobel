@@ -15,13 +15,12 @@ use std.mem.arena.*;
 
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
-pub fn for_is_lvalue(node: *AstNode): bool {
-	if (node == null) return false;
-	if (node.kind == NodeKind.EXPR_IDENTIFIER) return true;
-	if (node.kind == NodeKind.EXPR_MEMBER) return for_is_lvalue(node.to<MemberExpr>().object);
-	if (node.kind == NodeKind.EXPR_GROUP) return for_is_lvalue(node.to<GroupExpr>().expr);
-	return false;
-}
+pub fn for_is_lvalue(node: *AstNode): bool => when (node.kind) {
+	NodeKind.EXPR_IDENTIFIER -> true;
+	NodeKind.EXPR_MEMBER -> for_is_lvalue(node.to<MemberExpr>().object);
+	NodeKind.EXPR_GROUP -> for_is_lvalue(node.to<GroupExpr>().expr);
+	else -> false;
+};
 
 pub fn for_usz_type(var arena: &Arena, line: usz, col: usz): *AstNode {
 	var b = AstBuilder(arena);
@@ -248,11 +247,11 @@ pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_tra
 	var pre = List<*AstNode>();
 	var head = List<*AstNode>();
 	var step = List<*AstNode>();
-	var cond: *AstNode = null;
-
-	if (fs.is_range) cond = desugar_for_range(arena, &pre, &head, &step, fs, line, col);
-	else if (use_iter_trait) cond = desugar_for_iter_method(arena, &pre, &head, &step, fs, line, col);
-	else cond = desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
+	val cond = when {
+		fs.is_range -> desugar_for_range(arena, &pre, &head, &step, fs, line, col);
+		use_iter_trait -> desugar_for_iter_method(arena, &pre, &head, &step, fs, line, col);
+		else -> desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
+	};
 
 	// Body: loop variable, the original statements, then the counter update.
 	var body_stmts = List<*AstNode>();

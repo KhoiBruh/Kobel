@@ -22,8 +22,6 @@ use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.DeclPass;
-use compiler.sema.decl_collect.collect_program;
-
 use compiler.sema.body_pass.*;
 
 use std.collections.list.*;
@@ -31,119 +29,119 @@ use std.mem.arena.*;
 
 impl BodyPass {
 
-pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
-	val f = fn_node.to<FnDecl>();
-	val sym = lookup(&self.symtab, f.name);
-	if (sym == null || sym.type_ptr.kind != DataType.FN) return;
-	check_fn_body(self, fn_node, sym.type_ptr);
-}
-
-// Shared body checker: works for free functions and impl methods. `fn_type`
-// is the signature already built by DeclPass (methods have no global symbol).
-pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
-	val f = fn_node.to<FnDecl>();
-
-	val fn_info = sem_fn(fn_type);
-	self.current_fn_return_type = fn_info.return_type;
-
-	enter_scope(&self.symtab, true);
-
-	// Register parameters into the function scope
-	for (i in 0..<f.params.len) {
-		val p = f.params[i];
-		val p_ty = fn_info.param_types[i];
-		define(&self.symtab, Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col));
+	pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) {
+		val f = fn_node.to<FnDecl>();
+		val sym = lookup(&self.symtab, f.name);
+		if (sym == null || sym.type_ptr.kind != DataType.FN) return;
+		self.check_fn_body(fn_node, sym.type_ptr);
 	}
 
-	// Analyze the function body
-	if (f.body != null) {
-		when (f.body.kind) {
-			NodeKind.STMT_BLOCK -> {
-				val blk = f.body.to<BlockStmt>();
-				for (stmt in blk.statements) {
-					check_statement(self, stmt);
-				}
-			}
-			NodeKind.STMT_EXPR -> {
-				// Expression body: => expr;
-				val es = f.body.to<ExprStmt>();
-				if (f.return_type != null && is_list_type(self.current_fn_return_type)) {
-					coerce_to_list(self, es.expr, self.current_fn_return_type);
-				}
-				val body_ty = check_expr(self, es.expr);
-				if (f.return_type == null) {
-					val fn_info_mut = as_fn_type_mut(fn_type);
-					fn_info_mut.return_type = body_ty;
-					self.current_fn_return_type = body_ty;
-				} else if (!can_assign(self.current_fn_return_type, body_ty)) {
-					report_error(self, fn_node, "Expression body type does not match function return type");
-				}
-			}
-			else -> {}
+	// Shared body checker: works for free functions and impl methods. `fn_type`
+	// is the signature already built by DeclPass (methods have no global symbol).
+	pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) {
+		val f = fn_node.to<FnDecl>();
+
+		val fn_info = sem_fn(fn_type);
+		self.current_fn_return_type = fn_info.return_type;
+
+		enter_scope(&self.symtab, true);
+
+		// Register parameters into the function scope
+		for (i in 0..<f.params.len) {
+			val p = f.params[i];
+			val p_ty = fn_info.param_types[i];
+			define(
+				&self.symtab,
+				Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col)
+			);
 		}
+
+		// Analyze the function body
+		if (f.body != null) {
+			when (f.body.kind) {
+				NodeKind.STMT_BLOCK -> {
+					val blk = f.body.to<BlockStmt>();
+					for (stmt in blk.statements) {
+						self.check_statement(stmt);
+					}
+				}
+				NodeKind.STMT_EXPR -> {
+					// Expression body: => expr;
+					val es = f.body.to<ExprStmt>();
+					if (
+						f.return_type != null &&
+						is_list_type(self.current_fn_return_type)
+					) self.coerce_to_list(es.expr, self.current_fn_return_type);
+
+					val body_ty = self.check_expr(es.expr);
+					if (f.return_type == null) {
+						val fn_info_mut = as_fn_type_mut(fn_type);
+						fn_info_mut.return_type = body_ty;
+						self.current_fn_return_type = body_ty;
+					} else if (!can_assign(self.current_fn_return_type, body_ty)) {
+						self.report_error(fn_node, "Expression body type does not match function return type");
+					}
+				}
+				else -> {}
+			}
+		}
+
+		exit_scope(&self.symtab);
 	}
 
-	exit_scope(&self.symtab);
-}
+	pub fn check_impl(var self: &BodyPass, node: *AstNode) {
+		val im = node.to<ImplDecl>();
 
-pub fn check_impl(var self: &BodyPass, node: *AstNode) {
-	val im = node.to<ImplDecl>();
+		// A primitive impl has no struct name; find its methods by mangled name.
+		if (im.struct_name == "") {
+			for (m_node in im.methods) {
+				val f = m_node.to<FnDecl>();
+				val mi = find_prim_method_c(&self.symtab, f.name);
+				if (mi != null) self.check_fn_body(m_node, mi.fn_type);
+			}
+			return;
+		}
 
-	// A primitive impl has no struct name; find its methods by mangled name.
-	if (im.struct_name == "") {
+		val st_sym = lookup(&self.symtab, im.struct_name);
+		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
+		val st_info = sem_struct(st_sym.type_ptr);
+
+		// Make `Self` resolve to this struct inside every method body.
+		self.current_self_type = st_sym.type_ptr;
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>();
-			val mi = find_prim_method_c(&self.symtab, f.name);
-			if (mi != null) check_fn_body(self, m_node, mi.fn_type);
+			val mi = struct_find_method_c(st_info, f.name);
+			if (mi != null) self.check_fn_body(m_node, mi.fn_type);
 		}
-		return;
+		self.current_self_type = null;
 	}
 
-	val st_sym = lookup(&self.symtab, im.struct_name);
-	if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
-	val st_info = sem_struct(st_sym.type_ptr);
+	pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
+		// Step 1: Collect top-level declarations via DeclPass.
+		// When symtab is already preloaded from ModuleLoader (multiple modules), skip this
+		// step so declarations are not collected/renamed twice.
+		if (!self.has_symtab) {
+			var decl_p = DeclPass();
+			decl_p.collect_program(program_node);
 
-	// Make `Self` resolve to this struct inside every method body.
-	self.current_self_type = st_sym.type_ptr;
-	for (m_node in im.methods) {
-		val f = m_node.to<FnDecl>();
-		val mi = struct_find_method_c(st_info, f.name);
-		if (mi != null) check_fn_body(self, m_node, mi.fn_type);
-	}
-	self.current_self_type = null;
-}
+			// Inherit SymbolTable and merge errors from DeclPass
+			self.symtab = decl_p.symtab;
+			for (msg in decl_p.errors) self.errors.add(msg);
+		}
 
-pub fn check_program(var self: &BodyPass, program_node: *AstNode) {
-	// Step 1: Collect top-level declarations via DeclPass.
-	// When symtab is already preloaded from ModuleLoader (multiple modules), skip this
-	// step so declarations are not collected/renamed twice.
-	if (!self.has_symtab) {
-		var decl_p = DeclPass();
-		collect_program(&decl_p, program_node);
-
-		// Inherit SymbolTable and merge errors from DeclPass
-		self.symtab = decl_p.symtab;
-		for (msg in decl_p.errors) self.errors.add(msg);
-	}
-
-	// Step 2: Analyze each function body of each module (program already merged)
-	val prog = program_node.to<Program>();
-	for (decl in prog) {
-		when (decl.kind) {
-			NodeKind.DECL_MODULE -> {
-				val m = decl.to<ModuleDecl>();
-				set_current_module(&self.symtab, m.full_path);
+		// Step 2: Analyze each function body of each module (program already merged)
+		val prog = program_node.to<Program>();
+		for (decl in prog) {
+			when (decl.kind) {
+				NodeKind.DECL_MODULE -> {
+					val m = decl.to<ModuleDecl>();
+					set_current_module(&self.symtab, m.full_path);
+				}
+				NodeKind.DECL_FN -> self.check_fn(decl);
+				NodeKind.DECL_IMPL -> self.check_impl(decl);
+				else -> {}
 			}
-			NodeKind.DECL_FN -> check_fn(self, decl);
-			NodeKind.DECL_IMPL -> check_impl(self, decl);
-			else -> {}
 		}
 	}
-}
 
 }
-
-pub fn check_fn(var self: &BodyPass, fn_node: *AstNode) { self.check_fn(fn_node); }
-pub fn check_fn_body(var self: &BodyPass, fn_node: *AstNode, fn_type: *Type) { self.check_fn_body(fn_node, fn_type); }
-pub fn check_impl(var self: &BodyPass, node: *AstNode) { self.check_impl(node); }
-pub fn check_program(var self: &BodyPass, program_node: *AstNode) { self.check_program(program_node); }
