@@ -14,7 +14,6 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
 use compiler.ast.builder.to;
-use compiler.ast.builder.AstBuilder;
 
 use compiler.lexer.token.*;
 

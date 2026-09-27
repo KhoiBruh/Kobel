@@ -202,21 +202,21 @@ impl Parser {
 			// A number token keeps its fractional part, so a '.' in the text means
 			// the literal is a float (types are decided here, not by the lexer).
 			TokenType.NUMBER -> {
-				if (num_literal_is_float(tok.text)) return self.b().literal(LiteralKind.FLOAT, tok.text, line, col);
-				return self.b().literal(LiteralKind.INT, tok.text, line, col);
+				if (num_literal_is_float(tok.text)) return self.literal(LiteralKind.FLOAT, tok.text, line, col);
+				return self.literal(LiteralKind.INT, tok.text, line, col);
 			}
 			TokenType.STRING -> return self.parse_string_literal(tok, line, col);
-			TokenType.CHAR -> return self.b().literal(LiteralKind.CHAR, tok.text, line, col);
-			TokenType.KW_TRUE -> return self.b().literal(LiteralKind.BOOL, "true", line, col);
-			TokenType.KW_FALSE -> return self.b().literal(LiteralKind.BOOL, "false", line, col);
-			TokenType.KW_NULL -> return self.b().literal(LiteralKind.NULL_VAL, "null", line, col);
-			TokenType.IDENTIFIER -> return self.b().identifier(tok.text, line, col);
+			TokenType.CHAR -> return self.literal(LiteralKind.CHAR, tok.text, line, col);
+			TokenType.KW_TRUE -> return self.literal(LiteralKind.BOOL, "true", line, col);
+			TokenType.KW_FALSE -> return self.literal(LiteralKind.BOOL, "false", line, col);
+			TokenType.KW_NULL -> return self.literal(LiteralKind.NULL_VAL, "null", line, col);
+			TokenType.IDENTIFIER -> return self.identifier(tok.text, line, col);
 
 			// Grouping: (expr)
 			TokenType.OPEN_PAREN -> {
 				val inner = self.parse_expression(PREC_NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
-				return self.b().group(inner, line, col);
+				return self.group(inner, line, col);
 			}
 
 			// Array Literal: [a, b, c]
@@ -232,7 +232,7 @@ impl Parser {
 					}
 				}
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
-				return self.b().array_literal(elements, line, col);
+				return self.array_literal(elements, line, col);
 			}
 
 			// Prefix Unary: -, !, *, &
@@ -241,7 +241,7 @@ impl Parser {
 			TokenType.STAR,
 			TokenType.AMPERSAND -> {
 				val operand = self.parse_expression(PREC_UNARY);
-				return self.b().unary(tok.type, operand, line, col);
+				return self.unary(tok.type, operand, line, col);
 			}
 
 			// If Expression: if (cond) then_expr else else_expr
@@ -252,7 +252,7 @@ impl Parser {
 				val then_branch = self.parse_if_expr_branch();
 				self.consume(TokenType.KW_ELSE, "Expected 'else' in if expression");
 				val else_branch = self.parse_if_expr_branch();
-				return self.b().if_expr(condition, then_branch, else_branch, line, col);
+				return self.if_expr(condition, then_branch, else_branch, line, col);
 			}
 
 			// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
@@ -295,12 +295,12 @@ impl Parser {
 				}
 
 				self.consume(TokenType.CLOSE_BRACE, "Expected '}' after when arms");
-				return self.b().when_expr(condition, arms, line, col);
+				return self.when_expr(condition, arms, line, col);
 			}
 
 			else -> {
 				self.error(tok, "Expected expression");
-				return self.b().identifier("<error>", line, col);
+				return self.identifier("<error>", line, col);
 			}
 		}
 	}
@@ -320,7 +320,7 @@ impl Parser {
 			TokenType.PERCENT_EQUAL -> {
 				val op_tok = self.advance();
 				val right = self.parse_expression(PREC_ASSIGN - 1);
-				return self.b().compound_assign(op_tok.type, left, right, line, col);
+				return self.compound_assign(op_tok.type, left, right, line, col);
 			}
 			else -> {}
 		}
@@ -337,38 +337,38 @@ impl Parser {
 					!self.check(TokenType.CLOSE_BRACE) &&
 					!self.check(TokenType.CLOSE_PAREN)
 				) value = self.parse_expression(PREC_NONE);
-				right = self.b().return_stmt(value, kw_line, kw_col);
+				right = self.return_stmt(value, kw_line, kw_col);
 			} else if (self.match_token(TokenType.KW_BREAK)) {
 				val kw_line = self.previous().line;
 				val kw_col = self.previous().col;
-				right = self.b().break_stmt(kw_line, kw_col);
+				right = self.break_stmt(kw_line, kw_col);
 			} else if (self.match_token(TokenType.KW_CONTINUE)) {
 				val kw_line = self.previous().line;
 				val kw_col = self.previous().col;
-				right = self.b().continue_stmt(kw_line, kw_col);
+				right = self.continue_stmt(kw_line, kw_col);
 			} else {
 				right = self.parse_expression(PREC_ELVIS - 1);
 			}
-			return self.b().binary(TokenType.QUESTION_COLON, left, right, line, col);
+			return self.binary(TokenType.QUESTION_COLON, left, right, line, col);
 		}
 
 		// 3. Member Access: left.member
 		if (self.match_token(TokenType.DOT)) {
 			val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
-			return self.b().member(left, member_tok.text, line, col);
+			return self.member(left, member_tok.text, line, col);
 		}
 
 		// 3. Index Access: left[index]
 		if (self.match_token(TokenType.OPEN_BRACKET)) {
 			val index = self.parse_expression(PREC_NONE);
 			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array index");
-			return self.b().index(left, index, line, col);
+			return self.index(left, index, line, col);
 		}
 
 		// 4. Type Cast: left as Type
 		if (self.match_token(TokenType.KW_AS)) {
 			val target_type = self.parse_type();
-			return self.b().cast(left, target_type, line, col);
+			return self.cast(left, target_type, line, col);
 		}
 
 		// 5. Generic Call: left<T1, T2>(arg1, arg2)
@@ -390,7 +390,7 @@ impl Parser {
 				}
 			}
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-			return self.b().call(left, args, type_args, line, col);
+			return self.call(left, args, type_args, line, col);
 		}
 
 		// 6. Normal Call: left(arg1, arg2)
@@ -403,13 +403,13 @@ impl Parser {
 				}
 			}
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-			return self.b().call(left, args, List<*AstNode>(), line, col);
+			return self.call(left, args, List<*AstNode>(), line, col);
 		}
 
 		// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
 		val op_tok = self.advance();
 		val right = self.parse_expression(prec);
-		return self.b().binary(op_tok.type, left, right, line, col);
+		return self.binary(op_tok.type, left, right, line, col);
 	}
 
 	pub fn parse_expression(var self, min_prec: i32): *AstNode {
@@ -454,7 +454,7 @@ impl Parser {
 
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
 
-				yield self.b().var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
+				yield self.var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
 			}
 			TokenType.KW_IF -> {
 				self.advance();
@@ -464,7 +464,7 @@ impl Parser {
 				val then_branch = self.parse_arm_statement();
 				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement() else null;
 
-				yield self.b().if_stmt(condition, then_branch, else_branch, line, col);
+				yield self.if_stmt(condition, then_branch, else_branch, line, col);
 			}
 			TokenType.KW_WHILE -> {
 				val kw = self.advance();
@@ -473,7 +473,7 @@ impl Parser {
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 				val body = self.parse_arm_statement();
 
-				yield self.b().while_stmt(condition, body, kw.line, kw.col);
+				yield self.while_stmt(condition, body, kw.line, kw.col);
 			}
 			TokenType.KW_FOR -> {
 				val kw = self.advance();
@@ -507,7 +507,7 @@ impl Parser {
 
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 				val body = self.parse_arm_statement();
-				yield self.b().for_stmt(
+				yield self.for_stmt(
 					name_tok.text, is_range, is_open, is_half_open,
 					iterable, range_start, range_end, body, kw.line, kw.col
 				);
@@ -515,38 +515,38 @@ impl Parser {
 			TokenType.KW_BREAK -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");
-				yield self.b().break_stmt(line, col);
+				yield self.break_stmt(line, col);
 			}
 			TokenType.KW_CONTINUE -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after continue");
-				yield self.b().continue_stmt(line, col);
+				yield self.continue_stmt(line, col);
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
-				yield self.b().yield_stmt(value, line, col);
+				yield self.yield_stmt(value, line, col);
 			}
 			TokenType.KW_RETURN -> {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after return");
-				yield self.b().return_stmt(value, line, col);
+				yield self.return_stmt(value, line, col);
 			}
 			else -> {
 				val expr = self.parse_expression(PREC_NONE);
 				if (self.match_token(TokenType.PLUS_PLUS)) {
 					val op_tok = self.previous();
 					self.consume(TokenType.SEMI_COLON, "Expected ';' after '++'");
-					yield self.b().expr_stmt(self.b().update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
+					yield self.expr_stmt(self.update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
 				} else if (self.match_token(TokenType.MINUS_MINUS)) {
 					val op_tok = self.previous();
 					self.consume(TokenType.SEMI_COLON, "Expected ';' after '--'");
-					yield self.b().expr_stmt(self.b().update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
+					yield self.expr_stmt(self.update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
 				}
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-				yield self.b().expr_stmt(expr, line, col);
+				yield self.expr_stmt(expr, line, col);
 			}
 		};
 	}
@@ -558,12 +558,12 @@ impl Parser {
 			stmts.add(self.parse_arm_statement());
 		}
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
-		return self.b().block_stmt(stmts, lbrace.line, lbrace.col);
+		return self.block_stmt(stmts, lbrace.line, lbrace.col);
 	}
 
 	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {
 		if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
-		return self.b().literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
+		return self.literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
 	}
 
 	pub fn parse_interp_string(var self, text: str, line: usz, col: usz): *AstNode {
@@ -591,7 +591,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts.add(InterpPart(self.b().literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
+					parts.add(InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
 					lit = "";
 					has_lit = false;
 				}
@@ -599,7 +599,7 @@ impl Parser {
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
 					self.errors.add("Unterminated interpolation hole in string literal");
-					return self.b().literal(LiteralKind.STRING, text, line, col);
+					return self.literal(LiteralKind.STRING, text, line, col);
 				}
 				val src = text.slice(h_start, h_end);
 				var sub_lexer = Lexer(src);
@@ -618,8 +618,8 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts.add(InterpPart(self.b().literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
-		return self.b().interp(parts, line, col);
+		if (has_lit) parts.add(InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
+		return self.interp(parts, line, col);
 	}
 
 }

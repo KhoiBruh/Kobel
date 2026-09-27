@@ -111,7 +111,7 @@ impl Parser {
 			self.match_token(TokenType.FAT_ARROW) -> {
 				val expr = self.parse_expression(PREC_NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
-				yield self.b().expr_stmt(expr, expr.line, expr.col);
+				yield self.expr_stmt(expr, expr.line, expr.col);
 			}
 
 			// Block body: { ... }
@@ -124,7 +124,7 @@ impl Parser {
 			}
 		};
 		
-		return self.b().fn_decl(name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
+		return self.fn_decl(name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 	}
 
 	pub fn parse_struct_decl(var self, is_pub: bool): *AstNode {
@@ -149,7 +149,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields");
-		return self.b().struct_decl(name_tok.text, type_params, fields, is_pub, kw.line, kw.col);
+		return self.struct_decl(name_tok.text, type_params, fields, is_pub, kw.line, kw.col);
 	}
 
 	pub fn parse_trait_decl(var self, is_pub: bool): *AstNode {
@@ -187,7 +187,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
-		return self.b().trait_decl(name_tok.text, type_params, bases, methods, is_pub, kw.line, kw.col);
+		return self.trait_decl(name_tok.text, type_params, bases, methods, is_pub, kw.line, kw.col);
 	}
 
 	pub fn parse_impl_decl(var self): *AstNode {
@@ -233,7 +233,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after impl body");
-		return self.b().impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col);
+		return self.impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col);
 	}
 
 	pub fn parse_enum_decl(var self, is_pub: bool): *AstNode {
@@ -253,7 +253,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after enum members");
-		return self.b().enum_decl(name_tok.text, underlying_type, members, is_pub, kw.line, kw.col);
+		return self.enum_decl(name_tok.text, underlying_type, members, is_pub, kw.line, kw.col);
 	}
 
 	pub fn parse_const_decl(var self, is_pub: bool): *AstNode {
@@ -265,7 +265,7 @@ impl Parser {
 		val val_node = self.parse_expression(PREC_NONE);
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after const declaration");
 
-		return self.b().const_decl(name_tok.text, type_node, val_node, is_pub, kw.line, kw.col);
+		return self.const_decl(name_tok.text, type_node, val_node, is_pub, kw.line, kw.col);
 	}
 
 	pub fn parse_module_decl(var self): *AstNode {
@@ -282,7 +282,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after module declaration");
-		return self.b().module_decl(path, full_path, kw.line, kw.col);
+		return self.module_decl(path, full_path, kw.line, kw.col);
 	}
 
 	pub fn parse_use_decl(var self): *AstNode {
@@ -312,7 +312,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after use declaration");
-		return self.b().use_decl(path, full_path, symbol_name, alias, is_wildcard, kw.line, kw.col);
+		return self.use_decl(path, full_path, symbol_name, alias, is_wildcard, kw.line, kw.col);
 	}
 
 	pub fn parse_extern_block(var self): *AstNode {
@@ -328,7 +328,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after extern declarations");
-		return self.b().extern_block(abi, declarations, kw.line, kw.col);
+		return self.extern_block(abi, declarations, kw.line, kw.col);
 	}
 
 	pub fn parse_declaration(var self): *AstNode {
@@ -362,7 +362,7 @@ impl Parser {
 			declarations.add(self.parse_declaration());
 		}
 
-		return self.b().program(declarations, 1, 1);
+		return self.program(declarations, 1, 1);
 	}
 
 }
