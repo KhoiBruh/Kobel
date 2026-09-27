@@ -19,9 +19,6 @@ pub struct AstBuilder {
 	pub arena: &Arena
 }
 
-// Generic Downcast Helper: node.to<T>()
-pub fn to<T>(node: *AstNode): *T => node.data as *T;
-
 impl AstBuilder {
 	pub fn new(arena: &Arena): AstBuilder => Self(arena);
 

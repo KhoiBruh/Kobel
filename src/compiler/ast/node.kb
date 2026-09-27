@@ -56,3 +56,7 @@ pub struct AstNode {
 	pub col: usz,
 	pub data: *u8
 }
+
+impl AstNode {
+	pub fn to<T>(val self): *T => self.data as *T;
+}

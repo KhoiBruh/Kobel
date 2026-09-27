@@ -31,7 +31,7 @@ use compiler.ast.decl.UseDecl;
 use compiler.ast.decl.StructDecl;
 use compiler.ast.decl.FnDecl;
 
-use compiler.ast.builder.to;
+use compiler.ast.node.AstNode;
 
 use compiler.parser.parser.Parser;
 use compiler.parser.expr.PREC_NONE;

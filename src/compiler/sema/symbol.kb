@@ -105,7 +105,8 @@ pub struct ImportBinding {
 pub struct GenTemplate {
 	pub name: str,
 	pub module: str,
-	pub node: *AstNode
+	pub node: *AstNode,
+	pub is_method: bool
 }
 
 // A method declared inside a `trait` block. `has_default` is true when the

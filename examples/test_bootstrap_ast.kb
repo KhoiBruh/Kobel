@@ -28,8 +28,6 @@ use compiler.ast.decl.GenericParam;
 use compiler.ast.decl.FnDecl;
 
 use compiler.ast.builder.AstBuilder;
-
-use compiler.ast.builder.to;
 use compiler.ast.decl.Program;
 
 use compiler.lexer.token.TokenType;

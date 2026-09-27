@@ -86,16 +86,16 @@ impl DeclPass {
 		when (node.kind) {
 			NodeKind.DECL_STRUCT -> {
 				val s = node.to<StructDecl>();
-				if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(self.gen_template(s.name, node));
+				if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(self.gen_template(s.name, node, false));
 			}
 			NodeKind.DECL_FN -> {
 				val f = node.to<FnDecl>();
-				if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(self.gen_template(f.name, node));
+				if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(self.gen_template(f.name, node, false));
 			}
 			NodeKind.DECL_IMPL -> {
 				val im = node.to<ImplDecl>();
 				if (im.type_params.len > 0) {
-					self.symtab.gen.impl_templates.add(self.gen_template(im.struct_name, node));
+					self.symtab.gen.impl_templates.add(self.gen_template(im.struct_name, node, true));
 				} else {
 					for (m in im.methods) {
 						val f = m.to<FnDecl>() as &FnDecl;
@@ -110,7 +110,7 @@ impl DeclPass {
 									f.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val);
 								}
 							}
-							self.symtab.gen.fn_templates.add(self.gen_template(f.name, m));
+							self.symtab.gen.fn_templates.add(self.gen_template(f.name, m, true));
 						}
 					}
 				}
@@ -119,9 +119,9 @@ impl DeclPass {
 		}
 	}
 
-	pub fn gen_template(var self, name: str, node: *AstNode): *GenTemplate {
+	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool): *GenTemplate {
 		val t = arena_alloc<GenTemplate>(&self.arena);
-		*t = GenTemplate(name, self.current_module, node);
+		*t = GenTemplate(name, self.current_module, node, is_method);
 		return t;
 	}
 
@@ -144,18 +144,40 @@ impl DeclPass {
 
 	pub fn find_fn_template(val self, name: str): *GenTemplate {
 		for (t in self.symtab.gen.fn_templates) {
-			if (t.name == name && t.module == self.current_module) return t;
+			if (!t.is_method && t.name == name && t.module == self.current_module) return t;
 		}
 		for (imp in self.symtab.imports) {
 			if (imp.owner_module == self.current_module) {
 				if (imp.is_wildcard || imp.local_name == name) {
 					for (t in self.symtab.gen.fn_templates) {
-						if (t.name == name && t.module == imp.module_name) return t;
+						if (!t.is_method && t.name == name && t.module == imp.module_name) return t;
 					}
 				}
 			}
 		}
-		return gen_find(self.symtab.gen.fn_templates, name);
+		for (t in self.symtab.gen.fn_templates) {
+			if (!t.is_method && t.name == name) return t;
+		}
+		return null;
+	}
+
+	pub fn find_method_template(val self, name: str): *GenTemplate {
+		for (t in self.symtab.gen.fn_templates) {
+			if (t.is_method && t.name == name && t.module == self.current_module) return t;
+		}
+		for (imp in self.symtab.imports) {
+			if (imp.owner_module == self.current_module) {
+				if (imp.is_wildcard || imp.local_name == name) {
+					for (t in self.symtab.gen.fn_templates) {
+						if (t.is_method && t.name == name && t.module == imp.module_name) return t;
+					}
+				}
+			}
+		}
+		for (t in self.symtab.gen.fn_templates) {
+			if (t.is_method && t.name == name) return t;
+		}
+		return null;
 	}
 
 	pub fn find_struct_template(val self, name: str): *GenTemplate {
@@ -461,7 +483,7 @@ impl DeclPass {
 
 				if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
 					val mem = c.callee.to<MemberExpr>();
-					val ft = self.find_fn_template(mem.member);
+					val ft = self.find_method_template(mem.member);
 					if (ft != null) {
 						val mem_obj = self.clone_expr(mem.object, subst);
 						var new_type_args = List<*AstNode>();
@@ -734,7 +756,7 @@ impl DeclPass {
 				val c = node.to<CallExpr>() as &CallExpr;
 				if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
 					val mem = c.callee.to<MemberExpr>();
-					val ft = self.find_fn_template(mem.member);
+					val ft = self.find_method_template(mem.member);
 					if (ft != null) {
 						val mem_obj = mem.object;
 						c.callee = self.identifier(mem.member, node.line, node.col);

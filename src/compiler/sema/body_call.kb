@@ -13,8 +13,6 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
-use compiler.ast.builder.to;
-
 use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
