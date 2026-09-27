@@ -125,7 +125,7 @@ impl DeclPass {
 		return t;
 	}
 
-	pub fn template_in_module(self, module: str, name: str): bool {
+	pub fn template_in_module(val self, module: str, name: str): bool {
 		for (t in self.symtab.gen.struct_templates) {
 			if (t.name == name && t.module == module) return true;
 		}
@@ -135,14 +135,14 @@ impl DeclPass {
 		return false;
 	}
 
-	pub fn find_inst(self, name: str): *Symbol {
+	pub fn find_inst(val self, name: str): *Symbol {
 		for (s in self.symtab.gen.inst_syms) {
 			if (s.name == name) return s;
 		}
 		return null;
 	}
 
-	pub fn find_fn_template(self, name: str): *GenTemplate {
+	pub fn find_fn_template(val self, name: str): *GenTemplate {
 		for (t in self.symtab.gen.fn_templates) {
 			if (t.name == name && t.module == self.current_module) return t;
 		}
@@ -158,7 +158,7 @@ impl DeclPass {
 		return gen_find(self.symtab.gen.fn_templates, name);
 	}
 
-	pub fn find_struct_template(self, name: str): *GenTemplate {
+	pub fn find_struct_template(val self, name: str): *GenTemplate {
 		for (t in self.symtab.gen.struct_templates) {
 			if (t.name == name && t.module == self.current_module) return t;
 		}
@@ -174,7 +174,7 @@ impl DeclPass {
 		return gen_find(self.symtab.gen.struct_templates, name);
 	}
 
-	pub fn type_token(self, ty: *Type): str => when (ty.kind) {
+	pub fn type_token(val self, ty: *Type): str => when (ty.kind) {
 		DataType.NONE -> "none";
 		DataType.BOOL -> "bool";
 		DataType.CHAR -> "char";
@@ -200,7 +200,7 @@ impl DeclPass {
 		else -> "x";
 	};
 
-	pub fn type_token_list(self, args: List<*AstNode>): str {
+	pub fn type_token_list(val self, args: List<*AstNode>): str {
 		var res = "";
 		for (i in 0..<args.len) {
 			res = if (i > 0) "${res}_${self.ast_type_token(args[i])}"
@@ -211,7 +211,7 @@ impl DeclPass {
 
 	// Name token for a type argument, based on the mangled C name so that
 	// same-named structs from different modules never share an instantiation.
-	pub fn ast_type_token(self, node: *AstNode): str {
+	pub fn ast_type_token(val self, node: *AstNode): str {
 		if (node == null) return "x";
 		return when (node.kind) {
 			NodeKind.TYPE_NAMED -> {
@@ -228,7 +228,7 @@ impl DeclPass {
 	}
 
 	// C-level size of a type node (used to lower `T.size()`).
-	pub fn ast_type_size(self, node: *AstNode): usz {
+	pub fn ast_type_size(val self, node: *AstNode): usz {
 		if (node == null) return 8;
 		return when (node.kind) {
 			NodeKind.TYPE_POINTER -> 8;

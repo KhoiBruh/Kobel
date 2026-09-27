@@ -318,14 +318,14 @@ impl Type {
 
 	pub fn is_integer(val self) => self.is_signed_integer() || self.is_unsigned_integer();
 
-	pub fn is_float(self) => when (self.kind) {
+	pub fn is_float(val self) => when (self.kind) {
 		DataType.F32, DataType.F64 -> true;
 		else -> false;
 	};
 
-	pub fn is_char(self) => self.kind == DataType.CHAR;
+	pub fn is_char(val self) => self.kind == DataType.CHAR;
 
-	pub fn is_enum(self): bool {
+	pub fn is_enum(val self): bool {
 		if (self.data == null) return false;
 		return when (self.kind) {
 			DataType.I8, DataType.I16, DataType.I32,
@@ -336,7 +336,7 @@ impl Type {
 		};
 	}
 
-	pub fn is_numeric(self) => self.is_integer() || self.is_float();
+	pub fn is_numeric(val self) => self.is_integer() || self.is_float();
 
 	pub fn equals(val self, b: *Type): bool {
 		if (self == b) return true;

@@ -214,7 +214,15 @@ impl SymbolTable {
 			List<*AstNode>()
 		);
 
-		return Self(root_scope, arena, "", List<*ModuleScope>(), List<ImportBinding>(), List<*EnumInfo>(), List<*TraitInfo>(), List<*PrimMethod>(), gen);
+		return Self(
+			root_scope, arena, "",
+			List<*ModuleScope>(),
+			List<ImportBinding>(),
+			List<*EnumInfo>(),
+			List<*TraitInfo>(),
+			List<*PrimMethod>(),
+			gen
+		);
 	}
 
 	pub fn register_prim_method(var self, pm: *PrimMethod) {
@@ -222,7 +230,7 @@ impl SymbolTable {
 	}
 
 	// Method of a primitive type by its source name (used by `x.m()` resolution).
-	pub fn find_prim_method(self, kind: DataType, name: str): *MethodInfo {
+	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo {
 		for (pm in self.prim_methods) {
 			if (pm.kind == kind && pm.info.name == name) return pm.info;
 		}
@@ -231,15 +239,19 @@ impl SymbolTable {
 
 	// Overload-aware variant of `find_prim_method` (parameter count includes the
 	// receiver). Null when no overload matches, so the caller can fall back.
-	pub fn find_prim_method_arity(self, kind: DataType, name: str, argc: usz): *MethodInfo {
+	pub fn find_prim_method_arity(val self, kind: DataType, name: str, argc: usz): *MethodInfo {
 		for (pm in self.prim_methods) {
-			if (pm.kind == kind && pm.info.name == name && pm.info.fn_type.as_fn().param_types.len == argc) return pm.info;
+			if (
+				pm.kind == kind &&
+				pm.info.name == name &&
+				pm.info.fn_type.as_fn().param_types.len == argc
+			) return pm.info;
 		}
 		return null;
 	}
 
 	// Primitive method by its mangled C name (used when re-visiting an impl).
-	pub fn find_prim_method_c(self, c_name: str): *MethodInfo {
+	pub fn find_prim_method_c(val self, c_name: str): *MethodInfo {
 		for (pm in self.prim_methods) {
 			if (pm.info.c_name == c_name) return pm.info;
 		}
@@ -250,7 +262,7 @@ impl SymbolTable {
 		self.traits.add(info);
 	}
 
-	pub fn find_trait(self, name: str): *TraitInfo {
+	pub fn find_trait(val self, name: str): *TraitInfo {
 		for (t in self.traits) {
 			if (t.name == name) return t;
 		}
@@ -261,7 +273,7 @@ impl SymbolTable {
 		self.enums.add(info);
 	}
 
-	pub fn find_enum_info(self, name: str): *EnumInfo {
+	pub fn find_enum_info(val self, name: str): *EnumInfo {
 		for (e in self.enums) {
 			if (e.name == name || e.c_name == name) return e;
 		}
@@ -355,7 +367,7 @@ impl SymbolTable {
 		self.current_module = name;
 	}
 
-	pub fn module_exists(self, name: str): bool {
+	pub fn module_exists(val self, name: str): bool {
 		for (sc in self.modules) {
 			if (sc.name == name) return true;
 		}
@@ -395,7 +407,7 @@ impl SymbolTable {
 		self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
 	}
 
-	pub fn lookup_in_module(self, module_name: str, name: str): *Symbol {
+	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol {
 		for (sc in self.modules) {
 			if (sc.name == module_name) {
 				for (sym in sc) {
@@ -408,7 +420,7 @@ impl SymbolTable {
 	}
 
 	// Look up by generated C name (used when re-resolving a mangled name).
-	pub fn lookup_c_name(self, c_name: str): *Symbol {
+	pub fn lookup_c_name(val self, c_name: str): *Symbol {
 		if (c_name.len == 0) return null;
 		for (sc in self.modules) {
 			for (sym in sc) {
