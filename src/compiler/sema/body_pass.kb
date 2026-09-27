@@ -102,7 +102,7 @@ impl BodyPass {
 	pub fn resolve_type(var self, node: *AstNode): *Type {
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
-			self.errors, false, self.current_self_type, AstBuilder(null)
+			self.errors, false, self.current_self_type
 		);
 
 		val ty = decl_p.resolve_ast_type(node);
