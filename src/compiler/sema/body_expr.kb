@@ -149,7 +149,7 @@ impl BodyPass {
 					var cat_args = List<*AstNode>();
 					cat_args.add(bin.left);
 					cat_args.add(bin.right);
-					val cat_call = self.b().call(self.b().identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+					val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
 					val cat_n = node as &AstNode;
 					cat_n.kind = NodeKind.EXPR_CALL;
 					cat_n.data = cat_call.data;
@@ -235,7 +235,7 @@ impl BodyPass {
 					return alloc_primitive(&self.arena, type_none());
 				}
 				// Reuse the node as a plain integer literal for the backend.
-				val lit = self.b().literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
+				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
 				val n = node as &AstNode;
 				n.kind = NodeKind.EXPR_LITERAL;
 				n.data = lit.data;
@@ -249,7 +249,7 @@ impl BodyPass {
 		// by the backend's name-based pointer tracking, so dereference them
 		// here: `p.field` becomes `(*p).field`.
 		if (obj_ty.kind == DataType.POINTER && mem.object.kind != NodeKind.EXPR_IDENTIFIER) {
-			mem.object = self.b().unary(TokenType.STAR, mem.object, node.line, node.col);
+			mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
 		}
 
 		// Automatic pointer unwrapping: p.x when p is *Point or &Point
@@ -274,7 +274,7 @@ impl BodyPass {
 				// arbitrary expression has type `str`.
 				var len_args = List<*AstNode>();
 				len_args.add(mem.object);
-				val len_call = self.b().call(self.b().identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
+				val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
 				val len_n = node as &AstNode;
 				len_n.kind = NodeKind.EXPR_CALL;
 				len_n.data = len_call.data;
@@ -303,7 +303,7 @@ impl BodyPass {
 			val arr = obj_ty.as_array();
 			if (mem.member == "len" || mem.member == "size") {
 				// The size of a fixed-size array is known at compile time.
-				val lit = self.b().literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
+				val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
 				val ln = node as &AstNode;
 				ln.kind = lit.kind;
 				ln.data = lit.data;
@@ -372,10 +372,10 @@ impl BodyPass {
 				if (!param_ty.can_assign(index_ty)) self.report_error(node, "Argument type mismatch in index access");
 
 				var new_args = List<*AstNode>();
-				new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+				new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
 				new_args.add(idx.index);
 
-				val call_node = self.b().call(self.b().identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 				val n = node as &AstNode;
 				n.kind = NodeKind.EXPR_CALL;
 				n.data = call_node.data;
@@ -416,8 +416,8 @@ impl BodyPass {
 							TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
 							else -> TokenType.PLUS
 						};
-						val get_expr = self.b().index(idx.target, idx.index, node.line, node.col);
-						val_expr = self.b().binary(bin_op, get_expr, asgn.value, node.line, node.col);
+						val get_expr = self.index(idx.target, idx.index, node.line, node.col);
+						val_expr = self.binary(bin_op, get_expr, asgn.value, node.line, node.col);
 					}
 
 					if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
@@ -429,11 +429,11 @@ impl BodyPass {
 					if (!val_param_ty.can_assign(val_ty)) self.report_error(node, "Value type mismatch in index assignment");
 
 					var new_args = List<*AstNode>();
-					new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+					new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
 					new_args.add(idx.index);
 					new_args.add(val_expr);
 
-					val call_node = self.b().call(self.b().identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 					val n = node as &AstNode;
 					n.kind = NodeKind.EXPR_CALL;
 					n.data = call_node.data;
@@ -451,7 +451,7 @@ impl BodyPass {
 			var cat_args = List<*AstNode>();
 			cat_args.add(asgn.target);
 			cat_args.add(asgn.value);
-			val cat_call = self.b().call(self.b().identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
 			asgn.value = cat_call;
 			asgn.op = TokenType.EQUAL;
 			return target_ty;
@@ -494,10 +494,10 @@ impl BodyPass {
 					val val_param_ty = fn_info.param_types[2];
 
 					val bin_op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
-					val one_node = if (val_param_ty.is_float()) self.b().literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-					               else self.b().literal(LiteralKind.INT, "1", node.line, node.col);
-					val get_expr = self.b().index(idx.target, idx.index, node.line, node.col);
-					val val_expr = self.b().binary(bin_op, get_expr, one_node, node.line, node.col);
+					val one_node = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
+					               else self.literal(LiteralKind.INT, "1", node.line, node.col);
+					val get_expr = self.index(idx.target, idx.index, node.line, node.col);
+					val val_expr = self.binary(bin_op, get_expr, one_node, node.line, node.col);
 
 					if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
 					val idx_ty = self.check_expr(idx.index);
@@ -507,11 +507,11 @@ impl BodyPass {
 					if (!val_param_ty.can_assign(v_ty)) self.report_error(node, "Value type mismatch in index update");
 
 					var new_args = List<*AstNode>();
-					new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+					new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
 					new_args.add(idx.index);
 					new_args.add(val_expr);
 
-					val call_node = self.b().call(self.b().identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 					val n = node as &AstNode;
 					n.kind = NodeKind.EXPR_CALL;
 					n.data = call_node.data;
@@ -632,7 +632,7 @@ impl BodyPass {
 			if (acc == null) acc = piece;
 			else acc = interp_concat(&self.arena, acc, piece, node.line, node.col);
 		}
-		if (acc == null) acc = self.b().literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 
 		val in_n = node as &AstNode;
 		in_n.kind = acc.kind;
@@ -660,7 +660,7 @@ impl BodyPass {
 			val mi = st_info.find_method("to_str");
 			if (mi != null) {
 				var arg = expr;
-				if (!is_ptr) arg = self.b().unary(TokenType.AMPERSAND, expr, node.line, node.col);
+				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, node.line, node.col);
 				return interp_call(&self.arena, mi.c_name, arg, node.line, node.col);
 			}
 		}

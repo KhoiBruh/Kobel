@@ -44,7 +44,6 @@ pub struct BodyPass {
 	pub current_self_type: *Type,
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool,
-	pub builder: AstBuilder,
 	pub when_depth: usz
 }
 
@@ -54,19 +53,40 @@ impl BodyPass {
 		var arena = Arena(65536);
 		var decl_p = DeclPass();
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, AstBuilder(null), 0UZ);
+		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, 0UZ);
 	}
 
 	pub fn new(symtab: SymbolTable): BodyPass {
 		var arena = Arena(65536);
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, AstBuilder(null), 0UZ);
+		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ);
 	}
 
-	pub fn b(var self): &AstBuilder {
-		self.builder.arena = &self.arena;
-		return &self.builder;
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
+		val ptr = arena_alloc<T>(&self.arena);
+		*ptr = data;
+		val node_ptr = arena_alloc<AstNode>(&self.arena);
+		*node_ptr = AstNode(kind, line, col, ptr as *u8);
+		return node_ptr;
 	}
+
+	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
+		=> self.make<LiteralExpr>(NodeKind.EXPR_LITERAL, LiteralExpr(lk, raw), line, col);
+
+	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
+		=> self.make<IdentifierExpr>(NodeKind.EXPR_IDENTIFIER, IdentifierExpr(name), line, col);
+
+	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
+		=> self.make<BinaryExpr>(NodeKind.EXPR_BINARY, BinaryExpr(left, op, right), line, col);
+
+	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
+		=> self.make<UnaryExpr>(NodeKind.EXPR_UNARY, UnaryExpr(op, operand), line, col);
+
+	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> self.make<CallExpr>(NodeKind.EXPR_CALL, CallExpr(callee, args, type_args), line, col);
+
+	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
+		=> self.make<IndexExpr>(NodeKind.EXPR_INDEX, IndexExpr(target, index), line, col);
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
 		// Prefix the module name (if any) so we know which module an error is in for multi-module builds
