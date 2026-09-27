@@ -75,7 +75,7 @@ impl DeclPass {
 		if (s.type_params.len > 0) return;
 		val c_name = self.c_name_for(s.name);
 		val s_type = alloc_struct_type(&self.arena, s.name, List<StructField>());
-		as_struct_type_mut(s_type).c_name = c_name;
+		s_type.as_struct_mut().c_name = c_name;
 		val ok = self.symtab.define_global(
 			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)
 		);
@@ -87,11 +87,11 @@ impl DeclPass {
 		var has_private = false;
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			val s_info = as_struct_type_mut(s_type);
+			val s_info = s_type.as_struct_mut();
 			s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub));
 			if (!f.is_pub) has_private = true;
 		}
-		val st_info = as_struct_type_mut(s_type);
+		val st_info = s_type.as_struct_mut();
 		st_info.module = self.current_module;
 		st_info.has_private = has_private;
 		layout_struct(s_type);

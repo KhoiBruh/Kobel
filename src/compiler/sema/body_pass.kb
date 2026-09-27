@@ -13,8 +13,6 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
 
-use compiler.sema.types.as_struct_type as sem_struct;
-use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
 use compiler.sema.desugar_for.*;
@@ -121,7 +119,7 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 
 pub fn is_list_type(ty: *Type): bool {
 	if (ty == null || ty.kind != DataType.STRUCT) return false;
-	val s = sem_struct(ty);
+	val s = ty.as_struct();
 	if (s.module != "std.collections.list") return false;
 	return str_starts_with(s.name, "std__collections__list__List") || str_starts_with(s.c_name, "std__collections__list__List");
 }
@@ -133,7 +131,7 @@ pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 	when (node.kind) {
 		NodeKind.EXPR_ARRAY_LITERAL -> {
 			val al = node.to<ArrayLiteralExpr>() as &ArrayLiteralExpr;
-			val s = sem_struct(list_ty);
+			val s = list_ty.as_struct();
 			al.list_struct_name = s.c_name;
 
 			if (s.fields.is_empty()) return;
@@ -148,7 +146,7 @@ pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 					self.coerce_to_list(el, elem_ty);
 				}
 				val el_ty = self.check_expr(el);
-				if (!can_assign(elem_ty, el_ty)) {
+				if (!elem_ty.can_assign(el_ty)) {
 					self.report_error(el, "Element type mismatch in List literal");
 				}
 			}
@@ -201,7 +199,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			// `Self` names the type being implemented. Renaming it to the C
 			// name lets `Self(...)` build a value directly (no `new` factory).
 			if (id.name == "Self" && self.current_self_type != null) {
-				id.name = sem_struct(self.current_self_type).c_name;
+				id.name = self.current_self_type.as_struct().c_name;
 				return self.current_self_type;
 			}
 
@@ -222,27 +220,24 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			val bin = node.to<BinaryExpr>();
 			if (bin.op == TokenType.QUESTION_COLON) {
 				val lt = self.check_expr(bin.left);
-				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR) {
+				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR)
 					self.report_error(bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
-				}
+
 				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 					bin.right.kind == NodeKind.STMT_BREAK ||
 					bin.right.kind == NodeKind.STMT_CONTINUE;
 
-				if (is_jump) {
-					self.check_statement(bin.right);
-				} else {
+				if (is_jump) self.check_statement(bin.right);
+				else {
 					val rt = self.check_expr(bin.right);
-					if (!can_assign(lt, rt)) {
+					if (!lt.can_assign(rt))
 						self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
-					}
 				}
 
 				if (lt.kind == DataType.POINTER) {
 					val pt = lt.as_pointer();
-					if (pt.is_nullable) {
+					if (pt.is_nullable)
 						return alloc_pointer_type(&self.arena, pt.pointee, pt.is_mut);
-					}
 				}
 				return lt;
 			}
@@ -281,7 +276,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 						eq_n.data = wrapped.data;
 						return alloc_primitive(&self.arena, type_bool());
 					}
-					if (!can_assign(lt, rt) && !can_assign(rt, lt)) self.report_error(node, "Cannot compare different types");
+					if (!lt.can_assign(rt) && !rt.can_assign(lt)) self.report_error(node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
 				// 3. Ordering comparison (<, <=, >, >=)
@@ -393,7 +388,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 					obj_ty = obj_ty.as_pointer().pointee;
 				}
 				if (obj_ty.kind == DataType.STRUCT) {
-					val s_info = sem_struct(obj_ty);
+					val s_info = obj_ty.as_struct();
 					// Pick the overload whose arity matches; fall back to a name
 					// lookup so an arity error still reads as before.
 					if (s_info.count_method_arity(mem.member, call.args.len + 1) > 1) {
@@ -402,7 +397,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 					var mi = s_info.find_method_arity(mem.member, call.args.len + 1);
 					if (mi == null) mi = s_info.find_method(mem.member);
 					if (mi != null) {
-						val fn_info = sem_fn(mi.fn_type);
+						val fn_info = mi.fn_type.as_fn();
 						if (call.args.len + 1 != fn_info.param_types.len) {
 							self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 						} else {
@@ -411,7 +406,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 								val arg_n = call.args[i];
 								if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
 								val arg_ty = self.check_expr(arg_n);
-								if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
+								if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
 							}
 						}
 
@@ -430,7 +425,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, call.args.len + 1);
 				if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
 				if (pmi != null) {
-					val fn_info = sem_fn(pmi.fn_type);
+					val fn_info = pmi.fn_type.as_fn();
 					if (call.args.len + 1 != fn_info.param_types.len) {
 						self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 					} else {
@@ -439,7 +434,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 							val arg_n = call.args[i];
 							if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
 							val arg_ty = self.check_expr(arg_n);
-							if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
+							if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
 						}
 					}
 
@@ -463,7 +458,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 
 			// 1. Function call
 			if (callee_ty.kind == DataType.FN) {
-				val fn_info = sem_fn(callee_ty);
+				val fn_info = callee_ty.as_fn();
 				if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 				else {
 					for (i in 0..<call.args.len) {
@@ -471,10 +466,10 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 						val arg_n = call.args[i];
 						if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
 						val arg_ty = self.check_expr(arg_n);
-						if (!can_assign(param_ty, arg_ty)) {
+						if (!param_ty.can_assign(arg_ty)) {
 							if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
 								val p_pointee = param_ty.as_pointer().pointee;
-								if (type_equals(p_pointee, arg_ty)) {
+								if (p_pointee.equals(arg_ty)) {
 									call.args[i] = self.b().unary(TokenType.AMPERSAND, arg_n, arg_n.line, arg_n.col);
 									continue;
 								}
@@ -488,7 +483,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 
 			// 2. Struct construction: Point(1, 2)
 			if (callee_ty.kind == DataType.STRUCT) {
-				val s_info = sem_struct(callee_ty);
+				val s_info = callee_ty.as_struct();
 
 				// Kotlin-style construction: `Type(args)` calls the `new`
 				// overload of matching arity when one exists; building from
@@ -499,13 +494,13 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 					}
 					val nm = s_info.find_method_arity("new", call.args.len);
 					if (nm != null) {
-						val n_info = sem_fn(nm.fn_type);
+						val n_info = nm.fn_type.as_fn();
 						for (i in 0..<call.args.len) {
 							val param_ty = n_info.param_types[i];
 							val arg_n = call.args[i];
 							if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
 							val arg_ty = self.check_expr(arg_n);
-							if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in call to 'new'");
+							if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in call to 'new'");
 						}
 						call.callee = self.b().identifier(nm.c_name, node.line, node.col);
 						return n_info.return_type;
@@ -526,7 +521,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 						val arg_n = call.args[i];
 						if (is_list_type(f_ty)) self.coerce_to_list(arg_n, f_ty);
 						val arg_ty = self.check_expr(arg_n);
-						if (!can_assign(f_ty, arg_ty)) self.report_error(node, "Field type mismatch in struct constructor");
+						if (!f_ty.can_assign(arg_ty)) self.report_error(node, "Field type mismatch in struct constructor");
 					}
 				}
 				return callee_ty;
@@ -637,7 +632,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				return alloc_primitive(&self.arena, type_none());
 			}
 
-			val s_info = sem_struct(obj_ty);
+			val s_info = obj_ty.as_struct();
 			for (f in s_info.fields) {
 				if (f.name != mem.member) continue;
 				// A non-pub field is only usable where the type is declared.
@@ -675,14 +670,14 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 
 			// 4. Custom container struct with get(index) method (List<T>, etc.)
 			if (target_ty.kind == DataType.STRUCT) {
-				val s_info = sem_struct(target_ty);
+				val s_info = target_ty.as_struct();
 				var mi = s_info.find_method_arity("get", 2);
 				if (mi == null) mi = s_info.find_method("get");
 				if (mi != null) {
-					val fn_info = sem_fn(mi.fn_type);
+					val fn_info = mi.fn_type.as_fn();
 					val param_ty = fn_info.param_types[1];
 					if (is_list_type(param_ty)) self.coerce_to_list(idx.index, param_ty);
-					if (!can_assign(param_ty, index_ty)) self.report_error(node, "Argument type mismatch in index access");
+					if (!param_ty.can_assign(index_ty)) self.report_error(node, "Argument type mismatch in index access");
 
 					var new_args = List<*AstNode>();
 					new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -710,11 +705,11 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				val idx = target_expr.to<IndexExpr>();
 				val target_raw_ty = self.check_expr(idx.target);
 				if (target_raw_ty.kind == DataType.STRUCT) {
-					val s_info = sem_struct(target_raw_ty);
+					val s_info = target_raw_ty.as_struct();
 					var mi = s_info.find_method_arity("set", 3);
 					if (mi == null) mi = s_info.find_method("set");
 					if (mi != null) {
-						val fn_info = sem_fn(mi.fn_type);
+						val fn_info = mi.fn_type.as_fn();
 						val idx_param_ty = fn_info.param_types[1];
 						val val_param_ty = fn_info.param_types[2];
 
@@ -734,11 +729,11 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 
 						if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
 						val idx_ty = self.check_expr(idx.index);
-						if (!can_assign(idx_param_ty, idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
+						if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
 
 						if (is_list_type(val_param_ty)) self.coerce_to_list(val_expr, val_param_ty);
 						val val_ty = self.check_expr(val_expr);
-						if (!can_assign(val_param_ty, val_ty)) self.report_error(node, "Value type mismatch in index assignment");
+						if (!val_param_ty.can_assign(val_ty)) self.report_error(node, "Value type mismatch in index assignment");
 
 						var new_args = List<*AstNode>();
 						new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -775,7 +770,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				}
 			}
 
-			if (!can_assign(target_ty, val_ty)) self.report_error(node, "Type mismatch in assignment");
+			if (!target_ty.can_assign(val_ty)) self.report_error(node, "Type mismatch in assignment");
 			return target_ty;
 		}
 		NodeKind.EXPR_UPDATE -> {
@@ -796,11 +791,11 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				val idx = target_expr.to<IndexExpr>();
 				val target_raw_ty = self.check_expr(idx.target);
 				if (target_raw_ty.kind == DataType.STRUCT) {
-					val s_info = sem_struct(target_raw_ty);
+					val s_info = target_raw_ty.as_struct();
 					var mi = s_info.find_method_arity("set", 3);
 					if (mi == null) mi = s_info.find_method("set");
 					if (mi != null) {
-						val fn_info = sem_fn(mi.fn_type);
+						val fn_info = mi.fn_type.as_fn();
 						val idx_param_ty = fn_info.param_types[1];
 						val val_param_ty = fn_info.param_types[2];
 
@@ -812,10 +807,10 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 
 						if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
 						val idx_ty = self.check_expr(idx.index);
-						if (!can_assign(idx_param_ty, idx_ty)) self.report_error(node, "Index type mismatch in index update");
+						if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index update");
 
 						val v_ty = self.check_expr(val_expr);
-						if (!can_assign(val_param_ty, v_ty)) self.report_error(node, "Value type mismatch in index update");
+						if (!val_param_ty.can_assign(v_ty)) self.report_error(node, "Value type mismatch in index update");
 
 						var new_args = List<*AstNode>();
 						new_args.add(self.b().unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
@@ -846,7 +841,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If expression condition must be bool");
 			val then_ty = self.check_expr(if_e.then_branch);
 			val else_ty = self.check_expr(if_e.else_branch);
-			if (!can_assign(then_ty, else_ty)) self.report_error(node, "If expression branches have incompatible types");
+			if (!then_ty.can_assign(else_ty)) self.report_error(node, "If expression branches have incompatible types");
 			return then_ty;
 		}
 		NodeKind.EXPR_WHEN -> {
@@ -864,7 +859,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				}
 				val body_ty = self.check_when_arm_body(arm.body);
 				if (result_ty == null) result_ty = body_ty;
-				else if (!can_assign(result_ty, body_ty)) {
+				else if (!result_ty.can_assign(body_ty)) {
 					self.report_error(arm.body, "When arm type does not match previous arms");
 				}
 			}
@@ -895,7 +890,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 			val elem_ty = self.check_expr(al.elements.first());
 			for (i in 1..<al.elements.len) {
 				val t = self.check_expr(al.elements[i]);
-				if (!can_assign(elem_ty, t)) self.report_error(al.elements[i], "Array literal element type mismatch");
+				if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
 			}
 			return alloc_array_type(&self.arena, elem_ty, al.elements.len);
 		}
@@ -955,7 +950,7 @@ pub fn check_statement(var self, node: *AstNode) {
 					has_init = true;
 					if (is_list_type(var_ty)) self.coerce_to_list(vd.initializer, var_ty);
 					init_ty = self.check_expr(vd.initializer);
-					if (!can_assign(var_ty, init_ty)) self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
+					if (!var_ty.can_assign(init_ty)) self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
 				}
 			} else {
 				if (vd.initializer != null) {
@@ -1014,7 +1009,7 @@ pub fn check_statement(var self, node: *AstNode) {
 
 				val val_ty = self.check_expr(ret.value);
 
-				if (!can_assign(self.current_fn_return_type, val_ty))
+				if (!self.current_fn_return_type.can_assign(val_ty))
 					self.report_error(node, "Return value type does not match function return type");
 			} else if (self.current_fn_return_type.kind != DataType.NONE)
 				self.report_error(node, "Non-none function must return a value");
@@ -1085,7 +1080,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 			cur_ty = cur_ty.as_pointer().pointee;
 		}
 		if (cur_ty.kind == DataType.STRUCT) {
-			val st_info = sem_struct(cur_ty);
+			val st_info = cur_ty.as_struct();
 			val mi = st_info.find_method("to_str");
 			if (mi != null) {
 				var arg = expr;
@@ -1133,7 +1128,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 			if (obj.kind == DataType.POINTER) obj = obj.as_pointer().pointee;
 			if (obj.kind != DataType.STRUCT) yield null;
 
-			val s_mem = sem_struct(obj);
+			val s_mem = obj.as_struct();
 			for (f in s_mem.fields) {
 				if (f.name == mem.member) yield f.type_ptr;
 			}
@@ -1152,7 +1147,7 @@ pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 		if (cur == null || cur.kind != DataType.STRUCT) return false;
 		val t = self.symtab.find_trait("Iterable");
 		if (t == null) return false;
-		return t.has_impl(sem_struct(cur).name);
+		return t.has_impl(cur.as_struct().name);
 	}
 
 }

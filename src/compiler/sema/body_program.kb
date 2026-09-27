@@ -18,8 +18,7 @@ use compiler.ast.builder.to;
 use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
-use compiler.sema.types.as_fn_type as sem_fn;
-use compiler.sema.types.as_struct_type as sem_struct;
+
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.DeclPass;
 use compiler.sema.decl_collect.*;
@@ -42,7 +41,7 @@ impl BodyPass {
 	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
 		val f = fn_node.to<FnDecl>();
 
-		val fn_info = sem_fn(fn_type);
+		val fn_info = fn_type.as_fn();
 		self.current_fn_return_type = fn_info.return_type;
 
 		self.symtab.enter_scope(true);
@@ -75,10 +74,10 @@ impl BodyPass {
 
 					val body_ty = self.check_expr(es.expr);
 					if (f.return_type == null) {
-						val fn_info_mut = as_fn_type_mut(fn_type);
+						val fn_info_mut = fn_type.as_fn_mut();
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;
-					} else if (!can_assign(self.current_fn_return_type, body_ty)) {
+					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}
 				}
@@ -105,7 +104,7 @@ impl BodyPass {
 
 		val st_sym = self.symtab.lookup(im.struct_name);
 		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
-		val st_info = sem_struct(st_sym.type_ptr);
+		val st_info = st_sym.type_ptr.as_struct();
 
 		// Make `Self` resolve to this struct inside every method body.
 		self.current_self_type = st_sym.type_ptr;

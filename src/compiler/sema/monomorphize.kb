@@ -16,12 +16,8 @@ use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.alloc_struct_type;
 use compiler.sema.types.alloc_fn_type;
-use compiler.sema.types.as_struct_type_mut;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
-
-use compiler.sema.types.as_struct_type as sem_struct;
-use compiler.sema.types.as_fn_type as sem_fn;
 
 use compiler.sema.decl_pass.*;
 use compiler.ast.decl.StructField as AstStructField;
@@ -200,7 +196,7 @@ impl DeclPass {
 			val at = ty.as_array();
 			yield "arr${at.length}_${self.type_token(at.elem)}";
 		}
-		DataType.STRUCT -> sem_struct(ty).name;
+		DataType.STRUCT -> ty.as_struct().name;
 		else -> "x";
 	};
 
@@ -354,10 +350,10 @@ impl DeclPass {
 		var has_private = false;
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			as_struct_type_mut(s_type).fields.add(StructField(f.name, f_type, 0, f.is_pub));
+			s_type.as_struct_mut().fields.add(StructField(f.name, f_type, 0, f.is_pub));
 			if (!f.is_pub) has_private = true;
 		}
-		val st_info = as_struct_type_mut(s_type);
+		val st_info = s_type.as_struct_mut();
 		// A monomorphized instance belongs to the module that declared its template.
 		st_info.module = module;
 		st_info.has_private = has_private;
@@ -394,7 +390,7 @@ impl DeclPass {
 						var args = List<*AstNode>();
 						for (ta in nt.type_args) args.add(self.clone_type(ta, subst));
 						val cty = self.instantiate_struct(tmpl, args);
-						yield self.b().named_type(sem_struct(cty).name, List<*AstNode>(), node.line, node.col);
+						yield self.b().named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
 					}
 				}
 
@@ -507,7 +503,7 @@ impl DeclPass {
 						for (a in c.args) cargs2.add(self.clone_expr(a, subst));
 
 						yield self.b().call(
-							self.b().identifier(sem_struct(cty).name, node.line, node.col),
+							self.b().identifier(cty.as_struct().name, node.line, node.col),
 							cargs2, List<*AstNode>(), node.line, node.col
 						);
 					}
@@ -724,7 +720,7 @@ impl DeclPass {
 					val tmpl = self.find_struct_template(nt.name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, nt.type_args);
-						nt.name = sem_struct(cty).name;
+						nt.name = cty.as_struct().name;
 						nt.type_args = List<*AstNode>();
 						return;
 					}
@@ -759,7 +755,7 @@ impl DeclPass {
 						val st = self.find_struct_template(cid.name);
 						if (st != null) {
 							val cty = self.instantiate_struct(st, c.type_args);
-							cid.name = sem_struct(cty).name;
+							cid.name = cty.as_struct().name;
 							c.type_args = List<*AstNode>();
 						}
 					}

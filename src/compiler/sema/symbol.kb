@@ -3,7 +3,6 @@ mod compiler.sema.symbol;
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
-use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.sema.types.EnumInfo;
 use compiler.ast.node.AstNode;
 
@@ -234,7 +233,7 @@ impl SymbolTable {
 	// receiver). Null when no overload matches, so the caller can fall back.
 	pub fn find_prim_method_arity(self, kind: DataType, name: str, argc: usz): *MethodInfo {
 		for (pm in self.prim_methods) {
-			if (pm.kind == kind && pm.info.name == name && sem_fn(pm.info.fn_type).param_types.len == argc) return pm.info;
+			if (pm.kind == kind && pm.info.name == name && pm.info.fn_type.as_fn().param_types.len == argc) return pm.info;
 		}
 		return null;
 	}

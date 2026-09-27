@@ -34,14 +34,11 @@ use compiler.sema.types.alloc_nullable_pointer_type;
 use compiler.sema.types.alloc_array_type;
 use compiler.sema.types.alloc_struct_type;
 use compiler.sema.types.alloc_fn_type;
-use compiler.sema.types.as_struct_type_mut;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
 
-use compiler.sema.types.as_struct_type as sem_struct;
-use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.ast.decl.StructField as AstStructField;
 
 use util.strutil.*;
@@ -174,7 +171,7 @@ impl DeclPass {
 				val name = named.name;
 
 				if (name == "Self" && self.current_self_type != null) {
-					val sinfo = sem_struct(self.current_self_type);
+					val sinfo = self.current_self_type.as_struct();
 					if (sinfo.c_name != "") named.name = sinfo.c_name;
 					else named.name = sinfo.name;
 					yield self.current_self_type;
@@ -188,7 +185,7 @@ impl DeclPass {
 					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
-						named.name = sem_struct(cty).name;
+						named.name = cty.as_struct().name;
 						named.type_args = List<*AstNode>();
 						yield cty;
 					}
@@ -266,7 +263,7 @@ impl DeclPass {
 
 		val st_type = st_sym.type_ptr;
 		val st_c_name = st_sym.c_name;
-		val st_info = as_struct_type_mut(st_type);
+		val st_info = st_type.as_struct_mut();
 
 		self.current_self_type = st_type;
 

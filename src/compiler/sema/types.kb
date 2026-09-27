@@ -95,20 +95,10 @@ impl EnumInfo {
 	}
 }
 
-// ============================================================================
-// Downcast Helper Functions
-// ============================================================================
-
-pub fn as_struct_type(ty: *Type): *StructType => ty.as_struct();
-pub fn as_struct_type_mut(ty: *Type): &StructType => ty.as_struct_mut();
-pub fn as_fn_type(ty: *Type): *FnType => ty.as_fn();
-pub fn as_fn_type_mut(ty: *Type): &FnType => ty.as_fn_mut();
-pub fn as_enum_info(ty: *Type): *EnumInfo => ty.as_enum();
-
 // Recomputes field offsets, size and alignment of a struct type from its
 // current field list (fields are added after the type is allocated).
 pub fn layout_struct(ty: *Type) {
-	val st = as_struct_type_mut(ty);
+	val st = ty.as_struct_mut();
 	var max_align: usz = 1;
 	var off: usz = 0;
 	for (i in 0..<st.fields.len) {
@@ -139,7 +129,7 @@ impl StructType {
 
 	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo {
 		for (m in self.methods) {
-			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) return m;
+			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
 		}
 		return null;
 	}
@@ -147,7 +137,7 @@ impl StructType {
 	pub fn count_method_arity(val self, name: str, argc: usz): usz {
 		var n: usz = 0;
 		for (m in self.methods) {
-			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n++;
+			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) n++;
 		}
 		return n;
 	}
@@ -348,9 +338,96 @@ impl Type {
 
 	pub fn is_numeric(self) => self.is_integer() || self.is_float();
 
-	pub fn equals(self, other: *Type) => type_equals(self as *Type, other);
+	pub fn equals(val self, b: *Type): bool {
+		if (self == b) return true;
+		if (self.kind != b.kind) return false;
 
-	pub fn can_assign_from(self, source: *Type) => can_assign(self as *Type, source);
+		return when (self.kind) {
+			DataType.POINTER -> {
+				val p_a = self.as_pointer();
+				val p_b = b.as_pointer();
+				yield p_a.is_mut == p_b.is_mut &&
+					p_a.is_nullable == p_b.is_nullable &&
+					p_a.pointee.equals(p_b.pointee);
+			}
+			DataType.ARRAY -> {
+				val arr_a = self.as_array();
+				val arr_b = b.as_array();
+				yield arr_a.length == arr_b.length && arr_a.elem.equals(arr_b.elem);
+			}
+			DataType.STRUCT -> {
+				val s_a = self.as_struct();
+				val s_b = b.as_struct();
+				yield s_a.name == s_b.name;
+			}
+			DataType.FN -> {
+				val f_a = self.as_fn();
+				val f_b = b.as_fn();
+				if (f_a.param_types.len != f_b.param_types.len) yield false;
+				if (!f_a.return_type.equals(f_b.return_type)) yield false;
+
+				for (i in 0..<f_a.param_types.len) {
+					if (!f_a.param_types[i].equals(f_b.param_types[i])) yield false;
+				}
+				yield true;
+			}
+			else -> true;
+		};
+	}
+
+	pub fn can_assign(val self, source: *Type): bool {
+		if (self.equals(source)) return true;
+
+		// 1. Allow assignment between integer types (integer coercion / literal assignment)
+		if (self.is_integer() && source.is_integer()) return true;
+
+		// 2. Allow assignment between float types
+		if (self.is_float() && source.is_float()) return true;
+
+		// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
+		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
+			val t_ptr = self.as_pointer();
+			if (
+				t_ptr.pointee.kind == DataType.CHAR ||
+				t_ptr.pointee.kind == DataType.U8 ||
+				t_ptr.pointee.kind == DataType.NONE
+			) return true;
+		}
+
+		// 4. Allow assigning a char/u8 pointer to str
+		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
+			val s_ptr = source.as_pointer();
+			if (s_ptr.is_nullable) return false;
+			if (
+				s_ptr.pointee.kind == DataType.CHAR ||
+				s_ptr.pointee.kind == DataType.U8
+			) return true;
+		}
+
+		// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T,
+		// and allow assigning a non-nullable pointer to a nullable pointer: *T -> *T?
+		if (self.kind == DataType.POINTER && source.kind == DataType.POINTER) {
+			val t_ptr = self.as_pointer();
+			val s_ptr = source.as_pointer();
+
+			// Nullable pointer cannot be assigned to non-nullable pointer
+			if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
+
+			if (
+				(!t_ptr.is_mut || s_ptr.is_mut) &&
+				t_ptr.pointee.equals(s_ptr.pointee)
+			) return true;
+
+			// Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
+			if (
+				t_ptr.pointee.kind == DataType.U8 ||
+				t_ptr.pointee.kind == DataType.NONE ||
+				s_ptr.pointee.kind == DataType.NONE
+			) return true;
+		}
+
+		return false;
+	}
 
 }
 
@@ -376,12 +453,12 @@ impl ToStr for Type {
 		DataType.POINTER -> {
 			val ptr = self.as_pointer();
 			val q = if (ptr.is_nullable) "?" else "";
-			if (ptr.is_mut) yield "*mut ${ptr.pointee.to_str}${q}";
-			yield "*${ptr.pointee.to_str}${q}";
+			if (ptr.is_mut) yield "*mut ${ptr.pointee.to_str()}${q}";
+			yield "*${ptr.pointee.to_str()}${q}";
 		}
 		DataType.ARRAY -> {
 			val arr = self.as_array();
-			yield "[${arr.elem.to_str}]";
+			yield "[${arr.elem.to_str()}]";
 		}
 		DataType.STRUCT -> {
 			val s = self.as_struct();
@@ -391,93 +468,4 @@ impl ToStr for Type {
 		else -> "unknown";
 	};
 
-}
-
-pub fn type_equals(a: *Type, b: *Type): bool {
-	if (a == b) return true;
-	if (a.kind != b.kind) return false;
-
-	return when (a.kind) {
-		DataType.POINTER -> {
-			val p_a = a.as_pointer();
-			val p_b = b.as_pointer();
-			yield (p_a.is_mut == p_b.is_mut) && (p_a.is_nullable == p_b.is_nullable) && type_equals(p_a.pointee, p_b.pointee);
-		}
-		DataType.ARRAY -> {
-			val arr_a = a.as_array();
-			val arr_b = b.as_array();
-			yield (arr_a.length == arr_b.length) && type_equals(arr_a.elem, arr_b.elem);
-		}
-		DataType.STRUCT -> {
-			val s_a = as_struct_type(a);
-			val s_b = as_struct_type(b);
-			yield s_a.name == s_b.name;
-		}
-		DataType.FN -> {
-			val f_a = as_fn_type(a);
-			val f_b = as_fn_type(b);
-			if (f_a.param_types.len != f_b.param_types.len) yield false;
-			if (!type_equals(f_a.return_type, f_b.return_type)) yield false;
-
-			for (i in 0..<f_a.param_types.len) {
-				if (!type_equals(f_a.param_types[i], f_b.param_types[i])) yield false;
-			}
-			yield true;
-		}
-		else -> true;
-	};
-}
-
-pub fn can_assign(target: *Type, source: *Type): bool {
-	if (type_equals(target, source)) return true;
-
-	// 1. Allow assignment between integer types (integer coercion / literal assignment)
-	if (target.is_integer() && source.is_integer()) return true;
-
-	// 2. Allow assignment between float types
-	if (target.is_float() && source.is_float()) return true;
-
-	// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
-	if (source.kind == DataType.STR && target.kind == DataType.POINTER) {
-		val t_ptr = target.as_pointer();
-		if (
-			t_ptr.pointee.kind == DataType.CHAR ||
-			t_ptr.pointee.kind == DataType.U8 ||
-			t_ptr.pointee.kind == DataType.NONE
-		) return true;
-	}
-
-	// 4. Allow assigning a char/u8 pointer to str
-	if (target.kind == DataType.STR && source.kind == DataType.POINTER) {
-		val s_ptr = source.as_pointer();
-		if (s_ptr.is_nullable) return false;
-		if (
-			s_ptr.pointee.kind == DataType.CHAR ||
-			s_ptr.pointee.kind == DataType.U8
-		) return true;
-	}
-
-	// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T,
-	// and allow assigning a non-nullable pointer to a nullable pointer: *T -> *T?
-	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
-		val t_ptr = target.as_pointer();
-		val s_ptr = source.as_pointer();
-
-		// Nullable pointer cannot be assigned to non-nullable pointer
-		if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
-
-		if (
-			(!t_ptr.is_mut || s_ptr.is_mut) &&
-			type_equals(t_ptr.pointee, s_ptr.pointee)
-		) return true;
-
-		// Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
-		if (
-			t_ptr.pointee.kind == DataType.U8 ||
-			t_ptr.pointee.kind == DataType.NONE ||
-			s_ptr.pointee.kind == DataType.NONE
-		) return true;
-	}
-
-	return false;
 }

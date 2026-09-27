@@ -7,7 +7,6 @@ use compiler.ast.types.*;
 use compiler.ast.builder.AstBuilder;
 
 use compiler.sema.types.*;
-use compiler.sema.types.as_struct_type as sem_struct;
 
 use std.collections.list.List;
 use std.mem.arena.Arena;
@@ -55,7 +54,7 @@ pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 			yield b.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
 		}
 		DataType.STRUCT -> {
-			val st_info = sem_struct(ty);
+			val st_info = ty.as_struct();
 			var st_name = st_info.name;
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
 			yield b.named_type(st_name, List<*AstNode>(), 0, 0);
