@@ -139,7 +139,7 @@ impl BodyPass {
 	// Best-effort static type of a `for` iterable (a variable or a field chain).
 	// Reports nothing and rewrites nothing, so it is safe to call before the loop
 	// is lowered and re-checked.
-	fn for_iterable_type(self, node: *AstNode): *Type => when (node.kind) {
+	fn for_iterable_type(var self, node: *AstNode): *Type => when (node.kind) {
 		NodeKind.EXPR_GROUP -> self.for_iterable_type(node.to<GroupExpr>().expr);
 
 		NodeKind.EXPR_IDENTIFIER -> {

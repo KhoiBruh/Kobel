@@ -211,7 +211,7 @@ impl DeclPass {
 
 	// Name token for a type argument, based on the mangled C name so that
 	// same-named structs from different modules never share an instantiation.
-	pub fn ast_type_token(val self, node: *AstNode): str {
+	pub fn ast_type_token(var self, node: *AstNode): str {
 		if (node == null) return "x";
 		return when (node.kind) {
 			NodeKind.TYPE_NAMED -> {
@@ -228,7 +228,7 @@ impl DeclPass {
 	}
 
 	// C-level size of a type node (used to lower `T.size()`).
-	pub fn ast_type_size(val self, node: *AstNode): usz {
+	pub fn ast_type_size(var self, node: *AstNode): usz {
 		if (node == null) return 8;
 		return when (node.kind) {
 			NodeKind.TYPE_POINTER -> 8;

@@ -218,8 +218,7 @@ impl CCodeGen {
 				val p = f.params[i];
 				var p_ty = c_type_from_ast(p.type_node);
 				if (self_c_type != "" && p.name == "self" && p.type_node == null) {
-					p_ty = if (p.is_mut) "${self_c_type}*"
-					else "const ${self_c_type}*";
+					p_ty = "${self_c_type}*";
 				}
 				proto = "${proto}${p_ty} ${p.name}";
 			}

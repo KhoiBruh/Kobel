@@ -69,10 +69,17 @@ pub fn normalize_esc_dollar(text: str): str {
 	var out = "";
 	var i: usz = 0;
 	while (i < text.len) {
-		if (text[i] == '\\' && i + 1 < text.len && text[i + 1] == '$') {
-			out = "${out}$";
-			i += 2;
-			continue;
+		if (text[i] == '\\' && i + 1 < text.len) {
+			if (text[i + 1] == '\\') {
+				out = "${out}\\\\";
+				i += 2;
+				continue;
+			}
+			if (text[i + 1] == '$') {
+				out = "${out}$";
+				i += 2;
+				continue;
+			}
 		}
 		out = "${out}${text.slice(i, i + 1)}";
 		i++;
@@ -569,6 +576,12 @@ impl Parser {
 		while (i < end) {
 			val c = text[i];
 			if (c == '\\') {
+				if (i + 1 < end && text[i + 1] == '\\') {
+					lit = "${lit}\\\\";
+					has_lit = true;
+					i += 2;
+					continue;
+				}
 				// `\$` is a literal '$'; every other escape is kept verbatim.
 				if (i + 1 < end && text[i + 1] == '$') lit = "${lit}$";
 				else lit = "${lit}${text.slice(i, i + 2)}";
