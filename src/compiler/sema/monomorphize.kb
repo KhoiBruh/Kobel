@@ -20,8 +20,6 @@ use compiler.sema.types.as_struct_type_mut;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 
-use compiler.sema.types.as_pointer_type as sem_pointer;
-use compiler.sema.types.as_array_type as sem_array;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.types.as_fn_type as sem_fn;
 
@@ -197,9 +195,9 @@ impl DeclPass {
 		DataType.F32 -> "f32";
 		DataType.F64 -> "f64";
 		DataType.STR -> "str";
-		DataType.POINTER -> "ptr_${self.type_token(sem_pointer(ty).pointee)}";
+		DataType.POINTER -> "ptr_${self.type_token(ty.as_pointer().pointee)}";
 		DataType.ARRAY -> {
-			val at = sem_array(ty);
+			val at = ty.as_array();
 			yield "arr${at.length}_${self.type_token(at.elem)}";
 		}
 		DataType.STRUCT -> sem_struct(ty).name;

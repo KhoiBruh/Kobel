@@ -112,7 +112,7 @@ impl BodyPass {
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>();
 			if (f.type_params.len > 0) continue;
-			val mi = struct_find_method_c(st_info, f.name);
+			val mi = st_info.find_method_c(f.name);
 			if (mi != null) self.check_fn_body(m_node, mi.fn_type);
 		}
 		self.current_self_type = null;

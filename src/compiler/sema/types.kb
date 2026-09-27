@@ -4,10 +4,6 @@ use std.collections.list.*;
 use std.mem.arena.Arena;
 use std.traits.to_str.*;
 
-// ============================================================================
-// DataType Enumeration
-// ============================================================================
-
 pub enum DataType {
 	NONE,
 	BOOL,
@@ -21,10 +17,6 @@ pub enum DataType {
 	STRUCT,
 	FN
 }
-
-// ============================================================================
-// Type Representation (Tagged Type)
-// ============================================================================
 
 pub struct Type {
 	pub kind: DataType,
@@ -48,8 +40,6 @@ pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,
 	pub offset: usz,
-	// A field that is not `pub` is only readable/writable where the type is
-	// declared (see StructType.module).
 	pub is_pub: bool
 }
 
@@ -105,14 +95,10 @@ impl EnumInfo {
 	}
 }
 
-pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo => e.find_member(name);
-
 // ============================================================================
 // Downcast Helper Functions
 // ============================================================================
 
-pub fn as_pointer_type(ty: *Type): *PointerType => ty.as_pointer();
-pub fn as_array_type(ty: *Type): *ArrayType => ty.as_array();
 pub fn as_struct_type(ty: *Type): *StructType => ty.as_struct();
 pub fn as_struct_type_mut(ty: *Type): &StructType => ty.as_struct_mut();
 pub fn as_fn_type(ty: *Type): *FnType => ty.as_fn();
@@ -144,21 +130,21 @@ pub fn layout_struct(ty: *Type) {
 }
 
 impl StructType {
-	pub fn find_method(self, name: str): *MethodInfo {
+	pub fn find_method(val self, name: str): *MethodInfo {
 		for (m in self.methods) {
 			if (m.name == name) return m;
 		}
 		return null;
 	}
 
-	pub fn find_method_arity(self, name: str, argc: usz): *MethodInfo {
+	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo {
 		for (m in self.methods) {
 			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) return m;
 		}
 		return null;
 	}
 
-	pub fn count_method_arity(self, name: str, argc: usz): usz {
+	pub fn count_method_arity(val self, name: str, argc: usz): usz {
 		var n: usz = 0;
 		for (m in self.methods) {
 			if (m.name == name && as_fn_type(m.fn_type).param_types.len == argc) n++;
@@ -166,18 +152,13 @@ impl StructType {
 		return n;
 	}
 
-	pub fn find_method_c(self, c_name: str): *MethodInfo {
+	pub fn find_method_c(val self, c_name: str): *MethodInfo {
 		for (m in self.methods) {
 			if (m.c_name == c_name) return m;
 		}
 		return null;
 	}
 }
-
-pub fn struct_find_method(st: *StructType, name: str): *MethodInfo => st.find_method(name);
-pub fn struct_find_method_arity(st: *StructType, name: str, argc: usz): *MethodInfo => st.find_method_arity(name, argc);
-pub fn struct_count_method_arity(st: *StructType, name: str, argc: usz): usz => st.count_method_arity(name, argc);
-pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo => st.find_method_c(c_name);
 
 // ============================================================================
 // Primitive Types Constructors
@@ -333,26 +314,26 @@ impl Type {
 	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => alloc_nullable_pointer_type(arena, self as *Type, is_mut);
 	pub fn alloc_array(self, var arena: &Arena, length: usz): *Type => alloc_array_type(arena, self as *Type, length);
 
-	pub fn is_signed_integer(self): bool => when (self.kind) {
+	pub fn is_signed_integer(val self) => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
 		DataType.I64, DataType.ISZ -> true;
 		else -> false;
 	};
 
-	pub fn is_unsigned_integer(self): bool => when (self.kind) {
+	pub fn is_unsigned_integer(val self) => when (self.kind) {
 		DataType.U8, DataType.U16, DataType.U32,
 		DataType.U64, DataType.USZ -> true;
 		else -> false;
 	};
 
-	pub fn is_integer(self): bool => self.is_signed_integer() || self.is_unsigned_integer();
+	pub fn is_integer(val self) => self.is_signed_integer() || self.is_unsigned_integer();
 
-	pub fn is_float(self): bool => when (self.kind) {
+	pub fn is_float(self) => when (self.kind) {
 		DataType.F32, DataType.F64 -> true;
 		else -> false;
 	};
 
-	pub fn is_char(self): bool => self.kind == DataType.CHAR;
+	pub fn is_char(self) => self.kind == DataType.CHAR;
 
 	pub fn is_enum(self): bool {
 		if (self.data == null) return false;
@@ -365,20 +346,52 @@ impl Type {
 		};
 	}
 
-	pub fn is_numeric(self): bool => self.is_integer() || self.is_float();
+	pub fn is_numeric(self) => self.is_integer() || self.is_float();
 
-	pub fn equals(self, other: *Type): bool => type_equals(self as *Type, other);
-	pub fn can_assign_from(self, source: *Type): bool => can_assign(self as *Type, source);
-	pub fn to_string(self): str => type_to_string(self as *Type);
+	pub fn equals(self, other: *Type) => type_equals(self as *Type, other);
+
+	pub fn can_assign_from(self, source: *Type) => can_assign(self as *Type, source);
+
 }
 
-pub fn is_signed_integer(ty: *Type): bool => ty.is_signed_integer();
-pub fn is_unsigned_integer(ty: *Type): bool => ty.is_unsigned_integer();
-pub fn is_integer(ty: *Type): bool => ty.is_integer();
-pub fn is_float(ty: *Type): bool => ty.is_float();
-pub fn is_char(ty: *Type): bool => ty.is_char();
-pub fn is_enum_type(ty: *Type): bool => ty.is_enum();
-pub fn is_numeric(ty: *Type): bool => ty.is_numeric();
+impl ToStr for Type {
+
+	pub fn to_str(val self): str => when (self.kind) {
+		DataType.NONE -> "none";
+		DataType.BOOL -> "bool";
+		DataType.CHAR -> "char";
+		DataType.I8 -> "i8";
+		DataType.I16 -> "i16";
+		DataType.I32 -> "i32";
+		DataType.I64 -> "i64";
+		DataType.ISZ -> "isz";
+		DataType.U8 -> "u8";
+		DataType.U16 -> "u16";
+		DataType.U32 -> "u32";
+		DataType.U64 -> "u64";
+		DataType.USZ -> "usz";
+		DataType.F32 -> "f32";
+		DataType.F64 -> "f64";
+		DataType.STR -> "str";
+		DataType.POINTER -> {
+			val ptr = self.as_pointer();
+			val q = if (ptr.is_nullable) "?" else "";
+			if (ptr.is_mut) yield "*mut ${ptr.pointee.to_str}${q}";
+			yield "*${ptr.pointee.to_str}${q}";
+		}
+		DataType.ARRAY -> {
+			val arr = self.as_array();
+			yield "[${arr.elem.to_str}]";
+		}
+		DataType.STRUCT -> {
+			val s = self.as_struct();
+			yield s.name;
+		}
+		DataType.FN -> "fn(...)";
+		else -> "unknown";
+	};
+
+}
 
 pub fn type_equals(a: *Type, b: *Type): bool {
 	if (a == b) return true;
@@ -386,13 +399,13 @@ pub fn type_equals(a: *Type, b: *Type): bool {
 
 	return when (a.kind) {
 		DataType.POINTER -> {
-			val p_a = as_pointer_type(a);
-			val p_b = as_pointer_type(b);
+			val p_a = a.as_pointer();
+			val p_b = b.as_pointer();
 			yield (p_a.is_mut == p_b.is_mut) && (p_a.is_nullable == p_b.is_nullable) && type_equals(p_a.pointee, p_b.pointee);
 		}
 		DataType.ARRAY -> {
-			val arr_a = as_array_type(a);
-			val arr_b = as_array_type(b);
+			val arr_a = a.as_array();
+			val arr_b = b.as_array();
 			yield (arr_a.length == arr_b.length) && type_equals(arr_a.elem, arr_b.elem);
 		}
 		DataType.STRUCT -> {
@@ -419,14 +432,14 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	if (type_equals(target, source)) return true;
 
 	// 1. Allow assignment between integer types (integer coercion / literal assignment)
-	if (is_integer(target) && is_integer(source)) return true;
+	if (target.is_integer() && source.is_integer()) return true;
 
 	// 2. Allow assignment between float types
-	if (is_float(target) && is_float(source)) return true;
+	if (target.is_float() && source.is_float()) return true;
 
 	// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
 	if (source.kind == DataType.STR && target.kind == DataType.POINTER) {
-		val t_ptr = as_pointer_type(target);
+		val t_ptr = target.as_pointer();
 		if (
 			t_ptr.pointee.kind == DataType.CHAR ||
 			t_ptr.pointee.kind == DataType.U8 ||
@@ -436,7 +449,7 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 
 	// 4. Allow assigning a char/u8 pointer to str
 	if (target.kind == DataType.STR && source.kind == DataType.POINTER) {
-		val s_ptr = as_pointer_type(source);
+		val s_ptr = source.as_pointer();
 		if (s_ptr.is_nullable) return false;
 		if (
 			s_ptr.pointee.kind == DataType.CHAR ||
@@ -447,8 +460,8 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T,
 	// and allow assigning a non-nullable pointer to a nullable pointer: *T -> *T?
 	if (target.kind == DataType.POINTER && source.kind == DataType.POINTER) {
-		val t_ptr = as_pointer_type(target);
-		val s_ptr = as_pointer_type(source);
+		val t_ptr = target.as_pointer();
+		val s_ptr = source.as_pointer();
 
 		// Nullable pointer cannot be assigned to non-nullable pointer
 		if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
@@ -467,43 +480,4 @@ pub fn can_assign(target: *Type, source: *Type): bool {
 	}
 
 	return false;
-}
-
-pub fn type_to_string(ty: *Type): str => when (ty.kind) {
-	DataType.NONE -> "none";
-	DataType.BOOL -> "bool";
-	DataType.CHAR -> "char";
-	DataType.I8 -> "i8";
-	DataType.I16 -> "i16";
-	DataType.I32 -> "i32";
-	DataType.I64 -> "i64";
-	DataType.ISZ -> "isz";
-	DataType.U8 -> "u8";
-	DataType.U16 -> "u16";
-	DataType.U32 -> "u32";
-	DataType.U64 -> "u64";
-	DataType.USZ -> "usz";
-	DataType.F32 -> "f32";
-	DataType.F64 -> "f64";
-	DataType.STR -> "str";
-	DataType.POINTER -> {
-		val ptr = as_pointer_type(ty);
-		val q = if (ptr.is_nullable) "?" else "";
-		if (ptr.is_mut) yield "*mut ${type_to_string(ptr.pointee)}${q}";
-		yield "*${type_to_string(ptr.pointee)}${q}";
-	}
-	DataType.ARRAY -> {
-		val arr = as_array_type(ty);
-		yield "[${type_to_string(arr.elem)}]";
-	}
-	DataType.STRUCT -> {
-		val s = as_struct_type(ty);
-		yield s.name;
-	}
-	DataType.FN -> "fn(...)";
-	else -> "unknown";
-};
-
-impl ToStr for Type {
-	pub fn to_str(val self): str => type_to_string(self as *Type);
 }

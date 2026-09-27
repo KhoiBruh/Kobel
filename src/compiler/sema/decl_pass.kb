@@ -37,13 +37,9 @@ use compiler.sema.types.alloc_fn_type;
 use compiler.sema.types.as_struct_type_mut;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
-use compiler.sema.types.struct_find_method_c;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
 
-// Disambiguate AST vs semantic type helpers used by the monomorphizer.
-use compiler.sema.types.as_pointer_type as sem_pointer;
-use compiler.sema.types.as_array_type as sem_array;
 use compiler.sema.types.as_struct_type as sem_struct;
 use compiler.sema.types.as_fn_type as sem_fn;
 use compiler.ast.decl.StructField as AstStructField;
@@ -224,7 +220,7 @@ impl DeclPass {
 				val inner_ty = self.resolve_ast_type(null_ast.inner);
 				var res_ty = inner_ty;
 				if (inner_ty.kind == DataType.POINTER) {
-					val pt = sem_pointer(inner_ty);
+					val pt = inner_ty.as_pointer();
 					res_ty = alloc_nullable_pointer_type(&self.arena, pt.pointee, pt.is_mut);
 				} else {
 					self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
@@ -317,7 +313,7 @@ impl DeclPass {
 			if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
 			// Two methods with the same name and arity still need distinct names.
 			var k: usz = 2;
-			while (struct_find_method_c(st_info, m_c_name) != null) {
+			while (st_info.find_method_c(m_c_name) != null) {
 				m_c_name = "${base}_${param_types.len}_${k}";
 				k++;
 			}

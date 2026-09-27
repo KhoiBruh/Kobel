@@ -7,8 +7,6 @@ use compiler.ast.types.*;
 use compiler.ast.builder.AstBuilder;
 
 use compiler.sema.types.*;
-use compiler.sema.types.as_pointer_type as sem_pointer;
-use compiler.sema.types.as_array_type as sem_array;
 use compiler.sema.types.as_struct_type as sem_struct;
 
 use std.collections.list.List;
@@ -43,17 +41,17 @@ pub fn interp_concat(var arena: &Arena, a: *AstNode, b_node: *AstNode, line: usz
 // explicit annotation the C backend understands.
 pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 	var b = AstBuilder(arena);
-	if (is_enum_type(ty)) return b.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
+	if (ty.is_enum()) return b.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
 
 	return when (ty.kind) {
 		DataType.POINTER -> {
-			val pt = sem_pointer(ty);
+			val pt = ty.as_pointer();
 			val base_ptr = b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
 			if (pt.is_nullable) yield b.nullable_type(base_ptr, 0, 0);
 			yield base_ptr;
 		}
 		DataType.ARRAY -> {
-			val at = sem_array(ty);
+			val at = ty.as_array();
 			yield b.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
 		}
 		DataType.STRUCT -> {
