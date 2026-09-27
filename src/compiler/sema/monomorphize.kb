@@ -759,11 +759,13 @@ impl DeclPass {
 					val ft = self.find_method_template(mem.member);
 					if (ft != null) {
 						val mem_obj = mem.object;
-						c.callee = self.identifier(mem.member, node.line, node.col);
+						val cname = self.instantiate_fn(ft, c.type_args);
+						c.callee = self.identifier(cname, node.line, node.col);
 						var new_args = List<*AstNode>();
 						new_args.add(mem_obj);
 						for (a in c.args) new_args.add(a);
 						c.args = new_args;
+						c.type_args = List<*AstNode>();
 					}
 				}
 				if (c.callee.kind == NodeKind.EXPR_IDENTIFIER && c.type_args.len > 0) {
