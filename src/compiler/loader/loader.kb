@@ -45,8 +45,7 @@ pub struct ModuleLoader {
 	pub modules: List<LoadedModule>,
 	pub ordered: List<LoadedModule>,
 	pub errors: List<str>,
-	pub arena: Arena,
-	pub builder: AstBuilder
+	pub arena: Arena
 }
 
 impl ModuleLoader {
@@ -66,15 +65,23 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<LoadedModule>(),
 			List<str>(),
-			Arena(524288),
-			AstBuilder(null)
+			Arena(524288)
 		);
 	}
 
-	pub fn b(var self): &AstBuilder {
-		self.builder.arena = &self.arena;
-		return &self.builder;
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
+		val ptr = arena_alloc<T>(&self.arena);
+		*ptr = data;
+		val node_ptr = arena_alloc<AstNode>(&self.arena);
+		*node_ptr = AstNode(kind, line, col, ptr as *u8);
+		return node_ptr;
 	}
+
+	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
+		=> self.make<ModuleDecl>(NodeKind.DECL_MODULE, ModuleDecl(path, full_path), line, col);
+
+	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> self.make<Program>(NodeKind.PROGRAM, Program(declarations), line, col);
 
 	pub fn count(self) => self.ordered.len;
 
@@ -186,14 +193,14 @@ impl ModuleLoader {
 		for (lm in self.ordered) {
 			if (lm.program != null) {
 				// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-				decls.add(self.b().module_decl(str_split_dots(lm.name), lm.name, 0, 0));
+				decls.add(self.module_decl(str_split_dots(lm.name), lm.name, 0, 0));
 
 				val p = lm.program.to<Program>();
 				for (d in p) decls.add(d);
 			}
 		}
 
-		return self.b().program(decls, 0, 0);
+		return self.program(decls, 0, 0);
 	}
 
 }
