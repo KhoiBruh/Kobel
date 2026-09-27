@@ -152,13 +152,15 @@ pub fn c_format_int_literal(raw: str): str {
 
 	if (len >= 2) {
 		val prev = raw[len - 2];
-		return when {
-			prev == 'U' && last == 'Z' -> "((size_t)${strip_suffix(raw, 2)}ULL)";
-			prev == 'U' && last == 'L' -> "${strip_suffix(raw, 2)}ULL";
-			prev == 'U' && last == 'B' -> "((uint8_t)${strip_suffix(raw, 2)})";
-			prev == 'U' && last == 'S' -> "((uint16_t)${strip_suffix(raw, 2)})";
-			else -> raw;
-		};
+		if (prev == 'U') {
+			return when (last) {
+				'Z' -> "((size_t)${strip_suffix(raw, 2)}ULL)";
+				'L' -> "${strip_suffix(raw, 2)}ULL";
+				'B' -> "((uint8_t)${strip_suffix(raw, 2)})";
+				'S' -> "((uint16_t)${strip_suffix(raw, 2)})";
+				else -> raw;
+			};
+		}
 	}
 	if (len >= 1) {
 		return when (last) {

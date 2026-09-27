@@ -142,6 +142,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 			return;
 		}
 	}
+	out.add(m);
 }
 
 impl DeclPass {
@@ -188,7 +189,7 @@ impl DeclPass {
 
 				// Generic struct instantiation: List<i32> -> concrete struct.
 				if (named.type_args.len > 0) {
-					val tmpl = gen_find(self.symtab.gen.struct_templates, name);
+					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
 						named.name = sem_struct(cty).name;

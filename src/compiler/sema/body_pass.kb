@@ -582,7 +582,7 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 				val n = node as &AstNode;
 				n.kind = mem.object.kind;
 				n.data = mem.object.data;
-				return as_enum_info(obj_ty).underlying;
+				return obj_ty.as_enum().underlying;
 			}
 
 			if (obj_ty.kind == DataType.STR) {

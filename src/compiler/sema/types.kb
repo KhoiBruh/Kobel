@@ -111,12 +111,13 @@ pub fn enum_find_member(e: *EnumInfo, name: str): *EnumMemberInfo => e.find_memb
 // Downcast Helper Functions
 // ============================================================================
 
-pub fn as_pointer_type(ty: *Type): *PointerType => ty.data as *PointerType;
-pub fn as_array_type(ty: *Type): *ArrayType => ty.data as *ArrayType;
-pub fn as_struct_type(ty: *Type): *StructType => ty.data as *StructType;
-pub fn as_struct_type_mut(ty: *Type): &StructType => ty.data as &StructType;
-pub fn as_fn_type(ty: *Type): *FnType => ty.data as *FnType;
-pub fn as_fn_type_mut(ty: *Type): &FnType => ty.data as &FnType;
+pub fn as_pointer_type(ty: *Type): *PointerType => ty.as_pointer();
+pub fn as_array_type(ty: *Type): *ArrayType => ty.as_array();
+pub fn as_struct_type(ty: *Type): *StructType => ty.as_struct();
+pub fn as_struct_type_mut(ty: *Type): &StructType => ty.as_struct_mut();
+pub fn as_fn_type(ty: *Type): *FnType => ty.as_fn();
+pub fn as_fn_type_mut(ty: *Type): &FnType => ty.as_fn_mut();
+pub fn as_enum_info(ty: *Type): *EnumInfo => ty.as_enum();
 
 // Recomputes field offsets, size and alignment of a struct type from its
 // current field list (fields are added after the type is allocated).
@@ -184,26 +185,46 @@ pub fn struct_find_method_c(st: *StructType, c_name: str): *MethodInfo => st.fin
 
 pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, null);
 
-pub fn type_none() => make_primitive(DataType.NONE, 0, 1);
-pub fn type_bool() => make_primitive(DataType.BOOL, 1, 1);
-pub fn type_char() => make_primitive(DataType.CHAR, 1, 1);
+pub fn type_primitive(kind: DataType): Type {
+	val size: usz = when (kind) {
+		DataType.NONE -> 0;
+		DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
+		DataType.I16, DataType.U16 -> 2;
+		DataType.I32, DataType.U32, DataType.F32 -> 4;
+		DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64 -> 8;
+		DataType.STR -> 16;
+		else -> 8;
+	};
+	val align: usz = when (kind) {
+		DataType.NONE, DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
+		DataType.I16, DataType.U16 -> 2;
+		DataType.I32, DataType.U32, DataType.F32 -> 4;
+		DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64, DataType.STR -> 8;
+		else -> 8;
+	};
+	return Type(kind, size, align, null);
+}
 
-pub fn type_i8() => make_primitive(DataType.I8, 1, 1);
-pub fn type_i16() => make_primitive(DataType.I16, 2, 2);
-pub fn type_i32() => make_primitive(DataType.I32, 4, 4);
-pub fn type_i64() => make_primitive(DataType.I64, 8, 8);
-pub fn type_isz() => make_primitive(DataType.ISZ, 8, 8);
+pub fn type_none() => type_primitive(DataType.NONE);
+pub fn type_bool() => type_primitive(DataType.BOOL);
+pub fn type_char() => type_primitive(DataType.CHAR);
 
-pub fn type_u8() => make_primitive(DataType.U8, 1, 1);
-pub fn type_u16() => make_primitive(DataType.U16, 2, 2);
-pub fn type_u32() => make_primitive(DataType.U32, 4, 4);
-pub fn type_u64() => make_primitive(DataType.U64, 8, 8);
-pub fn type_usz() => make_primitive(DataType.USZ, 8, 8);
+pub fn type_i8() => type_primitive(DataType.I8);
+pub fn type_i16() => type_primitive(DataType.I16);
+pub fn type_i32() => type_primitive(DataType.I32);
+pub fn type_i64() => type_primitive(DataType.I64);
+pub fn type_isz() => type_primitive(DataType.ISZ);
 
-pub fn type_f32() => make_primitive(DataType.F32, 4, 4);
-pub fn type_f64() => make_primitive(DataType.F64, 8, 8);
+pub fn type_u8() => type_primitive(DataType.U8);
+pub fn type_u16() => type_primitive(DataType.U16);
+pub fn type_u32() => type_primitive(DataType.U32);
+pub fn type_u64() => type_primitive(DataType.U64);
+pub fn type_usz() => type_primitive(DataType.USZ);
 
-pub fn type_str() => make_primitive(DataType.STR, 16, 8);
+pub fn type_f32() => type_primitive(DataType.F32);
+pub fn type_f64() => type_primitive(DataType.F64);
+
+pub fn type_str() => type_primitive(DataType.STR);
 
 // ============================================================================
 // Complex Type Allocators
@@ -297,13 +318,20 @@ pub fn alloc_fn_type(
 
 // ============================================================================
 impl Type {
+	pub fn as_type<T>(self): *T => self.data as *T;
+	pub fn to_mut<T>(self): &T => self.data as &T;
+
 	pub fn as_pointer(self): *PointerType => self.data as *PointerType;
 	pub fn as_array(self): *ArrayType => self.data as *ArrayType;
-	pub fn as_struct(self): *StructType => self.data as *StructType;
-	pub fn as_struct_mut(self): &StructType => self.data as &StructType;
-	pub fn as_fn(self): *FnType => self.data as *FnType;
-	pub fn as_fn_mut(self): &FnType => self.data as &FnType;
-	pub fn as_enum(self): *EnumInfo => self.data as *EnumInfo;
+	pub fn as_struct(self): *StructType => self.as_type<StructType>();
+	pub fn as_struct_mut(self): &StructType => self.to_mut<StructType>();
+	pub fn as_fn(self): *FnType => self.as_type<FnType>();
+	pub fn as_fn_mut(self): &FnType => self.to_mut<FnType>();
+	pub fn as_enum(self): *EnumInfo => self.as_type<EnumInfo>();
+
+	pub fn alloc_pointer(self, var arena: &Arena, is_mut: bool): *Type => alloc_pointer_type(arena, self as *Type, is_mut);
+	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => alloc_nullable_pointer_type(arena, self as *Type, is_mut);
+	pub fn alloc_array(self, var arena: &Arena, length: usz): *Type => alloc_array_type(arena, self as *Type, length);
 
 	pub fn is_signed_integer(self): bool => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
@@ -350,7 +378,6 @@ pub fn is_integer(ty: *Type): bool => ty.is_integer();
 pub fn is_float(ty: *Type): bool => ty.is_float();
 pub fn is_char(ty: *Type): bool => ty.is_char();
 pub fn is_enum_type(ty: *Type): bool => ty.is_enum();
-pub fn as_enum_info(ty: *Type): *EnumInfo => ty.as_enum();
 pub fn is_numeric(ty: *Type): bool => ty.is_numeric();
 
 pub fn type_equals(a: *Type, b: *Type): bool {

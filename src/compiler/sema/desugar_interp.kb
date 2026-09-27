@@ -43,7 +43,7 @@ pub fn interp_concat(var arena: &Arena, a: *AstNode, b_node: *AstNode, line: usz
 // explicit annotation the C backend understands.
 pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
 	var b = AstBuilder(arena);
-	if (is_enum_type(ty)) return b.named_type(as_enum_info(ty).c_name, List<*AstNode>(), 0, 0);
+	if (is_enum_type(ty)) return b.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
 
 	return when (ty.kind) {
 		DataType.POINTER -> {
