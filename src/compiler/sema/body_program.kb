@@ -96,6 +96,7 @@ impl BodyPass {
 		if (im.struct_name == "") {
 			for (m_node in im.methods) {
 				val f = m_node.to<FnDecl>();
+				if (f.type_params.len > 0) continue;
 				val mi = self.symtab.find_prim_method_c(f.name);
 				if (mi != null) self.check_fn_body(m_node, mi.fn_type);
 			}
@@ -110,6 +111,7 @@ impl BodyPass {
 		self.current_self_type = st_sym.type_ptr;
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>();
+			if (f.type_params.len > 0) continue;
 			val mi = struct_find_method_c(st_info, f.name);
 			if (mi != null) self.check_fn_body(m_node, mi.fn_type);
 		}

@@ -95,7 +95,7 @@ fn prim_c_size(name: str): usz => when (name) {
 	"bool", "char", "i8", "u8" -> 1;
 	"i16", "u16" -> 2;
 	"i32", "u32", "f32" -> 4;
-	"i64", "u64", "isz", "usz", "f64" -> 8;
+	"i64", "u64", "isz", "usz", "f64", "str" -> 8;
 	else -> 0;
 };
 
@@ -474,7 +474,16 @@ pub fn check_expr(var self, node: *AstNode): *Type {
 						val arg_n = call.args[i];
 						if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
 						val arg_ty = self.check_expr(arg_n);
-						if (!can_assign(param_ty, arg_ty)) self.report_error(node, "Argument type mismatch in function call");
+						if (!can_assign(param_ty, arg_ty)) {
+							if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
+								val p_pointee = sem_pointer(param_ty).pointee;
+								if (type_equals(p_pointee, arg_ty)) {
+									call.args[i] = self.b().unary(TokenType.AMPERSAND, arg_n, arg_n.line, arg_n.col);
+									continue;
+								}
+							}
+							self.report_error(node, "Argument type mismatch in function call");
+						}
 					}
 				}
 				return fn_info.return_type;

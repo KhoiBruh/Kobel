@@ -284,6 +284,7 @@ impl DeclPass {
 
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>() as &FnDecl;
+			if (f.type_params.len > 0) continue;
 
 			if (f.name == "new") {
 				for (p in f.params) {
@@ -348,6 +349,7 @@ impl DeclPass {
 
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>() as &FnDecl;
+			if (f.type_params.len > 0) continue;
 			var param_types = List<*Type>();
 
 			for (i in 0..<f.params.len) {

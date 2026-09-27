@@ -292,7 +292,12 @@ impl CCodeGen {
 					val mem = call.callee.to<MemberExpr>();
 					if (mem.member == "size") {
 						val obj_name = self.gen_expr(mem.object);
-						return "sizeof(${obj_name})";
+						val c_type = when (obj_name) {
+							"str" -> "const char*",
+							"usz", "isz" -> "size_t",
+							else -> obj_name
+						};
+						return "sizeof(${c_type})";
 					}
 					if (mem.member == "c_str") return self.gen_expr(mem.object);
 					if (mem.member == "slice") {
@@ -499,6 +504,7 @@ impl CCodeGen {
 			}
 
 			NodeKind.EXPR_GROUP -> return self.infer_type_from_expr(expr.to<GroupExpr>().expr);
+			NodeKind.EXPR_IF -> return self.infer_type_from_expr(expr.to<IfExpr>().then_branch);
 
 			NodeKind.EXPR_ARRAY_LITERAL -> {
 				val al = expr.to<ArrayLiteralExpr>();
