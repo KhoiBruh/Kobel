@@ -1,0 +1,254 @@
+mod compiler.sema.body_call;
+
+// ============================================================================
+// BodyPass - Call Expression & Constructor Resolution
+//
+// Resolves function calls, instance and primitive methods, type size queries,
+// string slicing, and struct construction (both `new` constructors and field lists).
+// ============================================================================
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.ast.builder.to;
+use compiler.ast.builder.AstBuilder;
+
+use compiler.lexer.token.*;
+
+use compiler.sema.types.*;
+use compiler.sema.symbol.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.body_pass.*;
+
+use std.collections.list.*;
+use std.mem.arena.*;
+use util.strutil.*;
+
+impl BodyPass {
+
+	pub fn check_call_expr(var self, node: *AstNode): *Type {
+		val call = node.to<CallExpr>() as &CallExpr;
+
+		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
+		if (call.callee.kind == NodeKind.EXPR_MEMBER) {
+			val mem = call.callee.to<MemberExpr>();
+			if (mem.member == "size") {
+				// Mangle the type name so the backend emits sizeof(<c_name>).
+				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
+					val id = mem.object.to<IdentifierExpr>() as &IdentifierExpr;
+
+					// A primitive type name has no C type of its own (`str`,
+					// `bool`, ...), so fold `.size()` to its C size literal.
+					val csize = prim_c_size(id.name);
+					if (csize > 0) {
+						val lit = self.b().literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
+						val lit_n = node as &AstNode;
+						lit_n.kind = lit.kind;
+						lit_n.data = lit.data;
+						return alloc_primitive(&self.arena, type_usz());
+					}
+
+					val tsym = self.symtab.lookup(id.name);
+					if (tsym != null && tsym.c_name != id.name) id.name = tsym.c_name;
+				}
+				return alloc_primitive(&self.arena, type_usz());
+			}
+
+			if (mem.member == "slice") {
+				val slice_recv = self.check_expr(mem.object);
+				if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
+				for (arg in call.args) {
+					val at = self.check_expr(arg);
+					if (!at.is_integer()) self.report_error(node, "slice() bounds must be integers");
+				}
+				// Lower to kobel_slice(receiver, start, end); end defaults to length.
+				var sargs = List<*AstNode>();
+				sargs.add(mem.object);
+				if (!call.args.is_empty()) sargs.add(call.args.first());
+				else sargs.add(self.b().literal(LiteralKind.INT, "0", node.line, node.col));
+				if (call.args.len >= 2) {
+					sargs.add(call.args[1]);
+				} else {
+					var largs = List<*AstNode>();
+					largs.add(mem.object);
+					sargs.add(self.b().call(self.b().identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
+				}
+				val sl_call = self.b().call(self.b().identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
+				val sl_n = node as &AstNode;
+				sl_n.kind = NodeKind.EXPR_CALL;
+				sl_n.data = sl_call.data;
+				return alloc_primitive(&self.arena, type_str());
+			}
+
+			// Instance method call or primitive method call
+			val m_ty = self.check_method_call(node, mem, call);
+			if (m_ty != null) return m_ty;
+		}
+
+		// `Self(...)` builds the value directly, so it never consults a
+		// `new` factory (that is what keeps `fn new() => Self(...)` from
+		// calling itself again).
+		var callee_is_self = false;
+		if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.callee.to<IdentifierExpr>().name == "Self") callee_is_self = true;
+
+		val callee_ty = self.check_expr(call.callee);
+
+		// 1. Function call
+		if (callee_ty.kind == DataType.FN) {
+			return self.check_fn_call(node, callee_ty, call);
+		}
+
+		// 2. Struct construction: Point(1, 2)
+		if (callee_ty.kind == DataType.STRUCT) {
+			return self.check_struct_ctor(node, callee_ty, call, callee_is_self);
+		}
+
+		self.report_error(node, "Callee is not a function or struct");
+		return alloc_primitive(&self.arena, type_none());
+	}
+
+	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+		// Instance method call: obj.m(args) -> Struct_m(self, args)
+		val obj_raw_ty = self.check_expr(mem.object);
+		var obj_ty = obj_raw_ty;
+		var obj_is_ptr = false;
+		if (obj_ty.kind == DataType.POINTER) {
+			obj_is_ptr = true;
+			obj_ty = obj_ty.as_pointer().pointee;
+		}
+		if (obj_ty.kind == DataType.STRUCT) {
+			val s_info = obj_ty.as_struct();
+			// Pick the overload whose arity matches; fall back to a name
+			// lookup so an arity error still reads as before.
+			if (s_info.count_method_arity(mem.member, call.args.len + 1) > 1) {
+				self.report_error(node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
+			}
+			var mi = s_info.find_method_arity(mem.member, call.args.len + 1);
+			if (mi == null) mi = s_info.find_method(mem.member);
+			if (mi != null) {
+				val fn_info = mi.fn_type.as_fn();
+				if (call.args.len + 1 != fn_info.param_types.len) {
+					self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+				} else {
+					for (i in 0..<call.args.len) {
+						val param_ty = fn_info.param_types[i + 1];
+						val arg_n = call.args[i];
+						if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+						val arg_ty = self.check_expr(arg_n);
+						if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
+					}
+				}
+
+				// Desugar to a free-function call with the receiver as first argument.
+				var new_args = List<*AstNode>();
+				if (obj_is_ptr) new_args.add(mem.object);
+				else new_args.add(self.b().unary(TokenType.AMPERSAND, mem.object, node.line, node.col));
+				for (arg in call.args) new_args.add(arg);
+				call.args = new_args;
+				call.callee = self.b().identifier(mi.c_name, node.line, node.col);
+				return fn_info.return_type;
+			}
+		}
+
+		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
+		var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, call.args.len + 1);
+		if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
+		if (pmi != null) {
+			val fn_info = pmi.fn_type.as_fn();
+			if (call.args.len + 1 != fn_info.param_types.len) {
+				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+			} else {
+				for (i in 0..<call.args.len) {
+					val param_ty = fn_info.param_types[i + 1];
+					val arg_n = call.args[i];
+					if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+					val arg_ty = self.check_expr(arg_n);
+					if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
+				}
+			}
+
+			var new_args = List<*AstNode>();
+			if (obj_is_ptr) new_args.add(self.b().unary(TokenType.STAR, mem.object, node.line, node.col));
+			else new_args.add(mem.object);
+			for (arg in call.args) new_args.add(arg);
+			call.args = new_args;
+			call.callee = self.b().identifier(pmi.c_name, node.line, node.col);
+			return fn_info.return_type;
+		}
+
+		return null;
+	}
+
+	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
+		val fn_info = callee_ty.as_fn();
+		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
+		else {
+			for (i in 0..<call.args.len) {
+				val param_ty = fn_info.param_types[i];
+				val arg_n = call.args[i];
+				if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+				val arg_ty = self.check_expr(arg_n);
+				if (!param_ty.can_assign(arg_ty)) {
+					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
+						val p_pointee = param_ty.as_pointer().pointee;
+						if (p_pointee.equals(arg_ty)) {
+							call.args[i] = self.b().unary(TokenType.AMPERSAND, arg_n, arg_n.line, arg_n.col);
+							continue;
+						}
+					}
+					self.report_error(node, "Argument type mismatch in function call");
+				}
+			}
+		}
+		return fn_info.return_type;
+	}
+
+	pub fn check_struct_ctor(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr, callee_is_self: bool): *Type {
+		val s_info = callee_ty.as_struct();
+
+		// Kotlin-style construction: `Type(args)` calls the `new`
+		// overload of matching arity when one exists; building from
+		// fields is only the fallback.
+		if (!callee_is_self) {
+			if (s_info.count_method_arity("new", call.args.len) > 1) {
+				self.report_error(node, "Ambiguous call to 'new': overloading by parameter type is not supported");
+			}
+			val nm = s_info.find_method_arity("new", call.args.len);
+			if (nm != null) {
+				val n_info = nm.fn_type.as_fn();
+				for (i in 0..<call.args.len) {
+					val param_ty = n_info.param_types[i];
+					val arg_n = call.args[i];
+					if (is_list_type(param_ty)) self.coerce_to_list(arg_n, param_ty);
+					val arg_ty = self.check_expr(arg_n);
+					if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in call to 'new'");
+				}
+				call.callee = self.b().identifier(nm.c_name, node.line, node.col);
+				return n_info.return_type;
+			}
+		}
+
+		// Field construction is only allowed where the type is declared
+		// unless every field is `pub`; otherwise the type must expose a
+		// `new` constructor (handled above).
+		if (s_info.has_private && s_info.module != self.symtab.current_module) {
+			self.report_error(node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
+		}
+
+		if (call.args.len != s_info.fields.len) self.report_error(node, "Argument count mismatch in struct constructor");
+		else {
+			for (i in 0..<call.args.len) {
+				val f_ty = s_info.fields[i].type_ptr;
+				val arg_n = call.args[i];
+				if (is_list_type(f_ty)) self.coerce_to_list(arg_n, f_ty);
+				val arg_ty = self.check_expr(arg_n);
+				if (!f_ty.can_assign(arg_ty)) self.report_error(node, "Field type mismatch in struct constructor");
+			}
+		}
+		return callee_ty;
+	}
+
+}

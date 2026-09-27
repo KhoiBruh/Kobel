@@ -1,0 +1,181 @@
+mod compiler.sema.body_stmt;
+
+// ============================================================================
+// BodyPass - Statement Type Checking
+//
+// Analyzes statement nodes (blocks, variables, loops, conditionals, returns).
+// Handles lowering for `for` loops through `Iterable`.
+// ============================================================================
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.ast.builder.to;
+use compiler.ast.builder.AstBuilder;
+
+use compiler.lexer.token.*;
+
+use compiler.sema.types.*;
+use compiler.sema.symbol.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.desugar_for.*;
+use compiler.sema.desugar_interp.*;
+use compiler.sema.body_pass.*;
+
+use std.collections.list.*;
+use std.mem.arena.*;
+use util.strutil.*;
+
+impl BodyPass {
+
+	pub fn check_block_stmt(var self, node: *AstNode) {
+		val blk = node.to<BlockStmt>();
+		self.symtab.enter_scope(false);
+		for (stmt in blk.statements) {
+			self.check_statement(stmt);
+		}
+		self.symtab.exit_scope();
+	}
+
+	pub fn check_var_decl_stmt(var self, node: *AstNode) {
+		val vd = node.to<VarDeclStmt>() as &VarDeclStmt;
+		var var_ty = alloc_primitive(&self.arena, type_none());
+
+		var has_init = false;
+		var init_ty = alloc_primitive(&self.arena, type_none());
+
+		if (vd.type_annotation != null) {
+			var_ty = self.resolve_type(vd.type_annotation);
+			if (vd.initializer != null) {
+				has_init = true;
+				if (is_list_type(var_ty)) self.coerce_to_list(vd.initializer, var_ty);
+
+				init_ty = self.check_expr(vd.initializer);
+				if (!var_ty.can_assign(init_ty))
+					self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
+			}
+		} else {
+			if (vd.initializer != null) {
+				has_init = true;
+				init_ty = self.check_expr(vd.initializer);
+				var_ty = init_ty;
+			} else {
+				self.report_error(node, "Variable '${vd.name}' without type must have initializer");
+			}
+		}
+
+		// Give an inferred local an explicit type node so the C backend does
+		// not have to re-infer it (it cannot see struct field types).
+		if (vd.type_annotation == null && has_init)
+			vd.type_annotation = ast_type_from_type(&self.arena, var_ty);
+
+		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
+		if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
+	}
+
+	pub fn check_if_stmt(var self, node: *AstNode) {
+		val if_s = node.to<IfStmt>();
+		val cond_ty = self.check_expr(if_s.condition);
+		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If statement condition must be bool");
+		self.check_statement(if_s.then_branch);
+		if (if_s.else_branch != null) self.check_statement(if_s.else_branch);
+	}
+
+	pub fn check_while_stmt(var self, node: *AstNode) {
+		val wh = node.to<WhileStmt>();
+		val cond_ty = self.check_expr(wh.condition);
+		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "While statement condition must be bool");
+		self.loop_depth++;
+		self.check_statement(wh.body);
+		self.loop_depth--;
+	}
+
+	pub fn check_for_stmt(var self, node: *AstNode) {
+		val fs = node.to<ForStmt>() as &ForStmt;
+		if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
+			self.report_error(node, "The iterated expression of a 'for' must be a variable or a field");
+		}
+		// Containers that implement `Iterable` are walked through the trait
+		// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
+		// lowering (see desugar_for_iterable).
+		var use_iter_trait = false;
+		if (!fs.is_range) use_iter_trait = self.struct_implements_iterable(self.for_iterable_type(fs.iterable));
+
+		desugar_for(&self.arena, node, fs, use_iter_trait);
+		// `node` now holds the lowered block; check it through the normal path.
+		self.check_statement(node);
+	}
+
+	pub fn check_return_stmt(var self, node: *AstNode) {
+		val ret = node.to<ReturnStmt>();
+		if (ret.value != null) {
+			if (is_list_type(self.current_fn_return_type))
+				self.coerce_to_list(ret.value, self.current_fn_return_type);
+
+			val val_ty = self.check_expr(ret.value);
+
+			if (!self.current_fn_return_type.can_assign(val_ty))
+				self.report_error(node, "Return value type does not match function return type");
+		} else if (self.current_fn_return_type.kind != DataType.NONE)
+			self.report_error(node, "Non-none function must return a value");
+	}
+
+	pub fn check_when_stmt(var self, node: *AstNode) {
+		val ws = node.to<WhenStmt>();
+		if (ws.condition != null) self.check_expr(ws.condition);
+		for (arm in ws.arms) {
+			for (pat in arm.patterns) {
+				val p_ty = self.check_expr(pat);
+				if (ws.condition == null && p_ty.kind != DataType.BOOL)
+					self.report_error(pat, "Boolean when arm condition must be bool");
+			}
+			self.check_statement(arm.body);
+		}
+	}
+
+	// Best-effort static type of a `for` iterable (a variable or a field chain).
+	// Reports nothing and rewrites nothing, so it is safe to call before the loop
+	// is lowered and re-checked.
+	fn for_iterable_type(self, node: *AstNode): *Type => when (node.kind) {
+		NodeKind.EXPR_GROUP -> self.for_iterable_type(node.to<GroupExpr>().expr);
+
+		NodeKind.EXPR_IDENTIFIER -> {
+			val sym = self.symtab.lookup(node.to<IdentifierExpr>().name);
+			if (sym != null) yield sym.type_ptr;
+			yield null;
+		}
+
+		NodeKind.EXPR_MEMBER -> {
+			val mem = node.to<MemberExpr>();
+			var obj = self.for_iterable_type(mem.object);
+			if (obj == null) yield null;
+
+			if (obj.kind == DataType.POINTER) obj = obj.as_pointer().pointee;
+			if (obj.kind != DataType.STRUCT) yield null;
+
+			val s_mem = obj.as_struct();
+			for (f in s_mem.fields) {
+				if (f.name == mem.member) yield f.type_ptr;
+			}
+			yield null;
+		}
+
+		else -> null;
+	};
+
+	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
+	// iterates through the trait (`count()` / `at(i)`) instead of the built-in
+	// `.len` / `.data`, so containment no longer has to look like a flat array.
+	fn struct_implements_iterable(self, ty: *Type): bool {
+		var cur = ty;
+		if (cur != null && cur.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
+		if (cur == null || cur.kind != DataType.STRUCT) return false;
+		val t = self.symtab.find_trait("Iterable");
+		if (t == null) return false;
+		return t.has_impl(cur.as_struct().name);
+	}
+
+}

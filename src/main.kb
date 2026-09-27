@@ -6,6 +6,9 @@ use compiler.sema.decl_pass.*;
 use compiler.sema.monomorphize.*;
 use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.body_stmt.*;
+use compiler.sema.body_expr.*;
+use compiler.sema.body_call.*;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_program.*;
 

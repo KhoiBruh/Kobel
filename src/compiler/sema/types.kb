@@ -385,7 +385,7 @@ impl Type {
 		if (self.is_float() && source.is_float()) return true;
 
 		// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
-		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
+		if (self.kind == DataType.POINTER && source.kind == DataType.STR) {
 			val t_ptr = self.as_pointer();
 			if (
 				t_ptr.pointee.kind == DataType.CHAR ||

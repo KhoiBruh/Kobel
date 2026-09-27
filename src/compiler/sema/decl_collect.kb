@@ -239,8 +239,19 @@ impl DeclPass {
 			}
 		}
 	
-		// Pass 1: collect ordinary declarations (templates are skipped).
-		for (d1 in prog) self.collect_declaration(d1);
+		// Pass 1a: collect ordinary declarations (templates and impls are deferred).
+		for (d1 in prog) {
+			if (d1.kind != NodeKind.DECL_IMPL) self.collect_declaration(d1);
+		}
+
+		// Pass 1b: collect impl blocks now that all types are registered.
+		for (d1 in prog) {
+			when (d1.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d1);
+				NodeKind.DECL_IMPL -> self.collect_impl(d1);
+				else -> {}
+			}
+		}
 	
 		// Pass 2: rewrite generic uses across signatures and bodies, instantiating
 		// concrete structs / functions / methods as needed. Module markers are
