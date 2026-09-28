@@ -59,26 +59,23 @@ impl BodyPass {
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ);
 	}
 
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node<T>(kind, data, line, col);
-
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.make<LiteralExpr>(NodeKind.EXPR_LITERAL, LiteralExpr(lk, raw), line, col);
+		=> self.arena.make<LiteralExpr>(LiteralExpr(lk, raw), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.make<IdentifierExpr>(NodeKind.EXPR_IDENTIFIER, IdentifierExpr(name), line, col);
+		=> self.arena.make<IdentifierExpr>(IdentifierExpr(name), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.make<BinaryExpr>(NodeKind.EXPR_BINARY, BinaryExpr(left, op, right), line, col);
+		=> self.arena.make<BinaryExpr>(BinaryExpr(left, op, right), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.make<UnaryExpr>(NodeKind.EXPR_UNARY, UnaryExpr(op, operand), line, col);
+		=> self.arena.make<UnaryExpr>(UnaryExpr(op, operand), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.make<CallExpr>(NodeKind.EXPR_CALL, CallExpr(callee, args, type_args), line, col);
+		=> self.arena.make<CallExpr>(CallExpr(callee, args, type_args), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.make<IndexExpr>(NodeKind.EXPR_INDEX, IndexExpr(target, index), line, col);
+		=> self.arena.make<IndexExpr>(IndexExpr(target, index), line, col);
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
 		// Prefix the module name (if any) so we know which module an error is in for multi-module builds

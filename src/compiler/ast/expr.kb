@@ -1,6 +1,7 @@
 mod compiler.ast.expr;
 
 use compiler.ast.node.AstNode;
+use compiler.ast.node.NodeKind;
 use compiler.lexer.token.TokenType;
 use std.collections.list.List;
 
@@ -18,8 +19,16 @@ pub struct LiteralExpr {
 	pub raw_text: str
 }
 
+impl LiteralExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_LITERAL;
+}
+
 pub struct IdentifierExpr {
 	pub name: str
+}
+
+impl IdentifierExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_IDENTIFIER;
 }
 
 pub struct BinaryExpr {
@@ -28,9 +37,17 @@ pub struct BinaryExpr {
 	pub right: *AstNode
 }
 
+impl BinaryExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_BINARY;
+}
+
 pub struct UnaryExpr {
 	pub op: TokenType,
 	pub operand: *AstNode
+}
+
+impl UnaryExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_UNARY;
 }
 
 pub struct CallExpr {
@@ -39,14 +56,26 @@ pub struct CallExpr {
 	pub type_args: List<*AstNode>
 }
 
+impl CallExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_CALL;
+}
+
 pub struct MemberExpr {
 	pub object: *AstNode,
 	pub member: str
 }
 
+impl MemberExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_MEMBER;
+}
+
 pub struct IndexExpr {
 	pub target: *AstNode,
 	pub index: *AstNode
+}
+
+impl IndexExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_INDEX;
 }
 
 pub struct AssignExpr {
@@ -55,9 +84,17 @@ pub struct AssignExpr {
 	pub value: *AstNode
 }
 
+impl AssignExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_ASSIGN;
+}
+
 pub struct UpdateExpr {
 	pub op: TokenType,
 	pub target: *AstNode
+}
+
+impl UpdateExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_UPDATE;
 }
 
 pub struct CastExpr {
@@ -65,8 +102,16 @@ pub struct CastExpr {
 	pub target_type: *AstNode
 }
 
+impl CastExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_CAST;
+}
+
 pub struct GroupExpr {
 	pub expr: *AstNode
+}
+
+impl GroupExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_GROUP;
 }
 
 pub struct ArrayLiteralExpr {
@@ -75,10 +120,18 @@ pub struct ArrayLiteralExpr {
 	pub elem_type_node: *AstNode
 }
 
+impl ArrayLiteralExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_ARRAY_LITERAL;
+}
+
 pub struct IfExpr {
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode
+}
+
+impl IfExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_IF;
 }
 
 pub struct WhenArm {
@@ -94,6 +147,10 @@ pub struct WhenExpr {
 	pub arms: List<WhenArm>
 }
 
+impl WhenExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_WHEN;
+}
+
 // One piece of an interpolated string: either a literal chunk (`is_literal`,
 // in which case `expr` is a STRING literal) or a `${...}` hole expression.
 pub struct InterpPart {
@@ -103,4 +160,8 @@ pub struct InterpPart {
 
 pub struct InterpExpr {
 	pub parts: List<InterpPart>
+}
+
+impl InterpExpr {
+	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_INTERP;
 }

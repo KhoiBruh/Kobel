@@ -1,14 +1,23 @@
 mod compiler.ast.stmt;
 
 use compiler.ast.node.AstNode;
+use compiler.ast.node.NodeKind;
 use std.collections.list.List;
 
 pub struct BlockStmt {
 	pub statements: List<*AstNode>
 }
 
+impl BlockStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_BLOCK;
+}
+
 pub struct ExprStmt {
 	pub expr: *AstNode
+}
+
+impl ExprStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_EXPR;
 }
 
 pub struct VarDeclStmt {
@@ -18,15 +27,27 @@ pub struct VarDeclStmt {
 	pub initializer: *AstNode
 }
 
+impl VarDeclStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_VAR_DECL;
+}
+
 pub struct IfStmt {
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode
 }
 
+impl IfStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_IF;
+}
+
 pub struct WhileStmt {
 	pub condition: *AstNode,
 	pub body: *AstNode
+}
+
+impl WhileStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_WHILE;
 }
 
 // `for (name in <iterable>)` or `for (name in <start>..<end>)`.
@@ -45,16 +66,32 @@ pub struct ForStmt {
 	pub body: *AstNode
 }
 
+impl ForStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_FOR;
+}
+
 pub struct ReturnStmt {
 	pub value: *AstNode
+}
+
+impl ReturnStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_RETURN;
 }
 
 pub struct BreakStmt {
 	pub dummy: i32
 }
 
+impl BreakStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_BREAK;
+}
+
 pub struct ContinueStmt {
 	pub dummy: i32
+}
+
+impl ContinueStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_CONTINUE;
 }
 
 pub struct WhenStmtArm {
@@ -70,6 +107,14 @@ pub struct WhenStmt {
 	pub arms: List<WhenStmtArm>
 }
 
+impl WhenStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_WHEN;
+}
+
 pub struct YieldStmt {
 	pub value: *AstNode
+}
+
+impl YieldStmt {
+	pub fn node_kind(val self): NodeKind => NodeKind.STMT_YIELD;
 }
