@@ -81,7 +81,7 @@ impl BodyPass {
 			LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_char());
 			LiteralKind.NULL_VAL -> {
 				val none_ty = alloc_primitive(&self.arena, type_none());
-				return alloc_pointer_type(&self.arena, none_ty, false);
+				return self.arena.pointer_type(none_ty, false);
 			}
 			else -> return alloc_primitive(&self.arena, type_none());
 		}
@@ -128,7 +128,7 @@ impl BodyPass {
 			if (lt.kind == DataType.POINTER) {
 				val pt = lt.as_pointer();
 				if (pt.is_nullable)
-					return alloc_pointer_type(&self.arena, pt.pointee, pt.is_mut);
+					return self.arena.pointer_type(pt.pointee, pt.is_mut);
 			}
 			return lt;
 		}
@@ -213,7 +213,7 @@ impl BodyPass {
 				return p_info.pointee;
 			}
 			// Take address (&expr)
-			TokenType.AMPERSAND -> return alloc_pointer_type(&self.arena, op_ty, true);
+			TokenType.AMPERSAND -> return self.arena.pointer_type(op_ty, true);
 			else -> return op_ty;
 		}
 	}
@@ -282,8 +282,8 @@ impl BodyPass {
 			}
 			if (mem.member == "c_str") {
 				val char_ty = alloc_primitive(&self.arena, type_char());
-				val char_ptr = alloc_pointer_type(&self.arena, char_ty, false);
-				return alloc_fn_type(&self.arena, List<*Type>(), char_ptr);
+				val char_ptr = self.arena.pointer_type(char_ty, false);
+				return self.arena.fn_type(List<*Type>(), char_ptr);
 			}
 			if (mem.member == "data") {
 				// `str` lowers to a bare `const char*`, so `.data` is the
@@ -292,7 +292,7 @@ impl BodyPass {
 				val dn = node as &AstNode;
 				dn.kind = mem.object.kind;
 				dn.data = mem.object.data;
-				return alloc_pointer_type(&self.arena, char_ty, false);
+				return self.arena.pointer_type(char_ty, false);
 			}
 		}
 
@@ -311,7 +311,7 @@ impl BodyPass {
 				val dn = node as &AstNode;
 				dn.kind = mem.object.kind;
 				dn.data = mem.object.data;
-				return alloc_pointer_type(&self.arena, arr.elem, true);
+				return self.arena.pointer_type(arr.elem, true);
 			}
 		}
 
@@ -610,7 +610,7 @@ impl BodyPass {
 			val t = self.check_expr(al.elements[i]);
 			if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
 		}
-		return alloc_array_type(&self.arena, elem_ty, al.elements.len);
+		return self.arena.array_type(elem_ty, al.elements.len);
 	}
 
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {

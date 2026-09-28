@@ -14,8 +14,6 @@ use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
 use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
-use compiler.sema.types.alloc_struct_type;
-use compiler.sema.types.alloc_fn_type;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 
@@ -365,7 +363,7 @@ impl DeclPass {
 
 	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
 		val s = node.to<StructDecl>() as &StructDecl;
-		val s_type = alloc_struct_type(&self.arena, final_name, List<StructField>());
+		val s_type = self.arena.struct_type(final_name, List<StructField>());
 		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)));
 		s.name = final_name;
 
@@ -389,7 +387,7 @@ impl DeclPass {
 		var ret_type = alloc_primitive(&self.arena, type_none());
 		if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
 
-		val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+		val fn_type = self.arena.fn_type(param_types, ret_type);
 		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)));
 		f.name = final_name;
 	}

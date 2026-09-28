@@ -246,12 +246,6 @@ impl Arena {
 	}
 }
 
-pub fn alloc_pointer_type(var arena: &Arena, pointee: *Type, is_mut: bool): *Type => arena.pointer_type(pointee, is_mut);
-pub fn alloc_nullable_pointer_type(var arena: &Arena, pointee: *Type, is_mut: bool): *Type => arena.nullable_pointer_type(pointee, is_mut);
-pub fn alloc_array_type(var arena: &Arena, elem: *Type, length: usz): *Type => arena.array_type(elem, length);
-pub fn alloc_struct_type(var arena: &Arena, name: str, fields: List<StructField>): *Type => arena.struct_type(name, fields);
-pub fn alloc_fn_type(var arena: &Arena, param_types: List<*Type>, return_type: *Type): *Type => arena.fn_type(param_types, return_type);
-
 // ============================================================================
 impl Type {
 	pub fn as_type<T>(self): *T => self.data as *T;
@@ -265,9 +259,9 @@ impl Type {
 	pub fn as_fn_mut(self): &FnType => self.to_mut<FnType>();
 	pub fn as_enum(self): *EnumInfo => self.as_type<EnumInfo>();
 
-	pub fn alloc_pointer(self, var arena: &Arena, is_mut: bool): *Type => alloc_pointer_type(arena, self as *Type, is_mut);
-	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => alloc_nullable_pointer_type(arena, self as *Type, is_mut);
-	pub fn alloc_array(self, var arena: &Arena, length: usz): *Type => alloc_array_type(arena, self as *Type, length);
+	pub fn alloc_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.pointer_type(self as *Type, is_mut);
+	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.nullable_pointer_type(self as *Type, is_mut);
+	pub fn alloc_array(self, var arena: &Arena, length: usz): *Type => arena.array_type(self as *Type, length);
 
 	pub fn is_signed_integer(val self) => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,

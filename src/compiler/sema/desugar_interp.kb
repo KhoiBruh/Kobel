@@ -4,7 +4,7 @@ use compiler.lexer.token.TokenType;
 
 use compiler.ast.node.AstNode;
 use compiler.ast.types.*;
-use compiler.ast.builder.AstBuilder;
+use compiler.ast.builder.*;
 
 use compiler.sema.types.*;
 
@@ -24,57 +24,54 @@ use std.mem.arena.Arena;
 pub fn interp_call(var arena: &Arena, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
 	var args = List<*AstNode>();
 	args.add(arg);
-	var b = AstBuilder(arena);
-	return b.call(b.identifier(name, line, col), args, List<*AstNode>(), line, col);
+	return arena.call(arena.identifier(name, line, col), args, List<*AstNode>(), line, col);
 }
 
 pub fn interp_concat(var arena: &Arena, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
 	var args = List<*AstNode>();
 	args.add(a);
 	args.add(b_node);
-	var b = AstBuilder(arena);
-	return b.call(b.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
+	return arena.call(arena.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
 }
 
 // Builds an AST type node for a resolved semantic type, so locals can carry an
 // explicit annotation the C backend understands.
 pub fn ast_type_from_type(var arena: &Arena, ty: *Type): *AstNode {
-	var b = AstBuilder(arena);
-	if (ty.is_enum()) return b.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
+	if (ty.is_enum()) return arena.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
 
 	return when (ty.kind) {
 		DataType.POINTER -> {
 			val pt = ty.as_pointer();
-			val base_ptr = b.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
-			if (pt.is_nullable) yield b.nullable_type(base_ptr, 0, 0);
+			val base_ptr = arena.pointer_type(pt.is_mut, ast_type_from_type(arena, pt.pointee), 0, 0);
+			if (pt.is_nullable) yield arena.nullable_type(base_ptr, 0, 0);
 			yield base_ptr;
 		}
 		DataType.ARRAY -> {
 			val at = ty.as_array();
-			yield b.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
+			yield arena.array_type(ast_type_from_type(arena, at.elem), at.length, 0, 0);
 		}
 		DataType.STRUCT -> {
 			val st_info = ty.as_struct();
 			var st_name = st_info.name;
 			if (st_info.c_name.len > 0) st_name = st_info.c_name;
-			yield b.named_type(st_name, List<*AstNode>(), 0, 0);
+			yield arena.named_type(st_name, List<*AstNode>(), 0, 0);
 		}
-		DataType.NONE -> b.named_type("none", List<*AstNode>(), 0, 0);
-		DataType.STR -> b.named_type("str", List<*AstNode>(), 0, 0);
-		DataType.BOOL -> b.named_type("bool", List<*AstNode>(), 0, 0);
-		DataType.CHAR -> b.named_type("char", List<*AstNode>(), 0, 0);
-		DataType.I8 -> b.named_type("i8", List<*AstNode>(), 0, 0);
-		DataType.I16 -> b.named_type("i16", List<*AstNode>(), 0, 0);
-		DataType.I32 -> b.named_type("i32", List<*AstNode>(), 0, 0);
-		DataType.I64 -> b.named_type("i64", List<*AstNode>(), 0, 0);
-		DataType.ISZ -> b.named_type("isz", List<*AstNode>(), 0, 0);
-		DataType.U8 -> b.named_type("u8", List<*AstNode>(), 0, 0);
-		DataType.U16 -> b.named_type("u16", List<*AstNode>(), 0, 0);
-		DataType.U32 -> b.named_type("u32", List<*AstNode>(), 0, 0);
-		DataType.U64 -> b.named_type("u64", List<*AstNode>(), 0, 0);
-		DataType.USZ -> b.named_type("usz", List<*AstNode>(), 0, 0);
-		DataType.F32 -> b.named_type("f32", List<*AstNode>(), 0, 0);
-		DataType.F64 -> b.named_type("f64", List<*AstNode>(), 0, 0);
+		DataType.NONE -> arena.named_type("none", List<*AstNode>(), 0, 0);
+		DataType.STR -> arena.named_type("str", List<*AstNode>(), 0, 0);
+		DataType.BOOL -> arena.named_type("bool", List<*AstNode>(), 0, 0);
+		DataType.CHAR -> arena.named_type("char", List<*AstNode>(), 0, 0);
+		DataType.I8 -> arena.named_type("i8", List<*AstNode>(), 0, 0);
+		DataType.I16 -> arena.named_type("i16", List<*AstNode>(), 0, 0);
+		DataType.I32 -> arena.named_type("i32", List<*AstNode>(), 0, 0);
+		DataType.I64 -> arena.named_type("i64", List<*AstNode>(), 0, 0);
+		DataType.ISZ -> arena.named_type("isz", List<*AstNode>(), 0, 0);
+		DataType.U8 -> arena.named_type("u8", List<*AstNode>(), 0, 0);
+		DataType.U16 -> arena.named_type("u16", List<*AstNode>(), 0, 0);
+		DataType.U32 -> arena.named_type("u32", List<*AstNode>(), 0, 0);
+		DataType.U64 -> arena.named_type("u64", List<*AstNode>(), 0, 0);
+		DataType.USZ -> arena.named_type("usz", List<*AstNode>(), 0, 0);
+		DataType.F32 -> arena.named_type("f32", List<*AstNode>(), 0, 0);
+		DataType.F64 -> arena.named_type("f64", List<*AstNode>(), 0, 0);
 		else -> null;
 	};
 }
@@ -84,8 +81,7 @@ pub fn make_str_eq(var arena: &Arena, is_neq: bool, left: *AstNode, right: *AstN
 	var eargs = List<*AstNode>();
 	eargs.add(left);
 	eargs.add(right);
-	var b = AstBuilder(arena);
-	val eq_call = b.call(b.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
-	if (is_neq) return b.unary(TokenType.BANG, eq_call, line, col);
+	val eq_call = arena.call(arena.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
+	if (is_neq) return arena.unary(TokenType.BANG, eq_call, line, col);
 	return eq_call;
 }

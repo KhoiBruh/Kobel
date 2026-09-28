@@ -29,11 +29,6 @@ use compiler.sema.types.type_usz;
 use compiler.sema.types.type_f32;
 use compiler.sema.types.type_f64;
 use compiler.sema.types.type_str;
-use compiler.sema.types.alloc_pointer_type;
-use compiler.sema.types.alloc_nullable_pointer_type;
-use compiler.sema.types.alloc_array_type;
-use compiler.sema.types.alloc_struct_type;
-use compiler.sema.types.alloc_fn_type;
 use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
@@ -300,12 +295,12 @@ impl DeclPass {
 			NodeKind.TYPE_POINTER -> {
 				val ptr_ast = node.to<PointerType>();
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
-				yield alloc_pointer_type(&self.arena, pointee, ptr_ast.is_mut);
+				yield self.arena.pointer_type(pointee, ptr_ast.is_mut);
 			}
 			NodeKind.TYPE_ARRAY -> {
 				val arr_ast = node.to<ArrayType>();
 				val elem = self.resolve_ast_type(arr_ast.element_type);
-				yield alloc_array_type(&self.arena, elem, arr_ast.size);
+				yield self.arena.array_type(elem, arr_ast.size);
 			}
 			NodeKind.TYPE_NULLABLE -> {
 				val null_ast = node.to<NullableType>();
@@ -313,7 +308,7 @@ impl DeclPass {
 				var res_ty = inner_ty;
 				if (inner_ty.kind == DataType.POINTER) {
 					val pt = inner_ty.as_pointer();
-					res_ty = alloc_nullable_pointer_type(&self.arena, pt.pointee, pt.is_mut);
+					res_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
 				} else {
 					self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
 				}
@@ -389,7 +384,7 @@ impl DeclPass {
 				var pt: *Type = null;
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
-					pt = alloc_pointer_type(&self.arena, st_type, p.is_mut);
+					pt = self.arena.pointer_type(st_type, p.is_mut);
 				} else {
 					pt = self.resolve_ast_type(p.type_node);
 				}
@@ -398,7 +393,7 @@ impl DeclPass {
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
 
-			val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+			val fn_type = self.arena.fn_type(param_types, ret_type);
 
 			val base = "${st_c_name}_${f.name}";
 			var m_c_name = base;
@@ -457,7 +452,7 @@ impl DeclPass {
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
 
-			val fn_type = alloc_fn_type(&self.arena, param_types, ret_type);
+			val fn_type = self.arena.fn_type(param_types, ret_type);
 
 			val base = "${prim_name}_${f.name}";
 			var m_c_name = base;

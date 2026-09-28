@@ -11,161 +11,155 @@ use std.collections.list.List;
 use std.mem.arena.Arena;
 
 // ============================================================================
-// AstBuilder Struct & Generic Factory
+// Arena AST Extension Methods
 // ============================================================================
 
-pub struct AstBuilder {
-	pub arena: &Arena
-}
+impl Arena {
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.alloc_node<T>(kind, data, line, col);
 
-impl AstBuilder {
-	pub fn new(arena: &Arena): AstBuilder => Self(arena);
-
-	pub fn make<T>(self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node<T>(kind, data, line, col);
-
-	pub fn node(var self: &AstBuilder, kind: NodeKind, line: usz, col: usz, data: *u8): *AstNode
-		=> self.arena.alloc_val<AstNode>(AstNode(kind, line, col, data));
+	pub fn node(var self, kind: NodeKind, line: usz, col: usz, data: *u8): *AstNode
+		=> self.alloc_val<AstNode>(AstNode(kind, line, col, data));
 
 	// ------------------------------------------------------------------------
 	// Types
 	// ------------------------------------------------------------------------
 
-	pub fn named_type(var self: &AstBuilder, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<NamedType>(NodeKind.TYPE_NAMED, NamedType(name, type_args), line, col);
 
-	pub fn pointer_type(var self: &AstBuilder, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
+	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<PointerType>(NodeKind.TYPE_POINTER, PointerType(is_mut, pointee), line, col);
 
-	pub fn array_type(var self: &AstBuilder, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
+	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
 		=> self.make<ArrayType>(NodeKind.TYPE_ARRAY, ArrayType(elem, size), line, col);
 
-	pub fn nullable_type(var self: &AstBuilder, inner: *AstNode, line: usz, col: usz): *AstNode
+	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<NullableType>(NodeKind.TYPE_NULLABLE, NullableType(inner), line, col);
 
 	// ------------------------------------------------------------------------
 	// Expressions
 	// ------------------------------------------------------------------------
 
-	pub fn literal(var self: &AstBuilder, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
+	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
 		=> self.make<LiteralExpr>(NodeKind.EXPR_LITERAL, LiteralExpr(lk, raw), line, col);
 
-	pub fn identifier(var self: &AstBuilder, name: str, line: usz, col: usz): *AstNode
+	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
 		=> self.make<IdentifierExpr>(NodeKind.EXPR_IDENTIFIER, IdentifierExpr(name), line, col);
 
-	pub fn binary(var self: &AstBuilder, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
+	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<BinaryExpr>(NodeKind.EXPR_BINARY, BinaryExpr(left, op, right), line, col);
 
-	pub fn unary(var self: &AstBuilder, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
+	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<UnaryExpr>(NodeKind.EXPR_UNARY, UnaryExpr(op, operand), line, col);
 
-	pub fn call(var self: &AstBuilder, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<CallExpr>(NodeKind.EXPR_CALL, CallExpr(callee, args, type_args), line, col);
 
-	pub fn member(var self: &AstBuilder, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
+	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
 		=> self.make<MemberExpr>(NodeKind.EXPR_MEMBER, MemberExpr(obj, member), line, col);
 
-	pub fn index(var self: &AstBuilder, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
+	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<IndexExpr>(NodeKind.EXPR_INDEX, IndexExpr(target, index), line, col);
 
-	pub fn assign(var self: &AstBuilder, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
+	pub fn assign(var self, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<AssignExpr>(NodeKind.EXPR_ASSIGN, AssignExpr(target, TokenType.EQUAL, value), line, col);
 
-	pub fn compound_assign(var self: &AstBuilder, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
+	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<AssignExpr>(NodeKind.EXPR_ASSIGN, AssignExpr(target, op, value), line, col);
 
-	pub fn update(var self: &AstBuilder, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
+	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<UpdateExpr>(NodeKind.EXPR_UPDATE, UpdateExpr(op, target), line, col);
 
-	pub fn cast(var self: &AstBuilder, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
+	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<CastExpr>(NodeKind.EXPR_CAST, CastExpr(expr, target_type), line, col);
 
-	pub fn group(var self: &AstBuilder, expr: *AstNode, line: usz, col: usz): *AstNode
+	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<GroupExpr>(NodeKind.EXPR_GROUP, GroupExpr(expr), line, col);
 
-	pub fn array_literal(var self: &AstBuilder, elements: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<ArrayLiteralExpr>(NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements, "", null), line, col);
 
-	pub fn list_literal(var self: &AstBuilder, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
+	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<ArrayLiteralExpr>(NodeKind.EXPR_ARRAY_LITERAL, ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
 
-	pub fn if_expr(var self: &AstBuilder, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
+	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<IfExpr>(NodeKind.EXPR_IF, IfExpr(condition, then_branch, else_branch), line, col);
 
-	pub fn when_expr(var self: &AstBuilder, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
+	pub fn when_expr(var self, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
 		=> self.make<WhenExpr>(NodeKind.EXPR_WHEN, WhenExpr(condition, arms), line, col);
 
-	pub fn interp(var self: &AstBuilder, parts: List<InterpPart>, line: usz, col: usz): *AstNode
+	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
 		=> self.make<InterpExpr>(NodeKind.EXPR_INTERP, InterpExpr(parts), line, col);
 
 	// ------------------------------------------------------------------------
 	// Statements
 	// ------------------------------------------------------------------------
 
-	pub fn block_stmt(var self: &AstBuilder, statements: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<BlockStmt>(NodeKind.STMT_BLOCK, BlockStmt(statements), line, col);
 
-	pub fn expr_stmt(var self: &AstBuilder, expr: *AstNode, line: usz, col: usz): *AstNode
+	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<ExprStmt>(NodeKind.STMT_EXPR, ExprStmt(expr), line, col);
 
-	pub fn var_decl(var self: &AstBuilder, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
+	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<VarDeclStmt>(NodeKind.STMT_VAR_DECL, VarDeclStmt(is_mut, name, type_annotation, initializer), line, col);
 
-	pub fn if_stmt(var self: &AstBuilder, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
+	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<IfStmt>(NodeKind.STMT_IF, IfStmt(condition, then_branch, else_branch), line, col);
 
-	pub fn while_stmt(var self: &AstBuilder, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
+	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<WhileStmt>(NodeKind.STMT_WHILE, WhileStmt(condition, body), line, col);
 
-	pub fn for_stmt(var self: &AstBuilder, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
+	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<ForStmt>(NodeKind.STMT_FOR, ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body), line, col);
 
-	pub fn return_stmt(var self: &AstBuilder, value: *AstNode, line: usz, col: usz): *AstNode
+	pub fn return_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<ReturnStmt>(NodeKind.STMT_RETURN, ReturnStmt(value), line, col);
 
-	pub fn break_stmt(var self: &AstBuilder, line: usz, col: usz): *AstNode
+	pub fn break_stmt(var self, line: usz, col: usz): *AstNode
 		=> self.make<BreakStmt>(NodeKind.STMT_BREAK, BreakStmt(0), line, col);
 
-	pub fn continue_stmt(var self: &AstBuilder, line: usz, col: usz): *AstNode
+	pub fn continue_stmt(var self, line: usz, col: usz): *AstNode
 		=> self.make<ContinueStmt>(NodeKind.STMT_CONTINUE, ContinueStmt(0), line, col);
 
-	pub fn when_stmt(var self: &AstBuilder, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
+	pub fn when_stmt(var self, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
 		=> self.make<WhenStmt>(NodeKind.STMT_WHEN, WhenStmt(condition, arms), line, col);
 
-	pub fn yield_stmt(var self: &AstBuilder, value: *AstNode, line: usz, col: usz): *AstNode
+	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
 		=> self.make<YieldStmt>(NodeKind.STMT_YIELD, YieldStmt(value), line, col);
 
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------
 
-	pub fn module_decl(var self: &AstBuilder, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
+	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
 		=> self.make<ModuleDecl>(NodeKind.DECL_MODULE, ModuleDecl(path, full_path), line, col);
 
-	pub fn use_decl(var self: &AstBuilder, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
+	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
 		=> self.make<UseDecl>(NodeKind.DECL_USE, UseDecl(path, full_path, symbol_name, alias, is_wildcard), line, col);
 
-	pub fn fn_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.make<FnDecl>(NodeKind.DECL_FN, FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
 
-	pub fn struct_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
+	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.make<StructDecl>(NodeKind.DECL_STRUCT, StructDecl(name, type_params, fields, is_pub), line, col);
 
-	pub fn trait_decl(var self: &AstBuilder, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
+	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.make<TraitDecl>(NodeKind.DECL_TRAIT, TraitDecl(name, type_params, bases, methods, is_pub), line, col);
 
-	pub fn impl_decl(var self: &AstBuilder, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<ImplDecl>(NodeKind.DECL_IMPL, ImplDecl(struct_name, type_params, trait_name, methods), line, col);
 
-	pub fn enum_decl(var self: &AstBuilder, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz): *AstNode
+	pub fn enum_decl(var self, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.make<EnumDecl>(NodeKind.DECL_ENUM, EnumDecl(name, underlying_type, members, is_pub), line, col);
 
-	pub fn const_decl(var self: &AstBuilder, name: str, type_node: *AstNode, value: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
+	pub fn const_decl(var self, name: str, type_node: *AstNode, value: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.make<ConstDecl>(NodeKind.DECL_CONST, ConstDecl(name, type_node, value, is_pub), line, col);
 
-	pub fn extern_block(var self: &AstBuilder, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<ExternBlock>(NodeKind.DECL_EXTERN_BLOCK, ExternBlock(abi, declarations), line, col);
 
-	pub fn program(var self: &AstBuilder, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<Program>(NodeKind.PROGRAM, Program(declarations), line, col);
 }
