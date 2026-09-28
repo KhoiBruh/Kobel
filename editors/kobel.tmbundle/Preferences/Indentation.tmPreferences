@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>name</key>
+	<string>Indentation Rules</string>
+	<key>scope</key>
+	<string>source.kobel</string>
+	<key>settings</key>
+	<dict>
+		<key>increaseIndentPattern</key>
+		<string>^.*(\{[^}]*|\([^)]*|\[[^\]]*|=>\s*|->\s*)$</string>
+		<key>decreaseIndentPattern</key>
+		<string>^\s*(\}|\]|\)).*$</string>
+		<key>indentNextLinePattern</key>
+		<string>^\s*(if|else|while|for)\b.*[^{;]$</string>
+	</dict>
+	<key>uuid</key>
+	<string>A1C4E9F0-3B72-4C18-9123-D5678E2A4F90</string>
+</dict>
+</plist>

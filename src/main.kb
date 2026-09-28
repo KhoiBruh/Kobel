@@ -18,6 +18,8 @@ use compiler.codegen.c_program.*;
 use compiler.loader.loader.*;
 
 use util.strutil.*;
+use fmt.options.*;
+use fmt.formatter.*;
 
 // ============================================================================
 // Main Entry Point
@@ -27,7 +29,10 @@ fn print_usage() {
 	println("============================================================");
 	println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
 	println("============================================================");
-	println("Usage: kobel [options] <source.kb>");
+	println("Usage: kobel [command|options] <source.kb>");
+	println("");
+	println("Commands:");
+	println("  fmt [options] <files...>  Format Kobel source code");
 	println("");
 	println("Options:");
 	println("  -o <file>        Specify output executable binary name");
@@ -36,6 +41,79 @@ fn print_usage() {
 	println("  -I <dir>         Add directory to module search path");
 	println("  -v, --version    Display compiler version");
 	println("  -h, --help       Display this help message");
+}
+
+fn print_fmt_usage() {
+	println("Usage: kobel fmt [options] <files...>");
+	println("");
+	println("Options:");
+	println("  -w, --write      Write formatted output back to files in place");
+	println("  -h, --help       Display this help message");
+}
+
+fn run_fmt(argc: i32, argv: &*char): i32 {
+	if (argc < 3) {
+		print_fmt_usage();
+		return 1;
+	}
+
+	var write_in_place = false;
+	var files = List<str>();
+
+	var i: i32 = 2;
+	while (i < argc) {
+		val arg = cstr_to_str(argv[i]);
+		when (arg) {
+			"-h", "--help" -> {
+				print_fmt_usage();
+				return 0;
+			}
+			"-w", "--write" -> {
+				write_in_place = true;
+			}
+			else -> {
+				if (arg.len > 0 && arg[0] == '-') {
+					println("Error: Unknown option '${arg}'");
+					return 1;
+				}
+				files.add(arg);
+			}
+		}
+		i++;
+	}
+
+	if (files.len == 0UZ) {
+		println("Error: No files specified to format");
+		return 1;
+	}
+
+	val options = default_format_options();
+
+	for (fpath in files) {
+		val src = read_file(fpath);
+		if (src.len == 0UZ) {
+			print("Warning: Skipping empty or unreadable file: ");
+			println(fpath);
+			continue;
+		}
+
+		val formatted = format_source(src, options);
+
+		if (write_in_place) {
+			val ok = write_file(fpath, formatted);
+			if (!ok) {
+				print("Error: Failed to write to ");
+				println(fpath);
+				return 1;
+			}
+			print("Formatted: ");
+			println(fpath);
+		} else {
+			print(formatted);
+		}
+	}
+
+	return 0;
 }
 
 fn print_error_list(errors: List<str>) {
@@ -53,6 +131,11 @@ fn main(argc: i32, argv: &*char): i32 {
 	if (argc < 2) {
 		print_usage();
 		return 1;
+	}
+
+	val first_arg = cstr_to_str(argv[1]);
+	if (first_arg == "fmt") {
+		return run_fmt(argc, argv);
 	}
 
 	var input_path = "";

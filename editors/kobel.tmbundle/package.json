@@ -1,14 +1,19 @@
 {
   "name": "kobel",
   "displayName": "Kobel Language Support",
-  "description": "Syntax highlighting and language support for the Kobel programming language",
+  "description": "Syntax highlighting, smart indentation, and code formatting for the Kobel programming language",
   "version": "0.1.0",
   "publisher": "kobel-lang",
   "engines": {
-    "vscode": "^1.0.0"
+    "vscode": "^1.60.0"
   },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:kobel"
+  ],
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Formatters"
   ],
   "contributes": {
     "languages": [
@@ -30,6 +35,29 @@
         "scopeName": "source.kobel",
         "path": "./Syntaxes/Kobel.tmLanguage.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "kobel.format",
+        "title": "Kobel: Format Document"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "kobel.format",
+        "key": "shift+alt+f",
+        "when": "editorTextFocus && editorLangId == kobel"
+      }
+    ],
+    "configuration": {
+      "title": "Kobel",
+      "properties": {
+        "kobel.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to kobel compiler executable (e.g. C:\\Users\\Admin\\CLionProjects\\Kobel\\kobel_v1.exe). If left empty, detects kobel_v1.exe in workspace or 'kobel' in PATH."
+        }
+      }
+    }
   }
 }

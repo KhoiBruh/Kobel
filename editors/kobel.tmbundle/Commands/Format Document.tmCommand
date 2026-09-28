@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>beforeRunningCommand</key>
+	<string>saveActiveFile</string>
+	<key>command</key>
+	<string>kobel fmt -w "$TM_FILEPATH"</string>
+	<key>fallbackInput</key>
+	<string>document</string>
+	<key>input</key>
+	<string>none</string>
+	<key>keyEquivalent</key>
+	<string>^~F</string>
+	<key>name</key>
+	<string>Format Document</string>
+	<key>output</key>
+	<string>discard</string>
+	<key>scope</key>
+	<string>source.kobel</string>
+	<key>uuid</key>
+	<string>B3C6F7D2-5E14-4A89-9B21-827C5A3F0E1D</string>
+</dict>
+</plist>

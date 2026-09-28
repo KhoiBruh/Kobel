@@ -54,6 +54,7 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInf
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
+typedef struct std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment;
 typedef struct std__str__StrRaw std__str__StrRaw;
 typedef struct std__io__StringRaw std__io__StringRaw;
 typedef int32_t compiler__lexer__token__TokenType;
@@ -153,6 +154,13 @@ typedef struct compiler__parser__parser__Parser compiler__parser__parser__Parser
 typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__LoadedModule;
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
+typedef struct fmt__options__FormatOptions fmt__options__FormatOptions;
+typedef struct std__collections__string_builder__StringRaw std__collections__string_builder__StringRaw;
+typedef struct std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder;
+typedef struct fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer;
+typedef struct fmt__comments__Comment fmt__comments__Comment;
+typedef struct fmt__comments__CommentTable fmt__comments__CommentTable;
+typedef struct fmt__formatter__Formatter fmt__formatter__Formatter;
 
 
 struct std__collections__list__List_ptr_compiler__ast__node__AstNode {
@@ -289,6 +297,12 @@ struct std__collections__list__List_compiler__lexer__token__Token {
 
 struct std__collections__list__List_compiler__loader__loader__LoadedModule {
     compiler__loader__loader__LoadedModule* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__list__List_fmt__comments__Comment {
+    fmt__comments__Comment* data;
     size_t len;
     size_t cap;
 };
@@ -810,6 +824,53 @@ struct compiler__loader__loader__ModuleLoader {
     std__mem__arena__Arena arena;
 };
 
+struct fmt__options__FormatOptions {
+    size_t tab_size;
+    bool use_smart_tabs;
+    size_t max_width;
+    bool k_and_r_braces;
+};
+
+struct std__collections__string_builder__StringRaw {
+    const char* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__string_builder__StringBuilder {
+    uint8_t* buf;
+    size_t len;
+    size_t cap;
+};
+
+struct fmt__buffer__FormatBuffer {
+    std__collections__string_builder__StringBuilder sb;
+    fmt__options__FormatOptions options;
+    size_t indent_level;
+    size_t align_spaces;
+    size_t current_col;
+    bool at_line_start;
+    size_t blank_lines;
+};
+
+struct fmt__comments__Comment {
+    const char* text;
+    size_t line;
+    size_t col;
+    bool is_block;
+};
+
+struct fmt__comments__CommentTable {
+    std__collections__list__List_fmt__comments__Comment comments;
+    size_t cursor;
+};
+
+struct fmt__formatter__Formatter {
+    fmt__buffer__FormatBuffer buf;
+    fmt__comments__CommentTable comments;
+    fmt__options__FormatOptions options;
+};
+
 static inline std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_from_array(const void* src, size_t n) {
     size_t elem_size = sizeof(*(((std__collections__list__List_ptr_compiler__ast__node__AstNode*)0)->data));
     size_t cap = (n < 4) ? 4 : n;
@@ -1080,6 +1141,18 @@ static inline std__collections__list__List_compiler__loader__loader__LoadedModul
     void* data = malloc(cap * elem_size);
     if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
     std__collections__list__List_compiler__loader__loader__LoadedModule l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
+static inline std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_fmt__comments__Comment*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_fmt__comments__Comment l;
     l.data = data;
     l.len = n;
     l.cap = cap;
@@ -1500,6 +1573,24 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_clear(s
 void std__collections__list__List_compiler__loader__loader__LoadedModule_grow(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_reserve(std__collections__list__List_compiler__loader__loader__LoadedModule* self, size_t min_cap);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
+int32_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self);
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_at(std__collections__list__List_fmt__comments__Comment* self, size_t i);
+fmt__comments__Comment* std__mem__alloc__alloc_array_fmt__comments__Comment(size_t count);
+fmt__comments__Comment* std__mem__alloc__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count);
+void std__mem__alloc__release_fmt__comments__Comment(fmt__comments__Comment* ptr);
+std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_new_0(void);
+std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_new_1(size_t capacity);
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_get(std__collections__list__List_fmt__comments__Comment* self, size_t index);
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_first(std__collections__list__List_fmt__comments__Comment* self);
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_last(std__collections__list__List_fmt__comments__Comment* self);
+bool std__collections__list__List_fmt__comments__Comment_is_empty(std__collections__list__List_fmt__comments__Comment* self);
+void std__collections__list__List_fmt__comments__Comment_set(std__collections__list__List_fmt__comments__Comment* self, size_t index, fmt__comments__Comment value);
+void std__collections__list__List_fmt__comments__Comment_add(std__collections__list__List_fmt__comments__Comment* self, fmt__comments__Comment value);
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_pop(std__collections__list__List_fmt__comments__Comment* self);
+void std__collections__list__List_fmt__comments__Comment_clear(std__collections__list__List_fmt__comments__Comment* self);
+void std__collections__list__List_fmt__comments__Comment_grow(std__collections__list__List_fmt__comments__Comment* self);
+void std__collections__list__List_fmt__comments__Comment_reserve(std__collections__list__List_fmt__comments__Comment* self, size_t min_cap);
+void std__collections__list__List_fmt__comments__Comment_delete(std__collections__list__List_fmt__comments__Comment* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_val_compiler__ast__node__AstNode(std__mem__arena__Arena* self, compiler__ast__node__AstNode value);
 compiler__ast__types__NamedType* std__mem__arena__alloc_compiler__ast__types__NamedType(std__mem__arena__Arena* self);
@@ -1735,6 +1826,8 @@ compiler__ast__decl__TraitDecl* compiler__ast__node__to_compiler__ast__decl__Tra
 compiler__sema__symbol__TraitMethod* std__mem__arena__alloc_compiler__sema__symbol__TraitMethod(std__mem__arena__Arena* self);
 compiler__sema__symbol__TraitInfo* std__mem__arena__alloc_compiler__sema__symbol__TraitInfo(std__mem__arena__Arena* self);
 compiler__ast__decl__Program* compiler__ast__node__to_compiler__ast__decl__Program(compiler__ast__node__AstNode* self);
+std__collections__string_builder__StringRaw* std__mem__alloc__alloc_std__collections__string_builder__StringRaw(void);
+void std__mem__alloc__release_std__collections__string_builder__StringRaw(std__collections__string_builder__StringRaw* ptr);
 uint8_t* std__mem__alloc__raw_alloc(size_t size);
 uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size);
 void std__mem__alloc__raw_release(uint8_t* ptr);
@@ -2274,7 +2367,49 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 const char* compiler__loader__loader__declared_module_name(compiler__ast__node__AstNode* program_node);
+fmt__options__FormatOptions fmt__options__default_format_options(void);
+std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void);
+size_t std__collections__string_builder__StringBuilder_count(std__collections__string_builder__StringBuilder* self);
+char std__collections__string_builder__StringBuilder_at(std__collections__string_builder__StringBuilder* self, size_t i);
+void std__collections__string_builder__StringBuilder_append_char(std__collections__string_builder__StringBuilder* self, char c);
+void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s);
+void std__collections__string_builder__StringBuilder_append_i32(std__collections__string_builder__StringBuilder* self, int32_t n);
+void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self);
+void std__collections__string_builder__StringBuilder_grow(std__collections__string_builder__StringBuilder* self, size_t min_cap);
+void std__collections__string_builder__StringBuilder_delete(std__collections__string_builder__StringBuilder* self);
+const char* std__collections__string_builder__StringBuilder_to_str(std__collections__string_builder__StringBuilder* self);
+fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer_new(fmt__options__FormatOptions options);
+void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_write(fmt__buffer__FormatBuffer* self, const char* s);
+void fmt__buffer__FormatBuffer_write_char(fmt__buffer__FormatBuffer* self, char c);
+void fmt__buffer__FormatBuffer_space(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_double_newline(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_indent(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_dedent(fmt__buffer__FormatBuffer* self);
+void fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces);
+void fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self);
+const char* fmt__buffer__FormatBuffer_to_str(fmt__buffer__FormatBuffer* self);
+fmt__comments__CommentTable fmt__comments__CommentTable_new(std__collections__list__List_fmt__comments__Comment comments);
+bool fmt__comments__CommentTable_has_more(fmt__comments__CommentTable* self);
+fmt__comments__Comment fmt__comments__CommentTable_peek(fmt__comments__CommentTable* self);
+void fmt__comments__CommentTable_emit_before(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t target_line);
+void fmt__comments__CommentTable_emit_trailing_on_line(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t current_line);
+void fmt__comments__CommentTable_emit_remaining(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf);
+std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comments(const char* src);
+const char* fmt__formatter__op_to_str(compiler__lexer__token__TokenType op);
+fmt__formatter__Formatter fmt__formatter__Formatter_new(fmt__options__FormatOptions options, fmt__comments__CommentTable comments);
+const char* fmt__formatter__Formatter_to_str(fmt__formatter__Formatter* self);
+void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
+void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
+void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
+void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* self, std__collections__list__List_compiler__ast__decl__GenericParam type_params);
+void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
+void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program);
+const char* fmt__formatter__format_source(const char* src, fmt__options__FormatOptions options);
 void main__print_usage(void);
+void main__print_fmt_usage(void);
+int32_t main__run_fmt(int32_t argc, const char** argv);
 void main__print_error_list(std__collections__list__List_str errors);
 int32_t main(int32_t argc, const char** argv);
 
@@ -4440,6 +4575,100 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(
     std__mem__alloc__release_compiler__loader__loader__LoadedModule((self)->data);
 }
 
+int32_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self) {
+    return (self)->len;
+}
+
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_at(std__collections__list__List_fmt__comments__Comment* self, size_t i) {
+    return (self)->data[i];
+}
+
+fmt__comments__Comment* std__mem__alloc__alloc_array_fmt__comments__Comment(size_t count) {
+    return ((fmt__comments__Comment*)std__mem__alloc__raw_alloc((count * 40)));
+}
+
+fmt__comments__Comment* std__mem__alloc__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count) {
+    return ((fmt__comments__Comment*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
+}
+
+void std__mem__alloc__release_fmt__comments__Comment(fmt__comments__Comment* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_new_0(void) {
+    return (std__collections__list__List_fmt__comments__Comment){ std__mem__alloc__alloc_array_fmt__comments__Comment(((size_t)4ULL)), 0, ((size_t)4ULL) };
+}
+
+std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_new_1(size_t capacity) {
+    size_t cap = capacity;
+    if ((cap == 0)) {
+        cap = 4;
+    }
+    return (std__collections__list__List_fmt__comments__Comment){ std__mem__alloc__alloc_array_fmt__comments__Comment(cap), 0, cap };
+}
+
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_get(std__collections__list__List_fmt__comments__Comment* self, size_t index) {
+    return (self)->data[index];
+}
+
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_first(std__collections__list__List_fmt__comments__Comment* self) {
+    return (self)->data[0];
+}
+
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_last(std__collections__list__List_fmt__comments__Comment* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_fmt__comments__Comment_is_empty(std__collections__list__List_fmt__comments__Comment* self) {
+    return ((self)->len == 0);
+}
+
+void std__collections__list__List_fmt__comments__Comment_set(std__collections__list__List_fmt__comments__Comment* self, size_t index, fmt__comments__Comment value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_fmt__comments__Comment_add(std__collections__list__List_fmt__comments__Comment* self, fmt__comments__Comment value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_fmt__comments__Comment_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len++;
+}
+
+fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_pop(std__collections__list__List_fmt__comments__Comment* self) {
+    (self)->len--;
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_fmt__comments__Comment_clear(std__collections__list__List_fmt__comments__Comment* self) {
+    (self)->len = 0;
+}
+
+void std__collections__list__List_fmt__comments__Comment_grow(std__collections__list__List_fmt__comments__Comment* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_fmt__comments__Comment((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_fmt__comments__Comment_reserve(std__collections__list__List_fmt__comments__Comment* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap *= 2;
+                }
+            }
+            (self)->data = std__mem__alloc__resize_fmt__comments__Comment((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_fmt__comments__Comment_delete(std__collections__list__List_fmt__comments__Comment* self) {
+    std__mem__alloc__release_fmt__comments__Comment((self)->data);
+}
+
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* self) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 32, 8);
     return ((compiler__ast__node__AstNode*)raw);
@@ -5577,6 +5806,14 @@ compiler__sema__symbol__TraitInfo* std__mem__arena__alloc_compiler__sema__symbol
 
 compiler__ast__decl__Program* compiler__ast__node__to_compiler__ast__decl__Program(compiler__ast__node__AstNode* self) {
     return ((compiler__ast__decl__Program*)(self)->data);
+}
+
+std__collections__string_builder__StringRaw* std__mem__alloc__alloc_std__collections__string_builder__StringRaw(void) {
+    return ((std__collections__string_builder__StringRaw*)std__mem__alloc__raw_alloc(24));
+}
+
+void std__mem__alloc__release_std__collections__string_builder__StringRaw(std__collections__string_builder__StringRaw* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
 }
 
 uint8_t* std__mem__alloc__raw_alloc(size_t size) {
@@ -17086,11 +17323,1991 @@ const char* compiler__loader__loader__declared_module_name(compiler__ast__node__
     return "";
 }
 
+fmt__options__FormatOptions fmt__options__default_format_options(void) {
+    return (fmt__options__FormatOptions){ ((size_t)4ULL), true, ((size_t)100ULL), true };
+}
+
+std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void) {
+    size_t init_cap = ((size_t)32ULL);
+    uint8_t* raw = std__mem__alloc__raw_alloc(init_cap);
+    return (std__collections__string_builder__StringBuilder){ raw, 0, init_cap };
+}
+
+size_t std__collections__string_builder__StringBuilder_count(std__collections__string_builder__StringBuilder* self) {
+    return (self)->len;
+}
+
+char std__collections__string_builder__StringBuilder_at(std__collections__string_builder__StringBuilder* self, size_t i) {
+    return ((char)(self)->buf[i]);
+}
+
+void std__collections__string_builder__StringBuilder_append_char(std__collections__string_builder__StringBuilder* self, char c) {
+    if ((((self)->len + 2) >= (self)->cap)) {
+        std__collections__string_builder__StringBuilder_grow(self, ((self)->len + 2));
+    }
+    (self)->buf[(self)->len] = ((uint8_t)c);
+    (self)->len++;
+}
+
+void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s) {
+    size_t s_len = kobel_slen(s);
+    if (((((self)->len + s_len) + 1) >= (self)->cap)) {
+        std__collections__string_builder__StringBuilder_grow(self, (((self)->len + s_len) + 1));
+    }
+    {
+        size_t __for_e = s_len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                (self)->buf[((self)->len + i)] = ((uint8_t)s[i]);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (self)->len += s_len;
+}
+
+void std__collections__string_builder__StringBuilder_append_i32(std__collections__string_builder__StringBuilder* self, int32_t n) {
+    int32_t v = n;
+    if ((v == 0)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(self, '0');
+            return;
+        }
+    }
+    if ((v < 0)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(self, '-');
+            v = (-v);
+        }
+    }
+    int32_t place = 1;
+    int32_t probe = v;
+    while ((probe >= 10)) {
+        {
+            probe /= 10;
+            place *= 10;
+        }
+    }
+    int32_t rest = v;
+    while ((place > 0)) {
+        {
+            int32_t digit = (rest / place);
+            std__collections__string_builder__StringBuilder_append_char(self, ((char)((digit + 48))));
+            rest -= (digit * place);
+            place /= 10;
+        }
+    }
+}
+
+void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self) {
+    (self)->len = 0;
+}
+
+void std__collections__string_builder__StringBuilder_grow(std__collections__string_builder__StringBuilder* self, size_t min_cap) {
+    size_t new_cap = ((self)->cap * 2);
+    while ((new_cap < min_cap)) {
+        {
+            new_cap *= 2;
+        }
+    }
+    uint8_t* new_raw = std__mem__alloc__raw_resize((self)->buf, new_cap);
+    (self)->buf = new_raw;
+    (self)->cap = new_cap;
+}
+
+void std__collections__string_builder__StringBuilder_delete(std__collections__string_builder__StringBuilder* self) {
+    std__mem__alloc__raw_release((self)->buf);
+}
+
+const char* std__collections__string_builder__StringBuilder_to_str(std__collections__string_builder__StringBuilder* self) {
+    uint8_t* str_data = std__mem__alloc__raw_alloc(((self)->len + 1));
+    {
+        size_t __for_e = (self)->len;
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                str_data[i] = (self)->buf[i];
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    str_data[(self)->len] = 0;
+    std__collections__string_builder__StringRaw* raw = std__mem__alloc__alloc_std__collections__string_builder__StringRaw();
+    (raw)->data = ((const char*)str_data);
+    (raw)->len = (self)->len;
+    (raw)->cap = ((self)->len + 1);
+    const char** sp = ((const char**)raw);
+    const char* res = (*sp);
+    std__mem__alloc__release_std__collections__string_builder__StringRaw(raw);
+    return res;
+}
+
+fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer_new(fmt__options__FormatOptions options) {
+    return (fmt__buffer__FormatBuffer){ std__collections__string_builder__StringBuilder_new(), options, ((size_t)0ULL), ((size_t)0ULL), ((size_t)0ULL), true, ((size_t)0ULL) };
+}
+
+void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self) {
+    if ((!(self)->at_line_start)) {
+        return;
+    }
+    {
+        size_t __for_e = (self)->indent_level;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                std__collections__string_builder__StringBuilder_append_char((&(self)->sb), '\t');
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (((self)->options).use_smart_tabs) {
+        {
+            {
+                size_t __for_e = (self)->align_spaces;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t j = __for_i;
+                        std__collections__string_builder__StringBuilder_append_char((&(self)->sb), ' ');
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (self)->current_col = (((self)->indent_level * ((self)->options).tab_size) + (self)->align_spaces);
+    (self)->at_line_start = false;
+}
+
+void fmt__buffer__FormatBuffer_write(fmt__buffer__FormatBuffer* self, const char* s) {
+    if ((kobel_slen(s) == ((size_t)0ULL))) {
+        return;
+    }
+    fmt__buffer__FormatBuffer_ensure_indent(self);
+    std__collections__string_builder__StringBuilder_append_str((&(self)->sb), s);
+    (self)->current_col += kobel_slen(s);
+    (self)->blank_lines = ((size_t)0ULL);
+}
+
+void fmt__buffer__FormatBuffer_write_char(fmt__buffer__FormatBuffer* self, char c) {
+    fmt__buffer__FormatBuffer_ensure_indent(self);
+    std__collections__string_builder__StringBuilder_append_char((&(self)->sb), c);
+    (self)->current_col++;
+    (self)->blank_lines = ((size_t)0ULL);
+}
+
+void fmt__buffer__FormatBuffer_space(fmt__buffer__FormatBuffer* self) {
+    fmt__buffer__FormatBuffer_write(self, " ");
+}
+
+void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self) {
+    if ((self)->at_line_start) {
+        {
+            if (((self)->blank_lines >= ((size_t)1ULL))) {
+                return;
+            }
+            (self)->blank_lines++;
+        }
+    }
+    std__collections__string_builder__StringBuilder_append_char((&(self)->sb), '\n');
+    (self)->at_line_start = true;
+    (self)->current_col = ((size_t)0ULL);
+}
+
+void fmt__buffer__FormatBuffer_double_newline(fmt__buffer__FormatBuffer* self) {
+    fmt__buffer__FormatBuffer_newline(self);
+    fmt__buffer__FormatBuffer_newline(self);
+}
+
+void fmt__buffer__FormatBuffer_indent(fmt__buffer__FormatBuffer* self) {
+    (self)->indent_level++;
+}
+
+void fmt__buffer__FormatBuffer_dedent(fmt__buffer__FormatBuffer* self) {
+    if (((self)->indent_level > ((size_t)0ULL))) {
+        (self)->indent_level--;
+    }
+}
+
+void fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces) {
+    (self)->align_spaces = spaces;
+}
+
+void fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self) {
+    (self)->align_spaces = ((size_t)0ULL);
+}
+
+const char* fmt__buffer__FormatBuffer_to_str(fmt__buffer__FormatBuffer* self) {
+    return std__collections__string_builder__StringBuilder_to_str((&(self)->sb));
+}
+
+fmt__comments__CommentTable fmt__comments__CommentTable_new(std__collections__list__List_fmt__comments__Comment comments) {
+    return (fmt__comments__CommentTable){ comments, ((size_t)0ULL) };
+}
+
+bool fmt__comments__CommentTable_has_more(fmt__comments__CommentTable* self) {
+    return ((self)->cursor < ((self)->comments).len);
+}
+
+fmt__comments__Comment fmt__comments__CommentTable_peek(fmt__comments__CommentTable* self) {
+    if (((self)->cursor < ((self)->comments).len)) {
+        return std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor);
+    }
+    return (fmt__comments__Comment){ "", ((size_t)0ULL), ((size_t)0ULL), false };
+}
+
+void fmt__comments__CommentTable_emit_before(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t target_line) {
+    while (((self)->cursor < ((self)->comments).len)) {
+        {
+            fmt__comments__Comment c = std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor);
+            if (((c).line >= target_line)) {
+                break;
+            }
+            fmt__buffer__FormatBuffer_write(buf, (c).text);
+            fmt__buffer__FormatBuffer_newline(buf);
+            (self)->cursor++;
+        }
+    }
+}
+
+void fmt__comments__CommentTable_emit_trailing_on_line(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t current_line) {
+    while (((self)->cursor < ((self)->comments).len)) {
+        {
+            fmt__comments__Comment c = std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor);
+            if (((c).line == current_line)) {
+                {
+                    fmt__buffer__FormatBuffer_space(buf);
+                    fmt__buffer__FormatBuffer_write(buf, (c).text);
+                    (self)->cursor++;
+                }
+            } else {
+                {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void fmt__comments__CommentTable_emit_remaining(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf) {
+    while (((self)->cursor < ((self)->comments).len)) {
+        {
+            fmt__comments__Comment c = std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor);
+            fmt__buffer__FormatBuffer_write(buf, (c).text);
+            fmt__buffer__FormatBuffer_newline(buf);
+            (self)->cursor++;
+        }
+    }
+}
+
+std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comments(const char* src) {
+    std__collections__list__List_fmt__comments__Comment comments = std__collections__list__List_fmt__comments__Comment_new_0();
+    size_t i = ((size_t)0ULL);
+    size_t len = kobel_slen(src);
+    size_t line = ((size_t)1ULL);
+    size_t col = ((size_t)1ULL);
+    while ((i < len)) {
+        {
+            char c = src[i];
+            if ((c == '\n')) {
+                {
+                    line++;
+                    col = ((size_t)1ULL);
+                    i++;
+                    continue;
+                }
+            }
+            if ((c == '\r')) {
+                {
+                    if ((((i + ((size_t)1ULL)) < len) && (src[(i + ((size_t)1ULL))] == '\n'))) {
+                        i++;
+                    }
+                    line++;
+                    col = ((size_t)1ULL);
+                    i++;
+                    continue;
+                }
+            }
+            if ((c == '"')) {
+                {
+                    i++;
+                    col++;
+                    while (((i < len) && (src[i] != '"'))) {
+                        {
+                            if (((src[i] == '\\') && ((i + ((size_t)1ULL)) < len))) {
+                                {
+                                    i += ((size_t)2ULL);
+                                    col += ((size_t)2ULL);
+                                }
+                            } else {
+                                if ((src[i] == '\n')) {
+                                    {
+                                        line++;
+                                        col = ((size_t)1ULL);
+                                        i++;
+                                    }
+                                } else {
+                                    {
+                                        i++;
+                                        col++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (((i < len) && (src[i] == '"'))) {
+                        {
+                            i++;
+                            col++;
+                        }
+                    }
+                    continue;
+                }
+            }
+            if ((c == '\'')) {
+                {
+                    i++;
+                    col++;
+                    while (((i < len) && (src[i] != '\''))) {
+                        {
+                            if (((src[i] == '\\') && ((i + ((size_t)1ULL)) < len))) {
+                                {
+                                    i += ((size_t)2ULL);
+                                    col += ((size_t)2ULL);
+                                }
+                            } else {
+                                {
+                                    i++;
+                                    col++;
+                                }
+                            }
+                        }
+                    }
+                    if (((i < len) && (src[i] == '\''))) {
+                        {
+                            i++;
+                            col++;
+                        }
+                    }
+                    continue;
+                }
+            }
+            if ((((c == '/') && ((i + ((size_t)1ULL)) < len)) && (src[(i + ((size_t)1ULL))] == '/'))) {
+                {
+                    size_t start_i = i;
+                    size_t start_col = col;
+                    size_t start_line = line;
+                    i += ((size_t)2ULL);
+                    col += ((size_t)2ULL);
+                    while ((((i < len) && (src[i] != '\n')) && (src[i] != '\r'))) {
+                        {
+                            i++;
+                            col++;
+                        }
+                    }
+                    const char* text = kobel_slice(src, start_i, i);
+                    std__collections__list__List_fmt__comments__Comment_add((&comments), (fmt__comments__Comment){ text, start_line, start_col, false });
+                    continue;
+                }
+            }
+            if ((((c == '/') && ((i + ((size_t)1ULL)) < len)) && (src[(i + ((size_t)1ULL))] == '*'))) {
+                {
+                    size_t start_i = i;
+                    size_t start_col = col;
+                    size_t start_line = line;
+                    i += ((size_t)2ULL);
+                    col += ((size_t)2ULL);
+                    while (((i + ((size_t)1ULL)) < len)) {
+                        {
+                            if (((src[i] == '*') && (src[(i + ((size_t)1ULL))] == '/'))) {
+                                {
+                                    i += ((size_t)2ULL);
+                                    col += ((size_t)2ULL);
+                                    break;
+                                }
+                            }
+                            if ((src[i] == '\n')) {
+                                {
+                                    line++;
+                                    col = ((size_t)1ULL);
+                                    i++;
+                                }
+                            } else {
+                                {
+                                    i++;
+                                    col++;
+                                }
+                            }
+                        }
+                    }
+                    const char* text = kobel_slice(src, start_i, i);
+                    std__collections__list__List_fmt__comments__Comment_add((&comments), (fmt__comments__Comment){ text, start_line, start_col, true });
+                    continue;
+                }
+            }
+            i++;
+            col++;
+        }
+    }
+    return comments;
+}
+
+const char* fmt__formatter__op_to_str(compiler__lexer__token__TokenType op) {
+    return ((op == 6) ? "+" : ((op == 7) ? "-" : ((op == 8) ? "*" : ((op == 9) ? "/" : ((op == 10) ? "%" : ((op == 21) ? "==" : ((op == 22) ? "!=" : ((op == 12) ? "<" : ((op == 23) ? "<=" : ((op == 11) ? ">" : ((op == 24) ? ">=" : ((op == 25) ? "&&" : ((op == 26) ? "||" : ((op == 5) ? "=" : ((op == 32) ? "+=" : ((op == 33) ? "-=" : ((op == 34) ? "*=" : ((op == 35) ? "/=" : ((op == 36) ? "%=" : ((op == 37) ? "?:" : ((op == 29) ? ".." : ((op == 4) ? "!" : ((op == 30) ? "++" : ((op == 31) ? "--" : ((op == 19) ? "&" : ((op == 20) ? "?" : ""))))))))))))))))))))))))));
+}
+
+fmt__formatter__Formatter fmt__formatter__Formatter_new(fmt__options__FormatOptions options, fmt__comments__CommentTable comments) {
+    return (fmt__formatter__Formatter){ fmt__buffer__FormatBuffer_new(options), comments, options };
+}
+
+const char* fmt__formatter__Formatter_to_str(fmt__formatter__Formatter* self) {
+    return fmt__buffer__FormatBuffer_to_str((&(self)->buf));
+}
+
+void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node) {
+    if ((node == NULL)) {
+        return;
+    }
+    if (((node)->kind == 0)) {
+        {
+            compiler__ast__types__NamedType* nt = compiler__ast__node__to_compiler__ast__types__NamedType(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (nt)->name);
+            if ((((nt)->type_args).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
+                    {
+                        size_t __for_e = ((nt)->type_args).len;
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                if ((i > ((size_t)0ULL))) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                                }
+                                fmt__formatter__Formatter_format_type(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(nt)->type_args), i));
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ">");
+                }
+            }
+        }
+    } else if (((node)->kind == 1)) {
+        {
+            compiler__ast__types__PointerType* pt = compiler__ast__node__to_compiler__ast__types__PointerType(node);
+            if ((pt)->is_mut) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "&");
+            } else {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "*");
+            }
+            fmt__formatter__Formatter_format_type(self, (pt)->pointee);
+        }
+    } else if (((node)->kind == 2)) {
+        {
+            compiler__ast__types__ArrayType* at = compiler__ast__node__to_compiler__ast__types__ArrayType(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
+            fmt__formatter__Formatter_format_type(self, (at)->element_type);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "; ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), usz_to_str((at)->size));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
+        }
+    } else if (((node)->kind == 3)) {
+        {
+            compiler__ast__types__NullableType* nt = compiler__ast__node__to_compiler__ast__types__NullableType(node);
+            fmt__formatter__Formatter_format_type(self, (nt)->inner);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "?");
+        }
+    } else {
+        {
+        }
+    }
+}
+
+void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node) {
+    if ((node == NULL)) {
+        return;
+    }
+    if (((node)->kind == 4)) {
+        {
+            compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (lit)->raw_text);
+        }
+    } else if (((node)->kind == 5)) {
+        {
+            compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (id)->name);
+        }
+    } else if (((node)->kind == 6)) {
+        {
+            compiler__ast__expr__BinaryExpr* b = compiler__ast__node__to_compiler__ast__expr__BinaryExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (b)->left);
+            fmt__buffer__FormatBuffer_space((&(self)->buf));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((b)->op));
+            fmt__buffer__FormatBuffer_space((&(self)->buf));
+            fmt__formatter__Formatter_format_expr(self, (b)->right);
+        }
+    } else if (((node)->kind == 7)) {
+        {
+            compiler__ast__expr__UnaryExpr* u = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((u)->op));
+            fmt__formatter__Formatter_format_expr(self, (u)->operand);
+        }
+    } else if (((node)->kind == 8)) {
+        {
+            compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (c)->callee);
+            if ((((c)->type_args).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
+                    {
+                        size_t __for_e = ((c)->type_args).len;
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                if ((i > ((size_t)0ULL))) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                                }
+                                fmt__formatter__Formatter_format_type(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(c)->type_args), i));
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ">");
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "(");
+            {
+                size_t __for_e = ((c)->args).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t j = __for_i;
+                        if ((j > ((size_t)0ULL))) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                        }
+                        fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(c)->args), j));
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ")");
+        }
+    } else if (((node)->kind == 9)) {
+        {
+            compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (m)->object);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ".");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (m)->member);
+        }
+    } else if (((node)->kind == 10)) {
+        {
+            compiler__ast__expr__IndexExpr* idx = compiler__ast__node__to_compiler__ast__expr__IndexExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (idx)->target);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
+            fmt__formatter__Formatter_format_expr(self, (idx)->index);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
+        }
+    } else if (((node)->kind == 11)) {
+        {
+            compiler__ast__expr__AssignExpr* a = compiler__ast__node__to_compiler__ast__expr__AssignExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (a)->target);
+            fmt__buffer__FormatBuffer_space((&(self)->buf));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((a)->op));
+            fmt__buffer__FormatBuffer_space((&(self)->buf));
+            fmt__formatter__Formatter_format_expr(self, (a)->value);
+        }
+    } else if (((node)->kind == 12)) {
+        {
+            compiler__ast__expr__UpdateExpr* u = compiler__ast__node__to_compiler__ast__expr__UpdateExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (u)->target);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((u)->op));
+        }
+    } else if (((node)->kind == 13)) {
+        {
+            compiler__ast__expr__CastExpr* cst = compiler__ast__node__to_compiler__ast__expr__CastExpr(node);
+            fmt__formatter__Formatter_format_expr(self, (cst)->expr);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " as ");
+            fmt__formatter__Formatter_format_type(self, (cst)->target_type);
+        }
+    } else if (((node)->kind == 14)) {
+        {
+            compiler__ast__expr__GroupExpr* g = compiler__ast__node__to_compiler__ast__expr__GroupExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "(");
+            fmt__formatter__Formatter_format_expr(self, (g)->expr);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ")");
+        }
+    } else if (((node)->kind == 15)) {
+        {
+            compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
+            {
+                size_t __for_e = ((al)->elements).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > ((size_t)0ULL))) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                        }
+                        fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), i));
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
+        }
+    } else if (((node)->kind == 16)) {
+        {
+            compiler__ast__expr__IfExpr* ie = compiler__ast__node__to_compiler__ast__expr__IfExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "if (");
+            fmt__formatter__Formatter_format_expr(self, (ie)->condition);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
+            fmt__formatter__Formatter_format_expr(self, (ie)->then_branch);
+            if (((ie)->else_branch != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), " else ");
+                    fmt__formatter__Formatter_format_expr(self, (ie)->else_branch);
+                }
+            }
+        }
+    } else if (((node)->kind == 17)) {
+        {
+            compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "when (");
+            fmt__formatter__Formatter_format_expr(self, (we)->condition);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") {");
+            fmt__buffer__FormatBuffer_indent((&(self)->buf));
+            {
+                size_t __for_e = ((we)->arms).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                        compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_get((&(we)->arms), i);
+                        if ((arm).is_else) {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), "else -> ");
+                            }
+                        } else {
+                            {
+                                {
+                                    size_t __for_e = ((arm).patterns).len;
+                                    size_t __for_i = __for_e;
+                                    __for_i = 0;
+                                    bool __for_up = (__for_i <= __for_e);
+                                    bool __for_go = false;
+                                    if (__for_up) {
+                                        {
+                                            __for_go = (__for_i < __for_e);
+                                        }
+                                    } else {
+                                        {
+                                            __for_go = (__for_i > __for_e);
+                                        }
+                                    }
+                                    while (__for_go) {
+                                        {
+                                            size_t p = __for_i;
+                                            if ((p > ((size_t)0ULL))) {
+                                                fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                                            }
+                                            fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p));
+                                            if (__for_up) {
+                                                {
+                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                }
+                                            }
+                                            if (__for_go) {
+                                                if (__for_up) {
+                                                    {
+                                                        __for_i = (__for_i + 1);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_i = (__for_i - 1);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), " -> ");
+                            }
+                        }
+                        fmt__formatter__Formatter_format_expr(self, (arm).body);
+                        if (((i + ((size_t)1ULL)) < ((we)->arms).len)) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+        }
+    } else if (((node)->kind == 18)) {
+        {
+            compiler__ast__expr__InterpExpr* interp = compiler__ast__node__to_compiler__ast__expr__InterpExpr(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "\"");
+            {
+                size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count((&(interp)->parts));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at((&(interp)->parts), __for_i);
+                        if ((part).is_literal) {
+                            {
+                                const char* text = ((*compiler__ast__node__to_compiler__ast__expr__LiteralExpr((part).expr))).raw_text;
+                                if ((kobel_slen(text) >= ((size_t)2ULL))) {
+                                    {
+                                        fmt__buffer__FormatBuffer_write((&(self)->buf), kobel_slice(text, ((size_t)1ULL), (kobel_slen(text) - ((size_t)1ULL))));
+                                    }
+                                }
+                            }
+                        } else {
+                            {
+                                fmt__buffer__FormatBuffer_write_char((&(self)->buf), '$');
+                                fmt__buffer__FormatBuffer_write_char((&(self)->buf), '{');
+                                fmt__formatter__Formatter_format_expr(self, (part).expr);
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "\"");
+        }
+    } else {
+        {
+        }
+    }
+}
+
+void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node) {
+    if ((node == NULL)) {
+        return;
+    }
+    fmt__comments__CommentTable_emit_before((&(self)->comments), (&(self)->buf), (node)->line);
+    if (((node)->kind == 19)) {
+        {
+            compiler__ast__stmt__BlockStmt* b = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "{");
+            fmt__buffer__FormatBuffer_indent((&(self)->buf));
+            {
+                size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(b)->statements));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(b)->statements), __for_i);
+                        fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                        fmt__formatter__Formatter_format_stmt(self, s);
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+        }
+    } else if (((node)->kind == 20)) {
+        {
+            compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt(node);
+            fmt__formatter__Formatter_format_expr(self, (es)->expr);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 21)) {
+        {
+            compiler__ast__stmt__VarDeclStmt* v = compiler__ast__node__to_compiler__ast__stmt__VarDeclStmt(node);
+            if ((v)->is_mut) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "var ");
+            } else {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "val ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (v)->name);
+            if (((v)->type_annotation != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                    fmt__formatter__Formatter_format_type(self, (v)->type_annotation);
+                }
+            }
+            if (((v)->initializer != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), " = ");
+                    fmt__formatter__Formatter_format_expr(self, (v)->initializer);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 22)) {
+        {
+            compiler__ast__stmt__IfStmt* s = compiler__ast__node__to_compiler__ast__stmt__IfStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "if (");
+            fmt__formatter__Formatter_format_expr(self, (s)->condition);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
+            if ((((*(s)->then_branch)).kind == 19)) {
+                {
+                    fmt__formatter__Formatter_format_stmt(self, (s)->then_branch);
+                }
+            } else {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                    fmt__formatter__Formatter_format_stmt(self, (s)->then_branch);
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                }
+            }
+            if (((s)->else_branch != NULL)) {
+                {
+                    if ((((*(s)->then_branch)).kind == 19)) {
+                        {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), " else ");
+                        }
+                    } else {
+                        {
+                            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), "else ");
+                        }
+                    }
+                    if (((((*(s)->else_branch)).kind == 22) || (((*(s)->else_branch)).kind == 19))) {
+                        {
+                            fmt__formatter__Formatter_format_stmt(self, (s)->else_branch);
+                        }
+                    } else {
+                        {
+                            fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                            fmt__formatter__Formatter_format_stmt(self, (s)->else_branch);
+                            fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                        }
+                    }
+                }
+            }
+        }
+    } else if (((node)->kind == 24)) {
+        {
+            compiler__ast__stmt__WhileStmt* w = compiler__ast__node__to_compiler__ast__stmt__WhileStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "while (");
+            fmt__formatter__Formatter_format_expr(self, (w)->condition);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
+            if ((((*(w)->body)).kind == 19)) {
+                {
+                    fmt__formatter__Formatter_format_stmt(self, (w)->body);
+                }
+            } else {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                    fmt__formatter__Formatter_format_stmt(self, (w)->body);
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                }
+            }
+        }
+    } else if (((node)->kind == 28)) {
+        {
+            compiler__ast__stmt__ForStmt* f = compiler__ast__node__to_compiler__ast__stmt__ForStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "for (");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (f)->var_name);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " in ");
+            if ((f)->is_range) {
+                {
+                    fmt__formatter__Formatter_format_expr(self, (f)->range_start);
+                    if ((f)->is_open) {
+                        fmt__buffer__FormatBuffer_write((&(self)->buf), ">..<");
+                    } else {
+                        if ((f)->is_half_open) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), "..<");
+                        } else {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), "..");
+                        }
+                    }
+                    fmt__formatter__Formatter_format_expr(self, (f)->range_end);
+                }
+            } else {
+                {
+                    fmt__formatter__Formatter_format_expr(self, (f)->iterable);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
+            if ((((*(f)->body)).kind == 19)) {
+                {
+                    fmt__formatter__Formatter_format_stmt(self, (f)->body);
+                }
+            } else {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                    fmt__formatter__Formatter_format_stmt(self, (f)->body);
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                }
+            }
+        }
+    } else if (((node)->kind == 25)) {
+        {
+            compiler__ast__stmt__ReturnStmt* r = compiler__ast__node__to_compiler__ast__stmt__ReturnStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "return");
+            if (((r)->value != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_space((&(self)->buf));
+                    fmt__formatter__Formatter_format_expr(self, (r)->value);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 29)) {
+        {
+            compiler__ast__stmt__YieldStmt* y = compiler__ast__node__to_compiler__ast__stmt__YieldStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "yield");
+            if (((y)->value != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_space((&(self)->buf));
+                    fmt__formatter__Formatter_format_expr(self, (y)->value);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 26)) {
+        {
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "break;");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 27)) {
+        {
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "continue;");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 23)) {
+        {
+            compiler__ast__stmt__WhenStmt* ws = compiler__ast__node__to_compiler__ast__stmt__WhenStmt(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "when (");
+            fmt__formatter__Formatter_format_expr(self, (ws)->condition);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ") {");
+            fmt__buffer__FormatBuffer_indent((&(self)->buf));
+            {
+                size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count((&(ws)->arms));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at((&(ws)->arms), __for_i);
+                        fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                        if ((arm).is_else) {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), "else -> ");
+                            }
+                        } else {
+                            {
+                                {
+                                    size_t __for_e = ((arm).patterns).len;
+                                    size_t __for_i = __for_e;
+                                    __for_i = 0;
+                                    bool __for_up = (__for_i <= __for_e);
+                                    bool __for_go = false;
+                                    if (__for_up) {
+                                        {
+                                            __for_go = (__for_i < __for_e);
+                                        }
+                                    } else {
+                                        {
+                                            __for_go = (__for_i > __for_e);
+                                        }
+                                    }
+                                    while (__for_go) {
+                                        {
+                                            size_t p = __for_i;
+                                            if ((p > ((size_t)0ULL))) {
+                                                fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                                            }
+                                            fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p));
+                                            if (__for_up) {
+                                                {
+                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                }
+                                            }
+                                            if (__for_go) {
+                                                if (__for_up) {
+                                                    {
+                                                        __for_i = (__for_i + 1);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_i = (__for_i - 1);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), " -> ");
+                            }
+                        }
+                        fmt__formatter__Formatter_format_stmt(self, (arm).body);
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+        }
+    } else {
+        {
+        }
+    }
+}
+
+void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* self, std__collections__list__List_compiler__ast__decl__GenericParam type_params) {
+    if (((type_params).len == ((size_t)0ULL))) {
+        return;
+    }
+    fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
+    {
+        size_t __for_e = (type_params).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if ((i > ((size_t)0ULL))) {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                }
+                compiler__ast__decl__GenericParam tp = std__collections__list__List_compiler__ast__decl__GenericParam_get((&type_params), i);
+                fmt__buffer__FormatBuffer_write((&(self)->buf), (tp).name);
+                if ((((tp).bounds).len > ((size_t)0ULL))) {
+                    {
+                        fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                        {
+                            size_t __for_e = ((tp).bounds).len;
+                            size_t __for_i = __for_e;
+                            __for_i = 0;
+                            bool __for_up = (__for_i <= __for_e);
+                            bool __for_go = false;
+                            if (__for_up) {
+                                {
+                                    __for_go = (__for_i < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = (__for_i > __for_e);
+                                }
+                            }
+                            while (__for_go) {
+                                {
+                                    size_t b = __for_i;
+                                    if ((b > ((size_t)0ULL))) {
+                                        fmt__buffer__FormatBuffer_write((&(self)->buf), " + ");
+                                    }
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), std__collections__list__List_str_get((&(tp).bounds), b));
+                                    if (__for_up) {
+                                        {
+                                            __for_go = ((__for_i + 1) < __for_e);
+                                        }
+                                    } else {
+                                        {
+                                            __for_go = ((__for_i - 1) > __for_e);
+                                        }
+                                    }
+                                    if (__for_go) {
+                                        if (__for_up) {
+                                            {
+                                                __for_i = (__for_i + 1);
+                                            }
+                                        } else {
+                                            {
+                                                __for_i = (__for_i - 1);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fmt__buffer__FormatBuffer_write((&(self)->buf), ">");
+}
+
+void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node) {
+    if ((node == NULL)) {
+        return;
+    }
+    fmt__comments__CommentTable_emit_before((&(self)->comments), (&(self)->buf), (node)->line);
+    if (((node)->kind == 30)) {
+        {
+            compiler__ast__decl__ModuleDecl* m = compiler__ast__node__to_compiler__ast__decl__ModuleDecl(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "mod ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (m)->full_path);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+            fmt__buffer__FormatBuffer_newline((&(self)->buf));
+        }
+    } else if (((node)->kind == 31)) {
+        {
+            compiler__ast__decl__UseDecl* u = compiler__ast__node__to_compiler__ast__decl__UseDecl(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "use ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (u)->full_path);
+            if ((kobel_slen((u)->alias) > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), " as ");
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), (u)->alias);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 33)) {
+        {
+            compiler__ast__decl__StructDecl* s = compiler__ast__node__to_compiler__ast__decl__StructDecl(node);
+            if ((s)->is_pub) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "struct ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (s)->name);
+            fmt__formatter__Formatter_format_type_params(self, (s)->type_params);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
+            if ((((s)->fields).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    {
+                        size_t __for_e = ((s)->fields).len;
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                                compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_get((&(s)->fields), i);
+                                if ((f).is_pub) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+                                }
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), (f).name);
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                                fmt__formatter__Formatter_format_type(self, (f).type_node);
+                                if (((i + ((size_t)1ULL)) < ((s)->fields).len)) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
+                                }
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 32)) {
+        {
+            compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(node);
+            if ((f)->is_pub) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "fn ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (f)->name);
+            fmt__formatter__Formatter_format_type_params(self, (f)->type_params);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "(");
+            {
+                size_t __for_e = ((f)->params).len;
+                size_t __for_i = __for_e;
+                __for_i = 0;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > ((size_t)0ULL))) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                        }
+                        compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
+                        if ((p).is_mut) {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), "var ");
+                        } else {
+                            if ((p).has_val) {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), "val ");
+                            }
+                        }
+                        fmt__buffer__FormatBuffer_write((&(self)->buf), (p).name);
+                        if (((p).type_node != NULL)) {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                                fmt__formatter__Formatter_format_type(self, (p).type_node);
+                            }
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ")");
+            if (((f)->return_type != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                    fmt__formatter__Formatter_format_type(self, (f)->return_type);
+                }
+            }
+            if (((f)->body != NULL)) {
+                {
+                    if ((((*(f)->body)).kind == 19)) {
+                        {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
+                            fmt__formatter__Formatter_format_stmt(self, (f)->body);
+                        }
+                    } else {
+                        if ((((*(f)->body)).kind == 20)) {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), " => ");
+                                compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt((f)->body);
+                                fmt__formatter__Formatter_format_expr(self, (es)->expr);
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+                            }
+                        } else {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
+                                fmt__formatter__Formatter_format_stmt(self, (f)->body);
+                            }
+                        }
+                    }
+                }
+            } else {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+                }
+            }
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 35)) {
+        {
+            compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "impl");
+            if ((((im)->type_params).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_space((&(self)->buf));
+                    fmt__formatter__Formatter_format_type_params(self, (im)->type_params);
+                }
+            }
+            fmt__buffer__FormatBuffer_space((&(self)->buf));
+            if ((kobel_slen((im)->trait_name) > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), (im)->trait_name);
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), " for ");
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (im)->struct_name);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
+            if ((((im)->methods).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(im)->methods));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(im)->methods), __for_i);
+                                fmt__buffer__FormatBuffer_double_newline((&(self)->buf));
+                                fmt__formatter__Formatter_format_decl(self, m);
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 34)) {
+        {
+            compiler__ast__decl__TraitDecl* tr = compiler__ast__node__to_compiler__ast__decl__TraitDecl(node);
+            if ((tr)->is_pub) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "trait ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (tr)->name);
+            fmt__formatter__Formatter_format_type_params(self, (tr)->type_params);
+            if ((((tr)->bases).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), " : ");
+                    {
+                        size_t __for_e = ((tr)->bases).len;
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                if ((i > ((size_t)0ULL))) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
+                                }
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), std__collections__list__List_str_get((&(tr)->bases), i));
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
+            if ((((tr)->methods).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(tr)->methods));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(tr)->methods), __for_i);
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                                fmt__formatter__Formatter_format_decl(self, m);
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 36)) {
+        {
+            compiler__ast__decl__EnumDecl* en = compiler__ast__node__to_compiler__ast__decl__EnumDecl(node);
+            if ((en)->is_pub) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "enum ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (en)->name);
+            if (((en)->underlying_type != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                    fmt__formatter__Formatter_format_type(self, (en)->underlying_type);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
+            if ((((en)->members).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    {
+                        size_t __for_e = ((en)->members).len;
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                                compiler__ast__decl__EnumMember mem = std__collections__list__List_compiler__ast__decl__EnumMember_get((&(en)->members), i);
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), (mem).name);
+                                if (((mem).value != NULL)) {
+                                    {
+                                        fmt__buffer__FormatBuffer_write((&(self)->buf), " = ");
+                                        fmt__formatter__Formatter_format_expr(self, (mem).value);
+                                    }
+                                }
+                                if (((i + ((size_t)1ULL)) < ((en)->members).len)) {
+                                    fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
+                                }
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 37)) {
+        {
+            compiler__ast__decl__ConstDecl* c = compiler__ast__node__to_compiler__ast__decl__ConstDecl(node);
+            if ((c)->is_pub) {
+                fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "const ");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (c)->name);
+            if (((c)->type_node != NULL)) {
+                {
+                    fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
+                    fmt__formatter__Formatter_format_type(self, (c)->type_node);
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), " = ");
+            fmt__formatter__Formatter_format_expr(self, (c)->value);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else if (((node)->kind == 38)) {
+        {
+            compiler__ast__decl__ExternBlock* eb = compiler__ast__node__to_compiler__ast__decl__ExternBlock(node);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "extern \"");
+            fmt__buffer__FormatBuffer_write((&(self)->buf), (eb)->abi);
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "\" {");
+            if ((((eb)->declarations).len > ((size_t)0ULL))) {
+                {
+                    fmt__buffer__FormatBuffer_indent((&(self)->buf));
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(eb)->declarations));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__node__AstNode* d = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(eb)->declarations), __for_i);
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                                fmt__formatter__Formatter_format_decl(self, d);
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                    fmt__buffer__FormatBuffer_dedent((&(self)->buf));
+                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                }
+            }
+            fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
+            fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
+        }
+    } else {
+        {
+        }
+    }
+}
+
+void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program) {
+    if (((program == NULL) || ((program)->kind != 39))) {
+        return;
+    }
+    compiler__ast__decl__Program* p = compiler__ast__node__to_compiler__ast__decl__Program(program);
+    bool prev_was_import = false;
+    {
+        size_t __for_e = ((p)->declarations).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(p)->declarations), i);
+                bool is_import = ((decl)->kind == 31);
+                if ((i > ((size_t)0ULL))) {
+                    {
+                        if ((prev_was_import && (!is_import))) {
+                            {
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                            }
+                        } else {
+                            if ((!is_import)) {
+                                {
+                                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                                }
+                            }
+                        }
+                    }
+                }
+                fmt__formatter__Formatter_format_decl(self, decl);
+                fmt__buffer__FormatBuffer_newline((&(self)->buf));
+                prev_was_import = is_import;
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fmt__comments__CommentTable_emit_remaining((&(self)->comments), (&(self)->buf));
+}
+
+const char* fmt__formatter__format_source(const char* src, fmt__options__FormatOptions options) {
+    std__collections__list__List_fmt__comments__Comment comments = fmt__comments__extract_comments(src);
+    fmt__comments__CommentTable comment_table = fmt__comments__CommentTable_new(comments);
+    compiler__lexer__lexer__Lexer lex = compiler__lexer__lexer__Lexer_new(src);
+    std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize((&lex));
+    compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
+    compiler__ast__node__AstNode* program = compiler__parser__parser__Parser_parse_program((&parser));
+    fmt__formatter__Formatter fmt = fmt__formatter__Formatter_new(options, comment_table);
+    fmt__formatter__Formatter_format_program((&fmt), program);
+    return fmt__formatter__Formatter_to_str((&fmt));
+}
+
 void main__print_usage(void) {
     std__io__println("============================================================");
     std__io__println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
     std__io__println("============================================================");
-    std__io__println("Usage: kobel [options] <source.kb>");
+    std__io__println("Usage: kobel [command|options] <source.kb>");
+    std__io__println("");
+    std__io__println("Commands:");
+    std__io__println("  fmt [options] <files...>  Format Kobel source code");
     std__io__println("");
     std__io__println("Options:");
     std__io__println("  -o <file>        Specify output executable binary name");
@@ -17099,6 +19316,100 @@ void main__print_usage(void) {
     std__io__println("  -I <dir>         Add directory to module search path");
     std__io__println("  -v, --version    Display compiler version");
     std__io__println("  -h, --help       Display this help message");
+}
+
+void main__print_fmt_usage(void) {
+    std__io__println("Usage: kobel fmt [options] <files...>");
+    std__io__println("");
+    std__io__println("Options:");
+    std__io__println("  -w, --write      Write formatted output back to files in place");
+    std__io__println("  -h, --help       Display this help message");
+}
+
+int32_t main__run_fmt(int32_t argc, const char** argv) {
+    if ((argc < 3)) {
+        {
+            main__print_fmt_usage();
+            return 1;
+        }
+    }
+    bool write_in_place = false;
+    std__collections__list__List_str files = std__collections__list__List_str_new_0();
+    int32_t i = 2;
+    while ((i < argc)) {
+        {
+            const char* arg = util__strutil__cstr_to_str(argv[i]);
+            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+                {
+                    main__print_fmt_usage();
+                    return 0;
+                }
+            } else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--write") == 0) {
+                {
+                    write_in_place = true;
+                }
+            } else {
+                {
+                    if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
+                        {
+                            std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "'"));
+                            return 1;
+                        }
+                    }
+                    std__collections__list__List_str_add((&files), arg);
+                }
+            }
+            i++;
+        }
+    }
+    if (((files).len == ((size_t)0ULL))) {
+        {
+            std__io__println("Error: No files specified to format");
+            return 1;
+        }
+    }
+    fmt__options__FormatOptions options = fmt__options__default_format_options();
+    {
+        size_t __for_n = std__collections__list__List_str_count((&files));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* fpath = std__collections__list__List_str_at((&files), __for_i);
+                const char* src = std__io__read_file(fpath);
+                if ((kobel_slen(src) == ((size_t)0ULL))) {
+                    {
+                        std__io__print("Warning: Skipping empty or unreadable file: ");
+                        std__io__println(fpath);
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                const char* formatted = fmt__formatter__format_source(src, options);
+                if (write_in_place) {
+                    {
+                        bool ok = std__io__write_file(fpath, formatted);
+                        if ((!ok)) {
+                            {
+                                std__io__print("Error: Failed to write to ");
+                                std__io__println(fpath);
+                                return 1;
+                            }
+                        }
+                        std__io__print("Formatted: ");
+                        std__io__println(fpath);
+                    }
+                } else {
+                    {
+                        std__io__print(formatted);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return 0;
 }
 
 void main__print_error_list(std__collections__list__List_str errors) {
@@ -17121,6 +19432,12 @@ int32_t main(int32_t argc, const char** argv) {
         {
             main__print_usage();
             return 1;
+        }
+    }
+    const char* first_arg = util__strutil__cstr_to_str(argv[1]);
+    if (kobel_streq(first_arg, "fmt")) {
+        {
+            return main__run_fmt(argc, argv);
         }
     }
     const char* input_path = "";
