@@ -1,0 +1,188 @@
+mod fmt.comments;
+
+use fmt.buffer.*;
+use std.collections.list.*;
+
+// ============================================================================
+// Comment Model & Extraction
+// ============================================================================
+
+pub struct Comment {
+	pub text: str,
+	pub line: usz,
+	pub col: usz,
+	pub is_block: bool
+}
+
+pub struct CommentTable {
+	pub comments: List<Comment>,
+	pub cursor: usz
+}
+
+impl CommentTable {
+
+	pub fn new(comments: List<Comment>): CommentTable => Self(comments, 0UZ);
+
+	pub fn has_more(val self): bool => self.cursor < self.comments.len;
+
+	pub fn peek(val self): Comment {
+		if (self.cursor < self.comments.len) return self.comments[self.cursor];
+		return Comment("", 0UZ, 0UZ, false);
+	}
+
+	pub fn emit_before(var self, var buf: &FormatBuffer, target_line: usz) {
+		while (self.cursor < self.comments.len) {
+			val c = self.comments[self.cursor];
+			if (c.line >= target_line) break;
+			buf.write(c.text);
+			buf.newline();
+			self.cursor++;
+		}
+	}
+
+	pub fn emit_trailing_on_line(var self, var buf: &FormatBuffer, current_line: usz) {
+		while (self.cursor < self.comments.len) {
+			val c = self.comments[self.cursor];
+			if (c.line == current_line) {
+				buf.space();
+				buf.write(c.text);
+				self.cursor++;
+			} else {
+				break;
+			}
+		}
+	}
+
+	pub fn emit_remaining(var self, var buf: &FormatBuffer) {
+		while (self.cursor < self.comments.len) {
+			val c = self.comments[self.cursor];
+			buf.write(c.text);
+			buf.newline();
+			self.cursor++;
+		}
+	}
+
+}
+
+// ============================================================================
+// Extract all comments from raw source code
+// ============================================================================
+
+pub fn extract_comments(src: str): List<Comment> {
+	var comments = List<Comment>();
+	var i = 0UZ;
+	val len = src.len;
+	var line = 1UZ;
+	var col = 1UZ;
+
+	while (i < len) {
+		val c = src[i];
+
+		// Newline tracking
+		if (c == '\n') {
+			line++;
+			col = 1UZ;
+			i++;
+			continue;
+		}
+		if (c == '\r') {
+			if (i + 1UZ < len && src[i + 1UZ] == '\n') i++;
+			line++;
+			col = 1UZ;
+			i++;
+			continue;
+		}
+
+		// Skip string literals
+		if (c == '"') {
+			i++;
+			col++;
+			while (i < len && src[i] != '"') {
+				if (src[i] == '\\' && i + 1UZ < len) {
+					i += 2UZ;
+					col += 2UZ;
+				} else if (src[i] == '\n') {
+					line++;
+					col = 1UZ;
+					i++;
+				} else {
+					i++;
+					col++;
+				}
+			}
+			if (i < len && src[i] == '"') {
+				i++;
+				col++;
+			}
+			continue;
+		}
+
+		// Skip char literals
+		if (c == '\'') {
+			i++;
+			col++;
+			while (i < len && src[i] != '\'') {
+				if (src[i] == '\\' && i + 1UZ < len) {
+					i += 2UZ;
+					col += 2UZ;
+				} else {
+					i++;
+					col++;
+				}
+			}
+			if (i < len && src[i] == '\'') {
+				i++;
+				col++;
+			}
+			continue;
+		}
+
+		// Line comment //
+		if (c == '/' && i + 1UZ < len && src[i + 1UZ] == '/') {
+			val start_i = i;
+			val start_col = col;
+			val start_line = line;
+			i += 2UZ;
+			col += 2UZ;
+			while (i < len && src[i] != '\n' && src[i] != '\r') {
+				i++;
+				col++;
+			}
+			val text = src.slice(start_i, i);
+			comments.add(Comment(text, start_line, start_col, false));
+			continue;
+		}
+
+		// Block comment /* ... */
+		if (c == '/' && i + 1UZ < len && src[i + 1UZ] == '*') {
+			val start_i = i;
+			val start_col = col;
+			val start_line = line;
+			i += 2UZ;
+			col += 2UZ;
+			while (i + 1UZ < len) {
+				if (src[i] == '*' && src[i + 1UZ] == '/') {
+					i += 2UZ;
+					col += 2UZ;
+					break;
+				}
+				if (src[i] == '\n') {
+					line++;
+					col = 1UZ;
+					i++;
+				} else {
+					i++;
+					col++;
+				}
+			}
+			val text = src.slice(start_i, i);
+			comments.add(Comment(text, start_line, start_col, true));
+			continue;
+		}
+
+		i++;
+		col++;
+	}
+
+	return comments;
+}

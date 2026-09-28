@@ -1,0 +1,14 @@
+mod fmt.options;
+
+// ============================================================================
+// Formatting Options
+// ============================================================================
+
+pub struct FormatOptions {
+	pub tab_size: usz,
+	pub use_smart_tabs: bool,
+	pub max_width: usz,
+	pub k_and_r_braces: bool
+}
+
+pub fn default_format_options() => FormatOptions(4UZ, true, 100UZ, true);

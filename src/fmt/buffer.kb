@@ -1,0 +1,103 @@
+mod fmt.buffer;
+
+use fmt.options.*;
+use std.collections.string_builder.*;
+
+// ============================================================================
+// FormatBuffer - Output writer with Smart Tabs and Alignment tracking
+// ============================================================================
+
+pub struct FormatBuffer {
+	pub sb: StringBuilder,
+	pub options: FormatOptions,
+	pub indent_level: usz,
+	pub align_spaces: usz,
+	pub current_col: usz,
+	pub at_line_start: bool,
+	pub blank_lines: usz
+}
+
+impl FormatBuffer {
+
+	pub fn new(options: FormatOptions) => Self(
+		StringBuilder(),
+		options,
+		0UZ,
+		0UZ,
+		0UZ,
+		true,
+		0UZ
+	);
+
+	pub fn ensure_indent(var self) {
+		if (!self.at_line_start) return;
+
+		// 1. Emit block indentation tabs
+		for (i in 0..<self.indent_level) {
+			self.sb.append_char('\t');
+		}
+
+		// 2. Emit alignment spaces (Smart Tabs: spaces for alignment)
+		if (self.options.use_smart_tabs) {
+			for (j in 0..<self.align_spaces) {
+				self.sb.append_char(' ');
+			}
+		}
+
+		self.current_col = self.indent_level * self.options.tab_size + self.align_spaces;
+		self.at_line_start = false;
+	}
+
+	pub fn write(var self, s: str) {
+		if (s.len == 0UZ) return;
+		self.ensure_indent();
+		self.sb.append_str(s);
+		self.current_col += s.len;
+		self.blank_lines = 0UZ;
+	}
+
+	pub fn write_char(var self, c: char) {
+		self.ensure_indent();
+		self.sb.append_char(c);
+		self.current_col++;
+		self.blank_lines = 0UZ;
+	}
+
+	pub fn space(var self) {
+		self.write(" ");
+	}
+
+	pub fn newline(var self) {
+		if (self.at_line_start) {
+			if (self.blank_lines >= 1UZ) return;
+			self.blank_lines++;
+		}
+		self.sb.append_char('\n');
+		self.at_line_start = true;
+		self.current_col = 0UZ;
+	}
+
+	pub fn double_newline(var self) {
+		self.newline();
+		self.newline();
+	}
+
+	pub fn indent(var self) {
+		self.indent_level++;
+	}
+
+	pub fn dedent(var self) {
+		if (self.indent_level > 0UZ) self.indent_level--;
+	}
+
+	pub fn set_align(var self, spaces: usz) {
+		self.align_spaces = spaces;
+	}
+
+	pub fn clear_align(var self) {
+		self.align_spaces = 0UZ;
+	}
+
+	pub fn to_str(val self): str => self.sb.to_str();
+
+}

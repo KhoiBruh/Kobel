@@ -1,0 +1,722 @@
+mod fmt.formatter;
+
+use fmt.options.*;
+use fmt.buffer.*;
+use fmt.comments.*;
+
+use compiler.ast.node.*;
+use compiler.ast.decl.*;
+use compiler.ast.stmt.*;
+use compiler.ast.expr.*;
+use compiler.ast.types.*;
+use compiler.lexer.token.*;
+use compiler.lexer.lexer.*;
+use compiler.parser.parser.*;
+use compiler.parser.decl.*;
+use std.collections.list.*;
+
+// ============================================================================
+// Operator token to string representation
+// ============================================================================
+
+pub fn op_to_str(op: TokenType): str => when (op) {
+	TokenType.PLUS -> "+",
+	TokenType.MINUS -> "-",
+	TokenType.STAR -> "*",
+	TokenType.SLASH -> "/",
+	TokenType.PERCENT -> "%",
+	TokenType.EQUAL_EQUAL -> "==",
+	TokenType.BANG_EQUAL -> "!=",
+	TokenType.LESS -> "<",
+	TokenType.LESS_EQUAL -> "<=",
+	TokenType.GREATER -> ">",
+	TokenType.GREATER_EQUAL -> ">=",
+	TokenType.AND_AND -> "&&",
+	TokenType.OR_OR -> "||",
+	TokenType.EQUAL -> "=",
+	TokenType.PLUS_EQUAL -> "+=",
+	TokenType.MINUS_EQUAL -> "-=",
+	TokenType.STAR_EQUAL -> "*=",
+	TokenType.SLASH_EQUAL -> "/=",
+	TokenType.PERCENT_EQUAL -> "%=",
+	TokenType.QUESTION_COLON -> "?:",
+	TokenType.DOT_DOT -> "..",
+	TokenType.BANG -> "!",
+	TokenType.PLUS_PLUS -> "++",
+	TokenType.MINUS_MINUS -> "--",
+	TokenType.AMPERSAND -> "&",
+	TokenType.QUESTION -> "?",
+	else -> ""
+};
+
+// ============================================================================
+// Formatter Implementation
+// ============================================================================
+
+pub struct Formatter {
+	pub buf: FormatBuffer,
+	pub comments: CommentTable,
+	pub options: FormatOptions
+}
+
+impl Formatter {
+
+	pub fn new(options: FormatOptions, comments: CommentTable) => Self(
+		FormatBuffer(options),
+		comments,
+		options
+	);
+
+	pub fn to_str(val self) => self.buf.to_str();
+
+	// ------------------------------------------------------------------------
+	// Types
+	// ------------------------------------------------------------------------
+
+	pub fn format_type(var self, node: *AstNode) {
+		if (node == null) return;
+		when (node.kind) {
+			NodeKind.TYPE_NAMED -> {
+				val nt = node.to<NamedType>();
+				self.buf.write(nt.name);
+				if (nt.type_args.len > 0UZ) {
+					self.buf.write("<");
+					for (i in 0..<nt.type_args.len) {
+						if (i > 0UZ) self.buf.write(", ");
+						self.format_type(nt.type_args[i]);
+					}
+					self.buf.write(">");
+				}
+			}
+			NodeKind.TYPE_POINTER -> {
+				val pt = node.to<PointerType>();
+				if (pt.is_mut) self.buf.write("&");
+				else self.buf.write("*");
+				self.format_type(pt.pointee);
+			}
+			NodeKind.TYPE_ARRAY -> {
+				val at = node.to<ArrayType>();
+				self.buf.write("[");
+				self.format_type(at.element_type);
+				self.buf.write("; ");
+				self.buf.write("${at.size}");
+				self.buf.write("]");
+			}
+			NodeKind.TYPE_NULLABLE -> {
+				val nt = node.to<NullableType>();
+				self.format_type(nt.inner);
+				self.buf.write("?");
+			}
+			else -> {}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Expressions
+	// ------------------------------------------------------------------------
+
+	pub fn format_expr(var self, node: *AstNode) {
+		if (node == null) return;
+		when (node.kind) {
+			NodeKind.EXPR_LITERAL -> {
+				val lit = node.to<LiteralExpr>();
+				self.buf.write(lit.raw_text);
+			}
+			NodeKind.EXPR_IDENTIFIER -> {
+				val id = node.to<IdentifierExpr>();
+				self.buf.write(id.name);
+			}
+			NodeKind.EXPR_BINARY -> {
+				val b = node.to<BinaryExpr>();
+				self.format_expr(b.left);
+				self.buf.space();
+				self.buf.write(op_to_str(b.op));
+				self.buf.space();
+				self.format_expr(b.right);
+			}
+			NodeKind.EXPR_UNARY -> {
+				val u = node.to<UnaryExpr>();
+				self.buf.write(op_to_str(u.op));
+				self.format_expr(u.operand);
+			}
+			NodeKind.EXPR_CALL -> {
+				val c = node.to<CallExpr>();
+				self.format_expr(c.callee);
+				if (c.type_args.len > 0UZ) {
+					self.buf.write("<");
+					for (i in 0..<c.type_args.len) {
+						if (i > 0UZ) self.buf.write(", ");
+						self.format_type(c.type_args[i]);
+					}
+					self.buf.write(">");
+				}
+				self.buf.write("(");
+				for (j in 0..<c.args.len) {
+					if (j > 0UZ) self.buf.write(", ");
+					self.format_expr(c.args[j]);
+				}
+				self.buf.write(")");
+			}
+			NodeKind.EXPR_MEMBER -> {
+				val m = node.to<MemberExpr>();
+				self.format_expr(m.object);
+				self.buf.write(".");
+				self.buf.write(m.member);
+			}
+			NodeKind.EXPR_INDEX -> {
+				val idx = node.to<IndexExpr>();
+				self.format_expr(idx.target);
+				self.buf.write("[");
+				self.format_expr(idx.index);
+				self.buf.write("]");
+			}
+			NodeKind.EXPR_ASSIGN -> {
+				val a = node.to<AssignExpr>();
+				self.format_expr(a.target);
+				self.buf.space();
+				self.buf.write(op_to_str(a.op));
+				self.buf.space();
+				self.format_expr(a.value);
+			}
+			NodeKind.EXPR_UPDATE -> {
+				val u = node.to<UpdateExpr>();
+				self.format_expr(u.target);
+				self.buf.write(op_to_str(u.op));
+			}
+			NodeKind.EXPR_CAST -> {
+				val cst = node.to<CastExpr>();
+				self.format_expr(cst.expr);
+				self.buf.write(" as ");
+				self.format_type(cst.target_type);
+			}
+			NodeKind.EXPR_GROUP -> {
+				val g = node.to<GroupExpr>();
+				self.buf.write("(");
+				self.format_expr(g.expr);
+				self.buf.write(")");
+			}
+			NodeKind.EXPR_ARRAY_LITERAL -> {
+				val al = node.to<ArrayLiteralExpr>();
+				self.buf.write("[");
+				for (i in 0..<al.elements.len) {
+					if (i > 0UZ) self.buf.write(", ");
+					self.format_expr(al.elements[i]);
+				}
+				self.buf.write("]");
+			}
+			NodeKind.EXPR_IF -> {
+				val ie = node.to<IfExpr>();
+				self.buf.write("if (");
+				self.format_expr(ie.condition);
+				self.buf.write(") ");
+				self.format_expr(ie.then_branch);
+				if (ie.else_branch != null) {
+					self.buf.write(" else ");
+					self.format_expr(ie.else_branch);
+				}
+			}
+			NodeKind.EXPR_WHEN -> {
+				val we = node.to<WhenExpr>();
+				self.buf.write("when (");
+				self.format_expr(we.condition);
+				self.buf.write(") {");
+				self.buf.indent();
+				for (i in 0..<we.arms.len) {
+					self.buf.newline();
+					val arm = we.arms[i];
+					if (arm.is_else) {
+						self.buf.write("else -> ");
+					} else {
+						for (p in 0..<arm.patterns.len) {
+							if (p > 0UZ) self.buf.write(", ");
+							self.format_expr(arm.patterns[p]);
+						}
+						self.buf.write(" -> ");
+					}
+					self.format_expr(arm.body);
+					if (i + 1UZ < we.arms.len) self.buf.write(",");
+				}
+				self.buf.dedent();
+				self.buf.newline();
+				self.buf.write("}");
+			}
+			NodeKind.EXPR_INTERP -> {
+				val interp = node.to<InterpExpr>();
+				self.buf.write("\"");
+				for (part in interp.parts) {
+					if (part.is_literal) {
+						val text = part.expr.to<LiteralExpr>().raw_text;
+						// Strip enclosing quotes from string literal
+						if (text.len >= 2UZ) {
+							self.buf.write(text.slice(1UZ, text.len - 1UZ));
+						}
+					} else {
+						self.buf.write_char('$');
+						self.buf.write_char('{');
+						self.format_expr(part.expr);
+						self.buf.write("}");
+					}
+				}
+				self.buf.write("\"");
+			}
+			else -> {}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Statements
+	// ------------------------------------------------------------------------
+
+	pub fn format_stmt(var self, node: *AstNode) {
+		if (node == null) return;
+		self.comments.emit_before(&self.buf, node.line);
+
+		when (node.kind) {
+			NodeKind.STMT_BLOCK -> {
+				val b = node.to<BlockStmt>();
+				self.buf.write("{");
+				self.buf.indent();
+				for (s in b.statements) {
+					self.buf.newline();
+					self.format_stmt(s);
+				}
+				self.buf.dedent();
+				self.buf.newline();
+				self.buf.write("}");
+			}
+			NodeKind.STMT_EXPR -> {
+				val es = node.to<ExprStmt>();
+				self.format_expr(es.expr);
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_VAR_DECL -> {
+				val v = node.to<VarDeclStmt>();
+				if (v.is_mut) self.buf.write("var ");
+				else self.buf.write("val ");
+				self.buf.write(v.name);
+				if (v.type_annotation != null) {
+					self.buf.write(": ");
+					self.format_type(v.type_annotation);
+				}
+				if (v.initializer != null) {
+					self.buf.write(" = ");
+					self.format_expr(v.initializer);
+				}
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_IF -> {
+				val s = node.to<IfStmt>();
+				self.buf.write("if (");
+				self.format_expr(s.condition);
+				self.buf.write(") ");
+
+				if (s.then_branch.kind == NodeKind.STMT_BLOCK) {
+					self.format_stmt(s.then_branch);
+				} else {
+					self.buf.indent();
+					self.buf.newline();
+					self.format_stmt(s.then_branch);
+					self.buf.dedent();
+				}
+
+				if (s.else_branch != null) {
+					if (s.then_branch.kind == NodeKind.STMT_BLOCK) {
+						self.buf.write(" else ");
+					} else {
+						self.buf.newline();
+						self.buf.write("else ");
+					}
+					if (s.else_branch.kind == NodeKind.STMT_IF || s.else_branch.kind == NodeKind.STMT_BLOCK) {
+						self.format_stmt(s.else_branch);
+					} else {
+						self.buf.indent();
+						self.buf.newline();
+						self.format_stmt(s.else_branch);
+						self.buf.dedent();
+					}
+				}
+			}
+			NodeKind.STMT_WHILE -> {
+				val w = node.to<WhileStmt>();
+				self.buf.write("while (");
+				self.format_expr(w.condition);
+				self.buf.write(") ");
+				if (w.body.kind == NodeKind.STMT_BLOCK) {
+					self.format_stmt(w.body);
+				} else {
+					self.buf.indent();
+					self.buf.newline();
+					self.format_stmt(w.body);
+					self.buf.dedent();
+				}
+			}
+			NodeKind.STMT_FOR -> {
+				val f = node.to<ForStmt>();
+				self.buf.write("for (");
+				self.buf.write(f.var_name);
+				self.buf.write(" in ");
+				if (f.is_range) {
+					self.format_expr(f.range_start);
+					if (f.is_open) self.buf.write(">..<");
+					else if (f.is_half_open) self.buf.write("..<");
+					else self.buf.write("..");
+					self.format_expr(f.range_end);
+				} else {
+					self.format_expr(f.iterable);
+				}
+				self.buf.write(") ");
+				if (f.body.kind == NodeKind.STMT_BLOCK) {
+					self.format_stmt(f.body);
+				} else {
+					self.buf.indent();
+					self.buf.newline();
+					self.format_stmt(f.body);
+					self.buf.dedent();
+				}
+			}
+			NodeKind.STMT_RETURN -> {
+				val r = node.to<ReturnStmt>();
+				self.buf.write("return");
+				if (r.value != null) {
+					self.buf.space();
+					self.format_expr(r.value);
+				}
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_YIELD -> {
+				val y = node.to<YieldStmt>();
+				self.buf.write("yield");
+				if (y.value != null) {
+					self.buf.space();
+					self.format_expr(y.value);
+				}
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_BREAK -> {
+				self.buf.write("break;");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_CONTINUE -> {
+				self.buf.write("continue;");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.STMT_WHEN -> {
+				val ws = node.to<WhenStmt>();
+				self.buf.write("when (");
+				self.format_expr(ws.condition);
+				self.buf.write(") {");
+				self.buf.indent();
+				for (arm in ws.arms) {
+					self.buf.newline();
+					if (arm.is_else) {
+						self.buf.write("else -> ");
+					} else {
+						for (p in 0..<arm.patterns.len) {
+							if (p > 0UZ) self.buf.write(", ");
+							self.format_expr(arm.patterns[p]);
+						}
+						self.buf.write(" -> ");
+					}
+					self.format_stmt(arm.body);
+				}
+				self.buf.dedent();
+				self.buf.newline();
+				self.buf.write("}");
+			}
+			else -> {}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Generic type parameters
+	// ------------------------------------------------------------------------
+
+	pub fn format_type_params(var self, type_params: List<GenericParam>) {
+		if (type_params.len == 0UZ) return;
+		self.buf.write("<");
+		for (i in 0..<type_params.len) {
+			if (i > 0UZ) self.buf.write(", ");
+			val tp = type_params[i];
+			self.buf.write(tp.name);
+			if (tp.bounds.len > 0UZ) {
+				self.buf.write(": ");
+				for (b in 0..<tp.bounds.len) {
+					if (b > 0UZ) self.buf.write(" + ");
+					self.buf.write(tp.bounds[b]);
+				}
+			}
+		}
+		self.buf.write(">");
+	}
+
+	// ------------------------------------------------------------------------
+	// Declarations
+	// ------------------------------------------------------------------------
+
+	pub fn format_decl(var self, node: *AstNode) {
+		if (node == null) return;
+		self.comments.emit_before(&self.buf, node.line);
+
+		when (node.kind) {
+			NodeKind.DECL_MODULE -> {
+				val m = node.to<ModuleDecl>();
+				self.buf.write("mod ");
+				self.buf.write(m.full_path);
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+				self.buf.newline();
+			}
+			NodeKind.DECL_USE -> {
+				val u = node.to<UseDecl>();
+				self.buf.write("use ");
+				self.buf.write(u.full_path);
+				if (u.alias.len > 0UZ) {
+					self.buf.write(" as ");
+					self.buf.write(u.alias);
+				}
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_STRUCT -> {
+				val s = node.to<StructDecl>();
+				if (s.is_pub) self.buf.write("pub ");
+				self.buf.write("struct ");
+				self.buf.write(s.name);
+				self.format_type_params(s.type_params);
+				self.buf.write(" {");
+
+				if (s.fields.len > 0UZ) {
+					self.buf.indent();
+					for (i in 0..<s.fields.len) {
+						self.buf.newline();
+						val f = s.fields[i];
+						if (f.is_pub) self.buf.write("pub ");
+						self.buf.write(f.name);
+						self.buf.write(": ");
+						self.format_type(f.type_node);
+						if (i + 1UZ < s.fields.len) self.buf.write(",");
+					}
+					self.buf.dedent();
+					self.buf.newline();
+				}
+				self.buf.write("}");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_FN -> {
+				val f = node.to<FnDecl>();
+				if (f.is_pub) self.buf.write("pub ");
+				self.buf.write("fn ");
+				self.buf.write(f.name);
+				self.format_type_params(f.type_params);
+				self.buf.write("(");
+
+				for (i in 0..<f.params.len) {
+					if (i > 0UZ) self.buf.write(", ");
+					val p = f.params[i];
+					if (p.is_mut) self.buf.write("var ");
+					else if (p.has_val) self.buf.write("val ");
+					self.buf.write(p.name);
+					if (p.type_node != null) {
+						self.buf.write(": ");
+						self.format_type(p.type_node);
+					}
+				}
+				self.buf.write(")");
+
+				if (f.return_type != null) {
+					self.buf.write(": ");
+					self.format_type(f.return_type);
+				}
+
+				if (f.body != null) {
+					if (f.body.kind == NodeKind.STMT_BLOCK) {
+						self.buf.write(" ");
+						self.format_stmt(f.body);
+					} else if (f.body.kind == NodeKind.STMT_EXPR) {
+						self.buf.write(" => ");
+						val es = f.body.to<ExprStmt>();
+						self.format_expr(es.expr);
+						self.buf.write(";");
+					} else {
+						self.buf.write(" ");
+						self.format_stmt(f.body);
+					}
+				} else {
+					self.buf.write(";");
+				}
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_IMPL -> {
+				val im = node.to<ImplDecl>();
+				self.buf.write("impl");
+				if (im.type_params.len > 0UZ) {
+					self.buf.space();
+					self.format_type_params(im.type_params);
+				}
+				self.buf.space();
+				if (im.trait_name.len > 0UZ) {
+					self.buf.write(im.trait_name);
+					self.buf.write(" for ");
+				}
+				self.buf.write(im.struct_name);
+				self.buf.write(" {");
+
+				if (im.methods.len > 0UZ) {
+					self.buf.indent();
+					for (m in im.methods) {
+						self.buf.double_newline();
+						self.format_decl(m);
+					}
+					self.buf.dedent();
+					self.buf.newline();
+				}
+				self.buf.write("}");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_TRAIT -> {
+				val tr = node.to<TraitDecl>();
+				if (tr.is_pub) self.buf.write("pub ");
+				self.buf.write("trait ");
+				self.buf.write(tr.name);
+				self.format_type_params(tr.type_params);
+				if (tr.bases.len > 0UZ) {
+					self.buf.write(" : ");
+					for (i in 0..<tr.bases.len) {
+						if (i > 0UZ) self.buf.write(", ");
+						self.buf.write(tr.bases[i]);
+					}
+				}
+				self.buf.write(" {");
+
+				if (tr.methods.len > 0UZ) {
+					self.buf.indent();
+					for (m in tr.methods) {
+						self.buf.newline();
+						self.format_decl(m);
+					}
+					self.buf.dedent();
+					self.buf.newline();
+				}
+				self.buf.write("}");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_ENUM -> {
+				val en = node.to<EnumDecl>();
+				if (en.is_pub) self.buf.write("pub ");
+				self.buf.write("enum ");
+				self.buf.write(en.name);
+				if (en.underlying_type != null) {
+					self.buf.write(": ");
+					self.format_type(en.underlying_type);
+				}
+				self.buf.write(" {");
+
+				if (en.members.len > 0UZ) {
+					self.buf.indent();
+					for (i in 0..<en.members.len) {
+						self.buf.newline();
+						val mem = en.members[i];
+						self.buf.write(mem.name);
+						if (mem.value != null) {
+							self.buf.write(" = ");
+							self.format_expr(mem.value);
+						}
+						if (i + 1UZ < en.members.len) self.buf.write(",");
+					}
+					self.buf.dedent();
+					self.buf.newline();
+				}
+				self.buf.write("}");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_CONST -> {
+				val c = node.to<ConstDecl>();
+				if (c.is_pub) self.buf.write("pub ");
+				self.buf.write("const ");
+				self.buf.write(c.name);
+				if (c.type_node != null) {
+					self.buf.write(": ");
+					self.format_type(c.type_node);
+				}
+				self.buf.write(" = ");
+				self.format_expr(c.value);
+				self.buf.write(";");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			NodeKind.DECL_EXTERN_BLOCK -> {
+				val eb = node.to<ExternBlock>();
+				self.buf.write("extern \"");
+				self.buf.write(eb.abi);
+				self.buf.write("\" {");
+
+				if (eb.declarations.len > 0UZ) {
+					self.buf.indent();
+					for (d in eb.declarations) {
+						self.buf.newline();
+						self.format_decl(d);
+					}
+					self.buf.dedent();
+					self.buf.newline();
+				}
+				self.buf.write("}");
+				self.comments.emit_trailing_on_line(&self.buf, node.line);
+			}
+			else -> {}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Program entry
+	// ------------------------------------------------------------------------
+
+	pub fn format_program(var self, program: *AstNode) {
+		if (program == null || program.kind != NodeKind.PROGRAM) return;
+		val p = program.to<Program>();
+
+		var prev_was_import = false;
+
+		for (i in 0..<p.declarations.len) {
+			val decl = p.declarations[i];
+			val is_import = decl.kind == NodeKind.DECL_USE;
+
+			if (i > 0UZ) {
+				if (prev_was_import && !is_import) {
+					self.buf.newline();
+				} else if (!is_import) {
+					self.buf.newline();
+				}
+			}
+
+			self.format_decl(decl);
+			self.buf.newline();
+			prev_was_import = is_import;
+		}
+
+		self.comments.emit_remaining(&self.buf);
+	}
+
+}
+
+// ============================================================================
+// Public format API
+// ============================================================================
+
+pub fn format_source(src: str, options: FormatOptions): str {
+	val comments = extract_comments(src);
+	val comment_table = CommentTable(comments);
+
+	var lex = Lexer(src);
+	val tokens = lex.tokenize();
+
+	var parser = Parser(tokens);
+	val program = parser.parse_program();
+
+	var fmt = Formatter(options, comment_table);
+	fmt.format_program(program);
+
+	return fmt.to_str();
+}
