@@ -119,7 +119,27 @@ pub fn layout_struct(ty: *Type) {
 	t.align = max_align;
 }
 
+impl PointerType {
+	pub fn data_type(val self): DataType => DataType.POINTER;
+	pub fn type_size(val self): usz => 8UZ;
+	pub fn type_align(val self): usz => 8UZ;
+}
+
+impl ArrayType {
+	pub fn data_type(val self): DataType => DataType.ARRAY;
+	pub fn type_size(val self): usz => self.elem.size * self.length;
+	pub fn type_align(val self): usz => self.elem.align;
+}
+
+impl FnType {
+	pub fn data_type(val self): DataType => DataType.FN;
+	pub fn type_size(val self): usz => 8UZ;
+	pub fn type_align(val self): usz => 8UZ;
+}
+
 impl StructType {
+	pub fn data_type(val self): DataType => DataType.STRUCT;
+
 	pub fn find_method(val self, name: str): *MethodInfo {
 		for (m in self.methods) {
 			if (m.name == name) return m;
@@ -202,28 +222,33 @@ pub fn type_str() => type_primitive(DataType.STR);
 // ============================================================================
 
 impl Arena {
-	pub fn alloc_type<T>(var self, kind: DataType, size: usz, align: usz, info: T): *Type {
+	pub fn alloc_type<T>(var self, size: usz, align: usz, info: T): *Type {
 		val info_ptr = self.alloc_val<T>(info);
-		return self.alloc_val<Type>(Type(kind, size, align, info_ptr as *u8));
+		return self.alloc_val<Type>(Type(info.data_type(), size, align, info_ptr as *u8));
+	}
+
+	pub fn make_type<T>(var self, info: T): *Type {
+		val info_ptr = self.alloc_val<T>(info);
+		return self.alloc_val<Type>(Type(info.data_type(), info.type_size(), info.type_align(), info_ptr as *u8));
 	}
 
 	pub fn primitive_type(var self, base: Type): *Type => self.alloc_val<Type>(base);
 
 	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type
-		=> self.alloc_type<PointerType>(DataType.POINTER, 8, 8, PointerType(pointee, is_mut, false));
+		=> self.make_type<PointerType>(PointerType(pointee, is_mut, false));
 
 	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type
-		=> self.alloc_type<PointerType>(DataType.POINTER, 8, 8, PointerType(pointee, is_mut, true));
+		=> self.make_type<PointerType>(PointerType(pointee, is_mut, true));
 
 	pub fn array_type(var self, elem: *Type, length: usz): *Type
-		=> self.alloc_type<ArrayType>(DataType.ARRAY, elem.size * length, elem.align, ArrayType(elem, length));
+		=> self.make_type<ArrayType>(ArrayType(elem, length));
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type
-		=> self.alloc_type<FnType>(DataType.FN, 8, 8, FnType(param_types, return_type));
+		=> self.make_type<FnType>(FnType(param_types, return_type));
 
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
-		var max_align: usz = 1;
-		var current_offset: usz = 0;
+		var max_align: usz = 1UZ;
+		var current_offset: usz = 0UZ;
 
 		for (i in 0..<fields.len) {
 			var f = fields[i];
@@ -231,7 +256,7 @@ impl Arena {
 			if (f_align > max_align) max_align = f_align;
 
 			val rem = current_offset % f_align;
-			if (rem != 0) current_offset += (f_align - rem);
+			if (rem != 0UZ) current_offset += (f_align - rem);
 
 			f.offset = current_offset;
 			fields[i] = f;
@@ -239,25 +264,27 @@ impl Arena {
 		}
 
 		val total_rem = current_offset % max_align;
-		if (total_rem != 0) current_offset += (max_align - total_rem);
+		if (total_rem != 0UZ) current_offset += (max_align - total_rem);
 
 		val struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
-		return self.alloc_type<StructType>(DataType.STRUCT, current_offset, max_align, struct_info);
+		return self.alloc_type<StructType>(current_offset, max_align, struct_info);
 	}
 }
 
 // ============================================================================
 impl Type {
-	pub fn as_type<T>(self): *T => self.data as *T;
-	pub fn to_mut<T>(self): &T => self.data as &T;
+	pub fn to<T>(val self): *T => self.data as *T;
+	pub fn to_mut<T>(val self): &T => self.data as &T;
 
-	pub fn as_pointer(self): *PointerType => self.data as *PointerType;
-	pub fn as_array(self): *ArrayType => self.data as *ArrayType;
-	pub fn as_struct(self): *StructType => self.as_type<StructType>();
+	pub fn as_type<T>(self): *T => self.to<T>();
+
+	pub fn as_pointer(self): *PointerType => self.to<PointerType>();
+	pub fn as_array(self): *ArrayType => self.to<ArrayType>();
+	pub fn as_struct(self): *StructType => self.to<StructType>();
 	pub fn as_struct_mut(self): &StructType => self.to_mut<StructType>();
-	pub fn as_fn(self): *FnType => self.as_type<FnType>();
+	pub fn as_fn(self): *FnType => self.to<FnType>();
 	pub fn as_fn_mut(self): &FnType => self.to_mut<FnType>();
-	pub fn as_enum(self): *EnumInfo => self.as_type<EnumInfo>();
+	pub fn as_enum(self): *EnumInfo => self.to<EnumInfo>();
 
 	pub fn alloc_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.pointer_type(self as *Type, is_mut);
 	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.nullable_pointer_type(self as *Type, is_mut);

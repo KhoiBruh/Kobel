@@ -1666,21 +1666,23 @@ compiler__sema__types__Type* std__mem__arena__alloc_compiler__sema__types__Type(
 compiler__sema__types__Type* std__mem__arena__alloc_val_compiler__sema__types__Type(std__mem__arena__Arena* self, compiler__sema__types__Type value);
 compiler__sema__types__PointerType* std__mem__arena__alloc_compiler__sema__types__PointerType(std__mem__arena__Arena* self);
 compiler__sema__types__PointerType* std__mem__arena__alloc_val_compiler__sema__types__PointerType(std__mem__arena__Arena* self, compiler__sema__types__PointerType value);
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__PointerType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__PointerType info);
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__PointerType(std__mem__arena__Arena* self, compiler__sema__types__PointerType info);
 compiler__sema__types__ArrayType* std__mem__arena__alloc_compiler__sema__types__ArrayType(std__mem__arena__Arena* self);
 compiler__sema__types__ArrayType* std__mem__arena__alloc_val_compiler__sema__types__ArrayType(std__mem__arena__Arena* self, compiler__sema__types__ArrayType value);
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__ArrayType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__ArrayType info);
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__ArrayType(std__mem__arena__Arena* self, compiler__sema__types__ArrayType info);
 compiler__sema__types__FnType* std__mem__arena__alloc_compiler__sema__types__FnType(std__mem__arena__Arena* self);
 compiler__sema__types__FnType* std__mem__arena__alloc_val_compiler__sema__types__FnType(std__mem__arena__Arena* self, compiler__sema__types__FnType value);
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__FnType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__FnType info);
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__FnType(std__mem__arena__Arena* self, compiler__sema__types__FnType info);
 compiler__sema__types__StructType* std__mem__arena__alloc_compiler__sema__types__StructType(std__mem__arena__Arena* self);
 compiler__sema__types__StructType* std__mem__arena__alloc_val_compiler__sema__types__StructType(std__mem__arena__Arena* self, compiler__sema__types__StructType value);
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__StructType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__StructType info);
-compiler__sema__types__StructType* compiler__sema__types__as_type_compiler__sema__types__StructType(compiler__sema__types__Type* self);
+compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__StructType(std__mem__arena__Arena* self, size_t size, size_t align, compiler__sema__types__StructType info);
+compiler__sema__types__PointerType* compiler__sema__types__to_compiler__sema__types__PointerType(compiler__sema__types__Type* self);
+compiler__sema__types__ArrayType* compiler__sema__types__to_compiler__sema__types__ArrayType(compiler__sema__types__Type* self);
+compiler__sema__types__StructType* compiler__sema__types__to_compiler__sema__types__StructType(compiler__sema__types__Type* self);
 compiler__sema__types__StructType* compiler__sema__types__to_mut_compiler__sema__types__StructType(compiler__sema__types__Type* self);
-compiler__sema__types__FnType* compiler__sema__types__as_type_compiler__sema__types__FnType(compiler__sema__types__Type* self);
+compiler__sema__types__FnType* compiler__sema__types__to_compiler__sema__types__FnType(compiler__sema__types__Type* self);
 compiler__sema__types__FnType* compiler__sema__types__to_mut_compiler__sema__types__FnType(compiler__sema__types__Type* self);
-compiler__sema__types__EnumInfo* compiler__sema__types__as_type_compiler__sema__types__EnumInfo(compiler__sema__types__Type* self);
+compiler__sema__types__EnumInfo* compiler__sema__types__to_compiler__sema__types__EnumInfo(compiler__sema__types__Type* self);
 compiler__sema__symbol__Symbol* std__mem__arena__alloc_compiler__sema__symbol__Symbol(std__mem__arena__Arena* self);
 compiler__sema__symbol__Symbol* std__mem__arena__alloc_val_compiler__sema__symbol__Symbol(std__mem__arena__Arena* self, compiler__sema__symbol__Symbol value);
 compiler__sema__symbol__Scope* std__mem__arena__alloc_compiler__sema__symbol__Scope(std__mem__arena__Arena* self);
@@ -1861,6 +1863,16 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_extern_block(std__mem__aren
 compiler__ast__node__AstNode* std__mem__arena__Arena_program(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__EnumInfo_find_member(compiler__sema__types__EnumInfo* self, const char* name);
 void compiler__sema__types__layout_struct(compiler__sema__types__Type* ty);
+compiler__sema__types__DataType compiler__sema__types__PointerType_data_type(compiler__sema__types__PointerType* self);
+size_t compiler__sema__types__PointerType_type_size(compiler__sema__types__PointerType* self);
+size_t compiler__sema__types__PointerType_type_align(compiler__sema__types__PointerType* self);
+compiler__sema__types__DataType compiler__sema__types__ArrayType_data_type(compiler__sema__types__ArrayType* self);
+size_t compiler__sema__types__ArrayType_type_size(compiler__sema__types__ArrayType* self);
+size_t compiler__sema__types__ArrayType_type_align(compiler__sema__types__ArrayType* self);
+compiler__sema__types__DataType compiler__sema__types__FnType_data_type(compiler__sema__types__FnType* self);
+size_t compiler__sema__types__FnType_type_size(compiler__sema__types__FnType* self);
+size_t compiler__sema__types__FnType_type_align(compiler__sema__types__FnType* self);
+compiler__sema__types__DataType compiler__sema__types__StructType_data_type(compiler__sema__types__StructType* self);
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method(compiler__sema__types__StructType* self, const char* name);
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method_arity(compiler__sema__types__StructType* self, const char* name, size_t argc);
 size_t compiler__sema__types__StructType_count_method_arity(compiler__sema__types__StructType* self, const char* name, size_t argc);
@@ -5261,9 +5273,9 @@ compiler__sema__types__PointerType* std__mem__arena__alloc_val_compiler__sema__t
     return ptr;
 }
 
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__PointerType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__PointerType info) {
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__PointerType(std__mem__arena__Arena* self, compiler__sema__types__PointerType info) {
     compiler__sema__types__PointerType* info_ptr = std__mem__arena__alloc_val_compiler__sema__types__PointerType(self, info);
-    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, ((uint8_t*)info_ptr) });
+    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ compiler__sema__types__PointerType_data_type((&info)), compiler__sema__types__PointerType_type_size((&info)), compiler__sema__types__PointerType_type_align((&info)), ((uint8_t*)info_ptr) });
 }
 
 compiler__sema__types__ArrayType* std__mem__arena__alloc_compiler__sema__types__ArrayType(std__mem__arena__Arena* self) {
@@ -5277,9 +5289,9 @@ compiler__sema__types__ArrayType* std__mem__arena__alloc_val_compiler__sema__typ
     return ptr;
 }
 
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__ArrayType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__ArrayType info) {
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__ArrayType(std__mem__arena__Arena* self, compiler__sema__types__ArrayType info) {
     compiler__sema__types__ArrayType* info_ptr = std__mem__arena__alloc_val_compiler__sema__types__ArrayType(self, info);
-    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, ((uint8_t*)info_ptr) });
+    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ compiler__sema__types__ArrayType_data_type((&info)), compiler__sema__types__ArrayType_type_size((&info)), compiler__sema__types__ArrayType_type_align((&info)), ((uint8_t*)info_ptr) });
 }
 
 compiler__sema__types__FnType* std__mem__arena__alloc_compiler__sema__types__FnType(std__mem__arena__Arena* self) {
@@ -5293,9 +5305,9 @@ compiler__sema__types__FnType* std__mem__arena__alloc_val_compiler__sema__types_
     return ptr;
 }
 
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__FnType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__FnType info) {
+compiler__sema__types__Type* compiler__sema__types__make_type_compiler__sema__types__FnType(std__mem__arena__Arena* self, compiler__sema__types__FnType info) {
     compiler__sema__types__FnType* info_ptr = std__mem__arena__alloc_val_compiler__sema__types__FnType(self, info);
-    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, ((uint8_t*)info_ptr) });
+    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ compiler__sema__types__FnType_data_type((&info)), compiler__sema__types__FnType_type_size((&info)), compiler__sema__types__FnType_type_align((&info)), ((uint8_t*)info_ptr) });
 }
 
 compiler__sema__types__StructType* std__mem__arena__alloc_compiler__sema__types__StructType(std__mem__arena__Arena* self) {
@@ -5309,12 +5321,20 @@ compiler__sema__types__StructType* std__mem__arena__alloc_val_compiler__sema__ty
     return ptr;
 }
 
-compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__StructType(std__mem__arena__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__StructType info) {
+compiler__sema__types__Type* compiler__sema__types__alloc_type_compiler__sema__types__StructType(std__mem__arena__Arena* self, size_t size, size_t align, compiler__sema__types__StructType info) {
     compiler__sema__types__StructType* info_ptr = std__mem__arena__alloc_val_compiler__sema__types__StructType(self, info);
-    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, ((uint8_t*)info_ptr) });
+    return std__mem__arena__alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ compiler__sema__types__StructType_data_type((&info)), size, align, ((uint8_t*)info_ptr) });
 }
 
-compiler__sema__types__StructType* compiler__sema__types__as_type_compiler__sema__types__StructType(compiler__sema__types__Type* self) {
+compiler__sema__types__PointerType* compiler__sema__types__to_compiler__sema__types__PointerType(compiler__sema__types__Type* self) {
+    return ((compiler__sema__types__PointerType*)(self)->data);
+}
+
+compiler__sema__types__ArrayType* compiler__sema__types__to_compiler__sema__types__ArrayType(compiler__sema__types__Type* self) {
+    return ((compiler__sema__types__ArrayType*)(self)->data);
+}
+
+compiler__sema__types__StructType* compiler__sema__types__to_compiler__sema__types__StructType(compiler__sema__types__Type* self) {
     return ((compiler__sema__types__StructType*)(self)->data);
 }
 
@@ -5322,7 +5342,7 @@ compiler__sema__types__StructType* compiler__sema__types__to_mut_compiler__sema_
     return ((compiler__sema__types__StructType*)(self)->data);
 }
 
-compiler__sema__types__FnType* compiler__sema__types__as_type_compiler__sema__types__FnType(compiler__sema__types__Type* self) {
+compiler__sema__types__FnType* compiler__sema__types__to_compiler__sema__types__FnType(compiler__sema__types__Type* self) {
     return ((compiler__sema__types__FnType*)(self)->data);
 }
 
@@ -5330,7 +5350,7 @@ compiler__sema__types__FnType* compiler__sema__types__to_mut_compiler__sema__typ
     return ((compiler__sema__types__FnType*)(self)->data);
 }
 
-compiler__sema__types__EnumInfo* compiler__sema__types__as_type_compiler__sema__types__EnumInfo(compiler__sema__types__Type* self) {
+compiler__sema__types__EnumInfo* compiler__sema__types__to_compiler__sema__types__EnumInfo(compiler__sema__types__Type* self) {
     return ((compiler__sema__types__EnumInfo*)(self)->data);
 }
 
@@ -6455,6 +6475,46 @@ void compiler__sema__types__layout_struct(compiler__sema__types__Type* ty) {
     (t)->align = max_align;
 }
 
+compiler__sema__types__DataType compiler__sema__types__PointerType_data_type(compiler__sema__types__PointerType* self) {
+    return 16;
+}
+
+size_t compiler__sema__types__PointerType_type_size(compiler__sema__types__PointerType* self) {
+    return ((size_t)8ULL);
+}
+
+size_t compiler__sema__types__PointerType_type_align(compiler__sema__types__PointerType* self) {
+    return ((size_t)8ULL);
+}
+
+compiler__sema__types__DataType compiler__sema__types__ArrayType_data_type(compiler__sema__types__ArrayType* self) {
+    return 17;
+}
+
+size_t compiler__sema__types__ArrayType_type_size(compiler__sema__types__ArrayType* self) {
+    return (((*(self)->elem)).size * (self)->length);
+}
+
+size_t compiler__sema__types__ArrayType_type_align(compiler__sema__types__ArrayType* self) {
+    return ((*(self)->elem)).align;
+}
+
+compiler__sema__types__DataType compiler__sema__types__FnType_data_type(compiler__sema__types__FnType* self) {
+    return 19;
+}
+
+size_t compiler__sema__types__FnType_type_size(compiler__sema__types__FnType* self) {
+    return ((size_t)8ULL);
+}
+
+size_t compiler__sema__types__FnType_type_align(compiler__sema__types__FnType* self) {
+    return ((size_t)8ULL);
+}
+
+compiler__sema__types__DataType compiler__sema__types__StructType_data_type(compiler__sema__types__StructType* self) {
+    return 18;
+}
+
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method(compiler__sema__types__StructType* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count((&(self)->methods));
@@ -6603,24 +6663,24 @@ compiler__sema__types__Type* std__mem__arena__Arena_primitive_type(std__mem__are
 }
 
 compiler__sema__types__Type* std__mem__arena__Arena_pointer_type_3_2(std__mem__arena__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
-    return compiler__sema__types__alloc_type_compiler__sema__types__PointerType(self, 16, 8, 8, (compiler__sema__types__PointerType){ pointee, is_mut, false });
+    return compiler__sema__types__make_type_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, false });
 }
 
 compiler__sema__types__Type* std__mem__arena__Arena_nullable_pointer_type(std__mem__arena__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
-    return compiler__sema__types__alloc_type_compiler__sema__types__PointerType(self, 16, 8, 8, (compiler__sema__types__PointerType){ pointee, is_mut, true });
+    return compiler__sema__types__make_type_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, true });
 }
 
 compiler__sema__types__Type* std__mem__arena__Arena_array_type_3_2(std__mem__arena__Arena* self, compiler__sema__types__Type* elem, size_t length) {
-    return compiler__sema__types__alloc_type_compiler__sema__types__ArrayType(self, 17, ((elem)->size * length), (elem)->align, (compiler__sema__types__ArrayType){ elem, length });
+    return compiler__sema__types__make_type_compiler__sema__types__ArrayType(self, (compiler__sema__types__ArrayType){ elem, length });
 }
 
 compiler__sema__types__Type* std__mem__arena__Arena_fn_type(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type) {
-    return compiler__sema__types__alloc_type_compiler__sema__types__FnType(self, 19, 8, 8, (compiler__sema__types__FnType){ param_types, return_type });
+    return compiler__sema__types__make_type_compiler__sema__types__FnType(self, (compiler__sema__types__FnType){ param_types, return_type });
 }
 
 compiler__sema__types__Type* std__mem__arena__Arena_struct_type(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__sema__types__StructField fields) {
-    size_t max_align = 1;
-    size_t current_offset = 0;
+    size_t max_align = ((size_t)1ULL);
+    size_t current_offset = ((size_t)0ULL);
     {
         size_t __for_e = (fields).len;
         size_t __for_i = __for_e;
@@ -6645,7 +6705,7 @@ compiler__sema__types__Type* std__mem__arena__Arena_struct_type(std__mem__arena_
                     max_align = f_align;
                 }
                 size_t rem = (current_offset % f_align);
-                if ((rem != 0)) {
+                if ((rem != ((size_t)0ULL))) {
                     current_offset += ((f_align - rem));
                 }
                 (f).offset = current_offset;
@@ -6675,23 +6735,23 @@ compiler__sema__types__Type* std__mem__arena__Arena_struct_type(std__mem__arena_
         }
     }
     size_t total_rem = (current_offset % max_align);
-    if ((total_rem != 0)) {
+    if ((total_rem != ((size_t)0ULL))) {
         current_offset += ((max_align - total_rem));
     }
     compiler__sema__types__StructType struct_info = (compiler__sema__types__StructType){ name, name, fields, std__collections__list__List_ptr_compiler__sema__types__MethodInfo_new_0(), "", false };
-    return compiler__sema__types__alloc_type_compiler__sema__types__StructType(self, 18, current_offset, max_align, struct_info);
+    return compiler__sema__types__alloc_type_compiler__sema__types__StructType(self, current_offset, max_align, struct_info);
 }
 
 compiler__sema__types__PointerType* compiler__sema__types__Type_as_pointer(compiler__sema__types__Type* self) {
-    return ((compiler__sema__types__PointerType*)(self)->data);
+    return compiler__sema__types__to_compiler__sema__types__PointerType(self);
 }
 
 compiler__sema__types__ArrayType* compiler__sema__types__Type_as_array(compiler__sema__types__Type* self) {
-    return ((compiler__sema__types__ArrayType*)(self)->data);
+    return compiler__sema__types__to_compiler__sema__types__ArrayType(self);
 }
 
 compiler__sema__types__StructType* compiler__sema__types__Type_as_struct(compiler__sema__types__Type* self) {
-    return compiler__sema__types__as_type_compiler__sema__types__StructType(self);
+    return compiler__sema__types__to_compiler__sema__types__StructType(self);
 }
 
 compiler__sema__types__StructType* compiler__sema__types__Type_as_struct_mut(compiler__sema__types__Type* self) {
@@ -6699,7 +6759,7 @@ compiler__sema__types__StructType* compiler__sema__types__Type_as_struct_mut(com
 }
 
 compiler__sema__types__FnType* compiler__sema__types__Type_as_fn(compiler__sema__types__Type* self) {
-    return compiler__sema__types__as_type_compiler__sema__types__FnType(self);
+    return compiler__sema__types__to_compiler__sema__types__FnType(self);
 }
 
 compiler__sema__types__FnType* compiler__sema__types__Type_as_fn_mut(compiler__sema__types__Type* self) {
@@ -6707,7 +6767,7 @@ compiler__sema__types__FnType* compiler__sema__types__Type_as_fn_mut(compiler__s
 }
 
 compiler__sema__types__EnumInfo* compiler__sema__types__Type_as_enum(compiler__sema__types__Type* self) {
-    return compiler__sema__types__as_type_compiler__sema__types__EnumInfo(self);
+    return compiler__sema__types__to_compiler__sema__types__EnumInfo(self);
 }
 
 compiler__sema__types__Type* compiler__sema__types__Type_alloc_pointer(compiler__sema__types__Type* self, std__mem__arena__Arena* arena, bool is_mut) {
