@@ -69,13 +69,8 @@ impl ModuleLoader {
 		);
 	}
 
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val ptr = arena_alloc<T>(&self.arena);
-		*ptr = data;
-		val node_ptr = arena_alloc<AstNode>(&self.arena);
-		*node_ptr = AstNode(kind, line, col, ptr as *u8);
-		return node_ptr;
-	}
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.arena.alloc_node<T>(kind, data, line, col);
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
 		=> self.make<ModuleDecl>(NodeKind.DECL_MODULE, ModuleDecl(path, full_path), line, col);

@@ -80,15 +80,16 @@ impl Arena {
 		}
 		self.current = null;
 	}
-}
 
-// Allocates room for one `T` in the arena and returns it already typed as `*T`,
-// so callers never have to write `arena.alloc_bytes(T.size(), 8) as *T`.
-//
-//	val node = arena_alloc<AstNode>(&self.arena);
-//	*node = AstNode(...);
-pub fn arena_alloc<T>(var arena: &Arena): *T {
-	val raw: &u8 = arena.alloc_bytes(T.size(), 8);
-	return raw as *T;
+	pub fn alloc<T>(var self): *T {
+		val raw: &u8 = self.alloc_bytes(T.size(), 8);
+		return raw as *T;
+	}
+
+	pub fn alloc_val<T>(var self, value: T): *T {
+		val ptr = self.alloc<T>();
+		*ptr = value;
+		return ptr;
+	}
 }
 

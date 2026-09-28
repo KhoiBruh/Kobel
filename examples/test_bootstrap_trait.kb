@@ -273,9 +273,11 @@ fn test_list_ctor(var t: &Tally) {
 
 fn test_std_ctors(var t: &Tally) {
 	var a = Arena(4096UZ);
-	val p = arena_alloc<i32>(&a);
+	val p = a.alloc<i32>();
 	*p = 7;
-	check_i(*p, 7, "Arena(block_size) + arena_alloc", t);
+	check_i(*p, 7, "Arena(block_size) + a.alloc<T>", t);
+	val p2 = a.alloc_val<i32>(42);
+	check_i(*p2, 42, "a.alloc_val<T>(value)", t);
 	a.delete();
 
 	var dflt = Arena();

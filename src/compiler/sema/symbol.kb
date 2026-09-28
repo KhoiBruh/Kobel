@@ -171,11 +171,7 @@ pub fn gen_find(list: List<*GenTemplate>, name: str): *GenTemplate {
 	return null;
 }
 
-pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol {
-	val p = arena_alloc<Symbol>(arena);
-	*p = sym;
-	return p;
-}
+pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol => arena.alloc_val<Symbol>(sym);
 
 // ============================================================================
 // Symbol Table
@@ -203,8 +199,7 @@ pub struct SymbolTable {
 impl SymbolTable {
 	pub fn new(): SymbolTable {
 		var arena = Arena(65536);
-		val root_scope = arena_alloc<Scope>(&arena);
-		*root_scope = Scope(null, List<*Symbol>(), false);
+		val root_scope = arena.alloc_val<Scope>(Scope(null, List<*Symbol>(), false));
 
 		val gen = GenericReg(
 			List<*GenTemplate>(),
@@ -282,8 +277,7 @@ impl SymbolTable {
 	}
 
 	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
-		val new_sc = arena_alloc<Scope>(&self.arena);
-		*new_sc = Scope(self.current_scope, List<*Symbol>(), is_fn_boundary);
+		val new_sc = self.arena.alloc_val<Scope>(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
 		self.current_scope = new_sc;
 		return new_sc;
 	}
@@ -357,8 +351,7 @@ impl SymbolTable {
 		val existing = self.lookup_current(sym.name);
 		if (existing != null) return false;
 
-		val sym_ptr = arena_alloc<Symbol>(&self.arena);
-		*sym_ptr = sym;
+		val sym_ptr = self.arena.alloc_val<Symbol>(sym);
 
 		self.current_scope.symbols.add(sym_ptr);
 		return true;
@@ -383,8 +376,7 @@ impl SymbolTable {
 				for (existing in sc) {
 					if (existing.name == sym.name) return false;
 				}
-				val sym_ptr = arena_alloc<Symbol>(&self.arena);
-				*sym_ptr = sym;
+				val sym_ptr = self.arena.alloc_val<Symbol>(sym);
 				sc.symbols.add(sym_ptr);
 				self.modules[m] = sc;
 				return true;
@@ -392,10 +384,8 @@ impl SymbolTable {
 		}
 
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
-		val fresh = arena_alloc<ModuleScope>(&self.arena);
-		*fresh = ModuleScope(module_name);
-		val sym_ptr2 = arena_alloc<Symbol>(&self.arena);
-		*sym_ptr2 = sym;
+		val fresh = self.arena.alloc_val<ModuleScope>(ModuleScope(module_name));
+		val sym_ptr2 = self.arena.alloc_val<Symbol>(sym);
 		fresh.symbols.add(sym_ptr2);
 		self.modules.add(fresh);
 		return true;

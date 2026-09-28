@@ -198,94 +198,59 @@ pub fn type_f64() => type_primitive(DataType.F64);
 pub fn type_str() => type_primitive(DataType.STR);
 
 // ============================================================================
-// Complex Type Allocators
+// Complex Type Allocators (impl Arena Extension)
 // ============================================================================
 
-pub fn alloc_pointer_type(
-	var arena: &Arena,
-	pointee: *Type,
-	is_mut: bool
-): *Type {
-	val ptr_info = arena_alloc<PointerType>(arena);
-	*ptr_info = PointerType(pointee, is_mut, false);
-
-	val t_ptr = arena_alloc<Type>(arena);
-	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
-	return t_ptr;
-}
-
-pub fn alloc_nullable_pointer_type(
-	var arena: &Arena,
-	pointee: *Type,
-	is_mut: bool
-): *Type {
-	val ptr_info = arena_alloc<PointerType>(arena);
-	*ptr_info = PointerType(pointee, is_mut, true);
-
-	val t_ptr = arena_alloc<Type>(arena);
-	*t_ptr = Type(DataType.POINTER, 8, 8, ptr_info as *u8);
-	return t_ptr;
-}
-
-pub fn alloc_array_type(
-	var arena: &Arena,
-	elem: *Type,
-	length: usz
-): *Type {
-	val arr_info = arena_alloc<ArrayType>(arena);
-	*arr_info = ArrayType(elem, length);
-
-	val t_ptr = arena_alloc<Type>(arena);
-	*t_ptr = Type(DataType.ARRAY, elem.size * length, elem.align, arr_info as *u8);
-	return t_ptr;
-}
-
-pub fn alloc_struct_type(
-	var arena: &Arena,
-	name: str,
-	fields: List<StructField>
-): *Type {
-	var max_align: usz = 1;
-	var current_offset: usz = 0;
-
-	for (i in 0..<fields.len) {
-		var f = fields[i];
-		val f_align = f.type_ptr.align;
-		if (f_align > max_align) max_align = f_align;
-
-		// Align current_offset theo f_align
-		val rem = current_offset % f_align;
-		if (rem != 0) current_offset += (f_align - rem);
-
-		f.offset = current_offset;
-		fields[i] = f;
-		current_offset += f.type_ptr.size;
+impl Arena {
+	pub fn alloc_type<T>(var self, kind: DataType, size: usz, align: usz, info: T): *Type {
+		val info_ptr = self.alloc_val<T>(info);
+		return self.alloc_val<Type>(Type(kind, size, align, info_ptr as *u8));
 	}
 
-	// Final struct padding to max_align
-	val total_rem = current_offset % max_align;
-	if (total_rem != 0) current_offset += (max_align - total_rem);
+	pub fn primitive_type(var self, base: Type): *Type => self.alloc_val<Type>(base);
 
-	val struct_info = arena_alloc<StructType>(arena);
-	*struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
+	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type
+		=> self.alloc_type<PointerType>(DataType.POINTER, 8, 8, PointerType(pointee, is_mut, false));
 
-	val t_ptr = arena_alloc<Type>(arena);
-	*t_ptr = Type(DataType.STRUCT, current_offset, max_align, struct_info as *u8);
-	return t_ptr;
+	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type
+		=> self.alloc_type<PointerType>(DataType.POINTER, 8, 8, PointerType(pointee, is_mut, true));
+
+	pub fn array_type(var self, elem: *Type, length: usz): *Type
+		=> self.alloc_type<ArrayType>(DataType.ARRAY, elem.size * length, elem.align, ArrayType(elem, length));
+
+	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type
+		=> self.alloc_type<FnType>(DataType.FN, 8, 8, FnType(param_types, return_type));
+
+	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
+		var max_align: usz = 1;
+		var current_offset: usz = 0;
+
+		for (i in 0..<fields.len) {
+			var f = fields[i];
+			val f_align = f.type_ptr.align;
+			if (f_align > max_align) max_align = f_align;
+
+			val rem = current_offset % f_align;
+			if (rem != 0) current_offset += (f_align - rem);
+
+			f.offset = current_offset;
+			fields[i] = f;
+			current_offset += f.type_ptr.size;
+		}
+
+		val total_rem = current_offset % max_align;
+		if (total_rem != 0) current_offset += (max_align - total_rem);
+
+		val struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
+		return self.alloc_type<StructType>(DataType.STRUCT, current_offset, max_align, struct_info);
+	}
 }
 
-pub fn alloc_fn_type(
-	var arena: &Arena,
-	param_types: List<*Type>,
-	return_type: *Type
-): *Type {
-	val fn_info = arena_alloc<FnType>(arena);
-	*fn_info = FnType(param_types, return_type);
-
-	val t_ptr = arena_alloc<Type>(arena);
-	*t_ptr = Type(DataType.FN, 8, 8, fn_info as *u8);
-	return t_ptr;
-}
+pub fn alloc_pointer_type(var arena: &Arena, pointee: *Type, is_mut: bool): *Type => arena.pointer_type(pointee, is_mut);
+pub fn alloc_nullable_pointer_type(var arena: &Arena, pointee: *Type, is_mut: bool): *Type => arena.nullable_pointer_type(pointee, is_mut);
+pub fn alloc_array_type(var arena: &Arena, elem: *Type, length: usz): *Type => arena.array_type(elem, length);
+pub fn alloc_struct_type(var arena: &Arena, name: str, fields: List<StructField>): *Type => arena.struct_type(name, fields);
+pub fn alloc_fn_type(var arena: &Arena, param_types: List<*Type>, return_type: *Type): *Type => arena.fn_type(param_types, return_type);
 
 // ============================================================================
 impl Type {

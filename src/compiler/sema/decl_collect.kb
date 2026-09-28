@@ -134,7 +134,7 @@ impl DeclPass {
 			var v: i64 = next_val;
 			if (m.value != null) v = self.enum_const_i64(m.value);
 
-			val mi = arena_alloc<EnumMemberInfo>(&self.arena);
+			val mi = self.arena.alloc<EnumMemberInfo>();
 			*mi = EnumMemberInfo(m.name, v);
 			members.add(mi);
 
@@ -143,12 +143,12 @@ impl DeclPass {
 
 		val c_name = self.c_name_for(e.name);
 
-		val info = arena_alloc<EnumInfo>(&self.arena);
+		val info = self.arena.alloc<EnumInfo>();
 		*info = EnumInfo(e.name, c_name, under_type, members);
 
 		// The symbol's type is an integer type that carries the EnumInfo, so enum
 		// values stay usable in arithmetic/comparisons while `.value` is recognized.
-		val carrier = arena_alloc<Type>(&self.arena);
+		val carrier = self.arena.alloc<Type>();
 		*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
 
 		val ok = self.symtab.define_global(
@@ -201,12 +201,12 @@ impl DeclPass {
 				self.report_error(m, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) in trait '${t.name}'");
 				continue;
 			}
-			val tm = arena_alloc<TraitMethod>(&self.arena);
+			val tm = self.arena.alloc<TraitMethod>();
 			*tm = TraitMethod(f.name, f.params.len, f.body != null, m);
 			methods.add(tm);
 		}
 	
-		val ti = arena_alloc<TraitInfo>(&self.arena);
+		val ti = self.arena.alloc<TraitInfo>();
 		*ti = TraitInfo(t.name, t.bases, methods, List<str>());
 		self.symtab.register_trait(ti);
 	}

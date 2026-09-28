@@ -9,7 +9,6 @@ use compiler.ast.decl.*;
 use compiler.lexer.token.TokenType;
 use std.collections.list.List;
 use std.mem.arena.Arena;
-use std.mem.arena.arena_alloc;
 
 // ============================================================================
 // AstBuilder Struct & Generic Factory
@@ -22,19 +21,11 @@ pub struct AstBuilder {
 impl AstBuilder {
 	pub fn new(arena: &Arena): AstBuilder => Self(arena);
 
-	pub fn make<T>(self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val ptr = arena_alloc<T>(self.arena);
-		*ptr = data;
-		val node_ptr = arena_alloc<AstNode>(self.arena);
-		*node_ptr = AstNode(kind, line, col, ptr as *u8);
-		return node_ptr;
-	}
+	pub fn make<T>(self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.arena.alloc_node<T>(kind, data, line, col);
 
-	pub fn node(var self: &AstBuilder, kind: NodeKind, line: usz, col: usz, data: *u8): *AstNode {
-		val ptr = arena_alloc<AstNode>(self.arena);
-		*ptr = AstNode(kind, line, col, data);
-		return ptr;
-	}
+	pub fn node(var self: &AstBuilder, kind: NodeKind, line: usz, col: usz, data: *u8): *AstNode
+		=> self.arena.alloc_val<AstNode>(AstNode(kind, line, col, data));
 
 	// ------------------------------------------------------------------------
 	// Types

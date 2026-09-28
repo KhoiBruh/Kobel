@@ -60,11 +60,7 @@ pub struct DeclPass {
 	pub current_self_type: *Type
 }
 
-pub fn alloc_primitive(var arena: &Arena, base: Type): *Type {
-	val ptr = arena_alloc<Type>(arena);
-	*ptr = base;
-	return ptr;
-}
+pub fn alloc_primitive(var arena: &Arena, base: Type): *Type => arena.primitive_type(base);
 
 // Source names carried by more than one method of an impl, i.e. overloads.
 fn overloaded_names(im: &ImplDecl): List<str> {
@@ -144,13 +140,8 @@ impl DeclPass {
 		return Self(SymbolTable(), arena, "", List<str>(), false, null);
 	}
 
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val ptr = arena_alloc<T>(&self.arena);
-		*ptr = data;
-		val node_ptr = arena_alloc<AstNode>(&self.arena);
-		*node_ptr = AstNode(kind, line, col, ptr as *u8);
-		return node_ptr;
-	}
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.arena.alloc_node<T>(kind, data, line, col);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<NamedType>(NodeKind.TYPE_NAMED, NamedType(name, type_args), line, col);
@@ -419,7 +410,7 @@ impl DeclPass {
 				k++;
 			}
 
-			val mi = arena_alloc<MethodInfo>(&self.arena);
+			val mi = self.arena.alloc<MethodInfo>();
 			*mi = MethodInfo(f.name, m_c_name, fn_type);
 			st_info.methods.add(mi);
 
@@ -482,9 +473,9 @@ impl DeclPass {
 				self.report_error(m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
 			}
 
-			val mi = arena_alloc<MethodInfo>(&self.arena);
+			val mi = self.arena.alloc<MethodInfo>();
 			*mi = MethodInfo(f.name, m_c_name, fn_type);
-			val pm = arena_alloc<PrimMethod>(&self.arena);
+			val pm = self.arena.alloc<PrimMethod>();
 			*pm = PrimMethod(prim.kind, mi);
 			self.symtab.register_prim_method(pm);
 

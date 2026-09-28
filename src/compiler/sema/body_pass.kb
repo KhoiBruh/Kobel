@@ -59,13 +59,8 @@ impl BodyPass {
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ);
 	}
 
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val ptr = arena_alloc<T>(&self.arena);
-		*ptr = data;
-		val node_ptr = arena_alloc<AstNode>(&self.arena);
-		*node_ptr = AstNode(kind, line, col, ptr as *u8);
-		return node_ptr;
-	}
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.arena.alloc_node<T>(kind, data, line, col);
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
 		=> self.make<LiteralExpr>(NodeKind.EXPR_LITERAL, LiteralExpr(lk, raw), line, col);

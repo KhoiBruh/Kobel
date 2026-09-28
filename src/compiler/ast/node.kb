@@ -1,5 +1,7 @@
 mod compiler.ast.node;
 
+use std.mem.arena.Arena;
+
 pub enum NodeKind {
 	// Syntactic Types
 	TYPE_NAMED,
@@ -59,4 +61,11 @@ pub struct AstNode {
 
 impl AstNode {
 	pub fn to<T>(val self): *T => self.data as *T;
+}
+
+impl Arena {
+	pub fn alloc_node<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
+		val data_ptr = self.alloc_val<T>(data);
+		return self.alloc_val<AstNode>(AstNode(kind, line, col, data_ptr as *u8));
+	}
 }

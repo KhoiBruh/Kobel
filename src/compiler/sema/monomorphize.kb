@@ -120,7 +120,7 @@ impl DeclPass {
 	}
 
 	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool): *GenTemplate {
-		val t = arena_alloc<GenTemplate>(&self.arena);
+		val t = self.arena.alloc<GenTemplate>();
 		*t = GenTemplate(name, self.current_module, node, is_method);
 		return t;
 	}
@@ -303,7 +303,7 @@ impl DeclPass {
 	}
 
 	pub fn alloc_subst(var self, names: List<str>, args: List<*AstNode>): *GenSubst {
-		val s = arena_alloc<GenSubst>(&self.arena);
+		val s = self.arena.alloc<GenSubst>();
 		*s = GenSubst(names, args);
 		return s;
 	}

@@ -20,13 +20,8 @@ impl Parser {
 
 	pub fn new(tokens: List<Token>) => Self(tokens, 0, Arena(65536), List<str>());
 
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val ptr = arena_alloc<T>(&self.arena);
-		*ptr = data;
-		val node_ptr = arena_alloc<AstNode>(&self.arena);
-		*node_ptr = AstNode(kind, line, col, ptr as *u8);
-		return node_ptr;
-	}
+	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode
+		=> self.arena.alloc_node<T>(kind, data, line, col);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<NamedType>(NodeKind.TYPE_NAMED, NamedType(name, type_args), line, col);
