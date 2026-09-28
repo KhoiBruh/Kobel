@@ -1,0 +1,103 @@
+mod lsp.document;
+
+use std.collections.list.*;
+use util.strutil.*;
+use std.ascii.*;
+use std.collections.string_builder.*;
+
+// ============================================================================
+// Document Representation
+// ============================================================================
+
+pub struct Document {
+	pub uri: str,
+	pub path: str,
+	pub text: str,
+	pub version: i64
+}
+
+pub fn uri_to_path(uri: str): str {
+	var s = uri;
+	if (s.len >= 8UZ && s.slice(0, 8) == "file:///") {
+		s = s.slice(8, s.len);
+	} else if (s.len >= 7UZ && s.slice(0, 7) == "file://") {
+		s = s.slice(7, s.len);
+	}
+
+	var sb = StringBuilder();
+	var i: usz = 0UZ;
+	while (i < s.len) {
+		val c = s[i];
+		if (c == '%' && i + 2UZ < s.len) {
+			val h1 = s[i + 1UZ];
+			val h2 = s[i + 2UZ];
+			if (h1 == '3' && (h2 == 'a' || h2 == 'A')) {
+				sb.append_char(':');
+				i += 3UZ;
+				continue;
+			}
+			if (h1 == '2' && h2 == '0') {
+				sb.append_char(' ');
+				i += 3UZ;
+				continue;
+			}
+		}
+		if (c == '/') {
+			sb.append_char('\\');
+		} else {
+			sb.append_char(c);
+		}
+		i++;
+	}
+
+	val res = sb.to_str();
+	sb.delete();
+	return res;
+}
+
+// ============================================================================
+// In-Memory Document Store
+// ============================================================================
+
+pub struct DocumentStore {
+	pub docs: List<Document>
+}
+
+impl DocumentStore {
+
+	pub fn new() => Self(List<Document>());
+
+	pub fn get(self, uri: str): Document {
+		for (d in self.docs) {
+			if (d.uri == uri) return d;
+		}
+		return Document("", "", "", 0L);
+	}
+
+	pub fn has(self, uri: str): bool {
+		for (d in self.docs) {
+			if (d.uri == uri) return true;
+		}
+		return false;
+	}
+
+	pub fn set(var self, uri: str, text: str, version: i64) {
+		val p = uri_to_path(uri);
+		for (i in 0UZ..<self.docs.len) {
+			if (self.docs[i].uri == uri) {
+				self.docs[i] = Document(uri, p, text, version);
+				return;
+			}
+		}
+		self.docs.add(Document(uri, p, text, version));
+	}
+
+	pub fn remove(var self, uri: str) {
+		var new_docs = List<Document>();
+		for (d in self.docs) {
+			if (d.uri != uri) new_docs.add(d);
+		}
+		self.docs = new_docs;
+	}
+
+}

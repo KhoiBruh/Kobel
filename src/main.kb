@@ -20,6 +20,7 @@ use compiler.loader.loader.*;
 use util.strutil.*;
 use fmt.options.*;
 use fmt.formatter.*;
+use lsp.server.*;
 
 // ============================================================================
 // Main Entry Point
@@ -33,6 +34,7 @@ fn print_usage() {
 	println("");
 	println("Commands:");
 	println("  fmt [options] <files...>  Format Kobel source code");
+	println("  lsp                       Start Language Server Protocol (LSP) server");
 	println("");
 	println("Options:");
 	println("  -o <file>        Specify output executable binary name");
@@ -60,7 +62,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	var write_in_place = false;
 	var files = List<str>();
 
-	var i: i32 = 2;
+	var i = 2;
 	while (i < argc) {
 		val arg = cstr_to_str(argv[i]);
 		when (arg) {
@@ -136,6 +138,9 @@ fn main(argc: i32, argv: &*char): i32 {
 	val first_arg = cstr_to_str(argv[1]);
 	if (first_arg == "fmt") {
 		return run_fmt(argc, argv);
+	}
+	if (first_arg == "lsp") {
+		return run_server();
 	}
 
 	var input_path = "";

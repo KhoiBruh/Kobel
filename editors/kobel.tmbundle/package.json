@@ -1,7 +1,7 @@
 {
   "name": "kobel",
   "displayName": "Kobel Language Support",
-  "description": "Syntax highlighting, smart indentation, and code formatting for the Kobel programming language",
+  "description": "Rich language support for Kobel: Language Server Protocol (LSP), diagnostics, hover, go-to-definition, formatting, and autocompletion",
   "version": "0.1.0",
   "publisher": "kobel-lang",
   "engines": {
@@ -13,7 +13,8 @@
   ],
   "categories": [
     "Programming Languages",
-    "Formatters"
+    "Formatters",
+    "Linters"
   ],
   "contributes": {
     "languages": [

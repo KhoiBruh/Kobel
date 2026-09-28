@@ -1,0 +1,440 @@
+mod lsp.json;
+
+use std.io.*;
+use std.collections.list.*;
+use std.collections.string_builder.*;
+use std.ascii.*;
+use util.strutil.*;
+use std.mem.alloc.*;
+
+// ============================================================================
+// JSON Data Types
+// ============================================================================
+
+pub enum JsonKind {
+	JNULL,
+	JBOOL,
+	JNUM,
+	JSTR,
+	JARR,
+	JOBJ
+}
+
+pub struct JsonValue {
+	pub kind: JsonKind,
+	pub bool_val: bool,
+	pub num_val: i64,
+	pub str_val: str,
+	pub arr_val: List<*JsonValue>,
+	pub obj_keys: List<str>,
+	pub obj_vals: List<*JsonValue>
+}
+
+// ============================================================================
+// Constructors & Boxing
+// ============================================================================
+
+pub fn json_box(v: JsonValue): *JsonValue {
+	val p = alloc<JsonValue>();
+	*p = v;
+	return p as *JsonValue;
+}
+
+pub fn json_null(): *JsonValue => json_box(JsonValue(
+	JsonKind.JNULL, false, 0L, "",
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+pub fn json_bool(b: bool): *JsonValue => json_box(JsonValue(
+	JsonKind.JBOOL, b, 0L, "",
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+pub fn json_num(n: i64): *JsonValue => json_box(JsonValue(
+	JsonKind.JNUM, false, n, "",
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+pub fn json_str(s: str): *JsonValue => json_box(JsonValue(
+	JsonKind.JSTR, false, 0L, s,
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+pub fn json_arr(): *JsonValue => json_box(JsonValue(
+	JsonKind.JARR, false, 0L, "",
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+pub fn json_obj(): *JsonValue => json_box(JsonValue(
+	JsonKind.JOBJ, false, 0L, "",
+	List<*JsonValue>(), List<str>(), List<*JsonValue>()
+));
+
+// ============================================================================
+// Serialization Helpers
+// ============================================================================
+
+fn append_json_num(var sb: &StringBuilder, n: i64) {
+	if (n == 0L) {
+		sb.append_char('0');
+		return;
+	}
+	var v = n;
+	if (v < 0L) {
+		sb.append_char('-');
+		v = -v;
+	}
+	var place: i64 = 1L;
+	var probe = v;
+	while (probe >= 10L) {
+		probe /= 10L;
+		place *= 10L;
+	}
+	var rest = v;
+	while (place > 0L) {
+		val digit = rest / place;
+		sb.append_char(((digit as i32) + 48) as char);
+		rest -= digit * place;
+		place /= 10L;
+	}
+}
+
+fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
+	sb.append_char('"');
+	for (i in 0UZ..<s.len) {
+		val c = s[i];
+		when (c) {
+			'"' -> sb.append_str("\\\"");
+			'\\' -> sb.append_str("\\\\");
+			'\n' -> sb.append_str("\\n");
+			'\r' -> sb.append_str("\\r");
+			'\t' -> sb.append_str("\\t");
+			else -> sb.append_char(c);
+		}
+	}
+	sb.append_char('"');
+}
+
+fn serialize_json_to_sb(var sb: &StringBuilder, val_item: *JsonValue) {
+	if (val_item == null) {
+		sb.append_str("null");
+		return;
+	}
+	when (val_item.kind) {
+		JsonKind.JNULL -> sb.append_str("null");
+		JsonKind.JBOOL -> {
+			if (val_item.bool_val) sb.append_str("true");
+			else sb.append_str("false");
+		}
+		JsonKind.JNUM -> append_json_num(sb, val_item.num_val);
+		JsonKind.JSTR -> append_json_escaped_str(sb, val_item.str_val);
+		JsonKind.JARR -> {
+			sb.append_char('[');
+			for (i in 0UZ..<val_item.arr_val.len) {
+				if (i > 0UZ) sb.append_char(',');
+				serialize_json_to_sb(sb, val_item.arr_val[i]);
+			}
+			sb.append_char(']');
+		}
+		JsonKind.JOBJ -> {
+			sb.append_char('{');
+			for (i in 0UZ..<val_item.obj_keys.len) {
+				if (i > 0UZ) sb.append_char(',');
+				append_json_escaped_str(sb, val_item.obj_keys[i]);
+				sb.append_char(':');
+				serialize_json_to_sb(sb, val_item.obj_vals[i]);
+			}
+			sb.append_char('}');
+		}
+	}
+}
+
+// ============================================================================
+// Methods on JsonValue
+// ============================================================================
+
+impl JsonValue {
+
+	pub fn is_null(val self) => self == null || self.kind == JsonKind.JNULL;
+	pub fn is_bool(val self) => self != null && self.kind == JsonKind.JBOOL;
+	pub fn is_num(val self) => self != null && self.kind == JsonKind.JNUM;
+	pub fn is_str(val self) => self != null && self.kind == JsonKind.JSTR;
+	pub fn is_arr(val self) => self != null && self.kind == JsonKind.JARR;
+	pub fn is_obj(val self) => self != null && self.kind == JsonKind.JOBJ;
+
+	pub fn add(var self, val_item: *JsonValue) {
+		if (self.kind == JsonKind.JARR) {
+			self.arr_val.add(val_item);
+		}
+	}
+
+	pub fn set(var self, key: str, val_item: *JsonValue) {
+		if (self.kind == JsonKind.JOBJ) {
+			for (i in 0UZ..<self.obj_keys.len) {
+				if (self.obj_keys[i] == key) {
+					self.obj_vals[i] = val_item;
+					return;
+				}
+			}
+			self.obj_keys.add(key);
+			self.obj_vals.add(val_item);
+		}
+	}
+
+	pub fn get(val self, key: str): *JsonValue {
+		if (self != null && self.kind == JsonKind.JOBJ) {
+			for (i in 0UZ..<self.obj_keys.len) {
+				if (self.obj_keys[i] == key) {
+					return self.obj_vals[i];
+				}
+			}
+		}
+		return json_null();
+	}
+
+	pub fn get_str(val self, key: str, def_val: str): str {
+		val v = self.get(key);
+		if (v.is_str()) return v.str_val;
+		return def_val;
+	}
+
+	pub fn get_num(val self, key: str, def_val: i64): i64 {
+		val v = self.get(key);
+		if (v.is_num()) return v.num_val;
+		return def_val;
+	}
+
+	pub fn get_bool(val self, key: str, def_val: bool): bool {
+		val v = self.get(key);
+		if (v.is_bool()) return v.bool_val;
+		return def_val;
+	}
+
+	pub fn get_obj(val self, key: str): *JsonValue {
+		val v = self.get(key);
+		if (v.is_obj()) return v;
+		return json_obj();
+	}
+
+	pub fn get_arr(val self, key: str): *JsonValue {
+		val v = self.get(key);
+		if (v.is_arr()) return v;
+		return json_arr();
+	}
+
+	pub fn at(val self, index: usz): *JsonValue {
+		if (self != null && self.kind == JsonKind.JARR && index < self.arr_val.len) {
+			return self.arr_val[index];
+		}
+		return json_null();
+	}
+
+	pub fn count(val self): usz {
+		if (self == null) return 0UZ;
+		if (self.kind == JsonKind.JARR) return self.arr_val.len;
+		if (self.kind == JsonKind.JOBJ) return self.obj_keys.len;
+		return 0UZ;
+	}
+
+	pub fn serialize(val self): str {
+		var sb = StringBuilder();
+		serialize_json_to_sb(&sb, self);
+		val res = sb.to_str();
+		sb.delete();
+		return res;
+	}
+
+}
+
+// ============================================================================
+// JSON Parser
+// ============================================================================
+
+pub struct JsonParser {
+	pub src: str,
+	pub cursor: usz
+}
+
+impl JsonParser {
+
+	pub fn new(src: str): JsonParser => Self(src, 0UZ);
+
+	pub fn is_end(val self) => self.cursor >= self.src.len;
+
+	pub fn peek(val self): char => if (self.is_end()) '\0' else self.src[self.cursor];
+
+	pub fn advance(var self): char {
+		val c = self.peek();
+		self.cursor++;
+		return c;
+	}
+
+	pub fn skip_whitespace(var self) {
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (is_whitespace(c)) {
+				self.advance();
+			} else {
+				break;
+			}
+		}
+	}
+
+	pub fn parse_string(var self): str {
+		self.advance(); // Skip opening quote '"'
+		var sb = StringBuilder();
+		while (!self.is_end()) {
+			val c = self.advance();
+			if (c == '"') break;
+			if (c == '\\') {
+				if (self.is_end()) break;
+				val esc = self.advance();
+				when (esc) {
+					'"' -> sb.append_char('"');
+					'\\' -> sb.append_char('\\');
+					'/' -> sb.append_char('/');
+					'n' -> sb.append_char('\n');
+					'r' -> sb.append_char('\r');
+					't' -> sb.append_char('\t');
+					'u' -> {
+						var u_count: usz = 0UZ;
+						while (u_count < 4UZ && !self.is_end()) {
+							self.advance();
+							u_count++;
+						}
+						sb.append_char('?');
+					}
+					else -> sb.append_char(esc);
+				}
+			} else {
+				sb.append_char(c);
+			}
+		}
+		val res = sb.to_str();
+		sb.delete();
+		return res;
+	}
+
+	pub fn parse_number(var self): i64 {
+		var sign: i64 = 1L;
+		if (self.peek() == '-') {
+			sign = -1L;
+			self.advance();
+		}
+		var val_num: i64 = 0L;
+		while (!self.is_end() && is_digit(self.peek())) {
+			val c = self.advance();
+			val d: i64 = ((c as i32) - 48) as i64;
+			val_num = val_num * 10L + d;
+		}
+		if (!self.is_end() && self.peek() == '.') {
+			self.advance();
+			while (!self.is_end() && is_digit(self.peek())) {
+				self.advance();
+			}
+		}
+		if (!self.is_end() && (self.peek() == 'e' || self.peek() == 'E')) {
+			self.advance();
+			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
+			while (!self.is_end() && is_digit(self.peek())) {
+				self.advance();
+			}
+		}
+		return val_num * sign;
+	}
+
+	pub fn parse_array(var self): *JsonValue {
+		self.advance(); // Skip '['
+		var res = json_arr();
+		self.skip_whitespace();
+		if (!self.is_end() && self.peek() == ']') {
+			self.advance();
+			return res;
+		}
+		while (!self.is_end()) {
+			self.skip_whitespace();
+			val item = self.parse_value();
+			res.add(item);
+			self.skip_whitespace();
+			if (!self.is_end() && self.peek() == ',') {
+				self.advance();
+			} else {
+				break;
+			}
+		}
+		self.skip_whitespace();
+		if (!self.is_end() && self.peek() == ']') {
+			self.advance();
+		}
+		return res;
+	}
+
+	pub fn parse_object(var self): *JsonValue {
+		self.advance(); // Skip '{'
+		var res = json_obj();
+		self.skip_whitespace();
+		if (!self.is_end() && self.peek() == '}') {
+			self.advance();
+			return res;
+		}
+		while (!self.is_end()) {
+			self.skip_whitespace();
+			if (self.is_end() || self.peek() != '"') break;
+			val key = self.parse_string();
+			self.skip_whitespace();
+			if (!self.is_end() && self.peek() == ':') {
+				self.advance();
+			}
+			self.skip_whitespace();
+			val val_item = self.parse_value();
+			res.set(key, val_item);
+			self.skip_whitespace();
+			if (!self.is_end() && self.peek() == ',') {
+				self.advance();
+			} else {
+				break;
+			}
+		}
+		self.skip_whitespace();
+		if (!self.is_end() && self.peek() == '}') {
+			self.advance();
+		}
+		return res;
+	}
+
+	pub fn parse_value(var self): *JsonValue {
+		self.skip_whitespace();
+		if (self.is_end()) return json_null();
+		val c = self.peek();
+		if (c == '"') return json_str(self.parse_string());
+		if (c == '{') return self.parse_object();
+		if (c == '[') return self.parse_array();
+		if (c == '-' || is_digit(c)) return json_num(self.parse_number());
+		if (c == 't') {
+			for (i in 0UZ..<4UZ) {
+				if (!self.is_end()) self.advance();
+			}
+			return json_bool(true);
+		}
+		if (c == 'f') {
+			for (i in 0UZ..<5UZ) {
+				if (!self.is_end()) self.advance();
+			}
+			return json_bool(false);
+		}
+		if (c == 'n') {
+			for (i in 0UZ..<4UZ) {
+				if (!self.is_end()) self.advance();
+			}
+			return json_null();
+		}
+		self.advance();
+		return json_null();
+	}
+
+}
+
+pub fn parse_json(src: str): *JsonValue {
+	var parser = JsonParser(src);
+	return parser.parse_value();
+}

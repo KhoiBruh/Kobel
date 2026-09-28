@@ -55,6 +55,9 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMeth
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
 typedef struct std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment;
+typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue;
+typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
+typedef struct std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic;
 typedef struct std__str__StrRaw std__str__StrRaw;
 typedef struct std__io__StringRaw std__io__StringRaw;
 typedef int32_t compiler__lexer__token__TokenType;
@@ -161,6 +164,13 @@ typedef struct fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer;
 typedef struct fmt__comments__Comment fmt__comments__Comment;
 typedef struct fmt__comments__CommentTable fmt__comments__CommentTable;
 typedef struct fmt__formatter__Formatter fmt__formatter__Formatter;
+typedef int32_t lsp__json__JsonKind;
+typedef struct lsp__json__JsonValue lsp__json__JsonValue;
+typedef struct lsp__json__JsonParser lsp__json__JsonParser;
+typedef struct lsp__document__Document lsp__document__Document;
+typedef struct lsp__document__DocumentStore lsp__document__DocumentStore;
+typedef struct lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic;
+typedef struct lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult;
 
 
 struct std__collections__list__List_ptr_compiler__ast__node__AstNode {
@@ -303,6 +313,24 @@ struct std__collections__list__List_compiler__loader__loader__LoadedModule {
 
 struct std__collections__list__List_fmt__comments__Comment {
     fmt__comments__Comment* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__list__List_ptr_lsp__json__JsonValue {
+    lsp__json__JsonValue** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__list__List_lsp__document__Document {
+    lsp__document__Document* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__list__List_lsp__analysis__LspDiagnostic {
+    lsp__analysis__LspDiagnostic* data;
     size_t len;
     size_t cap;
 };
@@ -871,6 +899,48 @@ struct fmt__formatter__Formatter {
     fmt__options__FormatOptions options;
 };
 
+struct lsp__json__JsonValue {
+    lsp__json__JsonKind kind;
+    bool bool_val;
+    int64_t num_val;
+    const char* str_val;
+    std__collections__list__List_ptr_lsp__json__JsonValue arr_val;
+    std__collections__list__List_str obj_keys;
+    std__collections__list__List_ptr_lsp__json__JsonValue obj_vals;
+};
+
+struct lsp__json__JsonParser {
+    const char* src;
+    size_t cursor;
+};
+
+struct lsp__document__Document {
+    const char* uri;
+    const char* path;
+    const char* text;
+    int64_t version;
+};
+
+struct lsp__document__DocumentStore {
+    std__collections__list__List_lsp__document__Document docs;
+};
+
+struct lsp__analysis__LspDiagnostic {
+    size_t line;
+    size_t col;
+    size_t end_line;
+    size_t end_col;
+    int64_t severity;
+    const char* message;
+};
+
+struct lsp__analysis__AnalysisResult {
+    std__collections__list__List_lsp__analysis__LspDiagnostic diagnostics;
+    compiler__sema__symbol__SymbolTable symtab;
+    bool has_symtab;
+    std__collections__list__List_compiler__lexer__token__Token tokens;
+};
+
 static inline std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_from_array(const void* src, size_t n) {
     size_t elem_size = sizeof(*(((std__collections__list__List_ptr_compiler__ast__node__AstNode*)0)->data));
     size_t cap = (n < 4) ? 4 : n;
@@ -1153,6 +1223,42 @@ static inline std__collections__list__List_fmt__comments__Comment std__collectio
     void* data = malloc(cap * elem_size);
     if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
     std__collections__list__List_fmt__comments__Comment l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
+static inline std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_ptr_lsp__json__JsonValue*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_ptr_lsp__json__JsonValue l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
+static inline std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_lsp__document__Document*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_lsp__document__Document l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
+static inline std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_lsp__analysis__LspDiagnostic*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_lsp__analysis__LspDiagnostic l;
     l.data = data;
     l.len = n;
     l.cap = cap;
@@ -1591,6 +1697,60 @@ void std__collections__list__List_fmt__comments__Comment_clear(std__collections_
 void std__collections__list__List_fmt__comments__Comment_grow(std__collections__list__List_fmt__comments__Comment* self);
 void std__collections__list__List_fmt__comments__Comment_reserve(std__collections__list__List_fmt__comments__Comment* self, size_t min_cap);
 void std__collections__list__List_fmt__comments__Comment_delete(std__collections__list__List_fmt__comments__Comment* self);
+int32_t std__collections__list__List_ptr_lsp__json__JsonValue_count(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_at(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t i);
+lsp__json__JsonValue** std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(size_t count);
+lsp__json__JsonValue** std__mem__alloc__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count);
+void std__mem__alloc__release_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr);
+std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_new_0(void);
+std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_new_1(size_t capacity);
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_get(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t index);
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_first(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_last(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+bool std__collections__list__List_ptr_lsp__json__JsonValue_is_empty(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+void std__collections__list__List_ptr_lsp__json__JsonValue_set(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t index, lsp__json__JsonValue* value);
+void std__collections__list__List_ptr_lsp__json__JsonValue_add(std__collections__list__List_ptr_lsp__json__JsonValue* self, lsp__json__JsonValue* value);
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_pop(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+void std__collections__list__List_ptr_lsp__json__JsonValue_clear(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+void std__collections__list__List_ptr_lsp__json__JsonValue_grow(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+void std__collections__list__List_ptr_lsp__json__JsonValue_reserve(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t min_cap);
+void std__collections__list__List_ptr_lsp__json__JsonValue_delete(std__collections__list__List_ptr_lsp__json__JsonValue* self);
+int32_t std__collections__list__List_lsp__document__Document_count(std__collections__list__List_lsp__document__Document* self);
+lsp__document__Document std__collections__list__List_lsp__document__Document_at(std__collections__list__List_lsp__document__Document* self, size_t i);
+lsp__document__Document* std__mem__alloc__alloc_array_lsp__document__Document(size_t count);
+lsp__document__Document* std__mem__alloc__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count);
+void std__mem__alloc__release_lsp__document__Document(lsp__document__Document* ptr);
+std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_new_0(void);
+std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_new_1(size_t capacity);
+lsp__document__Document std__collections__list__List_lsp__document__Document_get(std__collections__list__List_lsp__document__Document* self, size_t index);
+lsp__document__Document std__collections__list__List_lsp__document__Document_first(std__collections__list__List_lsp__document__Document* self);
+lsp__document__Document std__collections__list__List_lsp__document__Document_last(std__collections__list__List_lsp__document__Document* self);
+bool std__collections__list__List_lsp__document__Document_is_empty(std__collections__list__List_lsp__document__Document* self);
+void std__collections__list__List_lsp__document__Document_set(std__collections__list__List_lsp__document__Document* self, size_t index, lsp__document__Document value);
+void std__collections__list__List_lsp__document__Document_add(std__collections__list__List_lsp__document__Document* self, lsp__document__Document value);
+lsp__document__Document std__collections__list__List_lsp__document__Document_pop(std__collections__list__List_lsp__document__Document* self);
+void std__collections__list__List_lsp__document__Document_clear(std__collections__list__List_lsp__document__Document* self);
+void std__collections__list__List_lsp__document__Document_grow(std__collections__list__List_lsp__document__Document* self);
+void std__collections__list__List_lsp__document__Document_reserve(std__collections__list__List_lsp__document__Document* self, size_t min_cap);
+void std__collections__list__List_lsp__document__Document_delete(std__collections__list__List_lsp__document__Document* self);
+int32_t std__collections__list__List_lsp__analysis__LspDiagnostic_count(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_at(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t i);
+lsp__analysis__LspDiagnostic* std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(size_t count);
+lsp__analysis__LspDiagnostic* std__mem__alloc__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count);
+void std__mem__alloc__release_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr);
+std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new_0(void);
+std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new_1(size_t capacity);
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_get(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t index);
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_first(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_last(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+bool std__collections__list__List_lsp__analysis__LspDiagnostic_is_empty(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_set(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t index, lsp__analysis__LspDiagnostic value);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_add(std__collections__list__List_lsp__analysis__LspDiagnostic* self, lsp__analysis__LspDiagnostic value);
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_pop(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_clear(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_grow(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_reserve(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t min_cap);
+void std__collections__list__List_lsp__analysis__LspDiagnostic_delete(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_val_compiler__ast__node__AstNode(std__mem__arena__Arena* self, compiler__ast__node__AstNode value);
 compiler__ast__types__NamedType* std__mem__arena__alloc_compiler__ast__types__NamedType(std__mem__arena__Arena* self);
@@ -1828,6 +1988,7 @@ compiler__sema__symbol__TraitInfo* std__mem__arena__alloc_compiler__sema__symbol
 compiler__ast__decl__Program* compiler__ast__node__to_compiler__ast__decl__Program(compiler__ast__node__AstNode* self);
 std__collections__string_builder__StringRaw* std__mem__alloc__alloc_std__collections__string_builder__StringRaw(void);
 void std__mem__alloc__release_std__collections__string_builder__StringRaw(std__collections__string_builder__StringRaw* ptr);
+lsp__json__JsonValue* std__mem__alloc__alloc_lsp__json__JsonValue(void);
 uint8_t* std__mem__alloc__raw_alloc(size_t size);
 uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size);
 void std__mem__alloc__raw_release(uint8_t* ptr);
@@ -1859,7 +2020,7 @@ const char* std__io__read_file(const char* path);
 bool std__io__write_file(const char* path, const char* content);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
-int32_t compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
+const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
 const char* compiler__lexer__token__strip_suffix(const char* s, size_t n);
 std__mem__arena__Arena std__mem__arena__Arena_new_0(void);
 std__mem__arena__Arena std__mem__arena__Arena_new_1(size_t block_size);
@@ -2355,6 +2516,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_use_decl(co
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_extern_block(compiler__parser__parser__Parser* self);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_declaration(compiler__parser__parser__Parser* self);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_program(compiler__parser__parser__Parser* self);
+const char* compiler__loader__loader__detect_project_root(const char* start_dir);
 compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader_new(const char* entry_dir, std__collections__list__List_str extra_roots);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_module_decl(compiler__loader__loader__ModuleLoader* self, std__collections__list__List_str path, const char* full_path, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_program(compiler__loader__loader__ModuleLoader* self, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
@@ -2363,6 +2525,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_parse_sourc
 compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleLoader_find_module(compiler__loader__loader__ModuleLoader* self, const char* module_name);
 bool compiler__loader__loader__ModuleLoader_is_known(compiler__loader__loader__ModuleLoader* self, const char* module_name);
 void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__loader__ModuleLoader* self, const char* module_name);
+void compiler__loader__loader__ModuleLoader_ensure_module_at(compiler__loader__loader__ModuleLoader* self, const char* module_name, size_t line, size_t col);
 void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
@@ -2407,6 +2570,69 @@ void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* sel
 void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
 void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program);
 const char* fmt__formatter__format_source(const char* src, fmt__options__FormatOptions options);
+lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v);
+lsp__json__JsonValue* lsp__json__json_null(void);
+lsp__json__JsonValue* lsp__json__json_bool(bool b);
+lsp__json__JsonValue* lsp__json__json_num(int64_t n);
+lsp__json__JsonValue* lsp__json__json_str(const char* s);
+lsp__json__JsonValue* lsp__json__json_arr(void);
+lsp__json__JsonValue* lsp__json__json_obj(void);
+void lsp__json__append_json_num(std__collections__string_builder__StringBuilder* sb, int64_t n);
+void lsp__json__append_json_escaped_str(std__collections__string_builder__StringBuilder* sb, const char* s);
+void lsp__json__serialize_json_to_sb(std__collections__string_builder__StringBuilder* sb, lsp__json__JsonValue* val_item);
+bool lsp__json__JsonValue_is_null(lsp__json__JsonValue* self);
+bool lsp__json__JsonValue_is_bool(lsp__json__JsonValue* self);
+bool lsp__json__JsonValue_is_num(lsp__json__JsonValue* self);
+bool lsp__json__JsonValue_is_str(lsp__json__JsonValue* self);
+bool lsp__json__JsonValue_is_arr(lsp__json__JsonValue* self);
+bool lsp__json__JsonValue_is_obj(lsp__json__JsonValue* self);
+void lsp__json__JsonValue_add(lsp__json__JsonValue* self, lsp__json__JsonValue* val_item);
+void lsp__json__JsonValue_set(lsp__json__JsonValue* self, const char* key, lsp__json__JsonValue* val_item);
+lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, const char* key);
+const char* lsp__json__JsonValue_get_str(lsp__json__JsonValue* self, const char* key, const char* def_val);
+int64_t lsp__json__JsonValue_get_num(lsp__json__JsonValue* self, const char* key, int64_t def_val);
+bool lsp__json__JsonValue_get_bool(lsp__json__JsonValue* self, const char* key, bool def_val);
+lsp__json__JsonValue* lsp__json__JsonValue_get_obj(lsp__json__JsonValue* self, const char* key);
+lsp__json__JsonValue* lsp__json__JsonValue_get_arr(lsp__json__JsonValue* self, const char* key);
+lsp__json__JsonValue* lsp__json__JsonValue_at(lsp__json__JsonValue* self, size_t index);
+size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self);
+const char* lsp__json__JsonValue_serialize(lsp__json__JsonValue* self);
+lsp__json__JsonParser lsp__json__JsonParser_new(const char* src);
+bool lsp__json__JsonParser_is_end(lsp__json__JsonParser* self);
+char lsp__json__JsonParser_peek(lsp__json__JsonParser* self);
+char lsp__json__JsonParser_advance(lsp__json__JsonParser* self);
+void lsp__json__JsonParser_skip_whitespace(lsp__json__JsonParser* self);
+const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self);
+int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self);
+lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* self);
+lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* self);
+lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* self);
+lsp__json__JsonValue* lsp__json__parse_json(const char* src);
+void lsp__protocol__init_stdio(void);
+void lsp__protocol__send_raw(const char* payload);
+void lsp__protocol__send_response(lsp__json__JsonValue* id, lsp__json__JsonValue* result);
+void lsp__protocol__send_error(lsp__json__JsonValue* id, int64_t code, const char* message);
+void lsp__protocol__send_notification(const char* method, lsp__json__JsonValue* params);
+const char* lsp__protocol__read_message(void);
+const char* lsp__document__uri_to_path(const char* uri);
+lsp__document__DocumentStore lsp__document__DocumentStore_new(void);
+lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri);
+bool lsp__document__DocumentStore_has(lsp__document__DocumentStore* self, const char* uri);
+void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version);
+void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri);
+lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str, const char* source);
+lsp__json__JsonValue* lsp__analysis__diagnostic_to_json(lsp__analysis__LspDiagnostic d);
+lsp__analysis__AnalysisResult lsp__analysis__analyze_document(const char* path, const char* source, const char* workspace_root);
+compiler__lexer__token__Token lsp__analysis__find_token_at(std__collections__list__List_compiler__lexer__token__Token tokens, size_t target_line, size_t target_col);
+const char* lsp__analysis__keyword_hover(const char* kw);
+lsp__json__JsonValue* lsp__analysis__hover_at(lsp__analysis__AnalysisResult* analysis, size_t line0, size_t col0);
+lsp__json__JsonValue* lsp__analysis__definition_at(lsp__analysis__AnalysisResult* analysis, const char* doc_uri, size_t line0, size_t col0);
+lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source);
+lsp__json__JsonValue* lsp__analysis__format_document(const char* text);
+void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, const char* label, int64_t kind, const char* detail);
+lsp__json__JsonValue* lsp__analysis__complete_at(lsp__analysis__AnalysisResult* analysis);
+void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, const char* workspace_root);
+int32_t lsp__server__run_server(void);
 void main__print_usage(void);
 void main__print_fmt_usage(void);
 int32_t main__run_fmt(int32_t argc, const char** argv);
@@ -4669,6 +4895,288 @@ void std__collections__list__List_fmt__comments__Comment_delete(std__collections
     std__mem__alloc__release_fmt__comments__Comment((self)->data);
 }
 
+int32_t std__collections__list__List_ptr_lsp__json__JsonValue_count(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    return (self)->len;
+}
+
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_at(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t i) {
+    return (self)->data[i];
+}
+
+lsp__json__JsonValue** std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(size_t count) {
+    return ((lsp__json__JsonValue**)std__mem__alloc__raw_alloc((count * 8)));
+}
+
+lsp__json__JsonValue** std__mem__alloc__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count) {
+    return ((lsp__json__JsonValue**)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 8)));
+}
+
+void std__mem__alloc__release_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_new_0(void) {
+    return (std__collections__list__List_ptr_lsp__json__JsonValue){ std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(((size_t)4ULL)), 0, ((size_t)4ULL) };
+}
+
+std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_new_1(size_t capacity) {
+    size_t cap = capacity;
+    if ((cap == 0)) {
+        cap = 4;
+    }
+    return (std__collections__list__List_ptr_lsp__json__JsonValue){ std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(cap), 0, cap };
+}
+
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_get(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t index) {
+    return (self)->data[index];
+}
+
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_first(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    return (self)->data[0];
+}
+
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_last(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_ptr_lsp__json__JsonValue_is_empty(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    return ((self)->len == 0);
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_set(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t index, lsp__json__JsonValue* value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_add(std__collections__list__List_ptr_lsp__json__JsonValue* self, lsp__json__JsonValue* value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_ptr_lsp__json__JsonValue_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len++;
+}
+
+lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_pop(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    (self)->len--;
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_clear(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    (self)->len = 0;
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_grow(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_ptr_lsp__json__JsonValue((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_reserve(std__collections__list__List_ptr_lsp__json__JsonValue* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap *= 2;
+                }
+            }
+            (self)->data = std__mem__alloc__resize_ptr_lsp__json__JsonValue((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_ptr_lsp__json__JsonValue_delete(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
+    std__mem__alloc__release_ptr_lsp__json__JsonValue((self)->data);
+}
+
+int32_t std__collections__list__List_lsp__document__Document_count(std__collections__list__List_lsp__document__Document* self) {
+    return (self)->len;
+}
+
+lsp__document__Document std__collections__list__List_lsp__document__Document_at(std__collections__list__List_lsp__document__Document* self, size_t i) {
+    return (self)->data[i];
+}
+
+lsp__document__Document* std__mem__alloc__alloc_array_lsp__document__Document(size_t count) {
+    return ((lsp__document__Document*)std__mem__alloc__raw_alloc((count * 56)));
+}
+
+lsp__document__Document* std__mem__alloc__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count) {
+    return ((lsp__document__Document*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 56)));
+}
+
+void std__mem__alloc__release_lsp__document__Document(lsp__document__Document* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_new_0(void) {
+    return (std__collections__list__List_lsp__document__Document){ std__mem__alloc__alloc_array_lsp__document__Document(((size_t)4ULL)), 0, ((size_t)4ULL) };
+}
+
+std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_new_1(size_t capacity) {
+    size_t cap = capacity;
+    if ((cap == 0)) {
+        cap = 4;
+    }
+    return (std__collections__list__List_lsp__document__Document){ std__mem__alloc__alloc_array_lsp__document__Document(cap), 0, cap };
+}
+
+lsp__document__Document std__collections__list__List_lsp__document__Document_get(std__collections__list__List_lsp__document__Document* self, size_t index) {
+    return (self)->data[index];
+}
+
+lsp__document__Document std__collections__list__List_lsp__document__Document_first(std__collections__list__List_lsp__document__Document* self) {
+    return (self)->data[0];
+}
+
+lsp__document__Document std__collections__list__List_lsp__document__Document_last(std__collections__list__List_lsp__document__Document* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_lsp__document__Document_is_empty(std__collections__list__List_lsp__document__Document* self) {
+    return ((self)->len == 0);
+}
+
+void std__collections__list__List_lsp__document__Document_set(std__collections__list__List_lsp__document__Document* self, size_t index, lsp__document__Document value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_lsp__document__Document_add(std__collections__list__List_lsp__document__Document* self, lsp__document__Document value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_lsp__document__Document_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len++;
+}
+
+lsp__document__Document std__collections__list__List_lsp__document__Document_pop(std__collections__list__List_lsp__document__Document* self) {
+    (self)->len--;
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_lsp__document__Document_clear(std__collections__list__List_lsp__document__Document* self) {
+    (self)->len = 0;
+}
+
+void std__collections__list__List_lsp__document__Document_grow(std__collections__list__List_lsp__document__Document* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_lsp__document__Document((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_lsp__document__Document_reserve(std__collections__list__List_lsp__document__Document* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap *= 2;
+                }
+            }
+            (self)->data = std__mem__alloc__resize_lsp__document__Document((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_lsp__document__Document_delete(std__collections__list__List_lsp__document__Document* self) {
+    std__mem__alloc__release_lsp__document__Document((self)->data);
+}
+
+int32_t std__collections__list__List_lsp__analysis__LspDiagnostic_count(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    return (self)->len;
+}
+
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_at(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t i) {
+    return (self)->data[i];
+}
+
+lsp__analysis__LspDiagnostic* std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(size_t count) {
+    return ((lsp__analysis__LspDiagnostic*)std__mem__alloc__raw_alloc((count * 56)));
+}
+
+lsp__analysis__LspDiagnostic* std__mem__alloc__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count) {
+    return ((lsp__analysis__LspDiagnostic*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 56)));
+}
+
+void std__mem__alloc__release_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new_0(void) {
+    return (std__collections__list__List_lsp__analysis__LspDiagnostic){ std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(((size_t)4ULL)), 0, ((size_t)4ULL) };
+}
+
+std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new_1(size_t capacity) {
+    size_t cap = capacity;
+    if ((cap == 0)) {
+        cap = 4;
+    }
+    return (std__collections__list__List_lsp__analysis__LspDiagnostic){ std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
+}
+
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_get(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t index) {
+    return (self)->data[index];
+}
+
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_first(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    return (self)->data[0];
+}
+
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_last(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_lsp__analysis__LspDiagnostic_is_empty(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    return ((self)->len == 0);
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_set(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t index, lsp__analysis__LspDiagnostic value) {
+    (self)->data[index] = value;
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_add(std__collections__list__List_lsp__analysis__LspDiagnostic* self, lsp__analysis__LspDiagnostic value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_lsp__analysis__LspDiagnostic_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len++;
+}
+
+lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_pop(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    (self)->len--;
+    return (self)->data[(self)->len];
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_clear(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    (self)->len = 0;
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_grow(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_lsp__analysis__LspDiagnostic((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_reserve(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                {
+                    new_cap *= 2;
+                }
+            }
+            (self)->data = std__mem__alloc__resize_lsp__analysis__LspDiagnostic((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+void std__collections__list__List_lsp__analysis__LspDiagnostic_delete(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
+    std__mem__alloc__release_lsp__analysis__LspDiagnostic((self)->data);
+}
+
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* self) {
     uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 32, 8);
     return ((compiler__ast__node__AstNode*)raw);
@@ -5816,6 +6324,10 @@ void std__mem__alloc__release_std__collections__string_builder__StringRaw(std__c
     std__mem__alloc__raw_release(((uint8_t*)ptr));
 }
 
+lsp__json__JsonValue* std__mem__alloc__alloc_lsp__json__JsonValue(void) {
+    return ((lsp__json__JsonValue*)std__mem__alloc__raw_alloc(104));
+}
+
 uint8_t* std__mem__alloc__raw_alloc(size_t size) {
     return malloc(size);
 }
@@ -6194,7 +6706,7 @@ int32_t std__sys__exec(const char* cmd) {
     return system(cmd);
 }
 
-int32_t compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
+const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
     return (self)->text;
 }
 
@@ -7970,7 +8482,13 @@ const char* util__strutil__str_base_name(const char* path) {
 }
 
 const char* util__strutil__str_join_path(const char* dir, const char* rel) {
-    return ((kobel_slen(dir) == 0) ? rel : kobel_concat(kobel_concat(dir, "/"), rel));
+    if ((kobel_slen(dir) == ((size_t)0ULL))) {
+        return rel;
+    }
+    if (util__strutil__str_is_sep(dir[(kobel_slen(dir) - ((size_t)1ULL))])) {
+        return kobel_concat(dir, rel);
+    }
+    return kobel_concat(kobel_concat(dir, "/"), rel);
 }
 
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count) {
@@ -17110,6 +17628,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_program(com
     return compiler__parser__parser__Parser_program(self, declarations, 1, 1);
 }
 
+const char* compiler__loader__loader__detect_project_root(const char* start_dir) {
+    const char* curr = start_dir;
+    size_t count = ((size_t)0ULL);
+    while (((kobel_slen(curr) > ((size_t)0ULL)) && (count < ((size_t)10ULL)))) {
+        {
+            const char* test_file = util__strutil__str_join_path(curr, "lib/std/io.kb");
+            const char* test_content = std__io__read_file(test_file);
+            if ((kobel_slen(test_content) > ((size_t)0ULL))) {
+                return curr;
+            }
+            const char* parent = util__strutil__str_dir_of(curr);
+            if ((kobel_streq(parent, curr) || (kobel_slen(parent) == ((size_t)0ULL)))) {
+                break;
+            }
+            curr = parent;
+            count++;
+        }
+    }
+    return "";
+}
+
 compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader_new(const char* entry_dir, std__collections__list__List_str extra_roots) {
     std__collections__list__List_str roots = std__collections__list__List_str_new_0();
     if ((kobel_slen(entry_dir) > 0)) {
@@ -17128,6 +17667,14 @@ compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader_ne
     }
     std__collections__list__List_str_add((&roots), "lib");
     std__collections__list__List_str_add((&roots), "src");
+    const char* proj = compiler__loader__loader__detect_project_root(entry_dir);
+    if ((kobel_slen(proj) > ((size_t)0ULL))) {
+        {
+            std__collections__list__List_str_add((&roots), proj);
+            std__collections__list__List_str_add((&roots), util__strutil__str_join_path(proj, "lib"));
+            std__collections__list__List_str_add((&roots), util__strutil__str_join_path(proj, "src"));
+        }
+    }
     return (compiler__loader__loader__ModuleLoader){ roots, std__collections__list__List_compiler__loader__loader__LoadedModule_new_0(), std__collections__list__List_compiler__loader__loader__LoadedModule_new_0(), std__collections__list__List_str_new_0(), std__mem__arena__Arena_new_1(524288) };
 }
 
@@ -17205,6 +17752,10 @@ bool compiler__loader__loader__ModuleLoader_is_known(compiler__loader__loader__M
 }
 
 void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__loader__ModuleLoader* self, const char* module_name) {
+    compiler__loader__loader__ModuleLoader_ensure_module_at(self, module_name, ((size_t)0ULL), ((size_t)0ULL));
+}
+
+void compiler__loader__loader__ModuleLoader_ensure_module_at(compiler__loader__loader__ModuleLoader* self, const char* module_name, size_t line, size_t col) {
     if (compiler__loader__loader__ModuleLoader_is_known(self, module_name)) {
         return;
     }
@@ -17212,7 +17763,7 @@ void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__load
     compiler__loader__loader__ModuleFile file = compiler__loader__loader__ModuleLoader_find_module(self, module_name);
     if ((!(file).found)) {
         {
-            const char* msg = kobel_concat(kobel_concat("Module '", module_name), "' not found (searched the entry directory, -I roots, lib/, src/)");
+            const char* msg = ((line > ((size_t)0ULL)) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", usz_to_str(line)), ", Column "), usz_to_str(col)), ": Module '"), module_name), "' not found (searched the entry directory, -I roots, lib/, src/)") : kobel_concat(kobel_concat("Module '", module_name), "' not found (searched the entry directory, -I roots, lib/, src/)"));
             std__collections__list__List_str_add((&(self)->errors), msg);
             return;
         }
@@ -17224,7 +17775,8 @@ void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__load
     const char* declared = compiler__loader__loader__declared_module_name(prog);
     if (((kobel_slen(declared) > 0) && (!kobel_streq(declared, module_name)))) {
         {
-            std__collections__list__List_str_add((&(self)->errors), kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((file).path, ": module declared as '"), declared), "' but imported as '"), module_name), "'"));
+            const char* msg = ((line > ((size_t)0ULL)) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", usz_to_str(line)), ", Column "), usz_to_str(col)), ": "), (file).path), ": module declared as '"), declared), "' but imported as '"), module_name), "'") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((file).path, ": module declared as '"), declared), "' but imported as '"), module_name), "'"));
+            std__collections__list__List_str_add((&(self)->errors), msg);
             return;
         }
     }
@@ -17245,7 +17797,7 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
                         compiler__ast__decl__UseDecl* u = compiler__ast__node__to_compiler__ast__decl__UseDecl(decl);
                         const char* mod_name = ((u)->is_wildcard ? util__strutil__str_join_dots((u)->path, ((u)->path).len) : ((((u)->path).len >= 2) ? util__strutil__str_join_dots((u)->path, (((u)->path).len - 1)) : ""));
                         if ((kobel_slen(mod_name) > 0)) {
-                            compiler__loader__loader__ModuleLoader_ensure_module(self, mod_name);
+                            compiler__loader__loader__ModuleLoader_ensure_module_at(self, mod_name, (decl)->line, (decl)->col);
                         }
                     }
                 }
@@ -19300,6 +19852,2245 @@ const char* fmt__formatter__format_source(const char* src, fmt__options__FormatO
     return fmt__formatter__Formatter_to_str((&fmt));
 }
 
+lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v) {
+    lsp__json__JsonValue* p = std__mem__alloc__alloc_lsp__json__JsonValue();
+    (*p) = v;
+    return ((lsp__json__JsonValue*)p);
+}
+
+lsp__json__JsonValue* lsp__json__json_null(void) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 0, false, 0LL, "", std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+lsp__json__JsonValue* lsp__json__json_bool(bool b) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 1, b, 0LL, "", std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+lsp__json__JsonValue* lsp__json__json_num(int64_t n) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 2, false, n, "", std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+lsp__json__JsonValue* lsp__json__json_str(const char* s) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 3, false, 0LL, s, std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+lsp__json__JsonValue* lsp__json__json_arr(void) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 4, false, 0LL, "", std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+lsp__json__JsonValue* lsp__json__json_obj(void) {
+    return lsp__json__json_box((lsp__json__JsonValue){ 5, false, 0LL, "", std__collections__list__List_ptr_lsp__json__JsonValue_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_ptr_lsp__json__JsonValue_new_0() });
+}
+
+void lsp__json__append_json_num(std__collections__string_builder__StringBuilder* sb, int64_t n) {
+    if ((n == 0LL)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(sb, '0');
+            return;
+        }
+    }
+    int64_t v = n;
+    if ((v < 0LL)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(sb, '-');
+            v = (-v);
+        }
+    }
+    int64_t place = 1LL;
+    int64_t probe = v;
+    while ((probe >= 10LL)) {
+        {
+            probe /= 10LL;
+            place *= 10LL;
+        }
+    }
+    int64_t rest = v;
+    while ((place > 0LL)) {
+        {
+            int64_t digit = (rest / place);
+            std__collections__string_builder__StringBuilder_append_char(sb, ((char)(((((int32_t)digit)) + 48))));
+            rest -= (digit * place);
+            place /= 10LL;
+        }
+    }
+}
+
+void lsp__json__append_json_escaped_str(std__collections__string_builder__StringBuilder* sb, const char* s) {
+    std__collections__string_builder__StringBuilder_append_char(sb, '"');
+    {
+        size_t __for_e = kobel_slen(s);
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                char c = s[i];
+                if ((c == '"')) {
+                    std__collections__string_builder__StringBuilder_append_str(sb, "\\\"");
+                } else if ((c == '\\')) {
+                    std__collections__string_builder__StringBuilder_append_str(sb, "\\\\");
+                } else if ((c == '\n')) {
+                    std__collections__string_builder__StringBuilder_append_str(sb, "\\n");
+                } else if ((c == '\r')) {
+                    std__collections__string_builder__StringBuilder_append_str(sb, "\\r");
+                } else if ((c == '\t')) {
+                    std__collections__string_builder__StringBuilder_append_str(sb, "\\t");
+                } else {
+                    std__collections__string_builder__StringBuilder_append_char(sb, c);
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std__collections__string_builder__StringBuilder_append_char(sb, '"');
+}
+
+void lsp__json__serialize_json_to_sb(std__collections__string_builder__StringBuilder* sb, lsp__json__JsonValue* val_item) {
+    if ((val_item == NULL)) {
+        {
+            std__collections__string_builder__StringBuilder_append_str(sb, "null");
+            return;
+        }
+    }
+    if (((val_item)->kind == 0)) {
+        std__collections__string_builder__StringBuilder_append_str(sb, "null");
+    } else if (((val_item)->kind == 1)) {
+        {
+            if ((val_item)->bool_val) {
+                std__collections__string_builder__StringBuilder_append_str(sb, "true");
+            } else {
+                std__collections__string_builder__StringBuilder_append_str(sb, "false");
+            }
+        }
+    } else if (((val_item)->kind == 2)) {
+        lsp__json__append_json_num(sb, (val_item)->num_val);
+    } else if (((val_item)->kind == 3)) {
+        lsp__json__append_json_escaped_str(sb, (val_item)->str_val);
+    } else if (((val_item)->kind == 4)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(sb, '[');
+            {
+                size_t __for_e = ((val_item)->arr_val).len;
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > ((size_t)0ULL))) {
+                            std__collections__string_builder__StringBuilder_append_char(sb, ',');
+                        }
+                        lsp__json__serialize_json_to_sb(sb, std__collections__list__List_ptr_lsp__json__JsonValue_get((&(val_item)->arr_val), i));
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            std__collections__string_builder__StringBuilder_append_char(sb, ']');
+        }
+    } else if (((val_item)->kind == 5)) {
+        {
+            std__collections__string_builder__StringBuilder_append_char(sb, '{');
+            {
+                size_t __for_e = ((val_item)->obj_keys).len;
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((i > ((size_t)0ULL))) {
+                            std__collections__string_builder__StringBuilder_append_char(sb, ',');
+                        }
+                        lsp__json__append_json_escaped_str(sb, std__collections__list__List_str_get((&(val_item)->obj_keys), i));
+                        std__collections__string_builder__StringBuilder_append_char(sb, ':');
+                        lsp__json__serialize_json_to_sb(sb, std__collections__list__List_ptr_lsp__json__JsonValue_get((&(val_item)->obj_vals), i));
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            std__collections__string_builder__StringBuilder_append_char(sb, '}');
+        }
+    }
+}
+
+bool lsp__json__JsonValue_is_null(lsp__json__JsonValue* self) {
+    return ((self == NULL) || ((self)->kind == 0));
+}
+
+bool lsp__json__JsonValue_is_bool(lsp__json__JsonValue* self) {
+    return ((self != NULL) && ((self)->kind == 1));
+}
+
+bool lsp__json__JsonValue_is_num(lsp__json__JsonValue* self) {
+    return ((self != NULL) && ((self)->kind == 2));
+}
+
+bool lsp__json__JsonValue_is_str(lsp__json__JsonValue* self) {
+    return ((self != NULL) && ((self)->kind == 3));
+}
+
+bool lsp__json__JsonValue_is_arr(lsp__json__JsonValue* self) {
+    return ((self != NULL) && ((self)->kind == 4));
+}
+
+bool lsp__json__JsonValue_is_obj(lsp__json__JsonValue* self) {
+    return ((self != NULL) && ((self)->kind == 5));
+}
+
+void lsp__json__JsonValue_add(lsp__json__JsonValue* self, lsp__json__JsonValue* val_item) {
+    if (((self)->kind == 4)) {
+        {
+            std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->arr_val), val_item);
+        }
+    }
+}
+
+void lsp__json__JsonValue_set(lsp__json__JsonValue* self, const char* key, lsp__json__JsonValue* val_item) {
+    if (((self)->kind == 5)) {
+        {
+            {
+                size_t __for_e = ((self)->obj_keys).len;
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
+                            {
+                                std__collections__list__List_ptr_lsp__json__JsonValue_set((&(self)->obj_vals), i, val_item);
+                                return;
+                            }
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            std__collections__list__List_str_add((&(self)->obj_keys), key);
+            std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->obj_vals), val_item);
+        }
+    }
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, const char* key) {
+    if (((self != NULL) && ((self)->kind == 5))) {
+        {
+            {
+                size_t __for_e = ((self)->obj_keys).len;
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
+                            {
+                                return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->obj_vals), i);
+                            }
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return lsp__json__json_null();
+}
+
+const char* lsp__json__JsonValue_get_str(lsp__json__JsonValue* self, const char* key, const char* def_val) {
+    lsp__json__JsonValue* v = lsp__json__JsonValue_get(self, key);
+    if (lsp__json__JsonValue_is_str(v)) {
+        return (v)->str_val;
+    }
+    return def_val;
+}
+
+int64_t lsp__json__JsonValue_get_num(lsp__json__JsonValue* self, const char* key, int64_t def_val) {
+    lsp__json__JsonValue* v = lsp__json__JsonValue_get(self, key);
+    if (lsp__json__JsonValue_is_num(v)) {
+        return (v)->num_val;
+    }
+    return def_val;
+}
+
+bool lsp__json__JsonValue_get_bool(lsp__json__JsonValue* self, const char* key, bool def_val) {
+    lsp__json__JsonValue* v = lsp__json__JsonValue_get(self, key);
+    if (lsp__json__JsonValue_is_bool(v)) {
+        return (v)->bool_val;
+    }
+    return def_val;
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_get_obj(lsp__json__JsonValue* self, const char* key) {
+    lsp__json__JsonValue* v = lsp__json__JsonValue_get(self, key);
+    if (lsp__json__JsonValue_is_obj(v)) {
+        return v;
+    }
+    return lsp__json__json_obj();
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_get_arr(lsp__json__JsonValue* self, const char* key) {
+    lsp__json__JsonValue* v = lsp__json__JsonValue_get(self, key);
+    if (lsp__json__JsonValue_is_arr(v)) {
+        return v;
+    }
+    return lsp__json__json_arr();
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_at(lsp__json__JsonValue* self, size_t index) {
+    if ((((self != NULL) && ((self)->kind == 4)) && (index < ((self)->arr_val).len))) {
+        {
+            return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->arr_val), index);
+        }
+    }
+    return lsp__json__json_null();
+}
+
+size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self) {
+    if ((self == NULL)) {
+        return ((size_t)0ULL);
+    }
+    if (((self)->kind == 4)) {
+        return ((self)->arr_val).len;
+    }
+    if (((self)->kind == 5)) {
+        return ((self)->obj_keys).len;
+    }
+    return ((size_t)0ULL);
+}
+
+const char* lsp__json__JsonValue_serialize(lsp__json__JsonValue* self) {
+    std__collections__string_builder__StringBuilder sb = std__collections__string_builder__StringBuilder_new();
+    lsp__json__serialize_json_to_sb((&sb), self);
+    const char* res = std__collections__string_builder__StringBuilder_to_str((&sb));
+    std__collections__string_builder__StringBuilder_delete((&sb));
+    return res;
+}
+
+lsp__json__JsonParser lsp__json__JsonParser_new(const char* src) {
+    return (lsp__json__JsonParser){ src, ((size_t)0ULL) };
+}
+
+bool lsp__json__JsonParser_is_end(lsp__json__JsonParser* self) {
+    return ((self)->cursor >= kobel_slen((self)->src));
+}
+
+char lsp__json__JsonParser_peek(lsp__json__JsonParser* self) {
+    return (lsp__json__JsonParser_is_end(self) ? '\0' : (self)->src[(self)->cursor]);
+}
+
+char lsp__json__JsonParser_advance(lsp__json__JsonParser* self) {
+    char c = lsp__json__JsonParser_peek(self);
+    (self)->cursor++;
+    return c;
+}
+
+void lsp__json__JsonParser_skip_whitespace(lsp__json__JsonParser* self) {
+    while ((!lsp__json__JsonParser_is_end(self))) {
+        {
+            char c = lsp__json__JsonParser_peek(self);
+            if (std__ascii__is_whitespace(c)) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            } else {
+                {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
+    lsp__json__JsonParser_advance(self);
+    std__collections__string_builder__StringBuilder sb = std__collections__string_builder__StringBuilder_new();
+    while ((!lsp__json__JsonParser_is_end(self))) {
+        {
+            char c = lsp__json__JsonParser_advance(self);
+            if ((c == '"')) {
+                break;
+            }
+            if ((c == '\\')) {
+                {
+                    if (lsp__json__JsonParser_is_end(self)) {
+                        break;
+                    }
+                    char esc = lsp__json__JsonParser_advance(self);
+                    if ((esc == '"')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '"');
+                    } else if ((esc == '\\')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '\\');
+                    } else if ((esc == '/')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '/');
+                    } else if ((esc == 'n')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '\n');
+                    } else if ((esc == 'r')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '\r');
+                    } else if ((esc == 't')) {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), '\t');
+                    } else if ((esc == 'u')) {
+                        {
+                            size_t u_count = ((size_t)0ULL);
+                            while (((u_count < ((size_t)4ULL)) && (!lsp__json__JsonParser_is_end(self)))) {
+                                {
+                                    lsp__json__JsonParser_advance(self);
+                                    u_count++;
+                                }
+                            }
+                            std__collections__string_builder__StringBuilder_append_char((&sb), '?');
+                        }
+                    } else {
+                        std__collections__string_builder__StringBuilder_append_char((&sb), esc);
+                    }
+                }
+            } else {
+                {
+                    std__collections__string_builder__StringBuilder_append_char((&sb), c);
+                }
+            }
+        }
+    }
+    const char* res = std__collections__string_builder__StringBuilder_to_str((&sb));
+    std__collections__string_builder__StringBuilder_delete((&sb));
+    return res;
+}
+
+int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
+    int64_t sign = 1LL;
+    if ((lsp__json__JsonParser_peek(self) == '-')) {
+        {
+            sign = (-1LL);
+            lsp__json__JsonParser_advance(self);
+        }
+    }
+    int64_t val_num = 0LL;
+    while (((!lsp__json__JsonParser_is_end(self)) && std__ascii__is_digit(lsp__json__JsonParser_peek(self)))) {
+        {
+            char c = lsp__json__JsonParser_advance(self);
+            int64_t d = ((int64_t)(((((int32_t)c)) - 48)));
+            val_num = ((val_num * 10LL) + d);
+        }
+    }
+    if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == '.'))) {
+        {
+            lsp__json__JsonParser_advance(self);
+            while (((!lsp__json__JsonParser_is_end(self)) && std__ascii__is_digit(lsp__json__JsonParser_peek(self)))) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            }
+        }
+    }
+    if (((!lsp__json__JsonParser_is_end(self)) && (((lsp__json__JsonParser_peek(self) == 'e') || (lsp__json__JsonParser_peek(self) == 'E'))))) {
+        {
+            lsp__json__JsonParser_advance(self);
+            if (((!lsp__json__JsonParser_is_end(self)) && (((lsp__json__JsonParser_peek(self) == '+') || (lsp__json__JsonParser_peek(self) == '-'))))) {
+                lsp__json__JsonParser_advance(self);
+            }
+            while (((!lsp__json__JsonParser_is_end(self)) && std__ascii__is_digit(lsp__json__JsonParser_peek(self)))) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            }
+        }
+    }
+    return (val_num * sign);
+}
+
+lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* self) {
+    lsp__json__JsonParser_advance(self);
+    lsp__json__JsonValue* res = lsp__json__json_arr();
+    lsp__json__JsonParser_skip_whitespace(self);
+    if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ']'))) {
+        {
+            lsp__json__JsonParser_advance(self);
+            return res;
+        }
+    }
+    while ((!lsp__json__JsonParser_is_end(self))) {
+        {
+            lsp__json__JsonParser_skip_whitespace(self);
+            lsp__json__JsonValue* item = lsp__json__JsonParser_parse_value(self);
+            lsp__json__JsonValue_add(res, item);
+            lsp__json__JsonParser_skip_whitespace(self);
+            if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ','))) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            } else {
+                {
+                    break;
+                }
+            }
+        }
+    }
+    lsp__json__JsonParser_skip_whitespace(self);
+    if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ']'))) {
+        {
+            lsp__json__JsonParser_advance(self);
+        }
+    }
+    return res;
+}
+
+lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* self) {
+    lsp__json__JsonParser_advance(self);
+    lsp__json__JsonValue* res = lsp__json__json_obj();
+    lsp__json__JsonParser_skip_whitespace(self);
+    if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == '}'))) {
+        {
+            lsp__json__JsonParser_advance(self);
+            return res;
+        }
+    }
+    while ((!lsp__json__JsonParser_is_end(self))) {
+        {
+            lsp__json__JsonParser_skip_whitespace(self);
+            if ((lsp__json__JsonParser_is_end(self) || (lsp__json__JsonParser_peek(self) != '"'))) {
+                break;
+            }
+            const char* key = lsp__json__JsonParser_parse_string(self);
+            lsp__json__JsonParser_skip_whitespace(self);
+            if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ':'))) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            }
+            lsp__json__JsonParser_skip_whitespace(self);
+            lsp__json__JsonValue* val_item = lsp__json__JsonParser_parse_value(self);
+            lsp__json__JsonValue_set(res, key, val_item);
+            lsp__json__JsonParser_skip_whitespace(self);
+            if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ','))) {
+                {
+                    lsp__json__JsonParser_advance(self);
+                }
+            } else {
+                {
+                    break;
+                }
+            }
+        }
+    }
+    lsp__json__JsonParser_skip_whitespace(self);
+    if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == '}'))) {
+        {
+            lsp__json__JsonParser_advance(self);
+        }
+    }
+    return res;
+}
+
+lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* self) {
+    lsp__json__JsonParser_skip_whitespace(self);
+    if (lsp__json__JsonParser_is_end(self)) {
+        return lsp__json__json_null();
+    }
+    char c = lsp__json__JsonParser_peek(self);
+    if ((c == '"')) {
+        return lsp__json__json_str(lsp__json__JsonParser_parse_string(self));
+    }
+    if ((c == '{')) {
+        return lsp__json__JsonParser_parse_object(self);
+    }
+    if ((c == '[')) {
+        return lsp__json__JsonParser_parse_array(self);
+    }
+    if (((c == '-') || std__ascii__is_digit(c))) {
+        return lsp__json__json_num(lsp__json__JsonParser_parse_number(self));
+    }
+    if ((c == 't')) {
+        {
+            {
+                size_t __for_e = ((size_t)4ULL);
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((!lsp__json__JsonParser_is_end(self))) {
+                            lsp__json__JsonParser_advance(self);
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return lsp__json__json_bool(true);
+        }
+    }
+    if ((c == 'f')) {
+        {
+            {
+                size_t __for_e = ((size_t)5ULL);
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((!lsp__json__JsonParser_is_end(self))) {
+                            lsp__json__JsonParser_advance(self);
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return lsp__json__json_bool(false);
+        }
+    }
+    if ((c == 'n')) {
+        {
+            {
+                size_t __for_e = ((size_t)4ULL);
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if ((!lsp__json__JsonParser_is_end(self))) {
+                            lsp__json__JsonParser_advance(self);
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return lsp__json__json_null();
+        }
+    }
+    lsp__json__JsonParser_advance(self);
+    return lsp__json__json_null();
+}
+
+lsp__json__JsonValue* lsp__json__parse_json(const char* src) {
+    lsp__json__JsonParser parser = lsp__json__JsonParser_new(src);
+    return lsp__json__JsonParser_parse_value((&parser));
+}
+
+void lsp__protocol__init_stdio(void) {
+    _setmode(0, 32768);
+    _setmode(1, 32768);
+}
+
+void lsp__protocol__send_raw(const char* payload) {
+    const char* len_str = usz_to_str(kobel_slen(payload));
+    std__io__print("Content-Length: ");
+    std__io__print(len_str);
+    std__io__print("\r\n\r\n");
+    std__io__print(payload);
+    fflush(NULL);
+}
+
+void lsp__protocol__send_response(lsp__json__JsonValue* id, lsp__json__JsonValue* result) {
+    lsp__json__JsonValue* msg = lsp__json__json_obj();
+    lsp__json__JsonValue_set(msg, "jsonrpc", lsp__json__json_str("2.0"));
+    lsp__json__JsonValue_set(msg, "id", id);
+    lsp__json__JsonValue_set(msg, "result", result);
+    lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
+}
+
+void lsp__protocol__send_error(lsp__json__JsonValue* id, int64_t code, const char* message) {
+    lsp__json__JsonValue* msg = lsp__json__json_obj();
+    lsp__json__JsonValue_set(msg, "jsonrpc", lsp__json__json_str("2.0"));
+    lsp__json__JsonValue_set(msg, "id", id);
+    lsp__json__JsonValue* err = lsp__json__json_obj();
+    lsp__json__JsonValue_set(err, "code", lsp__json__json_num(code));
+    lsp__json__JsonValue_set(err, "message", lsp__json__json_str(message));
+    lsp__json__JsonValue_set(msg, "error", err);
+    lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
+}
+
+void lsp__protocol__send_notification(const char* method, lsp__json__JsonValue* params) {
+    lsp__json__JsonValue* msg = lsp__json__json_obj();
+    lsp__json__JsonValue_set(msg, "jsonrpc", lsp__json__json_str("2.0"));
+    lsp__json__JsonValue_set(msg, "method", lsp__json__json_str(method));
+    lsp__json__JsonValue_set(msg, "params", params);
+    lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
+}
+
+const char* lsp__protocol__read_message(void) {
+    size_t content_length = ((size_t)0ULL);
+    while (true) {
+        {
+            std__collections__string_builder__StringBuilder header_line = std__collections__string_builder__StringBuilder_new();
+            bool has_any = false;
+            while (true) {
+                {
+                    int32_t ch = getchar();
+                    if ((ch < 0)) {
+                        {
+                            std__collections__string_builder__StringBuilder_delete((&header_line));
+                            return "";
+                        }
+                    }
+                    has_any = true;
+                    char c = ((char)ch);
+                    if ((c == '\n')) {
+                        break;
+                    }
+                    if ((c != '\r')) {
+                        std__collections__string_builder__StringBuilder_append_char((&header_line), c);
+                    }
+                }
+            }
+            if ((!has_any)) {
+                {
+                    std__collections__string_builder__StringBuilder_delete((&header_line));
+                    return "";
+                }
+            }
+            const char* line = std__collections__string_builder__StringBuilder_to_str((&header_line));
+            std__collections__string_builder__StringBuilder_delete((&header_line));
+            if ((kobel_slen(line) == ((size_t)0ULL))) {
+                break;
+            }
+            const char* prefix = "content-length:";
+            if ((kobel_slen(line) > kobel_slen(prefix))) {
+                {
+                    bool matches = true;
+                    {
+                        size_t __for_e = kobel_slen(prefix);
+                        size_t __for_i = __for_e;
+                        __for_i = ((size_t)0ULL);
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                if ((std__ascii__to_lower(line[i]) != prefix[i])) {
+                                    {
+                                        matches = false;
+                                        break;
+                                    }
+                                }
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (matches) {
+                        {
+                            size_t n = ((size_t)0ULL);
+                            {
+                                size_t __for_e = kobel_slen(line);
+                                size_t __for_i = __for_e;
+                                __for_i = kobel_slen(prefix);
+                                bool __for_up = (__for_i <= __for_e);
+                                bool __for_go = false;
+                                if (__for_up) {
+                                    {
+                                        __for_go = (__for_i < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = (__for_i > __for_e);
+                                    }
+                                }
+                                while (__for_go) {
+                                    {
+                                        size_t j = __for_i;
+                                        char c = line[j];
+                                        if (std__ascii__is_digit(c)) {
+                                            {
+                                                n = ((n * ((size_t)10ULL)) + (((size_t)(((((int32_t)c)) - 48)))));
+                                            }
+                                        }
+                                        if (__for_up) {
+                                            {
+                                                __for_go = ((__for_i + 1) < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = ((__for_i - 1) > __for_e);
+                                            }
+                                        }
+                                        if (__for_go) {
+                                            if (__for_up) {
+                                                {
+                                                    __for_i = (__for_i + 1);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_i = (__for_i - 1);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            content_length = n;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ((content_length == ((size_t)0ULL))) {
+        return "";
+    }
+    uint8_t* buf = std__mem__alloc__raw_alloc((content_length + 1));
+    {
+        size_t __for_e = content_length;
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                int32_t ch = getchar();
+                if ((ch < 0)) {
+                    {
+                        std__mem__alloc__raw_release(buf);
+                        return "";
+                    }
+                }
+                buf[i] = ((uint8_t)ch);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    buf[content_length] = 0;
+    return util__strutil__str_from_bytes(buf, content_length);
+}
+
+const char* lsp__document__uri_to_path(const char* uri) {
+    const char* s = uri;
+    if (((kobel_slen(s) >= ((size_t)8ULL)) && kobel_streq(kobel_slice(s, 0, 8), "file:///"))) {
+        {
+            s = kobel_slice(s, 8, kobel_slen(s));
+        }
+    } else {
+        if (((kobel_slen(s) >= ((size_t)7ULL)) && kobel_streq(kobel_slice(s, 0, 7), "file://"))) {
+            {
+                s = kobel_slice(s, 7, kobel_slen(s));
+            }
+        }
+    }
+    std__collections__string_builder__StringBuilder sb = std__collections__string_builder__StringBuilder_new();
+    size_t i = ((size_t)0ULL);
+    while ((i < kobel_slen(s))) {
+        {
+            char c = s[i];
+            if (((c == '%') && ((i + ((size_t)2ULL)) < kobel_slen(s)))) {
+                {
+                    char h1 = s[(i + ((size_t)1ULL))];
+                    char h2 = s[(i + ((size_t)2ULL))];
+                    if (((h1 == '3') && (((h2 == 'a') || (h2 == 'A'))))) {
+                        {
+                            std__collections__string_builder__StringBuilder_append_char((&sb), ':');
+                            i += ((size_t)3ULL);
+                            continue;
+                        }
+                    }
+                    if (((h1 == '2') && (h2 == '0'))) {
+                        {
+                            std__collections__string_builder__StringBuilder_append_char((&sb), ' ');
+                            i += ((size_t)3ULL);
+                            continue;
+                        }
+                    }
+                }
+            }
+            if ((c == '/')) {
+                {
+                    std__collections__string_builder__StringBuilder_append_char((&sb), '\\');
+                }
+            } else {
+                {
+                    std__collections__string_builder__StringBuilder_append_char((&sb), c);
+                }
+            }
+            i++;
+        }
+    }
+    const char* res = std__collections__string_builder__StringBuilder_to_str((&sb));
+    std__collections__string_builder__StringBuilder_delete((&sb));
+    return res;
+}
+
+lsp__document__DocumentStore lsp__document__DocumentStore_new(void) {
+    return (lsp__document__DocumentStore){ std__collections__list__List_lsp__document__Document_new_0() };
+}
+
+lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri) {
+    {
+        size_t __for_n = std__collections__list__List_lsp__document__Document_count((&(self)->docs));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                lsp__document__Document d = std__collections__list__List_lsp__document__Document_at((&(self)->docs), __for_i);
+                if (kobel_streq((d).uri, uri)) {
+                    return d;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return (lsp__document__Document){ "", "", "", 0LL };
+}
+
+bool lsp__document__DocumentStore_has(lsp__document__DocumentStore* self, const char* uri) {
+    {
+        size_t __for_n = std__collections__list__List_lsp__document__Document_count((&(self)->docs));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                lsp__document__Document d = std__collections__list__List_lsp__document__Document_at((&(self)->docs), __for_i);
+                if (kobel_streq((d).uri, uri)) {
+                    return true;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return false;
+}
+
+void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version) {
+    const char* p = lsp__document__uri_to_path(uri);
+    {
+        size_t __for_e = ((self)->docs).len;
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (kobel_streq((std__collections__list__List_lsp__document__Document_get((&(self)->docs), i)).uri, uri)) {
+                    {
+                        std__collections__list__List_lsp__document__Document_set((&(self)->docs), i, (lsp__document__Document){ uri, p, text, version });
+                        return;
+                    }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std__collections__list__List_lsp__document__Document_add((&(self)->docs), (lsp__document__Document){ uri, p, text, version });
+}
+
+void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri) {
+    std__collections__list__List_lsp__document__Document new_docs = std__collections__list__List_lsp__document__Document_new_0();
+    {
+        size_t __for_n = std__collections__list__List_lsp__document__Document_count((&(self)->docs));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                lsp__document__Document d = std__collections__list__List_lsp__document__Document_at((&(self)->docs), __for_i);
+                if ((!kobel_streq((d).uri, uri))) {
+                    std__collections__list__List_lsp__document__Document_add((&new_docs), d);
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    (self)->docs = new_docs;
+}
+
+lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str, const char* source) {
+    size_t line = ((size_t)1ULL);
+    size_t col = ((size_t)1ULL);
+    size_t msg_start = ((size_t)0ULL);
+    const char* line_tag = "Line ";
+    size_t line_idx = ((size_t)0ULL);
+    bool found_line = false;
+    if ((kobel_slen(err_str) >= kobel_slen(line_tag))) {
+        {
+            {
+                size_t __for_e = ((kobel_slen(err_str) - kobel_slen(line_tag)));
+                size_t __for_i = __for_e;
+                __for_i = ((size_t)0ULL);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        bool m = true;
+                        {
+                            size_t __for_e = kobel_slen(line_tag);
+                            size_t __for_i = __for_e;
+                            __for_i = ((size_t)0ULL);
+                            bool __for_up = (__for_i <= __for_e);
+                            bool __for_go = false;
+                            if (__for_up) {
+                                {
+                                    __for_go = (__for_i < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = (__for_i > __for_e);
+                                }
+                            }
+                            while (__for_go) {
+                                {
+                                    size_t k = __for_i;
+                                    if ((err_str[(i + k)] != line_tag[k])) {
+                                        {
+                                            m = false;
+                                            break;
+                                        }
+                                    }
+                                    if (__for_up) {
+                                        {
+                                            __for_go = ((__for_i + 1) < __for_e);
+                                        }
+                                    } else {
+                                        {
+                                            __for_go = ((__for_i - 1) > __for_e);
+                                        }
+                                    }
+                                    if (__for_go) {
+                                        if (__for_up) {
+                                            {
+                                                __for_i = (__for_i + 1);
+                                            }
+                                        } else {
+                                            {
+                                                __for_i = (__for_i - 1);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (m) {
+                            {
+                                line_idx = (i + kobel_slen(line_tag));
+                                found_line = true;
+                                break;
+                            }
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (found_line) {
+        {
+            size_t n = ((size_t)0ULL);
+            size_t idx = line_idx;
+            while (((idx < kobel_slen(err_str)) && std__ascii__is_digit(err_str[idx]))) {
+                {
+                    n = ((n * ((size_t)10ULL)) + (((size_t)(((((int32_t)err_str[idx])) - 48)))));
+                    idx++;
+                }
+            }
+            if ((n > ((size_t)0ULL))) {
+                line = n;
+            }
+            const char* col_tag = "Column ";
+            size_t col_idx = ((size_t)0ULL);
+            bool found_col = false;
+            if ((kobel_slen(err_str) >= (idx + kobel_slen(col_tag)))) {
+                {
+                    {
+                        size_t __for_e = ((kobel_slen(err_str) - kobel_slen(col_tag)));
+                        size_t __for_i = __for_e;
+                        __for_i = idx;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                bool m = true;
+                                {
+                                    size_t __for_e = kobel_slen(col_tag);
+                                    size_t __for_i = __for_e;
+                                    __for_i = ((size_t)0ULL);
+                                    bool __for_up = (__for_i <= __for_e);
+                                    bool __for_go = false;
+                                    if (__for_up) {
+                                        {
+                                            __for_go = (__for_i < __for_e);
+                                        }
+                                    } else {
+                                        {
+                                            __for_go = (__for_i > __for_e);
+                                        }
+                                    }
+                                    while (__for_go) {
+                                        {
+                                            size_t k = __for_i;
+                                            if ((err_str[(i + k)] != col_tag[k])) {
+                                                {
+                                                    m = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (__for_up) {
+                                                {
+                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                }
+                                            }
+                                            if (__for_go) {
+                                                if (__for_up) {
+                                                    {
+                                                        __for_i = (__for_i + 1);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_i = (__for_i - 1);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (m) {
+                                    {
+                                        col_idx = (i + kobel_slen(col_tag));
+                                        found_col = true;
+                                        break;
+                                    }
+                                }
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (found_col) {
+                {
+                    size_t cn = ((size_t)0ULL);
+                    size_t c_idx = col_idx;
+                    while (((c_idx < kobel_slen(err_str)) && std__ascii__is_digit(err_str[c_idx]))) {
+                        {
+                            cn = ((cn * ((size_t)10ULL)) + (((size_t)(((((int32_t)err_str[c_idx])) - 48)))));
+                            c_idx++;
+                        }
+                    }
+                    if ((cn > ((size_t)0ULL))) {
+                        col = cn;
+                    }
+                    while (((c_idx < kobel_slen(err_str)) && (((err_str[c_idx] == ':') || (err_str[c_idx] == ' '))))) {
+                        {
+                            c_idx++;
+                        }
+                    }
+                    msg_start = c_idx;
+                }
+            }
+        }
+    }
+    const char* actual_msg = ((msg_start < kobel_slen(err_str)) ? kobel_slice(err_str, msg_start, kobel_slen(err_str)) : err_str);
+    size_t l0 = ((line > ((size_t)0ULL)) ? (line - ((size_t)1ULL)) : ((size_t)0ULL));
+    size_t c0 = ((col > ((size_t)0ULL)) ? (col - ((size_t)1ULL)) : ((size_t)0ULL));
+    size_t end_col = (c0 + ((size_t)1ULL));
+    if ((kobel_slen(source) > ((size_t)0ULL))) {
+        {
+            size_t cur_line = ((size_t)0ULL);
+            size_t line_start = ((size_t)0ULL);
+            size_t pos = ((size_t)0ULL);
+            while (((pos < kobel_slen(source)) && (cur_line < l0))) {
+                {
+                    if ((source[pos] == '\n')) {
+                        {
+                            cur_line++;
+                            line_start = (pos + ((size_t)1ULL));
+                        }
+                    }
+                    pos++;
+                }
+            }
+            if (((cur_line == l0) && (line_start < kobel_slen(source)))) {
+                {
+                    size_t line_end = line_start;
+                    while ((((line_end < kobel_slen(source)) && (source[line_end] != '\n')) && (source[line_end] != '\r'))) {
+                        {
+                            line_end++;
+                        }
+                    }
+                    size_t char_idx = (line_start + c0);
+                    if ((char_idx < line_end)) {
+                        {
+                            if (((((source[char_idx] == 'u') && (((char_idx + ((size_t)3ULL)) <= line_end))) && (source[(char_idx + ((size_t)1ULL))] == 's')) && (source[(char_idx + ((size_t)2ULL))] == 'e'))) {
+                                {
+                                    size_t s_idx = char_idx;
+                                    while (((s_idx < line_end) && (source[s_idx] != ';'))) {
+                                        {
+                                            s_idx++;
+                                        }
+                                    }
+                                    if (((s_idx < line_end) && (source[s_idx] == ';'))) {
+                                        s_idx++;
+                                    }
+                                    end_col = (s_idx - line_start);
+                                }
+                            } else {
+                                if ((std__ascii__is_alphanumeric(source[char_idx]) || (source[char_idx] == '_'))) {
+                                    {
+                                        size_t w_idx = char_idx;
+                                        while (((w_idx < line_end) && ((std__ascii__is_alphanumeric(source[w_idx]) || (source[w_idx] == '_'))))) {
+                                            {
+                                                w_idx++;
+                                            }
+                                        }
+                                        end_col = (w_idx - line_start);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ((end_col <= c0)) {
+        end_col = (c0 + ((size_t)1ULL));
+    }
+    return (lsp__analysis__LspDiagnostic){ l0, c0, l0, end_col, 1LL, actual_msg };
+}
+
+lsp__json__JsonValue* lsp__analysis__diagnostic_to_json(lsp__analysis__LspDiagnostic d) {
+    lsp__json__JsonValue* obj = lsp__json__json_obj();
+    lsp__json__JsonValue* range = lsp__json__json_obj();
+    lsp__json__JsonValue* start_pos = lsp__json__json_obj();
+    lsp__json__JsonValue_set(start_pos, "line", lsp__json__json_num(((int64_t)(d).line)));
+    lsp__json__JsonValue_set(start_pos, "character", lsp__json__json_num(((int64_t)(d).col)));
+    lsp__json__JsonValue* end_pos = lsp__json__json_obj();
+    lsp__json__JsonValue_set(end_pos, "line", lsp__json__json_num(((int64_t)(d).end_line)));
+    lsp__json__JsonValue_set(end_pos, "character", lsp__json__json_num(((int64_t)(d).end_col)));
+    lsp__json__JsonValue_set(range, "start", start_pos);
+    lsp__json__JsonValue_set(range, "end", end_pos);
+    lsp__json__JsonValue_set(obj, "range", range);
+    lsp__json__JsonValue_set(obj, "severity", lsp__json__json_num((d).severity));
+    lsp__json__JsonValue_set(obj, "source", lsp__json__json_str("kobel"));
+    lsp__json__JsonValue_set(obj, "message", lsp__json__json_str((d).message));
+    return obj;
+}
+
+lsp__analysis__AnalysisResult lsp__analysis__analyze_document(const char* path, const char* source, const char* workspace_root) {
+    std__collections__list__List_lsp__analysis__LspDiagnostic diagnostics = std__collections__list__List_lsp__analysis__LspDiagnostic_new_0();
+    compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
+    std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize((&lexer));
+    {
+        size_t __for_n = std__collections__list__List_compiler__lexer__token__Token_count((&tokens));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at((&tokens), __for_i);
+                if (((tok).type == 69)) {
+                    {
+                        size_t l0 = (((tok).line > ((size_t)0ULL)) ? ((tok).line - ((size_t)1ULL)) : ((size_t)0ULL));
+                        size_t c0 = (((tok).col > ((size_t)0ULL)) ? ((tok).col - ((size_t)1ULL)) : ((size_t)0ULL));
+                        std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), (lsp__analysis__LspDiagnostic){ l0, c0, l0, (c0 + ((size_t)1ULL)), 1LL, "Unrecognized character or syntax" });
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
+    compiler__ast__node__AstNode* prog = compiler__parser__parser__Parser_parse_program((&parser));
+    if ((((parser).errors).len > 0)) {
+        {
+            {
+                size_t __for_n = std__collections__list__List_str_count((&(parser).errors));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* err_msg = std__collections__list__List_str_at((&(parser).errors), __for_i);
+                        std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), lsp__analysis__parse_diagnostic(err_msg, source));
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            compiler__sema__symbol__SymbolTable empty_symtab = compiler__sema__symbol__SymbolTable_new();
+            return (lsp__analysis__AnalysisResult){ diagnostics, empty_symtab, false, tokens };
+        }
+    }
+    const char* entry_dir = util__strutil__str_dir_of(path);
+    std__collections__list__List_str extra_roots = std__collections__list__List_str_new_0();
+    if ((kobel_slen(workspace_root) > ((size_t)0ULL))) {
+        {
+            std__collections__list__List_str_add((&extra_roots), workspace_root);
+            std__collections__list__List_str_add((&extra_roots), util__strutil__str_join_path(workspace_root, "lib"));
+            std__collections__list__List_str_add((&extra_roots), util__strutil__str_join_path(workspace_root, "src"));
+        }
+    }
+    compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__ModuleLoader_new(entry_dir, extra_roots);
+    compiler__ast__node__AstNode* full_prog = compiler__loader__loader__ModuleLoader_load_program((&loader), path, source);
+    if ((((loader).errors).len > 0)) {
+        {
+            {
+                size_t __for_n = std__collections__list__List_str_count((&(loader).errors));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* err_msg = std__collections__list__List_str_at((&(loader).errors), __for_i);
+                        std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), lsp__analysis__parse_diagnostic(err_msg, source));
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    }
+    if ((full_prog != NULL)) {
+        {
+            compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__DeclPass_new();
+            compiler__sema__decl_pass__DeclPass_collect_program((&decl_p), full_prog);
+            if ((((decl_p).errors).len > 0)) {
+                {
+                    {
+                        size_t __for_n = std__collections__list__List_str_count((&(decl_p).errors));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                const char* err_msg = std__collections__list__List_str_at((&(decl_p).errors), __for_i);
+                                std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), lsp__analysis__parse_diagnostic(err_msg, source));
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                }
+            }
+            return (lsp__analysis__AnalysisResult){ diagnostics, (decl_p).symtab, true, tokens };
+        }
+    }
+    compiler__sema__symbol__SymbolTable empty_symtab = compiler__sema__symbol__SymbolTable_new();
+    return (lsp__analysis__AnalysisResult){ diagnostics, empty_symtab, false, tokens };
+}
+
+compiler__lexer__token__Token lsp__analysis__find_token_at(std__collections__list__List_compiler__lexer__token__Token tokens, size_t target_line, size_t target_col) {
+    {
+        size_t __for_n = std__collections__list__List_compiler__lexer__token__Token_count((&tokens));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at((&tokens), __for_i);
+                if (((tok).line == target_line)) {
+                    {
+                        size_t len = kobel_slen((tok).text);
+                        if (((target_col >= (tok).col) && (target_col <= (((tok).col + len))))) {
+                            {
+                                return tok;
+                            }
+                        }
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return (compiler__lexer__token__Token){ 69, "", ((size_t)0ULL), ((size_t)0ULL) };
+}
+
+const char* lsp__analysis__keyword_hover(const char* kw) {
+    return (strcmp(kw, "fn") == 0 ? "```kobel\nfn <name>(<params>): <type>\n```\nDeclares a function." : (strcmp(kw, "val") == 0 ? "```kobel\nval <name> = <expr>\n```\nDeclares an immutable local binding." : (strcmp(kw, "var") == 0 ? "```kobel\nvar <name> = <expr>\n```\nDeclares a mutable variable." : (strcmp(kw, "const") == 0 ? "```kobel\nconst <name>: <type> = <expr>\n```\nDeclares a compile-time constant." : (strcmp(kw, "struct") == 0 ? "```kobel\nstruct <name> { <fields> }\n```\nDeclares a record/struct data type." : (strcmp(kw, "enum") == 0 ? "```kobel\nenum <name> { <members> }\n```\nDeclares an enumeration." : (strcmp(kw, "trait") == 0 ? "```kobel\ntrait <name> { <methods> }\n```\nDeclares an interface/trait contract." : (strcmp(kw, "impl") == 0 ? "```kobel\nimpl <type> { <methods> }\n```\nImplements methods or traits for a type." : (strcmp(kw, "when") == 0 ? "```kobel\nwhen (<expr>) { <pattern> -> <expr> }\n```\nPattern matching expression or statement." : (strcmp(kw, "if") == 0 ? "```kobel\nif (<cond>) <then> else <else>\n```\nConditional branching." : (strcmp(kw, "while") == 0 ? "```kobel\nwhile (<cond>) { <body> }\n```\nWhile loop." : (strcmp(kw, "for") == 0 ? "```kobel\nfor (<item> in <seq>) { <body> }\n```\nIteration loop." : (strcmp(kw, "return") == 0 ? "```kobel\nreturn <expr>;\n```\nReturns from function." : (strcmp(kw, "pub") == 0 ? "Visibility modifier: makes declaration accessible outside current module." : (strcmp(kw, "use") == 0 ? "```kobel\nuse <module>.*;\n```\nImports symbols from another module." : (strcmp(kw, "mod") == 0 ? "```kobel\nmod <module.path>;\n```\nDeclares current module namespace." : (strcmp(kw, "extern") == 0 ? "```kobel\nextern \"libc\" { ... }\n```\nDeclares external C ABI foreign functions." : (strcmp(kw, "as") == 0 ? "Type casting operator: `expr as Type`." : ""))))))))))))))))));
+}
+
+lsp__json__JsonValue* lsp__analysis__hover_at(lsp__analysis__AnalysisResult* analysis, size_t line0, size_t col0) {
+    size_t target_line = (line0 + ((size_t)1ULL));
+    size_t target_col = (col0 + ((size_t)1ULL));
+    compiler__lexer__token__Token tok = lsp__analysis__find_token_at((analysis)->tokens, target_line, target_col);
+    if ((((tok).type == 69) || (kobel_slen((tok).text) == ((size_t)0ULL)))) {
+        return lsp__json__json_null();
+    }
+    const char* kw_doc = lsp__analysis__keyword_hover((tok).text);
+    if ((kobel_slen(kw_doc) > ((size_t)0ULL))) {
+        {
+            lsp__json__JsonValue* res = lsp__json__json_obj();
+            lsp__json__JsonValue* contents = lsp__json__json_obj();
+            lsp__json__JsonValue_set(contents, "kind", lsp__json__json_str("markdown"));
+            lsp__json__JsonValue_set(contents, "value", lsp__json__json_str(kw_doc));
+            lsp__json__JsonValue_set(res, "contents", contents);
+            return res;
+        }
+    }
+    if (((analysis)->has_symtab && ((tok).type == 41))) {
+        {
+            compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(analysis)->symtab), (tok).text);
+            if ((sym != NULL)) {
+                {
+                    const char* md = "```kobel\n";
+                    if (((sym)->kind == 3)) {
+                        {
+                            md = kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "fn "), (sym)->name), ": "), compiler__sema__types__Type_to_str((sym)->type_ptr));
+                        }
+                    } else if (((sym)->kind == 4)) {
+                        {
+                            md = kobel_concat(kobel_concat(md, "struct "), (sym)->name);
+                        }
+                    } else if (((sym)->kind == 5)) {
+                        {
+                            md = kobel_concat(kobel_concat(md, "enum "), (sym)->name);
+                        }
+                    } else if (((sym)->kind == 0)) {
+                        {
+                            md = kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "var "), (sym)->name), ": "), compiler__sema__types__Type_to_str((sym)->type_ptr));
+                        }
+                    } else if (((sym)->kind == 1)) {
+                        {
+                            md = kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "const "), (sym)->name), ": "), compiler__sema__types__Type_to_str((sym)->type_ptr));
+                        }
+                    } else if (((sym)->kind == 2)) {
+                        {
+                            md = kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "param "), (sym)->name), ": "), compiler__sema__types__Type_to_str((sym)->type_ptr));
+                        }
+                    } else {
+                        {
+                            md = kobel_concat(kobel_concat(kobel_concat(md, (sym)->name), ": "), compiler__sema__types__Type_to_str((sym)->type_ptr));
+                        }
+                    }
+                    md = kobel_concat(md, "\n```");
+                    lsp__json__JsonValue* res = lsp__json__json_obj();
+                    lsp__json__JsonValue* contents = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(contents, "kind", lsp__json__json_str("markdown"));
+                    lsp__json__JsonValue_set(contents, "value", lsp__json__json_str(md));
+                    lsp__json__JsonValue_set(res, "contents", contents);
+                    return res;
+                }
+            }
+        }
+    }
+    return lsp__json__json_null();
+}
+
+lsp__json__JsonValue* lsp__analysis__definition_at(lsp__analysis__AnalysisResult* analysis, const char* doc_uri, size_t line0, size_t col0) {
+    size_t target_line = (line0 + ((size_t)1ULL));
+    size_t target_col = (col0 + ((size_t)1ULL));
+    compiler__lexer__token__Token tok = lsp__analysis__find_token_at((analysis)->tokens, target_line, target_col);
+    if ((((tok).type != 41) || (kobel_slen((tok).text) == ((size_t)0ULL)))) {
+        return lsp__json__json_null();
+    }
+    if ((analysis)->has_symtab) {
+        {
+            compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(analysis)->symtab), (tok).text);
+            if (((sym != NULL) && ((sym)->line > ((size_t)0ULL)))) {
+                {
+                    lsp__json__JsonValue* res = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(res, "uri", lsp__json__json_str(doc_uri));
+                    lsp__json__JsonValue* range = lsp__json__json_obj();
+                    lsp__json__JsonValue* start_pos = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(start_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - ((size_t)1ULL))))));
+                    lsp__json__JsonValue_set(start_pos, "character", lsp__json__json_num(((int64_t)(((sym)->col - ((size_t)1ULL))))));
+                    lsp__json__JsonValue* end_pos = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(end_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - ((size_t)1ULL))))));
+                    lsp__json__JsonValue_set(end_pos, "character", lsp__json__json_num(((int64_t)((((sym)->col - ((size_t)1ULL)) + kobel_slen((sym)->name))))));
+                    lsp__json__JsonValue_set(range, "start", start_pos);
+                    lsp__json__JsonValue_set(range, "end", end_pos);
+                    lsp__json__JsonValue_set(res, "range", range);
+                    return res;
+                }
+            }
+        }
+    }
+    return lsp__json__json_null();
+}
+
+lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
+    compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
+    std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize((&lexer));
+    compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
+    compiler__ast__node__AstNode* prog_node = compiler__parser__parser__Parser_parse_program((&parser));
+    lsp__json__JsonValue* arr = lsp__json__json_arr();
+    if ((prog_node == NULL)) {
+        return arr;
+    }
+    compiler__ast__decl__Program* prog = compiler__ast__node__to_compiler__ast__decl__Program(prog_node);
+    {
+        size_t __for_n = compiler__ast__decl__Program_count(prog);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
+                const char* sym_name = "";
+                int64_t sym_kind = 0LL;
+                if (((decl)->kind == 32)) {
+                    {
+                        compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(decl);
+                        sym_name = (f)->name;
+                        sym_kind = 12LL;
+                    }
+                } else if (((decl)->kind == 33)) {
+                    {
+                        compiler__ast__decl__StructDecl* s = compiler__ast__node__to_compiler__ast__decl__StructDecl(decl);
+                        sym_name = (s)->name;
+                        sym_kind = 23LL;
+                    }
+                } else if (((decl)->kind == 36)) {
+                    {
+                        compiler__ast__decl__EnumDecl* e = compiler__ast__node__to_compiler__ast__decl__EnumDecl(decl);
+                        sym_name = (e)->name;
+                        sym_kind = 10LL;
+                    }
+                } else if (((decl)->kind == 34)) {
+                    {
+                        compiler__ast__decl__TraitDecl* t = compiler__ast__node__to_compiler__ast__decl__TraitDecl(decl);
+                        sym_name = (t)->name;
+                        sym_kind = 11LL;
+                    }
+                } else if (((decl)->kind == 35)) {
+                    {
+                        compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(decl);
+                        sym_name = kobel_concat("impl ", (im)->struct_name);
+                        sym_kind = 5LL;
+                    }
+                } else if (((decl)->kind == 37)) {
+                    {
+                        compiler__ast__decl__ConstDecl* c = compiler__ast__node__to_compiler__ast__decl__ConstDecl(decl);
+                        sym_name = (c)->name;
+                        sym_kind = 14LL;
+                    }
+                } else {
+                    {
+                    }
+                }
+                if ((kobel_slen(sym_name) > ((size_t)0ULL))) {
+                    {
+                        lsp__json__JsonValue* item = lsp__json__json_obj();
+                        lsp__json__JsonValue_set(item, "name", lsp__json__json_str(sym_name));
+                        lsp__json__JsonValue_set(item, "kind", lsp__json__json_num(sym_kind));
+                        size_t l0 = (((decl)->line > ((size_t)0ULL)) ? ((decl)->line - ((size_t)1ULL)) : ((size_t)0ULL));
+                        size_t c0 = (((decl)->col > ((size_t)0ULL)) ? ((decl)->col - ((size_t)1ULL)) : ((size_t)0ULL));
+                        lsp__json__JsonValue* range = lsp__json__json_obj();
+                        lsp__json__JsonValue* s_pos = lsp__json__json_obj();
+                        lsp__json__JsonValue_set(s_pos, "line", lsp__json__json_num(((int64_t)l0)));
+                        lsp__json__JsonValue_set(s_pos, "character", lsp__json__json_num(((int64_t)c0)));
+                        lsp__json__JsonValue* e_pos = lsp__json__json_obj();
+                        lsp__json__JsonValue_set(e_pos, "line", lsp__json__json_num(((int64_t)l0)));
+                        lsp__json__JsonValue_set(e_pos, "character", lsp__json__json_num(((int64_t)((c0 + kobel_slen(sym_name))))));
+                        lsp__json__JsonValue_set(range, "start", s_pos);
+                        lsp__json__JsonValue_set(range, "end", e_pos);
+                        lsp__json__JsonValue_set(item, "range", range);
+                        lsp__json__JsonValue_set(item, "selectionRange", range);
+                        lsp__json__JsonValue_add(arr, item);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return arr;
+}
+
+lsp__json__JsonValue* lsp__analysis__format_document(const char* text) {
+    fmt__options__FormatOptions options = fmt__options__default_format_options();
+    const char* formatted = fmt__formatter__format_source(text, options);
+    lsp__json__JsonValue* edits = lsp__json__json_arr();
+    lsp__json__JsonValue* edit = lsp__json__json_obj();
+    lsp__json__JsonValue* range = lsp__json__json_obj();
+    lsp__json__JsonValue* start_pos = lsp__json__json_obj();
+    lsp__json__JsonValue_set(start_pos, "line", lsp__json__json_num(0LL));
+    lsp__json__JsonValue_set(start_pos, "character", lsp__json__json_num(0LL));
+    lsp__json__JsonValue* end_pos = lsp__json__json_obj();
+    lsp__json__JsonValue_set(end_pos, "line", lsp__json__json_num(999999LL));
+    lsp__json__JsonValue_set(end_pos, "character", lsp__json__json_num(0LL));
+    lsp__json__JsonValue_set(range, "start", start_pos);
+    lsp__json__JsonValue_set(range, "end", end_pos);
+    lsp__json__JsonValue_set(edit, "range", range);
+    lsp__json__JsonValue_set(edit, "newText", lsp__json__json_str(formatted));
+    lsp__json__JsonValue_add(edits, edit);
+    return edits;
+}
+
+void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, const char* label, int64_t kind, const char* detail) {
+    lsp__json__JsonValue* item = lsp__json__json_obj();
+    lsp__json__JsonValue_set(item, "label", lsp__json__json_str(label));
+    lsp__json__JsonValue_set(item, "kind", lsp__json__json_num(kind));
+    if ((kobel_slen(detail) > ((size_t)0ULL))) {
+        {
+            lsp__json__JsonValue_set(item, "detail", lsp__json__json_str(detail));
+        }
+    }
+    lsp__json__JsonValue_add(arr, item);
+}
+
+lsp__json__JsonValue* lsp__analysis__complete_at(lsp__analysis__AnalysisResult* analysis) {
+    lsp__json__JsonValue* items = lsp__json__json_arr();
+    lsp__analysis__add_completion_item(items, "fn", 14LL, "Function declaration");
+    lsp__analysis__add_completion_item(items, "val", 14LL, "Immutable binding");
+    lsp__analysis__add_completion_item(items, "var", 14LL, "Mutable variable");
+    lsp__analysis__add_completion_item(items, "const", 14LL, "Constant declaration");
+    lsp__analysis__add_completion_item(items, "struct", 14LL, "Struct type");
+    lsp__analysis__add_completion_item(items, "enum", 14LL, "Enum type");
+    lsp__analysis__add_completion_item(items, "trait", 14LL, "Trait definition");
+    lsp__analysis__add_completion_item(items, "impl", 14LL, "Implementation block");
+    lsp__analysis__add_completion_item(items, "when", 14LL, "Pattern matching");
+    lsp__analysis__add_completion_item(items, "if", 14LL, "Conditional");
+    lsp__analysis__add_completion_item(items, "else", 14LL, "Else branch");
+    lsp__analysis__add_completion_item(items, "while", 14LL, "While loop");
+    lsp__analysis__add_completion_item(items, "for", 14LL, "For-in loop");
+    lsp__analysis__add_completion_item(items, "in", 14LL, "Iteration in");
+    lsp__analysis__add_completion_item(items, "return", 14LL, "Return statement");
+    lsp__analysis__add_completion_item(items, "pub", 14LL, "Public visibility");
+    lsp__analysis__add_completion_item(items, "use", 14LL, "Module import");
+    lsp__analysis__add_completion_item(items, "mod", 14LL, "Module declaration");
+    lsp__analysis__add_completion_item(items, "extern", 14LL, "External declaration");
+    lsp__analysis__add_completion_item(items, "true", 14LL, "Boolean true");
+    lsp__analysis__add_completion_item(items, "false", 14LL, "Boolean false");
+    lsp__analysis__add_completion_item(items, "null", 14LL, "Null pointer");
+    lsp__analysis__add_completion_item(items, "as", 14LL, "Type cast");
+    lsp__analysis__add_completion_item(items, "break", 14LL, "Break loop");
+    lsp__analysis__add_completion_item(items, "continue", 14LL, "Continue loop");
+    lsp__analysis__add_completion_item(items, "i8", 7LL, "Signed 8-bit integer");
+    lsp__analysis__add_completion_item(items, "i16", 7LL, "Signed 16-bit integer");
+    lsp__analysis__add_completion_item(items, "i32", 7LL, "Signed 32-bit integer");
+    lsp__analysis__add_completion_item(items, "i64", 7LL, "Signed 64-bit integer");
+    lsp__analysis__add_completion_item(items, "isz", 7LL, "Signed pointer-size integer");
+    lsp__analysis__add_completion_item(items, "u8", 7LL, "Unsigned 8-bit integer");
+    lsp__analysis__add_completion_item(items, "u16", 7LL, "Unsigned 16-bit integer");
+    lsp__analysis__add_completion_item(items, "u32", 7LL, "Unsigned 32-bit integer");
+    lsp__analysis__add_completion_item(items, "u64", 7LL, "Unsigned 64-bit integer");
+    lsp__analysis__add_completion_item(items, "usz", 7LL, "Unsigned pointer-size integer");
+    lsp__analysis__add_completion_item(items, "f32", 7LL, "32-bit float");
+    lsp__analysis__add_completion_item(items, "f64", 7LL, "64-bit float");
+    lsp__analysis__add_completion_item(items, "bool", 7LL, "Boolean type");
+    lsp__analysis__add_completion_item(items, "char", 7LL, "ASCII character type");
+    lsp__analysis__add_completion_item(items, "str", 7LL, "String type");
+    lsp__analysis__add_completion_item(items, "none", 7LL, "Unit / void type");
+    if ((analysis)->has_symtab) {
+        {
+            {
+                size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count((&((analysis)->symtab).modules));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__sema__symbol__ModuleScope* mod_scope = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at((&((analysis)->symtab).modules), __for_i);
+                        {
+                            size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count((&(mod_scope)->symbols));
+                            size_t __for_i = ((size_t)0ULL);
+                            while ((__for_i < __for_n)) {
+                                {
+                                    compiler__sema__symbol__Symbol* sym = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at((&(mod_scope)->symbols), __for_i);
+                                    int64_t k = (((sym)->kind == 3) ? 3LL : (((sym)->kind == 4) ? 22LL : (((sym)->kind == 5) ? 13LL : (((sym)->kind == 0) ? 6LL : (((sym)->kind == 1) ? 21LL : 6LL)))));
+                                    lsp__analysis__add_completion_item(items, (sym)->name, k, compiler__sema__types__Type_to_str((sym)->type_ptr));
+                                    __for_i = (__for_i + 1);
+                                }
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    }
+    return items;
+}
+
+void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, const char* workspace_root) {
+    const char* p = lsp__document__uri_to_path(uri);
+    lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document(p, text, workspace_root);
+    lsp__json__JsonValue* diags_arr = lsp__json__json_arr();
+    {
+        size_t __for_n = std__collections__list__List_lsp__analysis__LspDiagnostic_count((&(analysis).diagnostics));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                lsp__analysis__LspDiagnostic d = std__collections__list__List_lsp__analysis__LspDiagnostic_at((&(analysis).diagnostics), __for_i);
+                lsp__json__JsonValue_add(diags_arr, lsp__analysis__diagnostic_to_json(d));
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    lsp__json__JsonValue* notif_params = lsp__json__json_obj();
+    lsp__json__JsonValue_set(notif_params, "uri", lsp__json__json_str(uri));
+    lsp__json__JsonValue_set(notif_params, "diagnostics", diags_arr);
+    lsp__protocol__send_notification("textDocument/publishDiagnostics", notif_params);
+}
+
+int32_t lsp__server__run_server(void) {
+    lsp__protocol__init_stdio();
+    lsp__document__DocumentStore docs = lsp__document__DocumentStore_new();
+    bool is_shutdown = false;
+    const char* workspace_root = "";
+    while (true) {
+        {
+            const char* raw_msg = lsp__protocol__read_message();
+            if ((kobel_slen(raw_msg) == ((size_t)0ULL))) {
+                break;
+            }
+            lsp__json__JsonValue* msg = lsp__json__parse_json(raw_msg);
+            if ((!lsp__json__JsonValue_is_obj(msg))) {
+                continue;
+            }
+            const char* method = lsp__json__JsonValue_get_str(msg, "method", "");
+            lsp__json__JsonValue* id = lsp__json__JsonValue_get(msg, "id");
+            lsp__json__JsonValue* params = lsp__json__JsonValue_get_obj(msg, "params");
+            if (strcmp(method, "initialize") == 0) {
+                {
+                    const char* root_uri = lsp__json__JsonValue_get_str(params, "rootUri", "");
+                    if ((kobel_slen(root_uri) > 0)) {
+                        {
+                            workspace_root = lsp__document__uri_to_path(root_uri);
+                        }
+                    } else {
+                        {
+                            const char* root_path = lsp__json__JsonValue_get_str(params, "rootPath", "");
+                            if ((kobel_slen(root_path) > 0)) {
+                                {
+                                    workspace_root = root_path;
+                                }
+                            } else {
+                                {
+                                    lsp__json__JsonValue* wf = lsp__json__JsonValue_get_arr(params, "workspaceFolders");
+                                    if ((lsp__json__JsonValue_count(wf) > ((size_t)0ULL))) {
+                                        {
+                                            lsp__json__JsonValue* wf_first = lsp__json__JsonValue_at(wf, ((size_t)0ULL));
+                                            const char* wf_uri = lsp__json__JsonValue_get_str(wf_first, "uri", "");
+                                            if ((kobel_slen(wf_uri) > 0)) {
+                                                workspace_root = lsp__document__uri_to_path(wf_uri);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    lsp__json__JsonValue* res = lsp__json__json_obj();
+                    lsp__json__JsonValue* caps = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(caps, "textDocumentSync", lsp__json__json_num(1LL));
+                    lsp__json__JsonValue_set(caps, "hoverProvider", lsp__json__json_bool(true));
+                    lsp__json__JsonValue_set(caps, "definitionProvider", lsp__json__json_bool(true));
+                    lsp__json__JsonValue_set(caps, "documentFormattingProvider", lsp__json__json_bool(true));
+                    lsp__json__JsonValue_set(caps, "documentSymbolProvider", lsp__json__json_bool(true));
+                    lsp__json__JsonValue* comp = lsp__json__json_obj();
+                    lsp__json__JsonValue* triggers = lsp__json__json_arr();
+                    lsp__json__JsonValue_add(triggers, lsp__json__json_str("."));
+                    lsp__json__JsonValue_add(triggers, lsp__json__json_str(":"));
+                    lsp__json__JsonValue_set(comp, "triggerCharacters", triggers);
+                    lsp__json__JsonValue_set(caps, "completionProvider", comp);
+                    lsp__json__JsonValue* server_info = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(server_info, "name", lsp__json__json_str("kobel-lsp"));
+                    lsp__json__JsonValue_set(server_info, "version", lsp__json__json_str("1.0.0"));
+                    lsp__json__JsonValue_set(res, "capabilities", caps);
+                    lsp__json__JsonValue_set(res, "serverInfo", server_info);
+                    lsp__protocol__send_response(id, res);
+                }
+            } else if (strcmp(method, "initialized") == 0) {
+                {
+                }
+            } else if (strcmp(method, "shutdown") == 0) {
+                {
+                    is_shutdown = true;
+                    lsp__protocol__send_response(id, lsp__json__json_null());
+                }
+            } else if (strcmp(method, "exit") == 0) {
+                {
+                    if (is_shutdown) {
+                        std__sys__sys_exit(0);
+                    } else {
+                        std__sys__sys_exit(1);
+                    }
+                }
+            } else if (strcmp(method, "textDocument/didOpen") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    const char* text = lsp__json__JsonValue_get_str(text_doc, "text", "");
+                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0LL);
+                    lsp__document__DocumentStore_set((&docs), uri, text, version);
+                    lsp__server__publish_doc_diagnostics(uri, text, workspace_root);
+                }
+            } else if (strcmp(method, "textDocument/didChange") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0LL);
+                    lsp__json__JsonValue* changes = lsp__json__JsonValue_get_arr(params, "contentChanges");
+                    if ((lsp__json__JsonValue_count(changes) > ((size_t)0ULL))) {
+                        {
+                            const char* new_text = lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(changes, ((size_t)0ULL)), "text", "");
+                            lsp__document__DocumentStore_set((&docs), uri, new_text, version);
+                            lsp__server__publish_doc_diagnostics(uri, new_text, workspace_root);
+                        }
+                    }
+                }
+            } else if (strcmp(method, "textDocument/didClose") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__document__DocumentStore_remove((&docs), uri);
+                    lsp__json__JsonValue* p = lsp__json__json_obj();
+                    lsp__json__JsonValue_set(p, "uri", lsp__json__json_str(uri));
+                    lsp__json__JsonValue_set(p, "diagnostics", lsp__json__json_arr());
+                    lsp__protocol__send_notification("textDocument/publishDiagnostics", p);
+                }
+            } else if (strcmp(method, "textDocument/hover") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__json__JsonValue* pos = lsp__json__JsonValue_get_obj(params, "position");
+                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0LL));
+                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0LL));
+                    lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
+                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                        {
+                            lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
+                            lsp__json__JsonValue* h = lsp__analysis__hover_at((&analysis), line, char_col);
+                            lsp__protocol__send_response(id, h);
+                        }
+                    } else {
+                        {
+                            lsp__protocol__send_response(id, lsp__json__json_null());
+                        }
+                    }
+                }
+            } else if (strcmp(method, "textDocument/definition") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__json__JsonValue* pos = lsp__json__JsonValue_get_obj(params, "position");
+                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0LL));
+                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0LL));
+                    lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
+                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                        {
+                            lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
+                            lsp__json__JsonValue* def_res = lsp__analysis__definition_at((&analysis), uri, line, char_col);
+                            lsp__protocol__send_response(id, def_res);
+                        }
+                    } else {
+                        {
+                            lsp__protocol__send_response(id, lsp__json__json_null());
+                        }
+                    }
+                }
+            } else if (strcmp(method, "textDocument/formatting") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
+                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                        {
+                            lsp__json__JsonValue* edits = lsp__analysis__format_document((doc).text);
+                            lsp__protocol__send_response(id, edits);
+                        }
+                    } else {
+                        {
+                            lsp__protocol__send_response(id, lsp__json__json_arr());
+                        }
+                    }
+                }
+            } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
+                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                        {
+                            lsp__json__JsonValue* syms = lsp__analysis__document_symbols((doc).text);
+                            lsp__protocol__send_response(id, syms);
+                        }
+                    } else {
+                        {
+                            lsp__protocol__send_response(id, lsp__json__json_arr());
+                        }
+                    }
+                }
+            } else if (strcmp(method, "textDocument/completion") == 0) {
+                {
+                    lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
+                    const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
+                    lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
+                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                        {
+                            lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
+                            lsp__json__JsonValue* items = lsp__analysis__complete_at((&analysis));
+                            lsp__protocol__send_response(id, items);
+                        }
+                    } else {
+                        {
+                            lsp__analysis__AnalysisResult empty_analysis = lsp__analysis__analyze_document("", "", workspace_root);
+                            lsp__json__JsonValue* items = lsp__analysis__complete_at((&empty_analysis));
+                            lsp__protocol__send_response(id, items);
+                        }
+                    }
+                }
+            } else {
+                {
+                    if (((id != NULL) && (!lsp__json__JsonValue_is_null(id)))) {
+                        {
+                            lsp__protocol__send_error(id, (-32601LL), kobel_concat(kobel_concat("Method '", method), "' not found"));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 void main__print_usage(void) {
     std__io__println("============================================================");
     std__io__println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
@@ -19308,6 +22099,7 @@ void main__print_usage(void) {
     std__io__println("");
     std__io__println("Commands:");
     std__io__println("  fmt [options] <files...>  Format Kobel source code");
+    std__io__println("  lsp                       Start Language Server Protocol (LSP) server");
     std__io__println("");
     std__io__println("Options:");
     std__io__println("  -o <file>        Specify output executable binary name");
@@ -19438,6 +22230,11 @@ int32_t main(int32_t argc, const char** argv) {
     if (kobel_streq(first_arg, "fmt")) {
         {
             return main__run_fmt(argc, argv);
+        }
+    }
+    if (kobel_streq(first_arg, "lsp")) {
+        {
+            return lsp__server__run_server();
         }
     }
     const char* input_path = "";

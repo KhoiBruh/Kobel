@@ -98,7 +98,11 @@ pub fn str_base_name(path: str): str {
 }
 
 // Joins a directory and a relative path with a single '/' separator.
-pub fn str_join_path(dir: str, rel: str): str => if (dir.len == 0) rel else "${dir}/${rel}";
+pub fn str_join_path(dir: str, rel: str): str {
+	if (dir.len == 0UZ) return rel;
+	if (str_is_sep(dir[dir.len - 1UZ])) return "${dir}${rel}";
+	return "${dir}/${rel}";
+}
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;

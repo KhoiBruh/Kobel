@@ -1,0 +1,235 @@
+mod lsp.server;
+
+use std.io.*;
+use std.sys.*;
+use std.collections.list.*;
+use util.strutil.*;
+
+use lsp.json.*;
+use lsp.protocol.*;
+use lsp.document.*;
+use lsp.analysis.*;
+
+// ============================================================================
+// Diagnostics Publisher Helper
+// ============================================================================
+
+fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
+	val p = uri_to_path(uri);
+	val analysis = analyze_document(p, text, workspace_root);
+
+	val diags_arr = json_arr();
+	for (d in analysis.diagnostics) {
+		diags_arr.add(diagnostic_to_json(d));
+	}
+
+	val notif_params = json_obj();
+	notif_params.set("uri", json_str(uri));
+	notif_params.set("diagnostics", diags_arr);
+	send_notification("textDocument/publishDiagnostics", notif_params);
+}
+
+// ============================================================================
+// Main LSP Server Event Loop
+// ============================================================================
+
+pub fn run_server(): i32 {
+	init_stdio();
+
+	var docs = DocumentStore();
+	var is_shutdown = false;
+	var workspace_root = "";
+
+	while (true) {
+		val raw_msg = read_message();
+		if (raw_msg.len == 0UZ) break; // EOF: editor closed pipe
+
+		val msg = parse_json(raw_msg);
+		if (!msg.is_obj()) continue;
+
+		val method = msg.get_str("method", "");
+		val id = msg.get("id");
+		val params = msg.get_obj("params");
+
+		when (method) {
+			"initialize" -> {
+				val root_uri = params.get_str("rootUri", "");
+				if (root_uri.len > 0) {
+					workspace_root = uri_to_path(root_uri);
+				} else {
+					val root_path = params.get_str("rootPath", "");
+					if (root_path.len > 0) {
+						workspace_root = root_path;
+					} else {
+						val wf = params.get_arr("workspaceFolders");
+						if (wf.count() > 0UZ) {
+							val wf_first = wf.at(0UZ);
+							val wf_uri = wf_first.get_str("uri", "");
+							if (wf_uri.len > 0) workspace_root = uri_to_path(wf_uri);
+						}
+					}
+				}
+
+				val res = json_obj();
+				val caps = json_obj();
+
+				// Capabilities:
+				// - textDocumentSync: 1 (Full sync)
+				// - hoverProvider: true
+				// - definitionProvider: true
+				// - documentFormattingProvider: true
+				// - documentSymbolProvider: true
+				// - completionProvider: triggers on '.' and ':'
+				caps.set("textDocumentSync", json_num(1L));
+				caps.set("hoverProvider", json_bool(true));
+				caps.set("definitionProvider", json_bool(true));
+				caps.set("documentFormattingProvider", json_bool(true));
+				caps.set("documentSymbolProvider", json_bool(true));
+
+				val comp = json_obj();
+				val triggers = json_arr();
+				triggers.add(json_str("."));
+				triggers.add(json_str(":"));
+				comp.set("triggerCharacters", triggers);
+				caps.set("completionProvider", comp);
+
+				val server_info = json_obj();
+				server_info.set("name", json_str("kobel-lsp"));
+				server_info.set("version", json_str("1.0.0"));
+
+				res.set("capabilities", caps);
+				res.set("serverInfo", server_info);
+				send_response(id, res);
+			}
+
+			"initialized" -> {
+				// Notification from client confirming initialization
+			}
+
+			"shutdown" -> {
+				is_shutdown = true;
+				send_response(id, json_null());
+			}
+
+			"exit" -> {
+				if (is_shutdown) sys_exit(0);
+				else sys_exit(1);
+			}
+
+			"textDocument/didOpen" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val text = text_doc.get_str("text", "");
+				val version = text_doc.get_num("version", 0L);
+
+				docs.set(uri, text, version);
+				publish_doc_diagnostics(uri, text, workspace_root);
+			}
+
+			"textDocument/didChange" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val version = text_doc.get_num("version", 0L);
+				val changes = params.get_arr("contentChanges");
+				if (changes.count() > 0UZ) {
+					val new_text = changes.at(0UZ).get_str("text", "");
+					docs.set(uri, new_text, version);
+					publish_doc_diagnostics(uri, new_text, workspace_root);
+				}
+			}
+
+			"textDocument/didClose" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				docs.remove(uri);
+
+				// Clear diagnostics when file is closed
+				val p = json_obj();
+				p.set("uri", json_str(uri));
+				p.set("diagnostics", json_arr());
+				send_notification("textDocument/publishDiagnostics", p);
+			}
+
+			"textDocument/hover" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0L) as usz;
+				val char_col = pos.get_num("character", 0L) as usz;
+
+				val doc = docs.get(uri);
+				if (doc.text.len > 0UZ) {
+					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val h = hover_at(&analysis, line, char_col);
+					send_response(id, h);
+				} else {
+					send_response(id, json_null());
+				}
+			}
+
+			"textDocument/definition" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0L) as usz;
+				val char_col = pos.get_num("character", 0L) as usz;
+
+				val doc = docs.get(uri);
+				if (doc.text.len > 0UZ) {
+					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val def_res = definition_at(&analysis, uri, line, char_col);
+					send_response(id, def_res);
+				} else {
+					send_response(id, json_null());
+				}
+			}
+
+			"textDocument/formatting" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val doc = docs.get(uri);
+				if (doc.text.len > 0UZ) {
+					val edits = format_document(doc.text);
+					send_response(id, edits);
+				} else {
+					send_response(id, json_arr());
+				}
+			}
+
+			"textDocument/documentSymbol" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val doc = docs.get(uri);
+				if (doc.text.len > 0UZ) {
+					val syms = document_symbols(doc.text);
+					send_response(id, syms);
+				} else {
+					send_response(id, json_arr());
+				}
+			}
+
+			"textDocument/completion" -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val doc = docs.get(uri);
+				if (doc.text.len > 0UZ) {
+					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val items = complete_at(&analysis);
+					send_response(id, items);
+				} else {
+					val empty_analysis = analyze_document("", "", workspace_root);
+					val items = complete_at(&empty_analysis);
+					send_response(id, items);
+				}
+			}
+
+			else -> {
+				if (id != null && !id.is_null()) {
+					send_error(id, -32601L, "Method '${method}' not found");
+				}
+			}
+		}
+	}
+
+	return 0;
+}

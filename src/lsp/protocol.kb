@@ -1,0 +1,139 @@
+mod lsp.protocol;
+
+use std.io.*;
+use std.collections.string_builder.*;
+use std.ascii.*;
+use util.strutil.*;
+use std.mem.alloc.*;
+use lsp.json.*;
+
+// ============================================================================
+// Libc Stdio & Mode Bindings
+// ============================================================================
+
+extern "libc" {
+	fn getchar(): i32;
+	fn putchar(c: char): i32;
+	fn fflush(stream: *none): i32;
+	fn _setmode(fd: i32, mode: i32): i32;
+}
+
+pub fn init_stdio() {
+	// Set stdin (0) and stdout (1) to binary mode (0x8000 = 32768) on Windows
+	_setmode(0, 32768);
+	_setmode(1, 32768);
+}
+
+// ============================================================================
+// Sending LSP Frames
+// ============================================================================
+
+pub fn send_raw(payload: str) {
+	val len_str = "${payload.len}";
+	print("Content-Length: ");
+	print(len_str);
+	print("\r\n\r\n");
+	print(payload);
+	fflush(null);
+}
+
+pub fn send_response(id: *JsonValue, result: *JsonValue) {
+	val msg = json_obj();
+	msg.set("jsonrpc", json_str("2.0"));
+	msg.set("id", id);
+	msg.set("result", result);
+	send_raw(msg.serialize());
+}
+
+pub fn send_error(id: *JsonValue, code: i64, message: str) {
+	val msg = json_obj();
+	msg.set("jsonrpc", json_str("2.0"));
+	msg.set("id", id);
+	val err = json_obj();
+	err.set("code", json_num(code));
+	err.set("message", json_str(message));
+	msg.set("error", err);
+	send_raw(msg.serialize());
+}
+
+pub fn send_notification(method: str, params: *JsonValue) {
+	val msg = json_obj();
+	msg.set("jsonrpc", json_str("2.0"));
+	msg.set("method", json_str(method));
+	msg.set("params", params);
+	send_raw(msg.serialize());
+}
+
+// ============================================================================
+// Receiving LSP Frames
+// ============================================================================
+
+pub fn read_message(): str {
+	var content_length: usz = 0UZ;
+
+	// 1. Read HTTP-like headers line-by-line
+	while (true) {
+		var header_line = StringBuilder();
+		var has_any = false;
+		while (true) {
+			val ch = getchar();
+			if (ch < 0) {
+				header_line.delete();
+				return ""; // EOF
+			}
+			has_any = true;
+			val c = ch as char;
+			if (c == '\n') break;
+			if (c != '\r') header_line.append_char(c);
+		}
+
+		if (!has_any) {
+			header_line.delete();
+			return "";
+		}
+
+		val line = header_line.to_str();
+		header_line.delete();
+
+		// Blank line marks the end of headers
+		if (line.len == 0UZ) break;
+
+		// Check for Content-Length (case-insensitive)
+		val prefix = "content-length:";
+		if (line.len > prefix.len) {
+			var matches = true;
+			for (i in 0UZ..<prefix.len) {
+				if (to_lower(line[i]) != prefix[i]) {
+					matches = false;
+					break;
+				}
+			}
+			if (matches) {
+				var n: usz = 0UZ;
+				for (j in prefix.len..<line.len) {
+					val c = line[j];
+					if (is_digit(c)) {
+						n = n * 10UZ + (((c as i32) - 48) as usz);
+					}
+				}
+				content_length = n;
+			}
+		}
+	}
+
+	if (content_length == 0UZ) return "";
+
+	// 2. Read exactly content_length bytes
+	val buf = raw_alloc(content_length + 1);
+	for (i in 0UZ..<content_length) {
+		val ch = getchar();
+		if (ch < 0) {
+			raw_release(buf);
+			return ""; // Unexpected EOF
+		}
+		buf[i] = ch as u8;
+	}
+	buf[content_length] = 0;
+
+	return str_from_bytes(buf, content_length);
+}

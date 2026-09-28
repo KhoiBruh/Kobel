@@ -48,6 +48,21 @@ pub struct ModuleLoader {
 	pub arena: Arena
 }
 
+pub fn detect_project_root(start_dir: str): str {
+	var curr = start_dir;
+	var count: usz = 0UZ;
+	while (curr.len > 0UZ && count < 10UZ) {
+		val test_file = str_join_path(curr, "lib/std/io.kb");
+		val test_content = read_file(test_file);
+		if (test_content.len > 0UZ) return curr;
+		val parent = str_dir_of(curr);
+		if (parent == curr || parent.len == 0UZ) break;
+		curr = parent;
+		count++;
+	}
+	return "";
+}
+
 impl ModuleLoader {
 
 	pub fn new(entry_dir: str, extra_roots: List<str>): Self {
@@ -59,6 +74,14 @@ impl ModuleLoader {
 		// Default roots: the standard library (lib/) and the compiler source (src/)
 		roots.add("lib");
 		roots.add("src");
+
+		// Auto-detect project root if entry_dir is within a Kobel project tree
+		val proj = detect_project_root(entry_dir);
+		if (proj.len > 0UZ) {
+			roots.add(proj);
+			roots.add(str_join_path(proj, "lib"));
+			roots.add(str_join_path(proj, "src"));
+		}
 
 		return Self(
 			roots,
@@ -119,6 +142,10 @@ impl ModuleLoader {
 
 	// Loads a module (and every module it `use`s) if not already loaded.
 	pub fn ensure_module(var self, module_name: str) {
+		self.ensure_module_at(module_name, 0UZ, 0UZ);
+	}
+
+	pub fn ensure_module_at(var self, module_name: str, line: usz, col: usz) {
 		if (self.is_known(module_name)) return;
 
 		// Mark it first to avoid infinite recursion when imports form a cycle
@@ -126,7 +153,11 @@ impl ModuleLoader {
 
 		val file = self.find_module(module_name);
 		if (!file.found) {
-			val msg = "Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)";
+			val msg = if (line > 0UZ) {
+				"Line ${line}, Column ${col}: Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+			} else {
+				"Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+			};
 			self.errors.add(msg);
 			return;
 		}
@@ -136,7 +167,12 @@ impl ModuleLoader {
 
 		val declared = declared_module_name(prog);
 		if (declared.len > 0 && declared != module_name) {
-			self.errors.add("${file.path}: module declared as '${declared}' but imported as '${module_name}'");
+			val msg = if (line > 0UZ) {
+				"Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+			} else {
+				"${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+			};
+			self.errors.add(msg);
 			return;
 		}
 
@@ -155,7 +191,7 @@ impl ModuleLoader {
 					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
 					else -> ""
 				};
-				if (mod_name.len > 0) self.ensure_module(mod_name);
+				if (mod_name.len > 0) self.ensure_module_at(mod_name, decl.line, decl.col);
 			}
 		}
 	}

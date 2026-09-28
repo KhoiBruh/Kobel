@@ -1,0 +1,572 @@
+mod lsp.analysis;
+
+use compiler.lexer.lexer.*;
+use compiler.lexer.token.*;
+use compiler.parser.parser.*;
+use compiler.parser.decl.*;
+use compiler.ast.node.*;
+use compiler.ast.decl.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.symbol.*;
+use compiler.loader.loader.*;
+use compiler.sema.types.*;
+
+use fmt.options.*;
+use fmt.formatter.*;
+
+use lsp.json.*;
+use lsp.document.*;
+use std.collections.list.*;
+use std.ascii.*;
+use util.strutil.*;
+
+// ============================================================================
+// LSP Diagnostic Model
+// ============================================================================
+
+pub struct LspDiagnostic {
+	pub line: usz,
+	pub col: usz,
+	pub end_line: usz,
+	pub end_col: usz,
+	pub severity: i64,
+	pub message: str
+}
+
+pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
+	var line: usz = 1UZ;
+	var col: usz = 1UZ;
+	var msg_start: usz = 0UZ;
+
+	// Look for "Line "
+	val line_tag = "Line ";
+	var line_idx: usz = 0UZ;
+	var found_line = false;
+	if (err_str.len >= line_tag.len) {
+		for (i in 0UZ..<(err_str.len - line_tag.len)) {
+			var m = true;
+			for (k in 0UZ..<line_tag.len) {
+				if (err_str[i + k] != line_tag[k]) {
+					m = false;
+					break;
+				}
+			}
+			if (m) {
+				line_idx = i + line_tag.len;
+				found_line = true;
+				break;
+			}
+		}
+	}
+
+	if (found_line) {
+		var n: usz = 0UZ;
+		var idx = line_idx;
+		while (idx < err_str.len && is_digit(err_str[idx])) {
+			n = n * 10UZ + (((err_str[idx] as i32) - 48) as usz);
+			idx++;
+		}
+		if (n > 0UZ) line = n;
+
+		// Look for "Column "
+		val col_tag = "Column ";
+		var col_idx: usz = 0UZ;
+		var found_col = false;
+		if (err_str.len >= idx + col_tag.len) {
+			for (i in idx..<(err_str.len - col_tag.len)) {
+				var m = true;
+				for (k in 0UZ..<col_tag.len) {
+					if (err_str[i + k] != col_tag[k]) {
+						m = false;
+						break;
+					}
+				}
+				if (m) {
+					col_idx = i + col_tag.len;
+					found_col = true;
+					break;
+				}
+			}
+		}
+
+		if (found_col) {
+			var cn: usz = 0UZ;
+			var c_idx = col_idx;
+			while (c_idx < err_str.len && is_digit(err_str[c_idx])) {
+				cn = cn * 10UZ + (((err_str[c_idx] as i32) - 48) as usz);
+				c_idx++;
+			}
+			if (cn > 0UZ) col = cn;
+
+			// Skip ": "
+			while (c_idx < err_str.len && (err_str[c_idx] == ':' || err_str[c_idx] == ' ')) {
+				c_idx++;
+			}
+			msg_start = c_idx;
+		}
+	}
+
+	val actual_msg = if (msg_start < err_str.len) err_str.slice(msg_start, err_str.len) else err_str;
+
+	val l0 = if (line > 0UZ) line - 1UZ else 0UZ;
+	val c0 = if (col > 0UZ) col - 1UZ else 0UZ;
+
+	var end_col = c0 + 1UZ;
+	if (source.len > 0UZ) {
+		var cur_line: usz = 0UZ;
+		var line_start: usz = 0UZ;
+		var pos: usz = 0UZ;
+		while (pos < source.len && cur_line < l0) {
+			if (source[pos] == '\n') {
+				cur_line++;
+				line_start = pos + 1UZ;
+			}
+			pos++;
+		}
+
+		if (cur_line == l0 && line_start < source.len) {
+			var line_end = line_start;
+			while (line_end < source.len && source[line_end] != '\n' && source[line_end] != '\r') {
+				line_end++;
+			}
+
+			val char_idx = line_start + c0;
+			if (char_idx < line_end) {
+				if (source[char_idx] == 'u' && (char_idx + 3UZ <= line_end) &&
+				    source[char_idx + 1UZ] == 's' && source[char_idx + 2UZ] == 'e') {
+					var s_idx = char_idx;
+					while (s_idx < line_end && source[s_idx] != ';') {
+						s_idx++;
+					}
+					if (s_idx < line_end && source[s_idx] == ';') s_idx++;
+					end_col = s_idx - line_start;
+				} else if (is_alphanumeric(source[char_idx]) || source[char_idx] == '_') {
+					var w_idx = char_idx;
+					while (w_idx < line_end && (is_alphanumeric(source[w_idx]) || source[w_idx] == '_')) {
+						w_idx++;
+					}
+					end_col = w_idx - line_start;
+				}
+			}
+		}
+	}
+
+	if (end_col <= c0) end_col = c0 + 1UZ;
+
+	return LspDiagnostic(l0, c0, l0, end_col, 1L, actual_msg);
+}
+
+pub fn diagnostic_to_json(d: LspDiagnostic): *JsonValue {
+	val obj = json_obj();
+
+	val range = json_obj();
+	val start_pos = json_obj();
+	start_pos.set("line", json_num(d.line as i64));
+	start_pos.set("character", json_num(d.col as i64));
+	val end_pos = json_obj();
+	end_pos.set("line", json_num(d.end_line as i64));
+	end_pos.set("character", json_num(d.end_col as i64));
+	range.set("start", start_pos);
+	range.set("end", end_pos);
+
+	obj.set("range", range);
+	obj.set("severity", json_num(d.severity));
+	obj.set("source", json_str("kobel"));
+	obj.set("message", json_str(d.message));
+
+	return obj;
+}
+
+// ============================================================================
+// Document Analysis & Diagnostics Collection
+// ============================================================================
+
+pub struct AnalysisResult {
+	pub diagnostics: List<LspDiagnostic>,
+	pub symtab: SymbolTable,
+	pub has_symtab: bool,
+	pub tokens: List<Token>
+}
+
+pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisResult {
+	var diagnostics = List<LspDiagnostic>();
+
+	// 1. Lexical analysis
+	var lexer = Lexer(source);
+	val tokens = lexer.tokenize();
+
+	// Check for unknown tokens
+	for (tok in tokens) {
+		if (tok.type == TokenType.UNKNOWN) {
+			val l0 = if (tok.line > 0UZ) tok.line - 1UZ else 0UZ;
+			val c0 = if (tok.col > 0UZ) tok.col - 1UZ else 0UZ;
+			diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1UZ, 1L, "Unrecognized character or syntax"));
+		}
+	}
+
+	// 2. Syntax analysis (Parser)
+	var parser = Parser(tokens);
+	val prog = parser.parse_program();
+
+	if (parser.errors.len > 0) {
+		for (err_msg in parser.errors) {
+			diagnostics.add(parse_diagnostic(err_msg, source));
+		}
+		var empty_symtab = SymbolTable();
+		return AnalysisResult(diagnostics, empty_symtab, false, tokens);
+	}
+
+	// 3. Module loading & semantic analysis (DeclPass)
+	val entry_dir = str_dir_of(path);
+	var extra_roots = List<str>();
+	if (workspace_root.len > 0UZ) {
+		extra_roots.add(workspace_root);
+		extra_roots.add(str_join_path(workspace_root, "lib"));
+		extra_roots.add(str_join_path(workspace_root, "src"));
+	}
+	var loader = ModuleLoader(entry_dir, extra_roots);
+
+	val full_prog = loader.load_program(path, source);
+	if (loader.errors.len > 0) {
+		for (err_msg in loader.errors) {
+			diagnostics.add(parse_diagnostic(err_msg, source));
+		}
+	}
+
+	if (full_prog != null) {
+		var decl_p = DeclPass();
+		decl_p.collect_program(full_prog);
+		if (decl_p.errors.len > 0) {
+			for (err_msg in decl_p.errors) {
+				diagnostics.add(parse_diagnostic(err_msg, source));
+			}
+		}
+		return AnalysisResult(diagnostics, decl_p.symtab, true, tokens);
+	}
+
+	var empty_symtab = SymbolTable();
+	return AnalysisResult(diagnostics, empty_symtab, false, tokens);
+}
+
+// ============================================================================
+// Hover Provider
+// ============================================================================
+
+pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): Token {
+	for (tok in tokens) {
+		if (tok.line == target_line) {
+			val len = tok.text.len;
+			if (target_col >= tok.col && target_col <= (tok.col + len)) {
+				return tok;
+			}
+		}
+	}
+	return Token(TokenType.UNKNOWN, "", 0UZ, 0UZ);
+}
+
+pub fn keyword_hover(kw: str): str => when (kw) {
+	"fn" -> "```kobel\nfn <name>(<params>): <type>\n```\nDeclares a function.",
+	"val" -> "```kobel\nval <name> = <expr>\n```\nDeclares an immutable local binding.",
+	"var" -> "```kobel\nvar <name> = <expr>\n```\nDeclares a mutable variable.",
+	"const" -> "```kobel\nconst <name>: <type> = <expr>\n```\nDeclares a compile-time constant.",
+	"struct" -> "```kobel\nstruct <name> { <fields> }\n```\nDeclares a record/struct data type.",
+	"enum" -> "```kobel\nenum <name> { <members> }\n```\nDeclares an enumeration.",
+	"trait" -> "```kobel\ntrait <name> { <methods> }\n```\nDeclares an interface/trait contract.",
+	"impl" -> "```kobel\nimpl <type> { <methods> }\n```\nImplements methods or traits for a type.",
+	"when" -> "```kobel\nwhen (<expr>) { <pattern> -> <expr> }\n```\nPattern matching expression or statement.",
+	"if" -> "```kobel\nif (<cond>) <then> else <else>\n```\nConditional branching.",
+	"while" -> "```kobel\nwhile (<cond>) { <body> }\n```\nWhile loop.",
+	"for" -> "```kobel\nfor (<item> in <seq>) { <body> }\n```\nIteration loop.",
+	"return" -> "```kobel\nreturn <expr>;\n```\nReturns from function.",
+	"pub" -> "Visibility modifier: makes declaration accessible outside current module.",
+	"use" -> "```kobel\nuse <module>.*;\n```\nImports symbols from another module.",
+	"mod" -> "```kobel\nmod <module.path>;\n```\nDeclares current module namespace.",
+	"extern" -> "```kobel\nextern \"libc\" { ... }\n```\nDeclares external C ABI foreign functions.",
+	"as" -> "Type casting operator: `expr as Type`.",
+	else -> ""
+};
+
+pub fn hover_at(analysis: &AnalysisResult, line0: usz, col0: usz): *JsonValue {
+	val target_line = line0 + 1UZ;
+	val target_col = col0 + 1UZ;
+
+	val tok = find_token_at(analysis.tokens, target_line, target_col);
+	if (tok.type == TokenType.UNKNOWN || tok.text.len == 0UZ) return json_null();
+
+	// 1. Check keywords
+	val kw_doc = keyword_hover(tok.text);
+	if (kw_doc.len > 0UZ) {
+		val res = json_obj();
+		val contents = json_obj();
+		contents.set("kind", json_str("markdown"));
+		contents.set("value", json_str(kw_doc));
+		res.set("contents", contents);
+		return res;
+	}
+
+	// 2. Check identifier symbol in symbol table
+	if (analysis.has_symtab && tok.type == TokenType.IDENTIFIER) {
+		val sym = analysis.symtab.lookup(tok.text);
+		if (sym != null) {
+			var md = "```kobel\n";
+			when (sym.kind) {
+				SymbolKind.FN -> {
+					md = "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
+				}
+				SymbolKind.STRUCT -> {
+					md = "${md}struct ${sym.name}";
+				}
+				SymbolKind.ENUM -> {
+					md = "${md}enum ${sym.name}";
+				}
+				SymbolKind.VAR -> {
+					md = "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
+				}
+				SymbolKind.CONST -> {
+					md = "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
+				}
+				SymbolKind.PARAM -> {
+					md = "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
+				}
+				else -> {
+					md = "${md}${sym.name}: ${sym.type_ptr.to_str()}";
+				}
+			}
+			md = "${md}\n```";
+
+			val res = json_obj();
+			val contents = json_obj();
+			contents.set("kind", json_str("markdown"));
+			contents.set("value", json_str(md));
+			res.set("contents", contents);
+			return res;
+		}
+	}
+
+	return json_null();
+}
+
+// ============================================================================
+// Go-to-Definition Provider
+// ============================================================================
+
+pub fn definition_at(analysis: &AnalysisResult, doc_uri: str, line0: usz, col0: usz): *JsonValue {
+	val target_line = line0 + 1UZ;
+	val target_col = col0 + 1UZ;
+
+	val tok = find_token_at(analysis.tokens, target_line, target_col);
+	if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0UZ) return json_null();
+
+	if (analysis.has_symtab) {
+		val sym = analysis.symtab.lookup(tok.text);
+		if (sym != null && sym.line > 0UZ) {
+			val res = json_obj();
+			res.set("uri", json_str(doc_uri));
+
+			val range = json_obj();
+			val start_pos = json_obj();
+			start_pos.set("line", json_num((sym.line - 1UZ) as i64));
+			start_pos.set("character", json_num((sym.col - 1UZ) as i64));
+			val end_pos = json_obj();
+			end_pos.set("line", json_num((sym.line - 1UZ) as i64));
+			end_pos.set("character", json_num((sym.col - 1UZ + sym.name.len) as i64));
+			range.set("start", start_pos);
+			range.set("end", end_pos);
+
+			res.set("range", range);
+			return res;
+		}
+	}
+
+	return json_null();
+}
+
+// ============================================================================
+// Document Symbol Outline Provider
+// ============================================================================
+
+pub fn document_symbols(source: str): *JsonValue {
+	var lexer = Lexer(source);
+	val tokens = lexer.tokenize();
+	var parser = Parser(tokens);
+	val prog_node = parser.parse_program();
+
+	val arr = json_arr();
+	if (prog_node == null) return arr;
+
+	val prog = prog_node.to<Program>();
+	for (decl in prog) {
+		var sym_name = "";
+		var sym_kind: i64 = 0L; // LSP SymbolKind
+
+		when (decl.kind) {
+			NodeKind.DECL_FN -> {
+				val f = decl.to<FnDecl>();
+				sym_name = f.name;
+				sym_kind = 12L; // Function
+			}
+			NodeKind.DECL_STRUCT -> {
+				val s = decl.to<StructDecl>();
+				sym_name = s.name;
+				sym_kind = 23L; // Struct
+			}
+			NodeKind.DECL_ENUM -> {
+				val e = decl.to<EnumDecl>();
+				sym_name = e.name;
+				sym_kind = 10L; // Enum
+			}
+			NodeKind.DECL_TRAIT -> {
+				val t = decl.to<TraitDecl>();
+				sym_name = t.name;
+				sym_kind = 11L; // Interface
+			}
+			NodeKind.DECL_IMPL -> {
+				val im = decl.to<ImplDecl>();
+				sym_name = "impl ${im.struct_name}";
+				sym_kind = 5L; // Class
+			}
+			NodeKind.DECL_CONST -> {
+				val c = decl.to<ConstDecl>();
+				sym_name = c.name;
+				sym_kind = 14L; // Constant
+			}
+			else -> {}
+		}
+
+		if (sym_name.len > 0UZ) {
+			val item = json_obj();
+			item.set("name", json_str(sym_name));
+			item.set("kind", json_num(sym_kind));
+
+			val l0 = if (decl.line > 0UZ) decl.line - 1UZ else 0UZ;
+			val c0 = if (decl.col > 0UZ) decl.col - 1UZ else 0UZ;
+
+			val range = json_obj();
+			val s_pos = json_obj();
+			s_pos.set("line", json_num(l0 as i64));
+			s_pos.set("character", json_num(c0 as i64));
+			val e_pos = json_obj();
+			e_pos.set("line", json_num(l0 as i64));
+			e_pos.set("character", json_num((c0 + sym_name.len) as i64));
+			range.set("start", s_pos);
+			range.set("end", e_pos);
+
+			item.set("range", range);
+			item.set("selectionRange", range);
+
+			arr.add(item);
+		}
+	}
+
+	return arr;
+}
+
+// ============================================================================
+// Formatting Provider
+// ============================================================================
+
+pub fn format_document(text: str): *JsonValue {
+	val options = default_format_options();
+	val formatted = format_source(text, options);
+
+	val edits = json_arr();
+	val edit = json_obj();
+
+	val range = json_obj();
+	val start_pos = json_obj();
+	start_pos.set("line", json_num(0L));
+	start_pos.set("character", json_num(0L));
+	val end_pos = json_obj();
+	end_pos.set("line", json_num(999999L));
+	end_pos.set("character", json_num(0L));
+	range.set("start", start_pos);
+	range.set("end", end_pos);
+
+	edit.set("range", range);
+	edit.set("newText", json_str(formatted));
+	edits.add(edit);
+
+	return edits;
+}
+
+// ============================================================================
+// Completion Provider
+// ============================================================================
+
+fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
+	val item = json_obj();
+	item.set("label", json_str(label));
+	item.set("kind", json_num(kind));
+	if (detail.len > 0UZ) {
+		item.set("detail", json_str(detail));
+	}
+	arr.add(item);
+}
+
+pub fn complete_at(analysis: &AnalysisResult): *JsonValue {
+	val items = json_arr();
+
+	// 1. Language Keywords (Kind: 14 = Keyword)
+	add_completion_item(items, "fn", 14L, "Function declaration");
+	add_completion_item(items, "val", 14L, "Immutable binding");
+	add_completion_item(items, "var", 14L, "Mutable variable");
+	add_completion_item(items, "const", 14L, "Constant declaration");
+	add_completion_item(items, "struct", 14L, "Struct type");
+	add_completion_item(items, "enum", 14L, "Enum type");
+	add_completion_item(items, "trait", 14L, "Trait definition");
+	add_completion_item(items, "impl", 14L, "Implementation block");
+	add_completion_item(items, "when", 14L, "Pattern matching");
+	add_completion_item(items, "if", 14L, "Conditional");
+	add_completion_item(items, "else", 14L, "Else branch");
+	add_completion_item(items, "while", 14L, "While loop");
+	add_completion_item(items, "for", 14L, "For-in loop");
+	add_completion_item(items, "in", 14L, "Iteration in");
+	add_completion_item(items, "return", 14L, "Return statement");
+	add_completion_item(items, "pub", 14L, "Public visibility");
+	add_completion_item(items, "use", 14L, "Module import");
+	add_completion_item(items, "mod", 14L, "Module declaration");
+	add_completion_item(items, "extern", 14L, "External declaration");
+	add_completion_item(items, "true", 14L, "Boolean true");
+	add_completion_item(items, "false", 14L, "Boolean false");
+	add_completion_item(items, "null", 14L, "Null pointer");
+	add_completion_item(items, "as", 14L, "Type cast");
+	add_completion_item(items, "break", 14L, "Break loop");
+	add_completion_item(items, "continue", 14L, "Continue loop");
+
+	// 2. Built-in Primitive Types (Kind: 7 = Class/Type)
+	add_completion_item(items, "i8", 7L, "Signed 8-bit integer");
+	add_completion_item(items, "i16", 7L, "Signed 16-bit integer");
+	add_completion_item(items, "i32", 7L, "Signed 32-bit integer");
+	add_completion_item(items, "i64", 7L, "Signed 64-bit integer");
+	add_completion_item(items, "isz", 7L, "Signed pointer-size integer");
+	add_completion_item(items, "u8", 7L, "Unsigned 8-bit integer");
+	add_completion_item(items, "u16", 7L, "Unsigned 16-bit integer");
+	add_completion_item(items, "u32", 7L, "Unsigned 32-bit integer");
+	add_completion_item(items, "u64", 7L, "Unsigned 64-bit integer");
+	add_completion_item(items, "usz", 7L, "Unsigned pointer-size integer");
+	add_completion_item(items, "f32", 7L, "32-bit float");
+	add_completion_item(items, "f64", 7L, "64-bit float");
+	add_completion_item(items, "bool", 7L, "Boolean type");
+	add_completion_item(items, "char", 7L, "ASCII character type");
+	add_completion_item(items, "str", 7L, "String type");
+	add_completion_item(items, "none", 7L, "Unit / void type");
+
+	// 3. User & imported symbols from SymbolTable
+	if (analysis.has_symtab) {
+		for (mod_scope in analysis.symtab.modules) {
+			for (sym in mod_scope.symbols) {
+				val k = when (sym.kind) {
+					SymbolKind.FN -> 3L, // Function
+					SymbolKind.STRUCT -> 22L, // Struct
+					SymbolKind.ENUM -> 13L, // Enum
+					SymbolKind.VAR -> 6L, // Variable
+					SymbolKind.CONST -> 21L, // Constant
+					else -> 6L
+				};
+				add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
+			}
+		}
+	}
+
+	return items;
+}
