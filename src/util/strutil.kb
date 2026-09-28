@@ -180,4 +180,3 @@ pub fn str_starts_with(s: str, prefix: str): bool {
 	if (s.len < prefix.len) return false;
 	return s.slice(0, prefix.len) == prefix;
 }
-

@@ -92,7 +92,7 @@ pub struct Token {
 }
 
 impl ToStr for Token {
-	pub fn to_str(val self): str => self.text;
+	pub fn to_str(val self) => self.text;
 }
 
-pub fn strip_suffix(s: str, n: usz): str => if (s.len <= n) "" else s.slice(0, s.len - n);
+pub fn strip_suffix(s: str, n: usz) => if (s.len <= n) "" else s.slice(0, s.len - n);

@@ -78,7 +78,7 @@ impl ModuleLoader {
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.make<Program>(NodeKind.PROGRAM, Program(declarations), line, col);
 
-	pub fn count(self) => self.ordered.len;
+	pub fn count(val self) => self.ordered.len;
 
 	// ============================================================================
 	// Parsing
@@ -113,7 +113,7 @@ impl ModuleLoader {
 		return ModuleFile(false, "", "");
 	}
 
-	pub fn is_known(self, module_name: str): bool {
+	pub fn is_known(val self, module_name: str): bool {
 		for (lm in self.modules) {
 			if (lm.name == module_name) return true;
 		}

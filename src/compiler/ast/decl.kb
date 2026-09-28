@@ -97,11 +97,11 @@ pub struct Program {
 }
 
 impl Iterable for ExternBlock {
-	pub fn count(val self): usz => self.declarations.len;
-	pub fn at(val self, i: usz): *AstNode => self.declarations[i];
+	pub fn count(val self) => self.declarations.len;
+	pub fn at(val self, i: usz) => self.declarations[i];
 }
 
 impl Iterable for Program {
-	pub fn count(val self): usz => self.declarations.len;
-	pub fn at(val self, i: usz): *AstNode => self.declarations[i];
+	pub fn count(val self) => self.declarations.len;
+	pub fn at(val self, i: usz) => self.declarations[i];
 }

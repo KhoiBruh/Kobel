@@ -60,7 +60,7 @@ pub struct AstNode {
 }
 
 impl AstNode {
-	pub fn to<T>(val self): *T => self.data as *T;
+	pub fn to<T>(val self) => self.data as *T;
 }
 
 impl Arena {

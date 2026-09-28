@@ -75,13 +75,15 @@ impl Parser {
 			else if (self.match_token(TokenType.KW_VAL)) has_val = true;
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
-			var ptype: *AstNode = null;
-			if (self.match_token(TokenType.COLON)) {
-				ptype = self.parse_type();
-			} else if (pname.text != "self") {
-				self.consume(TokenType.COLON, "Expected ':' after parameter name");
-				ptype = self.parse_type();
-			}
+			val ptype = when {
+				self.match_token(TokenType.COLON) -> self.parse_type();
+				pname.text != "self" -> {
+					self.consume(TokenType.COLON, "Expected ':' after parameter name");
+					yield self.parse_type();
+				}
+				else -> null;
+			};
+
 			params.add(Param(pname.text, ptype, is_mut, has_val));
 
 			while (self.match_token(TokenType.COMMA)) {
@@ -91,13 +93,15 @@ impl Parser {
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
-				var p_type: *AstNode = null;
-				if (self.match_token(TokenType.COLON)) {
-					p_type = self.parse_type();
-				} else if (p_name.text != "self") {
-					self.consume(TokenType.COLON, "Expected ':' after parameter name");
-					p_type = self.parse_type();
-				}
+				val p_type = when {
+					self.match_token(TokenType.COLON) -> self.parse_type();
+					p_name.text != "self" -> {
+						self.consume(TokenType.COLON, "Expected ':' after parameter name");
+						yield self.parse_type();
+					}
+					else -> null;
+				};
+
 				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val));
 			}
 		}
