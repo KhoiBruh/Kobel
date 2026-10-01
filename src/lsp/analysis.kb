@@ -10,6 +10,7 @@ use compiler.sema.decl_pass.*;
 use compiler.sema.symbol.*;
 use compiler.loader.loader.*;
 use compiler.sema.types.*;
+use compiler.sema.body_pass.*;
 
 use fmt.options.*;
 use fmt.formatter.*;
@@ -241,6 +242,16 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 				diagnostics.add(parse_diagnostic(err_msg, source));
 			}
 		}
+
+		// 4. Type & body semantic analysis (BodyPass)
+		var body_p = BodyPass(decl_p.symtab);
+		body_p.check_program(full_prog);
+		if (body_p.errors.len > 0) {
+			for (err_msg in body_p.errors) {
+				diagnostics.add(parse_diagnostic(err_msg, source));
+			}
+		}
+
 		return AnalysisResult(diagnostics, decl_p.symtab, true, tokens);
 	}
 

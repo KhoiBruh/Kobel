@@ -176,6 +176,11 @@ impl BodyPass {
 			return fn_info.return_type;
 		}
 
+		if (obj_ty.kind == DataType.STRUCT) {
+			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
+			return alloc_primitive(&self.arena, type_none());
+		}
+
 		return null;
 	}
 
