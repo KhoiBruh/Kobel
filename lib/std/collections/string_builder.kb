@@ -19,21 +19,12 @@ pub struct StringBuilder {
 
 // Kotlin-style constructor: `StringBuilder()`.
 impl StringBuilder {
-	pub fn new(): StringBuilder {
+	pub fn new(): Self {
 		val init_cap = 32UZ;
 		val raw = raw_alloc(init_cap);
 		return Self(raw, 0, init_cap);
 	}
-}
 
-// `for (c in sb)` walks the built characters.
-impl Iterable for StringBuilder {
-	pub fn count(val self): usz => self.len;
-
-	pub fn at(val self, i: usz): char => self.buf[i] as char;
-}
-
-impl StringBuilder {
 	pub fn append_char(var self, c: char) {
 		if (self.len + 2 >= self.cap) self.grow(self.len + 2);
 		self.buf[self.len] = c as u8;
@@ -62,7 +53,7 @@ impl StringBuilder {
 
 		// Emit from the most significant digit: find that digit's place value
 		// first, then peel digits off one at a time (no temporary array needed).
-		var place: i32 = 1;
+		var place = 1;
 		var probe = v;
 		while (probe >= 10) {
 			probe /= 10;
@@ -98,10 +89,17 @@ impl StringBuilder {
 	}
 }
 
+// `for (c in sb)` walks the built characters.
+impl Iterable for StringBuilder {
+	pub fn count(val self) => self.len;
+
+	pub fn at(val self, i: usz) => self.buf[i] as char;
+}
+
 impl ToStr for StringBuilder {
 	pub fn to_str(val self): str {
 		val str_data = raw_alloc(self.len + 1);
-		for (i in 0UZ..<self.len) {
+		for (i in 0..<self.len) {
 			str_data[i] = self.buf[i];
 		}
 		str_data[self.len] = 0;

@@ -12,7 +12,7 @@ pub fn is_hex_digit(c: char) => is_digit(c) || (c >= 'a' && c <= 'f') || (c >= '
 
 pub fn to_lower(c: char): char {
 	if (c >= 'A' && c <= 'Z') {
-		val offset: i32 = (c as i32) + 32;
+		val offset = (c as i32) + 32;
 		return offset as char;
 	}
 	return c;
@@ -20,7 +20,7 @@ pub fn to_lower(c: char): char {
 
 pub fn to_upper(c: char): char {
 	if (c >= 'a' && c <= 'z') {
-		val offset: i32 = (c as i32) - 32;
+		val offset = (c as i32) - 32;
 		return offset as char;
 	}
 	return c;

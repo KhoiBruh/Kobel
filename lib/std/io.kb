@@ -22,9 +22,7 @@ struct StringRaw {
 }
 
 pub fn print(s: str) {
-	for (i in 0..<s.len) {
-		putchar(s[i]);
-	}
+	for (i in 0..<s.len) putchar(s[i]);
 }
 
 pub fn println(s: str) => puts(s.c_str());

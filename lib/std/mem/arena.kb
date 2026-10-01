@@ -16,22 +16,23 @@ pub struct Arena {
 }
 
 impl Arena {
-	pub fn new(): Arena => Self(null, 65536UZ);
+	pub fn new() => Self(null, 65536);
 
 	pub fn new(block_size: usz): Arena {
 		var bs = block_size;
 		if (bs == 0) bs = 65536;
 		return Self(null, bs);
 	}
+
 	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
-		var al: usz = align;
+		var al = align;
 		if (al == 0) al = 8;
 
 		if (self.current == null) self.new_block(size);
 
-		var blk: &ArenaBlock = self.current as &ArenaBlock;
-		val rem: usz = blk.used % al;
-		var aligned_used: usz = blk.used;
+		var blk = self.current as &ArenaBlock;
+		val rem = blk.used % al;
+		var aligned_used = blk.used;
 		if (rem != 0) aligned_used = blk.used + (al - rem);
 
 		if (aligned_used + size > blk.size) {
@@ -40,19 +41,20 @@ impl Arena {
 			aligned_used = 0;
 		}
 
-		val addr: usz = (blk.data as usz) + aligned_used;
-		val ptr: &u8 = addr as &u8;
+		val addr = (blk.data as usz) + aligned_used;
+		val ptr = addr as &u8;
 		blk.used = aligned_used + size;
 		return ptr;
 	}
 
 	fn new_block(var self, min_size: usz) {
-		var sz: usz = self.block_size;
+		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data: &u8 = raw_alloc(sz);
-		val blk_mem: &u8 = raw_alloc(ArenaBlock.size());
-		val blk: &ArenaBlock = blk_mem as &ArenaBlock;
+		val data = raw_alloc(sz);
+		val blk_mem = raw_alloc(ArenaBlock.size());
+		val blk = blk_mem as &ArenaBlock;
+
 		blk.data = data;
 		blk.size = sz;
 		blk.used = 0;
@@ -61,19 +63,19 @@ impl Arena {
 	}
 
 	pub fn reset(var self) {
-		var curr: *ArenaBlock = self.current;
+		var curr = self.current;
 		while (curr != null) {
-			val blk: &ArenaBlock = curr as &ArenaBlock;
+			val blk = curr as &ArenaBlock;
 			blk.used = 0;
 			curr = blk.next;
 		}
 	}
 
 	pub fn delete(var self) {
-		var curr: *ArenaBlock = self.current;
+		var curr = self.current;
 		while (curr != null) {
-			val blk: &ArenaBlock = curr as &ArenaBlock;
-			val next_blk: *ArenaBlock = blk.next;
+			val blk = curr as &ArenaBlock;
+			val next_blk = blk.next;
 			raw_release(blk.data);
 			raw_release(curr as &u8);
 			curr = next_blk;
@@ -82,7 +84,7 @@ impl Arena {
 	}
 
 	pub fn alloc<T>(var self): *T {
-		val raw: &u8 = self.alloc_bytes(T.size(), 8);
+		val raw = self.alloc_bytes(T.size(), 8);
 		return raw as *T;
 	}
 

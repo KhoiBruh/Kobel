@@ -5,8 +5,6 @@ extern "libc" {
 	fn system(cmd: *char): i32;
 }
 
-pub fn sys_exit(code: i32) {
-	exit(code);
-}
+pub fn sys_exit(code: i32) => exit(code);
 
 pub fn exec(cmd: str) => system(cmd.c_str());

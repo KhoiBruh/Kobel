@@ -11,23 +11,17 @@ pub struct HashMap<V> {
 	cap: usz
 }
 
-// Kotlin-style constructor: `HashMap<V>()`.
 impl HashMap<V> {
-	pub fn new(): HashMap<V> {
+	pub fn new(): Self<V> {
 		val init_cap = 16UZ;
-		val raw_keys = raw_alloc(init_cap * str.size());
-		val raw_vals = raw_alloc(init_cap * V.size());
-		val raw_occ = raw_alloc(init_cap * bool.size());
+		val keys = alloc_array<str>(init_cap);
+		val values = alloc_array<V>(init_cap);
+		val occ = alloc_array<bool>(init_cap);
 
-		val occ = raw_occ as &bool;
-		for (i in 0..<init_cap) {
-			occ[i] = false;
-		}
-		return Self(raw_keys as &str, raw_vals as &V, occ, 0, init_cap);
+		for (i in 0..<init_cap) occ[i] = false;
+		return Self(keys, values, occ, 0, init_cap);
 	}
-}
 
-impl HashMap<V> {
 	fn hash_key(val self, key: str): usz {
 		var h = 5381UZ;
 		for (i in 0..<key.len) {
@@ -37,7 +31,7 @@ impl HashMap<V> {
 		return h;
 	}
 
-	pub fn put(var self, key: str, value: V): none {
+	pub fn put(var self, key: str, value: V) {
 		if (self.len * 10 >= self.cap * 7) self.grow();
 
 		val h = self.hash_key(key);
@@ -79,24 +73,23 @@ impl HashMap<V> {
 		return default_val;
 	}
 
-	fn grow(var self): none {
+	fn grow(var self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
 		val old_vals = self.values;
 		val old_occ = self.occupied;
 
 		val new_cap = old_cap * 2;
-		val raw_keys = raw_alloc(new_cap * str.size());
-		val raw_vals = raw_alloc(new_cap * V.size());
-		val raw_occ = raw_alloc(new_cap * bool.size());
+		val keys = alloc_array<str>(new_cap);
+		val values = alloc_array<V>(new_cap);
+		val new_occ = alloc_array<bool>(new_cap);
 
-		val new_occ = raw_occ as &bool;
 		for (j in 0..<new_cap) {
 			new_occ[j] = false;
 		}
 
-		self.keys = raw_keys as &str;
-		self.values = raw_vals as &V;
+		self.keys = keys;
+		self.values = values;
 		self.occupied = new_occ;
 		self.cap = new_cap;
 		self.len = 0;
