@@ -45,7 +45,8 @@ pub struct BodyPass {
 	pub current_self_type: *Type,
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool,
-	pub when_depth: usz
+	pub when_depth: usz,
+	pub checked_fns: List<*AstNode>
 }
 
 impl BodyPass {
@@ -54,13 +55,13 @@ impl BodyPass {
 		var arena = Arena(65536);
 		var decl_p = DeclPass();
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, 0UZ);
+		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, 0UZ, List<*AstNode>());
 	}
 
 	pub fn new(symtab: SymbolTable): BodyPass {
 		var arena = Arena(65536);
 		val none_ty = alloc_primitive(&arena, type_none());
-		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ);
+		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ, List<*AstNode>());
 	}
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode

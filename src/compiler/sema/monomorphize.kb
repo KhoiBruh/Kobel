@@ -314,6 +314,12 @@ impl DeclPass {
 
 		self.symtab.gen.inst_names.add(cname);
 
+		val prev_mod = self.current_module;
+		if (tmpl.module.len > 0) {
+			self.current_module = tmpl.module;
+			self.symtab.set_current_module(tmpl.module);
+		}
+
 		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
 
 		val sclone = self.clone_struct(tmpl.node, subst, cname);
@@ -323,6 +329,10 @@ impl DeclPass {
 		// number of trait impls), so instantiate every matching template.
 		for (impl_tmpl in self.symtab.gen.impl_templates) {
 			if (impl_tmpl.name != tmpl.name) continue;
+			if (impl_tmpl.module.len > 0) {
+				self.current_module = impl_tmpl.module;
+				self.symtab.set_current_module(impl_tmpl.module);
+			}
 			val isubst = self.alloc_subst(impl_tmpl.param_names(), arg_asts);
 			val iclone = self.clone_impl(impl_tmpl.node, isubst, cname);
 			self.collect_impl(iclone);
@@ -330,6 +340,9 @@ impl DeclPass {
 		}
 
 		self.queue_decl(tmpl.module, sclone);
+
+		self.current_module = prev_mod;
+		self.symtab.set_current_module(prev_mod);
 
 		val sym = self.find_inst(cname);
 		if (sym == null) return alloc_primitive(&self.arena, type_none());
@@ -346,10 +359,19 @@ impl DeclPass {
 
 		self.symtab.gen.inst_names.add(cname);
 
+		val prev_mod = self.current_module;
+		if (tmpl.module.len > 0) {
+			self.current_module = tmpl.module;
+			self.symtab.set_current_module(tmpl.module);
+		}
+
 		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
 		val fclone = self.clone_fn(tmpl.node, subst, cname);
 		self.collect_fn_as(fclone, cname);
 		self.queue_decl(tmpl.module, fclone);
+
+		self.current_module = prev_mod;
+		self.symtab.set_current_module(prev_mod);
 		return cname;
 	}
 

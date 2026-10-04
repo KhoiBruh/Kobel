@@ -128,6 +128,21 @@ impl BodyPass {
 			if (mi == null) mi = s_info.find_method(mem.member);
 			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
+				if (mi.ast_node != null) {
+					val ast_n = mi.ast_node as *AstNode;
+					val f = ast_n.to<FnDecl>();
+					if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
+						val prev_self = self.current_self_type;
+						val prev_ret = self.current_fn_return_type;
+						val prev_mod = self.symtab.current_module;
+						if (mi.module.len > 0) self.symtab.set_current_module(mi.module);
+						self.current_self_type = obj_ty;
+						self.check_fn_body(ast_n, mi.fn_type);
+						self.current_self_type = prev_self;
+						self.current_fn_return_type = prev_ret;
+						self.symtab.set_current_module(prev_mod);
+					}
+				}
 				if (call.args.len + 1 != fn_info.param_types.len) {
 					self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 				} else {
@@ -156,6 +171,21 @@ impl BodyPass {
 		if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
 		if (pmi != null) {
 			val fn_info = pmi.fn_type.as_fn();
+			if (pmi.ast_node != null) {
+				val ast_n = pmi.ast_node as *AstNode;
+				val f = ast_n.to<FnDecl>();
+				if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
+					val prev_self = self.current_self_type;
+					val prev_ret = self.current_fn_return_type;
+					val prev_mod = self.symtab.current_module;
+					if (pmi.module.len > 0) self.symtab.set_current_module(pmi.module);
+					self.current_self_type = obj_ty;
+					self.check_fn_body(ast_n, pmi.fn_type);
+					self.current_self_type = prev_self;
+					self.current_fn_return_type = prev_ret;
+					self.symtab.set_current_module(prev_mod);
+				}
+			}
 			if (call.args.len + 1 != fn_info.param_types.len) {
 				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 			} else {

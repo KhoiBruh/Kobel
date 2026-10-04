@@ -669,6 +669,8 @@ struct compiler__sema__types__MethodInfo {
     const char* name;
     const char* c_name;
     compiler__sema__types__Type* fn_type;
+    uint8_t* ast_node;
+    const char* module;
 };
 
 struct compiler__sema__types__StructType {
@@ -797,6 +799,7 @@ struct compiler__sema__body_pass__BodyPass {
     compiler__sema__types__Type* current_self_type;
     bool has_symtab;
     size_t when_depth;
+    std__collections__list__List_ptr_compiler__ast__node__AstNode checked_fns;
 };
 
 struct compiler__codegen__c_codegen__CCodeGen {
@@ -6285,7 +6288,7 @@ compiler__ast__decl__ExternBlock* compiler__ast__node__to_compiler__ast__decl__E
 }
 
 compiler__sema__types__MethodInfo* std__mem__arena__alloc_compiler__sema__types__MethodInfo(std__mem__arena__Arena* self) {
-    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 40, 8);
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 64, 8);
     return ((compiler__sema__types__MethodInfo*)raw);
 }
 
@@ -9623,6 +9626,13 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_instantiate_str
         return (existing)->type_ptr;
     }
     std__collections__list__List_str_add((&(((self)->symtab).gen).inst_names), cname);
+    const char* prev_mod = (self)->current_module;
+    if ((kobel_slen((tmpl)->module) > 0)) {
+        {
+            (self)->current_module = (tmpl)->module;
+            compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), (tmpl)->module);
+        }
+    }
     compiler__sema__monomorphize__GenSubst* subst = compiler__sema__decl_pass__DeclPass_alloc_subst(self, compiler__sema__symbol__GenTemplate_param_names(tmpl), arg_asts);
     compiler__ast__node__AstNode* sclone = compiler__sema__decl_pass__DeclPass_clone_struct(self, (tmpl)->node, subst, cname);
     compiler__sema__decl_pass__DeclPass_collect_struct_as(self, sclone, cname, (tmpl)->module);
@@ -9638,6 +9648,12 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_instantiate_str
                         continue;
                     }
                 }
+                if ((kobel_slen((impl_tmpl)->module) > 0)) {
+                    {
+                        (self)->current_module = (impl_tmpl)->module;
+                        compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), (impl_tmpl)->module);
+                    }
+                }
                 compiler__sema__monomorphize__GenSubst* isubst = compiler__sema__decl_pass__DeclPass_alloc_subst(self, compiler__sema__symbol__GenTemplate_param_names(impl_tmpl), arg_asts);
                 compiler__ast__node__AstNode* iclone = compiler__sema__decl_pass__DeclPass_clone_impl(self, (impl_tmpl)->node, isubst, cname);
                 compiler__sema__decl_pass__DeclPass_collect_impl(self, iclone);
@@ -9647,6 +9663,8 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_instantiate_str
         }
     }
     compiler__sema__decl_pass__DeclPass_queue_decl(self, (tmpl)->module, sclone);
+    (self)->current_module = prev_mod;
+    compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), prev_mod);
     compiler__sema__symbol__Symbol* sym = compiler__sema__decl_pass__DeclPass_find_inst(self, cname);
     if ((sym == NULL)) {
         return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
@@ -9662,10 +9680,19 @@ const char* compiler__sema__decl_pass__DeclPass_instantiate_fn(compiler__sema__d
         return cname;
     }
     std__collections__list__List_str_add((&(((self)->symtab).gen).inst_names), cname);
+    const char* prev_mod = (self)->current_module;
+    if ((kobel_slen((tmpl)->module) > 0)) {
+        {
+            (self)->current_module = (tmpl)->module;
+            compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), (tmpl)->module);
+        }
+    }
     compiler__sema__monomorphize__GenSubst* subst = compiler__sema__decl_pass__DeclPass_alloc_subst(self, compiler__sema__symbol__GenTemplate_param_names(tmpl), arg_asts);
     compiler__ast__node__AstNode* fclone = compiler__sema__decl_pass__DeclPass_clone_fn(self, (tmpl)->node, subst, cname);
     compiler__sema__decl_pass__DeclPass_collect_fn_as(self, fclone, cname);
     compiler__sema__decl_pass__DeclPass_queue_decl(self, (tmpl)->module, fclone);
+    (self)->current_module = prev_mod;
+    compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), prev_mod);
     return cname;
 }
 
@@ -11114,7 +11141,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
                     }
                 }
                 compiler__sema__types__MethodInfo* mi = std__mem__arena__alloc_compiler__sema__types__MethodInfo((&(self)->arena));
-                (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
+                (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type, ((uint8_t*)m_node), (self)->current_module };
                 std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add((&(st_info)->methods), mi);
                 (f)->name = m_c_name;
                 __for_i = (__for_i + 1);
@@ -11371,7 +11398,7 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
                     }
                 }
                 compiler__sema__types__MethodInfo* mi = std__mem__arena__alloc_compiler__sema__types__MethodInfo((&(self)->arena));
-                (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type };
+                (*mi) = (compiler__sema__types__MethodInfo){ (f)->name, m_c_name, fn_type, ((uint8_t*)m_node), (self)->current_module };
                 compiler__sema__symbol__PrimMethod* pm = std__mem__arena__alloc_compiler__sema__symbol__PrimMethod((&(self)->arena));
                 (*pm) = (compiler__sema__symbol__PrimMethod){ (prim)->kind, mi };
                 compiler__sema__symbol__SymbolTable_register_prim_method((&(self)->symtab), pm);
@@ -13375,6 +13402,27 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
             if ((mi != NULL)) {
                 {
                     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn((mi)->fn_type);
+                    if (((mi)->ast_node != NULL)) {
+                        {
+                            compiler__ast__node__AstNode* ast_n = ((compiler__ast__node__AstNode*)(mi)->ast_node);
+                            compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(ast_n);
+                            if (((((f)->body != NULL) && (((*(f)->body)).kind == 20)) && ((f)->return_type == NULL))) {
+                                {
+                                    compiler__sema__types__Type* prev_self = (self)->current_self_type;
+                                    compiler__sema__types__Type* prev_ret = (self)->current_fn_return_type;
+                                    const char* prev_mod = ((self)->symtab).current_module;
+                                    if ((kobel_slen((mi)->module) > 0)) {
+                                        compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), (mi)->module);
+                                    }
+                                    (self)->current_self_type = obj_ty;
+                                    compiler__sema__body_pass__BodyPass_check_fn_body(self, ast_n, (mi)->fn_type);
+                                    (self)->current_self_type = prev_self;
+                                    (self)->current_fn_return_type = prev_ret;
+                                    compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), prev_mod);
+                                }
+                            }
+                        }
+                    }
                     if (((((call)->args).len + 1) != ((fn_info)->param_types).len)) {
                         {
                             compiler__sema__body_pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Argument count mismatch in method call '", (mem)->member), "'"));
@@ -13464,6 +13512,27 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
     if ((pmi != NULL)) {
         {
             compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn((pmi)->fn_type);
+            if (((pmi)->ast_node != NULL)) {
+                {
+                    compiler__ast__node__AstNode* ast_n = ((compiler__ast__node__AstNode*)(pmi)->ast_node);
+                    compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(ast_n);
+                    if (((((f)->body != NULL) && (((*(f)->body)).kind == 20)) && ((f)->return_type == NULL))) {
+                        {
+                            compiler__sema__types__Type* prev_self = (self)->current_self_type;
+                            compiler__sema__types__Type* prev_ret = (self)->current_fn_return_type;
+                            const char* prev_mod = ((self)->symtab).current_module;
+                            if ((kobel_slen((pmi)->module) > 0)) {
+                                compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), (pmi)->module);
+                            }
+                            (self)->current_self_type = obj_ty;
+                            compiler__sema__body_pass__BodyPass_check_fn_body(self, ast_n, (pmi)->fn_type);
+                            (self)->current_self_type = prev_self;
+                            (self)->current_fn_return_type = prev_ret;
+                            compiler__sema__symbol__SymbolTable_set_current_module((&(self)->symtab), prev_mod);
+                        }
+                    }
+                }
+            }
             if (((((call)->args).len + 1) != ((fn_info)->param_types).len)) {
                 {
                     compiler__sema__body_pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Argument count mismatch in method call '", (mem)->member), "'"));
@@ -13792,6 +13861,20 @@ void compiler__sema__body_pass__BodyPass_check_fn(compiler__sema__body_pass__Bod
 }
 
 void compiler__sema__body_pass__BodyPass_check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type) {
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(self)->checked_fns));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(self)->checked_fns), __for_i);
+                if ((n == fn_node)) {
+                    return;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(self)->checked_fns), fn_node);
     compiler__ast__decl__FnDecl* f = ((compiler__ast__decl__FnDecl*)compiler__ast__node__to_compiler__ast__decl__FnDecl(fn_node));
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(fn_type);
     (self)->current_fn_return_type = (fn_info)->return_type;
@@ -13995,13 +14078,13 @@ compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass_new_0(vo
     std__mem__arena__Arena arena = std__mem__arena__Arena_new_1(65536);
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__DeclPass_new();
     compiler__sema__types__Type* none_ty = compiler__sema__decl_pass__alloc_primitive((&arena), compiler__sema__types__type_none());
-    return (compiler__sema__body_pass__BodyPass){ (decl_p).symtab, arena, none_ty, 0, std__collections__list__List_str_new_0(), NULL, false, ((size_t)0ULL) };
+    return (compiler__sema__body_pass__BodyPass){ (decl_p).symtab, arena, none_ty, 0, std__collections__list__List_str_new_0(), NULL, false, ((size_t)0ULL), std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0() };
 }
 
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass_new_1(compiler__sema__symbol__SymbolTable symtab) {
     std__mem__arena__Arena arena = std__mem__arena__Arena_new_1(65536);
     compiler__sema__types__Type* none_ty = compiler__sema__decl_pass__alloc_primitive((&arena), compiler__sema__types__type_none());
-    return (compiler__sema__body_pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__list__List_str_new_0(), NULL, true, ((size_t)0ULL) };
+    return (compiler__sema__body_pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__list__List_str_new_0(), NULL, true, ((size_t)0ULL), std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0() };
 }
 
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_literal(compiler__sema__body_pass__BodyPass* self, compiler__ast__expr__LiteralKind lk, const char* raw, size_t line, size_t col) {

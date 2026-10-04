@@ -50,7 +50,9 @@ pub struct StructField {
 pub struct MethodInfo {
 	pub name: str,
 	pub c_name: str,
-	pub fn_type: *Type
+	pub fn_type: *Type,
+	pub ast_node: *u8,
+	pub module: str
 }
 
 pub struct StructType {
@@ -98,20 +100,20 @@ impl EnumInfo {
 
 impl PointerType {
 	pub fn data_type(val self) => DataType.POINTER;
-	pub fn type_size(val self): usz => 8UZ;
-	pub fn type_align(val self): usz => 8UZ;
+	pub fn type_size(val self) => 8UZ;
+	pub fn type_align(val self) => 8UZ;
 }
 
 impl ArrayType {
 	pub fn data_type(val self) => DataType.ARRAY;
-	pub fn type_size(val self): usz => self.elem.size * self.length;
-	pub fn type_align(val self): usz => self.elem.align;
+	pub fn type_size(val self) => self.elem.size * self.length;
+	pub fn type_align(val self) => self.elem.align;
 }
 
 impl FnType {
 	pub fn data_type(val self) => DataType.FN;
-	pub fn type_size(val self): usz => 8UZ;
-	pub fn type_align(val self): usz => 8UZ;
+	pub fn type_size(val self) => 8UZ;
+	pub fn type_align(val self) => 8UZ;
 }
 
 impl StructType {
