@@ -135,6 +135,13 @@ pub struct Program {
 
 impl Program {
 	pub fn node_kind(val self): NodeKind => NodeKind.PROGRAM;
+
+	pub fn declared_module_name(val self): str {
+		for (decl in self.declarations) {
+			if (decl.kind == NodeKind.DECL_MODULE) return decl.to<ModuleDecl>().full_path;
+		}
+		return "";
+	}
 }
 
 impl Iterable for ExternBlock {

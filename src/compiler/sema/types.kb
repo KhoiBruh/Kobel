@@ -3,6 +3,7 @@ mod compiler.sema.types;
 use std.collections.list.*;
 use std.mem.arena.Arena;
 use std.traits.to_str.*;
+use util.strutil.*;
 
 pub enum DataType {
 	NONE,
@@ -98,25 +99,7 @@ impl EnumInfo {
 // Recomputes field offsets, size and alignment of a struct type from its
 // current field list (fields are added after the type is allocated).
 pub fn layout_struct(ty: *Type) {
-	val st = ty.as_struct_mut();
-	var max_align: usz = 1;
-	var off: usz = 0;
-	for (i in 0..<st.fields.len) {
-		val f = st.fields[i];
-		val fa = f.type_ptr.align;
-		if (fa > max_align) max_align = fa;
-		val rem = off % fa;
-		if (rem != 0) off += (fa - rem);
-		f.offset = off;
-		st.fields[i] = f;
-		off += f.type_ptr.size;
-	}
-	val tr = off % max_align;
-	if (tr != 0) off += (max_align - tr);
-
-	val t = ty as &Type;
-	t.size = off;
-	t.align = max_align;
+	if (ty != null) ty.layout_struct();
 }
 
 impl PointerType {
@@ -323,6 +306,35 @@ impl Type {
 	}
 
 	pub fn is_numeric(val self) => self.is_integer() || self.is_float();
+
+	pub fn is_list(val self): bool {
+		if (self.kind != DataType.STRUCT) return false;
+		val s = self.as_struct();
+		if (s.module != "std.collections.list") return false;
+		return s.name.starts_with("std__collections__list__List") ||
+			s.c_name.starts_with("std__collections__list__List");
+	}
+
+	pub fn layout_struct(var self) {
+		val st = self.as_struct_mut();
+		var max_align: usz = 1UZ;
+		var off: usz = 0UZ;
+		for (i in 0..<st.fields.len) {
+			val f = st.fields[i];
+			val fa = f.type_ptr.align;
+			if (fa > max_align) max_align = fa;
+			val rem = off % fa;
+			if (rem != 0UZ) off += (fa - rem);
+			f.offset = off;
+			st.fields[i] = f;
+			off += f.type_ptr.size;
+		}
+		val tr = off % max_align;
+		if (tr != 0UZ) off += (max_align - tr);
+
+		self.size = off;
+		self.align = max_align;
+	}
 
 	pub fn equals(val self, b: *Type): bool {
 		if (self == b) return true;

@@ -201,10 +201,4 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 	return alloc_primitive(arena, type_i32());
 }
 
-pub fn is_list_type(ty: *Type): bool {
-	if (ty == null || ty.kind != DataType.STRUCT) return false;
-	val s = ty.as_struct();
-	if (s.module != "std.collections.list") return false;
-	return str_starts_with(s.name, "std__collections__list__List") ||
-		str_starts_with(s.c_name, "std__collections__list__List");
-}
+pub fn is_list_type(ty: *Type): bool => ty != null && ty.is_list();

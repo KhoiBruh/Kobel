@@ -236,11 +236,5 @@ impl ModuleLoader {
 }
 
 // Module name declared in the file (`mod a.b.c;`), "" when the file declares none.
-pub fn declared_module_name(program_node: *AstNode): str {
-	if (program_node == null) return "";
-	val prog = program_node.to<Program>();
-	for (decl in prog) {
-		if (decl.kind == NodeKind.DECL_MODULE) return decl.to<ModuleDecl>().full_path;
-	}
-	return "";
-}
+pub fn declared_module_name(program_node: *AstNode): str =>
+	if (program_node == null) "" else program_node.to<Program>().declared_module_name();
