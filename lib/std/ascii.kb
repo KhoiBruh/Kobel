@@ -1,27 +1,44 @@
 mod std.ascii;
 
-pub fn is_digit(c: char) => c >= '0' && c <= '9';
+impl char {
+	pub fn is_digit(val self): bool => self >= '0' && self <= '9';
 
-pub fn is_alpha(c: char) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+	pub fn is_alpha(val self): bool => (self >= 'a' && self <= 'z') || (self >= 'A' && self <= 'Z');
 
-pub fn is_alphanumeric(c: char) => is_alpha(c) || is_digit(c);
+	pub fn is_alphanumeric(val self): bool => self.is_alpha() || self.is_digit();
 
-pub fn is_whitespace(c: char) => c == ' ' || c == '\t' || c == '\n' || c == '\r';
+	pub fn is_whitespace(val self): bool => self == ' ' || self == '\t' || self == '\n' || self == '\r';
 
-pub fn is_hex_digit(c: char) => is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+	pub fn is_hex_digit(val self): bool => self.is_digit() || (self >= 'a' && self <= 'f') || (self >= 'A' && self <= 'F');
 
-pub fn to_lower(c: char): char {
-	if (c >= 'A' && c <= 'Z') {
-		val offset = (c as i32) + 32;
-		return offset as char;
+	pub fn to_lower(val self): char {
+		if (self >= 'A' && self <= 'Z') {
+			val offset = (self as i32) + 32;
+			return offset as char;
+		}
+		return self;
 	}
-	return c;
+
+	pub fn to_upper(val self): char {
+		if (self >= 'a' && self <= 'z') {
+			val offset = (self as i32) - 32;
+			return offset as char;
+		}
+		return self;
+	}
 }
 
-pub fn to_upper(c: char): char {
-	if (c >= 'a' && c <= 'z') {
-		val offset = (c as i32) - 32;
-		return offset as char;
-	}
-	return c;
-}
+// Backwards-compatible free functions
+pub fn is_digit(c: char): bool => c.is_digit();
+
+pub fn is_alpha(c: char): bool => c.is_alpha();
+
+pub fn is_alphanumeric(c: char): bool => c.is_alphanumeric();
+
+pub fn is_whitespace(c: char): bool => c.is_whitespace();
+
+pub fn is_hex_digit(c: char): bool => c.is_hex_digit();
+
+pub fn to_lower(c: char): char => c.to_lower();
+
+pub fn to_upper(c: char): char => c.to_upper();
