@@ -142,10 +142,10 @@ impl ModuleLoader {
 
 	// Loads a module (and every module it `use`s) if not already loaded.
 	pub fn ensure_module(var self, module_name: str) {
-		self.ensure_module_at(module_name, 0UZ, 0UZ);
+		self.ensure_module_at(module_name, 0UZ, 0UZ, "");
 	}
 
-	pub fn ensure_module_at(var self, module_name: str, line: usz, col: usz) {
+	pub fn ensure_module_at(var self, module_name: str, line: usz, col: usz, parent_mod: str) {
 		if (self.is_known(module_name)) return;
 
 		// Mark it first to avoid infinite recursion when imports form a cycle
@@ -153,10 +153,11 @@ impl ModuleLoader {
 
 		val file = self.find_module(module_name);
 		if (!file.found) {
+			val prefix = if (parent_mod.len > 0UZ) "${parent_mod}: " else "";
 			val msg = if (line > 0UZ) {
-				"Line ${line}, Column ${col}: Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+				"${prefix}Line ${line}, Column ${col}: Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
 			} else {
-				"Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+				"${prefix}Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
 			};
 			self.errors.add(msg);
 			return;
@@ -167,21 +168,22 @@ impl ModuleLoader {
 
 		val declared = declared_module_name(prog);
 		if (declared.len > 0 && declared != module_name) {
+			val prefix = if (parent_mod.len > 0UZ) "${parent_mod}: " else "";
 			val msg = if (line > 0UZ) {
-				"Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+				"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
 			} else {
-				"${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+				"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
 			};
 			self.errors.add(msg);
 			return;
 		}
 
 		// Load dependencies first, then add this module to the merge order
-		self.process_uses(prog);
+		self.process_uses(prog, module_name);
 		self.ordered.add(LoadedModule(module_name, file.path, prog));
 	}
 
-	pub fn process_uses(var self, program_node: *AstNode) {
+	pub fn process_uses(var self, program_node: *AstNode, parent_mod: str) {
 		val prog = program_node.to<Program>();
 		for (decl in prog) {
 			if (decl.kind == NodeKind.DECL_USE) {
@@ -191,7 +193,7 @@ impl ModuleLoader {
 					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
 					else -> ""
 				};
-				if (mod_name.len > 0) self.ensure_module_at(mod_name, decl.line, decl.col);
+				if (mod_name.len > 0) self.ensure_module_at(mod_name, decl.line, decl.col, parent_mod);
 			}
 		}
 	}
@@ -208,7 +210,7 @@ impl ModuleLoader {
 		if (entry_name.len == 0) entry_name = str_path_to_module(str_base_name(entry_path));
 
 		self.modules.add(LoadedModule(entry_name, entry_path, prog));
-		self.process_uses(prog);
+		self.process_uses(prog, entry_name);
 		self.ordered.add(LoadedModule(entry_name, entry_path, prog));
 
 		return self.build_merged_program();

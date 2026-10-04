@@ -21,6 +21,7 @@ use compiler.sema.decl_pass.*;
 use compiler.sema.desugar_for.*;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.body_expr.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;

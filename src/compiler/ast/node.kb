@@ -69,8 +69,6 @@ impl Arena {
 		return self.alloc_val<AstNode>(AstNode(kind, line, col, data_ptr as *u8));
 	}
 
-	pub fn make<T>(var self, data: T, line: usz, col: usz): *AstNode {
-		return self.alloc_node<T>(data.node_kind(), data, line, col);
-	}
+	pub fn make<T>(var self, data: T, line: usz, col: usz) => self.alloc_node<T>(data.node_kind(), data, line, col);
 }
 

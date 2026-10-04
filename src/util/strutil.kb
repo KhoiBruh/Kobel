@@ -184,3 +184,24 @@ pub fn str_starts_with(s: str, prefix: str): bool {
 	if (s.len < prefix.len) return false;
 	return s.slice(0, prefix.len) == prefix;
 }
+
+pub fn str_ends_with(s: str, suffix: str): bool {
+	if (s.len < suffix.len) return false;
+	return s.slice(s.len - suffix.len, s.len) == suffix;
+}
+
+pub fn str_normalize_path(p: str): str {
+	val buf = raw_alloc(p.len + 1);
+	for (i in 0UZ..<p.len) {
+		val c = p[i];
+		if (c == '\\') {
+			buf[i] = '/' as u8;
+		} else if (c >= 'A' && c <= 'Z') {
+			buf[i] = ((c as i32) + 32) as u8;
+		} else {
+			buf[i] = c as u8;
+		}
+	}
+	buf[p.len] = 0;
+	return str_from_bytes(buf, p.len);
+}

@@ -11,6 +11,10 @@ use compiler.sema.symbol.*;
 use compiler.loader.loader.*;
 use compiler.sema.types.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.body_stmt.*;
+use compiler.sema.body_expr.*;
+use compiler.sema.body_call.*;
+use compiler.sema.body_program.*;
 
 use fmt.options.*;
 use fmt.formatter.*;
@@ -44,7 +48,7 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 	var line_idx: usz = 0UZ;
 	var found_line = false;
 	if (err_str.len >= line_tag.len) {
-		for (i in 0UZ..<(err_str.len - line_tag.len)) {
+		for (i in 0UZ..(err_str.len - line_tag.len)) {
 			var m = true;
 			for (k in 0UZ..<line_tag.len) {
 				if (err_str[i + k] != line_tag[k]) {
@@ -178,6 +182,96 @@ pub fn diagnostic_to_json(d: LspDiagnostic): *JsonValue {
 	return obj;
 }
 
+pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
+	if (prefix.len == 0UZ) return true;
+
+	// Check if prefix matches doc_mod (e.g. "lsp.analysis")
+	if (doc_mod.len > 0UZ && prefix == doc_mod) return true;
+
+	// Check if prefix matches doc_path (e.g. "C:/.../src/lsp/analysis.kb")
+	if (doc_path.len > 0UZ) {
+		val norm_p = str_normalize_path(prefix);
+		val norm_d = str_normalize_path(doc_path);
+
+		if (norm_p == norm_d) return true;
+
+		// If norm_d ends with norm_p (e.g. norm_d is "c:/users/.../src/lsp/analysis.kb" and norm_p is "src/lsp/analysis.kb")
+		if (norm_d.len > norm_p.len && str_ends_with(norm_d, norm_p)) {
+			val sep_char = norm_d[norm_d.len - norm_p.len - 1UZ];
+			if (sep_char == '/') return true;
+		}
+
+		// If norm_p ends with norm_d
+		if (norm_p.len > norm_d.len && str_ends_with(norm_p, norm_d)) {
+			val sep_char = norm_p[norm_p.len - norm_d.len - 1UZ];
+			if (sep_char == '/') return true;
+		}
+
+		// Compare base name: if prefix is "analysis.kb"
+		val base_p = str_base_name(norm_p);
+		val base_d = str_base_name(norm_d);
+		if (base_p == base_d && (norm_p.len <= base_p.len || norm_d.len <= base_d.len)) return true;
+	}
+
+	return false;
+}
+
+pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
+	// Look for "Line "
+	val line_tag = "Line ";
+	var line_idx: usz = 0UZ;
+	var found_line = false;
+	if (err_str.len >= line_tag.len) {
+		for (i in 0UZ..(err_str.len - line_tag.len)) {
+			var m = true;
+			for (k in 0UZ..<line_tag.len) {
+				if (err_str[i + k] != line_tag[k]) {
+					m = false;
+					break;
+				}
+			}
+			if (m) {
+				line_idx = i;
+				found_line = true;
+				break;
+			}
+		}
+	}
+
+	if (!found_line) {
+		// No "Line " in message. Check if message has a prefix before ": "
+		var colon_idx: usz = 0UZ;
+		var found_colon = false;
+		for (i in 0UZ..<err_str.len) {
+			if (err_str[i] == ':') {
+				colon_idx = i;
+				found_colon = true;
+				break;
+			}
+		}
+		if (!found_colon) {
+			// No module or file prefix at all; assume it's for the current document
+			return true;
+		}
+		val prefix = err_str.slice(0UZ, colon_idx);
+		return match_doc_prefix(prefix, doc_mod, doc_path);
+	}
+
+	if (line_idx == 0UZ) {
+		// Error starts directly with "Line " (no prefix) -> belongs to current doc
+		return true;
+	}
+
+	// There is a prefix before "Line "
+	var prefix = err_str.slice(0UZ, line_idx);
+	// Trim trailing spaces and colons: e.g. "lsp.analysis: " -> "lsp.analysis"
+	while (prefix.len > 0UZ && (prefix[prefix.len - 1UZ] == ' ' || prefix[prefix.len - 1UZ] == ':')) {
+		prefix = prefix.slice(0UZ, prefix.len - 1UZ);
+	}
+
+	return match_doc_prefix(prefix, doc_mod, doc_path);
+}
+
 // ============================================================================
 // Document Analysis & Diagnostics Collection
 // ============================================================================
@@ -217,6 +311,11 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 		return AnalysisResult(diagnostics, empty_symtab, false, tokens);
 	}
 
+	var doc_mod = declared_module_name(prog);
+	if (doc_mod.len == 0UZ) {
+		doc_mod = str_path_to_module(str_base_name(path));
+	}
+
 	// 3. Module loading & semantic analysis (DeclPass)
 	val entry_dir = str_dir_of(path);
 	var extra_roots = List<str>();
@@ -226,11 +325,14 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 		extra_roots.add(str_join_path(workspace_root, "src"));
 	}
 	var loader = ModuleLoader(entry_dir, extra_roots);
+	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
 
 	val full_prog = loader.load_program(path, source);
 	if (loader.errors.len > 0) {
 		for (err_msg in loader.errors) {
-			diagnostics.add(parse_diagnostic(err_msg, source));
+			if (is_error_for_doc(err_msg, doc_mod, path)) {
+				diagnostics.add(parse_diagnostic(err_msg, source));
+			}
 		}
 	}
 
@@ -239,7 +341,9 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 		decl_p.collect_program(full_prog);
 		if (decl_p.errors.len > 0) {
 			for (err_msg in decl_p.errors) {
-				diagnostics.add(parse_diagnostic(err_msg, source));
+				if (is_error_for_doc(err_msg, doc_mod, path)) {
+					diagnostics.add(parse_diagnostic(err_msg, source));
+				}
 			}
 		}
 
@@ -248,7 +352,9 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 		body_p.check_program(full_prog);
 		if (body_p.errors.len > 0) {
 			for (err_msg in body_p.errors) {
-				diagnostics.add(parse_diagnostic(err_msg, source));
+				if (is_error_for_doc(err_msg, doc_mod, path)) {
+					diagnostics.add(parse_diagnostic(err_msg, source));
+				}
 			}
 		}
 

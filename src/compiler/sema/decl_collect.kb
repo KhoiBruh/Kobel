@@ -43,7 +43,6 @@ impl DeclPass {
 
 		if (u.is_wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
-			if (!self.symtab.module_exists(w_mod)) return;
 			self.symtab.add_import(w_mod, "", "", true);
 			return;
 		}

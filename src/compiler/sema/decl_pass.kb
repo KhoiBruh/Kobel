@@ -9,6 +9,7 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 use compiler.ast.builder.*;
 use compiler.sema.symbol.*;
+use compiler.sema.monomorphize.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;

@@ -21,6 +21,7 @@ use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.DeclPass;
 use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
+use compiler.sema.body_expr.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;

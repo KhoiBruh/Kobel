@@ -22,6 +22,10 @@ use compiler.lexer.token.*;
 use compiler.sema.types.*;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
+use compiler.sema.body_stmt.*;
+use compiler.sema.body_expr.*;
+use compiler.sema.body_call.*;
+use compiler.sema.body_program.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;
