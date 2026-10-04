@@ -566,6 +566,7 @@ struct compiler__ast__decl__Param {
     compiler__ast__node__AstNode* type_node;
     bool is_mut;
     bool has_val;
+    compiler__ast__node__AstNode* default_val;
 };
 
 struct compiler__ast__decl__GenericParam {
@@ -586,6 +587,7 @@ struct compiler__ast__decl__StructField {
     const char* name;
     compiler__ast__node__AstNode* type_node;
     bool is_pub;
+    compiler__ast__node__AstNode* default_val;
 };
 
 struct compiler__ast__decl__StructDecl {
@@ -663,6 +665,7 @@ struct compiler__sema__types__StructField {
     compiler__sema__types__Type* type_ptr;
     size_t offset;
     bool is_pub;
+    uint8_t* default_val;
 };
 
 struct compiler__sema__types__MethodInfo {
@@ -708,6 +711,7 @@ struct compiler__sema__symbol__Symbol {
     bool is_pub;
     size_t line;
     size_t col;
+    uint8_t* ast_node;
 };
 
 struct compiler__sema__symbol__Scope {
@@ -3225,11 +3229,11 @@ compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Par
 }
 
 compiler__ast__decl__Param* std__mem__alloc__alloc_array_compiler__ast__decl__Param(size_t count) {
-    return ((compiler__ast__decl__Param*)std__mem__alloc__raw_alloc((count * 32)));
+    return ((compiler__ast__decl__Param*)std__mem__alloc__raw_alloc((count * 40)));
 }
 
 compiler__ast__decl__Param* std__mem__alloc__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count) {
-    return ((compiler__ast__decl__Param*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 32)));
+    return ((compiler__ast__decl__Param*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr) {
@@ -3319,11 +3323,11 @@ compiler__ast__decl__StructField std__collections__list__List_compiler__ast__dec
 }
 
 compiler__ast__decl__StructField* std__mem__alloc__alloc_array_compiler__ast__decl__StructField(size_t count) {
-    return ((compiler__ast__decl__StructField*)std__mem__alloc__raw_alloc((count * 32)));
+    return ((compiler__ast__decl__StructField*)std__mem__alloc__raw_alloc((count * 40)));
 }
 
 compiler__ast__decl__StructField* std__mem__alloc__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count) {
-    return ((compiler__ast__decl__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 32)));
+    return ((compiler__ast__decl__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr) {
@@ -3507,11 +3511,11 @@ compiler__sema__types__StructField std__collections__list__List_compiler__sema__
 }
 
 compiler__sema__types__StructField* std__mem__alloc__alloc_array_compiler__sema__types__StructField(size_t count) {
-    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_alloc((count * 40)));
+    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_alloc((count * 48)));
 }
 
 compiler__sema__types__StructField* std__mem__alloc__resize_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr, size_t count) {
-    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 40)));
+    return ((compiler__sema__types__StructField*)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 48)));
 }
 
 void std__mem__alloc__release_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr) {
@@ -6113,7 +6117,7 @@ compiler__sema__types__EnumInfo* compiler__sema__types__to_compiler__sema__types
 }
 
 compiler__sema__symbol__Symbol* std__mem__arena__alloc_compiler__sema__symbol__Symbol(std__mem__arena__Arena* self) {
-    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 72, 8);
+    uint8_t* raw = std__mem__arena__Arena_alloc_bytes(self, 80, 8);
     return ((compiler__sema__symbol__Symbol*)raw);
 }
 
@@ -9060,7 +9064,7 @@ void compiler__sema__decl_pass__DeclPass_register_template(compiler__sema__decl_
                                                             compiler__sema__types__Type* prim = compiler__sema__decl_pass__resolve_primitive_name((&(self)->arena), (im)->struct_name);
                                                             compiler__ast__node__AstNode* named = compiler__sema__decl_pass__DeclPass_named_type(self, (im)->struct_name, std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), (m)->line, (m)->col);
                                                             compiler__ast__node__AstNode* self_ty_node = ((prim != NULL) ? named : compiler__sema__decl_pass__DeclPass_pointer_type(self, (p).is_mut, named, (m)->line, (m)->col));
-                                                            std__collections__list__List_compiler__ast__decl__Param_set((&(f)->params), i, (compiler__ast__decl__Param){ (p).name, self_ty_node, (p).is_mut, (p).has_val });
+                                                            std__collections__list__List_compiler__ast__decl__Param_set((&(f)->params), i, (compiler__ast__decl__Param){ (p).name, self_ty_node, (p).is_mut, (p).has_val, (p).default_val });
                                                         }
                                                     }
                                                     if (__for_up) {
@@ -9699,7 +9703,7 @@ const char* compiler__sema__decl_pass__DeclPass_instantiate_fn(compiler__sema__d
 void compiler__sema__decl_pass__DeclPass_collect_struct_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name, const char* module) {
     compiler__ast__decl__StructDecl* s = ((compiler__ast__decl__StructDecl*)compiler__ast__node__to_compiler__ast__decl__StructDecl(node));
     compiler__sema__types__Type* s_type = std__mem__arena__Arena_struct_type((&(self)->arena), final_name, std__collections__list__List_compiler__sema__types__StructField_new_0());
-    std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(((self)->symtab).gen).inst_syms), compiler__sema__symbol__box_symbol((&(self)->arena), (compiler__sema__symbol__Symbol){ final_name, final_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col }));
+    std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(((self)->symtab).gen).inst_syms), compiler__sema__symbol__box_symbol((&(self)->arena), (compiler__sema__symbol__Symbol){ final_name, final_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) }));
     (s)->name = final_name;
     bool has_private = false;
     {
@@ -9709,7 +9713,7 @@ void compiler__sema__decl_pass__DeclPass_collect_struct_as(compiler__sema__decl_
             {
                 compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at((&(s)->fields), __for_i);
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, (f).type_node);
-                std__collections__list__List_compiler__sema__types__StructField_add((&((*compiler__sema__types__Type_as_struct_mut(s_type))).fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub });
+                std__collections__list__List_compiler__sema__types__StructField_add((&((*compiler__sema__types__Type_as_struct_mut(s_type))).fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub, ((uint8_t*)(f).default_val) });
                 if ((!(f).is_pub)) {
                     has_private = true;
                 }
@@ -9742,7 +9746,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn_as(compiler__sema__decl_pass
         ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, (f)->return_type);
     }
     compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type((&(self)->arena), param_types, ret_type);
-    std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(((self)->symtab).gen).inst_syms), compiler__sema__symbol__box_symbol((&(self)->arena), (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col }));
+    std__collections__list__List_ptr_compiler__sema__symbol__Symbol_add((&(((self)->symtab).gen).inst_syms), compiler__sema__symbol__box_symbol((&(self)->arena), (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) }));
     (f)->name = final_name;
 }
 
@@ -10129,7 +10133,8 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_fn(compi
             {
                 compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at((&(f)->params), __for_i);
                 compiler__ast__node__AstNode* pt = (((p).type_node != NULL) ? compiler__sema__decl_pass__DeclPass_clone_type(self, (p).type_node, subst) : NULL);
-                std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (p).name, pt, (p).is_mut, (p).has_val });
+                compiler__ast__node__AstNode* dflt = (((p).default_val != NULL) ? compiler__sema__decl_pass__DeclPass_clone_expr(self, (p).default_val, subst) : NULL);
+                std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (p).name, pt, (p).is_mut, (p).has_val, dflt });
                 __for_i = (__for_i + 1);
             }
         }
@@ -10147,7 +10152,8 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_struct(c
         while ((__for_i < __for_n)) {
             {
                 compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at((&(s)->fields), __for_i);
-                std__collections__list__List_compiler__ast__decl__StructField_add((&fields), (compiler__ast__decl__StructField){ (f).name, compiler__sema__decl_pass__DeclPass_clone_type(self, (f).type_node, subst), (f).is_pub });
+                compiler__ast__node__AstNode* dflt = (((f).default_val != NULL) ? compiler__sema__decl_pass__DeclPass_clone_expr(self, (f).default_val, subst) : NULL);
+                std__collections__list__List_compiler__ast__decl__StructField_add((&fields), (compiler__ast__decl__StructField){ (f).name, compiler__sema__decl_pass__DeclPass_clone_type(self, (f).type_node, subst), (f).is_pub, dflt });
                 __for_i = (__for_i + 1);
             }
         }
@@ -11334,7 +11340,7 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
                                 {
                                     pt = prim;
                                     compiler__ast__node__AstNode* rt = compiler__sema__decl_pass__DeclPass_named_type(self, prim_name, std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), (node)->line, (node)->col);
-                                    std__collections__list__List_compiler__ast__decl__Param_set((&(f)->params), i, (compiler__ast__decl__Param){ (p).name, rt, (p).is_mut, (p).has_val });
+                                    std__collections__list__List_compiler__ast__decl__Param_set((&(f)->params), i, (compiler__ast__decl__Param){ (p).name, rt, (p).is_mut, (p).has_val, (p).default_val });
                                 }
                             } else {
                                 {
@@ -11584,7 +11590,7 @@ void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pas
     const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, (s)->name);
     compiler__sema__types__Type* s_type = std__mem__arena__Arena_struct_type((&(self)->arena), (s)->name, std__collections__list__List_compiler__sema__types__StructField_new_0());
     ((*compiler__sema__types__Type_as_struct_mut(s_type))).c_name = c_name;
-    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (s)->name, c_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col });
+    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (s)->name, c_name, 4, s_type, false, (s)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) });
     if ((!ok)) {
         compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", (s)->name), "'"));
     }
@@ -11598,7 +11604,7 @@ void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pas
                 compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at((&(s)->fields), __for_i);
                 compiler__sema__types__Type* f_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, (f).type_node);
                 compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct_mut(s_type);
-                std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub });
+                std__collections__list__List_compiler__sema__types__StructField_add((&(s_info)->fields), (compiler__sema__types__StructField){ (f).name, f_type, 0, (f).is_pub, ((uint8_t*)(f).default_val) });
                 if ((!(f).is_pub)) {
                     has_private = true;
                 }
@@ -11644,7 +11650,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn(compiler__sema__decl_pass__D
     }
     compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type((&(self)->arena), param_types, ret_type);
     const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, (f)->name);
-    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (f)->name, c_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col });
+    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (f)->name, c_name, 3, fn_type, false, (f)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) });
     if ((!ok)) {
         compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate function declaration '", (f)->name), "'"));
     }
@@ -11682,7 +11688,7 @@ void compiler__sema__decl_pass__DeclPass_collect_enum(compiler__sema__decl_pass_
     (*info) = (compiler__sema__types__EnumInfo){ (e)->name, c_name, under_type, members };
     compiler__sema__types__Type* carrier = std__mem__arena__alloc_compiler__sema__types__Type((&(self)->arena));
     (*carrier) = (compiler__sema__types__Type){ (under_type)->kind, (under_type)->size, (under_type)->align, ((uint8_t*)info) };
-    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (e)->name, c_name, 5, carrier, false, (e)->is_pub, (node)->line, (node)->col });
+    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (e)->name, c_name, 5, carrier, false, (e)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) });
     if ((!ok)) {
         compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate enum declaration '", (e)->name), "'"));
     }
@@ -11697,7 +11703,7 @@ void compiler__sema__decl_pass__DeclPass_collect_const(compiler__sema__decl_pass
         c_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, (c)->type_node);
     }
     const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, (c)->name);
-    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (c)->name, c_name, 1, c_type, false, (c)->is_pub, (node)->line, (node)->col });
+    bool ok = compiler__sema__symbol__SymbolTable_define_global((&(self)->symtab), (compiler__sema__symbol__Symbol){ (c)->name, c_name, 1, c_type, false, (c)->is_pub, (node)->line, (node)->col, ((uint8_t*)node) });
     if ((!ok)) {
         compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate const declaration '", (c)->name), "'"));
     }
@@ -13101,7 +13107,7 @@ void compiler__sema__body_pass__BodyPass_check_var_decl_stmt(compiler__sema__bod
     if ((((vd)->type_annotation == NULL) && has_init)) {
         (vd)->type_annotation = std__mem__arena__Arena_ast_type_from_type((&(self)->arena), var_ty);
     }
-    bool ok = compiler__sema__symbol__SymbolTable_define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (vd)->name, (vd)->name, 0, var_ty, (vd)->is_mut, false, (node)->line, (node)->col });
+    bool ok = compiler__sema__symbol__SymbolTable_define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (vd)->name, (vd)->name, 0, var_ty, (vd)->is_mut, false, (node)->line, (node)->col, NULL });
     if ((!ok)) {
         compiler__sema__body_pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Variable '", (vd)->name), "' is already defined in this scope"));
     }
@@ -13364,6 +13370,125 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
             }
             compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, (mem)->member, (((call)->args).len + 1));
             if ((mi == NULL)) {
+                {
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count((&(s_info)->methods));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at((&(s_info)->methods), __for_i);
+                                if ((kobel_streq((m)->name, (mem)->member) && ((m)->ast_node != NULL))) {
+                                    {
+                                        compiler__ast__decl__FnDecl* ast_fn = compiler__ast__node__to_compiler__ast__decl__FnDecl((((compiler__ast__node__AstNode*)(m)->ast_node)));
+                                        if (((((call)->args).len + 1) < ((ast_fn)->params).len)) {
+                                            {
+                                                bool all_default = true;
+                                                {
+                                                    size_t __for_e = ((ast_fn)->params).len;
+                                                    size_t __for_i = __for_e;
+                                                    __for_i = ((((call)->args).len + 1));
+                                                    bool __for_up = (__for_i <= __for_e);
+                                                    bool __for_go = false;
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_go = (__for_i < __for_e);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_go = (__for_i > __for_e);
+                                                        }
+                                                    }
+                                                    while (__for_go) {
+                                                        {
+                                                            size_t i = __for_i;
+                                                            if (((std__collections__list__List_compiler__ast__decl__Param_get((&(ast_fn)->params), i)).default_val == NULL)) {
+                                                                {
+                                                                    all_default = false;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                                }
+                                                            }
+                                                            if (__for_go) {
+                                                                if (__for_up) {
+                                                                    {
+                                                                        __for_i = (__for_i + 1);
+                                                                    }
+                                                                } else {
+                                                                    {
+                                                                        __for_i = (__for_i - 1);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                if (all_default) {
+                                                    {
+                                                        mi = m;
+                                                        {
+                                                            size_t __for_e = ((ast_fn)->params).len;
+                                                            size_t __for_i = __for_e;
+                                                            __for_i = ((((call)->args).len + 1));
+                                                            bool __for_up = (__for_i <= __for_e);
+                                                            bool __for_go = false;
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_go = (__for_i < __for_e);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_go = (__for_i > __for_e);
+                                                                }
+                                                            }
+                                                            while (__for_go) {
+                                                                {
+                                                                    size_t i = __for_i;
+                                                                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(call)->args), (std__collections__list__List_compiler__ast__decl__Param_get((&(ast_fn)->params), i)).default_val);
+                                                                    if (__for_up) {
+                                                                        {
+                                                                            __for_go = ((__for_i + 1) < __for_e);
+                                                                        }
+                                                                    } else {
+                                                                        {
+                                                                            __for_go = ((__for_i - 1) > __for_e);
+                                                                        }
+                                                                    }
+                                                                    if (__for_go) {
+                                                                        if (__for_up) {
+                                                                            {
+                                                                                __for_i = (__for_i + 1);
+                                                                            }
+                                                                        } else {
+                                                                            {
+                                                                                __for_i = (__for_i - 1);
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                }
+            }
+            if ((mi == NULL)) {
                 mi = compiler__sema__types__StructType_find_method(s_info, (mem)->member);
             }
             if ((mi != NULL)) {
@@ -13473,6 +13598,125 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
         }
     }
     compiler__sema__types__MethodInfo* pmi = compiler__sema__symbol__SymbolTable_find_prim_method_arity((&(self)->symtab), (obj_ty)->kind, (mem)->member, (((call)->args).len + 1));
+    if ((pmi == NULL)) {
+        {
+            {
+                size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_count((&((self)->symtab).prim_methods));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        compiler__sema__symbol__PrimMethod* pm = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_at((&((self)->symtab).prim_methods), __for_i);
+                        if (((((pm)->kind == (obj_ty)->kind) && kobel_streq(((*(pm)->info)).name, (mem)->member)) && (((*(pm)->info)).ast_node != NULL))) {
+                            {
+                                compiler__ast__decl__FnDecl* ast_fn = compiler__ast__node__to_compiler__ast__decl__FnDecl((((compiler__ast__node__AstNode*)((*(pm)->info)).ast_node)));
+                                if (((((call)->args).len + 1) < ((ast_fn)->params).len)) {
+                                    {
+                                        bool all_default = true;
+                                        {
+                                            size_t __for_e = ((ast_fn)->params).len;
+                                            size_t __for_i = __for_e;
+                                            __for_i = ((((call)->args).len + 1));
+                                            bool __for_up = (__for_i <= __for_e);
+                                            bool __for_go = false;
+                                            if (__for_up) {
+                                                {
+                                                    __for_go = (__for_i < __for_e);
+                                                }
+                                            } else {
+                                                {
+                                                    __for_go = (__for_i > __for_e);
+                                                }
+                                            }
+                                            while (__for_go) {
+                                                {
+                                                    size_t i = __for_i;
+                                                    if (((std__collections__list__List_compiler__ast__decl__Param_get((&(ast_fn)->params), i)).default_val == NULL)) {
+                                                        {
+                                                            all_default = false;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_go = ((__for_i + 1) < __for_e);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_go = ((__for_i - 1) > __for_e);
+                                                        }
+                                                    }
+                                                    if (__for_go) {
+                                                        if (__for_up) {
+                                                            {
+                                                                __for_i = (__for_i + 1);
+                                                            }
+                                                        } else {
+                                                            {
+                                                                __for_i = (__for_i - 1);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if (all_default) {
+                                            {
+                                                pmi = (pm)->info;
+                                                {
+                                                    size_t __for_e = ((ast_fn)->params).len;
+                                                    size_t __for_i = __for_e;
+                                                    __for_i = ((((call)->args).len + 1));
+                                                    bool __for_up = (__for_i <= __for_e);
+                                                    bool __for_go = false;
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_go = (__for_i < __for_e);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_go = (__for_i > __for_e);
+                                                        }
+                                                    }
+                                                    while (__for_go) {
+                                                        {
+                                                            size_t i = __for_i;
+                                                            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(call)->args), (std__collections__list__List_compiler__ast__decl__Param_get((&(ast_fn)->params), i)).default_val);
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                                }
+                                                            }
+                                                            if (__for_go) {
+                                                                if (__for_up) {
+                                                                    {
+                                                                        __for_i = (__for_i + 1);
+                                                                    }
+                                                                } else {
+                                                                    {
+                                                                        __for_i = (__for_i - 1);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    }
     if ((pmi == NULL)) {
         pmi = compiler__sema__symbol__SymbolTable_find_prim_method((&(self)->symtab), (obj_ty)->kind, (mem)->member);
     }
@@ -13591,6 +13835,120 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_fn_call(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* callee_ty, compiler__ast__expr__CallExpr* call) {
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(callee_ty);
+    if ((((*(call)->callee)).kind == 5)) {
+        {
+            compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr((call)->callee);
+            compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), (id)->name);
+            if (((sym != NULL) && ((sym)->ast_node != NULL))) {
+                {
+                    compiler__ast__node__AstNode* ast_n = ((compiler__ast__node__AstNode*)(sym)->ast_node);
+                    if (((ast_n)->kind == 32)) {
+                        {
+                            compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(ast_n);
+                            if ((((call)->args).len < ((f)->params).len)) {
+                                {
+                                    bool all_default = true;
+                                    {
+                                        size_t __for_e = ((f)->params).len;
+                                        size_t __for_i = __for_e;
+                                        __for_i = ((call)->args).len;
+                                        bool __for_up = (__for_i <= __for_e);
+                                        bool __for_go = false;
+                                        if (__for_up) {
+                                            {
+                                                __for_go = (__for_i < __for_e);
+                                            }
+                                        } else {
+                                            {
+                                                __for_go = (__for_i > __for_e);
+                                            }
+                                        }
+                                        while (__for_go) {
+                                            {
+                                                size_t i = __for_i;
+                                                if (((std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i)).default_val == NULL)) {
+                                                    {
+                                                        all_default = false;
+                                                        break;
+                                                    }
+                                                }
+                                                if (__for_up) {
+                                                    {
+                                                        __for_go = ((__for_i + 1) < __for_e);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_go = ((__for_i - 1) > __for_e);
+                                                    }
+                                                }
+                                                if (__for_go) {
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_i = (__for_i + 1);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_i = (__for_i - 1);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (all_default) {
+                                        {
+                                            {
+                                                size_t __for_e = ((f)->params).len;
+                                                size_t __for_i = __for_e;
+                                                __for_i = ((call)->args).len;
+                                                bool __for_up = (__for_i <= __for_e);
+                                                bool __for_go = false;
+                                                if (__for_up) {
+                                                    {
+                                                        __for_go = (__for_i < __for_e);
+                                                    }
+                                                } else {
+                                                    {
+                                                        __for_go = (__for_i > __for_e);
+                                                    }
+                                                }
+                                                while (__for_go) {
+                                                    {
+                                                        size_t i = __for_i;
+                                                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(call)->args), (std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i)).default_val);
+                                                        if (__for_up) {
+                                                            {
+                                                                __for_go = ((__for_i + 1) < __for_e);
+                                                            }
+                                                        } else {
+                                                            {
+                                                                __for_go = ((__for_i - 1) > __for_e);
+                                                            }
+                                                        }
+                                                        if (__for_go) {
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_i = (__for_i + 1);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_i = (__for_i - 1);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     if ((((call)->args).len != ((fn_info)->param_types).len)) {
         compiler__sema__body_pass__BodyPass_report_error(self, node, "Argument count mismatch in function call");
     } else {
@@ -13695,6 +14053,125 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_struct_ct
                 }
             }
             compiler__sema__types__MethodInfo* nm = compiler__sema__types__StructType_find_method_arity(s_info, "new", ((call)->args).len);
+            if ((nm == NULL)) {
+                {
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count((&(s_info)->methods));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at((&(s_info)->methods), __for_i);
+                                if ((kobel_streq((m)->name, "new") && ((m)->ast_node != NULL))) {
+                                    {
+                                        compiler__ast__decl__FnDecl* fn_decl = compiler__ast__node__to_compiler__ast__decl__FnDecl((((compiler__ast__node__AstNode*)(m)->ast_node)));
+                                        if ((((call)->args).len < ((fn_decl)->params).len)) {
+                                            {
+                                                bool all_default = true;
+                                                {
+                                                    size_t __for_e = ((fn_decl)->params).len;
+                                                    size_t __for_i = __for_e;
+                                                    __for_i = ((call)->args).len;
+                                                    bool __for_up = (__for_i <= __for_e);
+                                                    bool __for_go = false;
+                                                    if (__for_up) {
+                                                        {
+                                                            __for_go = (__for_i < __for_e);
+                                                        }
+                                                    } else {
+                                                        {
+                                                            __for_go = (__for_i > __for_e);
+                                                        }
+                                                    }
+                                                    while (__for_go) {
+                                                        {
+                                                            size_t i = __for_i;
+                                                            if (((std__collections__list__List_compiler__ast__decl__Param_get((&(fn_decl)->params), i)).default_val == NULL)) {
+                                                                {
+                                                                    all_default = false;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_go = ((__for_i + 1) < __for_e);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_go = ((__for_i - 1) > __for_e);
+                                                                }
+                                                            }
+                                                            if (__for_go) {
+                                                                if (__for_up) {
+                                                                    {
+                                                                        __for_i = (__for_i + 1);
+                                                                    }
+                                                                } else {
+                                                                    {
+                                                                        __for_i = (__for_i - 1);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                if (all_default) {
+                                                    {
+                                                        nm = m;
+                                                        {
+                                                            size_t __for_e = ((fn_decl)->params).len;
+                                                            size_t __for_i = __for_e;
+                                                            __for_i = ((call)->args).len;
+                                                            bool __for_up = (__for_i <= __for_e);
+                                                            bool __for_go = false;
+                                                            if (__for_up) {
+                                                                {
+                                                                    __for_go = (__for_i < __for_e);
+                                                                }
+                                                            } else {
+                                                                {
+                                                                    __for_go = (__for_i > __for_e);
+                                                                }
+                                                            }
+                                                            while (__for_go) {
+                                                                {
+                                                                    size_t i = __for_i;
+                                                                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(call)->args), (std__collections__list__List_compiler__ast__decl__Param_get((&(fn_decl)->params), i)).default_val);
+                                                                    if (__for_up) {
+                                                                        {
+                                                                            __for_go = ((__for_i + 1) < __for_e);
+                                                                        }
+                                                                    } else {
+                                                                        {
+                                                                            __for_go = ((__for_i - 1) > __for_e);
+                                                                        }
+                                                                    }
+                                                                    if (__for_go) {
+                                                                        if (__for_up) {
+                                                                            {
+                                                                                __for_i = (__for_i + 1);
+                                                                            }
+                                                                        } else {
+                                                                            {
+                                                                                __for_i = (__for_i - 1);
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                }
+            }
             if ((nm != NULL)) {
                 {
                     compiler__sema__types__FnType* n_info = compiler__sema__types__Type_as_fn((nm)->fn_type);
@@ -13757,6 +14234,104 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_struct_ct
     if (((s_info)->has_private && (!kobel_streq((s_info)->module, ((self)->symtab).current_module)))) {
         {
             compiler__sema__body_pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot construct '", (s_info)->name), "' from its fields: they are private to module '"), (s_info)->module), "'; add a 'new' constructor"));
+        }
+    }
+    if ((((call)->args).len < ((s_info)->fields).len)) {
+        {
+            bool all_default = true;
+            {
+                size_t __for_e = ((s_info)->fields).len;
+                size_t __for_i = __for_e;
+                __for_i = ((call)->args).len;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                while (__for_go) {
+                    {
+                        size_t i = __for_i;
+                        if (((std__collections__list__List_compiler__sema__types__StructField_get((&(s_info)->fields), i)).default_val == NULL)) {
+                            {
+                                all_default = false;
+                                break;
+                            }
+                        }
+                        if (__for_up) {
+                            {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                {
+                                    __for_i = (__for_i + 1);
+                                }
+                            } else {
+                                {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (all_default) {
+                {
+                    {
+                        size_t __for_e = ((s_info)->fields).len;
+                        size_t __for_i = __for_e;
+                        __for_i = ((call)->args).len;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            {
+                                __for_go = (__for_i < __for_e);
+                            }
+                        } else {
+                            {
+                                __for_go = (__for_i > __for_e);
+                            }
+                        }
+                        while (__for_go) {
+                            {
+                                size_t i = __for_i;
+                                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(call)->args), ((compiler__ast__node__AstNode*)(std__collections__list__List_compiler__sema__types__StructField_get((&(s_info)->fields), i)).default_val));
+                                if (__for_up) {
+                                    {
+                                        __for_go = ((__for_i + 1) < __for_e);
+                                    }
+                                } else {
+                                    {
+                                        __for_go = ((__for_i - 1) > __for_e);
+                                    }
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        {
+                                            __for_i = (__for_i + 1);
+                                        }
+                                    } else {
+                                        {
+                                            __for_i = (__for_i - 1);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     if ((((call)->args).len != ((s_info)->fields).len)) {
@@ -13866,7 +14441,7 @@ void compiler__sema__body_pass__BodyPass_check_fn_body(compiler__sema__body_pass
                 size_t i = __for_i;
                 compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
                 compiler__sema__types__Type* p_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get((&(fn_info)->param_types), i);
-                compiler__sema__symbol__SymbolTable_define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (p).name, (p).name, 2, p_ty, (p).is_mut, false, (fn_node)->line, (fn_node)->col });
+                compiler__sema__symbol__SymbolTable_define((&(self)->symtab), (compiler__sema__symbol__Symbol){ (p).name, (p).name, 2, p_ty, (p).is_mut, false, (fn_node)->line, (fn_node)->col, NULL });
                 if (__for_up) {
                     {
                         __for_go = ((__for_i + 1) < __for_e);
@@ -17654,7 +18229,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
             } else {
                 ptype = NULL;
             }
-            std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (pname).text, ptype, is_mut, has_val });
+            compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
+            std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (pname).text, ptype, is_mut, has_val, p_default });
             while (compiler__parser__parser__Parser_match_token(self, 2)) {
                 {
                     bool p_is_mut = false;
@@ -17676,7 +18252,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
                     } else {
                         p_type = NULL;
                     }
-                    std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (p_name).text, p_type, p_is_mut, p_has_val });
+                    compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
+                    std__collections__list__List_compiler__ast__decl__Param_add((&params), (compiler__ast__decl__Param){ (p_name).text, p_type, p_is_mut, p_has_val, p_def });
                 }
             }
         }
@@ -17712,7 +18289,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_struct_decl
             compiler__lexer__token__Token fname = compiler__parser__parser__Parser_consume(self, 41, "Expected field name");
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after field name");
             compiler__ast__node__AstNode* ftype = compiler__parser__parser__Parser_parse_type(self);
-            std__collections__list__List_compiler__ast__decl__StructField_add((&fields), (compiler__ast__decl__StructField){ (fname).text, ftype, f_pub });
+            compiler__ast__node__AstNode* f_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
+            std__collections__list__List_compiler__ast__decl__StructField_add((&fields), (compiler__ast__decl__StructField){ (fname).text, ftype, f_pub, f_default });
             compiler__parser__parser__Parser_match_token(self, 2);
             compiler__parser__parser__Parser_match_token(self, 0);
         }
@@ -19677,6 +20255,12 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), (f).name);
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
                                 fmt__formatter__Formatter_format_type(self, (f).type_node);
+                                if (((f).default_val != NULL)) {
+                                    {
+                                        fmt__buffer__FormatBuffer_write((&(self)->buf), " = ");
+                                        fmt__formatter__Formatter_format_expr(self, (f).default_val);
+                                    }
+                                }
                                 if (((i + 1) < ((s)->fields).len)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
                                 }
@@ -19754,6 +20338,12 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                             {
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
                                 fmt__formatter__Formatter_format_type(self, (p).type_node);
+                            }
+                        }
+                        if (((p).default_val != NULL)) {
+                            {
+                                fmt__buffer__FormatBuffer_write((&(self)->buf), " = ");
+                                fmt__formatter__Formatter_format_expr(self, (p).default_val);
                             }
                         }
                         if (__for_up) {

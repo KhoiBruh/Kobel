@@ -122,6 +122,29 @@ impl BodyPass {
 				self.report_error(node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
 			}
 			var mi = s_info.find_method_arity(mem.member, call.args.len + 1);
+			if (mi == null) {
+				for (m in s_info.methods) {
+					if (m.name == mem.member && m.ast_node != null) {
+						val ast_fn = (m.ast_node as *AstNode).to<FnDecl>();
+						if (call.args.len + 1 < ast_fn.params.len) {
+							var all_default = true;
+							for (i in (call.args.len + 1)..<ast_fn.params.len) {
+								if (ast_fn.params[i].default_val == null) {
+									all_default = false;
+									break;
+								}
+							}
+							if (all_default) {
+								mi = m;
+								for (i in (call.args.len + 1)..<ast_fn.params.len) {
+									call.args.add(ast_fn.params[i].default_val);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
 			if (mi == null) mi = s_info.find_method(mem.member);
 			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
@@ -165,6 +188,29 @@ impl BodyPass {
 
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
 		var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, call.args.len + 1);
+		if (pmi == null) {
+			for (pm in self.symtab.prim_methods) {
+				if (pm.kind == obj_ty.kind && pm.info.name == mem.member && pm.info.ast_node != null) {
+					val ast_fn = (pm.info.ast_node as *AstNode).to<FnDecl>();
+					if (call.args.len + 1 < ast_fn.params.len) {
+						var all_default = true;
+						for (i in (call.args.len + 1)..<ast_fn.params.len) {
+							if (ast_fn.params[i].default_val == null) {
+								all_default = false;
+								break;
+							}
+						}
+						if (all_default) {
+							pmi = pm.info;
+							for (i in (call.args.len + 1)..<ast_fn.params.len) {
+								call.args.add(ast_fn.params[i].default_val);
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
 		if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
 		if (pmi != null) {
 			val fn_info = pmi.fn_type.as_fn();
@@ -214,6 +260,30 @@ impl BodyPass {
 
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
 		val fn_info = callee_ty.as_fn();
+		if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
+			val id = call.callee.to<IdentifierExpr>();
+			val sym = self.symtab.lookup(id.name);
+			if (sym != null && sym.ast_node != null) {
+				val ast_n = sym.ast_node as *AstNode;
+				if (ast_n.kind == NodeKind.DECL_FN) {
+					val f = ast_n.to<FnDecl>();
+					if (call.args.len < f.params.len) {
+						var all_default = true;
+						for (i in call.args.len..<f.params.len) {
+							if (f.params[i].default_val == null) {
+								all_default = false;
+								break;
+							}
+						}
+						if (all_default) {
+							for (i in call.args.len..<f.params.len) {
+								call.args.add(f.params[i].default_val);
+							}
+						}
+					}
+				}
+			}
+		}
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 		else {
 			for (i in 0..<call.args.len) {
@@ -246,7 +316,30 @@ impl BodyPass {
 			if (s_info.count_method_arity("new", call.args.len) > 1) {
 				self.report_error(node, "Ambiguous call to 'new': overloading by parameter type is not supported");
 			}
-			val nm = s_info.find_method_arity("new", call.args.len);
+			var nm = s_info.find_method_arity("new", call.args.len);
+			if (nm == null) {
+				for (m in s_info.methods) {
+					if (m.name == "new" && m.ast_node != null) {
+						val fn_decl = (m.ast_node as *AstNode).to<FnDecl>();
+						if (call.args.len < fn_decl.params.len) {
+							var all_default = true;
+							for (i in call.args.len..<fn_decl.params.len) {
+								if (fn_decl.params[i].default_val == null) {
+									all_default = false;
+									break;
+								}
+							}
+							if (all_default) {
+								nm = m;
+								for (i in call.args.len..<fn_decl.params.len) {
+									call.args.add(fn_decl.params[i].default_val);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn();
 				for (i in 0..<call.args.len) {
@@ -266,6 +359,21 @@ impl BodyPass {
 		// `new` constructor (handled above).
 		if (s_info.has_private && s_info.module != self.symtab.current_module) {
 			self.report_error(node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
+		}
+
+		if (call.args.len < s_info.fields.len) {
+			var all_default = true;
+			for (i in call.args.len..<s_info.fields.len) {
+				if (s_info.fields[i].default_val == null) {
+					all_default = false;
+					break;
+				}
+			}
+			if (all_default) {
+				for (i in call.args.len..<s_info.fields.len) {
+					call.args.add(s_info.fields[i].default_val as *AstNode);
+				}
+			}
 		}
 
 		if (call.args.len != s_info.fields.len) self.report_error(node, "Argument count mismatch in struct constructor");

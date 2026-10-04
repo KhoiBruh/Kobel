@@ -84,7 +84,8 @@ impl Parser {
 				else -> null;
 			};
 
-			params.add(Param(pname.text, ptype, is_mut, has_val));
+			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			params.add(Param(pname.text, ptype, is_mut, has_val, p_default));
 
 			while (self.match_token(TokenType.COMMA)) {
 				var p_is_mut = false;
@@ -102,7 +103,8 @@ impl Parser {
 					else -> null;
 				};
 
-				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val));
+				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val, p_def));
 			}
 		}
 
@@ -146,7 +148,8 @@ impl Parser {
 			val fname = self.consume(TokenType.IDENTIFIER, "Expected field name");
 			self.consume(TokenType.COLON, "Expected ':' after field name");
 			val ftype = self.parse_type();
-			fields.add(StructField(fname.text, ftype, f_pub));
+			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			fields.add(StructField(fname.text, ftype, f_pub, f_default));
 
 			self.match_token(TokenType.COMMA);
 			self.match_token(TokenType.SEMI_COLON);

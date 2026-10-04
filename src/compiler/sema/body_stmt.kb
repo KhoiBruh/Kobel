@@ -70,7 +70,7 @@ impl BodyPass {
 		if (vd.type_annotation == null && has_init)
 			vd.type_annotation = self.arena.ast_type_from_type(var_ty);
 
-		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
+		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col, null));
 		if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
 	}
 

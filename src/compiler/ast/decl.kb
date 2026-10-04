@@ -30,7 +30,8 @@ pub struct Param {
 	pub name: str,
 	pub type_node: *AstNode,
 	pub is_mut: bool,
-	pub has_val: bool
+	pub has_val: bool,
+	pub default_val: *AstNode = null
 }
 
 pub struct GenericParam {
@@ -54,7 +55,8 @@ impl FnDecl {
 pub struct StructField {
 	pub name: str,
 	pub type_node: *AstNode,
-	pub is_pub: bool
+	pub is_pub: bool,
+	pub default_val: *AstNode = null
 }
 
 pub struct StructDecl {

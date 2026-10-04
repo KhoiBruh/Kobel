@@ -155,8 +155,8 @@ fn test_declaration_nodes(): bool {
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
 	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1UZ, 1UZ);
-	params.add(Param("a", ty_i32, false, false));
-	params.add(Param("b", ty_i32, false, false));
+	params.add(Param("a", ty_i32, false, false, null));
+	params.add(Param("b", ty_i32, false, false, null));
 
 	val id_a = arena.identifier("a", 1UZ, 1UZ);
 	val id_b = arena.identifier("b", 1UZ, 1UZ);

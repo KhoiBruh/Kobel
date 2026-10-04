@@ -37,7 +37,8 @@ pub struct Symbol {
 	pub is_mut: bool,
 	pub is_pub: bool,
 	pub line: usz,
-	pub col: usz
+	pub col: usz,
+	pub ast_node: *u8 = null
 }
 
 // ============================================================================

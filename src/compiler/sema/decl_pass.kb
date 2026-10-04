@@ -567,7 +567,7 @@ impl DeclPass {
 					// Receiver by value: spell its type so the backend emits `i32 self`.
 					pt = prim;
 					val rt = self.named_type(prim_name, List<*AstNode>(), node.line, node.col);
-					f.params[i] = Param(p.name, rt, p.is_mut, p.has_val);
+					f.params[i] = Param(p.name, rt, p.is_mut, p.has_val, p.default_val);
 				} else {
 					pt = self.resolve_ast_type(p.type_node);
 				}

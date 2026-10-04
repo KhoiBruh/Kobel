@@ -501,6 +501,10 @@ impl Formatter {
 						self.buf.write(f.name);
 						self.buf.write(": ");
 						self.format_type(f.type_node);
+						if (f.default_val != null) {
+							self.buf.write(" = ");
+							self.format_expr(f.default_val);
+						}
 						if (i + 1 < s.fields.len) self.buf.write(",");
 					}
 					self.buf.dedent();
@@ -526,6 +530,10 @@ impl Formatter {
 					if (p.type_node != null) {
 						self.buf.write(": ");
 						self.format_type(p.type_node);
+					}
+					if (p.default_val != null) {
+						self.buf.write(" = ");
+						self.format_expr(p.default_val);
 					}
 				}
 				self.buf.write(")");

@@ -41,7 +41,8 @@ pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,
 	pub offset: usz,
-	pub is_pub: bool
+	pub is_pub: bool,
+	pub default_val: *u8 = null
 }
 
 // A method collected from an `impl` block.

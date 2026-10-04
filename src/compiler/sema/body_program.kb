@@ -56,7 +56,7 @@ impl BodyPass {
 			val p = f.params[i];
 			val p_ty = fn_info.param_types[i];
 			self.symtab.define(
-				Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col)
+				Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false, fn_node.line, fn_node.col, null)
 			);
 		}
 

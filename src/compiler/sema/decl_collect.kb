@@ -76,7 +76,7 @@ impl DeclPass {
 		val s_type = self.arena.struct_type(s.name, List<StructField>());
 		s_type.as_struct_mut().c_name = c_name;
 		val ok = self.symtab.define_global(
-			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)
+			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node as *u8)
 		);
 		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 
@@ -87,7 +87,7 @@ impl DeclPass {
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
 			val s_info = s_type.as_struct_mut();
-			s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub));
+			s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8));
 			if (!f.is_pub) has_private = true;
 		}
 		val st_info = s_type.as_struct_mut();
@@ -117,7 +117,7 @@ impl DeclPass {
 		val fn_type = self.arena.fn_type(param_types, ret_type);
 		val c_name = self.c_name_for(f.name);
 		val ok = self.symtab.define_global(
-			Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)
+			Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node as *u8)
 		);
 		if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
 
@@ -155,7 +155,7 @@ impl DeclPass {
 		*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
 
 		val ok = self.symtab.define_global(
-			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col)
+			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col, node as *u8)
 		);
 		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
 
@@ -171,7 +171,7 @@ impl DeclPass {
 	
 		val c_name = self.c_name_for(c.name);
 		val ok = self.symtab.define_global(
-			Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col)
+			Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.is_pub, node.line, node.col, node as *u8)
 		);
 		if (!ok) self.report_error(node, "Duplicate const declaration '${c.name}'");
 	

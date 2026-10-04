@@ -102,7 +102,7 @@ impl DeclPass {
 									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
 										else self.pointer_type(p.is_mut, named, m.line, m.col);
-									f.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val);
+									f.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
 							}
 							self.symtab.gen.fn_templates.add(self.gen_template(f.name, m, true));
@@ -378,13 +378,13 @@ impl DeclPass {
 	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
 		val s = node.to<StructDecl>() as &StructDecl;
 		val s_type = self.arena.struct_type(final_name, List<StructField>());
-		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col)));
+		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node as *u8)));
 		s.name = final_name;
 
 		var has_private = false;
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			s_type.as_struct_mut().fields.add(StructField(f.name, f_type, 0, f.is_pub));
+			s_type.as_struct_mut().fields.add(StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8));
 			if (!f.is_pub) has_private = true;
 		}
 		val st_info = s_type.as_struct_mut();
@@ -402,7 +402,7 @@ impl DeclPass {
 		if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
-		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col)));
+		self.symtab.gen.inst_syms.add(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node as *u8)));
 		f.name = final_name;
 	}
 
@@ -705,7 +705,8 @@ impl DeclPass {
 		var params = List<Param>();
 		for (p in f.params) {
 			val pt = if (p.type_node != null) self.clone_type(p.type_node, subst) else null;
-			params.add(Param(p.name, pt, p.is_mut, p.has_val));
+			val dflt = if (p.default_val != null) self.clone_expr(p.default_val, subst) else null;
+			params.add(Param(p.name, pt, p.is_mut, p.has_val, dflt));
 		}
 		val rt = if (f.return_type != null) self.clone_type(f.return_type, subst) else null;
 		return self.fn_decl(
@@ -721,7 +722,8 @@ impl DeclPass {
 		val s = node.to<StructDecl>();
 		var fields = List<AstStructField>();
 		for (f in s.fields) {
-			fields.add(AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub));
+			val dflt = if (f.default_val != null) self.clone_expr(f.default_val, subst) else null;
+			fields.add(AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub, dflt));
 		}
 		return self.struct_decl(new_name, List<GenericParam>(), fields, s.is_pub, node.line, node.col);
 	}

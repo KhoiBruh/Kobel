@@ -172,9 +172,9 @@ fn test_struct_layout() {
 	var t_i64 = type_i64();
 
 	var fields = List<StructField>();
-	fields.add(StructField("a", &t_u8, 0UZ, true));
-	fields.add(StructField("b", &t_i32, 0UZ, true));
-	fields.add(StructField("c", &t_i64, 0UZ, true));
+	fields.add(StructField("a", &t_u8, 0UZ, true, null));
+	fields.add(StructField("b", &t_i32, 0UZ, true, null));
+	fields.add(StructField("c", &t_i64, 0UZ, true, null));
 
 	val s_ty = arena.struct_type("Sample", fields);
 
