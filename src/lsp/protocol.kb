@@ -13,7 +13,6 @@ use lsp.json.*;
 
 extern "libc" {
 	fn getchar(): i32;
-	fn putchar(c: char): i32;
 	fn fflush(stream: *none): i32;
 	fn _setmode(fd: i32, mode: i32): i32;
 }

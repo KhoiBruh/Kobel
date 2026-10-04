@@ -40,33 +40,35 @@ impl StringBuilder {
 		self.len += s_len;
 	}
 
-	pub fn append_i32(var self, n: i32) {
+	pub fn append_i64(var self, n: i64) {
 		var v = n;
-		if (v == 0) {
+		if (v == 0L) {
 			self.append_char('0');
 			return;
 		}
-		if (v < 0) {
+		if (v < 0L) {
 			self.append_char('-');
 			v = -v;
 		}
 
 		// Emit from the most significant digit: find that digit's place value
 		// first, then peel digits off one at a time (no temporary array needed).
-		var place = 1;
+		var place: i64 = 1L;
 		var probe = v;
-		while (probe >= 10) {
-			probe /= 10;
-			place *= 10;
+		while (probe >= 10L) {
+			probe /= 10L;
+			place *= 10L;
 		}
 		var rest = v;
-		while (place > 0) {
+		while (place > 0L) {
 			val digit = rest / place;
-			self.append_char((digit + 48) as char);
+			self.append_char(((digit as i32) + 48) as char);
 			rest -= digit * place;
-			place /= 10;
+			place /= 10L;
 		}
 	}
+
+	pub fn append_i32(var self, n: i32) => self.append_i64(n as i64);
 
 	pub fn clear(var self) {
 		self.len = 0;

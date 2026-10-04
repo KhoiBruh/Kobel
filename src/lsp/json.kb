@@ -74,31 +74,6 @@ pub fn json_obj(): *JsonValue => json_box(JsonValue(
 // Serialization Helpers
 // ============================================================================
 
-fn append_json_num(var sb: &StringBuilder, n: i64) {
-	if (n == 0L) {
-		sb.append_char('0');
-		return;
-	}
-	var v = n;
-	if (v < 0L) {
-		sb.append_char('-');
-		v = -v;
-	}
-	var place: i64 = 1L;
-	var probe = v;
-	while (probe >= 10L) {
-		probe /= 10L;
-		place *= 10L;
-	}
-	var rest = v;
-	while (place > 0L) {
-		val digit = rest / place;
-		sb.append_char(((digit as i32) + 48) as char);
-		rest -= digit * place;
-		place /= 10L;
-	}
-}
-
 fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 	sb.append_char('"');
 	for (i in 0UZ..<s.len) {
@@ -133,7 +108,7 @@ impl JsonValue {
 				if (self.bool_val) sb.append_str("true");
 				else sb.append_str("false");
 			}
-			JsonKind.JNUM -> append_json_num(sb, self.num_val);
+			JsonKind.JNUM -> sb.append_i64(self.num_val);
 			JsonKind.JSTR -> append_json_escaped_str(sb, self.str_val);
 			JsonKind.JARR -> {
 				sb.append_char('[');

@@ -1,8 +1,8 @@
 mod util.strutil;
 
 use std.collections.list.List;
+use std.str.str_from_bytes;
 use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_release;
 
 // ============================================================================
 // String utilities shared by the compiler
@@ -14,25 +14,6 @@ use std.mem.alloc.raw_release;
 
 extern "libc" {
 	fn strlen(s: *char): usz;
-}
-
-struct StrRaw {
-	pub data: *char,
-	pub len: usz,
-	pub cap: usz
-}
-
-// Wraps a heap byte buffer (already NUL terminated) into a `str` value.
-pub fn str_from_bytes(buf: &u8, len: usz): str {
-	val raw_mem = raw_alloc(24);
-	val r = raw_mem as &StrRaw;
-	r.data = buf as *char;
-	r.len = len;
-	r.cap = len + 1;
-	val sp: *str = r as *str;
-	val res: str = *sp;
-	raw_release(raw_mem);
-	return res;
 }
 
 // Views a NUL-terminated C string as a `str`. The buffer is shared, not copied,

@@ -1,5 +1,8 @@
 mod std.io;
 
+use std.str.str_from_bytes;
+use std.mem.alloc.raw_alloc;
+
 extern "libc" {
 	fn puts(s: *char): i32;
 	fn putchar(c: char): i32;
@@ -11,14 +14,6 @@ extern "libc" {
 	fn fwrite(ptr: *char, size: usz, count: usz, stream: *none): usz;
 	fn fseek(stream: *none, offset: i64, origin: i32): i32;
 	fn ftell(stream: *none): i64;
-	fn malloc(size: usz): &u8;
-	fn free(ptr: &u8);
-}
-
-struct StringRaw {
-	data: *char,
-	len: usz,
-	cap: usz
 }
 
 pub fn print(s: str) {
@@ -40,7 +35,7 @@ pub fn read_file(path: str): str {
 
 	fseek(f, 0L, 0);
 	val sz = size_i64 as usz;
-	val buf = malloc(sz + 1);
+	val buf = raw_alloc(sz + 1);
 	if (buf == null) {
 		fclose(f);
 		return "";
@@ -50,15 +45,7 @@ pub fn read_file(path: str): str {
 	fclose(f);
 	buf[read_bytes] = 0;
 
-	val raw_mem = malloc(24);
-	val r = raw_mem as &StringRaw;
-	r.data = buf as *char;
-	r.len = read_bytes;
-	r.cap = sz + 1;
-	val sp = r as *str;
-	val res = *sp;
-	free(raw_mem);
-	return res;
+	return str_from_bytes(buf, read_bytes);
 }
 
 pub fn write_file(path: str, content: str): bool {
