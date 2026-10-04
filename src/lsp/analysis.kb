@@ -405,6 +405,20 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 	else -> ""
 };
 
+// ============================================================================
+// Completion Helper
+// ============================================================================
+
+fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
+	val item = json_obj();
+	item.set("label", json_str(label));
+	item.set("kind", json_num(kind));
+	if (detail.len > 0UZ) {
+		item.set("detail", json_str(detail));
+	}
+	arr.add(item);
+}
+
 impl AnalysisResult {
 
 	pub fn hover_at(val self, line0: usz, col0: usz): *JsonValue {
@@ -501,6 +515,76 @@ impl AnalysisResult {
 
 		return json_null();
 	}
+
+	pub fn complete_at(val self): *JsonValue {
+		val items = json_arr();
+
+		// 1. Language Keywords (Kind: 14 = Keyword)
+		add_completion_item(items, "fn", 14L, "Function declaration");
+		add_completion_item(items, "val", 14L, "Immutable binding");
+		add_completion_item(items, "var", 14L, "Mutable variable");
+		add_completion_item(items, "const", 14L, "Constant declaration");
+		add_completion_item(items, "struct", 14L, "Struct type");
+		add_completion_item(items, "enum", 14L, "Enum type");
+		add_completion_item(items, "trait", 14L, "Trait definition");
+		add_completion_item(items, "impl", 14L, "Implementation block");
+		add_completion_item(items, "when", 14L, "Pattern matching");
+		add_completion_item(items, "if", 14L, "Conditional");
+		add_completion_item(items, "else", 14L, "Else branch");
+		add_completion_item(items, "while", 14L, "While loop");
+		add_completion_item(items, "for", 14L, "For-in loop");
+		add_completion_item(items, "in", 14L, "Iteration in");
+		add_completion_item(items, "return", 14L, "Return statement");
+		add_completion_item(items, "pub", 14L, "Public visibility");
+		add_completion_item(items, "use", 14L, "Module import");
+		add_completion_item(items, "mod", 14L, "Module declaration");
+		add_completion_item(items, "extern", 14L, "External declaration");
+		add_completion_item(items, "true", 14L, "Boolean true");
+		add_completion_item(items, "false", 14L, "Boolean false");
+		add_completion_item(items, "null", 14L, "Null pointer");
+		add_completion_item(items, "as", 14L, "Type cast");
+		add_completion_item(items, "break", 14L, "Break loop");
+		add_completion_item(items, "continue", 14L, "Continue loop");
+
+		// 2. Built-in Primitive Types (Kind: 7 = Class/Type)
+		add_completion_item(items, "i8", 7L, "Signed 8-bit integer");
+		add_completion_item(items, "i16", 7L, "Signed 16-bit integer");
+		add_completion_item(items, "i32", 7L, "Signed 32-bit integer");
+		add_completion_item(items, "i64", 7L, "Signed 64-bit integer");
+		add_completion_item(items, "isz", 7L, "Signed pointer-size integer");
+		add_completion_item(items, "u8", 7L, "Unsigned 8-bit integer");
+		add_completion_item(items, "u16", 7L, "Unsigned 16-bit integer");
+		add_completion_item(items, "u32", 7L, "Unsigned 32-bit integer");
+		add_completion_item(items, "u64", 7L, "Unsigned 64-bit integer");
+		add_completion_item(items, "usz", 7L, "Unsigned pointer-size integer");
+		add_completion_item(items, "f32", 7L, "32-bit float");
+		add_completion_item(items, "f64", 7L, "64-bit float");
+		add_completion_item(items, "bool", 7L, "Boolean type");
+		add_completion_item(items, "char", 7L, "ASCII character type");
+		add_completion_item(items, "str", 7L, "String type");
+		add_completion_item(items, "none", 7L, "Unit / void type");
+
+		// 3. User & imported symbols from SymbolTable
+		if (self.has_symtab) {
+			for (mod_scope in self.symtab.modules) {
+				for (sym in mod_scope.symbols) {
+					val k = when (sym.kind) {
+						SymbolKind.FN -> 3L, // Function
+						SymbolKind.STRUCT -> 22L, // Struct
+						SymbolKind.ENUM -> 13L, // Enum
+						SymbolKind.VAR -> 6L, // Variable
+						SymbolKind.CONST -> 21L, // Constant
+						else -> 6L
+					};
+					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
+				}
+			}
+		}
+
+		return items;
+	}
+
+}
 
 // ============================================================================
 // Document Symbol Outline Provider
@@ -610,85 +694,3 @@ pub fn format_document(text: str): *JsonValue {
 	return edits;
 }
 
-// ============================================================================
-// Completion Provider
-// ============================================================================
-
-fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
-	val item = json_obj();
-	item.set("label", json_str(label));
-	item.set("kind", json_num(kind));
-	if (detail.len > 0UZ) {
-		item.set("detail", json_str(detail));
-	}
-	arr.add(item);
-}
-
-	pub fn complete_at(val self): *JsonValue {
-		val items = json_arr();
-
-		// 1. Language Keywords (Kind: 14 = Keyword)
-		add_completion_item(items, "fn", 14L, "Function declaration");
-		add_completion_item(items, "val", 14L, "Immutable binding");
-		add_completion_item(items, "var", 14L, "Mutable variable");
-		add_completion_item(items, "const", 14L, "Constant declaration");
-		add_completion_item(items, "struct", 14L, "Struct type");
-		add_completion_item(items, "enum", 14L, "Enum type");
-		add_completion_item(items, "trait", 14L, "Trait definition");
-		add_completion_item(items, "impl", 14L, "Implementation block");
-		add_completion_item(items, "when", 14L, "Pattern matching");
-		add_completion_item(items, "if", 14L, "Conditional");
-		add_completion_item(items, "else", 14L, "Else branch");
-		add_completion_item(items, "while", 14L, "While loop");
-		add_completion_item(items, "for", 14L, "For-in loop");
-		add_completion_item(items, "in", 14L, "Iteration in");
-		add_completion_item(items, "return", 14L, "Return statement");
-		add_completion_item(items, "pub", 14L, "Public visibility");
-		add_completion_item(items, "use", 14L, "Module import");
-		add_completion_item(items, "mod", 14L, "Module declaration");
-		add_completion_item(items, "extern", 14L, "External declaration");
-		add_completion_item(items, "true", 14L, "Boolean true");
-		add_completion_item(items, "false", 14L, "Boolean false");
-		add_completion_item(items, "null", 14L, "Null pointer");
-		add_completion_item(items, "as", 14L, "Type cast");
-		add_completion_item(items, "break", 14L, "Break loop");
-		add_completion_item(items, "continue", 14L, "Continue loop");
-
-		// 2. Built-in Primitive Types (Kind: 7 = Class/Type)
-		add_completion_item(items, "i8", 7L, "Signed 8-bit integer");
-		add_completion_item(items, "i16", 7L, "Signed 16-bit integer");
-		add_completion_item(items, "i32", 7L, "Signed 32-bit integer");
-		add_completion_item(items, "i64", 7L, "Signed 64-bit integer");
-		add_completion_item(items, "isz", 7L, "Signed pointer-size integer");
-		add_completion_item(items, "u8", 7L, "Unsigned 8-bit integer");
-		add_completion_item(items, "u16", 7L, "Unsigned 16-bit integer");
-		add_completion_item(items, "u32", 7L, "Unsigned 32-bit integer");
-		add_completion_item(items, "u64", 7L, "Unsigned 64-bit integer");
-		add_completion_item(items, "usz", 7L, "Unsigned pointer-size integer");
-		add_completion_item(items, "f32", 7L, "32-bit float");
-		add_completion_item(items, "f64", 7L, "64-bit float");
-		add_completion_item(items, "bool", 7L, "Boolean type");
-		add_completion_item(items, "char", 7L, "ASCII character type");
-		add_completion_item(items, "str", 7L, "String type");
-		add_completion_item(items, "none", 7L, "Unit / void type");
-
-		// 3. User & imported symbols from SymbolTable
-		if (self.has_symtab) {
-			for (mod_scope in self.symtab.modules) {
-				for (sym in mod_scope.symbols) {
-					val k = when (sym.kind) {
-						SymbolKind.FN -> 3L, // Function
-						SymbolKind.STRUCT -> 22L, // Struct
-						SymbolKind.ENUM -> 13L, // Enum
-						SymbolKind.VAR -> 6L, // Variable
-						SymbolKind.CONST -> 21L, // Constant
-						else -> 6L
-					};
-					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
-				}
-			}
-		}
-
-		return items;
-	}
-}
