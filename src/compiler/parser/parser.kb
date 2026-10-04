@@ -12,7 +12,7 @@ use std.mem.arena.*;
 pub struct Parser {
 	pub tokens: List<Token>,
 	pub current: usz = 0,
-	pub arena: Arena = Arena(65536),
+	pub arena: Arena = Arena(),
 	pub errors: List<str> = List<str>()
 }
 

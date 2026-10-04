@@ -71,11 +71,10 @@ impl Iterable for Scope {
 
 pub struct ModuleScope {
 	pub name: str,
-	pub symbols: List<*Symbol>
+	pub symbols: List<*Symbol> = List<*Symbol>()
 }
 
 impl ModuleScope {
-	pub fn new(name: str) => Self(name, List<*Symbol>());
 
 	pub fn lookup(self, name: str): *Symbol {
 		for (sym in self.symbols) {
@@ -139,7 +138,7 @@ impl TraitInfo {
 		return null;
 	}
 
-	pub fn has_impl(self, struct_name: str): bool => struct_name.in_list(self.impls);
+	pub fn has_impl(self, struct_name: str) => struct_name.in_list(self.impls);
 }
 
 // A method declared by an `impl <primitive> { ... }` block. Primitives are not
@@ -217,7 +216,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
 	pub fn new(): Self {
-		var arena = Arena(65536);
+		val arena = Arena();
 		val root_scope = arena.alloc_val<Scope>(Scope());
 		return Self(root_scope, arena);
 	}

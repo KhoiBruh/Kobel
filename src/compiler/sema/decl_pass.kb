@@ -165,10 +165,7 @@ pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
 
 impl DeclPass {
 
-	pub fn new(): DeclPass {
-		var arena = Arena(65536);
-		return Self(SymbolTable(), arena, "", List<str>(), false, null);
-	}
+	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>(), false, null);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.make<NamedType>(NamedType(name, type_args), line, col);

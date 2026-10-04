@@ -31,8 +31,6 @@ pub struct CCodeGen {
 
 impl CCodeGen {
 
-	pub fn new() => Self();
-
 	pub fn is_pointer_var(val self, name: str) => name.in_list(self.pointer_vars);
 
 	pub fn is_str_var(val self, name: str) => name.in_list(self.str_vars);
