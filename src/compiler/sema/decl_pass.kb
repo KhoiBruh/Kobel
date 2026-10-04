@@ -121,6 +121,48 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	out.add(m);
 }
 
+pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
+	val len = raw.len;
+	if (len >= 2) {
+		val last = raw[len - 1];
+		val prev = raw[len - 2];
+		if (prev == 'U' && last == 'B') return alloc_primitive(arena, type_u8());
+		if (prev == 'U' && last == 'S') return alloc_primitive(arena, type_u16());
+		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
+		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
+	}
+
+	if (len >= 1) {
+		val last = raw[len - 1];
+		if (last == 'U') return alloc_primitive(arena, type_u32());
+		if (last == 'L') return alloc_primitive(arena, type_i64());
+		if (last == 'S') return alloc_primitive(arena, type_i16());
+		if (last == 'Z') return alloc_primitive(arena, type_isz());
+		if (last == 'B') return alloc_primitive(arena, type_i8());
+	}
+
+	return alloc_primitive(arena, type_i32());
+}
+
+pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
+	DataType.BOOL -> "bool",
+	DataType.CHAR -> "char",
+	DataType.I8 -> "i8",
+	DataType.I16 -> "i16",
+	DataType.I32 -> "i32",
+	DataType.I64 -> "i64",
+	DataType.ISZ -> "isz",
+	DataType.U8 -> "u8",
+	DataType.U16 -> "u16",
+	DataType.U32 -> "u32",
+	DataType.U64 -> "u64",
+	DataType.USZ -> "usz",
+	DataType.F32 -> "f32",
+	DataType.F64 -> "f64",
+	DataType.STR -> "str",
+	else -> "none"
+};
+
 impl DeclPass {
 
 	pub fn new(): DeclPass {
@@ -421,10 +463,17 @@ impl DeclPass {
 			val lit = es.expr.to<LiteralExpr>();
 			when (lit.literal_kind) {
 				LiteralKind.INT -> {
-					f.return_type = self.named_type("i32", List<*AstNode>(), f.body.line, f.body.col);
-					return alloc_primitive(&self.arena, type_i32());
+					val p_type = int_literal_type(&self.arena, lit.raw_text);
+					f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
+					return p_type;
 				}
 				LiteralKind.FLOAT -> {
+					val raw = lit.raw_text;
+					val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
+					if (is_f32) {
+						f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
+						return alloc_primitive(&self.arena, type_f32());
+					}
 					f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
 					return alloc_primitive(&self.arena, type_f64());
 				}
@@ -454,6 +503,36 @@ impl DeclPass {
 					if (ei.find_member(mem.member) != null) {
 						f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
 						return sym.type_ptr;
+					}
+				}
+			}
+		}
+
+		if (es.expr.kind == NodeKind.EXPR_UPDATE) {
+			val u = es.expr.to<UpdateExpr>();
+			if (u.target.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id = u.target.to<IdentifierExpr>();
+				for (p in f.params) {
+					if (p.name == id.name && p.type_node != null) {
+						f.return_type = p.type_node;
+						return self.resolve_ast_type(p.type_node);
+					}
+				}
+			}
+			if (u.target.kind == NodeKind.EXPR_MEMBER) {
+				val mem = u.target.to<MemberExpr>();
+				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER && mem.object.to<IdentifierExpr>().name == "self") {
+					if (self.current_self_type != null && self.current_self_type.kind == DataType.STRUCT) {
+						val s_info = self.current_self_type.as_struct();
+						for (fld in s_info.fields) {
+							if (fld.name == mem.member) {
+								val tname = primitive_type_name(fld.type_ptr);
+								if (tname != "none") {
+									f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
+									return fld.type_ptr;
+								}
+							}
+						}
 					}
 				}
 			}

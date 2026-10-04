@@ -165,6 +165,56 @@ pub fn c_format_int_literal(raw: str): str {
 	return raw;
 }
 
+pub fn c_int_literal_c_type(raw: str): str {
+	val len = raw.len;
+	if (len >= 2) {
+		val prev = raw[len - 2];
+		val last = raw[len - 1];
+		if (prev == 'U') {
+			if (last == 'Z') return "size_t";
+			if (last == 'L') return "uint64_t";
+			if (last == 'S') return "uint16_t";
+			if (last == 'B') return "uint8_t";
+		}
+	}
+	if (len >= 1) {
+		val last = raw[len - 1];
+		if (last == 'L') return "int64_t";
+		if (last == 'Z') return "intptr_t";
+		if (last == 'U') return "uint32_t";
+		if (last == 'S') return "int16_t";
+		if (last == 'B') return "int8_t";
+	}
+	return "int32_t";
+}
+
+pub fn c_float_literal_c_type(raw: str): str {
+	val len = raw.len;
+	if (len >= 1) {
+		val last = raw[len - 1];
+		if (last == 'f' || last == 'F') return "float";
+	}
+	return "double";
+}
+
+pub fn c_format_float_literal(raw: str): str {
+	var has_dot = false;
+	for (c in raw) {
+		if (c == '.' || c == 'e' || c == 'E') {
+			has_dot = true;
+			break;
+		}
+	}
+	if (has_dot) return raw;
+	val len = raw.len;
+	if (len > 0) {
+		val last = raw[len - 1];
+		if (last == 'f' || last == 'F') return "${raw.slice(0, len - 1)}.0f";
+		if (last == 'd' || last == 'D') return "${raw.slice(0, len - 1)}.0";
+	}
+	return "${raw}.0";
+}
+
 // ============================================================================
 // Expression Code Generation
 // ============================================================================
@@ -180,7 +230,8 @@ impl CCodeGen {
 
 				return when (lit.literal_kind) {
 					LiteralKind.INT -> c_format_int_literal(lit.raw_text);
-					LiteralKind.FLOAT, LiteralKind.BOOL -> lit.raw_text;
+					LiteralKind.FLOAT -> c_format_float_literal(lit.raw_text);
+					LiteralKind.BOOL -> lit.raw_text;
 					LiteralKind.STRING -> {
 						if (
 							lit.raw_text.len >= 2 &&
@@ -434,9 +485,9 @@ impl CCodeGen {
 				return when (lit.literal_kind) {
 					LiteralKind.STRING -> "const char*",
 					LiteralKind.CHAR -> "char",
-					LiteralKind.FLOAT -> "double",
+					LiteralKind.FLOAT -> c_float_literal_c_type(lit.raw_text),
 					LiteralKind.BOOL -> "bool",
-					else -> "int32_t"
+					else -> c_int_literal_c_type(lit.raw_text)
 				};
 			}
 
@@ -525,6 +576,8 @@ impl CCodeGen {
 				val cst = expr.to<CastExpr>();
 				return c_type_from_ast(cst.target_type);
 			}
+
+			NodeKind.EXPR_UPDATE -> return self.infer_type_from_expr(expr.to<UpdateExpr>().target);
 
 			else -> return "int32_t";
 		}

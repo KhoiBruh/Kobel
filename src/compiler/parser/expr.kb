@@ -36,6 +36,11 @@ pub fn num_literal_is_float(text: str): bool {
 	for (c in text) {
 		if (c == '.') return true;
 	}
+	val len = text.len;
+	if (len > 0) {
+		val last = text[len - 1];
+		if (last == 'f' || last == 'F' || last == 'd' || last == 'D') return true;
+	}
 	return false;
 }
 
@@ -183,7 +188,9 @@ impl Parser {
 			TokenType.KW_AS -> return PREC_UNARY;
 			TokenType.DOT,
 			TokenType.OPEN_PAREN,
-			TokenType.OPEN_BRACKET -> return PREC_CALL;
+			TokenType.OPEN_BRACKET,
+			TokenType.PLUS_PLUS,
+			TokenType.MINUS_MINUS -> return PREC_CALL;
 			else -> return PREC_NONE;
 		}
 	}
@@ -305,7 +312,20 @@ impl Parser {
 		val line = tok.line;
 		val col = tok.col;
 
-		// 1. Assignment: left = right, left += right, ... (right-associative)
+		// 1. Postfix update: left++, left--
+		when (tok.type) {
+			TokenType.PLUS_PLUS -> {
+				self.advance();
+				return self.update(TokenType.PLUS_PLUS, left, line, col);
+			}
+			TokenType.MINUS_MINUS -> {
+				self.advance();
+				return self.update(TokenType.MINUS_MINUS, left, line, col);
+			}
+			else -> {}
+		}
+
+		// 2. Assignment: left = right, left += right, ... (right-associative)
 		when (tok.type) {
 			TokenType.EQUAL, TokenType.PLUS_EQUAL,
 			TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
@@ -538,24 +558,8 @@ impl Parser {
 			}
 			else -> {
 				val expr = self.parse_expression(PREC_NONE);
-				val stmt = when {
-					self.match_token(TokenType.PLUS_PLUS) -> {
-						val op_tok = self.previous();
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after '++'");
-						yield self.expr_stmt(self.update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
-					}
-					self.match_token(TokenType.MINUS_MINUS) -> {
-						val op_tok = self.previous();
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after '--'");
-						yield self.expr_stmt(self.update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
-					}
-					else -> {
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-						yield self.expr_stmt(expr, line, col);
-					}
-				};
-
-				yield stmt;
+				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
+				yield self.expr_stmt(expr, line, col);
 			}
 		};
 	}

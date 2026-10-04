@@ -75,7 +75,12 @@ impl BodyPass {
 		val lit = node.to<LiteralExpr>();
 		when (lit.literal_kind) {
 			LiteralKind.INT -> return int_literal_type(&self.arena, lit.raw_text);
-			LiteralKind.FLOAT -> return alloc_primitive(&self.arena, type_f64());
+			LiteralKind.FLOAT -> {
+				val raw = lit.raw_text;
+				val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
+				if (is_f32) return alloc_primitive(&self.arena, type_f32());
+				return alloc_primitive(&self.arena, type_f64());
+			}
 			LiteralKind.BOOL -> return alloc_primitive(&self.arena, type_bool());
 			LiteralKind.STRING -> return alloc_primitive(&self.arena, type_str());
 			LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_char());

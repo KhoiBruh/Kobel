@@ -2262,6 +2262,8 @@ std__collections__list__List_str compiler__sema__decl_pass__overloaded_names(com
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m);
+compiler__sema__types__Type* compiler__sema__decl_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw);
+const char* compiler__sema__decl_pass__primitive_type_name(compiler__sema__types__Type* ty);
 compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__DeclPass_new(void);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_named_type(compiler__sema__decl_pass__DeclPass* self, const char* name, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_pointer_type(compiler__sema__decl_pass__DeclPass* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col);
@@ -2381,7 +2383,6 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_resolve_type(co
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_check_statement(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 size_t compiler__sema__body_pass__prim_c_size(const char* name);
-compiler__sema__types__Type* compiler__sema__body_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw);
 compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__CCodeGen_new(void);
 bool compiler__codegen__c_codegen__CCodeGen_is_pointer_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name);
 bool compiler__codegen__c_codegen__CCodeGen_is_str_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name);
@@ -2390,6 +2391,9 @@ void compiler__codegen__c_codegen__CCodeGen_register_fn(compiler__codegen__c_cod
 const char* compiler__codegen__c_codegen__get_indent(size_t level);
 const char* compiler__codegen__c_codegen__c_type_from_ast(compiler__ast__node__AstNode* node);
 const char* compiler__codegen__c_codegen__c_format_int_literal(const char* raw);
+const char* compiler__codegen__c_codegen__c_int_literal_c_type(const char* raw);
+const char* compiler__codegen__c_codegen__c_float_literal_c_type(const char* raw);
+const char* compiler__codegen__c_codegen__c_format_float_literal(const char* raw);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_test(compiler__codegen__c_codegen__CCodeGen* self, const char* cond, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns);
 const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* expr);
@@ -2533,7 +2537,7 @@ void compiler__loader__loader__ModuleLoader_ensure_module_at(compiler__loader__l
 void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node, const char* parent_mod);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
-fmt__options__FormatOptions fmt__options__default_format_options(void);
+fmt__options__FormatOptions fmt__options__FormatOptions_new(void);
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void);
 void std__collections__string_builder__StringBuilder_append_char(std__collections__string_builder__StringBuilder* self, char c);
 void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s);
@@ -2554,8 +2558,8 @@ void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self);
 void fmt__buffer__FormatBuffer_double_newline(fmt__buffer__FormatBuffer* self);
 void fmt__buffer__FormatBuffer_indent(fmt__buffer__FormatBuffer* self);
 void fmt__buffer__FormatBuffer_dedent(fmt__buffer__FormatBuffer* self);
-void fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces);
-void fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self);
+size_t fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces);
+size_t fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self);
 const char* fmt__buffer__FormatBuffer_to_str(fmt__buffer__FormatBuffer* self);
 fmt__comments__CommentTable fmt__comments__CommentTable_new(std__collections__list__List_fmt__comments__Comment comments);
 bool fmt__comments__CommentTable_has_more(fmt__comments__CommentTable* self);
@@ -10702,6 +10706,53 @@ void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_pt
     std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_add(out, m);
 }
 
+compiler__sema__types__Type* compiler__sema__decl_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw) {
+    size_t len = kobel_slen(raw);
+    if ((len >= 2)) {
+        {
+            char last = raw[(len - 1)];
+            char prev = raw[(len - 2)];
+            if (((prev == 'U') && (last == 'B'))) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u8());
+            }
+            if (((prev == 'U') && (last == 'S'))) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u16());
+            }
+            if (((prev == 'U') && (last == 'L'))) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u64());
+            }
+            if (((prev == 'U') && (last == 'Z'))) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_usz());
+            }
+        }
+    }
+    if ((len >= 1)) {
+        {
+            char last = raw[(len - 1)];
+            if ((last == 'U')) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u32());
+            }
+            if ((last == 'L')) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i64());
+            }
+            if ((last == 'S')) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i16());
+            }
+            if ((last == 'Z')) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_isz());
+            }
+            if ((last == 'B')) {
+                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i8());
+            }
+        }
+    }
+    return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i32());
+}
+
+const char* compiler__sema__decl_pass__primitive_type_name(compiler__sema__types__Type* ty) {
+    return (((ty)->kind == 1) ? "bool" : (((ty)->kind == 2) ? "char" : (((ty)->kind == 3) ? "i8" : (((ty)->kind == 4) ? "i16" : (((ty)->kind == 5) ? "i32" : (((ty)->kind == 6) ? "i64" : (((ty)->kind == 7) ? "isz" : (((ty)->kind == 8) ? "u8" : (((ty)->kind == 9) ? "u16" : (((ty)->kind == 10) ? "u32" : (((ty)->kind == 11) ? "u64" : (((ty)->kind == 12) ? "usz" : (((ty)->kind == 13) ? "f32" : (((ty)->kind == 14) ? "f64" : (((ty)->kind == 15) ? "str" : "none")))))))))))))));
+}
+
 compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__DeclPass_new(void) {
     std__mem__arena__Arena arena = std__mem__arena__Arena_new_1(65536);
     return (compiler__sema__decl_pass__DeclPass){ compiler__sema__symbol__SymbolTable_new(), arena, "", std__collections__list__List_str_new_0(), false, NULL };
@@ -11086,11 +11137,20 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_infer_decl_retu
             compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr((es)->expr);
             if (((lit)->literal_kind == 0)) {
                 {
-                    (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, "i32", std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
-                    return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_i32());
+                    compiler__sema__types__Type* p_type = compiler__sema__decl_pass__int_literal_type((&(self)->arena), (lit)->raw_text);
+                    (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, compiler__sema__decl_pass__primitive_type_name(p_type), std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
+                    return p_type;
                 }
             } else if (((lit)->literal_kind == 1)) {
                 {
+                    const char* raw = (lit)->raw_text;
+                    bool is_f32 = ((kobel_slen(raw) > 0) && (((raw[(kobel_slen(raw) - 1)] == 'f') || (raw[(kobel_slen(raw) - 1)] == 'F'))));
+                    if (is_f32) {
+                        {
+                            (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, "f32", std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
+                            return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f32());
+                        }
+                    }
                     (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, "f64", std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
                     return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f64());
                 }
@@ -11129,6 +11189,67 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_infer_decl_retu
                                 {
                                     (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, (ei)->c_name, std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
                                     return (sym)->type_ptr;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ((((*(es)->expr)).kind == 12)) {
+        {
+            compiler__ast__expr__UpdateExpr* u = compiler__ast__node__to_compiler__ast__expr__UpdateExpr((es)->expr);
+            if ((((*(u)->target)).kind == 5)) {
+                {
+                    compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr((u)->target);
+                    {
+                        size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count((&(f)->params));
+                        size_t __for_i = ((size_t)0ULL);
+                        while ((__for_i < __for_n)) {
+                            {
+                                compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at((&(f)->params), __for_i);
+                                if ((kobel_streq((p).name, (id)->name) && ((p).type_node != NULL))) {
+                                    {
+                                        (f)->return_type = (p).type_node;
+                                        return compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, (p).type_node);
+                                    }
+                                }
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                    }
+                }
+            }
+            if ((((*(u)->target)).kind == 9)) {
+                {
+                    compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr((u)->target);
+                    if (((((*(mem)->object)).kind == 5) && kobel_streq(((*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr((mem)->object))).name, "self"))) {
+                        {
+                            if ((((self)->current_self_type != NULL) && (((*(self)->current_self_type)).kind == 18))) {
+                                {
+                                    compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct((self)->current_self_type);
+                                    {
+                                        size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count((&(s_info)->fields));
+                                        size_t __for_i = ((size_t)0ULL);
+                                        while ((__for_i < __for_n)) {
+                                            {
+                                                compiler__sema__types__StructField fld = std__collections__list__List_compiler__sema__types__StructField_at((&(s_info)->fields), __for_i);
+                                                if (kobel_streq((fld).name, (mem)->member)) {
+                                                    {
+                                                        const char* tname = compiler__sema__decl_pass__primitive_type_name((fld).type_ptr);
+                                                        if ((!kobel_streq(tname, "none"))) {
+                                                            {
+                                                                (f)->return_type = compiler__sema__decl_pass__DeclPass_named_type(self, tname, std__collections__list__List_ptr_compiler__ast__node__AstNode_new_0(), ((*(f)->body)).line, ((*(f)->body)).col);
+                                                                return (fld).type_ptr;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                __for_i = (__for_i + 1);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -12145,9 +12266,16 @@ void compiler__sema__body_pass__BodyPass_coerce_to_list(compiler__sema__body_pas
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_literal_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(node);
     if (((lit)->literal_kind == 0)) {
-        return compiler__sema__body_pass__int_literal_type((&(self)->arena), (lit)->raw_text);
+        return compiler__sema__decl_pass__int_literal_type((&(self)->arena), (lit)->raw_text);
     } else if (((lit)->literal_kind == 1)) {
-        return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f64());
+        {
+            const char* raw = (lit)->raw_text;
+            bool is_f32 = ((kobel_slen(raw) > 0) && (((raw[(kobel_slen(raw) - 1)] == 'f') || (raw[(kobel_slen(raw) - 1)] == 'F'))));
+            if (is_f32) {
+                return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f32());
+            }
+            return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_f64());
+        }
     } else if (((lit)->literal_kind == 2)) {
         return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_bool());
     } else if (((lit)->literal_kind == 4)) {
@@ -14012,49 +14140,6 @@ size_t compiler__sema__body_pass__prim_c_size(const char* name) {
     return (strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 || strcmp(name, "i8") == 0 || strcmp(name, "u8") == 0 ? 1 : (strcmp(name, "i16") == 0 || strcmp(name, "u16") == 0 ? 2 : (strcmp(name, "i32") == 0 || strcmp(name, "u32") == 0 || strcmp(name, "f32") == 0 ? 4 : (strcmp(name, "i64") == 0 || strcmp(name, "u64") == 0 || strcmp(name, "isz") == 0 || strcmp(name, "usz") == 0 || strcmp(name, "f64") == 0 || strcmp(name, "str") == 0 ? 8 : 0))));
 }
 
-compiler__sema__types__Type* compiler__sema__body_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw) {
-    size_t len = kobel_slen(raw);
-    if ((len >= 2)) {
-        {
-            char last = raw[(len - 1)];
-            char prev = raw[(len - 2)];
-            if (((prev == 'U') && (last == 'B'))) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u8());
-            }
-            if (((prev == 'U') && (last == 'S'))) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u16());
-            }
-            if (((prev == 'U') && (last == 'L'))) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u64());
-            }
-            if (((prev == 'U') && (last == 'Z'))) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_usz());
-            }
-        }
-    }
-    if ((len >= 1)) {
-        {
-            char last = raw[(len - 1)];
-            if ((last == 'U')) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u32());
-            }
-            if ((last == 'L')) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i64());
-            }
-            if ((last == 'S')) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i16());
-            }
-            if ((last == 'Z')) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_isz());
-            }
-            if ((last == 'B')) {
-                return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i8());
-            }
-        }
-    }
-    return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i32());
-}
-
 compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__CCodeGen_new(void) {
     return (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_str_new_0(), std__collections__list__List_str_new_0(), "", "", false };
 }
@@ -14186,6 +14271,102 @@ const char* compiler__codegen__c_codegen__c_format_int_literal(const char* raw) 
     return raw;
 }
 
+const char* compiler__codegen__c_codegen__c_int_literal_c_type(const char* raw) {
+    size_t len = kobel_slen(raw);
+    if ((len >= 2)) {
+        {
+            char prev = raw[(len - 2)];
+            char last = raw[(len - 1)];
+            if ((prev == 'U')) {
+                {
+                    if ((last == 'Z')) {
+                        return "size_t";
+                    }
+                    if ((last == 'L')) {
+                        return "uint64_t";
+                    }
+                    if ((last == 'S')) {
+                        return "uint16_t";
+                    }
+                    if ((last == 'B')) {
+                        return "uint8_t";
+                    }
+                }
+            }
+        }
+    }
+    if ((len >= 1)) {
+        {
+            char last = raw[(len - 1)];
+            if ((last == 'L')) {
+                return "int64_t";
+            }
+            if ((last == 'Z')) {
+                return "intptr_t";
+            }
+            if ((last == 'U')) {
+                return "uint32_t";
+            }
+            if ((last == 'S')) {
+                return "int16_t";
+            }
+            if ((last == 'B')) {
+                return "int8_t";
+            }
+        }
+    }
+    return "int32_t";
+}
+
+const char* compiler__codegen__c_codegen__c_float_literal_c_type(const char* raw) {
+    size_t len = kobel_slen(raw);
+    if ((len >= 1)) {
+        {
+            char last = raw[(len - 1)];
+            if (((last == 'f') || (last == 'F'))) {
+                return "float";
+            }
+        }
+    }
+    return "double";
+}
+
+const char* compiler__codegen__c_codegen__c_format_float_literal(const char* raw) {
+    bool has_dot = false;
+    {
+        size_t __for_n = kobel_slen(raw);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = raw[__for_i];
+                if ((((c == '.') || (c == 'e')) || (c == 'E'))) {
+                    {
+                        has_dot = true;
+                        break;
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    if (has_dot) {
+        return raw;
+    }
+    size_t len = kobel_slen(raw);
+    if ((len > 0)) {
+        {
+            char last = raw[(len - 1)];
+            if (((last == 'f') || (last == 'F'))) {
+                return kobel_concat(kobel_slice(raw, 0, (len - 1)), ".0f");
+            }
+            if (((last == 'd') || (last == 'D'))) {
+                return kobel_concat(kobel_slice(raw, 0, (len - 1)), ".0");
+            }
+        }
+    }
+    return kobel_concat(raw, ".0");
+}
+
 const char* compiler__codegen__c_codegen__CCodeGen_gen_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node) {
     if ((node == NULL)) {
         return "";
@@ -14195,7 +14376,9 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_expr(compiler__codegen__c
             compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(node);
             if (((lit)->literal_kind == 0)) {
                 return compiler__codegen__c_codegen__c_format_int_literal((lit)->raw_text);
-            } else if (((lit)->literal_kind == 1) || ((lit)->literal_kind == 2)) {
+            } else if (((lit)->literal_kind == 1)) {
+                return compiler__codegen__c_codegen__c_format_float_literal((lit)->raw_text);
+            } else if (((lit)->literal_kind == 2)) {
                 return (lit)->raw_text;
             } else if (((lit)->literal_kind == 4)) {
                 if (((kobel_slen((lit)->raw_text) >= 2) && ((lit)->raw_text[0] == '"'))) {
@@ -14629,7 +14812,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
     if (((expr)->kind == 4)) {
         {
             compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(expr);
-            return (((lit)->literal_kind == 4) ? "const char*" : (((lit)->literal_kind == 3) ? "char" : (((lit)->literal_kind == 1) ? "double" : (((lit)->literal_kind == 2) ? "bool" : "int32_t"))));
+            return (((lit)->literal_kind == 4) ? "const char*" : (((lit)->literal_kind == 3) ? "char" : (((lit)->literal_kind == 1) ? compiler__codegen__c_codegen__c_float_literal_c_type((lit)->raw_text) : (((lit)->literal_kind == 2) ? "bool" : compiler__codegen__c_codegen__c_int_literal_c_type((lit)->raw_text)))));
         }
     } else if (((expr)->kind == 8)) {
         {
@@ -14754,6 +14937,8 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
             compiler__ast__expr__CastExpr* cst = compiler__ast__node__to_compiler__ast__expr__CastExpr(expr);
             return compiler__codegen__c_codegen__c_type_from_ast((cst)->target_type);
         }
+    } else if (((expr)->kind == 12)) {
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, ((*compiler__ast__node__to_compiler__ast__expr__UpdateExpr(expr))).target);
     } else {
         return "int32_t";
     }
@@ -16401,7 +16586,12 @@ bool compiler__parser__parser__Parser_is_generic_args_ahead(compiler__parser__pa
                     {
                         depth--;
                         if ((depth == 0)) {
-                            return true;
+                            {
+                                if ((((i + 1) < ((self)->tokens).len) && ((std__collections__list__List_compiler__lexer__token__Token_get((&(self)->tokens), (i + 1))).type == 15))) {
+                                    return true;
+                                }
+                                return false;
+                            }
                         }
                     }
                 } else if (((tok).type == 0) || ((tok).type == 17) || ((tok).type == 18) || ((tok).type == 68)) {
@@ -16551,6 +16741,15 @@ bool compiler__parser__expr__num_literal_is_float(const char* text) {
                     return true;
                 }
                 __for_i = (__for_i + 1);
+            }
+        }
+    }
+    size_t len = kobel_slen(text);
+    if ((len > 0)) {
+        {
+            char last = text[(len - 1)];
+            if (((((last == 'f') || (last == 'F')) || (last == 'd')) || (last == 'D'))) {
+                return true;
             }
         }
     }
@@ -16778,7 +16977,7 @@ int32_t compiler__parser__parser__Parser_get_infix_precedence(compiler__parser__
         return compiler__parser__expr__PREC_FACTOR;
     } else if ((t == 53)) {
         return compiler__parser__expr__PREC_UNARY;
-    } else if ((t == 3) || (t == 15) || (t == 13)) {
+    } else if ((t == 3) || (t == 15) || (t == 13) || (t == 30) || (t == 31)) {
         return compiler__parser__expr__PREC_CALL;
     } else {
         return compiler__parser__expr__PREC_NONE;
@@ -16885,6 +17084,20 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
     compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
     size_t line = (tok).line;
     size_t col = (tok).col;
+    if (((tok).type == 30)) {
+        {
+            compiler__parser__parser__Parser_advance(self);
+            return compiler__parser__parser__Parser_update(self, 30, left, line, col);
+        }
+    } else if (((tok).type == 31)) {
+        {
+            compiler__parser__parser__Parser_advance(self);
+            return compiler__parser__parser__Parser_update(self, 31, left, line, col);
+        }
+    } else {
+        {
+        }
+    }
     if (((tok).type == 5) || ((tok).type == 32) || ((tok).type == 33) || ((tok).type == 34) || ((tok).type == 35) || ((tok).type == 36)) {
         {
             compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_advance(self);
@@ -17085,20 +17298,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_stateme
         return compiler__parser__parser__Parser_return_stmt(self, value, line, col);
     } else {
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
-        compiler__ast__node__AstNode* stmt;
-        if (compiler__parser__parser__Parser_match_token(self, 30)) {
-            compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_previous(self);
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after '++'");
-            stmt = compiler__parser__parser__Parser_expr_stmt(self, compiler__parser__parser__Parser_update(self, 30, expr, (op_tok).line, (op_tok).col), line, col);
-        } else if (compiler__parser__parser__Parser_match_token(self, 31)) {
-            compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_previous(self);
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after '--'");
-            stmt = compiler__parser__parser__Parser_expr_stmt(self, compiler__parser__parser__Parser_update(self, 31, expr, (op_tok).line, (op_tok).col), line, col);
-        } else {
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression statement");
-            stmt = compiler__parser__parser__Parser_expr_stmt(self, expr, line, col);
-        }
-        return stmt;
+        compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression statement");
+        return compiler__parser__parser__Parser_expr_stmt(self, expr, line, col);
     }
 }
 
@@ -17366,20 +17567,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_statement(c
         return compiler__parser__parser__Parser_yield_stmt(self, value, line, col);
     } else {
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
-        compiler__ast__node__AstNode* res_stmt;
-        if (compiler__parser__parser__Parser_match_token(self, 30)) {
-            compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_previous(self);
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after '++'");
-            res_stmt = compiler__parser__parser__Parser_expr_stmt(self, compiler__parser__parser__Parser_update(self, 30, expr, (op_tok).line, (op_tok).col), line, col);
-        } else if (compiler__parser__parser__Parser_match_token(self, 31)) {
-            compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_previous(self);
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after '--'");
-            res_stmt = compiler__parser__parser__Parser_expr_stmt(self, compiler__parser__parser__Parser_update(self, 31, expr, (op_tok).line, (op_tok).col), line, col);
-        } else {
-            compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression statement");
-            res_stmt = compiler__parser__parser__Parser_expr_stmt(self, expr, line, col);
-        }
-        return res_stmt;
+        compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression statement");
+        return compiler__parser__parser__Parser_expr_stmt(self, expr, line, col);
     }
 }
 
@@ -17983,8 +18172,8 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
     return compiler__loader__loader__ModuleLoader_program(self, decls, 0, 0);
 }
 
-fmt__options__FormatOptions fmt__options__default_format_options(void) {
-    return (fmt__options__FormatOptions){ ((size_t)4ULL), true, ((size_t)100ULL), true };
+fmt__options__FormatOptions fmt__options__FormatOptions_new(void) {
+    return (fmt__options__FormatOptions){ 4, true, 100, true };
 }
 
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void) {
@@ -18172,7 +18361,7 @@ const char* std__collections__string_builder__StringBuilder_to_str(std__collecti
 }
 
 fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer_new(fmt__options__FormatOptions options) {
-    return (fmt__buffer__FormatBuffer){ std__collections__string_builder__StringBuilder_new(), options, ((size_t)0ULL), ((size_t)0ULL), ((size_t)0ULL), true, ((size_t)0ULL) };
+    return (fmt__buffer__FormatBuffer){ std__collections__string_builder__StringBuilder_new(), options, 0, 0, 0, true, 0 };
 }
 
 void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self) {
@@ -18272,20 +18461,20 @@ void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self) {
 }
 
 void fmt__buffer__FormatBuffer_write(fmt__buffer__FormatBuffer* self, const char* s) {
-    if ((kobel_slen(s) == ((size_t)0ULL))) {
+    if ((kobel_slen(s) == 0)) {
         return;
     }
     fmt__buffer__FormatBuffer_ensure_indent(self);
     std__collections__string_builder__StringBuilder_append_str((&(self)->sb), s);
     (self)->current_col += kobel_slen(s);
-    (self)->blank_lines = ((size_t)0ULL);
+    (self)->blank_lines = 0;
 }
 
 void fmt__buffer__FormatBuffer_write_char(fmt__buffer__FormatBuffer* self, char c) {
     fmt__buffer__FormatBuffer_ensure_indent(self);
     std__collections__string_builder__StringBuilder_append_char((&(self)->sb), c);
     (self)->current_col++;
-    (self)->blank_lines = ((size_t)0ULL);
+    (self)->blank_lines = 0;
 }
 
 void fmt__buffer__FormatBuffer_space(fmt__buffer__FormatBuffer* self) {
@@ -18295,7 +18484,7 @@ void fmt__buffer__FormatBuffer_space(fmt__buffer__FormatBuffer* self) {
 void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self) {
     if ((self)->at_line_start) {
         {
-            if (((self)->blank_lines >= ((size_t)1ULL))) {
+            if (((self)->blank_lines >= 1)) {
                 return;
             }
             (self)->blank_lines++;
@@ -18303,7 +18492,7 @@ void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self) {
     }
     std__collections__string_builder__StringBuilder_append_char((&(self)->sb), '\n');
     (self)->at_line_start = true;
-    (self)->current_col = ((size_t)0ULL);
+    (self)->current_col = 0;
 }
 
 void fmt__buffer__FormatBuffer_double_newline(fmt__buffer__FormatBuffer* self) {
@@ -18316,17 +18505,17 @@ void fmt__buffer__FormatBuffer_indent(fmt__buffer__FormatBuffer* self) {
 }
 
 void fmt__buffer__FormatBuffer_dedent(fmt__buffer__FormatBuffer* self) {
-    if (((self)->indent_level > ((size_t)0ULL))) {
+    if (((self)->indent_level > 0)) {
         (self)->indent_level--;
     }
 }
 
-void fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces) {
-    (self)->align_spaces = spaces;
+size_t fmt__buffer__FormatBuffer_set_align(fmt__buffer__FormatBuffer* self, size_t spaces) {
+    return (self)->align_spaces = spaces;
 }
 
-void fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self) {
-    (self)->align_spaces = ((size_t)0ULL);
+size_t fmt__buffer__FormatBuffer_clear_align(fmt__buffer__FormatBuffer* self) {
+    return (self)->align_spaces = 0;
 }
 
 const char* fmt__buffer__FormatBuffer_to_str(fmt__buffer__FormatBuffer* self) {
@@ -18334,7 +18523,7 @@ const char* fmt__buffer__FormatBuffer_to_str(fmt__buffer__FormatBuffer* self) {
 }
 
 fmt__comments__CommentTable fmt__comments__CommentTable_new(std__collections__list__List_fmt__comments__Comment comments) {
-    return (fmt__comments__CommentTable){ comments, ((size_t)0ULL) };
+    return (fmt__comments__CommentTable){ comments, 0 };
 }
 
 bool fmt__comments__CommentTable_has_more(fmt__comments__CommentTable* self) {
@@ -18342,10 +18531,7 @@ bool fmt__comments__CommentTable_has_more(fmt__comments__CommentTable* self) {
 }
 
 fmt__comments__Comment fmt__comments__CommentTable_peek(fmt__comments__CommentTable* self) {
-    if (((self)->cursor < ((self)->comments).len)) {
-        return std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor);
-    }
-    return (fmt__comments__Comment){ "", ((size_t)0ULL), ((size_t)0ULL), false };
+    return (((self)->cursor < ((self)->comments).len) ? std__collections__list__List_fmt__comments__Comment_get((&(self)->comments), (self)->cursor) : (fmt__comments__Comment){ "", 0, 0, false });
 }
 
 void fmt__comments__CommentTable_emit_before(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t target_line) {
@@ -18373,9 +18559,7 @@ void fmt__comments__CommentTable_emit_trailing_on_line(fmt__comments__CommentTab
                     (self)->cursor++;
                 }
             } else {
-                {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -18394,28 +18578,28 @@ void fmt__comments__CommentTable_emit_remaining(fmt__comments__CommentTable* sel
 
 std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comments(const char* src) {
     std__collections__list__List_fmt__comments__Comment comments = std__collections__list__List_fmt__comments__Comment_new_0();
-    size_t i = ((size_t)0ULL);
+    int32_t i = 0;
     size_t len = kobel_slen(src);
-    size_t line = ((size_t)1ULL);
-    size_t col = ((size_t)1ULL);
+    int32_t line = 1;
+    int32_t col = 1;
     while ((i < len)) {
         {
             char c = src[i];
             if ((c == '\n')) {
                 {
                     line++;
-                    col = ((size_t)1ULL);
+                    col = 1;
                     i++;
                     continue;
                 }
             }
             if ((c == '\r')) {
                 {
-                    if ((((i + ((size_t)1ULL)) < len) && (src[(i + ((size_t)1ULL))] == '\n'))) {
+                    if ((((i + 1) < len) && (src[(i + 1)] == '\n'))) {
                         i++;
                     }
                     line++;
-                    col = ((size_t)1ULL);
+                    col = 1;
                     i++;
                     continue;
                 }
@@ -18426,16 +18610,16 @@ std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comme
                     col++;
                     while (((i < len) && (src[i] != '"'))) {
                         {
-                            if (((src[i] == '\\') && ((i + ((size_t)1ULL)) < len))) {
+                            if (((src[i] == '\\') && ((i + 1) < len))) {
                                 {
-                                    i += ((size_t)2ULL);
-                                    col += ((size_t)2ULL);
+                                    i += 2;
+                                    col += 2;
                                 }
                             } else {
                                 if ((src[i] == '\n')) {
                                     {
                                         line++;
-                                        col = ((size_t)1ULL);
+                                        col = 1;
                                         i++;
                                     }
                                 } else {
@@ -18462,10 +18646,10 @@ std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comme
                     col++;
                     while (((i < len) && (src[i] != '\''))) {
                         {
-                            if (((src[i] == '\\') && ((i + ((size_t)1ULL)) < len))) {
+                            if (((src[i] == '\\') && ((i + 1) < len))) {
                                 {
-                                    i += ((size_t)2ULL);
-                                    col += ((size_t)2ULL);
+                                    i += 2;
+                                    col += 2;
                                 }
                             } else {
                                 {
@@ -18484,13 +18668,13 @@ std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comme
                     continue;
                 }
             }
-            if ((((c == '/') && ((i + ((size_t)1ULL)) < len)) && (src[(i + ((size_t)1ULL))] == '/'))) {
+            if ((((c == '/') && ((i + 1) < len)) && (src[(i + 1)] == '/'))) {
                 {
-                    size_t start_i = i;
-                    size_t start_col = col;
-                    size_t start_line = line;
-                    i += ((size_t)2ULL);
-                    col += ((size_t)2ULL);
+                    int32_t start_i = i;
+                    int32_t start_col = col;
+                    int32_t start_line = line;
+                    i += 2;
+                    col += 2;
                     while ((((i < len) && (src[i] != '\n')) && (src[i] != '\r'))) {
                         {
                             i++;
@@ -18502,26 +18686,26 @@ std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comme
                     continue;
                 }
             }
-            if ((((c == '/') && ((i + ((size_t)1ULL)) < len)) && (src[(i + ((size_t)1ULL))] == '*'))) {
+            if ((((c == '/') && ((i + 1) < len)) && (src[(i + 1)] == '*'))) {
                 {
-                    size_t start_i = i;
-                    size_t start_col = col;
-                    size_t start_line = line;
-                    i += ((size_t)2ULL);
-                    col += ((size_t)2ULL);
-                    while (((i + ((size_t)1ULL)) < len)) {
+                    int32_t start_i = i;
+                    int32_t start_col = col;
+                    int32_t start_line = line;
+                    i += 2;
+                    col += 2;
+                    while (((i + 1) < len)) {
                         {
-                            if (((src[i] == '*') && (src[(i + ((size_t)1ULL))] == '/'))) {
+                            if (((src[i] == '*') && (src[(i + 1)] == '/'))) {
                                 {
-                                    i += ((size_t)2ULL);
-                                    col += ((size_t)2ULL);
+                                    i += 2;
+                                    col += 2;
                                     break;
                                 }
                             }
                             if ((src[i] == '\n')) {
                                 {
                                     line++;
-                                    col = ((size_t)1ULL);
+                                    col = 1;
                                     i++;
                                 }
                             } else {
@@ -18564,7 +18748,7 @@ void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, comp
         {
             compiler__ast__types__NamedType* nt = compiler__ast__node__to_compiler__ast__types__NamedType(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), (nt)->name);
-            if ((((nt)->type_args).len > ((size_t)0ULL))) {
+            if ((((nt)->type_args).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
                     {
@@ -18585,7 +18769,7 @@ void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, comp
                         while (__for_go) {
                             {
                                 size_t i = __for_i;
-                                if ((i > ((size_t)0ULL))) {
+                                if ((i > 0)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                                 }
                                 fmt__formatter__Formatter_format_type(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(nt)->type_args), i));
@@ -18680,7 +18864,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
         {
             compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
             fmt__formatter__Formatter_format_expr(self, (c)->callee);
-            if ((((c)->type_args).len > ((size_t)0ULL))) {
+            if ((((c)->type_args).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
                     {
@@ -18701,7 +18885,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                         while (__for_go) {
                             {
                                 size_t i = __for_i;
-                                if ((i > ((size_t)0ULL))) {
+                                if ((i > 0)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                                 }
                                 fmt__formatter__Formatter_format_type(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(c)->type_args), i));
@@ -18750,7 +18934,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                 while (__for_go) {
                     {
                         size_t j = __for_i;
-                        if ((j > ((size_t)0ULL))) {
+                        if ((j > 0)) {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                         }
                         fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(c)->args), j));
@@ -18845,7 +19029,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                 while (__for_go) {
                     {
                         size_t i = __for_i;
-                        if ((i > ((size_t)0ULL))) {
+                        if ((i > 0)) {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                         }
                         fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(al)->elements), i));
@@ -18939,7 +19123,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                                     while (__for_go) {
                                         {
                                             size_t p = __for_i;
-                                            if ((p > ((size_t)0ULL))) {
+                                            if ((p > 0)) {
                                                 fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                                             }
                                             fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p));
@@ -18970,7 +19154,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                             }
                         }
                         fmt__formatter__Formatter_format_expr(self, (arm).body);
-                        if (((i + ((size_t)1ULL)) < ((we)->arms).len)) {
+                        if (((i + 1) < ((we)->arms).len)) {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
                         }
                         if (__for_up) {
@@ -19013,9 +19197,9 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                         if ((part).is_literal) {
                             {
                                 const char* text = ((*compiler__ast__node__to_compiler__ast__expr__LiteralExpr((part).expr))).raw_text;
-                                if ((kobel_slen(text) >= ((size_t)2ULL))) {
+                                if ((kobel_slen(text) >= 2)) {
                                     {
-                                        fmt__buffer__FormatBuffer_write((&(self)->buf), kobel_slice(text, ((size_t)1ULL), (kobel_slen(text) - ((size_t)1ULL))));
+                                        fmt__buffer__FormatBuffer_write((&(self)->buf), kobel_slice(text, 1, (kobel_slen(text) - 1)));
                                     }
                                 }
                             }
@@ -19127,9 +19311,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                         }
                     }
                     if (((((*(s)->else_branch)).kind == 22) || (((*(s)->else_branch)).kind == 19))) {
-                        {
-                            fmt__formatter__Formatter_format_stmt(self, (s)->else_branch);
-                        }
+                        fmt__formatter__Formatter_format_stmt(self, (s)->else_branch);
                     } else {
                         {
                             fmt__buffer__FormatBuffer_indent((&(self)->buf));
@@ -19250,9 +19432,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                         compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at((&(ws)->arms), __for_i);
                         fmt__buffer__FormatBuffer_newline((&(self)->buf));
                         if ((arm).is_else) {
-                            {
-                                fmt__buffer__FormatBuffer_write((&(self)->buf), "else -> ");
-                            }
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), "else -> ");
                         } else {
                             {
                                 {
@@ -19273,7 +19453,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                                     while (__for_go) {
                                         {
                                             size_t p = __for_i;
-                                            if ((p > ((size_t)0ULL))) {
+                                            if ((p > 0)) {
                                                 fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                                             }
                                             fmt__formatter__Formatter_format_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(arm).patterns), p));
@@ -19319,7 +19499,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
 }
 
 void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* self, std__collections__list__List_compiler__ast__decl__GenericParam type_params) {
-    if (((type_params).len == ((size_t)0ULL))) {
+    if (((type_params).len == 0)) {
         return;
     }
     fmt__buffer__FormatBuffer_write((&(self)->buf), "<");
@@ -19341,12 +19521,12 @@ void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* sel
         while (__for_go) {
             {
                 size_t i = __for_i;
-                if ((i > ((size_t)0ULL))) {
+                if ((i > 0)) {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                 }
                 compiler__ast__decl__GenericParam tp = std__collections__list__List_compiler__ast__decl__GenericParam_get((&type_params), i);
                 fmt__buffer__FormatBuffer_write((&(self)->buf), (tp).name);
-                if ((((tp).bounds).len > ((size_t)0ULL))) {
+                if ((((tp).bounds).len > 0)) {
                     {
                         fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
                         {
@@ -19367,7 +19547,7 @@ void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* sel
                             while (__for_go) {
                                 {
                                     size_t b = __for_i;
-                                    if ((b > ((size_t)0ULL))) {
+                                    if ((b > 0)) {
                                         fmt__buffer__FormatBuffer_write((&(self)->buf), " + ");
                                     }
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), std__collections__list__List_str_get((&(tp).bounds), b));
@@ -19441,7 +19621,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             compiler__ast__decl__UseDecl* u = compiler__ast__node__to_compiler__ast__decl__UseDecl(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "use ");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (u)->full_path);
-            if ((kobel_slen((u)->alias) > ((size_t)0ULL))) {
+            if ((kobel_slen((u)->alias) > 0)) {
                 {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), " as ");
                     fmt__buffer__FormatBuffer_write((&(self)->buf), (u)->alias);
@@ -19460,7 +19640,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), (s)->name);
             fmt__formatter__Formatter_format_type_params(self, (s)->type_params);
             fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
-            if ((((s)->fields).len > ((size_t)0ULL))) {
+            if ((((s)->fields).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_indent((&(self)->buf));
                     {
@@ -19489,7 +19669,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), (f).name);
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), ": ");
                                 fmt__formatter__Formatter_format_type(self, (f).type_node);
-                                if (((i + ((size_t)1ULL)) < ((s)->fields).len)) {
+                                if (((i + 1) < ((s)->fields).len)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
                                 }
                                 if (__for_up) {
@@ -19550,7 +19730,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                 while (__for_go) {
                     {
                         size_t i = __for_i;
-                        if ((i > ((size_t)0ULL))) {
+                        if ((i > 0)) {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                         }
                         compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_get((&(f)->params), i);
@@ -19605,26 +19785,22 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                             fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
                             fmt__formatter__Formatter_format_stmt(self, (f)->body);
                         }
+                    } else if ((((*(f)->body)).kind == 20)) {
+                        {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), " => ");
+                            compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt((f)->body);
+                            fmt__formatter__Formatter_format_expr(self, (es)->expr);
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
+                        }
                     } else {
-                        if ((((*(f)->body)).kind == 20)) {
-                            {
-                                fmt__buffer__FormatBuffer_write((&(self)->buf), " => ");
-                                compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt((f)->body);
-                                fmt__formatter__Formatter_format_expr(self, (es)->expr);
-                                fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
-                            }
-                        } else {
-                            {
-                                fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
-                                fmt__formatter__Formatter_format_stmt(self, (f)->body);
-                            }
+                        {
+                            fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
+                            fmt__formatter__Formatter_format_stmt(self, (f)->body);
                         }
                     }
                 }
             } else {
-                {
-                    fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
-                }
+                fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             }
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
@@ -19632,14 +19808,14 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
         {
             compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "impl");
-            if ((((im)->type_params).len > ((size_t)0ULL))) {
+            if ((((im)->type_params).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_space((&(self)->buf));
                     fmt__formatter__Formatter_format_type_params(self, (im)->type_params);
                 }
             }
             fmt__buffer__FormatBuffer_space((&(self)->buf));
-            if ((kobel_slen((im)->trait_name) > ((size_t)0ULL))) {
+            if ((kobel_slen((im)->trait_name) > 0)) {
                 {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), (im)->trait_name);
                     fmt__buffer__FormatBuffer_write((&(self)->buf), " for ");
@@ -19647,7 +19823,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), (im)->struct_name);
             fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
-            if ((((im)->methods).len > ((size_t)0ULL))) {
+            if ((((im)->methods).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_indent((&(self)->buf));
                     {
@@ -19678,7 +19854,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "trait ");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (tr)->name);
             fmt__formatter__Formatter_format_type_params(self, (tr)->type_params);
-            if ((((tr)->bases).len > ((size_t)0ULL))) {
+            if ((((tr)->bases).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_write((&(self)->buf), " : ");
                     {
@@ -19699,7 +19875,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                         while (__for_go) {
                             {
                                 size_t i = __for_i;
-                                if ((i > ((size_t)0ULL))) {
+                                if ((i > 0)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ", ");
                                 }
                                 fmt__buffer__FormatBuffer_write((&(self)->buf), std__collections__list__List_str_get((&(tr)->bases), i));
@@ -19729,7 +19905,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                 }
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
-            if ((((tr)->methods).len > ((size_t)0ULL))) {
+            if ((((tr)->methods).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_indent((&(self)->buf));
                     {
@@ -19766,7 +19942,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                 }
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), " {");
-            if ((((en)->members).len > ((size_t)0ULL))) {
+            if ((((en)->members).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_indent((&(self)->buf));
                     {
@@ -19796,7 +19972,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
                                         fmt__formatter__Formatter_format_expr(self, (mem).value);
                                     }
                                 }
-                                if (((i + ((size_t)1ULL)) < ((en)->members).len)) {
+                                if (((i + 1) < ((en)->members).len)) {
                                     fmt__buffer__FormatBuffer_write((&(self)->buf), ",");
                                 }
                                 if (__for_up) {
@@ -19854,7 +20030,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "extern \"");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (eb)->abi);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "\" {");
-            if ((((eb)->declarations).len > ((size_t)0ULL))) {
+            if ((((eb)->declarations).len > 0)) {
                 {
                     fmt__buffer__FormatBuffer_indent((&(self)->buf));
                     {
@@ -19908,17 +20084,13 @@ void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, c
                 size_t i = __for_i;
                 compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(p)->declarations), i);
                 bool is_import = ((decl)->kind == 31);
-                if ((i > ((size_t)0ULL))) {
+                if ((i > 0)) {
                     {
                         if ((prev_was_import && (!is_import))) {
-                            {
-                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
-                            }
+                            fmt__buffer__FormatBuffer_newline((&(self)->buf));
                         } else {
                             if ((!is_import)) {
-                                {
-                                    fmt__buffer__FormatBuffer_newline((&(self)->buf));
-                                }
+                                fmt__buffer__FormatBuffer_newline((&(self)->buf));
                             }
                         }
                     }
@@ -19975,11 +20147,11 @@ lsp__json__JsonValue* lsp__json__json_make(lsp__json__JsonKind kind, bool b, int
 }
 
 lsp__json__JsonValue* lsp__json__json_null(void) {
-    return lsp__json__json_make(0, false, 0LL, "");
+    return lsp__json__json_make(0, false, 0, "");
 }
 
 lsp__json__JsonValue* lsp__json__json_bool(bool b) {
-    return lsp__json__json_make(1, b, 0LL, "");
+    return lsp__json__json_make(1, b, 0, "");
 }
 
 lsp__json__JsonValue* lsp__json__json_num(int64_t n) {
@@ -19987,15 +20159,15 @@ lsp__json__JsonValue* lsp__json__json_num(int64_t n) {
 }
 
 lsp__json__JsonValue* lsp__json__json_str(const char* s) {
-    return lsp__json__json_make(3, false, 0LL, s);
+    return lsp__json__json_make(3, false, 0, s);
 }
 
 lsp__json__JsonValue* lsp__json__json_arr(void) {
-    return lsp__json__json_make(4, false, 0LL, "");
+    return lsp__json__json_make(4, false, 0, "");
 }
 
 lsp__json__JsonValue* lsp__json__json_obj(void) {
-    return lsp__json__json_make(5, false, 0LL, "");
+    return lsp__json__json_make(5, false, 0, "");
 }
 
 void lsp__json__append_json_escaped_str(std__collections__string_builder__StringBuilder* sb, const char* s) {
@@ -20003,7 +20175,7 @@ void lsp__json__append_json_escaped_str(std__collections__string_builder__String
     {
         size_t __for_e = kobel_slen(s);
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -20085,7 +20257,7 @@ void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collecti
             {
                 size_t __for_e = ((self)->arr_val).len;
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20100,7 +20272,7 @@ void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collecti
                 while (__for_go) {
                     {
                         size_t i = __for_i;
-                        if ((i > ((size_t)0ULL))) {
+                        if ((i > 0)) {
                             std__collections__string_builder__StringBuilder_append_char(sb, ',');
                         }
                         lsp__json__JsonValue_serialize_to(std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->arr_val), i), sb);
@@ -20135,7 +20307,7 @@ void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collecti
             {
                 size_t __for_e = ((self)->obj_keys).len;
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20150,7 +20322,7 @@ void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collecti
                 while (__for_go) {
                     {
                         size_t i = __for_i;
-                        if ((i > ((size_t)0ULL))) {
+                        if ((i > 0)) {
                             std__collections__string_builder__StringBuilder_append_char(sb, ',');
                         }
                         lsp__json__append_json_escaped_str(sb, std__collections__list__List_str_get((&(self)->obj_keys), i));
@@ -20210,9 +20382,7 @@ bool lsp__json__JsonValue_is_obj(lsp__json__JsonValue* self) {
 
 void lsp__json__JsonValue_add(lsp__json__JsonValue* self, lsp__json__JsonValue* val_item) {
     if (((self)->kind == 4)) {
-        {
-            std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->arr_val), val_item);
-        }
+        std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->arr_val), val_item);
     }
 }
 
@@ -20222,7 +20392,7 @@ void lsp__json__JsonValue_set(lsp__json__JsonValue* self, const char* key, lsp__
             {
                 size_t __for_e = ((self)->obj_keys).len;
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20278,7 +20448,7 @@ lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, const
             {
                 size_t __for_e = ((self)->obj_keys).len;
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20368,16 +20538,14 @@ lsp__json__JsonValue* lsp__json__JsonValue_get_arr(lsp__json__JsonValue* self, c
 
 lsp__json__JsonValue* lsp__json__JsonValue_at(lsp__json__JsonValue* self, size_t index) {
     if ((((self != NULL) && ((self)->kind == 4)) && (index < ((self)->arr_val).len))) {
-        {
-            return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->arr_val), index);
-        }
+        return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->arr_val), index);
     }
     return lsp__json__json_null();
 }
 
 size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self) {
     if ((self == NULL)) {
-        return ((size_t)0ULL);
+        return 0;
     }
     if (((self)->kind == 4)) {
         return ((self)->arr_val).len;
@@ -20385,7 +20553,7 @@ size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self) {
     if (((self)->kind == 5)) {
         return ((self)->obj_keys).len;
     }
-    return ((size_t)0ULL);
+    return 0;
 }
 
 const char* lsp__json__JsonValue_serialize(lsp__json__JsonValue* self) {
@@ -20397,7 +20565,7 @@ const char* lsp__json__JsonValue_serialize(lsp__json__JsonValue* self) {
 }
 
 lsp__json__JsonParser lsp__json__JsonParser_new(const char* src) {
-    return (lsp__json__JsonParser){ src, ((size_t)0ULL) };
+    return (lsp__json__JsonParser){ src, 0 };
 }
 
 bool lsp__json__JsonParser_is_end(lsp__json__JsonParser* self) {
@@ -20423,9 +20591,7 @@ void lsp__json__JsonParser_skip_whitespace(lsp__json__JsonParser* self) {
                     lsp__json__JsonParser_advance(self);
                 }
             } else {
-                {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -20460,8 +20626,8 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
                         std__collections__string_builder__StringBuilder_append_char((&sb), '\t');
                     } else if ((esc == 'u')) {
                         {
-                            size_t u_count = ((size_t)0ULL);
-                            while (((u_count < ((size_t)4ULL)) && (!lsp__json__JsonParser_is_end(self)))) {
+                            size_t u_count = 0;
+                            while (((u_count < 4) && (!lsp__json__JsonParser_is_end(self)))) {
                                 {
                                     lsp__json__JsonParser_advance(self);
                                     u_count++;
@@ -20474,9 +20640,7 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
                     }
                 }
             } else {
-                {
-                    std__collections__string_builder__StringBuilder_append_char((&sb), c);
-                }
+                std__collections__string_builder__StringBuilder_append_char((&sb), c);
             }
         }
     }
@@ -20489,7 +20653,7 @@ int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
     int64_t sign = 1LL;
     if ((lsp__json__JsonParser_peek(self) == '-')) {
         {
-            sign = (-1LL);
+            sign = (-1);
             lsp__json__JsonParser_advance(self);
         }
     }
@@ -20498,7 +20662,7 @@ int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
         {
             char c = lsp__json__JsonParser_advance(self);
             int64_t d = ((int64_t)(((((int32_t)c)) - 48)));
-            val_num = ((val_num * 10LL) + d);
+            val_num = ((val_num * 10) + d);
         }
     }
     if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == '.'))) {
@@ -20544,21 +20708,15 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* s
             lsp__json__JsonValue_add(res, item);
             lsp__json__JsonParser_skip_whitespace(self);
             if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ','))) {
-                {
-                    lsp__json__JsonParser_advance(self);
-                }
+                lsp__json__JsonParser_advance(self);
             } else {
-                {
-                    break;
-                }
+                break;
             }
         }
     }
     lsp__json__JsonParser_skip_whitespace(self);
     if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ']'))) {
-        {
-            lsp__json__JsonParser_advance(self);
-        }
+        lsp__json__JsonParser_advance(self);
     }
     return res;
 }
@@ -20582,30 +20740,22 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* 
             const char* key = lsp__json__JsonParser_parse_string(self);
             lsp__json__JsonParser_skip_whitespace(self);
             if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ':'))) {
-                {
-                    lsp__json__JsonParser_advance(self);
-                }
+                lsp__json__JsonParser_advance(self);
             }
             lsp__json__JsonParser_skip_whitespace(self);
             lsp__json__JsonValue* val_item = lsp__json__JsonParser_parse_value(self);
             lsp__json__JsonValue_set(res, key, val_item);
             lsp__json__JsonParser_skip_whitespace(self);
             if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == ','))) {
-                {
-                    lsp__json__JsonParser_advance(self);
-                }
+                lsp__json__JsonParser_advance(self);
             } else {
-                {
-                    break;
-                }
+                break;
             }
         }
     }
     lsp__json__JsonParser_skip_whitespace(self);
     if (((!lsp__json__JsonParser_is_end(self)) && (lsp__json__JsonParser_peek(self) == '}'))) {
-        {
-            lsp__json__JsonParser_advance(self);
-        }
+        lsp__json__JsonParser_advance(self);
     }
     return res;
 }
@@ -20631,9 +20781,9 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
     if ((c == 't')) {
         {
             {
-                size_t __for_e = ((size_t)4ULL);
-                size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                int32_t __for_e = 4;
+                int32_t __for_i = __for_e;
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20647,7 +20797,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
                 while (__for_go) {
                     {
-                        size_t i = __for_i;
+                        int32_t i = __for_i;
                         if ((!lsp__json__JsonParser_is_end(self))) {
                             lsp__json__JsonParser_advance(self);
                         }
@@ -20680,9 +20830,9 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
     if ((c == 'f')) {
         {
             {
-                size_t __for_e = ((size_t)5ULL);
-                size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                int32_t __for_e = 5;
+                int32_t __for_i = __for_e;
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20696,7 +20846,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
                 while (__for_go) {
                     {
-                        size_t i = __for_i;
+                        int32_t i = __for_i;
                         if ((!lsp__json__JsonParser_is_end(self))) {
                             lsp__json__JsonParser_advance(self);
                         }
@@ -20729,9 +20879,9 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
     if ((c == 'n')) {
         {
             {
-                size_t __for_e = ((size_t)4ULL);
-                size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                int32_t __for_e = 4;
+                int32_t __for_i = __for_e;
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -20745,7 +20895,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
                 while (__for_go) {
                     {
-                        size_t i = __for_i;
+                        int32_t i = __for_i;
                         if ((!lsp__json__JsonParser_is_end(self))) {
                             lsp__json__JsonParser_advance(self);
                         }
@@ -20858,7 +21008,7 @@ const char* lsp__protocol__read_message(void) {
             }
             const char* line = std__collections__string_builder__StringBuilder_to_str((&header_line));
             std__collections__string_builder__StringBuilder_delete((&header_line));
-            if ((kobel_slen(line) == ((size_t)0ULL))) {
+            if ((kobel_slen(line) == 0)) {
                 break;
             }
             const char* prefix = "content-length:";
@@ -20868,7 +21018,7 @@ const char* lsp__protocol__read_message(void) {
                     {
                         size_t __for_e = kobel_slen(prefix);
                         size_t __for_i = __for_e;
-                        __for_i = ((size_t)0ULL);
+                        __for_i = 0;
                         bool __for_up = (__for_i <= __for_e);
                         bool __for_go = false;
                         if (__for_up) {
@@ -20936,7 +21086,7 @@ const char* lsp__protocol__read_message(void) {
                                         char c = line[j];
                                         if (char_is_digit(c)) {
                                             {
-                                                n = ((n * ((size_t)10ULL)) + (((size_t)(((((int32_t)c)) - 48)))));
+                                                n = ((n * 10) + (((size_t)(((((int32_t)c)) - 48)))));
                                             }
                                         }
                                         if (__for_up) {
@@ -20969,14 +21119,14 @@ const char* lsp__protocol__read_message(void) {
             }
         }
     }
-    if ((content_length == ((size_t)0ULL))) {
+    if ((content_length == 0)) {
         return "";
     }
     uint8_t* buf = std__mem__alloc__raw_alloc((content_length + 1));
     {
         size_t __for_e = content_length;
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -21028,37 +21178,37 @@ const char* lsp__protocol__read_message(void) {
 
 const char* lsp__document__uri_to_path(const char* uri) {
     const char* s = uri;
-    if (((kobel_slen(s) >= ((size_t)8ULL)) && kobel_streq(kobel_slice(s, 0, 8), "file:///"))) {
+    if (((kobel_slen(s) >= 8) && kobel_streq(kobel_slice(s, 0, 8), "file:///"))) {
         {
             s = kobel_slice(s, 8, kobel_slen(s));
         }
     } else {
-        if (((kobel_slen(s) >= ((size_t)7ULL)) && kobel_streq(kobel_slice(s, 0, 7), "file://"))) {
+        if (((kobel_slen(s) >= 7) && kobel_streq(kobel_slice(s, 0, 7), "file://"))) {
             {
                 s = kobel_slice(s, 7, kobel_slen(s));
             }
         }
     }
     std__collections__string_builder__StringBuilder sb = std__collections__string_builder__StringBuilder_new();
-    size_t i = ((size_t)0ULL);
+    size_t i = 0;
     while ((i < kobel_slen(s))) {
         {
             char c = s[i];
-            if (((c == '%') && ((i + ((size_t)2ULL)) < kobel_slen(s)))) {
+            if (((c == '%') && ((i + 2) < kobel_slen(s)))) {
                 {
-                    char h1 = s[(i + ((size_t)1ULL))];
-                    char h2 = s[(i + ((size_t)2ULL))];
+                    char h1 = s[(i + 1)];
+                    char h2 = s[(i + 2)];
                     if (((h1 == '3') && (((h2 == 'a') || (h2 == 'A'))))) {
                         {
                             std__collections__string_builder__StringBuilder_append_char((&sb), ':');
-                            i += ((size_t)3ULL);
+                            i += 3;
                             continue;
                         }
                     }
                     if (((h1 == '2') && (h2 == '0'))) {
                         {
                             std__collections__string_builder__StringBuilder_append_char((&sb), ' ');
-                            i += ((size_t)3ULL);
+                            i += 3;
                             continue;
                         }
                     }
@@ -21099,7 +21249,7 @@ lsp__document__Document lsp__document__DocumentStore_get(lsp__document__Document
             }
         }
     }
-    return (lsp__document__Document){ "", "", "", 0LL };
+    return (lsp__document__Document){ "", "", "", 0 };
 }
 
 bool lsp__document__DocumentStore_has(lsp__document__DocumentStore* self, const char* uri) {
@@ -21111,7 +21261,7 @@ void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const 
     {
         size_t __for_e = ((self)->docs).len;
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -21177,18 +21327,18 @@ void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, con
 }
 
 lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str, const char* source) {
-    size_t line = ((size_t)1ULL);
-    size_t col = ((size_t)1ULL);
-    size_t msg_start = ((size_t)0ULL);
+    size_t line = 1;
+    size_t col = 1;
+    size_t msg_start = 0;
     const char* line_tag = "Line ";
-    size_t line_idx = ((size_t)0ULL);
+    size_t line_idx = 0;
     bool found_line = false;
     if ((kobel_slen(err_str) >= kobel_slen(line_tag))) {
         {
             {
                 size_t __for_e = ((kobel_slen(err_str) - kobel_slen(line_tag)));
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -21207,7 +21357,7 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
                         {
                             size_t __for_e = kobel_slen(line_tag);
                             size_t __for_i = __for_e;
-                            __for_i = ((size_t)0ULL);
+                            __for_i = 0;
                             bool __for_up = (__for_i <= __for_e);
                             bool __for_go = false;
                             if (__for_up) {
@@ -21285,19 +21435,19 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
     }
     if (found_line) {
         {
-            size_t n = ((size_t)0ULL);
+            size_t n = 0;
             size_t idx = line_idx;
             while (((idx < kobel_slen(err_str)) && char_is_digit(err_str[idx]))) {
                 {
-                    n = ((n * ((size_t)10ULL)) + (((size_t)(((((int32_t)err_str[idx])) - 48)))));
+                    n = ((n * 10) + (((size_t)(((((int32_t)err_str[idx])) - 48)))));
                     idx++;
                 }
             }
-            if ((n > ((size_t)0ULL))) {
+            if ((n > 0)) {
                 line = n;
             }
             const char* col_tag = "Column ";
-            size_t col_idx = ((size_t)0ULL);
+            size_t col_idx = 0;
             bool found_col = false;
             if ((kobel_slen(err_str) >= (idx + kobel_slen(col_tag)))) {
                 {
@@ -21323,7 +21473,7 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
                                 {
                                     size_t __for_e = kobel_slen(col_tag);
                                     size_t __for_i = __for_e;
-                                    __for_i = ((size_t)0ULL);
+                                    __for_i = 0;
                                     bool __for_up = (__for_i <= __for_e);
                                     bool __for_go = false;
                                     if (__for_up) {
@@ -21401,15 +21551,15 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
             }
             if (found_col) {
                 {
-                    size_t cn = ((size_t)0ULL);
+                    size_t cn = 0;
                     size_t c_idx = col_idx;
                     while (((c_idx < kobel_slen(err_str)) && char_is_digit(err_str[c_idx]))) {
                         {
-                            cn = ((cn * ((size_t)10ULL)) + (((size_t)(((((int32_t)err_str[c_idx])) - 48)))));
+                            cn = ((cn * 10) + (((size_t)(((((int32_t)err_str[c_idx])) - 48)))));
                             c_idx++;
                         }
                     }
-                    if ((cn > ((size_t)0ULL))) {
+                    if ((cn > 0)) {
                         col = cn;
                     }
                     while (((c_idx < kobel_slen(err_str)) && (((err_str[c_idx] == ':') || (err_str[c_idx] == ' '))))) {
@@ -21423,20 +21573,20 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
         }
     }
     const char* actual_msg = ((msg_start < kobel_slen(err_str)) ? kobel_slice(err_str, msg_start, kobel_slen(err_str)) : err_str);
-    size_t l0 = ((line > ((size_t)0ULL)) ? (line - ((size_t)1ULL)) : ((size_t)0ULL));
-    size_t c0 = ((col > ((size_t)0ULL)) ? (col - ((size_t)1ULL)) : ((size_t)0ULL));
-    size_t end_col = (c0 + ((size_t)1ULL));
-    if ((kobel_slen(source) > ((size_t)0ULL))) {
+    size_t l0 = ((line > 0) ? (line - 1) : 0);
+    size_t c0 = ((col > 0) ? (col - 1) : 0);
+    size_t end_col = (c0 + 1);
+    if ((kobel_slen(source) > 0)) {
         {
-            size_t cur_line = ((size_t)0ULL);
-            size_t line_start = ((size_t)0ULL);
-            size_t pos = ((size_t)0ULL);
+            size_t cur_line = 0;
+            size_t line_start = 0;
+            size_t pos = 0;
             while (((pos < kobel_slen(source)) && (cur_line < l0))) {
                 {
                     if ((source[pos] == '\n')) {
                         {
                             cur_line++;
-                            line_start = (pos + ((size_t)1ULL));
+                            line_start = (pos + 1);
                         }
                     }
                     pos++;
@@ -21453,7 +21603,7 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
                     size_t char_idx = (line_start + c0);
                     if ((char_idx < line_end)) {
                         {
-                            if (((((source[char_idx] == 'u') && (((char_idx + ((size_t)3ULL)) <= line_end))) && (source[(char_idx + ((size_t)1ULL))] == 's')) && (source[(char_idx + ((size_t)2ULL))] == 'e'))) {
+                            if (((((source[char_idx] == 'u') && (((char_idx + 3) <= line_end))) && (source[(char_idx + 1)] == 's')) && (source[(char_idx + 2)] == 'e'))) {
                                 {
                                     size_t s_idx = char_idx;
                                     while (((s_idx < line_end) && (source[s_idx] != ';'))) {
@@ -21486,9 +21636,9 @@ lsp__analysis__LspDiagnostic lsp__analysis__parse_diagnostic(const char* err_str
         }
     }
     if ((end_col <= c0)) {
-        end_col = (c0 + ((size_t)1ULL));
+        end_col = (c0 + 1);
     }
-    return (lsp__analysis__LspDiagnostic){ l0, c0, l0, end_col, 1LL, actual_msg };
+    return (lsp__analysis__LspDiagnostic){ l0, c0, l0, end_col, 1, actual_msg };
 }
 
 lsp__json__JsonValue* lsp__analysis__LspDiagnostic_to_json(lsp__analysis__LspDiagnostic* self) {
@@ -21510,13 +21660,13 @@ lsp__json__JsonValue* lsp__analysis__LspDiagnostic_to_json(lsp__analysis__LspDia
 }
 
 bool lsp__analysis__match_doc_prefix(const char* prefix, const char* doc_mod, const char* doc_path) {
-    if ((kobel_slen(prefix) == ((size_t)0ULL))) {
+    if ((kobel_slen(prefix) == 0)) {
         return true;
     }
-    if (((kobel_slen(doc_mod) > ((size_t)0ULL)) && kobel_streq(prefix, doc_mod))) {
+    if (((kobel_slen(doc_mod) > 0) && kobel_streq(prefix, doc_mod))) {
         return true;
     }
-    if ((kobel_slen(doc_path) > ((size_t)0ULL))) {
+    if ((kobel_slen(doc_path) > 0)) {
         {
             const char* norm_p = str_normalize_path(prefix);
             const char* norm_d = str_normalize_path(doc_path);
@@ -21525,7 +21675,7 @@ bool lsp__analysis__match_doc_prefix(const char* prefix, const char* doc_mod, co
             }
             if (((kobel_slen(norm_d) > kobel_slen(norm_p)) && str_ends_with(norm_d, norm_p))) {
                 {
-                    char sep_char = norm_d[((kobel_slen(norm_d) - kobel_slen(norm_p)) - ((size_t)1ULL))];
+                    char sep_char = norm_d[((kobel_slen(norm_d) - kobel_slen(norm_p)) - 1)];
                     if ((sep_char == '/')) {
                         return true;
                     }
@@ -21533,7 +21683,7 @@ bool lsp__analysis__match_doc_prefix(const char* prefix, const char* doc_mod, co
             }
             if (((kobel_slen(norm_p) > kobel_slen(norm_d)) && str_ends_with(norm_p, norm_d))) {
                 {
-                    char sep_char = norm_p[((kobel_slen(norm_p) - kobel_slen(norm_d)) - ((size_t)1ULL))];
+                    char sep_char = norm_p[((kobel_slen(norm_p) - kobel_slen(norm_d)) - 1)];
                     if ((sep_char == '/')) {
                         return true;
                     }
@@ -21551,14 +21701,14 @@ bool lsp__analysis__match_doc_prefix(const char* prefix, const char* doc_mod, co
 
 bool lsp__analysis__is_error_for_doc(const char* err_str, const char* doc_mod, const char* doc_path) {
     const char* line_tag = "Line ";
-    size_t line_idx = ((size_t)0ULL);
+    size_t line_idx = 0;
     bool found_line = false;
     if ((kobel_slen(err_str) >= kobel_slen(line_tag))) {
         {
             {
                 size_t __for_e = ((kobel_slen(err_str) - kobel_slen(line_tag)));
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -21577,7 +21727,7 @@ bool lsp__analysis__is_error_for_doc(const char* err_str, const char* doc_mod, c
                         {
                             size_t __for_e = kobel_slen(line_tag);
                             size_t __for_i = __for_e;
-                            __for_i = ((size_t)0ULL);
+                            __for_i = 0;
                             bool __for_up = (__for_i <= __for_e);
                             bool __for_go = false;
                             if (__for_up) {
@@ -21655,12 +21805,12 @@ bool lsp__analysis__is_error_for_doc(const char* err_str, const char* doc_mod, c
     }
     if ((!found_line)) {
         {
-            size_t colon_idx = ((size_t)0ULL);
+            size_t colon_idx = 0;
             bool found_colon = false;
             {
                 size_t __for_e = kobel_slen(err_str);
                 size_t __for_i = __for_e;
-                __for_i = ((size_t)0ULL);
+                __for_i = 0;
                 bool __for_up = (__for_i <= __for_e);
                 bool __for_go = false;
                 if (__for_up) {
@@ -21710,19 +21860,19 @@ bool lsp__analysis__is_error_for_doc(const char* err_str, const char* doc_mod, c
                     return true;
                 }
             }
-            const char* prefix = kobel_slice(err_str, ((size_t)0ULL), colon_idx);
+            const char* prefix = kobel_slice(err_str, 0, colon_idx);
             return lsp__analysis__match_doc_prefix(prefix, doc_mod, doc_path);
         }
     }
-    if ((line_idx == ((size_t)0ULL))) {
+    if ((line_idx == 0)) {
         {
             return true;
         }
     }
-    const char* prefix = kobel_slice(err_str, ((size_t)0ULL), line_idx);
-    while (((kobel_slen(prefix) > ((size_t)0ULL)) && (((prefix[(kobel_slen(prefix) - ((size_t)1ULL))] == ' ') || (prefix[(kobel_slen(prefix) - ((size_t)1ULL))] == ':'))))) {
+    const char* prefix = kobel_slice(err_str, 0, line_idx);
+    while (((kobel_slen(prefix) > 0) && (((prefix[(kobel_slen(prefix) - 1)] == ' ') || (prefix[(kobel_slen(prefix) - 1)] == ':'))))) {
         {
-            prefix = kobel_slice(prefix, ((size_t)0ULL), (kobel_slen(prefix) - ((size_t)1ULL)));
+            prefix = kobel_slice(prefix, 0, (kobel_slen(prefix) - 1));
         }
     }
     return lsp__analysis__match_doc_prefix(prefix, doc_mod, doc_path);
@@ -21740,9 +21890,9 @@ lsp__analysis__AnalysisResult lsp__analysis__analyze_document(const char* path, 
                 compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at((&tokens), __for_i);
                 if (((tok).type == 69)) {
                     {
-                        size_t l0 = (((tok).line > ((size_t)0ULL)) ? ((tok).line - ((size_t)1ULL)) : ((size_t)0ULL));
-                        size_t c0 = (((tok).col > ((size_t)0ULL)) ? ((tok).col - ((size_t)1ULL)) : ((size_t)0ULL));
-                        std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), (lsp__analysis__LspDiagnostic){ l0, c0, l0, (c0 + ((size_t)1ULL)), 1LL, "Unrecognized character or syntax" });
+                        size_t l0 = (((tok).line > 0) ? ((tok).line - 1) : 0);
+                        size_t c0 = (((tok).col > 0) ? ((tok).col - 1) : 0);
+                        std__collections__list__List_lsp__analysis__LspDiagnostic_add((&diagnostics), (lsp__analysis__LspDiagnostic){ l0, c0, l0, (c0 + 1), 1LL, "Unrecognized character or syntax" });
                     }
                 }
                 __for_i = (__for_i + 1);
@@ -21769,14 +21919,14 @@ lsp__analysis__AnalysisResult lsp__analysis__analyze_document(const char* path, 
         }
     }
     const char* doc_mod = compiler__ast__decl__Program_declared_module_name(compiler__ast__node__to_compiler__ast__decl__Program(prog));
-    if ((kobel_slen(doc_mod) == ((size_t)0ULL))) {
+    if ((kobel_slen(doc_mod) == 0)) {
         {
             doc_mod = str_path_to_module(str_base_name(path));
         }
     }
     const char* entry_dir = str_dir_of(path);
     std__collections__list__List_str extra_roots = std__collections__list__List_str_new_0();
-    if ((kobel_slen(workspace_root) > ((size_t)0ULL))) {
+    if ((kobel_slen(workspace_root) > 0)) {
         {
             std__collections__list__List_str_add((&extra_roots), workspace_root);
             std__collections__list__List_str_add((&extra_roots), str_join_path(workspace_root, "lib"));
@@ -21879,7 +22029,7 @@ compiler__lexer__token__Token lsp__analysis__find_token_at(std__collections__lis
             }
         }
     }
-    return (compiler__lexer__token__Token){ 69, "", ((size_t)0ULL), ((size_t)0ULL) };
+    return (compiler__lexer__token__Token){ 69, "", 0, 0 };
 }
 
 const char* lsp__analysis__keyword_hover(const char* kw) {
@@ -21890,7 +22040,7 @@ void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, const char* l
     lsp__json__JsonValue* item = lsp__json__json_obj();
     lsp__json__JsonValue_set(item, "label", lsp__json__json_str(label));
     lsp__json__JsonValue_set(item, "kind", lsp__json__json_num(kind));
-    if ((kobel_slen(detail) > ((size_t)0ULL))) {
+    if ((kobel_slen(detail) > 0)) {
         {
             lsp__json__JsonValue_set(item, "detail", lsp__json__json_str(detail));
         }
@@ -21899,14 +22049,14 @@ void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, const char* l
 }
 
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__AnalysisResult* self, size_t line0, size_t col0) {
-    size_t target_line = (line0 + ((size_t)1ULL));
-    size_t target_col = (col0 + ((size_t)1ULL));
+    size_t target_line = (line0 + 1);
+    size_t target_col = (col0 + 1);
     compiler__lexer__token__Token tok = lsp__analysis__find_token_at((self)->tokens, target_line, target_col);
-    if ((((tok).type == 69) || (kobel_slen((tok).text) == ((size_t)0ULL)))) {
+    if ((((tok).type == 69) || (kobel_slen((tok).text) == 0))) {
         return lsp__json__json_null();
     }
     const char* kw_doc = lsp__analysis__keyword_hover((tok).text);
-    if ((kobel_slen(kw_doc) > ((size_t)0ULL))) {
+    if ((kobel_slen(kw_doc) > 0)) {
         {
             lsp__json__JsonValue* res = lsp__json__json_obj();
             lsp__json__JsonValue* contents = lsp__json__json_obj();
@@ -21966,26 +22116,26 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__Anal
 }
 
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis__AnalysisResult* self, const char* doc_uri, size_t line0, size_t col0) {
-    size_t target_line = (line0 + ((size_t)1ULL));
-    size_t target_col = (col0 + ((size_t)1ULL));
+    size_t target_line = (line0 + 1);
+    size_t target_col = (col0 + 1);
     compiler__lexer__token__Token tok = lsp__analysis__find_token_at((self)->tokens, target_line, target_col);
-    if ((((tok).type != 41) || (kobel_slen((tok).text) == ((size_t)0ULL)))) {
+    if ((((tok).type != 41) || (kobel_slen((tok).text) == 0))) {
         return lsp__json__json_null();
     }
     if ((self)->has_symtab) {
         {
             compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), (tok).text);
-            if (((sym != NULL) && ((sym)->line > ((size_t)0ULL)))) {
+            if (((sym != NULL) && ((sym)->line > 0))) {
                 {
                     lsp__json__JsonValue* res = lsp__json__json_obj();
                     lsp__json__JsonValue_set(res, "uri", lsp__json__json_str(doc_uri));
                     lsp__json__JsonValue* range = lsp__json__json_obj();
                     lsp__json__JsonValue* start_pos = lsp__json__json_obj();
-                    lsp__json__JsonValue_set(start_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - ((size_t)1ULL))))));
-                    lsp__json__JsonValue_set(start_pos, "character", lsp__json__json_num(((int64_t)(((sym)->col - ((size_t)1ULL))))));
+                    lsp__json__JsonValue_set(start_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - 1)))));
+                    lsp__json__JsonValue_set(start_pos, "character", lsp__json__json_num(((int64_t)(((sym)->col - 1)))));
                     lsp__json__JsonValue* end_pos = lsp__json__json_obj();
-                    lsp__json__JsonValue_set(end_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - ((size_t)1ULL))))));
-                    lsp__json__JsonValue_set(end_pos, "character", lsp__json__json_num(((int64_t)((((sym)->col - ((size_t)1ULL)) + kobel_slen((sym)->name))))));
+                    lsp__json__JsonValue_set(end_pos, "line", lsp__json__json_num(((int64_t)(((sym)->line - 1)))));
+                    lsp__json__JsonValue_set(end_pos, "character", lsp__json__json_num(((int64_t)((((sym)->col - 1) + kobel_slen((sym)->name))))));
                     lsp__json__JsonValue_set(range, "start", start_pos);
                     lsp__json__JsonValue_set(range, "end", end_pos);
                     lsp__json__JsonValue_set(res, "range", range);
@@ -22127,13 +22277,13 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
                     {
                     }
                 }
-                if ((kobel_slen(sym_name) > ((size_t)0ULL))) {
+                if ((kobel_slen(sym_name) > 0)) {
                     {
                         lsp__json__JsonValue* item = lsp__json__json_obj();
                         lsp__json__JsonValue_set(item, "name", lsp__json__json_str(sym_name));
                         lsp__json__JsonValue_set(item, "kind", lsp__json__json_num(sym_kind));
-                        size_t l0 = (((decl)->line > ((size_t)0ULL)) ? ((decl)->line - ((size_t)1ULL)) : ((size_t)0ULL));
-                        size_t c0 = (((decl)->col > ((size_t)0ULL)) ? ((decl)->col - ((size_t)1ULL)) : ((size_t)0ULL));
+                        size_t l0 = (((decl)->line > 0) ? ((decl)->line - 1) : 0);
+                        size_t c0 = (((decl)->col > 0) ? ((decl)->col - 1) : 0);
                         lsp__json__JsonValue* range = lsp__json__json_obj();
                         lsp__json__JsonValue* s_pos = lsp__json__json_obj();
                         lsp__json__JsonValue_set(s_pos, "line", lsp__json__json_num(((int64_t)l0)));
@@ -22156,7 +22306,7 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
 }
 
 lsp__json__JsonValue* lsp__analysis__format_document(const char* text) {
-    fmt__options__FormatOptions options = fmt__options__default_format_options();
+    fmt__options__FormatOptions options = fmt__options__FormatOptions_new();
     const char* formatted = fmt__formatter__format_source(text, options);
     lsp__json__JsonValue* edits = lsp__json__json_arr();
     lsp__json__JsonValue* edit = lsp__json__json_obj();
@@ -22204,7 +22354,7 @@ int32_t lsp__server__run_server(void) {
     while (true) {
         {
             const char* raw_msg = lsp__protocol__read_message();
-            if ((kobel_slen(raw_msg) == ((size_t)0ULL))) {
+            if ((kobel_slen(raw_msg) == 0)) {
                 break;
             }
             lsp__json__JsonValue* msg = lsp__json__parse_json(raw_msg);
@@ -22231,9 +22381,9 @@ int32_t lsp__server__run_server(void) {
                             } else {
                                 {
                                     lsp__json__JsonValue* wf = lsp__json__JsonValue_get_arr(params, "workspaceFolders");
-                                    if ((lsp__json__JsonValue_count(wf) > ((size_t)0ULL))) {
+                                    if ((lsp__json__JsonValue_count(wf) > 0)) {
                                         {
-                                            lsp__json__JsonValue* wf_first = lsp__json__JsonValue_at(wf, ((size_t)0ULL));
+                                            lsp__json__JsonValue* wf_first = lsp__json__JsonValue_at(wf, 0);
                                             const char* wf_uri = lsp__json__JsonValue_get_str(wf_first, "uri", "");
                                             if ((kobel_slen(wf_uri) > 0)) {
                                                 workspace_root = lsp__document__uri_to_path(wf_uri);
@@ -22246,7 +22396,7 @@ int32_t lsp__server__run_server(void) {
                     }
                     lsp__json__JsonValue* res = lsp__json__json_obj();
                     lsp__json__JsonValue* caps = lsp__json__json_obj();
-                    lsp__json__JsonValue_set(caps, "textDocumentSync", lsp__json__json_num(1LL));
+                    lsp__json__JsonValue_set(caps, "textDocumentSync", lsp__json__json_num(1));
                     lsp__json__JsonValue_set(caps, "hoverProvider", lsp__json__json_bool(true));
                     lsp__json__JsonValue_set(caps, "definitionProvider", lsp__json__json_bool(true));
                     lsp__json__JsonValue_set(caps, "documentFormattingProvider", lsp__json__json_bool(true));
@@ -22285,7 +22435,7 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     const char* text = lsp__json__JsonValue_get_str(text_doc, "text", "");
-                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0LL);
+                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0);
                     lsp__document__DocumentStore_set((&docs), uri, text, version);
                     lsp__server__publish_doc_diagnostics(uri, text, workspace_root);
                 }
@@ -22293,11 +22443,11 @@ int32_t lsp__server__run_server(void) {
                 {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
-                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0LL);
+                    int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0);
                     lsp__json__JsonValue* changes = lsp__json__JsonValue_get_arr(params, "contentChanges");
-                    if ((lsp__json__JsonValue_count(changes) > ((size_t)0ULL))) {
+                    if ((lsp__json__JsonValue_count(changes) > 0)) {
                         {
-                            const char* new_text = lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(changes, ((size_t)0ULL)), "text", "");
+                            const char* new_text = lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(changes, 0), "text", "");
                             lsp__document__DocumentStore_set((&docs), uri, new_text, version);
                             lsp__server__publish_doc_diagnostics(uri, new_text, workspace_root);
                         }
@@ -22318,10 +22468,10 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     lsp__json__JsonValue* pos = lsp__json__JsonValue_get_obj(params, "position");
-                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0LL));
-                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0LL));
+                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0));
+                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0));
                     lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
-                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                    if ((kobel_slen((doc).text) > 0)) {
                         {
                             lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
                             lsp__json__JsonValue* h = lsp__analysis__AnalysisResult_hover_at((&analysis), line, char_col);
@@ -22338,10 +22488,10 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     lsp__json__JsonValue* pos = lsp__json__JsonValue_get_obj(params, "position");
-                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0LL));
-                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0LL));
+                    size_t line = ((size_t)lsp__json__JsonValue_get_num(pos, "line", 0));
+                    size_t char_col = ((size_t)lsp__json__JsonValue_get_num(pos, "character", 0));
                     lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
-                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                    if ((kobel_slen((doc).text) > 0)) {
                         {
                             lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
                             lsp__json__JsonValue* def_res = lsp__analysis__AnalysisResult_definition_at((&analysis), uri, line, char_col);
@@ -22358,7 +22508,7 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
-                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                    if ((kobel_slen((doc).text) > 0)) {
                         {
                             lsp__json__JsonValue* edits = lsp__analysis__format_document((doc).text);
                             lsp__protocol__send_response(id, edits);
@@ -22374,7 +22524,7 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
-                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                    if ((kobel_slen((doc).text) > 0)) {
                         {
                             lsp__json__JsonValue* syms = lsp__analysis__document_symbols((doc).text);
                             lsp__protocol__send_response(id, syms);
@@ -22390,7 +22540,7 @@ int32_t lsp__server__run_server(void) {
                     lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, "textDocument");
                     const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
                     lsp__document__Document doc = lsp__document__DocumentStore_get((&docs), uri);
-                    if ((kobel_slen((doc).text) > ((size_t)0ULL))) {
+                    if ((kobel_slen((doc).text) > 0)) {
                         {
                             lsp__analysis__AnalysisResult analysis = lsp__analysis__analyze_document((doc).path, (doc).text, workspace_root);
                             lsp__json__JsonValue* items = lsp__analysis__AnalysisResult_complete_at((&analysis));
@@ -22408,7 +22558,7 @@ int32_t lsp__server__run_server(void) {
                 {
                     if (((id != NULL) && (!lsp__json__JsonValue_is_null(id)))) {
                         {
-                            lsp__protocol__send_error(id, (-32601LL), kobel_concat(kobel_concat("Method '", method), "' not found"));
+                            lsp__protocol__send_error(id, (-32601), kobel_concat(kobel_concat("Method '", method), "' not found"));
                         }
                     }
                 }
@@ -22481,13 +22631,13 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
             i++;
         }
     }
-    if (((files).len == ((size_t)0ULL))) {
+    if (((files).len == 0)) {
         {
             std__io__println("Error: No files specified to format");
             return 1;
         }
     }
-    fmt__options__FormatOptions options = fmt__options__default_format_options();
+    fmt__options__FormatOptions options = fmt__options__FormatOptions_new();
     {
         size_t __for_n = std__collections__list__List_str_count((&files));
         size_t __for_i = ((size_t)0ULL);
@@ -22495,7 +22645,7 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
             {
                 const char* fpath = std__collections__list__List_str_at((&files), __for_i);
                 const char* src = std__io__read_file(fpath);
-                if ((kobel_slen(src) == ((size_t)0ULL))) {
+                if ((kobel_slen(src) == 0)) {
                     {
                         std__io__print("Warning: Skipping empty or unreadable file: ");
                         std__io__println(fpath);

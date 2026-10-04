@@ -178,26 +178,3 @@ pub fn prim_c_size(name: str): usz => when (name) {
 	else -> 0;
 };
 
-pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
-	val len = raw.len;
-	if (len >= 2) {
-		val last = raw[len - 1];
-		val prev = raw[len - 2];
-		if (prev == 'U' && last == 'B') return alloc_primitive(arena, type_u8());
-		if (prev == 'U' && last == 'S') return alloc_primitive(arena, type_u16());
-		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
-		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
-	}
-
-	if (len >= 1) {
-		val last = raw[len - 1];
-		if (last == 'U') return alloc_primitive(arena, type_u32());
-		if (last == 'L') return alloc_primitive(arena, type_i64());
-		if (last == 'S') return alloc_primitive(arena, type_i16());
-		if (last == 'Z') return alloc_primitive(arena, type_isz());
-		if (last == 'B') return alloc_primitive(arena, type_i8());
-	}
-
-	return alloc_primitive(arena, type_i32());
-}
-

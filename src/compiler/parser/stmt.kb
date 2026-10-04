@@ -191,24 +191,8 @@ impl Parser {
 			}
 			else -> {
 				val expr = self.parse_expression(PREC_NONE);
-				val res_stmt = when {
-					self.match_token(TokenType.PLUS_PLUS) -> {
-						val op_tok = self.previous();
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after '++'");
-						yield self.expr_stmt(self.update(TokenType.PLUS_PLUS, expr, op_tok.line, op_tok.col), line, col);
-					}
-					self.match_token(TokenType.MINUS_MINUS) -> {
-						val op_tok = self.previous();
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after '--'");
-						yield self.expr_stmt(self.update(TokenType.MINUS_MINUS, expr, op_tok.line, op_tok.col), line, col);
-					}
-					else -> {
-						self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-						yield self.expr_stmt(expr, line, col);
-					}
-				};
-
-				yield res_stmt;
+				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
+				yield self.expr_stmt(expr, line, col);
 			}
 		};
 	}

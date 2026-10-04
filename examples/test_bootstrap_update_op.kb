@@ -99,6 +99,53 @@ fn test_when_arm_update(): bool {
 	return true;
 }
 
+impl Counter {
+	pub fn inc(var self) => self.count++;
+	pub fn dec(var self) => self.count--;
+}
+
+fn arrow_inc(var x: i32) => x++;
+fn arrow_dec(var x: i32) => x--;
+
+fn get_usz_val() => 100UZ;
+fn get_u64_val() => 999999999999UL;
+fn get_i64_val() => 888888888888L;
+fn get_u32_val() => 50U;
+fn get_f32_val() => 3.14F;
+fn get_f64_val() => 2.718;
+
+fn test_arrow_update_and_suffix(): bool {
+	var c = Counter(10);
+	c.inc();
+	if (c.count != 11) return false;
+	c.dec();
+	if (c.count != 10) return false;
+
+	var x = 5;
+	arrow_inc(x);
+	arrow_dec(x);
+
+	val u: usz = get_usz_val();
+	if (u != 100UZ) return false;
+
+	val u64_v: u64 = get_u64_val();
+	if (u64_v != 999999999999UL) return false;
+
+	val i64_v: i64 = get_i64_val();
+	if (i64_v != 888888888888L) return false;
+
+	val u32_v: u32 = get_u32_val();
+	if (u32_v != 50U) return false;
+
+	val f_val: f32 = get_f32_val();
+	if (f_val < 3.13F || f_val > 3.15F) return false;
+
+	val d_val: f64 = get_f64_val();
+	if (d_val < 2.71 || d_val > 2.72) return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	println("--- Testing Update Operators (++ and --) ---");
 
@@ -137,6 +184,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("PASS: test_when_arm_update");
+
+	if (!test_arrow_update_and_suffix()) {
+		println("FAIL: test_arrow_update_and_suffix");
+		return 1;
+	}
+	println("PASS: test_arrow_update_and_suffix");
 
 	println("All update operator tests PASSED!");
 	return 0;
