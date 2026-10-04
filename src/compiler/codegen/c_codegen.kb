@@ -551,11 +551,13 @@ impl CCodeGen {
 // Statement Code Generation
 // ============================================================================
 
-pub fn when_expr_has_blocks(we: *WhenExpr): bool {
-	for (arm in we.arms) {
-		if (arm.body.kind == NodeKind.STMT_BLOCK) return true;
+impl WhenExpr {
+	pub fn has_blocks(val self): bool {
+		for (arm in self.arms) {
+			if (arm.body.kind == NodeKind.STMT_BLOCK) return true;
+		}
+		return false;
 	}
-	return false;
 }
 
 impl CCodeGen {
@@ -617,7 +619,7 @@ impl CCodeGen {
 				if (
 					vd.initializer != null &&
 					vd.initializer.kind == NodeKind.EXPR_WHEN &&
-					when_expr_has_blocks(vd.initializer.to<WhenExpr>())
+					vd.initializer.to<WhenExpr>().has_blocks()
 				) {
 					var res = "${ind}${ty_str} ${vd.name};\n";
 					res = "${res}${self.gen_when_with_target(vd.initializer.to<WhenExpr>(), vd.name, false)}";
@@ -691,7 +693,7 @@ impl CCodeGen {
 				if (ret.value != null) {
 					if (
 						ret.value.kind == NodeKind.EXPR_WHEN &&
-						when_expr_has_blocks(ret.value.to<WhenExpr>())
+						ret.value.to<WhenExpr>().has_blocks()
 					) yield self.gen_when_with_target(ret.value.to<WhenExpr>(), "", true);
 
 					yield "${ind}return ${self.gen_expr(ret.value)};\n";

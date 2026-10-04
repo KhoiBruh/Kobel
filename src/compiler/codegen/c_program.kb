@@ -19,12 +19,7 @@ use util.strutil.*;
 
 // Generic declarations are templates: monomorphized instances are appended by
 // the semantic analyzer, so the backend must skip the templates themselves.
-pub fn is_generic_decl(node: *AstNode) => when (node.kind) {
-	NodeKind.DECL_STRUCT -> node.to<StructDecl>().type_params.len > 0;
-	NodeKind.DECL_FN -> node.to<FnDecl>().type_params.len > 0;
-	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0;
-	else -> false;
-};
+
 
 impl CCodeGen {
 
@@ -67,7 +62,7 @@ impl CCodeGen {
 
 		// 2. First collect struct names, function names and return types
 		for (decl in prog) {
-			if (is_generic_decl(decl)) continue;
+			if (decl.is_template()) continue;
 			when (decl.kind) {
 				NodeKind.DECL_STRUCT -> {
 					val s = decl.to<StructDecl>();
@@ -94,7 +89,7 @@ impl CCodeGen {
 		// 2b. Register function return types (arrow bodies are inferred). Done after
 		// all struct names are known so inference can resolve struct constructors.
 		for (decl2 in prog) {
-			if (is_generic_decl(decl2)) continue;
+			if (decl2.is_template()) continue;
 			when (decl2.kind) {
 				NodeKind.DECL_FN -> {
 					val f = decl2.to<FnDecl>();
@@ -125,14 +120,14 @@ impl CCodeGen {
 		// 3. Struct Definitions
 		for (decl in prog) {
 			if (
-				!is_generic_decl(decl) &&
+				!decl.is_template() &&
 				decl.kind == NodeKind.DECL_STRUCT
 			) c_code = "${c_code}${self.gen_struct_decl(decl)}";
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
 		for (decl_list in prog) {
-			if (!is_generic_decl(decl_list) && decl_list.kind == NodeKind.DECL_STRUCT) {
+			if (!decl_list.is_template() && decl_list.kind == NodeKind.DECL_STRUCT) {
 				val s = decl_list.to<StructDecl>();
 				if (str_starts_with(s.name, "std__collections__list__List")) {
 					c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n" +
@@ -152,7 +147,7 @@ impl CCodeGen {
 
 		// 4. Function Prototypes
 		for (decl in prog) {
-			if (is_generic_decl(decl)) continue;
+			if (decl.is_template()) continue;
 			when (decl.kind) {
 				NodeKind.DECL_FN -> c_code = "${c_code}${self.gen_fn_decl(decl, true, "")}";
 				NodeKind.DECL_IMPL -> {
@@ -169,7 +164,7 @@ impl CCodeGen {
 
 		// 5. Function Implementations
 		for (decl in prog) {
-			if (is_generic_decl(decl)) continue;
+			if (decl.is_template()) continue;
 			when (decl.kind) {
 				NodeKind.DECL_FN -> c_code = "${c_code}${self.gen_fn_decl(decl, false, "")}";
 				NodeKind.DECL_IMPL -> {
@@ -260,7 +255,7 @@ impl CCodeGen {
 				res = when {
 					ret_ty != "void" &&
 					es.expr.kind == NodeKind.EXPR_WHEN &&
-					when_expr_has_blocks(es.expr.to<WhenExpr>()) -> "${res}${self.gen_when_with_target(es.expr.to<WhenExpr>(), "", true)}";
+					es.expr.to<WhenExpr>().has_blocks() -> "${res}${self.gen_when_with_target(es.expr.to<WhenExpr>(), "", true)}";
 
 					ret_ty == "void" -> "${res}    ${self.gen_expr(es.expr)};\n";
 

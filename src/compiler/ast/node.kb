@@ -59,8 +59,22 @@ pub struct AstNode {
 	pub data: *u8
 }
 
+pub struct DummyTemplateDecl {
+	pub name: str,
+	pub type_params_data: *u8,
+	pub type_params_len: usz,
+	pub type_params_cap: usz
+}
+
 impl AstNode {
 	pub fn to<T>(val self) => self.data as *T;
+
+	pub fn is_template(val self): bool => when (self.kind) {
+		NodeKind.DECL_STRUCT -> self.to<DummyTemplateDecl>().type_params_len > 0;
+		NodeKind.DECL_FN -> self.to<DummyTemplateDecl>().type_params_len > 0;
+		NodeKind.DECL_IMPL -> self.to<DummyTemplateDecl>().type_params_len > 0;
+		else -> false;
+	};
 }
 
 impl Arena {
