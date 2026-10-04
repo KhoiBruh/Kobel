@@ -62,9 +62,7 @@ pub struct Formatter {
 impl Formatter {
 
 	pub fn new(options: FormatOptions, comments: CommentTable) => Self(
-		FormatBuffer(options),
-		comments,
-		options
+		FormatBuffer(options), comments, options
 	);
 
 	pub fn to_str(val self) => self.buf.to_str();

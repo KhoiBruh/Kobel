@@ -38,14 +38,12 @@ pub fn lookup_keyword(text: str) => when (text) {
 
 pub struct Lexer {
 	pub src: str,
-	pub cursor: usz,
-	pub line: usz,
-	pub col: usz
+	pub cursor: usz = 0,
+	pub line: usz = 1,
+	pub col: usz = 1
 }
 
 impl Lexer {
-
-	pub fn new(src: str): Lexer => Self(src, 0, 1, 1);
 
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 

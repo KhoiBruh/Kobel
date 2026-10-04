@@ -210,12 +210,10 @@ impl JsonValue {
 
 pub struct JsonParser {
 	pub src: str,
-	pub cursor: usz
+	pub cursor: usz = 0
 }
 
 impl JsonParser {
-
-	pub fn new(src: str) => Self(src, 0);
 
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
@@ -281,18 +279,16 @@ impl JsonParser {
 			val d = ((c as i32) - 48) as i64;
 			val_num = val_num * 10 + d;
 		}
+
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
-			while (!self.is_end() && self.peek().is_digit()) {
-				self.advance();
-			}
+			while (!self.is_end() && self.peek().is_digit()) self.advance();
 		}
+
 		if (!self.is_end() && (self.peek() == 'e' || self.peek() == 'E')) {
 			self.advance();
 			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
-			while (!self.is_end() && self.peek().is_digit()) {
-				self.advance();
-			}
+			while (!self.is_end() && self.peek().is_digit()) self.advance();
 		}
 		return val_num * sign;
 	}
@@ -305,6 +301,7 @@ impl JsonParser {
 			self.advance();
 			return res;
 		}
+
 		while (!self.is_end()) {
 			self.skip_whitespace();
 			val item = self.parse_value();
@@ -314,6 +311,7 @@ impl JsonParser {
 			if (!self.is_end() && self.peek() == ',') self.advance();
 			else break;
 		}
+
 		self.skip_whitespace();
 		if (!self.is_end() && self.peek() == ']') self.advance();
 		return res;
@@ -360,21 +358,15 @@ impl JsonParser {
 		if (c == '[') return self.parse_array();
 		if (c == '-' || c.is_digit()) return json_num(self.parse_number());
 		if (c == 't') {
-			for (i in 0..<4) {
-				if (!self.is_end()) self.advance();
-			}
+			for (i in 0..<4) if (!self.is_end()) self.advance();
 			return json_bool(true);
 		}
 		if (c == 'f') {
-			for (i in 0..<5) {
-				if (!self.is_end()) self.advance();
-			}
+			for (i in 0..<5) if (!self.is_end()) self.advance();
 			return json_bool(false);
 		}
 		if (c == 'n') {
-			for (i in 0..<4) {
-				if (!self.is_end()) self.advance();
-			}
+			for (i in 0..<4) if (!self.is_end()) self.advance();
 			return json_null();
 		}
 		self.advance();

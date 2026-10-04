@@ -413,9 +413,7 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 	val item = json_obj();
 	item.set("label", json_str(label));
 	item.set("kind", json_num(kind));
-	if (detail.len > 0) {
-		item.set("detail", json_str(detail));
-	}
+	if (detail.len > 0) item.set("detail", json_str(detail));
 	arr.add(item);
 }
 
@@ -444,29 +442,15 @@ impl AnalysisResult {
 			val sym = self.symtab.lookup(tok.text);
 			if (sym != null) {
 				var md = "```kobel\n";
-				when (sym.kind) {
-					SymbolKind.FN -> {
-						md = "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
-					}
-					SymbolKind.STRUCT -> {
-						md = "${md}struct ${sym.name}";
-					}
-					SymbolKind.ENUM -> {
-						md = "${md}enum ${sym.name}";
-					}
-					SymbolKind.VAR -> {
-						md = "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
-					}
-					SymbolKind.CONST -> {
-						md = "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
-					}
-					SymbolKind.PARAM -> {
-						md = "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
-					}
-					else -> {
-						md = "${md}${sym.name}: ${sym.type_ptr.to_str()}";
-					}
-				}
+				md = when (sym.kind) {
+					SymbolKind.FN -> "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
+					SymbolKind.STRUCT -> "${md}struct ${sym.name}";
+					SymbolKind.ENUM -> "${md}enum ${sym.name}";
+					SymbolKind.VAR -> "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
+					SymbolKind.CONST -> "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
+					SymbolKind.PARAM -> "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
+					else -> "${md}${sym.name}: ${sym.type_ptr.to_str()}";
+				};
 				md = "${md}\n```";
 
 				val res = json_obj();
@@ -568,13 +552,13 @@ impl AnalysisResult {
 		if (self.has_symtab) {
 			for (mod_scope in self.symtab.modules) {
 				for (sym in mod_scope.symbols) {
-					val k = when (sym.kind) {
-						SymbolKind.FN -> 3L, // Function
-						SymbolKind.STRUCT -> 22L, // Struct
-						SymbolKind.ENUM -> 13L, // Enum
-						SymbolKind.VAR -> 6L, // Variable
-						SymbolKind.CONST -> 21L, // Constant
-						else -> 6L
+					val k: i64 = when (sym.kind) {
+						SymbolKind.FN -> 3, // Function
+						SymbolKind.STRUCT -> 22, // Struct
+						SymbolKind.ENUM -> 13, // Enum
+						SymbolKind.VAR -> 6, // Variable
+						SymbolKind.CONST -> 21, // Constant
+						else -> 6
 					};
 					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
 				}
@@ -602,38 +586,38 @@ pub fn document_symbols(source: str): *JsonValue {
 	val prog = prog_node.to<Program>();
 	for (decl in prog) {
 		var sym_name = "";
-		var sym_kind: i64 = 0L; // LSP SymbolKind
+		var sym_kind = 0L; // LSP SymbolKind
 
 		when (decl.kind) {
 			NodeKind.DECL_FN -> {
 				val f = decl.to<FnDecl>();
 				sym_name = f.name;
-				sym_kind = 12L; // Function
+				sym_kind = 12; // Function
 			}
 			NodeKind.DECL_STRUCT -> {
 				val s = decl.to<StructDecl>();
 				sym_name = s.name;
-				sym_kind = 23L; // Struct
+				sym_kind = 23; // Struct
 			}
 			NodeKind.DECL_ENUM -> {
 				val e = decl.to<EnumDecl>();
 				sym_name = e.name;
-				sym_kind = 10L; // Enum
+				sym_kind = 10; // Enum
 			}
 			NodeKind.DECL_TRAIT -> {
 				val t = decl.to<TraitDecl>();
 				sym_name = t.name;
-				sym_kind = 11L; // Interface
+				sym_kind = 11; // Interface
 			}
 			NodeKind.DECL_IMPL -> {
 				val im = decl.to<ImplDecl>();
 				sym_name = "impl ${im.struct_name}";
-				sym_kind = 5L; // Class
+				sym_kind = 5; // Class
 			}
 			NodeKind.DECL_CONST -> {
 				val c = decl.to<ConstDecl>();
 				sym_name = c.name;
-				sym_kind = 14L; // Constant
+				sym_kind = 14; // Constant
 			}
 			else -> {}
 		}

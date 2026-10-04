@@ -69,7 +69,7 @@ pub struct DummyTemplateDecl {
 impl AstNode {
 	pub fn to<T>(val self) => self.data as *T;
 
-	pub fn is_template(val self): bool => when (self.kind) {
+	pub fn is_template(val self) => when (self.kind) {
 		NodeKind.DECL_STRUCT -> self.to<DummyTemplateDecl>().type_params_len > 0;
 		NodeKind.DECL_FN -> self.to<DummyTemplateDecl>().type_params_len > 0;
 		NodeKind.DECL_IMPL -> self.to<DummyTemplateDecl>().type_params_len > 0;

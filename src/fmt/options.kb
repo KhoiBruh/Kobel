@@ -5,12 +5,8 @@ mod fmt.options;
 // ============================================================================
 
 pub struct FormatOptions {
-	pub tab_size: usz,
-	pub use_smart_tabs: bool,
-	pub max_width: usz,
-	pub k_and_r_braces: bool
-}
-
-impl FormatOptions {
-	pub fn new() => Self(4, true, 100, true);
+	pub tab_size: usz = 4,
+	pub use_smart_tabs: bool = true,
+	pub max_width: usz = 100,
+	pub k_and_r_braces: bool = true
 }

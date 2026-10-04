@@ -8,26 +8,24 @@ use std.collections.list.*;
 // ============================================================================
 
 pub struct Comment {
-	pub text: str,
-	pub line: usz,
-	pub col: usz,
-	pub is_block: bool
+	pub text: str = "",
+	pub line: usz = 0,
+	pub col: usz = 0,
+	pub is_block: bool = false
 }
 
 pub struct CommentTable {
 	pub comments: List<Comment>,
-	pub cursor: usz
+	pub cursor: usz = 0
 }
 
 impl CommentTable {
-
-	pub fn new(comments: List<Comment>) => Self(comments, 0);
 
 	pub fn has_more(val self) => self.cursor < self.comments.len;
 
 	pub fn peek(val self) =>
 		if (self.cursor < self.comments.len) self.comments[self.cursor]
-		else Comment("", 0, 0, false);
+		else Comment();
 
 	pub fn emit_before(var self, var buf: &FormatBuffer, target_line: usz) {
 		while (self.cursor < self.comments.len) {

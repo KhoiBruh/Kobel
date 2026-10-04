@@ -38,13 +38,8 @@ impl Iterable for List<T> {
 }
 
 impl List<T> {
-	pub fn new() => Self(alloc_array<T>(4UZ), 0, 4UZ);
 
-	pub fn new(capacity: usz): Self {
-		var cap = capacity;
-		if (cap == 0) cap = 4;
-		return Self(alloc_array<T>(cap), 0, cap);
-	}
+	pub fn new(cap: usz = 4) => Self(alloc_array<T>(cap), 0, cap);
 
 	pub fn get(val self, index: usz) => self.data[index];
 
