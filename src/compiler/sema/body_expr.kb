@@ -73,23 +73,23 @@ impl BodyPass {
 
 	pub fn check_literal_expr(var self, node: *AstNode): *Type {
 		val lit = node.to<LiteralExpr>();
-		when (lit.literal_kind) {
-			LiteralKind.INT -> return int_literal_type(&self.arena, lit.raw_text);
+		return when (lit.literal_kind) {
+			LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
-				if (is_f32) return alloc_primitive(&self.arena, type_f32());
-				return alloc_primitive(&self.arena, type_f64());
+				if (is_f32) yield alloc_primitive(&self.arena, type_f32());
+				yield alloc_primitive(&self.arena, type_f64());
 			}
-			LiteralKind.BOOL -> return alloc_primitive(&self.arena, type_bool());
-			LiteralKind.STRING -> return alloc_primitive(&self.arena, type_str());
-			LiteralKind.CHAR -> return alloc_primitive(&self.arena, type_char());
+			LiteralKind.BOOL -> alloc_primitive(&self.arena, type_bool());
+			LiteralKind.STRING -> alloc_primitive(&self.arena, type_str());
+			LiteralKind.CHAR -> alloc_primitive(&self.arena, type_char());
 			LiteralKind.NULL_VAL -> {
 				val none_ty = alloc_primitive(&self.arena, type_none());
-				return self.arena.pointer_type(none_ty, false);
+				yield self.arena.pointer_type(none_ty, false);
 			}
-			else -> return alloc_primitive(&self.arena, type_none());
-		}
+			else -> alloc_primitive(&self.arena, type_none());
+		};
 	}
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
@@ -162,8 +162,7 @@ impl BodyPass {
 				return lt;
 			}
 			// 2. Equality comparison (==, !=)
-			TokenType.EQUAL_EQUAL,
-			TokenType.BANG_EQUAL -> {
+			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
 				if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
 					// Content comparison instead of C pointer comparison.
 					val wrapped = make_str_eq(&self.arena, bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
@@ -184,8 +183,7 @@ impl BodyPass {
 				return alloc_primitive(&self.arena, type_bool());
 			}
 			// 4. Logic (&&, ||)
-			TokenType.AND_AND,
-			TokenType.OR_OR -> {
+			TokenType.AND_AND, TokenType.OR_OR -> {
 				if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
 					self.report_error(node, "Logical operators require bool operands");
 				}
@@ -199,28 +197,28 @@ impl BodyPass {
 		val un = node.to<UnaryExpr>();
 		val op_ty = self.check_expr(un.operand);
 
-		when (un.op) {
+		return when (un.op) {
 			TokenType.MINUS -> {
 				if (!op_ty.is_numeric()) self.report_error(node, "Unary minus requires numeric operand");
-				return op_ty;
+				yield op_ty;
 			}
 			TokenType.BANG -> {
 				if (op_ty.kind != DataType.BOOL) self.report_error(node, "Logical NOT requires bool operand");
-				return alloc_primitive(&self.arena, type_bool());
+				yield alloc_primitive(&self.arena, type_bool());
 			}
 			TokenType.STAR -> {
 				// Pointer dereference (*ptr)
 				if (op_ty.kind != DataType.POINTER) {
 					self.report_error(node, "Cannot dereference non-pointer type");
-					return op_ty;
+					yield op_ty;
 				}
 				val p_info = op_ty.as_pointer();
-				return p_info.pointee;
+				yield p_info.pointee;
 			}
 			// Take address (&expr)
-			TokenType.AMPERSAND -> return self.arena.pointer_type(op_ty, true);
-			else -> return op_ty;
-		}
+			TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
+			else -> op_ty;
+		};
 	}
 
 	pub fn check_member_expr(var self, node: *AstNode): *Type {
@@ -252,9 +250,10 @@ impl BodyPass {
 		// Pointer results that are not plain identifiers cannot be recognized
 		// by the backend's name-based pointer tracking, so dereference them
 		// here: `p.field` becomes `(*p).field`.
-		if (obj_ty.kind == DataType.POINTER && mem.object.kind != NodeKind.EXPR_IDENTIFIER) {
-			mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
-		}
+		if (
+			obj_ty.kind == DataType.POINTER &&
+			mem.object.kind != NodeKind.EXPR_IDENTIFIER
+		) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
 
 		// Automatic pointer unwrapping: p.x when p is *Point or &Point
 		var obj_was_ptr = false;
@@ -346,30 +345,28 @@ impl BodyPass {
 		val target_ty = self.check_expr(idx.target);
 		val index_ty = self.check_expr(idx.index);
 
-		// 1. Raw array [T; N]
-		if (target_ty.kind == DataType.ARRAY) {
-			if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-			return target_ty.as_array().elem;
-		}
+		return when (target_ty.kind) {
+			// 1. Raw array [T; N]
+			DataType.ARRAY -> {
+				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+				yield target_ty.as_array().elem;
+			}
+			// 2. String indexing str[i] -> char
+			DataType.STR -> {
+				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+				yield alloc_primitive(&self.arena, type_char());
+			}
+			// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
+			DataType.POINTER -> {
+				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+				yield target_ty.as_pointer().pointee;
+			}
+			// 4. Custom container struct with get(index) method (List<T>, etc.)
+			DataType.STRUCT -> {
+				val s_info = target_ty.as_struct();
+				var mi = s_info.find_method_arity("get", 2);
+				if (mi == null) mi = s_info.find_method("get");
 
-		// 2. String indexing str[i] -> char
-		if (target_ty.kind == DataType.STR) {
-			if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-			return alloc_primitive(&self.arena, type_char());
-		}
-
-		// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
-		if (target_ty.kind == DataType.POINTER) {
-			if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-			return target_ty.as_pointer().pointee;
-		}
-
-		// 4. Custom container struct with get(index) method (List<T>, etc.)
-		if (target_ty.kind == DataType.STRUCT) {
-			val s_info = target_ty.as_struct();
-			var mi = s_info.find_method_arity("get", 2);
-			if (mi == null) mi = s_info.find_method("get");
-			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
 				val param_ty = fn_info.param_types[1];
 				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
@@ -383,12 +380,14 @@ impl BodyPass {
 				val n = node as &AstNode;
 				n.kind = NodeKind.EXPR_CALL;
 				n.data = call_node.data;
-				return fn_info.return_type;
-			}
-		}
 
-		self.report_error(node, "Index access on non-indexable type");
-		return alloc_primitive(&self.arena, type_none());
+				yield fn_info.return_type;
+			}
+			else -> {
+				self.report_error(node, "Index access on non-indexable type");
+				yield alloc_primitive(&self.arena, type_none());
+			}
+		};
 	}
 
 	pub fn check_assign_expr(var self, node: *AstNode): *Type {
@@ -499,7 +498,7 @@ impl BodyPass {
 
 					val bin_op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
 					val one_node = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-					               else self.literal(LiteralKind.INT, "1", node.line, node.col);
+									else self.literal(LiteralKind.INT, "1", node.line, node.col);
 					val get_expr = self.index(idx.target, idx.index, node.line, node.col);
 					val val_expr = self.binary(bin_op, get_expr, one_node, node.line, node.col);
 

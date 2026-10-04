@@ -51,14 +51,14 @@ pub struct BodyPass {
 
 impl BodyPass {
 
-	pub fn new(): BodyPass {
+	pub fn new(): Self {
 		var arena = Arena(65536);
 		var decl_p = DeclPass();
 		val none_ty = alloc_primitive(&arena, type_none());
 		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false, 0UZ, List<*AstNode>());
 	}
 
-	pub fn new(symtab: SymbolTable): BodyPass {
+	pub fn new(symtab: SymbolTable): Self {
 		var arena = Arena(65536);
 		val none_ty = alloc_primitive(&arena, type_none());
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true, 0UZ, List<*AstNode>());
@@ -112,24 +112,24 @@ impl BodyPass {
 	pub fn check_expr(var self, node: *AstNode): *Type {
 		if (node == null) return alloc_primitive(&self.arena, type_none());
 
-		when (node.kind) {
-			NodeKind.EXPR_LITERAL       -> return self.check_literal_expr(node);
-			NodeKind.EXPR_IDENTIFIER    -> return self.check_ident_expr(node);
-			NodeKind.EXPR_GROUP         -> return self.check_expr(node.to<GroupExpr>().expr);
-			NodeKind.EXPR_BINARY        -> return self.check_binary_expr(node);
-			NodeKind.EXPR_UNARY         -> return self.check_unary_expr(node);
-			NodeKind.EXPR_CALL          -> return self.check_call_expr(node);
-			NodeKind.EXPR_MEMBER        -> return self.check_member_expr(node);
-			NodeKind.EXPR_INDEX         -> return self.check_index_expr(node);
-			NodeKind.EXPR_ASSIGN        -> return self.check_assign_expr(node);
-			NodeKind.EXPR_UPDATE        -> return self.check_update_expr(node);
-			NodeKind.EXPR_CAST          -> return self.check_cast_expr(node);
-			NodeKind.EXPR_IF            -> return self.check_if_expr(node);
-			NodeKind.EXPR_WHEN          -> return self.check_when_expr(node);
-			NodeKind.EXPR_ARRAY_LITERAL -> return self.check_array_literal_expr(node);
-			NodeKind.EXPR_INTERP        -> return self.check_interp_expr(node);
-			else -> return alloc_primitive(&self.arena, type_none());
-		}
+		return when (node.kind) {
+			NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
+			NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
+			NodeKind.EXPR_GROUP -> self.check_expr(node.to<GroupExpr>().expr);
+			NodeKind.EXPR_BINARY -> self.check_binary_expr(node);
+			NodeKind.EXPR_UNARY -> self.check_unary_expr(node);
+			NodeKind.EXPR_CALL -> self.check_call_expr(node);
+			NodeKind.EXPR_MEMBER -> self.check_member_expr(node);
+			NodeKind.EXPR_INDEX -> self.check_index_expr(node);
+			NodeKind.EXPR_ASSIGN -> self.check_assign_expr(node);
+			NodeKind.EXPR_UPDATE -> self.check_update_expr(node);
+			NodeKind.EXPR_CAST -> self.check_cast_expr(node);
+			NodeKind.EXPR_IF -> self.check_if_expr(node);
+			NodeKind.EXPR_WHEN -> self.check_when_expr(node);
+			NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
+			NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
+			else -> alloc_primitive(&self.arena, type_none());
+		};
 	}
 
 	// ============================================================================

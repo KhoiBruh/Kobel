@@ -152,10 +152,9 @@ impl Parser {
 		return tok.type == TokenType.END_OF_FILE;
 	}
 
-	pub fn peek(var self): Token {
-		if (self.current >= self.tokens.len) return self.tokens.last();
-		return self.tokens[self.current];
-	}
+	pub fn peek(var self) =>
+		if (self.current >= self.tokens.len) self.tokens.last()
+		else self.tokens[self.current];
 
 // Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
 	pub fn peek_at(var self, offset: usz): Token {
@@ -164,10 +163,9 @@ impl Parser {
 		return self.tokens[idx];
 	}
 
-	pub fn previous(var self): Token {
-		if (self.current == 0) return self.tokens.first();
-		return self.tokens[self.current - 1];
-	}
+	pub fn previous(var self) =>
+		if (self.current == 0) self.tokens.first()
+		else self.tokens[self.current - 1];
 
 	pub fn advance(var self): Token {
 		if (!self.is_end()) self.current++;
@@ -188,10 +186,8 @@ impl Parser {
 		return false;
 	}
 
-	pub fn error(var self, tok: Token, msg: str) {
-		// Record a parse error with line and column
-		self.errors.add("Line ${tok.line}, Column ${tok.col}: ${msg}");
-	}
+	// Record a parse error with line and column
+	pub fn error(var self, tok: Token, msg: str) => self.errors.add("Line ${tok.line}, Column ${tok.col}: ${msg}");
 
 	pub fn consume(var self, t: TokenType, msg: str): Token {
 		if (self.check(t)) return self.advance();
@@ -235,7 +231,10 @@ impl Parser {
 				TokenType.GREATER -> {
 					depth--;
 					if (depth == 0) {
-						if (i + 1 < self.tokens.len && self.tokens[i + 1].type == TokenType.OPEN_PAREN) return true;
+						if (
+							i + 1 < self.tokens.len &&
+							self.tokens[i + 1].type == TokenType.OPEN_PAREN
+						) return true;
 						return false;
 					}
 				}

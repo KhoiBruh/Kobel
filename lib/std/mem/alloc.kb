@@ -24,13 +24,11 @@ extern "libc" {
 // Byte plane - untyped, no bookkeeping.
 // ----------------------------------------------------------------------------
 
-pub fn raw_alloc(size: usz): &u8 => malloc(size);
+pub fn raw_alloc(size: usz) => malloc(size);
 
-pub fn raw_resize(ptr: &u8, size: usz): &u8 => realloc(ptr, size);
+pub fn raw_resize(ptr: &u8, size: usz) => realloc(ptr, size);
 
-pub fn raw_release(ptr: &u8) {
-	free(ptr);
-}
+pub fn raw_release(ptr: &u8) => free(ptr);
 
 // ----------------------------------------------------------------------------
 // Typed plane - auto-cast through generics.
@@ -46,6 +44,4 @@ pub fn alloc_array<T>(count: usz) => raw_alloc(count * T.size()) as &T;
 pub fn resize<T>(ptr: *T, count: usz) => raw_resize(ptr as &u8, count * T.size()) as &T;
 
 // Release a block obtained from alloc/alloc_array/resize.
-pub fn release<T>(ptr: *T) {
-	raw_release(ptr as &u8);
-}
+pub fn release<T>(ptr: *T) => raw_release(ptr as &u8);

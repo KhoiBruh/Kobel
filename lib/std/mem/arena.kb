@@ -18,7 +18,7 @@ pub struct Arena {
 impl Arena {
 	pub fn new() => Self(null, 65536);
 
-	pub fn new(block_size: usz): Arena {
+	pub fn new(block_size: usz): Self {
 		var bs = block_size;
 		if (bs == 0) bs = 65536;
 		return Self(null, bs);

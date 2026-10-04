@@ -89,20 +89,17 @@ impl BodyPass {
 		// `Self(...)` builds the value directly, so it never consults a
 		// `new` factory (that is what keeps `fn new() => Self(...)` from
 		// calling itself again).
-		var callee_is_self = false;
-		if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.callee.to<IdentifierExpr>().name == "Self") callee_is_self = true;
+		val callee_is_self =
+			call.callee.kind == NodeKind.EXPR_IDENTIFIER &&
+			call.callee.to<IdentifierExpr>().name == "Self";
 
 		val callee_ty = self.check_expr(call.callee);
 
 		// 1. Function call
-		if (callee_ty.kind == DataType.FN) {
-			return self.check_fn_call(node, callee_ty, call);
-		}
+		if (callee_ty.kind == DataType.FN) return self.check_fn_call(node, callee_ty, call);
 
 		// 2. Struct construction: Point(1, 2)
-		if (callee_ty.kind == DataType.STRUCT) {
-			return self.check_struct_ctor(node, callee_ty, call, callee_is_self);
-		}
+		if (callee_ty.kind == DataType.STRUCT) return self.check_struct_ctor(node, callee_ty, call, callee_is_self);
 
 		self.report_error(node, "Callee is not a function or struct");
 		return alloc_primitive(&self.arena, type_none());

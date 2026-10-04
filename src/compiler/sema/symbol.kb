@@ -60,8 +60,8 @@ impl Scope {
 }
 
 impl Iterable for Scope {
-	pub fn count(val self): usz => self.symbols.len;
-	pub fn at(val self, i: usz): *Symbol => self.symbols[i];
+	pub fn count(val self) => self.symbols.len;
+	pub fn at(val self, i: usz) => self.symbols[i];
 }
 
 // ============================================================================
@@ -74,7 +74,7 @@ pub struct ModuleScope {
 }
 
 impl ModuleScope {
-	pub fn new(name: str): ModuleScope => Self(name, List<*Symbol>());
+	pub fn new(name: str) => Self(name, List<*Symbol>());
 
 	pub fn lookup(self, name: str): *Symbol {
 		for (sym in self.symbols) {
@@ -85,8 +85,8 @@ impl ModuleScope {
 }
 
 impl Iterable for ModuleScope {
-	pub fn count(val self): usz => self.symbols.len;
-	pub fn at(val self, i: usz): *Symbol => self.symbols[i];
+	pub fn count(val self) => self.symbols.len;
+	pub fn at(val self, i: usz) => self.symbols[i];
 }
 
 // A `use` that resolved to a symbol of another module.
@@ -189,7 +189,7 @@ impl GenericReg {
 	}
 }
 
-pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol => arena.alloc_val<Symbol>(sym);
+pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym);
 
 // ============================================================================
 // Symbol Table
@@ -215,7 +215,7 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-	pub fn new(): SymbolTable {
+	pub fn new(): Self {
 		var arena = Arena(65536);
 		val root_scope = arena.alloc_val<Scope>(Scope(null, List<*Symbol>(), false));
 
@@ -239,9 +239,7 @@ impl SymbolTable {
 		);
 	}
 
-	pub fn register_prim_method(var self, pm: *PrimMethod) {
-		self.prim_methods.add(pm);
-	}
+	pub fn register_prim_method(var self, pm: *PrimMethod) => self.prim_methods.add(pm);
 
 	// Method of a primitive type by its source name (used by `x.m()` resolution).
 	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo {
@@ -272,9 +270,7 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn register_trait(var self, info: *TraitInfo) {
-		self.traits.add(info);
-	}
+	pub fn register_trait(var self, info: *TraitInfo) => self.traits.add(info);
 
 	pub fn find_trait(val self, name: str): *TraitInfo {
 		for (t in self.traits) {
@@ -283,9 +279,7 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn register_enum_info(var self, info: *EnumInfo) {
-		self.enums.add(info);
-	}
+	pub fn register_enum_info(var self, info: *EnumInfo) => self.enums.add(info);
 
 	pub fn find_enum_info(val self, name: str): *EnumInfo {
 		for (e in self.enums) {
@@ -375,9 +369,7 @@ impl SymbolTable {
 		return true;
 	}
 
-	pub fn set_current_module(var self, name: str) {
-		self.current_module = name;
-	}
+	pub fn set_current_module(var self, name: str) => self.current_module = name;
 
 	pub fn find_module(val self, name: str): *ModuleScope {
 		for (sc in self.modules) {
@@ -386,7 +378,7 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn module_exists(val self, name: str): bool => self.find_module(name) != null;
+	pub fn module_exists(val self, name: str) => self.find_module(name) != null;
 
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
@@ -410,11 +402,10 @@ impl SymbolTable {
 	}
 
 	// Define a top-level declaration into the module currently being collected.
-	pub fn define_global(var self, sym: Symbol): bool => self.define_in_module(self.current_module, sym);
+	pub fn define_global(var self, sym: Symbol) => self.define_in_module(self.current_module, sym);
 
-	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
+	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) =>
 		self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
-	}
 
 	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol {
 		val sc = self.find_module(module_name);

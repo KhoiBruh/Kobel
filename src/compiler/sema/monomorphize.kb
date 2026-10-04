@@ -42,7 +42,7 @@ impl GenSubst {
 	}
 }
 
-pub fn is_template_decl(node: *AstNode): bool => node.is_template();
+pub fn is_template_decl(node: *AstNode) => node.is_template();
 
 impl GenTemplate {
 	pub fn param_names(val self): List<str> {
@@ -67,7 +67,7 @@ impl GenTemplate {
 
 	// The declared generic parameters of a template (empty for an impl template,
 	// whose parameters live on the struct it belongs to).
-	pub fn params(val self): List<GenericParam> => when (self.node.kind) {
+	pub fn params(val self) => when (self.node.kind) {
 		NodeKind.DECL_STRUCT -> self.node.to<StructDecl>().type_params,
 		NodeKind.DECL_FN -> self.node.to<FnDecl>().type_params,
 		NodeKind.DECL_IMPL -> self.node.to<ImplDecl>().type_params,
@@ -130,7 +130,7 @@ impl DeclPass {
 		return false;
 	}
 
-	pub fn find_inst(val self, name: str): *Symbol => self.symtab.gen.find_inst(name);
+	pub fn find_inst(val self, name: str) => self.symtab.gen.find_inst(name);
 
 	pub fn find_fn_template(val self, name: str): *GenTemplate {
 		for (t in self.symtab.gen.fn_templates) {

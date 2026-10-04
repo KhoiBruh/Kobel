@@ -211,23 +211,23 @@ impl Arena {
 		return self.alloc_val<Type>(Type(info.data_type(), info.type_size(), info.type_align(), info_ptr as *u8));
 	}
 
-	pub fn primitive_type(var self, base: Type): *Type => self.alloc_val<Type>(base);
+	pub fn primitive_type(var self, base: Type) => self.alloc_val<Type>(base);
 
-	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type
+	pub fn pointer_type(var self, pointee: *Type, is_mut: bool)
 		=> self.make_type<PointerType>(PointerType(pointee, is_mut, false));
 
-	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type
+	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool)
 		=> self.make_type<PointerType>(PointerType(pointee, is_mut, true));
 
-	pub fn array_type(var self, elem: *Type, length: usz): *Type
+	pub fn array_type(var self, elem: *Type, length: usz)
 		=> self.make_type<ArrayType>(ArrayType(elem, length));
 
-	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type
+	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type)
 		=> self.make_type<FnType>(FnType(param_types, return_type));
 
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
-		var max_align: usz = 1UZ;
-		var current_offset: usz = 0UZ;
+		var max_align = 1UZ;
+		var current_offset = 0UZ;
 
 		for (i in 0..<fields.len) {
 			var f = fields[i];
@@ -235,7 +235,7 @@ impl Arena {
 			if (f_align > max_align) max_align = f_align;
 
 			val rem = current_offset % f_align;
-			if (rem != 0UZ) current_offset += (f_align - rem);
+			if (rem != 0) current_offset += (f_align - rem);
 
 			f.offset = current_offset;
 			fields[i] = f;
@@ -243,7 +243,7 @@ impl Arena {
 		}
 
 		val total_rem = current_offset % max_align;
-		if (total_rem != 0UZ) current_offset += (max_align - total_rem);
+		if (total_rem != 0) current_offset += (max_align - total_rem);
 
 		val struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
 		return self.alloc_type<StructType>(current_offset, max_align, struct_info);
@@ -252,22 +252,20 @@ impl Arena {
 
 // ============================================================================
 impl Type {
-	pub fn to<T>(val self): *T => self.data as *T;
-	pub fn to_mut<T>(val self): &T => self.data as &T;
+	pub fn to<T>(val self) => self.data as *T;
+	pub fn to_mut<T>(val self) => self.data as &T;
 
-	pub fn as_type<T>(self): *T => self.to<T>();
+	pub fn as_pointer(val self) => self.to<PointerType>();
+	pub fn as_array(val self) => self.to<ArrayType>();
+	pub fn as_struct(val self) => self.to<StructType>();
+	pub fn as_struct_mut(val self) => self.to_mut<StructType>();
+	pub fn as_fn(val self) => self.to<FnType>();
+	pub fn as_fn_mut(val self) => self.to_mut<FnType>();
+	pub fn as_enum(val self) => self.to<EnumInfo>();
 
-	pub fn as_pointer(self): *PointerType => self.to<PointerType>();
-	pub fn as_array(self): *ArrayType => self.to<ArrayType>();
-	pub fn as_struct(self): *StructType => self.to<StructType>();
-	pub fn as_struct_mut(self): &StructType => self.to_mut<StructType>();
-	pub fn as_fn(self): *FnType => self.to<FnType>();
-	pub fn as_fn_mut(self): &FnType => self.to_mut<FnType>();
-	pub fn as_enum(self): *EnumInfo => self.to<EnumInfo>();
-
-	pub fn alloc_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.pointer_type(self as *Type, is_mut);
-	pub fn alloc_nullable_pointer(self, var arena: &Arena, is_mut: bool): *Type => arena.nullable_pointer_type(self as *Type, is_mut);
-	pub fn alloc_array(self, var arena: &Arena, length: usz): *Type => arena.array_type(self as *Type, length);
+	pub fn alloc_pointer(val self, var arena: &Arena, is_mut: bool) => arena.pointer_type(self as *Type, is_mut);
+	pub fn alloc_nullable_pointer(val self, var arena: &Arena, is_mut: bool) => arena.nullable_pointer_type(self as *Type, is_mut);
+	pub fn alloc_array(val self, var arena: &Arena, length: usz) => arena.array_type(self as *Type, length);
 
 	pub fn is_signed_integer(val self) => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
@@ -313,20 +311,20 @@ impl Type {
 
 	pub fn layout_struct(var self) {
 		val st = self.as_struct_mut();
-		var max_align: usz = 1UZ;
-		var off: usz = 0UZ;
+		var max_align = 1UZ;
+		var off = 0UZ;
 		for (i in 0..<st.fields.len) {
 			val f = st.fields[i];
 			val fa = f.type_ptr.align;
 			if (fa > max_align) max_align = fa;
 			val rem = off % fa;
-			if (rem != 0UZ) off += (fa - rem);
+			if (rem != 0) off += (fa - rem);
 			f.offset = off;
 			st.fields[i] = f;
 			off += f.type_ptr.size;
 		}
 		val tr = off % max_align;
-		if (tr != 0UZ) off += (max_align - tr);
+		if (tr != 0) off += (max_align - tr);
 
 		self.size = off;
 		self.align = max_align;

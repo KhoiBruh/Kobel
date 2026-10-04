@@ -160,40 +160,28 @@ pub fn interp_find_close(text: str, start: usz): isz {
 
 impl Parser {
 
-	pub fn get_infix_precedence(var self, t: TokenType): i32 {
-		when (t) {
-			TokenType.EQUAL,
-			TokenType.PLUS_EQUAL,
-			TokenType.MINUS_EQUAL,
-			TokenType.STAR_EQUAL,
-			TokenType.SLASH_EQUAL,
-			TokenType.PERCENT_EQUAL -> return PREC_ASSIGN;
-			TokenType.QUESTION_COLON -> return PREC_ELVIS;
-			TokenType.OR_OR -> return PREC_OR;
-			TokenType.AND_AND -> return PREC_AND;
-			TokenType.EQUAL_EQUAL,
-			TokenType.BANG_EQUAL -> return PREC_EQUALITY;
-			TokenType.LESS_EQUAL,
-			TokenType.GREATER,
-			TokenType.GREATER_EQUAL -> return PREC_COMPARISON;
-			TokenType.LESS -> {
-				if (self.is_generic_args_ahead()) return PREC_CALL;
-				return PREC_COMPARISON;
-			}
-			TokenType.PLUS,
-			TokenType.MINUS -> return PREC_TERM;
-			TokenType.STAR,
-			TokenType.SLASH,
-			TokenType.PERCENT -> return PREC_FACTOR;
-			TokenType.KW_AS -> return PREC_UNARY;
-			TokenType.DOT,
-			TokenType.OPEN_PAREN,
-			TokenType.OPEN_BRACKET,
-			TokenType.PLUS_PLUS,
-			TokenType.MINUS_MINUS -> return PREC_CALL;
-			else -> return PREC_NONE;
+	pub fn get_infix_precedence(var self, t: TokenType) => when (t) {
+		TokenType.EQUAL, TokenType.PLUS_EQUAL,
+		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
+		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> PREC_ASSIGN;
+		TokenType.QUESTION_COLON -> PREC_ELVIS;
+		TokenType.OR_OR -> PREC_OR;
+		TokenType.AND_AND -> PREC_AND;
+		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> PREC_EQUALITY;
+		TokenType.LESS_EQUAL, TokenType.GREATER,
+		TokenType.GREATER_EQUAL -> PREC_COMPARISON;
+		TokenType.LESS -> {
+			if (self.is_generic_args_ahead()) yield PREC_CALL;
+			yield PREC_COMPARISON;
 		}
-	}
+		TokenType.PLUS, TokenType.MINUS -> PREC_TERM;
+		TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> PREC_FACTOR;
+		TokenType.KW_AS -> PREC_UNARY;
+		TokenType.DOT, TokenType.OPEN_PAREN,
+		TokenType.OPEN_BRACKET, TokenType.PLUS_PLUS,
+		TokenType.MINUS_MINUS -> PREC_CALL;
+		else -> PREC_NONE;
+	};
 
 	// ============================================================================
 	// Pratt Expression Parser
@@ -228,7 +216,7 @@ impl Parser {
 
 			// Array Literal: [a, b, c]
 			TokenType.OPEN_BRACKET -> {
-				var elements = List<*AstNode>();
+				val elements = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_BRACKET)) {
 					elements.add(self.parse_expression(PREC_NONE));
 					while (self.match_token(TokenType.COMMA)) {
@@ -437,9 +425,7 @@ impl Parser {
 		while (!self.is_end()) {
 			val next_tok = self.peek();
 			val prec = self.get_infix_precedence(next_tok.type);
-			if (prec <= min_prec) {
-				break;
-			}
+			if (prec <= min_prec) break;
 			left = self.parse_infix(left, prec);
 		}
 
