@@ -116,37 +116,7 @@ fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 }
 
 fn serialize_json_to_sb(var sb: &StringBuilder, val_item: *JsonValue) {
-	if (val_item == null) {
-		sb.append_str("null");
-		return;
-	}
-	when (val_item.kind) {
-		JsonKind.JNULL -> sb.append_str("null");
-		JsonKind.JBOOL -> {
-			if (val_item.bool_val) sb.append_str("true");
-			else sb.append_str("false");
-		}
-		JsonKind.JNUM -> append_json_num(sb, val_item.num_val);
-		JsonKind.JSTR -> append_json_escaped_str(sb, val_item.str_val);
-		JsonKind.JARR -> {
-			sb.append_char('[');
-			for (i in 0UZ..<val_item.arr_val.len) {
-				if (i > 0UZ) sb.append_char(',');
-				serialize_json_to_sb(sb, val_item.arr_val[i]);
-			}
-			sb.append_char(']');
-		}
-		JsonKind.JOBJ -> {
-			sb.append_char('{');
-			for (i in 0UZ..<val_item.obj_keys.len) {
-				if (i > 0UZ) sb.append_char(',');
-				append_json_escaped_str(sb, val_item.obj_keys[i]);
-				sb.append_char(':');
-				serialize_json_to_sb(sb, val_item.obj_vals[i]);
-			}
-			sb.append_char('}');
-		}
-	}
+	val_item.serialize_to(sb);
 }
 
 // ============================================================================
@@ -154,6 +124,40 @@ fn serialize_json_to_sb(var sb: &StringBuilder, val_item: *JsonValue) {
 // ============================================================================
 
 impl JsonValue {
+
+	pub fn serialize_to(val self, var sb: &StringBuilder) {
+		if (self == null) {
+			sb.append_str("null");
+			return;
+		}
+		when (self.kind) {
+			JsonKind.JNULL -> sb.append_str("null");
+			JsonKind.JBOOL -> {
+				if (self.bool_val) sb.append_str("true");
+				else sb.append_str("false");
+			}
+			JsonKind.JNUM -> append_json_num(sb, self.num_val);
+			JsonKind.JSTR -> append_json_escaped_str(sb, self.str_val);
+			JsonKind.JARR -> {
+				sb.append_char('[');
+				for (i in 0UZ..<self.arr_val.len) {
+					if (i > 0UZ) sb.append_char(',');
+					self.arr_val[i].serialize_to(sb);
+				}
+				sb.append_char(']');
+			}
+			JsonKind.JOBJ -> {
+				sb.append_char('{');
+				for (i in 0UZ..<self.obj_keys.len) {
+					if (i > 0UZ) sb.append_char(',');
+					append_json_escaped_str(sb, self.obj_keys[i]);
+					sb.append_char(':');
+					self.obj_vals[i].serialize_to(sb);
+				}
+				sb.append_char('}');
+			}
+		}
+	}
 
 	pub fn is_null(val self) => self == null || self.kind == JsonKind.JNULL;
 	pub fn is_bool(val self) => self != null && self.kind == JsonKind.JBOOL;

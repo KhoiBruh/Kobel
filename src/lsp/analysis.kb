@@ -161,25 +161,27 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 	return LspDiagnostic(l0, c0, l0, end_col, 1L, actual_msg);
 }
 
-pub fn diagnostic_to_json(d: LspDiagnostic): *JsonValue {
-	val obj = json_obj();
+impl LspDiagnostic {
+	pub fn to_json(val self): *JsonValue {
+		val obj = json_obj();
 
-	val range = json_obj();
-	val start_pos = json_obj();
-	start_pos.set("line", json_num(d.line as i64));
-	start_pos.set("character", json_num(d.col as i64));
-	val end_pos = json_obj();
-	end_pos.set("line", json_num(d.end_line as i64));
-	end_pos.set("character", json_num(d.end_col as i64));
-	range.set("start", start_pos);
-	range.set("end", end_pos);
+		val range = json_obj();
+		val start_pos = json_obj();
+		start_pos.set("line", json_num(self.line as i64));
+		start_pos.set("character", json_num(self.col as i64));
+		val end_pos = json_obj();
+		end_pos.set("line", json_num(self.end_line as i64));
+		end_pos.set("character", json_num(self.end_col as i64));
+		range.set("start", start_pos);
+		range.set("end", end_pos);
 
-	obj.set("range", range);
-	obj.set("severity", json_num(d.severity));
-	obj.set("source", json_str("kobel"));
-	obj.set("message", json_str(d.message));
+		obj.set("range", range);
+		obj.set("severity", json_num(self.severity));
+		obj.set("source", json_str("kobel"));
+		obj.set("message", json_str(self.message));
 
-	return obj;
+		return obj;
+	}
 }
 
 pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
@@ -403,100 +405,102 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 	else -> ""
 };
 
-pub fn hover_at(analysis: &AnalysisResult, line0: usz, col0: usz): *JsonValue {
-	val target_line = line0 + 1UZ;
-	val target_col = col0 + 1UZ;
+impl AnalysisResult {
 
-	val tok = find_token_at(analysis.tokens, target_line, target_col);
-	if (tok.type == TokenType.UNKNOWN || tok.text.len == 0UZ) return json_null();
+	pub fn hover_at(val self, line0: usz, col0: usz): *JsonValue {
+		val target_line = line0 + 1UZ;
+		val target_col = col0 + 1UZ;
 
-	// 1. Check keywords
-	val kw_doc = keyword_hover(tok.text);
-	if (kw_doc.len > 0UZ) {
-		val res = json_obj();
-		val contents = json_obj();
-		contents.set("kind", json_str("markdown"));
-		contents.set("value", json_str(kw_doc));
-		res.set("contents", contents);
-		return res;
-	}
+		val tok = find_token_at(self.tokens, target_line, target_col);
+		if (tok.type == TokenType.UNKNOWN || tok.text.len == 0UZ) return json_null();
 
-	// 2. Check identifier symbol in symbol table
-	if (analysis.has_symtab && tok.type == TokenType.IDENTIFIER) {
-		val sym = analysis.symtab.lookup(tok.text);
-		if (sym != null) {
-			var md = "```kobel\n";
-			when (sym.kind) {
-				SymbolKind.FN -> {
-					md = "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
-				}
-				SymbolKind.STRUCT -> {
-					md = "${md}struct ${sym.name}";
-				}
-				SymbolKind.ENUM -> {
-					md = "${md}enum ${sym.name}";
-				}
-				SymbolKind.VAR -> {
-					md = "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
-				}
-				SymbolKind.CONST -> {
-					md = "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
-				}
-				SymbolKind.PARAM -> {
-					md = "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
-				}
-				else -> {
-					md = "${md}${sym.name}: ${sym.type_ptr.to_str()}";
-				}
-			}
-			md = "${md}\n```";
-
+		// 1. Check keywords
+		val kw_doc = keyword_hover(tok.text);
+		if (kw_doc.len > 0UZ) {
 			val res = json_obj();
 			val contents = json_obj();
 			contents.set("kind", json_str("markdown"));
-			contents.set("value", json_str(md));
+			contents.set("value", json_str(kw_doc));
 			res.set("contents", contents);
 			return res;
 		}
-	}
 
-	return json_null();
-}
+		// 2. Check identifier symbol in symbol table
+		if (self.has_symtab && tok.type == TokenType.IDENTIFIER) {
+			val sym = self.symtab.lookup(tok.text);
+			if (sym != null) {
+				var md = "```kobel\n";
+				when (sym.kind) {
+					SymbolKind.FN -> {
+						md = "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
+					}
+					SymbolKind.STRUCT -> {
+						md = "${md}struct ${sym.name}";
+					}
+					SymbolKind.ENUM -> {
+						md = "${md}enum ${sym.name}";
+					}
+					SymbolKind.VAR -> {
+						md = "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
+					}
+					SymbolKind.CONST -> {
+						md = "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
+					}
+					SymbolKind.PARAM -> {
+						md = "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
+					}
+					else -> {
+						md = "${md}${sym.name}: ${sym.type_ptr.to_str()}";
+					}
+				}
+				md = "${md}\n```";
+
+				val res = json_obj();
+				val contents = json_obj();
+				contents.set("kind", json_str("markdown"));
+				contents.set("value", json_str(md));
+				res.set("contents", contents);
+				return res;
+			}
+		}
+
+		return json_null();
+	}
 
 // ============================================================================
 // Go-to-Definition Provider
 // ============================================================================
 
-pub fn definition_at(analysis: &AnalysisResult, doc_uri: str, line0: usz, col0: usz): *JsonValue {
-	val target_line = line0 + 1UZ;
-	val target_col = col0 + 1UZ;
+	pub fn definition_at(val self, doc_uri: str, line0: usz, col0: usz): *JsonValue {
+		val target_line = line0 + 1UZ;
+		val target_col = col0 + 1UZ;
 
-	val tok = find_token_at(analysis.tokens, target_line, target_col);
-	if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0UZ) return json_null();
+		val tok = find_token_at(self.tokens, target_line, target_col);
+		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0UZ) return json_null();
 
-	if (analysis.has_symtab) {
-		val sym = analysis.symtab.lookup(tok.text);
-		if (sym != null && sym.line > 0UZ) {
-			val res = json_obj();
-			res.set("uri", json_str(doc_uri));
+		if (self.has_symtab) {
+			val sym = self.symtab.lookup(tok.text);
+			if (sym != null && sym.line > 0UZ) {
+				val res = json_obj();
+				res.set("uri", json_str(doc_uri));
 
-			val range = json_obj();
-			val start_pos = json_obj();
-			start_pos.set("line", json_num((sym.line - 1UZ) as i64));
-			start_pos.set("character", json_num((sym.col - 1UZ) as i64));
-			val end_pos = json_obj();
-			end_pos.set("line", json_num((sym.line - 1UZ) as i64));
-			end_pos.set("character", json_num((sym.col - 1UZ + sym.name.len) as i64));
-			range.set("start", start_pos);
-			range.set("end", end_pos);
+				val range = json_obj();
+				val start_pos = json_obj();
+				start_pos.set("line", json_num((sym.line - 1UZ) as i64));
+				start_pos.set("character", json_num((sym.col - 1UZ) as i64));
+				val end_pos = json_obj();
+				end_pos.set("line", json_num((sym.line - 1UZ) as i64));
+				end_pos.set("character", json_num((sym.col - 1UZ + sym.name.len) as i64));
+				range.set("start", start_pos);
+				range.set("end", end_pos);
 
-			res.set("range", range);
-			return res;
+				res.set("range", range);
+				return res;
+			}
 		}
-	}
 
-	return json_null();
-}
+		return json_null();
+	}
 
 // ============================================================================
 // Document Symbol Outline Provider
@@ -620,70 +624,71 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 	arr.add(item);
 }
 
-pub fn complete_at(analysis: &AnalysisResult): *JsonValue {
-	val items = json_arr();
+	pub fn complete_at(val self): *JsonValue {
+		val items = json_arr();
 
-	// 1. Language Keywords (Kind: 14 = Keyword)
-	add_completion_item(items, "fn", 14L, "Function declaration");
-	add_completion_item(items, "val", 14L, "Immutable binding");
-	add_completion_item(items, "var", 14L, "Mutable variable");
-	add_completion_item(items, "const", 14L, "Constant declaration");
-	add_completion_item(items, "struct", 14L, "Struct type");
-	add_completion_item(items, "enum", 14L, "Enum type");
-	add_completion_item(items, "trait", 14L, "Trait definition");
-	add_completion_item(items, "impl", 14L, "Implementation block");
-	add_completion_item(items, "when", 14L, "Pattern matching");
-	add_completion_item(items, "if", 14L, "Conditional");
-	add_completion_item(items, "else", 14L, "Else branch");
-	add_completion_item(items, "while", 14L, "While loop");
-	add_completion_item(items, "for", 14L, "For-in loop");
-	add_completion_item(items, "in", 14L, "Iteration in");
-	add_completion_item(items, "return", 14L, "Return statement");
-	add_completion_item(items, "pub", 14L, "Public visibility");
-	add_completion_item(items, "use", 14L, "Module import");
-	add_completion_item(items, "mod", 14L, "Module declaration");
-	add_completion_item(items, "extern", 14L, "External declaration");
-	add_completion_item(items, "true", 14L, "Boolean true");
-	add_completion_item(items, "false", 14L, "Boolean false");
-	add_completion_item(items, "null", 14L, "Null pointer");
-	add_completion_item(items, "as", 14L, "Type cast");
-	add_completion_item(items, "break", 14L, "Break loop");
-	add_completion_item(items, "continue", 14L, "Continue loop");
+		// 1. Language Keywords (Kind: 14 = Keyword)
+		add_completion_item(items, "fn", 14L, "Function declaration");
+		add_completion_item(items, "val", 14L, "Immutable binding");
+		add_completion_item(items, "var", 14L, "Mutable variable");
+		add_completion_item(items, "const", 14L, "Constant declaration");
+		add_completion_item(items, "struct", 14L, "Struct type");
+		add_completion_item(items, "enum", 14L, "Enum type");
+		add_completion_item(items, "trait", 14L, "Trait definition");
+		add_completion_item(items, "impl", 14L, "Implementation block");
+		add_completion_item(items, "when", 14L, "Pattern matching");
+		add_completion_item(items, "if", 14L, "Conditional");
+		add_completion_item(items, "else", 14L, "Else branch");
+		add_completion_item(items, "while", 14L, "While loop");
+		add_completion_item(items, "for", 14L, "For-in loop");
+		add_completion_item(items, "in", 14L, "Iteration in");
+		add_completion_item(items, "return", 14L, "Return statement");
+		add_completion_item(items, "pub", 14L, "Public visibility");
+		add_completion_item(items, "use", 14L, "Module import");
+		add_completion_item(items, "mod", 14L, "Module declaration");
+		add_completion_item(items, "extern", 14L, "External declaration");
+		add_completion_item(items, "true", 14L, "Boolean true");
+		add_completion_item(items, "false", 14L, "Boolean false");
+		add_completion_item(items, "null", 14L, "Null pointer");
+		add_completion_item(items, "as", 14L, "Type cast");
+		add_completion_item(items, "break", 14L, "Break loop");
+		add_completion_item(items, "continue", 14L, "Continue loop");
 
-	// 2. Built-in Primitive Types (Kind: 7 = Class/Type)
-	add_completion_item(items, "i8", 7L, "Signed 8-bit integer");
-	add_completion_item(items, "i16", 7L, "Signed 16-bit integer");
-	add_completion_item(items, "i32", 7L, "Signed 32-bit integer");
-	add_completion_item(items, "i64", 7L, "Signed 64-bit integer");
-	add_completion_item(items, "isz", 7L, "Signed pointer-size integer");
-	add_completion_item(items, "u8", 7L, "Unsigned 8-bit integer");
-	add_completion_item(items, "u16", 7L, "Unsigned 16-bit integer");
-	add_completion_item(items, "u32", 7L, "Unsigned 32-bit integer");
-	add_completion_item(items, "u64", 7L, "Unsigned 64-bit integer");
-	add_completion_item(items, "usz", 7L, "Unsigned pointer-size integer");
-	add_completion_item(items, "f32", 7L, "32-bit float");
-	add_completion_item(items, "f64", 7L, "64-bit float");
-	add_completion_item(items, "bool", 7L, "Boolean type");
-	add_completion_item(items, "char", 7L, "ASCII character type");
-	add_completion_item(items, "str", 7L, "String type");
-	add_completion_item(items, "none", 7L, "Unit / void type");
+		// 2. Built-in Primitive Types (Kind: 7 = Class/Type)
+		add_completion_item(items, "i8", 7L, "Signed 8-bit integer");
+		add_completion_item(items, "i16", 7L, "Signed 16-bit integer");
+		add_completion_item(items, "i32", 7L, "Signed 32-bit integer");
+		add_completion_item(items, "i64", 7L, "Signed 64-bit integer");
+		add_completion_item(items, "isz", 7L, "Signed pointer-size integer");
+		add_completion_item(items, "u8", 7L, "Unsigned 8-bit integer");
+		add_completion_item(items, "u16", 7L, "Unsigned 16-bit integer");
+		add_completion_item(items, "u32", 7L, "Unsigned 32-bit integer");
+		add_completion_item(items, "u64", 7L, "Unsigned 64-bit integer");
+		add_completion_item(items, "usz", 7L, "Unsigned pointer-size integer");
+		add_completion_item(items, "f32", 7L, "32-bit float");
+		add_completion_item(items, "f64", 7L, "64-bit float");
+		add_completion_item(items, "bool", 7L, "Boolean type");
+		add_completion_item(items, "char", 7L, "ASCII character type");
+		add_completion_item(items, "str", 7L, "String type");
+		add_completion_item(items, "none", 7L, "Unit / void type");
 
-	// 3. User & imported symbols from SymbolTable
-	if (analysis.has_symtab) {
-		for (mod_scope in analysis.symtab.modules) {
-			for (sym in mod_scope.symbols) {
-				val k = when (sym.kind) {
-					SymbolKind.FN -> 3L, // Function
-					SymbolKind.STRUCT -> 22L, // Struct
-					SymbolKind.ENUM -> 13L, // Enum
-					SymbolKind.VAR -> 6L, // Variable
-					SymbolKind.CONST -> 21L, // Constant
-					else -> 6L
-				};
-				add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
+		// 3. User & imported symbols from SymbolTable
+		if (self.has_symtab) {
+			for (mod_scope in self.symtab.modules) {
+				for (sym in mod_scope.symbols) {
+					val k = when (sym.kind) {
+						SymbolKind.FN -> 3L, // Function
+						SymbolKind.STRUCT -> 22L, // Struct
+						SymbolKind.ENUM -> 13L, // Enum
+						SymbolKind.VAR -> 6L, // Variable
+						SymbolKind.CONST -> 21L, // Constant
+						else -> 6L
+					};
+					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
+				}
 			}
 		}
-	}
 
-	return items;
+		return items;
+	}
 }

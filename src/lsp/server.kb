@@ -20,7 +20,7 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 
 	val diags_arr = json_arr();
 	for (d in analysis.diagnostics) {
-		diags_arr.add(diagnostic_to_json(d));
+		diags_arr.add(d.to_json());
 	}
 
 	val notif_params = json_obj();
@@ -160,7 +160,7 @@ pub fn run_server(): i32 {
 				val doc = docs.get(uri);
 				if (doc.text.len > 0UZ) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
-					val h = hover_at(&analysis, line, char_col);
+					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
 				} else {
 					send_response(id, json_null());
@@ -177,7 +177,7 @@ pub fn run_server(): i32 {
 				val doc = docs.get(uri);
 				if (doc.text.len > 0UZ) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
-					val def_res = definition_at(&analysis, uri, line, char_col);
+					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
 				} else {
 					send_response(id, json_null());
@@ -214,11 +214,11 @@ pub fn run_server(): i32 {
 				val doc = docs.get(uri);
 				if (doc.text.len > 0UZ) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
-					val items = complete_at(&analysis);
+					val items = analysis.complete_at();
 					send_response(id, items);
 				} else {
 					val empty_analysis = analyze_document("", "", workspace_root);
-					val items = complete_at(&empty_analysis);
+					val items = empty_analysis.complete_at();
 					send_response(id, items);
 				}
 			}
