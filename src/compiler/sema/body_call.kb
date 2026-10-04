@@ -137,7 +137,7 @@ impl BodyPass {
 							if (all_default) {
 								mi = m;
 								for (i in (call.args.len + 1)..<ast_fn.params.len) {
-									call.args.add(ast_fn.params[i].default_val);
+									call.args.add(self.clone_expr(ast_fn.params[i].default_val));
 								}
 								break;
 							}
@@ -203,7 +203,7 @@ impl BodyPass {
 						if (all_default) {
 							pmi = pm.info;
 							for (i in (call.args.len + 1)..<ast_fn.params.len) {
-								call.args.add(ast_fn.params[i].default_val);
+								call.args.add(self.clone_expr(ast_fn.params[i].default_val));
 							}
 							break;
 						}
@@ -277,7 +277,7 @@ impl BodyPass {
 						}
 						if (all_default) {
 							for (i in call.args.len..<f.params.len) {
-								call.args.add(f.params[i].default_val);
+								call.args.add(self.clone_expr(f.params[i].default_val));
 							}
 						}
 					}
@@ -332,7 +332,7 @@ impl BodyPass {
 							if (all_default) {
 								nm = m;
 								for (i in call.args.len..<fn_decl.params.len) {
-									call.args.add(fn_decl.params[i].default_val);
+									call.args.add(self.clone_expr(fn_decl.params[i].default_val));
 								}
 								break;
 							}
@@ -371,7 +371,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args.add(s_info.fields[i].default_val as *AstNode);
+					call.args.add(self.clone_expr(s_info.fields[i].default_val as *AstNode));
 				}
 			}
 		}

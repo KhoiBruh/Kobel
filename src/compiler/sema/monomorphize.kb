@@ -889,11 +889,17 @@ impl DeclPass {
 
 			NodeKind.DECL_STRUCT -> {
 				val s = node.to<StructDecl>();
-				for (fld in s.fields) self.rewrite_generics(fld.type_node);
+				for (fld in s.fields) {
+					self.rewrite_generics(fld.type_node);
+					if (fld.default_val != null) self.rewrite_generics(fld.default_val);
+				}
 			}
 			NodeKind.DECL_FN -> {
 				val f = node.to<FnDecl>();
-				for (p in f.params) self.rewrite_generics(p.type_node);
+				for (p in f.params) {
+					self.rewrite_generics(p.type_node);
+					if (p.default_val != null) self.rewrite_generics(p.default_val);
+				}
 				self.rewrite_generics(f.return_type);
 				self.rewrite_generics(f.body);
 			}

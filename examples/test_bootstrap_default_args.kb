@@ -1,6 +1,7 @@
 mod test.bootstrap_default_args;
 
 use std.io.println;
+use std.collections.list.List;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -21,7 +22,8 @@ fn add_nums(a: i32, b: i32 = 10, c: i32 = 20): i32 {
 struct Config {
 	host: str,
 	port: i32 = 8080,
-	debug: bool = false
+	debug: bool = false,
+	tags: List<str> = List<str>()
 }
 
 // 3. Struct with `new` constructor default parameters
@@ -62,16 +64,19 @@ fn main(): i32 {
 	assert_true(c1.host == "localhost", "c1 host");
 	assert_true(c1.port == 8080, "c1 port default");
 	assert_true(c1.debug == false, "c1 debug default");
+	assert_true(c1.tags.len == 0, "c1 tags default empty List");
 
 	val c2 = Config("0.0.0.0", 3000);
 	assert_true(c2.host == "0.0.0.0", "c2 host");
 	assert_true(c2.port == 3000, "c2 port overridden");
 	assert_true(c2.debug == false, "c2 debug default");
+	assert_true(c2.tags.len == 0, "c2 tags default empty List");
 
 	val c3 = Config("127.0.0.1", 9000, true);
 	assert_true(c3.host == "127.0.0.1", "c3 host");
 	assert_true(c3.port == 9000, "c3 port overridden");
 	assert_true(c3.debug == true, "c3 debug overridden");
+	assert_true(c3.tags.len == 0, "c3 tags default empty List");
 
 	// Test 3: Struct `new` constructor default parameters
 	val p1 = Point();
