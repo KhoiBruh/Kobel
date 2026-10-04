@@ -11,14 +11,14 @@ use std.mem.arena.*;
 
 pub struct Parser {
 	pub tokens: List<Token>,
-	pub current: usz,
-	pub arena: Arena,
-	pub errors: List<str>
+	pub current: usz = 0,
+	pub arena: Arena = Arena(65536),
+	pub errors: List<str> = List<str>()
 }
 
 impl Parser {
 
-	pub fn new(tokens: List<Token>) => Self(tokens, 0, Arena(65536), List<str>());
+	pub fn new(tokens: List<Token>) => Self(tokens);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.make<NamedType>(NamedType(name, type_args), line, col);

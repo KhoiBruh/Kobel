@@ -15,34 +15,23 @@ use compiler.ast.decl.*;
 // ============================================================================
 
 pub struct CCodeGen {
-	pub indent_level: usz,
-	pub struct_names: List<str>,
-	pub pointer_vars: List<str>,
-	pub str_vars: List<str>,
-	pub fn_names: List<str>,
-	pub fn_ret_types: List<str>,
-	pub errors: List<str>,
+	pub indent_level: usz = 0,
+	pub struct_names: List<str> = List<str>(),
+	pub pointer_vars: List<str> = List<str>(),
+	pub str_vars: List<str> = List<str>(),
+	pub fn_names: List<str> = List<str>(),
+	pub fn_ret_types: List<str> = List<str>(),
+	pub errors: List<str> = List<str>(),
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
-	pub array_elem_hint: str,
-	pub yield_target: str,
-	pub is_yield_return: bool
+	pub array_elem_hint: str = "",
+	pub yield_target: str = "",
+	pub is_yield_return: bool = false
 }
 
 impl CCodeGen {
 
-	pub fn new() => Self(
-		0,
-		List<str>(),
-		List<str>(),
-		List<str>(),
-		List<str>(),
-		List<str>(),
-		List<str>(),
-		"",
-		"",
-		false
-	);
+	pub fn new() => Self();
 
 	pub fn is_pointer_var(val self, name: str) => name.in_list(self.pointer_vars);
 

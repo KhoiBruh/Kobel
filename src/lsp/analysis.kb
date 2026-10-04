@@ -279,10 +279,10 @@ pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 // ============================================================================
 
 pub struct AnalysisResult {
-	pub diagnostics: List<LspDiagnostic>,
-	pub symtab: SymbolTable,
-	pub has_symtab: bool,
-	pub tokens: List<Token>
+	pub diagnostics: List<LspDiagnostic> = List<LspDiagnostic>(),
+	pub symtab: SymbolTable = SymbolTable(),
+	pub has_symtab: bool = false,
+	pub tokens: List<Token> = List<Token>()
 }
 
 pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisResult {

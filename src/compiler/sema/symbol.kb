@@ -46,9 +46,9 @@ pub struct Symbol {
 // ============================================================================
 
 pub struct Scope {
-	pub parent: *Scope,
-	pub symbols: List<*Symbol>,
-	pub is_fn_boundary: bool
+	pub parent: *Scope = null,
+	pub symbols: List<*Symbol> = List<*Symbol>(),
+	pub is_fn_boundary: bool = false
 }
 
 impl Scope {
@@ -152,12 +152,12 @@ pub struct PrimMethod {
 
 // Monomorphization state, shared through the (single) SymbolTable.
 pub struct GenericReg {
-	pub struct_templates: List<*GenTemplate>,
-	pub fn_templates: List<*GenTemplate>,
-	pub impl_templates: List<*GenTemplate>,
-	pub inst_syms: List<*Symbol>,
-	pub inst_names: List<str>,
-	pub pending: List<*AstNode>
+	pub struct_templates: List<*GenTemplate> = List<*GenTemplate>(),
+	pub fn_templates: List<*GenTemplate> = List<*GenTemplate>(),
+	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
+	pub inst_syms: List<*Symbol> = List<*Symbol>(),
+	pub inst_names: List<str> = List<str>(),
+	pub pending: List<*AstNode> = List<*AstNode>()
 }
 
 impl GenericReg {
@@ -199,45 +199,27 @@ pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym
 pub struct SymbolTable {
 	pub current_scope: *Scope,
 	pub arena: Arena,
-	pub current_module: str,
+	pub current_module: str = "",
 	// NOTE: List<*ModuleScope> rather than List<ModuleScope>:
 	// `List.get` returns a COPY of the value (val), so any change through the copy
 	// (e.g. `sc.symbols.add(...)`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
-	pub modules: List<*ModuleScope>,
-	pub imports: List<ImportBinding>,
+	pub modules: List<*ModuleScope> = List<*ModuleScope>(),
+	pub imports: List<ImportBinding> = List<ImportBinding>(),
 	// Enum member tables, keyed by source name / mangled C name.
-	pub enums: List<*EnumInfo>,
+	pub enums: List<*EnumInfo> = List<*EnumInfo>(),
 	// Collected `trait` declarations, by source name.
-	pub traits: List<*TraitInfo>,
+	pub traits: List<*TraitInfo> = List<*TraitInfo>(),
 	// Methods extending the built-in (primitive) types.
-	pub prim_methods: List<*PrimMethod>,
-	pub gen: GenericReg
+	pub prim_methods: List<*PrimMethod> = List<*PrimMethod>(),
+	pub gen: GenericReg = GenericReg()
 }
 
 impl SymbolTable {
 	pub fn new(): Self {
 		var arena = Arena(65536);
-		val root_scope = arena.alloc_val<Scope>(Scope(null, List<*Symbol>(), false));
-
-		val gen = GenericReg(
-			List<*GenTemplate>(),
-			List<*GenTemplate>(),
-			List<*GenTemplate>(),
-			List<*Symbol>(),
-			List<str>(),
-			List<*AstNode>()
-		);
-
-		return Self(
-			root_scope, arena, "",
-			List<*ModuleScope>(),
-			List<ImportBinding>(),
-			List<*EnumInfo>(),
-			List<*TraitInfo>(),
-			List<*PrimMethod>(),
-			gen
-		);
+		val root_scope = arena.alloc_val<Scope>(Scope());
+		return Self(root_scope, arena);
 	}
 
 	pub fn register_prim_method(var self, pm: *PrimMethod) => self.prim_methods.add(pm);

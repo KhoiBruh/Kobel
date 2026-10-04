@@ -79,7 +79,7 @@ impl ReturnStmt {
 }
 
 pub struct BreakStmt {
-	pub dummy: i32
+	pub dummy: i32 = 0
 }
 
 impl BreakStmt {
@@ -87,7 +87,7 @@ impl BreakStmt {
 }
 
 pub struct ContinueStmt {
-	pub dummy: i32
+	pub dummy: i32 = 0
 }
 
 impl ContinueStmt {

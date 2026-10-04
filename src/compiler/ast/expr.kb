@@ -52,8 +52,8 @@ impl UnaryExpr {
 
 pub struct CallExpr {
 	pub callee: *AstNode,
-	pub args: List<*AstNode>,
-	pub type_args: List<*AstNode>
+	pub args: List<*AstNode> = List<*AstNode>(),
+	pub type_args: List<*AstNode> = List<*AstNode>()
 }
 
 impl CallExpr {
@@ -116,8 +116,8 @@ impl GroupExpr {
 
 pub struct ArrayLiteralExpr {
 	pub elements: List<*AstNode>,
-	pub list_struct_name: str,
-	pub elem_type_node: *AstNode
+	pub list_struct_name: str = "",
+	pub elem_type_node: *AstNode = null
 }
 
 impl ArrayLiteralExpr {

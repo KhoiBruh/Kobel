@@ -2556,7 +2556,6 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
 void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program);
 const char* fmt__formatter__format_source(const char* src, fmt__options__FormatOptions options);
 lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v);
-lsp__json__JsonValue* lsp__json__json_make(lsp__json__JsonKind kind, bool b, int64_t n, const char* s);
 lsp__json__JsonValue* lsp__json__json_null(void);
 lsp__json__JsonValue* lsp__json__json_bool(bool b);
 lsp__json__JsonValue* lsp__json__json_num(int64_t n);
@@ -8222,8 +8221,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__are
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void) {
     std__mem__arena__Arena arena = std__mem__arena__Arena_new(65536);
     compiler__sema__symbol__Scope* root_scope = std__mem__arena__alloc_val_compiler__sema__symbol__Scope((&arena), (compiler__sema__symbol__Scope){ NULL, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), false });
-    compiler__sema__symbol__GenericReg gen = (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) };
-    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__types__EnumInfo_new(4), std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_new(4), std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_new(4), gen };
+    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__types__EnumInfo_new(4), std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_new(4), std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_new(4), (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) } };
 }
 
 void compiler__sema__symbol__SymbolTable_register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__PrimMethod* pm) {
@@ -20493,32 +20491,28 @@ lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v) {
     return ((lsp__json__JsonValue*)p);
 }
 
-lsp__json__JsonValue* lsp__json__json_make(lsp__json__JsonKind kind, bool b, int64_t n, const char* s) {
-    return lsp__json__json_box((lsp__json__JsonValue){ kind, b, n, s, std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
-}
-
 lsp__json__JsonValue* lsp__json__json_null(void) {
-    return lsp__json__json_make(0, false, 0, "");
+    return lsp__json__json_box((lsp__json__JsonValue){ 0, false, 0, "", std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 lsp__json__JsonValue* lsp__json__json_bool(bool b) {
-    return lsp__json__json_make(1, b, 0, "");
+    return lsp__json__json_box((lsp__json__JsonValue){ 1, b, 0, "", std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 lsp__json__JsonValue* lsp__json__json_num(int64_t n) {
-    return lsp__json__json_make(2, false, n, "");
+    return lsp__json__json_box((lsp__json__JsonValue){ 2, false, n, "", std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 lsp__json__JsonValue* lsp__json__json_str(const char* s) {
-    return lsp__json__json_make(3, false, 0, s);
+    return lsp__json__json_box((lsp__json__JsonValue){ 3, false, 0, s, std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 lsp__json__JsonValue* lsp__json__json_arr(void) {
-    return lsp__json__json_make(4, false, 0, "");
+    return lsp__json__json_box((lsp__json__JsonValue){ 4, false, 0, "", std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 lsp__json__JsonValue* lsp__json__json_obj(void) {
-    return lsp__json__json_make(5, false, 0, "");
+    return lsp__json__json_box((lsp__json__JsonValue){ 5, false, 0, "", std__collections__list__List_ptr_lsp__json__JsonValue_new(4), std__collections__list__List_str_new(4), std__collections__list__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
 void lsp__json__append_json_escaped_str(std__collections__string_builder__StringBuilder* sb, const char* s) {

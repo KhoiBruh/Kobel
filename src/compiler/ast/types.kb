@@ -6,7 +6,7 @@ use std.collections.list.List;
 
 pub struct NamedType {
 	pub name: str,
-	pub type_args: List<*AstNode>
+	pub type_args: List<*AstNode> = List<*AstNode>()
 }
 
 impl NamedType {

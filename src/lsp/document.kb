@@ -10,10 +10,10 @@ use std.collections.string_builder.*;
 // ============================================================================
 
 pub struct Document {
-	pub uri: str,
-	pub path: str,
-	pub text: str,
-	pub version: i64
+	pub uri: str = "",
+	pub path: str = "",
+	pub text: str = "",
+	pub version: i64 = 0
 }
 
 pub fn uri_to_path(uri: str): str {
@@ -60,18 +60,18 @@ pub fn uri_to_path(uri: str): str {
 // ============================================================================
 
 pub struct DocumentStore {
-	pub docs: List<Document>
+	pub docs: List<Document> = List<Document>()
 }
 
 impl DocumentStore {
 
-	pub fn new() => Self(List<Document>());
+	pub fn new() => Self();
 
 	pub fn get(self, uri: str): Document {
 		for (d in self.docs) {
 			if (d.uri == uri) return d;
 		}
-		return Document("", "", "", 0);
+		return Document();
 	}
 
 	pub fn has(self, uri: str): bool => self.get(uri).uri != "";
