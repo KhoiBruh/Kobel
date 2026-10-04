@@ -3,6 +3,7 @@ mod lsp.protocol;
 use std.io.*;
 use std.collections.string_builder.*;
 use std.ascii.*;
+use std.str.*;
 use util.strutil.*;
 use std.mem.alloc.*;
 use lsp.json.*;

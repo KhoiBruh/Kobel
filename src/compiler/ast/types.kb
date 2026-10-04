@@ -10,7 +10,7 @@ pub struct NamedType {
 }
 
 impl NamedType {
-	pub fn node_kind(val self): NodeKind => NodeKind.TYPE_NAMED;
+	pub fn node_kind(val self) => NodeKind.TYPE_NAMED;
 }
 
 pub struct PointerType {
@@ -19,7 +19,7 @@ pub struct PointerType {
 }
 
 impl PointerType {
-	pub fn node_kind(val self): NodeKind => NodeKind.TYPE_POINTER;
+	pub fn node_kind(val self) => NodeKind.TYPE_POINTER;
 }
 
 pub struct ArrayType {
@@ -28,7 +28,7 @@ pub struct ArrayType {
 }
 
 impl ArrayType {
-	pub fn node_kind(val self): NodeKind => NodeKind.TYPE_ARRAY;
+	pub fn node_kind(val self) => NodeKind.TYPE_ARRAY;
 }
 
 pub struct NullableType {
@@ -36,5 +36,5 @@ pub struct NullableType {
 }
 
 impl NullableType {
-	pub fn node_kind(val self): NodeKind => NodeKind.TYPE_NULLABLE;
+	pub fn node_kind(val self) => NodeKind.TYPE_NULLABLE;
 }

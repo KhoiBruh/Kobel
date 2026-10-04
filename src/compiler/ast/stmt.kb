@@ -9,7 +9,7 @@ pub struct BlockStmt {
 }
 
 impl BlockStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_BLOCK;
+	pub fn node_kind(val self) => NodeKind.STMT_BLOCK;
 }
 
 pub struct ExprStmt {
@@ -17,7 +17,7 @@ pub struct ExprStmt {
 }
 
 impl ExprStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_EXPR;
+	pub fn node_kind(val self) => NodeKind.STMT_EXPR;
 }
 
 pub struct VarDeclStmt {
@@ -28,7 +28,7 @@ pub struct VarDeclStmt {
 }
 
 impl VarDeclStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_VAR_DECL;
+	pub fn node_kind(val self) => NodeKind.STMT_VAR_DECL;
 }
 
 pub struct IfStmt {
@@ -38,7 +38,7 @@ pub struct IfStmt {
 }
 
 impl IfStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_IF;
+	pub fn node_kind(val self) => NodeKind.STMT_IF;
 }
 
 pub struct WhileStmt {
@@ -47,7 +47,7 @@ pub struct WhileStmt {
 }
 
 impl WhileStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_WHILE;
+	pub fn node_kind(val self) => NodeKind.STMT_WHILE;
 }
 
 // `for (name in <iterable>)` or `for (name in <start>..<end>)`.
@@ -67,7 +67,7 @@ pub struct ForStmt {
 }
 
 impl ForStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_FOR;
+	pub fn node_kind(val self) => NodeKind.STMT_FOR;
 }
 
 pub struct ReturnStmt {
@@ -75,7 +75,7 @@ pub struct ReturnStmt {
 }
 
 impl ReturnStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_RETURN;
+	pub fn node_kind(val self) => NodeKind.STMT_RETURN;
 }
 
 pub struct BreakStmt {
@@ -83,7 +83,7 @@ pub struct BreakStmt {
 }
 
 impl BreakStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_BREAK;
+	pub fn node_kind(val self) => NodeKind.STMT_BREAK;
 }
 
 pub struct ContinueStmt {
@@ -91,7 +91,7 @@ pub struct ContinueStmt {
 }
 
 impl ContinueStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_CONTINUE;
+	pub fn node_kind(val self) => NodeKind.STMT_CONTINUE;
 }
 
 pub struct WhenStmtArm {
@@ -108,7 +108,7 @@ pub struct WhenStmt {
 }
 
 impl WhenStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_WHEN;
+	pub fn node_kind(val self) => NodeKind.STMT_WHEN;
 }
 
 pub struct YieldStmt {
@@ -116,5 +116,5 @@ pub struct YieldStmt {
 }
 
 impl YieldStmt {
-	pub fn node_kind(val self): NodeKind => NodeKind.STMT_YIELD;
+	pub fn node_kind(val self) => NodeKind.STMT_YIELD;
 }

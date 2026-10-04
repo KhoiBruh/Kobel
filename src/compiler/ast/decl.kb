@@ -11,7 +11,7 @@ pub struct ModuleDecl {
 }
 
 impl ModuleDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_MODULE;
+	pub fn node_kind(val self) => NodeKind.DECL_MODULE;
 }
 
 pub struct UseDecl {
@@ -23,7 +23,7 @@ pub struct UseDecl {
 }
 
 impl UseDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_USE;
+	pub fn node_kind(val self) => NodeKind.DECL_USE;
 }
 
 pub struct Param {
@@ -48,7 +48,7 @@ pub struct FnDecl {
 }
 
 impl FnDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_FN;
+	pub fn node_kind(val self) => NodeKind.DECL_FN;
 }
 
 pub struct StructField {
@@ -65,7 +65,7 @@ pub struct StructDecl {
 }
 
 impl StructDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_STRUCT;
+	pub fn node_kind(val self) => NodeKind.DECL_STRUCT;
 }
 
 pub struct TraitDecl {
@@ -77,7 +77,7 @@ pub struct TraitDecl {
 }
 
 impl TraitDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_TRAIT;
+	pub fn node_kind(val self) => NodeKind.DECL_TRAIT;
 }
 
 pub struct ImplDecl {
@@ -88,7 +88,7 @@ pub struct ImplDecl {
 }
 
 impl ImplDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_IMPL;
+	pub fn node_kind(val self) => NodeKind.DECL_IMPL;
 }
 
 pub struct EnumMember {
@@ -106,7 +106,7 @@ pub struct EnumDecl {
 }
 
 impl EnumDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_ENUM;
+	pub fn node_kind(val self) => NodeKind.DECL_ENUM;
 }
 
 pub struct ConstDecl {
@@ -117,7 +117,7 @@ pub struct ConstDecl {
 }
 
 impl ConstDecl {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_CONST;
+	pub fn node_kind(val self) => NodeKind.DECL_CONST;
 }
 
 pub struct ExternBlock {
@@ -126,7 +126,7 @@ pub struct ExternBlock {
 }
 
 impl ExternBlock {
-	pub fn node_kind(val self): NodeKind => NodeKind.DECL_EXTERN_BLOCK;
+	pub fn node_kind(val self) => NodeKind.DECL_EXTERN_BLOCK;
 }
 
 pub struct Program {
@@ -134,7 +134,7 @@ pub struct Program {
 }
 
 impl Program {
-	pub fn node_kind(val self): NodeKind => NodeKind.PROGRAM;
+	pub fn node_kind(val self) => NodeKind.PROGRAM;
 
 	pub fn declared_module_name(val self): str {
 		for (decl in self.declarations) {

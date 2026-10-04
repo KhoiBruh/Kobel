@@ -20,6 +20,7 @@ use compiler.sema.types.*;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.DeclPass;
 use compiler.sema.decl_collect.*;
+use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
 
@@ -38,7 +39,7 @@ impl BodyPass {
 	// Shared body checker: works for free functions and impl methods. `fn_type`
 	// is the signature already built by DeclPass (methods have no global symbol).
 	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
-		val f = fn_node.to<FnDecl>();
+		val f = fn_node.to<FnDecl>() as &FnDecl;
 
 		val fn_info = fn_type.as_fn();
 		self.current_fn_return_type = fn_info.return_type;
@@ -76,6 +77,7 @@ impl BodyPass {
 						val fn_info_mut = fn_type.as_fn_mut();
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;
+						f.return_type = ast_type_from_type(&self.arena, body_ty);
 					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}

@@ -236,7 +236,9 @@ impl BodyPass {
 				val n = node as &AstNode;
 				n.kind = NodeKind.EXPR_LITERAL;
 				n.data = lit.data;
-				return ei.underlying;
+				val carrier = self.arena.alloc<Type>();
+				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
+				return carrier;
 			}
 		}
 

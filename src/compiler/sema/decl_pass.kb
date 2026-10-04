@@ -381,7 +381,13 @@ impl DeclPass {
 				param_types.add(pt);
 			}
 
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
+			var ret_type: *Type = null;
+			if (f.return_type != null) {
+				ret_type = self.resolve_ast_type(f.return_type);
+			} else {
+				ret_type = self.infer_decl_return_type(f);
+				if (ret_type == null) ret_type = alloc_primitive(&self.arena, type_none());
+			}
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
@@ -406,6 +412,55 @@ impl DeclPass {
 		self.current_self_type = null;
 	}
 
+	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
+		if (f.body == null || f.body.kind != NodeKind.STMT_EXPR) return null;
+		val es = f.body.to<ExprStmt>();
+		if (es.expr == null) return null;
+
+		if (es.expr.kind == NodeKind.EXPR_LITERAL) {
+			val lit = es.expr.to<LiteralExpr>();
+			when (lit.literal_kind) {
+				LiteralKind.INT -> {
+					f.return_type = self.named_type("i32", List<*AstNode>(), f.body.line, f.body.col);
+					return alloc_primitive(&self.arena, type_i32());
+				}
+				LiteralKind.FLOAT -> {
+					f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
+					return alloc_primitive(&self.arena, type_f64());
+				}
+				LiteralKind.BOOL -> {
+					f.return_type = self.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
+					return alloc_primitive(&self.arena, type_bool());
+				}
+				LiteralKind.STRING -> {
+					f.return_type = self.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
+					return alloc_primitive(&self.arena, type_str());
+				}
+				LiteralKind.CHAR -> {
+					f.return_type = self.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
+					return alloc_primitive(&self.arena, type_char());
+				}
+				else -> {}
+			}
+		}
+
+		if (es.expr.kind == NodeKind.EXPR_MEMBER) {
+			val mem = es.expr.to<MemberExpr>();
+			if (mem.object != null && mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id = mem.object.to<IdentifierExpr>();
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
+					val ei = sym.type_ptr.as_enum();
+					if (ei.find_member(mem.member) != null) {
+						f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
+						return sym.type_ptr;
+					}
+				}
+			}
+		}
+
+		return null;
+	}
 
 // Registers the methods of `impl <primitive> { ... }`. There is no C struct to
 // hang them on, so the receiver is typed explicitly as the primitive name (the
@@ -440,7 +495,13 @@ impl DeclPass {
 				param_types.add(pt);
 			}
 
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else alloc_primitive(&self.arena, type_none());
+			var ret_type: *Type = null;
+			if (f.return_type != null) {
+				ret_type = self.resolve_ast_type(f.return_type);
+			} else {
+				ret_type = self.infer_decl_return_type(f);
+				if (ret_type == null) ret_type = alloc_primitive(&self.arena, type_none());
+			}
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 

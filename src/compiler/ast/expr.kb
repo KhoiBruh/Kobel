@@ -20,7 +20,7 @@ pub struct LiteralExpr {
 }
 
 impl LiteralExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_LITERAL;
+	pub fn node_kind(val self) => NodeKind.EXPR_LITERAL;
 }
 
 pub struct IdentifierExpr {
@@ -28,7 +28,7 @@ pub struct IdentifierExpr {
 }
 
 impl IdentifierExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_IDENTIFIER;
+	pub fn node_kind(val self) => NodeKind.EXPR_IDENTIFIER;
 }
 
 pub struct BinaryExpr {
@@ -38,7 +38,7 @@ pub struct BinaryExpr {
 }
 
 impl BinaryExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_BINARY;
+	pub fn node_kind(val self) => NodeKind.EXPR_BINARY;
 }
 
 pub struct UnaryExpr {
@@ -47,7 +47,7 @@ pub struct UnaryExpr {
 }
 
 impl UnaryExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_UNARY;
+	pub fn node_kind(val self) => NodeKind.EXPR_UNARY;
 }
 
 pub struct CallExpr {
@@ -57,7 +57,7 @@ pub struct CallExpr {
 }
 
 impl CallExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_CALL;
+	pub fn node_kind(val self) => NodeKind.EXPR_CALL;
 }
 
 pub struct MemberExpr {
@@ -66,7 +66,7 @@ pub struct MemberExpr {
 }
 
 impl MemberExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_MEMBER;
+	pub fn node_kind(val self) => NodeKind.EXPR_MEMBER;
 }
 
 pub struct IndexExpr {
@@ -75,7 +75,7 @@ pub struct IndexExpr {
 }
 
 impl IndexExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_INDEX;
+	pub fn node_kind(val self) => NodeKind.EXPR_INDEX;
 }
 
 pub struct AssignExpr {
@@ -85,7 +85,7 @@ pub struct AssignExpr {
 }
 
 impl AssignExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_ASSIGN;
+	pub fn node_kind(val self) => NodeKind.EXPR_ASSIGN;
 }
 
 pub struct UpdateExpr {
@@ -94,7 +94,7 @@ pub struct UpdateExpr {
 }
 
 impl UpdateExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_UPDATE;
+	pub fn node_kind(val self) => NodeKind.EXPR_UPDATE;
 }
 
 pub struct CastExpr {
@@ -103,7 +103,7 @@ pub struct CastExpr {
 }
 
 impl CastExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_CAST;
+	pub fn node_kind(val self) => NodeKind.EXPR_CAST;
 }
 
 pub struct GroupExpr {
@@ -111,7 +111,7 @@ pub struct GroupExpr {
 }
 
 impl GroupExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_GROUP;
+	pub fn node_kind(val self) => NodeKind.EXPR_GROUP;
 }
 
 pub struct ArrayLiteralExpr {
@@ -121,7 +121,7 @@ pub struct ArrayLiteralExpr {
 }
 
 impl ArrayLiteralExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_ARRAY_LITERAL;
+	pub fn node_kind(val self) => NodeKind.EXPR_ARRAY_LITERAL;
 }
 
 pub struct IfExpr {
@@ -131,7 +131,7 @@ pub struct IfExpr {
 }
 
 impl IfExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_IF;
+	pub fn node_kind(val self) => NodeKind.EXPR_IF;
 }
 
 pub struct WhenArm {
@@ -148,7 +148,7 @@ pub struct WhenExpr {
 }
 
 impl WhenExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_WHEN;
+	pub fn node_kind(val self) => NodeKind.EXPR_WHEN;
 }
 
 // One piece of an interpolated string: either a literal chunk (`is_literal`,
@@ -163,5 +163,5 @@ pub struct InterpExpr {
 }
 
 impl InterpExpr {
-	pub fn node_kind(val self): NodeKind => NodeKind.EXPR_INTERP;
+	pub fn node_kind(val self) => NodeKind.EXPR_INTERP;
 }
