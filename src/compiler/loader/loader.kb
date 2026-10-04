@@ -52,10 +52,10 @@ pub fn detect_project_root(start_dir: str): str {
 	var curr = start_dir;
 	var count: usz = 0UZ;
 	while (curr.len > 0UZ && count < 10UZ) {
-		val test_file = str_join_path(curr, "lib/std/io.kb");
+		val test_file = curr.join_path("lib/std/io.kb");
 		val test_content = read_file(test_file);
 		if (test_content.len > 0UZ) return curr;
-		val parent = str_dir_of(curr);
+		val parent = curr.dir_of();
 		if (parent == curr || parent.len == 0UZ) break;
 		curr = parent;
 		count++;
@@ -79,8 +79,8 @@ impl ModuleLoader {
 		val proj = detect_project_root(entry_dir);
 		if (proj.len > 0UZ) {
 			roots.add(proj);
-			roots.add(str_join_path(proj, "lib"));
-			roots.add(str_join_path(proj, "src"));
+			roots.add(proj.join_path("lib"));
+			roots.add(proj.join_path("src"));
 		}
 
 		return Self(
@@ -124,9 +124,9 @@ impl ModuleLoader {
 	// ============================================================================
 
 	pub fn find_module(var self, module_name: str): ModuleFile {
-		val rel = "${str_module_to_rel(module_name)}.kb";
+		val rel = "${module_name.module_to_rel()}.kb";
 		for (root in self.roots) {
-			val candidate = str_join_path(root, rel);
+			val candidate = root.join_path(rel);
 			val src = read_file(candidate);
 			if (src.len > 0) return ModuleFile(true, candidate, src);
 		}
@@ -166,7 +166,7 @@ impl ModuleLoader {
 		val prog = self.parse_source(file.path, file.source);
 		if (prog == null) return;
 
-		val declared = declared_module_name(prog);
+		val declared = prog.to<Program>().declared_module_name();
 		if (declared.len > 0 && declared != module_name) {
 			val prefix = if (parent_mod.len > 0UZ) "${parent_mod}: " else "";
 			val msg = if (line > 0UZ) {
@@ -206,8 +206,8 @@ impl ModuleLoader {
 		val prog = self.parse_source(entry_path, entry_source);
 		if (prog == null) return null;
 
-		var entry_name = declared_module_name(prog);
-		if (entry_name.len == 0) entry_name = str_path_to_module(str_base_name(entry_path));
+		var entry_name = prog.to<Program>().declared_module_name();
+		if (entry_name.len == 0) entry_name = entry_path.base_name().path_to_module();
 
 		self.modules.add(LoadedModule(entry_name, entry_path, prog));
 		self.process_uses(prog, entry_name);
@@ -223,7 +223,7 @@ impl ModuleLoader {
 		for (lm in self.ordered) {
 			if (lm.program != null) {
 				// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-				decls.add(self.module_decl(str_split_dots(lm.name), lm.name, 0, 0));
+				decls.add(self.module_decl(lm.name.split_dots(), lm.name, 0, 0));
 
 				val p = lm.program.to<Program>();
 				for (d in p) decls.add(d);
@@ -235,6 +235,3 @@ impl ModuleLoader {
 
 }
 
-// Module name declared in the file (`mod a.b.c;`), "" when the file declares none.
-pub fn declared_module_name(program_node: *AstNode): str =>
-	if (program_node == null) "" else program_node.to<Program>().declared_module_name();

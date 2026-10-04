@@ -1,9 +1,6 @@
 mod test.std_demo;
 
-use std.ascii.is_digit;
-use std.ascii.is_alpha;
-use std.ascii.to_lower;
-use std.ascii.to_upper;
+use std.ascii.*;
 
 use std.io.print;
 use std.io.println;
@@ -19,14 +16,6 @@ use std.collections.hash_map.HashMap;
 use std.collections.string_builder.StringBuilder;
 
 fn test_ascii(): bool {
-	// Free functions
-	if (!is_digit('5')) return false;
-	if (is_digit('a')) return false;
-	if (!is_alpha('Z')) return false;
-	if (to_lower('G') != 'g') return false;
-	if (to_upper('m') != 'M') return false;
-
-	// Method syntax on char
 	if (!'5'.is_digit()) return false;
 	if ('a'.is_digit()) return false;
 	if (!'Z'.is_alpha()) return false;

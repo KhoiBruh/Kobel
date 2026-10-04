@@ -115,9 +115,6 @@ fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 	sb.append_char('"');
 }
 
-fn serialize_json_to_sb(var sb: &StringBuilder, val_item: *JsonValue) {
-	val_item.serialize_to(sb);
-}
 
 // ============================================================================
 // Methods on JsonValue
@@ -242,7 +239,7 @@ impl JsonValue {
 
 	pub fn serialize(val self): str {
 		var sb = StringBuilder();
-		serialize_json_to_sb(&sb, self);
+		self.serialize_to(&sb);
 		val res = sb.to_str();
 		sb.delete();
 		return res;
@@ -276,7 +273,7 @@ impl JsonParser {
 	pub fn skip_whitespace(var self) {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (is_whitespace(c)) {
+			if (c.is_whitespace()) {
 				self.advance();
 			} else {
 				break;
@@ -326,21 +323,21 @@ impl JsonParser {
 			self.advance();
 		}
 		var val_num: i64 = 0L;
-		while (!self.is_end() && is_digit(self.peek())) {
+		while (!self.is_end() && self.peek().is_digit()) {
 			val c = self.advance();
 			val d: i64 = ((c as i32) - 48) as i64;
 			val_num = val_num * 10L + d;
 		}
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
-			while (!self.is_end() && is_digit(self.peek())) {
+			while (!self.is_end() && self.peek().is_digit()) {
 				self.advance();
 			}
 		}
 		if (!self.is_end() && (self.peek() == 'e' || self.peek() == 'E')) {
 			self.advance();
 			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
-			while (!self.is_end() && is_digit(self.peek())) {
+			while (!self.is_end() && self.peek().is_digit()) {
 				self.advance();
 			}
 		}
@@ -413,7 +410,7 @@ impl JsonParser {
 		if (c == '"') return json_str(self.parse_string());
 		if (c == '{') return self.parse_object();
 		if (c == '[') return self.parse_array();
-		if (c == '-' || is_digit(c)) return json_num(self.parse_number());
+		if (c == '-' || c.is_digit()) return json_num(self.parse_number());
 		if (c == 't') {
 			for (i in 0UZ..<4UZ) {
 				if (!self.is_end()) self.advance();

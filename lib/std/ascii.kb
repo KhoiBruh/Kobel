@@ -27,18 +27,3 @@ impl char {
 		return self;
 	}
 }
-
-// Backwards-compatible free functions
-pub fn is_digit(c: char): bool => c.is_digit();
-
-pub fn is_alpha(c: char): bool => c.is_alpha();
-
-pub fn is_alphanumeric(c: char): bool => c.is_alphanumeric();
-
-pub fn is_whitespace(c: char): bool => c.is_whitespace();
-
-pub fn is_hex_digit(c: char): bool => c.is_hex_digit();
-
-pub fn to_lower(c: char): char => c.to_lower();
-
-pub fn to_upper(c: char): char => c.to_upper();

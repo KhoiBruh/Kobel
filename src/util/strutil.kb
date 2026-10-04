@@ -67,13 +67,13 @@ impl str {
 		return str_from_bytes(buf, stem.len);
 	}
 
-	pub fn has_kb_suffix(val self) => self.len >= 3 &&
+	pub fn has_kb_suffix(val self): bool => self.len >= 3 &&
 		self[self.len - 3] == '.' &&
 		self[self.len - 2] == 'k' &&
 		self[self.len - 1] == 'b';
 
 	// Strips a trailing ".kb" extension when present.
-	pub fn strip_kb(val self) => if (self.has_kb_suffix()) self.slice(0, self.len - 3) else self;
+	pub fn strip_kb(val self): str => if (self.has_kb_suffix()) self.slice(0, self.len - 3) else self;
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
@@ -186,20 +186,6 @@ impl str {
 	pub fn strip_suffix(val self, n: usz): str => if (self.len <= n) "" else self.slice(0, self.len - n);
 }
 
-pub fn str_module_to_rel(module_name: str): str => module_name.module_to_rel();
-
-pub fn str_path_to_module(rel_path: str): str => rel_path.path_to_module();
-
-pub fn str_has_kb_suffix(path: str): bool => path.has_kb_suffix();
-
-pub fn str_strip_kb(path: str): str => path.strip_kb();
-
-pub fn str_dir_of(path: str): str => path.dir_of();
-
-pub fn str_base_name(path: str): str => path.base_name();
-
-pub fn str_join_path(dir: str, rel: str): str => dir.join_path(rel);
-
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;
 	for (i in 0..<count) {
@@ -223,13 +209,3 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	buf[w] = 0;
 	return str_from_bytes(buf, w);
 }
-
-pub fn str_split_dots(s: str): List<str> => s.split_dots();
-
-pub fn str_mangle_symbol(module_name: str, name: str): str => module_name.mangle_symbol(name);
-
-pub fn str_starts_with(s: str, prefix: str): bool => s.starts_with(prefix);
-
-pub fn str_ends_with(s: str, suffix: str): bool => s.ends_with(suffix);
-
-pub fn str_normalize_path(p: str): str => p.normalize_path();

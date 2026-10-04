@@ -43,7 +43,7 @@ impl BodyPass {
 
 				for (i in 0..<al.elements.len) {
 					val el = al.elements[i];
-					if (is_list_type(elem_ty)) {
+					if ((elem_ty != null && elem_ty.is_list())) {
 						self.coerce_to_list(el, elem_ty);
 					}
 					val el_ty = self.check_expr(el);
@@ -365,7 +365,7 @@ impl BodyPass {
 			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
 				val param_ty = fn_info.param_types[1];
-				if (is_list_type(param_ty)) self.coerce_to_list(idx.index, param_ty);
+				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
 				if (!param_ty.can_assign(index_ty)) self.report_error(node, "Argument type mismatch in index access");
 
 				var new_args = List<*AstNode>();
@@ -417,11 +417,11 @@ impl BodyPass {
 						val_expr = self.binary(bin_op, get_expr, asgn.value, node.line, node.col);
 					}
 
-					if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
+					if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
 					val idx_ty = self.check_expr(idx.index);
 					if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
 
-					if (is_list_type(val_param_ty)) self.coerce_to_list(val_expr, val_param_ty);
+					if ((val_param_ty != null && val_param_ty.is_list())) self.coerce_to_list(val_expr, val_param_ty);
 					val val_ty = self.check_expr(val_expr);
 					if (!val_param_ty.can_assign(val_ty)) self.report_error(node, "Value type mismatch in index assignment");
 
@@ -440,7 +440,7 @@ impl BodyPass {
 		}
 
 		val target_ty = self.check_expr(asgn.target);
-		if (is_list_type(target_ty)) self.coerce_to_list(asgn.value, target_ty);
+		if ((target_ty != null && target_ty.is_list())) self.coerce_to_list(asgn.value, target_ty);
 		val val_ty = self.check_expr(asgn.value);
 
 		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
@@ -496,7 +496,7 @@ impl BodyPass {
 					val get_expr = self.index(idx.target, idx.index, node.line, node.col);
 					val val_expr = self.binary(bin_op, get_expr, one_node, node.line, node.col);
 
-					if (is_list_type(idx_param_ty)) self.coerce_to_list(idx.index, idx_param_ty);
+					if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
 					val idx_ty = self.check_expr(idx.index);
 					if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index update");
 

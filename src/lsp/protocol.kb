@@ -103,7 +103,7 @@ pub fn read_message(): str {
 		if (line.len > prefix.len) {
 			var matches = true;
 			for (i in 0UZ..<prefix.len) {
-				if (to_lower(line[i]) != prefix[i]) {
+				if (line[i].to_lower() != prefix[i]) {
 					matches = false;
 					break;
 				}
@@ -112,7 +112,7 @@ pub fn read_message(): str {
 				var n: usz = 0UZ;
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
-					if (is_digit(c)) {
+					if (c.is_digit()) {
 						n = n * 10UZ + (((c as i32) - 48) as usz);
 					}
 				}

@@ -68,7 +68,7 @@ impl BodyPass {
 					val es = f.body.to<ExprStmt>();
 					if (
 						f.return_type != null &&
-						is_list_type(self.current_fn_return_type)
+						(self.current_fn_return_type != null && self.current_fn_return_type.is_list())
 					) self.coerce_to_list(es.expr, self.current_fn_return_type);
 
 					val body_ty = self.check_expr(es.expr);

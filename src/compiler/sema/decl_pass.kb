@@ -30,7 +30,6 @@ use compiler.sema.types.type_usz;
 use compiler.sema.types.type_f32;
 use compiler.sema.types.type_f64;
 use compiler.sema.types.type_str;
-use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
@@ -240,7 +239,7 @@ impl DeclPass {
 
 	pub fn c_name_for(self, name: str): str {
 		if (self.is_extern || name == "main") return name;
-		return str_mangle_symbol(self.current_module, name);
+		return self.current_module.mangle_symbol(name);
 	}
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {

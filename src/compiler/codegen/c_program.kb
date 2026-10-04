@@ -129,7 +129,7 @@ impl CCodeGen {
 		for (decl_list in prog) {
 			if (!decl_list.is_template() && decl_list.kind == NodeKind.DECL_STRUCT) {
 				val s = decl_list.to<StructDecl>();
-				if (str_starts_with(s.name, "std__collections__list__List")) {
+				if (s.name.starts_with("std__collections__list__List")) {
 					c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n" +
 						"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n" +
 						"    size_t cap = (n < 4) ? 4 : n;\n" +

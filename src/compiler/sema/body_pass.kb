@@ -201,4 +201,3 @@ pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
 	return alloc_primitive(arena, type_i32());
 }
 
-pub fn is_list_type(ty: *Type): bool => ty != null && ty.is_list();

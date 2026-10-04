@@ -67,7 +67,7 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 	if (found_line) {
 		var n: usz = 0UZ;
 		var idx = line_idx;
-		while (idx < err_str.len && is_digit(err_str[idx])) {
+		while (idx < err_str.len && err_str[idx].is_digit()) {
 			n = n * 10UZ + (((err_str[idx] as i32) - 48) as usz);
 			idx++;
 		}
@@ -97,7 +97,7 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 		if (found_col) {
 			var cn: usz = 0UZ;
 			var c_idx = col_idx;
-			while (c_idx < err_str.len && is_digit(err_str[c_idx])) {
+			while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
 				cn = cn * 10UZ + (((err_str[c_idx] as i32) - 48) as usz);
 				c_idx++;
 			}
@@ -145,9 +145,9 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 					}
 					if (s_idx < line_end && source[s_idx] == ';') s_idx++;
 					end_col = s_idx - line_start;
-				} else if (is_alphanumeric(source[char_idx]) || source[char_idx] == '_') {
+				} else if (source[char_idx].is_alphanumeric() || source[char_idx] == '_') {
 					var w_idx = char_idx;
-					while (w_idx < line_end && (is_alphanumeric(source[w_idx]) || source[w_idx] == '_')) {
+					while (w_idx < line_end && (source[w_idx].is_alphanumeric() || source[w_idx] == '_')) {
 						w_idx++;
 					}
 					end_col = w_idx - line_start;
@@ -192,26 +192,26 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 
 	// Check if prefix matches doc_path (e.g. "C:/.../src/lsp/analysis.kb")
 	if (doc_path.len > 0UZ) {
-		val norm_p = str_normalize_path(prefix);
-		val norm_d = str_normalize_path(doc_path);
+		val norm_p = prefix.normalize_path();
+		val norm_d = doc_path.normalize_path();
 
 		if (norm_p == norm_d) return true;
 
 		// If norm_d ends with norm_p (e.g. norm_d is "c:/users/.../src/lsp/analysis.kb" and norm_p is "src/lsp/analysis.kb")
-		if (norm_d.len > norm_p.len && str_ends_with(norm_d, norm_p)) {
+		if (norm_d.len > norm_p.len && norm_d.ends_with(norm_p)) {
 			val sep_char = norm_d[norm_d.len - norm_p.len - 1UZ];
 			if (sep_char == '/') return true;
 		}
 
 		// If norm_p ends with norm_d
-		if (norm_p.len > norm_d.len && str_ends_with(norm_p, norm_d)) {
+		if (norm_p.len > norm_d.len && norm_p.ends_with(norm_d)) {
 			val sep_char = norm_p[norm_p.len - norm_d.len - 1UZ];
 			if (sep_char == '/') return true;
 		}
 
 		// Compare base name: if prefix is "analysis.kb"
-		val base_p = str_base_name(norm_p);
-		val base_d = str_base_name(norm_d);
+		val base_p = norm_p.base_name();
+		val base_d = norm_d.base_name();
 		if (base_p == base_d && (norm_p.len <= base_p.len || norm_d.len <= base_d.len)) return true;
 	}
 
@@ -313,18 +313,18 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 		return AnalysisResult(diagnostics, empty_symtab, false, tokens);
 	}
 
-	var doc_mod = declared_module_name(prog);
+	var doc_mod = prog.to<Program>().declared_module_name();
 	if (doc_mod.len == 0UZ) {
-		doc_mod = str_path_to_module(str_base_name(path));
+		doc_mod = path.base_name().path_to_module();
 	}
 
 	// 3. Module loading & semantic analysis (DeclPass)
-	val entry_dir = str_dir_of(path);
+	val entry_dir = path.dir_of();
 	var extra_roots = List<str>();
 	if (workspace_root.len > 0UZ) {
 		extra_roots.add(workspace_root);
-		extra_roots.add(str_join_path(workspace_root, "lib"));
-		extra_roots.add(str_join_path(workspace_root, "src"));
+		extra_roots.add(workspace_root.join_path("lib"));
+		extra_roots.add(workspace_root.join_path("src"));
 	}
 	var loader = ModuleLoader(entry_dir, extra_roots);
 	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");

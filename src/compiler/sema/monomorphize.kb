@@ -14,7 +14,6 @@ use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
 use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
-use compiler.sema.types.layout_struct;
 use compiler.sema.types.MethodInfo;
 
 use compiler.sema.decl_pass.*;
@@ -305,14 +304,14 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		self.symtab.gen.pending.add(self.module_decl(str_split_dots(module), module, node.line, node.col));
+		self.symtab.gen.pending.add(self.module_decl(module.split_dots(), module, node.line, node.col));
 		self.symtab.gen.pending.add(node);
 	}
 
 	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
 		self.check_bounds(tmpl, arg_asts);
 
-		val base = str_mangle_symbol(tmpl.module, tmpl.name);
+		val base = tmpl.module.mangle_symbol(tmpl.name);
 		val cname = "${base}_${self.type_token_list(arg_asts)}";
 
 		val existing = self.find_inst(cname);
@@ -345,7 +344,7 @@ impl DeclPass {
 	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
 		self.check_bounds(tmpl, arg_asts);
 
-		val base = str_mangle_symbol(tmpl.module, tmpl.name);
+		val base = tmpl.module.mangle_symbol(tmpl.name);
 		val cname = "${base}_${self.type_token_list(arg_asts)}";
 
 		if (self.find_inst(cname) != null) return cname;
@@ -375,7 +374,7 @@ impl DeclPass {
 		// A monomorphized instance belongs to the module that declared its template.
 		st_info.module = module;
 		st_info.has_private = has_private;
-		layout_struct(s_type);
+		s_type.layout_struct();
 	}
 
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {

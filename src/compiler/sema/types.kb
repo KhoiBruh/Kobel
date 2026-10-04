@@ -96,11 +96,6 @@ impl EnumInfo {
 	}
 }
 
-// Recomputes field offsets, size and alignment of a struct type from its
-// current field list (fields are added after the type is allocated).
-pub fn layout_struct(ty: *Type) {
-	if (ty != null) ty.layout_struct();
-}
 
 impl PointerType {
 	pub fn data_type(val self): DataType => DataType.POINTER;

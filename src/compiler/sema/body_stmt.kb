@@ -49,7 +49,7 @@ impl BodyPass {
 			var_ty = self.resolve_type(vd.type_annotation);
 			if (vd.initializer != null) {
 				has_init = true;
-				if (is_list_type(var_ty)) self.coerce_to_list(vd.initializer, var_ty);
+				if ((var_ty != null && var_ty.is_list())) self.coerce_to_list(vd.initializer, var_ty);
 
 				init_ty = self.check_expr(vd.initializer);
 				if (!var_ty.can_assign(init_ty))
@@ -110,7 +110,7 @@ impl BodyPass {
 	pub fn check_return_stmt(var self, node: *AstNode) {
 		val ret = node.to<ReturnStmt>();
 		if (ret.value != null) {
-			if (is_list_type(self.current_fn_return_type))
+			if ((self.current_fn_return_type != null && self.current_fn_return_type.is_list()))
 				self.coerce_to_list(ret.value, self.current_fn_return_type);
 
 			val val_ty = self.check_expr(ret.value);

@@ -92,8 +92,7 @@ impl DeclPass {
 		}
 		val st_info = s_type.as_struct_mut();
 		st_info.module = self.current_module;
-		st_info.has_private = has_private;
-		layout_struct(s_type);
+		s_type.layout_struct();
 	}
 
 	pub fn collect_fn(var self, node: *AstNode) {
