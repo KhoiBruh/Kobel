@@ -184,6 +184,19 @@ impl str {
 	}
 
 	pub fn strip_suffix(val self, n: usz): str => if (self.len <= n) "" else self.slice(0, self.len - n);
+	pub fn in_list(val self, list: List<str>): bool {
+		for (item in list) {
+			if (item == self) return true;
+		}
+		return false;
+	}
+
+	pub fn index_in_list(val self, list: List<str>): isz {
+		for (i in 0..<list.len) {
+			if (list[i] == self) return i as isz;
+		}
+		return -1;
+	}
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {

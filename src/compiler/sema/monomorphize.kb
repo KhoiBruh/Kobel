@@ -130,12 +130,7 @@ impl DeclPass {
 		return false;
 	}
 
-	pub fn find_inst(val self, name: str): *Symbol {
-		for (s in self.symtab.gen.inst_syms) {
-			if (s.name == name) return s;
-		}
-		return null;
-	}
+	pub fn find_inst(val self, name: str): *Symbol => self.symtab.gen.find_inst(name);
 
 	pub fn find_fn_template(val self, name: str): *GenTemplate {
 		for (t in self.symtab.gen.fn_templates) {
@@ -188,7 +183,7 @@ impl DeclPass {
 				}
 			}
 		}
-		return gen_find(self.symtab.gen.struct_templates, name);
+		return self.symtab.gen.find_struct(name);
 	}
 
 	pub fn type_token(val self, ty: *Type): str => when (ty.kind) {

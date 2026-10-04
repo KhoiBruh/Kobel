@@ -138,12 +138,7 @@ impl TraitInfo {
 		return null;
 	}
 
-	pub fn has_impl(self, struct_name: str): bool {
-		for (s in self.impls) {
-			if (s == struct_name) return true;
-		}
-		return false;
-	}
+	pub fn has_impl(self, struct_name: str): bool => struct_name.in_list(self.impls);
 }
 
 // A method declared by an `impl <primitive> { ... }` block. Primitives are not
@@ -164,11 +159,34 @@ pub struct GenericReg {
 	pub pending: List<*AstNode>
 }
 
-pub fn gen_find(list: List<*GenTemplate>, name: str): *GenTemplate {
-	for (t in list) {
-		if (t.name == name) return t;
+impl GenericReg {
+	pub fn find_struct(val self, name: str): *GenTemplate {
+		for (t in self.struct_templates) {
+			if (t.name == name) return t;
+		}
+		return null;
 	}
-	return null;
+
+	pub fn find_fn(val self, name: str): *GenTemplate {
+		for (t in self.fn_templates) {
+			if (t.name == name) return t;
+		}
+		return null;
+	}
+
+	pub fn find_impl(val self, name: str): *GenTemplate {
+		for (t in self.impl_templates) {
+			if (t.name == name) return t;
+		}
+		return null;
+	}
+
+	pub fn find_inst(val self, name: str): *Symbol {
+		for (s in self.inst_syms) {
+			if (s.name == name) return s;
+		}
+		return null;
+	}
 }
 
 pub fn box_symbol(var arena: &Arena, sym: Symbol): *Symbol => arena.alloc_val<Symbol>(sym);
@@ -361,21 +379,21 @@ impl SymbolTable {
 		self.current_module = name;
 	}
 
-	pub fn module_exists(val self, name: str): bool {
+	pub fn find_module(val self, name: str): *ModuleScope {
 		for (sc in self.modules) {
-			if (sc.name == name) return true;
+			if (sc.name == name) return sc;
 		}
-		return false;
+		return null;
 	}
+
+	pub fn module_exists(val self, name: str): bool => self.find_module(name) != null;
 
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
 		for (m in 0..<self.modules.len) {
 			val sc = self.modules[m];
 			if (sc.name == module_name) {
-				for (existing in sc) {
-					if (existing.name == sym.name) return false;
-				}
+				if (sc.lookup(sym.name) != null) return false;
 				val sym_ptr = self.arena.alloc_val<Symbol>(sym);
 				sc.symbols.add(sym_ptr);
 				self.modules[m] = sc;
@@ -399,14 +417,8 @@ impl SymbolTable {
 	}
 
 	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol {
-		for (sc in self.modules) {
-			if (sc.name == module_name) {
-				for (sym in sc) {
-					if (sym.name == name) return sym;
-				}
-				return null;
-			}
-		}
+		val sc = self.find_module(module_name);
+		if (sc != null) return sc.lookup(name);
 		return null;
 	}
 

@@ -74,12 +74,7 @@ impl DocumentStore {
 		return Document("", "", "", 0L);
 	}
 
-	pub fn has(self, uri: str): bool {
-		for (d in self.docs) {
-			if (d.uri == uri) return true;
-		}
-		return false;
-	}
+	pub fn has(self, uri: str): bool => self.get(uri).uri != "";
 
 	pub fn set(var self, uri: str, text: str, version: i64) {
 		val p = uri_to_path(uri);

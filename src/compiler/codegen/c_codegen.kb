@@ -44,24 +44,13 @@ impl CCodeGen {
 		false
 	);
 
-	pub fn is_pointer_var(val self, name: str): bool {
-		for (v in self.pointer_vars) {
-			if (v == name) return true;
-		}
-		return false;
-	}
+	pub fn is_pointer_var(val self, name: str): bool => name.in_list(self.pointer_vars);
 
-	pub fn is_str_var(val self, name: str): bool {
-		for (v in self.str_vars) {
-			if (v == name) return true;
-		}
-		return false;
-	}
+	pub fn is_str_var(val self, name: str): bool => name.in_list(self.str_vars);
 
 	pub fn lookup_fn_ret_type(val self, name: str): str {
-		for (i in 0..<self.fn_names.len) {
-			if (self.fn_names[i] == name) return self.fn_ret_types[i];
-		}
+		val idx = name.index_in_list(self.fn_names);
+		if (idx >= 0L) return self.fn_ret_types[idx as usz];
 		return "";
 	}
 
@@ -316,9 +305,7 @@ impl CCodeGen {
 				var is_struct = false;
 				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
 					val id = call.callee.to<IdentifierExpr>();
-					for (sn in self.struct_names) {
-						if (sn == id.name) is_struct = true;
-					}
+					is_struct = id.name.in_list(self.struct_names);
 				}
 
 				if (is_struct) {
@@ -471,9 +458,7 @@ impl CCodeGen {
 						if (id.name == "kobel_slice") return "const char*";
 						if (id.name == "kobel_streq") return "bool";
 						if (id.name == "kobel_slen") return "size_t";
-						for (sn in self.struct_names) {
-							if (sn == id.name) return id.name;
-						}
+						if (id.name.in_list(self.struct_names)) return id.name;
 						val ret_ty = self.lookup_fn_ret_type(id.name);
 						if (ret_ty != "") return ret_ty;
 					}

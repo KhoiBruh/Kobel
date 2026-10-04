@@ -62,7 +62,7 @@ fn overloaded_names(im: &ImplDecl): List<str> {
 	var names = List<str>();
 	for (a in 0..<im.methods.len) {
 		val na = im.methods[a].to<FnDecl>().name;
-		if (list_has_str(names, na)) continue;
+		if (na.in_list(names)) continue;
 		for (b in (a + 1)..<im.methods.len) {
 			if (im.methods[b].to<FnDecl>().name == na) {
 				names.add(na);
@@ -71,13 +71,6 @@ fn overloaded_names(im: &ImplDecl): List<str> {
 		}
 	}
 	return names;
-}
-
-fn list_has_str(list: List<str>, v: str): bool {
-	for (x in list) {
-		if (x == v) return true;
-	}
-	return false;
 }
 
 // The built-in type named `name`, or null when `name` is not a primitive.
@@ -394,7 +387,7 @@ impl DeclPass {
 
 			val base = "${st_c_name}_${f.name}";
 			var m_c_name = base;
-			if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
+			if (f.name.in_list(overloaded)) m_c_name = "${base}_${param_types.len}";
 			// Two methods with the same name and arity still need distinct names.
 			var k: usz = 2;
 			while (st_info.find_method_c(m_c_name) != null) {
@@ -453,9 +446,9 @@ impl DeclPass {
 
 			val base = "${prim_name}_${f.name}";
 			var m_c_name = base;
-			if (list_has_str(overloaded, f.name)) m_c_name = "${base}_${param_types.len}";
+			if (f.name.in_list(overloaded)) m_c_name = "${base}_${param_types.len}";
 			var k: usz = 2;
-			while (list_has_str(used, m_c_name)) {
+			while (m_c_name.in_list(used)) {
 				m_c_name = "${base}_${param_types.len}_${k}";
 				k++;
 			}
@@ -493,9 +486,7 @@ impl DeclPass {
 // `trait B : A` chain.
 	pub fn trait_effective(var self, t: *TraitInfo, out: &List<*TraitMethod>, seen: &List<str>) {
 		if (t == null) return;
-		for (name in seen) {
-			if (name == t.name) return;
-		}
+		if (t.name.in_list(*seen)) return;
 		seen.add(t.name);
 
 		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
