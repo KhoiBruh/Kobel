@@ -40,35 +40,17 @@ pub fn json_box(v: JsonValue): *JsonValue {
 	return p as *JsonValue;
 }
 
-pub fn json_null(): *JsonValue => json_box(JsonValue(
-	JsonKind.JNULL, false, 0L, "",
+fn json_make(kind: JsonKind, b: bool, n: i64, s: str): *JsonValue => json_box(JsonValue(
+	kind, b, n, s,
 	List<*JsonValue>(), List<str>(), List<*JsonValue>()
 ));
 
-pub fn json_bool(b: bool): *JsonValue => json_box(JsonValue(
-	JsonKind.JBOOL, b, 0L, "",
-	List<*JsonValue>(), List<str>(), List<*JsonValue>()
-));
-
-pub fn json_num(n: i64): *JsonValue => json_box(JsonValue(
-	JsonKind.JNUM, false, n, "",
-	List<*JsonValue>(), List<str>(), List<*JsonValue>()
-));
-
-pub fn json_str(s: str): *JsonValue => json_box(JsonValue(
-	JsonKind.JSTR, false, 0L, s,
-	List<*JsonValue>(), List<str>(), List<*JsonValue>()
-));
-
-pub fn json_arr(): *JsonValue => json_box(JsonValue(
-	JsonKind.JARR, false, 0L, "",
-	List<*JsonValue>(), List<str>(), List<*JsonValue>()
-));
-
-pub fn json_obj(): *JsonValue => json_box(JsonValue(
-	JsonKind.JOBJ, false, 0L, "",
-	List<*JsonValue>(), List<str>(), List<*JsonValue>()
-));
+pub fn json_null(): *JsonValue => json_make(JsonKind.JNULL, false, 0L, "");
+pub fn json_bool(b: bool): *JsonValue => json_make(JsonKind.JBOOL, b, 0L, "");
+pub fn json_num(n: i64): *JsonValue => json_make(JsonKind.JNUM, false, n, "");
+pub fn json_str(s: str): *JsonValue => json_make(JsonKind.JSTR, false, 0L, s);
+pub fn json_arr(): *JsonValue => json_make(JsonKind.JARR, false, 0L, "");
+pub fn json_obj(): *JsonValue => json_make(JsonKind.JOBJ, false, 0L, "");
 
 // ============================================================================
 // Serialization Helpers
