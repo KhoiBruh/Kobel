@@ -41,68 +41,164 @@ pub fn cstr_to_str(s: *char): str => str_from_bytes(s as &u8, strlen(s));
 
 pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
-// "std.io" -> "std/io" (module path -> relative file path, without extension)
-pub fn str_module_to_rel(module_name: str): str {
-	val buf = raw_alloc(module_name.len + 1);
-	for (i in 0..<module_name.len) {
-		val c = module_name[i];
-		if (c == '.') buf[i] = '/' as u8;
-		else buf[i] = c as u8;
-	}
-	buf[module_name.len] = 0;
-	return str_from_bytes(buf, module_name.len);
-}
-
-// "sub/x.kb" -> "sub.x"  (relative file path -> module name)
-pub fn str_path_to_module(rel_path: str): str {
-	val stem = str_strip_kb(rel_path);
-	val buf = raw_alloc(stem.len + 1);
-	for (i in 0..<stem.len) {
-		val c = stem[i];
-		if (str_is_sep(c)) buf[i] = '.' as u8;
-		else buf[i] = c as u8;
-	}
-	buf[stem.len] = 0;
-	return str_from_bytes(buf, stem.len);
-}
-
-pub fn str_has_kb_suffix(path: str): bool => path.len >= 3 &&
-	path[path.len - 3] == '.' &&
-	path[path.len - 2] == 'k' &&
-	path[path.len - 1] == 'b';
-
-// Strips a trailing ".kb" extension when present.
-pub fn str_strip_kb(path: str): str => if (str_has_kb_suffix(path)) path.slice(0, path.len - 3) else path;
-
-// Directory part of a path ("" when the path has no separator).
-pub fn str_dir_of(path: str): str {
-	var last: usz = 0;
-	var found = false;
-	for (i in 0..<path.len) {
-		if (str_is_sep(path[i])) {
-			last = i;
-			found = true;
+impl str {
+	// "std.io" -> "std/io" (module path -> relative file path, without extension)
+	pub fn module_to_rel(val self): str {
+		val buf = raw_alloc(self.len + 1);
+		for (i in 0..<self.len) {
+			val c = self[i];
+			if (c == '.') buf[i] = '/' as u8;
+			else buf[i] = c as u8;
 		}
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
 	}
-	if (!found) return "";
-	return path.slice(0, last);
+
+	// "sub/x.kb" -> "sub.x"  (relative file path -> module name)
+	pub fn path_to_module(val self): str {
+		val stem = self.strip_kb();
+		val buf = raw_alloc(stem.len + 1);
+		for (i in 0..<stem.len) {
+			val c = stem[i];
+			if (str_is_sep(c)) buf[i] = '.' as u8;
+			else buf[i] = c as u8;
+		}
+		buf[stem.len] = 0;
+		return str_from_bytes(buf, stem.len);
+	}
+
+	pub fn has_kb_suffix(val self): bool => self.len >= 3 &&
+		self[self.len - 3] == '.' &&
+		self[self.len - 2] == 'k' &&
+		self[self.len - 1] == 'b';
+
+	// Strips a trailing ".kb" extension when present.
+	pub fn strip_kb(val self): str => if (self.has_kb_suffix()) self.slice(0, self.len - 3) else self;
+
+	// Directory part of a path ("" when the path has no separator).
+	pub fn dir_of(val self): str {
+		var last: usz = 0;
+		var found = false;
+		for (i in 0..<self.len) {
+			if (str_is_sep(self[i])) {
+				last = i;
+				found = true;
+			}
+		}
+		if (!found) return "";
+		return self.slice(0, last);
+	}
+
+	// File name part of a path (input with separators included).
+	pub fn base_name(val self): str {
+		var start: usz = 0;
+		for (i in 0..<self.len) {
+			if (str_is_sep(self[i])) start = i + 1;
+		}
+		return self.slice(start);
+	}
+
+	// Joins a directory and a relative path with a single '/' separator.
+	pub fn join_path(val self, rel: str): str {
+		if (self.len == 0UZ) return rel;
+		if (str_is_sep(self[self.len - 1UZ])) return "${self}${rel}";
+		return "${self}/${rel}";
+	}
+
+	pub fn split_dots(val self): List<str> {
+		var parts = List<str>();
+		var start: usz = 0;
+		for (i in 0..<self.len) {
+			if (self[i] == '.') {
+				parts.add(self.slice(start, i));
+				start = i + 1;
+			}
+		}
+		parts.add(self.slice(start));
+		return parts;
+	}
+
+	// Builds the C identifier used for a top-level symbol of `module_name`.
+	// "std.io" + "println" -> "std__io__println"
+	pub fn mangle_symbol(val self, name: str): str {
+		if (self.len == 0) return name;
+		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
+		val total = self.len * 2 + 2 + name.len;
+		val buf = raw_alloc(total + 1);
+
+		var w = 0UZ;
+		for (c in self) {
+			when (c) {
+				'.' -> {
+					buf[w] = '_' as u8;
+					buf[w + 1] = '_' as u8;
+					w += 2;
+				}
+				'_', '-' -> {
+					// keep '_' as is, map '-' to '_' to stay a valid C identifier
+					buf[w] = '_' as u8;
+					w++;
+				}
+				else -> {
+					buf[w] = c as u8;
+					w++;
+				}
+			}
+		}
+
+		buf[w] = '_' as u8;
+		buf[w + 1] = '_' as u8;
+		w += 2;
+		for (c in name) {
+			buf[w] = c as u8;
+			w++;
+		}
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
+
+	pub fn starts_with(val self, prefix: str): bool {
+		if (self.len < prefix.len) return false;
+		return self.slice(0, prefix.len) == prefix;
+	}
+
+	pub fn ends_with(val self, suffix: str): bool {
+		if (self.len < suffix.len) return false;
+		return self.slice(self.len - suffix.len, self.len) == suffix;
+	}
+
+	pub fn normalize_path(val self): str {
+		val buf = raw_alloc(self.len + 1);
+		for (i in 0UZ..<self.len) {
+			val c = self[i];
+			if (c == '\\') {
+				buf[i] = '/' as u8;
+			} else if (c >= 'A' && c <= 'Z') {
+				buf[i] = ((c as i32) + 32) as u8;
+			} else {
+				buf[i] = c as u8;
+			}
+		}
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
+	pub fn strip_suffix(val self, n: usz): str => if (self.len <= n) "" else self.slice(0, self.len - n);
 }
 
-// File name part of a path (input with separators included).
-pub fn str_base_name(path: str): str {
-	var start: usz = 0;
-	for (i in 0..<path.len) {
-		if (str_is_sep(path[i])) start = i + 1;
-	}
-	return path.slice(start);
-}
+pub fn str_module_to_rel(module_name: str): str => module_name.module_to_rel();
 
-// Joins a directory and a relative path with a single '/' separator.
-pub fn str_join_path(dir: str, rel: str): str {
-	if (dir.len == 0UZ) return rel;
-	if (str_is_sep(dir[dir.len - 1UZ])) return "${dir}${rel}";
-	return "${dir}/${rel}";
-}
+pub fn str_path_to_module(rel_path: str): str => rel_path.path_to_module();
+
+pub fn str_has_kb_suffix(path: str): bool => path.has_kb_suffix();
+
+pub fn str_strip_kb(path: str): str => path.strip_kb();
+
+pub fn str_dir_of(path: str): str => path.dir_of();
+
+pub fn str_base_name(path: str): str => path.base_name();
+
+pub fn str_join_path(dir: str, rel: str): str => dir.join_path(rel);
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
 	var total: usz = 0;
@@ -128,80 +224,12 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	return str_from_bytes(buf, w);
 }
 
-pub fn str_split_dots(s: str): List<str> {
-	var parts = List<str>();
-	var start: usz = 0;
-	for (i in 0..<s.len) {
-		if (s[i] == '.') {
-			parts.add(s.slice(start, i));
-			start = i + 1;
-		}
-	}
-	parts.add(s.slice(start));
-	return parts;
-}
+pub fn str_split_dots(s: str): List<str> => s.split_dots();
 
-// Builds the C identifier used for a top-level symbol of `module_name`.
-// "std.io" + "println" -> "std__io__println"
-pub fn str_mangle_symbol(module_name: str, name: str): str {
-	if (module_name.len == 0) return name;
-	// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
-	val total = module_name.len * 2 + 2 + name.len;
-	val buf = raw_alloc(total + 1);
+pub fn str_mangle_symbol(module_name: str, name: str): str => module_name.mangle_symbol(name);
 
-	var w = 0UZ;
-	for (c in module_name) {
-		when (c) {
-			'.' -> {
-				buf[w] = '_' as u8;
-				buf[w + 1] = '_' as u8;
-				w += 2;
-			}
-			'_', '-' -> {
-				// keep '_' as is, map '-' to '_' to stay a valid C identifier
-				buf[w] = '_' as u8;
-				w++;
-			}
-			else -> {
-				buf[w] = c as u8;
-				w++;
-			}
-		}
-	}
+pub fn str_starts_with(s: str, prefix: str): bool => s.starts_with(prefix);
 
-	buf[w] = '_' as u8;
-	buf[w + 1] = '_' as u8;
-	w += 2;
-	for (c in name) {
-		buf[w] = c as u8;
-		w++;
-	}
-	buf[w] = 0;
-	return str_from_bytes(buf, w);
-}
+pub fn str_ends_with(s: str, suffix: str): bool => s.ends_with(suffix);
 
-pub fn str_starts_with(s: str, prefix: str): bool {
-	if (s.len < prefix.len) return false;
-	return s.slice(0, prefix.len) == prefix;
-}
-
-pub fn str_ends_with(s: str, suffix: str): bool {
-	if (s.len < suffix.len) return false;
-	return s.slice(s.len - suffix.len, s.len) == suffix;
-}
-
-pub fn str_normalize_path(p: str): str {
-	val buf = raw_alloc(p.len + 1);
-	for (i in 0UZ..<p.len) {
-		val c = p[i];
-		if (c == '\\') {
-			buf[i] = '/' as u8;
-		} else if (c >= 'A' && c <= 'Z') {
-			buf[i] = ((c as i32) + 32) as u8;
-		} else {
-			buf[i] = c as u8;
-		}
-	}
-	buf[p.len] = 0;
-	return str_from_bytes(buf, p.len);
-}
+pub fn str_normalize_path(p: str): str => p.normalize_path();
