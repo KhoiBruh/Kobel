@@ -1,15 +1,15 @@
 mod std.ascii;
 
 impl char {
-	pub fn is_digit(val self): bool => self >= '0' && self <= '9';
+	pub fn is_digit(val self) => self >= '0' && self <= '9';
 
-	pub fn is_alpha(val self): bool => (self >= 'a' && self <= 'z') || (self >= 'A' && self <= 'Z');
+	pub fn is_alpha(val self) => (self >= 'a' && self <= 'z') || (self >= 'A' && self <= 'Z');
 
-	pub fn is_alphanumeric(val self): bool => self.is_alpha() || self.is_digit();
+	pub fn is_alphanumeric(val self) => self.is_alpha() || self.is_digit();
 
-	pub fn is_whitespace(val self): bool => self == ' ' || self == '\t' || self == '\n' || self == '\r';
+	pub fn is_whitespace(val self) => self == ' ' || self == '\t' || self == '\n' || self == '\r';
 
-	pub fn is_hex_digit(val self): bool => self.is_digit() || (self >= 'a' && self <= 'f') || (self >= 'A' && self <= 'F');
+	pub fn is_hex_digit(val self) => self.is_digit() || (self >= 'a' && self <= 'f') || (self >= 'A' && self <= 'F');
 
 	pub fn to_lower(val self): char {
 		if (self >= 'A' && self <= 'Z') {
