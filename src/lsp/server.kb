@@ -42,7 +42,7 @@ pub fn run_server(): i32 {
 
 	while (true) {
 		val raw_msg = read_message();
-		if (raw_msg.len == 0UZ) break; // EOF: editor closed pipe
+		if (raw_msg.len == 0) break; // EOF: editor closed pipe
 
 		val msg = parse_json(raw_msg);
 		if (!msg.is_obj()) continue;
@@ -62,8 +62,8 @@ pub fn run_server(): i32 {
 						workspace_root = root_path;
 					} else {
 						val wf = params.get_arr("workspaceFolders");
-						if (wf.count() > 0UZ) {
-							val wf_first = wf.at(0UZ);
+						if (wf.count() > 0) {
+							val wf_first = wf.at(0);
 							val wf_uri = wf_first.get_str("uri", "");
 							if (wf_uri.len > 0) workspace_root = uri_to_path(wf_uri);
 						}
@@ -80,7 +80,7 @@ pub fn run_server(): i32 {
 				// - documentFormattingProvider: true
 				// - documentSymbolProvider: true
 				// - completionProvider: triggers on '.' and ':'
-				caps.set("textDocumentSync", json_num(1L));
+				caps.set("textDocumentSync", json_num(1));
 				caps.set("hoverProvider", json_bool(true));
 				caps.set("definitionProvider", json_bool(true));
 				caps.set("documentFormattingProvider", json_bool(true));
@@ -120,7 +120,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val text = text_doc.get_str("text", "");
-				val version = text_doc.get_num("version", 0L);
+				val version = text_doc.get_num("version", 0);
 
 				docs.set(uri, text, version);
 				publish_doc_diagnostics(uri, text, workspace_root);
@@ -129,10 +129,10 @@ pub fn run_server(): i32 {
 			"textDocument/didChange" -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val version = text_doc.get_num("version", 0L);
+				val version = text_doc.get_num("version", 0);
 				val changes = params.get_arr("contentChanges");
-				if (changes.count() > 0UZ) {
-					val new_text = changes.at(0UZ).get_str("text", "");
+				if (changes.count() > 0) {
+					val new_text = changes.at(0).get_str("text", "");
 					docs.set(uri, new_text, version);
 					publish_doc_diagnostics(uri, new_text, workspace_root);
 				}
@@ -154,11 +154,11 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val pos = params.get_obj("position");
-				val line = pos.get_num("line", 0L) as usz;
-				val char_col = pos.get_num("character", 0L) as usz;
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
 
 				val doc = docs.get(uri);
-				if (doc.text.len > 0UZ) {
+				if (doc.text.len > 0) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
@@ -171,11 +171,11 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val pos = params.get_obj("position");
-				val line = pos.get_num("line", 0L) as usz;
-				val char_col = pos.get_num("character", 0L) as usz;
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
 
 				val doc = docs.get(uri);
-				if (doc.text.len > 0UZ) {
+				if (doc.text.len > 0) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
@@ -188,7 +188,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0UZ) {
+				if (doc.text.len > 0) {
 					val edits = format_document(doc.text);
 					send_response(id, edits);
 				} else {
@@ -200,7 +200,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0UZ) {
+				if (doc.text.len > 0) {
 					val syms = document_symbols(doc.text);
 					send_response(id, syms);
 				} else {
@@ -212,7 +212,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0UZ) {
+				if (doc.text.len > 0) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val items = analysis.complete_at();
 					send_response(id, items);
@@ -225,7 +225,7 @@ pub fn run_server(): i32 {
 
 			else -> {
 				if (id != null && !id.is_null()) {
-					send_error(id, -32601L, "Method '${method}' not found");
+					send_error(id, -32601, "Method '${method}' not found");
 				}
 			}
 		}

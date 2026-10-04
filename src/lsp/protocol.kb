@@ -69,7 +69,7 @@ pub fn send_notification(method: str, params: *JsonValue) {
 // ============================================================================
 
 pub fn read_message(): str {
-	var content_length: usz = 0UZ;
+	var content_length = 0UZ;
 
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
@@ -96,24 +96,24 @@ pub fn read_message(): str {
 		header_line.delete();
 
 		// Blank line marks the end of headers
-		if (line.len == 0UZ) break;
+		if (line.len == 0) break;
 
 		// Check for Content-Length (case-insensitive)
 		val prefix = "content-length:";
 		if (line.len > prefix.len) {
 			var matches = true;
-			for (i in 0UZ..<prefix.len) {
+			for (i in 0..<prefix.len) {
 				if (line[i].to_lower() != prefix[i]) {
 					matches = false;
 					break;
 				}
 			}
 			if (matches) {
-				var n: usz = 0UZ;
+				var n = 0UZ;
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
 					if (c.is_digit()) {
-						n = n * 10UZ + (((c as i32) - 48) as usz);
+						n = n * 10 + (((c as i32) - 48) as usz);
 					}
 				}
 				content_length = n;
@@ -121,11 +121,11 @@ pub fn read_message(): str {
 		}
 	}
 
-	if (content_length == 0UZ) return "";
+	if (content_length == 0) return "";
 
 	// 2. Read exactly content_length bytes
 	val buf = raw_alloc(content_length + 1);
-	for (i in 0UZ..<content_length) {
+	for (i in 0..<content_length) {
 		val ch = getchar();
 		if (ch < 0) {
 			raw_release(buf);

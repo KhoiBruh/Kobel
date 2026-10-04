@@ -39,18 +39,18 @@ pub struct LspDiagnostic {
 }
 
 pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
-	var line: usz = 1UZ;
-	var col: usz = 1UZ;
-	var msg_start: usz = 0UZ;
+	var line: usz = 1;
+	var col: usz = 1;
+	var msg_start: usz = 0;
 
 	// Look for "Line "
 	val line_tag = "Line ";
-	var line_idx: usz = 0UZ;
+	var line_idx: usz = 0;
 	var found_line = false;
 	if (err_str.len >= line_tag.len) {
-		for (i in 0UZ..(err_str.len - line_tag.len)) {
+		for (i in 0..(err_str.len - line_tag.len)) {
 			var m = true;
-			for (k in 0UZ..<line_tag.len) {
+			for (k in 0..<line_tag.len) {
 				if (err_str[i + k] != line_tag[k]) {
 					m = false;
 					break;
@@ -65,22 +65,22 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 	}
 
 	if (found_line) {
-		var n: usz = 0UZ;
+		var n: usz = 0;
 		var idx = line_idx;
 		while (idx < err_str.len && err_str[idx].is_digit()) {
-			n = n * 10UZ + (((err_str[idx] as i32) - 48) as usz);
+			n = n * 10 + (((err_str[idx] as i32) - 48) as usz);
 			idx++;
 		}
-		if (n > 0UZ) line = n;
+		if (n > 0) line = n;
 
 		// Look for "Column "
 		val col_tag = "Column ";
-		var col_idx: usz = 0UZ;
+		var col_idx: usz = 0;
 		var found_col = false;
 		if (err_str.len >= idx + col_tag.len) {
 			for (i in idx..<(err_str.len - col_tag.len)) {
 				var m = true;
-				for (k in 0UZ..<col_tag.len) {
+				for (k in 0..<col_tag.len) {
 					if (err_str[i + k] != col_tag[k]) {
 						m = false;
 						break;
@@ -95,13 +95,13 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 		}
 
 		if (found_col) {
-			var cn: usz = 0UZ;
+			var cn: usz = 0;
 			var c_idx = col_idx;
 			while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
-				cn = cn * 10UZ + (((err_str[c_idx] as i32) - 48) as usz);
+				cn = cn * 10 + (((err_str[c_idx] as i32) - 48) as usz);
 				c_idx++;
 			}
-			if (cn > 0UZ) col = cn;
+			if (cn > 0) col = cn;
 
 			// Skip ": "
 			while (c_idx < err_str.len && (err_str[c_idx] == ':' || err_str[c_idx] == ' ')) {
@@ -113,18 +113,18 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 
 	val actual_msg = if (msg_start < err_str.len) err_str.slice(msg_start, err_str.len) else err_str;
 
-	val l0 = if (line > 0UZ) line - 1UZ else 0UZ;
-	val c0 = if (col > 0UZ) col - 1UZ else 0UZ;
+	val l0 = if (line > 0) line - 1 else 0;
+	val c0 = if (col > 0) col - 1 else 0;
 
-	var end_col = c0 + 1UZ;
-	if (source.len > 0UZ) {
-		var cur_line: usz = 0UZ;
-		var line_start: usz = 0UZ;
-		var pos: usz = 0UZ;
+	var end_col = c0 + 1;
+	if (source.len > 0) {
+		var cur_line: usz = 0;
+		var line_start: usz = 0;
+		var pos: usz = 0;
 		while (pos < source.len && cur_line < l0) {
 			if (source[pos] == '\n') {
 				cur_line++;
-				line_start = pos + 1UZ;
+				line_start = pos + 1;
 			}
 			pos++;
 		}
@@ -137,8 +137,8 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 
 			val char_idx = line_start + c0;
 			if (char_idx < line_end) {
-				if (source[char_idx] == 'u' && (char_idx + 3UZ <= line_end) &&
-				    source[char_idx + 1UZ] == 's' && source[char_idx + 2UZ] == 'e') {
+				if (source[char_idx] == 'u' && (char_idx + 3 <= line_end) &&
+				    source[char_idx + 1] == 's' && source[char_idx + 2] == 'e') {
 					var s_idx = char_idx;
 					while (s_idx < line_end && source[s_idx] != ';') {
 						s_idx++;
@@ -156,9 +156,9 @@ pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
 		}
 	}
 
-	if (end_col <= c0) end_col = c0 + 1UZ;
+	if (end_col <= c0) end_col = c0 + 1;
 
-	return LspDiagnostic(l0, c0, l0, end_col, 1L, actual_msg);
+	return LspDiagnostic(l0, c0, l0, end_col, 1, actual_msg);
 }
 
 impl LspDiagnostic {
@@ -185,13 +185,13 @@ impl LspDiagnostic {
 }
 
 pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
-	if (prefix.len == 0UZ) return true;
+	if (prefix.len == 0) return true;
 
 	// Check if prefix matches doc_mod (e.g. "lsp.analysis")
-	if (doc_mod.len > 0UZ && prefix == doc_mod) return true;
+	if (doc_mod.len > 0 && prefix == doc_mod) return true;
 
 	// Check if prefix matches doc_path (e.g. "C:/.../src/lsp/analysis.kb")
-	if (doc_path.len > 0UZ) {
+	if (doc_path.len > 0) {
 		val norm_p = prefix.normalize_path();
 		val norm_d = doc_path.normalize_path();
 
@@ -199,13 +199,13 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 
 		// If norm_d ends with norm_p (e.g. norm_d is "c:/users/.../src/lsp/analysis.kb" and norm_p is "src/lsp/analysis.kb")
 		if (norm_d.len > norm_p.len && norm_d.ends_with(norm_p)) {
-			val sep_char = norm_d[norm_d.len - norm_p.len - 1UZ];
+			val sep_char = norm_d[norm_d.len - norm_p.len - 1];
 			if (sep_char == '/') return true;
 		}
 
 		// If norm_p ends with norm_d
 		if (norm_p.len > norm_d.len && norm_p.ends_with(norm_d)) {
-			val sep_char = norm_p[norm_p.len - norm_d.len - 1UZ];
+			val sep_char = norm_p[norm_p.len - norm_d.len - 1];
 			if (sep_char == '/') return true;
 		}
 
@@ -221,12 +221,12 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 	// Look for "Line "
 	val line_tag = "Line ";
-	var line_idx: usz = 0UZ;
+	var line_idx: usz = 0;
 	var found_line = false;
 	if (err_str.len >= line_tag.len) {
-		for (i in 0UZ..(err_str.len - line_tag.len)) {
+		for (i in 0..(err_str.len - line_tag.len)) {
 			var m = true;
-			for (k in 0UZ..<line_tag.len) {
+			for (k in 0..<line_tag.len) {
 				if (err_str[i + k] != line_tag[k]) {
 					m = false;
 					break;
@@ -242,9 +242,9 @@ pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 
 	if (!found_line) {
 		// No "Line " in message. Check if message has a prefix before ": "
-		var colon_idx: usz = 0UZ;
+		var colon_idx: usz = 0;
 		var found_colon = false;
-		for (i in 0UZ..<err_str.len) {
+		for (i in 0..<err_str.len) {
 			if (err_str[i] == ':') {
 				colon_idx = i;
 				found_colon = true;
@@ -255,20 +255,20 @@ pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 			// No module or file prefix at all; assume it's for the current document
 			return true;
 		}
-		val prefix = err_str.slice(0UZ, colon_idx);
+		val prefix = err_str.slice(0, colon_idx);
 		return match_doc_prefix(prefix, doc_mod, doc_path);
 	}
 
-	if (line_idx == 0UZ) {
+	if (line_idx == 0) {
 		// Error starts directly with "Line " (no prefix) -> belongs to current doc
 		return true;
 	}
 
 	// There is a prefix before "Line "
-	var prefix = err_str.slice(0UZ, line_idx);
+	var prefix = err_str.slice(0, line_idx);
 	// Trim trailing spaces and colons: e.g. "lsp.analysis: " -> "lsp.analysis"
-	while (prefix.len > 0UZ && (prefix[prefix.len - 1UZ] == ' ' || prefix[prefix.len - 1UZ] == ':')) {
-		prefix = prefix.slice(0UZ, prefix.len - 1UZ);
+	while (prefix.len > 0 && (prefix[prefix.len - 1] == ' ' || prefix[prefix.len - 1] == ':')) {
+		prefix = prefix.slice(0, prefix.len - 1);
 	}
 
 	return match_doc_prefix(prefix, doc_mod, doc_path);
@@ -295,9 +295,9 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 	// Check for unknown tokens
 	for (tok in tokens) {
 		if (tok.type == TokenType.UNKNOWN) {
-			val l0 = if (tok.line > 0UZ) tok.line - 1UZ else 0UZ;
-			val c0 = if (tok.col > 0UZ) tok.col - 1UZ else 0UZ;
-			diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1UZ, 1L, "Unrecognized character or syntax"));
+			val l0 = if (tok.line > 0) tok.line - 1 else 0;
+			val c0 = if (tok.col > 0) tok.col - 1 else 0;
+			diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1, 1L, "Unrecognized character or syntax"));
 		}
 	}
 
@@ -314,14 +314,14 @@ pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisRe
 	}
 
 	var doc_mod = prog.to<Program>().declared_module_name();
-	if (doc_mod.len == 0UZ) {
+	if (doc_mod.len == 0) {
 		doc_mod = path.base_name().path_to_module();
 	}
 
 	// 3. Module loading & semantic analysis (DeclPass)
 	val entry_dir = path.dir_of();
 	var extra_roots = List<str>();
-	if (workspace_root.len > 0UZ) {
+	if (workspace_root.len > 0) {
 		extra_roots.add(workspace_root);
 		extra_roots.add(workspace_root.join_path("lib"));
 		extra_roots.add(workspace_root.join_path("src"));
@@ -380,7 +380,7 @@ pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): To
 			}
 		}
 	}
-	return Token(TokenType.UNKNOWN, "", 0UZ, 0UZ);
+	return Token(TokenType.UNKNOWN, "", 0, 0);
 }
 
 pub fn keyword_hover(kw: str): str => when (kw) {
@@ -413,7 +413,7 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 	val item = json_obj();
 	item.set("label", json_str(label));
 	item.set("kind", json_num(kind));
-	if (detail.len > 0UZ) {
+	if (detail.len > 0) {
 		item.set("detail", json_str(detail));
 	}
 	arr.add(item);
@@ -422,15 +422,15 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 impl AnalysisResult {
 
 	pub fn hover_at(val self, line0: usz, col0: usz): *JsonValue {
-		val target_line = line0 + 1UZ;
-		val target_col = col0 + 1UZ;
+		val target_line = line0 + 1;
+		val target_col = col0 + 1;
 
 		val tok = find_token_at(self.tokens, target_line, target_col);
-		if (tok.type == TokenType.UNKNOWN || tok.text.len == 0UZ) return json_null();
+		if (tok.type == TokenType.UNKNOWN || tok.text.len == 0) return json_null();
 
 		// 1. Check keywords
 		val kw_doc = keyword_hover(tok.text);
-		if (kw_doc.len > 0UZ) {
+		if (kw_doc.len > 0) {
 			val res = json_obj();
 			val contents = json_obj();
 			contents.set("kind", json_str("markdown"));
@@ -486,25 +486,25 @@ impl AnalysisResult {
 // ============================================================================
 
 	pub fn definition_at(val self, doc_uri: str, line0: usz, col0: usz): *JsonValue {
-		val target_line = line0 + 1UZ;
-		val target_col = col0 + 1UZ;
+		val target_line = line0 + 1;
+		val target_col = col0 + 1;
 
 		val tok = find_token_at(self.tokens, target_line, target_col);
-		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0UZ) return json_null();
+		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0) return json_null();
 
 		if (self.has_symtab) {
 			val sym = self.symtab.lookup(tok.text);
-			if (sym != null && sym.line > 0UZ) {
+			if (sym != null && sym.line > 0) {
 				val res = json_obj();
 				res.set("uri", json_str(doc_uri));
 
 				val range = json_obj();
 				val start_pos = json_obj();
-				start_pos.set("line", json_num((sym.line - 1UZ) as i64));
-				start_pos.set("character", json_num((sym.col - 1UZ) as i64));
+				start_pos.set("line", json_num((sym.line - 1) as i64));
+				start_pos.set("character", json_num((sym.col - 1) as i64));
 				val end_pos = json_obj();
-				end_pos.set("line", json_num((sym.line - 1UZ) as i64));
-				end_pos.set("character", json_num((sym.col - 1UZ + sym.name.len) as i64));
+				end_pos.set("line", json_num((sym.line - 1) as i64));
+				end_pos.set("character", json_num((sym.col - 1 + sym.name.len) as i64));
 				range.set("start", start_pos);
 				range.set("end", end_pos);
 
@@ -638,13 +638,13 @@ pub fn document_symbols(source: str): *JsonValue {
 			else -> {}
 		}
 
-		if (sym_name.len > 0UZ) {
+		if (sym_name.len > 0) {
 			val item = json_obj();
 			item.set("name", json_str(sym_name));
 			item.set("kind", json_num(sym_kind));
 
-			val l0 = if (decl.line > 0UZ) decl.line - 1UZ else 0UZ;
-			val c0 = if (decl.col > 0UZ) decl.col - 1UZ else 0UZ;
+			val l0 = if (decl.line > 0) decl.line - 1 else 0;
+			val c0 = if (decl.col > 0) decl.col - 1 else 0;
 
 			val range = json_obj();
 			val s_pos = json_obj();
@@ -671,7 +671,7 @@ pub fn document_symbols(source: str): *JsonValue {
 // ============================================================================
 
 pub fn format_document(text: str): *JsonValue {
-	val options = default_format_options();
+	val options = FormatOptions();
 	val formatted = format_source(text, options);
 
 	val edits = json_arr();

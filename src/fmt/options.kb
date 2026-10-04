@@ -11,4 +11,6 @@ pub struct FormatOptions {
 	pub k_and_r_braces: bool
 }
 
-pub fn default_format_options() => FormatOptions(4UZ, true, 100UZ, true);
+impl FormatOptions {
+	pub fn new() => Self(4, true, 100, true);
+}

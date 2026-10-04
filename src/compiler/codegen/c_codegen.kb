@@ -44,9 +44,9 @@ impl CCodeGen {
 		false
 	);
 
-	pub fn is_pointer_var(val self, name: str): bool => name.in_list(self.pointer_vars);
+	pub fn is_pointer_var(val self, name: str) => name.in_list(self.pointer_vars);
 
-	pub fn is_str_var(val self, name: str): bool => name.in_list(self.str_vars);
+	pub fn is_str_var(val self, name: str) => name.in_list(self.str_vars);
 
 	pub fn lookup_fn_ret_type(val self, name: str): str {
 		val idx = name.index_in_list(self.fn_names);

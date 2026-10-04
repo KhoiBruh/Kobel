@@ -18,27 +18,27 @@ pub struct Document {
 
 pub fn uri_to_path(uri: str): str {
 	var s = uri;
-	if (s.len >= 8UZ && s.slice(0, 8) == "file:///") {
+	if (s.len >= 8 && s.slice(0, 8) == "file:///") {
 		s = s.slice(8, s.len);
-	} else if (s.len >= 7UZ && s.slice(0, 7) == "file://") {
+	} else if (s.len >= 7 && s.slice(0, 7) == "file://") {
 		s = s.slice(7, s.len);
 	}
 
 	var sb = StringBuilder();
-	var i: usz = 0UZ;
+	var i: usz = 0;
 	while (i < s.len) {
 		val c = s[i];
-		if (c == '%' && i + 2UZ < s.len) {
-			val h1 = s[i + 1UZ];
-			val h2 = s[i + 2UZ];
+		if (c == '%' && i + 2 < s.len) {
+			val h1 = s[i + 1];
+			val h2 = s[i + 2];
 			if (h1 == '3' && (h2 == 'a' || h2 == 'A')) {
 				sb.append_char(':');
-				i += 3UZ;
+				i += 3;
 				continue;
 			}
 			if (h1 == '2' && h2 == '0') {
 				sb.append_char(' ');
-				i += 3UZ;
+				i += 3;
 				continue;
 			}
 		}
@@ -71,14 +71,14 @@ impl DocumentStore {
 		for (d in self.docs) {
 			if (d.uri == uri) return d;
 		}
-		return Document("", "", "", 0L);
+		return Document("", "", "", 0);
 	}
 
 	pub fn has(self, uri: str): bool => self.get(uri).uri != "";
 
 	pub fn set(var self, uri: str, text: str, version: i64) {
 		val p = uri_to_path(uri);
-		for (i in 0UZ..<self.docs.len) {
+		for (i in 0..<self.docs.len) {
 			if (self.docs[i].uri == uri) {
 				self.docs[i] = Document(uri, p, text, version);
 				return;

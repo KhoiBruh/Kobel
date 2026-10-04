@@ -40,17 +40,17 @@ pub fn json_box(v: JsonValue): *JsonValue {
 	return p as *JsonValue;
 }
 
-fn json_make(kind: JsonKind, b: bool, n: i64, s: str): *JsonValue => json_box(JsonValue(
+fn json_make(kind: JsonKind, b: bool, n: i64, s: str) => json_box(JsonValue(
 	kind, b, n, s,
 	List<*JsonValue>(), List<str>(), List<*JsonValue>()
 ));
 
-pub fn json_null(): *JsonValue => json_make(JsonKind.JNULL, false, 0L, "");
-pub fn json_bool(b: bool): *JsonValue => json_make(JsonKind.JBOOL, b, 0L, "");
-pub fn json_num(n: i64): *JsonValue => json_make(JsonKind.JNUM, false, n, "");
-pub fn json_str(s: str): *JsonValue => json_make(JsonKind.JSTR, false, 0L, s);
-pub fn json_arr(): *JsonValue => json_make(JsonKind.JARR, false, 0L, "");
-pub fn json_obj(): *JsonValue => json_make(JsonKind.JOBJ, false, 0L, "");
+pub fn json_null() => json_make(JsonKind.JNULL, false, 0, "");
+pub fn json_bool(b: bool) => json_make(JsonKind.JBOOL, b, 0, "");
+pub fn json_num(n: i64) => json_make(JsonKind.JNUM, false, n, "");
+pub fn json_str(s: str) => json_make(JsonKind.JSTR, false, 0, s);
+pub fn json_arr() => json_make(JsonKind.JARR, false, 0, "");
+pub fn json_obj() => json_make(JsonKind.JOBJ, false, 0, "");
 
 // ============================================================================
 // Serialization Helpers
@@ -58,7 +58,7 @@ pub fn json_obj(): *JsonValue => json_make(JsonKind.JOBJ, false, 0L, "");
 
 fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 	sb.append_char('"');
-	for (i in 0UZ..<s.len) {
+	for (i in 0..<s.len) {
 		val c = s[i];
 		when (c) {
 			'"' -> sb.append_str("\\\"");
@@ -94,16 +94,16 @@ impl JsonValue {
 			JsonKind.JSTR -> append_json_escaped_str(sb, self.str_val);
 			JsonKind.JARR -> {
 				sb.append_char('[');
-				for (i in 0UZ..<self.arr_val.len) {
-					if (i > 0UZ) sb.append_char(',');
+				for (i in 0..<self.arr_val.len) {
+					if (i > 0) sb.append_char(',');
 					self.arr_val[i].serialize_to(sb);
 				}
 				sb.append_char(']');
 			}
 			JsonKind.JOBJ -> {
 				sb.append_char('{');
-				for (i in 0UZ..<self.obj_keys.len) {
-					if (i > 0UZ) sb.append_char(',');
+				for (i in 0..<self.obj_keys.len) {
+					if (i > 0) sb.append_char(',');
 					append_json_escaped_str(sb, self.obj_keys[i]);
 					sb.append_char(':');
 					self.obj_vals[i].serialize_to(sb);
@@ -121,14 +121,12 @@ impl JsonValue {
 	pub fn is_obj(val self) => self != null && self.kind == JsonKind.JOBJ;
 
 	pub fn add(var self, val_item: *JsonValue) {
-		if (self.kind == JsonKind.JARR) {
-			self.arr_val.add(val_item);
-		}
+		if (self.kind == JsonKind.JARR) self.arr_val.add(val_item);
 	}
 
 	pub fn set(var self, key: str, val_item: *JsonValue) {
 		if (self.kind == JsonKind.JOBJ) {
-			for (i in 0UZ..<self.obj_keys.len) {
+			for (i in 0..<self.obj_keys.len) {
 				if (self.obj_keys[i] == key) {
 					self.obj_vals[i] = val_item;
 					return;
@@ -141,7 +139,7 @@ impl JsonValue {
 
 	pub fn get(val self, key: str): *JsonValue {
 		if (self != null && self.kind == JsonKind.JOBJ) {
-			for (i in 0UZ..<self.obj_keys.len) {
+			for (i in 0..<self.obj_keys.len) {
 				if (self.obj_keys[i] == key) {
 					return self.obj_vals[i];
 				}
@@ -181,17 +179,19 @@ impl JsonValue {
 	}
 
 	pub fn at(val self, index: usz): *JsonValue {
-		if (self != null && self.kind == JsonKind.JARR && index < self.arr_val.len) {
-			return self.arr_val[index];
-		}
+		if (
+			self != null &&
+			self.kind == JsonKind.JARR &&
+			index < self.arr_val.len
+		) return self.arr_val[index];
 		return json_null();
 	}
 
 	pub fn count(val self): usz {
-		if (self == null) return 0UZ;
+		if (self == null) return 0;
 		if (self.kind == JsonKind.JARR) return self.arr_val.len;
 		if (self.kind == JsonKind.JOBJ) return self.obj_keys.len;
-		return 0UZ;
+		return 0;
 	}
 
 	pub fn serialize(val self): str {
@@ -215,11 +215,11 @@ pub struct JsonParser {
 
 impl JsonParser {
 
-	pub fn new(src: str): JsonParser => Self(src, 0UZ);
+	pub fn new(src: str) => Self(src, 0);
 
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
-	pub fn peek(val self): char => if (self.is_end()) '\0' else self.src[self.cursor];
+	pub fn peek(val self) => if (self.is_end()) '\0' else self.src[self.cursor];
 
 	pub fn advance(var self): char {
 		val c = self.peek();
@@ -232,9 +232,7 @@ impl JsonParser {
 			val c = self.peek();
 			if (c.is_whitespace()) {
 				self.advance();
-			} else {
-				break;
-			}
+			} else break;
 		}
 	}
 
@@ -255,8 +253,8 @@ impl JsonParser {
 					'r' -> sb.append_char('\r');
 					't' -> sb.append_char('\t');
 					'u' -> {
-						var u_count: usz = 0UZ;
-						while (u_count < 4UZ && !self.is_end()) {
+						var u_count: usz = 0;
+						while (u_count < 4 && !self.is_end()) {
 							self.advance();
 							u_count++;
 						}
@@ -264,9 +262,7 @@ impl JsonParser {
 					}
 					else -> sb.append_char(esc);
 				}
-			} else {
-				sb.append_char(c);
-			}
+			} else sb.append_char(c);
 		}
 		val res = sb.to_str();
 		sb.delete();
@@ -274,16 +270,16 @@ impl JsonParser {
 	}
 
 	pub fn parse_number(var self): i64 {
-		var sign: i64 = 1L;
+		var sign = 1L;
 		if (self.peek() == '-') {
-			sign = -1L;
+			sign = -1;
 			self.advance();
 		}
-		var val_num: i64 = 0L;
+		var val_num = 0L;
 		while (!self.is_end() && self.peek().is_digit()) {
 			val c = self.advance();
-			val d: i64 = ((c as i32) - 48) as i64;
-			val_num = val_num * 10L + d;
+			val d = ((c as i32) - 48) as i64;
+			val_num = val_num * 10 + d;
 		}
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
@@ -314,16 +310,12 @@ impl JsonParser {
 			val item = self.parse_value();
 			res.add(item);
 			self.skip_whitespace();
-			if (!self.is_end() && self.peek() == ',') {
-				self.advance();
-			} else {
-				break;
-			}
+
+			if (!self.is_end() && self.peek() == ',') self.advance();
+			else break;
 		}
 		self.skip_whitespace();
-		if (!self.is_end() && self.peek() == ']') {
-			self.advance();
-		}
+		if (!self.is_end() && self.peek() == ']') self.advance();
 		return res;
 	}
 
@@ -335,53 +327,52 @@ impl JsonParser {
 			self.advance();
 			return res;
 		}
+
 		while (!self.is_end()) {
 			self.skip_whitespace();
 			if (self.is_end() || self.peek() != '"') break;
 			val key = self.parse_string();
 			self.skip_whitespace();
-			if (!self.is_end() && self.peek() == ':') {
-				self.advance();
-			}
+
+			if (!self.is_end() && self.peek() == ':') self.advance();
 			self.skip_whitespace();
+
 			val val_item = self.parse_value();
 			res.set(key, val_item);
+
 			self.skip_whitespace();
-			if (!self.is_end() && self.peek() == ',') {
-				self.advance();
-			} else {
-				break;
-			}
+			if (!self.is_end() && self.peek() == ',') self.advance();
+			else break;
 		}
+
 		self.skip_whitespace();
-		if (!self.is_end() && self.peek() == '}') {
-			self.advance();
-		}
+		if (!self.is_end() && self.peek() == '}') self.advance();
 		return res;
 	}
 
 	pub fn parse_value(var self): *JsonValue {
 		self.skip_whitespace();
 		if (self.is_end()) return json_null();
+
 		val c = self.peek();
 		if (c == '"') return json_str(self.parse_string());
 		if (c == '{') return self.parse_object();
 		if (c == '[') return self.parse_array();
 		if (c == '-' || c.is_digit()) return json_num(self.parse_number());
 		if (c == 't') {
-			for (i in 0UZ..<4UZ) {
+			for (i in 0..<4) {
 				if (!self.is_end()) self.advance();
 			}
 			return json_bool(true);
 		}
 		if (c == 'f') {
-			for (i in 0UZ..<5UZ) {
+			for (i in 0..<5) {
 				if (!self.is_end()) self.advance();
 			}
 			return json_bool(false);
 		}
 		if (c == 'n') {
-			for (i in 0UZ..<4UZ) {
+			for (i in 0..<4) {
 				if (!self.is_end()) self.advance();
 			}
 			return json_null();

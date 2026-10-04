@@ -20,7 +20,6 @@ use util.strutil.*;
 // Generic declarations are templates: monomorphized instances are appended by
 // the semantic analyzer, so the backend must skip the templates themselves.
 
-
 impl CCodeGen {
 
 	pub fn gen_program(var self, program_node: *AstNode): str {
