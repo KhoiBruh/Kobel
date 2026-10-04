@@ -39,7 +39,7 @@ impl BodyPass {
 				val f0 = s.fields.first();
 				if (f0.type_ptr.kind != DataType.POINTER) return;
 				val elem_ty = f0.type_ptr.as_pointer().pointee;
-				al.elem_type_node = ast_type_from_type(&self.arena, elem_ty);
+				al.elem_type_node = self.arena.ast_type_from_type(elem_ty);
 
 				for (i in 0..<al.elements.len) {
 					val el = al.elements[i];
@@ -165,7 +165,7 @@ impl BodyPass {
 			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
 				if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
 					// Content comparison instead of C pointer comparison.
-					val wrapped = make_str_eq(&self.arena, bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+					val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
 					val eq_n = node as &AstNode;
 					eq_n.kind = wrapped.kind;
 					eq_n.data = wrapped.data;
@@ -633,7 +633,7 @@ impl BodyPass {
 				if (piece == null) return alloc_primitive(&self.arena, type_str());
 			}
 			if (acc == null) acc = piece;
-			else acc = interp_concat(&self.arena, acc, piece, node.line, node.col);
+			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
 		}
 		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 
@@ -650,7 +650,7 @@ impl BodyPass {
 		// Everything else goes through the `ToStr` trait; std.traits.to_str (loaded
 		// by the driver) provides the built-in implementations.
 		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
-		if (pmi != null) return interp_call(&self.arena, pmi.c_name, expr, node.line, node.col);
+		if (pmi != null) return self.arena.interp_call(pmi.c_name, expr, node.line, node.col);
 
 		var cur_ty = ty;
 		var is_ptr = false;
@@ -664,7 +664,7 @@ impl BodyPass {
 			if (mi != null) {
 				var arg = expr;
 				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, node.line, node.col);
-				return interp_call(&self.arena, mi.c_name, arg, node.line, node.col);
+				return self.arena.interp_call(mi.c_name, arg, node.line, node.col);
 			}
 		}
 

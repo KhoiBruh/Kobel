@@ -22,244 +22,247 @@ pub fn for_is_lvalue(node: *AstNode): bool => when (node.kind) {
 	else -> false;
 };
 
-pub fn for_usz_type(var arena: &Arena, line: usz, col: usz): *AstNode {
-	return arena.named_type("usz", List<*AstNode>(), line, col);
-}
+impl Arena {
+	pub fn for_usz_type(var self, line: usz, col: usz): *AstNode {
+		return self.named_type("usz", List<*AstNode>(), line, col);
+	}
 
-pub fn for_id(var arena: &Arena, name: str, line: usz, col: usz): *AstNode {
-	return arena.identifier(name, line, col);
-}
+	pub fn for_id(var self, name: str, line: usz, col: usz): *AstNode {
+		return self.identifier(name, line, col);
+	}
 
-pub fn for_num(var arena: &Arena, text: str, line: usz, col: usz): *AstNode {
-	return arena.literal(LiteralKind.INT, text, line, col);
-}
+	pub fn for_num(var self, text: str, line: usz, col: usz): *AstNode {
+		return self.literal(LiteralKind.INT, text, line, col);
+	}
 
-// `__for_i <cmp> __for_e`
-pub fn for_i_cmp(var arena: &Arena, op: TokenType, line: usz, col: usz): *AstNode {
-	return arena.binary(op, for_id(arena, "__for_i", line, col), for_id(arena, "__for_e", line, col), line, col);
-}
+	// `__for_i <cmp> __for_e`
+	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz): *AstNode {
+		return self.binary(op, self.for_id("__for_i", line, col), self.for_id("__for_e", line, col), line, col);
+	}
 
-// `__for_go = <value>;`
-pub fn for_set_go(var arena: &Arena, value: *AstNode, line: usz, col: usz): *AstNode {
-	return arena.expr_stmt(arena.assign(for_id(arena, "__for_go", line, col), value, line, col), line, col);
-}
+	// `__for_go = <value>;`
+	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz): *AstNode {
+		return self.expr_stmt(self.assign(self.for_id("__for_go", line, col), value, line, col), line, col);
+	}
 
-// `__for_i = __for_i <+|-> 1;`
-pub fn for_bump(var arena: &Arena, op: TokenType, line: usz, col: usz): *AstNode {
-	return arena.expr_stmt(
-		arena.assign(
-			for_id(arena, "__for_i", line, col),
-			arena.binary(op, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
+	// `__for_i = __for_i <+|-> 1;`
+	pub fn for_bump(var self, op: TokenType, line: usz, col: usz): *AstNode {
+		return self.expr_stmt(
+			self.assign(
+				self.for_id("__for_i", line, col),
+				self.binary(op, self.for_id("__for_i", line, col), self.for_num("1", line, col), line, col),
+				line, col
+			),
 			line, col
-		),
-		line, col
-	);
-}
+		);
+	}
 
-// `if (__for_up) { <up_stmt> } else { <down_stmt> }`
-pub fn for_by_dir(var arena: &Arena, up_stmt: *AstNode, down_stmt: *AstNode, line: usz, col: usz): *AstNode {
-	var up_stmts = List<*AstNode>();
-	up_stmts.add(up_stmt);
-	var down_stmts = List<*AstNode>();
-	down_stmts.add(down_stmt);
-	return arena.if_stmt(
-		for_id(arena, "__for_up", line, col),
-		arena.block_stmt(up_stmts, line, col),
-		arena.block_stmt(down_stmts, line, col),
-		line, col
-	);
-}
+	// `if (__for_up) { <up_stmt> } else { <down_stmt> }`
+	pub fn for_by_dir(var self, up_stmt: *AstNode, down_stmt: *AstNode, line: usz, col: usz): *AstNode {
+		var up_stmts = List<*AstNode>();
+		up_stmts.add(up_stmt);
+		var down_stmts = List<*AstNode>();
+		down_stmts.add(down_stmt);
+		return self.if_stmt(
+			self.for_id("__for_up", line, col),
+			self.block_stmt(up_stmts, line, col),
+			self.block_stmt(down_stmts, line, col),
+			line, col
+		);
+	}
 
-// Replaces every `continue` belonging to this loop with `{ <step>; continue; }`
-// so `continue` cannot skip the counter update. Bodies of nested loops are left
-// alone: their `continue` targets the inner loop.
-pub fn for_inject_step(var arena: &Arena, node: *AstNode, step: &List<*AstNode>) {
-	if (node == null) return;
+	// Replaces every `continue` belonging to this loop with `{ <step>; continue; }`
+	// so `continue` cannot skip the counter update. Bodies of nested loops are left
+	// alone: their `continue` targets the inner loop.
+	pub fn for_inject_step(var self, node: *AstNode, step: &List<*AstNode>) {
+		if (node == null) return;
 
-	when (node.kind) {
-		NodeKind.STMT_BLOCK -> {
-			val b = node.to<BlockStmt>();
-			for (stmt in b.statements) {
-				for_inject_step(arena, stmt, step);
+		when (node.kind) {
+			NodeKind.STMT_BLOCK -> {
+				val b = node.to<BlockStmt>();
+				for (stmt in b.statements) {
+					self.for_inject_step(stmt, step);
+				}
 			}
-		}
-		NodeKind.STMT_IF -> {
-			val s = node.to<IfStmt>();
-			for_inject_step(arena, s.then_branch, step);
-			for_inject_step(arena, s.else_branch, step);
-		}
-		NodeKind.STMT_WHEN -> {
-			val w = node.to<WhenStmt>();
-			for (arm in w.arms) {
-				for_inject_step(arena, arm.body, step);
+			NodeKind.STMT_IF -> {
+				val s = node.to<IfStmt>();
+				self.for_inject_step(s.then_branch, step);
+				self.for_inject_step(s.else_branch, step);
 			}
+			NodeKind.STMT_WHEN -> {
+				val w = node.to<WhenStmt>();
+				for (arm in w.arms) {
+					self.for_inject_step(arm.body, step);
+				}
+			}
+			NodeKind.STMT_CONTINUE -> {
+				var stmts = List<*AstNode>();
+				for (s in step) stmts.add(s);
+				stmts.add(self.continue_stmt(node.line, node.col));
+				val blk = self.block_stmt(stmts, node.line, node.col);
+				val n = node as &AstNode;
+				n.kind = NodeKind.STMT_BLOCK;
+				n.data = blk.data;
+			}
+			else -> {}
 		}
-		NodeKind.STMT_CONTINUE -> {
-			var stmts = List<*AstNode>();
-			for (s in step) stmts.add(s);
-			stmts.add(arena.continue_stmt(node.line, node.col));
-			val blk = arena.block_stmt(stmts, node.line, node.col);
-			val n = node as &AstNode;
-			n.kind = NodeKind.STMT_BLOCK;
-			n.data = blk.data;
+	}
+
+	// `for (v in seq)` where `seq` implements `Iterable`: index through the trait.
+	pub fn desugar_for_iter_method(
+		var self,
+		pre: &List<*AstNode>,
+		head: &List<*AstNode>,
+		step: &List<*AstNode>,
+		fs: *ForStmt,
+		line: usz,
+		col: usz
+	): *AstNode {
+		// val __for_n: usz = <iterable>.count();
+		val count_call = self.call(self.member(fs.iterable, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
+		pre.add(self.var_decl(false, "__for_n", self.for_usz_type(line, col), count_call, line, col));
+		// var __for_i: usz = 0;
+		pre.add(self.var_decl(true, "__for_i", self.for_usz_type(line, col),
+			self.for_num("0UZ", line, col), line, col));
+
+		// val <v> = <iterable>.at(__for_i);
+		var at_args = List<*AstNode>();
+		at_args.add(self.for_id("__for_i", line, col));
+		val at_call = self.call(self.member(fs.iterable, "at", line, col), at_args, List<*AstNode>(), line, col);
+		head.add(self.var_decl(false, fs.var_name, null, at_call, line, col));
+
+		step.add(self.for_bump(TokenType.PLUS, line, col));
+
+		// __for_i < __for_n
+		return self.binary(TokenType.LESS, self.for_id("__for_i", line, col), self.for_id("__for_n", line, col), line, col);
+	}
+
+	// `for (v in <iterable>)`: index over the container's `.data` storage, caching
+	// `.len` up front (for `str` that also removes a strlen call per iteration).
+	pub fn desugar_for_iterable(
+		var self,
+		pre: &List<*AstNode>,
+		head: &List<*AstNode>,
+		step: &List<*AstNode>,
+		fs: *ForStmt,
+		line: usz,
+		col: usz
+	): *AstNode {
+		// val __for_n: usz = <iterable>.len;
+		pre.add(self.var_decl(false, "__for_n", self.for_usz_type(line, col),
+			self.member(fs.iterable, "len", line, col), line, col));
+		// var __for_i: usz = 0;
+		pre.add(self.var_decl(true, "__for_i", self.for_usz_type(line, col),
+			self.for_num("0UZ", line, col), line, col));
+
+		// val <v> = <iterable>.data[__for_i];
+		head.add(self.var_decl(false, fs.var_name, null,
+			self.index(self.member(fs.iterable, "data", line, col), self.for_id("__for_i", line, col), line, col),
+			line, col));
+
+		step.add(self.for_bump(TokenType.PLUS, line, col));
+
+		// __for_i < __for_n
+		return self.binary(TokenType.LESS, self.for_id("__for_i", line, col), self.for_id("__for_n", line, col), line, col);
+	}
+
+	// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
+	// `for (v in a>..<b)` (open, exclusive ends).
+	pub fn desugar_for_range(
+		var self,
+		pre: &List<*AstNode>,
+		head: &List<*AstNode>,
+		step: &List<*AstNode>,
+		fs: *ForStmt,
+		line: usz,
+		col: usz
+	): *AstNode {
+		// val __for_e = <end>;
+		pre.add(self.var_decl(false, "__for_e", null, fs.range_end, line, col));
+		// var __for_i = __for_e;  then __for_i = <start>;
+		pre.add(self.var_decl(true, "__for_i", null, self.for_id("__for_e", line, col), line, col));
+		pre.add(self.expr_stmt(self.assign(self.for_id("__for_i", line, col), fs.range_start, line, col), line, col));
+		// val __for_up = __for_i <= __for_e;
+		pre.add(self.var_decl(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col));
+
+		if (fs.is_open) {
+			pre.add(self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col));
 		}
-		else -> {}
+
+		pre.add(self.var_decl(true, "__for_go", null, self.literal(LiteralKind.BOOL, "false", line, col), line, col));
+		if (fs.is_open || fs.is_half_open) {
+			pre.add(self.for_by_dir(
+				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
+				self.for_set_go(self.for_i_cmp(TokenType.GREATER, line, col), line, col),
+				line, col));
+		} else {
+			pre.add(self.for_by_dir(
+				self.for_set_go(self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col),
+				self.for_set_go(self.for_i_cmp(TokenType.GREATER_EQUAL, line, col), line, col),
+				line, col));
+		}
+
+		// val <v> = __for_i;
+		head.add(self.var_decl(false, fs.var_name, null, self.for_id("__for_i", line, col), line, col));
+
+		// Is there another element? Then move the counter (never past the end).
+		if (fs.is_open || fs.is_half_open) {
+			step.add(self.for_by_dir(
+				self.for_set_go(self.binary(TokenType.LESS,
+					self.binary(TokenType.PLUS, self.for_id("__for_i", line, col), self.for_num("1", line, col), line, col),
+					self.for_id("__for_e", line, col), line, col), line, col),
+				self.for_set_go(self.binary(TokenType.GREATER,
+					self.binary(TokenType.MINUS, self.for_id("__for_i", line, col), self.for_num("1", line, col), line, col),
+					self.for_id("__for_e", line, col), line, col), line, col),
+				line, col));
+		} else {
+			step.add(self.for_by_dir(
+				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
+				self.for_set_go(self.for_i_cmp(TokenType.GREATER, line, col), line, col),
+				line, col));
+		}
+		step.add(self.if_stmt(self.for_id("__for_go", line, col),
+			self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col),
+			null, line, col));
+
+		return self.for_id("__for_go", line, col);
+	}
+
+	// Lowers `node` (a STMT_FOR) in place into a block holding hidden locals plus a
+	// while-loop, so every later pass sees an ordinary block.
+	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool) {
+		val line = node.line;
+		val col = node.col;
+
+		var pre = List<*AstNode>();
+		var head = List<*AstNode>();
+		var step = List<*AstNode>();
+		val cond = when {
+			fs.is_range -> self.desugar_for_range(&pre, &head, &step, fs, line, col);
+			use_iter_trait -> self.desugar_for_iter_method(&pre, &head, &step, fs, line, col);
+			else -> self.desugar_for_iterable(&pre, &head, &step, fs, line, col);
+		};
+
+		// Body: loop variable, the original statements, then the counter update.
+		var body_stmts = List<*AstNode>();
+		for (s in head) body_stmts.add(s);
+		if (fs.body != null) {
+			if (fs.body.kind == NodeKind.STMT_BLOCK) {
+				val b = fs.body.to<BlockStmt>();
+				for (s in b.statements) body_stmts.add(s);
+			} else body_stmts.add(fs.body);
+		}
+		for (s in step) body_stmts.add(s);
+
+		// A `continue` inside the body must still advance the counter.
+		self.for_inject_step(fs.body, &step);
+
+		pre.add(self.while_stmt(cond, self.block_stmt(body_stmts, line, col), line, col));
+
+		val blk = self.block_stmt(pre, line, col);
+		val n = node as &AstNode;
+		n.kind = NodeKind.STMT_BLOCK;
+		n.data = blk.data;
 	}
 }
 
-// `for (v in seq)` where `seq` implements `Iterable`: index through the trait.
-pub fn desugar_for_iter_method(
-	var arena: &Arena,
-	pre: &List<*AstNode>,
-	head: &List<*AstNode>,
-	step: &List<*AstNode>,
-	fs: *ForStmt,
-	line: usz,
-	col: usz
-): *AstNode {
-	// val __for_n: usz = <iterable>.count();
-	val count_call = arena.call(arena.member(fs.iterable, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
-	pre.add(arena.var_decl(false, "__for_n", for_usz_type(arena, line, col), count_call, line, col));
-	// var __for_i: usz = 0;
-	pre.add(arena.var_decl(true, "__for_i", for_usz_type(arena, line, col),
-		for_num(arena, "0UZ", line, col), line, col));
-
-	// val <v> = <iterable>.at(__for_i);
-	var at_args = List<*AstNode>();
-	at_args.add(for_id(arena, "__for_i", line, col));
-	val at_call = arena.call(arena.member(fs.iterable, "at", line, col), at_args, List<*AstNode>(), line, col);
-	head.add(arena.var_decl(false, fs.var_name, null, at_call, line, col));
-
-	step.add(for_bump(arena, TokenType.PLUS, line, col));
-
-	// __for_i < __for_n
-	return arena.binary(TokenType.LESS, for_id(arena, "__for_i", line, col), for_id(arena, "__for_n", line, col), line, col);
-}
-
-// `for (v in <iterable>)`: index over the container's `.data` storage, caching
-// `.len` up front (for `str` that also removes a strlen call per iteration).
-pub fn desugar_for_iterable(
-	var arena: &Arena,
-	pre: &List<*AstNode>,
-	head: &List<*AstNode>,
-	step: &List<*AstNode>,
-	fs: *ForStmt,
-	line: usz,
-	col: usz
-): *AstNode {
-	// val __for_n: usz = <iterable>.len;
-	pre.add(arena.var_decl(false, "__for_n", for_usz_type(arena, line, col),
-		arena.member(fs.iterable, "len", line, col), line, col));
-	// var __for_i: usz = 0;
-	pre.add(arena.var_decl(true, "__for_i", for_usz_type(arena, line, col),
-		for_num(arena, "0UZ", line, col), line, col));
-
-	// val <v> = <iterable>.data[__for_i];
-	head.add(arena.var_decl(false, fs.var_name, null,
-		arena.index(arena.member(fs.iterable, "data", line, col), for_id(arena, "__for_i", line, col), line, col),
-		line, col));
-
-	step.add(for_bump(arena, TokenType.PLUS, line, col));
-
-	// __for_i < __for_n
-	return arena.binary(TokenType.LESS, for_id(arena, "__for_i", line, col), for_id(arena, "__for_n", line, col), line, col);
-}
-
-// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
-// `for (v in a>..<b)` (open, exclusive ends).
-pub fn desugar_for_range(
-	var arena: &Arena,
-	pre: &List<*AstNode>,
-	head: &List<*AstNode>,
-	step: &List<*AstNode>,
-	fs: *ForStmt,
-	line: usz,
-	col: usz
-): *AstNode {
-	// val __for_e = <end>;
-	pre.add(arena.var_decl(false, "__for_e", null, fs.range_end, line, col));
-	// var __for_i = __for_e;  then __for_i = <start>;
-	pre.add(arena.var_decl(true, "__for_i", null, for_id(arena, "__for_e", line, col), line, col));
-	pre.add(arena.expr_stmt(arena.assign(for_id(arena, "__for_i", line, col), fs.range_start, line, col), line, col));
-	// val __for_up = __for_i <= __for_e;
-	pre.add(arena.var_decl(false, "__for_up", null, for_i_cmp(arena, TokenType.LESS_EQUAL, line, col), line, col));
-
-	if (fs.is_open) {
-		pre.add(for_by_dir(arena, for_bump(arena, TokenType.PLUS, line, col), for_bump(arena, TokenType.MINUS, line, col), line, col));
-	}
-
-	pre.add(arena.var_decl(true, "__for_go", null, arena.literal(LiteralKind.BOOL, "false", line, col), line, col));
-	if (fs.is_open || fs.is_half_open) {
-		pre.add(for_by_dir(arena,
-			for_set_go(arena, for_i_cmp(arena, TokenType.LESS, line, col), line, col),
-			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER, line, col), line, col),
-			line, col));
-	} else {
-		pre.add(for_by_dir(arena,
-			for_set_go(arena, for_i_cmp(arena, TokenType.LESS_EQUAL, line, col), line, col),
-			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER_EQUAL, line, col), line, col),
-			line, col));
-	}
-
-	// val <v> = __for_i;
-	head.add(arena.var_decl(false, fs.var_name, null, for_id(arena, "__for_i", line, col), line, col));
-
-	// Is there another element? Then move the counter (never past the end).
-	if (fs.is_open || fs.is_half_open) {
-		step.add(for_by_dir(arena,
-			for_set_go(arena, arena.binary(TokenType.LESS,
-				arena.binary(TokenType.PLUS, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
-				for_id(arena, "__for_e", line, col), line, col), line, col),
-			for_set_go(arena, arena.binary(TokenType.GREATER,
-				arena.binary(TokenType.MINUS, for_id(arena, "__for_i", line, col), for_num(arena, "1", line, col), line, col),
-				for_id(arena, "__for_e", line, col), line, col), line, col),
-			line, col));
-	} else {
-		step.add(for_by_dir(arena,
-			for_set_go(arena, for_i_cmp(arena, TokenType.LESS, line, col), line, col),
-			for_set_go(arena, for_i_cmp(arena, TokenType.GREATER, line, col), line, col),
-			line, col));
-	}
-	step.add(arena.if_stmt(for_id(arena, "__for_go", line, col),
-		for_by_dir(arena, for_bump(arena, TokenType.PLUS, line, col), for_bump(arena, TokenType.MINUS, line, col), line, col),
-		null, line, col));
-
-	return for_id(arena, "__for_go", line, col);
-}
-
-// Lowers `node` (a STMT_FOR) in place into a block holding hidden locals plus a
-// while-loop, so every later pass sees an ordinary block.
-pub fn desugar_for(var arena: &Arena, node: *AstNode, fs: *ForStmt, use_iter_trait: bool) {
-	val line = node.line;
-	val col = node.col;
-
-	var pre = List<*AstNode>();
-	var head = List<*AstNode>();
-	var step = List<*AstNode>();
-	val cond = when {
-		fs.is_range -> desugar_for_range(arena, &pre, &head, &step, fs, line, col);
-		use_iter_trait -> desugar_for_iter_method(arena, &pre, &head, &step, fs, line, col);
-		else -> desugar_for_iterable(arena, &pre, &head, &step, fs, line, col);
-	};
-
-	// Body: loop variable, the original statements, then the counter update.
-	var body_stmts = List<*AstNode>();
-	for (s in head) body_stmts.add(s);
-	if (fs.body != null) {
-		if (fs.body.kind == NodeKind.STMT_BLOCK) {
-			val b = fs.body.to<BlockStmt>();
-			for (s in b.statements) body_stmts.add(s);
-		} else body_stmts.add(fs.body);
-	}
-	for (s in step) body_stmts.add(s);
-
-	// A `continue` inside the body must still advance the counter.
-	for_inject_step(arena, fs.body, &step);
-
-	pre.add(arena.while_stmt(cond, arena.block_stmt(body_stmts, line, col), line, col));
-
-	val blk = arena.block_stmt(pre, line, col);
-	val n = node as &AstNode;
-	n.kind = NodeKind.STMT_BLOCK;
-	n.data = blk.data;
-}

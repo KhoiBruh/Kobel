@@ -82,7 +82,7 @@ impl BodyPass {
 						val fn_info_mut = fn_type.as_fn_mut();
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;
-						f.return_type = ast_type_from_type(&self.arena, body_ty);
+						f.return_type = self.arena.ast_type_from_type(body_ty);
 					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}

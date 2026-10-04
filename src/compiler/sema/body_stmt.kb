@@ -68,7 +68,7 @@ impl BodyPass {
 		// Give an inferred local an explicit type node so the C backend does
 		// not have to re-infer it (it cannot see struct field types).
 		if (vd.type_annotation == null && has_init)
-			vd.type_annotation = ast_type_from_type(&self.arena, var_ty);
+			vd.type_annotation = self.arena.ast_type_from_type(var_ty);
 
 		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col));
 		if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
@@ -102,7 +102,7 @@ impl BodyPass {
 		var use_iter_trait = false;
 		if (!fs.is_range) use_iter_trait = self.struct_implements_iterable(self.for_iterable_type(fs.iterable));
 
-		desugar_for(&self.arena, node, fs, use_iter_trait);
+		self.arena.desugar_for(node, fs, use_iter_trait);
 		// `node` now holds the lowered block; check it through the normal path.
 		self.check_statement(node);
 	}
