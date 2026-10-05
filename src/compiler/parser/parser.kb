@@ -13,7 +13,8 @@ pub struct Parser {
 	pub tokens: List<Token>,
 	pub current: usz = 0,
 	pub arena: Arena = Arena(),
-	pub errors: List<str> = List()
+	pub errors: List<str> = List(),
+	pub struct_consts: List<*AstNode> = List()
 }
 
 impl Parser {

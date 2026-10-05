@@ -1,0 +1,40 @@
+use std.io.*;
+
+struct Point {
+	pub const TAG: i32 = 42;
+	pub const ZERO = 0;
+	pub x: i32,
+	pub y: i32
+}
+
+struct Node {
+	const KIND = 100;
+	pub value: i32
+}
+
+fn main(): i32 {
+	println("=== Test Struct Constants ===");
+	
+	val t = Point.TAG;
+	val z = Point.ZERO;
+	println("Point.TAG = ${t}");
+	println("Point.ZERO = ${z}");
+	if (t != 42) {
+		println("FAIL: Point.TAG");
+		return 1;
+	}
+	if (z != 0) {
+		println("FAIL: Point.ZERO");
+		return 1;
+	}
+
+	val nk = Node.KIND;
+	println("Node.KIND = ${nk}");
+	if (nk != 100) {
+		println("FAIL: Node.KIND");
+		return 1;
+	}
+
+	println("ALL STRUCT CONSTANT TESTS PASSED!");
+	return 0;
+}

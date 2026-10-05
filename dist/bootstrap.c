@@ -832,6 +832,7 @@ struct compiler__parser__parser__Parser {
     size_t current;
     std__mem__arena__Arena arena;
     std__collections__list__List_str errors;
+    std__collections__list__List_ptr_compiler__ast__node__AstNode struct_consts;
 };
 
 struct compiler__loader__loader__LoadedModule {
@@ -12242,6 +12243,22 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_member_ex
                     return carrier;
                 }
             }
+            compiler__sema__symbol__Symbol* s_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), (enum_id)->name);
+            if (((s_sym != NULL) && ((s_sym)->kind == 4))) {
+                {
+                    const char* const_name = kobel_concat(kobel_concat((enum_id)->name, "__"), (mem)->member);
+                    compiler__sema__symbol__Symbol* c_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), const_name);
+                    if (((c_sym != NULL) && ((c_sym)->kind == 1))) {
+                        {
+                            compiler__ast__node__AstNode* id_node = compiler__sema__body_pass__BodyPass_identifier(self, (c_sym)->c_name, (node)->line, (node)->col);
+                            compiler__ast__node__AstNode* n = ((compiler__ast__node__AstNode*)node);
+                            (n)->kind = 5;
+                            (n)->data = (id_node)->data;
+                            return (c_sym)->type_ptr;
+                        }
+                    }
+                }
+            }
         }
     }
     compiler__sema__types__Type* obj_ty = compiler__sema__body_pass__BodyPass_check_expr(self, (mem)->object);
@@ -16713,7 +16730,7 @@ std__collections__list__List_compiler__lexer__token__Token compiler__lexer__lexe
 }
 
 compiler__parser__parser__Parser compiler__parser__parser__Parser_new(std__collections__list__List_compiler__lexer__token__Token tokens) {
-    return (compiler__parser__parser__Parser){ tokens, 0, std__mem__arena__Arena_new(65536), std__collections__list__List_str_new(4) };
+    return (compiler__parser__parser__Parser){ tokens, 0, std__mem__arena__Arena_new(65536), std__collections__list__List_str_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) };
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_named_type(compiler__parser__parser__Parser* self, const char* name, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
@@ -16994,12 +17011,7 @@ bool compiler__parser__parser__Parser_is_generic_args_ahead(compiler__parser__pa
                     {
                         depth--;
                         if ((depth == 0)) {
-                            {
-                                if ((((i + 1) < ((self)->tokens).len) && ((std__collections__list__List_compiler__lexer__token__Token_get((&(self)->tokens), (i + 1))).type == 15))) {
-                                    return true;
-                                }
-                                return false;
-                            }
+                            return ((((i + 1) < ((self)->tokens).len) && ((std__collections__list__List_compiler__lexer__token__Token_get((&(self)->tokens), (i + 1))).type == 15)));
                         }
                     }
                 } else if (((tok).type == 0) || ((tok).type == 17) || ((tok).type == 18) || ((tok).type == 68)) {
@@ -17066,7 +17078,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
                         if (((ch >= '0') && (ch <= '9'))) {
                             {
                                 int32_t digit = ((((int32_t)ch)) - (((int32_t)'0')));
-                                size = ((size * 10) + digit);
+                                size *= (10 + digit);
                             }
                         }
                         __for_i = (__for_i + 1);
@@ -17091,9 +17103,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
                 {
                     std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
                     while (compiler__parser__parser__Parser_match_token(self, 2)) {
-                        {
-                            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
-                        }
+                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
                     }
                 }
             }
@@ -17114,7 +17124,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
                         char ch = (size_tok).text[__for_i];
                         if (((ch >= '0') && (ch <= '9'))) {
                             {
-                                size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
+                                int32_t digit = ((((int32_t)ch)) - (((int32_t)'0')));
                                 size *= (10 + digit);
                             }
                         }
@@ -17658,20 +17668,18 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_stateme
                 }
                 range_end = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
             }
-        } else {
-            if ((compiler__parser__parser__Parser_check(self, 11) && ((compiler__parser__parser__Parser_peek_at(self, 1)).type == 29))) {
-                {
-                    is_range = true;
-                    is_open = true;
-                    range_start = first;
-                    compiler__parser__parser__Parser_advance(self);
-                    compiler__parser__parser__Parser_consume(self, 29, "Expected '..' in open range");
-                    compiler__parser__parser__Parser_consume(self, 12, "Expected '<' to close an open range");
-                    range_end = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
-                }
-            } else {
-                iterable = first;
+        } else if ((compiler__parser__parser__Parser_check(self, 11) && ((compiler__parser__parser__Parser_peek_at(self, 1)).type == 29))) {
+            {
+                is_range = true;
+                is_open = true;
+                range_start = first;
+                compiler__parser__parser__Parser_advance(self);
+                compiler__parser__parser__Parser_consume(self, 29, "Expected '..' in open range");
+                compiler__parser__parser__Parser_consume(self, 12, "Expected '<' to close an open range");
+                range_end = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
             }
+        } else {
+            iterable = first;
         }
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after for header");
         compiler__ast__node__AstNode* body = compiler__parser__parser__Parser_parse_arm_statement(self);
@@ -18103,6 +18111,23 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_struct_decl
             if (compiler__parser__parser__Parser_match_token(self, 62)) {
                 f_pub = true;
             }
+            if (compiler__parser__parser__Parser_check(self, 47)) {
+                {
+                    compiler__ast__node__AstNode* c_decl = compiler__parser__parser__Parser_parse_const_decl(self, f_pub);
+                    compiler__ast__decl__ConstDecl* c = ((compiler__ast__decl__ConstDecl*)compiler__ast__node__to_compiler__ast__decl__ConstDecl(c_decl));
+                    (c)->name = kobel_concat(kobel_concat((name_tok).text, "__"), (c)->name);
+                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&(self)->struct_consts), c_decl);
+                    continue;
+                }
+            }
+            if ((!compiler__parser__parser__Parser_check(self, 41))) {
+                {
+                    compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
+                    compiler__parser__parser__Parser_error(self, tok, "Expected field name in struct declaration");
+                    compiler__parser__parser__Parser_advance(self);
+                    continue;
+                }
+            }
             compiler__lexer__token__Token fname = compiler__parser__parser__Parser_consume(self, 41, "Expected field name");
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after field name");
             compiler__ast__node__AstNode* ftype = compiler__parser__parser__Parser_parse_type(self);
@@ -18279,9 +18304,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_use_decl(co
         }
     }
     if (compiler__parser__parser__Parser_match_token(self, 53)) {
-        {
-            alias = (compiler__parser__parser__Parser_consume(self, 41, "Expected alias after 'as'")).text;
-        }
+        alias = (compiler__parser__parser__Parser_consume(self, 41, "Expected alias after 'as'")).text;
     }
     compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after use declaration");
     return compiler__parser__parser__Parser_use_decl(self, path, full_path, symbol_name, alias, is_wildcard, (kw).line, (kw).col);
@@ -18340,8 +18363,17 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_declaration
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_program(compiler__parser__parser__Parser* self) {
     std__collections__list__List_ptr_compiler__ast__node__AstNode declarations = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     while ((!compiler__parser__parser__Parser_is_end(self))) {
-        {
-            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&declarations), compiler__parser__parser__Parser_parse_declaration(self));
+        std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&declarations), compiler__parser__parser__Parser_parse_declaration(self));
+    }
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(self)->struct_consts));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* c = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(self)->struct_consts), __for_i);
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&declarations), c);
+                __for_i = (__for_i + 1);
+            }
         }
     }
     return compiler__parser__parser__Parser_program(self, declarations, 1, 1);

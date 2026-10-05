@@ -149,6 +149,21 @@ impl Parser {
 			var f_pub = false;
 			if (self.match_token(TokenType.KW_PUB)) f_pub = true;
 
+			if (self.check(TokenType.KW_CONST)) {
+				val c_decl = self.parse_const_decl(f_pub);
+				val c = c_decl.to<ConstDecl>() as &ConstDecl;
+				c.name = "${name_tok.text}__${c.name}";
+				self.struct_consts.add(c_decl);
+				continue;
+			}
+
+			if (!self.check(TokenType.IDENTIFIER)) {
+				val tok = self.peek();
+				self.error(tok, "Expected field name in struct declaration");
+				self.advance();
+				continue;
+			}
+
 			val fname = self.consume(TokenType.IDENTIFIER, "Expected field name");
 			self.consume(TokenType.COLON, "Expected ':' after field name");
 			val ftype = self.parse_type();
@@ -368,6 +383,7 @@ impl Parser {
 		var declarations = List<*AstNode>();
 
 		while (!self.is_end()) declarations.add(self.parse_declaration());
+		for (c in self.struct_consts) declarations.add(c);
 
 		return self.program(declarations, 1, 1);
 	}

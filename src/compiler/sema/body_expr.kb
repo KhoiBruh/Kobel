@@ -243,6 +243,20 @@ impl BodyPass {
 				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
 				return carrier;
 			}
+
+			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
+			val s_sym = self.symtab.lookup(enum_id.name);
+			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
+				val const_name = "${enum_id.name}__${mem.member}";
+				val c_sym = self.symtab.lookup(const_name);
+				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
+					val id_node = self.identifier(c_sym.c_name, node.line, node.col);
+					val n = node as &AstNode;
+					n.kind = NodeKind.EXPR_IDENTIFIER;
+					n.data = id_node.data;
+					return c_sym.type_ptr;
+				}
+			}
 		}
 
 		var obj_ty = self.check_expr(mem.object);
