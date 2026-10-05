@@ -13,7 +13,7 @@ pub struct Parser {
 	pub tokens: List<Token>,
 	pub current: usz = 0,
 	pub arena: Arena = Arena(),
-	pub errors: List<str> = List<str>()
+	pub errors: List<str> = List()
 }
 
 impl Parser {
@@ -227,7 +227,7 @@ impl Parser {
 		for (i in (self.current + 1)..<self.tokens.len) {
 			val tok = self.tokens[i];
 			when (tok.type) {
-				TokenType.LESS -> { depth++; }
+				TokenType.LESS -> depth++;
 				TokenType.GREATER -> {
 					depth--;
 					if (depth == 0) {

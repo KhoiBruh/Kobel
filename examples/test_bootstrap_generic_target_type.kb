@@ -1,0 +1,68 @@
+mod test.bootstrap_generic_target_type;
+
+use std.io.println;
+use std.collections.list.List;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		println("ASSERTION FAILED: " + msg);
+	}
+}
+
+struct User {
+	name: str,
+	tags: List<str> = List()
+}
+
+fn make_numbers(): List<i32> {
+	return List();
+}
+
+fn make_strings(): List<str> => List();
+
+fn count_items(items: List<i32> = List()): usz {
+	return items.len;
+}
+
+fn choose_list(choose_first: bool): List<str> {
+	return if (choose_first) List() else List();
+}
+
+fn main(): i32 {
+	println("[RUNNING] Test generic constructor type inference (Target Typing)...");
+
+	// 1. Variable declaration with explicit type and Diamond constructor
+	val nums: List<i32> = List();
+	assert_true(nums.len == 0, "nums is List<i32> with len 0");
+
+	var words: List<str> = List();
+	words.add("hello");
+	words.add("world");
+	assert_true(words.len == 2, "words has len 2");
+	assert_true(words[0] == "hello", "words[0] == 'hello'");
+	assert_true(words[1] == "world", "words[1] == 'world'");
+
+	// 2. Struct field default with diamond constructor: tags: List<str> = List()
+	val u = User("Alice");
+	assert_true(u.name == "Alice", "user name");
+	assert_true(u.tags.len == 0, "user tags default List() has len 0");
+
+	// 3. Return statement with diamond constructor: return List()
+	val res = make_numbers();
+	assert_true(res.len == 0, "res from make_numbers has len 0");
+
+	// 4. Expression body function: fn make_strings(): List<str> => List();
+	val str_res = make_strings();
+	assert_true(str_res.len == 0, "str_res from make_strings has len 0");
+
+	// 5. Function parameter default value: fn count_items(items: List<i32> = List()): usz
+	val default_count = count_items();
+	assert_true(default_count == 0, "default_count == 0");
+
+	// 6. Branch expression propagation (if-else): return if (c) List() else List()
+	val chosen = choose_list(true);
+	assert_true(chosen.len == 0, "chosen list len == 0");
+
+	println("  [PASS] All generic target typing tests passed successfully!");
+	return 0;
+}

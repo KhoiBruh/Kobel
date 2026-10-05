@@ -35,10 +35,10 @@ impl Parser {
 			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
 
 			// Convert the size string to usz (default to 0 if empty)
-			var size: usz = 0;
+			var size = 0UZ;
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
-					val digit = ((ch as i32) - ('0' as i32)) as usz;
+					val digit = (ch as i32) - ('0' as i32);
 					size = size * 10 + digit;
 				}
 			}
@@ -73,11 +73,11 @@ impl Parser {
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
 
 			// Convert the size string to usz
-			var size: usz = 0;
+			var size = 0UZ;
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = ((ch as i32) - ('0' as i32)) as usz;
-					size = size * 10 + digit;
+					size *= 10 + digit;
 				}
 			}
 

@@ -25,9 +25,9 @@ pub struct JsonValue {
 	pub bool_val: bool = false,
 	pub num_val: i64 = 0,
 	pub str_val: str = "",
-	pub arr_val: List<*JsonValue> = List<*JsonValue>(),
-	pub obj_keys: List<str> = List<str>(),
-	pub obj_vals: List<*JsonValue> = List<*JsonValue>()
+	pub arr_val: List<*JsonValue> = List(),
+	pub obj_keys: List<str> = List(),
+	pub obj_vals: List<*JsonValue> = List()
 }
 
 // ============================================================================

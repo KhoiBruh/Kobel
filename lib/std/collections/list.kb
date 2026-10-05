@@ -73,9 +73,7 @@ impl List<T> {
 	pub fn reserve(var self, min_cap: usz) {
 		if (min_cap > self.cap) {
 			var new_cap = self.cap;
-			while (new_cap < min_cap) {
-				new_cap *= 2;
-			}
+			while (new_cap < min_cap) new_cap *= 2;
 			self.data = resize<T>(self.data, new_cap);
 			self.cap = new_cap;
 		}

@@ -51,8 +51,9 @@ pub struct DeclPass {
 	pub current_module: str,
 	pub errors: List<str>,
 	// Currently collecting declarations inside the `extern "libc" { ... }` block
-	pub is_extern: bool,
-	pub current_self_type: *Type
+	pub is_extern: bool = false,
+	pub current_self_type: *Type = null,
+	pub current_fn_return_type: *AstNode = null
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type => arena.primitive_type(base);
@@ -97,10 +98,10 @@ pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type => when (name
 };
 
 pub fn parse_decimal_i64(s: str): i64 {
-	var v: i64 = 0;
+	var v = 0L;
 	for (c in s) {
 		if (c >= '0' && c <= '9') {
-			v = v * 10 + (((c as i32) - 48) as i64);
+			v = v * 10 + ((c as i32) - 48);
 		} else if (c != '_') {
 			break;
 		}
@@ -165,7 +166,7 @@ pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
 
 impl DeclPass {
 
-	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>(), false, null);
+	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>());
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.make<NamedType>(NamedType(name, type_args), line, col);

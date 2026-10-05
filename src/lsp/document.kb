@@ -19,7 +19,8 @@ pub struct Document {
 pub fn uri_to_path(uri: str): str {
 	var s = uri;
 	s = if (s.len >= 8 && s.slice(0, 8) == "file:///") s.slice(8, s.len)
-	else if (s.len >= 7 && s.slice(0, 7) == "file://") s.slice(7, s.len);
+	else if (s.len >= 7 && s.slice(0, 7) == "file://") s.slice(7, s.len)
+	else s;
 
 	val sb = StringBuilder();
 	var i = 0UZ;
