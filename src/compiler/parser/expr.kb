@@ -300,8 +300,8 @@ impl Parser {
 		val line = tok.line;
 		val col = tok.col;
 
-		// 1. Postfix update: left++, left--
 		when (tok.type) {
+			// 1. Postfix update: left++, left--
 			TokenType.PLUS_PLUS -> {
 				self.advance();
 				return self.update(TokenType.PLUS_PLUS, left, line, col);
@@ -310,11 +310,7 @@ impl Parser {
 				self.advance();
 				return self.update(TokenType.MINUS_MINUS, left, line, col);
 			}
-			else -> {}
-		}
-
-		// 2. Assignment: left = right, left += right, ... (right-associative)
-		when (tok.type) {
+			// 2. Assignment: left = right, left += right, ... (right-associative)
 			TokenType.EQUAL, TokenType.PLUS_EQUAL,
 			TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
 			TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> {
@@ -380,9 +376,7 @@ impl Parser {
 				self.advance(); // consume '<'
 				var type_args = List<*AstNode>();
 				type_args.add(self.parse_type());
-				while (self.match_token(TokenType.COMMA)) {
-					type_args.add(self.parse_type());
-				}
+				while (self.match_token(TokenType.COMMA)) type_args.add(self.parse_type());
 				self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
 
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
@@ -467,7 +461,8 @@ impl Parser {
 				val condition = self.parse_expression(PREC_NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 				val then_branch = self.parse_arm_statement();
-				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement() else null;
+				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement()
+				else null;
 
 				yield self.if_stmt(condition, then_branch, else_branch, line, col);
 			}
@@ -495,23 +490,27 @@ impl Parser {
 				var range_start: *AstNode = null;
 				var range_end: *AstNode = null;
 
-				if (self.match_token(TokenType.DOT_DOT)) {
-					is_range = true;
-					range_start = first;
-					if (self.match_token(TokenType.LESS)) is_half_open = true;
-					range_end = self.parse_expression(PREC_COMPARISON);
-				} else if (
+				when {
+					self.match_token(TokenType.DOT_DOT) -> {
+						is_range = true;
+						range_start = first;
+						if (self.match_token(TokenType.LESS)) is_half_open = true;
+						range_end = self.parse_expression(PREC_COMPARISON);
+					}
 					self.check(TokenType.GREATER) &&
-					self.peek_at(1).type == TokenType.DOT_DOT
-				) {
-					is_range = true;
-					is_open = true;
-					range_start = first;
-					self.advance();
-					self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
-					self.consume(TokenType.LESS, "Expected '<' to close an open range");
-					range_end = self.parse_expression(PREC_COMPARISON);
-				} else iterable = first;
+					self.peek_at(1).type == TokenType.DOT_DOT -> {
+						is_range = true;
+						is_open = true;
+						range_start = first;
+
+						self.advance();
+						self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
+						self.consume(TokenType.LESS, "Expected '<' to close an open range");
+
+						range_end = self.parse_expression(PREC_COMPARISON);
+					}
+					else -> iterable = first;
+				}
 
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 				val body = self.parse_arm_statement();
@@ -520,6 +519,7 @@ impl Parser {
 					iterable, range_start, range_end, body, kw.line, kw.col
 				);
 			}
+			TokenType.KW_WHEN -> self.parse_when_stmt();
 			TokenType.KW_BREAK -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");

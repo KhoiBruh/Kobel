@@ -27,9 +27,11 @@ impl Parser {
 		if (!self.check(TokenType.GREATER)) {
 			val p_tok = self.consume(TokenType.IDENTIFIER, "Expected generic parameter name");
 			var bounds = List<str>();
+
 			if (self.match_token(TokenType.COLON)) {
 				val b_tok = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 				bounds.add(b_tok.text);
+
 				while (self.match_token(TokenType.PLUS)) {
 					val b2 = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 					bounds.add(b2.text);
@@ -40,9 +42,11 @@ impl Parser {
 			while (self.match_token(TokenType.COMMA)) {
 				val next_p = self.consume(TokenType.IDENTIFIER, "Expected generic parameter name");
 				var next_bounds = List<str>();
+
 				if (self.match_token(TokenType.COLON)) {
 					val b_tok = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 					next_bounds.add(b_tok.text);
+
 					while (self.match_token(TokenType.PLUS)) {
 						val b2 = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 						next_bounds.add(b2.text);
@@ -103,14 +107,16 @@ impl Parser {
 					else -> null;
 				};
 
-				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+				else null;
 				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val, p_def));
 			}
 		}
 
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after parameters");
 
-		val return_type = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
+		val return_type = if (self.match_token(TokenType.COLON)) self.parse_type()
+		else null;
 
 		var body = when {
 			// Expression body: => expr;
@@ -119,10 +125,8 @@ impl Parser {
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
 				yield self.expr_stmt(expr, expr.line, expr.col);
 			}
-
 			// Block body: { ... }
 			self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
-
 			// Extern or prototype: ;
 			else -> {
 				self.consume(TokenType.SEMI_COLON, "Expected ';' or '{' for function body");
@@ -148,7 +152,8 @@ impl Parser {
 			val fname = self.consume(TokenType.IDENTIFIER, "Expected field name");
 			self.consume(TokenType.COLON, "Expected ':' after field name");
 			val ftype = self.parse_type();
-			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+			else null;
 			fields.add(StructField(fname.text, ftype, f_pub, f_default));
 
 			self.match_token(TokenType.COMMA);
@@ -182,9 +187,7 @@ impl Parser {
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
-
 				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
-
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside trait");
@@ -228,9 +231,7 @@ impl Parser {
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
-
 				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
-
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside impl");
@@ -246,14 +247,16 @@ impl Parser {
 	pub fn parse_enum_decl(var self, is_pub: bool): *AstNode {
 		val kw = self.advance(); // 'enum'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected enum name");
-		val underlying_type = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
+		val underlying_type = if (self.match_token(TokenType.COLON)) self.parse_type()
+		else null;
 
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before enum members");
 		var members = List<EnumMember>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected enum member name");
-			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+			else null;
 			members.add(EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col));
 
 			self.match_token(TokenType.COMMA);
@@ -314,9 +317,8 @@ impl Parser {
 			full_path = "${full_path}.${seg}";
 		}
 
-		if (self.match_token(TokenType.KW_AS)) {
+		if (self.match_token(TokenType.KW_AS))
 			alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").text;
-		}
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after use declaration");
 		return self.use_decl(path, full_path, symbol_name, alias, is_wildcard, kw.line, kw.col);
@@ -365,9 +367,7 @@ impl Parser {
 	pub fn parse_program(var self): *AstNode {
 		var declarations = List<*AstNode>();
 
-		while (!self.is_end()) {
-			declarations.add(self.parse_declaration());
-		}
+		while (!self.is_end()) declarations.add(self.parse_declaration());
 
 		return self.program(declarations, 1, 1);
 	}

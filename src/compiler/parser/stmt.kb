@@ -35,8 +35,11 @@ impl Parser {
 		val is_mut = (kw.type == TokenType.KW_VAR);
 
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
-		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
-		val init = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type()
+		else null;
+
+		val init = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+		else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
 		return self.var_decl(is_mut, name_tok.text, type_ann, init, kw.line, kw.col);
@@ -49,7 +52,8 @@ impl Parser {
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 
 		val then_branch = self.parse_statement();
-		val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_statement() else null;
+		val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_statement()
+		else null;
 
 		return self.if_stmt(condition, then_branch, else_branch, kw.line, kw.col);
 	}

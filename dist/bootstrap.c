@@ -2695,9 +2695,7 @@ void std__collections__list__List_ptr_compiler__ast__node__AstNode_reserve(std__
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__ast__node__AstNode((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -2781,9 +2779,7 @@ void std__collections__list__List_compiler__ast__expr__WhenArm_reserve(std__coll
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__expr__WhenArm((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -2867,9 +2863,7 @@ void std__collections__list__List_compiler__ast__expr__InterpPart_reserve(std__c
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__expr__InterpPart((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -2953,9 +2947,7 @@ void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_reserve(std__
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__stmt__WhenStmtArm((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3039,9 +3031,7 @@ void std__collections__list__List_str_reserve(std__collections__list__List_str* 
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_str((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3125,9 +3115,7 @@ void std__collections__list__List_compiler__ast__decl__GenericParam_reserve(std_
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__decl__GenericParam((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3211,9 +3199,7 @@ void std__collections__list__List_compiler__ast__decl__Param_reserve(std__collec
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__decl__Param((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3297,9 +3283,7 @@ void std__collections__list__List_compiler__ast__decl__StructField_reserve(std__
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__decl__StructField((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3383,9 +3367,7 @@ void std__collections__list__List_compiler__ast__decl__EnumMember_reserve(std__c
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__ast__decl__EnumMember((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3469,9 +3451,7 @@ void std__collections__list__List_compiler__sema__types__StructField_reserve(std
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__sema__types__StructField((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3555,9 +3535,7 @@ void std__collections__list__List_ptr_compiler__sema__types__MethodInfo_reserve(
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__types__MethodInfo((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3641,9 +3619,7 @@ void std__collections__list__List_ptr_compiler__sema__types__Type_reserve(std__c
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__types__Type((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3727,9 +3703,7 @@ void std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_rese
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__types__EnumMemberInfo((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3813,9 +3787,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__Symbol_reserve(std
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__Symbol((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3899,9 +3871,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_reserv
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__TraitMethod((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -3985,9 +3955,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_reserv
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__GenTemplate((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4071,9 +4039,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_reserv
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__ModuleScope((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4157,9 +4123,7 @@ void std__collections__list__List_compiler__sema__symbol__ImportBinding_reserve(
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__sema__symbol__ImportBinding((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4243,9 +4207,7 @@ void std__collections__list__List_ptr_compiler__sema__types__EnumInfo_reserve(st
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__types__EnumInfo((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4329,9 +4291,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_reserve(
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__TraitInfo((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4415,9 +4375,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_reserve
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4501,9 +4459,7 @@ void std__collections__list__List_compiler__lexer__token__Token_reserve(std__col
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__lexer__token__Token((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4587,9 +4543,7 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_reserve
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_compiler__loader__loader__LoadedModule((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4673,9 +4627,7 @@ void std__collections__list__List_fmt__comments__Comment_reserve(std__collection
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_fmt__comments__Comment((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4759,9 +4711,7 @@ void std__collections__list__List_ptr_lsp__json__JsonValue_reserve(std__collecti
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_ptr_lsp__json__JsonValue((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4845,9 +4795,7 @@ void std__collections__list__List_lsp__document__Document_reserve(std__collectio
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_lsp__document__Document((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -4931,9 +4879,7 @@ void std__collections__list__List_lsp__analysis__LspDiagnostic_reserve(std__coll
         {
             size_t new_cap = (self)->cap;
             while ((new_cap < min_cap)) {
-                {
-                    new_cap *= 2;
-                }
+                new_cap *= 2;
             }
             (self)->data = std__mem__alloc__resize_lsp__analysis__LspDiagnostic((self)->data, new_cap);
             (self)->cap = new_cap;
@@ -10473,7 +10419,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(s
 }
 
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s) {
-    int64_t v = 0;
+    int64_t v = 0LL;
     {
         size_t __for_n = kobel_slen(s);
         size_t __for_i = ((size_t)0ULL);
@@ -10482,7 +10428,7 @@ int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s) {
                 char c = s[__for_i];
                 if (((c >= '0') && (c <= '9'))) {
                     {
-                        v = ((v * 10) + (((int64_t)(((((int32_t)c)) - 48)))));
+                        v = ((v * 10) + (((((int32_t)c)) - 48)));
                     }
                 } else {
                     if ((c != '_')) {
@@ -17043,9 +16989,7 @@ bool compiler__parser__parser__Parser_is_generic_args_ahead(compiler__parser__pa
                 size_t i = __for_i;
                 compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_get((&(self)->tokens), i);
                 if (((tok).type == 12)) {
-                    {
-                        depth++;
-                    }
+                    depth++;
                 } else if (((tok).type == 11)) {
                     {
                         depth--;
@@ -17112,7 +17056,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
             compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after array element type");
             compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 39, "Expected integer literal for array size");
             compiler__parser__parser__Parser_consume(self, 14, "Expected ']' after array size");
-            size_t size = 0;
+            size_t size = ((size_t)0ULL);
             {
                 size_t __for_n = kobel_slen((size_tok).text);
                 size_t __for_i = ((size_t)0ULL);
@@ -17121,7 +17065,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
                         char ch = (size_tok).text[__for_i];
                         if (((ch >= '0') && (ch <= '9'))) {
                             {
-                                size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
+                                int32_t digit = ((((int32_t)ch)) - (((int32_t)'0')));
                                 size = ((size * 10) + digit);
                             }
                         }
@@ -17161,7 +17105,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
             compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'Array<T>'");
             compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 39, "Expected integer literal for array size");
             compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after array size");
-            size_t size = 0;
+            size_t size = ((size_t)0ULL);
             {
                 size_t __for_n = kobel_slen((size_tok).text);
                 size_t __for_i = ((size_t)0ULL);
@@ -17171,7 +17115,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
                         if (((ch >= '0') && (ch <= '9'))) {
                             {
                                 size_t digit = ((size_t)(((((int32_t)ch)) - (((int32_t)'0')))));
-                                size = ((size * 10) + digit);
+                                size *= (10 + digit);
                             }
                         }
                         __for_i = (__for_i + 1);
@@ -17556,11 +17500,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
             compiler__parser__parser__Parser_advance(self);
             return compiler__parser__parser__Parser_update(self, 31, left, line, col);
         }
-    } else {
-        {
-        }
-    }
-    if (((tok).type == 5) || ((tok).type == 32) || ((tok).type == 33) || ((tok).type == 34) || ((tok).type == 35) || ((tok).type == 36)) {
+    } else if (((tok).type == 5) || ((tok).type == 32) || ((tok).type == 33) || ((tok).type == 34) || ((tok).type == 35) || ((tok).type == 36)) {
         {
             compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_advance(self);
             compiler__ast__node__AstNode* right = compiler__parser__parser__Parser_parse_expression(self, (compiler__parser__expr__PREC_ASSIGN - 1));
@@ -17604,9 +17544,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
         std__collections__list__List_ptr_compiler__ast__node__AstNode type_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
-            {
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
-            }
+            std__collections__list__List_ptr_compiler__ast__node__AstNode_add((&type_args), compiler__parser__parser__Parser_parse_type(self));
         }
         compiler__parser__parser__Parser_consume(self, 11, "Expected '>' after generic call type arguments");
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after generic type arguments");
@@ -17738,6 +17676,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_stateme
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after for header");
         compiler__ast__node__AstNode* body = compiler__parser__parser__Parser_parse_arm_statement(self);
         return compiler__parser__parser__Parser_for_stmt(self, (name_tok).text, is_range, is_open, is_half_open, iterable, range_start, range_end, body, (kw).line, (kw).col);
+    } else if (((tok).type == 59)) {
+        return compiler__parser__parser__Parser_parse_when_stmt(self);
     } else if (((tok).type == 55)) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after break");

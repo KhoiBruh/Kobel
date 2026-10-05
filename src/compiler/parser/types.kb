@@ -39,7 +39,7 @@ impl Parser {
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = (ch as i32) - ('0' as i32);
-					size = size * 10 + digit;
+					size *= 10 + digit;
 				}
 			}
 
@@ -59,9 +59,7 @@ impl Parser {
 		if (self.match_token(TokenType.LESS)) {
 			if (!self.check(TokenType.GREATER)) {
 				type_args.add(self.parse_type());
-				while (self.match_token(TokenType.COMMA)) {
-					type_args.add(self.parse_type());
-				}
+				while (self.match_token(TokenType.COMMA)) type_args.add(self.parse_type());
 			}
 			self.consume(TokenType.GREATER, "Expected '>' after type arguments");
 		}
@@ -76,7 +74,7 @@ impl Parser {
 			var size = 0UZ;
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
-					val digit = ((ch as i32) - ('0' as i32)) as usz;
+					val digit = (ch as i32) - ('0' as i32);
 					size *= 10 + digit;
 				}
 			}
