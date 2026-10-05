@@ -437,8 +437,24 @@ impl CCodeGen {
 				return res;
 			}
 
+			NodeKind.EXPR_IS -> return self.gen_is_expr(node);
+
 			else -> return "";
 		}
+	}
+
+	pub fn gen_is_expr(var self, node: *AstNode): str {
+		val is_e = node.to<IsExpr>();
+		val obj = self.gen_expr(is_e.expr);
+		val target_name = c_type_from_ast(is_e.target_type);
+		var tag_field = is_e.tag_field;
+		if (tag_field == "") tag_field = "tag";
+		var is_ptr = false;
+		if (is_e.expr.kind == NodeKind.EXPR_IDENTIFIER) {
+			is_ptr = self.is_pointer_var(is_e.expr.to<IdentifierExpr>().name);
+		}
+		val op = if (is_ptr) "->" else ".";
+		return "((${obj})${op}${tag_field} == ${target_name}__TAG)";
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
@@ -450,6 +466,16 @@ impl CCodeGen {
 			val p = patterns[i];
 			val test = when {
 				cond == "" -> self.gen_expr(p),
+
+				p.kind == NodeKind.EXPR_IS -> {
+					val is_e = p.to<IsExpr>();
+					val target_name = c_type_from_ast(is_e.target_type);
+					var tag_field = is_e.tag_field;
+					if (tag_field == "") tag_field = "tag";
+					val is_ptr = self.is_pointer_var(cond);
+					val op = if (is_ptr) "->" else ".";
+					yield "((${cond})${op}${tag_field} == ${target_name}__TAG)";
+				}
 
 				p.kind == NodeKind.EXPR_LITERAL &&
 				p.to<LiteralExpr>().literal_kind == LiteralKind.STRING ->
@@ -580,6 +606,9 @@ impl WhenExpr {
 	pub fn has_blocks(val self): bool {
 		for (arm in self.arms) {
 			if (arm.body.kind == NodeKind.STMT_BLOCK) return true;
+			for (p in arm.patterns) {
+				if (p.kind == NodeKind.EXPR_IS) return true;
+			}
 		}
 		return false;
 	}
@@ -800,6 +829,22 @@ impl CCodeGen {
 				var res = "";
 				var first = true;
 				for (arm in ws.arms) {
+					var cast_decl = "";
+					if (ws.condition != null && ws.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
+						val pat = arm.patterns.first();
+						if (pat.kind == NodeKind.EXPR_IS) {
+							val is_e = pat.to<IsExpr>();
+							val target_name = c_type_from_ast(is_e.target_type);
+							val var_name = ws.condition.to<IdentifierExpr>().name;
+							val is_ptr = self.is_pointer_var(var_name);
+							if (is_ptr) {
+								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+							} else {
+								cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+							}
+						}
+					}
+
 					if (arm.is_else) {
 						if (first) res += ind + "{\n";
 						else res += ind + "} else {\n";
@@ -809,6 +854,9 @@ impl CCodeGen {
 						else res += ind + "} else if (" + test + ") {\n";
 					}
 					self.indent_level++;
+					if (cast_decl != "") {
+						res += get_indent(self.indent_level) + cast_decl + "\n";
+					}
 					res += self.gen_statement(arm.body);
 					self.indent_level--;
 					first = false;
@@ -834,6 +882,22 @@ impl CCodeGen {
 		self.is_yield_return = is_ret;
 
 		for (arm in we.arms) {
+			var cast_decl = "";
+			if (we.condition != null && we.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
+				val pat = arm.patterns.first();
+				if (pat.kind == NodeKind.EXPR_IS) {
+					val is_e = pat.to<IsExpr>();
+					val target_name = c_type_from_ast(is_e.target_type);
+					val var_name = we.condition.to<IdentifierExpr>().name;
+					val is_ptr = self.is_pointer_var(var_name);
+					if (is_ptr) {
+						cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+					} else {
+						cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+					}
+				}
+			}
+
 			if (arm.is_else) {
 				res += if (first) ind + "{\n" else ind + "} else {\n";
 			} else {
@@ -842,6 +906,9 @@ impl CCodeGen {
 				else ind + "} else if (" + test + ") {\n";
 			}
 			self.indent_level++;
+			if (cast_decl != "") {
+				res += get_indent(self.indent_level) + cast_decl + "\n";
+			}
 			if (arm.body.kind == NodeKind.STMT_BLOCK) {
 				val blk = arm.body.to<BlockStmt>();
 				for (s in blk.statements) {

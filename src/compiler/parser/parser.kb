@@ -66,6 +66,9 @@ impl Parser {
 	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.make<CastExpr>(CastExpr(expr, target_type), line, col);
 
+	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
+		=> self.arena.make<IsExpr>(IsExpr(expr, target_type), line, col);
+
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.make<GroupExpr>(GroupExpr(expr), line, col);
 

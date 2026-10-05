@@ -225,6 +225,9 @@ impl DeclPass {
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
 		=> self.arena.make<InterpExpr>(InterpExpr(parts), line, col);
 
+	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
+		=> self.arena.make<IsExpr>(IsExpr(expr, target_type), line, col);
+
 	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.make<BlockStmt>(BlockStmt(statements), line, col);
 

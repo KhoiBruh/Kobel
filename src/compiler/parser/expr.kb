@@ -169,7 +169,7 @@ impl Parser {
 		TokenType.AND_AND -> PREC_AND;
 		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> PREC_EQUALITY;
 		TokenType.LESS_EQUAL, TokenType.GREATER,
-		TokenType.GREATER_EQUAL -> PREC_COMPARISON;
+		TokenType.GREATER_EQUAL, TokenType.KW_IS -> PREC_COMPARISON;
 		TokenType.LESS -> {
 			if (self.is_generic_args_ahead()) yield PREC_CALL;
 			yield PREC_COMPARISON;
@@ -233,6 +233,12 @@ impl Parser {
 			TokenType.STAR, TokenType.AMPERSAND -> {
 				val operand = self.parse_expression(PREC_UNARY);
 				yield self.unary(tok.type, operand, line, col);
+			}
+
+			// Type pattern: is Type
+			TokenType.KW_IS -> {
+				val target_type = self.parse_type();
+				yield self.is_expr(null, target_type, line, col);
 			}
 
 			// If Expression: if (cond) then_expr else else_expr
@@ -369,6 +375,12 @@ impl Parser {
 			self.match_token(TokenType.KW_AS) -> {
 				val target_type = self.parse_type();
 				yield self.cast(left, target_type, line, col);
+			}
+
+			// Type Test: left is Type
+			self.match_token(TokenType.KW_IS) -> {
+				val target_type = self.parse_type();
+				yield self.is_expr(left, target_type, line, col);
 			}
 
 			// 5. Generic Call: left<T1, T2>(arg1, arg2)

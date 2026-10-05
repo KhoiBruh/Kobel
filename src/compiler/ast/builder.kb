@@ -89,6 +89,9 @@ impl Arena {
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz)
 		=> self.make<InterpExpr>(InterpExpr(parts), line, col);
 
+	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz)
+		=> self.make<IsExpr>(IsExpr(expr, target_type), line, col);
+
 	// ------------------------------------------------------------------------
 	// Statements
 	// ------------------------------------------------------------------------

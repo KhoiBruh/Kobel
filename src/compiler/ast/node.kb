@@ -49,7 +49,8 @@ pub enum NodeKind {
 	DECL_ENUM,
 	DECL_CONST,
 	DECL_EXTERN_BLOCK,
-	PROGRAM
+	PROGRAM,
+	EXPR_IS
 }
 
 pub struct AstNode {

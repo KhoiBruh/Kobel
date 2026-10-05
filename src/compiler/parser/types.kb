@@ -39,7 +39,7 @@ impl Parser {
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = (ch as i32) - ('0' as i32);
-					size *= 10 + digit;
+					size = size * 10 + (digit as usz);
 				}
 			}
 
@@ -75,7 +75,7 @@ impl Parser {
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = (ch as i32) - ('0' as i32);
-					size *= 10 + digit;
+					size = size * 10 + (digit as usz);
 				}
 			}
 

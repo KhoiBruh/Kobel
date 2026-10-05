@@ -560,20 +560,57 @@ impl BodyPass {
 
 	pub fn check_when_expr(var self, node: *AstNode): *Type {
 		val we = node.to<WhenExpr>();
-		if (we.condition != null) self.check_expr(we.condition);
+		var cond_ty: *Type = null;
+		if (we.condition != null) cond_ty = self.check_expr(we.condition);
 
 		self.when_depth++;
 		var result_ty: *Type = null;
 		var has_else = false;
 		for (arm in we.arms) {
 			if (arm.is_else) has_else = true;
-			for (pat in arm.patterns) {
-				val p_ty = self.check_expr(pat);
-				if (we.condition == null && p_ty.kind != DataType.BOOL)
-					self.report_error(pat, "Boolean when arm condition must be bool");
+
+			var smart_cast_sym = "";
+			var smart_cast_ty: *Type = null;
+
+			if (we.condition != null && we.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
+				val pat = arm.patterns.first();
+				if (pat.kind == NodeKind.EXPR_IS) {
+					val is_e = pat.to<IsExpr>() as &IsExpr;
+					if (is_e.expr == null) is_e.expr = we.condition;
+					smart_cast_ty = self.check_is_pattern(we.condition, cond_ty, pat);
+					if (smart_cast_ty != null) {
+						smart_cast_sym = we.condition.to<IdentifierExpr>().name;
+					}
+				}
 			}
 
-			val body_ty = self.check_when_arm_body(arm.body);
+			if (smart_cast_sym == "") {
+				for (pat in arm.patterns) {
+					var p_ty: *Type = null;
+					if (pat.kind == NodeKind.EXPR_IS && we.condition != null) {
+						val is_e = pat.to<IsExpr>() as &IsExpr;
+						if (is_e.expr == null) is_e.expr = we.condition;
+						self.check_is_pattern(we.condition, cond_ty, pat);
+						p_ty = alloc_primitive(&self.arena, type_bool());
+					} else {
+						p_ty = self.check_expr(pat);
+					}
+
+					if (we.condition == null && p_ty.kind != DataType.BOOL)
+						self.report_error(pat, "Boolean when arm condition must be bool");
+				}
+			}
+
+			var body_ty: *Type = null;
+			if (smart_cast_sym != "" && smart_cast_ty != null) {
+				self.symtab.enter_scope(false);
+				self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+				body_ty = self.check_when_arm_body(arm.body);
+				self.symtab.exit_scope();
+			} else {
+				body_ty = self.check_when_arm_body(arm.body);
+			}
+
 			if (result_ty == null) result_ty = body_ty;
 			else if (!result_ty.can_assign(body_ty))
 				self.report_error(arm.body, "When arm type does not match previous arms");
@@ -608,6 +645,72 @@ impl BodyPass {
 			return yield_ty;
 		}
 		return self.check_expr(body);
+	}
+
+	pub fn check_is_pattern(var self, subject: *AstNode, subj_ty: *Type, is_node: *AstNode): *Type {
+		val is_e = is_node.to<IsExpr>() as &IsExpr;
+		val target_ty = self.resolve_type(is_e.target_type);
+		if (target_ty.kind != DataType.STRUCT) {
+			self.report_error(is_node, "Target type of 'is' must be a struct");
+			return null;
+		}
+
+		val target_s = target_ty.as_struct();
+		var tag_const_sym = self.symtab.lookup("${target_s.name}__TAG");
+		if (tag_const_sym == null) {
+			tag_const_sym = self.symtab.lookup("${target_s.name}__KIND");
+		}
+		if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
+			self.report_error(is_node, "Cannot smart cast to '${target_s.name}': struct '${target_s.name}' must declare a 'const TAG'");
+			return null;
+		}
+
+		var base_ty = subj_ty;
+		var is_ptr = false;
+		if (base_ty != null && base_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			base_ty = base_ty.as_pointer().pointee;
+		}
+		if (base_ty == null || base_ty.kind != DataType.STRUCT) {
+			self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
+			return null;
+		}
+
+		val base_s = base_ty.as_struct();
+		var tag_field_name = "";
+		var tag_field_ty: *Type = null;
+		for (f in base_s.fields) {
+			if (f.name == "tag" || f.name == "TAG" || f.name == "kind" || f.name == "kind_") {
+				tag_field_name = f.name;
+				tag_field_ty = f.type_ptr;
+				break;
+			}
+		}
+
+		if (tag_field_name == "") {
+			self.report_error(is_node, "Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field");
+			return null;
+		}
+
+		if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
+			self.report_error(is_node, "Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'");
+			return null;
+		}
+
+		is_e.tag_field = tag_field_name;
+		if (is_ptr) return self.arena.pointer_type(target_ty, false);
+		return target_ty;
+	}
+
+	pub fn check_is_expr(var self, node: *AstNode): *Type {
+		val is_e = node.to<IsExpr>() as &IsExpr;
+		if (is_e.expr == null) {
+			self.report_error(node, "'is' expression requires a subject");
+			return alloc_primitive(&self.arena, type_bool());
+		}
+		val subj_ty = self.check_expr(is_e.expr);
+		self.check_is_pattern(is_e.expr, subj_ty, node);
+		return alloc_primitive(&self.arena, type_bool());
 	}
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {

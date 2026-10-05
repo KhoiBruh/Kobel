@@ -181,6 +181,7 @@ impl BodyPass {
 			NodeKind.EXPR_WHEN -> self.check_when_expr(node);
 			NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
 			NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
+			NodeKind.EXPR_IS -> self.check_is_expr(node);
 			else -> alloc_primitive(&self.arena, type_none());
 		};
 	}

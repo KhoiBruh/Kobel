@@ -123,14 +123,50 @@ impl BodyPass {
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
 		val ws = node.to<WhenStmt>();
-		if (ws.condition != null) self.check_expr(ws.condition);
+		var cond_ty: *Type = null;
+		if (ws.condition != null) cond_ty = self.check_expr(ws.condition);
+
 		for (arm in ws.arms) {
-			for (pat in arm.patterns) {
-				val p_ty = self.check_expr(pat);
-				if (ws.condition == null && p_ty.kind != DataType.BOOL)
-					self.report_error(pat, "Boolean when arm condition must be bool");
+			var smart_cast_sym = "";
+			var smart_cast_ty: *Type = null;
+
+			if (ws.condition != null && ws.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
+				val pat = arm.patterns.first();
+				if (pat.kind == NodeKind.EXPR_IS) {
+					val is_e = pat.to<IsExpr>() as &IsExpr;
+					if (is_e.expr == null) is_e.expr = ws.condition;
+					smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
+					if (smart_cast_ty != null) {
+						smart_cast_sym = ws.condition.to<IdentifierExpr>().name;
+					}
+				}
 			}
-			self.check_statement(arm.body);
+
+			if (smart_cast_sym == "") {
+				for (pat in arm.patterns) {
+					var p_ty: *Type = null;
+					if (pat.kind == NodeKind.EXPR_IS && ws.condition != null) {
+						val is_e = pat.to<IsExpr>() as &IsExpr;
+						if (is_e.expr == null) is_e.expr = ws.condition;
+						self.check_is_pattern(ws.condition, cond_ty, pat);
+						p_ty = alloc_primitive(&self.arena, type_bool());
+					} else {
+						p_ty = self.check_expr(pat);
+					}
+
+					if (ws.condition == null && p_ty.kind != DataType.BOOL)
+						self.report_error(pat, "Boolean when arm condition must be bool");
+				}
+			}
+
+			if (smart_cast_sym != "" && smart_cast_ty != null) {
+				self.symtab.enter_scope(false);
+				self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+				self.check_statement(arm.body);
+				self.symtab.exit_scope();
+			} else {
+				self.check_statement(arm.body);
+			}
 		}
 	}
 

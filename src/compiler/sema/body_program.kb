@@ -146,6 +146,10 @@ impl BodyPass {
 				}
 				NodeKind.DECL_FN -> self.check_fn(decl);
 				NodeKind.DECL_IMPL -> self.check_impl(decl);
+				NodeKind.DECL_CONST -> {
+					val c = decl.to<ConstDecl>();
+					if (c.value != null) self.check_expr(c.value);
+				}
 				else -> {}
 			}
 		}

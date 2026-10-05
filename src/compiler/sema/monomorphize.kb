@@ -626,6 +626,11 @@ impl DeclPass {
 				}
 				yield self.interp(parts, node.line, node.col);
 			}
+			NodeKind.EXPR_IS -> {
+				val is_e = node.to<IsExpr>();
+				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
+				yield self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
+			}
 			else -> self.identifier("<unsupported-expr>", node.line, node.col);
 		};
 	}
@@ -898,6 +903,11 @@ impl DeclPass {
 			NodeKind.EXPR_INTERP -> {
 				val ie = node.to<InterpExpr>();
 				for (part in ie.parts) self.rewrite_generics(part.expr);
+			}
+			NodeKind.EXPR_IS -> {
+				val is_e = node.to<IsExpr>();
+				if (is_e.expr != null) self.rewrite_generics(is_e.expr);
+				self.rewrite_generics(is_e.target_type);
 			}
 
 			NodeKind.STMT_BLOCK -> {
