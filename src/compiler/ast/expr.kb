@@ -15,123 +15,84 @@ pub enum LiteralKind {
 }
 
 pub struct LiteralExpr {
+	pub const TAG = NodeKind.EXPR_LITERAL;
 	pub literal_kind: LiteralKind,
 	pub raw_text: str
 }
 
-impl LiteralExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_LITERAL;
-}
-
 pub struct IdentifierExpr {
+	pub const TAG = NodeKind.EXPR_IDENTIFIER;
 	pub name: str
 }
 
-impl IdentifierExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_IDENTIFIER;
-}
-
 pub struct BinaryExpr {
+	pub const TAG = NodeKind.EXPR_BINARY;
 	pub left: *AstNode,
 	pub op: TokenType,
 	pub right: *AstNode
 }
 
-impl BinaryExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_BINARY;
-}
-
 pub struct UnaryExpr {
+	pub const TAG = NodeKind.EXPR_UNARY;
 	pub op: TokenType,
 	pub operand: *AstNode
 }
 
-impl UnaryExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_UNARY;
-}
-
 pub struct CallExpr {
+	pub const TAG = NodeKind.EXPR_CALL;
 	pub callee: *AstNode,
 	pub args: List<*AstNode> = List<*AstNode>(),
 	pub type_args: List<*AstNode> = List<*AstNode>()
 }
 
-impl CallExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_CALL;
-}
-
 pub struct MemberExpr {
+	pub const TAG = NodeKind.EXPR_MEMBER;
 	pub object: *AstNode,
 	pub member: str
 }
 
-impl MemberExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_MEMBER;
-}
-
 pub struct IndexExpr {
+	pub const TAG = NodeKind.EXPR_INDEX;
 	pub target: *AstNode,
 	pub index: *AstNode
 }
 
-impl IndexExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_INDEX;
-}
-
 pub struct AssignExpr {
+	pub const TAG = NodeKind.EXPR_ASSIGN;
 	pub target: *AstNode,
 	pub op: TokenType,
 	pub value: *AstNode
 }
 
-impl AssignExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_ASSIGN;
-}
-
 pub struct UpdateExpr {
+	pub const TAG = NodeKind.EXPR_UPDATE;
 	pub op: TokenType,
 	pub target: *AstNode
 }
 
-impl UpdateExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_UPDATE;
-}
-
 pub struct CastExpr {
+	pub const TAG = NodeKind.EXPR_CAST;
 	pub expr: *AstNode,
 	pub target_type: *AstNode
 }
 
-impl CastExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_CAST;
-}
-
 pub struct GroupExpr {
+	pub const TAG = NodeKind.EXPR_GROUP;
 	pub expr: *AstNode
 }
 
-impl GroupExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_GROUP;
-}
-
 pub struct ArrayLiteralExpr {
+	pub const TAG = NodeKind.EXPR_ARRAY_LITERAL;
 	pub elements: List<*AstNode>,
 	pub list_struct_name: str = "",
 	pub elem_type_node: *AstNode = null
 }
 
-impl ArrayLiteralExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_ARRAY_LITERAL;
-}
-
 pub struct IfExpr {
+	pub const TAG = NodeKind.EXPR_IF;
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode
-}
-
-impl IfExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_IF;
 }
 
 pub struct WhenArm {
@@ -143,12 +104,9 @@ pub struct WhenArm {
 }
 
 pub struct WhenExpr {
+	pub const TAG = NodeKind.EXPR_WHEN;
 	pub condition: *AstNode,
 	pub arms: List<WhenArm>
-}
-
-impl WhenExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_WHEN;
 }
 
 // One piece of an interpolated string: either a literal chunk (`is_literal`,
@@ -159,19 +117,16 @@ pub struct InterpPart {
 }
 
 pub struct InterpExpr {
+	pub const TAG = NodeKind.EXPR_INTERP;
 	pub parts: List<InterpPart>
 }
 
-impl InterpExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_INTERP;
-}
-
 pub struct IsExpr {
+	pub const TAG = NodeKind.EXPR_IS;
 	pub expr: *AstNode,
 	pub target_type: *AstNode,
-	pub tag_field: str = ""
-}
-
-impl IsExpr {
-	pub fn node_kind(val self) => NodeKind.EXPR_IS;
+	pub tag_field: str = "",
+	pub has_data: bool = false,
+	pub base_c_name: str = "",
+	pub is_ptr: bool = false
 }

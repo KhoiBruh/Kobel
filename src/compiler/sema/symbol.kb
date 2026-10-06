@@ -405,4 +405,13 @@ impl SymbolTable {
 		}
 		return null;
 	}
+
+	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol {
+		val direct = "${struct_name}__${member_name}";
+		for (sc in self.modules) {
+			val s = sc.lookup(direct);
+			if (s != null && s.kind == SymbolKind.CONST) return s;
+		}
+		return null;
+	}
 }

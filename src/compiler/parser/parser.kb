@@ -22,133 +22,133 @@ impl Parser {
 	pub fn new(tokens: List<Token>) => Self(tokens);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<NamedType>(NamedType(name, type_args), line, col);
+		=> self.arena.make<NamedType>(NamedType.TAG, NamedType(name, type_args), line, col);
 
 	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<PointerType>(PointerType(is_mut, pointee), line, col);
+		=> self.arena.make<PointerType>(PointerType.TAG, PointerType(is_mut, pointee), line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
-		=> self.arena.make<ArrayType>(ArrayType(elem, size), line, col);
+		=> self.arena.make<ArrayType>(ArrayType.TAG, ArrayType(elem, size), line, col);
 
 	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<NullableType>(NullableType(inner), line, col);
+		=> self.arena.make<NullableType>(NullableType.TAG, NullableType(inner), line, col);
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<LiteralExpr>(LiteralExpr(lk, raw), line, col);
+		=> self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lk, raw), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<IdentifierExpr>(IdentifierExpr(name), line, col);
+		=> self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(name), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<BinaryExpr>(BinaryExpr(left, op, right), line, col);
+		=> self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(left, op, right), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UnaryExpr>(UnaryExpr(op, operand), line, col);
+		=> self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(op, operand), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<CallExpr>(CallExpr(callee, args, type_args), line, col);
+		=> self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(callee, args, type_args), line, col);
 
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<MemberExpr>(MemberExpr(obj, member), line, col);
+		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IndexExpr>(IndexExpr(target, index), line, col);
+		=> self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
 
 	pub fn assign(var self, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<AssignExpr>(AssignExpr(target, TokenType.EQUAL, value), line, col);
+		=> self.arena.make<AssignExpr>(AssignExpr.TAG, AssignExpr(target, TokenType.EQUAL, value), line, col);
 
 	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<AssignExpr>(AssignExpr(target, op, value), line, col);
+		=> self.arena.make<AssignExpr>(AssignExpr.TAG, AssignExpr(target, op, value), line, col);
 
 	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UpdateExpr>(UpdateExpr(op, target), line, col);
+		=> self.arena.make<UpdateExpr>(UpdateExpr.TAG, UpdateExpr(op, target), line, col);
 
 	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<CastExpr>(CastExpr(expr, target_type), line, col);
+		=> self.arena.make<CastExpr>(CastExpr.TAG, CastExpr(expr, target_type), line, col);
 
 	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IsExpr>(IsExpr(expr, target_type), line, col);
+		=> self.arena.make<IsExpr>(IsExpr.TAG, IsExpr(expr, target_type), line, col);
 
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<GroupExpr>(GroupExpr(expr), line, col);
+		=> self.arena.make<GroupExpr>(GroupExpr.TAG, GroupExpr(expr), line, col);
 
 	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr(elements, "", null), line, col);
+		=> self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(elements, "", null), line, col);
 
 	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
+		=> self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IfExpr>(IfExpr(condition, then_branch, else_branch), line, col);
+		=> self.arena.make<IfExpr>(IfExpr.TAG, IfExpr(condition, then_branch, else_branch), line, col);
 
 	pub fn when_expr(var self, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhenExpr>(WhenExpr(condition, arms), line, col);
+		=> self.arena.make<WhenExpr>(WhenExpr.TAG, WhenExpr(condition, arms), line, col);
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
-		=> self.arena.make<InterpExpr>(InterpExpr(parts), line, col);
+		=> self.arena.make<InterpExpr>(InterpExpr.TAG, InterpExpr(parts), line, col);
 
 	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<BlockStmt>(BlockStmt(statements), line, col);
+		=> self.arena.make<BlockStmt>(BlockStmt.TAG, BlockStmt(statements), line, col);
 
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ExprStmt>(ExprStmt(expr), line, col);
+		=> self.arena.make<ExprStmt>(ExprStmt.TAG, ExprStmt(expr), line, col);
 
 	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<VarDeclStmt>(VarDeclStmt(is_mut, name, type_annotation, initializer), line, col);
+		=> self.arena.make<VarDeclStmt>(VarDeclStmt.TAG, VarDeclStmt(is_mut, name, type_annotation, initializer), line, col);
 
 	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IfStmt>(IfStmt(condition, then_branch, else_branch), line, col);
+		=> self.arena.make<IfStmt>(IfStmt.TAG, IfStmt(condition, then_branch, else_branch), line, col);
 
 	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhileStmt>(WhileStmt(condition, body), line, col);
+		=> self.arena.make<WhileStmt>(WhileStmt.TAG, WhileStmt(condition, body), line, col);
 
 	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ForStmt>(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body), line, col);
+		=> self.arena.make<ForStmt>(ForStmt.TAG, ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body), line, col);
 
 	pub fn return_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ReturnStmt>(ReturnStmt(value), line, col);
+		=> self.arena.make<ReturnStmt>(ReturnStmt.TAG, ReturnStmt(value), line, col);
 
 	pub fn break_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.make<BreakStmt>(BreakStmt(0), line, col);
+		=> self.arena.make<BreakStmt>(BreakStmt.TAG, BreakStmt(0), line, col);
 
 	pub fn continue_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.make<ContinueStmt>(ContinueStmt(0), line, col);
+		=> self.arena.make<ContinueStmt>(ContinueStmt.TAG, ContinueStmt(0), line, col);
 
 	pub fn when_stmt(var self, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhenStmt>(WhenStmt(condition, arms), line, col);
+		=> self.arena.make<WhenStmt>(WhenStmt.TAG, WhenStmt(condition, arms), line, col);
 
 	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<YieldStmt>(YieldStmt(value), line, col);
+		=> self.arena.make<YieldStmt>(YieldStmt.TAG, YieldStmt(value), line, col);
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<ModuleDecl>(ModuleDecl(path, full_path), line, col);
+		=> self.arena.make<ModuleDecl>(ModuleDecl.TAG, ModuleDecl(path, full_path), line, col);
 
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<UseDecl>(UseDecl(path, full_path, symbol_name, alias, is_wildcard), line, col);
+		=> self.arena.make<UseDecl>(UseDecl.TAG, UseDecl(path, full_path, symbol_name, alias, is_wildcard), line, col);
 
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<FnDecl>(FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
+		=> self.arena.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<StructDecl>(StructDecl(name, type_params, fields, is_pub), line, col);
+		=> self.arena.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, fields, is_pub), line, col);
 
 	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<TraitDecl>(TraitDecl(name, type_params, bases, methods, is_pub), line, col);
+		=> self.arena.make<TraitDecl>(TraitDecl.TAG, TraitDecl(name, type_params, bases, methods, is_pub), line, col);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods), line, col);
+		=> self.arena.make<ImplDecl>(ImplDecl.TAG, ImplDecl(struct_name, type_params, trait_name, methods), line, col);
 
 	pub fn enum_decl(var self, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<EnumDecl>(EnumDecl(name, underlying_type, members, is_pub), line, col);
+		=> self.arena.make<EnumDecl>(EnumDecl.TAG, EnumDecl(name, underlying_type, members, is_pub), line, col);
 
 	pub fn const_decl(var self, name: str, type_node: *AstNode, value: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<ConstDecl>(ConstDecl(name, type_node, value, is_pub), line, col);
+		=> self.arena.make<ConstDecl>(ConstDecl.TAG, ConstDecl(name, type_node, value, is_pub), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<ExternBlock>(ExternBlock(abi, declarations), line, col);
+		=> self.arena.make<ExternBlock>(ExternBlock.TAG, ExternBlock(abi, declarations), line, col);
 
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<Program>(Program(declarations), line, col);
+		=> self.arena.make<Program>(Program.TAG, Program(declarations), line, col);
 
 	pub fn is_end(var self): bool {
 		if (self.current >= self.tokens.len) return true;

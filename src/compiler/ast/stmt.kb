@@ -5,49 +5,34 @@ use compiler.ast.node.NodeKind;
 use std.collections.list.List;
 
 pub struct BlockStmt {
+	pub const TAG = NodeKind.STMT_BLOCK;
 	pub statements: List<*AstNode>
 }
 
-impl BlockStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_BLOCK;
-}
-
 pub struct ExprStmt {
+	pub const TAG = NodeKind.STMT_EXPR;
 	pub expr: *AstNode
 }
 
-impl ExprStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_EXPR;
-}
-
 pub struct VarDeclStmt {
+	pub const TAG = NodeKind.STMT_VAR_DECL;
 	pub is_mut: bool,
 	pub name: str,
 	pub type_annotation: *AstNode,
 	pub initializer: *AstNode
 }
 
-impl VarDeclStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_VAR_DECL;
-}
-
 pub struct IfStmt {
+	pub const TAG = NodeKind.STMT_IF;
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode
 }
 
-impl IfStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_IF;
-}
-
 pub struct WhileStmt {
+	pub const TAG = NodeKind.STMT_WHILE;
 	pub condition: *AstNode,
 	pub body: *AstNode
-}
-
-impl WhileStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_WHILE;
 }
 
 // `for (name in <iterable>)` or `for (name in <start>..<end>)`.
@@ -56,6 +41,7 @@ impl WhileStmt {
 // `is_open` (`a>..<b`, exclusive on both ends) and `is_half_open` (`a..<b`,
 // exclusive on the end only) is set; both false means the closed `a..b` form.
 pub struct ForStmt {
+	pub const TAG = NodeKind.STMT_FOR;
 	pub var_name: str,
 	pub is_range: bool,
 	pub is_open: bool,
@@ -66,32 +52,19 @@ pub struct ForStmt {
 	pub body: *AstNode
 }
 
-impl ForStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_FOR;
-}
-
 pub struct ReturnStmt {
+	pub const TAG = NodeKind.STMT_RETURN;
 	pub value: *AstNode
 }
 
-impl ReturnStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_RETURN;
-}
-
 pub struct BreakStmt {
+	pub const TAG = NodeKind.STMT_BREAK;
 	pub dummy: i32 = 0
-}
-
-impl BreakStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_BREAK;
 }
 
 pub struct ContinueStmt {
+	pub const TAG = NodeKind.STMT_CONTINUE;
 	pub dummy: i32 = 0
-}
-
-impl ContinueStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_CONTINUE;
 }
 
 pub struct WhenStmtArm {
@@ -103,18 +76,12 @@ pub struct WhenStmtArm {
 }
 
 pub struct WhenStmt {
+	pub const TAG = NodeKind.STMT_WHEN;
 	pub condition: *AstNode,
 	pub arms: List<WhenStmtArm>
 }
 
-impl WhenStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_WHEN;
-}
-
 pub struct YieldStmt {
+	pub const TAG = NodeKind.STMT_YIELD;
 	pub value: *AstNode
-}
-
-impl YieldStmt {
-	pub fn node_kind(val self) => NodeKind.STMT_YIELD;
 }

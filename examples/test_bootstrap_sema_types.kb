@@ -138,14 +138,14 @@ fn test_pointer_and_array_types() {
 	val fn_ty = arena.fn_type(params, &t_i32);
 	assert_eq_usz(fn_ty.as_fn().param_types.len, 1UZ, "fn_ty param count must be 1");
 
-	// Test arena.make_type<T>() and .to<T>()
-	val m_ptr = arena.make_type<PointerType>(PointerType(&t_i32, false, false));
+	// Test arena.alloc_type<T>() and .to<T>()
+	val m_ptr = arena.alloc_type<PointerType>(PointerType.TAG, 8UZ, 8UZ, PointerType(&t_i32, false, false));
 	assert_true(m_ptr.kind == DataType.POINTER, "m_ptr kind must be POINTER");
 	assert_eq_usz(m_ptr.size, 8UZ, "m_ptr size must be 8");
 	assert_eq_usz(m_ptr.align, 8UZ, "m_ptr align must be 8");
 	assert_true(m_ptr.to<PointerType>().pointee.equals(&t_i32), "m_ptr pointee must match");
 
-	val m_arr = arena.make_type<ArrayType>(ArrayType(&t_i32, 7UZ));
+	val m_arr = arena.alloc_type<ArrayType>(ArrayType.TAG, 28UZ, 4UZ, ArrayType(&t_i32, 7UZ));
 	assert_true(m_arr.kind == DataType.ARRAY, "m_arr kind must be ARRAY");
 	assert_eq_usz(m_arr.size, 28UZ, "m_arr size must be 28");
 	assert_eq_usz(m_arr.align, 4UZ, "m_arr align must be 4");

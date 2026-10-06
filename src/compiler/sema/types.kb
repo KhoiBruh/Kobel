@@ -27,15 +27,18 @@ pub struct Type {
 }
 
 pub struct PointerType {
+	pub const TAG = DataType.POINTER;
 	pub pointee: *Type,
 	pub is_mut: bool,
 	pub is_nullable: bool
 }
 
 pub struct ArrayType {
+	pub const TAG = DataType.ARRAY;
 	pub elem: *Type,
 	pub length: usz
 }
+
 
 pub struct StructField {
 	pub name: str,
@@ -57,6 +60,7 @@ pub struct MethodInfo {
 }
 
 pub struct StructType {
+	pub const TAG = DataType.STRUCT;
 	pub name: str,
 	// Mangled C name; equal to `name` for monomorphized instances.
 	pub c_name: str,
@@ -71,6 +75,7 @@ pub struct StructType {
 }
 
 pub struct FnType {
+	pub const TAG = DataType.FN;
 	pub param_types: List<*Type>,
 	pub return_type: *Type
 }
@@ -100,25 +105,22 @@ impl EnumInfo {
 }
 
 impl PointerType {
-	pub fn data_type(val self) => DataType.POINTER;
 	pub fn type_size(val self) => 8UZ;
 	pub fn type_align(val self) => 8UZ;
 }
 
 impl ArrayType {
-	pub fn data_type(val self) => DataType.ARRAY;
 	pub fn type_size(val self) => self.elem.size * self.length;
 	pub fn type_align(val self) => self.elem.align;
 }
 
 impl FnType {
-	pub fn data_type(val self) => DataType.FN;
 	pub fn type_size(val self) => 8UZ;
 	pub fn type_align(val self) => 8UZ;
 }
 
 impl StructType {
-	pub fn data_type(val self) => DataType.STRUCT;
+
 
 	pub fn find_method(val self, name: str): *MethodInfo {
 		for (m in self.methods) {
@@ -202,29 +204,24 @@ pub fn type_str() => type_primitive(DataType.STR);
 // ============================================================================
 
 impl Arena {
-	pub fn alloc_type<T>(var self, size: usz, align: usz, info: T): *Type {
+	pub fn alloc_type<T>(var self, kind: DataType, size: usz, align: usz, info: T): *Type {
 		val info_ptr = self.alloc_val<T>(info);
-		return self.alloc_val<Type>(Type(info.data_type(), size, align, info_ptr as *u8));
-	}
-
-	pub fn make_type<T>(var self, info: T): *Type {
-		val info_ptr = self.alloc_val<T>(info);
-		return self.alloc_val<Type>(Type(info.data_type(), info.type_size(), info.type_align(), info_ptr as *u8));
+		return self.alloc_val<Type>(Type(kind, size, align, info_ptr as *u8));
 	}
 
 	pub fn primitive_type(var self, base: Type) => self.alloc_val<Type>(base);
 
 	pub fn pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.make_type<PointerType>(PointerType(pointee, is_mut, false));
+		=> self.alloc_type<PointerType>(PointerType.TAG, 8UZ, 8UZ, PointerType(pointee, is_mut, false));
 
 	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.make_type<PointerType>(PointerType(pointee, is_mut, true));
+		=> self.alloc_type<PointerType>(PointerType.TAG, 8UZ, 8UZ, PointerType(pointee, is_mut, true));
 
 	pub fn array_type(var self, elem: *Type, length: usz)
-		=> self.make_type<ArrayType>(ArrayType(elem, length));
+		=> self.alloc_type<ArrayType>(ArrayType.TAG, elem.size * length, elem.align, ArrayType(elem, length));
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type)
-		=> self.make_type<FnType>(FnType(param_types, return_type));
+		=> self.alloc_type<FnType>(FnType.TAG, 8UZ, 8UZ, FnType(param_types, return_type));
 
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
 		var max_align = 1UZ;
@@ -247,7 +244,7 @@ impl Arena {
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
 		val struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
-		return self.alloc_type<StructType>(current_offset, max_align, struct_info);
+		return self.alloc_type<StructType>(StructType.TAG, current_offset, max_align, struct_info);
 	}
 }
 

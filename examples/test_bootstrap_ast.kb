@@ -244,15 +244,15 @@ fn test_arena_ast_methods(): bool {
 	if (!fn_d.is_pub) return false;
 
 	// Test arena.make<T>()
-	val m_lit = arena.make<LiteralExpr>(LiteralExpr(LiteralKind.INT, "456"), 3UZ, 1UZ);
+	val m_lit = arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(LiteralKind.INT, "456"), 3UZ, 1UZ);
 	if (m_lit.kind != NodeKind.EXPR_LITERAL) return false;
 	if (m_lit.to<LiteralExpr>().raw_text != "456") return false;
 
-	val m_id = arena.make<IdentifierExpr>(IdentifierExpr("y"), 3UZ, 5UZ);
+	val m_id = arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr("y"), 3UZ, 5UZ);
 	if (m_id.kind != NodeKind.EXPR_IDENTIFIER) return false;
 	if (m_id.to<IdentifierExpr>().name != "y") return false;
 
-	val m_bin = arena.make<BinaryExpr>(BinaryExpr(m_lit, TokenType.STAR, m_id), 3UZ, 3UZ);
+	val m_bin = arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(m_lit, TokenType.STAR, m_id), 3UZ, 3UZ);
 	if (m_bin.kind != NodeKind.EXPR_BINARY) return false;
 	val bin_d = m_bin.to<BinaryExpr>();
 	if (bin_d.op != TokenType.STAR) return false;

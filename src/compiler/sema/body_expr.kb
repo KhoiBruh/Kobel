@@ -247,8 +247,13 @@ impl BodyPass {
 			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
 			val s_sym = self.symtab.lookup(enum_id.name);
 			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
-				val const_name = "${enum_id.name}__${mem.member}";
-				val c_sym = self.symtab.lookup(const_name);
+				var c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}");
+				if (c_sym == null) {
+					c_sym = self.symtab.lookup_struct_const(enum_id.name, mem.member);
+				}
+				if (c_sym == null) {
+					c_sym = self.symtab.lookup_struct_const(s_sym.name, mem.member);
+				}
 				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
 					val id_node = self.identifier(c_sym.c_name, node.line, node.col);
 					val n = node as &AstNode;
@@ -658,7 +663,13 @@ impl BodyPass {
 		val target_s = target_ty.as_struct();
 		var tag_const_sym = self.symtab.lookup("${target_s.name}__TAG");
 		if (tag_const_sym == null) {
+			tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "TAG");
+		}
+		if (tag_const_sym == null) {
 			tag_const_sym = self.symtab.lookup("${target_s.name}__KIND");
+		}
+		if (tag_const_sym == null) {
+			tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "KIND");
 		}
 		if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
 			self.report_error(is_node, "Cannot smart cast to '${target_s.name}': struct '${target_s.name}' must declare a 'const TAG'");
@@ -697,7 +708,18 @@ impl BodyPass {
 			return null;
 		}
 
+		var has_data_ptr = false;
+		for (f in base_s.fields) {
+			if (f.name == "data") {
+				has_data_ptr = true;
+				break;
+			}
+		}
+
 		is_e.tag_field = tag_field_name;
+		is_e.has_data = has_data_ptr;
+		is_e.base_c_name = base_s.c_name;
+		is_e.is_ptr = is_ptr;
 		if (is_ptr) return self.arena.pointer_type(target_ty, false);
 		return target_ty;
 	}

@@ -65,41 +65,41 @@ impl BodyPass {
 	}
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<LiteralExpr>(LiteralExpr(lk, raw), line, col);
+		=> self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lk, raw), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<IdentifierExpr>(IdentifierExpr(name), line, col);
+		=> self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(name), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<BinaryExpr>(BinaryExpr(left, op, right), line, col);
+		=> self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(left, op, right), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UnaryExpr>(UnaryExpr(op, operand), line, col);
+		=> self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(op, operand), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<CallExpr>(CallExpr(callee, args, type_args), line, col);
+		=> self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(callee, args, type_args), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IndexExpr>(IndexExpr(target, index), line, col);
+		=> self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
 
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> {
 				val lit = node.to<LiteralExpr>();
-				yield self.arena.make<LiteralExpr>(LiteralExpr(lit.literal_kind, lit.raw_text), node.line, node.col);
+				yield self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lit.literal_kind, lit.raw_text), node.line, node.col);
 			}
 			NodeKind.EXPR_IDENTIFIER -> {
 				val id = node.to<IdentifierExpr>();
-				yield self.arena.make<IdentifierExpr>(IdentifierExpr(id.name), node.line, node.col);
+				yield self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(id.name), node.line, node.col);
 			}
 			NodeKind.EXPR_BINARY -> {
 				val b = node.to<BinaryExpr>();
-				yield self.arena.make<BinaryExpr>(BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)), node.line, node.col);
+				yield self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)), node.line, node.col);
 			}
 			NodeKind.EXPR_UNARY -> {
 				val u = node.to<UnaryExpr>();
-				yield self.arena.make<UnaryExpr>(UnaryExpr(u.op, self.clone_expr(u.operand)), node.line, node.col);
+				yield self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(u.op, self.clone_expr(u.operand)), node.line, node.col);
 			}
 			NodeKind.EXPR_CALL -> {
 				val c = node.to<CallExpr>();
@@ -107,29 +107,29 @@ impl BodyPass {
 				for (a in c.args) args.add(self.clone_expr(a));
 				var targs = List<*AstNode>();
 				for (ta in c.type_args) targs.add(ta);
-				yield self.arena.make<CallExpr>(CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
+				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
 			}
 			NodeKind.EXPR_MEMBER -> {
 				val m = node.to<MemberExpr>();
-				yield self.arena.make<MemberExpr>(MemberExpr(self.clone_expr(m.object), m.member), node.line, node.col);
+				yield self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member), node.line, node.col);
 			}
 			NodeKind.EXPR_INDEX -> {
 				val ix = node.to<IndexExpr>();
-				yield self.arena.make<IndexExpr>(IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)), node.line, node.col);
+				yield self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)), node.line, node.col);
 			}
 			NodeKind.EXPR_GROUP -> {
 				val g = node.to<GroupExpr>();
-				yield self.arena.make<GroupExpr>(GroupExpr(self.clone_expr(g.expr)), node.line, node.col);
+				yield self.arena.make<GroupExpr>(GroupExpr.TAG, GroupExpr(self.clone_expr(g.expr)), node.line, node.col);
 			}
 			NodeKind.EXPR_ARRAY_LITERAL -> {
 				val al = node.to<ArrayLiteralExpr>();
 				var els = List<*AstNode>();
 				for (e in al.elements) els.add(self.clone_expr(e));
-				yield self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node), node.line, node.col);
+				yield self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node), node.line, node.col);
 			}
 			NodeKind.EXPR_CAST -> {
 				val cst = node.to<CastExpr>();
-				yield self.arena.make<CastExpr>(CastExpr(self.clone_expr(cst.expr), cst.target_type), node.line, node.col);
+				yield self.arena.make<CastExpr>(CastExpr.TAG, CastExpr(self.clone_expr(cst.expr), cst.target_type), node.line, node.col);
 			}
 			else -> node;
 		};

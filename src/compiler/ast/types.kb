@@ -5,36 +5,24 @@ use compiler.ast.node.NodeKind;
 use std.collections.list.List;
 
 pub struct NamedType {
+	pub const TAG = NodeKind.TYPE_NAMED;
 	pub name: str,
 	pub type_args: List<*AstNode> = List<*AstNode>()
 }
 
-impl NamedType {
-	pub fn node_kind(val self) => NodeKind.TYPE_NAMED;
-}
-
 pub struct PointerType {
+	pub const TAG = NodeKind.TYPE_POINTER;
 	pub is_mut: bool,
 	pub pointee: *AstNode
 }
 
-impl PointerType {
-	pub fn node_kind(val self) => NodeKind.TYPE_POINTER;
-}
-
 pub struct ArrayType {
+	pub const TAG = NodeKind.TYPE_ARRAY;
 	pub element_type: *AstNode,
 	pub size: usz
 }
 
-impl ArrayType {
-	pub fn node_kind(val self) => NodeKind.TYPE_ARRAY;
-}
-
 pub struct NullableType {
+	pub const TAG = NodeKind.TYPE_NULLABLE;
 	pub inner: *AstNode
-}
-
-impl NullableType {
-	pub fn node_kind(val self) => NodeKind.TYPE_NULLABLE;
 }

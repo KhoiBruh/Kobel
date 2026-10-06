@@ -93,10 +93,10 @@ impl ModuleLoader {
 	}
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<ModuleDecl>(ModuleDecl(path, full_path), line, col);
+		=> self.arena.make<ModuleDecl>(ModuleDecl.TAG, ModuleDecl(path, full_path), line, col);
 
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<Program>(Program(declarations), line, col);
+		=> self.arena.make<Program>(Program.TAG, Program(declarations), line, col);
 
 	pub fn count(val self) => self.ordered.len;
 

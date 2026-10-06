@@ -449,11 +449,7 @@ impl CCodeGen {
 		val target_name = c_type_from_ast(is_e.target_type);
 		var tag_field = is_e.tag_field;
 		if (tag_field == "") tag_field = "tag";
-		var is_ptr = false;
-		if (is_e.expr.kind == NodeKind.EXPR_IDENTIFIER) {
-			is_ptr = self.is_pointer_var(is_e.expr.to<IdentifierExpr>().name);
-		}
-		val op = if (is_ptr) "->" else ".";
+		val op = if (is_e.is_ptr) "->" else ".";
 		return "((${obj})${op}${tag_field} == ${target_name}__TAG)";
 	}
 
@@ -472,8 +468,7 @@ impl CCodeGen {
 					val target_name = c_type_from_ast(is_e.target_type);
 					var tag_field = is_e.tag_field;
 					if (tag_field == "") tag_field = "tag";
-					val is_ptr = self.is_pointer_var(cond);
-					val op = if (is_ptr) "->" else ".";
+					val op = if (is_e.is_ptr) "->" else ".";
 					yield "((${cond})${op}${tag_field} == ${target_name}__TAG)";
 				}
 
@@ -836,9 +831,13 @@ impl CCodeGen {
 							val is_e = pat.to<IsExpr>();
 							val target_name = c_type_from_ast(is_e.target_type);
 							val var_name = ws.condition.to<IdentifierExpr>().name;
-							val is_ptr = self.is_pointer_var(var_name);
+							val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
 							if (is_ptr) {
-								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+								if (is_e.has_data && is_e.base_c_name != "") {
+									cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+								} else {
+									cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+								}
 							} else {
 								cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
 							}
@@ -889,9 +888,13 @@ impl CCodeGen {
 					val is_e = pat.to<IsExpr>();
 					val target_name = c_type_from_ast(is_e.target_type);
 					val var_name = we.condition.to<IdentifierExpr>().name;
-					val is_ptr = self.is_pointer_var(var_name);
+					val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
 					if (is_ptr) {
-						cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+						if (is_e.has_data && is_e.base_c_name != "") {
+							cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+						} else {
+							cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+						}
 					} else {
 						cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
 					}

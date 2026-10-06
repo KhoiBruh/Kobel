@@ -6,24 +6,18 @@ use std.collections.list.List;
 use std.traits.iterable.Iterable;
 
 pub struct ModuleDecl {
+	pub const TAG = NodeKind.DECL_MODULE;
 	pub path: List<str>,
 	pub full_path: str
 }
 
-impl ModuleDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_MODULE;
-}
-
 pub struct UseDecl {
+	pub const TAG = NodeKind.DECL_USE;
 	pub path: List<str>,
 	pub full_path: str,
 	pub symbol_name: str,
 	pub alias: str,
 	pub is_wildcard: bool
-}
-
-impl UseDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_USE;
 }
 
 pub struct Param {
@@ -40,16 +34,13 @@ pub struct GenericParam {
 }
 
 pub struct FnDecl {
+	pub const TAG = NodeKind.DECL_FN;
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub params: List<Param>,
 	pub return_type: *AstNode,
 	pub body: *AstNode,
 	pub is_pub: bool
-}
-
-impl FnDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_FN;
 }
 
 pub struct StructField {
@@ -60,17 +51,15 @@ pub struct StructField {
 }
 
 pub struct StructDecl {
+	pub const TAG = NodeKind.DECL_STRUCT;
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub fields: List<StructField>,
 	pub is_pub: bool
 }
 
-impl StructDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_STRUCT;
-}
-
 pub struct TraitDecl {
+	pub const TAG = NodeKind.DECL_TRAIT;
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub bases: List<str>,
@@ -78,19 +67,12 @@ pub struct TraitDecl {
 	pub is_pub: bool
 }
 
-impl TraitDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_TRAIT;
-}
-
 pub struct ImplDecl {
+	pub const TAG = NodeKind.DECL_IMPL;
 	pub struct_name: str,
 	pub type_params: List<GenericParam>,
 	pub trait_name: str,
 	pub methods: List<*AstNode>
-}
-
-impl ImplDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_IMPL;
 }
 
 pub struct EnumMember {
@@ -101,46 +83,36 @@ pub struct EnumMember {
 }
 
 pub struct EnumDecl {
+	pub const TAG = NodeKind.DECL_ENUM;
 	pub name: str,
 	pub underlying_type: *AstNode,
 	pub members: List<EnumMember>,
 	pub is_pub: bool
 }
 
-impl EnumDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_ENUM;
-}
-
 pub struct ConstDecl {
+	pub const TAG = NodeKind.DECL_CONST;
 	pub name: str,
 	pub type_node: *AstNode,
 	pub value: *AstNode,
 	pub is_pub: bool
 }
 
-impl ConstDecl {
-	pub fn node_kind(val self) => NodeKind.DECL_CONST;
-}
-
 pub struct ExternBlock {
+	pub const TAG = NodeKind.DECL_EXTERN_BLOCK;
 	pub abi: str,
 	pub declarations: List<*AstNode>
 }
 
-impl ExternBlock {
-	pub fn node_kind(val self) => NodeKind.DECL_EXTERN_BLOCK;
-}
-
 pub struct Program {
+	pub const TAG = NodeKind.PROGRAM;
 	pub declarations: List<*AstNode>
 }
 
 impl Program {
-	pub fn node_kind(val self) => NodeKind.PROGRAM;
-
 	pub fn declared_module_name(val self): str {
 		for (decl in self.declarations) {
-			if (decl.kind == NodeKind.DECL_MODULE) return decl.to<ModuleDecl>().full_path;
+			if (decl is ModuleDecl) return decl.to<ModuleDecl>().full_path;
 		}
 		return "";
 	}
