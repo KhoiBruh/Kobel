@@ -78,6 +78,29 @@ fn eval_expr(e: *BaseExpr): i32 {
 	}
 }
 
+// Case 3: Pattern matching with alias 'is Type as alias'
+fn eval_with_alias(node: *Node): i32 {
+	when (node) {
+		is Literal as lit -> {
+			// 'lit' has type *Literal, while 'node' still has type *Node!
+			val check_orig: bool = (node is Literal);
+			if (check_orig) return lit.value;
+			return 0;
+		}
+		is Binary as b -> {
+			// 'b' has type *Binary, and we can pass original 'b.left' as *Node!
+			return eval_with_alias(b.left) + eval_with_alias(b.right);
+		}
+		else -> 0;
+	}
+}
+
+fn eval_expr_alias(node: *Node): i32 => when (node) {
+	is Literal as lit -> lit.value;
+	is Binary as b -> eval_expr_alias(b.left) + eval_expr_alias(b.right);
+	else -> 0;
+};
+
 fn main(): i32 {
 	println("=== Test Smart Cast / Pattern Matching ===");
 
@@ -105,6 +128,21 @@ fn main(): i32 {
 	println("eval_when_expr(bin) = ${r_expr}");
 	if (r_expr != 35) {
 		println("FAIL: eval_when_expr");
+		return 1;
+	}
+
+	// Test Case 3: 'is Type as alias'
+	val r_alias = eval_with_alias(&bin as *Node);
+	println("eval_with_alias(bin) = ${r_alias}");
+	if (r_alias != 35) {
+		println("FAIL: eval_with_alias");
+		return 1;
+	}
+
+	val r_alias_expr = eval_expr_alias(&bin as *Node);
+	println("eval_expr_alias(bin) = ${r_alias_expr}");
+	if (r_alias_expr != 35) {
+		println("FAIL: eval_expr_alias");
 		return 1;
 	}
 

@@ -235,10 +235,17 @@ impl Parser {
 				yield self.unary(tok.type, operand, line, col);
 			}
 
-			// Type pattern: is Type
+			// Type pattern: is Type [as alias]
 			TokenType.KW_IS -> {
 				val target_type = self.parse_type();
-				yield self.is_expr(null, target_type, line, col);
+				var alias = "";
+				if (self.match_token(TokenType.KW_AS)) {
+					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
+					alias = alias_tok.text;
+				}
+				val is_node = self.is_expr(null, target_type, line, col);
+				if (alias != "") is_node.to<IsExpr>().alias = alias;
+				yield is_node;
 			}
 
 			// If Expression: if (cond) then_expr else else_expr
@@ -377,10 +384,17 @@ impl Parser {
 				yield self.cast(left, target_type, line, col);
 			}
 
-			// Type Test: left is Type
+			// Type Test: left is Type [as alias]
 			self.match_token(TokenType.KW_IS) -> {
 				val target_type = self.parse_type();
-				yield self.is_expr(left, target_type, line, col);
+				var alias = "";
+				if (self.match_token(TokenType.KW_AS)) {
+					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
+					alias = alias_tok.text;
+				}
+				val is_node = self.is_expr(left, target_type, line, col);
+				if (alias != "") is_node.to<IsExpr>().alias = alias;
+				yield is_node;
 			}
 
 			// 5. Generic Call: left<T1, T2>(arg1, arg2)

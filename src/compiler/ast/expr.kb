@@ -125,6 +125,7 @@ pub struct IsExpr {
 	pub const TAG = NodeKind.EXPR_IS;
 	pub expr: *AstNode,
 	pub target_type: *AstNode,
+	pub alias: str = "",
 	pub tag_field: str = "",
 	pub has_data: bool = false,
 	pub base_c_name: str = "",

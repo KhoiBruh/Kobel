@@ -831,15 +831,30 @@ impl CCodeGen {
 							val is_e = pat.to<IsExpr>();
 							val target_name = c_type_from_ast(is_e.target_type);
 							val var_name = ws.condition.to<IdentifierExpr>().name;
+							val bound_name = if (is_e.alias != "") is_e.alias else var_name;
 							val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
-							if (is_ptr) {
-								if (is_e.has_data && is_e.base_c_name != "") {
-									cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+							if (is_e.alias != "") {
+								if (is_ptr) {
+									self.pointer_vars.add(bound_name);
+									if (is_e.has_data && is_e.base_c_name != "") {
+										cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
+									} else {
+										cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
+									}
 								} else {
-									cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+									self.pointer_vars.add(bound_name);
+									cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
 								}
 							} else {
-								cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+								if (is_ptr) {
+									if (is_e.has_data && is_e.base_c_name != "") {
+										cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+									} else {
+										cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+									}
+								} else {
+									cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+								}
 							}
 						}
 					}
@@ -888,15 +903,30 @@ impl CCodeGen {
 					val is_e = pat.to<IsExpr>();
 					val target_name = c_type_from_ast(is_e.target_type);
 					val var_name = we.condition.to<IdentifierExpr>().name;
+					val bound_name = if (is_e.alias != "") is_e.alias else var_name;
 					val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
-					if (is_ptr) {
-						if (is_e.has_data && is_e.base_c_name != "") {
-							cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+					if (is_e.alias != "") {
+						if (is_ptr) {
+							self.pointer_vars.add(bound_name);
+							if (is_e.has_data && is_e.base_c_name != "") {
+								cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
+							} else {
+								cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
+							}
 						} else {
-							cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+							self.pointer_vars.add(bound_name);
+							cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
 						}
 					} else {
-						cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+						if (is_ptr) {
+							if (is_e.has_data && is_e.base_c_name != "") {
+								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+							} else {
+								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+							}
+						} else {
+							cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+						}
 					}
 				}
 			}

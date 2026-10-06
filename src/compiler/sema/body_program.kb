@@ -139,15 +139,11 @@ impl BodyPass {
 		// Step 2: Analyze each function body of each module (program already merged)
 		val prog = program_node.to<Program>();
 		for (decl in prog) {
-			when (decl.kind) {
-				NodeKind.DECL_MODULE -> {
-					val m = decl.to<ModuleDecl>();
-					self.symtab.set_current_module(m.full_path);
-				}
-				NodeKind.DECL_FN -> self.check_fn(decl);
-				NodeKind.DECL_IMPL -> self.check_impl(decl);
-				NodeKind.DECL_CONST -> {
-					val c = decl.to<ConstDecl>();
+			when (decl) {
+				is ModuleDecl as m -> self.symtab.set_current_module(m.full_path);
+				is FnDecl as f -> self.check_fn(decl);
+				is ImplDecl as im -> self.check_impl(decl);
+				is ConstDecl as c -> {
 					if (c.value != null) self.check_expr(c.value);
 				}
 				else -> {}

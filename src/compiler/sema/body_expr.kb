@@ -584,7 +584,8 @@ impl BodyPass {
 					if (is_e.expr == null) is_e.expr = we.condition;
 					smart_cast_ty = self.check_is_pattern(we.condition, cond_ty, pat);
 					if (smart_cast_ty != null) {
-						smart_cast_sym = we.condition.to<IdentifierExpr>().name;
+						if (is_e.alias != "") smart_cast_sym = is_e.alias;
+						else smart_cast_sym = we.condition.to<IdentifierExpr>().name;
 					}
 				}
 			}

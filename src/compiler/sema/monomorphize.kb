@@ -629,7 +629,9 @@ impl DeclPass {
 			NodeKind.EXPR_IS -> {
 				val is_e = node.to<IsExpr>();
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
-				yield self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
+				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
+				if (is_e.alias != "") res_is.to<IsExpr>().alias = is_e.alias;
+				yield res_is;
 			}
 			else -> self.identifier("<unsupported-expr>", node.line, node.col);
 		};
