@@ -353,12 +353,10 @@ impl DeclPass {
 
 // Evaluates a constant enum member value (integer literal, optionally negated).
 	pub fn enum_const_i64(var self, expr: *AstNode): i64 {
-		if (expr.kind == NodeKind.EXPR_LITERAL) {
-			val lit = expr.to<LiteralExpr>();
+		if (expr is LiteralExpr as lit) {
 			return parse_decimal_i64(lit.raw_text);
 		}
-		if (expr.kind == NodeKind.EXPR_UNARY) {
-			val un = expr.to<UnaryExpr>();
+		if (expr is UnaryExpr as un) {
 			if (un.op == TokenType.MINUS) return 0 - self.enum_const_i64(un.operand);
 		}
 		self.report_error(expr, "Enum member value must be an integer constant");

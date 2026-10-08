@@ -10693,15 +10693,15 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_resolve_ast_typ
 }
 
 int64_t compiler__sema__decl_pass__DeclPass_enum_const_i64(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* expr) {
-    if (((expr)->kind == 4)) {
+    if (((expr)->kind == compiler__ast__expr__LiteralExpr__TAG)) {
+        compiler__ast__expr__LiteralExpr* lit = ((compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)expr)->data));
         {
-            compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(expr);
             return compiler__sema__decl_pass__parse_decimal_i64((lit)->raw_text);
         }
     }
-    if (((expr)->kind == 7)) {
+    if (((expr)->kind == compiler__ast__expr__UnaryExpr__TAG)) {
+        compiler__ast__expr__UnaryExpr* un = ((compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)expr)->data));
         {
-            compiler__ast__expr__UnaryExpr* un = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(expr);
             if (((un)->op == 7)) {
                 return (0 - compiler__sema__decl_pass__DeclPass_enum_const_i64(self, (un)->operand));
             }
@@ -18918,9 +18918,9 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
         while ((__for_i < __for_n)) {
             {
                 compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
-                if (((decl)->kind == 31)) {
+                if (((decl)->kind == compiler__ast__decl__UseDecl__TAG)) {
+                    compiler__ast__decl__UseDecl* u = ((compiler__ast__decl__UseDecl*)(((compiler__ast__node__AstNode*)decl)->data));
                     {
-                        compiler__ast__decl__UseDecl* u = compiler__ast__node__to_compiler__ast__decl__UseDecl(decl);
                         const char* mod_name = ((u)->is_wildcard ? util__strutil__str_join_dots((u)->path, ((u)->path).len) : ((((u)->path).len >= 2) ? util__strutil__str_join_dots((u)->path, (((u)->path).len - 1)) : ""));
                         if ((kobel_slen(mod_name) > 0)) {
                             compiler__loader__loader__ModuleLoader_ensure_module_at(self, mod_name, (decl)->line, (decl)->col, parent_mod);
