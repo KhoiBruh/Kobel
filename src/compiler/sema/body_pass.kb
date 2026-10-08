@@ -84,51 +84,41 @@ impl BodyPass {
 
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
-		return when (node.kind) {
-			NodeKind.EXPR_LITERAL -> {
-				val lit = node.to<LiteralExpr>();
+		return when (node) {
+			is LiteralExpr as lit -> {
 				yield self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lit.literal_kind, lit.raw_text), node.line, node.col);
 			}
-			NodeKind.EXPR_IDENTIFIER -> {
-				val id = node.to<IdentifierExpr>();
+			is IdentifierExpr as id -> {
 				yield self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(id.name), node.line, node.col);
 			}
-			NodeKind.EXPR_BINARY -> {
-				val b = node.to<BinaryExpr>();
+			is BinaryExpr as b -> {
 				yield self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)), node.line, node.col);
 			}
-			NodeKind.EXPR_UNARY -> {
-				val u = node.to<UnaryExpr>();
+			is UnaryExpr as u -> {
 				yield self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(u.op, self.clone_expr(u.operand)), node.line, node.col);
 			}
-			NodeKind.EXPR_CALL -> {
-				val c = node.to<CallExpr>();
+			is CallExpr as c -> {
 				var args = List<*AstNode>();
 				for (a in c.args) args.add(self.clone_expr(a));
 				var targs = List<*AstNode>();
 				for (ta in c.type_args) targs.add(ta);
 				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
 			}
-			NodeKind.EXPR_MEMBER -> {
-				val m = node.to<MemberExpr>();
+			is MemberExpr as m -> {
 				yield self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member), node.line, node.col);
 			}
-			NodeKind.EXPR_INDEX -> {
-				val ix = node.to<IndexExpr>();
+			is IndexExpr as ix -> {
 				yield self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)), node.line, node.col);
 			}
-			NodeKind.EXPR_GROUP -> {
-				val g = node.to<GroupExpr>();
+			is GroupExpr as g -> {
 				yield self.arena.make<GroupExpr>(GroupExpr.TAG, GroupExpr(self.clone_expr(g.expr)), node.line, node.col);
 			}
-			NodeKind.EXPR_ARRAY_LITERAL -> {
-				val al = node.to<ArrayLiteralExpr>();
+			is ArrayLiteralExpr as al -> {
 				var els = List<*AstNode>();
 				for (e in al.elements) els.add(self.clone_expr(e));
 				yield self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node), node.line, node.col);
 			}
-			NodeKind.EXPR_CAST -> {
-				val cst = node.to<CastExpr>();
+			is CastExpr as cst -> {
 				yield self.arena.make<CastExpr>(CastExpr.TAG, CastExpr(self.clone_expr(cst.expr), cst.target_type), node.line, node.col);
 			}
 			else -> node;
@@ -164,11 +154,11 @@ impl BodyPass {
 
 	pub fn check_expr(var self, node: *AstNode): *Type {
 		if (node == null) return alloc_primitive(&self.arena, type_none());
+		if (node is GroupExpr as g) return self.check_expr(g.expr);
 
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
 			NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
-			NodeKind.EXPR_GROUP -> self.check_expr(node.to<GroupExpr>().expr);
 			NodeKind.EXPR_BINARY -> self.check_binary_expr(node);
 			NodeKind.EXPR_UNARY -> self.check_unary_expr(node);
 			NodeKind.EXPR_CALL -> self.check_call_expr(node);
@@ -193,6 +183,18 @@ impl BodyPass {
 	pub fn check_statement(var self, node: *AstNode) {
 		if (node == null) return;
 
+		if (node is ExprStmt as es) {
+			self.check_expr(es.expr);
+			return;
+		}
+		if (node is YieldStmt as ys) {
+			if (self.when_depth == 0)
+				self.report_error(node, "Yield statement outside of when expression");
+
+			if (ys.value != null) self.check_expr(ys.value);
+			return;
+		}
+
 		when (node.kind) {
 			NodeKind.STMT_BLOCK -> self.check_block_stmt(node);
 			NodeKind.STMT_VAR_DECL -> self.check_var_decl_stmt(node);
@@ -204,18 +206,7 @@ impl BodyPass {
 				if (self.loop_depth == 0)
 					self.report_error(node, "Break or continue statement outside of loop");
 			}
-			NodeKind.STMT_EXPR -> {
-				val es = node.to<ExprStmt>();
-				self.check_expr(es.expr);
-			}
 			NodeKind.STMT_WHEN -> self.check_when_stmt(node);
-			NodeKind.STMT_YIELD -> {
-				val ys = node.to<YieldStmt>();
-				if (self.when_depth == 0)
-					self.report_error(node, "Yield statement outside of when expression");
-
-				if (ys.value != null) self.check_expr(ys.value);
-			}
 			else -> {}
 		}
 	}

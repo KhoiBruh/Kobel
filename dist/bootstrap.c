@@ -14743,20 +14743,20 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
     if ((node == NULL)) {
         return NULL;
     }
-    if (((node)->kind == 4)) {
-        compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(node);
+    if (((node)->kind == compiler__ast__expr__LiteralExpr__TAG)) {
+        compiler__ast__expr__LiteralExpr* lit = ((compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__LiteralExpr((&(self)->arena), compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__expr__LiteralExpr){ (lit)->literal_kind, (lit)->raw_text }, (node)->line, (node)->col);
-    } else if (((node)->kind == 5)) {
-        compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+        compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__IdentifierExpr((&(self)->arena), compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__expr__IdentifierExpr){ (id)->name }, (node)->line, (node)->col);
-    } else if (((node)->kind == 6)) {
-        compiler__ast__expr__BinaryExpr* b = compiler__ast__node__to_compiler__ast__expr__BinaryExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__BinaryExpr__TAG)) {
+        compiler__ast__expr__BinaryExpr* b = ((compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__BinaryExpr((&(self)->arena), compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__expr__BinaryExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (b)->left), (b)->op, compiler__sema__body_pass__BodyPass_clone_expr(self, (b)->right) }, (node)->line, (node)->col);
-    } else if (((node)->kind == 7)) {
-        compiler__ast__expr__UnaryExpr* u = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__UnaryExpr__TAG)) {
+        compiler__ast__expr__UnaryExpr* u = ((compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__UnaryExpr((&(self)->arena), compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__expr__UnaryExpr){ (u)->op, compiler__sema__body_pass__BodyPass_clone_expr(self, (u)->operand) }, (node)->line, (node)->col);
-    } else if (((node)->kind == 8)) {
-        compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__CallExpr__TAG)) {
+        compiler__ast__expr__CallExpr* c = ((compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)node)->data));
         std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(c)->args));
@@ -14782,17 +14782,17 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
             }
         }
         return compiler__ast__node__make_compiler__ast__expr__CallExpr((&(self)->arena), compiler__ast__expr__CallExpr__TAG, (compiler__ast__expr__CallExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (c)->callee), args, targs }, (node)->line, (node)->col);
-    } else if (((node)->kind == 9)) {
-        compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__MemberExpr__TAG)) {
+        compiler__ast__expr__MemberExpr* m = ((compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__MemberExpr((&(self)->arena), compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (m)->object), (m)->member }, (node)->line, (node)->col);
-    } else if (((node)->kind == 10)) {
-        compiler__ast__expr__IndexExpr* ix = compiler__ast__node__to_compiler__ast__expr__IndexExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__IndexExpr__TAG)) {
+        compiler__ast__expr__IndexExpr* ix = ((compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__IndexExpr((&(self)->arena), compiler__ast__expr__IndexExpr__TAG, (compiler__ast__expr__IndexExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (ix)->target), compiler__sema__body_pass__BodyPass_clone_expr(self, (ix)->index) }, (node)->line, (node)->col);
-    } else if (((node)->kind == 14)) {
-        compiler__ast__expr__GroupExpr* g = compiler__ast__node__to_compiler__ast__expr__GroupExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__GroupExpr__TAG)) {
+        compiler__ast__expr__GroupExpr* g = ((compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__GroupExpr((&(self)->arena), compiler__ast__expr__GroupExpr__TAG, (compiler__ast__expr__GroupExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (g)->expr) }, (node)->line, (node)->col);
-    } else if (((node)->kind == 15)) {
-        compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__ArrayLiteralExpr__TAG)) {
+        compiler__ast__expr__ArrayLiteralExpr* al = ((compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)node)->data));
         std__collections__list__List_ptr_compiler__ast__node__AstNode els = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(al)->elements));
@@ -14806,8 +14806,8 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
             }
         }
         return compiler__ast__node__make_compiler__ast__expr__ArrayLiteralExpr((&(self)->arena), compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__expr__ArrayLiteralExpr){ els, (al)->list_struct_name, (al)->elem_type_node }, (node)->line, (node)->col);
-    } else if (((node)->kind == 13)) {
-        compiler__ast__expr__CastExpr* cst = compiler__ast__node__to_compiler__ast__expr__CastExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__CastExpr__TAG)) {
+        compiler__ast__expr__CastExpr* cst = ((compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)node)->data));
         return compiler__ast__node__make_compiler__ast__expr__CastExpr((&(self)->arena), compiler__ast__expr__CastExpr__TAG, (compiler__ast__expr__CastExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, (cst)->expr), (cst)->target_type }, (node)->line, (node)->col);
     } else {
         return node;
@@ -14842,12 +14842,35 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_expr(comp
     if ((node == NULL)) {
         return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
     }
-    return (((node)->kind == 4) ? compiler__sema__body_pass__BodyPass_check_literal_expr(self, node) : (((node)->kind == 5) ? compiler__sema__body_pass__BodyPass_check_ident_expr(self, node) : (((node)->kind == 14) ? compiler__sema__body_pass__BodyPass_check_expr(self, ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node))).expr) : (((node)->kind == 6) ? compiler__sema__body_pass__BodyPass_check_binary_expr(self, node) : (((node)->kind == 7) ? compiler__sema__body_pass__BodyPass_check_unary_expr(self, node) : (((node)->kind == 8) ? compiler__sema__body_pass__BodyPass_check_call_expr(self, node) : (((node)->kind == 9) ? compiler__sema__body_pass__BodyPass_check_member_expr(self, node) : (((node)->kind == 10) ? compiler__sema__body_pass__BodyPass_check_index_expr(self, node) : (((node)->kind == 11) ? compiler__sema__body_pass__BodyPass_check_assign_expr(self, node) : (((node)->kind == 12) ? compiler__sema__body_pass__BodyPass_check_update_expr(self, node) : (((node)->kind == 13) ? compiler__sema__body_pass__BodyPass_check_cast_expr(self, node) : (((node)->kind == 16) ? compiler__sema__body_pass__BodyPass_check_if_expr(self, node) : (((node)->kind == 17) ? compiler__sema__body_pass__BodyPass_check_when_expr(self, node) : (((node)->kind == 15) ? compiler__sema__body_pass__BodyPass_check_array_literal_expr(self, node) : (((node)->kind == 18) ? compiler__sema__body_pass__BodyPass_check_interp_expr(self, node) : (((node)->kind == 40) ? compiler__sema__body_pass__BodyPass_check_is_expr(self, node) : compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none())))))))))))))))));
+    if (((node)->kind == compiler__ast__expr__GroupExpr__TAG)) {
+        compiler__ast__expr__GroupExpr* g = ((compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)node)->data));
+        return compiler__sema__body_pass__BodyPass_check_expr(self, (g)->expr);
+    }
+    return (((node)->kind == 4) ? compiler__sema__body_pass__BodyPass_check_literal_expr(self, node) : (((node)->kind == 5) ? compiler__sema__body_pass__BodyPass_check_ident_expr(self, node) : (((node)->kind == 6) ? compiler__sema__body_pass__BodyPass_check_binary_expr(self, node) : (((node)->kind == 7) ? compiler__sema__body_pass__BodyPass_check_unary_expr(self, node) : (((node)->kind == 8) ? compiler__sema__body_pass__BodyPass_check_call_expr(self, node) : (((node)->kind == 9) ? compiler__sema__body_pass__BodyPass_check_member_expr(self, node) : (((node)->kind == 10) ? compiler__sema__body_pass__BodyPass_check_index_expr(self, node) : (((node)->kind == 11) ? compiler__sema__body_pass__BodyPass_check_assign_expr(self, node) : (((node)->kind == 12) ? compiler__sema__body_pass__BodyPass_check_update_expr(self, node) : (((node)->kind == 13) ? compiler__sema__body_pass__BodyPass_check_cast_expr(self, node) : (((node)->kind == 16) ? compiler__sema__body_pass__BodyPass_check_if_expr(self, node) : (((node)->kind == 17) ? compiler__sema__body_pass__BodyPass_check_when_expr(self, node) : (((node)->kind == 15) ? compiler__sema__body_pass__BodyPass_check_array_literal_expr(self, node) : (((node)->kind == 18) ? compiler__sema__body_pass__BodyPass_check_interp_expr(self, node) : (((node)->kind == 40) ? compiler__sema__body_pass__BodyPass_check_is_expr(self, node) : compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none()))))))))))))))));
 }
 
 void compiler__sema__body_pass__BodyPass_check_statement(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     if ((node == NULL)) {
         return;
+    }
+    if (((node)->kind == compiler__ast__stmt__ExprStmt__TAG)) {
+        compiler__ast__stmt__ExprStmt* es = ((compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)node)->data));
+        {
+            compiler__sema__body_pass__BodyPass_check_expr(self, (es)->expr);
+            return;
+        }
+    }
+    if (((node)->kind == compiler__ast__stmt__YieldStmt__TAG)) {
+        compiler__ast__stmt__YieldStmt* ys = ((compiler__ast__stmt__YieldStmt*)(((compiler__ast__node__AstNode*)node)->data));
+        {
+            if (((self)->when_depth == 0)) {
+                compiler__sema__body_pass__BodyPass_report_error(self, node, "Yield statement outside of when expression");
+            }
+            if (((ys)->value != NULL)) {
+                compiler__sema__body_pass__BodyPass_check_expr(self, (ys)->value);
+            }
+            return;
+        }
     }
     if (((node)->kind == 19)) {
         compiler__sema__body_pass__BodyPass_check_block_stmt(self, node);
@@ -14867,23 +14890,8 @@ void compiler__sema__body_pass__BodyPass_check_statement(compiler__sema__body_pa
                 compiler__sema__body_pass__BodyPass_report_error(self, node, "Break or continue statement outside of loop");
             }
         }
-    } else if (((node)->kind == 20)) {
-        {
-            compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt(node);
-            compiler__sema__body_pass__BodyPass_check_expr(self, (es)->expr);
-        }
     } else if (((node)->kind == 23)) {
         compiler__sema__body_pass__BodyPass_check_when_stmt(self, node);
-    } else if (((node)->kind == 29)) {
-        {
-            compiler__ast__stmt__YieldStmt* ys = compiler__ast__node__to_compiler__ast__stmt__YieldStmt(node);
-            if (((self)->when_depth == 0)) {
-                compiler__sema__body_pass__BodyPass_report_error(self, node, "Yield statement outside of when expression");
-            }
-            if (((ys)->value != NULL)) {
-                compiler__sema__body_pass__BodyPass_check_expr(self, (ys)->value);
-            }
-        }
     } else {
         {
         }
