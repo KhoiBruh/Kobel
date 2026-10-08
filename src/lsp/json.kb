@@ -81,10 +81,7 @@ impl JsonValue {
 		}
 		when (self.kind) {
 			JsonKind.JNULL -> sb.append_str("null");
-			JsonKind.JBOOL -> {
-				if (self.bool_val) sb.append_str("true");
-				else sb.append_str("false");
-			}
+			JsonKind.JBOOL -> sb.append_bool(self.bool_val);
 			JsonKind.JNUM -> sb.append_i64(self.num_val);
 			JsonKind.JSTR -> append_json_escaped_str(sb, self.str_val);
 			JsonKind.JARR -> {

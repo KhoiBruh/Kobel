@@ -2630,6 +2630,10 @@ void std__collections__string_builder__StringBuilder_append_char(std__collection
 void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s);
 void std__collections__string_builder__StringBuilder_append_i64(std__collections__string_builder__StringBuilder* self, int64_t n);
 void std__collections__string_builder__StringBuilder_append_i32(std__collections__string_builder__StringBuilder* self, int32_t n);
+void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b);
+void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s);
+bool std__collections__string_builder__StringBuilder_is_empty(std__collections__string_builder__StringBuilder* self);
+char std__collections__string_builder__StringBuilder_last_char(std__collections__string_builder__StringBuilder* self);
 void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self);
 void std__collections__string_builder__StringBuilder_grow(std__collections__string_builder__StringBuilder* self, size_t min_cap);
 void std__collections__string_builder__StringBuilder_delete(std__collections__string_builder__StringBuilder* self);
@@ -22660,6 +22664,30 @@ void std__collections__string_builder__StringBuilder_append_i32(std__collections
     std__collections__string_builder__StringBuilder_append_i64(self, ((int64_t)n));
 }
 
+void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b) {
+    if (b) {
+        std__collections__string_builder__StringBuilder_append_str(self, "true");
+    } else {
+        std__collections__string_builder__StringBuilder_append_str(self, "false");
+    }
+}
+
+void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s) {
+    std__collections__string_builder__StringBuilder_append_str(self, s);
+    std__collections__string_builder__StringBuilder_append_char(self, '\n');
+}
+
+bool std__collections__string_builder__StringBuilder_is_empty(std__collections__string_builder__StringBuilder* self) {
+    return ((self)->len == ((size_t)0ULL));
+}
+
+char std__collections__string_builder__StringBuilder_last_char(std__collections__string_builder__StringBuilder* self) {
+    if (((self)->len == ((size_t)0ULL))) {
+        return '\0';
+    }
+    return ((char)(self)->buf[((self)->len - ((size_t)1ULL))]);
+}
+
 void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self) {
     (self)->len = 0;
 }
@@ -24616,13 +24644,7 @@ void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collecti
     if (((self)->kind == 0)) {
         std__collections__string_builder__StringBuilder_append_str(sb, "null");
     } else if (((self)->kind == 1)) {
-        {
-            if ((self)->bool_val) {
-                std__collections__string_builder__StringBuilder_append_str(sb, "true");
-            } else {
-                std__collections__string_builder__StringBuilder_append_str(sb, "false");
-            }
-        }
+        std__collections__string_builder__StringBuilder_append_bool(sb, (self)->bool_val);
     } else if (((self)->kind == 2)) {
         std__collections__string_builder__StringBuilder_append_i64(sb, (self)->num_val);
     } else if (((self)->kind == 3)) {

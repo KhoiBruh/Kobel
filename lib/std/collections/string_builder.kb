@@ -70,6 +70,23 @@ impl StringBuilder {
 
 	pub fn append_i32(var self, n: i32) => self.append_i64(n as i64);
 
+	pub fn append_bool(var self, b: bool) {
+		if (b) self.append_str("true");
+		else self.append_str("false");
+	}
+
+	pub fn append_line(var self, s: str) {
+		self.append_str(s);
+		self.append_char('\n');
+	}
+
+	pub fn is_empty(val self): bool => self.len == 0UZ;
+
+	pub fn last_char(val self): char {
+		if (self.len == 0UZ) return '\0';
+		return self.buf[self.len - 1UZ] as char;
+	}
+
 	pub fn clear(var self) {
 		self.len = 0;
 	}

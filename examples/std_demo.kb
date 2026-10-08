@@ -80,12 +80,19 @@ fn test_collections(): bool {
 
 	// 3. StringBuilder
 	var sb: StringBuilder = StringBuilder();
+	if (!sb.is_empty()) return false;
 	sb.append_str("Kobel");
+	if (sb.is_empty()) return false;
+	if (sb.last_char() != 'l') return false;
 	sb.append_char(' ');
 	sb.append_str("Compiler v");
 	sb.append_i32(1);
+	sb.append_str(" ");
+	sb.append_bool(true);
+	sb.append_line("!");
 	val result_str: str = sb.to_str();
-	if (result_str != "Kobel Compiler v1") return false;
+	if (result_str != "Kobel Compiler v1 true!\n") return false;
+	if (sb.last_char() != '\n') return false;
 	sb.delete();
 
 	return true;
