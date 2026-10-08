@@ -146,7 +146,6 @@ impl BodyPass {
 				is ConstDecl as c -> {
 					if (c.value != null) self.check_expr(c.value);
 				}
-				else -> {}
 			}
 		}
 	}

@@ -162,7 +162,6 @@ impl Lexer {
 			val next_c = self.src[self.cursor + 1];
 			when (next_c) {
 				'S', 'L', 'B', 'Z', 'U', 'D', 'F' -> self.next();
-				else -> {}
 			}
 		}
 
@@ -178,11 +177,8 @@ impl Lexer {
 					}
 					else -> self.next();
 				}
-			} else {
-				when (c1) {
-					'S', 'L', 'B', 'Z', 'U', 'D', 'F' -> self.next();
-					else -> {}
-				}
+			} else when (c1) {
+				'S', 'L', 'B', 'Z', 'U', 'D', 'F' -> self.next();
 			}
 		}
 
@@ -232,30 +228,32 @@ impl Lexer {
 		var depth: i32 = 0;
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '{') {
-				depth++;
-				self.next();
-				continue;
+			when (c) {
+				'{' -> {
+					depth++;
+					self.next();
+					continue;
+				}
+				'}' -> {
+					depth--;
+					self.next();
+					if (depth <= 0) return;
+					continue;
+				}
+				'"' -> {
+					self.skip_string_raw();
+					continue;
+				}
+				'\'' -> {
+					self.skip_char_raw();
+					continue;
+				}
+				'\r', '\n' -> {
+					self.newline();
+					continue;
+				}
+				else -> self.next();
 			}
-			if (c == '}') {
-				depth--;
-				self.next();
-				if (depth <= 0) return;
-				continue;
-			}
-			if (c == '"') {
-				self.skip_string_raw();
-				continue;
-			}
-			if (c == '\'') {
-				self.skip_char_raw();
-				continue;
-			}
-			if (c == '\r' || c == '\n') {
-				self.newline();
-				continue;
-			}
-			self.next();
 		}
 	}
 
@@ -297,15 +295,18 @@ impl Lexer {
 				if (!self.is_end()) self.next();
 				continue;
 			}
-			self.next();
 			if (c == '\'') return;
+			self.next();
+
 		}
 	}
 
 	pub fn scan_char(var self, start_cursor: usz, start_col: usz): Token {
-		if (!self.is_end() && self.peek() == '\\') self.next();
-		if (!self.is_end()) self.next();
-		if (!self.is_end() && self.peek() == '\'') self.next();
+		if (!self.is_end()) {
+			if (self.peek() == '\\') self.next();
+			self.next();
+			if (self.peek() == '\'') self.next();
+		}
 		return self.make_token(TokenType.CHAR, start_cursor, start_col);
 	}
 
@@ -321,7 +322,7 @@ impl Lexer {
 			return when (c) {
 				',' -> self.make_token(TokenType.COMMA, start_cursor, start_col);
 				'.' -> {
-					if (self.match('.')) return self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
+					if (self.match('.')) yield self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
 					yield self.make_token(TokenType.DOT, start_cursor, start_col);
 				}
 				':' -> self.make_token(TokenType.COLON, start_cursor, start_col);
