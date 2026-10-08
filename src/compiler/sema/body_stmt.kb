@@ -78,7 +78,39 @@ impl BodyPass {
 		val if_s = node.to<IfStmt>();
 		val cond_ty = self.check_expr(if_s.condition);
 		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If statement condition must be bool");
-		self.check_statement(if_s.then_branch);
+
+		var smart_cast_sym = "";
+		var smart_cast_ty: *Type = null;
+
+		var cond = if_s.condition;
+		while (cond != null && cond.kind == NodeKind.EXPR_GROUP) {
+			cond = cond.to<GroupExpr>().expr;
+		}
+
+		if (cond != null && cond.kind == NodeKind.EXPR_IS) {
+			val is_e = cond.to<IsExpr>();
+			if (is_e.expr != null && is_e.expr.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id_name = is_e.expr.to<IdentifierExpr>().name;
+				val subj_sym = self.symtab.lookup(id_name);
+				if (subj_sym != null) {
+					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
+					if (smart_cast_ty != null) {
+						if (is_e.alias != "") smart_cast_sym = is_e.alias;
+						else smart_cast_sym = id_name;
+					}
+				}
+			}
+		}
+
+		if (smart_cast_sym != "" && smart_cast_ty != null) {
+			self.symtab.enter_scope(false);
+			self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+			self.check_statement(if_s.then_branch);
+			self.symtab.exit_scope();
+		} else {
+			self.check_statement(if_s.then_branch);
+		}
+
 		if (if_s.else_branch != null) self.check_statement(if_s.else_branch);
 	}
 

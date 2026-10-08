@@ -710,9 +710,26 @@ impl CCodeGen {
 
 			NodeKind.STMT_IF -> {
 				val ifs = node.to<IfStmt>();
+				var cond = ifs.condition;
+				while (cond != null && cond.kind == NodeKind.EXPR_GROUP) {
+					cond = cond.to<GroupExpr>().expr;
+				}
+
+				var cast_decl = "";
+				if (cond != null && cond.kind == NodeKind.EXPR_IS) {
+					val is_e = cond.to<IsExpr>();
+					if (is_e.expr != null && is_e.expr.kind == NodeKind.EXPR_IDENTIFIER) {
+						val var_name = is_e.expr.to<IdentifierExpr>().name;
+						cast_decl = self.gen_smart_cast_decl(is_e, var_name, self.indent_level + 1);
+					}
+				}
+
 				val ind = get_indent(self.indent_level);
 				var res = "${ind}if (${self.gen_expr(ifs.condition)}) {\n";
 				self.indent_level++;
+				if (cast_decl != "") {
+					res += get_indent(self.indent_level) + cast_decl + "\n";
+				}
 				res = "${res}${self.gen_statement(ifs.then_branch)}";
 				self.indent_level--;
 
@@ -828,34 +845,7 @@ impl CCodeGen {
 					if (ws.condition != null && ws.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
 						val pat = arm.patterns.first();
 						if (pat.kind == NodeKind.EXPR_IS) {
-							val is_e = pat.to<IsExpr>();
-							val target_name = c_type_from_ast(is_e.target_type);
-							val var_name = ws.condition.to<IdentifierExpr>().name;
-							val bound_name = if (is_e.alias != "") is_e.alias else var_name;
-							val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
-							if (is_e.alias != "") {
-								if (is_ptr) {
-									self.pointer_vars.add(bound_name);
-									if (is_e.has_data && is_e.base_c_name != "") {
-										cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
-									} else {
-										cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
-									}
-								} else {
-									self.pointer_vars.add(bound_name);
-									cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
-								}
-							} else {
-								if (is_ptr) {
-									if (is_e.has_data && is_e.base_c_name != "") {
-										cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
-									} else {
-										cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
-									}
-								} else {
-									cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
-								}
-							}
+							cast_decl = self.gen_smart_cast_decl(pat.to<IsExpr>(), ws.condition.to<IdentifierExpr>().name, self.indent_level + 1);
 						}
 					}
 
@@ -883,6 +873,36 @@ impl CCodeGen {
 		};
 	}
 
+	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, var_name: str, ind_level: usz): str {
+		val target_name = c_type_from_ast(is_e.target_type);
+		val bound_name = if (is_e.alias != "") is_e.alias else var_name;
+		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
+		val next_ind = get_indent(ind_level);
+		if (is_e.alias != "") {
+			if (is_ptr) {
+				self.pointer_vars.add(bound_name);
+				if (is_e.has_data && is_e.base_c_name != "") {
+					return "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
+				} else {
+					return "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
+				}
+			} else {
+				self.pointer_vars.add(bound_name);
+				return "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
+			}
+		} else {
+			if (is_ptr) {
+				if (is_e.has_data && is_e.base_c_name != "") {
+					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+				} else {
+					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+				}
+			} else {
+				return "void* __orig_${var_name} = (void*)&${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+			}
+		}
+	}
+
 	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool): str {
 		var cond = "";
 		if (we.condition != null) cond = self.gen_expr(we.condition);
@@ -900,34 +920,7 @@ impl CCodeGen {
 			if (we.condition != null && we.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
 				val pat = arm.patterns.first();
 				if (pat.kind == NodeKind.EXPR_IS) {
-					val is_e = pat.to<IsExpr>();
-					val target_name = c_type_from_ast(is_e.target_type);
-					val var_name = we.condition.to<IdentifierExpr>().name;
-					val bound_name = if (is_e.alias != "") is_e.alias else var_name;
-					val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
-					if (is_e.alias != "") {
-						if (is_ptr) {
-							self.pointer_vars.add(bound_name);
-							if (is_e.has_data && is_e.base_c_name != "") {
-								cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
-							} else {
-								cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
-							}
-						} else {
-							self.pointer_vars.add(bound_name);
-							cast_decl = "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
-						}
-					} else {
-						if (is_ptr) {
-							if (is_e.has_data && is_e.base_c_name != "") {
-								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
-							} else {
-								cast_decl = "void* __orig_${var_name} = (void*)${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
-							}
-						} else {
-							cast_decl = "void* __orig_${var_name} = (void*)&${var_name};\n${get_indent(self.indent_level + 1)}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
-						}
-					}
+					cast_decl = self.gen_smart_cast_decl(pat.to<IsExpr>(), we.condition.to<IdentifierExpr>().name, self.indent_level + 1);
 				}
 			}
 

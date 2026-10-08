@@ -112,7 +112,9 @@ pub struct Program {
 impl Program {
 	pub fn declared_module_name(val self): str {
 		for (decl in self.declarations) {
-			if (decl is ModuleDecl) return decl.to<ModuleDecl>().full_path;
+			when (decl) {
+				is ModuleDecl as m -> return m.full_path;
+			}
 		}
 		return "";
 	}

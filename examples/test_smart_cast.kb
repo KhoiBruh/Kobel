@@ -101,6 +101,27 @@ fn eval_expr_alias(node: *Node): i32 => when (node) {
 	else -> 0;
 };
 
+// Case 4: Smart cast in 'if' statement
+fn eval_if_with_alias(node: *Node): i32 {
+	if (node is Literal as lit) {
+		return lit.value;
+	}
+	if (node is Binary as b) {
+		return eval_if_with_alias(b.left) + eval_if_with_alias(b.right);
+	}
+	return 0;
+}
+
+fn eval_if_no_alias(node: *Node): i32 {
+	if (node is Literal) {
+		return node.value;
+	}
+	if (node is Binary) {
+		return eval_if_no_alias(node.left) + eval_if_no_alias(node.right);
+	}
+	return 0;
+}
+
 fn main(): i32 {
 	println("=== Test Smart Cast / Pattern Matching ===");
 
@@ -167,6 +188,28 @@ fn main(): i32 {
 	println("eval_expr(neg) = ${enum_r2}");
 	if (enum_r1 != 42 || enum_r2 != -42) {
 		println("FAIL: enum-based smart cast");
+		return 1;
+	}
+
+	// Test Case 4: Smart cast in 'if' statement (with alias and without alias)
+	val if_r1 = eval_if_with_alias(&bin as *Node);
+	println("eval_if_with_alias(bin) = ${if_r1}");
+	if (if_r1 != 35) {
+		println("FAIL: eval_if_with_alias");
+		return 1;
+	}
+
+	val if_r2 = eval_if_no_alias(&bin as *Node);
+	println("eval_if_no_alias(bin) = ${if_r2}");
+	if (if_r2 != 35) {
+		println("FAIL: eval_if_no_alias");
+		return 1;
+	}
+
+	val if_r3 = eval_if_no_alias(&lit1 as *Node);
+	println("eval_if_no_alias(lit1) = ${if_r3}");
+	if (if_r3 != 10) {
+		println("FAIL: eval_if_no_alias lit1");
 		return 1;
 	}
 
