@@ -5,7 +5,9 @@ use std.ascii.*;
 use std.io.print;
 use std.io.println;
 use std.io.write_file;
+use std.io.append_file;
 use std.io.read_file;
+use std.io.file_exists;
 
 use std.mem.arena.Arena;
 
@@ -81,9 +83,15 @@ fn test_io(): bool {
 	val content: str = "Testing Kobel standard library I/O!";
 	val written: bool = write_file(tmp_file, content);
 	if (!written) return false;
+	if (!file_exists(tmp_file)) return false;
+	if (file_exists("non_existent_file_xyz_123.txt")) return false;
+
+	val extra: str = "\nAppended line.";
+	val appended: bool = append_file(tmp_file, extra);
+	if (!appended) return false;
 
 	val read_back: str = read_file(tmp_file);
-	if (read_back != content) return false;
+	if (read_back != "Testing Kobel standard library I/O!\nAppended line.") return false;
 
 	return true;
 }

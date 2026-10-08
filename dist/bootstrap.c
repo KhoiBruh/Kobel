@@ -2056,6 +2056,8 @@ void std__io__print(const char* s);
 int32_t std__io__println(const char* s);
 const char* std__io__read_file(const char* path);
 bool std__io__write_file(const char* path, const char* content);
+bool std__io__append_file(const char* path, const char* content);
+bool std__io__file_exists(const char* path);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
 const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
@@ -6398,6 +6400,25 @@ bool std__io__write_file(const char* path, const char* content) {
     size_t written = fwrite(content, 1, kobel_slen(content), f);
     fclose(f);
     return (written == kobel_slen(content));
+}
+
+bool std__io__append_file(const char* path, const char* content) {
+    void* f = fopen(path, "ab");
+    if ((f == NULL)) {
+        return false;
+    }
+    size_t written = fwrite(content, 1, kobel_slen(content), f);
+    fclose(f);
+    return (written == kobel_slen(content));
+}
+
+bool std__io__file_exists(const char* path) {
+    void* f = fopen(path, "rb");
+    if ((f == NULL)) {
+        return false;
+    }
+    fclose(f);
+    return true;
 }
 
 void std__sys__sys_exit(int32_t code) {
@@ -19239,8 +19260,7 @@ const char* compiler__loader__loader__detect_project_root(const char* start_dir)
     while (((kobel_slen(curr) > ((size_t)0ULL)) && (count < ((size_t)10ULL)))) {
         {
             const char* test_file = str_join_path(curr, "lib/std/io.kb");
-            const char* test_content = std__io__read_file(test_file);
-            if ((kobel_slen(test_content) > ((size_t)0ULL))) {
+            if (std__io__file_exists(test_file)) {
                 return curr;
             }
             const char* parent = str_dir_of(curr);

@@ -25,6 +25,7 @@ use compiler.parser.decl.parse_program;
 use util.strutil.*;
 
 use std.io.read_file;
+use std.io.file_exists;
 use std.collections.list.*;
 use std.mem.arena.*;
 
@@ -53,8 +54,7 @@ pub fn detect_project_root(start_dir: str): str {
 	var count: usz = 0UZ;
 	while (curr.len > 0UZ && count < 10UZ) {
 		val test_file = curr.join_path("lib/std/io.kb");
-		val test_content = read_file(test_file);
-		if (test_content.len > 0UZ) return curr;
+		if (file_exists(test_file)) return curr;
 		val parent = curr.dir_of();
 		if (parent == curr || parent.len == 0UZ) break;
 		curr = parent;

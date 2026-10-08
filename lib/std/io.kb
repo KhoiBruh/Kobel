@@ -55,3 +55,19 @@ pub fn write_file(path: str, content: str): bool {
 	fclose(f);
 	return written == content.len;
 }
+
+pub fn append_file(path: str, content: str): bool {
+	val f = fopen(path.c_str(), "ab");
+	if (f == null) return false;
+	val written = fwrite(content.c_str(), 1, content.len, f);
+	fclose(f);
+	return written == content.len;
+}
+
+pub fn file_exists(path: str): bool {
+	val f = fopen(path.c_str(), "rb");
+	if (f == null) return false;
+	fclose(f);
+	return true;
+}
+
