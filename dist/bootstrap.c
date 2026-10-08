@@ -12994,27 +12994,42 @@ void compiler__sema__body_pass__BodyPass_check_if_stmt(compiler__sema__body_pass
     const char* smart_cast_sym = "";
     compiler__sema__types__Type* smart_cast_ty = NULL;
     compiler__ast__node__AstNode* cond = (if_s)->condition;
-    while (((cond != NULL) && ((cond)->kind == 14))) {
+    while ((cond != NULL)) {
         {
-            cond = ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(cond))).expr;
+            if (((cond)->kind == compiler__ast__expr__GroupExpr__TAG)) {
+                compiler__ast__expr__GroupExpr* g = ((compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)cond)->data));
+                cond = (g)->expr;
+            } else {
+                break;
+            }
         }
     }
-    if (((cond != NULL) && ((cond)->kind == 40))) {
+    if ((cond != NULL)) {
         {
-            compiler__ast__expr__IsExpr* is_e = compiler__ast__node__to_compiler__ast__expr__IsExpr(cond);
-            if ((((is_e)->expr != NULL) && (((*(is_e)->expr)).kind == 5))) {
+            if (((cond)->kind == compiler__ast__expr__IsExpr__TAG)) {
+                compiler__ast__expr__IsExpr* is_e = ((compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)cond)->data));
                 {
-                    const char* id_name = ((*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr((is_e)->expr))).name;
-                    compiler__sema__symbol__Symbol* subj_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), id_name);
-                    if ((subj_sym != NULL)) {
+                    compiler__ast__node__AstNode* is_expr = (is_e)->expr;
+                    if ((is_expr != NULL)) {
                         {
-                            smart_cast_ty = compiler__sema__body_pass__BodyPass_check_is_pattern(self, (is_e)->expr, (subj_sym)->type_ptr, cond);
-                            if ((smart_cast_ty != NULL)) {
+                            if (((is_expr)->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+                                compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)is_expr)->data));
                                 {
-                                    if ((!kobel_streq((is_e)->alias, ""))) {
-                                        smart_cast_sym = (is_e)->alias;
-                                    } else {
-                                        smart_cast_sym = id_name;
+                                    const char* id_name = (id)->name;
+                                    compiler__sema__symbol__Symbol* subj_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), id_name);
+                                    if ((subj_sym != NULL)) {
+                                        {
+                                            smart_cast_ty = compiler__sema__body_pass__BodyPass_check_is_pattern(self, (is_e)->expr, (subj_sym)->type_ptr, cond);
+                                            if ((smart_cast_ty != NULL)) {
+                                                {
+                                                    if ((!kobel_streq((is_e)->alias, ""))) {
+                                                        smart_cast_sym = (is_e)->alias;
+                                                    } else {
+                                                        smart_cast_sym = id_name;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -13100,22 +13115,33 @@ void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pa
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at((&(ws)->arms), __for_i);
                 const char* smart_cast_sym = "";
                 compiler__sema__types__Type* smart_cast_ty = NULL;
-                if (((((ws)->condition != NULL) && (((*(ws)->condition)).kind == 5)) && (((arm).patterns).len == 1))) {
+                compiler__ast__node__AstNode* ws_cond = (ws)->condition;
+                if ((ws_cond != NULL)) {
                     {
-                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first((&(arm).patterns));
-                        if (((pat)->kind == 40)) {
+                        if (((ws_cond)->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+                            compiler__ast__expr__IdentifierExpr* ws_id = ((compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)ws_cond)->data));
                             {
-                                compiler__ast__expr__IsExpr* is_e = ((compiler__ast__expr__IsExpr*)compiler__ast__node__to_compiler__ast__expr__IsExpr(pat));
-                                if (((is_e)->expr == NULL)) {
-                                    (is_e)->expr = (ws)->condition;
-                                }
-                                smart_cast_ty = compiler__sema__body_pass__BodyPass_check_is_pattern(self, (ws)->condition, cond_ty, pat);
-                                if ((smart_cast_ty != NULL)) {
+                                if ((((arm).patterns).len == 1)) {
                                     {
-                                        if ((!kobel_streq((is_e)->alias, ""))) {
-                                            smart_cast_sym = (is_e)->alias;
-                                        } else {
-                                            smart_cast_sym = ((*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr((ws)->condition))).name;
+                                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first((&(arm).patterns));
+                                        if (((pat)->kind == compiler__ast__expr__IsExpr__TAG)) {
+                                            compiler__ast__expr__IsExpr* is_e = ((compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data));
+                                            {
+                                                compiler__ast__expr__IsExpr* is_e_mut = ((compiler__ast__expr__IsExpr*)is_e);
+                                                if (((is_e_mut)->expr == NULL)) {
+                                                    (is_e_mut)->expr = (ws)->condition;
+                                                }
+                                                smart_cast_ty = compiler__sema__body_pass__BodyPass_check_is_pattern(self, (ws)->condition, cond_ty, pat);
+                                                if ((smart_cast_ty != NULL)) {
+                                                    {
+                                                        if ((!kobel_streq((is_e)->alias, ""))) {
+                                                            smart_cast_sym = (is_e)->alias;
+                                                        } else {
+                                                            smart_cast_sym = (ws_id)->name;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -13132,16 +13158,24 @@ void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pa
                                 {
                                     compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(arm).patterns), __for_i);
                                     compiler__sema__types__Type* p_ty = NULL;
-                                    if ((((pat)->kind == 40) && ((ws)->condition != NULL))) {
+                                    bool is_is_pat = false;
+                                    if (((ws)->condition != NULL)) {
                                         {
-                                            compiler__ast__expr__IsExpr* is_e = ((compiler__ast__expr__IsExpr*)compiler__ast__node__to_compiler__ast__expr__IsExpr(pat));
-                                            if (((is_e)->expr == NULL)) {
-                                                (is_e)->expr = (ws)->condition;
+                                            if (((pat)->kind == compiler__ast__expr__IsExpr__TAG)) {
+                                                compiler__ast__expr__IsExpr* is_e = ((compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data));
+                                                {
+                                                    is_is_pat = true;
+                                                    compiler__ast__expr__IsExpr* is_e_mut = ((compiler__ast__expr__IsExpr*)is_e);
+                                                    if (((is_e_mut)->expr == NULL)) {
+                                                        (is_e_mut)->expr = (ws)->condition;
+                                                    }
+                                                    compiler__sema__body_pass__BodyPass_check_is_pattern(self, (ws)->condition, cond_ty, pat);
+                                                    p_ty = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_bool());
+                                                }
                                             }
-                                            compiler__sema__body_pass__BodyPass_check_is_pattern(self, (ws)->condition, cond_ty, pat);
-                                            p_ty = compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_bool());
                                         }
-                                    } else {
+                                    }
+                                    if ((!is_is_pat)) {
                                         {
                                             p_ty = compiler__sema__body_pass__BodyPass_check_expr(self, pat);
                                         }
@@ -13174,16 +13208,18 @@ void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pa
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_for_iterable_type(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
-    if (((node)->kind == 14)) {
-        return compiler__sema__body_pass__BodyPass_for_iterable_type(self, ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node))).expr);
-    } else if (((node)->kind == 5)) {
-        compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), ((*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(node))).name);
+    if (((node)->kind == compiler__ast__expr__GroupExpr__TAG)) {
+        compiler__ast__expr__GroupExpr* g = ((compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)node)->data));
+        return compiler__sema__body_pass__BodyPass_for_iterable_type(self, (g)->expr);
+    } else if (((node)->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+        compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)node)->data));
+        compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), (id)->name);
         if ((sym != NULL)) {
             return (sym)->type_ptr;
         }
         return NULL;
-    } else if (((node)->kind == 9)) {
-        compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
+    } else if (((node)->kind == compiler__ast__expr__MemberExpr__TAG)) {
+        compiler__ast__expr__MemberExpr* mem = ((compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data));
         compiler__sema__types__Type* obj = compiler__sema__body_pass__BodyPass_for_iterable_type(self, (mem)->object);
         if ((obj == NULL)) {
             return NULL;

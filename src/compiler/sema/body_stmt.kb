@@ -83,20 +83,25 @@ impl BodyPass {
 		var smart_cast_ty: *Type = null;
 
 		var cond = if_s.condition;
-		while (cond != null && cond.kind == NodeKind.EXPR_GROUP) {
-			cond = cond.to<GroupExpr>().expr;
+		while (cond != null) {
+			if (cond is GroupExpr as g) cond = g.expr;
+			else break;
 		}
 
-		if (cond != null && cond.kind == NodeKind.EXPR_IS) {
-			val is_e = cond.to<IsExpr>();
-			if (is_e.expr != null && is_e.expr.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id_name = is_e.expr.to<IdentifierExpr>().name;
-				val subj_sym = self.symtab.lookup(id_name);
-				if (subj_sym != null) {
-					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
-					if (smart_cast_ty != null) {
-						if (is_e.alias != "") smart_cast_sym = is_e.alias;
-						else smart_cast_sym = id_name;
+		if (cond != null) {
+			if (cond is IsExpr as is_e) {
+				val is_expr = is_e.expr;
+				if (is_expr != null) {
+					if (is_expr is IdentifierExpr as id) {
+						val id_name = id.name;
+						val subj_sym = self.symtab.lookup(id_name);
+						if (subj_sym != null) {
+							smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
+							if (smart_cast_ty != null) {
+								if (is_e.alias != "") smart_cast_sym = is_e.alias;
+								else smart_cast_sym = id_name;
+							}
+						}
 					}
 				}
 			}
@@ -162,15 +167,20 @@ impl BodyPass {
 			var smart_cast_sym = "";
 			var smart_cast_ty: *Type = null;
 
-			if (ws.condition != null && ws.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
-				val pat = arm.patterns.first();
-				if (pat.kind == NodeKind.EXPR_IS) {
-					val is_e = pat.to<IsExpr>() as &IsExpr;
-					if (is_e.expr == null) is_e.expr = ws.condition;
-					smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
-					if (smart_cast_ty != null) {
-						if (is_e.alias != "") smart_cast_sym = is_e.alias;
-						else smart_cast_sym = ws.condition.to<IdentifierExpr>().name;
+			val ws_cond = ws.condition;
+			if (ws_cond != null) {
+				if (ws_cond is IdentifierExpr as ws_id) {
+					if (arm.patterns.len == 1) {
+						val pat = arm.patterns.first();
+						if (pat is IsExpr as is_e) {
+							val is_e_mut = is_e as &IsExpr;
+							if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
+							smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
+							if (smart_cast_ty != null) {
+								if (is_e.alias != "") smart_cast_sym = is_e.alias;
+								else smart_cast_sym = ws_id.name;
+							}
+						}
 					}
 				}
 			}
@@ -178,12 +188,17 @@ impl BodyPass {
 			if (smart_cast_sym == "") {
 				for (pat in arm.patterns) {
 					var p_ty: *Type = null;
-					if (pat.kind == NodeKind.EXPR_IS && ws.condition != null) {
-						val is_e = pat.to<IsExpr>() as &IsExpr;
-						if (is_e.expr == null) is_e.expr = ws.condition;
-						self.check_is_pattern(ws.condition, cond_ty, pat);
-						p_ty = alloc_primitive(&self.arena, type_bool());
-					} else {
+					var is_is_pat = false;
+					if (ws.condition != null) {
+						if (pat is IsExpr as is_e) {
+							is_is_pat = true;
+							val is_e_mut = is_e as &IsExpr;
+							if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
+							self.check_is_pattern(ws.condition, cond_ty, pat);
+							p_ty = alloc_primitive(&self.arena, type_bool());
+						}
+					}
+					if (!is_is_pat) {
 						p_ty = self.check_expr(pat);
 					}
 
@@ -206,17 +221,16 @@ impl BodyPass {
 	// Best-effort static type of a `for` iterable (a variable or a field chain).
 	// Reports nothing and rewrites nothing, so it is safe to call before the loop
 	// is lowered and re-checked.
-	fn for_iterable_type(var self, node: *AstNode): *Type => when (node.kind) {
-		NodeKind.EXPR_GROUP -> self.for_iterable_type(node.to<GroupExpr>().expr);
+	fn for_iterable_type(var self, node: *AstNode): *Type => when (node) {
+		is GroupExpr as g -> self.for_iterable_type(g.expr),
 
-		NodeKind.EXPR_IDENTIFIER -> {
-			val sym = self.symtab.lookup(node.to<IdentifierExpr>().name);
+		is IdentifierExpr as id -> {
+			val sym = self.symtab.lookup(id.name);
 			if (sym != null) yield sym.type_ptr;
 			yield null;
 		}
 
-		NodeKind.EXPR_MEMBER -> {
-			val mem = node.to<MemberExpr>();
+		is MemberExpr as mem -> {
 			var obj = self.for_iterable_type(mem.object);
 			if (obj == null) yield null;
 
