@@ -49,6 +49,19 @@ fn test_collections(): bool {
 	list.add(30);
 	if (list.len != 3UZ) return false;
 	if (list.get(1UZ) != 20) return false;
+	// test insert
+	list.insert(1UZ, 15); // [10, 15, 20, 30]
+	if (list.len != 4UZ || list.get(1UZ) != 15 || list.get(2UZ) != 20) return false;
+
+	// test remove_at
+	val rem: i32 = list.remove_at(1UZ); // [10, 20, 30]
+	if (rem != 15 || list.len != 3UZ || list.get(1UZ) != 20) return false;
+
+	// test clone
+	var cloned = list.clone();
+	if (cloned.len != 3UZ || cloned.get(2UZ) != 30) return false;
+	cloned.delete();
+
 	val pop_val: i32 = list.pop();
 	if (pop_val != 30 || list.len != 2UZ) return false;
 	list.delete();

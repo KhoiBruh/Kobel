@@ -79,5 +79,33 @@ impl List<T> {
 		}
 	}
 
+
+	pub fn remove_at(var self, index: usz): T {
+		val item = self.data[index];
+		for (i in index..<(self.len - 1)) {
+			self.data[i] = self.data[i + 1];
+		}
+		self.len--;
+		return item;
+	}
+
+	pub fn insert(var self, index: usz, value: T) {
+		if (self.len == self.cap) self.grow();
+		var i = self.len;
+		while (i > index) {
+			self.data[i] = self.data[i - 1];
+			i--;
+		}
+		self.data[index] = value;
+		self.len++;
+	}
+
+	pub fn clone(val self): Self<T> {
+		val cap = if (self.cap > 0UZ) self.cap else 4UZ;
+		var res = Self(alloc_array<T>(cap), 0UZ, cap);
+		for (i in 0..<self.len) res.add(self.data[i]);
+		return res;
+	}
+
 	pub fn delete(self) => release<T>(self.data);
 }
