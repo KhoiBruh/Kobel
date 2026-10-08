@@ -19544,9 +19544,9 @@ void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, comp
     if ((node == NULL)) {
         return;
     }
-    if (((node)->kind == 0)) {
+    if (((node)->kind == compiler__ast__types__NamedType__TAG)) {
+        compiler__ast__types__NamedType* nt = ((compiler__ast__types__NamedType*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__types__NamedType* nt = compiler__ast__node__to_compiler__ast__types__NamedType(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), (nt)->name);
             if ((((nt)->type_args).len > 0)) {
                 {
@@ -19600,9 +19600,9 @@ void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, comp
                 }
             }
         }
-    } else if (((node)->kind == 1)) {
+    } else if (((node)->kind == compiler__ast__types__PointerType__TAG)) {
+        compiler__ast__types__PointerType* pt = ((compiler__ast__types__PointerType*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__types__PointerType* pt = compiler__ast__node__to_compiler__ast__types__PointerType(node);
             if ((pt)->is_mut) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "&");
             } else {
@@ -19610,23 +19610,20 @@ void fmt__formatter__Formatter_format_type(fmt__formatter__Formatter* self, comp
             }
             fmt__formatter__Formatter_format_type(self, (pt)->pointee);
         }
-    } else if (((node)->kind == 2)) {
+    } else if (((node)->kind == compiler__ast__types__ArrayType__TAG)) {
+        compiler__ast__types__ArrayType* at = ((compiler__ast__types__ArrayType*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__types__ArrayType* at = compiler__ast__node__to_compiler__ast__types__ArrayType(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
             fmt__formatter__Formatter_format_type(self, (at)->element_type);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "; ");
             fmt__buffer__FormatBuffer_write((&(self)->buf), usz_to_str((at)->size));
             fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
         }
-    } else if (((node)->kind == 3)) {
+    } else if (((node)->kind == compiler__ast__types__NullableType__TAG)) {
+        compiler__ast__types__NullableType* nt = ((compiler__ast__types__NullableType*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__types__NullableType* nt = compiler__ast__node__to_compiler__ast__types__NullableType(node);
             fmt__formatter__Formatter_format_type(self, (nt)->inner);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "?");
-        }
-    } else {
-        {
         }
     }
 }
@@ -19635,34 +19632,30 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
     if ((node == NULL)) {
         return;
     }
-    if (((node)->kind == 4)) {
+    if (((node)->kind == compiler__ast__expr__LiteralExpr__TAG)) {
+        compiler__ast__expr__LiteralExpr* lit = ((compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)node)->data));
+        fmt__buffer__FormatBuffer_write((&(self)->buf), (lit)->raw_text);
+    } else if (((node)->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+        compiler__ast__expr__IdentifierExpr* id = ((compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)node)->data));
+        fmt__buffer__FormatBuffer_write((&(self)->buf), (id)->name);
+    } else if (((node)->kind == compiler__ast__expr__BinaryExpr__TAG)) {
+        compiler__ast__expr__BinaryExpr* b = ((compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__LiteralExpr* lit = compiler__ast__node__to_compiler__ast__expr__LiteralExpr(node);
-            fmt__buffer__FormatBuffer_write((&(self)->buf), (lit)->raw_text);
-        }
-    } else if (((node)->kind == 5)) {
-        {
-            compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(node);
-            fmt__buffer__FormatBuffer_write((&(self)->buf), (id)->name);
-        }
-    } else if (((node)->kind == 6)) {
-        {
-            compiler__ast__expr__BinaryExpr* b = compiler__ast__node__to_compiler__ast__expr__BinaryExpr(node);
             fmt__formatter__Formatter_format_expr(self, (b)->left);
             fmt__buffer__FormatBuffer_space((&(self)->buf));
             fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((b)->op));
             fmt__buffer__FormatBuffer_space((&(self)->buf));
             fmt__formatter__Formatter_format_expr(self, (b)->right);
         }
-    } else if (((node)->kind == 7)) {
+    } else if (((node)->kind == compiler__ast__expr__UnaryExpr__TAG)) {
+        compiler__ast__expr__UnaryExpr* u = ((compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__UnaryExpr* u = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((u)->op));
             fmt__formatter__Formatter_format_expr(self, (u)->operand);
         }
-    } else if (((node)->kind == 8)) {
+    } else if (((node)->kind == compiler__ast__expr__CallExpr__TAG)) {
+        compiler__ast__expr__CallExpr* c = ((compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
             fmt__formatter__Formatter_format_expr(self, (c)->callee);
             if ((((c)->type_args).len > 0)) {
                 {
@@ -19763,53 +19756,53 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), ")");
         }
-    } else if (((node)->kind == 9)) {
+    } else if (((node)->kind == compiler__ast__expr__MemberExpr__TAG)) {
+        compiler__ast__expr__MemberExpr* m = ((compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
             fmt__formatter__Formatter_format_expr(self, (m)->object);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ".");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (m)->member);
         }
-    } else if (((node)->kind == 10)) {
+    } else if (((node)->kind == compiler__ast__expr__IndexExpr__TAG)) {
+        compiler__ast__expr__IndexExpr* idx = ((compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__IndexExpr* idx = compiler__ast__node__to_compiler__ast__expr__IndexExpr(node);
             fmt__formatter__Formatter_format_expr(self, (idx)->target);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
             fmt__formatter__Formatter_format_expr(self, (idx)->index);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
         }
-    } else if (((node)->kind == 11)) {
+    } else if (((node)->kind == compiler__ast__expr__AssignExpr__TAG)) {
+        compiler__ast__expr__AssignExpr* a = ((compiler__ast__expr__AssignExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__AssignExpr* a = compiler__ast__node__to_compiler__ast__expr__AssignExpr(node);
             fmt__formatter__Formatter_format_expr(self, (a)->target);
             fmt__buffer__FormatBuffer_space((&(self)->buf));
             fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((a)->op));
             fmt__buffer__FormatBuffer_space((&(self)->buf));
             fmt__formatter__Formatter_format_expr(self, (a)->value);
         }
-    } else if (((node)->kind == 12)) {
+    } else if (((node)->kind == compiler__ast__expr__UpdateExpr__TAG)) {
+        compiler__ast__expr__UpdateExpr* u = ((compiler__ast__expr__UpdateExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__UpdateExpr* u = compiler__ast__node__to_compiler__ast__expr__UpdateExpr(node);
             fmt__formatter__Formatter_format_expr(self, (u)->target);
             fmt__buffer__FormatBuffer_write((&(self)->buf), fmt__formatter__op_to_str((u)->op));
         }
-    } else if (((node)->kind == 13)) {
+    } else if (((node)->kind == compiler__ast__expr__CastExpr__TAG)) {
+        compiler__ast__expr__CastExpr* cst = ((compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__CastExpr* cst = compiler__ast__node__to_compiler__ast__expr__CastExpr(node);
             fmt__formatter__Formatter_format_expr(self, (cst)->expr);
             fmt__buffer__FormatBuffer_write((&(self)->buf), " as ");
             fmt__formatter__Formatter_format_type(self, (cst)->target_type);
         }
-    } else if (((node)->kind == 14)) {
+    } else if (((node)->kind == compiler__ast__expr__GroupExpr__TAG)) {
+        compiler__ast__expr__GroupExpr* g = ((compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__GroupExpr* g = compiler__ast__node__to_compiler__ast__expr__GroupExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "(");
             fmt__formatter__Formatter_format_expr(self, (g)->expr);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ")");
         }
-    } else if (((node)->kind == 15)) {
+    } else if (((node)->kind == compiler__ast__expr__ArrayLiteralExpr__TAG)) {
+        compiler__ast__expr__ArrayLiteralExpr* al = ((compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "[");
             {
                 size_t __for_e = ((al)->elements).len;
@@ -19858,9 +19851,9 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), "]");
         }
-    } else if (((node)->kind == 16)) {
+    } else if (((node)->kind == compiler__ast__expr__IfExpr__TAG)) {
+        compiler__ast__expr__IfExpr* ie = ((compiler__ast__expr__IfExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__IfExpr* ie = compiler__ast__node__to_compiler__ast__expr__IfExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "if (");
             fmt__formatter__Formatter_format_expr(self, (ie)->condition);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
@@ -19872,9 +19865,9 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                 }
             }
         }
-    } else if (((node)->kind == 17)) {
+    } else if (((node)->kind == compiler__ast__expr__WhenExpr__TAG)) {
+        compiler__ast__expr__WhenExpr* we = ((compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "when (");
             fmt__formatter__Formatter_format_expr(self, (we)->condition);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ") {");
@@ -19984,9 +19977,9 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_newline((&(self)->buf));
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
         }
-    } else if (((node)->kind == 18)) {
+    } else if (((node)->kind == compiler__ast__expr__InterpExpr__TAG)) {
+        compiler__ast__expr__InterpExpr* interp = ((compiler__ast__expr__InterpExpr*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__expr__InterpExpr* interp = compiler__ast__node__to_compiler__ast__expr__InterpExpr(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "\"");
             {
                 size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count((&(interp)->parts));
@@ -20017,9 +20010,6 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), "\"");
         }
-    } else {
-        {
-        }
     }
 }
 
@@ -20028,9 +20018,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
         return;
     }
     fmt__comments__CommentTable_emit_before((&(self)->comments), (&(self)->buf), (node)->line);
-    if (((node)->kind == 19)) {
+    if (((node)->kind == compiler__ast__stmt__BlockStmt__TAG)) {
+        compiler__ast__stmt__BlockStmt* b = ((compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__BlockStmt* b = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "{");
             fmt__buffer__FormatBuffer_indent((&(self)->buf));
             {
@@ -20049,16 +20039,16 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_newline((&(self)->buf));
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
         }
-    } else if (((node)->kind == 20)) {
+    } else if (((node)->kind == compiler__ast__stmt__ExprStmt__TAG)) {
+        compiler__ast__stmt__ExprStmt* es = ((compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt(node);
             fmt__formatter__Formatter_format_expr(self, (es)->expr);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 21)) {
+    } else if (((node)->kind == compiler__ast__stmt__VarDeclStmt__TAG)) {
+        compiler__ast__stmt__VarDeclStmt* v = ((compiler__ast__stmt__VarDeclStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__VarDeclStmt* v = compiler__ast__node__to_compiler__ast__stmt__VarDeclStmt(node);
             if ((v)->is_mut) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "var ");
             } else {
@@ -20080,9 +20070,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 22)) {
+    } else if (((node)->kind == compiler__ast__stmt__IfStmt__TAG)) {
+        compiler__ast__stmt__IfStmt* s = ((compiler__ast__stmt__IfStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__IfStmt* s = compiler__ast__node__to_compiler__ast__stmt__IfStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "if (");
             fmt__formatter__Formatter_format_expr(self, (s)->condition);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
@@ -20123,9 +20113,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                 }
             }
         }
-    } else if (((node)->kind == 24)) {
+    } else if (((node)->kind == compiler__ast__stmt__WhileStmt__TAG)) {
+        compiler__ast__stmt__WhileStmt* w = ((compiler__ast__stmt__WhileStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__WhileStmt* w = compiler__ast__node__to_compiler__ast__stmt__WhileStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "while (");
             fmt__formatter__Formatter_format_expr(self, (w)->condition);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ") ");
@@ -20142,9 +20132,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                 }
             }
         }
-    } else if (((node)->kind == 28)) {
+    } else if (((node)->kind == compiler__ast__stmt__ForStmt__TAG)) {
+        compiler__ast__stmt__ForStmt* f = ((compiler__ast__stmt__ForStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__ForStmt* f = compiler__ast__node__to_compiler__ast__stmt__ForStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "for (");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (f)->var_name);
             fmt__buffer__FormatBuffer_write((&(self)->buf), " in ");
@@ -20181,9 +20171,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
                 }
             }
         }
-    } else if (((node)->kind == 25)) {
+    } else if (((node)->kind == compiler__ast__stmt__ReturnStmt__TAG)) {
+        compiler__ast__stmt__ReturnStmt* r = ((compiler__ast__stmt__ReturnStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__ReturnStmt* r = compiler__ast__node__to_compiler__ast__stmt__ReturnStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "return");
             if (((r)->value != NULL)) {
                 {
@@ -20194,9 +20184,9 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 29)) {
+    } else if (((node)->kind == compiler__ast__stmt__YieldStmt__TAG)) {
+        compiler__ast__stmt__YieldStmt* y = ((compiler__ast__stmt__YieldStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__YieldStmt* y = compiler__ast__node__to_compiler__ast__stmt__YieldStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "yield");
             if (((y)->value != NULL)) {
                 {
@@ -20207,19 +20197,21 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 26)) {
+    } else if (((node)->kind == compiler__ast__stmt__BreakStmt__TAG)) {
+        compiler__ast__stmt__BreakStmt* b = ((compiler__ast__stmt__BreakStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
             fmt__buffer__FormatBuffer_write((&(self)->buf), "break;");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 27)) {
+    } else if (((node)->kind == compiler__ast__stmt__ContinueStmt__TAG)) {
+        compiler__ast__stmt__ContinueStmt* c = ((compiler__ast__stmt__ContinueStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
             fmt__buffer__FormatBuffer_write((&(self)->buf), "continue;");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 23)) {
+    } else if (((node)->kind == compiler__ast__stmt__WhenStmt__TAG)) {
+        compiler__ast__stmt__WhenStmt* ws = ((compiler__ast__stmt__WhenStmt*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__stmt__WhenStmt* ws = compiler__ast__node__to_compiler__ast__stmt__WhenStmt(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "when (");
             fmt__formatter__Formatter_format_expr(self, (ws)->condition);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ") {");
@@ -20291,9 +20283,6 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_dedent((&(self)->buf));
             fmt__buffer__FormatBuffer_newline((&(self)->buf));
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
-        }
-    } else {
-        {
         }
     }
 }
@@ -20407,18 +20396,18 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
         return;
     }
     fmt__comments__CommentTable_emit_before((&(self)->comments), (&(self)->buf), (node)->line);
-    if (((node)->kind == 30)) {
+    if (((node)->kind == compiler__ast__decl__ModuleDecl__TAG)) {
+        compiler__ast__decl__ModuleDecl* m = ((compiler__ast__decl__ModuleDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__ModuleDecl* m = compiler__ast__node__to_compiler__ast__decl__ModuleDecl(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "mod ");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (m)->full_path);
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
             fmt__buffer__FormatBuffer_newline((&(self)->buf));
         }
-    } else if (((node)->kind == 31)) {
+    } else if (((node)->kind == compiler__ast__decl__UseDecl__TAG)) {
+        compiler__ast__decl__UseDecl* u = ((compiler__ast__decl__UseDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__UseDecl* u = compiler__ast__node__to_compiler__ast__decl__UseDecl(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "use ");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (u)->full_path);
             if ((kobel_slen((u)->alias) > 0)) {
@@ -20430,9 +20419,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 33)) {
+    } else if (((node)->kind == compiler__ast__decl__StructDecl__TAG)) {
+        compiler__ast__decl__StructDecl* s = ((compiler__ast__decl__StructDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__StructDecl* s = compiler__ast__node__to_compiler__ast__decl__StructDecl(node);
             if ((s)->is_pub) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
             }
@@ -20508,9 +20497,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 32)) {
+    } else if (((node)->kind == compiler__ast__decl__FnDecl__TAG)) {
+        compiler__ast__decl__FnDecl* f = ((compiler__ast__decl__FnDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(node);
             if ((f)->is_pub) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
             }
@@ -20592,15 +20581,18 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             }
             if (((f)->body != NULL)) {
                 {
-                    if ((((*(f)->body)).kind == 19)) {
+                    compiler__ast__node__AstNode* body = (f)->body;
+                    if (((body)->kind == compiler__ast__stmt__BlockStmt__TAG)) {
+                        void* __orig_body = (void*)body;
+                        compiler__ast__stmt__BlockStmt* body = ((compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)__orig_body)->data));
                         {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), " ");
                             fmt__formatter__Formatter_format_stmt(self, (f)->body);
                         }
-                    } else if ((((*(f)->body)).kind == 20)) {
+                    } else if (((body)->kind == compiler__ast__stmt__ExprStmt__TAG)) {
+                        compiler__ast__stmt__ExprStmt* es = ((compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)body)->data));
                         {
                             fmt__buffer__FormatBuffer_write((&(self)->buf), " => ");
-                            compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt((f)->body);
                             fmt__formatter__Formatter_format_expr(self, (es)->expr);
                             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
                         }
@@ -20616,9 +20608,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             }
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 35)) {
+    } else if (((node)->kind == compiler__ast__decl__ImplDecl__TAG)) {
+        compiler__ast__decl__ImplDecl* im = ((compiler__ast__decl__ImplDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "impl");
             if ((((im)->type_params).len > 0)) {
                 {
@@ -20657,9 +20649,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 34)) {
+    } else if (((node)->kind == compiler__ast__decl__TraitDecl__TAG)) {
+        compiler__ast__decl__TraitDecl* tr = ((compiler__ast__decl__TraitDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__TraitDecl* tr = compiler__ast__node__to_compiler__ast__decl__TraitDecl(node);
             if ((tr)->is_pub) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
             }
@@ -20739,9 +20731,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 36)) {
+    } else if (((node)->kind == compiler__ast__decl__EnumDecl__TAG)) {
+        compiler__ast__decl__EnumDecl* en = ((compiler__ast__decl__EnumDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__EnumDecl* en = compiler__ast__node__to_compiler__ast__decl__EnumDecl(node);
             if ((en)->is_pub) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
             }
@@ -20817,9 +20809,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 37)) {
+    } else if (((node)->kind == compiler__ast__decl__ConstDecl__TAG)) {
+        compiler__ast__decl__ConstDecl* c = ((compiler__ast__decl__ConstDecl*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__ConstDecl* c = compiler__ast__node__to_compiler__ast__decl__ConstDecl(node);
             if ((c)->is_pub) {
                 fmt__buffer__FormatBuffer_write((&(self)->buf), "pub ");
             }
@@ -20836,9 +20828,9 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_write((&(self)->buf), ";");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
         }
-    } else if (((node)->kind == 38)) {
+    } else if (((node)->kind == compiler__ast__decl__ExternBlock__TAG)) {
+        compiler__ast__decl__ExternBlock* eb = ((compiler__ast__decl__ExternBlock*)(((compiler__ast__node__AstNode*)node)->data));
         {
-            compiler__ast__decl__ExternBlock* eb = compiler__ast__node__to_compiler__ast__decl__ExternBlock(node);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "extern \"");
             fmt__buffer__FormatBuffer_write((&(self)->buf), (eb)->abi);
             fmt__buffer__FormatBuffer_write((&(self)->buf), "\" {");
@@ -20863,9 +20855,6 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             }
             fmt__buffer__FormatBuffer_write((&(self)->buf), "}");
             fmt__comments__CommentTable_emit_trailing_on_line((&(self)->comments), (&(self)->buf), (node)->line);
-        }
-    } else {
-        {
         }
     }
 }

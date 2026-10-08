@@ -73,9 +73,8 @@ impl Formatter {
 
 	pub fn format_type(var self, node: *AstNode) {
 		if (node == null) return;
-		when (node.kind) {
-			NodeKind.TYPE_NAMED -> {
-				val nt = node.to<NamedType>();
+		when (node) {
+			is NamedType as nt -> {
 				self.buf.write(nt.name);
 				if (nt.type_args.len > 0) {
 					self.buf.write("<");
@@ -86,26 +85,22 @@ impl Formatter {
 					self.buf.write(">");
 				}
 			}
-			NodeKind.TYPE_POINTER -> {
-				val pt = node.to<PointerType>();
+			is PointerType as pt -> {
 				if (pt.is_mut) self.buf.write("&");
 				else self.buf.write("*");
 				self.format_type(pt.pointee);
 			}
-			NodeKind.TYPE_ARRAY -> {
-				val at = node.to<ArrayType>();
+			is ArrayType as at -> {
 				self.buf.write("[");
 				self.format_type(at.element_type);
 				self.buf.write("; ");
 				self.buf.write("${at.size}");
 				self.buf.write("]");
 			}
-			NodeKind.TYPE_NULLABLE -> {
-				val nt = node.to<NullableType>();
+			is NullableType as nt -> {
 				self.format_type(nt.inner);
 				self.buf.write("?");
 			}
-			else -> {}
 		}
 	}
 
@@ -115,30 +110,21 @@ impl Formatter {
 
 	pub fn format_expr(var self, node: *AstNode) {
 		if (node == null) return;
-		when (node.kind) {
-			NodeKind.EXPR_LITERAL -> {
-				val lit = node.to<LiteralExpr>();
-				self.buf.write(lit.raw_text);
-			}
-			NodeKind.EXPR_IDENTIFIER -> {
-				val id = node.to<IdentifierExpr>();
-				self.buf.write(id.name);
-			}
-			NodeKind.EXPR_BINARY -> {
-				val b = node.to<BinaryExpr>();
+		when (node) {
+			is LiteralExpr as lit -> self.buf.write(lit.raw_text);
+			is IdentifierExpr as id -> self.buf.write(id.name);
+			is BinaryExpr as b -> {
 				self.format_expr(b.left);
 				self.buf.space();
 				self.buf.write(op_to_str(b.op));
 				self.buf.space();
 				self.format_expr(b.right);
 			}
-			NodeKind.EXPR_UNARY -> {
-				val u = node.to<UnaryExpr>();
+			is UnaryExpr as u -> {
 				self.buf.write(op_to_str(u.op));
 				self.format_expr(u.operand);
 			}
-			NodeKind.EXPR_CALL -> {
-				val c = node.to<CallExpr>();
+			is CallExpr as c -> {
 				self.format_expr(c.callee);
 				if (c.type_args.len > 0) {
 					self.buf.write("<");
@@ -155,46 +141,39 @@ impl Formatter {
 				}
 				self.buf.write(")");
 			}
-			NodeKind.EXPR_MEMBER -> {
-				val m = node.to<MemberExpr>();
+			is MemberExpr as m -> {
 				self.format_expr(m.object);
 				self.buf.write(".");
 				self.buf.write(m.member);
 			}
-			NodeKind.EXPR_INDEX -> {
-				val idx = node.to<IndexExpr>();
+			is IndexExpr as idx -> {
 				self.format_expr(idx.target);
 				self.buf.write("[");
 				self.format_expr(idx.index);
 				self.buf.write("]");
 			}
-			NodeKind.EXPR_ASSIGN -> {
-				val a = node.to<AssignExpr>();
+			is AssignExpr as a -> {
 				self.format_expr(a.target);
 				self.buf.space();
 				self.buf.write(op_to_str(a.op));
 				self.buf.space();
 				self.format_expr(a.value);
 			}
-			NodeKind.EXPR_UPDATE -> {
-				val u = node.to<UpdateExpr>();
+			is UpdateExpr as u -> {
 				self.format_expr(u.target);
 				self.buf.write(op_to_str(u.op));
 			}
-			NodeKind.EXPR_CAST -> {
-				val cst = node.to<CastExpr>();
+			is CastExpr as cst -> {
 				self.format_expr(cst.expr);
 				self.buf.write(" as ");
 				self.format_type(cst.target_type);
 			}
-			NodeKind.EXPR_GROUP -> {
-				val g = node.to<GroupExpr>();
+			is GroupExpr as g -> {
 				self.buf.write("(");
 				self.format_expr(g.expr);
 				self.buf.write(")");
 			}
-			NodeKind.EXPR_ARRAY_LITERAL -> {
-				val al = node.to<ArrayLiteralExpr>();
+			is ArrayLiteralExpr as al -> {
 				self.buf.write("[");
 				for (i in 0..<al.elements.len) {
 					if (i > 0) self.buf.write(", ");
@@ -202,8 +181,7 @@ impl Formatter {
 				}
 				self.buf.write("]");
 			}
-			NodeKind.EXPR_IF -> {
-				val ie = node.to<IfExpr>();
+			is IfExpr as ie -> {
 				self.buf.write("if (");
 				self.format_expr(ie.condition);
 				self.buf.write(") ");
@@ -213,8 +191,7 @@ impl Formatter {
 					self.format_expr(ie.else_branch);
 				}
 			}
-			NodeKind.EXPR_WHEN -> {
-				val we = node.to<WhenExpr>();
+			is WhenExpr as we -> {
 				self.buf.write("when (");
 				self.format_expr(we.condition);
 				self.buf.write(") {");
@@ -238,8 +215,7 @@ impl Formatter {
 				self.buf.newline();
 				self.buf.write("}");
 			}
-			NodeKind.EXPR_INTERP -> {
-				val interp = node.to<InterpExpr>();
+			is InterpExpr as interp -> {
 				self.buf.write("\"");
 				for (part in interp.parts) {
 					if (part.is_literal) {
@@ -257,7 +233,6 @@ impl Formatter {
 				}
 				self.buf.write("\"");
 			}
-			else -> {}
 		}
 	}
 
@@ -269,9 +244,8 @@ impl Formatter {
 		if (node == null) return;
 		self.comments.emit_before(&self.buf, node.line);
 
-		when (node.kind) {
-			NodeKind.STMT_BLOCK -> {
-				val b = node.to<BlockStmt>();
+		when (node) {
+			is BlockStmt as b -> {
 				self.buf.write("{");
 				self.buf.indent();
 				for (s in b.statements) {
@@ -282,14 +256,12 @@ impl Formatter {
 				self.buf.newline();
 				self.buf.write("}");
 			}
-			NodeKind.STMT_EXPR -> {
-				val es = node.to<ExprStmt>();
+			is ExprStmt as es -> {
 				self.format_expr(es.expr);
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_VAR_DECL -> {
-				val v = node.to<VarDeclStmt>();
+			is VarDeclStmt as v -> {
 				if (v.is_mut) self.buf.write("var ");
 				else self.buf.write("val ");
 				self.buf.write(v.name);
@@ -304,8 +276,7 @@ impl Formatter {
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_IF -> {
-				val s = node.to<IfStmt>();
+			is IfStmt as s -> {
 				self.buf.write("if (");
 				self.format_expr(s.condition);
 				self.buf.write(") ");
@@ -339,8 +310,7 @@ impl Formatter {
 					}
 				}
 			}
-			NodeKind.STMT_WHILE -> {
-				val w = node.to<WhileStmt>();
+			is WhileStmt as w -> {
 				self.buf.write("while (");
 				self.format_expr(w.condition);
 				self.buf.write(") ");
@@ -353,8 +323,7 @@ impl Formatter {
 					self.buf.dedent();
 				}
 			}
-			NodeKind.STMT_FOR -> {
-				val f = node.to<ForStmt>();
+			is ForStmt as f -> {
 				self.buf.write("for (");
 				self.buf.write(f.var_name);
 				self.buf.write(" in ");
@@ -378,8 +347,7 @@ impl Formatter {
 					self.buf.dedent();
 				}
 			}
-			NodeKind.STMT_RETURN -> {
-				val r = node.to<ReturnStmt>();
+			is ReturnStmt as r -> {
 				self.buf.write("return");
 				if (r.value != null) {
 					self.buf.space();
@@ -388,8 +356,7 @@ impl Formatter {
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_YIELD -> {
-				val y = node.to<YieldStmt>();
+			is YieldStmt as y -> {
 				self.buf.write("yield");
 				if (y.value != null) {
 					self.buf.space();
@@ -398,16 +365,15 @@ impl Formatter {
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_BREAK -> {
+			is BreakStmt as b -> {
 				self.buf.write("break;");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_CONTINUE -> {
+			is ContinueStmt as c -> {
 				self.buf.write("continue;");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.STMT_WHEN -> {
-				val ws = node.to<WhenStmt>();
+			is WhenStmt as ws -> {
 				self.buf.write("when (");
 				self.format_expr(ws.condition);
 				self.buf.write(") {");
@@ -428,7 +394,6 @@ impl Formatter {
 				self.buf.newline();
 				self.buf.write("}");
 			}
-			else -> {}
 		}
 	}
 
@@ -462,17 +427,15 @@ impl Formatter {
 		if (node == null) return;
 		self.comments.emit_before(&self.buf, node.line);
 
-		when (node.kind) {
-			NodeKind.DECL_MODULE -> {
-				val m = node.to<ModuleDecl>();
+		when (node) {
+			is ModuleDecl as m -> {
 				self.buf.write("mod ");
 				self.buf.write(m.full_path);
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 				self.buf.newline();
 			}
-			NodeKind.DECL_USE -> {
-				val u = node.to<UseDecl>();
+			is UseDecl as u -> {
 				self.buf.write("use ");
 				self.buf.write(u.full_path);
 				if (u.alias.len > 0) {
@@ -482,8 +445,7 @@ impl Formatter {
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_STRUCT -> {
-				val s = node.to<StructDecl>();
+			is StructDecl as s -> {
 				if (s.is_pub) self.buf.write("pub ");
 				self.buf.write("struct ");
 				self.buf.write(s.name);
@@ -511,8 +473,7 @@ impl Formatter {
 				self.buf.write("}");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_FN -> {
-				val f = node.to<FnDecl>();
+			is FnDecl as f -> {
 				if (f.is_pub) self.buf.write("pub ");
 				self.buf.write("fn ");
 				self.buf.write(f.name);
@@ -542,14 +503,14 @@ impl Formatter {
 				}
 
 				if (f.body != null) {
-					when (f.body.kind) {
-						NodeKind.STMT_BLOCK -> {
+					val body = f.body;
+					when (body) {
+						is BlockStmt -> {
 							self.buf.write(" ");
 							self.format_stmt(f.body);
 						}
-						NodeKind.STMT_EXPR -> {
+						is ExprStmt as es -> {
 							self.buf.write(" => ");
-							val es = f.body.to<ExprStmt>();
 							self.format_expr(es.expr);
 							self.buf.write(";");
 						}
@@ -562,8 +523,7 @@ impl Formatter {
 
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_IMPL -> {
-				val im = node.to<ImplDecl>();
+			is ImplDecl as im -> {
 				self.buf.write("impl");
 				if (im.type_params.len > 0) {
 					self.buf.space();
@@ -589,8 +549,7 @@ impl Formatter {
 				self.buf.write("}");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_TRAIT -> {
-				val tr = node.to<TraitDecl>();
+			is TraitDecl as tr -> {
 				if (tr.is_pub) self.buf.write("pub ");
 				self.buf.write("trait ");
 				self.buf.write(tr.name);
@@ -616,8 +575,7 @@ impl Formatter {
 				self.buf.write("}");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_ENUM -> {
-				val en = node.to<EnumDecl>();
+			is EnumDecl as en -> {
 				if (en.is_pub) self.buf.write("pub ");
 				self.buf.write("enum ");
 				self.buf.write(en.name);
@@ -645,8 +603,7 @@ impl Formatter {
 				self.buf.write("}");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_CONST -> {
-				val c = node.to<ConstDecl>();
+			is ConstDecl as c -> {
 				if (c.is_pub) self.buf.write("pub ");
 				self.buf.write("const ");
 				self.buf.write(c.name);
@@ -659,8 +616,7 @@ impl Formatter {
 				self.buf.write(";");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			NodeKind.DECL_EXTERN_BLOCK -> {
-				val eb = node.to<ExternBlock>();
+			is ExternBlock as eb -> {
 				self.buf.write("extern \"");
 				self.buf.write(eb.abi);
 				self.buf.write("\" {");
@@ -677,7 +633,6 @@ impl Formatter {
 				self.buf.write("}");
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			else -> {}
 		}
 	}
 
