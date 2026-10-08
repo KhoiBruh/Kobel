@@ -1,7 +1,7 @@
 mod util.strutil;
 
 use std.collections.list.List;
-use std.str.str_from_bytes;
+use std.str.*;
 use std.mem.alloc.raw_alloc;
 
 // ============================================================================
@@ -138,15 +138,6 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn starts_with(val self, prefix: str): bool {
-		if (self.len < prefix.len) return false;
-		return self.slice(0, prefix.len) == prefix;
-	}
-
-	pub fn ends_with(val self, suffix: str): bool {
-		if (self.len < suffix.len) return false;
-		return self.slice(self.len - suffix.len, self.len) == suffix;
-	}
 
 	pub fn normalize_path(val self): str {
 		val buf = raw_alloc(self.len + 1);
@@ -164,7 +155,6 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
-	pub fn strip_suffix(val self, n: usz): str => if (self.len <= n) "" else self.slice(0, self.len - n);
 	pub fn in_list(val self, list: List<str>): bool {
 		for (item in list) {
 			if (item == self) return true;

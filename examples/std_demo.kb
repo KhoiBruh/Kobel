@@ -1,6 +1,7 @@
 mod test.std_demo;
 
 use std.ascii.*;
+use std.str.*;
 
 use std.io.print;
 use std.io.println;
@@ -116,12 +117,40 @@ fn test_io(): bool {
 	return true;
 }
 
+fn test_str(): bool {
+	val s: str = "Hello, Kobel World!";
+	if (s.is_empty()) return false;
+	if (!"".is_empty()) return false;
+
+	if (!s.starts_with("Hello")) return false;
+	if (s.starts_with("World")) return false;
+
+	if (!s.ends_with("World!")) return false;
+	if (s.ends_with("Hello")) return false;
+
+	if (!s.contains("Kobel")) return false;
+	if (s.contains("Python")) return false;
+
+	if (s.index_of("Kobel") != 7) return false;
+	if (s.index_of("Missing") != -1) return false;
+
+	if (s.strip_suffix(7UZ) != "Hello, Kobel") return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	if (!test_ascii()) {
 		println("FAIL: test_ascii");
 		return 1;
 	}
 	println("PASS: std.ascii");
+
+	if (!test_str()) {
+		println("FAIL: test_str");
+		return 1;
+	}
+	println("PASS: std.str");
 
 	if (!test_arena()) {
 		println("FAIL: test_arena");

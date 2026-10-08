@@ -30,3 +30,55 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 	raw_release(raw_mem);
 	return res;
 }
+
+impl str {
+
+	pub fn is_empty(val self): bool => self.len == 0UZ;
+
+	pub fn starts_with(val self, prefix: str): bool {
+		if (self.len < prefix.len) return false;
+		return self.slice(0, prefix.len) == prefix;
+	}
+
+	pub fn ends_with(val self, suffix: str): bool {
+		if (self.len < suffix.len) return false;
+		return self.slice(self.len - suffix.len, self.len) == suffix;
+	}
+
+	pub fn strip_suffix(val self, n: usz): str => if (self.len <= n) "" else self.slice(0, self.len - n);
+
+	pub fn contains(val self, sub: str): bool {
+		if (sub.len == 0UZ) return true;
+		if (self.len < sub.len) return false;
+		val max_start = self.len - sub.len;
+		for (i in 0UZ..max_start) {
+			var match = true;
+			for (j in 0UZ..<sub.len) {
+				if (self[i + j] != sub[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) return true;
+		}
+		return false;
+	}
+
+	pub fn index_of(val self, sub: str): isz {
+		if (sub.len == 0UZ) return 0;
+		if (self.len < sub.len) return -1;
+		val max_start = self.len - sub.len;
+		for (i in 0UZ..max_start) {
+			var match = true;
+			for (j in 0UZ..<sub.len) {
+				if (self[i + j] != sub[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) return i as isz;
+		}
+		return -1;
+	}
+
+}

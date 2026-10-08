@@ -2112,6 +2112,12 @@ uint8_t* std__mem__alloc__raw_alloc(size_t size);
 uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size);
 void std__mem__alloc__raw_release(uint8_t* ptr);
 const char* std__str__str_from_bytes(uint8_t* buf, size_t len);
+bool str_is_empty(const char* self);
+bool str_starts_with(const char* self, const char* prefix);
+bool str_ends_with(const char* self, const char* suffix);
+const char* str_strip_suffix(const char* self, size_t n);
+bool str_contains(const char* self, const char* sub);
+intptr_t str_index_of(const char* self, const char* sub);
 const char* std__traits__to_str__fmt_u64(uint64_t n0);
 const char* std__traits__to_str__fmt_i64(int64_t v);
 const char* std__traits__to_str__fmt_char(char c);
@@ -2209,10 +2215,7 @@ const char* str_base_name(const char* self);
 const char* str_join_path(const char* self, const char* rel);
 std__collections__list__List_str str_split_dots(const char* self);
 const char* str_mangle_symbol(const char* self, const char* name);
-bool str_starts_with(const char* self, const char* prefix);
-bool str_ends_with(const char* self, const char* suffix);
 const char* str_normalize_path(const char* self);
-const char* str_strip_suffix(const char* self, size_t n);
 bool str_in_list(const char* self, std__collections__list__List_str list);
 intptr_t str_index_in_list(const char* self, std__collections__list__List_str list);
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
@@ -9146,6 +9149,234 @@ const char* std__str__str_from_bytes(uint8_t* buf, size_t len) {
     return res;
 }
 
+bool str_is_empty(const char* self) {
+    return (kobel_slen(self) == ((size_t)0ULL));
+}
+
+bool str_starts_with(const char* self, const char* prefix) {
+    if ((kobel_slen(self) < kobel_slen(prefix))) {
+        return false;
+    }
+    return kobel_streq(kobel_slice(self, 0, kobel_slen(prefix)), prefix);
+}
+
+bool str_ends_with(const char* self, const char* suffix) {
+    if ((kobel_slen(self) < kobel_slen(suffix))) {
+        return false;
+    }
+    return kobel_streq(kobel_slice(self, (kobel_slen(self) - kobel_slen(suffix)), kobel_slen(self)), suffix);
+}
+
+const char* str_strip_suffix(const char* self, size_t n) {
+    return ((kobel_slen(self) <= n) ? "" : kobel_slice(self, 0, (kobel_slen(self) - n)));
+}
+
+bool str_contains(const char* self, const char* sub) {
+    if ((kobel_slen(sub) == ((size_t)0ULL))) {
+        return true;
+    }
+    if ((kobel_slen(self) < kobel_slen(sub))) {
+        return false;
+    }
+    size_t max_start = (kobel_slen(self) - kobel_slen(sub));
+    {
+        size_t __for_e = max_start;
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i <= __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i >= __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                bool match = true;
+                {
+                    size_t __for_e = kobel_slen(sub);
+                    size_t __for_i = __for_e;
+                    __for_i = ((size_t)0ULL);
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        {
+                            __for_go = (__for_i < __for_e);
+                        }
+                    } else {
+                        {
+                            __for_go = (__for_i > __for_e);
+                        }
+                    }
+                    while (__for_go) {
+                        {
+                            size_t j = __for_i;
+                            if ((self[(i + j)] != sub[j])) {
+                                {
+                                    match = false;
+                                    break;
+                                }
+                            }
+                            if (__for_up) {
+                                {
+                                    __for_go = ((__for_i + 1) < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = ((__for_i - 1) > __for_e);
+                                }
+                            }
+                            if (__for_go) {
+                                if (__for_up) {
+                                    {
+                                        __for_i = (__for_i + 1);
+                                    }
+                                } else {
+                                    {
+                                        __for_i = (__for_i - 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (match) {
+                    return true;
+                }
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+intptr_t str_index_of(const char* self, const char* sub) {
+    if ((kobel_slen(sub) == ((size_t)0ULL))) {
+        return 0;
+    }
+    if ((kobel_slen(self) < kobel_slen(sub))) {
+        return (-1);
+    }
+    size_t max_start = (kobel_slen(self) - kobel_slen(sub));
+    {
+        size_t __for_e = max_start;
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i <= __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i >= __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                bool match = true;
+                {
+                    size_t __for_e = kobel_slen(sub);
+                    size_t __for_i = __for_e;
+                    __for_i = ((size_t)0ULL);
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        {
+                            __for_go = (__for_i < __for_e);
+                        }
+                    } else {
+                        {
+                            __for_go = (__for_i > __for_e);
+                        }
+                    }
+                    while (__for_go) {
+                        {
+                            size_t j = __for_i;
+                            if ((self[(i + j)] != sub[j])) {
+                                {
+                                    match = false;
+                                    break;
+                                }
+                            }
+                            if (__for_up) {
+                                {
+                                    __for_go = ((__for_i + 1) < __for_e);
+                                }
+                            } else {
+                                {
+                                    __for_go = ((__for_i - 1) > __for_e);
+                                }
+                            }
+                            if (__for_go) {
+                                if (__for_up) {
+                                    {
+                                        __for_i = (__for_i + 1);
+                                    }
+                                } else {
+                                    {
+                                        __for_i = (__for_i - 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (match) {
+                    return ((intptr_t)i);
+                }
+                if (__for_up) {
+                    {
+                        __for_go = (__for_i < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = (__for_i > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return (-1);
+}
+
 const char* std__traits__to_str__fmt_u64(uint64_t n0) {
     uint64_t n = n0;
     size_t digits = 1;
@@ -10145,20 +10376,6 @@ const char* str_mangle_symbol(const char* self, const char* name) {
     return std__str__str_from_bytes(buf, w);
 }
 
-bool str_starts_with(const char* self, const char* prefix) {
-    if ((kobel_slen(self) < kobel_slen(prefix))) {
-        return false;
-    }
-    return kobel_streq(kobel_slice(self, 0, kobel_slen(prefix)), prefix);
-}
-
-bool str_ends_with(const char* self, const char* suffix) {
-    if ((kobel_slen(self) < kobel_slen(suffix))) {
-        return false;
-    }
-    return kobel_streq(kobel_slice(self, (kobel_slen(self) - kobel_slen(suffix)), kobel_slen(self)), suffix);
-}
-
 const char* str_normalize_path(const char* self) {
     uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
     {
@@ -10220,10 +10437,6 @@ const char* str_normalize_path(const char* self) {
     }
     buf[kobel_slen(self)] = 0;
     return std__str__str_from_bytes(buf, kobel_slen(self));
-}
-
-const char* str_strip_suffix(const char* self, size_t n) {
-    return ((kobel_slen(self) <= n) ? "" : kobel_slice(self, 0, (kobel_slen(self) - n)));
 }
 
 bool str_in_list(const char* self, std__collections__list__List_str list) {
