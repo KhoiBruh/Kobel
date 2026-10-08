@@ -29,9 +29,9 @@ impl BodyPass {
 
 	pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 		if (node == null || list_ty == null) return;
-		when (node.kind) {
-			NodeKind.EXPR_ARRAY_LITERAL -> {
-				val al = node.to<ArrayLiteralExpr>() as &ArrayLiteralExpr;
+		when (node) {
+			is ArrayLiteralExpr as al_ptr -> {
+				val al = al_ptr as &ArrayLiteralExpr;
 				val s = list_ty.as_struct();
 				al.list_struct_name = s.c_name;
 
@@ -52,17 +52,14 @@ impl BodyPass {
 					}
 				}
 			}
-			NodeKind.EXPR_IF -> {
-				val ife = node.to<IfExpr>();
+			is IfExpr as ife -> {
 				self.coerce_to_list(ife.then_branch, list_ty);
 				self.coerce_to_list(ife.else_branch, list_ty);
 			}
-			NodeKind.EXPR_GROUP -> {
-				val grp = node.to<GroupExpr>();
+			is GroupExpr as grp -> {
 				self.coerce_to_list(grp.expr, list_ty);
 			}
-			NodeKind.EXPR_WHEN -> {
-				val we = node.to<WhenExpr>();
+			is WhenExpr as we -> {
 				for (arm in we.arms) {
 					self.coerce_to_list(arm.body, list_ty);
 				}
@@ -72,180 +69,190 @@ impl BodyPass {
 	}
 
 	pub fn check_literal_expr(var self, node: *AstNode): *Type {
-		val lit = node.to<LiteralExpr>();
-		return when (lit.literal_kind) {
-			LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
-			LiteralKind.FLOAT -> {
-				val raw = lit.raw_text;
-				val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
-				if (is_f32) yield alloc_primitive(&self.arena, type_f32());
-				yield alloc_primitive(&self.arena, type_f64());
-			}
-			LiteralKind.BOOL -> alloc_primitive(&self.arena, type_bool());
-			LiteralKind.STRING -> alloc_primitive(&self.arena, type_str());
-			LiteralKind.CHAR -> alloc_primitive(&self.arena, type_char());
-			LiteralKind.NULL_VAL -> {
-				val none_ty = alloc_primitive(&self.arena, type_none());
-				yield self.arena.pointer_type(none_ty, false);
-			}
-			else -> alloc_primitive(&self.arena, type_none());
-		};
+		if (node is LiteralExpr as lit) {
+			return when (lit.literal_kind) {
+				LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
+				LiteralKind.FLOAT -> {
+					val raw = lit.raw_text;
+					val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
+					if (is_f32) yield alloc_primitive(&self.arena, type_f32());
+					yield alloc_primitive(&self.arena, type_f64());
+				}
+				LiteralKind.BOOL -> alloc_primitive(&self.arena, type_bool());
+				LiteralKind.STRING -> alloc_primitive(&self.arena, type_str());
+				LiteralKind.CHAR -> alloc_primitive(&self.arena, type_char());
+				LiteralKind.NULL_VAL -> {
+					val none_ty = alloc_primitive(&self.arena, type_none());
+					yield self.arena.pointer_type(none_ty, false);
+				}
+				else -> alloc_primitive(&self.arena, type_none());
+			};
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
-		val id = node.to<IdentifierExpr>() as &IdentifierExpr;
+		if (node is IdentifierExpr as id_ptr) {
+			val id = id_ptr as &IdentifierExpr;
 
-		// `Self` names the type being implemented. Renaming it to the C
-		// name lets `Self(...)` build a value directly (no `new` factory).
-		if (id.name == "Self" && self.current_self_type != null) {
-			id.name = self.current_self_type.as_struct().c_name;
-			return self.current_self_type;
-		}
+			// `Self` names the type being implemented. Renaming it to the C
+			// name lets `Self(...)` build a value directly (no `new` factory).
+			if (id.name == "Self" && self.current_self_type != null) {
+				id.name = self.current_self_type.as_struct().c_name;
+				return self.current_self_type;
+			}
 
-		val sym = self.symtab.lookup(id.name);
-		if (sym == null) {
-			self.report_error(node, "Undeclared identifier '${id.name}'");
-			return alloc_primitive(&self.arena, type_none());
+			val sym = self.symtab.lookup(id.name);
+			if (sym == null) {
+				self.report_error(node, "Undeclared identifier '${id.name}'");
+				return alloc_primitive(&self.arena, type_none());
+			}
+			// Switch to the mangled C name (import alias, symbol from another module)
+			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
+			return sym.type_ptr;
 		}
-		// Switch to the mangled C name (import alias, symbol from another module)
-		if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
-		return sym.type_ptr;
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_binary_expr(var self, node: *AstNode): *Type {
-		val bin = node.to<BinaryExpr>();
-		if (bin.op == TokenType.QUESTION_COLON) {
-			val lt = self.check_expr(bin.left);
-			if (lt.kind != DataType.POINTER && lt.kind != DataType.STR)
-				self.report_error(bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
+		if (node is BinaryExpr as bin) {
+			if (bin.op == TokenType.QUESTION_COLON) {
+				val lt = self.check_expr(bin.left);
+				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR)
+					self.report_error(bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
 
-			val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-				bin.right.kind == NodeKind.STMT_BREAK ||
-				bin.right.kind == NodeKind.STMT_CONTINUE;
+				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+					bin.right.kind == NodeKind.STMT_BREAK ||
+					bin.right.kind == NodeKind.STMT_CONTINUE;
 
-			if (is_jump) self.check_statement(bin.right);
-			else {
-				val rt = self.check_expr(bin.right);
-				if (!lt.can_assign(rt))
-					self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
-			}
-
-			if (lt.kind == DataType.POINTER) {
-				val pt = lt.as_pointer();
-				if (pt.is_nullable)
-					return self.arena.pointer_type(pt.pointee, pt.is_mut);
-			}
-			return lt;
-		}
-
-		val lt = self.check_expr(bin.left);
-		val rt = self.check_expr(bin.right);
-
-		// 1. Arithmetic operators (+, -, *, /, %)
-		when (bin.op) {
-			TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
-			TokenType.SLASH, TokenType.PERCENT -> {
-				if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
-					// Rewrite `str + str` into a runtime concat call so the C
-					// backend does not emit pointer arithmetic.
-					var cat_args = List<*AstNode>();
-					cat_args.add(bin.left);
-					cat_args.add(bin.right);
-					val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-					val cat_n = node as &AstNode;
-					cat_n.kind = NodeKind.EXPR_CALL;
-					cat_n.data = cat_call.data;
-					return alloc_primitive(&self.arena, type_str());
+				if (is_jump) self.check_statement(bin.right);
+				else {
+					val rt = self.check_expr(bin.right);
+					if (!lt.can_assign(rt))
+						self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
 				}
-				if (lt.is_numeric() && rt.is_numeric()) return lt;
-				self.report_error(node, "Arithmetic operator not supported for these types");
+
+				if (lt.kind == DataType.POINTER) {
+					val pt = lt.as_pointer();
+					if (pt.is_nullable)
+						return self.arena.pointer_type(pt.pointee, pt.is_mut);
+				}
 				return lt;
 			}
-			// 2. Equality comparison (==, !=)
-			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
-				if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
-					// Content comparison instead of C pointer comparison.
-					val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
-					val eq_n = node as &AstNode;
-					eq_n.kind = wrapped.kind;
-					eq_n.data = wrapped.data;
+
+			val lt = self.check_expr(bin.left);
+			val rt = self.check_expr(bin.right);
+
+			// 1. Arithmetic operators (+, -, *, /, %)
+			when (bin.op) {
+				TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
+				TokenType.SLASH, TokenType.PERCENT -> {
+					if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
+						// Rewrite `str + str` into a runtime concat call so the C
+						// backend does not emit pointer arithmetic.
+						var cat_args = List<*AstNode>();
+						cat_args.add(bin.left);
+						cat_args.add(bin.right);
+						val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+						val cat_n = node as &AstNode;
+						cat_n.kind = NodeKind.EXPR_CALL;
+						cat_n.data = cat_call.data;
+						return alloc_primitive(&self.arena, type_str());
+					}
+					if (lt.is_numeric() && rt.is_numeric()) return lt;
+					self.report_error(node, "Arithmetic operator not supported for these types");
+					return lt;
+				}
+				// 2. Equality comparison (==, !=)
+				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
+					if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
+						// Content comparison instead of C pointer comparison.
+						val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+						val eq_n = node as &AstNode;
+						eq_n.kind = wrapped.kind;
+						eq_n.data = wrapped.data;
+						return alloc_primitive(&self.arena, type_bool());
+					}
+					if (!lt.can_assign(rt) && !rt.can_assign(lt)) self.report_error(node, "Cannot compare different types");
 					return alloc_primitive(&self.arena, type_bool());
 				}
-				if (!lt.can_assign(rt) && !rt.can_assign(lt)) self.report_error(node, "Cannot compare different types");
-				return alloc_primitive(&self.arena, type_bool());
-			}
-			// 3. Ordering comparison (<, <=, >, >=)
-			TokenType.LESS, TokenType.LESS_EQUAL,
-			TokenType.GREATER, TokenType.GREATER_EQUAL -> {
-				val is_num_comp = lt.is_numeric() && rt.is_numeric();
-				val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
-				if (!is_num_comp && !is_char_comp) self.report_error(node, "Comparison requires numeric or char operands");
-				return alloc_primitive(&self.arena, type_bool());
-			}
-			// 4. Logic (&&, ||)
-			TokenType.AND_AND, TokenType.OR_OR -> {
-				if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
-					self.report_error(node, "Logical operators require bool operands");
+				// 3. Ordering comparison (<, <=, >, >=)
+				TokenType.LESS, TokenType.LESS_EQUAL,
+				TokenType.GREATER, TokenType.GREATER_EQUAL -> {
+					val is_num_comp = lt.is_numeric() && rt.is_numeric();
+					val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
+					if (!is_num_comp && !is_char_comp) self.report_error(node, "Comparison requires numeric or char operands");
+					return alloc_primitive(&self.arena, type_bool());
 				}
-				return alloc_primitive(&self.arena, type_bool());
+				// 4. Logic (&&, ||)
+				TokenType.AND_AND, TokenType.OR_OR -> {
+					if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
+						self.report_error(node, "Logical operators require bool operands");
+					}
+					return alloc_primitive(&self.arena, type_bool());
+				}
+				else -> return lt;
 			}
-			else -> return lt;
 		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
-		val un = node.to<UnaryExpr>();
-		val op_ty = self.check_expr(un.operand);
+		if (node is UnaryExpr as un) {
+			val op_ty = self.check_expr(un.operand);
 
-		return when (un.op) {
-			TokenType.MINUS -> {
-				if (!op_ty.is_numeric()) self.report_error(node, "Unary minus requires numeric operand");
-				yield op_ty;
-			}
-			TokenType.BANG -> {
-				if (op_ty.kind != DataType.BOOL) self.report_error(node, "Logical NOT requires bool operand");
-				yield alloc_primitive(&self.arena, type_bool());
-			}
-			TokenType.STAR -> {
-				// Pointer dereference (*ptr)
-				if (op_ty.kind != DataType.POINTER) {
-					self.report_error(node, "Cannot dereference non-pointer type");
+			return when (un.op) {
+				TokenType.MINUS -> {
+					if (!op_ty.is_numeric()) self.report_error(node, "Unary minus requires numeric operand");
 					yield op_ty;
 				}
-				val p_info = op_ty.as_pointer();
-				yield p_info.pointee;
-			}
-			// Take address (&expr)
-			TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
-			else -> op_ty;
-		};
+				TokenType.BANG -> {
+					if (op_ty.kind != DataType.BOOL) self.report_error(node, "Logical NOT requires bool operand");
+					yield alloc_primitive(&self.arena, type_bool());
+				}
+				TokenType.STAR -> {
+					// Pointer dereference (*ptr)
+					if (op_ty.kind != DataType.POINTER) {
+						self.report_error(node, "Cannot dereference non-pointer type");
+						yield op_ty;
+					}
+					val p_info = op_ty.as_pointer();
+					yield p_info.pointee;
+				}
+				// Take address (&expr)
+				TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
+				else -> op_ty;
+			};
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_member_expr(var self, node: *AstNode): *Type {
-		val mem = node.to<MemberExpr>() as &MemberExpr;
+		if (node is MemberExpr as mem_ptr) {
+			val mem = mem_ptr as &MemberExpr;
 
-		// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
-		if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-			val enum_id = mem.object.to<IdentifierExpr>();
-			val ei = self.symtab.find_enum_info(enum_id.name);
-			if (ei != null) {
-				val mi = ei.find_member(mem.member);
-				if (mi == null) {
-					self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
-					return alloc_primitive(&self.arena, type_none());
+			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
+			val obj = mem.object;
+			if (obj is IdentifierExpr as enum_id) {
+				val ei = self.symtab.find_enum_info(enum_id.name);
+				if (ei != null) {
+					val mi = ei.find_member(mem.member);
+					if (mi == null) {
+						self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
+						return alloc_primitive(&self.arena, type_none());
+					}
+					// Reuse the node as a plain integer literal for the backend.
+					val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
+					val n = node as &AstNode;
+					n.kind = NodeKind.EXPR_LITERAL;
+					n.data = lit.data;
+					val carrier = self.arena.alloc<Type>();
+					*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
+					return carrier;
 				}
-				// Reuse the node as a plain integer literal for the backend.
-				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
-				val n = node as &AstNode;
-				n.kind = NodeKind.EXPR_LITERAL;
-				n.data = lit.data;
-				val carrier = self.arena.alloc<Type>();
-				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
-				return carrier;
-			}
 
-			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
-			val s_sym = self.symtab.lookup(enum_id.name);
+				// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
+				val s_sym = self.symtab.lookup(enum_id.name);
 			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
 				var c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}");
 				if (c_sym == null) {
@@ -356,289 +363,312 @@ impl BodyPass {
 		}
 
 		self.report_error(node, "Struct '${s_info.name}' has no member named '${mem.member}'");
+			return alloc_primitive(&self.arena, type_none());
+		}
 		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_index_expr(var self, node: *AstNode): *Type {
-		val idx = node.to<IndexExpr>();
-		val target_ty = self.check_expr(idx.target);
-		val index_ty = self.check_expr(idx.index);
+		if (node is IndexExpr as idx) {
+			val target_ty = self.check_expr(idx.target);
+			val index_ty = self.check_expr(idx.index);
 
-		return when (target_ty.kind) {
-			// 1. Raw array [T; N]
-			DataType.ARRAY -> {
-				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-				yield target_ty.as_array().elem;
-			}
-			// 2. String indexing str[i] -> char
-			DataType.STR -> {
-				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-				yield alloc_primitive(&self.arena, type_char());
-			}
-			// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
-			DataType.POINTER -> {
-				if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
-				yield target_ty.as_pointer().pointee;
-			}
-			// 4. Custom container struct with get(index) method (List<T>, etc.)
-			DataType.STRUCT -> {
-				val s_info = target_ty.as_struct();
-				var mi = s_info.find_method_arity("get", 2);
-				if (mi == null) mi = s_info.find_method("get");
+			return when (target_ty.kind) {
+				// 1. Raw array [T; N]
+				DataType.ARRAY -> {
+					if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+					yield target_ty.as_array().elem;
+				}
+				// 2. String indexing str[i] -> char
+				DataType.STR -> {
+					if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+					yield alloc_primitive(&self.arena, type_char());
+				}
+				// 3. Raw pointer indexing *T -> T (e.g. self.data[i])
+				DataType.POINTER -> {
+					if (!index_ty.is_integer()) self.report_error(node, "Index must be integer");
+					yield target_ty.as_pointer().pointee;
+				}
+				// 4. Custom container struct with get(index) method (List<T>, etc.)
+				DataType.STRUCT -> {
+					val s_info = target_ty.as_struct();
+					var mi = s_info.find_method_arity("get", 2);
+					if (mi == null) mi = s_info.find_method("get");
 
-				val fn_info = mi.fn_type.as_fn();
-				val param_ty = fn_info.param_types[1];
-				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
-				if (!param_ty.can_assign(index_ty)) self.report_error(node, "Argument type mismatch in index access");
+					val fn_info = mi.fn_type.as_fn();
+					val param_ty = fn_info.param_types[1];
+					if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
+					if (!param_ty.can_assign(index_ty)) self.report_error(node, "Argument type mismatch in index access");
 
-				var new_args = List<*AstNode>();
-				new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-				new_args.add(idx.index);
+					var new_args = List<*AstNode>();
+					new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+					new_args.add(idx.index);
 
-				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				val n = node as &AstNode;
-				n.kind = NodeKind.EXPR_CALL;
-				n.data = call_node.data;
+					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					val n = node as &AstNode;
+					n.kind = NodeKind.EXPR_CALL;
+					n.data = call_node.data;
 
-				yield fn_info.return_type;
-			}
-			else -> {
-				self.report_error(node, "Index access on non-indexable type");
-				yield alloc_primitive(&self.arena, type_none());
-			}
-		};
+					yield fn_info.return_type;
+				}
+				else -> {
+					self.report_error(node, "Index access on non-indexable type");
+					yield alloc_primitive(&self.arena, type_none());
+				}
+			};
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_assign_expr(var self, node: *AstNode): *Type {
-		val asgn = node.to<AssignExpr>();
+		if (node is AssignExpr as asgn_ptr) {
+			val asgn = asgn_ptr as &AssignExpr;
 
-		// Index assignment desugaring: container[i] = val -> container.set(i, val)
-		var target_expr = asgn.target;
-		while (target_expr.kind == NodeKind.EXPR_GROUP) target_expr = target_expr.to<GroupExpr>().expr;
+			// Index assignment desugaring: container[i] = val -> container.set(i, val)
+			var target_expr = asgn.target;
+			while (target_expr != null) {
+				if (target_expr is GroupExpr as g) target_expr = g.expr;
+				else break;
+			}
 
-		if (target_expr.kind == NodeKind.EXPR_INDEX) {
-			val idx = target_expr.to<IndexExpr>();
-			val target_raw_ty = self.check_expr(idx.target);
-			if (target_raw_ty.kind == DataType.STRUCT) {
-				val s_info = target_raw_ty.as_struct();
-				var mi = s_info.find_method_arity("set", 3);
-				if (mi == null) mi = s_info.find_method("set");
-				if (mi != null) {
-					val fn_info = mi.fn_type.as_fn();
-					val idx_param_ty = fn_info.param_types[1];
-					val val_param_ty = fn_info.param_types[2];
+			if (target_expr is IndexExpr as idx) {
+				val target_raw_ty = self.check_expr(idx.target);
+				if (target_raw_ty.kind == DataType.STRUCT) {
+					val s_info = target_raw_ty.as_struct();
+					var mi = s_info.find_method_arity("set", 3);
+					if (mi == null) mi = s_info.find_method("set");
+					if (mi != null) {
+						val fn_info = mi.fn_type.as_fn();
+						val idx_param_ty = fn_info.param_types[1];
+						val val_param_ty = fn_info.param_types[2];
 
-					var val_expr = asgn.value;
-					if (asgn.op != TokenType.EQUAL) {
-						val bin_op = when (asgn.op) {
-							TokenType.PLUS_EQUAL -> TokenType.PLUS,
-							TokenType.MINUS_EQUAL -> TokenType.MINUS,
-							TokenType.STAR_EQUAL -> TokenType.STAR,
-							TokenType.SLASH_EQUAL -> TokenType.SLASH,
-							TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
-							else -> TokenType.PLUS
-						};
-						val get_expr = self.index(idx.target, idx.index, node.line, node.col);
-						val_expr = self.binary(bin_op, get_expr, asgn.value, node.line, node.col);
+						var val_expr = asgn.value;
+						if (asgn.op != TokenType.EQUAL) {
+							val bin_op = when (asgn.op) {
+								TokenType.PLUS_EQUAL -> TokenType.PLUS,
+								TokenType.MINUS_EQUAL -> TokenType.MINUS,
+								TokenType.STAR_EQUAL -> TokenType.STAR,
+								TokenType.SLASH_EQUAL -> TokenType.SLASH,
+								TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
+								else -> TokenType.PLUS
+							};
+							val get_expr = self.index(idx.target, idx.index, node.line, node.col);
+							val_expr = self.binary(bin_op, get_expr, asgn.value, node.line, node.col);
+						}
+
+						if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
+						val idx_ty = self.check_expr(idx.index);
+						if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
+
+						if ((val_param_ty != null && val_param_ty.is_list())) self.coerce_to_list(val_expr, val_param_ty);
+						val val_ty = self.check_expr(val_expr);
+						if (!val_param_ty.can_assign(val_ty)) self.report_error(node, "Value type mismatch in index assignment");
+
+						var new_args = List<*AstNode>();
+						new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+						new_args.add(idx.index);
+						new_args.add(val_expr);
+
+						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						val n = node as &AstNode;
+						n.kind = NodeKind.EXPR_CALL;
+						n.data = call_node.data;
+						return val_param_ty;
 					}
-
-					if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
-					val idx_ty = self.check_expr(idx.index);
-					if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index assignment");
-
-					if ((val_param_ty != null && val_param_ty.is_list())) self.coerce_to_list(val_expr, val_param_ty);
-					val val_ty = self.check_expr(val_expr);
-					if (!val_param_ty.can_assign(val_ty)) self.report_error(node, "Value type mismatch in index assignment");
-
-					var new_args = List<*AstNode>();
-					new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-					new_args.add(idx.index);
-					new_args.add(val_expr);
-
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					val n = node as &AstNode;
-					n.kind = NodeKind.EXPR_CALL;
-					n.data = call_node.data;
-					return val_param_ty;
 				}
 			}
-		}
 
-		val target_ty = self.check_expr(asgn.target);
-		if ((target_ty != null && target_ty.is_list())) self.coerce_to_list(asgn.value, target_ty);
-		val val_ty = self.check_expr(asgn.value);
+			val target_ty = self.check_expr(asgn.target);
+			if ((target_ty != null && target_ty.is_list())) self.coerce_to_list(asgn.value, target_ty);
+			val val_ty = self.check_expr(asgn.value);
 
-		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
-		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
-			var cat_args = List<*AstNode>();
-			cat_args.add(asgn.target);
-			cat_args.add(asgn.value);
-			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-			asgn.value = cat_call;
-			asgn.op = TokenType.EQUAL;
+			// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
+			if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
+				var cat_args = List<*AstNode>();
+				cat_args.add(asgn.target);
+				cat_args.add(asgn.value);
+				val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+				asgn.value = cat_call;
+				asgn.op = TokenType.EQUAL;
+				return target_ty;
+			}
+
+			if (asgn.op != TokenType.EQUAL) {
+				if (!target_ty.is_numeric() || !val_ty.is_numeric()) {
+					self.report_error(node, "Compound assignment operator requires numeric operands");
+				}
+			}
+
+			if (!target_ty.can_assign(val_ty)) self.report_error(node, "Type mismatch in assignment");
 			return target_ty;
 		}
-
-		if (asgn.op != TokenType.EQUAL) {
-			if (!target_ty.is_numeric() || !val_ty.is_numeric()) {
-				self.report_error(node, "Compound assignment operator requires numeric operands");
-			}
-		}
-
-		if (!target_ty.can_assign(val_ty)) self.report_error(node, "Type mismatch in assignment");
-		return target_ty;
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_update_expr(var self, node: *AstNode): *Type {
-		val u = node.to<UpdateExpr>();
+		if (node is UpdateExpr as u) {
+			var target_expr = u.target;
+			while (target_expr != null) {
+				if (target_expr is GroupExpr as g) target_expr = g.expr;
+				else break;
+			}
 
-		var target_expr = u.target;
-		while (target_expr.kind == NodeKind.EXPR_GROUP) target_expr = target_expr.to<GroupExpr>().expr;
+			if (
+				target_expr.kind != NodeKind.EXPR_IDENTIFIER &&
+				target_expr.kind != NodeKind.EXPR_MEMBER &&
+				target_expr.kind != NodeKind.EXPR_INDEX &&
+				target_expr.kind != NodeKind.EXPR_UNARY
+			) self.report_error(node, "Invalid target for increment/decrement operator");
 
-		if (
-			target_expr.kind != NodeKind.EXPR_IDENTIFIER &&
-			target_expr.kind != NodeKind.EXPR_MEMBER &&
-			target_expr.kind != NodeKind.EXPR_INDEX &&
-			target_expr.kind != NodeKind.EXPR_UNARY
-		) self.report_error(node, "Invalid target for increment/decrement operator");
+			// Index assignment desugaring: container[i]++ -> container.set(i, container.get(i) + 1)
+			if (target_expr is IndexExpr as idx) {
+				val target_raw_ty = self.check_expr(idx.target);
+				if (target_raw_ty.kind == DataType.STRUCT) {
+					val s_info = target_raw_ty.as_struct();
+					var mi = s_info.find_method_arity("set", 3);
+					if (mi == null) mi = s_info.find_method("set");
+					if (mi != null) {
+						val fn_info = mi.fn_type.as_fn();
+						val idx_param_ty = fn_info.param_types[1];
+						val val_param_ty = fn_info.param_types[2];
 
-		// Index assignment desugaring: container[i]++ -> container.set(i, container.get(i) + 1)
-		if (target_expr.kind == NodeKind.EXPR_INDEX) {
-			val idx = target_expr.to<IndexExpr>();
-			val target_raw_ty = self.check_expr(idx.target);
-			if (target_raw_ty.kind == DataType.STRUCT) {
-				val s_info = target_raw_ty.as_struct();
-				var mi = s_info.find_method_arity("set", 3);
-				if (mi == null) mi = s_info.find_method("set");
-				if (mi != null) {
-					val fn_info = mi.fn_type.as_fn();
-					val idx_param_ty = fn_info.param_types[1];
-					val val_param_ty = fn_info.param_types[2];
+						val bin_op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
+						val one_node = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
+										else self.literal(LiteralKind.INT, "1", node.line, node.col);
+						val get_expr = self.index(idx.target, idx.index, node.line, node.col);
+						val val_expr = self.binary(bin_op, get_expr, one_node, node.line, node.col);
 
-					val bin_op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
-					val one_node = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-									else self.literal(LiteralKind.INT, "1", node.line, node.col);
-					val get_expr = self.index(idx.target, idx.index, node.line, node.col);
-					val val_expr = self.binary(bin_op, get_expr, one_node, node.line, node.col);
+						if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
+						val idx_ty = self.check_expr(idx.index);
+						if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index update");
 
-					if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
-					val idx_ty = self.check_expr(idx.index);
-					if (!idx_param_ty.can_assign(idx_ty)) self.report_error(node, "Index type mismatch in index update");
+						val v_ty = self.check_expr(val_expr);
+						if (!val_param_ty.can_assign(v_ty)) self.report_error(node, "Value type mismatch in index update");
 
-					val v_ty = self.check_expr(val_expr);
-					if (!val_param_ty.can_assign(v_ty)) self.report_error(node, "Value type mismatch in index update");
+						var new_args = List<*AstNode>();
+						new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+						new_args.add(idx.index);
+						new_args.add(val_expr);
 
-					var new_args = List<*AstNode>();
-					new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-					new_args.add(idx.index);
-					new_args.add(val_expr);
-
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					val n = node as &AstNode;
-					n.kind = NodeKind.EXPR_CALL;
-					n.data = call_node.data;
-					return val_param_ty;
+						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						val n = node as &AstNode;
+						n.kind = NodeKind.EXPR_CALL;
+						n.data = call_node.data;
+						return val_param_ty;
+					}
 				}
 			}
-		}
 
-		val target_ty = self.check_expr(u.target);
-		if (!target_ty.is_numeric()) self.report_error(node, "Increment/decrement operator requires numeric operand");
-		return target_ty;
+			val target_ty = self.check_expr(u.target);
+			if (!target_ty.is_numeric()) self.report_error(node, "Increment/decrement operator requires numeric operand");
+			return target_ty;
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_cast_expr(var self, node: *AstNode): *Type {
-		val cst = node.to<CastExpr>();
-		self.check_expr(cst.expr);
-		return self.resolve_type(cst.target_type);
+		if (node is CastExpr as cst) {
+			self.check_expr(cst.expr);
+			return self.resolve_type(cst.target_type);
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_if_expr(var self, node: *AstNode): *Type {
-		val if_e = node.to<IfExpr>();
-		val cond_ty = self.check_expr(if_e.condition);
-		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If expression condition must be bool");
-		val then_ty = self.check_expr(if_e.then_branch);
-		val else_ty = self.check_expr(if_e.else_branch);
-		if (!then_ty.can_assign(else_ty)) self.report_error(node, "If expression branches have incompatible types");
-		return then_ty;
+		if (node is IfExpr as if_e) {
+			val cond_ty = self.check_expr(if_e.condition);
+			if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If expression condition must be bool");
+			val then_ty = self.check_expr(if_e.then_branch);
+			val else_ty = self.check_expr(if_e.else_branch);
+			if (!then_ty.can_assign(else_ty)) self.report_error(node, "If expression branches have incompatible types");
+			return then_ty;
+		}
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_when_expr(var self, node: *AstNode): *Type {
-		val we = node.to<WhenExpr>();
-		var cond_ty: *Type = null;
-		if (we.condition != null) cond_ty = self.check_expr(we.condition);
+		if (node is WhenExpr as we) {
+			var cond_ty: *Type = null;
+			if (we.condition != null) cond_ty = self.check_expr(we.condition);
 
-		self.when_depth++;
-		var result_ty: *Type = null;
-		var has_else = false;
-		for (arm in we.arms) {
-			if (arm.is_else) has_else = true;
+			self.when_depth++;
+			var result_ty: *Type = null;
+			var has_else = false;
+			for (arm in we.arms) {
+				if (arm.is_else) has_else = true;
 
-			var smart_cast_sym = "";
-			var smart_cast_ty: *Type = null;
+				var smart_cast_sym = "";
+				var smart_cast_ty: *Type = null;
 
-			if (we.condition != null && we.condition.kind == NodeKind.EXPR_IDENTIFIER && arm.patterns.len == 1) {
-				val pat = arm.patterns.first();
-				if (pat.kind == NodeKind.EXPR_IS) {
-					val is_e = pat.to<IsExpr>() as &IsExpr;
-					if (is_e.expr == null) is_e.expr = we.condition;
-					smart_cast_ty = self.check_is_pattern(we.condition, cond_ty, pat);
-					if (smart_cast_ty != null) {
-						if (is_e.alias != "") smart_cast_sym = is_e.alias;
-						else smart_cast_sym = we.condition.to<IdentifierExpr>().name;
+				val cond = we.condition;
+				if (cond != null && arm.patterns.len == 1) {
+					if (cond is IdentifierExpr as cond_id) {
+						val pat = arm.patterns.first();
+						if (pat is IsExpr as is_e_ptr) {
+							val is_e = is_e_ptr as &IsExpr;
+							if (is_e.expr == null) is_e.expr = cond;
+							smart_cast_ty = self.check_is_pattern(cond, cond_ty, pat);
+							if (smart_cast_ty != null) {
+								if (is_e.alias != "") smart_cast_sym = is_e.alias;
+								else smart_cast_sym = cond_id.name;
+							}
+						}
 					}
 				}
-			}
 
-			if (smart_cast_sym == "") {
-				for (pat in arm.patterns) {
-					var p_ty: *Type = null;
-					if (pat.kind == NodeKind.EXPR_IS && we.condition != null) {
-						val is_e = pat.to<IsExpr>() as &IsExpr;
-						if (is_e.expr == null) is_e.expr = we.condition;
-						self.check_is_pattern(we.condition, cond_ty, pat);
-						p_ty = alloc_primitive(&self.arena, type_bool());
-					} else {
-						p_ty = self.check_expr(pat);
+				if (smart_cast_sym == "") {
+					for (pat in arm.patterns) {
+						var p_ty: *Type = null;
+						if (cond != null) {
+							if (pat is IsExpr as is_e_ptr) {
+								val is_e = is_e_ptr as &IsExpr;
+								if (is_e.expr == null) is_e.expr = cond;
+								self.check_is_pattern(cond, cond_ty, pat);
+								p_ty = alloc_primitive(&self.arena, type_bool());
+							} else {
+								p_ty = self.check_expr(pat);
+							}
+						} else {
+							p_ty = self.check_expr(pat);
+						}
+
+						if (cond == null && p_ty.kind != DataType.BOOL)
+							self.report_error(pat, "Boolean when arm condition must be bool");
 					}
-
-					if (we.condition == null && p_ty.kind != DataType.BOOL)
-						self.report_error(pat, "Boolean when arm condition must be bool");
 				}
+
+				var body_ty: *Type = null;
+				if (smart_cast_sym != "" && smart_cast_ty != null) {
+					self.symtab.enter_scope(false);
+					self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+					body_ty = self.check_when_arm_body(arm.body);
+					self.symtab.exit_scope();
+				} else {
+					body_ty = self.check_when_arm_body(arm.body);
+				}
+
+				if (result_ty == null) result_ty = body_ty;
+				else if (!result_ty.can_assign(body_ty))
+					self.report_error(arm.body, "When arm type does not match previous arms");
 			}
+			self.when_depth--;
 
-			var body_ty: *Type = null;
-			if (smart_cast_sym != "" && smart_cast_ty != null) {
-				self.symtab.enter_scope(false);
-				self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
-				body_ty = self.check_when_arm_body(arm.body);
-				self.symtab.exit_scope();
-			} else {
-				body_ty = self.check_when_arm_body(arm.body);
+			if (!has_else) {
+				self.report_error(node, "when expression requires an 'else' arm");
+				return alloc_primitive(&self.arena, type_none());
 			}
-
-			if (result_ty == null) result_ty = body_ty;
-			else if (!result_ty.can_assign(body_ty))
-				self.report_error(arm.body, "When arm type does not match previous arms");
+			if (result_ty == null) return alloc_primitive(&self.arena, type_none());
+			return result_ty;
 		}
-		self.when_depth--;
-
-		if (!has_else) {
-			self.report_error(node, "when expression requires an 'else' arm");
-			return alloc_primitive(&self.arena, type_none());
-		}
-		if (result_ty == null) return alloc_primitive(&self.arena, type_none());
-		return result_ty;
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_when_arm_body(var self, body: *AstNode): *Type {
-		if (body.kind == NodeKind.STMT_BLOCK) {
-			val blk = body.to<BlockStmt>();
+		if (body is BlockStmt as blk) {
 			var yield_ty: *Type = null;
 			self.symtab.enter_scope(false);
 			for (stmt in blk.statements) {
-				if (stmt.kind == NodeKind.STMT_YIELD) {
-					val ys = stmt.to<YieldStmt>();
+				if (stmt is YieldStmt as ys) {
 					if (ys.value != null) yield_ty = self.check_expr(ys.value);
 					else yield_ty = alloc_primitive(&self.arena, type_none());
 				} else self.check_statement(stmt);
@@ -654,134 +684,143 @@ impl BodyPass {
 	}
 
 	pub fn check_is_pattern(var self, subject: *AstNode, subj_ty: *Type, is_node: *AstNode): *Type {
-		val is_e = is_node.to<IsExpr>() as &IsExpr;
-		val target_ty = self.resolve_type(is_e.target_type);
-		if (target_ty.kind != DataType.STRUCT) {
-			self.report_error(is_node, "Target type of 'is' must be a struct");
-			return null;
-		}
-
-		val target_s = target_ty.as_struct();
-		var tag_const_sym = self.symtab.lookup("${target_s.name}__TAG");
-		if (tag_const_sym == null) {
-			tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "TAG");
-		}
-		if (tag_const_sym == null) {
-			tag_const_sym = self.symtab.lookup("${target_s.name}__KIND");
-		}
-		if (tag_const_sym == null) {
-			tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "KIND");
-		}
-		if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
-			self.report_error(is_node, "Cannot smart cast to '${target_s.name}': struct '${target_s.name}' must declare a 'const TAG'");
-			return null;
-		}
-
-		var base_ty = subj_ty;
-		var is_ptr = false;
-		if (base_ty != null && base_ty.kind == DataType.POINTER) {
-			is_ptr = true;
-			base_ty = base_ty.as_pointer().pointee;
-		}
-		if (base_ty == null || base_ty.kind != DataType.STRUCT) {
-			self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
-			return null;
-		}
-
-		val base_s = base_ty.as_struct();
-		var tag_field_name = "";
-		var tag_field_ty: *Type = null;
-		for (f in base_s.fields) {
-			if (f.name == "tag" || f.name == "TAG" || f.name == "kind" || f.name == "kind_") {
-				tag_field_name = f.name;
-				tag_field_ty = f.type_ptr;
-				break;
+		if (is_node is IsExpr as is_e_ptr) {
+			val is_e = is_e_ptr as &IsExpr;
+			val target_ty = self.resolve_type(is_e.target_type);
+			if (target_ty.kind != DataType.STRUCT) {
+				self.report_error(is_node, "Target type of 'is' must be a struct");
+				return null;
 			}
-		}
 
-		if (tag_field_name == "") {
-			self.report_error(is_node, "Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field");
-			return null;
-		}
-
-		if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
-			self.report_error(is_node, "Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'");
-			return null;
-		}
-
-		var has_data_ptr = false;
-		for (f in base_s.fields) {
-			if (f.name == "data") {
-				has_data_ptr = true;
-				break;
+			val target_s = target_ty.as_struct();
+			var tag_const_sym = self.symtab.lookup("${target_s.name}__TAG");
+			if (tag_const_sym == null) {
+				tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "TAG");
 			}
-		}
+			if (tag_const_sym == null) {
+				tag_const_sym = self.symtab.lookup("${target_s.name}__KIND");
+			}
+			if (tag_const_sym == null) {
+				tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "KIND");
+			}
+			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
+				self.report_error(is_node, "Cannot smart cast to '${target_s.name}': struct '${target_s.name}' must declare a 'const TAG'");
+				return null;
+			}
 
-		is_e.tag_field = tag_field_name;
-		is_e.has_data = has_data_ptr;
-		is_e.base_c_name = base_s.c_name;
-		is_e.is_ptr = is_ptr;
-		if (is_ptr) return self.arena.pointer_type(target_ty, false);
-		return target_ty;
+			var base_ty = subj_ty;
+			var is_ptr = false;
+			if (base_ty != null && base_ty.kind == DataType.POINTER) {
+				is_ptr = true;
+				base_ty = base_ty.as_pointer().pointee;
+			}
+			if (base_ty == null || base_ty.kind != DataType.STRUCT) {
+				self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
+				return null;
+			}
+
+			val base_s = base_ty.as_struct();
+			var tag_field_name = "";
+			var tag_field_ty: *Type = null;
+			for (f in base_s.fields) {
+				if (f.name == "tag" || f.name == "TAG" || f.name == "kind" || f.name == "kind_") {
+					tag_field_name = f.name;
+					tag_field_ty = f.type_ptr;
+					break;
+				}
+			}
+
+			if (tag_field_name == "") {
+				self.report_error(is_node, "Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field");
+				return null;
+			}
+
+			if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
+				self.report_error(is_node, "Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'");
+				return null;
+			}
+
+			var has_data_ptr = false;
+			for (f in base_s.fields) {
+				if (f.name == "data") {
+					has_data_ptr = true;
+					break;
+				}
+			}
+
+			is_e.tag_field = tag_field_name;
+			is_e.has_data = has_data_ptr;
+			is_e.base_c_name = base_s.c_name;
+			is_e.is_ptr = is_ptr;
+			if (is_ptr) return self.arena.pointer_type(target_ty, false);
+			return target_ty;
+		}
+		return null;
 	}
 
 	pub fn check_is_expr(var self, node: *AstNode): *Type {
-		val is_e = node.to<IsExpr>() as &IsExpr;
-		if (is_e.expr == null) {
-			self.report_error(node, "'is' expression requires a subject");
+		if (node is IsExpr as is_e_ptr) {
+			val is_e = is_e_ptr as &IsExpr;
+			if (is_e.expr == null) {
+				self.report_error(node, "'is' expression requires a subject");
+				return alloc_primitive(&self.arena, type_bool());
+			}
+			val subj_ty = self.check_expr(is_e.expr);
+			self.check_is_pattern(is_e.expr, subj_ty, node);
 			return alloc_primitive(&self.arena, type_bool());
 		}
-		val subj_ty = self.check_expr(is_e.expr);
-		self.check_is_pattern(is_e.expr, subj_ty, node);
 		return alloc_primitive(&self.arena, type_bool());
 	}
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
-		val al = node.to<ArrayLiteralExpr>();
+		if (node is ArrayLiteralExpr as al) {
+			if (al.list_struct_name != "") {
+				val sym = self.symtab.lookup(al.list_struct_name);
+				if (sym != null) return sym.type_ptr;
+			}
 
-		if (al.list_struct_name != "") {
-			val sym = self.symtab.lookup(al.list_struct_name);
-			if (sym != null) return sym.type_ptr;
-		}
+			// The element type comes from the first element; an empty literal
+			// has nothing to infer from (use an annotated `[T; 0]` variable).
+			if (al.elements.is_empty()) {
+				self.report_error(node, "Cannot infer the element type of an empty array literal");
+				return alloc_primitive(&self.arena, type_none());
+			}
 
-		// The element type comes from the first element; an empty literal
-		// has nothing to infer from (use an annotated `[T; 0]` variable).
-		if (al.elements.is_empty()) {
-			self.report_error(node, "Cannot infer the element type of an empty array literal");
-			return alloc_primitive(&self.arena, type_none());
+			val elem_ty = self.check_expr(al.elements.first());
+			for (i in 1..<al.elements.len) {
+				val t = self.check_expr(al.elements[i]);
+				if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
+			}
+			return self.arena.array_type(elem_ty, al.elements.len);
 		}
-
-		val elem_ty = self.check_expr(al.elements.first());
-		for (i in 1..<al.elements.len) {
-			val t = self.check_expr(al.elements[i]);
-			if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
-		}
-		return self.arena.array_type(elem_ty, al.elements.len);
+		return alloc_primitive(&self.arena, type_none());
 	}
 
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {
-		val ie = node.to<InterpExpr>();
-
-		// Fold the parts into a `kobel_concat` chain; every hole is checked
-		// once and converted to `str` (see interp_piece).
-		var acc: *AstNode = null;
-		for (part in ie.parts) {
-			var piece = part.expr;
-			if (!part.is_literal) {
-				val pty = self.check_expr(piece);
-				piece = self.interp_piece(node, piece, pty);
-				if (piece == null) return alloc_primitive(&self.arena, type_str());
+		if (node is InterpExpr as ie) {
+			// Fold the parts into a `kobel_concat` chain; every hole is checked
+			// once and converted to `str` (see interp_piece).
+			var acc: *AstNode = null;
+			for (part in ie.parts) {
+				var piece = part.expr;
+				if (!part.is_literal) {
+					val pty = self.check_expr(piece);
+					piece = self.interp_piece(node, piece, pty);
+					if (piece == null) return alloc_primitive(&self.arena, type_str());
+				}
+				if (acc == null) acc = piece;
+				else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
 			}
-			if (acc == null) acc = piece;
-			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
-		}
-		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+			if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 
-		val in_n = node as &AstNode;
-		in_n.kind = acc.kind;
-		in_n.data = acc.data;
+			val in_n = node as &AstNode;
+			in_n.kind = acc.kind;
+			in_n.data = acc.data;
+			return alloc_primitive(&self.arena, type_str());
+		}
 		return alloc_primitive(&self.arena, type_str());
 	}
+
 
 	// Converts one interpolation hole to `str`, or reports an error and returns null.
 	pub fn interp_piece(var self, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
