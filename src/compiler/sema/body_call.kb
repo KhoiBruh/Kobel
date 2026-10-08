@@ -31,67 +31,76 @@ impl BodyPass {
 		val call = node.to<CallExpr>() as &CallExpr;
 
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
-		if (call.callee.kind == NodeKind.EXPR_MEMBER) {
-			val mem = call.callee.to<MemberExpr>();
-			if (mem.member == "size") {
-				// Mangle the type name so the backend emits sizeof(<c_name>).
-				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-					val id = mem.object.to<IdentifierExpr>() as &IdentifierExpr;
+		val callee = call.callee;
+		if (callee != null) {
+			if (callee is MemberExpr as mem) {
+				if (mem.member == "size") {
+					// Mangle the type name so the backend emits sizeof(<c_name>).
+					val obj = mem.object;
+					if (obj != null) {
+						if (obj is IdentifierExpr as id) {
+							// A primitive type name has no C type of its own (`str`,
+							// `bool`, ...), so fold `.size()` to its C size literal.
+							val csize = prim_c_size(id.name);
+							if (csize > 0) {
+								val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
+								val lit_n = node as &AstNode;
+								lit_n.kind = lit.kind;
+								lit_n.data = lit.data;
+								return alloc_primitive(&self.arena, type_usz());
+							}
 
-					// A primitive type name has no C type of its own (`str`,
-					// `bool`, ...), so fold `.size()` to its C size literal.
-					val csize = prim_c_size(id.name);
-					if (csize > 0) {
-						val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
-						val lit_n = node as &AstNode;
-						lit_n.kind = lit.kind;
-						lit_n.data = lit.data;
-						return alloc_primitive(&self.arena, type_usz());
+							val tsym = self.symtab.lookup(id.name);
+							if (tsym != null && tsym.c_name != id.name) {
+								val id_ref = id as &IdentifierExpr;
+								id_ref.name = tsym.c_name;
+							}
+						}
 					}
-
-					val tsym = self.symtab.lookup(id.name);
-					if (tsym != null && tsym.c_name != id.name) id.name = tsym.c_name;
+					return alloc_primitive(&self.arena, type_usz());
 				}
-				return alloc_primitive(&self.arena, type_usz());
+
+				if (mem.member == "slice") {
+					val slice_recv = self.check_expr(mem.object);
+					if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
+					for (arg in call.args) {
+						val at = self.check_expr(arg);
+						if (!at.is_integer()) self.report_error(node, "slice() bounds must be integers");
+					}
+					// Lower to kobel_slice(receiver, start, end); end defaults to length.
+					var sargs = List<*AstNode>();
+					sargs.add(mem.object);
+					if (!call.args.is_empty()) sargs.add(call.args.first());
+					else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
+					if (call.args.len >= 2) {
+						sargs.add(call.args[1]);
+					} else {
+						var largs = List<*AstNode>();
+						largs.add(mem.object);
+						sargs.add(self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
+					}
+					val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
+					val sl_n = node as &AstNode;
+					sl_n.kind = NodeKind.EXPR_CALL;
+					sl_n.data = sl_call.data;
+					return alloc_primitive(&self.arena, type_str());
+				}
+
+				// Instance method call or primitive method call
+				val m_ty = self.check_method_call(node, mem, call);
+				if (m_ty != null) return m_ty;
 			}
-
-			if (mem.member == "slice") {
-				val slice_recv = self.check_expr(mem.object);
-				if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
-				for (arg in call.args) {
-					val at = self.check_expr(arg);
-					if (!at.is_integer()) self.report_error(node, "slice() bounds must be integers");
-				}
-				// Lower to kobel_slice(receiver, start, end); end defaults to length.
-				var sargs = List<*AstNode>();
-				sargs.add(mem.object);
-				if (!call.args.is_empty()) sargs.add(call.args.first());
-				else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
-				if (call.args.len >= 2) {
-					sargs.add(call.args[1]);
-				} else {
-					var largs = List<*AstNode>();
-					largs.add(mem.object);
-					sargs.add(self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
-				}
-				val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
-				val sl_n = node as &AstNode;
-				sl_n.kind = NodeKind.EXPR_CALL;
-				sl_n.data = sl_call.data;
-				return alloc_primitive(&self.arena, type_str());
-			}
-
-			// Instance method call or primitive method call
-			val m_ty = self.check_method_call(node, mem, call);
-			if (m_ty != null) return m_ty;
 		}
 
 		// `Self(...)` builds the value directly, so it never consults a
 		// `new` factory (that is what keeps `fn new() => Self(...)` from
 		// calling itself again).
-		val callee_is_self =
-			call.callee.kind == NodeKind.EXPR_IDENTIFIER &&
-			call.callee.to<IdentifierExpr>().name == "Self";
+		var callee_is_self = false;
+		if (callee != null) {
+			if (callee is IdentifierExpr as id) {
+				callee_is_self = (id.name == "Self");
+			}
+		}
 
 		val callee_ty = self.check_expr(call.callee);
 
@@ -125,21 +134,25 @@ impl BodyPass {
 			if (mi == null) {
 				for (m in s_info.methods) {
 					if (m.name == mem.member && m.ast_node != null) {
-						val ast_fn = (m.ast_node as *AstNode).to<FnDecl>();
-						if (call.args.len + 1 < ast_fn.params.len) {
-							var all_default = true;
-							for (i in (call.args.len + 1)..<ast_fn.params.len) {
-								if (ast_fn.params[i].default_val == null) {
-									all_default = false;
-									break;
+						val ast_fn = m.ast_node as *AstNode;
+						if (ast_fn != null) {
+							if (ast_fn is FnDecl as f) {
+								if (call.args.len + 1 < f.params.len) {
+									var all_default = true;
+									for (i in (call.args.len + 1)..<f.params.len) {
+										if (f.params[i].default_val == null) {
+											all_default = false;
+											break;
+										}
+									}
+									if (all_default) {
+										mi = m;
+										for (i in (call.args.len + 1)..<f.params.len) {
+											call.args.add(self.clone_expr(f.params[i].default_val));
+										}
+										break;
+									}
 								}
-							}
-							if (all_default) {
-								mi = m;
-								for (i in (call.args.len + 1)..<ast_fn.params.len) {
-									call.args.add(self.clone_expr(ast_fn.params[i].default_val));
-								}
-								break;
 							}
 						}
 					}
@@ -150,17 +163,20 @@ impl BodyPass {
 				val fn_info = mi.fn_type.as_fn();
 				if (mi.ast_node != null) {
 					val ast_n = mi.ast_node as *AstNode;
-					val f = ast_n.to<FnDecl>();
-					if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
-						val prev_self = self.current_self_type;
-						val prev_ret = self.current_fn_return_type;
-						val prev_mod = self.symtab.current_module;
-						if (mi.module.len > 0) self.symtab.set_current_module(mi.module);
-						self.current_self_type = obj_ty;
-						self.check_fn_body(ast_n, mi.fn_type);
-						self.current_self_type = prev_self;
-						self.current_fn_return_type = prev_ret;
-						self.symtab.set_current_module(prev_mod);
+					if (ast_n != null) {
+						if (ast_n is FnDecl as f) {
+							if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
+								val prev_self = self.current_self_type;
+								val prev_ret = self.current_fn_return_type;
+								val prev_mod = self.symtab.current_module;
+								if (mi.module.len > 0) self.symtab.set_current_module(mi.module);
+								self.current_self_type = obj_ty;
+								self.check_fn_body(ast_n, mi.fn_type);
+								self.current_self_type = prev_self;
+								self.current_fn_return_type = prev_ret;
+								self.symtab.set_current_module(prev_mod);
+							}
+						}
 					}
 				}
 				if (call.args.len + 1 != fn_info.param_types.len) {
@@ -191,21 +207,25 @@ impl BodyPass {
 		if (pmi == null) {
 			for (pm in self.symtab.prim_methods) {
 				if (pm.kind == obj_ty.kind && pm.info.name == mem.member && pm.info.ast_node != null) {
-					val ast_fn = (pm.info.ast_node as *AstNode).to<FnDecl>();
-					if (call.args.len + 1 < ast_fn.params.len) {
-						var all_default = true;
-						for (i in (call.args.len + 1)..<ast_fn.params.len) {
-							if (ast_fn.params[i].default_val == null) {
-								all_default = false;
-								break;
+					val ast_fn = pm.info.ast_node as *AstNode;
+					if (ast_fn != null) {
+						if (ast_fn is FnDecl as f) {
+							if (call.args.len + 1 < f.params.len) {
+								var all_default = true;
+								for (i in (call.args.len + 1)..<f.params.len) {
+									if (f.params[i].default_val == null) {
+										all_default = false;
+										break;
+									}
+								}
+								if (all_default) {
+									pmi = pm.info;
+									for (i in (call.args.len + 1)..<f.params.len) {
+										call.args.add(self.clone_expr(f.params[i].default_val));
+									}
+									break;
+								}
 							}
-						}
-						if (all_default) {
-							pmi = pm.info;
-							for (i in (call.args.len + 1)..<ast_fn.params.len) {
-								call.args.add(self.clone_expr(ast_fn.params[i].default_val));
-							}
-							break;
 						}
 					}
 				}
@@ -216,17 +236,20 @@ impl BodyPass {
 			val fn_info = pmi.fn_type.as_fn();
 			if (pmi.ast_node != null) {
 				val ast_n = pmi.ast_node as *AstNode;
-				val f = ast_n.to<FnDecl>();
-				if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
-					val prev_self = self.current_self_type;
-					val prev_ret = self.current_fn_return_type;
-					val prev_mod = self.symtab.current_module;
-					if (pmi.module.len > 0) self.symtab.set_current_module(pmi.module);
-					self.current_self_type = obj_ty;
-					self.check_fn_body(ast_n, pmi.fn_type);
-					self.current_self_type = prev_self;
-					self.current_fn_return_type = prev_ret;
-					self.symtab.set_current_module(prev_mod);
+				if (ast_n != null) {
+					if (ast_n is FnDecl as f) {
+						if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
+							val prev_self = self.current_self_type;
+							val prev_ret = self.current_fn_return_type;
+							val prev_mod = self.symtab.current_module;
+							if (pmi.module.len > 0) self.symtab.set_current_module(pmi.module);
+							self.current_self_type = obj_ty;
+							self.check_fn_body(ast_n, pmi.fn_type);
+							self.current_self_type = prev_self;
+							self.current_fn_return_type = prev_ret;
+							self.symtab.set_current_module(prev_mod);
+						}
+					}
 				}
 			}
 			if (call.args.len + 1 != fn_info.param_types.len) {
@@ -260,24 +283,27 @@ impl BodyPass {
 
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
 		val fn_info = callee_ty.as_fn();
-		if (call.callee.kind == NodeKind.EXPR_IDENTIFIER) {
-			val id = call.callee.to<IdentifierExpr>();
-			val sym = self.symtab.lookup(id.name);
-			if (sym != null && sym.ast_node != null) {
-				val ast_n = sym.ast_node as *AstNode;
-				if (ast_n.kind == NodeKind.DECL_FN) {
-					val f = ast_n.to<FnDecl>();
-					if (call.args.len < f.params.len) {
-						var all_default = true;
-						for (i in call.args.len..<f.params.len) {
-							if (f.params[i].default_val == null) {
-								all_default = false;
-								break;
-							}
-						}
-						if (all_default) {
-							for (i in call.args.len..<f.params.len) {
-								call.args.add(self.clone_expr(f.params[i].default_val));
+		val callee = call.callee;
+		if (callee != null) {
+			if (callee is IdentifierExpr as id) {
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null && sym.ast_node != null) {
+					val ast_n = sym.ast_node as *AstNode;
+					if (ast_n != null) {
+						if (ast_n is FnDecl as f) {
+							if (call.args.len < f.params.len) {
+								var all_default = true;
+								for (i in call.args.len..<f.params.len) {
+									if (f.params[i].default_val == null) {
+										all_default = false;
+										break;
+									}
+								}
+								if (all_default) {
+									for (i in call.args.len..<f.params.len) {
+										call.args.add(self.clone_expr(f.params[i].default_val));
+									}
+								}
 							}
 						}
 					}
@@ -320,21 +346,25 @@ impl BodyPass {
 			if (nm == null) {
 				for (m in s_info.methods) {
 					if (m.name == "new" && m.ast_node != null) {
-						val fn_decl = (m.ast_node as *AstNode).to<FnDecl>();
-						if (call.args.len < fn_decl.params.len) {
-							var all_default = true;
-							for (i in call.args.len..<fn_decl.params.len) {
-								if (fn_decl.params[i].default_val == null) {
-									all_default = false;
-									break;
+						val ast_fn = m.ast_node as *AstNode;
+						if (ast_fn != null) {
+							if (ast_fn is FnDecl as fn_decl) {
+								if (call.args.len < fn_decl.params.len) {
+									var all_default = true;
+									for (i in call.args.len..<fn_decl.params.len) {
+										if (fn_decl.params[i].default_val == null) {
+											all_default = false;
+											break;
+										}
+									}
+									if (all_default) {
+										nm = m;
+										for (i in call.args.len..<fn_decl.params.len) {
+											call.args.add(self.clone_expr(fn_decl.params[i].default_val));
+										}
+										break;
+									}
 								}
-							}
-							if (all_default) {
-								nm = m;
-								for (i in call.args.len..<fn_decl.params.len) {
-									call.args.add(self.clone_expr(fn_decl.params[i].default_val));
-								}
-								break;
 							}
 						}
 					}
