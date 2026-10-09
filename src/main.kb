@@ -7,10 +7,6 @@ use fmt.options.*;
 use fmt.formatter.*;
 use lsp.server.*;
 
-// ============================================================================
-// Main Entry Point
-// ============================================================================
-
 fn print_usage() {
 	println("============================================================");
 	println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
@@ -45,7 +41,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	}
 
 	var write_in_place = false;
-	var files = List<str>();
+	val files = List<str>();
 
 	var i = 2;
 	while (i < argc) {
@@ -55,9 +51,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 				print_fmt_usage();
 				return 0;
 			}
-			"-w", "--write" -> {
-				write_in_place = true;
-			}
+			"-w", "--write" -> write_in_place = true;
 			else -> {
 				if (arg.len > 0 && arg[0] == '-') {
 					println("Error: Unknown option '${arg}'");
@@ -95,35 +89,16 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 			}
 			print("Formatted: ");
 			println(fpath);
-		} else {
-			print(formatted);
-		}
+		} else print(formatted);
 	}
 
 	return 0;
 }
 
-// ============================================================================
-// Main Dispatcher
-// ============================================================================
+fn run_compiler(argc: i32, argv: &*char): i32 {
+	val opts = CompileOptions();
 
-fn main(argc: i32, argv: &*char): i32 {
-	if (argc < 2) {
-		print_usage();
-		return 1;
-	}
-
-	val first_arg = cstr_to_str(argv[1]);
-	if (first_arg == "fmt") {
-		return run_fmt(argc, argv);
-	}
-	if (first_arg == "lsp") {
-		return run_server();
-	}
-
-	var opts = CompileOptions();
-
-	var i: i32 = 1;
+	var i = 1;
 	while (i < argc) {
 		val arg = cstr_to_str(argv[i]);
 		when (arg) {
@@ -137,9 +112,8 @@ fn main(argc: i32, argv: &*char): i32 {
 			}
 			"-o" -> {
 				i++;
-				if (i < argc) {
-					opts.output_bin = cstr_to_str(argv[i]);
-				} else {
+				if (i < argc) opts.output_bin = cstr_to_str(argv[i]);
+				else {
 					println("Error: Missing argument after '-o'");
 					return 1;
 				}
@@ -156,18 +130,16 @@ fn main(argc: i32, argv: &*char): i32 {
 			}
 			"--cc" -> {
 				i++;
-				if (i < argc) {
-					opts.c_compiler = cstr_to_str(argv[i]);
-				} else {
+				if (i < argc) opts.c_compiler = cstr_to_str(argv[i]);
+				else {
 					println("Error: Missing argument after '--cc'");
 					return 1;
 				}
 			}
 			"-I" -> {
 				i++;
-				if (i < argc) {
-					opts.extra_roots.add(cstr_to_str(argv[i]));
-				} else {
+				if (i < argc) opts.extra_roots.add(cstr_to_str(argv[i]));
+				else {
 					println("Error: Missing argument after '-I'");
 					return 1;
 				}
@@ -189,4 +161,18 @@ fn main(argc: i32, argv: &*char): i32 {
 	}
 
 	return compile_pipeline(opts);
+}
+
+fn main(argc: i32, argv: &*char): i32 {
+	if (argc < 2) {
+		print_usage();
+		return 1;
+	}
+
+	val first_arg = cstr_to_str(argv[1]);
+	return when (first_arg) {
+		"lsp" -> run_server();
+		"fmt" -> run_fmt(argc, argv);
+		else -> run_compiler(argc, argv);
+	};
 }

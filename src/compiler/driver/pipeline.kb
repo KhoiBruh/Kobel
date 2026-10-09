@@ -26,16 +26,12 @@ pub fn print_error_list(errors: List<str>) {
 }
 
 pub struct CompileOptions {
-	pub input_path: str,
-	pub output_bin: str,
-	pub emit_c_path: str,
-	pub c_compiler: str,
-	pub only_emit_c: bool,
-	pub extra_roots: List<str>
-}
-
-impl CompileOptions {
-	pub fn new(): Self => Self("", "", "", "cl", false, List<str>());
+	pub input_path: str = "",
+	pub output_bin: str = "",
+	pub emit_c_path: str = "",
+	pub c_compiler: str = "cl",
+	pub only_emit_c: bool = false,
+	pub extra_roots: List<str> = List<str>()
 }
 
 pub fn compile_pipeline(opts: CompileOptions): i32 {
@@ -74,7 +70,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	println(" module(s) loaded");
 
 	println("[2/4] Semantic analysis (declarations)...");
-	var decl_p = DeclPass();
+	val decl_p = DeclPass();
 	decl_p.collect_program(prog);
 	if (decl_p.errors.len > 0) {
 		print("Semantic Declaration Errors in ");
@@ -85,7 +81,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	}
 
 	println("[3/4] Semantic analysis (bodies)...");
-	var body_p = BodyPass(decl_p.symtab);
+	val body_p = BodyPass(decl_p.symtab);
 	body_p.check_program(prog);
 	if (body_p.errors.len > 0) {
 		print("Semantic Type Errors in ");
@@ -96,7 +92,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	}
 
 	println("[4/4] Generating C99 code...");
-	var codegen = CCodeGen();
+	val codegen = CCodeGen();
 	val c_code = codegen.gen_program(prog);
 
 	if (opts.only_emit_c) {
@@ -126,13 +122,12 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 
 	println("[BUILDING] Invoking backend compiler (${opts.c_compiler})...");
 
-	var compile_cmd = "";
-	if (opts.c_compiler == "clang" || opts.c_compiler == "gcc") {
-		compile_cmd = "${opts.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\"";
-	} else {
-		// MSVC cl.exe: ensure environment is set up if not already in PATH
-		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
-	}
+	val compile_cmd = if (
+		opts.c_compiler == "clang" ||
+		opts.c_compiler == "gcc"
+	) "${opts.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\""
+	// MSVC cl.exe: ensure environment is set up if not already in PATH
+	else "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
 
 	val exit_code = exec(compile_cmd);
 	if (exit_code != 0) {
