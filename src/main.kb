@@ -1,22 +1,7 @@
 use std.io.*;
-use std.sys.exec;
 use std.collections.list.*;
 
-use compiler.sema.decl_pass.*;
-use compiler.sema.monomorphize.*;
-use compiler.sema.decl_collect.*;
-use compiler.sema.body_pass.*;
-use compiler.sema.body_stmt.*;
-use compiler.sema.body_expr.*;
-use compiler.sema.body_call.*;
-use compiler.sema.desugar_interp.*;
-use compiler.sema.body_program.*;
-
-use compiler.codegen.c_codegen.*;
-use compiler.codegen.c_program.*;
-
-use compiler.loader.loader.*;
-
+use compiler.driver.pipeline.*;
 use util.strutil.*;
 use fmt.options.*;
 use fmt.formatter.*;
@@ -118,15 +103,8 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	return 0;
 }
 
-fn print_error_list(errors: List<str>) {
-	for (msg in errors) {
-		print("  [ERROR] ");
-		println(msg);
-	}
-}
-
 // ============================================================================
-// Main Entry Point
+// Main Dispatcher
 // ============================================================================
 
 fn main(argc: i32, argv: &*char): i32 {
@@ -143,12 +121,7 @@ fn main(argc: i32, argv: &*char): i32 {
 		return run_server();
 	}
 
-	var input_path = "";
-	var output_bin = "";
-	var emit_c_path = "";
-	var c_compiler = "cl";
-	var only_emit_c = false;
-	var extra_roots = List<str>();
+	var opts = CompileOptions();
 
 	var i: i32 = 1;
 	while (i < argc) {
@@ -165,7 +138,7 @@ fn main(argc: i32, argv: &*char): i32 {
 			"-o" -> {
 				i++;
 				if (i < argc) {
-					output_bin = cstr_to_str(argv[i]);
+					opts.output_bin = cstr_to_str(argv[i]);
 				} else {
 					println("Error: Missing argument after '-o'");
 					return 1;
@@ -174,8 +147,8 @@ fn main(argc: i32, argv: &*char): i32 {
 			"-emit-c" -> {
 				i++;
 				if (i < argc) {
-					emit_c_path = cstr_to_str(argv[i]);
-					only_emit_c = true;
+					opts.emit_c_path = cstr_to_str(argv[i]);
+					opts.only_emit_c = true;
 				} else {
 					println("Error: Missing argument after '-emit-c'");
 					return 1;
@@ -184,7 +157,7 @@ fn main(argc: i32, argv: &*char): i32 {
 			"--cc" -> {
 				i++;
 				if (i < argc) {
-					c_compiler = cstr_to_str(argv[i]);
+					opts.c_compiler = cstr_to_str(argv[i]);
 				} else {
 					println("Error: Missing argument after '--cc'");
 					return 1;
@@ -193,7 +166,7 @@ fn main(argc: i32, argv: &*char): i32 {
 			"-I" -> {
 				i++;
 				if (i < argc) {
-					extra_roots.add(cstr_to_str(argv[i]));
+					opts.extra_roots.add(cstr_to_str(argv[i]));
 				} else {
 					println("Error: Missing argument after '-I'");
 					return 1;
@@ -204,123 +177,16 @@ fn main(argc: i32, argv: &*char): i32 {
 					println("Error: Unknown option '${arg}'");
 					return 1;
 				}
-				input_path = arg;
+				opts.input_path = arg;
 			}
 		}
 		i++;
 	}
 
-	if (input_path.len == 0) {
+	if (opts.input_path.len == 0) {
 		println("Error: No input file specified");
 		return 1;
 	}
 
-	// 1. Read source
-	val src = read_file(input_path);
-	if (src.len == 0) {
-		print("Error: Could not read source file or file is empty: ");
-		println(input_path);
-		return 1;
-	}
-
-	println("[1/4] Loading modules (lex + parse)...");
-	var loader = ModuleLoader(input_path.dir_of(), extra_roots);
-
-	// String interpolation lowers to the `ToStr` trait, whose built-in
-	// implementations live under std/traits (reachable through std.fmt). Load
-	// it whenever it is available so the primitive methods exist even when the
-	// input does not import the formatting module.
-	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
-
-	val prog = loader.load_program(input_path, src);
-	if (loader.errors.len > 0) {
-		print("Module Errors in ");
-		print(input_path);
-		println(":");
-		print_error_list(loader.errors);
-		return 1;
-	}
-	if (prog == null) {
-		print("Error: Could not parse source file: ");
-		println(input_path);
-		return 1;
-	}
-	print("  ");
-	print("${loader.count()}");
-	println(" module(s) loaded");
-
-	println("[2/4] Semantic analysis (declarations)...");
-	var decl_p = DeclPass();
-	decl_p.collect_program(prog);
-	if (decl_p.errors.len > 0) {
-		print("Semantic Declaration Errors in ");
-		print(input_path);
-		println(":");
-		print_error_list(decl_p.errors);
-		return 1;
-	}
-
-	println("[3/4] Semantic analysis (bodies)...");
-	var body_p = BodyPass(decl_p.symtab);
-	body_p.check_program(prog);
-	if (body_p.errors.len > 0) {
-		print("Semantic Type Errors in ");
-		print(input_path);
-		println(":");
-		print_error_list(body_p.errors);
-		return 1;
-	}
-
-	println("[4/4] Generating C99 code...");
-	var codegen = CCodeGen();
-	val c_code = codegen.gen_program(prog);
-
-	if (only_emit_c) {
-		val ok = write_file(emit_c_path, c_code);
-		if (!ok) {
-			print("Error: Failed to write output file: ");
-			println(emit_c_path);
-			return 1;
-		}
-		print("[SUCCESS] C99 source written to ");
-		println(emit_c_path);
-		return 0;
-	}
-
-	// Native binary compilation
-	var out_path = output_bin;
-	if (out_path.len == 0) out_path = "${input_path.strip_kb()}.exe";
-
-	val c_tmp_path = "${input_path.strip_kb()}.tmp.c";
-	val obj_tmp_path = "${input_path.strip_kb()}.tmp.obj";
-	val write_ok = write_file(c_tmp_path, c_code);
-	if (!write_ok) {
-		print("Error: Failed to write temporary C file: ");
-		println(c_tmp_path);
-		return 1;
-	}
-
-	println("[BUILDING] Invoking backend compiler (${c_compiler})...");
-
-	var compile_cmd = "";
-	if (c_compiler == "clang" || c_compiler == "gcc") {
-		compile_cmd = "${c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\"";
-	} else {
-		// MSVC cl.exe: ensure environment is set up if not already in PATH
-		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
-	}
-
-	val exit_code = exec(compile_cmd);
-	if (exit_code != 0) {
-		println("Error: Backend C compiler failed with error code 1");
-		return exit_code;
-	}
-
-	// Clean up temporary C and object files
-	val base_obj = "${input_path.strip_kb().base_name()}.tmp.obj";
-	val del_cmd = "del /f /q \"${c_tmp_path.to_win_path()}\" \"${obj_tmp_path.to_win_path()}\" \"${base_obj}\" 2>nul";
-	exec(del_cmd);
-
-	println("[SUCCESS] Executable created: ${out_path}");
-	return 0;
+	return compile_pipeline(opts);
 }

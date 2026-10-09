@@ -1,0 +1,150 @@
+mod compiler.driver.pipeline;
+
+use std.io.*;
+use std.sys.exec;
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.decl_collect.*;
+use compiler.sema.body_pass.*;
+use compiler.sema.body_program.*;
+use compiler.codegen.c_codegen.*;
+use compiler.codegen.c_program.*;
+use compiler.loader.loader.*;
+use util.strutil.*;
+
+// ============================================================================
+// Compiler Driver Pipeline
+// ============================================================================
+
+pub fn print_error_list(errors: List<str>) {
+	for (msg in errors) {
+		print("  [ERROR] ");
+		println(msg);
+	}
+}
+
+pub struct CompileOptions {
+	pub input_path: str,
+	pub output_bin: str,
+	pub emit_c_path: str,
+	pub c_compiler: str,
+	pub only_emit_c: bool,
+	pub extra_roots: List<str>
+}
+
+impl CompileOptions {
+	pub fn new(): Self => Self("", "", "", "cl", false, List<str>());
+}
+
+pub fn compile_pipeline(opts: CompileOptions): i32 {
+	val input_path = opts.input_path;
+	val src = read_file(input_path);
+	if (src.len == 0) {
+		print("Error: Could not read source file or file is empty: ");
+		println(input_path);
+		return 1;
+	}
+
+	println("[1/4] Loading modules (lex + parse)...");
+	var loader = ModuleLoader(input_path.dir_of(), opts.extra_roots);
+
+	// String interpolation lowers to the `ToStr` trait, whose built-in
+	// implementations live under std/traits (reachable through std.fmt). Load
+	// it whenever it is available so the primitive methods exist even when the
+	// input does not import the formatting module.
+	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
+
+	val prog = loader.load_program(input_path, src);
+	if (loader.errors.len > 0) {
+		print("Module Errors in ");
+		print(input_path);
+		println(":");
+		print_error_list(loader.errors);
+		return 1;
+	}
+	if (prog == null) {
+		print("Error: Could not parse source file: ");
+		println(input_path);
+		return 1;
+	}
+	print("  ");
+	print("${loader.count()}");
+	println(" module(s) loaded");
+
+	println("[2/4] Semantic analysis (declarations)...");
+	var decl_p = DeclPass();
+	decl_p.collect_program(prog);
+	if (decl_p.errors.len > 0) {
+		print("Semantic Declaration Errors in ");
+		print(input_path);
+		println(":");
+		print_error_list(decl_p.errors);
+		return 1;
+	}
+
+	println("[3/4] Semantic analysis (bodies)...");
+	var body_p = BodyPass(decl_p.symtab);
+	body_p.check_program(prog);
+	if (body_p.errors.len > 0) {
+		print("Semantic Type Errors in ");
+		print(input_path);
+		println(":");
+		print_error_list(body_p.errors);
+		return 1;
+	}
+
+	println("[4/4] Generating C99 code...");
+	var codegen = CCodeGen();
+	val c_code = codegen.gen_program(prog);
+
+	if (opts.only_emit_c) {
+		val ok = write_file(opts.emit_c_path, c_code);
+		if (!ok) {
+			print("Error: Failed to write output file: ");
+			println(opts.emit_c_path);
+			return 1;
+		}
+		print("[SUCCESS] C99 source written to ");
+		println(opts.emit_c_path);
+		return 0;
+	}
+
+	// Native binary compilation
+	var out_path = opts.output_bin;
+	if (out_path.len == 0) out_path = "${input_path.strip_kb()}.exe";
+
+	val c_tmp_path = "${input_path.strip_kb()}.tmp.c";
+	val obj_tmp_path = "${input_path.strip_kb()}.tmp.obj";
+	val write_ok = write_file(c_tmp_path, c_code);
+	if (!write_ok) {
+		print("Error: Failed to write temporary C file: ");
+		println(c_tmp_path);
+		return 1;
+	}
+
+	println("[BUILDING] Invoking backend compiler (${opts.c_compiler})...");
+
+	var compile_cmd = "";
+	if (opts.c_compiler == "clang" || opts.c_compiler == "gcc") {
+		compile_cmd = "${opts.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\"";
+	} else {
+		// MSVC cl.exe: ensure environment is set up if not already in PATH
+		compile_cmd = "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
+	}
+
+	val exit_code = exec(compile_cmd);
+	if (exit_code != 0) {
+		println("Error: Backend C compiler failed with error code 1");
+		return exit_code;
+	}
+
+	// Clean up temporary C and object files
+	val base_obj = "${input_path.strip_kb().base_name()}.tmp.obj";
+	val del_cmd = "del /f /q \"${c_tmp_path.to_win_path()}\" \"${obj_tmp_path.to_win_path()}\" \"${base_obj}\" 2>nul";
+	exec(del_cmd);
+
+	println("[SUCCESS] Executable created: ${out_path}");
+	return 0;
+}
