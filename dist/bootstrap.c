@@ -59,13 +59,13 @@ typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collec
 typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
 typedef struct std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic;
 typedef struct std__str__StrRaw std__str__StrRaw;
-typedef int32_t compiler__lexer__token__TokenType;
-typedef struct compiler__lexer__token__Token compiler__lexer__token__Token;
 typedef struct std__mem__arena__ArenaBlock std__mem__arena__ArenaBlock;
 typedef struct std__mem__arena__Arena std__mem__arena__Arena;
 typedef int32_t compiler__ast__node__NodeKind;
 typedef struct compiler__ast__node__AstNode compiler__ast__node__AstNode;
 typedef struct compiler__ast__node__DummyTemplateDecl compiler__ast__node__DummyTemplateDecl;
+typedef int32_t compiler__lexer__token__TokenType;
+typedef struct compiler__lexer__token__Token compiler__lexer__token__Token;
 typedef struct compiler__ast__types__NamedType compiler__ast__types__NamedType;
 typedef struct compiler__ast__types__PointerType compiler__ast__types__PointerType;
 typedef struct compiler__ast__types__ArrayType compiler__ast__types__ArrayType;
@@ -202,6 +202,7 @@ typedef struct compiler__parser__parser__Parser compiler__parser__parser__Parser
 typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__LoadedModule;
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
+typedef struct compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions;
 typedef struct fmt__options__FormatOptions fmt__options__FormatOptions;
 typedef struct std__collections__string_builder__StringRaw std__collections__string_builder__StringRaw;
 typedef struct std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder;
@@ -386,13 +387,6 @@ struct std__str__StrRaw {
     size_t cap;
 };
 
-struct compiler__lexer__token__Token {
-    compiler__lexer__token__TokenType type;
-    const char* text;
-    size_t line;
-    size_t col;
-};
-
 struct std__mem__arena__ArenaBlock {
     uint8_t* data;
     size_t size;
@@ -417,6 +411,13 @@ struct compiler__ast__node__DummyTemplateDecl {
     uint8_t* type_params_data;
     size_t type_params_len;
     size_t type_params_cap;
+};
+
+struct compiler__lexer__token__Token {
+    compiler__lexer__token__TokenType type;
+    const char* text;
+    size_t line;
+    size_t col;
 };
 
 struct compiler__ast__types__NamedType {
@@ -909,6 +910,15 @@ struct compiler__loader__loader__ModuleLoader {
     std__collections__list__List_compiler__loader__loader__LoadedModule ordered;
     std__collections__list__List_str errors;
     std__mem__arena__Arena arena;
+};
+
+struct compiler__driver__pipeline__CompileOptions {
+    const char* input_path;
+    const char* output_bin;
+    const char* emit_c_path;
+    const char* c_compiler;
+    bool only_emit_c;
+    std__collections__list__List_str extra_roots;
 };
 
 struct fmt__options__FormatOptions {
@@ -2147,14 +2157,14 @@ bool std__io__append_file(const char* path, const char* content);
 bool std__io__file_exists(const char* path);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
-const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
-const char* compiler__lexer__token__strip_suffix(const char* s, size_t n);
 std__mem__arena__Arena std__mem__arena__Arena_new(size_t block_size);
 uint8_t* std__mem__arena__Arena_alloc_bytes(std__mem__arena__Arena* self, size_t size, size_t align);
 void std__mem__arena__Arena_new_block(std__mem__arena__Arena* self, size_t min_size);
 void std__mem__arena__Arena_reset(std__mem__arena__Arena* self);
 void std__mem__arena__Arena_delete(std__mem__arena__Arena* self);
 bool compiler__ast__node__AstNode_is_template(compiler__ast__node__AstNode* self);
+const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
+const char* compiler__lexer__token__strip_suffix(const char* s, size_t n);
 const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self);
 size_t compiler__ast__decl__ExternBlock_count(compiler__ast__decl__ExternBlock* self);
 compiler__ast__node__AstNode* compiler__ast__decl__ExternBlock_at(compiler__ast__decl__ExternBlock* self, size_t i);
@@ -2216,6 +2226,7 @@ const char* str_join_path(const char* self, const char* rel);
 std__collections__list__List_str str_split_dots(const char* self);
 const char* str_mangle_symbol(const char* self, const char* name);
 const char* str_normalize_path(const char* self);
+const char* str_to_win_path(const char* self);
 bool str_in_list(const char* self, std__collections__list__List_str list);
 intptr_t str_index_in_list(const char* self, std__collections__list__List_str list);
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
@@ -2491,6 +2502,7 @@ bool compiler__ast__expr__WhenExpr_has_blocks(compiler__ast__expr__WhenExpr* sel
 const char* compiler__codegen__c_codegen__CCodeGen_gen_statement(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__IsExpr* is_e, const char* var_name, size_t ind_level);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__WhenExpr* we, const char* target_name, bool is_ret);
+const char* compiler__codegen__c_runtime__c_prelude(void);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_struct_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__StructDecl* s);
 const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f, bool is_proto, const char* self_c_type);
@@ -2628,6 +2640,9 @@ void compiler__loader__loader__ModuleLoader_ensure_module_at(compiler__loader__l
 void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node, const char* parent_mod);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
+void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
+compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions_new(void);
+int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts);
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void);
 void std__collections__string_builder__StringBuilder_append_char(std__collections__string_builder__StringBuilder* self, char c);
 void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s);
@@ -2736,7 +2751,6 @@ int32_t lsp__server__run_server(void);
 void main__print_usage(void);
 void main__print_fmt_usage(void);
 int32_t main__run_fmt(int32_t argc, const char** argv);
-void main__print_error_list(std__collections__list__List_str errors);
 int32_t main(int32_t argc, const char** argv);
 
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self) {
@@ -9742,14 +9756,6 @@ int32_t std__sys__exec(const char* cmd) {
     return system(cmd);
 }
 
-const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
-    return (self)->text;
-}
-
-const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
-    return ((kobel_slen(s) <= n) ? "" : kobel_slice(s, 0, (kobel_slen(s) - n)));
-}
-
 std__mem__arena__Arena std__mem__arena__Arena_new(size_t block_size) {
     return (std__mem__arena__Arena){ NULL, block_size };
 }
@@ -9819,6 +9825,14 @@ void std__mem__arena__Arena_delete(std__mem__arena__Arena* self) {
 
 bool compiler__ast__node__AstNode_is_template(compiler__ast__node__AstNode* self) {
     return (((self)->kind == 33) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 32) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 35) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : false)));
+}
+
+const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
+    return (self)->text;
+}
+
+const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
+    return ((kobel_slen(s) <= n) ? "" : kobel_slice(s, 0, (kobel_slen(s) - n)));
 }
 
 const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self) {
@@ -10411,6 +10425,59 @@ const char* str_normalize_path(const char* self) {
                             buf[i] = ((uint8_t)c);
                         }
                     }
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    buf[kobel_slen(self)] = 0;
+    return std__str__str_from_bytes(buf, kobel_slen(self));
+}
+
+const char* str_to_win_path(const char* self) {
+    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    {
+        size_t __for_e = kobel_slen(self);
+        size_t __for_i = __for_e;
+        __for_i = ((size_t)0ULL);
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                char c = self[i];
+                if ((c == '/')) {
+                    buf[i] = ((uint8_t)'\\');
+                } else {
+                    buf[i] = ((uint8_t)c);
                 }
                 if (__for_up) {
                     {
@@ -19810,11 +19877,15 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     return res;
 }
 
+const char* compiler__codegen__c_runtime__c_prelude(void) {
+    return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("/* Generated by Kobel compiler Compiler v1 */\n", "#include <stdint.h>\n"), "#include <stdbool.h>\n"), "#include <stddef.h>\n"), "#include <stdio.h>\n"), "#include <stdlib.h>\n"), "#include <string.h>\n\n"), "/* str.slice(start, end) helper */\n"), "static const char* kobel_slice(const char* s, size_t start, size_t end) {\n"), "    size_t n = (end > start) ? (end - start) : 0;\n"), "    char* r = (char*)malloc(n + 1);\n"), "    for (size_t i = 0; i < n; i++) r[i] = s[start + i];\n"), "    r[n] = 0;\n"), "    return r;\n"), "}\n"), "/* str + str helper */\n"), "static const char* kobel_concat(const char* a, const char* b) {\n"), "    size_t la = strlen(a), lb = strlen(b);\n"), "    char* r = (char*)malloc(la + lb + 1);\n"), "    memcpy(r, a, la);\n"), "    memcpy(r + la, b, lb + 1);\n"), "    return r;\n"), "}\n"), "/* str == str helper */\n"), "static int kobel_streq(const char* a, const char* b) {\n"), "    return strcmp(a, b) == 0;\n"), "}\n"), "/* str length helper */\n"), "static size_t kobel_slen(const char* s) {\n"), "    return strlen(s);\n"), "}\n\n");
+}
+
 const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* program_node) {
     if (((program_node)->kind == compiler__ast__decl__Program__TAG)) {
         compiler__ast__decl__Program* prog = ((compiler__ast__decl__Program*)(((compiler__ast__node__AstNode*)program_node)->data));
         {
-            const char* c_code = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("/* Generated by Kobel compiler Compiler v1 */\n", "#include <stdint.h>\n"), "#include <stdbool.h>\n"), "#include <stddef.h>\n"), "#include <stdio.h>\n"), "#include <stdlib.h>\n"), "#include <string.h>\n\n"), "/* str.slice(start, end) helper */\n"), "static const char* kobel_slice(const char* s, size_t start, size_t end) {\n"), "    size_t n = (end > start) ? (end - start) : 0;\n"), "    char* r = (char*)malloc(n + 1);\n"), "    for (size_t i = 0; i < n; i++) r[i] = s[start + i];\n"), "    r[n] = 0;\n"), "    return r;\n"), "}\n"), "/* str + str helper */\n"), "static const char* kobel_concat(const char* a, const char* b) {\n"), "    size_t la = strlen(a), lb = strlen(b);\n"), "    char* r = (char*)malloc(la + lb + 1);\n"), "    memcpy(r, a, la);\n"), "    memcpy(r + la, b, lb + 1);\n"), "    return r;\n"), "}\n"), "/* str == str helper */\n"), "static int kobel_streq(const char* a, const char* b) {\n"), "    return strcmp(a, b) == 0;\n"), "}\n"), "/* str length helper */\n"), "static size_t kobel_slen(const char* s) {\n"), "    return strlen(s);\n"), "}\n\n");
+            const char* c_code = compiler__codegen__c_runtime__c_prelude();
             {
                 size_t __for_n = compiler__ast__decl__Program_count(prog);
                 size_t __for_i = ((size_t)0ULL);
@@ -22774,6 +22845,141 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
         }
     }
     return compiler__loader__loader__ModuleLoader_program(self, decls, 0, 0);
+}
+
+void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors) {
+    {
+        size_t __for_n = std__collections__list__List_str_count((&errors));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* msg = std__collections__list__List_str_at((&errors), __for_i);
+                std__io__print("  [ERROR] ");
+                std__io__println(msg);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+}
+
+compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions_new(void) {
+    return (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4) };
+}
+
+int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts) {
+    const char* input_path = (opts).input_path;
+    const char* src = std__io__read_file(input_path);
+    if ((kobel_slen(src) == 0)) {
+        {
+            std__io__print("Error: Could not read source file or file is empty: ");
+            std__io__println(input_path);
+            return 1;
+        }
+    }
+    std__io__println("[1/4] Loading modules (lex + parse)...");
+    compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__ModuleLoader_new(str_dir_of(input_path), (opts).extra_roots);
+    if ((compiler__loader__loader__ModuleLoader_find_module((&loader), "std.fmt")).found) {
+        compiler__loader__loader__ModuleLoader_ensure_module((&loader), "std.fmt");
+    }
+    compiler__ast__node__AstNode* prog = compiler__loader__loader__ModuleLoader_load_program((&loader), input_path, src);
+    if ((((loader).errors).len > 0)) {
+        {
+            std__io__print("Module Errors in ");
+            std__io__print(input_path);
+            std__io__println(":");
+            compiler__driver__pipeline__print_error_list((loader).errors);
+            return 1;
+        }
+    }
+    if ((prog == NULL)) {
+        {
+            std__io__print("Error: Could not parse source file: ");
+            std__io__println(input_path);
+            return 1;
+        }
+    }
+    std__io__print("  ");
+    std__io__print(usz_to_str(compiler__loader__loader__ModuleLoader_count((&loader))));
+    std__io__println(" module(s) loaded");
+    std__io__println("[2/4] Semantic analysis (declarations)...");
+    compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__DeclPass_new();
+    compiler__sema__decl_pass__DeclPass_collect_program((&decl_p), prog);
+    if ((((decl_p).errors).len > 0)) {
+        {
+            std__io__print("Semantic Declaration Errors in ");
+            std__io__print(input_path);
+            std__io__println(":");
+            compiler__driver__pipeline__print_error_list((decl_p).errors);
+            return 1;
+        }
+    }
+    std__io__println("[3/4] Semantic analysis (bodies)...");
+    compiler__sema__body_pass__BodyPass body_p = compiler__sema__body_pass__BodyPass_new_1((decl_p).symtab);
+    compiler__sema__body_pass__BodyPass_check_program((&body_p), prog);
+    if ((((body_p).errors).len > 0)) {
+        {
+            std__io__print("Semantic Type Errors in ");
+            std__io__print(input_path);
+            std__io__println(":");
+            compiler__driver__pipeline__print_error_list((body_p).errors);
+            return 1;
+        }
+    }
+    std__io__println("[4/4] Generating C99 code...");
+    compiler__codegen__c_codegen__CCodeGen codegen = (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), "", "", false };
+    const char* c_code = compiler__codegen__c_codegen__CCodeGen_gen_program((&codegen), prog);
+    if ((opts).only_emit_c) {
+        {
+            bool ok = std__io__write_file((opts).emit_c_path, c_code);
+            if ((!ok)) {
+                {
+                    std__io__print("Error: Failed to write output file: ");
+                    std__io__println((opts).emit_c_path);
+                    return 1;
+                }
+            }
+            std__io__print("[SUCCESS] C99 source written to ");
+            std__io__println((opts).emit_c_path);
+            return 0;
+        }
+    }
+    const char* out_path = (opts).output_bin;
+    if ((kobel_slen(out_path) == 0)) {
+        out_path = kobel_concat(str_strip_kb(input_path), ".exe");
+    }
+    const char* c_tmp_path = kobel_concat(str_strip_kb(input_path), ".tmp.c");
+    const char* obj_tmp_path = kobel_concat(str_strip_kb(input_path), ".tmp.obj");
+    bool write_ok = std__io__write_file(c_tmp_path, c_code);
+    if ((!write_ok)) {
+        {
+            std__io__print("Error: Failed to write temporary C file: ");
+            std__io__println(c_tmp_path);
+            return 1;
+        }
+    }
+    std__io__println(kobel_concat(kobel_concat("[BUILDING] Invoking backend compiler (", (opts).c_compiler), ")..."));
+    const char* compile_cmd = "";
+    if ((kobel_streq((opts).c_compiler, "clang") || kobel_streq((opts).c_compiler, "gcc"))) {
+        {
+            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((opts).c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"");
+        }
+    } else {
+        {
+            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" /Fo:\""), str_to_win_path(obj_tmp_path)), "\" \""), c_tmp_path), "\"");
+        }
+    }
+    int32_t exit_code = std__sys__exec(compile_cmd);
+    if ((exit_code != 0)) {
+        {
+            std__io__println("Error: Backend C compiler failed with error code 1");
+            return exit_code;
+        }
+    }
+    const char* base_obj = kobel_concat(str_base_name(str_strip_kb(input_path)), ".tmp.obj");
+    const char* del_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(c_tmp_path)), "\" \""), str_to_win_path(obj_tmp_path)), "\" \""), base_obj), "\" 2>nul");
+    std__sys__exec(del_cmd);
+    std__io__println(kobel_concat("[SUCCESS] Executable created: ", out_path));
+    return 0;
 }
 
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void) {
@@ -27236,21 +27442,6 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
     return 0;
 }
 
-void main__print_error_list(std__collections__list__List_str errors) {
-    {
-        size_t __for_n = std__collections__list__List_str_count((&errors));
-        size_t __for_i = ((size_t)0ULL);
-        while ((__for_i < __for_n)) {
-            {
-                const char* msg = std__collections__list__List_str_at((&errors), __for_i);
-                std__io__print("  [ERROR] ");
-                std__io__println(msg);
-                __for_i = (__for_i + 1);
-            }
-        }
-    }
-}
-
 int32_t main(int32_t argc, const char** argv) {
     if ((argc < 2)) {
         {
@@ -27269,12 +27460,7 @@ int32_t main(int32_t argc, const char** argv) {
             return lsp__server__run_server();
         }
     }
-    const char* input_path = "";
-    const char* output_bin = "";
-    const char* emit_c_path = "";
-    const char* c_compiler = "cl";
-    bool only_emit_c = false;
-    std__collections__list__List_str extra_roots = std__collections__list__List_str_new(4);
+    compiler__driver__pipeline__CompileOptions opts = compiler__driver__pipeline__CompileOptions_new();
     int32_t i = 1;
     while ((i < argc)) {
         {
@@ -27294,7 +27480,7 @@ int32_t main(int32_t argc, const char** argv) {
                     i++;
                     if ((i < argc)) {
                         {
-                            output_bin = util__strutil__cstr_to_str(argv[i]);
+                            (opts).output_bin = util__strutil__cstr_to_str(argv[i]);
                         }
                     } else {
                         {
@@ -27308,8 +27494,8 @@ int32_t main(int32_t argc, const char** argv) {
                     i++;
                     if ((i < argc)) {
                         {
-                            emit_c_path = util__strutil__cstr_to_str(argv[i]);
-                            only_emit_c = true;
+                            (opts).emit_c_path = util__strutil__cstr_to_str(argv[i]);
+                            (opts).only_emit_c = true;
                         }
                     } else {
                         {
@@ -27323,7 +27509,7 @@ int32_t main(int32_t argc, const char** argv) {
                     i++;
                     if ((i < argc)) {
                         {
-                            c_compiler = util__strutil__cstr_to_str(argv[i]);
+                            (opts).c_compiler = util__strutil__cstr_to_str(argv[i]);
                         }
                     } else {
                         {
@@ -27337,7 +27523,7 @@ int32_t main(int32_t argc, const char** argv) {
                     i++;
                     if ((i < argc)) {
                         {
-                            std__collections__list__List_str_add((&extra_roots), util__strutil__cstr_to_str(argv[i]));
+                            std__collections__list__List_str_add((&(opts).extra_roots), util__strutil__cstr_to_str(argv[i]));
                         }
                     } else {
                         {
@@ -27354,127 +27540,18 @@ int32_t main(int32_t argc, const char** argv) {
                             return 1;
                         }
                     }
-                    input_path = arg;
+                    (opts).input_path = arg;
                 }
             }
             i++;
         }
     }
-    if ((kobel_slen(input_path) == 0)) {
+    if ((kobel_slen((opts).input_path) == 0)) {
         {
             std__io__println("Error: No input file specified");
             return 1;
         }
     }
-    const char* src = std__io__read_file(input_path);
-    if ((kobel_slen(src) == 0)) {
-        {
-            std__io__print("Error: Could not read source file or file is empty: ");
-            std__io__println(input_path);
-            return 1;
-        }
-    }
-    std__io__println("[1/4] Loading modules (lex + parse)...");
-    compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__ModuleLoader_new(str_dir_of(input_path), extra_roots);
-    if ((compiler__loader__loader__ModuleLoader_find_module((&loader), "std.fmt")).found) {
-        compiler__loader__loader__ModuleLoader_ensure_module((&loader), "std.fmt");
-    }
-    compiler__ast__node__AstNode* prog = compiler__loader__loader__ModuleLoader_load_program((&loader), input_path, src);
-    if ((((loader).errors).len > 0)) {
-        {
-            std__io__print("Module Errors in ");
-            std__io__print(input_path);
-            std__io__println(":");
-            main__print_error_list((loader).errors);
-            return 1;
-        }
-    }
-    if ((prog == NULL)) {
-        {
-            std__io__print("Error: Could not parse source file: ");
-            std__io__println(input_path);
-            return 1;
-        }
-    }
-    std__io__print("  ");
-    std__io__print(usz_to_str(compiler__loader__loader__ModuleLoader_count((&loader))));
-    std__io__println(" module(s) loaded");
-    std__io__println("[2/4] Semantic analysis (declarations)...");
-    compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__DeclPass_new();
-    compiler__sema__decl_pass__DeclPass_collect_program((&decl_p), prog);
-    if ((((decl_p).errors).len > 0)) {
-        {
-            std__io__print("Semantic Declaration Errors in ");
-            std__io__print(input_path);
-            std__io__println(":");
-            main__print_error_list((decl_p).errors);
-            return 1;
-        }
-    }
-    std__io__println("[3/4] Semantic analysis (bodies)...");
-    compiler__sema__body_pass__BodyPass body_p = compiler__sema__body_pass__BodyPass_new_1((decl_p).symtab);
-    compiler__sema__body_pass__BodyPass_check_program((&body_p), prog);
-    if ((((body_p).errors).len > 0)) {
-        {
-            std__io__print("Semantic Type Errors in ");
-            std__io__print(input_path);
-            std__io__println(":");
-            main__print_error_list((body_p).errors);
-            return 1;
-        }
-    }
-    std__io__println("[4/4] Generating C99 code...");
-    compiler__codegen__c_codegen__CCodeGen codegen = (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), "", "", false };
-    const char* c_code = compiler__codegen__c_codegen__CCodeGen_gen_program((&codegen), prog);
-    if (only_emit_c) {
-        {
-            bool ok = std__io__write_file(emit_c_path, c_code);
-            if ((!ok)) {
-                {
-                    std__io__print("Error: Failed to write output file: ");
-                    std__io__println(emit_c_path);
-                    return 1;
-                }
-            }
-            std__io__print("[SUCCESS] C99 source written to ");
-            std__io__println(emit_c_path);
-            return 0;
-        }
-    }
-    const char* out_path = output_bin;
-    if ((kobel_slen(out_path) == 0)) {
-        out_path = kobel_concat(str_strip_kb(input_path), ".exe");
-    }
-    const char* c_tmp_path = kobel_concat(str_strip_kb(input_path), ".tmp.c");
-    bool write_ok = std__io__write_file(c_tmp_path, c_code);
-    if ((!write_ok)) {
-        {
-            std__io__print("Error: Failed to write temporary C file: ");
-            std__io__println(c_tmp_path);
-            return 1;
-        }
-    }
-    std__io__println(kobel_concat(kobel_concat("[BUILDING] Invoking backend compiler (", c_compiler), ")..."));
-    const char* compile_cmd = "";
-    if ((kobel_streq(c_compiler, "clang") || kobel_streq(c_compiler, "gcc"))) {
-        {
-            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"");
-        }
-    } else {
-        {
-            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" \""), c_tmp_path), "\"");
-        }
-    }
-    int32_t exit_code = std__sys__exec(compile_cmd);
-    if ((exit_code != 0)) {
-        {
-            std__io__println("Error: Backend C compiler failed with error code 1");
-            return exit_code;
-        }
-    }
-    const char* del_c = kobel_concat(kobel_concat("del \"", c_tmp_path), "\" 2>nul");
-    std__sys__exec(del_c);
-    std__io__println(kobel_concat("[SUCCESS] Executable created: ", out_path));
-    return 0;
+    return compiler__driver__pipeline__compile_pipeline(opts);
 }
 
