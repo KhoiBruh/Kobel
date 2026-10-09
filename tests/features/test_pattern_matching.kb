@@ -1,0 +1,222 @@
+mod tests.features.test_pattern_matching;
+use std.io.*;
+
+// Case 1: Tagged union with i32 TAG
+struct Node {
+	pub tag: i32
+}
+
+struct Literal {
+	pub const TAG: i32 = 1;
+	pub tag: i32,
+	pub value: i32
+}
+
+struct Binary {
+	pub const TAG: i32 = 2;
+	pub tag: i32,
+	pub left: *Node,
+	pub right: *Node
+}
+
+fn eval(node: *Node): i32 {
+	when (node) {
+		is Literal -> {
+			// Smart cast: node has access to .value!
+			return node.value;
+		}
+		is Binary -> {
+			// Smart cast: node has access to .left and .right!
+			return eval(node.left) + eval(node.right);
+		}
+		else -> {
+			return 0;
+		}
+	}
+}
+
+fn eval_when_expr(node: *Node): i32 {
+	return when (node) {
+		is Literal -> node.value;
+		is Binary -> eval_when_expr(node.left) + eval_when_expr(node.right);
+		else -> 0;
+	};
+}
+
+// Case 2: Tagged union with Enum TAG and 'kind' field
+enum ExprKind {
+	NUM,
+	NEG
+}
+
+struct BaseExpr {
+	pub kind: ExprKind
+}
+
+struct NumExpr {
+	pub const TAG: ExprKind = ExprKind.NUM;
+	pub kind: ExprKind,
+	pub num: i32
+}
+
+struct NegExpr {
+	pub const TAG: ExprKind = ExprKind.NEG;
+	pub kind: ExprKind,
+	pub inner: *BaseExpr
+}
+
+fn eval_expr(e: *BaseExpr): i32 {
+	when (e) {
+		is NumExpr -> {
+			return e.num;
+		}
+		is NegExpr -> {
+			return -eval_expr(e.inner);
+		}
+		else -> {
+			return 0;
+		}
+	}
+}
+
+// Case 3: Pattern matching with alias 'is Type as alias'
+fn eval_with_alias(node: *Node): i32 {
+	when (node) {
+		is Literal as lit -> {
+			// 'lit' has type *Literal, while 'node' still has type *Node!
+			val check_orig: bool = (node is Literal);
+			if (check_orig) return lit.value;
+			return 0;
+		}
+		is Binary as b -> {
+			// 'b' has type *Binary, and we can pass original 'b.left' as *Node!
+			return eval_with_alias(b.left) + eval_with_alias(b.right);
+		}
+		else -> {
+			return 0;
+		}
+	}
+	return 0;
+}
+
+fn eval_expr_alias(node: *Node): i32 => when (node) {
+	is Literal as lit -> lit.value;
+	is Binary as b -> eval_expr_alias(b.left) + eval_expr_alias(b.right);
+	else -> 0;
+};
+
+// Case 4: Smart cast in 'if' statement
+fn eval_if_with_alias(node: *Node): i32 {
+	if (node is Literal as lit) {
+		return lit.value;
+	}
+	if (node is Binary as b) {
+		return eval_if_with_alias(b.left) + eval_if_with_alias(b.right);
+	}
+	return 0;
+}
+
+fn eval_if_no_alias(node: *Node): i32 {
+	if (node is Literal) {
+		return node.value;
+	}
+	if (node is Binary) {
+		return eval_if_no_alias(node.left) + eval_if_no_alias(node.right);
+	}
+	return 0;
+}
+
+fn main(): i32 {
+	println("=== Feature Suite: Pattern Matching & Smart Cast ===");
+
+	// Test Case 1:
+	var lit1 = Literal(Literal.TAG, 10);
+	var lit2 = Literal(Literal.TAG, 25);
+	var bin = Binary(Binary.TAG, &lit1 as *Node, &lit2 as *Node);
+
+	val r1 = eval(&lit1 as *Node);
+	println("eval(lit1) = ${r1}");
+	if (r1 != 10) {
+		println("FAIL: eval lit1");
+		return 1;
+	}
+
+	val r2 = eval(&bin as *Node);
+	println("eval(bin) = ${r2}");
+	if (r2 != 35) {
+		println("FAIL: eval bin");
+		return 1;
+	}
+
+	// Test when expression:
+	val r_expr = eval_when_expr(&bin as *Node);
+	println("eval_when_expr(bin) = ${r_expr}");
+	if (r_expr != 35) {
+		println("FAIL: eval_when_expr");
+		return 1;
+	}
+
+	// Test Case 3: 'is Type as alias'
+	val r_alias = eval_with_alias(&bin as *Node);
+	println("eval_with_alias(bin) = ${r_alias}");
+	if (r_alias != 35) {
+		println("FAIL: eval_with_alias");
+		return 1;
+	}
+
+	val r_alias_expr = eval_expr_alias(&bin as *Node);
+	println("eval_expr_alias(bin) = ${r_alias_expr}");
+	if (r_alias_expr != 35) {
+		println("FAIL: eval_expr_alias");
+		return 1;
+	}
+
+	// Test standalone 'is' operator:
+	val node_ptr = &bin as *Node;
+	val check_bin = node_ptr is Binary;
+	val check_lit = node_ptr is Literal;
+	println("node_ptr is Binary = ${check_bin}");
+	println("node_ptr is Literal = ${check_lit}");
+	if (!check_bin || check_lit) {
+		println("FAIL: standalone 'is' check");
+		return 1;
+	}
+
+	// Test Case 2: Enum-based TAG
+	var num = NumExpr(NumExpr.TAG, 42);
+	var neg = NegExpr(NegExpr.TAG, &num as *BaseExpr);
+
+	val enum_r1 = eval_expr(&num as *BaseExpr);
+	val enum_r2 = eval_expr(&neg as *BaseExpr);
+	println("eval_expr(num) = ${enum_r1}");
+	println("eval_expr(neg) = ${enum_r2}");
+	if (enum_r1 != 42 || enum_r2 != -42) {
+		println("FAIL: enum-based smart cast");
+		return 1;
+	}
+
+	// Test Case 4: Smart cast in 'if' statement (with alias and without alias)
+	val if_r1 = eval_if_with_alias(&bin as *Node);
+	println("eval_if_with_alias(bin) = ${if_r1}");
+	if (if_r1 != 35) {
+		println("FAIL: eval_if_with_alias");
+		return 1;
+	}
+
+	val if_r2 = eval_if_no_alias(&bin as *Node);
+	println("eval_if_no_alias(bin) = ${if_r2}");
+	if (if_r2 != 35) {
+		println("FAIL: eval_if_no_alias");
+		return 1;
+	}
+
+	val if_r3 = eval_if_no_alias(&lit1 as *Node);
+	println("eval_if_no_alias(lit1) = ${if_r3}");
+	if (if_r3 != 10) {
+		println("FAIL: eval_if_no_alias lit1");
+		return 1;
+	}
+
+	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");
+	return 0;
+}

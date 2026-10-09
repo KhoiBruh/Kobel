@@ -2,14 +2,14 @@
 setlocal enabledelayedexpansion
 
 echo ============================================================
-echo      Running Full Kobel Bootstrap Test Suite
+echo      Running Standardized Kobel Test Suite
 echo ============================================================
 
 set "FAILED_TESTS="
 set "PASS_COUNT=0"
 set "FAIL_COUNT=0"
 
-set "TEST_FILES=examples\test_bootstrap_lexer.kb examples\test_bootstrap_ast.kb examples\test_bootstrap_parser.kb examples\test_bootstrap_sema_types.kb examples\test_bootstrap_sema_symbol.kb examples\test_bootstrap_sema_decl.kb examples\test_bootstrap_sema_body.kb examples\test_bootstrap_codegen.kb examples\test_bootstrap_for.kb examples\test_bootstrap_interp.kb examples\test_bootstrap_trait.kb examples\test_bootstrap_fmt.kb examples\test_bootstrap_when_yield.kb examples\test_bootstrap_compound_assign.kb examples\test_bootstrap_list_literal.kb examples\test_bootstrap_indexing.kb examples\test_bootstrap_update_op.kb examples\test_bootstrap_default_args.kb examples\test_bootstrap_generic_target_type.kb examples\test_smart_cast.kb examples\std_demo.kb"
+set "TEST_FILES=tests\unit\test_lexer.kb tests\unit\test_ast.kb tests\unit\test_parser.kb tests\unit\test_sema_types.kb tests\unit\test_sema_symbol.kb tests\unit\test_sema_decl.kb tests\unit\test_sema_body.kb tests\unit\test_codegen.kb tests\unit\test_fmt.kb tests\features\test_syntax.kb tests\features\test_control_flow.kb tests\features\test_collections.kb tests\features\test_types.kb tests\features\test_pattern_matching.kb tests\stdlib\test_std.kb"
 
 for %%F in (%TEST_FILES%) do (
     if exist "%%F" (
@@ -40,6 +40,6 @@ if %FAIL_COUNT% gtr 0 (
     echo [ERROR] The following tests failed:%FAILED_TESTS%
     exit /b 1
 ) else (
-    echo [SUCCESS] All bootstrap tests passed successfully!
+    echo [SUCCESS] All standardized tests passed successfully!
     exit /b 0
 )

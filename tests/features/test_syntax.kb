@@ -1,0 +1,306 @@
+mod tests.features.test_syntax;
+
+use std.io.*;
+use std.collections.list.List;
+
+// ============================================================================
+// Feature Suite 1: Core Syntax, Operators, and Control Expressions
+//
+// Consolidates:
+//   - Compound Assignment (+=, -=, *=, /=, %=)
+//   - Increment / Decrement (++, --)
+//   - When / Yield expressions
+//   - Struct constants (pub const TAG)
+//   - Default arguments (functions, methods, struct fields)
+//   - Null safety & Elvis operator (*T?, ?:)
+// ============================================================================
+
+struct Counter {
+	pub count: i32
+}
+
+struct PointConst {
+	pub const TAG: i32 = 42;
+	pub const ZERO = 0;
+	pub x: i32,
+	pub y: i32
+}
+
+struct NodeConst {
+	const KIND = 100;
+	pub value: i32
+}
+
+struct ConfigWithDefaults {
+	pub host: str,
+	pub port: i32 = 8080,
+	pub debug: bool = false,
+	pub tags: List<str> = List<str>()
+}
+
+struct PointWithDefaults {
+	pub x: i32,
+	pub y: i32
+}
+
+impl PointWithDefaults {
+	pub fn new(x: i32 = 0, y: i32 = 0): PointWithDefaults => Self(x, y);
+
+	pub fn add_offset(self, dx: i32, dy: i32 = 5): PointWithDefaults {
+		return PointWithDefaults(self.x + dx, self.y + dy);
+	}
+}
+
+fn greet_default(name: str, greeting: str = "Hello", punctuation: str = "!"): str {
+	return "${greeting}, ${name}${punctuation}";
+}
+
+fn add_nums_default(a: i32, b: i32 = 10, c: i32 = 20): i32 {
+	return a + b + c;
+}
+
+fn test_compound_assign(): bool {
+	var x: i32 = 10;
+	x += 5;
+	if (x != 15) return false;
+	x -= 3;
+	if (x != 12) return false;
+	x *= 2;
+	if (x != 24) return false;
+	x /= 4;
+	if (x != 6) return false;
+	x %= 4;
+	if (x != 2) return false;
+
+	var s: str = "hello";
+	s += " ";
+	s += "world!";
+	if (s != "hello world!") return false;
+
+	var total: i32 = 0;
+	for (i in 0..<5) {
+		total += i;
+	}
+	if (total != 10) return false;
+
+	var c = Counter(10);
+	c.count += 5;
+	if (c.count != 15) return false;
+	c.count -= 2;
+	c.count *= 3;
+	if (c.count != 39) return false;
+
+	return true;
+}
+
+fn test_update_operators(): bool {
+	var x: i32 = 10;
+	x++;
+	if (x != 11) return false;
+	x--;
+	if (x != 10) return false;
+
+	var u: usz = 100;
+	u++;
+	if (u != 101) return false;
+	u--;
+	if (u != 100) return false;
+
+	var f: f32 = 1.5;
+	f++;
+	if (f != 2.5) return false;
+	f--;
+	if (f != 1.5) return false;
+
+	var c = Counter(41);
+	c.count++;
+	if (c.count != 42) return false;
+	c.count--;
+	if (c.count != 41) return false;
+
+	var i = 0;
+	while (i < 5) {
+		i++;
+	}
+	if (i != 5) return false;
+
+	var res = 10;
+	val opt = 1;
+	when (opt) {
+		1 -> res++;
+		else -> res--;
+	}
+	if (res != 11) return false;
+
+	return true;
+}
+
+fn helper_when_yield(k: i32): str {
+	return when (k) {
+		10 -> "ten";
+		20 -> {
+			val doubled = k * 2;
+			yield "calculated_${doubled}";
+		}
+		else -> {
+			yield "default_value";
+		}
+	};
+}
+
+fn test_when_yield(): bool {
+	val x: i32 = 2;
+	val res = when (x) {
+		1 -> "one";
+		2 -> {
+			val prefix = "number_";
+			val n = 2;
+			yield "${prefix}${n}";
+		}
+		else -> "other";
+	};
+	if (res != "number_2") return false;
+
+	if (helper_when_yield(10) != "ten") return false;
+	if (helper_when_yield(20) != "calculated_40") return false;
+	if (helper_when_yield(99) != "default_value") return false;
+
+	val a = 5;
+	val b = 10;
+	val category = when {
+		a > b -> "greater";
+		a < b -> {
+			val diff = b - a;
+			yield "smaller_by_${diff}";
+		}
+		else -> "equal";
+	};
+	if (category != "smaller_by_5") return false;
+
+	return true;
+}
+
+fn test_struct_constants(): bool {
+	val t = PointConst.TAG;
+	val z = PointConst.ZERO;
+	if (t != 42) return false;
+	if (z != 0) return false;
+
+	val nk = NodeConst.KIND;
+	if (nk != 100) return false;
+
+	return true;
+}
+
+fn test_default_arguments(): bool {
+	if (greet_default("Alice") != "Hello, Alice!") return false;
+	if (greet_default("Bob", "Hi") != "Hi, Bob!") return false;
+	if (greet_default("Charlie", "Hey", "?") != "Hey, Charlie?") return false;
+
+	if (add_nums_default(5) != 35) return false;
+	if (add_nums_default(5, 1) != 26) return false;
+	if (add_nums_default(5, 1, 2) != 8) return false;
+
+	val c1 = ConfigWithDefaults("localhost");
+	if (c1.host != "localhost" || c1.port != 8080 || c1.debug != false || c1.tags.len != 0) return false;
+
+	val c2 = ConfigWithDefaults("0.0.0.0", 3000, true);
+	if (c2.host != "0.0.0.0" || c2.port != 3000 || c2.debug != true) return false;
+
+	val p0 = PointWithDefaults();
+	if (p0.x != 0 || p0.y != 0) return false;
+
+	val p1 = PointWithDefaults(10);
+	if (p1.x != 10 || p1.y != 0) return false;
+
+	val p2 = PointWithDefaults(10, 20);
+	if (p2.x != 10 || p2.y != 20) return false;
+
+	val p3 = p2.add_offset(5);
+	if (p3.x != 15 || p3.y != 25) return false;
+
+	return true;
+}
+
+fn elvis_helper_ret(val ptr: *i32?): i32 {
+	val unwrapped = ptr ?: return 42;
+	return *unwrapped;
+}
+
+fn test_null_safety(): bool {
+	val p_null: *i32? = null;
+	if (p_null != null) return false;
+
+	val x: i32 = 10;
+	val p_val: *i32? = &x;
+	if (p_val == null) return false;
+
+	val p_nn: *i32 = &x;
+	val p_widened: *i32? = p_nn;
+	if (p_widened == null) return false;
+
+	val fb1: *i32 = p_null ?: &x;
+	if (*fb1 != 10) return false;
+
+	val y: i32 = 20;
+	val fb2: *i32 = p_val ?: &y;
+	if (*fb2 != 10) return false;
+
+	if (elvis_helper_ret(null) != 42) return false;
+	val val_30: i32 = 30;
+	if (elvis_helper_ret(&val_30) != 30) return false;
+
+	var break_count: i32 = 0;
+	for (i in 0..5) {
+		val p: *i32? = if (i == 3) null else &x;
+		val unwrapped = p ?: break;
+		break_count = break_count + 1;
+	}
+	if (break_count != 3) return false;
+
+
+	return true;
+}
+
+fn main(): i32 {
+	println("=== Feature Suite: Core Syntax & Operators ===");
+
+	if (!test_compound_assign()) {
+		println("  [FAIL] test_compound_assign");
+		return 1;
+	}
+	println("  [PASS] test_compound_assign");
+
+	if (!test_update_operators()) {
+		println("  [FAIL] test_update_operators");
+		return 1;
+	}
+	println("  [PASS] test_update_operators");
+
+	if (!test_when_yield()) {
+		println("  [FAIL] test_when_yield");
+		return 1;
+	}
+	println("  [PASS] test_when_yield");
+
+	if (!test_struct_constants()) {
+		println("  [FAIL] test_struct_constants");
+		return 1;
+	}
+	println("  [PASS] test_struct_constants");
+
+	if (!test_default_arguments()) {
+		println("  [FAIL] test_default_arguments");
+		return 1;
+	}
+	println("  [PASS] test_default_arguments");
+
+	if (!test_null_safety()) {
+		println("  [FAIL] test_null_safety");
+		return 1;
+	}
+	println("  [PASS] test_null_safety");
+
+	println("=== ALL CORE SYNTAX TESTS PASSED! ===");
+	return 0;
+}

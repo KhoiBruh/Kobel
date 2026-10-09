@@ -1,0 +1,353 @@
+mod tests.features.test_types;
+
+use std.io.print;
+use std.io.println;
+use testsupport.box.*;
+use std.collections.list.*;
+use std.collections.hash_map.*;
+use std.collections.string_builder.*;
+use std.mem.arena.*;
+
+// ============================================================================
+// Trait tests: required methods, default methods, inheritance, generic bounds
+// ============================================================================
+
+struct Tally {
+	pub fails: i32
+}
+
+fn check_i(got: i32, want: i32, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		println(": got ${got}, want ${want}");
+	}
+}
+
+fn check_str(got: str, want: str, msg: str, var t: &Tally) {
+	if (got != want) {
+		t.fails = t.fails + 1;
+		print("  [FAIL] ");
+		print(msg);
+		print(": got '");
+		print(got);
+		print("' want '");
+		print(want);
+		println("'");
+	}
+}
+
+// --- 1. required method + default method -----------------------------------
+
+trait Greeter {
+	fn name(val self): str;
+	fn greet(val self): str => "Hello " + self.name();
+	fn shout(val self): str => self.greet() + "!";
+}
+
+struct Person {
+	pub who: str
+}
+
+impl Greeter for Person {
+	fn name(val self): str => self.who;
+}
+
+fn test_required_and_default(var t: &Tally) {
+	val p = Person("Kobel");
+	check_str(p.name(), "Kobel", "required method", t);
+	check_str(p.greet(), "Hello Kobel", "default calls a required method", t);
+	check_str(p.shout(), "Hello Kobel!", "default calls another default", t);
+}
+
+// --- 2. trait inheritance --------------------------------------------------
+
+trait Measurable {
+	fn measure(val self): i32;
+}
+
+trait Summarizable : Measurable {
+	fn summary(val self): i32 => self.measure() * 2;
+}
+
+struct Box {
+	pub w: i32,
+	pub h: i32
+}
+
+impl Summarizable for Box {
+	fn measure(val self): i32 => self.w * self.h;
+}
+
+fn test_inheritance(var t: &Tally) {
+	val b = Box(4, 5);
+	check_i(b.measure(), 20, "base method comes from the impl", t);
+	check_i(b.summary(), 40, "inherited default uses the base method", t);
+}
+
+// --- 3. overriding a default ----------------------------------------------
+
+struct Fake {
+	pub v: i32
+}
+
+impl Summarizable for Fake {
+	fn measure(val self): i32 => self.v;
+	fn summary(val self): i32 => 999;
+}
+
+fn test_override(var t: &Tally) {
+	val f = Fake(1);
+	check_i(f.summary(), 999, "an impl may override a default", t);
+}
+
+// --- 4. generic bounds -----------------------------------------------------
+
+fn announce<T: Greeter>(val item: T): str => item.greet();
+
+fn total<T: Measurable>(val item: T): i32 => item.measure();
+
+fn score<T: Summarizable>(val item: T): i32 => item.summary();
+
+fn test_bounds(var t: &Tally) {
+	val p = Person("Ada");
+	check_str(announce<Person>(p), "Hello Ada", "bound on the trait itself", t);
+	val b = Box(3, 7);
+	check_i(total<Box>(b), 21, "bound on a base trait", t);
+	check_i(score<Box>(b), 42, "bound satisfied through inheritance", t);
+}
+
+// --- 5. two structs implementing one trait ---------------------------------
+
+trait Named {
+	fn tag(val self): str;
+}
+
+struct Alpha {
+	pub id: i32
+}
+
+struct Beta {
+	pub id: i32
+}
+
+impl Named for Alpha {
+	fn tag(val self): str => "alpha";
+}
+
+impl Named for Beta {
+	fn tag(val self): str => "beta";
+}
+
+fn label<T: Named>(val item: T): str => item.tag();
+
+fn test_two_impls(var t: &Tally) {
+	check_str(label<Alpha>(Alpha(1)), "alpha", "first impl of a trait", t);
+	check_str(label<Beta>(Beta(2)), "beta", "second impl of the same trait", t);
+}
+
+// --- 6. methods on built-in types ------------------------------------------
+
+impl i32 {
+	fn twice(val self): i32 => self * 2;
+}
+
+impl str {
+	fn shout(val self): str => self + "!";
+}
+
+fn test_prim_methods(var t: &Tally) {
+	val n: i32 = 21;
+	check_i(n.twice(), 42, "method on a built-in numeric type", t);
+	val s = "hi";
+	check_str(s.shout(), "hi!", "method on str", t);
+}
+
+// --- 7. overloaded methods in an impl --------------------------------------
+
+struct Counter {
+	pub n: i32
+}
+
+impl Counter {
+	fn add_to(val self): i32 => self.n;
+	fn add_to(val self, extra: i32): i32 => self.n + extra;
+	fn add_to(val self, a: i32, b: i32): i32 => self.n + a + b;
+}
+
+fn test_overloads(var t: &Tally) {
+	val c = Counter(10);
+	check_i(c.add_to(), 10, "overload: no argument", t);
+	check_i(c.add_to(5), 15, "overload: one argument", t);
+	check_i(c.add_to(5, 2), 17, "overload: two arguments", t);
+}
+
+// --- 8. Self inside an impl ------------------------------------------------
+
+struct Vec2 {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Vec2 {
+	fn shifted(val self, d: i32): Vec2 => Self(self.x + d, self.y + d);
+	fn origin(): Vec2 => Self(0, 0);
+}
+
+fn test_self(var t: &Tally) {
+	val v = Vec2(1, 2);
+	val w = v.shifted(3);
+	check_i(w.x, 4, "Self builds a value (x)", t);
+	check_i(w.y, 5, "Self builds a value (y)", t);
+}
+
+// --- 9. Kotlin-style construction through `new` overloads ------------------
+
+struct Pair {
+	pub a: i32,
+	pub b: i32
+}
+
+impl Pair {
+	fn new(): Pair => Self(0, 0);
+	fn new(v: i32): Pair => Self(v, v);
+	fn new(a: i32, b: i32): Pair => Self(a, b);
+}
+
+fn test_new_overloads(var t: &Tally) {
+	val d = Pair();
+	check_i(d.a, 0, "Pair() dispatches to new()", t);
+	val s = Pair(7);
+	check_i(s.b, 7, "Pair(v) dispatches to new(v)", t);
+	val f = Pair(3, 4);
+	check_i(f.a, 3, "Pair(a,b) dispatches to new(a,b)", t);
+	check_i(f.b, 4, "Pair(a,b) dispatches to new(a,b) (b)", t);
+}
+
+// --- 10. non-pub fields: other modules must use a factory -------------------
+
+fn test_private_fields(var t: &Tally) {
+	val b = make_box(42);
+	check_i(boxed_value(b), 42, "type with a private field built through its factory", t);
+}
+
+// --- 11. generic impl of a trait -------------------------------------------
+
+struct Pair<T> {
+	pub a: T,
+	pub b: T
+}
+
+impl Pair<T> {
+	fn new(): Pair<T> => Self(0 as T, 0 as T);
+	fn new(v: T): Pair<T> => Self(v, v);
+}
+
+fn test_generic_trait_impl(var t: &Tally) {
+	val p = Pair<i32>();
+	check_i(p.a, 0, "generic impl: Pair<i32>() uses new()", t);
+	val q = Pair<i32>(7);
+	check_i(q.b, 7, "generic impl: Pair<i32>(v) uses new(v)", t);
+}
+
+// --- 12. std.List built through the New trait -------------------------------
+
+fn test_list_ctor(var t: &Tally) {
+	var xs = List<i32>();
+	check_i(xs.len, 0, "List<i32>() starts empty", t);
+	xs.add(7);
+	check_i(xs.len, 1, "List<i32>() is usable", t);
+	check_i(xs.get(0), 7, "List<i32>() holds the value", t);
+	xs.delete();
+
+	var ys = List<i32>(16UZ);
+	check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
+	ys.delete();
+}
+
+// --- 13. std types built through New ---------------------------------------
+//
+// Arena / HashMap / StringBuilder now take constructor syntax; their private
+// fields mean this is the only way to build them from another module.
+
+fn test_std_ctors(var t: &Tally) {
+	var a = Arena(4096UZ);
+	val p = a.alloc<i32>();
+	*p = 7;
+	check_i(*p, 7, "Arena(block_size) + a.alloc<T>", t);
+	val p2 = a.alloc_val<i32>(42);
+	check_i(*p2, 42, "a.alloc_val<T>(value)", t);
+	a.delete();
+
+	var dflt = Arena();
+	dflt.delete();
+
+	var m = HashMap<i32>();
+	m.put("k", 5);
+	check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
+	m.delete();
+
+	var sb = StringBuilder();
+	sb.append_str("hi");
+	sb.append_i32(42);
+	check_str(sb.to_str(), "hi42", "StringBuilder() ctor", t);
+	sb.delete();
+}
+
+
+struct UserTargetType {
+	pub name: str,
+	pub tags: List<str> = List()
+}
+
+fn make_numbers_target(): List<i32> {
+	return List();
+}
+
+fn test_generic_target_typing(var t: &Tally) {
+	val nums: List<i32> = List();
+	check_i(nums.len as i32, 0, "nums is List<i32> with len 0", t);
+
+	var words: List<str> = List();
+	words.add("hello");
+	words.add("world");
+	check_i(words.len as i32, 2, "words has len 2", t);
+	check_str(words[0], "hello", "words[0] == hello", t);
+
+	val u = UserTargetType("Alice");
+	check_str(u.name, "Alice", "user name", t);
+	check_i(u.tags.len as i32, 0, "user tags default List()", t);
+
+	val res = make_numbers_target();
+	check_i(res.len as i32, 0, "res from make_numbers_target", t);
+}
+
+fn main(): i32 {
+	println("=== Feature Suite: Traits, OOP & Types ===");
+
+	var t = Tally(0);
+
+	test_required_and_default(&t);
+	test_inheritance(&t);
+	test_override(&t);
+	test_bounds(&t);
+	test_two_impls(&t);
+	test_prim_methods(&t);
+	test_overloads(&t);
+	test_self(&t);
+	test_new_overloads(&t);
+	test_private_fields(&t);
+	test_generic_trait_impl(&t);
+	test_list_ctor(&t);
+	test_std_ctors(&t);
+	test_generic_target_typing(&t);
+
+	if (t.fails != 0) {
+		println("[FAILED] Bootstrap trait tests");
+		return 1;
+	}
+
+	println("=== ALL TRAITS, OOP & TYPE TESTS PASSED! ===");
+	return 0;
+}
