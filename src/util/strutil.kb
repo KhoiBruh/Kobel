@@ -155,6 +155,18 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
+	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
+	pub fn to_win_path(val self): str {
+		val buf = raw_alloc(self.len + 1);
+		for (i in 0UZ..<self.len) {
+			val c = self[i];
+			if (c == '/') buf[i] = '\\' as u8;
+			else buf[i] = c as u8;
+		}
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
 	pub fn in_list(val self, list: List<str>): bool {
 		for (item in list) {
 			if (item == self) return true;

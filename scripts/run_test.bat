@@ -40,10 +40,12 @@ echo [RUNNING] Executing %OUT_EXE% ...
 .\%OUT_EXE%
 set "RUN_CODE=%errorlevel%"
 
-:: Cleanup executable
+:: Cleanup executable and temporary files
 if exist "%OUT_EXE%" del "%OUT_EXE%" >nul 2>nul
-set "OBJ_FILE=%~n1.obj"
-if exist "%OBJ_FILE%" del "%OBJ_FILE%" >nul 2>nul
+if exist "%~n1.obj" del "%~n1.obj" >nul 2>nul
+if exist "%~n1.tmp.obj" del "%~n1.tmp.obj" >nul 2>nul
+if exist "%~dpn1.tmp.obj" del "%~dpn1.tmp.obj" >nul 2>nul
+if exist "%~dpn1.tmp.c" del "%~dpn1.tmp.c" >nul 2>nul
 
 if %RUN_CODE% neq 0 (
     echo [TEST FAILED] Test exited with code %RUN_CODE%
