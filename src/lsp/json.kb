@@ -79,6 +79,7 @@ impl JsonValue {
 			sb.append_str("null");
 			return;
 		}
+
 		when (self.kind) {
 			JsonKind.JNULL -> sb.append_str("null");
 			JsonKind.JBOOL -> sb.append_bool(self.bool_val);
@@ -117,26 +118,23 @@ impl JsonValue {
 	}
 
 	pub fn set(var self, key: str, val_item: *JsonValue) {
-		if (self.kind == JsonKind.JOBJ) {
-			for (i in 0..<self.obj_keys.len) {
-				if (self.obj_keys[i] == key) {
-					self.obj_vals[i] = val_item;
-					return;
-				}
+		if (self.kind != JsonKind.JOBJ) return;
+		for (i in 0..<self.obj_keys.len) {
+			if (self.obj_keys[i] == key) {
+				self.obj_vals[i] = val_item;
+				return;
 			}
-			self.obj_keys.add(key);
-			self.obj_vals.add(val_item);
 		}
+		self.obj_keys.add(key);
+		self.obj_vals.add(val_item);
 	}
 
 	pub fn get(val self, key: str): *JsonValue {
-		if (self != null && self.kind == JsonKind.JOBJ) {
-			for (i in 0..<self.obj_keys.len) {
-				if (self.obj_keys[i] == key) {
-					return self.obj_vals[i];
-				}
-			}
+		if (self == null && self.kind != JsonKind.JOBJ) return json_null();
+		for (i in 0..<self.obj_keys.len) {
+			if (self.obj_keys[i] == key) return self.obj_vals[i];
 		}
+
 		return json_null();
 	}
 
@@ -231,29 +229,34 @@ impl JsonParser {
 		var sb = StringBuilder();
 		while (!self.is_end()) {
 			val c = self.advance();
-			if (c == '"') break;
-			if (c == '\\') {
-				if (self.is_end()) break;
-				val esc = self.advance();
-				when (esc) {
-					'"' -> sb.append_char('"');
-					'\\' -> sb.append_char('\\');
-					'/' -> sb.append_char('/');
-					'n' -> sb.append_char('\n');
-					'r' -> sb.append_char('\r');
-					't' -> sb.append_char('\t');
-					'u' -> {
-						var u_count: usz = 0;
-						while (u_count < 4 && !self.is_end()) {
-							self.advance();
-							u_count++;
+			when (c) {
+				'"' -> break;
+				'\\' -> {
+					if (self.is_end()) break;
+
+					val esc = self.advance();
+					when (esc) {
+						'"' -> sb.append_char('"');
+						'\\' -> sb.append_char('\\');
+						'/' -> sb.append_char('/');
+						'n' -> sb.append_char('\n');
+						'r' -> sb.append_char('\r');
+						't' -> sb.append_char('\t');
+						'u' -> {
+							var u_count = 0UZ;
+							while (u_count < 4 && !self.is_end()) {
+								self.advance();
+								u_count++;
+							}
+							sb.append_char('?');
 						}
-						sb.append_char('?');
+						else -> sb.append_char(esc);
 					}
-					else -> sb.append_char(esc);
 				}
-			} else sb.append_char(c);
+				else -> sb.append_char(c);
+			}
 		}
+
 		val res = sb.to_str();
 		sb.delete();
 		return res;
@@ -265,10 +268,11 @@ impl JsonParser {
 			sign = -1;
 			self.advance();
 		}
+
 		var val_num = 0L;
 		while (!self.is_end() && self.peek().is_digit()) {
 			val c = self.advance();
-			val d = ((c as i32) - 48) as i64;
+			val d = (c as i32) - 48;
 			val_num = val_num * 10 + d;
 		}
 
@@ -282,6 +286,7 @@ impl JsonParser {
 			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
 			while (!self.is_end() && self.peek().is_digit()) self.advance();
 		}
+
 		return val_num * sign;
 	}
 
@@ -345,24 +350,28 @@ impl JsonParser {
 		if (self.is_end()) return json_null();
 
 		val c = self.peek();
-		if (c == '"') return json_str(self.parse_string());
-		if (c == '{') return self.parse_object();
-		if (c == '[') return self.parse_array();
-		if (c == '-' || c.is_digit()) return json_num(self.parse_number());
-		if (c == 't') {
-			for (i in 0..<4) if (!self.is_end()) self.advance();
-			return json_bool(true);
-		}
-		if (c == 'f') {
-			for (i in 0..<5) if (!self.is_end()) self.advance();
-			return json_bool(false);
-		}
-		if (c == 'n') {
-			for (i in 0..<4) if (!self.is_end()) self.advance();
-			return json_null();
-		}
-		self.advance();
-		return json_null();
+		return when {
+			c == '"' -> json_str(self.parse_string());
+			c == '{' -> self.parse_object();
+			c == '[' -> self.parse_array();
+			c == '-' || c.is_digit() -> json_num(self.parse_number());
+			c == 't' -> {
+				for (i in 0..<4) if (!self.is_end()) self.advance();
+				yield json_bool(true);
+			}
+			c == 'f' -> {
+				for (i in 0..<5) if (!self.is_end()) self.advance();
+				yield json_bool(false);
+			}
+			c == 'n' -> {
+				for (i in 0..<4) if (!self.is_end()) self.advance();
+				yield json_null();
+			}
+			else -> {
+				self.advance();
+				yield json_null();
+			}
+		};
 	}
 
 }

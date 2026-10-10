@@ -84,9 +84,7 @@ impl HashMap<V> {
 		val values = alloc_array<V>(new_cap);
 		val new_occ = alloc_array<bool>(new_cap);
 
-		for (j in 0..<new_cap) {
-			new_occ[j] = false;
-		}
+		for (j in 0..<new_cap) new_occ[j] = false;
 
 		self.keys = keys;
 		self.values = values;

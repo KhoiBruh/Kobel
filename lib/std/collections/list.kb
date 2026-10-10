@@ -62,6 +62,15 @@ impl List<T> {
 		return self.data[self.len];
 	}
 
+//	pub fn find(val self, value: T): T {
+//		for (i in 0..self.len) {
+//			val item = self.data[i];
+//			if (item == value) return item;
+//		}
+
+//		return null;
+//	}
+
 	pub fn clear(var self) => self.len = 0;
 
 	fn grow(var self) {
@@ -78,7 +87,6 @@ impl List<T> {
 			self.cap = new_cap;
 		}
 	}
-
 
 	pub fn remove_at(var self, index: usz): T {
 		val item = self.data[index];
@@ -101,8 +109,8 @@ impl List<T> {
 	}
 
 	pub fn clone(val self): Self<T> {
-		val cap = if (self.cap > 0UZ) self.cap else 4UZ;
-		var res = Self(alloc_array<T>(cap), 0UZ, cap);
+		val cap = if (self.cap > 0) self.cap else 4;
+		var res = Self(alloc_array<T>(cap), 0, cap);
 		for (i in 0..<self.len) res.add(self.data[i]);
 		return res;
 	}

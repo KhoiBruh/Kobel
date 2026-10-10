@@ -9,7 +9,9 @@ impl char {
 
 	pub fn is_whitespace(val self) => self == ' ' || self == '\t' || self == '\n' || self == '\r';
 
-	pub fn is_hex_digit(val self) => self.is_digit() || (self >= 'a' && self <= 'f') || (self >= 'A' && self <= 'F');
+	pub fn is_hex_digit(val self) => self.is_digit() ||
+		(self >= 'a' && self <= 'f') ||
+		(self >= 'A' && self <= 'F');
 
 	pub fn to_lower(val self): char {
 		if (self >= 'A' && self <= 'Z') {

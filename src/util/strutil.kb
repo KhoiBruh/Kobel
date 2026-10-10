@@ -58,7 +58,7 @@ impl str {
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
-		var last: usz = 0;
+		var last = 0UZ;
 		var found = false;
 		for (i in 0..<self.len) {
 			if (str_is_sep(self[i])) {
@@ -66,35 +66,38 @@ impl str {
 				found = true;
 			}
 		}
+
 		if (!found) return "";
 		return self.slice(0, last);
 	}
 
 	// File name part of a path (input with separators included).
 	pub fn base_name(val self): str {
-		var start: usz = 0;
+		var start = 0UZ;
 		for (i in 0..<self.len) {
 			if (str_is_sep(self[i])) start = i + 1;
 		}
+
 		return self.slice(start);
 	}
 
 	// Joins a directory and a relative path with a single '/' separator.
 	pub fn join_path(val self, rel: str): str {
-		if (self.len == 0UZ) return rel;
-		if (str_is_sep(self[self.len - 1UZ])) return "${self}${rel}";
+		if (self.len == 0) return rel;
+		if (str_is_sep(self[self.len - 1])) return "${self}${rel}";
 		return "${self}/${rel}";
 	}
 
 	pub fn split_dots(val self): List<str> {
 		var parts = List<str>();
-		var start: usz = 0;
+		var start = 0UZ;
 		for (i in 0..<self.len) {
 			if (self[i] == '.') {
 				parts.add(self.slice(start, i));
 				start = i + 1;
 			}
 		}
+
 		parts.add(self.slice(start));
 		return parts;
 	}
@@ -134,23 +137,22 @@ impl str {
 			buf[w] = c as u8;
 			w++;
 		}
+
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
 	}
 
-
 	pub fn normalize_path(val self): str {
 		val buf = raw_alloc(self.len + 1);
-		for (i in 0UZ..<self.len) {
+		for (i in 0..<self.len) {
 			val c = self[i];
-			if (c == '\\') {
-				buf[i] = '/' as u8;
-			} else if (c >= 'A' && c <= 'Z') {
-				buf[i] = ((c as i32) + 32) as u8;
-			} else {
-				buf[i] = c as u8;
-			}
+			buf[i] = when {
+				c == '\\' -> '/' as u8;
+				c >= 'A' && c <= 'Z' -> ((c as i32) + 32) as u8;
+				else -> c as u8;
+			};
 		}
+
 		buf[self.len] = 0;
 		return str_from_bytes(buf, self.len);
 	}
@@ -158,11 +160,11 @@ impl str {
 	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
 	pub fn to_win_path(val self): str {
 		val buf = raw_alloc(self.len + 1);
-		for (i in 0UZ..<self.len) {
+		for (i in 0..<self.len) {
 			val c = self[i];
-			if (c == '/') buf[i] = '\\' as u8;
-			else buf[i] = c as u8;
+			buf[i] = if (c == '/') '\\' as u8 else c as u8;
 		}
+
 		buf[self.len] = 0;
 		return str_from_bytes(buf, self.len);
 	}
@@ -183,14 +185,12 @@ impl str {
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total: usz = 0;
-	for (i in 0..<count) {
-		total += parts[i].len;
-	}
+	var total = 0UZ;
+	for (i in 0..<count) total += parts[i].len;
 	if (count > 1) total += (count - 1);
 
 	val buf = raw_alloc(total + 1);
-	var w: usz = 0;
+	var w = 0UZ;
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {
@@ -202,6 +202,7 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 			w++;
 		}
 	}
+
 	buf[w] = 0;
 	return str_from_bytes(buf, w);
 }

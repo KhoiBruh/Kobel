@@ -34,62 +34,53 @@ impl StringBuilder {
 	pub fn append_str(var self, s: str) {
 		val s_len = s.len;
 		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
-		for (i in 0..<s_len) {
-			self.buf[self.len + i] = s[i] as u8;
-		}
+		for (i in 0..<s_len) self.buf[self.len + i] = s[i] as u8;
 		self.len += s_len;
 	}
 
 	pub fn append_i64(var self, n: i64) {
 		var v = n;
-		if (v == 0L) {
+		if (v == 0) {
 			self.append_char('0');
 			return;
 		}
-		if (v < 0L) {
+		if (v < 0) {
 			self.append_char('-');
 			v = -v;
 		}
 
 		// Emit from the most significant digit: find that digit's place value
 		// first, then peel digits off one at a time (no temporary array needed).
-		var place: i64 = 1L;
+		var place = 1L;
 		var probe = v;
-		while (probe >= 10L) {
-			probe /= 10L;
-			place *= 10L;
+		while (probe >= 10) {
+			probe /= 10;
+			place *= 10;
 		}
+
 		var rest = v;
-		while (place > 0L) {
+		while (place > 0) {
 			val digit = rest / place;
 			self.append_char(((digit as i32) + 48) as char);
 			rest -= digit * place;
-			place /= 10L;
+			place /= 10;
 		}
 	}
 
 	pub fn append_i32(var self, n: i32) => self.append_i64(n as i64);
 
-	pub fn append_bool(var self, b: bool) {
-		if (b) self.append_str("true");
-		else self.append_str("false");
-	}
+	pub fn append_bool(var self, b: bool) => if (b) self.append_str("true") else self.append_str("false");
 
 	pub fn append_line(var self, s: str) {
 		self.append_str(s);
 		self.append_char('\n');
 	}
 
-	pub fn is_empty(val self): bool => self.len == 0UZ;
+	pub fn is_empty(val self) => self.len == 0;
 
-	pub fn last_char(val self): char {
-		if (self.len == 0UZ) return '\0';
-		return self.buf[self.len - 1UZ] as char;
-	}
+	pub fn last_char(val self) => if (self.len == 0) '\0' else self.buf[self.len - 1] as char;
 
-	pub fn clear(var self) {
-		self.len = 0;
-	}
+	pub fn clear(var self) => self.len = 0;
 
 	fn grow(var self, min_cap: usz) {
 		var new_cap = self.cap * 2;
@@ -103,9 +94,7 @@ impl StringBuilder {
 
 	// NOTE: block body instead of `=> raw_release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
-	pub fn delete(self) {
-		raw_release(self.buf);
-	}
+	pub fn delete(self) => raw_release(self.buf);
 }
 
 // `for (c in sb)` walks the built characters.
