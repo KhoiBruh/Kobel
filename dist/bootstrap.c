@@ -54,6 +54,7 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInf
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
+typedef struct std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str;
 typedef struct std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment;
 typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue;
 typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
@@ -203,6 +204,8 @@ typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
 typedef struct compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions;
+typedef struct config__project__TomlDoc config__project__TomlDoc;
+typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct fmt__options__FormatOptions fmt__options__FormatOptions;
 typedef struct std__collections__string_builder__StringRaw std__collections__string_builder__StringRaw;
 typedef struct std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder;
@@ -353,6 +356,14 @@ struct std__collections__list__List_compiler__lexer__token__Token {
 
 struct std__collections__list__List_compiler__loader__loader__LoadedModule {
     compiler__loader__loader__LoadedModule* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__hash_map__HashMap_str {
+    const char** keys;
+    const char** values;
+    bool* occupied;
     size_t len;
     size_t cap;
 };
@@ -919,6 +930,20 @@ struct compiler__driver__pipeline__CompileOptions {
     const char* c_compiler;
     bool only_emit_c;
     std__collections__list__List_str extra_roots;
+    bool quiet;
+};
+
+struct config__project__TomlDoc {
+    std__collections__hash_map__HashMap_str entries;
+};
+
+struct config__project__ProjectConfig {
+    const char* name;
+    const char* version;
+    const char* entry;
+    const char* output;
+    const char* cc;
+    const char* test_dir;
 };
 
 struct fmt__options__FormatOptions {
@@ -1794,6 +1819,15 @@ compiler__loader__loader__LoadedModule std__collections__list__List_compiler__lo
 void std__collections__list__List_compiler__loader__loader__LoadedModule_insert(std__collections__list__List_compiler__loader__loader__LoadedModule* self, size_t index, compiler__loader__loader__LoadedModule value);
 std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule_clone(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
+bool* std__mem__alloc__alloc_array_bool(size_t count);
+void std__mem__alloc__release_bool(bool* ptr);
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void);
+size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key);
+void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
+bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key);
+const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val);
+void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self);
+void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self);
 size_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self);
 fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_at(std__collections__list__List_fmt__comments__Comment* self, size_t i);
 fmt__comments__Comment* std__mem__alloc__alloc_array_fmt__comments__Comment(size_t count);
@@ -2227,8 +2261,12 @@ std__collections__list__List_str str_split_dots(const char* self);
 const char* str_mangle_symbol(const char* self, const char* name);
 const char* str_normalize_path(const char* self);
 const char* str_to_win_path(const char* self);
+const char* str_to_posix_path(const char* self);
 bool str_in_list(const char* self, std__collections__list__List_str list);
 intptr_t str_index_in_list(const char* self, std__collections__list__List_str list);
+const char* str_trim(const char* self);
+std__collections__list__List_str str_split_lines(const char* self);
+const char* str_hash_stamp(const char* self);
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__EnumInfo_find_member(compiler__sema__types__EnumInfo* self, const char* name);
 size_t compiler__sema__types__PointerType_type_size(compiler__sema__types__PointerType* self);
@@ -2641,8 +2679,17 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
-compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions_new(void);
 int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts);
+config__project__TomlDoc config__project__TomlDoc_new(void);
+const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val);
+config__project__TomlDoc config__project__parse_mini_toml(const char* content);
+config__project__ProjectConfig config__project__ProjectConfig_new(void);
+config__project__ProjectConfig config__project__load_project_config(const char* manifest_path);
+const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path);
+int32_t compiler__driver__commands__cmd_build(const char* manifest_path);
+int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__collections__list__List_str extra_args);
+std__collections__list__List_str compiler__driver__commands__discover_test_files(const char* test_dir);
+int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const char* filter);
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void);
 void std__collections__string_builder__StringBuilder_append_char(std__collections__string_builder__StringBuilder* self, char c);
 void std__collections__string_builder__StringBuilder_append_str(std__collections__string_builder__StringBuilder* self, const char* s);
@@ -2652,7 +2699,7 @@ void std__collections__string_builder__StringBuilder_append_bool(std__collection
 void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s);
 bool std__collections__string_builder__StringBuilder_is_empty(std__collections__string_builder__StringBuilder* self);
 char std__collections__string_builder__StringBuilder_last_char(std__collections__string_builder__StringBuilder* self);
-void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self);
+size_t std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self);
 void std__collections__string_builder__StringBuilder_grow(std__collections__string_builder__StringBuilder* self, size_t min_cap);
 void std__collections__string_builder__StringBuilder_delete(std__collections__string_builder__StringBuilder* self);
 size_t std__collections__string_builder__StringBuilder_count(std__collections__string_builder__StringBuilder* self);
@@ -2750,7 +2797,11 @@ void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, con
 int32_t lsp__server__run_server(void);
 void main__print_usage(void);
 void main__print_fmt_usage(void);
+int32_t main__run_build(int32_t argc, const char** argv);
+int32_t main__run_project(int32_t argc, const char** argv);
+int32_t main__run_test_suite(int32_t argc, const char** argv);
 int32_t main__run_fmt(int32_t argc, const char** argv);
+int32_t main__run_compiler(int32_t argc, const char** argv);
 int32_t main(int32_t argc, const char** argv);
 
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self) {
@@ -2897,8 +2948,8 @@ void std__collections__list__List_ptr_compiler__ast__node__AstNode_insert(std__c
 }
 
 std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_clone(std__collections__list__List_ptr_compiler__ast__node__AstNode* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__ast__node__AstNode res = (std__collections__list__List_ptr_compiler__ast__node__AstNode){ std__mem__alloc__alloc_array_ptr_compiler__ast__node__AstNode(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__ast__node__AstNode res = (std__collections__list__List_ptr_compiler__ast__node__AstNode){ std__mem__alloc__alloc_array_ptr_compiler__ast__node__AstNode(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -3092,8 +3143,8 @@ void std__collections__list__List_compiler__ast__expr__WhenArm_insert(std__colle
 }
 
 std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__WhenArm_clone(std__collections__list__List_compiler__ast__expr__WhenArm* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__expr__WhenArm res = (std__collections__list__List_compiler__ast__expr__WhenArm){ std__mem__alloc__alloc_array_compiler__ast__expr__WhenArm(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__expr__WhenArm res = (std__collections__list__List_compiler__ast__expr__WhenArm){ std__mem__alloc__alloc_array_compiler__ast__expr__WhenArm(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -3287,8 +3338,8 @@ void std__collections__list__List_compiler__ast__expr__InterpPart_insert(std__co
 }
 
 std__collections__list__List_compiler__ast__expr__InterpPart std__collections__list__List_compiler__ast__expr__InterpPart_clone(std__collections__list__List_compiler__ast__expr__InterpPart* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__expr__InterpPart res = (std__collections__list__List_compiler__ast__expr__InterpPart){ std__mem__alloc__alloc_array_compiler__ast__expr__InterpPart(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__expr__InterpPart res = (std__collections__list__List_compiler__ast__expr__InterpPart){ std__mem__alloc__alloc_array_compiler__ast__expr__InterpPart(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -3482,8 +3533,8 @@ void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_insert(std__c
 }
 
 std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stmt__WhenStmtArm_clone(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__list__List_compiler__ast__stmt__WhenStmtArm){ std__mem__alloc__alloc_array_compiler__ast__stmt__WhenStmtArm(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__list__List_compiler__ast__stmt__WhenStmtArm){ std__mem__alloc__alloc_array_compiler__ast__stmt__WhenStmtArm(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -3677,8 +3728,8 @@ void std__collections__list__List_str_insert(std__collections__list__List_str* s
 }
 
 std__collections__list__List_str std__collections__list__List_str_clone(std__collections__list__List_str* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_str res = (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_str res = (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -3872,8 +3923,8 @@ void std__collections__list__List_compiler__ast__decl__GenericParam_insert(std__
 }
 
 std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_clone(std__collections__list__List_compiler__ast__decl__GenericParam* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__decl__GenericParam res = (std__collections__list__List_compiler__ast__decl__GenericParam){ std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__decl__GenericParam res = (std__collections__list__List_compiler__ast__decl__GenericParam){ std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -4067,8 +4118,8 @@ void std__collections__list__List_compiler__ast__decl__Param_insert(std__collect
 }
 
 std__collections__list__List_compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Param_clone(std__collections__list__List_compiler__ast__decl__Param* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__decl__Param res = (std__collections__list__List_compiler__ast__decl__Param){ std__mem__alloc__alloc_array_compiler__ast__decl__Param(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__decl__Param res = (std__collections__list__List_compiler__ast__decl__Param){ std__mem__alloc__alloc_array_compiler__ast__decl__Param(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -4262,8 +4313,8 @@ void std__collections__list__List_compiler__ast__decl__StructField_insert(std__c
 }
 
 std__collections__list__List_compiler__ast__decl__StructField std__collections__list__List_compiler__ast__decl__StructField_clone(std__collections__list__List_compiler__ast__decl__StructField* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__decl__StructField res = (std__collections__list__List_compiler__ast__decl__StructField){ std__mem__alloc__alloc_array_compiler__ast__decl__StructField(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__decl__StructField res = (std__collections__list__List_compiler__ast__decl__StructField){ std__mem__alloc__alloc_array_compiler__ast__decl__StructField(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -4457,8 +4508,8 @@ void std__collections__list__List_compiler__ast__decl__EnumMember_insert(std__co
 }
 
 std__collections__list__List_compiler__ast__decl__EnumMember std__collections__list__List_compiler__ast__decl__EnumMember_clone(std__collections__list__List_compiler__ast__decl__EnumMember* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__ast__decl__EnumMember res = (std__collections__list__List_compiler__ast__decl__EnumMember){ std__mem__alloc__alloc_array_compiler__ast__decl__EnumMember(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__ast__decl__EnumMember res = (std__collections__list__List_compiler__ast__decl__EnumMember){ std__mem__alloc__alloc_array_compiler__ast__decl__EnumMember(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -4652,8 +4703,8 @@ void std__collections__list__List_compiler__sema__types__StructField_insert(std_
 }
 
 std__collections__list__List_compiler__sema__types__StructField std__collections__list__List_compiler__sema__types__StructField_clone(std__collections__list__List_compiler__sema__types__StructField* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__sema__types__StructField res = (std__collections__list__List_compiler__sema__types__StructField){ std__mem__alloc__alloc_array_compiler__sema__types__StructField(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__sema__types__StructField res = (std__collections__list__List_compiler__sema__types__StructField){ std__mem__alloc__alloc_array_compiler__sema__types__StructField(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -4847,8 +4898,8 @@ void std__collections__list__List_ptr_compiler__sema__types__MethodInfo_insert(s
 }
 
 std__collections__list__List_ptr_compiler__sema__types__MethodInfo std__collections__list__List_ptr_compiler__sema__types__MethodInfo_clone(std__collections__list__List_ptr_compiler__sema__types__MethodInfo* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__types__MethodInfo res = (std__collections__list__List_ptr_compiler__sema__types__MethodInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__MethodInfo(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__types__MethodInfo res = (std__collections__list__List_ptr_compiler__sema__types__MethodInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__MethodInfo(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -5042,8 +5093,8 @@ void std__collections__list__List_ptr_compiler__sema__types__Type_insert(std__co
 }
 
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__List_ptr_compiler__sema__types__Type_clone(std__collections__list__List_ptr_compiler__sema__types__Type* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__types__Type res = (std__collections__list__List_ptr_compiler__sema__types__Type){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__types__Type res = (std__collections__list__List_ptr_compiler__sema__types__Type){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -5237,8 +5288,8 @@ void std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_inse
 }
 
 std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_clone(std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo res = (std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumMemberInfo(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo res = (std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumMemberInfo(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -5432,8 +5483,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__Symbol_insert(std_
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__list__List_ptr_compiler__sema__symbol__Symbol_clone(std__collections__list__List_ptr_compiler__sema__symbol__Symbol* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__list__List_ptr_compiler__sema__symbol__Symbol){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__Symbol(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__list__List_ptr_compiler__sema__symbol__Symbol){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__Symbol(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -5627,8 +5678,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_insert
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_clone(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod res = (std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod res = (std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -5822,8 +5873,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_insert
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_clone(std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate res = (std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__GenTemplate(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate res = (std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__GenTemplate(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6017,8 +6068,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_insert
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_clone(std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__ModuleScope(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__ModuleScope(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6212,8 +6263,8 @@ void std__collections__list__List_compiler__sema__symbol__ImportBinding_insert(s
 }
 
 std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding_clone(std__collections__list__List_compiler__sema__symbol__ImportBinding* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__sema__symbol__ImportBinding res = (std__collections__list__List_compiler__sema__symbol__ImportBinding){ std__mem__alloc__alloc_array_compiler__sema__symbol__ImportBinding(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__sema__symbol__ImportBinding res = (std__collections__list__List_compiler__sema__symbol__ImportBinding){ std__mem__alloc__alloc_array_compiler__sema__symbol__ImportBinding(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6407,8 +6458,8 @@ void std__collections__list__List_ptr_compiler__sema__types__EnumInfo_insert(std
 }
 
 std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collections__list__List_ptr_compiler__sema__types__EnumInfo_clone(std__collections__list__List_ptr_compiler__sema__types__EnumInfo* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__types__EnumInfo res = (std__collections__list__List_ptr_compiler__sema__types__EnumInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumInfo(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__types__EnumInfo res = (std__collections__list__List_ptr_compiler__sema__types__EnumInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumInfo(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6602,8 +6653,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_insert(s
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_clone(std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo res = (std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitInfo(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo res = (std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitInfo(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6797,8 +6848,8 @@ void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_insert(
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_clone(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod res = (std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod res = (std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod){ std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -6992,8 +7043,8 @@ void std__collections__list__List_compiler__lexer__token__Token_insert(std__coll
 }
 
 std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token_clone(std__collections__list__List_compiler__lexer__token__Token* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__lexer__token__Token res = (std__collections__list__List_compiler__lexer__token__Token){ std__mem__alloc__alloc_array_compiler__lexer__token__Token(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__lexer__token__Token res = (std__collections__list__List_compiler__lexer__token__Token){ std__mem__alloc__alloc_array_compiler__lexer__token__Token(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -7187,8 +7238,8 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_insert(
 }
 
 std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule_clone(std__collections__list__List_compiler__loader__loader__LoadedModule* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_compiler__loader__loader__LoadedModule res = (std__collections__list__List_compiler__loader__loader__LoadedModule){ std__mem__alloc__alloc_array_compiler__loader__loader__LoadedModule(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_compiler__loader__loader__LoadedModule res = (std__collections__list__List_compiler__loader__loader__LoadedModule){ std__mem__alloc__alloc_array_compiler__loader__loader__LoadedModule(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -7236,6 +7287,274 @@ std__collections__list__List_compiler__loader__loader__LoadedModule std__collect
 
 void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(std__collections__list__List_compiler__loader__loader__LoadedModule* self) {
     std__mem__alloc__release_compiler__loader__loader__LoadedModule((self)->data);
+}
+
+bool* std__mem__alloc__alloc_array_bool(size_t count) {
+    return ((bool*)std__mem__alloc__raw_alloc((count * 1)));
+}
+
+void std__mem__alloc__release_bool(bool* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void) {
+    size_t init_cap = ((size_t)16ULL);
+    const char** keys = std__mem__alloc__alloc_array_str(init_cap);
+    const char** values = std__mem__alloc__alloc_array_str(init_cap);
+    bool* occ = std__mem__alloc__alloc_array_bool(init_cap);
+    {
+        size_t __for_e = init_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                occ[i] = false;
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, init_cap };
+}
+
+size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key) {
+    size_t h = ((size_t)5381ULL);
+    {
+        size_t __for_e = kobel_slen(key);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                size_t c = ((size_t)key[i]);
+                h = ((h * 33) + c);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return h;
+}
+
+void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
+    if ((((self)->len * 10) >= ((self)->cap * 7))) {
+        std__collections__hash_map__HashMap_str_grow(self);
+    }
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                {
+                    (self)->values[idx] = value;
+                    return;
+                }
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    (self)->keys[idx] = key;
+    (self)->values[idx] = value;
+    (self)->occupied[idx] = true;
+    (self)->len++;
+}
+
+bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key) {
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                return true;
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    return false;
+}
+
+const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val) {
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                return (self)->values[idx];
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    return default_val;
+}
+
+void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self) {
+    size_t old_cap = (self)->cap;
+    const char** old_keys = (self)->keys;
+    const char** old_vals = (self)->values;
+    bool* old_occ = (self)->occupied;
+    size_t new_cap = (old_cap * 2);
+    const char** keys = std__mem__alloc__alloc_array_str(new_cap);
+    const char** values = std__mem__alloc__alloc_array_str(new_cap);
+    bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t j = __for_i;
+                new_occ[j] = false;
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (self)->keys = keys;
+    (self)->values = values;
+    (self)->occupied = new_occ;
+    (self)->cap = new_cap;
+    (self)->len = 0;
+    {
+        size_t __for_e = old_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    std__collections__hash_map__HashMap_str_put(self, old_keys[i], old_vals[i]);
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std__mem__alloc__release_str(old_keys);
+    std__mem__alloc__release_str(old_vals);
+    std__mem__alloc__release_bool(old_occ);
+}
+
+void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self) {
+    std__mem__alloc__release_str((self)->keys);
+    std__mem__alloc__release_str((self)->values);
+    std__mem__alloc__release_bool((self)->occupied);
 }
 
 size_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self) {
@@ -7382,8 +7701,8 @@ void std__collections__list__List_fmt__comments__Comment_insert(std__collections
 }
 
 std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_clone(std__collections__list__List_fmt__comments__Comment* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_fmt__comments__Comment res = (std__collections__list__List_fmt__comments__Comment){ std__mem__alloc__alloc_array_fmt__comments__Comment(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_fmt__comments__Comment res = (std__collections__list__List_fmt__comments__Comment){ std__mem__alloc__alloc_array_fmt__comments__Comment(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -7577,8 +7896,8 @@ void std__collections__list__List_ptr_lsp__json__JsonValue_insert(std__collectio
 }
 
 std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_clone(std__collections__list__List_ptr_lsp__json__JsonValue* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_ptr_lsp__json__JsonValue res = (std__collections__list__List_ptr_lsp__json__JsonValue){ std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_ptr_lsp__json__JsonValue res = (std__collections__list__List_ptr_lsp__json__JsonValue){ std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -7772,8 +8091,8 @@ void std__collections__list__List_lsp__document__Document_insert(std__collection
 }
 
 std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_clone(std__collections__list__List_lsp__document__Document* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_lsp__document__Document res = (std__collections__list__List_lsp__document__Document){ std__mem__alloc__alloc_array_lsp__document__Document(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_lsp__document__Document res = (std__collections__list__List_lsp__document__Document){ std__mem__alloc__alloc_array_lsp__document__Document(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -7967,8 +8286,8 @@ void std__collections__list__List_lsp__analysis__LspDiagnostic_insert(std__colle
 }
 
 std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_clone(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
-    size_t cap = (((self)->cap > ((size_t)0ULL)) ? (self)->cap : ((size_t)4ULL));
-    std__collections__list__List_lsp__analysis__LspDiagnostic res = (std__collections__list__List_lsp__analysis__LspDiagnostic){ std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(cap), ((size_t)0ULL), cap };
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_lsp__analysis__LspDiagnostic res = (std__collections__list__List_lsp__analysis__LspDiagnostic){ std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
     {
         size_t __for_e = (self)->len;
         size_t __for_i = __for_e;
@@ -9164,7 +9483,7 @@ const char* std__str__str_from_bytes(uint8_t* buf, size_t len) {
 }
 
 bool str_is_empty(const char* self) {
-    return (kobel_slen(self) == ((size_t)0ULL));
+    return (kobel_slen(self) == 0);
 }
 
 bool str_starts_with(const char* self, const char* prefix) {
@@ -9186,7 +9505,7 @@ const char* str_strip_suffix(const char* self, size_t n) {
 }
 
 bool str_contains(const char* self, const char* sub) {
-    if ((kobel_slen(sub) == ((size_t)0ULL))) {
+    if ((kobel_slen(sub) == 0)) {
         return true;
     }
     if ((kobel_slen(self) < kobel_slen(sub))) {
@@ -9196,7 +9515,7 @@ bool str_contains(const char* self, const char* sub) {
     {
         size_t __for_e = max_start;
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -9215,7 +9534,7 @@ bool str_contains(const char* self, const char* sub) {
                 {
                     size_t __for_e = kobel_slen(sub);
                     size_t __for_i = __for_e;
-                    __for_i = ((size_t)0ULL);
+                    __for_i = 0;
                     bool __for_up = (__for_i <= __for_e);
                     bool __for_go = false;
                     if (__for_up) {
@@ -9289,7 +9608,7 @@ bool str_contains(const char* self, const char* sub) {
 }
 
 intptr_t str_index_of(const char* self, const char* sub) {
-    if ((kobel_slen(sub) == ((size_t)0ULL))) {
+    if ((kobel_slen(sub) == 0)) {
         return 0;
     }
     if ((kobel_slen(self) < kobel_slen(sub))) {
@@ -9299,7 +9618,7 @@ intptr_t str_index_of(const char* self, const char* sub) {
     {
         size_t __for_e = max_start;
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -9318,7 +9637,7 @@ intptr_t str_index_of(const char* self, const char* sub) {
                 {
                     size_t __for_e = kobel_slen(sub);
                     size_t __for_i = __for_e;
-                    __for_i = ((size_t)0ULL);
+                    __for_i = 0;
                     bool __for_up = (__for_i <= __for_e);
                     bool __for_go = false;
                     if (__for_up) {
@@ -10169,7 +10488,7 @@ const char* str_strip_kb(const char* self) {
 }
 
 const char* str_dir_of(const char* self) {
-    size_t last = 0;
+    size_t last = ((size_t)0ULL);
     bool found = false;
     {
         size_t __for_e = kobel_slen(self);
@@ -10225,7 +10544,7 @@ const char* str_dir_of(const char* self) {
 }
 
 const char* str_base_name(const char* self) {
-    size_t start = 0;
+    size_t start = ((size_t)0ULL);
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
@@ -10274,10 +10593,10 @@ const char* str_base_name(const char* self) {
 }
 
 const char* str_join_path(const char* self, const char* rel) {
-    if ((kobel_slen(self) == ((size_t)0ULL))) {
+    if ((kobel_slen(self) == 0)) {
         return rel;
     }
-    if (util__strutil__str_is_sep(self[(kobel_slen(self) - ((size_t)1ULL))])) {
+    if (util__strutil__str_is_sep(self[(kobel_slen(self) - 1)])) {
         return kobel_concat(self, rel);
     }
     return kobel_concat(kobel_concat(self, "/"), rel);
@@ -10285,7 +10604,7 @@ const char* str_join_path(const char* self, const char* rel) {
 
 std__collections__list__List_str str_split_dots(const char* self) {
     std__collections__list__List_str parts = std__collections__list__List_str_new(4);
-    size_t start = 0;
+    size_t start = ((size_t)0ULL);
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
@@ -10395,7 +10714,7 @@ const char* str_normalize_path(const char* self) {
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -10411,21 +10730,7 @@ const char* str_normalize_path(const char* self) {
             {
                 size_t i = __for_i;
                 char c = self[i];
-                if ((c == '\\')) {
-                    {
-                        buf[i] = ((uint8_t)'/');
-                    }
-                } else {
-                    if (((c >= 'A') && (c <= 'Z'))) {
-                        {
-                            buf[i] = ((uint8_t)(((((int32_t)c)) + 32)));
-                        }
-                    } else {
-                        {
-                            buf[i] = ((uint8_t)c);
-                        }
-                    }
-                }
+                buf[i] = ((c == '\\') ? ((uint8_t)'/') : (((c >= 'A') && (c <= 'Z')) ? ((uint8_t)(((((int32_t)c)) + 32))) : ((uint8_t)c)));
                 if (__for_up) {
                     {
                         __for_go = ((__for_i + 1) < __for_e);
@@ -10458,7 +10763,7 @@ const char* str_to_win_path(const char* self) {
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
-        __for_i = ((size_t)0ULL);
+        __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
         bool __for_go = false;
         if (__for_up) {
@@ -10474,11 +10779,56 @@ const char* str_to_win_path(const char* self) {
             {
                 size_t i = __for_i;
                 char c = self[i];
-                if ((c == '/')) {
-                    buf[i] = ((uint8_t)'\\');
+                buf[i] = ((c == '/') ? ((uint8_t)'\\') : ((uint8_t)c));
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
                 } else {
-                    buf[i] = ((uint8_t)c);
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
                 }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    buf[kobel_slen(self)] = 0;
+    return std__str__str_from_bytes(buf, kobel_slen(self));
+}
+
+const char* str_to_posix_path(const char* self) {
+    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    {
+        size_t __for_e = kobel_slen(self);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                char c = self[i];
+                buf[i] = ((c == '\\') ? ((uint8_t)'/') : ((uint8_t)c));
                 if (__for_up) {
                     {
                         __for_go = ((__for_i + 1) < __for_e);
@@ -10571,8 +10921,92 @@ intptr_t str_index_in_list(const char* self, std__collections__list__List_str li
     return (-1);
 }
 
+const char* str_trim(const char* self) {
+    if ((kobel_slen(self) == ((size_t)0ULL))) {
+        return self;
+    }
+    size_t start = ((size_t)0ULL);
+    while ((start < kobel_slen(self))) {
+        {
+            char c = self[start];
+            if (((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n'))) {
+                start++;
+            } else {
+                break;
+            }
+        }
+    }
+    if ((start == kobel_slen(self))) {
+        return "";
+    }
+    size_t end = kobel_slen(self);
+    while ((end > start)) {
+        {
+            char c = self[(end - ((size_t)1ULL))];
+            if (((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n'))) {
+                end--;
+            } else {
+                break;
+            }
+        }
+    }
+    return kobel_slice(self, start, end);
+}
+
+std__collections__list__List_str str_split_lines(const char* self) {
+    std__collections__list__List_str res = std__collections__list__List_str_new(4);
+    size_t start = ((size_t)0ULL);
+    size_t i = ((size_t)0ULL);
+    while ((i < kobel_slen(self))) {
+        {
+            char c = self[i];
+            if ((c == '\n')) {
+                {
+                    size_t line_end = i;
+                    if (((line_end > start) && (self[(line_end - ((size_t)1ULL))] == '\r'))) {
+                        {
+                            line_end = (line_end - ((size_t)1ULL));
+                        }
+                    }
+                    std__collections__list__List_str_add((&res), kobel_slice(self, start, line_end));
+                    start = (i + ((size_t)1ULL));
+                }
+            }
+            i++;
+        }
+    }
+    if ((start <= kobel_slen(self))) {
+        {
+            size_t line_end = kobel_slen(self);
+            if (((line_end > start) && (self[(line_end - ((size_t)1ULL))] == '\r'))) {
+                {
+                    line_end = (line_end - ((size_t)1ULL));
+                }
+            }
+            std__collections__list__List_str_add((&res), kobel_slice(self, start, line_end));
+        }
+    }
+    return res;
+}
+
+const char* str_hash_stamp(const char* self) {
+    uint64_t h = 5381ULL;
+    {
+        size_t __for_n = kobel_slen(self);
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                char c = self[__for_i];
+                h = (((((h * 33ULL)) + (((uint64_t)c)))) % 1000000007ULL);
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return kobel_concat(kobel_concat(u64_to_str(h), "_"), usz_to_str(kobel_slen(self)));
+}
+
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count) {
-    size_t total = 0;
+    size_t total = ((size_t)0ULL);
     {
         size_t __for_e = count;
         size_t __for_i = __for_e;
@@ -10619,7 +11053,7 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
         total += ((count - 1));
     }
     uint8_t* buf = std__mem__alloc__raw_alloc((total + 1));
-    size_t w = 0;
+    size_t w = ((size_t)0ULL);
     {
         size_t __for_e = count;
         size_t __for_i = __for_e;
@@ -22862,10 +23296,6 @@ void compiler__driver__pipeline__print_error_list(std__collections__list__List_s
     }
 }
 
-compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions_new(void) {
-    return (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4) };
-}
-
 int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts) {
     const char* input_path = (opts).input_path;
     const char* src = std__io__read_file(input_path);
@@ -22876,7 +23306,9 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return 1;
         }
     }
-    std__io__println("[1/4] Loading modules (lex + parse)...");
+    if ((!(opts).quiet)) {
+        std__io__println("[1/4] Loading modules (lex + parse)...");
+    }
     compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__ModuleLoader_new(str_dir_of(input_path), (opts).extra_roots);
     if ((compiler__loader__loader__ModuleLoader_find_module((&loader), "std.fmt")).found) {
         compiler__loader__loader__ModuleLoader_ensure_module((&loader), "std.fmt");
@@ -22898,10 +23330,16 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return 1;
         }
     }
-    std__io__print("  ");
-    std__io__print(usz_to_str(compiler__loader__loader__ModuleLoader_count((&loader))));
-    std__io__println(" module(s) loaded");
-    std__io__println("[2/4] Semantic analysis (declarations)...");
+    if ((!(opts).quiet)) {
+        {
+            std__io__print("  ");
+            std__io__print(usz_to_str(compiler__loader__loader__ModuleLoader_count((&loader))));
+            std__io__println(" module(s) loaded");
+        }
+    }
+    if ((!(opts).quiet)) {
+        std__io__println("[2/4] Semantic analysis (declarations)...");
+    }
     compiler__sema__decl_pass__DeclPass decl_p = compiler__sema__decl_pass__DeclPass_new();
     compiler__sema__decl_pass__DeclPass_collect_program((&decl_p), prog);
     if ((((decl_p).errors).len > 0)) {
@@ -22913,7 +23351,9 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return 1;
         }
     }
-    std__io__println("[3/4] Semantic analysis (bodies)...");
+    if ((!(opts).quiet)) {
+        std__io__println("[3/4] Semantic analysis (bodies)...");
+    }
     compiler__sema__body_pass__BodyPass body_p = compiler__sema__body_pass__BodyPass_new_1((decl_p).symtab);
     compiler__sema__body_pass__BodyPass_check_program((&body_p), prog);
     if ((((body_p).errors).len > 0)) {
@@ -22925,7 +23365,9 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return 1;
         }
     }
-    std__io__println("[4/4] Generating C99 code...");
+    if ((!(opts).quiet)) {
+        std__io__println("[4/4] Generating C99 code...");
+    }
     compiler__codegen__c_codegen__CCodeGen codegen = (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), "", "", false };
     const char* c_code = compiler__codegen__c_codegen__CCodeGen_gen_program((&codegen), prog);
     if ((opts).only_emit_c) {
@@ -22938,8 +23380,12 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
                     return 1;
                 }
             }
-            std__io__print("[SUCCESS] C99 source written to ");
-            std__io__println((opts).emit_c_path);
+            if ((!(opts).quiet)) {
+                {
+                    std__io__print("[SUCCESS] C99 source written to ");
+                    std__io__println((opts).emit_c_path);
+                }
+            }
             return 0;
         }
     }
@@ -22957,28 +23403,479 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return 1;
         }
     }
-    std__io__println(kobel_concat(kobel_concat("[BUILDING] Invoking backend compiler (", (opts).c_compiler), ")..."));
-    const char* compile_cmd = "";
-    if ((kobel_streq((opts).c_compiler, "clang") || kobel_streq((opts).c_compiler, "gcc"))) {
+    if ((!(opts).quiet)) {
+        std__io__println(kobel_concat(kobel_concat("[BUILDING] Invoking backend compiler (", (opts).c_compiler), ")..."));
+    }
+    const char* old_bin = kobel_concat(out_path, ".old");
+    if (std__io__file_exists(out_path)) {
         {
-            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((opts).c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"");
+            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(old_bin)), "\" >nul 2>nul"));
+            std__sys__exec(kobel_concat(kobel_concat(kobel_concat(kobel_concat("move /y \"", str_to_win_path(out_path)), "\" \""), str_to_win_path(old_bin)), "\" >nul 2>nul"));
         }
-    } else {
+    }
+    const char* compile_cmd = ((kobel_streq((opts).c_compiler, "clang") || kobel_streq((opts).c_compiler, "gcc")) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((opts).c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" /Fo:\""), str_to_win_path(obj_tmp_path)), "\" \""), c_tmp_path), "\""));
+    if ((opts).quiet) {
         {
-            compile_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" /Fo:\""), str_to_win_path(obj_tmp_path)), "\" \""), c_tmp_path), "\"");
+            compile_cmd = kobel_concat(compile_cmd, " >nul");
         }
     }
     int32_t exit_code = std__sys__exec(compile_cmd);
     if ((exit_code != 0)) {
         {
+            if ((std__io__file_exists(old_bin) && (!std__io__file_exists(out_path)))) {
+                {
+                    std__sys__exec(kobel_concat(kobel_concat(kobel_concat(kobel_concat("move /y \"", str_to_win_path(old_bin)), "\" \""), str_to_win_path(out_path)), "\" >nul 2>nul"));
+                }
+            }
             std__io__println("Error: Backend C compiler failed with error code 1");
             return exit_code;
         }
     }
     const char* base_obj = kobel_concat(str_base_name(str_strip_kb(input_path)), ".tmp.obj");
-    const char* del_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(c_tmp_path)), "\" \""), str_to_win_path(obj_tmp_path)), "\" \""), base_obj), "\" 2>nul");
+    const char* del_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(c_tmp_path)), "\" \""), str_to_win_path(obj_tmp_path)), "\" \""), base_obj), "\" \""), str_to_win_path(old_bin)), "\" >nul 2>nul");
     std__sys__exec(del_cmd);
-    std__io__println(kobel_concat("[SUCCESS] Executable created: ", out_path));
+    if ((!(opts).quiet)) {
+        std__io__println(kobel_concat("[SUCCESS] Executable created: ", out_path));
+    }
+    return 0;
+}
+
+config__project__TomlDoc config__project__TomlDoc_new(void) {
+    return (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
+}
+
+const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val) {
+    return std__collections__hash_map__HashMap_str_get_or((&(self)->entries), key, default_val);
+}
+
+config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
+    config__project__TomlDoc doc = config__project__TomlDoc_new();
+    std__collections__list__List_str lines = str_split_lines(content);
+    const char* current_section = "";
+    {
+        size_t __for_n = std__collections__list__List_str_count((&lines));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* line = std__collections__list__List_str_at((&lines), __for_i);
+                const char* trimmed = str_trim(line);
+                if ((str_is_empty(trimmed) || str_starts_with(trimmed, "#"))) {
+                    {
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                if (((str_starts_with(trimmed, "[") && str_ends_with(trimmed, "]")) && (kobel_slen(trimmed) >= ((size_t)2ULL)))) {
+                    {
+                        current_section = str_trim(kobel_slice(trimmed, ((size_t)1ULL), (kobel_slen(trimmed) - ((size_t)1ULL))));
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                intptr_t eq_pos = str_index_of(trimmed, "=");
+                if ((eq_pos > 0)) {
+                    {
+                        const char* key_raw = str_trim(kobel_slice(trimmed, ((size_t)0ULL), ((size_t)eq_pos)));
+                        const char* val_raw = str_trim(kobel_slice(trimmed, ((size_t)((eq_pos + 1))), kobel_slen(trimmed)));
+                        const char* val_clean = val_raw;
+                        if ((kobel_slen(val_raw) >= ((size_t)2ULL))) {
+                            {
+                                if ((((str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || ((str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))))) {
+                                    {
+                                        val_clean = kobel_slice(val_raw, ((size_t)1ULL), (kobel_slen(val_raw) - ((size_t)1ULL)));
+                                    }
+                                }
+                            }
+                        }
+                        const char* full_key = key_raw;
+                        if ((kobel_slen(current_section) > ((size_t)0ULL))) {
+                            {
+                                full_key = kobel_concat(kobel_concat(current_section, "."), key_raw);
+                            }
+                        }
+                        std__collections__hash_map__HashMap_str_put((&(doc).entries), full_key, val_clean);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return doc;
+}
+
+config__project__ProjectConfig config__project__ProjectConfig_new(void) {
+    return (config__project__ProjectConfig){ "kobel", "1.0.0", "src/main.kb", "kobel.exe", "cl", "tests" };
+}
+
+config__project__ProjectConfig config__project__load_project_config(const char* manifest_path) {
+    config__project__ProjectConfig cfg = config__project__ProjectConfig_new();
+    if ((!std__io__file_exists(manifest_path))) {
+        {
+            return cfg;
+        }
+    }
+    const char* content = std__io__read_file(manifest_path);
+    if (str_is_empty(content)) {
+        {
+            return cfg;
+        }
+    }
+    config__project__TomlDoc doc = config__project__parse_mini_toml(content);
+    const char* name = config__project__TomlDoc_get((&doc), "package.name", "");
+    if ((!str_is_empty(name))) {
+        (cfg).name = name;
+    }
+    const char* ver = config__project__TomlDoc_get((&doc), "package.version", "");
+    if ((!str_is_empty(ver))) {
+        (cfg).version = ver;
+    }
+    const char* entry = config__project__TomlDoc_get((&doc), "package.entry", config__project__TomlDoc_get((&doc), "build.entry", ""));
+    if ((!str_is_empty(entry))) {
+        (cfg).entry = entry;
+    }
+    const char* output = config__project__TomlDoc_get((&doc), "build.output", "");
+    if ((!str_is_empty(output))) {
+        (cfg).output = output;
+    }
+    const char* cc = config__project__TomlDoc_get((&doc), "build.cc", "");
+    if ((!str_is_empty(cc))) {
+        (cfg).cc = cc;
+    }
+    const char* test_dir = config__project__TomlDoc_get((&doc), "test.dir", "");
+    if ((!str_is_empty(test_dir))) {
+        (cfg).test_dir = test_dir;
+    }
+    return cfg;
+}
+
+const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path) {
+    const char* stamp_seed = std__io__read_file(manifest_path);
+    const char* tmp_file = ".kobel_src_files.tmp";
+    const char* entry_dir = str_dir_of((cfg).entry);
+    const char* root_dir = ((kobel_slen(entry_dir) > 0) ? entry_dir : "src");
+    const char* find_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("cmd /c dir /b /s \"", str_to_win_path(root_dir)), "\\*.kb\" > \""), tmp_file), "\" 2>nul");
+    std__sys__exec(find_cmd);
+    if (std__io__file_exists(tmp_file)) {
+        {
+            const char* file_list = std__io__read_file(tmp_file);
+            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_file), "\" 2>nul"));
+            std__collections__list__List_str lines = str_split_lines(file_list);
+            {
+                size_t __for_n = std__collections__list__List_str_count((&lines));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* line = std__collections__list__List_str_at((&lines), __for_i);
+                        const char* fpath = str_trim(line);
+                        if (((!str_is_empty(fpath)) && std__io__file_exists(fpath))) {
+                            {
+                                const char* content = std__io__read_file(fpath);
+                                stamp_seed = kobel_concat(kobel_concat(stamp_seed, ":"), str_hash_stamp(content));
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    } else {
+        {
+            stamp_seed = kobel_concat(stamp_seed, std__io__read_file((cfg).entry));
+        }
+    }
+    return str_hash_stamp(stamp_seed);
+}
+
+int32_t compiler__driver__commands__cmd_build(const char* manifest_path) {
+    if ((!std__io__file_exists(manifest_path))) {
+        {
+            std__io__println(kobel_concat(kobel_concat("Error: Project manifest '", manifest_path), "' not found."));
+            return 1;
+        }
+    }
+    config__project__ProjectConfig cfg = config__project__load_project_config(manifest_path);
+    std__io__println(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Building ", (cfg).name), " v"), (cfg).version), " ["), (cfg).entry), " -> "), (cfg).output), "]..."));
+    compiler__driver__pipeline__CompileOptions opts = (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4), false };
+    (opts).input_path = (cfg).entry;
+    (opts).output_bin = (cfg).output;
+    (opts).c_compiler = (cfg).cc;
+    int32_t exit_code = compiler__driver__pipeline__compile_pipeline(opts);
+    if ((exit_code == 0)) {
+        {
+            const char* stamp = compiler__driver__commands__compute_project_stamp(cfg, manifest_path);
+            std__io__write_file(".kobel_stamp", stamp);
+            std__io__println(kobel_concat("[SUCCESS] Build complete: ", (cfg).output));
+        }
+    }
+    return exit_code;
+}
+
+int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__collections__list__List_str extra_args) {
+    if ((!std__io__file_exists(manifest_path))) {
+        {
+            std__io__println(kobel_concat(kobel_concat("Error: Project manifest '", manifest_path), "' not found."));
+            return 1;
+        }
+    }
+    config__project__ProjectConfig cfg = config__project__load_project_config(manifest_path);
+    const char* stamp_file = ".kobel_stamp";
+    const char* current_stamp = compiler__driver__commands__compute_project_stamp(cfg, manifest_path);
+    bool needs_build = false;
+    if ((!std__io__file_exists((cfg).output))) {
+        {
+            std__io__println(kobel_concat(kobel_concat("Target '", (cfg).output), "' not found. Building first..."));
+            needs_build = true;
+        }
+    } else {
+        if ((!std__io__file_exists(stamp_file))) {
+            {
+                std__io__println("No previous build stamp found. Rebuilding...");
+                needs_build = true;
+            }
+        } else {
+            {
+                const char* saved_stamp = str_trim(std__io__read_file(stamp_file));
+                if ((!kobel_streq(saved_stamp, current_stamp))) {
+                    {
+                        std__io__println("Source changes detected. Rebuilding...");
+                        needs_build = true;
+                    }
+                }
+            }
+        }
+    }
+    if (needs_build) {
+        {
+            int32_t build_code = compiler__driver__commands__cmd_build(manifest_path);
+            if ((build_code != 0)) {
+                {
+                    std__io__println(kobel_concat(kobel_concat("Build failed with code ", i32_to_str(build_code)), ". Aborting run."));
+                    return build_code;
+                }
+            }
+        }
+    } else {
+        {
+            std__io__println(kobel_concat(kobel_concat("No changes detected. Running '", (cfg).output), "'..."));
+        }
+    }
+    const char* out_bin = str_to_win_path((cfg).output);
+    if ((((!str_starts_with(out_bin, ".")) && (!str_starts_with(out_bin, "\\"))) && (str_index_of(out_bin, ":") < 0))) {
+        {
+            out_bin = kobel_concat(".\\", out_bin);
+        }
+    }
+    const char* run_cmd = (str_contains(out_bin, " ") ? kobel_concat(kobel_concat("\"", out_bin), "\"") : out_bin);
+    {
+        size_t __for_n = std__collections__list__List_str_count((&extra_args));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* arg = std__collections__list__List_str_at((&extra_args), __for_i);
+                if (str_contains(arg, " ")) {
+                    {
+                        run_cmd = kobel_concat(kobel_concat(kobel_concat(run_cmd, " \""), arg), "\"");
+                    }
+                } else {
+                    {
+                        run_cmd = kobel_concat(kobel_concat(run_cmd, " "), arg);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return std__sys__exec(run_cmd);
+}
+
+std__collections__list__List_str compiler__driver__commands__discover_test_files(const char* test_dir) {
+    std__collections__list__List_str list = std__collections__list__List_str_new(4);
+    const char* tmp_list_file = ".kobel_test_list.tmp";
+    const char* find_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("cmd /c dir /b /s \"", str_to_win_path(test_dir)), "\\test_*.kb\" > \""), tmp_list_file), "\" 2>nul");
+    std__sys__exec(find_cmd);
+    if (std__io__file_exists(tmp_list_file)) {
+        {
+            const char* content = std__io__read_file(tmp_list_file);
+            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_list_file), "\" 2>nul"));
+            std__collections__list__List_str lines = str_split_lines(content);
+            {
+                size_t __for_n = std__collections__list__List_str_count((&lines));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* line = std__collections__list__List_str_at((&lines), __for_i);
+                        const char* trimmed = str_trim(line);
+                        if ((!str_is_empty(trimmed))) {
+                            {
+                                const char* normalized = str_to_posix_path(trimmed);
+                                intptr_t tests_idx = str_index_of(normalized, "/tests/");
+                                if ((tests_idx >= 0)) {
+                                    {
+                                        normalized = kobel_slice(normalized, ((size_t)((tests_idx + 1))), kobel_slen(normalized));
+                                    }
+                                }
+                                std__collections__list__List_str_add((&list), normalized);
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    }
+    if (((list).len == 0)) {
+        {
+            std__collections__list__List_str default_tests = std__collections__list__List_str_new(4);
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_lexer.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_ast.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_parser.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_types.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_symbol.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_decl.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_body.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_codegen.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_fmt.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/unit/test_config.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/features/test_syntax.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/features/test_control_flow.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/features/test_collections.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/features/test_types.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/features/test_pattern_matching.kb");
+            std__collections__list__List_str_add((&default_tests), "tests/stdlib/test_std.kb");
+            {
+                size_t __for_n = std__collections__list__List_str_count((&default_tests));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* t = std__collections__list__List_str_at((&default_tests), __for_i);
+                        if (std__io__file_exists(t)) {
+                            std__collections__list__List_str_add((&list), t);
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
+    }
+    return list;
+}
+
+int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const char* filter) {
+    config__project__ProjectConfig cfg = (std__io__file_exists(manifest_path) ? config__project__load_project_config(manifest_path) : config__project__ProjectConfig_new());
+    std__collections__list__List_str all_tests = compiler__driver__commands__discover_test_files((cfg).test_dir);
+    std__collections__list__List_str active_tests = std__collections__list__List_str_new(4);
+    {
+        size_t __for_n = std__collections__list__List_str_count((&all_tests));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* t = std__collections__list__List_str_at((&all_tests), __for_i);
+                if ((str_is_empty(filter) || str_contains(t, filter))) {
+                    {
+                        std__collections__list__List_str_add((&active_tests), t);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    std__io__println("============================================================");
+    if (str_is_empty(filter)) {
+        {
+            std__io__println(kobel_concat(kobel_concat("  Running Kobel Test Suite (", usz_to_str((active_tests).len)), " tests)"));
+        }
+    } else {
+        {
+            std__io__println(kobel_concat(kobel_concat(kobel_concat(kobel_concat("  Running Kobel Test Suite (filter: '", filter), "', "), usz_to_str((active_tests).len)), " tests)"));
+        }
+    }
+    std__io__println("============================================================");
+    if (((active_tests).len == 0)) {
+        {
+            std__io__println(kobel_concat(kobel_concat("No tests matched filter '", filter), "'."));
+            return 0;
+        }
+    }
+    int32_t pass_count = 0;
+    int32_t fail_count = 0;
+    std__collections__list__List_str failed_names = std__collections__list__List_str_new(4);
+    {
+        size_t __for_n = std__collections__list__List_str_count((&active_tests));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* tpath = std__collections__list__List_str_at((&active_tests), __for_i);
+                std__io__print(kobel_concat(kobel_concat("[*] ", tpath), " ... "));
+                const char* test_bin = kobel_concat(str_strip_kb(tpath), ".test_bin.exe");
+                compiler__driver__pipeline__CompileOptions opts = (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4), false };
+                (opts).input_path = tpath;
+                (opts).output_bin = test_bin;
+                (opts).c_compiler = (cfg).cc;
+                (opts).quiet = true;
+                int32_t compile_res = compiler__driver__pipeline__compile_pipeline(opts);
+                if ((compile_res != 0)) {
+                    {
+                        std__io__println("FAIL (compilation error)");
+                        fail_count++;
+                        std__collections__list__List_str_add((&failed_names), tpath);
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                const char* win_bin = str_to_win_path(test_bin);
+                const char* run_cmd = (str_contains(win_bin, " ") ? kobel_concat(kobel_concat("\"", win_bin), "\" >nul 2>nul") : kobel_concat(win_bin, " >nul 2>nul"));
+                int32_t test_res = std__sys__exec(run_cmd);
+                const char* del_cmd = kobel_concat(kobel_concat("del /f /q \"", win_bin), "\" >nul 2>nul");
+                std__sys__exec(del_cmd);
+                if ((test_res == 0)) {
+                    {
+                        std__io__println("PASS");
+                        pass_count++;
+                    }
+                } else {
+                    {
+                        std__io__println(kobel_concat(kobel_concat("FAIL (exit code ", i32_to_str(test_res)), ")"));
+                        fail_count++;
+                        std__collections__list__List_str_add((&failed_names), tpath);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    std__io__println("");
+    std__io__println("============================================================");
+    std__io__println("                      TEST SUMMARY                          ");
+    std__io__println("============================================================");
+    std__io__println(kobel_concat("Passed: ", i32_to_str(pass_count)));
+    std__io__println(kobel_concat("Failed: ", i32_to_str(fail_count)));
+    std__io__println(kobel_concat("Total:  ", usz_to_str((active_tests).len)));
+    if ((fail_count > 0)) {
+        {
+            std__io__println("");
+            std__io__println("[ERROR] The following tests failed:");
+            {
+                size_t __for_n = std__collections__list__List_str_count((&failed_names));
+                size_t __for_i = ((size_t)0ULL);
+                while ((__for_i < __for_n)) {
+                    {
+                        const char* name = std__collections__list__List_str_at((&failed_names), __for_i);
+                        std__io__println(kobel_concat("  - ", name));
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+            return 1;
+        }
+    }
+    std__io__println("");
+    std__io__println("[SUCCESS] All tests passed successfully!");
     return 0;
 }
 
@@ -23048,13 +23945,13 @@ void std__collections__string_builder__StringBuilder_append_str(std__collections
 
 void std__collections__string_builder__StringBuilder_append_i64(std__collections__string_builder__StringBuilder* self, int64_t n) {
     int64_t v = n;
-    if ((v == 0LL)) {
+    if ((v == 0)) {
         {
             std__collections__string_builder__StringBuilder_append_char(self, '0');
             return;
         }
     }
-    if ((v < 0LL)) {
+    if ((v < 0)) {
         {
             std__collections__string_builder__StringBuilder_append_char(self, '-');
             v = (-v);
@@ -23062,19 +23959,19 @@ void std__collections__string_builder__StringBuilder_append_i64(std__collections
     }
     int64_t place = 1LL;
     int64_t probe = v;
-    while ((probe >= 10LL)) {
+    while ((probe >= 10)) {
         {
-            probe /= 10LL;
-            place *= 10LL;
+            probe /= 10;
+            place *= 10;
         }
     }
     int64_t rest = v;
-    while ((place > 0LL)) {
+    while ((place > 0)) {
         {
             int64_t digit = (rest / place);
             std__collections__string_builder__StringBuilder_append_char(self, ((char)(((((int32_t)digit)) + 48))));
             rest -= (digit * place);
-            place /= 10LL;
+            place /= 10;
         }
     }
 }
@@ -23084,11 +23981,7 @@ void std__collections__string_builder__StringBuilder_append_i32(std__collections
 }
 
 void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b) {
-    if (b) {
-        std__collections__string_builder__StringBuilder_append_str(self, "true");
-    } else {
-        std__collections__string_builder__StringBuilder_append_str(self, "false");
-    }
+    (b ? std__collections__string_builder__StringBuilder_append_str(self, "true") : std__collections__string_builder__StringBuilder_append_str(self, "false"));
 }
 
 void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s) {
@@ -23097,18 +23990,15 @@ void std__collections__string_builder__StringBuilder_append_line(std__collection
 }
 
 bool std__collections__string_builder__StringBuilder_is_empty(std__collections__string_builder__StringBuilder* self) {
-    return ((self)->len == ((size_t)0ULL));
+    return ((self)->len == 0);
 }
 
 char std__collections__string_builder__StringBuilder_last_char(std__collections__string_builder__StringBuilder* self) {
-    if (((self)->len == ((size_t)0ULL))) {
-        return '\0';
-    }
-    return ((char)(self)->buf[((self)->len - ((size_t)1ULL))]);
+    return (((self)->len == 0) ? '\0' : ((char)(self)->buf[((self)->len - 1)]));
 }
 
-void std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self) {
-    (self)->len = 0;
+size_t std__collections__string_builder__StringBuilder_clear(std__collections__string_builder__StringBuilder* self) {
+    return (self)->len = 0;
 }
 
 void std__collections__string_builder__StringBuilder_grow(std__collections__string_builder__StringBuilder* self, size_t min_cap) {
@@ -25204,106 +26094,102 @@ void lsp__json__JsonValue_add(lsp__json__JsonValue* self, lsp__json__JsonValue* 
 }
 
 void lsp__json__JsonValue_set(lsp__json__JsonValue* self, const char* key, lsp__json__JsonValue* val_item) {
-    if (((self)->kind == 5)) {
-        {
+    if (((self)->kind != 5)) {
+        return;
+    }
+    {
+        size_t __for_e = ((self)->obj_keys).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
             {
-                size_t __for_e = ((self)->obj_keys).len;
-                size_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
+                    {
+                        std__collections__list__List_ptr_lsp__json__JsonValue_set((&(self)->obj_vals), i, val_item);
+                        return;
+                    }
+                }
                 if (__for_up) {
                     {
-                        __for_go = (__for_i < __for_e);
+                        __for_go = ((__for_i + 1) < __for_e);
                     }
                 } else {
                     {
-                        __for_go = (__for_i > __for_e);
+                        __for_go = ((__for_i - 1) > __for_e);
                     }
                 }
-                while (__for_go) {
-                    {
-                        size_t i = __for_i;
-                        if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
-                            {
-                                std__collections__list__List_ptr_lsp__json__JsonValue_set((&(self)->obj_vals), i, val_item);
-                                return;
-                            }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
                         }
-                        if (__for_up) {
-                            {
-                                __for_go = ((__for_i + 1) < __for_e);
-                            }
-                        } else {
-                            {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                }
-                            } else {
-                                {
-                                    __for_i = (__for_i - 1);
-                                }
-                            }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
                         }
                     }
                 }
             }
-            std__collections__list__List_str_add((&(self)->obj_keys), key);
-            std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->obj_vals), val_item);
         }
     }
+    std__collections__list__List_str_add((&(self)->obj_keys), key);
+    std__collections__list__List_ptr_lsp__json__JsonValue_add((&(self)->obj_vals), val_item);
 }
 
 lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, const char* key) {
-    if (((self != NULL) && ((self)->kind == 5))) {
-        {
+    if (((self == NULL) && ((self)->kind != 5))) {
+        return lsp__json__json_null();
+    }
+    {
+        size_t __for_e = ((self)->obj_keys).len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
             {
-                size_t __for_e = ((self)->obj_keys).len;
-                size_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
+                    return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->obj_vals), i);
+                }
                 if (__for_up) {
                     {
-                        __for_go = (__for_i < __for_e);
+                        __for_go = ((__for_i + 1) < __for_e);
                     }
                 } else {
                     {
-                        __for_go = (__for_i > __for_e);
+                        __for_go = ((__for_i - 1) > __for_e);
                     }
                 }
-                while (__for_go) {
-                    {
-                        size_t i = __for_i;
-                        if (kobel_streq(std__collections__list__List_str_get((&(self)->obj_keys), i), key)) {
-                            {
-                                return std__collections__list__List_ptr_lsp__json__JsonValue_get((&(self)->obj_vals), i);
-                            }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
                         }
-                        if (__for_up) {
-                            {
-                                __for_go = ((__for_i + 1) < __for_e);
-                            }
-                        } else {
-                            {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                }
-                            } else {
-                                {
-                                    __for_i = (__for_i - 1);
-                                }
-                            }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
                         }
                     }
                 }
@@ -25418,8 +26304,7 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
             char c = lsp__json__JsonParser_advance(self);
             if ((c == '"')) {
                 break;
-            }
-            if ((c == '\\')) {
+            } else if ((c == '\\')) {
                 {
                     if (lsp__json__JsonParser_is_end(self)) {
                         break;
@@ -25439,7 +26324,7 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
                         std__collections__string_builder__StringBuilder_append_char((&sb), '\t');
                     } else if ((esc == 'u')) {
                         {
-                            size_t u_count = 0;
+                            size_t u_count = ((size_t)0ULL);
                             while (((u_count < 4) && (!lsp__json__JsonParser_is_end(self)))) {
                                 {
                                     lsp__json__JsonParser_advance(self);
@@ -25474,7 +26359,7 @@ int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
     while (((!lsp__json__JsonParser_is_end(self)) && char_is_digit(lsp__json__JsonParser_peek(self)))) {
         {
             char c = lsp__json__JsonParser_advance(self);
-            int64_t d = ((int64_t)(((((int32_t)c)) - 48)));
+            int32_t d = ((((int32_t)c)) - 48);
             val_num = ((val_num * 10) + d);
         }
     }
@@ -25577,165 +26462,154 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
     char c = lsp__json__JsonParser_peek(self);
     if ((c == '"')) {
         return lsp__json__json_str(lsp__json__JsonParser_parse_string(self));
-    }
-    if ((c == '{')) {
+    } else if ((c == '{')) {
         return lsp__json__JsonParser_parse_object(self);
-    }
-    if ((c == '[')) {
+    } else if ((c == '[')) {
         return lsp__json__JsonParser_parse_array(self);
-    }
-    if (((c == '-') || char_is_digit(c))) {
+    } else if (((c == '-') || char_is_digit(c))) {
         return lsp__json__json_num(lsp__json__JsonParser_parse_number(self));
-    }
-    if ((c == 't')) {
+    } else if ((c == 't')) {
         {
-            {
-                int32_t __for_e = 4;
-                int32_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
-                if (__for_up) {
-                    {
-                        __for_go = (__for_i < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = (__for_i > __for_e);
-                    }
+            int32_t __for_e = 4;
+            int32_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                {
+                    __for_go = (__for_i < __for_e);
                 }
-                while (__for_go) {
-                    {
-                        int32_t i = __for_i;
-                        if ((!lsp__json__JsonParser_is_end(self))) {
-                            lsp__json__JsonParser_advance(self);
+            } else {
+                {
+                    __for_go = (__for_i > __for_e);
+                }
+            }
+            while (__for_go) {
+                {
+                    int32_t i = __for_i;
+                    if ((!lsp__json__JsonParser_is_end(self))) {
+                        lsp__json__JsonParser_advance(self);
+                    }
+                    if (__for_up) {
+                        {
+                            __for_go = ((__for_i + 1) < __for_e);
                         }
+                    } else {
+                        {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                    }
+                    if (__for_go) {
                         if (__for_up) {
                             {
-                                __for_go = ((__for_i + 1) < __for_e);
+                                __for_i = (__for_i + 1);
                             }
                         } else {
                             {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                }
-                            } else {
-                                {
-                                    __for_i = (__for_i - 1);
-                                }
+                                __for_i = (__for_i - 1);
                             }
                         }
                     }
                 }
             }
-            return lsp__json__json_bool(true);
         }
-    }
-    if ((c == 'f')) {
+        return lsp__json__json_bool(true);
+    } else if ((c == 'f')) {
         {
-            {
-                int32_t __for_e = 5;
-                int32_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
-                if (__for_up) {
-                    {
-                        __for_go = (__for_i < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = (__for_i > __for_e);
-                    }
+            int32_t __for_e = 5;
+            int32_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                {
+                    __for_go = (__for_i < __for_e);
                 }
-                while (__for_go) {
-                    {
-                        int32_t i = __for_i;
-                        if ((!lsp__json__JsonParser_is_end(self))) {
-                            lsp__json__JsonParser_advance(self);
+            } else {
+                {
+                    __for_go = (__for_i > __for_e);
+                }
+            }
+            while (__for_go) {
+                {
+                    int32_t i = __for_i;
+                    if ((!lsp__json__JsonParser_is_end(self))) {
+                        lsp__json__JsonParser_advance(self);
+                    }
+                    if (__for_up) {
+                        {
+                            __for_go = ((__for_i + 1) < __for_e);
                         }
+                    } else {
+                        {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                    }
+                    if (__for_go) {
                         if (__for_up) {
                             {
-                                __for_go = ((__for_i + 1) < __for_e);
+                                __for_i = (__for_i + 1);
                             }
                         } else {
                             {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                }
-                            } else {
-                                {
-                                    __for_i = (__for_i - 1);
-                                }
+                                __for_i = (__for_i - 1);
                             }
                         }
                     }
                 }
             }
-            return lsp__json__json_bool(false);
         }
-    }
-    if ((c == 'n')) {
+        return lsp__json__json_bool(false);
+    } else if ((c == 'n')) {
         {
-            {
-                int32_t __for_e = 4;
-                int32_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
-                if (__for_up) {
-                    {
-                        __for_go = (__for_i < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = (__for_i > __for_e);
-                    }
+            int32_t __for_e = 4;
+            int32_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                {
+                    __for_go = (__for_i < __for_e);
                 }
-                while (__for_go) {
-                    {
-                        int32_t i = __for_i;
-                        if ((!lsp__json__JsonParser_is_end(self))) {
-                            lsp__json__JsonParser_advance(self);
+            } else {
+                {
+                    __for_go = (__for_i > __for_e);
+                }
+            }
+            while (__for_go) {
+                {
+                    int32_t i = __for_i;
+                    if ((!lsp__json__JsonParser_is_end(self))) {
+                        lsp__json__JsonParser_advance(self);
+                    }
+                    if (__for_up) {
+                        {
+                            __for_go = ((__for_i + 1) < __for_e);
                         }
+                    } else {
+                        {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                    }
+                    if (__for_go) {
                         if (__for_up) {
                             {
-                                __for_go = ((__for_i + 1) < __for_e);
+                                __for_i = (__for_i + 1);
                             }
                         } else {
                             {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                }
-                            } else {
-                                {
-                                    __for_i = (__for_i - 1);
-                                }
+                                __for_i = (__for_i - 1);
                             }
                         }
                     }
                 }
             }
-            return lsp__json__json_null();
         }
+        return lsp__json__json_null();
+    } else {
+        lsp__json__JsonParser_advance(self);
+        return lsp__json__json_null();
     }
-    lsp__json__JsonParser_advance(self);
-    return lsp__json__json_null();
 }
 
 lsp__json__JsonValue* lsp__json__parse_json(const char* src) {
@@ -27336,6 +28210,9 @@ void main__print_usage(void) {
     std__io__println("Usage: kobel [command|options] <source.kb>");
     std__io__println("");
     std__io__println("Commands:");
+    std__io__println("  build                     Build project defined by kobel.toml");
+    std__io__println("  run [args...]             Run project (builds if missing or changed)");
+    std__io__println("  test [filter]             Run test suite defined by kobel.toml");
     std__io__println("  fmt [options] <files...>  Format Kobel source code");
     std__io__println("  lsp                       Start Language Server Protocol (LSP) server");
     std__io__println("");
@@ -27354,6 +28231,146 @@ void main__print_fmt_usage(void) {
     std__io__println("Options:");
     std__io__println("  -w, --write      Write formatted output back to files in place");
     std__io__println("  -h, --help       Display this help message");
+}
+
+int32_t main__run_build(int32_t argc, const char** argv) {
+    const char* manifest = "kobel.toml";
+    int32_t i = 2;
+    while ((i < argc)) {
+        {
+            const char* arg = util__strutil__cstr_to_str(argv[i]);
+            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+                {
+                    std__io__println("Usage: kobel build [options]");
+                    std__io__println("");
+                    std__io__println("Options:");
+                    std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
+                    std__io__println("  -h, --help             Display this help message");
+                    return 0;
+                }
+            } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
+                {
+                    i++;
+                    if ((i < argc)) {
+                        manifest = util__strutil__cstr_to_str(argv[i]);
+                    } else {
+                        {
+                            std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
+                            return 1;
+                        }
+                    }
+                }
+            } else {
+                {
+                    std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "' for build command"));
+                    return 1;
+                }
+            }
+            i++;
+        }
+    }
+    return compiler__driver__commands__cmd_build(manifest);
+}
+
+int32_t main__run_project(int32_t argc, const char** argv) {
+    const char* manifest = "kobel.toml";
+    std__collections__list__List_str extra_args = std__collections__list__List_str_new(4);
+    int32_t i = 2;
+    bool collecting_args = false;
+    while ((i < argc)) {
+        {
+            const char* arg = util__strutil__cstr_to_str(argv[i]);
+            if (collecting_args) {
+                {
+                    std__collections__list__List_str_add((&extra_args), arg);
+                }
+            } else {
+                {
+                    if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+                        {
+                            std__io__println("Usage: kobel run [options] [--] [args...]");
+                            std__io__println("");
+                            std__io__println("Runs the project defined in kobel.toml. Automatically checks if");
+                            std__io__println("the target binary exists and rebuilds if changes are detected.");
+                            std__io__println("");
+                            std__io__println("Options:");
+                            std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
+                            std__io__println("  -h, --help             Display this help message");
+                            return 0;
+                        }
+                    } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
+                        {
+                            i++;
+                            if ((i < argc)) {
+                                manifest = util__strutil__cstr_to_str(argv[i]);
+                            } else {
+                                {
+                                    std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
+                                    return 1;
+                                }
+                            }
+                        }
+                    } else if (strcmp(arg, "--") == 0) {
+                        collecting_args = true;
+                    } else {
+                        {
+                            std__collections__list__List_str_add((&extra_args), arg);
+                            collecting_args = true;
+                        }
+                    }
+                }
+            }
+            i++;
+        }
+    }
+    return compiler__driver__commands__cmd_run(manifest, extra_args);
+}
+
+int32_t main__run_test_suite(int32_t argc, const char** argv) {
+    const char* manifest = "kobel.toml";
+    const char* filter = "";
+    int32_t i = 2;
+    while ((i < argc)) {
+        {
+            const char* arg = util__strutil__cstr_to_str(argv[i]);
+            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+                {
+                    std__io__println("Usage: kobel test [options] [filter]");
+                    std__io__println("");
+                    std__io__println("Runs tests defined in the test directory configured in kobel.toml.");
+                    std__io__println("");
+                    std__io__println("Options:");
+                    std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
+                    std__io__println("  -h, --help             Display this help message");
+                    return 0;
+                }
+            } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
+                {
+                    i++;
+                    if ((i < argc)) {
+                        manifest = util__strutil__cstr_to_str(argv[i]);
+                    } else {
+                        {
+                            std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
+                            return 1;
+                        }
+                    }
+                }
+            } else {
+                {
+                    if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
+                        {
+                            std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "' for test command"));
+                            return 1;
+                        }
+                    }
+                    filter = arg;
+                }
+            }
+            i++;
+        }
+    }
+    return compiler__driver__commands__cmd_test(manifest, filter);
 }
 
 int32_t main__run_fmt(int32_t argc, const char** argv) {
@@ -27375,9 +28392,7 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
                     return 0;
                 }
             } else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--write") == 0) {
-                {
-                    write_in_place = true;
-                }
+                write_in_place = true;
             } else {
                 {
                     if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
@@ -27431,9 +28446,7 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
                         std__io__println(fpath);
                     }
                 } else {
-                    {
-                        std__io__print(formatted);
-                    }
+                    std__io__print(formatted);
                 }
                 __for_i = (__for_i + 1);
             }
@@ -27442,25 +28455,8 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
     return 0;
 }
 
-int32_t main(int32_t argc, const char** argv) {
-    if ((argc < 2)) {
-        {
-            main__print_usage();
-            return 1;
-        }
-    }
-    const char* first_arg = util__strutil__cstr_to_str(argv[1]);
-    if (kobel_streq(first_arg, "fmt")) {
-        {
-            return main__run_fmt(argc, argv);
-        }
-    }
-    if (kobel_streq(first_arg, "lsp")) {
-        {
-            return lsp__server__run_server();
-        }
-    }
-    compiler__driver__pipeline__CompileOptions opts = compiler__driver__pipeline__CompileOptions_new();
+int32_t main__run_compiler(int32_t argc, const char** argv) {
+    compiler__driver__pipeline__CompileOptions opts = (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4), false };
     int32_t i = 1;
     while ((i < argc)) {
         {
@@ -27479,9 +28475,7 @@ int32_t main(int32_t argc, const char** argv) {
                 {
                     i++;
                     if ((i < argc)) {
-                        {
-                            (opts).output_bin = util__strutil__cstr_to_str(argv[i]);
-                        }
+                        (opts).output_bin = util__strutil__cstr_to_str(argv[i]);
                     } else {
                         {
                             std__io__println("Error: Missing argument after '-o'");
@@ -27508,9 +28502,7 @@ int32_t main(int32_t argc, const char** argv) {
                 {
                     i++;
                     if ((i < argc)) {
-                        {
-                            (opts).c_compiler = util__strutil__cstr_to_str(argv[i]);
-                        }
+                        (opts).c_compiler = util__strutil__cstr_to_str(argv[i]);
                     } else {
                         {
                             std__io__println("Error: Missing argument after '--cc'");
@@ -27522,9 +28514,7 @@ int32_t main(int32_t argc, const char** argv) {
                 {
                     i++;
                     if ((i < argc)) {
-                        {
-                            std__collections__list__List_str_add((&(opts).extra_roots), util__strutil__cstr_to_str(argv[i]));
-                        }
+                        std__collections__list__List_str_add((&(opts).extra_roots), util__strutil__cstr_to_str(argv[i]));
                     } else {
                         {
                             std__io__println("Error: Missing argument after '-I'");
@@ -27553,5 +28543,16 @@ int32_t main(int32_t argc, const char** argv) {
         }
     }
     return compiler__driver__pipeline__compile_pipeline(opts);
+}
+
+int32_t main(int32_t argc, const char** argv) {
+    if ((argc < 2)) {
+        {
+            main__print_usage();
+            return 1;
+        }
+    }
+    const char* first_arg = util__strutil__cstr_to_str(argv[1]);
+    return (strcmp(first_arg, "build") == 0 ? main__run_build(argc, argv) : (strcmp(first_arg, "run") == 0 ? main__run_project(argc, argv) : (strcmp(first_arg, "test") == 0 ? main__run_test_suite(argc, argv) : (strcmp(first_arg, "lsp") == 0 ? lsp__server__run_server() : (strcmp(first_arg, "fmt") == 0 ? main__run_fmt(argc, argv) : main__run_compiler(argc, argv))))));
 }
 
