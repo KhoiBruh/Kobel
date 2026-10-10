@@ -587,8 +587,24 @@ impl Parser {
 	}
 
 	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {
-		if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
-		return self.literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
+		if (!self.check(TokenType.STRING)) {
+			if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
+			return self.literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
+		}
+
+		var combined_inner = "";
+		if (tok.text.len >= 2) {
+			combined_inner = tok.text.slice(1, tok.text.len - 1);
+		}
+		while (self.check(TokenType.STRING)) {
+			val next_tok = self.advance();
+			if (next_tok.text.len >= 2) {
+				combined_inner = "${combined_inner}${next_tok.text.slice(1, next_tok.text.len - 1)}";
+			}
+		}
+		val combined = "\"${combined_inner}\"";
+		if (str_has_hole(combined)) return self.parse_interp_string(combined, line, col);
+		return self.literal(LiteralKind.STRING, normalize_esc_dollar(combined), line, col);
 	}
 
 	pub fn parse_interp_string(var self, text: str, line: usz, col: usz): *AstNode {

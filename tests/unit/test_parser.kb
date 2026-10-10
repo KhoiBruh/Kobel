@@ -238,6 +238,30 @@ fn test_full_program_parsing() {
 	println("  [PASS] test_full_program_parsing");
 }
 
+fn test_adjacent_strings_parsing() {
+	// Test adjacent plain string concatenation
+	val src1 = "\"hello \" \"world\"";
+	var lexer1 = Lexer(src1);
+	var parser1 = Parser(lexer1.tokenize());
+	val expr1 = parser1.parse_expression(PREC_NONE);
+
+	assert_true(expr1.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
+	val lit1 = expr1.to<LiteralExpr>();
+	assert_eq_str(lit1.raw_text, "\"hello world\"", "Concatenated literal must be '\"hello world\"'");
+
+	// Test multi-line adjacent strings
+	val src2 = "\"a\" \n \"b\" \n \"c\"";
+	var lexer2 = Lexer(src2);
+	var parser2 = Parser(lexer2.tokenize());
+	val expr2 = parser2.parse_expression(PREC_NONE);
+
+	assert_true(expr2.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
+	val lit2 = expr2.to<LiteralExpr>();
+	assert_eq_str(lit2.raw_text, "\"abc\"", "Concatenated literal must be '\"abc\"'");
+
+	println("  [PASS] test_adjacent_strings_parsing");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_expression_parsing();
@@ -245,6 +269,7 @@ fn main(): i32 {
 	test_type_parsing();
 	test_statement_parsing();
 	test_full_program_parsing();
+	test_adjacent_strings_parsing();
 	println("[ALL PASSED] Bootstrap Parser passed all tests successfully!");
 	return 0;
 }

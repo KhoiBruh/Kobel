@@ -70,6 +70,23 @@ println("giá: \$5");                          // `\$` là ký tự `$` literal
 - Hạ tầng: chuỗi nội suy được hạ trong sema thành chuỗi gọi `kobel_concat` + helper chuyển kiểu
   (xem `docs/architecture.md` §6.2) — không đụng tới codegen.
 
+### Gộp chuỗi liền kề (Adjacent string concatenation)
+
+Hai hoặc nhiều chuỗi literal đứng liền kề nhau (ngăn cách bởi khoảng trắng hoặc xuống dòng) sẽ tự động được gộp thành một chuỗi duy nhất lúc biên dịch (compile-time), không phát sinh chi phí gọi runtime hay cấp phát bộ nhớ:
+
+```
+val query = "SELECT id, name, email "
+            "FROM users "
+            "WHERE active = 1;";
+```
+
+Hỗ trợ cả chuỗi có nội suy `${...}`:
+
+```
+val greeting = "Xin chào ${name}, "
+               "chúc bạn một ngày tốt lành!";
+```
+
 ### Nullable
 
 ```

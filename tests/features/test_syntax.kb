@@ -331,6 +331,35 @@ fn test_null_safety(): bool {
 	return true;
 }
 
+fn test_adjacent_strings(): bool {
+	// 1. Basic adjacent strings
+	val s1 = "Hello " "world!";
+	if (s1 != "Hello world!") return false;
+
+	// 2. Multiline adjacent strings
+	val s2 = "Line 1, "
+	         "Line 2, "
+	         "Line 3";
+	if (s2 != "Line 1, Line 2, Line 3") return false;
+
+	// 3. Adjacent strings with escape sequences
+	val s3 = "A\n" "B\t" "\"C\"";
+	if (s3 != "A\nB\t\"C\"") return false;
+
+	// 4. Adjacent strings with interpolation
+	val name = "Kobel";
+	val count = 3;
+	val s4 = "Hello " "${name}! "
+	         "You have ${count} messages.";
+	if (s4 != "Hello Kobel! You have 3 messages.") return false;
+
+	// 5. In expression context (array)
+	val arr = ["foo" "bar", "baz"];
+	if (arr.len != 2 || arr[0] != "foobar" || arr[1] != "baz") return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Core Syntax & Operators ===");
 
@@ -369,6 +398,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_null_safety");
+
+	if (!test_adjacent_strings()) {
+		println("  [FAIL] test_adjacent_strings");
+		return 1;
+	}
+	println("  [PASS] test_adjacent_strings");
 
 	println("=== ALL CORE SYNTAX TESTS PASSED! ===");
 	return 0;
