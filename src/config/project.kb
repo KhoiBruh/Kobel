@@ -1,0 +1,122 @@
+mod config.project;
+
+use std.io.*;
+use std.collections.list.List;
+use std.collections.hash_map.HashMap;
+use util.strutil.*;
+
+// ============================================================================
+// Mini-TOML Parser and Project Configuration
+//
+// Parses a lightweight subset of TOML sufficient for project manifests
+// like `kobel.toml`:
+//   [section]
+//   key = "value"
+//   key = value
+// ============================================================================
+
+pub struct TomlDoc {
+	pub entries: HashMap<str>
+}
+
+impl TomlDoc {
+	pub fn new(): Self => Self(HashMap<str>());
+
+	pub fn get(val self, key: str, default_val: str): str => self.entries.get_or(key, default_val);
+}
+
+pub fn parse_mini_toml(content: str): TomlDoc {
+	var doc = TomlDoc();
+	val lines = content.split_lines();
+	var current_section = "";
+
+	for (line in lines) {
+		val trimmed = line.trim();
+		if (trimmed.is_empty() || trimmed.starts_with("#")) {
+			continue;
+		}
+
+		if (trimmed.starts_with("[") && trimmed.ends_with("]") && trimmed.len >= 2UZ) {
+			current_section = trimmed.slice(1UZ, trimmed.len - 1UZ).trim();
+			continue;
+		}
+
+		val eq_pos = trimmed.index_of("=");
+		if (eq_pos > 0) {
+			val key_raw = trimmed.slice(0UZ, eq_pos as usz).trim();
+			val val_raw = trimmed.slice((eq_pos + 1) as usz, trimmed.len).trim();
+
+			// Unquote string literals if surrounded by quotes
+			var val_clean = val_raw;
+			if (val_raw.len >= 2UZ) {
+				if ((val_raw.starts_with("\"") && val_raw.ends_with("\"")) ||
+				    (val_raw.starts_with("'") && val_raw.ends_with("'"))) {
+					val_clean = val_raw.slice(1UZ, val_raw.len - 1UZ);
+				}
+			}
+
+			var full_key = key_raw;
+			if (current_section.len > 0UZ) {
+				full_key = "${current_section}.${key_raw}";
+			}
+
+			doc.entries.put(full_key, val_clean);
+		}
+	}
+
+	return doc;
+}
+
+pub struct ProjectConfig {
+	pub name: str,
+	pub version: str,
+	pub entry: str,
+	pub output: str,
+	pub cc: str,
+	pub test_dir: str
+}
+
+impl ProjectConfig {
+	pub fn new(): Self => Self(
+		"kobel",
+		"1.0.0",
+		"src/main.kb",
+		"kobel.exe",
+		"cl",
+		"tests"
+	);
+}
+
+pub fn load_project_config(manifest_path: str): ProjectConfig {
+	var cfg = ProjectConfig();
+	if (!file_exists(manifest_path)) {
+		return cfg;
+	}
+
+	val content = read_file(manifest_path);
+	if (content.is_empty()) {
+		return cfg;
+	}
+
+	val doc = parse_mini_toml(content);
+
+	val name = doc.get("package.name", "");
+	if (!name.is_empty()) cfg.name = name;
+
+	val ver = doc.get("package.version", "");
+	if (!ver.is_empty()) cfg.version = ver;
+
+	val entry = doc.get("package.entry", doc.get("build.entry", ""));
+	if (!entry.is_empty()) cfg.entry = entry;
+
+	val output = doc.get("build.output", "");
+	if (!output.is_empty()) cfg.output = output;
+
+	val cc = doc.get("build.cc", "");
+	if (!cc.is_empty()) cfg.cc = cc;
+
+	val test_dir = doc.get("test.dir", "");
+	if (!test_dir.is_empty()) cfg.test_dir = test_dir;
+
+	return cfg;
+}

@@ -1,0 +1,62 @@
+mod tests.unit.test_config;
+
+use std.io.*;
+use config.project.*;
+
+fn test_toml_parser(): bool {
+	val toml_content = "# Kobel Project Configuration\n" +
+		"[package]\n" +
+		"name = \"my_project\"\n" +
+		"version = \"0.2.1\"\n\n" +
+		"[build]\n" +
+		"entry = \"src/app.kb\"\n" +
+		"output = \"bin/app.exe\"\n" +
+		"cc = \"clang\"\n\n" +
+		"[test]\n" +
+		"dir = \"my_tests\"\n";
+
+	val doc = parse_mini_toml(toml_content);
+
+	if (doc.get("package.name", "") != "my_project") return false;
+	if (doc.get("package.version", "") != "0.2.1") return false;
+	if (doc.get("build.entry", "") != "src/app.kb") return false;
+	if (doc.get("build.output", "") != "bin/app.exe") return false;
+	if (doc.get("build.cc", "") != "clang") return false;
+	if (doc.get("test.dir", "") != "my_tests") return false;
+
+	// Default fallback for missing key
+	if (doc.get("nonexistent.key", "fallback") != "fallback") return false;
+
+	return true;
+}
+
+fn test_default_config(): bool {
+	val cfg = ProjectConfig();
+	if (cfg.name != "kobel") return false;
+	if (cfg.version != "1.0.0") return false;
+	if (cfg.entry != "src/main.kb") return false;
+	if (cfg.output != "kobel.exe") return false;
+	if (cfg.cc != "cl") return false;
+	if (cfg.test_dir != "tests") return false;
+
+	return true;
+}
+
+fn main(): i32 {
+	println("[RUNNING] Test Mini-TOML & Project Configuration...");
+
+	if (!test_toml_parser()) {
+		println("  [FAIL] test_toml_parser");
+		return 1;
+	}
+	println("  [PASS] test_toml_parser");
+
+	if (!test_default_config()) {
+		println("  [FAIL] test_default_config");
+		return 1;
+	}
+	println("  [PASS] test_default_config");
+
+	println("[ALL PASSED] Mini-TOML and Project Config tests passed successfully!");
+	return 0;
+}

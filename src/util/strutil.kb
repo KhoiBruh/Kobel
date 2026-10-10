@@ -182,6 +182,58 @@ impl str {
 		}
 		return -1;
 	}
+
+	pub fn trim(val self): str {
+		if (self.len == 0UZ) return self;
+		var start: usz = 0UZ;
+		while (start < self.len) {
+			val c = self[start];
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') start++;
+			else break;
+		}
+		if (start == self.len) return "";
+		var end: usz = self.len;
+		while (end > start) {
+			val c = self[end - 1UZ];
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') end--;
+			else break;
+		}
+		return self.slice(start, end);
+	}
+
+	pub fn split_lines(val self): List<str> {
+		var res = List<str>();
+		var start: usz = 0UZ;
+		var i: usz = 0UZ;
+		while (i < self.len) {
+			val c = self[i];
+			if (c == '\n') {
+				var line_end = i;
+				if (line_end > start && self[line_end - 1UZ] == '\r') {
+					line_end = line_end - 1UZ;
+				}
+				res.add(self.slice(start, line_end));
+				start = i + 1UZ;
+			}
+			i++;
+		}
+		if (start <= self.len) {
+			var line_end = self.len;
+			if (line_end > start && self[line_end - 1UZ] == '\r') {
+				line_end = line_end - 1UZ;
+			}
+			res.add(self.slice(start, line_end));
+		}
+		return res;
+	}
+
+	pub fn hash_stamp(val self): str {
+		var h: u64 = 5381UL;
+		for (c in self) {
+			h = ((h * 33UL) + (c as u64)) % 1000000007UL;
+		}
+		return "${h}_${self.len}";
+	}
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
