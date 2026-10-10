@@ -171,7 +171,7 @@ impl CCodeGen {
 		}
 
 		var proto = "${ret_ty} ${f.name}(";
-		if (f.params.is_empty()) proto = "${proto}void";
+		if (f.params.empty()) proto = "${proto}void";
 		else {
 			for (i in 0..<f.params.len) {
 				if (i > 0) proto = "${proto}, ";

@@ -35,8 +35,6 @@ impl str {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn is_empty(val self) => self.len == 0;
-
 	pub fn starts_with(val self, prefix: str): bool {
 		if (self.len < prefix.len) return false;
 		return self.slice(0, prefix.len) == prefix;

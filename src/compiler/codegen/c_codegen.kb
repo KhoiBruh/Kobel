@@ -306,11 +306,11 @@ impl CCodeGen {
 			is ArrayLiteralExpr as al -> {
 				var elem_c = self.array_elem_hint;
 				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-				else if (elem_c == "" && !al.elements.is_empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				else if (elem_c == "" && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
 				if (elem_c == "") elem_c = "int32_t";
 
 				if (al.list_struct_name != "") {
-					if (al.elements.is_empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
+					if (al.elements.empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
 					var arr_res = "(${elem_c}[]){";
 					for (i in 0..<al.elements.len) {
 						if (i > 0) arr_res = "${arr_res}, ";
@@ -575,7 +575,7 @@ impl CCodeGen {
 				if (al.list_struct_name != "") return al.list_struct_name;
 				var elem_c = self.array_elem_hint;
 				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-				else if (elem_c == "" && !al.elements.is_empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				else if (elem_c == "" && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
 				if (elem_c == "") elem_c = "int32_t";
 				return "${elem_c}*";
 			}

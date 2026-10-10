@@ -35,7 +35,7 @@ impl BodyPass {
 				val s = list_ty.as_struct();
 				al.list_struct_name = s.c_name;
 
-				if (s.fields.is_empty()) return;
+				if (s.fields.empty()) return;
 				val f0 = s.fields.first();
 				if (f0.type_ptr.kind != DataType.POINTER) return;
 				val elem_ty = f0.type_ptr.as_pointer().pointee;
@@ -870,7 +870,7 @@ impl BodyPass {
 
 			// The element type comes from the first element; an empty literal
 			// has nothing to infer from (use an annotated `[T; 0]` variable).
-			if (al.elements.is_empty()) {
+			if (al.elements.empty()) {
 				self.report_error(node, "Cannot infer the element type of an empty array literal");
 				return alloc_primitive(&self.arena, type_none());
 			}

@@ -271,7 +271,7 @@ impl DeclPass {
 		val params = tmpl.params();
 		for (i in 0..<params.len) {
 			val gp = params[i];
-			if (gp.bounds.is_empty() || i >= arg_asts.len) continue;
+			if (gp.bounds.empty() || i >= arg_asts.len) continue;
 
 			val arg = arg_asts[i];
 			if (arg.kind != NodeKind.TYPE_NAMED) continue;
@@ -767,7 +767,7 @@ impl DeclPass {
 		when (cur.kind) {
 			NodeKind.EXPR_CALL -> {
 				val call = cur.to<CallExpr>() as &CallExpr;
-				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.type_args.is_empty()) {
+				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.type_args.empty()) {
 					val cid = call.callee.to<IdentifierExpr>() as &IdentifierExpr;
 					if (nt.type_args.len > 0) {
 						if (cid.name == nt.name) {

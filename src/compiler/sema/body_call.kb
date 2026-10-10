@@ -70,7 +70,7 @@ impl BodyPass {
 					// Lower to kobel_slice(receiver, start, end); end defaults to length.
 					var sargs = List<*AstNode>();
 					sargs.add(mem.object);
-					if (!call.args.is_empty()) sargs.add(call.args.first());
+					if (!call.args.empty()) sargs.add(call.args.first());
 					else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
 					if (call.args.len >= 2) {
 						sargs.add(call.args[1]);

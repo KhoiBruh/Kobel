@@ -221,7 +221,7 @@ impl Parser {
 		val first_name = self.consume(TokenType.IDENTIFIER, "Expected struct or trait name").text;
 
 		if (
-			type_params.is_empty() && 
+			type_params.empty() &&
 			self.check(TokenType.LESS)
 		) type_params = self.parse_generic_params();
 

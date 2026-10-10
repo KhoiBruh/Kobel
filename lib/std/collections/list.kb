@@ -49,8 +49,6 @@ impl List<T> {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn is_empty(val self) => self.len == 0;
-
 	pub fn set(var self, index: usz, value: T) => self.data[index] = value;
 
 	pub fn add(var self, value: T) {
