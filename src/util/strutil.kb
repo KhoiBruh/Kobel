@@ -169,6 +169,18 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
+	// Converts '\\' to '/' for cross-platform and POSIX path representations
+	pub fn to_posix_path(val self): str {
+		val buf = raw_alloc(self.len + 1);
+		for (i in 0..<self.len) {
+			val c = self[i];
+			buf[i] = if (c == '\\') '/' as u8 else c as u8;
+		}
+
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
 	pub fn in_list(val self, list: List<str>): bool {
 		for (item in list) {
 			if (item == self) return true;

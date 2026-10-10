@@ -31,7 +31,8 @@ pub struct CompileOptions {
 	pub emit_c_path: str = "",
 	pub c_compiler: str = "cl",
 	pub only_emit_c: bool = false,
-	pub extra_roots: List<str> = List<str>()
+	pub extra_roots: List<str> = List<str>(),
+	pub quiet: bool = false
 }
 
 pub fn compile_pipeline(opts: CompileOptions): i32 {
@@ -43,7 +44,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		return 1;
 	}
 
-	println("[1/4] Loading modules (lex + parse)...");
+	if (!opts.quiet) println("[1/4] Loading modules (lex + parse)...");
 	var loader = ModuleLoader(input_path.dir_of(), opts.extra_roots);
 
 	// String interpolation lowers to the `ToStr` trait, whose built-in
@@ -65,11 +66,13 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		println(input_path);
 		return 1;
 	}
-	print("  ");
-	print("${loader.count()}");
-	println(" module(s) loaded");
+	if (!opts.quiet) {
+		print("  ");
+		print("${loader.count()}");
+		println(" module(s) loaded");
+	}
 
-	println("[2/4] Semantic analysis (declarations)...");
+	if (!opts.quiet) println("[2/4] Semantic analysis (declarations)...");
 	val decl_p = DeclPass();
 	decl_p.collect_program(prog);
 	if (decl_p.errors.len > 0) {
@@ -80,7 +83,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		return 1;
 	}
 
-	println("[3/4] Semantic analysis (bodies)...");
+	if (!opts.quiet) println("[3/4] Semantic analysis (bodies)...");
 	val body_p = BodyPass(decl_p.symtab);
 	body_p.check_program(prog);
 	if (body_p.errors.len > 0) {
@@ -91,7 +94,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		return 1;
 	}
 
-	println("[4/4] Generating C99 code...");
+	if (!opts.quiet) println("[4/4] Generating C99 code...");
 	val codegen = CCodeGen();
 	val c_code = codegen.gen_program(prog);
 
@@ -102,8 +105,10 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 			println(opts.emit_c_path);
 			return 1;
 		}
-		print("[SUCCESS] C99 source written to ");
-		println(opts.emit_c_path);
+		if (!opts.quiet) {
+			print("[SUCCESS] C99 source written to ");
+			println(opts.emit_c_path);
+		}
 		return 0;
 	}
 
@@ -120,26 +125,42 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		return 1;
 	}
 
-	println("[BUILDING] Invoking backend compiler (${opts.c_compiler})...");
+	if (!opts.quiet) println("[BUILDING] Invoking backend compiler (${opts.c_compiler})...");
 
-	val compile_cmd = if (
+	// If the output binary already exists, move it aside to avoid Windows LNK1104
+	// file locking issues (especially during self-hosting builds).
+	val old_bin = "${out_path}.old";
+	if (file_exists(out_path)) {
+		exec("del /f /q \"${old_bin.to_win_path()}\" >nul 2>nul");
+		exec("move /y \"${out_path.to_win_path()}\" \"${old_bin.to_win_path()}\" >nul 2>nul");
+	}
+
+	var compile_cmd = if (
 		opts.c_compiler == "clang" ||
 		opts.c_compiler == "gcc"
 	) "${opts.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\""
 	// MSVC cl.exe: ensure environment is set up if not already in PATH
 	else "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
 
+	if (opts.quiet) {
+		compile_cmd = "${compile_cmd} >nul";
+	}
+
 	val exit_code = exec(compile_cmd);
 	if (exit_code != 0) {
+		// Restore previous binary if compilation failed
+		if (file_exists(old_bin) && !file_exists(out_path)) {
+			exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
+		}
 		println("Error: Backend C compiler failed with error code 1");
 		return exit_code;
 	}
 
-	// Clean up temporary C and object files
+	// Clean up temporary C, object, and old binary files
 	val base_obj = "${input_path.strip_kb().base_name()}.tmp.obj";
-	val del_cmd = "del /f /q \"${c_tmp_path.to_win_path()}\" \"${obj_tmp_path.to_win_path()}\" \"${base_obj}\" 2>nul";
+	val del_cmd = "del /f /q \"${c_tmp_path.to_win_path()}\" \"${obj_tmp_path.to_win_path()}\" \"${base_obj}\" \"${old_bin.to_win_path()}\" >nul 2>nul";
 	exec(del_cmd);
 
-	println("[SUCCESS] Executable created: ${out_path}");
+	if (!opts.quiet) println("[SUCCESS] Executable created: ${out_path}");
 	return 0;
 }

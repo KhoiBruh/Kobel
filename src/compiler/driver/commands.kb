@@ -1,0 +1,249 @@
+mod compiler.driver.commands;
+
+use std.io.*;
+use std.sys.exec;
+use std.collections.list.*;
+use config.project.*;
+use compiler.driver.pipeline.*;
+use util.strutil.*;
+
+// ============================================================================
+// Native Project Commands: build, run, test
+// ============================================================================
+
+pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
+	var stamp_seed = read_file(manifest_path);
+	val tmp_file = ".kobel_src_files.tmp";
+	val entry_dir = cfg.entry.dir_of();
+	val root_dir = if (entry_dir.len > 0) entry_dir else "src";
+	val find_cmd = "cmd /c dir /b /s \"${root_dir.to_win_path()}\\*.kb\" > \"${tmp_file}\" 2>nul";
+	exec(find_cmd);
+
+	if (file_exists(tmp_file)) {
+		val file_list = read_file(tmp_file);
+		exec("del /f /q \"${tmp_file}\" 2>nul");
+		val lines = file_list.split_lines();
+		for (line in lines) {
+			val fpath = line.trim();
+			if (!fpath.is_empty() && file_exists(fpath)) {
+				val content = read_file(fpath);
+				stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
+			}
+		}
+	} else {
+		stamp_seed = stamp_seed + read_file(cfg.entry);
+	}
+
+	return stamp_seed.hash_stamp();
+}
+
+pub fn cmd_build(manifest_path: str): i32 {
+	if (!file_exists(manifest_path)) {
+		println("Error: Project manifest '${manifest_path}' not found.");
+		return 1;
+	}
+
+	val cfg = load_project_config(manifest_path);
+	println("Building ${cfg.name} v${cfg.version} [${cfg.entry} -> ${cfg.output}]...");
+
+	val opts = CompileOptions();
+	opts.input_path = cfg.entry;
+	opts.output_bin = cfg.output;
+	opts.c_compiler = cfg.cc;
+
+	val exit_code = compile_pipeline(opts);
+	if (exit_code == 0) {
+		val stamp = compute_project_stamp(cfg, manifest_path);
+		write_file(".kobel_stamp", stamp);
+		println("[SUCCESS] Build complete: ${cfg.output}");
+	}
+	return exit_code;
+}
+
+pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
+	if (!file_exists(manifest_path)) {
+		println("Error: Project manifest '${manifest_path}' not found.");
+		return 1;
+	}
+
+	val cfg = load_project_config(manifest_path);
+	val stamp_file = ".kobel_stamp";
+	val current_stamp = compute_project_stamp(cfg, manifest_path);
+
+	var needs_build = false;
+	if (!file_exists(cfg.output)) {
+		println("Target '${cfg.output}' not found. Building first...");
+		needs_build = true;
+	} else if (!file_exists(stamp_file)) {
+		println("No previous build stamp found. Rebuilding...");
+		needs_build = true;
+	} else {
+		val saved_stamp = read_file(stamp_file).trim();
+		if (saved_stamp != current_stamp) {
+			println("Source changes detected. Rebuilding...");
+			needs_build = true;
+		}
+	}
+
+	if (needs_build) {
+		val build_code = cmd_build(manifest_path);
+		if (build_code != 0) {
+			println("Build failed with code ${build_code}. Aborting run.");
+			return build_code;
+		}
+	} else {
+		println("No changes detected. Running '${cfg.output}'...");
+	}
+
+	// Prepare run command safely without trigger Windows cmd /c quote stripping
+	var out_bin = cfg.output.to_win_path();
+	if (!out_bin.starts_with(".") && !out_bin.starts_with("\\") && out_bin.index_of(":") < 0) {
+		out_bin = ".\\${out_bin}";
+	}
+	var run_cmd = if (out_bin.contains(" ")) "\"${out_bin}\"" else out_bin;
+	for (arg in extra_args) {
+		if (arg.contains(" ")) {
+			run_cmd = "${run_cmd} \"${arg}\"";
+		} else {
+			run_cmd = "${run_cmd} ${arg}";
+		}
+	}
+
+	return exec(run_cmd);
+}
+
+pub fn discover_test_files(test_dir: str): List<str> {
+	val list = List<str>();
+	val tmp_list_file = ".kobel_test_list.tmp";
+	val find_cmd = "cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul";
+	exec(find_cmd);
+
+	if (file_exists(tmp_list_file)) {
+		val content = read_file(tmp_list_file);
+		exec("del /f /q \"${tmp_list_file}\" 2>nul");
+		val lines = content.split_lines();
+		for (line in lines) {
+			val trimmed = line.trim();
+			if (!trimmed.is_empty()) {
+				var normalized = trimmed.to_posix_path();
+				val tests_idx = normalized.index_of("/tests/");
+				if (tests_idx >= 0) {
+					normalized = normalized.slice((tests_idx + 1) as usz, normalized.len);
+				}
+				list.add(normalized);
+			}
+		}
+	}
+
+	if (list.len == 0) {
+		val default_tests = List<str>();
+		default_tests.add("tests/unit/test_lexer.kb");
+		default_tests.add("tests/unit/test_ast.kb");
+		default_tests.add("tests/unit/test_parser.kb");
+		default_tests.add("tests/unit/test_sema_types.kb");
+		default_tests.add("tests/unit/test_sema_symbol.kb");
+		default_tests.add("tests/unit/test_sema_decl.kb");
+		default_tests.add("tests/unit/test_sema_body.kb");
+		default_tests.add("tests/unit/test_codegen.kb");
+		default_tests.add("tests/unit/test_fmt.kb");
+		default_tests.add("tests/unit/test_config.kb");
+		default_tests.add("tests/features/test_syntax.kb");
+		default_tests.add("tests/features/test_control_flow.kb");
+		default_tests.add("tests/features/test_collections.kb");
+		default_tests.add("tests/features/test_types.kb");
+		default_tests.add("tests/features/test_pattern_matching.kb");
+		default_tests.add("tests/stdlib/test_std.kb");
+
+		for (t in default_tests) {
+			if (file_exists(t)) list.add(t);
+		}
+	}
+
+	return list;
+}
+
+pub fn cmd_test(manifest_path: str, filter: str): i32 {
+	val cfg = if (file_exists(manifest_path)) load_project_config(manifest_path) else ProjectConfig();
+	val all_tests = discover_test_files(cfg.test_dir);
+	val active_tests = List<str>();
+
+	for (t in all_tests) {
+		if (filter.is_empty() || t.contains(filter)) {
+			active_tests.add(t);
+		}
+	}
+
+	println("============================================================");
+	if (filter.is_empty()) {
+		println("  Running Kobel Test Suite (${active_tests.len} tests)");
+	} else {
+		println("  Running Kobel Test Suite (filter: '${filter}', ${active_tests.len} tests)");
+	}
+	println("============================================================");
+
+	if (active_tests.len == 0) {
+		println("No tests matched filter '${filter}'.");
+		return 0;
+	}
+
+	var pass_count = 0;
+	var fail_count = 0;
+	val failed_names = List<str>();
+
+	for (tpath in active_tests) {
+		print("[*] ${tpath} ... ");
+
+		val test_bin = "${tpath.strip_kb()}.test_bin.exe";
+		val opts = CompileOptions();
+		opts.input_path = tpath;
+		opts.output_bin = test_bin;
+		opts.c_compiler = cfg.cc;
+		opts.quiet = true;
+
+		val compile_res = compile_pipeline(opts);
+		if (compile_res != 0) {
+			println("FAIL (compilation error)");
+			fail_count++;
+			failed_names.add(tpath);
+			continue;
+		}
+
+		val win_bin = test_bin.to_win_path();
+		val run_cmd = if (win_bin.contains(" ")) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
+		val test_res = exec(run_cmd);
+
+		// Clean up the temporary test binary
+		val del_cmd = "del /f /q \"${win_bin}\" >nul 2>nul";
+		exec(del_cmd);
+
+		if (test_res == 0) {
+			println("PASS");
+			pass_count++;
+		} else {
+			println("FAIL (exit code ${test_res})");
+			fail_count++;
+			failed_names.add(tpath);
+		}
+	}
+
+	println("");
+	println("============================================================");
+	println("                      TEST SUMMARY                          ");
+	println("============================================================");
+	println("Passed: ${pass_count}");
+	println("Failed: ${fail_count}");
+	println("Total:  ${active_tests.len}");
+
+	if (fail_count > 0) {
+		println("");
+		println("[ERROR] The following tests failed:");
+		for (name in failed_names) {
+			println("  - ${name}");
+		}
+		return 1;
+	}
+
+	println("");
+	println("[SUCCESS] All tests passed successfully!");
+	return 0;
+}
