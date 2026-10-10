@@ -28,7 +28,7 @@ impl CCodeGen {
 		if (program_node is Program as prog) {
 
 		// 1. C Standard Headers & Runtime Helpers
-		var c_code = c_prelude();
+		var c_code = C_PRELUDE;
 
 		// 2. First collect struct names, function names and return types
 		for (decl in prog) {
@@ -93,16 +93,16 @@ impl CCodeGen {
 			if (!decl_list.is_template()) {
 				if (decl_list is StructDecl as s) {
 					if (s.name.starts_with("std__collections__list__List")) {
-						c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n" +
-							"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n" +
-							"    size_t cap = (n < 4) ? 4 : n;\n" +
-							"    void* data = malloc(cap * elem_size);\n" +
-							"    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n" +
-							"    ${s.name} l;\n" +
-							"    l.data = data;\n" +
-							"    l.len = n;\n" +
-							"    l.cap = cap;\n" +
-							"    return l;\n" +
+						c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
+							"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
+							"    size_t cap = (n < 4) ? 4 : n;\n"
+							"    void* data = malloc(cap * elem_size);\n"
+							"    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n"
+							"    ${s.name} l;\n"
+							"    l.data = data;\n"
+							"    l.len = n;\n"
+							"    l.cap = cap;\n"
+							"    return l;\n"
 							"}\n\n";
 					}
 				}

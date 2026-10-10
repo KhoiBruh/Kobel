@@ -39,7 +39,7 @@ impl CCodeGen {
 
 	pub fn lookup_fn_ret_type(val self, name: str): str {
 		val idx = name.index_in_list(self.fn_names);
-		if (idx >= 0L) return self.fn_ret_types[idx as usz];
+		if (idx >= 0) return self.fn_ret_types[idx];
 		return "";
 	}
 
@@ -52,9 +52,7 @@ impl CCodeGen {
 
 pub fn get_indent(level: usz): str {
 	var res = "";
-	for (i in 0..<level) {
-		res = "${res}    ";
-	}
+	for (i in 0..<level) res = "${res}    ";
 	return res;
 }
 
@@ -114,9 +112,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 			yield "${sub}*";
 		}
 
-		is NullableType as null_t -> {
-			yield c_type_from_ast(null_t.inner);
-		}
+		is NullableType as null_t ->  c_type_from_ast(null_t.inner);
 
 		else -> "void*";
 	};
@@ -1092,7 +1088,8 @@ impl CCodeGen {
 			if (is_ptr) {
 				self.pointer_vars.add(bound_name);
 				if (is_e.has_data && is_e.base_c_name != "") {
-					return "${target_name}* ${bound_name} = (${target_name}*)(((${is_e.base_c_name}*)${var_name})->data);";
+					return "${target_name}* ${bound_name} = (${target_name}*)"
+							"(((${is_e.base_c_name}*)${var_name})->data);";
 				} else {
 					return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 				}
@@ -1103,12 +1100,18 @@ impl CCodeGen {
 		} else {
 			if (is_ptr) {
 				if (is_e.has_data && is_e.base_c_name != "") {
-					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data);";
+					return "void* __orig_${var_name} = (void*)${var_name};"
+							"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)"
+							"(((${is_e.base_c_name}*)__orig_${var_name})->data);";
 				} else {
-					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)__orig_${var_name};";
+					return "void* __orig_${var_name} = (void*)${var_name};"
+							"\n${next_ind}${target_name}* ${var_name} = "
+							"(${target_name}*)__orig_${var_name};";
 				}
 			} else {
-				return "void* __orig_${var_name} = (void*)&${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)__orig_${var_name};";
+				return "void* __orig_${var_name} = (void*)&${var_name};"
+						"\n${next_ind}${target_name}* ${var_name} = "
+						"(${target_name}*)__orig_${var_name};";
 			}
 		}
 	}
