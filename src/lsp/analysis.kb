@@ -51,21 +51,10 @@ impl LspDiagnostic {
 		val line_tag = "Line ";
 		var line_idx = 0UZ;
 		var found_line = false;
-		if (err_str.len >= line_tag.len) {
-			for (i in 0..(err_str.len - line_tag.len)) {
-				var m = true;
-				for (k in 0..<line_tag.len) {
-					if (err_str[i + k] != line_tag[k]) {
-						m = false;
-						break;
-					}
-				}
-				if (m) {
-					line_idx = i + line_tag.len;
-					found_line = true;
-					break;
-				}
-			}
+		val l_pos = err_str.index_of(line_tag);
+		if (l_pos >= 0) {
+			line_idx = (l_pos as usz) + line_tag.len;
+			found_line = true;
 		}
 
 		if (found_line) {
@@ -81,21 +70,11 @@ impl LspDiagnostic {
 			val col_tag = "Column ";
 			var col_idx = 0UZ;
 			var found_col = false;
-			if (err_str.len >= idx + col_tag.len) {
-				for (i in idx..<(err_str.len - col_tag.len)) {
-					var m = true;
-					for (k in 0..<col_tag.len) {
-						if (err_str[i + k] != col_tag[k]) {
-							m = false;
-							break;
-						}
-					}
-					if (m) {
-						col_idx = i + col_tag.len;
-						found_col = true;
-						break;
-					}
-				}
+			val rest = err_str.slice(idx, err_str.len);
+			val c_pos = rest.index_of(col_tag);
+			if (c_pos >= 0) {
+				col_idx = idx + (c_pos as usz) + col_tag.len;
+				found_col = true;
 			}
 
 			if (found_col) {

@@ -42,8 +42,7 @@ impl BodyPass {
 				val elem_ty = f0.type_ptr.as_pointer().pointee;
 				al.elem_type_node = self.arena.ast_type_from_type(elem_ty);
 
-				for (i in 0..<al.elements.len) {
-					val el = al.elements[i];
+				for (el in al.elements) {
 					if ((elem_ty != null && elem_ty.is_list())) {
 						self.coerce_to_list(el, elem_ty);
 					}
