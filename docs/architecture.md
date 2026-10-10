@@ -377,23 +377,14 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 | Việc | Lệnh |
 |---|---|
 | Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
-| Build v1 | `scripts/build_bootstrap.bat` → `kobel_v1.exe` (seed biên dịch `src/main.kb`) |
-| Test v1 | `scripts/test_all_bootstrap.bat` (13 test, gồm `examples/std_demo.kb`) |
-| Chạy 1 chương trình | `scripts/run_test.bat <file.kb>` |
-| Regenerate seed | `kobel_v1.exe src/main.kb -emit-c dist/bootstrap.c` |
+| Build compiler | `build/kobel.exe build` (tự động theo `kobel.toml`, xuất `build/kobel.exe`) |
+| Run project | `build/kobel.exe run [args...]` (tự động kiểm tra thay đổi mã nguồn trước khi chạy) |
+| Test suite | `build/kobel.exe test [filter]` (chạy 16 bài kiểm tra chuẩn hóa với bộ lọc linh hoạt) |
+| Regenerate seed | `build/kobel.exe src/main.kb -emit-c dist/bootstrap.c` |
 
-v0 (C++/LLVM) nằm ở nhánh **`v0-cpp`**: build bằng `cmake --build cmake-build-debug` (CMake + vcpkg/LLVM
-env), test bằng `test/test_*.cpp` (7 bộ). Master (nhánh này) không còn mã C++.
+Tất cả các tệp sinh ra khi dựng và kiểm thử (`.exe`, `.obj`, `.tmp.*`, `.kobel_stamp`) đều được cô lập bên trong thư mục `build/`.
 
-⚠ Các test **có bước link** phải chạy trong môi trường MSVC (`vcvars64`), nếu không sẽ báo thiếu
-`libcmt.lib`. Chạy từ Developer Prompt hoặc gọi qua wrapper.
-
-### 8.2 Vấn đề cần dọn
-
-- Artifact (`kobel_v1/v2/v3.exe`, `out.c`, `*.tmp.obj`) rơi vào **gốc repo** (đã gitignore; nên gom vào `build/`).
-- Test của v1 nằm lẫn trong `examples/` (`test_bootstrap_*.kb`); danh sách test **hardcode** trong `.bat`.
-- Mỗi `.bat` tự dò `vcvars`; ~~`scripts/tmp_diag.bat`~~ (đã xoá).
-- Không có script `clean`/`fixpoint`.
+Trình biên dịch tự động dò tìm công cụ MSVC qua `vswhere` khi cần, không còn sử dụng bất kỳ đường dẫn cứng nào.
 
 ---
 
