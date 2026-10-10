@@ -235,6 +235,75 @@ fn test_val_immutability() {
 	println("  [PASS] test_val_immutability");
 }
 
+fn test_elvis_jump_restriction() {
+	// 1. Allowed in variable declaration: val x = p ?: return;
+	val src1 = "fn test(p: *i32?): i32 {\n" +
+		"    val x = p ?: return 0;\n" +
+		"    return *x;\n" +
+		"}\n";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	var bp1 = BodyPass();
+	bp1.check_program(p1.parse_program());
+	assert_eq_usz(bp1.errors.len, 0UZ, "Elvis with return in variable declaration must be allowed");
+
+	// 2. Allowed in assignment: x = p ?: return;
+	val src2 = "fn test(p: *i32?, var x: *i32): i32 {\n" +
+		"    x = p ?: return 0;\n" +
+		"    return *x;\n" +
+		"}\n";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	var bp2 = BodyPass();
+	bp2.check_program(p2.parse_program());
+	assert_eq_usz(bp2.errors.len, 0UZ, "Elvis with return in assignment must be allowed");
+
+	// 3. Allowed in statement expression: p ?: return;
+	val src3 = "fn test(p: *i32?): i32 {\n" +
+		"    p ?: return 0;\n" +
+		"    return 1;\n" +
+		"}\n";
+	var l3 = Lexer(src3);
+	var p3 = Parser(l3.tokenize());
+	var bp3 = BodyPass();
+	bp3.check_program(p3.parse_program());
+	assert_eq_usz(bp3.errors.len, 0UZ, "Elvis with return in statement expression must be allowed");
+
+	// 4. Disallowed in call argument: foo(p ?: return)
+	val src4 = "fn foo(x: *i32): none {}\n" +
+		"fn test(p: *i32?): none {\n" +
+		"    foo(p ?: return);\n" +
+		"}\n";
+	var l4 = Lexer(src4);
+	var p4 = Parser(l4.tokenize());
+	var bp4 = BodyPass();
+	bp4.check_program(p4.parse_program());
+	assert_true(bp4.errors.len >= 1UZ, "Elvis with return in call argument must be rejected");
+
+	// 5. Disallowed in binary expression: 1 + (p ?: return)
+	val src5 = "fn test(p: *i32?): i32 {\n" +
+		"    val x = 1 + *(p ?: return 0);\n" +
+		"    return x;\n" +
+		"}\n";
+	var l5 = Lexer(src5);
+	var p5 = Parser(l5.tokenize());
+	var bp5 = BodyPass();
+	bp5.check_program(p5.parse_program());
+	assert_true(bp5.errors.len >= 1UZ, "Elvis with return in binary sub-expression must be rejected");
+
+	// 6. Disallowed in condition: if (p ?: return)
+	val src6 = "fn test(p: *bool?): none {\n" +
+		"    if (p ?: return) {}\n" +
+		"}\n";
+	var l6 = Lexer(src6);
+	var p6 = Parser(l6.tokenize());
+	var bp6 = BodyPass();
+	bp6.check_program(p6.parse_program());
+	assert_true(bp6.errors.len >= 1UZ, "Elvis with return in if condition must be rejected");
+
+	println("  [PASS] test_elvis_jump_restriction");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
 	test_valid_program();
@@ -243,6 +312,7 @@ fn main(): i32 {
 	test_condition_not_bool();
 	test_return_type_mismatch();
 	test_val_immutability();
+	test_elvis_jump_restriction();
 	println("[ALL PASSED] Bootstrap Semantic BodyPass passed all tests successfully!");
 	return 0;
 }

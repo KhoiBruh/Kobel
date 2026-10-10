@@ -51,14 +51,20 @@ impl BodyPass {
 				has_init = true;
 				if ((var_ty != null && var_ty.is_list())) self.coerce_to_list(vd.initializer, var_ty);
 
+				val prev_stmt = self.is_stmt_level;
+				self.is_stmt_level = true;
 				init_ty = self.check_expr(vd.initializer);
+				self.is_stmt_level = prev_stmt;
 				if (!var_ty.can_assign(init_ty))
 					self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
 		} else {
 			if (vd.initializer != null) {
 				has_init = true;
+				val prev_stmt = self.is_stmt_level;
+				self.is_stmt_level = true;
 				init_ty = self.check_expr(vd.initializer);
+				self.is_stmt_level = prev_stmt;
 				var_ty = init_ty;
 			} else {
 				self.report_error(node, "Variable '${vd.name}' without type must have initializer");

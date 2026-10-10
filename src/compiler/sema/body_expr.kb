@@ -116,6 +116,9 @@ impl BodyPass {
 
 	pub fn check_binary_expr(var self, node: *AstNode): *Type {
 		if (node is BinaryExpr as bin) {
+			val was_stmt = self.is_stmt_level;
+			self.is_stmt_level = false;
+
 			if (bin.op == TokenType.QUESTION_COLON) {
 				val lt = self.check_expr(bin.left);
 				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR)
@@ -125,9 +128,15 @@ impl BodyPass {
 					bin.right.kind == NodeKind.STMT_BREAK ||
 					bin.right.kind == NodeKind.STMT_CONTINUE;
 
-				if (is_jump) self.check_statement(bin.right);
-				else {
+				if (is_jump) {
+					if (!was_stmt) {
+						self.report_error(bin.right, "Elvis operator with jump statement ('return', 'break', 'continue') is only allowed in variable declarations, assignments, or statement expressions");
+					}
+					self.check_statement(bin.right);
+				} else {
+					self.is_stmt_level = was_stmt;
 					val rt = self.check_expr(bin.right);
+					self.is_stmt_level = false;
 					if (!lt.can_assign(rt))
 						self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
 				}
@@ -500,6 +509,8 @@ impl BodyPass {
 
 	pub fn check_assign_expr(var self, node: *AstNode): *Type {
 		if (node is AssignExpr as asgn_ptr) {
+			val was_stmt = self.is_stmt_level;
+			self.is_stmt_level = false;
 			val asgn = asgn_ptr as &AssignExpr;
 
 			// Index assignment desugaring: container[i] = val -> container.set(i, val)
@@ -560,7 +571,10 @@ impl BodyPass {
 
 			val target_ty = self.check_expr(asgn.target);
 			if ((target_ty != null && target_ty.is_list())) self.coerce_to_list(asgn.value, target_ty);
+			val prev_stmt = self.is_stmt_level;
+			self.is_stmt_level = was_stmt;
 			val val_ty = self.check_expr(asgn.value);
+			self.is_stmt_level = prev_stmt;
 
 			// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
 			if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {

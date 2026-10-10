@@ -188,6 +188,8 @@ impl CCodeGen {
 		if (is_proto) return "${proto};\n";
 		if (f_body == null) return "";
 
+		self.current_fn_ret_type = ret_ty;
+
 		self.pointer_vars = List<str>();
 		self.str_vars = List<str>();
 		for (p in f.params) {
@@ -215,16 +217,50 @@ impl CCodeGen {
 			}
 			is ExprStmt as es -> {
 				val es_e = es.expr;
-				var is_when_block = false;
+				var is_special = false;
 				if (ret_ty != "void" && es_e != null) {
 					if (es_e is WhenExpr as we) {
 						if (we.has_blocks()) {
 							res = "${res}${self.gen_when_with_target(we, "", true)}";
-							is_when_block = true;
+							is_special = true;
+						}
+					}
+					var es_candidate = es_e;
+					while (es_candidate != null) {
+						if (es_candidate is GroupExpr as g) es_candidate = g.expr;
+						else break;
+					}
+					if (!is_special && es_candidate != null) {
+						if (es_candidate is BinaryExpr as bin) {
+							if (bin.op == TokenType.QUESTION_COLON) {
+								var cur = es_candidate;
+								res = "${res}    ${ret_ty} __ret_tmp;\n";
+								while (cur != null) {
+									while (cur != null) {
+										if (cur is GroupExpr as g) cur = g.expr;
+										else break;
+									}
+									if (cur == null) break;
+									if (cur is BinaryExpr as b) {
+										if (b.op == TokenType.QUESTION_COLON) {
+											res = "${res}    __ret_tmp = ${self.gen_expr(b.left)};\n";
+											res = "${res}    if (__ret_tmp != NULL) return __ret_tmp;\n";
+											cur = b.right;
+										} else {
+											res = "${res}    return ${self.gen_expr(cur)};\n";
+											break;
+										}
+									} else {
+										res = "${res}    return ${self.gen_expr(cur)};\n";
+										break;
+									}
+								}
+								is_special = true;
+							}
 						}
 					}
 				}
-				if (!is_when_block) {
+				if (!is_special) {
 					if (ret_ty == "void") {
 						res = "${res}    ${self.gen_expr(es.expr)};\n";
 					} else {

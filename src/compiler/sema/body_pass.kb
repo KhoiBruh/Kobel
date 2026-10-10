@@ -46,7 +46,8 @@ pub struct BodyPass {
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool,
 	pub when_depth: usz = 0,
-	pub checked_fns: List<*AstNode> = List()
+	pub checked_fns: List<*AstNode> = List(),
+	pub is_stmt_level: bool = false
 }
 
 impl BodyPass {
@@ -156,6 +157,10 @@ impl BodyPass {
 		if (node == null) return alloc_primitive(&self.arena, type_none());
 		if (node is GroupExpr as g) return self.check_expr(g.expr);
 
+		if (node.kind != NodeKind.EXPR_BINARY && node.kind != NodeKind.EXPR_ASSIGN) {
+			self.is_stmt_level = false;
+		}
+
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
 			NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
@@ -184,7 +189,10 @@ impl BodyPass {
 		if (node == null) return;
 
 		if (node is ExprStmt as es) {
+			val prev_stmt = self.is_stmt_level;
+			self.is_stmt_level = true;
 			self.check_expr(es.expr);
+			self.is_stmt_level = prev_stmt;
 			return;
 		}
 		if (node is YieldStmt as ys) {

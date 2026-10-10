@@ -26,7 +26,8 @@ pub struct CCodeGen {
 	// declaration already knows it (`val a: [T; N] = [...]`).
 	pub array_elem_hint: str = "",
 	pub yield_target: str = "",
-	pub is_yield_return: bool = false
+	pub is_yield_return: bool = false,
+	pub current_fn_ret_type: str = ""
 }
 
 impl CCodeGen {
@@ -668,7 +669,11 @@ impl CCodeGen {
 				if (is_ptr) self.pointer_vars.add(vd.name);
 				if (ty_str == "const char*") self.str_vars.add(vd.name);
 
-				val init_e = vd.initializer;
+				var init_e = vd.initializer;
+				while (init_e != null) {
+					if (init_e is GroupExpr as g) init_e = g.expr;
+					else break;
+				}
 				if (init_e != null) {
 					if (init_e is WhenExpr as we) {
 						if (we.has_blocks()) {
@@ -679,19 +684,44 @@ impl CCodeGen {
 					}
 					if (init_e is BinaryExpr as bin) {
 						if (bin.op == TokenType.QUESTION_COLON) {
-							val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-								bin.right.kind == NodeKind.STMT_BREAK ||
-								bin.right.kind == NodeKind.STMT_CONTINUE;
-
-							var res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(bin.left)};\n";
-							if (is_jump) {
-								res = "${res}${ind}if (${vd.name} == NULL) {\n";
-								self.indent_level++;
-								res = "${res}${self.gen_statement(bin.right)}";
-								self.indent_level--;
-								res = "${res}${ind}}\n";
-							} else res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(bin.right)};\n";
-
+							var cur = init_e;
+							var first = true;
+							var res = "";
+							while (cur != null) {
+								while (cur != null) {
+									if (cur is GroupExpr as g) cur = g.expr;
+									else break;
+								}
+								if (cur == null) break;
+								if (cur is BinaryExpr as b) {
+									if (b.op == TokenType.QUESTION_COLON) {
+										if (first) {
+											res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
+											first = false;
+										} else {
+											res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
+										}
+										cur = b.right;
+									} else {
+										res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+										break;
+									}
+								} else {
+									val is_jump = cur.kind == NodeKind.STMT_RETURN ||
+										cur.kind == NodeKind.STMT_BREAK ||
+										cur.kind == NodeKind.STMT_CONTINUE;
+									if (is_jump) {
+										res = "${res}${ind}if (${vd.name} == NULL) {\n";
+										self.indent_level++;
+										res = "${res}${self.gen_statement(cur)}";
+										self.indent_level--;
+										res = "${res}${ind}}\n";
+									} else {
+										res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+									}
+									break;
+								}
+							}
 							yield res;
 						}
 					}
@@ -769,6 +799,48 @@ impl CCodeGen {
 						}
 					}
 
+					var ret_candidate = ret_val;
+					while (ret_candidate != null) {
+						if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
+						else break;
+					}
+					if (ret_candidate != null) {
+						if (ret_candidate is BinaryExpr as bin) {
+							if (bin.op == TokenType.QUESTION_COLON) {
+								var ret_ty = self.current_fn_ret_type;
+								if (ret_ty == "" || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+								var cur = ret_candidate;
+								var res = "${ind}{\n";
+								self.indent_level++;
+								val inner_ind = get_indent(self.indent_level);
+								res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+								while (cur != null) {
+									while (cur != null) {
+										if (cur is GroupExpr as g) cur = g.expr;
+										else break;
+									}
+									if (cur == null) break;
+									if (cur is BinaryExpr as b) {
+										if (b.op == TokenType.QUESTION_COLON) {
+											res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
+											res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
+											cur = b.right;
+										} else {
+											res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+											break;
+										}
+									} else {
+										res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+										break;
+									}
+								}
+								self.indent_level--;
+								res = "${res}${ind}}\n";
+								yield res;
+							}
+						}
+					}
+
 					yield "${ind}return ${self.gen_expr(ret_val)};\n";
 				}
 
@@ -779,41 +851,87 @@ impl CCodeGen {
 				val ind = get_indent(self.indent_level);
 				val e = es.expr;
 				if (e != null) {
-					if (e is AssignExpr as asg) {
-						val asg_val = asg.value;
-						if (asg_val != null) {
-							if (asg_val is BinaryExpr as bin) {
-								if (bin.op == TokenType.QUESTION_COLON) {
-									val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-										bin.right.kind == NodeKind.STMT_BREAK ||
-										bin.right.kind == NodeKind.STMT_CONTINUE;
-									if (is_jump) {
+					var asg_candidate = e;
+					while (asg_candidate != null) {
+						if (asg_candidate is GroupExpr as g) asg_candidate = g.expr;
+						else break;
+					}
+					if (asg_candidate != null) {
+						if (asg_candidate is AssignExpr as asg) {
+							var asg_val = asg.value;
+							while (asg_val != null) {
+								if (asg_val is GroupExpr as g) asg_val = g.expr;
+								else break;
+							}
+							if (asg_val != null) {
+								if (asg_val is BinaryExpr as bin) {
+									if (bin.op == TokenType.QUESTION_COLON) {
 										val tgt = self.gen_expr(asg.target);
-										var res = "${ind}${tgt} = ${self.gen_expr(bin.left)};\n";
-										res = "${res}${ind}if (${tgt} == NULL) {\n";
-										self.indent_level++;
-										res = "${res}${self.gen_statement(bin.right)}";
-										self.indent_level--;
-										res = "${res}${ind}}\n";
+										var cur = asg_val;
+										var first = true;
+										var res = "";
+										while (cur != null) {
+											while (cur != null) {
+												if (cur is GroupExpr as g) cur = g.expr;
+												else break;
+											}
+											if (cur == null) break;
+											if (cur is BinaryExpr as b) {
+												if (b.op == TokenType.QUESTION_COLON) {
+													if (first) {
+														res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
+														first = false;
+													} else {
+														res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
+													}
+													cur = b.right;
+												} else {
+													res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+													break;
+												}
+											} else {
+												val is_jump = cur.kind == NodeKind.STMT_RETURN ||
+													cur.kind == NodeKind.STMT_BREAK ||
+													cur.kind == NodeKind.STMT_CONTINUE;
+												if (is_jump) {
+													res = "${res}${ind}if (${tgt} == NULL) {\n";
+													self.indent_level++;
+													res = "${res}${self.gen_statement(cur)}";
+													self.indent_level--;
+													res = "${res}${ind}}\n";
+												} else {
+													res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+												}
+												break;
+											}
+										}
 										yield res;
 									}
 								}
 							}
 						}
 					}
-					if (e is BinaryExpr as bin) {
-						if (bin.op == TokenType.QUESTION_COLON) {
-							val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-								bin.right.kind == NodeKind.STMT_BREAK ||
-								bin.right.kind == NodeKind.STMT_CONTINUE;
 
-							if (is_jump) {
-								var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
-								self.indent_level++;
-								res = "${res}${self.gen_statement(bin.right)}";
-								self.indent_level--;
-								res = "${res}${ind}}\n";
-								yield res;
+					var bin_candidate = e;
+					while (bin_candidate != null) {
+						if (bin_candidate is GroupExpr as g) bin_candidate = g.expr;
+						else break;
+					}
+					if (bin_candidate != null) {
+						if (bin_candidate is BinaryExpr as bin) {
+							if (bin.op == TokenType.QUESTION_COLON) {
+								val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+									bin.right.kind == NodeKind.STMT_BREAK ||
+									bin.right.kind == NodeKind.STMT_CONTINUE;
+
+								if (is_jump) {
+									var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
+									self.indent_level++;
+									res = "${res}${self.gen_statement(bin.right)}";
+									self.indent_level--;
+									res = "${res}${ind}}\n";
+									yield res;
+								}
 							}
 						}
 					}

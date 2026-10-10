@@ -227,6 +227,17 @@ fn elvis_helper_ret(val ptr: *i32?): i32 {
 	return *unwrapped;
 }
 
+fn track_ptr(p: *i32?, c: *Counter): *i32? {
+	c.count++;
+	return p;
+}
+
+fn ret_elvis(p: *i32?, fallback: *i32, c: *Counter): *i32 {
+	return track_ptr(p, c) ?: fallback;
+}
+
+fn arrow_elvis(p: *i32?, fallback: *i32, c: *Counter): *i32 => track_ptr(p, c) ?: fallback;
+
 fn test_null_safety(): bool {
 	val p_null: *i32? = null;
 	if (p_null != null) return false;
@@ -258,6 +269,64 @@ fn test_null_safety(): bool {
 	}
 	if (break_count != 3) return false;
 
+	// Single evaluation tests for Elvis
+	var c = Counter(0);
+
+	// 1. Variable declaration
+	val res1: *i32 = track_ptr(&x, &c) ?: &y;
+	if (c.count != 1 || *res1 != 10) return false;
+	c.count = 0;
+
+	val res2: *i32 = track_ptr(null, &c) ?: &y;
+	if (c.count != 1 || *res2 != 20) return false;
+	c.count = 0;
+
+	// 2. Assignment
+	var res3: *i32 = &x;
+	res3 = track_ptr(&y, &c) ?: &x;
+	if (c.count != 1 || *res3 != 20) return false;
+	c.count = 0;
+
+	res3 = track_ptr(null, &c) ?: &x;
+	if (c.count != 1 || *res3 != 10) return false;
+	c.count = 0;
+
+	// 3. Return statement
+	val res4 = ret_elvis(&x, &y, &c);
+	if (c.count != 1 || *res4 != 10) return false;
+	c.count = 0;
+
+	val res5 = ret_elvis(null, &y, &c);
+	if (c.count != 1 || *res5 != 20) return false;
+	c.count = 0;
+
+	// 4. Arrow function
+	val res6 = arrow_elvis(&x, &y, &c);
+	if (c.count != 1 || *res6 != 10) return false;
+	c.count = 0;
+
+	val res7 = arrow_elvis(null, &y, &c);
+	if (c.count != 1 || *res7 != 20) return false;
+	c.count = 0;
+
+	// 5. Chained Elvis
+	val res8: *i32 = track_ptr(&x, &c) ?: track_ptr(&y, &c) ?: &y;
+	if (c.count != 1 || *res8 != 10) return false;
+	c.count = 0;
+
+	val res9: *i32 = track_ptr(null, &c) ?: track_ptr(&y, &c) ?: &x;
+	if (c.count != 2 || *res9 != 20) return false;
+	c.count = 0;
+
+	// 6. String Elvis
+	val p_null_char: *char = null;
+	val s_null: str = p_null_char;
+	val s1: str = s_null ?: "fallback";
+	if (s1 != "fallback") return false;
+
+	val s_orig: str = "custom";
+	val s2: str = s_orig ?: "fallback";
+	if (s2 != "custom") return false;
 
 	return true;
 }
