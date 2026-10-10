@@ -37,6 +37,7 @@ use compiler.sema.types.EnumMemberInfo;
 use compiler.ast.decl.StructField as AstStructField;
 
 use util.strutil.*;
+use std.str.*;
 
 use std.collections.list.*;
 use std.mem.arena.*;
@@ -123,24 +124,16 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 }
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
-	val len = raw.len;
-	if (len >= 2) {
-		val last = raw[len - 1];
-		val prev = raw[len - 2];
-		if (prev == 'U' && last == 'B') return alloc_primitive(arena, type_u8());
-		if (prev == 'U' && last == 'S') return alloc_primitive(arena, type_u16());
-		if (prev == 'U' && last == 'L') return alloc_primitive(arena, type_u64());
-		if (prev == 'U' && last == 'Z') return alloc_primitive(arena, type_usz());
-	}
+	if (raw.ends_with("UB")) return alloc_primitive(arena, type_u8());
+	if (raw.ends_with("US")) return alloc_primitive(arena, type_u16());
+	if (raw.ends_with("UL")) return alloc_primitive(arena, type_u64());
+	if (raw.ends_with("UZ")) return alloc_primitive(arena, type_usz());
 
-	if (len >= 1) {
-		val last = raw[len - 1];
-		if (last == 'U') return alloc_primitive(arena, type_u32());
-		if (last == 'L') return alloc_primitive(arena, type_i64());
-		if (last == 'S') return alloc_primitive(arena, type_i16());
-		if (last == 'Z') return alloc_primitive(arena, type_isz());
-		if (last == 'B') return alloc_primitive(arena, type_i8());
-	}
+	if (raw.ends_with("U")) return alloc_primitive(arena, type_u32());
+	if (raw.ends_with("L")) return alloc_primitive(arena, type_i64());
+	if (raw.ends_with("S")) return alloc_primitive(arena, type_i16());
+	if (raw.ends_with("Z")) return alloc_primitive(arena, type_isz());
+	if (raw.ends_with("B")) return alloc_primitive(arena, type_i8());
 
 	return alloc_primitive(arena, type_i32());
 }

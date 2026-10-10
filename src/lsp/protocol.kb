@@ -29,11 +29,7 @@ pub fn init_stdio() {
 // ============================================================================
 
 pub fn send_raw(payload: str) {
-	val len_str = "${payload.len}";
-	print("Content-Length: ");
-	print(len_str);
-	print("\r\n\r\n");
-	print(payload);
+	print("Content-Length: ${payload.len}\r\n\r\n${payload}");
 	fflush(null);
 }
 

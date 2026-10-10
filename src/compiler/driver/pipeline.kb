@@ -20,8 +20,7 @@ use util.strutil.*;
 
 pub fn print_error_list(errors: List<str>) {
 	for (msg in errors) {
-		print("  [ERROR] ");
-		println(msg);
+		println("  [ERROR] ${msg}");
 	}
 }
 
@@ -38,9 +37,8 @@ pub struct CompileOptions {
 pub fn compile_pipeline(opts: CompileOptions): i32 {
 	val input_path = opts.input_path;
 	val src = read_file(input_path);
-	if (src.len == 0) {
-		print("Error: Could not read source file or file is empty: ");
-		println(input_path);
+	if (src.is_empty()) {
+		println("Error: Could not read source file or file is empty: ${input_path}");
 		return 1;
 	}
 
@@ -55,30 +53,23 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 
 	val prog = loader.load_program(input_path, src);
 	if (loader.errors.len > 0) {
-		print("Module Errors in ");
-		print(input_path);
-		println(":");
+		println("Module Errors in ${input_path}:");
 		print_error_list(loader.errors);
 		return 1;
 	}
 	if (prog == null) {
-		print("Error: Could not parse source file: ");
-		println(input_path);
+		println("Error: Could not parse source file: ${input_path}");
 		return 1;
 	}
 	if (!opts.quiet) {
-		print("  ");
-		print("${loader.count()}");
-		println(" module(s) loaded");
+		println("  ${loader.count()} module(s) loaded");
 	}
 
 	if (!opts.quiet) println("[2/4] Semantic analysis (declarations)...");
 	val decl_p = DeclPass();
 	decl_p.collect_program(prog);
 	if (decl_p.errors.len > 0) {
-		print("Semantic Declaration Errors in ");
-		print(input_path);
-		println(":");
+		println("Semantic Declaration Errors in ${input_path}:");
 		print_error_list(decl_p.errors);
 		return 1;
 	}
@@ -87,9 +78,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	val body_p = BodyPass(decl_p.symtab);
 	body_p.check_program(prog);
 	if (body_p.errors.len > 0) {
-		print("Semantic Type Errors in ");
-		print(input_path);
-		println(":");
+		println("Semantic Type Errors in ${input_path}:");
 		print_error_list(body_p.errors);
 		return 1;
 	}
@@ -101,23 +90,21 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	if (opts.only_emit_c) {
 		val ok = write_file(opts.emit_c_path, c_code);
 		if (!ok) {
-			print("Error: Failed to write output file: ");
-			println(opts.emit_c_path);
+			println("Error: Failed to write output file: ${opts.emit_c_path}");
 			return 1;
 		}
 		if (!opts.quiet) {
-			print("[SUCCESS] C99 source written to ");
-			println(opts.emit_c_path);
+			println("[SUCCESS] C99 source written to ${opts.emit_c_path}");
 		}
 		return 0;
 	}
 
 	// Native binary compilation
 	var out_path = opts.output_bin;
-	if (out_path.len == 0) out_path = "${input_path.strip_kb()}.exe";
+	if (out_path.is_empty()) out_path = "${input_path.strip_kb()}.exe";
 
 	val out_dir = out_path.dir_of();
-	if (out_dir.len > 0 && !file_exists(out_dir)) {
+	if (!out_dir.is_empty() && !file_exists(out_dir)) {
 		exec("cmd /c mkdir \"${out_dir.to_win_path()}\" >nul 2>nul");
 	}
 
@@ -125,8 +112,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	val obj_tmp_path = "${out_path}.tmp.obj";
 	val write_ok = write_file(c_tmp_path, c_code);
 	if (!write_ok) {
-		print("Error: Failed to write temporary C file: ");
-		println(c_tmp_path);
+		println("Error: Failed to write temporary C file: ${c_tmp_path}");
 		return 1;
 	}
 

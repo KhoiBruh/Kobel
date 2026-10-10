@@ -48,13 +48,11 @@ impl str {
 		return str_from_bytes(buf, stem.len);
 	}
 
-	pub fn has_kb_suffix(val self): bool => self.len >= 3 &&
-		self[self.len - 3] == '.' &&
-		self[self.len - 2] == 'k' &&
-		self[self.len - 1] == 'b';
+	pub fn has_kb_suffix(val self): bool => self.ends_with(".kb");
 
 	// Strips a trailing ".kb" extension when present.
-	pub fn strip_kb(val self): str => if (self.has_kb_suffix()) self.slice(0, self.len - 3) else self;
+	pub fn strip_kb(val self): str => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
+
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
@@ -83,7 +81,7 @@ impl str {
 
 	// Joins a directory and a relative path with a single '/' separator.
 	pub fn join_path(val self, rel: str): str {
-		if (self.len == 0) return rel;
+		if (self.is_empty()) return rel;
 		if (str_is_sep(self[self.len - 1])) return "${self}${rel}";
 		return "${self}/${rel}";
 	}
@@ -105,7 +103,7 @@ impl str {
 	// Builds the C identifier used for a top-level symbol of `module_name`.
 	// "std.io" + "println" -> "std__io__println"
 	pub fn mangle_symbol(val self, name: str): str {
-		if (self.len == 0) return name;
+		if (self.is_empty()) return name;
 		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 		val total = self.len * 2 + 2 + name.len;
 		val buf = raw_alloc(total + 1);
@@ -196,8 +194,8 @@ impl str {
 	}
 
 	pub fn trim(val self): str {
-		if (self.len == 0UZ) return self;
-		var start: usz = 0UZ;
+		if (self.is_empty()) return self;
+		var start: usz = 0;
 		while (start < self.len) {
 			val c = self[start];
 			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') start++;
@@ -206,7 +204,7 @@ impl str {
 		if (start == self.len) return "";
 		var end: usz = self.len;
 		while (end > start) {
-			val c = self[end - 1UZ];
+			val c = self[end - 1];
 			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') end--;
 			else break;
 		}

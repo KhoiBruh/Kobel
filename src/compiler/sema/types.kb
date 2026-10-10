@@ -39,7 +39,6 @@ pub struct ArrayType {
 	pub length: usz
 }
 
-
 pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,
@@ -120,7 +119,6 @@ impl FnType {
 }
 
 impl StructType {
-
 
 	pub fn find_method(val self, name: str): *MethodInfo {
 		for (m in self.methods) {
