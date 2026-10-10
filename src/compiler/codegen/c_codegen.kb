@@ -205,6 +205,18 @@ pub fn c_format_float_literal(raw: str): str {
 // Expression Code Generation
 // ============================================================================
 
+pub fn expr_needs_parens_for_member(node: *AstNode): bool {
+	if (node == null) return false;
+	return when (node.kind) {
+		NodeKind.EXPR_IDENTIFIER,
+		NodeKind.EXPR_MEMBER,
+		NodeKind.EXPR_CALL,
+		NodeKind.EXPR_INDEX,
+		NodeKind.EXPR_GROUP -> false;
+		else -> true;
+	};
+}
+
 impl CCodeGen {
 
 	pub fn gen_expr(var self, node: *AstNode): str {
@@ -239,7 +251,15 @@ impl CCodeGen {
 
 			is IdentifierExpr as id -> return id.name;
 
-			is GroupExpr as g -> return "(${self.gen_expr(g.expr)})";
+			is GroupExpr as g -> {
+				val inner = self.gen_expr(g.expr);
+				if (g.expr != null) {
+					if (g.expr.kind == NodeKind.EXPR_BINARY || g.expr.kind == NodeKind.EXPR_GROUP) {
+						return inner;
+					}
+				}
+				return "(${inner})";
+			}
 
 			is BinaryExpr as bin -> {
 				if (bin.op == TokenType.QUESTION_COLON) {
@@ -272,10 +292,10 @@ impl CCodeGen {
 				val opnd = self.gen_expr(un.operand);
 
 				return when (un.op) {
-					TokenType.MINUS -> "(-${opnd})",
-					TokenType.BANG -> "(!${opnd})",
-					TokenType.STAR -> "(*${opnd})",
-					TokenType.AMPERSAND -> "(&${opnd})",
+					TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}",
+					TokenType.BANG -> "!${opnd}",
+					TokenType.STAR -> "*${opnd}",
+					TokenType.AMPERSAND -> "&${opnd}",
 					else -> opnd;
 				};
 			}
@@ -376,8 +396,9 @@ impl CCodeGen {
 						is_ptr = self.is_pointer_var(id.name);
 					}
 				}
-				if (is_ptr) return "(${obj})->${mem.member}";
-				return "(${obj}).${mem.member}";
+				val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
+				if (is_ptr) return "${obj_str}->${mem.member}";
+				return "${obj_str}.${mem.member}";
 			}
 
 			is IndexExpr as idx -> {
@@ -403,7 +424,7 @@ impl CCodeGen {
 
 			is CastExpr as cst -> {
 				val ty = c_type_from_ast(cst.target_type);
-				return "((${ty})${self.gen_expr(cst.expr)})";
+				return "(${ty})${self.gen_expr(cst.expr)}";
 			}
 
 			is IfExpr as if_e -> {
@@ -439,7 +460,8 @@ impl CCodeGen {
 		var tag_field = is_e.tag_field;
 		if (tag_field == "") tag_field = "tag";
 		val op = if (is_e.is_ptr) "->" else ".";
-		return "((${obj})${op}${tag_field} == ${target_name}__TAG)";
+		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
+		return "(${obj_str}${op}${tag_field} == ${target_name}__TAG)";
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
@@ -457,15 +479,15 @@ impl CCodeGen {
 				var tag_field = is_e.tag_field;
 				if (tag_field == "") tag_field = "tag";
 				val op = if (is_e.is_ptr) "->" else ".";
-				test = "((${cond})${op}${tag_field} == ${target_name}__TAG)";
+				test = "(${cond}${op}${tag_field} == ${target_name}__TAG)";
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == LiteralKind.STRING) {
 					test = "strcmp(${cond}, ${self.gen_expr(p)}) == 0";
 				} else {
-					test = "(${cond} == ${self.gen_expr(p)})";
+					test = "${cond} == ${self.gen_expr(p)}";
 				}
 			} else {
-				test = "(${cond} == ${self.gen_expr(p)})";
+				test = "${cond} == ${self.gen_expr(p)}";
 			}
 			res = if (i == 0) test else "${res} || ${test}";
 		}
@@ -616,6 +638,16 @@ impl WhenExpr {
 
 impl CCodeGen {
 
+	pub fn gen_cond(var self, cond: *AstNode): str {
+		val s = self.gen_expr(cond);
+		if (cond != null) {
+			if (cond.kind == NodeKind.EXPR_BINARY || cond.kind == NodeKind.EXPR_GROUP) {
+				return s;
+			}
+		}
+		return "(${s})";
+	}
+
 	pub fn gen_statement(var self, node: *AstNode): str {
 		if (node == null) return "";
 
@@ -762,7 +794,7 @@ impl CCodeGen {
 				}
 
 				val ind = get_indent(self.indent_level);
-				var res = "${ind}if (${self.gen_expr(ifs.condition)}) {\n";
+				var res = "${ind}if ${self.gen_cond(ifs.condition)} {\n";
 				self.indent_level++;
 				if (cast_decl != "") {
 					res += get_indent(self.indent_level) + cast_decl + "\n";
@@ -781,7 +813,7 @@ impl CCodeGen {
 
 			is WhileStmt as wh -> {
 				val ind = get_indent(self.indent_level);
-				var res = "${ind}while (${self.gen_expr(wh.condition)}) {\n";
+				var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
 				self.indent_level++;
 				res = "${res}${self.gen_statement(wh.body)}";
 				self.indent_level--;
@@ -1010,23 +1042,23 @@ impl CCodeGen {
 			if (is_ptr) {
 				self.pointer_vars.add(bound_name);
 				if (is_e.has_data && is_e.base_c_name != "") {
-					return "${target_name}* ${bound_name} = ((${target_name}*)(((${is_e.base_c_name}*)${var_name})->data));";
+					return "${target_name}* ${bound_name} = (${target_name}*)(((${is_e.base_c_name}*)${var_name})->data);";
 				} else {
-					return "${target_name}* ${bound_name} = ((${target_name}*)${var_name});";
+					return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 				}
 			} else {
 				self.pointer_vars.add(bound_name);
-				return "${target_name}* ${bound_name} = ((${target_name}*)&${var_name});";
+				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 			}
 		} else {
 			if (is_ptr) {
 				if (is_e.has_data && is_e.base_c_name != "") {
-					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data));";
+					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)(((${is_e.base_c_name}*)__orig_${var_name})->data);";
 				} else {
-					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+					return "void* __orig_${var_name} = (void*)${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)__orig_${var_name};";
 				}
 			} else {
-				return "void* __orig_${var_name} = (void*)&${var_name};\n${next_ind}${target_name}* ${var_name} = ((${target_name}*)__orig_${var_name});";
+				return "void* __orig_${var_name} = (void*)&${var_name};\n${next_ind}${target_name}* ${var_name} = (${target_name}*)__orig_${var_name};";
 			}
 		}
 	}
