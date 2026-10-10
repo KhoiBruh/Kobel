@@ -397,7 +397,10 @@ impl DeclPass {
 			if (f.name == "new") {
 				for (p in f.params) {
 					if (p.name == "self") {
-						self.report_error(m_node, "Constructor 'new' cannot have a 'self' parameter in struct '${st_info.name}'");
+						self.report_error(m_node,
+							"Constructor 'new' cannot have a 'self' "
+							"parameter in struct '${st_info.name}'"
+						);
 					}
 				}
 			}
@@ -655,7 +658,11 @@ impl DeclPass {
 			if (have) continue;
 
 			if (!tm.has_default) {
-				self.report_error(node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
+				self.report_error(node,
+					"Struct '${struct_name}' does not implement "
+					"required trait method '${tm.name}' "
+					"of trait '${t.name}'"
+				);
 				continue;
 			}
 			im.methods.add(self.clone_fn(tm.node, null, tm.name));

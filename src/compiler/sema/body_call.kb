@@ -129,7 +129,11 @@ impl BodyPass {
 			// Pick the overload whose arity matches; fall back to a name
 			// lookup so an arity error still reads as before.
 			if (s_info.count_method_arity(mem.member, call.args.len + 1) > 1) {
-				self.report_error(node, "Ambiguous call to '${mem.member}': overloading by parameter type is not supported");
+				self.report_error(
+					node,
+					"Ambiguous call to '${mem.member}': "
+					"overloading by parameter type is not supported"
+				);
 			}
 			var mi = s_info.find_method_arity(mem.member, call.args.len + 1);
 			if (mi == null) {
@@ -340,9 +344,11 @@ impl BodyPass {
 		// overload of matching arity when one exists; building from
 		// fields is only the fallback.
 		if (!callee_is_self) {
-			if (s_info.count_method_arity("new", call.args.len) > 1) {
-				self.report_error(node, "Ambiguous call to 'new': overloading by parameter type is not supported");
-			}
+			if (s_info.count_method_arity("new", call.args.len) > 1) self.report_error(
+				node,
+				"Ambiguous call to 'new': "
+				"overloading by parameter type is not supported"
+			);
 			var nm = s_info.find_method_arity("new", call.args.len);
 			if (nm == null) {
 				for (m in s_info.methods) {
@@ -388,9 +394,15 @@ impl BodyPass {
 		// Field construction is only allowed where the type is declared
 		// unless every field is `pub`; otherwise the type must expose a
 		// `new` constructor (handled above).
-		if (s_info.has_private && s_info.module != self.symtab.current_module) {
-			self.report_error(node, "Cannot construct '${s_info.name}' from its fields: they are private to module '${s_info.module}'; add a 'new' constructor");
-		}
+		if (
+			s_info.has_private &&
+			s_info.module != self.symtab.current_module
+		) self.report_error(
+			node,
+			"Cannot construct '${s_info.name}' from its fields: "
+			"they are private to module '${s_info.module}'; "
+			"add a 'new' constructor"
+		);
 
 		if (call.args.len < s_info.fields.len) {
 			var all_default = true;

@@ -201,7 +201,10 @@ impl DeclPass {
 		for (m in t.methods) {
 			val f = m.to<FnDecl>();
 			if (trait_method_in(methods, f.name, f.params.len) != null) {
-				self.report_error(m, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) in trait '${t.name}'");
+				self.report_error(m,
+					"Duplicate method '${f.name}' with ${f.params.len} "
+					"parameter(s) in trait '${t.name}'"
+				);
 				continue;
 			}
 			val tm = self.arena.alloc<TraitMethod>();

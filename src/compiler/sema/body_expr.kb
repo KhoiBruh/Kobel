@@ -121,24 +121,37 @@ impl BodyPass {
 
 			if (bin.op == TokenType.QUESTION_COLON) {
 				val lt = self.check_expr(bin.left);
-				if (lt.kind != DataType.POINTER && lt.kind != DataType.STR)
-					self.report_error(bin.left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
+				if (
+					lt.kind != DataType.POINTER &&
+					lt.kind != DataType.STR
+				) self.report_error(
+					bin.left,
+					"Left-hand side of Elvis operator '?:' "
+					"must be a pointer or string"
+				);
 
 				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 					bin.right.kind == NodeKind.STMT_BREAK ||
 					bin.right.kind == NodeKind.STMT_CONTINUE;
 
 				if (is_jump) {
-					if (!was_stmt) {
-						self.report_error(bin.right, "Elvis operator with jump statement ('return', 'break', 'continue') is only allowed in variable declarations, assignments, or statement expressions");
-					}
+					if (!was_stmt) self.report_error(
+						bin.right,
+						"Elvis operator with jump statement "
+						"('return', 'break', 'continue') "
+						"is only allowed in variable declarations, "
+						"assignments, or statement expressions"
+					);
 					self.check_statement(bin.right);
 				} else {
 					self.is_stmt_level = was_stmt;
 					val rt = self.check_expr(bin.right);
 					self.is_stmt_level = false;
-					if (!lt.can_assign(rt))
-						self.report_error(bin.right, "Right-hand side of Elvis operator '?:' has incompatible type");
+					if (!lt.can_assign(rt)) self.report_error(
+						bin.right,
+						"Right-hand side of Elvis operator '?:'"
+						" has incompatible type"
+					);
 				}
 
 				if (lt.kind == DataType.POINTER) {
@@ -447,7 +460,10 @@ impl BodyPass {
 					} else if (sym.kind == SymbolKind.VAR) {
 						if (!sym.is_mut) {
 							val act = if (is_update) "update" else "assign to";
-							self.report_error(op_node, "Cannot ${act} immutable variable '${id.name}' declared with 'val'");
+							self.report_error(op_node,
+								"Cannot ${act} immutable variable"
+								" '${id.name}' declared with 'val'"
+							);
 						}
 					} else if (sym.kind == SymbolKind.PARAM) {
 						if (!sym.is_mut) {
@@ -471,7 +487,10 @@ impl BodyPass {
 					if (obj_id.name == "self") {
 						val self_sym = self.symtab.lookup("self");
 						if (self_sym != null && !self_sym.is_mut) {
-							self.report_error(op_node, "Cannot mutate field '${mem.member}' on immutable receiver 'self' in 'val self' method");
+							self.report_error(op_node,
+								"Cannot mutate field '${mem.member}' "
+								"on immutable receiver 'self' in 'val self' method"
+							);
 						}
 					}
 				}
@@ -488,7 +507,10 @@ impl BodyPass {
 						val self_sym = self.symtab.lookup("self");
 						if (self_sym != null && !self_sym.is_mut) {
 							val act = if (is_update) "update" else "mutate";
-							self.report_error(op_node, "Cannot ${act} through index on immutable receiver 'self' in 'val self' method");
+							self.report_error(op_node,
+								"Cannot ${act} through index on immutable receiver"
+								" 'self' in 'val self' method"
+							);
 						}
 					}
 				}
@@ -793,7 +815,10 @@ impl BodyPass {
 				tag_const_sym = self.symtab.lookup_struct_const(target_s.name, "KIND");
 			}
 			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
-				self.report_error(is_node, "Cannot smart cast to '${target_s.name}': struct '${target_s.name}' must declare a 'const TAG'");
+				self.report_error(is_node,
+					"Cannot smart cast to '${target_s.name}': "
+					"struct '${target_s.name}' must declare a 'const TAG'"
+				);
 				return null;
 			}
 
@@ -820,12 +845,18 @@ impl BodyPass {
 			}
 
 			if (tag_field_name == "") {
-				self.report_error(is_node, "Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field");
+				self.report_error(is_node,
+					"Subject struct '${base_s.name}' must have a"
+					" 'tag', 'TAG', or 'kind' field"
+				);
 				return null;
 			}
 
 			if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
-				self.report_error(is_node, "Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'");
+				self.report_error(is_node,
+					"Tag type mismatch: '${base_s.name}.${tag_field_name}' "
+					"does not match '${target_s.name}.TAG'"
+				);
 				return null;
 			}
 
