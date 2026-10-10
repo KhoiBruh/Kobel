@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ============================================================
-echo   Building Kobel compiler Compiler v1 (kobel_v1.exe)
+echo   Building Kobel compiler (build\kobel.exe)
 echo ============================================================
 
 :: Setup MSVC if cl is not available in PATH
@@ -23,13 +23,15 @@ if not exist "%SEED%" (
     if %errorlevel% neq 0 exit /b %errorlevel%
 )
 
-echo [BUILDING] Compiling src\main.kb to kobel_v1.exe ...
-"%SEED%" "src\main.kb" -o "kobel_v1.exe"
+if not exist "build" mkdir "build"
+
+echo [BUILDING] Compiling src\main.kb to build\kobel.exe ...
+"%SEED%" "src\main.kb" -o "build\kobel.exe"
 if %errorlevel% neq 0 (
     echo [BUILD FAILED] Failed to compile compiler.
     exit /b %errorlevel%
 )
 
-echo [SUCCESS] Successfully built kobel_v1.exe!
-kobel_v1.exe --version
+echo [SUCCESS] Successfully built build\kobel.exe!
+build\kobel.exe --version
 exit /b 0

@@ -81,7 +81,7 @@ impl ProjectConfig {
 		"kobel",
 		"1.0.0",
 		"src/main.kb",
-		"kobel.exe",
+		"build/kobel.exe",
 		"cl",
 		"tests"
 	);

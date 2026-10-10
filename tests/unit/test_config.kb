@@ -35,7 +35,7 @@ fn test_default_config(): bool {
 	if (cfg.name != "kobel") return false;
 	if (cfg.version != "1.0.0") return false;
 	if (cfg.entry != "src/main.kb") return false;
-	if (cfg.output != "kobel.exe") return false;
+	if (cfg.output != "build/kobel.exe") return false;
 	if (cfg.cc != "cl") return false;
 	if (cfg.test_dir != "tests") return false;
 

@@ -7,7 +7,8 @@ if "%~1"=="" (
 )
 
 set "SOURCE_FILE=%~1"
-set "OUT_EXE=%~n1.exe"
+set "OUT_EXE=build\%~n1.exe"
+if not exist "build" mkdir "build"
 
 :: Setup MSVC if cl is not available in PATH
 where cl >nul 2>nul
@@ -37,13 +38,15 @@ if %errorlevel% neq 0 (
 
 :: Run
 echo [RUNNING] Executing %OUT_EXE% ...
-.\%OUT_EXE%
+%OUT_EXE%
 set "RUN_CODE=%errorlevel%"
 
 :: Cleanup executable and temporary files
 if exist "%OUT_EXE%" del "%OUT_EXE%" >nul 2>nul
-if exist "%~n1.obj" del "%~n1.obj" >nul 2>nul
-if exist "%~n1.tmp.obj" del "%~n1.tmp.obj" >nul 2>nul
+if exist "%OUT_EXE%.tmp.c" del "%OUT_EXE%.tmp.c" >nul 2>nul
+if exist "%OUT_EXE%.tmp.obj" del "%OUT_EXE%.tmp.obj" >nul 2>nul
+if exist "build\%~n1.obj" del "build\%~n1.obj" >nul 2>nul
+if exist "build\%~n1.tmp.obj" del "build\%~n1.tmp.obj" >nul 2>nul
 if exist "%~dpn1.tmp.obj" del "%~dpn1.tmp.obj" >nul 2>nul
 if exist "%~dpn1.tmp.c" del "%~dpn1.tmp.c" >nul 2>nul
 

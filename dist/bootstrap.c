@@ -23393,8 +23393,14 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
     if ((kobel_slen(out_path) == 0)) {
         out_path = kobel_concat(str_strip_kb(input_path), ".exe");
     }
-    const char* c_tmp_path = kobel_concat(str_strip_kb(input_path), ".tmp.c");
-    const char* obj_tmp_path = kobel_concat(str_strip_kb(input_path), ".tmp.obj");
+    const char* out_dir = str_dir_of(out_path);
+    if (((kobel_slen(out_dir) > 0) && (!std__io__file_exists(out_dir)))) {
+        {
+            std__sys__exec(kobel_concat(kobel_concat("cmd /c mkdir \"", str_to_win_path(out_dir)), "\" >nul 2>nul"));
+        }
+    }
+    const char* c_tmp_path = kobel_concat(out_path, ".tmp.c");
+    const char* obj_tmp_path = kobel_concat(out_path, ".tmp.obj");
     bool write_ok = std__io__write_file(c_tmp_path, c_code);
     if ((!write_ok)) {
         {
@@ -23431,7 +23437,7 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             return exit_code;
         }
     }
-    const char* base_obj = kobel_concat(str_base_name(str_strip_kb(input_path)), ".tmp.obj");
+    const char* base_obj = kobel_concat(str_base_name(out_path), ".tmp.obj");
     const char* del_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(c_tmp_path)), "\" \""), str_to_win_path(obj_tmp_path)), "\" \""), base_obj), "\" \""), str_to_win_path(old_bin)), "\" >nul 2>nul");
     std__sys__exec(del_cmd);
     if ((!(opts).quiet)) {
@@ -23508,7 +23514,7 @@ config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
 }
 
 config__project__ProjectConfig config__project__ProjectConfig_new(void) {
-    return (config__project__ProjectConfig){ "kobel", "1.0.0", "src/main.kb", "kobel.exe", "cl", "tests" };
+    return (config__project__ProjectConfig){ "kobel", "1.0.0", "src/main.kb", "build/kobel.exe", "cl", "tests" };
 }
 
 config__project__ProjectConfig config__project__load_project_config(const char* manifest_path) {
@@ -23554,15 +23560,22 @@ config__project__ProjectConfig config__project__load_project_config(const char* 
 
 const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path) {
     const char* stamp_seed = std__io__read_file(manifest_path);
-    const char* tmp_file = ".kobel_src_files.tmp";
+    const char* stamp_dir = str_dir_of((cfg).output);
+    const char* build_dir = ((kobel_slen(stamp_dir) > 0) ? stamp_dir : "build");
+    if ((!std__io__file_exists(build_dir))) {
+        {
+            std__sys__exec(kobel_concat(kobel_concat("cmd /c mkdir \"", str_to_win_path(build_dir)), "\" >nul 2>nul"));
+        }
+    }
+    const char* tmp_file = kobel_concat(build_dir, "/.kobel_src_files.tmp");
     const char* entry_dir = str_dir_of((cfg).entry);
     const char* root_dir = ((kobel_slen(entry_dir) > 0) ? entry_dir : "src");
-    const char* find_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("cmd /c dir /b /s \"", str_to_win_path(root_dir)), "\\*.kb\" > \""), tmp_file), "\" 2>nul");
+    const char* find_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("cmd /c dir /b /s \"", str_to_win_path(root_dir)), "\\*.kb\" > \""), str_to_win_path(tmp_file)), "\" 2>nul");
     std__sys__exec(find_cmd);
     if (std__io__file_exists(tmp_file)) {
         {
             const char* file_list = std__io__read_file(tmp_file);
-            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_file), "\" 2>nul"));
+            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(tmp_file)), "\" >nul 2>nul"));
             std__collections__list__List_str lines = str_split_lines(file_list);
             {
                 size_t __for_n = std__collections__list__List_str_count((&lines));
@@ -23606,8 +23619,11 @@ int32_t compiler__driver__commands__cmd_build(const char* manifest_path) {
     int32_t exit_code = compiler__driver__pipeline__compile_pipeline(opts);
     if ((exit_code == 0)) {
         {
+            const char* stamp_dir = str_dir_of((cfg).output);
+            const char* build_dir = ((kobel_slen(stamp_dir) > 0) ? stamp_dir : "build");
+            const char* stamp_file = kobel_concat(build_dir, "/.kobel_stamp");
             const char* stamp = compiler__driver__commands__compute_project_stamp(cfg, manifest_path);
-            std__io__write_file(".kobel_stamp", stamp);
+            std__io__write_file(stamp_file, stamp);
             std__io__println(kobel_concat("[SUCCESS] Build complete: ", (cfg).output));
         }
     }
@@ -23622,7 +23638,9 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
         }
     }
     config__project__ProjectConfig cfg = config__project__load_project_config(manifest_path);
-    const char* stamp_file = ".kobel_stamp";
+    const char* stamp_dir = str_dir_of((cfg).output);
+    const char* build_dir = ((kobel_slen(stamp_dir) > 0) ? stamp_dir : "build");
+    const char* stamp_file = kobel_concat(build_dir, "/.kobel_stamp");
     const char* current_stamp = compiler__driver__commands__compute_project_stamp(cfg, manifest_path);
     bool needs_build = false;
     if ((!std__io__file_exists((cfg).output))) {
@@ -23694,13 +23712,18 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
 
 std__collections__list__List_str compiler__driver__commands__discover_test_files(const char* test_dir) {
     std__collections__list__List_str list = std__collections__list__List_str_new(4);
-    const char* tmp_list_file = ".kobel_test_list.tmp";
+    if ((!std__io__file_exists("build"))) {
+        {
+            std__sys__exec("cmd /c mkdir build >nul 2>nul");
+        }
+    }
+    const char* tmp_list_file = "build/.kobel_test_list.tmp";
     const char* find_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat("cmd /c dir /b /s \"", str_to_win_path(test_dir)), "\\test_*.kb\" > \""), tmp_list_file), "\" 2>nul");
     std__sys__exec(find_cmd);
     if (std__io__file_exists(tmp_list_file)) {
         {
             const char* content = std__io__read_file(tmp_list_file);
-            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_list_file), "\" 2>nul"));
+            std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_list_file), "\" >nul 2>nul"));
             std__collections__list__List_str lines = str_split_lines(content);
             {
                 size_t __for_n = std__collections__list__List_str_count((&lines));
@@ -23803,6 +23826,11 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
     int32_t pass_count = 0;
     int32_t fail_count = 0;
     std__collections__list__List_str failed_names = std__collections__list__List_str_new(4);
+    if ((!std__io__file_exists("build"))) {
+        {
+            std__sys__exec("cmd /c mkdir build >nul 2>nul");
+        }
+    }
     {
         size_t __for_n = std__collections__list__List_str_count((&active_tests));
         size_t __for_i = ((size_t)0ULL);
@@ -23810,7 +23838,8 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
             {
                 const char* tpath = std__collections__list__List_str_at((&active_tests), __for_i);
                 std__io__print(kobel_concat(kobel_concat("[*] ", tpath), " ... "));
-                const char* test_bin = kobel_concat(str_strip_kb(tpath), ".test_bin.exe");
+                const char* test_name = str_base_name(str_strip_kb(tpath));
+                const char* test_bin = kobel_concat(kobel_concat("build/", test_name), ".test_bin.exe");
                 compiler__driver__pipeline__CompileOptions opts = (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4), false };
                 (opts).input_path = tpath;
                 (opts).output_bin = test_bin;

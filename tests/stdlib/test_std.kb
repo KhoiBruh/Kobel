@@ -101,7 +101,7 @@ fn test_collections(): bool {
 }
 
 fn test_io(): bool {
-	val tmp_file: str = "tmp_std_test.txt";
+	val tmp_file: str = "build/tmp_std_test.txt";
 	val content: str = "Testing Kobel standard library I/O!";
 	val written: bool = write_file(tmp_file, content);
 	if (!written) return false;
