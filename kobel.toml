@@ -1,0 +1,11 @@
+[package]
+name = "kobel"
+version = "1.0.0"
+
+[build]
+entry = "src/main.kb"
+output = "kobel.exe"
+cc = "cl"
+
+[test]
+dir = "tests"
