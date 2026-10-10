@@ -588,34 +588,28 @@ pub fn document_symbols(source: str): *JsonValue {
 		var sym_name = "";
 		var sym_kind = 0L; // LSP SymbolKind
 
-		when (decl.kind) {
-			NodeKind.DECL_FN -> {
-				val f = decl.to<FnDecl>();
+		when (decl) {
+			is FnDecl as f -> {
 				sym_name = f.name;
 				sym_kind = 12; // Function
 			}
-			NodeKind.DECL_STRUCT -> {
-				val s = decl.to<StructDecl>();
+			is StructDecl as s -> {
 				sym_name = s.name;
 				sym_kind = 23; // Struct
 			}
-			NodeKind.DECL_ENUM -> {
-				val e = decl.to<EnumDecl>();
+			is EnumDecl as e -> {
 				sym_name = e.name;
 				sym_kind = 10; // Enum
 			}
-			NodeKind.DECL_TRAIT -> {
-				val t = decl.to<TraitDecl>();
+			is TraitDecl as t -> {
 				sym_name = t.name;
 				sym_kind = 11; // Interface
 			}
-			NodeKind.DECL_IMPL -> {
-				val im = decl.to<ImplDecl>();
+			is ImplDecl as im -> {
 				sym_name = "impl ${im.struct_name}";
 				sym_kind = 5; // Class
 			}
-			NodeKind.DECL_CONST -> {
-				val c = decl.to<ConstDecl>();
+			is ConstDecl as c -> {
 				sym_name = c.name;
 				sym_kind = 14; // Constant
 			}

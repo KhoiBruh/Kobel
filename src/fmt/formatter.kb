@@ -218,8 +218,9 @@ impl Formatter {
 			is InterpExpr as interp -> {
 				self.buf.write("\"");
 				for (part in interp.parts) {
-					if (part.is_literal) {
-						val text = part.expr.to<LiteralExpr>().raw_text;
+					val expr = part.expr;
+					if (expr is LiteralExpr as lit) {
+						val text = lit.raw_text;
 						// Strip enclosing quotes from string literal
 						if (text.len >= 2) {
 							self.buf.write(text.slice(1, text.len - 1));
@@ -227,7 +228,7 @@ impl Formatter {
 					} else {
 						self.buf.write_char('$');
 						self.buf.write_char('{');
-						self.format_expr(part.expr);
+						self.format_expr(expr);
 						self.buf.write("}");
 					}
 				}
@@ -641,26 +642,29 @@ impl Formatter {
 	// ------------------------------------------------------------------------
 
 	pub fn format_program(var self, program: *AstNode) {
-		if (program == null || program.kind != NodeKind.PROGRAM) return;
-		val p = program.to<Program>();
+		if (program == null) return;
+		when (program) {
+			is Program as p -> {
+				var prev_was_import = false;
 
-		var prev_was_import = false;
+				for (i in 0..<p.declarations.len) {
+					val decl = p.declarations[i];
+					val is_import = (decl is UseDecl);
 
-		for (i in 0..<p.declarations.len) {
-			val decl = p.declarations[i];
-			val is_import = decl.kind == NodeKind.DECL_USE;
+					if (i > 0) {
+						if (prev_was_import && !is_import) self.buf.newline();
+						else if (!is_import) self.buf.newline();
+					}
 
-			if (i > 0) {
-				if (prev_was_import && !is_import) self.buf.newline();
-				else if (!is_import) self.buf.newline();
+					self.format_decl(decl);
+					self.buf.newline();
+					prev_was_import = is_import;
+				}
+
+				self.comments.emit_remaining(&self.buf);
 			}
-
-			self.format_decl(decl);
-			self.buf.newline();
-			prev_was_import = is_import;
+			else -> {}
 		}
-
-		self.comments.emit_remaining(&self.buf);
 	}
 
 }
