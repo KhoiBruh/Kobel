@@ -1,6 +1,7 @@
 use std.io.*;
 use std.collections.list.*;
 
+use config.project.*;
 use compiler.driver.pipeline.*;
 use compiler.driver.commands.*;
 use util.strutil.*;
@@ -12,149 +13,49 @@ fn print_usage() {
 	println("============================================================");
 	println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
 	println("============================================================");
-	println("Usage: kobel [command|options] <source.kb>");
+	println("Usage: kobel <command> [args]");
 	println("");
 	println("Commands:");
-	println("  build                     Build project defined by kobel.toml");
-	println("  run [args...]             Run project (builds if missing or changed)");
-	println("  test [filter]             Run test suite defined by kobel.toml");
-	println("  fmt [options] <files...>  Format Kobel source code");
-	println("  lsp                       Start Language Server Protocol (LSP) server");
-	println("");
-	println("Options:");
-	println("  -o <file>        Specify output executable binary name");
-	println("  -emit-c <file>   Emit generated C99 source code and exit");
-	println("  --cc <compiler>  Specify backend C compiler (default: cl)");
-	println("  -I <dir>         Add directory to module search path");
-	println("  -v, --version    Display compiler version");
-	println("  -h, --help       Display this help message");
+	println("  build             Build project (kobel.toml)");
+	println("  run [args...]     Run project (rebuilds if changed)");
+	println("  test [filter]     Run test suite");
+	println("  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)");
+	println("  fmt [-w] <files>  Format Kobel source code");
+	println("  lsp               Start Language Server Protocol server");
+	println("  version           Display compiler version");
 }
 
-fn print_fmt_usage() {
-	println("Usage: kobel fmt [options] <files...>");
-	println("");
-	println("Options:");
-	println("  -w, --write      Write formatted output back to files in place");
-	println("  -h, --help       Display this help message");
-}
-
-fn run_build(argc: i32, argv: &*char): i32 {
-	var manifest = "kobel.toml";
-	var i = 2;
-	while (i < argc) {
-		val arg = cstr_to_str(argv[i]);
-		when (arg) {
-			"-h", "--help" -> {
-				println("Usage: kobel build [options]");
-				println("");
-				println("Options:");
-				println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-				println("  -h, --help             Display this help message");
-				return 0;
-			}
-			"-m", "--manifest" -> {
-				i++;
-				if (i < argc) manifest = cstr_to_str(argv[i]);
-				else {
-					println("Error: Missing argument after '${arg}'");
-					return 1;
-				}
-			}
-			else -> {
-				println("Error: Unknown option '${arg}' for build command");
-				return 1;
-			}
-		}
-		i++;
-	}
-	return cmd_build(manifest);
-}
+fn run_build(): i32 => cmd_build("kobel.toml");
 
 fn run_project(argc: i32, argv: &*char): i32 {
-	var manifest = "kobel.toml";
 	val extra_args = List<str>();
-
 	var i = 2;
-	var collecting_args = false;
 	while (i < argc) {
-		val arg = cstr_to_str(argv[i]);
-		if (collecting_args) {
-			extra_args.add(arg);
-		} else {
-			when (arg) {
-				"-h", "--help" -> {
-					println("Usage: kobel run [options] [--] [args...]");
-					println("");
-					println("Runs the project defined in kobel.toml. Automatically checks if");
-					println("the target binary exists and rebuilds if changes are detected.");
-					println("");
-					println("Options:");
-					println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-					println("  -h, --help             Display this help message");
-					return 0;
-				}
-				"-m", "--manifest" -> {
-					i++;
-					if (i < argc) manifest = cstr_to_str(argv[i]);
-					else {
-						println("Error: Missing argument after '${arg}'");
-						return 1;
-					}
-				}
-				"--" -> collecting_args = true;
-				else -> {
-					extra_args.add(arg);
-					collecting_args = true;
-				}
-			}
-		}
+		extra_args.add(cstr_to_str(argv[i]));
 		i++;
 	}
-	return cmd_run(manifest, extra_args);
+	return cmd_run("kobel.toml", extra_args);
 }
 
 fn run_test_suite(argc: i32, argv: &*char): i32 {
-	var manifest = "kobel.toml";
-	var filter = "";
+	val filter = if (argc >= 3) cstr_to_str(argv[2]) else "";
+	return cmd_test("kobel.toml", filter);
+}
 
-	var i = 2;
-	while (i < argc) {
-		val arg = cstr_to_str(argv[i]);
-		when (arg) {
-			"-h", "--help" -> {
-				println("Usage: kobel test [options] [filter]");
-				println("");
-				println("Runs tests defined in the test directory configured in kobel.toml.");
-				println("");
-				println("Options:");
-				println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-				println("  -h, --help             Display this help message");
-				return 0;
-			}
-			"-m", "--manifest" -> {
-				i++;
-				if (i < argc) manifest = cstr_to_str(argv[i]);
-				else {
-					println("Error: Missing argument after '${arg}'");
-					return 1;
-				}
-			}
-			else -> {
-				if (arg.len > 0 && arg[0] == '-') {
-					println("Error: Unknown option '${arg}' for test command");
-					return 1;
-				}
-				filter = arg;
-			}
-		}
-		i++;
-	}
-	return cmd_test(manifest, filter);
+fn run_emit_c(argc: i32, argv: &*char): i32 {
+	val cfg = if (file_exists("kobel.toml")) load_project_config("kobel.toml") else ProjectConfig();
+	val out_path = if (argc >= 3) cstr_to_str(argv[2]) else "dist/bootstrap.c";
+
+	val opts = CompileOptions();
+	opts.input_path = cfg.entry;
+	opts.emit_c_path = out_path;
+	opts.only_emit_c = true;
+	return compile_pipeline(opts);
 }
 
 fn run_fmt(argc: i32, argv: &*char): i32 {
 	if (argc < 3) {
-		print_fmt_usage();
+		println("Usage: kobel fmt [-w] <files...>");
 		return 1;
 	}
 
@@ -165,18 +66,12 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	while (i < argc) {
 		val arg = cstr_to_str(argv[i]);
 		when (arg) {
+			"-w", "--write" -> write_in_place = true;
 			"-h", "--help" -> {
-				print_fmt_usage();
+				println("Usage: kobel fmt [-w] <files...>");
 				return 0;
 			}
-			"-w", "--write" -> write_in_place = true;
-			else -> {
-				if (arg.len > 0 && arg[0] == '-') {
-					println("Error: Unknown option '${arg}'");
-					return 1;
-				}
-				files.add(arg);
-			}
+			else -> files.add(arg);
 		}
 		i++;
 	}
@@ -187,17 +82,11 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	}
 
 	val options = FormatOptions();
-
 	for (fpath in files) {
 		val src = read_file(fpath);
-		if (src.len == 0) {
-			print("Warning: Skipping empty or unreadable file: ");
-			println(fpath);
-			continue;
-		}
+		if (src.len == 0) continue;
 
 		val formatted = format_source(src, options);
-
 		if (write_in_place) {
 			val ok = write_file(fpath, formatted);
 			if (!ok) {
@@ -220,80 +109,60 @@ fn run_compiler(argc: i32, argv: &*char): i32 {
 	while (i < argc) {
 		val arg = cstr_to_str(argv[i]);
 		when (arg) {
-			"-h", "--help" -> {
-				print_usage();
-				return 0;
-			}
-			"-v", "--version" -> {
-				println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
-				return 0;
-			}
 			"-o" -> {
 				i++;
 				if (i < argc) opts.output_bin = cstr_to_str(argv[i]);
-				else {
-					println("Error: Missing argument after '-o'");
-					return 1;
-				}
 			}
 			"-emit-c" -> {
 				i++;
 				if (i < argc) {
 					opts.emit_c_path = cstr_to_str(argv[i]);
 					opts.only_emit_c = true;
-				} else {
-					println("Error: Missing argument after '-emit-c'");
-					return 1;
-				}
-			}
-			"--cc" -> {
-				i++;
-				if (i < argc) opts.c_compiler = cstr_to_str(argv[i]);
-				else {
-					println("Error: Missing argument after '--cc'");
-					return 1;
-				}
-			}
-			"-I" -> {
-				i++;
-				if (i < argc) opts.extra_roots.add(cstr_to_str(argv[i]));
-				else {
-					println("Error: Missing argument after '-I'");
-					return 1;
 				}
 			}
 			else -> {
-				if (arg.len > 0 && arg[0] == '-') {
-					println("Error: Unknown option '${arg}'");
-					return 1;
+				if (arg.len > 0 && arg[0] != '-') {
+					opts.input_path = arg;
 				}
-				opts.input_path = arg;
 			}
 		}
 		i++;
 	}
 
 	if (opts.input_path.len == 0) {
-		println("Error: No input file specified");
+		print_usage();
 		return 1;
 	}
 
 	return compile_pipeline(opts);
 }
 
+fn print_version(): i32 {
+	println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
+	return 0;
+}
+
+fn print_help(): i32 {
+	print_usage();
+	return 0;
+}
+
 fn main(argc: i32, argv: &*char): i32 {
 	if (argc < 2) {
 		print_usage();
-		return 1;
+		return 0;
 	}
 
 	val first_arg = cstr_to_str(argv[1]);
 	return when (first_arg) {
-		"build" -> run_build(argc, argv);
+		"build" -> run_build();
 		"run" -> run_project(argc, argv);
 		"test" -> run_test_suite(argc, argv);
-		"lsp" -> run_server();
+		"emit-c" -> run_emit_c(argc, argv);
 		"fmt" -> run_fmt(argc, argv);
+		"lsp" -> run_server();
+		"version", "-v", "--version" -> print_version();
+		"help", "-h", "--help" -> print_help();
 		else -> run_compiler(argc, argv);
 	};
 }

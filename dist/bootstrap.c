@@ -31,11 +31,12 @@ static size_t kobel_slen(const char* s) {
     return strlen(s);
 }
 
+typedef struct std__collections__list__List_str std__collections__list__List_str;
+typedef struct std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str;
 typedef struct std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode;
 typedef struct std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__WhenArm;
 typedef struct std__collections__list__List_compiler__ast__expr__InterpPart std__collections__list__List_compiler__ast__expr__InterpPart;
 typedef struct std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stmt__WhenStmtArm;
-typedef struct std__collections__list__List_str std__collections__list__List_str;
 typedef struct std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam;
 typedef struct std__collections__list__List_compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Param;
 typedef struct std__collections__list__List_compiler__ast__decl__StructField std__collections__list__List_compiler__ast__decl__StructField;
@@ -54,12 +55,13 @@ typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInf
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
-typedef struct std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str;
 typedef struct std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment;
 typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue;
 typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
 typedef struct std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic;
 typedef struct std__str__StrRaw std__str__StrRaw;
+typedef struct config__project__TomlDoc config__project__TomlDoc;
+typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct std__mem__arena__ArenaBlock std__mem__arena__ArenaBlock;
 typedef struct std__mem__arena__Arena std__mem__arena__Arena;
 typedef int32_t compiler__ast__node__NodeKind;
@@ -204,8 +206,6 @@ typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
 typedef struct compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions;
-typedef struct config__project__TomlDoc config__project__TomlDoc;
-typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct fmt__options__FormatOptions fmt__options__FormatOptions;
 typedef struct std__collections__string_builder__StringRaw std__collections__string_builder__StringRaw;
 typedef struct std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder;
@@ -221,6 +221,20 @@ typedef struct lsp__document__DocumentStore lsp__document__DocumentStore;
 typedef struct lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic;
 typedef struct lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult;
 
+
+struct std__collections__list__List_str {
+    const char** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__hash_map__HashMap_str {
+    const char** keys;
+    const char** values;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
 
 struct std__collections__list__List_ptr_compiler__ast__node__AstNode {
     compiler__ast__node__AstNode** data;
@@ -242,12 +256,6 @@ struct std__collections__list__List_compiler__ast__expr__InterpPart {
 
 struct std__collections__list__List_compiler__ast__stmt__WhenStmtArm {
     compiler__ast__stmt__WhenStmtArm* data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__list__List_str {
-    const char** data;
     size_t len;
     size_t cap;
 };
@@ -360,14 +368,6 @@ struct std__collections__list__List_compiler__loader__loader__LoadedModule {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_str {
-    const char** keys;
-    const char** values;
-    bool* occupied;
-    size_t len;
-    size_t cap;
-};
-
 struct std__collections__list__List_fmt__comments__Comment {
     fmt__comments__Comment* data;
     size_t len;
@@ -396,6 +396,19 @@ struct std__str__StrRaw {
     const char* data;
     size_t len;
     size_t cap;
+};
+
+struct config__project__TomlDoc {
+    std__collections__hash_map__HashMap_str entries;
+};
+
+struct config__project__ProjectConfig {
+    const char* name;
+    const char* version;
+    const char* entry;
+    const char* output;
+    const char* cc;
+    const char* test_dir;
 };
 
 struct std__mem__arena__ArenaBlock {
@@ -933,19 +946,6 @@ struct compiler__driver__pipeline__CompileOptions {
     bool quiet;
 };
 
-struct config__project__TomlDoc {
-    std__collections__hash_map__HashMap_str entries;
-};
-
-struct config__project__ProjectConfig {
-    const char* name;
-    const char* version;
-    const char* entry;
-    const char* output;
-    const char* cc;
-    const char* test_dir;
-};
-
 struct fmt__options__FormatOptions {
     size_t tab_size;
     bool use_smart_tabs;
@@ -1035,6 +1035,18 @@ struct lsp__analysis__AnalysisResult {
     std__collections__list__List_compiler__lexer__token__Token tokens;
 };
 
+static inline std__collections__list__List_str std__collections__list__List_str_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_str*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_str l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
 static inline std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_from_array(const void* src, size_t n) {
     size_t elem_size = sizeof(*(((std__collections__list__List_ptr_compiler__ast__node__AstNode*)0)->data));
     size_t cap = (n < 4) ? 4 : n;
@@ -1077,18 +1089,6 @@ static inline std__collections__list__List_compiler__ast__stmt__WhenStmtArm std_
     void* data = malloc(cap * elem_size);
     if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
     std__collections__list__List_compiler__ast__stmt__WhenStmtArm l;
-    l.data = data;
-    l.len = n;
-    l.cap = cap;
-    return l;
-}
-
-static inline std__collections__list__List_str std__collections__list__List_str_from_array(const void* src, size_t n) {
-    size_t elem_size = sizeof(*(((std__collections__list__List_str*)0)->data));
-    size_t cap = (n < 4) ? 4 : n;
-    void* data = malloc(cap * elem_size);
-    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-    std__collections__list__List_str l;
     l.data = data;
     l.len = n;
     l.cap = cap;
@@ -1359,6 +1359,35 @@ static inline std__collections__list__List_lsp__analysis__LspDiagnostic std__col
     return l;
 }
 
+size_t std__collections__list__List_str_count(std__collections__list__List_str* self);
+const char* std__collections__list__List_str_at(std__collections__list__List_str* self, size_t i);
+const char** std__mem__alloc__alloc_array_str(size_t count);
+const char** std__mem__alloc__resize_str(const char** ptr, size_t count);
+void std__mem__alloc__release_str(const char** ptr);
+std__collections__list__List_str std__collections__list__List_str_new(size_t cap);
+const char* std__collections__list__List_str_get(std__collections__list__List_str* self, size_t index);
+const char* std__collections__list__List_str_first(std__collections__list__List_str* self);
+const char* std__collections__list__List_str_last(std__collections__list__List_str* self);
+bool std__collections__list__List_str_is_empty(std__collections__list__List_str* self);
+const char* std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value);
+void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value);
+const char* std__collections__list__List_str_pop(std__collections__list__List_str* self);
+size_t std__collections__list__List_str_clear(std__collections__list__List_str* self);
+void std__collections__list__List_str_grow(std__collections__list__List_str* self);
+void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap);
+const char* std__collections__list__List_str_remove_at(std__collections__list__List_str* self, size_t index);
+void std__collections__list__List_str_insert(std__collections__list__List_str* self, size_t index, const char* value);
+std__collections__list__List_str std__collections__list__List_str_clone(std__collections__list__List_str* self);
+void std__collections__list__List_str_delete(std__collections__list__List_str* self);
+bool* std__mem__alloc__alloc_array_bool(size_t count);
+void std__mem__alloc__release_bool(bool* ptr);
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void);
+size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key);
+void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
+bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key);
+const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val);
+void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self);
+void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self);
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self);
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_at(std__collections__list__List_ptr_compiler__ast__node__AstNode* self, size_t i);
 compiler__ast__node__AstNode** std__mem__alloc__alloc_array_ptr_compiler__ast__node__AstNode(size_t count);
@@ -1439,26 +1468,6 @@ compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stm
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_insert(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self, size_t index, compiler__ast__stmt__WhenStmtArm value);
 std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stmt__WhenStmtArm_clone(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self);
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_delete(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self);
-size_t std__collections__list__List_str_count(std__collections__list__List_str* self);
-const char* std__collections__list__List_str_at(std__collections__list__List_str* self, size_t i);
-const char** std__mem__alloc__alloc_array_str(size_t count);
-const char** std__mem__alloc__resize_str(const char** ptr, size_t count);
-void std__mem__alloc__release_str(const char** ptr);
-std__collections__list__List_str std__collections__list__List_str_new(size_t cap);
-const char* std__collections__list__List_str_get(std__collections__list__List_str* self, size_t index);
-const char* std__collections__list__List_str_first(std__collections__list__List_str* self);
-const char* std__collections__list__List_str_last(std__collections__list__List_str* self);
-bool std__collections__list__List_str_is_empty(std__collections__list__List_str* self);
-const char* std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value);
-void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value);
-const char* std__collections__list__List_str_pop(std__collections__list__List_str* self);
-size_t std__collections__list__List_str_clear(std__collections__list__List_str* self);
-void std__collections__list__List_str_grow(std__collections__list__List_str* self);
-void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap);
-const char* std__collections__list__List_str_remove_at(std__collections__list__List_str* self, size_t index);
-void std__collections__list__List_str_insert(std__collections__list__List_str* self, size_t index, const char* value);
-std__collections__list__List_str std__collections__list__List_str_clone(std__collections__list__List_str* self);
-void std__collections__list__List_str_delete(std__collections__list__List_str* self);
 size_t std__collections__list__List_compiler__ast__decl__GenericParam_count(std__collections__list__List_compiler__ast__decl__GenericParam* self);
 compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_at(std__collections__list__List_compiler__ast__decl__GenericParam* self, size_t i);
 compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count);
@@ -1819,15 +1828,6 @@ compiler__loader__loader__LoadedModule std__collections__list__List_compiler__lo
 void std__collections__list__List_compiler__loader__loader__LoadedModule_insert(std__collections__list__List_compiler__loader__loader__LoadedModule* self, size_t index, compiler__loader__loader__LoadedModule value);
 std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule_clone(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
 void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(std__collections__list__List_compiler__loader__loader__LoadedModule* self);
-bool* std__mem__alloc__alloc_array_bool(size_t count);
-void std__mem__alloc__release_bool(bool* ptr);
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void);
-size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key);
-void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
-bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key);
-const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val);
-void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self);
-void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self);
 size_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self);
 fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_at(std__collections__list__List_fmt__comments__Comment* self, size_t i);
 fmt__comments__Comment* std__mem__alloc__alloc_array_fmt__comments__Comment(size_t count);
@@ -2189,6 +2189,30 @@ const char* std__io__read_file(const char* path);
 bool std__io__write_file(const char* path, const char* content);
 bool std__io__append_file(const char* path, const char* content);
 bool std__io__file_exists(const char* path);
+const char* util__strutil__cstr_to_str(const char* s);
+bool util__strutil__str_is_sep(char c);
+const char* str_module_to_rel(const char* self);
+const char* str_path_to_module(const char* self);
+bool str_has_kb_suffix(const char* self);
+const char* str_strip_kb(const char* self);
+const char* str_dir_of(const char* self);
+const char* str_base_name(const char* self);
+const char* str_join_path(const char* self, const char* rel);
+std__collections__list__List_str str_split_dots(const char* self);
+const char* str_mangle_symbol(const char* self, const char* name);
+const char* str_normalize_path(const char* self);
+const char* str_to_win_path(const char* self);
+const char* str_to_posix_path(const char* self);
+bool str_in_list(const char* self, std__collections__list__List_str list);
+intptr_t str_index_in_list(const char* self, std__collections__list__List_str list);
+const char* str_trim(const char* self);
+std__collections__list__List_str str_split_lines(const char* self);
+const char* str_hash_stamp(const char* self);
+const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
+const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val);
+config__project__TomlDoc config__project__parse_mini_toml(const char* content);
+config__project__ProjectConfig config__project__ProjectConfig_new(void);
+config__project__ProjectConfig config__project__load_project_config(const char* manifest_path);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
 std__mem__arena__Arena std__mem__arena__Arena_new(size_t block_size);
@@ -2248,26 +2272,6 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_enum_decl(std__mem__arena__
 compiler__ast__node__AstNode* std__mem__arena__Arena_const_decl(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_extern_block(std__mem__arena__Arena* self, const char* abi, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_program(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
-const char* util__strutil__cstr_to_str(const char* s);
-bool util__strutil__str_is_sep(char c);
-const char* str_module_to_rel(const char* self);
-const char* str_path_to_module(const char* self);
-bool str_has_kb_suffix(const char* self);
-const char* str_strip_kb(const char* self);
-const char* str_dir_of(const char* self);
-const char* str_base_name(const char* self);
-const char* str_join_path(const char* self, const char* rel);
-std__collections__list__List_str str_split_dots(const char* self);
-const char* str_mangle_symbol(const char* self, const char* name);
-const char* str_normalize_path(const char* self);
-const char* str_to_win_path(const char* self);
-const char* str_to_posix_path(const char* self);
-bool str_in_list(const char* self, std__collections__list__List_str list);
-intptr_t str_index_in_list(const char* self, std__collections__list__List_str list);
-const char* str_trim(const char* self);
-std__collections__list__List_str str_split_lines(const char* self);
-const char* str_hash_stamp(const char* self);
-const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__EnumInfo_find_member(compiler__sema__types__EnumInfo* self, const char* name);
 size_t compiler__sema__types__PointerType_type_size(compiler__sema__types__PointerType* self);
 size_t compiler__sema__types__PointerType_type_align(compiler__sema__types__PointerType* self);
@@ -2680,10 +2684,6 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_progra
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
 int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts);
-const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val);
-config__project__TomlDoc config__project__parse_mini_toml(const char* content);
-config__project__ProjectConfig config__project__ProjectConfig_new(void);
-config__project__ProjectConfig config__project__load_project_config(const char* manifest_path);
 const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path);
 int32_t compiler__driver__commands__cmd_build(const char* manifest_path);
 int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__collections__list__List_str extra_args);
@@ -2795,13 +2795,478 @@ lsp__json__JsonValue* lsp__analysis__format_document(const char* text);
 void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, const char* workspace_root);
 int32_t lsp__server__run_server(void);
 void main__print_usage(void);
-void main__print_fmt_usage(void);
-int32_t main__run_build(int32_t argc, const char** argv);
+int32_t main__run_build(void);
 int32_t main__run_project(int32_t argc, const char** argv);
 int32_t main__run_test_suite(int32_t argc, const char** argv);
+int32_t main__run_emit_c(int32_t argc, const char** argv);
 int32_t main__run_fmt(int32_t argc, const char** argv);
 int32_t main__run_compiler(int32_t argc, const char** argv);
+int32_t main__print_version(void);
+int32_t main__print_help(void);
 int32_t main(int32_t argc, const char** argv);
+
+size_t std__collections__list__List_str_count(std__collections__list__List_str* self) {
+    return (self)->len;
+}
+
+const char* std__collections__list__List_str_at(std__collections__list__List_str* self, size_t i) {
+    return (self)->data[i];
+}
+
+const char** std__mem__alloc__alloc_array_str(size_t count) {
+    return ((const char**)std__mem__alloc__raw_alloc((count * 8)));
+}
+
+const char** std__mem__alloc__resize_str(const char** ptr, size_t count) {
+    return ((const char**)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 8)));
+}
+
+void std__mem__alloc__release_str(const char** ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__list__List_str std__collections__list__List_str_new(size_t cap) {
+    return (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), 0, cap };
+}
+
+const char* std__collections__list__List_str_get(std__collections__list__List_str* self, size_t index) {
+    return (self)->data[index];
+}
+
+const char* std__collections__list__List_str_first(std__collections__list__List_str* self) {
+    return (self)->data[0];
+}
+
+const char* std__collections__list__List_str_last(std__collections__list__List_str* self) {
+    return (self)->data[((self)->len - 1)];
+}
+
+bool std__collections__list__List_str_is_empty(std__collections__list__List_str* self) {
+    return ((self)->len == 0);
+}
+
+const char* std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value) {
+    return (self)->data[index] = value;
+}
+
+void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_str_grow(self);
+    }
+    (self)->data[(self)->len] = value;
+    (self)->len++;
+}
+
+const char* std__collections__list__List_str_pop(std__collections__list__List_str* self) {
+    (self)->len--;
+    return (self)->data[(self)->len];
+}
+
+size_t std__collections__list__List_str_clear(std__collections__list__List_str* self) {
+    return (self)->len = 0;
+}
+
+void std__collections__list__List_str_grow(std__collections__list__List_str* self) {
+    size_t new_cap = ((self)->cap * 2);
+    (self)->data = std__mem__alloc__resize_str((self)->data, new_cap);
+    (self)->cap = new_cap;
+}
+
+void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap) {
+    if ((min_cap > (self)->cap)) {
+        {
+            size_t new_cap = (self)->cap;
+            while ((new_cap < min_cap)) {
+                new_cap *= 2;
+            }
+            (self)->data = std__mem__alloc__resize_str((self)->data, new_cap);
+            (self)->cap = new_cap;
+        }
+    }
+}
+
+const char* std__collections__list__List_str_remove_at(std__collections__list__List_str* self, size_t index) {
+    const char* item = (self)->data[index];
+    {
+        size_t __for_e = (((self)->len - 1));
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                (self)->data[i] = (self)->data[(i + 1)];
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (self)->len--;
+    return item;
+}
+
+void std__collections__list__List_str_insert(std__collections__list__List_str* self, size_t index, const char* value) {
+    if (((self)->len == (self)->cap)) {
+        std__collections__list__List_str_grow(self);
+    }
+    size_t i = (self)->len;
+    while ((i > index)) {
+        {
+            (self)->data[i] = (self)->data[(i - 1)];
+            i--;
+        }
+    }
+    (self)->data[index] = value;
+    (self)->len++;
+}
+
+std__collections__list__List_str std__collections__list__List_str_clone(std__collections__list__List_str* self) {
+    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
+    std__collections__list__List_str res = (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), 0, cap };
+    {
+        size_t __for_e = (self)->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                std__collections__list__List_str_add((&res), (self)->data[i]);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__list__List_str_delete(std__collections__list__List_str* self) {
+    std__mem__alloc__release_str((self)->data);
+}
+
+bool* std__mem__alloc__alloc_array_bool(size_t count) {
+    return ((bool*)std__mem__alloc__raw_alloc((count * 1)));
+}
+
+void std__mem__alloc__release_bool(bool* ptr) {
+    std__mem__alloc__raw_release(((uint8_t*)ptr));
+}
+
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void) {
+    size_t init_cap = ((size_t)16ULL);
+    const char** keys = std__mem__alloc__alloc_array_str(init_cap);
+    const char** values = std__mem__alloc__alloc_array_str(init_cap);
+    bool* occ = std__mem__alloc__alloc_array_bool(init_cap);
+    {
+        size_t __for_e = init_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                occ[i] = false;
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, init_cap };
+}
+
+size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key) {
+    size_t h = ((size_t)5381ULL);
+    {
+        size_t __for_e = kobel_slen(key);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                size_t c = ((size_t)key[i]);
+                h = ((h * 33) + c);
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return h;
+}
+
+void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
+    if ((((self)->len * 10) >= ((self)->cap * 7))) {
+        std__collections__hash_map__HashMap_str_grow(self);
+    }
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                {
+                    (self)->values[idx] = value;
+                    return;
+                }
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    (self)->keys[idx] = key;
+    (self)->values[idx] = value;
+    (self)->occupied[idx] = true;
+    (self)->len++;
+}
+
+bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key) {
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                return true;
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    return false;
+}
+
+const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val) {
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % (self)->cap);
+    while ((self)->occupied[idx]) {
+        {
+            if (kobel_streq((self)->keys[idx], key)) {
+                return (self)->values[idx];
+            }
+            idx = (((idx + 1)) % (self)->cap);
+        }
+    }
+    return default_val;
+}
+
+void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self) {
+    size_t old_cap = (self)->cap;
+    const char** old_keys = (self)->keys;
+    const char** old_vals = (self)->values;
+    bool* old_occ = (self)->occupied;
+    size_t new_cap = (old_cap * 2);
+    const char** keys = std__mem__alloc__alloc_array_str(new_cap);
+    const char** values = std__mem__alloc__alloc_array_str(new_cap);
+    bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t j = __for_i;
+                new_occ[j] = false;
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (self)->keys = keys;
+    (self)->values = values;
+    (self)->occupied = new_occ;
+    (self)->cap = new_cap;
+    (self)->len = 0;
+    {
+        size_t __for_e = old_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            {
+                __for_go = (__for_i < __for_e);
+            }
+        } else {
+            {
+                __for_go = (__for_i > __for_e);
+            }
+        }
+        while (__for_go) {
+            {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    std__collections__hash_map__HashMap_str_put(self, old_keys[i], old_vals[i]);
+                }
+                if (__for_up) {
+                    {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    }
+                } else {
+                    {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        {
+                            __for_i = (__for_i + 1);
+                        }
+                    } else {
+                        {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std__mem__alloc__release_str(old_keys);
+    std__mem__alloc__release_str(old_vals);
+    std__mem__alloc__release_bool(old_occ);
+}
+
+void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self) {
+    std__mem__alloc__release_str((self)->keys);
+    std__mem__alloc__release_str((self)->values);
+    std__mem__alloc__release_bool((self)->occupied);
+}
 
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self) {
     return (self)->len;
@@ -3581,201 +4046,6 @@ std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__
 
 void std__collections__list__List_compiler__ast__stmt__WhenStmtArm_delete(std__collections__list__List_compiler__ast__stmt__WhenStmtArm* self) {
     std__mem__alloc__release_compiler__ast__stmt__WhenStmtArm((self)->data);
-}
-
-size_t std__collections__list__List_str_count(std__collections__list__List_str* self) {
-    return (self)->len;
-}
-
-const char* std__collections__list__List_str_at(std__collections__list__List_str* self, size_t i) {
-    return (self)->data[i];
-}
-
-const char** std__mem__alloc__alloc_array_str(size_t count) {
-    return ((const char**)std__mem__alloc__raw_alloc((count * 8)));
-}
-
-const char** std__mem__alloc__resize_str(const char** ptr, size_t count) {
-    return ((const char**)std__mem__alloc__raw_resize(((uint8_t*)ptr), (count * 8)));
-}
-
-void std__mem__alloc__release_str(const char** ptr) {
-    std__mem__alloc__raw_release(((uint8_t*)ptr));
-}
-
-std__collections__list__List_str std__collections__list__List_str_new(size_t cap) {
-    return (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), 0, cap };
-}
-
-const char* std__collections__list__List_str_get(std__collections__list__List_str* self, size_t index) {
-    return (self)->data[index];
-}
-
-const char* std__collections__list__List_str_first(std__collections__list__List_str* self) {
-    return (self)->data[0];
-}
-
-const char* std__collections__list__List_str_last(std__collections__list__List_str* self) {
-    return (self)->data[((self)->len - 1)];
-}
-
-bool std__collections__list__List_str_is_empty(std__collections__list__List_str* self) {
-    return ((self)->len == 0);
-}
-
-const char* std__collections__list__List_str_set(std__collections__list__List_str* self, size_t index, const char* value) {
-    return (self)->data[index] = value;
-}
-
-void std__collections__list__List_str_add(std__collections__list__List_str* self, const char* value) {
-    if (((self)->len == (self)->cap)) {
-        std__collections__list__List_str_grow(self);
-    }
-    (self)->data[(self)->len] = value;
-    (self)->len++;
-}
-
-const char* std__collections__list__List_str_pop(std__collections__list__List_str* self) {
-    (self)->len--;
-    return (self)->data[(self)->len];
-}
-
-size_t std__collections__list__List_str_clear(std__collections__list__List_str* self) {
-    return (self)->len = 0;
-}
-
-void std__collections__list__List_str_grow(std__collections__list__List_str* self) {
-    size_t new_cap = ((self)->cap * 2);
-    (self)->data = std__mem__alloc__resize_str((self)->data, new_cap);
-    (self)->cap = new_cap;
-}
-
-void std__collections__list__List_str_reserve(std__collections__list__List_str* self, size_t min_cap) {
-    if ((min_cap > (self)->cap)) {
-        {
-            size_t new_cap = (self)->cap;
-            while ((new_cap < min_cap)) {
-                new_cap *= 2;
-            }
-            (self)->data = std__mem__alloc__resize_str((self)->data, new_cap);
-            (self)->cap = new_cap;
-        }
-    }
-}
-
-const char* std__collections__list__List_str_remove_at(std__collections__list__List_str* self, size_t index) {
-    const char* item = (self)->data[index];
-    {
-        size_t __for_e = (((self)->len - 1));
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t i = __for_i;
-                (self)->data[i] = (self)->data[(i + 1)];
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    (self)->len--;
-    return item;
-}
-
-void std__collections__list__List_str_insert(std__collections__list__List_str* self, size_t index, const char* value) {
-    if (((self)->len == (self)->cap)) {
-        std__collections__list__List_str_grow(self);
-    }
-    size_t i = (self)->len;
-    while ((i > index)) {
-        {
-            (self)->data[i] = (self)->data[(i - 1)];
-            i--;
-        }
-    }
-    (self)->data[index] = value;
-    (self)->len++;
-}
-
-std__collections__list__List_str std__collections__list__List_str_clone(std__collections__list__List_str* self) {
-    size_t cap = (((self)->cap > 0) ? (self)->cap : 4);
-    std__collections__list__List_str res = (std__collections__list__List_str){ std__mem__alloc__alloc_array_str(cap), 0, cap };
-    {
-        size_t __for_e = (self)->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t i = __for_i;
-                std__collections__list__List_str_add((&res), (self)->data[i]);
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return res;
-}
-
-void std__collections__list__List_str_delete(std__collections__list__List_str* self) {
-    std__mem__alloc__release_str((self)->data);
 }
 
 size_t std__collections__list__List_compiler__ast__decl__GenericParam_count(std__collections__list__List_compiler__ast__decl__GenericParam* self) {
@@ -7288,274 +7558,6 @@ void std__collections__list__List_compiler__loader__loader__LoadedModule_delete(
     std__mem__alloc__release_compiler__loader__loader__LoadedModule((self)->data);
 }
 
-bool* std__mem__alloc__alloc_array_bool(size_t count) {
-    return ((bool*)std__mem__alloc__raw_alloc((count * 1)));
-}
-
-void std__mem__alloc__release_bool(bool* ptr) {
-    std__mem__alloc__raw_release(((uint8_t*)ptr));
-}
-
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void) {
-    size_t init_cap = ((size_t)16ULL);
-    const char** keys = std__mem__alloc__alloc_array_str(init_cap);
-    const char** values = std__mem__alloc__alloc_array_str(init_cap);
-    bool* occ = std__mem__alloc__alloc_array_bool(init_cap);
-    {
-        size_t __for_e = init_cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t i = __for_i;
-                occ[i] = false;
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, init_cap };
-}
-
-size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key) {
-    size_t h = ((size_t)5381ULL);
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t i = __for_i;
-                size_t c = ((size_t)key[i]);
-                h = ((h * 33) + c);
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return h;
-}
-
-void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
-    if ((((self)->len * 10) >= ((self)->cap * 7))) {
-        std__collections__hash_map__HashMap_str_grow(self);
-    }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
-    size_t idx = (h % (self)->cap);
-    while ((self)->occupied[idx]) {
-        {
-            if (kobel_streq((self)->keys[idx], key)) {
-                {
-                    (self)->values[idx] = value;
-                    return;
-                }
-            }
-            idx = (((idx + 1)) % (self)->cap);
-        }
-    }
-    (self)->keys[idx] = key;
-    (self)->values[idx] = value;
-    (self)->occupied[idx] = true;
-    (self)->len++;
-}
-
-bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key) {
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
-    size_t idx = (h % (self)->cap);
-    while ((self)->occupied[idx]) {
-        {
-            if (kobel_streq((self)->keys[idx], key)) {
-                return true;
-            }
-            idx = (((idx + 1)) % (self)->cap);
-        }
-    }
-    return false;
-}
-
-const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val) {
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
-    size_t idx = (h % (self)->cap);
-    while ((self)->occupied[idx]) {
-        {
-            if (kobel_streq((self)->keys[idx], key)) {
-                return (self)->values[idx];
-            }
-            idx = (((idx + 1)) % (self)->cap);
-        }
-    }
-    return default_val;
-}
-
-void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self) {
-    size_t old_cap = (self)->cap;
-    const char** old_keys = (self)->keys;
-    const char** old_vals = (self)->values;
-    bool* old_occ = (self)->occupied;
-    size_t new_cap = (old_cap * 2);
-    const char** keys = std__mem__alloc__alloc_array_str(new_cap);
-    const char** values = std__mem__alloc__alloc_array_str(new_cap);
-    bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
-    {
-        size_t __for_e = new_cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t j = __for_i;
-                new_occ[j] = false;
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    (self)->keys = keys;
-    (self)->values = values;
-    (self)->occupied = new_occ;
-    (self)->cap = new_cap;
-    (self)->len = 0;
-    {
-        size_t __for_e = old_cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            {
-                __for_go = (__for_i < __for_e);
-            }
-        } else {
-            {
-                __for_go = (__for_i > __for_e);
-            }
-        }
-        while (__for_go) {
-            {
-                size_t i = __for_i;
-                if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_str_put(self, old_keys[i], old_vals[i]);
-                }
-                if (__for_up) {
-                    {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    }
-                } else {
-                    {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        {
-                            __for_i = (__for_i + 1);
-                        }
-                    } else {
-                        {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    std__mem__alloc__release_str(old_keys);
-    std__mem__alloc__release_str(old_vals);
-    std__mem__alloc__release_bool(old_occ);
-}
-
-void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self) {
-    std__mem__alloc__release_str((self)->keys);
-    std__mem__alloc__release_str((self)->values);
-    std__mem__alloc__release_bool((self)->occupied);
-}
-
 size_t std__collections__list__List_fmt__comments__Comment_count(std__collections__list__List_fmt__comments__Comment* self) {
     return (self)->len;
 }
@@ -10066,303 +10068,6 @@ bool std__io__file_exists(const char* path) {
     return true;
 }
 
-void std__sys__sys_exit(int32_t code) {
-    exit(code);
-}
-
-int32_t std__sys__exec(const char* cmd) {
-    return system(cmd);
-}
-
-std__mem__arena__Arena std__mem__arena__Arena_new(size_t block_size) {
-    return (std__mem__arena__Arena){ NULL, block_size };
-}
-
-uint8_t* std__mem__arena__Arena_alloc_bytes(std__mem__arena__Arena* self, size_t size, size_t align) {
-    if (((self)->current == NULL)) {
-        std__mem__arena__Arena_new_block(self, size);
-    }
-    std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)(self)->current);
-    size_t rem = ((blk)->used % align);
-    size_t aligned_used = (blk)->used;
-    if ((rem != 0)) {
-        aligned_used = ((blk)->used + ((align - rem)));
-    }
-    if (((aligned_used + size) > (blk)->size)) {
-        {
-            std__mem__arena__Arena_new_block(self, size);
-            blk = ((std__mem__arena__ArenaBlock*)(self)->current);
-            aligned_used = 0;
-        }
-    }
-    size_t addr = ((((size_t)(blk)->data)) + aligned_used);
-    uint8_t* ptr = ((uint8_t*)addr);
-    (blk)->used = (aligned_used + size);
-    return ptr;
-}
-
-void std__mem__arena__Arena_new_block(std__mem__arena__Arena* self, size_t min_size) {
-    size_t sz = (self)->block_size;
-    if ((sz < min_size)) {
-        sz = min_size;
-    }
-    uint8_t* data = std__mem__alloc__raw_alloc(sz);
-    uint8_t* blk_mem = std__mem__alloc__raw_alloc(sizeof(std__mem__arena__ArenaBlock));
-    std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)blk_mem);
-    (blk)->data = data;
-    (blk)->size = sz;
-    (blk)->used = 0;
-    (blk)->next = (self)->current;
-    (self)->current = ((std__mem__arena__ArenaBlock*)blk);
-}
-
-void std__mem__arena__Arena_reset(std__mem__arena__Arena* self) {
-    std__mem__arena__ArenaBlock* curr = (self)->current;
-    while ((curr != NULL)) {
-        {
-            std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)curr);
-            (blk)->used = 0;
-            curr = (blk)->next;
-        }
-    }
-}
-
-void std__mem__arena__Arena_delete(std__mem__arena__Arena* self) {
-    std__mem__arena__ArenaBlock* curr = (self)->current;
-    while ((curr != NULL)) {
-        {
-            std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)curr);
-            std__mem__arena__ArenaBlock* next_blk = (blk)->next;
-            std__mem__alloc__raw_release((blk)->data);
-            std__mem__alloc__raw_release(((uint8_t*)curr));
-            curr = next_blk;
-        }
-    }
-    (self)->current = NULL;
-}
-
-bool compiler__ast__node__AstNode_is_template(compiler__ast__node__AstNode* self) {
-    return (((self)->kind == 33) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 32) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 35) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : false)));
-}
-
-const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
-    return (self)->text;
-}
-
-const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
-    return ((kobel_slen(s) <= n) ? "" : kobel_slice(s, 0, (kobel_slen(s) - n)));
-}
-
-const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self) {
-    {
-        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(self)->declarations));
-        size_t __for_i = ((size_t)0ULL);
-        while ((__for_i < __for_n)) {
-            {
-                compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(self)->declarations), __for_i);
-                if (((decl)->kind == compiler__ast__decl__ModuleDecl__TAG)) {
-                    compiler__ast__decl__ModuleDecl* m = ((compiler__ast__decl__ModuleDecl*)(((compiler__ast__node__AstNode*)decl)->data));
-                    return (m)->full_path;
-                }
-                __for_i = (__for_i + 1);
-            }
-        }
-    }
-    return "";
-}
-
-size_t compiler__ast__decl__ExternBlock_count(compiler__ast__decl__ExternBlock* self) {
-    return ((self)->declarations).len;
-}
-
-compiler__ast__node__AstNode* compiler__ast__decl__ExternBlock_at(compiler__ast__decl__ExternBlock* self, size_t i) {
-    return std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(self)->declarations), i);
-}
-
-size_t compiler__ast__decl__Program_count(compiler__ast__decl__Program* self) {
-    return ((self)->declarations).len;
-}
-
-compiler__ast__node__AstNode* compiler__ast__decl__Program_at(compiler__ast__decl__Program* self, size_t i) {
-    return std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(self)->declarations), i);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_node(std__mem__arena__Arena* self, compiler__ast__node__NodeKind kind, size_t line, size_t col, uint8_t* data) {
-    return std__mem__arena__alloc_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ kind, line, col, data });
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_named_type(std__mem__arena__Arena* self, const char* name, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__types__NamedType(self, compiler__ast__types__NamedType__TAG, (compiler__ast__types__NamedType){ name, type_args }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_pointer_type(std__mem__arena__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__types__PointerType(self, compiler__ast__types__PointerType__TAG, (compiler__ast__types__PointerType){ is_mut, pointee }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_array_type(std__mem__arena__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__types__ArrayType(self, compiler__ast__types__ArrayType__TAG, (compiler__ast__types__ArrayType){ elem, size }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_nullable_type(std__mem__arena__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__types__NullableType(self, compiler__ast__types__NullableType__TAG, (compiler__ast__types__NullableType){ inner }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_literal(std__mem__arena__Arena* self, compiler__ast__expr__LiteralKind lk, const char* raw, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__LiteralExpr(self, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__expr__LiteralExpr){ lk, raw }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_identifier(std__mem__arena__Arena* self, const char* name, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__IdentifierExpr(self, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__expr__IdentifierExpr){ name }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_binary(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__BinaryExpr(self, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__expr__BinaryExpr){ left, op, right }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_unary(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__UnaryExpr(self, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__expr__UnaryExpr){ op, operand }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_call(std__mem__arena__Arena* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__CallExpr(self, compiler__ast__expr__CallExpr__TAG, (compiler__ast__expr__CallExpr){ callee, args, type_args }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_index(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__IndexExpr(self, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__expr__IndexExpr){ target, index }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_assign(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__AssignExpr(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__expr__AssignExpr){ target, 5, value }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_compound_assign(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__AssignExpr(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__expr__AssignExpr){ target, op, value }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_update(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__UpdateExpr(self, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__expr__UpdateExpr){ op, target }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_cast(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__CastExpr(self, compiler__ast__expr__CastExpr__TAG, (compiler__ast__expr__CastExpr){ expr, target_type }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_group(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__GroupExpr(self, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__expr__GroupExpr){ expr }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_array_literal(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__ArrayLiteralExpr(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__expr__ArrayLiteralExpr){ elements, "", NULL }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_list_literal(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode elements, const char* list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__ArrayLiteralExpr(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_if_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__IfExpr(self, compiler__ast__expr__IfExpr__TAG, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_when_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, std__collections__list__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__WhenExpr(self, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__expr__WhenExpr){ condition, arms }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_interp(std__mem__arena__Arena* self, std__collections__list__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__InterpExpr(self, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__expr__InterpExpr){ parts }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_is_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__IsExpr(self, compiler__ast__expr__IsExpr__TAG, (compiler__ast__expr__IsExpr){ expr, target_type, "", "", false, "", false }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_block_stmt(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__BlockStmt(self, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__stmt__BlockStmt){ statements }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_expr_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__ExprStmt(self, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__stmt__ExprStmt){ expr }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_var_decl(std__mem__arena__Arena* self, bool is_mut, const char* name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__VarDeclStmt(self, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_if_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__IfStmt(self, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_while_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__WhileStmt(self, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__stmt__WhileStmt){ condition, body }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_for_stmt(std__mem__arena__Arena* self, const char* var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__ForStmt(self, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_return_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__ReturnStmt(self, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__stmt__ReturnStmt){ value }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_break_stmt(std__mem__arena__Arena* self, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__BreakStmt(self, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__stmt__BreakStmt){ 0 }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_continue_stmt(std__mem__arena__Arena* self, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__ContinueStmt(self, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__stmt__ContinueStmt){ 0 }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_when_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, std__collections__list__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__WhenStmt(self, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__stmt__WhenStmt){ condition, arms }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_yield_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__stmt__YieldStmt(self, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__stmt__YieldStmt){ value }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_module_decl(std__mem__arena__Arena* self, std__collections__list__List_str path, const char* full_path, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__ModuleDecl(self, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__decl__ModuleDecl){ path, full_path }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_use_decl(std__mem__arena__Arena* self, std__collections__list__List_str path, const char* full_path, const char* symbol_name, const char* alias, bool is_wildcard, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__UseDecl(self, compiler__ast__decl__UseDecl__TAG, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_fn_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__FnDecl(self, compiler__ast__decl__FnDecl__TAG, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_struct_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__StructDecl(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_trait_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_str bases, std__collections__list__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__TraitDecl(self, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_impl_decl(std__mem__arena__Arena* self, const char* struct_name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, const char* trait_name, std__collections__list__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__ImplDecl(self, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_enum_decl(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* underlying_type, std__collections__list__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__EnumDecl(self, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_const_decl(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__ConstDecl(self, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_extern_block(std__mem__arena__Arena* self, const char* abi, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__ExternBlock(self, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__decl__ExternBlock){ abi, declarations }, line, col);
-}
-
-compiler__ast__node__AstNode* std__mem__arena__Arena_program(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__decl__Program(self, compiler__ast__decl__Program__TAG, (compiler__ast__decl__Program){ declarations }, line, col);
-}
-
 const char* util__strutil__cstr_to_str(const char* s) {
     return std__str__str_from_bytes(((uint8_t*)s), strlen(s));
 }
@@ -11115,6 +10820,398 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
     }
     buf[w] = 0;
     return std__str__str_from_bytes(buf, w);
+}
+
+const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val) {
+    return std__collections__hash_map__HashMap_str_get_or((&(self)->entries), key, default_val);
+}
+
+config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
+    config__project__TomlDoc doc = (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
+    std__collections__list__List_str lines = str_split_lines(content);
+    const char* current_section = "";
+    {
+        size_t __for_n = std__collections__list__List_str_count((&lines));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                const char* line = std__collections__list__List_str_at((&lines), __for_i);
+                const char* trimmed = str_trim(line);
+                if ((str_is_empty(trimmed) || str_starts_with(trimmed, "#"))) {
+                    {
+                        __for_i = (__for_i + 1);
+                        continue;
+                    }
+                }
+                if (((str_starts_with(trimmed, "[") && str_ends_with(trimmed, "]")) && (kobel_slen(trimmed) >= 2))) {
+                    {
+                        current_section = str_trim(kobel_slice(trimmed, ((size_t)1ULL), (kobel_slen(trimmed) - ((size_t)1ULL))));
+                        {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                    }
+                }
+                intptr_t eq_pos = str_index_of(trimmed, "=");
+                if ((eq_pos > 0)) {
+                    {
+                        const char* key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
+                        const char* val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), kobel_slen(trimmed)));
+                        const char* val_clean = val_raw;
+                        if ((kobel_slen(val_raw) >= 2)) {
+                            {
+                                if ((((str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || ((str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))))) {
+                                    val_clean = kobel_slice(val_raw, 1, (kobel_slen(val_raw) - 1));
+                                }
+                            }
+                        }
+                        const char* full_key = ((kobel_slen(current_section) > 0) ? kobel_concat(kobel_concat(current_section, "."), key_raw) : key_raw);
+                        std__collections__hash_map__HashMap_str_put((&(doc).entries), full_key, val_clean);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return doc;
+}
+
+config__project__ProjectConfig config__project__ProjectConfig_new(void) {
+    return (config__project__ProjectConfig){ "kobel", "1.0.0", "src/main.kb", "build/kobel.exe", "cl", "tests" };
+}
+
+config__project__ProjectConfig config__project__load_project_config(const char* manifest_path) {
+    config__project__ProjectConfig cfg = config__project__ProjectConfig_new();
+    if ((!std__io__file_exists(manifest_path))) {
+        return cfg;
+    }
+    const char* content = std__io__read_file(manifest_path);
+    if (str_is_empty(content)) {
+        return cfg;
+    }
+    config__project__TomlDoc doc = config__project__parse_mini_toml(content);
+    const char* name = config__project__TomlDoc_get((&doc), "package.name", "");
+    if ((!str_is_empty(name))) {
+        (cfg).name = name;
+    }
+    const char* ver = config__project__TomlDoc_get((&doc), "package.version", "");
+    if ((!str_is_empty(ver))) {
+        (cfg).version = ver;
+    }
+    const char* entry = config__project__TomlDoc_get((&doc), "package.entry", config__project__TomlDoc_get((&doc), "build.entry", ""));
+    if ((!str_is_empty(entry))) {
+        (cfg).entry = entry;
+    }
+    const char* output = config__project__TomlDoc_get((&doc), "build.output", "");
+    if ((!str_is_empty(output))) {
+        (cfg).output = output;
+    }
+    const char* cc = config__project__TomlDoc_get((&doc), "build.cc", "");
+    if ((!str_is_empty(cc))) {
+        (cfg).cc = cc;
+    }
+    const char* test_dir = config__project__TomlDoc_get((&doc), "test.dir", "");
+    if ((!str_is_empty(test_dir))) {
+        (cfg).test_dir = test_dir;
+    }
+    return cfg;
+}
+
+void std__sys__sys_exit(int32_t code) {
+    exit(code);
+}
+
+int32_t std__sys__exec(const char* cmd) {
+    return system(cmd);
+}
+
+std__mem__arena__Arena std__mem__arena__Arena_new(size_t block_size) {
+    return (std__mem__arena__Arena){ NULL, block_size };
+}
+
+uint8_t* std__mem__arena__Arena_alloc_bytes(std__mem__arena__Arena* self, size_t size, size_t align) {
+    if (((self)->current == NULL)) {
+        std__mem__arena__Arena_new_block(self, size);
+    }
+    std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)(self)->current);
+    size_t rem = ((blk)->used % align);
+    size_t aligned_used = (blk)->used;
+    if ((rem != 0)) {
+        aligned_used = ((blk)->used + ((align - rem)));
+    }
+    if (((aligned_used + size) > (blk)->size)) {
+        {
+            std__mem__arena__Arena_new_block(self, size);
+            blk = ((std__mem__arena__ArenaBlock*)(self)->current);
+            aligned_used = 0;
+        }
+    }
+    size_t addr = ((((size_t)(blk)->data)) + aligned_used);
+    uint8_t* ptr = ((uint8_t*)addr);
+    (blk)->used = (aligned_used + size);
+    return ptr;
+}
+
+void std__mem__arena__Arena_new_block(std__mem__arena__Arena* self, size_t min_size) {
+    size_t sz = (self)->block_size;
+    if ((sz < min_size)) {
+        sz = min_size;
+    }
+    uint8_t* data = std__mem__alloc__raw_alloc(sz);
+    uint8_t* blk_mem = std__mem__alloc__raw_alloc(sizeof(std__mem__arena__ArenaBlock));
+    std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)blk_mem);
+    (blk)->data = data;
+    (blk)->size = sz;
+    (blk)->used = 0;
+    (blk)->next = (self)->current;
+    (self)->current = ((std__mem__arena__ArenaBlock*)blk);
+}
+
+void std__mem__arena__Arena_reset(std__mem__arena__Arena* self) {
+    std__mem__arena__ArenaBlock* curr = (self)->current;
+    while ((curr != NULL)) {
+        {
+            std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)curr);
+            (blk)->used = 0;
+            curr = (blk)->next;
+        }
+    }
+}
+
+void std__mem__arena__Arena_delete(std__mem__arena__Arena* self) {
+    std__mem__arena__ArenaBlock* curr = (self)->current;
+    while ((curr != NULL)) {
+        {
+            std__mem__arena__ArenaBlock* blk = ((std__mem__arena__ArenaBlock*)curr);
+            std__mem__arena__ArenaBlock* next_blk = (blk)->next;
+            std__mem__alloc__raw_release((blk)->data);
+            std__mem__alloc__raw_release(((uint8_t*)curr));
+            curr = next_blk;
+        }
+    }
+    (self)->current = NULL;
+}
+
+bool compiler__ast__node__AstNode_is_template(compiler__ast__node__AstNode* self) {
+    return (((self)->kind == 33) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 32) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : (((self)->kind == 35) ? (((*compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(self))).type_params_len > 0) : false)));
+}
+
+const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
+    return (self)->text;
+}
+
+const char* compiler__lexer__token__strip_suffix(const char* s, size_t n) {
+    return ((kobel_slen(s) <= n) ? "" : kobel_slice(s, 0, (kobel_slen(s) - n)));
+}
+
+const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self) {
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count((&(self)->declarations));
+        size_t __for_i = ((size_t)0ULL);
+        while ((__for_i < __for_n)) {
+            {
+                compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_at((&(self)->declarations), __for_i);
+                if (((decl)->kind == compiler__ast__decl__ModuleDecl__TAG)) {
+                    compiler__ast__decl__ModuleDecl* m = ((compiler__ast__decl__ModuleDecl*)(((compiler__ast__node__AstNode*)decl)->data));
+                    return (m)->full_path;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    return "";
+}
+
+size_t compiler__ast__decl__ExternBlock_count(compiler__ast__decl__ExternBlock* self) {
+    return ((self)->declarations).len;
+}
+
+compiler__ast__node__AstNode* compiler__ast__decl__ExternBlock_at(compiler__ast__decl__ExternBlock* self, size_t i) {
+    return std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(self)->declarations), i);
+}
+
+size_t compiler__ast__decl__Program_count(compiler__ast__decl__Program* self) {
+    return ((self)->declarations).len;
+}
+
+compiler__ast__node__AstNode* compiler__ast__decl__Program_at(compiler__ast__decl__Program* self, size_t i) {
+    return std__collections__list__List_ptr_compiler__ast__node__AstNode_get((&(self)->declarations), i);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_node(std__mem__arena__Arena* self, compiler__ast__node__NodeKind kind, size_t line, size_t col, uint8_t* data) {
+    return std__mem__arena__alloc_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ kind, line, col, data });
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_named_type(std__mem__arena__Arena* self, const char* name, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__types__NamedType(self, compiler__ast__types__NamedType__TAG, (compiler__ast__types__NamedType){ name, type_args }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_pointer_type(std__mem__arena__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__types__PointerType(self, compiler__ast__types__PointerType__TAG, (compiler__ast__types__PointerType){ is_mut, pointee }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_array_type(std__mem__arena__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__types__ArrayType(self, compiler__ast__types__ArrayType__TAG, (compiler__ast__types__ArrayType){ elem, size }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_nullable_type(std__mem__arena__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__types__NullableType(self, compiler__ast__types__NullableType__TAG, (compiler__ast__types__NullableType){ inner }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_literal(std__mem__arena__Arena* self, compiler__ast__expr__LiteralKind lk, const char* raw, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__LiteralExpr(self, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__expr__LiteralExpr){ lk, raw }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_identifier(std__mem__arena__Arena* self, const char* name, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__IdentifierExpr(self, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__expr__IdentifierExpr){ name }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_binary(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__BinaryExpr(self, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__expr__BinaryExpr){ left, op, right }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_unary(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__UnaryExpr(self, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__expr__UnaryExpr){ op, operand }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_call(std__mem__arena__Arena* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__CallExpr(self, compiler__ast__expr__CallExpr__TAG, (compiler__ast__expr__CallExpr){ callee, args, type_args }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_index(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__IndexExpr(self, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__expr__IndexExpr){ target, index }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_assign(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__AssignExpr(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__expr__AssignExpr){ target, 5, value }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_compound_assign(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__AssignExpr(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__expr__AssignExpr){ target, op, value }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_update(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__UpdateExpr(self, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__expr__UpdateExpr){ op, target }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_cast(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__CastExpr(self, compiler__ast__expr__CastExpr__TAG, (compiler__ast__expr__CastExpr){ expr, target_type }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_group(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__GroupExpr(self, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__expr__GroupExpr){ expr }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_array_literal(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__ArrayLiteralExpr(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__expr__ArrayLiteralExpr){ elements, "", NULL }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_list_literal(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode elements, const char* list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__ArrayLiteralExpr(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_if_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__IfExpr(self, compiler__ast__expr__IfExpr__TAG, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_when_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, std__collections__list__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__WhenExpr(self, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__expr__WhenExpr){ condition, arms }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_interp(std__mem__arena__Arena* self, std__collections__list__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__InterpExpr(self, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__expr__InterpExpr){ parts }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_is_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__IsExpr(self, compiler__ast__expr__IsExpr__TAG, (compiler__ast__expr__IsExpr){ expr, target_type, "", "", false, "", false }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_block_stmt(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__BlockStmt(self, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__stmt__BlockStmt){ statements }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_expr_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__ExprStmt(self, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__stmt__ExprStmt){ expr }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_var_decl(std__mem__arena__Arena* self, bool is_mut, const char* name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__VarDeclStmt(self, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_if_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__IfStmt(self, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_while_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__WhileStmt(self, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__stmt__WhileStmt){ condition, body }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_for_stmt(std__mem__arena__Arena* self, const char* var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__ForStmt(self, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_return_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__ReturnStmt(self, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__stmt__ReturnStmt){ value }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_break_stmt(std__mem__arena__Arena* self, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__BreakStmt(self, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__stmt__BreakStmt){ 0 }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_continue_stmt(std__mem__arena__Arena* self, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__ContinueStmt(self, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__stmt__ContinueStmt){ 0 }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_when_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* condition, std__collections__list__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__WhenStmt(self, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__stmt__WhenStmt){ condition, arms }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_yield_stmt(std__mem__arena__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__YieldStmt(self, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__stmt__YieldStmt){ value }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_module_decl(std__mem__arena__Arena* self, std__collections__list__List_str path, const char* full_path, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__ModuleDecl(self, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__decl__ModuleDecl){ path, full_path }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_use_decl(std__mem__arena__Arena* self, std__collections__list__List_str path, const char* full_path, const char* symbol_name, const char* alias, bool is_wildcard, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__UseDecl(self, compiler__ast__decl__UseDecl__TAG, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_fn_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__FnDecl(self, compiler__ast__decl__FnDecl__TAG, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_struct_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__StructDecl(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_trait_decl(std__mem__arena__Arena* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_str bases, std__collections__list__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__TraitDecl(self, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_impl_decl(std__mem__arena__Arena* self, const char* struct_name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, const char* trait_name, std__collections__list__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__ImplDecl(self, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_enum_decl(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* underlying_type, std__collections__list__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__EnumDecl(self, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_const_decl(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__ConstDecl(self, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_extern_block(std__mem__arena__Arena* self, const char* abi, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__ExternBlock(self, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__decl__ExternBlock){ abi, declarations }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_program(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__decl__Program(self, compiler__ast__decl__Program__TAG, (compiler__ast__decl__Program){ declarations }, line, col);
 }
 
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__EnumInfo_find_member(compiler__sema__types__EnumInfo* self, const char* name) {
@@ -23449,101 +23546,6 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
     return 0;
 }
 
-const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val) {
-    return std__collections__hash_map__HashMap_str_get_or((&(self)->entries), key, default_val);
-}
-
-config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
-    config__project__TomlDoc doc = (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
-    std__collections__list__List_str lines = str_split_lines(content);
-    const char* current_section = "";
-    {
-        size_t __for_n = std__collections__list__List_str_count((&lines));
-        size_t __for_i = ((size_t)0ULL);
-        while ((__for_i < __for_n)) {
-            {
-                const char* line = std__collections__list__List_str_at((&lines), __for_i);
-                const char* trimmed = str_trim(line);
-                if ((str_is_empty(trimmed) || str_starts_with(trimmed, "#"))) {
-                    {
-                        __for_i = (__for_i + 1);
-                        continue;
-                    }
-                }
-                if (((str_starts_with(trimmed, "[") && str_ends_with(trimmed, "]")) && (kobel_slen(trimmed) >= 2))) {
-                    {
-                        current_section = str_trim(kobel_slice(trimmed, ((size_t)1ULL), (kobel_slen(trimmed) - ((size_t)1ULL))));
-                        {
-                            __for_i = (__for_i + 1);
-                            continue;
-                        }
-                    }
-                }
-                intptr_t eq_pos = str_index_of(trimmed, "=");
-                if ((eq_pos > 0)) {
-                    {
-                        const char* key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
-                        const char* val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), kobel_slen(trimmed)));
-                        const char* val_clean = val_raw;
-                        if ((kobel_slen(val_raw) >= 2)) {
-                            {
-                                if ((((str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || ((str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))))) {
-                                    val_clean = kobel_slice(val_raw, 1, (kobel_slen(val_raw) - 1));
-                                }
-                            }
-                        }
-                        const char* full_key = ((kobel_slen(current_section) > 0) ? kobel_concat(kobel_concat(current_section, "."), key_raw) : key_raw);
-                        std__collections__hash_map__HashMap_str_put((&(doc).entries), full_key, val_clean);
-                    }
-                }
-                __for_i = (__for_i + 1);
-            }
-        }
-    }
-    return doc;
-}
-
-config__project__ProjectConfig config__project__ProjectConfig_new(void) {
-    return (config__project__ProjectConfig){ "kobel", "1.0.0", "src/main.kb", "build/kobel.exe", "cl", "tests" };
-}
-
-config__project__ProjectConfig config__project__load_project_config(const char* manifest_path) {
-    config__project__ProjectConfig cfg = config__project__ProjectConfig_new();
-    if ((!std__io__file_exists(manifest_path))) {
-        return cfg;
-    }
-    const char* content = std__io__read_file(manifest_path);
-    if (str_is_empty(content)) {
-        return cfg;
-    }
-    config__project__TomlDoc doc = config__project__parse_mini_toml(content);
-    const char* name = config__project__TomlDoc_get((&doc), "package.name", "");
-    if ((!str_is_empty(name))) {
-        (cfg).name = name;
-    }
-    const char* ver = config__project__TomlDoc_get((&doc), "package.version", "");
-    if ((!str_is_empty(ver))) {
-        (cfg).version = ver;
-    }
-    const char* entry = config__project__TomlDoc_get((&doc), "package.entry", config__project__TomlDoc_get((&doc), "build.entry", ""));
-    if ((!str_is_empty(entry))) {
-        (cfg).entry = entry;
-    }
-    const char* output = config__project__TomlDoc_get((&doc), "build.output", "");
-    if ((!str_is_empty(output))) {
-        (cfg).output = output;
-    }
-    const char* cc = config__project__TomlDoc_get((&doc), "build.cc", "");
-    if ((!str_is_empty(cc))) {
-        (cfg).cc = cc;
-    }
-    const char* test_dir = config__project__TomlDoc_get((&doc), "test.dir", "");
-    if ((!str_is_empty(test_dir))) {
-        (cfg).test_dir = test_dir;
-    }
-    return cfg;
-}
-
 const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path) {
     const char* stamp_seed = std__io__read_file(manifest_path);
     const char* stamp_dir = str_dir_of((cfg).output);
@@ -28189,176 +28191,53 @@ void main__print_usage(void) {
     std__io__println("============================================================");
     std__io__println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
     std__io__println("============================================================");
-    std__io__println("Usage: kobel [command|options] <source.kb>");
+    std__io__println("Usage: kobel <command> [args]");
     std__io__println("");
     std__io__println("Commands:");
-    std__io__println("  build                     Build project defined by kobel.toml");
-    std__io__println("  run [args...]             Run project (builds if missing or changed)");
-    std__io__println("  test [filter]             Run test suite defined by kobel.toml");
-    std__io__println("  fmt [options] <files...>  Format Kobel source code");
-    std__io__println("  lsp                       Start Language Server Protocol (LSP) server");
-    std__io__println("");
-    std__io__println("Options:");
-    std__io__println("  -o <file>        Specify output executable binary name");
-    std__io__println("  -emit-c <file>   Emit generated C99 source code and exit");
-    std__io__println("  --cc <compiler>  Specify backend C compiler (default: cl)");
-    std__io__println("  -I <dir>         Add directory to module search path");
-    std__io__println("  -v, --version    Display compiler version");
-    std__io__println("  -h, --help       Display this help message");
+    std__io__println("  build             Build project (kobel.toml)");
+    std__io__println("  run [args...]     Run project (rebuilds if changed)");
+    std__io__println("  test [filter]     Run test suite");
+    std__io__println("  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)");
+    std__io__println("  fmt [-w] <files>  Format Kobel source code");
+    std__io__println("  lsp               Start Language Server Protocol server");
+    std__io__println("  version           Display compiler version");
 }
 
-void main__print_fmt_usage(void) {
-    std__io__println("Usage: kobel fmt [options] <files...>");
-    std__io__println("");
-    std__io__println("Options:");
-    std__io__println("  -w, --write      Write formatted output back to files in place");
-    std__io__println("  -h, --help       Display this help message");
-}
-
-int32_t main__run_build(int32_t argc, const char** argv) {
-    const char* manifest = "kobel.toml";
-    int32_t i = 2;
-    while ((i < argc)) {
-        {
-            const char* arg = util__strutil__cstr_to_str(argv[i]);
-            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-                {
-                    std__io__println("Usage: kobel build [options]");
-                    std__io__println("");
-                    std__io__println("Options:");
-                    std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-                    std__io__println("  -h, --help             Display this help message");
-                    return 0;
-                }
-            } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
-                {
-                    i++;
-                    if ((i < argc)) {
-                        manifest = util__strutil__cstr_to_str(argv[i]);
-                    } else {
-                        {
-                            std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
-                            return 1;
-                        }
-                    }
-                }
-            } else {
-                {
-                    std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "' for build command"));
-                    return 1;
-                }
-            }
-            i++;
-        }
-    }
-    return compiler__driver__commands__cmd_build(manifest);
+int32_t main__run_build(void) {
+    return compiler__driver__commands__cmd_build("kobel.toml");
 }
 
 int32_t main__run_project(int32_t argc, const char** argv) {
-    const char* manifest = "kobel.toml";
     std__collections__list__List_str extra_args = std__collections__list__List_str_new(4);
     int32_t i = 2;
-    bool collecting_args = false;
     while ((i < argc)) {
         {
-            const char* arg = util__strutil__cstr_to_str(argv[i]);
-            if (collecting_args) {
-                {
-                    std__collections__list__List_str_add((&extra_args), arg);
-                }
-            } else {
-                {
-                    if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-                        {
-                            std__io__println("Usage: kobel run [options] [--] [args...]");
-                            std__io__println("");
-                            std__io__println("Runs the project defined in kobel.toml. Automatically checks if");
-                            std__io__println("the target binary exists and rebuilds if changes are detected.");
-                            std__io__println("");
-                            std__io__println("Options:");
-                            std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-                            std__io__println("  -h, --help             Display this help message");
-                            return 0;
-                        }
-                    } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
-                        {
-                            i++;
-                            if ((i < argc)) {
-                                manifest = util__strutil__cstr_to_str(argv[i]);
-                            } else {
-                                {
-                                    std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
-                                    return 1;
-                                }
-                            }
-                        }
-                    } else if (strcmp(arg, "--") == 0) {
-                        collecting_args = true;
-                    } else {
-                        {
-                            std__collections__list__List_str_add((&extra_args), arg);
-                            collecting_args = true;
-                        }
-                    }
-                }
-            }
+            std__collections__list__List_str_add((&extra_args), util__strutil__cstr_to_str(argv[i]));
             i++;
         }
     }
-    return compiler__driver__commands__cmd_run(manifest, extra_args);
+    return compiler__driver__commands__cmd_run("kobel.toml", extra_args);
 }
 
 int32_t main__run_test_suite(int32_t argc, const char** argv) {
-    const char* manifest = "kobel.toml";
-    const char* filter = "";
-    int32_t i = 2;
-    while ((i < argc)) {
-        {
-            const char* arg = util__strutil__cstr_to_str(argv[i]);
-            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-                {
-                    std__io__println("Usage: kobel test [options] [filter]");
-                    std__io__println("");
-                    std__io__println("Runs tests defined in the test directory configured in kobel.toml.");
-                    std__io__println("");
-                    std__io__println("Options:");
-                    std__io__println("  -m, --manifest <file>  Specify manifest path (default: kobel.toml)");
-                    std__io__println("  -h, --help             Display this help message");
-                    return 0;
-                }
-            } else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--manifest") == 0) {
-                {
-                    i++;
-                    if ((i < argc)) {
-                        manifest = util__strutil__cstr_to_str(argv[i]);
-                    } else {
-                        {
-                            std__io__println(kobel_concat(kobel_concat("Error: Missing argument after '", arg), "'"));
-                            return 1;
-                        }
-                    }
-                }
-            } else {
-                {
-                    if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
-                        {
-                            std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "' for test command"));
-                            return 1;
-                        }
-                    }
-                    filter = arg;
-                }
-            }
-            i++;
-        }
-    }
-    return compiler__driver__commands__cmd_test(manifest, filter);
+    const char* filter = ((argc >= 3) ? util__strutil__cstr_to_str(argv[2]) : "");
+    return compiler__driver__commands__cmd_test("kobel.toml", filter);
+}
+
+int32_t main__run_emit_c(int32_t argc, const char** argv) {
+    config__project__ProjectConfig cfg = (std__io__file_exists("kobel.toml") ? config__project__load_project_config("kobel.toml") : config__project__ProjectConfig_new());
+    const char* out_path = ((argc >= 3) ? util__strutil__cstr_to_str(argv[2]) : "dist/bootstrap.c");
+    compiler__driver__pipeline__CompileOptions opts = (compiler__driver__pipeline__CompileOptions){ "", "", "", "cl", false, std__collections__list__List_str_new(4), false };
+    (opts).input_path = (cfg).entry;
+    (opts).emit_c_path = out_path;
+    (opts).only_emit_c = true;
+    return compiler__driver__pipeline__compile_pipeline(opts);
 }
 
 int32_t main__run_fmt(int32_t argc, const char** argv) {
     if ((argc < 3)) {
         {
-            main__print_fmt_usage();
+            std__io__println("Usage: kobel fmt [-w] <files...>");
             return 1;
         }
     }
@@ -28368,23 +28247,15 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
     while ((i < argc)) {
         {
             const char* arg = util__strutil__cstr_to_str(argv[i]);
-            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+            if (strcmp(arg, "-w") == 0 || strcmp(arg, "--write") == 0) {
+                write_in_place = true;
+            } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
                 {
-                    main__print_fmt_usage();
+                    std__io__println("Usage: kobel fmt [-w] <files...>");
                     return 0;
                 }
-            } else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--write") == 0) {
-                write_in_place = true;
             } else {
-                {
-                    if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
-                        {
-                            std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "'"));
-                            return 1;
-                        }
-                    }
-                    std__collections__list__List_str_add((&files), arg);
-                }
+                std__collections__list__List_str_add((&files), arg);
             }
             i++;
         }
@@ -28405,12 +28276,8 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
                 const char* src = std__io__read_file(fpath);
                 if ((kobel_slen(src) == 0)) {
                     {
-                        std__io__print("Warning: Skipping empty or unreadable file: ");
-                        std__io__println(fpath);
-                        {
-                            __for_i = (__for_i + 1);
-                            continue;
-                        }
+                        __for_i = (__for_i + 1);
+                        continue;
                     }
                 }
                 const char* formatted = fmt__formatter__format_source(src, options);
@@ -28443,26 +28310,11 @@ int32_t main__run_compiler(int32_t argc, const char** argv) {
     while ((i < argc)) {
         {
             const char* arg = util__strutil__cstr_to_str(argv[i]);
-            if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-                {
-                    main__print_usage();
-                    return 0;
-                }
-            } else if (strcmp(arg, "-v") == 0 || strcmp(arg, "--version") == 0) {
-                {
-                    std__io__println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
-                    return 0;
-                }
-            } else if (strcmp(arg, "-o") == 0) {
+            if (strcmp(arg, "-o") == 0) {
                 {
                     i++;
                     if ((i < argc)) {
                         (opts).output_bin = util__strutil__cstr_to_str(argv[i]);
-                    } else {
-                        {
-                            std__io__println("Error: Missing argument after '-o'");
-                            return 1;
-                        }
                     }
                 }
             } else if (strcmp(arg, "-emit-c") == 0) {
@@ -28473,46 +28325,15 @@ int32_t main__run_compiler(int32_t argc, const char** argv) {
                             (opts).emit_c_path = util__strutil__cstr_to_str(argv[i]);
                             (opts).only_emit_c = true;
                         }
-                    } else {
-                        {
-                            std__io__println("Error: Missing argument after '-emit-c'");
-                            return 1;
-                        }
-                    }
-                }
-            } else if (strcmp(arg, "--cc") == 0) {
-                {
-                    i++;
-                    if ((i < argc)) {
-                        (opts).c_compiler = util__strutil__cstr_to_str(argv[i]);
-                    } else {
-                        {
-                            std__io__println("Error: Missing argument after '--cc'");
-                            return 1;
-                        }
-                    }
-                }
-            } else if (strcmp(arg, "-I") == 0) {
-                {
-                    i++;
-                    if ((i < argc)) {
-                        std__collections__list__List_str_add((&(opts).extra_roots), util__strutil__cstr_to_str(argv[i]));
-                    } else {
-                        {
-                            std__io__println("Error: Missing argument after '-I'");
-                            return 1;
-                        }
                     }
                 }
             } else {
                 {
-                    if (((kobel_slen(arg) > 0) && (arg[0] == '-'))) {
+                    if (((kobel_slen(arg) > 0) && (arg[0] != '-'))) {
                         {
-                            std__io__println(kobel_concat(kobel_concat("Error: Unknown option '", arg), "'"));
-                            return 1;
+                            (opts).input_path = arg;
                         }
                     }
-                    (opts).input_path = arg;
                 }
             }
             i++;
@@ -28520,21 +28341,31 @@ int32_t main__run_compiler(int32_t argc, const char** argv) {
     }
     if ((kobel_slen((opts).input_path) == 0)) {
         {
-            std__io__println("Error: No input file specified");
+            main__print_usage();
             return 1;
         }
     }
     return compiler__driver__pipeline__compile_pipeline(opts);
 }
 
+int32_t main__print_version(void) {
+    std__io__println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
+    return 0;
+}
+
+int32_t main__print_help(void) {
+    main__print_usage();
+    return 0;
+}
+
 int32_t main(int32_t argc, const char** argv) {
     if ((argc < 2)) {
         {
             main__print_usage();
-            return 1;
+            return 0;
         }
     }
     const char* first_arg = util__strutil__cstr_to_str(argv[1]);
-    return (strcmp(first_arg, "build") == 0 ? main__run_build(argc, argv) : (strcmp(first_arg, "run") == 0 ? main__run_project(argc, argv) : (strcmp(first_arg, "test") == 0 ? main__run_test_suite(argc, argv) : (strcmp(first_arg, "lsp") == 0 ? lsp__server__run_server() : (strcmp(first_arg, "fmt") == 0 ? main__run_fmt(argc, argv) : main__run_compiler(argc, argv))))));
+    return (strcmp(first_arg, "build") == 0 ? main__run_build() : (strcmp(first_arg, "run") == 0 ? main__run_project(argc, argv) : (strcmp(first_arg, "test") == 0 ? main__run_test_suite(argc, argv) : (strcmp(first_arg, "emit-c") == 0 ? main__run_emit_c(argc, argv) : (strcmp(first_arg, "fmt") == 0 ? main__run_fmt(argc, argv) : (strcmp(first_arg, "lsp") == 0 ? lsp__server__run_server() : (strcmp(first_arg, "version") == 0 || strcmp(first_arg, "-v") == 0 || strcmp(first_arg, "--version") == 0 ? main__print_version() : (strcmp(first_arg, "help") == 0 || strcmp(first_arg, "-h") == 0 || strcmp(first_arg, "--help") == 0 ? main__print_help() : main__run_compiler(argc, argv)))))))));
 }
 
