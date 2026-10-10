@@ -1,15 +1,14 @@
 mod compiler.sema.symbol;
 
+use std.mem.arena.*;
+use std.collections.list.*;
+use std.traits.iterable.Iterable;
+
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.ast.node.AstNode;
-
-use std.collections.list.*;
-use std.mem.arena.*;
-use std.traits.iterable.Iterable;
-
 // ============================================================================
 // SymbolKind Enumeration
 // ============================================================================

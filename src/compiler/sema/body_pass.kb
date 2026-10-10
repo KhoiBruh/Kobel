@@ -10,6 +10,10 @@ mod compiler.sema.body_pass;
 // - `body_call.kb`: call resolution, methods, and constructors
 // - `body_program.kb`: module, function, and impl declaration drivers
 // ============================================================================
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;
@@ -26,10 +30,6 @@ use compiler.sema.body_stmt.*;
 use compiler.sema.body_expr.*;
 use compiler.sema.body_call.*;
 use compiler.sema.body_program.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
-use util.strutil.*;
 
 // ============================================================================
 // BodyPass Struct Definition

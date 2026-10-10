@@ -3,6 +3,7 @@ mod lsp.server;
 use std.io.*;
 use std.sys.*;
 use std.collections.list.*;
+
 use util.strutil.*;
 
 use lsp.json.*;
@@ -16,12 +17,10 @@ use lsp.analysis.*;
 
 fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	val p = uri_to_path(uri);
-	val analysis = analyze_document(p, text, workspace_root);
+	val analysis = AnalysisResult(p, text, workspace_root);
 
 	val diags_arr = json_arr();
-	for (d in analysis.diagnostics) {
-		diags_arr.add(d.to_json());
-	}
+	for (d in analysis.diagnostics) diags_arr.add(d.to_json());
 
 	val notif_params = json_obj();
 	notif_params.set("uri", json_str(uri));
@@ -159,7 +158,7 @@ pub fn run_server(): i32 {
 
 				val doc = docs.get(uri);
 				if (!doc.text.empty()) {
-					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
 				} else {
@@ -176,7 +175,7 @@ pub fn run_server(): i32 {
 
 				val doc = docs.get(uri);
 				if (!doc.text.empty()) {
-					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
 				} else {
@@ -213,11 +212,11 @@ pub fn run_server(): i32 {
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
 				if (!doc.text.empty()) {
-					val analysis = analyze_document(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val items = analysis.complete_at();
 					send_response(id, items);
 				} else {
-					val empty_analysis = analyze_document("", "", workspace_root);
+					val empty_analysis = AnalysisResult("", "", workspace_root);
 					val items = empty_analysis.complete_at();
 					send_response(id, items);
 				}

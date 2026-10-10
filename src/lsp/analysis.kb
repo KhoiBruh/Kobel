@@ -1,5 +1,10 @@
 mod lsp.analysis;
 
+use std.ascii.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.lexer.lexer.*;
 use compiler.lexer.token.*;
 use compiler.parser.parser.*;
@@ -21,9 +26,6 @@ use fmt.formatter.*;
 
 use lsp.json.*;
 use lsp.document.*;
-use std.collections.list.*;
-use std.ascii.*;
-use util.strutil.*;
 
 // ============================================================================
 // LSP Diagnostic Model
@@ -38,140 +40,153 @@ pub struct LspDiagnostic {
 	pub message: str
 }
 
-pub fn parse_diagnostic(err_str: str, source: str): LspDiagnostic {
-	var line: usz = 1;
-	var col: usz = 1;
-	var msg_start: usz = 0;
+impl LspDiagnostic {
 
-	// Look for "Line "
-	val line_tag = "Line ";
-	var line_idx: usz = 0;
-	var found_line = false;
-	if (err_str.len >= line_tag.len) {
-		for (i in 0..(err_str.len - line_tag.len)) {
-			var m = true;
-			for (k in 0..<line_tag.len) {
-				if (err_str[i + k] != line_tag[k]) {
-					m = false;
-					break;
-				}
-			}
-			if (m) {
-				line_idx = i + line_tag.len;
-				found_line = true;
-				break;
-			}
-		}
-	}
+	pub fn new(err_str: str, source: str): Self {
+		var line = 1UZ;
+		var col = 1UZ;
+		var msg_start = 0UZ;
 
-	if (found_line) {
-		var n: usz = 0;
-		var idx = line_idx;
-		while (idx < err_str.len && err_str[idx].is_digit()) {
-			n = n * 10 + (((err_str[idx] as i32) - 48) as usz);
-			idx++;
-		}
-		if (n > 0) line = n;
-
-		// Look for "Column "
-		val col_tag = "Column ";
-		var col_idx: usz = 0;
-		var found_col = false;
-		if (err_str.len >= idx + col_tag.len) {
-			for (i in idx..<(err_str.len - col_tag.len)) {
+		// Look for "Line "
+		val line_tag = "Line ";
+		var line_idx = 0UZ;
+		var found_line = false;
+		if (err_str.len >= line_tag.len) {
+			for (i in 0..(err_str.len - line_tag.len)) {
 				var m = true;
-				for (k in 0..<col_tag.len) {
-					if (err_str[i + k] != col_tag[k]) {
+				for (k in 0..<line_tag.len) {
+					if (err_str[i + k] != line_tag[k]) {
 						m = false;
 						break;
 					}
 				}
 				if (m) {
-					col_idx = i + col_tag.len;
-					found_col = true;
+					line_idx = i + line_tag.len;
+					found_line = true;
 					break;
 				}
 			}
 		}
 
-		if (found_col) {
-			var cn: usz = 0;
-			var c_idx = col_idx;
-			while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
-				cn = cn * 10 + (((err_str[c_idx] as i32) - 48) as usz);
-				c_idx++;
+		if (found_line) {
+			var n: usz = 0;
+			var idx = line_idx;
+			while (idx < err_str.len && err_str[idx].is_digit()) {
+				n = n * 10 + ((err_str[idx] as i32) - 48);
+				idx++;
 			}
-			if (cn > 0) col = cn;
+			if (n > 0) line = n;
 
-			// Skip ": "
-			while (c_idx < err_str.len && (err_str[c_idx] == ':' || err_str[c_idx] == ' ')) {
-				c_idx++;
-			}
-			msg_start = c_idx;
-		}
-	}
-
-	val actual_msg = if (msg_start < err_str.len) err_str.slice(msg_start, err_str.len) else err_str;
-
-	val l0 = if (line > 0) line - 1 else 0;
-	val c0 = if (col > 0) col - 1 else 0;
-
-	var end_col = c0 + 1;
-	if (source.len > 0) {
-		var cur_line: usz = 0;
-		var line_start: usz = 0;
-		var pos: usz = 0;
-		while (pos < source.len && cur_line < l0) {
-			if (source[pos] == '\n') {
-				cur_line++;
-				line_start = pos + 1;
-			}
-			pos++;
-		}
-
-		if (cur_line == l0 && line_start < source.len) {
-			var line_end = line_start;
-			while (line_end < source.len && source[line_end] != '\n' && source[line_end] != '\r') {
-				line_end++;
-			}
-
-			val char_idx = line_start + c0;
-			if (char_idx < line_end) {
-				if (source[char_idx] == 'u' && (char_idx + 3 <= line_end) &&
-				    source[char_idx + 1] == 's' && source[char_idx + 2] == 'e') {
-					var s_idx = char_idx;
-					while (s_idx < line_end && source[s_idx] != ';') {
-						s_idx++;
+			// Look for "Column "
+			val col_tag = "Column ";
+			var col_idx = 0UZ;
+			var found_col = false;
+			if (err_str.len >= idx + col_tag.len) {
+				for (i in idx..<(err_str.len - col_tag.len)) {
+					var m = true;
+					for (k in 0..<col_tag.len) {
+						if (err_str[i + k] != col_tag[k]) {
+							m = false;
+							break;
+						}
 					}
-					if (s_idx < line_end && source[s_idx] == ';') s_idx++;
-					end_col = s_idx - line_start;
-				} else if (source[char_idx].is_alphanumeric() || source[char_idx] == '_') {
-					var w_idx = char_idx;
-					while (w_idx < line_end && (source[w_idx].is_alphanumeric() || source[w_idx] == '_')) {
-						w_idx++;
+					if (m) {
+						col_idx = i + col_tag.len;
+						found_col = true;
+						break;
 					}
-					end_col = w_idx - line_start;
+				}
+			}
+
+			if (found_col) {
+				var cn = 0UZ;
+				var c_idx = col_idx;
+				while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
+					cn = cn * 10 + ((err_str[c_idx] as i32) - 48);
+					c_idx++;
+				}
+				if (cn > 0) col = cn;
+
+				// Skip ": "
+				while (
+					c_idx < err_str.len && (
+						err_str[c_idx] == ':' ||
+						err_str[c_idx] == ' '
+					)
+				) c_idx++;
+				msg_start = c_idx;
+			}
+		}
+
+		val actual_msg = if (msg_start < err_str.len) err_str.slice(msg_start, err_str.len)
+		else err_str;
+
+		val l0 = if (line > 0) line - 1 else 0;
+		val c0 = if (col > 0) col - 1 else 0;
+
+		var end_col = c0 + 1;
+		if (source.len > 0) {
+			var cur_line = 0UZ;
+			var line_start = 0UZ;
+			var pos = 0UZ;
+			while (pos < source.len && cur_line < l0) {
+				if (source[pos] == '\n') {
+					cur_line++;
+					line_start = pos + 1;
+				}
+				pos++;
+			}
+
+			if (cur_line == l0 && line_start < source.len) {
+				var line_end = line_start;
+				while (
+					line_end < source.len &&
+					source[line_end] != '\n' &&
+					source[line_end] != '\r'
+				) line_end++;
+
+				val char_idx = line_start + c0;
+				if (char_idx < line_end) {
+					if (
+						source[char_idx] == 'u' &&
+						(char_idx + 3 <= line_end) &&
+						source[char_idx + 1] == 's' &&
+						source[char_idx + 2] == 'e'
+					) {
+						var s_idx = char_idx;
+						while (s_idx < line_end && source[s_idx] != ';') s_idx++;
+						if (s_idx < line_end && source[s_idx] == ';') s_idx++;
+						end_col = s_idx - line_start;
+					} else if (source[char_idx].is_alphanumeric() || source[char_idx] == '_') {
+						var w_idx = char_idx;
+						while (
+							w_idx < line_end && (
+								source[w_idx].is_alphanumeric() ||
+								source[w_idx] == '_'
+							)
+						) w_idx++;
+						end_col = w_idx - line_start;
+					}
 				}
 			}
 		}
+
+		if (end_col <= c0) end_col = c0 + 1;
+
+		return Self(l0, c0, l0, end_col, 1, actual_msg);
 	}
 
-	if (end_col <= c0) end_col = c0 + 1;
-
-	return LspDiagnostic(l0, c0, l0, end_col, 1, actual_msg);
-}
-
-impl LspDiagnostic {
 	pub fn to_json(val self): *JsonValue {
 		val obj = json_obj();
 
 		val range = json_obj();
 		val start_pos = json_obj();
-		start_pos.set("line", json_num(self.line as i64));
-		start_pos.set("character", json_num(self.col as i64));
+		start_pos.set("line", json_num(self.line));
+		start_pos.set("character", json_num(self.col));
+
 		val end_pos = json_obj();
-		end_pos.set("line", json_num(self.end_line as i64));
-		end_pos.set("character", json_num(self.end_col as i64));
+		end_pos.set("line", json_num(self.end_line));
+		end_pos.set("character", json_num(self.end_col));
 		range.set("start", start_pos);
 		range.set("end", end_pos);
 
@@ -212,7 +227,12 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 		// Compare base name: if prefix is "analysis.kb"
 		val base_p = norm_p.base_name();
 		val base_d = norm_d.base_name();
-		if (base_p == base_d && (norm_p.len <= base_p.len || norm_d.len <= base_d.len)) return true;
+		if (
+			base_p == base_d && (
+				norm_p.len <= base_p.len ||
+				norm_d.len <= base_d.len
+			)
+		) return true;
 	}
 
 	return false;
@@ -220,16 +240,16 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 
 pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 	val line_idx = err_str.index_of("Line ");
-	if (line_idx < 0L) {
+	if (line_idx < 0) {
 		val colon_idx = err_str.index_of(":");
-		if (colon_idx < 0L) return true;
-		val prefix = err_str.slice(0, colon_idx as usz);
+		if (colon_idx < 0) return true;
+		val prefix = err_str.slice(0, colon_idx);
 		return match_doc_prefix(prefix, doc_mod, doc_path);
 	}
 
-	if (line_idx == 0L) return true;
+	if (line_idx == 0) return true;
 
-	var prefix = err_str.slice(0, line_idx as usz);
+	var prefix = err_str.slice(0, line_idx);
 	while (prefix.ends_with(" ") || prefix.ends_with(":")) {
 		prefix = prefix.strip_suffix(1);
 	}
@@ -242,92 +262,10 @@ pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
 // ============================================================================
 
 pub struct AnalysisResult {
-	pub diagnostics: List<LspDiagnostic> = List<LspDiagnostic>(),
+	pub diagnostics: List<LspDiagnostic> = List(),
 	pub symtab: SymbolTable = SymbolTable(),
 	pub has_symtab: bool = false,
-	pub tokens: List<Token> = List<Token>()
-}
-
-pub fn analyze_document(path: str, source: str, workspace_root: str): AnalysisResult {
-	var diagnostics = List<LspDiagnostic>();
-
-	// 1. Lexical analysis
-	var lexer = Lexer(source);
-	val tokens = lexer.tokenize();
-
-	// Check for unknown tokens
-	for (tok in tokens) {
-		if (tok.type == TokenType.UNKNOWN) {
-			val l0 = if (tok.line > 0) tok.line - 1 else 0;
-			val c0 = if (tok.col > 0) tok.col - 1 else 0;
-			diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1, 1L, "Unrecognized character or syntax"));
-		}
-	}
-
-	// 2. Syntax analysis (Parser)
-	var parser = Parser(tokens);
-	val prog = parser.parse_program();
-
-	if (parser.errors.len > 0) {
-		for (err_msg in parser.errors) {
-			diagnostics.add(parse_diagnostic(err_msg, source));
-		}
-		var empty_symtab = SymbolTable();
-		return AnalysisResult(diagnostics, empty_symtab, false, tokens);
-	}
-
-	var doc_mod = prog.to<Program>().declared_module_name();
-	if (doc_mod.len == 0) {
-		doc_mod = path.base_name().path_to_module();
-	}
-
-	// 3. Module loading & semantic analysis (DeclPass)
-	val entry_dir = path.dir_of();
-	var extra_roots = List<str>();
-	if (workspace_root.len > 0) {
-		extra_roots.add(workspace_root);
-		extra_roots.add(workspace_root.join_path("lib"));
-		extra_roots.add(workspace_root.join_path("src"));
-	}
-	var loader = ModuleLoader(entry_dir, extra_roots);
-	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
-
-	val full_prog = loader.load_program(path, source);
-	if (loader.errors.len > 0) {
-		for (err_msg in loader.errors) {
-			if (is_error_for_doc(err_msg, doc_mod, path)) {
-				diagnostics.add(parse_diagnostic(err_msg, source));
-			}
-		}
-	}
-
-	if (full_prog != null) {
-		var decl_p = DeclPass();
-		decl_p.collect_program(full_prog);
-		if (decl_p.errors.len > 0) {
-			for (err_msg in decl_p.errors) {
-				if (is_error_for_doc(err_msg, doc_mod, path)) {
-					diagnostics.add(parse_diagnostic(err_msg, source));
-				}
-			}
-		}
-
-		// 4. Type & body semantic analysis (BodyPass)
-		var body_p = BodyPass(decl_p.symtab);
-		body_p.check_program(full_prog);
-		if (body_p.errors.len > 0) {
-			for (err_msg in body_p.errors) {
-				if (is_error_for_doc(err_msg, doc_mod, path)) {
-					diagnostics.add(parse_diagnostic(err_msg, source));
-				}
-			}
-		}
-
-		return AnalysisResult(diagnostics, decl_p.symtab, true, tokens);
-	}
-
-	var empty_symtab = SymbolTable();
-	return AnalysisResult(diagnostics, empty_symtab, false, tokens);
+	pub tokens: List<Token> = List()
 }
 
 // ============================================================================
@@ -338,9 +276,10 @@ pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): To
 	for (tok in tokens) {
 		if (tok.line == target_line) {
 			val len = tok.text.len;
-			if (target_col >= tok.col && target_col <= (tok.col + len)) {
-				return tok;
-			}
+			if (
+				target_col >= tok.col &&
+				target_col <= (tok.col + len)
+			) return tok;
 		}
 	}
 	return Token(TokenType.UNKNOWN, "", 0, 0);
@@ -381,6 +320,87 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 }
 
 impl AnalysisResult {
+
+	pub fn new(path: str, source: str, workspace_root: str): Self {
+		var diagnostics = List<LspDiagnostic>();
+
+		// 1. Lexical analysis
+		var lexer = Lexer(source);
+		val tokens = lexer.tokenize();
+
+		// Check for unknown tokens
+		for (tok in tokens) {
+			if (tok.type == TokenType.UNKNOWN) {
+				val l0 = if (tok.line > 0) tok.line - 1 else 0;
+				val c0 = if (tok.col > 0) tok.col - 1 else 0;
+				diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1, 1, "Unrecognized character or syntax"));
+			}
+		}
+
+		// 2. Syntax analysis (Parser)
+		var parser = Parser(tokens);
+		val prog = parser.parse_program();
+
+		if (parser.errors.len > 0) {
+			for (err_msg in parser.errors) {
+				diagnostics.add(LspDiagnostic(err_msg, source));
+			}
+			var empty_symtab = SymbolTable();
+			return AnalysisResult(diagnostics, empty_symtab, false, tokens);
+		}
+
+		var doc_mod = prog.to<Program>().declared_module_name();
+		if (doc_mod.len == 0) doc_mod = path.base_name().path_to_module();
+
+		// 3. Module loading & semantic analysis (DeclPass)
+		val entry_dir = path.dir_of();
+		var extra_roots = List<str>();
+		if (workspace_root.len > 0) {
+			extra_roots.add(workspace_root);
+			extra_roots.add(workspace_root.join_path("lib"));
+			extra_roots.add(workspace_root.join_path("src"));
+		}
+
+		var loader = ModuleLoader(entry_dir, extra_roots);
+		if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
+
+		val full_prog = loader.load_program(path, source);
+		if (loader.errors.len > 0) {
+			for (err_msg in loader.errors) {
+				if (is_error_for_doc(err_msg, doc_mod, path)) {
+					diagnostics.add(LspDiagnostic(err_msg, source));
+				}
+			}
+		}
+
+		if (full_prog != null) {
+			var decl_p = DeclPass();
+			decl_p.collect_program(full_prog);
+			if (decl_p.errors.len > 0) {
+				for (err_msg in decl_p.errors) {
+					if (is_error_for_doc(err_msg, doc_mod, path)) {
+						diagnostics.add(LspDiagnostic(err_msg, source));
+					}
+				}
+			}
+
+			// 4. Type & body semantic analysis (BodyPass)
+			var body_p = BodyPass(decl_p.symtab);
+			body_p.check_program(full_prog);
+			if (body_p.errors.len > 0) {
+				for (err_msg in body_p.errors) {
+					if (is_error_for_doc(err_msg, doc_mod, path)) {
+						diagnostics.add(LspDiagnostic(err_msg, source));
+					}
+				}
+			}
+
+			return Self(diagnostics, decl_p.symtab, true, tokens);
+		}
+
+		var empty_symtab = SymbolTable();
+		return Self(diagnostics, empty_symtab, false, tokens);
+	}
 
 	pub fn hover_at(val self, line0: usz, col0: usz): *JsonValue {
 		val target_line = line0 + 1;
@@ -552,28 +572,28 @@ pub fn document_symbols(source: str): *JsonValue {
 		var sym_kind = 0L; // LSP SymbolKind
 
 		when (decl) {
-			is FnDecl as f -> {
-				sym_name = f.name;
+			is FnDecl -> {
+				sym_name = decl.name;
 				sym_kind = 12; // Function
 			}
-			is StructDecl as s -> {
-				sym_name = s.name;
+			is StructDecl -> {
+				sym_name = decl.name;
 				sym_kind = 23; // Struct
 			}
-			is EnumDecl as e -> {
-				sym_name = e.name;
+			is EnumDecl -> {
+				sym_name = decl.name;
 				sym_kind = 10; // Enum
 			}
-			is TraitDecl as t -> {
-				sym_name = t.name;
+			is TraitDecl -> {
+				sym_name = decl.name;
 				sym_kind = 11; // Interface
 			}
-			is ImplDecl as im -> {
-				sym_name = "impl ${im.struct_name}";
+			is ImplDecl -> {
+				sym_name = "impl ${decl.struct_name}";
 				sym_kind = 5; // Class
 			}
-			is ConstDecl as c -> {
-				sym_name = c.name;
+			is ConstDecl -> {
+				sym_name = decl.name;
 				sym_kind = 14; // Constant
 			}
 			else -> {}
@@ -589,11 +609,12 @@ pub fn document_symbols(source: str): *JsonValue {
 
 			val range = json_obj();
 			val s_pos = json_obj();
-			s_pos.set("line", json_num(l0 as i64));
-			s_pos.set("character", json_num(c0 as i64));
+			s_pos.set("line", json_num(l0));
+			s_pos.set("character", json_num(c0));
+
 			val e_pos = json_obj();
-			e_pos.set("line", json_num(l0 as i64));
-			e_pos.set("character", json_num((c0 + sym_name.len) as i64));
+			e_pos.set("line", json_num(l0));
+			e_pos.set("character", json_num(c0 + sym_name.len));
 			range.set("start", s_pos);
 			range.set("end", e_pos);
 
@@ -620,11 +641,12 @@ pub fn format_document(text: str): *JsonValue {
 
 	val range = json_obj();
 	val start_pos = json_obj();
-	start_pos.set("line", json_num(0L));
-	start_pos.set("character", json_num(0L));
+	start_pos.set("line", json_num(0));
+	start_pos.set("character", json_num(0));
+
 	val end_pos = json_obj();
-	end_pos.set("line", json_num(999999L));
-	end_pos.set("character", json_num(0L));
+	end_pos.set("line", json_num(999999));
+	end_pos.set("character", json_num(0));
 	range.set("start", start_pos);
 	range.set("end", end_pos);
 

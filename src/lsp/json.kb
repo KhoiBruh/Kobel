@@ -1,11 +1,12 @@
 mod lsp.json;
 
 use std.io.*;
+use std.ascii.*;
+use std.mem.alloc.*;
 use std.collections.list.*;
 use std.collections.string_builder.*;
-use std.ascii.*;
+
 use util.strutil.*;
-use std.mem.alloc.*;
 
 // ============================================================================
 // JSON Data Types

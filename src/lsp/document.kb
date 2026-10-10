@@ -1,9 +1,10 @@
 mod lsp.document;
 
-use std.collections.list.*;
-use util.strutil.*;
 use std.ascii.*;
+use std.collections.list.*;
 use std.collections.string_builder.*;
+
+use util.strutil.*;
 
 // ============================================================================
 // Document Representation

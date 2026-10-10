@@ -1,5 +1,7 @@
 mod fmt.formatter;
 
+use std.collections.list.*;
+
 use fmt.options.*;
 use fmt.buffer.*;
 use fmt.comments.*;
@@ -13,7 +15,6 @@ use compiler.lexer.token.*;
 use compiler.lexer.lexer.*;
 use compiler.parser.parser.*;
 use compiler.parser.decl.*;
-use std.collections.list.*;
 
 // ============================================================================
 // Operator token to string representation

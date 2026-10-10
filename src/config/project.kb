@@ -3,6 +3,7 @@ mod config.project;
 use std.io.*;
 use std.collections.list.List;
 use std.collections.hash_map.HashMap;
+
 use util.strutil.*;
 
 // ============================================================================
@@ -20,97 +21,91 @@ pub struct TomlDoc {
 }
 
 impl TomlDoc {
-	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
-}
 
-pub fn parse_mini_toml(content: str): TomlDoc {
-	var doc = TomlDoc();
-	val lines = content.split_lines();
-	var current_section = "";
+	pub fn new(content: str): Self {
+		var self = Self();
+		val lines = content.split_lines();
+		var current_section = "";
 
-	for (line in lines) {
-		val trimmed = line.trim();
-		if (trimmed.empty() || trimmed.starts_with("#")) continue;
+		for (line in lines) {
+			val trimmed = line.trim();
+			if (trimmed.empty() || trimmed.starts_with("#")) continue;
 
-		if (
-			trimmed.starts_with("[") &&
-			trimmed.ends_with("]") &&
-			trimmed.len >= 2
-		) {
-			current_section = trimmed.slice(1UZ, trimmed.len - 1UZ).trim();
-			continue;
-		}
-
-		val eq_pos = trimmed.index_of("=");
-		if (eq_pos > 0) {
-			val key_raw = trimmed.slice(0, eq_pos).trim();
-			val val_raw = trimmed.slice(eq_pos + 1, trimmed.len).trim();
-
-			// Unquote string literals if surrounded by quotes
-			var val_clean = val_raw;
-			if (val_raw.len >= 2) {
-				if (
-					(val_raw.starts_with("\"") && val_raw.ends_with("\"")) ||
-					(val_raw.starts_with("'") && val_raw.ends_with("'"))
-				) val_clean = val_raw.slice(1, val_raw.len - 1);
+			if (
+				trimmed.starts_with("[") &&
+				trimmed.ends_with("]") &&
+				trimmed.len >= 2
+			) {
+				current_section = trimmed.slice(1, trimmed.len - 1).trim();
+				continue;
 			}
 
-			val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
-			else key_raw;
+			val eq_pos = trimmed.index_of("=");
+			if (eq_pos > 0) {
+				val key_raw = trimmed.slice(0, eq_pos).trim();
+				val val_raw = trimmed.slice(eq_pos + 1, trimmed.len).trim();
 
-			doc.entries.put(full_key, val_clean);
+				// Unquote string literals if surrounded by quotes
+				val val_clean = if (
+					val_raw.len >= 2 &&
+					(val_raw.starts_with("\"") && val_raw.ends_with("\"")) ||
+					(val_raw.starts_with("'") && val_raw.ends_with("'"))
+				) val_raw.slice(1, val_raw.len - 1)
+				else val_raw;
+
+				val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
+				else key_raw;
+
+				self.entries.put(full_key, val_clean);
+			}
 		}
+
+		return self;
 	}
 
-	return doc;
+	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
+
 }
 
 pub struct ProjectConfig {
-	pub name: str,
-	pub version: str,
-	pub entry: str,
-	pub output: str,
-	pub cc: str,
-	pub test_dir: str
+	pub name: str = "kobel",
+	pub version: str = "1.0.0",
+	pub entry: str = "src/main.kb",
+	pub output: str = "build/kobel.exe",
+	pub cc: str = "cl",
+	pub test_dir: str = "tests"
 }
 
 impl ProjectConfig {
-	pub fn new(): Self => Self(
-		"kobel",
-		"1.0.0",
-		"src/main.kb",
-		"build/kobel.exe",
-		"cl",
-		"tests"
-	);
-}
 
-pub fn load_project_config(manifest_path: str): ProjectConfig {
-	var cfg = ProjectConfig();
-	if (!file_exists(manifest_path)) return cfg;
+	pub fn new(manifest_path: str): Self {
+		var self = Self();
+		if (!file_exists(manifest_path)) return self;
 
-	val content = read_file(manifest_path);
-	if (content.empty()) return cfg;
+		val content = read_file(manifest_path);
+		if (content.empty()) return self;
 
-	val doc = parse_mini_toml(content);
+		val doc = TomlDoc(content);
 
-	val name = doc.get("package.name", "");
-	if (!name.empty()) cfg.name = name;
+		val name = doc.get("package.name", "");
+		if (!name.empty()) self.name = name;
 
-	val ver = doc.get("package.version", "");
-	if (!ver.empty()) cfg.version = ver;
+		val ver = doc.get("package.version", "");
+		if (!ver.empty()) self.version = ver;
 
-	val entry = doc.get("package.entry", doc.get("build.entry", ""));
-	if (!entry.empty()) cfg.entry = entry;
+		val entry = doc.get("package.entry", doc.get("build.entry", ""));
+		if (!entry.empty()) self.entry = entry;
 
-	val output = doc.get("build.output", "");
-	if (!output.empty()) cfg.output = output;
+		val output = doc.get("build.output", "");
+		if (!output.empty()) self.output = output;
 
-	val cc = doc.get("build.cc", "");
-	if (!cc.empty()) cfg.cc = cc;
+		val cc = doc.get("build.cc", "");
+		if (!cc.empty()) self.cc = cc;
 
-	val test_dir = doc.get("test.dir", "");
-	if (!test_dir.empty()) cfg.test_dir = test_dir;
+		val test_dir = doc.get("test.dir", "");
+		if (!test_dir.empty()) self.test_dir = test_dir;
 
-	return cfg;
+		return self;
+	}
+
 }

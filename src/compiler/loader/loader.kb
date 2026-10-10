@@ -13,6 +13,13 @@ mod compiler.loader.loader;
 // (standard library) -> "src" (compiler source).
 // ============================================================================
 
+use std.mem.arena.*;
+use std.io.read_file;
+use std.io.file_exists;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.lexer.lexer.*;
 
 use compiler.ast.builder.*;
@@ -21,13 +28,6 @@ use compiler.ast.decl.*;
 
 use compiler.parser.parser.Parser;
 use compiler.parser.decl.parse_program;
-
-use util.strutil.*;
-
-use std.io.read_file;
-use std.io.file_exists;
-use std.collections.list.*;
-use std.mem.arena.*;
 
 pub struct LoadedModule {
 	pub name: str,
@@ -142,12 +142,7 @@ impl ModuleLoader {
 		return false;
 	}
 
-	// Loads a module (and every module it `use`s) if not already loaded.
-	pub fn ensure_module(var self, module_name: str) {
-		self.ensure_module_at(module_name, 0UZ, 0UZ, "");
-	}
-
-	pub fn ensure_module_at(var self, module_name: str, line: usz, col: usz, parent_mod: str) {
+	pub fn ensure_module(var self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
 		if (self.is_known(module_name)) return;
 
 		// Mark it first to avoid infinite recursion when imports form a cycle
@@ -194,7 +189,7 @@ impl ModuleLoader {
 					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
 					else -> ""
 				};
-				if (!mod_name.empty()) self.ensure_module_at(mod_name, decl.line, decl.col, parent_mod);
+				if (!mod_name.empty()) self.ensure_module(mod_name, decl.line, decl.col, parent_mod);
 			}
 		}
 	}

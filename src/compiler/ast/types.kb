@@ -1,8 +1,9 @@
 mod compiler.ast.types;
 
+use std.collections.list.List;
+
 use compiler.ast.node.AstNode;
 use compiler.ast.node.NodeKind;
-use std.collections.list.List;
 
 pub struct NamedType {
 	pub const TAG = NodeKind.TYPE_NAMED;

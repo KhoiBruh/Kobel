@@ -1,13 +1,14 @@
 mod compiler.sema.desugar_for;
 
+use std.mem.arena.*;
+use std.collections.list.*;
+
 use compiler.ast.node.*;
 use compiler.ast.stmt.*;
 use compiler.ast.expr.*;
 use compiler.ast.types.*;
 use compiler.ast.builder.*;
 use compiler.lexer.token.*;
-use std.collections.list.*;
-use std.mem.arena.*;
 
 // ============================================================================
 // For-loop AST Lowering (Desugaring)

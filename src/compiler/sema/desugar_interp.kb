@@ -1,5 +1,8 @@
 mod compiler.sema.desugar_interp;
 
+use std.mem.arena.Arena;
+use std.collections.list.List;
+
 use compiler.lexer.token.TokenType;
 
 use compiler.ast.node.AstNode;
@@ -7,9 +10,6 @@ use compiler.ast.types.*;
 use compiler.ast.builder.*;
 
 use compiler.sema.types.*;
-
-use std.collections.list.List;
-use std.mem.arena.Arena;
 
 // ============================================================================
 // String interpolation lowering

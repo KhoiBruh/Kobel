@@ -1,5 +1,8 @@
 mod compiler.ast.builder;
 
+use std.mem.arena.Arena;
+use std.collections.list.List;
+
 use compiler.ast.node.*;
 use compiler.ast.types.*;
 use compiler.ast.expr.*;
@@ -7,8 +10,6 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
 use compiler.lexer.token.TokenType;
-use std.collections.list.List;
-use std.mem.arena.Arena;
 
 // ============================================================================
 // Arena AST Extension Methods

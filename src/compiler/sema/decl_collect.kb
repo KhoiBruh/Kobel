@@ -1,5 +1,10 @@
 mod compiler.sema.decl_collect;
 
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.lexer.token.*;
 use compiler.ast.node.*;
 use compiler.ast.types.*;
@@ -13,11 +18,6 @@ use compiler.sema.types.StructField;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
 use compiler.sema.monomorphize.*;
-
-use util.strutil.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {

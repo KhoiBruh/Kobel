@@ -3,9 +3,12 @@ mod compiler.driver.commands;
 use std.io.*;
 use std.sys.exec;
 use std.collections.list.*;
-use config.project.*;
-use compiler.driver.pipeline.*;
+
 use util.strutil.*;
+
+use config.project.*;
+
+use compiler.driver.pipeline.*;
 
 // ============================================================================
 // Native Project Commands: build, run, test
@@ -15,9 +18,7 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	var stamp_seed = read_file(manifest_path);
 	val stamp_dir = cfg.output.dir_of();
 	val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
-	if (!file_exists(build_dir)) {
-		exec("cmd /c mkdir \"${build_dir.to_win_path()}\" >nul 2>nul");
-	}
+	if (!file_exists(build_dir)) exec("cmd /c mkdir \"${build_dir.to_win_path()}\" >nul 2>nul");
 
 	val tmp_file = "${build_dir}/.kobel_src_files.tmp";
 	val entry_dir = cfg.entry.dir_of();
@@ -36,9 +37,7 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 				stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
 			}
 		}
-	} else {
-		stamp_seed = stamp_seed + read_file(cfg.entry);
-	}
+	} else stamp_seed += read_file(cfg.entry);
 
 	return stamp_seed.hash_stamp();
 }
@@ -49,7 +48,7 @@ pub fn cmd_build(manifest_path: str): i32 {
 		return 1;
 	}
 
-	val cfg = load_project_config(manifest_path);
+	val cfg = ProjectConfig(manifest_path);
 	println("Building ${cfg.name} v${cfg.version} [${cfg.entry} -> ${cfg.output}]...");
 
 	val opts = CompileOptions();
@@ -57,7 +56,7 @@ pub fn cmd_build(manifest_path: str): i32 {
 	opts.output_bin = cfg.output;
 	opts.c_compiler = cfg.cc;
 
-	val exit_code = compile_pipeline(opts);
+	val exit_code = opts.compile();
 	if (exit_code == 0) {
 		val stamp_dir = cfg.output.dir_of();
 		val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
@@ -75,26 +74,30 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		return 1;
 	}
 
-	val cfg = load_project_config(manifest_path);
+	val cfg = ProjectConfig(manifest_path);
 	val stamp_dir = cfg.output.dir_of();
 	val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
 	val stamp_file = "${build_dir}/.kobel_stamp";
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
-	var needs_build = false;
-	if (!file_exists(cfg.output)) {
-		println("Target '${cfg.output}' not found. Building first...");
-		needs_build = true;
-	} else if (!file_exists(stamp_file)) {
-		println("No previous build stamp found. Rebuilding...");
-		needs_build = true;
-	} else {
-		val saved_stamp = read_file(stamp_file).trim();
-		if (saved_stamp != current_stamp) {
-			println("Source changes detected. Rebuilding...");
-			needs_build = true;
+	var needs_build = when {
+		!file_exists(cfg.output) -> {
+			println("Target '${cfg.output}' not found. Building first...");
+			yield true;
 		}
-	}
+		!file_exists(stamp_file) -> {
+			println("No previous build stamp found. Rebuilding...");
+			yield true;
+		}
+		else -> {
+			val saved_stamp = read_file(stamp_file).trim();
+			if (saved_stamp != current_stamp) {
+				println("Source changes detected. Rebuilding...");
+				yield true;
+			}
+			yield false;
+		}
+	};
 
 	if (needs_build) {
 		val build_code = cmd_build(manifest_path);
@@ -102,22 +105,20 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 			println("Build failed with code ${build_code}. Aborting run.");
 			return build_code;
 		}
-	} else {
-		println("No changes detected. Running '${cfg.output}'...");
-	}
+	} else println("No changes detected. Running '${cfg.output}'...");
 
 	// Prepare run command safely without trigger Windows cmd /c quote stripping
 	var out_bin = cfg.output.to_win_path();
-	if (!out_bin.starts_with(".") && !out_bin.starts_with("\\") && out_bin.index_of(":") < 0) {
-		out_bin = ".\\${out_bin}";
-	}
+	if (
+		!out_bin.starts_with(".") &&
+		!out_bin.starts_with("\\") &&
+		out_bin.index_of(":") < 0
+	) out_bin = ".\\${out_bin}";
+
 	var run_cmd = if (out_bin.contains(" ")) "\"${out_bin}\"" else out_bin;
 	for (arg in extra_args) {
-		if (arg.contains(" ")) {
-			run_cmd = "${run_cmd} \"${arg}\"";
-		} else {
-			run_cmd = "${run_cmd} ${arg}";
-		}
+		run_cmd = if (arg.contains(" ")) "${run_cmd} \"${arg}\""
+		else "${run_cmd} ${arg}";
 	}
 
 	return exec(run_cmd);
@@ -125,9 +126,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 
 pub fn discover_test_files(test_dir: str): List<str> {
 	val list = List<str>();
-	if (!file_exists("build")) {
-		exec("cmd /c mkdir build >nul 2>nul");
-	}
+	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
 	val tmp_list_file = "build/.kobel_test_list.tmp";
 	val find_cmd = "cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul";
 	exec(find_cmd);
@@ -142,9 +141,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 			if (!trimmed.empty()) {
 				var normalized = trimmed.to_posix_path();
 				val tests_idx = normalized.index_of(search_token);
-				if (tests_idx >= 0) {
-					normalized = normalized.slice((tests_idx + 1) as usz, normalized.len);
-				}
+				if (tests_idx >= 0) normalized = normalized.slice(tests_idx + 1, normalized.len);
 				list.add(normalized);
 			}
 		}
@@ -154,22 +151,18 @@ pub fn discover_test_files(test_dir: str): List<str> {
 }
 
 pub fn cmd_test(manifest_path: str, filter: str): i32 {
-	val cfg = if (file_exists(manifest_path)) load_project_config(manifest_path) else ProjectConfig();
+	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
 	val all_tests = discover_test_files(cfg.test_dir);
 	val active_tests = List<str>();
 
-	for (t in all_tests) {
-		if (filter.empty() || t.contains(filter)) {
-			active_tests.add(t);
-		}
-	}
+	for (t in all_tests) if (
+		filter.empty() ||
+		t.contains(filter)
+	) active_tests.add(t);
 
 	println("============================================================");
-	if (filter.empty()) {
-		println("  Running Kobel Test Suite (${active_tests.len} tests)");
-	} else {
-		println("  Running Kobel Test Suite (filter: '${filter}', ${active_tests.len} tests)");
-	}
+	if (filter.empty()) println("  Running Kobel Test Suite (${active_tests.len} tests)");
+	else println("  Running Kobel Test Suite (filter: '${filter}', ${active_tests.len} tests)");
 	println("============================================================");
 
 	if (active_tests.empty()) {
@@ -181,9 +174,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	var fail_count = 0;
 	val failed_names = List<str>();
 
-	if (!file_exists("build")) {
-		exec("cmd /c mkdir build >nul 2>nul");
-	}
+	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
 
 	for (tpath in active_tests) {
 		print("[*] ${tpath} ... ");
@@ -196,7 +187,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		opts.c_compiler = cfg.cc;
 		opts.quiet = true;
 
-		val compile_res = compile_pipeline(opts);
+		val compile_res = opts.compile();
 		if (compile_res != 0) {
 			println("FAIL (compilation error)");
 			fail_count++;
@@ -233,9 +224,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	if (fail_count > 0) {
 		println("");
 		println("[ERROR] The following tests failed:");
-		for (name in failed_names) {
-			println("  - ${name}");
-		}
+		for (name in failed_names) println("  - ${name}");
 		return 1;
 	}
 

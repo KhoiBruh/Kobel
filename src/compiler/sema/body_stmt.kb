@@ -6,6 +6,10 @@ mod compiler.sema.body_stmt;
 // Analyzes statement nodes (blocks, variables, loops, conditionals, returns).
 // Handles lowering for `for` loops through `Iterable`.
 // ============================================================================
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;
@@ -22,10 +26,6 @@ use compiler.sema.desugar_for.*;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
-use util.strutil.*;
 
 impl BodyPass {
 

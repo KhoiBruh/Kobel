@@ -1,5 +1,7 @@
 mod compiler.parser.decl;
 
+use std.collections.list.*;
+
 use compiler.lexer.token.*;
 
 use compiler.ast.builder.*;
@@ -11,8 +13,6 @@ use compiler.parser.parser.*;
 use compiler.parser.types.parse_type;
 use compiler.parser.expr.*;
 use compiler.parser.stmt.*;
-
-use std.collections.list.*;
 
 // ============================================================================
 // Generic Parameter Parsing

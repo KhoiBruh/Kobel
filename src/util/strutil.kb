@@ -1,8 +1,8 @@
 mod util.strutil;
 
-use std.collections.list.List;
 use std.str.*;
 use std.mem.alloc.raw_alloc;
+use std.collections.list.List;
 
 // ============================================================================
 // String utilities shared by the compiler

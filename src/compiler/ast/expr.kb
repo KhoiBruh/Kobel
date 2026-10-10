@@ -1,9 +1,10 @@
 mod compiler.ast.expr;
 
+use std.collections.list.List;
+
 use compiler.ast.node.AstNode;
 use compiler.ast.node.NodeKind;
 use compiler.lexer.token.TokenType;
-use std.collections.list.List;
 
 pub enum LiteralKind {
 	INT,

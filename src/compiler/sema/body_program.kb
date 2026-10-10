@@ -6,6 +6,8 @@ mod compiler.sema.body_program;
 // Driver layer of the body checker: walks the merged program and dispatches
 // each function / impl method to the core checker in `body_pass`.
 // ============================================================================
+use std.mem.arena.*;
+use std.collections.list.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;
@@ -23,9 +25,6 @@ use compiler.sema.decl_collect.*;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
 
 impl BodyPass {
 

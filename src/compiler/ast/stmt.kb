@@ -1,8 +1,9 @@
 mod compiler.ast.stmt;
 
+use std.collections.list.List;
+
 use compiler.ast.node.AstNode;
 use compiler.ast.node.NodeKind;
-use std.collections.list.List;
 
 pub struct BlockStmt {
 	pub const TAG = NodeKind.STMT_BLOCK;

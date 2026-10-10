@@ -15,7 +15,7 @@ fn test_toml_parser(): bool {
 		"[test]\n" +
 		"dir = \"my_tests\"\n";
 
-	val doc = parse_mini_toml(toml_content);
+	val doc = TomlDoc(toml_content);
 
 	if (doc.get("package.name", "") != "my_project") return false;
 	if (doc.get("package.version", "") != "0.2.1") return false;

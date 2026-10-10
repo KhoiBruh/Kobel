@@ -1,7 +1,8 @@
 mod fmt.buffer;
 
-use fmt.options.*;
 use std.collections.string_builder.*;
+
+use fmt.options.*;
 
 // ============================================================================
 // FormatBuffer - Output writer with Smart Tabs and Alignment tracking
@@ -32,9 +33,7 @@ impl FormatBuffer {
 
 		// 2. Emit alignment spaces (Smart Tabs: spaces for alignment)
 		if (self.options.use_smart_tabs) {
-			for (j in 0..<self.align_spaces) {
-				self.sb.append_char(' ');
-			}
+			for (j in 0..<self.align_spaces) self.sb.append_char(' ');
 		}
 
 		self.current_col = self.indent_level * self.options.tab_size + self.align_spaces;
@@ -73,9 +72,7 @@ impl FormatBuffer {
 		self.newline();
 	}
 
-	pub fn indent(var self) {
-		self.indent_level++;
-	}
+	pub fn indent(var self) => self.indent_level++;
 
 	pub fn dedent(var self) {
 		if (self.indent_level > 0) self.indent_level--;

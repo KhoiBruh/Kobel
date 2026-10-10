@@ -1,5 +1,7 @@
 mod compiler.parser.expr;
 
+use std.collections.list.*;
+
 use compiler.lexer.token.*;
 use compiler.lexer.lexer.*;
 
@@ -9,8 +11,6 @@ use compiler.ast.builder.*;
 
 use compiler.parser.parser.*;
 use compiler.parser.types.parse_type;
-
-use std.collections.list.*;
 
 // ============================================================================
 // Operator Precedence Levels

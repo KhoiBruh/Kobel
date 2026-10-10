@@ -1,13 +1,14 @@
 mod compiler.parser.parser;
 
+use std.mem.arena.*;
+use std.collections.list.*;
+
 use compiler.lexer.token.*;
 use compiler.ast.node.*;
 use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
-use std.collections.list.*;
-use std.mem.arena.*;
 
 pub struct Parser {
 	pub tokens: List<Token>,

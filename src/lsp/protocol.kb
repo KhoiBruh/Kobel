@@ -1,11 +1,13 @@
 mod lsp.protocol;
 
 use std.io.*;
-use std.collections.string_builder.*;
-use std.ascii.*;
 use std.str.*;
-use util.strutil.*;
+use std.ascii.*;
 use std.mem.alloc.*;
+use std.collections.string_builder.*;
+
+use util.strutil.*;
+
 use lsp.json.*;
 
 // ============================================================================
@@ -109,7 +111,7 @@ pub fn read_message(): str {
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
 					if (c.is_digit()) {
-						n = n * 10 + (((c as i32) - 48) as usz);
+						n = n * 10 + ((c as i32) - 48);
 					}
 				}
 				content_length = n;

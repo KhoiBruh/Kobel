@@ -1,7 +1,8 @@
 mod fmt.comments;
 
-use fmt.buffer.*;
 use std.collections.list.*;
+
+use fmt.buffer.*;
 
 // ============================================================================
 // Comment Model & Extraction

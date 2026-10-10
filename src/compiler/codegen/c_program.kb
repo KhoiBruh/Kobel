@@ -2,6 +2,8 @@ mod compiler.codegen.c_program;
 
 use std.collections.list.*;
 
+use util.strutil.*;
+
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;
 use compiler.ast.node.*;
@@ -12,7 +14,6 @@ use compiler.ast.decl.*;
 
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_runtime.*;
-use util.strutil.*;
 
 // ============================================================================
 // Declaration Code Generation

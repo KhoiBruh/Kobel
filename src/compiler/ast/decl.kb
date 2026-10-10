@@ -1,9 +1,10 @@
 mod compiler.ast.decl;
 
-use compiler.ast.node.AstNode;
-use compiler.ast.node.NodeKind;
 use std.collections.list.List;
 use std.traits.iterable.Iterable;
+
+use compiler.ast.node.AstNode;
+use compiler.ast.node.NodeKind;
 
 pub struct ModuleDecl {
 	pub const TAG = NodeKind.DECL_MODULE;

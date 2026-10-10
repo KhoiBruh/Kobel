@@ -1,5 +1,11 @@
 mod compiler.sema.decl_pass;
 
+use std.str.*;
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.lexer.token.TokenType;
 
 use compiler.ast.node.*;
@@ -35,12 +41,6 @@ use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
 
 use compiler.ast.decl.StructField as AstStructField;
-
-use util.strutil.*;
-use std.str.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
 
 // ============================================================================
 // DeclPass - Top-level Declarations Collector

@@ -1,7 +1,7 @@
 mod compiler.codegen.c_codegen;
 
-use std.collections.list.*;
 use std.str.*;
+use std.collections.list.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;

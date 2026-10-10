@@ -1,5 +1,7 @@
 mod compiler.parser.stmt;
 
+use std.collections.list.*;
+
 use compiler.lexer.token.*;
 
 use compiler.ast.node.AstNode;
@@ -9,8 +11,6 @@ use compiler.parser.parser.*;
 
 use compiler.parser.types.parse_type;
 use compiler.parser.expr.*;
-
-use std.collections.list.*;
 
 // ============================================================================
 // Statement Parsers

@@ -7,6 +7,11 @@ mod compiler.sema.body_call;
 // string slicing, and struct construction (both `new` constructors and field lists).
 // ============================================================================
 
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.ast.node.*;
 use compiler.ast.types.*;
 use compiler.ast.expr.*;
@@ -20,10 +25,6 @@ use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
-
-use std.collections.list.*;
-use std.mem.arena.*;
-use util.strutil.*;
 
 impl BodyPass {
 

@@ -1,12 +1,16 @@
 use std.io.*;
 use std.collections.list.*;
 
+use util.strutil.*;
+
 use config.project.*;
+
 use compiler.driver.pipeline.*;
 use compiler.driver.commands.*;
-use util.strutil.*;
+
 use fmt.options.*;
 use fmt.formatter.*;
+
 use lsp.server.*;
 
 fn print_usage() {
@@ -43,14 +47,14 @@ fn run_test_suite(argc: i32, argv: &*char): i32 {
 }
 
 fn run_emit_c(argc: i32, argv: &*char): i32 {
-	val cfg = if (file_exists("kobel.toml")) load_project_config("kobel.toml") else ProjectConfig();
+	val cfg = if (file_exists("kobel.toml")) ProjectConfig("kobel.toml") else ProjectConfig();
 	val out_path = if (argc >= 3) cstr_to_str(argv[2]) else "dist/bootstrap.c";
 
 	val opts = CompileOptions();
 	opts.input_path = cfg.entry;
 	opts.emit_c_path = out_path;
 	opts.only_emit_c = true;
-	return compile_pipeline(opts);
+	return opts.compile();
 }
 
 fn run_fmt(argc: i32, argv: &*char): i32 {
@@ -132,7 +136,7 @@ fn run_compiler(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 
-	return compile_pipeline(opts);
+	return opts.compile();
 }
 
 fn print_version(): i32 {

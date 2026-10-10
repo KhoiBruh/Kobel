@@ -1,5 +1,10 @@
 mod compiler.sema.monomorphize;
 
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
 use compiler.lexer.token.TokenType;
 
 use compiler.ast.node.*;
@@ -18,11 +23,6 @@ use compiler.sema.types.MethodInfo;
 
 use compiler.sema.decl_pass.*;
 use compiler.ast.decl.StructField as AstStructField;
-
-use util.strutil.*;
-use std.collections.list.*;
-use std.mem.arena.*;
-
 // ============================================================================
 // Generic Templates & Monomorphization
 // ============================================================================
