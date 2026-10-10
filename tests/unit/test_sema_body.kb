@@ -152,6 +152,89 @@ fn test_return_type_mismatch() {
 	println("  [PASS] test_return_type_mismatch");
 }
 
+// ============================================================================
+// Test 6: Immutability Enforcement (val vs var)
+// ============================================================================
+
+fn test_val_immutability() {
+	// 6a: Reassigning val variable
+	val src1 = "fn test(): none {\n" +
+		"    val x = 10;\n" +
+		"    x = 20;\n" +
+		"}\n";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	var bp1 = BodyPass();
+	bp1.check_program(p1.parse_program());
+	assert_true(bp1.errors.len >= 1UZ, "Must catch assignment to val variable");
+
+	// 6b: Compound assignment to val variable
+	val src2 = "fn test(): none {\n" +
+		"    val x = 10;\n" +
+		"    x += 5;\n" +
+		"}\n";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	var bp2 = BodyPass();
+	bp2.check_program(p2.parse_program());
+	assert_true(bp2.errors.len >= 1UZ, "Must catch compound assignment to val variable");
+
+	// 6c: Update (increment) on val variable
+	val src3 = "fn test(): none {\n" +
+		"    val x = 10;\n" +
+		"    x++;\n" +
+		"}\n";
+	var l3 = Lexer(src3);
+	var p3 = Parser(l3.tokenize());
+	var bp3 = BodyPass();
+	bp3.check_program(p3.parse_program());
+	assert_true(bp3.errors.len >= 1UZ, "Must catch update on val variable");
+
+	// 6d: Reassigning immutable parameter
+	val src4 = "fn test(a: i32): none {\n" +
+		"    a = 20;\n" +
+		"}\n";
+	var l4 = Lexer(src4);
+	var p4 = Parser(l4.tokenize());
+	var bp4 = BodyPass();
+	bp4.check_program(p4.parse_program());
+	assert_true(bp4.errors.len >= 1UZ, "Must catch assignment to immutable parameter");
+
+	// 6e: Mutating field on val self receiver
+	val src5 = "struct Point { pub x: i32 }\n" +
+		"impl Point {\n" +
+		"    pub fn test(val self): none {\n" +
+		"        self.x = 20;\n" +
+		"    }\n" +
+		"}\n";
+	var l5 = Lexer(src5);
+	var p5 = Parser(l5.tokenize());
+	var bp5 = BodyPass();
+	bp5.check_program(p5.parse_program());
+	assert_true(bp5.errors.len >= 1UZ, "Must catch field mutation on val self");
+
+	// 6f: Mutations on var are allowed without errors
+	val src6 = "struct Point { pub x: i32 }\n" +
+		"impl Point {\n" +
+		"    pub fn test(var self, var p: i32): none {\n" +
+		"        var x = 10;\n" +
+		"        x = 20;\n" +
+		"        x += 5;\n" +
+		"        x++;\n" +
+		"        p = 30;\n" +
+		"        p++;\n" +
+		"        self.x = 40;\n" +
+		"    }\n" +
+		"}\n";
+	var l6 = Lexer(src6);
+	var p6 = Parser(l6.tokenize());
+	var bp6 = BodyPass();
+	bp6.check_program(p6.parse_program());
+	assert_eq_usz(bp6.errors.len, 0UZ, "Mutations on var must produce 0 errors");
+
+	println("  [PASS] test_val_immutability");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
 	test_valid_program();
@@ -159,6 +242,7 @@ fn main(): i32 {
 	test_type_mismatch();
 	test_condition_not_bool();
 	test_return_type_mismatch();
+	test_val_immutability();
 	println("[ALL PASSED] Bootstrap Semantic BodyPass passed all tests successfully!");
 	return 0;
 }

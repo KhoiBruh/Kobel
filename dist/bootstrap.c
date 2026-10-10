@@ -2484,6 +2484,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_binary_ex
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_unary_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_member_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_index_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__body_pass__BodyPass_check_lvalue_mutability(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* target_node, compiler__ast__node__AstNode* op_node, bool is_update);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_update_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_cast_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
@@ -16290,6 +16291,127 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_index_exp
     return compiler__sema__decl_pass__alloc_primitive((&(self)->arena), compiler__sema__types__type_none());
 }
 
+void compiler__sema__body_pass__BodyPass_check_lvalue_mutability(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* target_node, compiler__ast__node__AstNode* op_node, bool is_update) {
+    compiler__ast__node__AstNode* cur = target_node;
+    while (((cur != NULL) && ((cur)->kind == 14))) {
+        {
+            cur = ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(cur))).expr;
+        }
+    }
+    if ((cur == NULL)) {
+        return;
+    }
+    if (((cur)->kind == 5)) {
+        {
+            compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(cur);
+            compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), (id)->name);
+            if ((sym != NULL)) {
+                {
+                    if (((sym)->kind == 1)) {
+                        {
+                            const char* act = (is_update ? "update" : "assign to");
+                            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " constant '"), (id)->name), "'"));
+                        }
+                    } else {
+                        if (((sym)->kind == 0)) {
+                            {
+                                if ((!(sym)->is_mut)) {
+                                    {
+                                        const char* act = (is_update ? "update" : "assign to");
+                                        compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable variable '"), (id)->name), "' declared with 'val'"));
+                                    }
+                                }
+                            }
+                        } else {
+                            if (((sym)->kind == 2)) {
+                                {
+                                    if ((!(sym)->is_mut)) {
+                                        {
+                                            const char* act = (is_update ? "update" : "assign to");
+                                            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable parameter '"), (id)->name), "'"));
+                                        }
+                                    }
+                                }
+                            } else {
+                                {
+                                    const char* act = (is_update ? "update" : "assign to");
+                                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " '"), (id)->name), "'"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (((cur)->kind == 9)) {
+        {
+            compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(cur);
+            compiler__ast__node__AstNode* obj = (mem)->object;
+            while (((obj != NULL) && ((obj)->kind == 14))) {
+                {
+                    obj = ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(obj))).expr;
+                }
+            }
+            if (((obj != NULL) && ((obj)->kind == 5))) {
+                {
+                    compiler__ast__expr__IdentifierExpr* obj_id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(obj);
+                    if (kobel_streq((obj_id)->name, "self")) {
+                        {
+                            compiler__sema__symbol__Symbol* self_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), "self");
+                            if (((self_sym != NULL) && (!(self_sym)->is_mut))) {
+                                {
+                                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot mutate field '", (mem)->member), "' on immutable receiver 'self' in 'val self' method"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (((cur)->kind == 10)) {
+        {
+            compiler__ast__expr__IndexExpr* idx = compiler__ast__node__to_compiler__ast__expr__IndexExpr(cur);
+            compiler__ast__node__AstNode* obj = (idx)->target;
+            while (((obj != NULL) && ((obj)->kind == 14))) {
+                {
+                    obj = ((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(obj))).expr;
+                }
+            }
+            if (((obj != NULL) && ((obj)->kind == 5))) {
+                {
+                    compiler__ast__expr__IdentifierExpr* obj_id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(obj);
+                    if (kobel_streq((obj_id)->name, "self")) {
+                        {
+                            compiler__sema__symbol__Symbol* self_sym = compiler__sema__symbol__SymbolTable_lookup((&(self)->symtab), "self");
+                            if (((self_sym != NULL) && (!(self_sym)->is_mut))) {
+                                {
+                                    const char* act = (is_update ? "update" : "mutate");
+                                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot ", act), " through index on immutable receiver 'self' in 'val self' method"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (((cur)->kind == 7)) {
+        {
+            compiler__ast__expr__UnaryExpr* un = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(cur);
+            if (((un)->op != 8)) {
+                {
+                    const char* act = (is_update ? "increment/decrement operator" : "assignment");
+                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", act));
+                }
+            }
+        }
+    } else {
+        {
+            const char* act = (is_update ? "increment/decrement operator" : "assignment");
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", act));
+        }
+    }
+}
+
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     if (((node)->kind == compiler__ast__expr__AssignExpr__TAG)) {
         compiler__ast__expr__AssignExpr* asgn_ptr = ((compiler__ast__expr__AssignExpr*)(((compiler__ast__node__AstNode*)node)->data));
@@ -16306,6 +16428,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_ex
                     }
                 }
             }
+            compiler__sema__body_pass__BodyPass_check_lvalue_mutability(self, target_expr, node, false);
             if (((target_expr)->kind == compiler__ast__expr__IndexExpr__TAG)) {
                 compiler__ast__expr__IndexExpr* idx = ((compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)target_expr)->data));
                 {
@@ -16408,9 +16531,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_update_ex
                     }
                 }
             }
-            if ((((((target_expr)->kind != 5) && ((target_expr)->kind != 9)) && ((target_expr)->kind != 10)) && ((target_expr)->kind != 7))) {
-                compiler__sema__body_pass__BodyPass_report_error(self, node, "Invalid target for increment/decrement operator");
-            }
+            compiler__sema__body_pass__BodyPass_check_lvalue_mutability(self, target_expr, node, true);
             if (((target_expr)->kind == compiler__ast__expr__IndexExpr__TAG)) {
                 compiler__ast__expr__IndexExpr* idx = ((compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)target_expr)->data));
                 {

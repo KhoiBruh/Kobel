@@ -420,6 +420,84 @@ impl BodyPass {
 		return alloc_primitive(&self.arena, type_none());
 	}
 
+	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {
+		var cur = target_node;
+		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) {
+			cur = cur.to<GroupExpr>().expr;
+		}
+		if (cur == null) return;
+
+		when (cur.kind) {
+			NodeKind.EXPR_IDENTIFIER -> {
+				val id = cur.to<IdentifierExpr>();
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null) {
+					if (sym.kind == SymbolKind.CONST) {
+						val act = if (is_update) "update" else "assign to";
+						self.report_error(op_node, "Cannot ${act} constant '${id.name}'");
+					} else if (sym.kind == SymbolKind.VAR) {
+						if (!sym.is_mut) {
+							val act = if (is_update) "update" else "assign to";
+							self.report_error(op_node, "Cannot ${act} immutable variable '${id.name}' declared with 'val'");
+						}
+					} else if (sym.kind == SymbolKind.PARAM) {
+						if (!sym.is_mut) {
+							val act = if (is_update) "update" else "assign to";
+							self.report_error(op_node, "Cannot ${act} immutable parameter '${id.name}'");
+						}
+					} else {
+						val act = if (is_update) "update" else "assign to";
+						self.report_error(op_node, "Cannot ${act} '${id.name}'");
+					}
+				}
+			}
+			NodeKind.EXPR_MEMBER -> {
+				val mem = cur.to<MemberExpr>();
+				var obj = mem.object;
+				while (obj != null && obj.kind == NodeKind.EXPR_GROUP) {
+					obj = obj.to<GroupExpr>().expr;
+				}
+				if (obj != null && obj.kind == NodeKind.EXPR_IDENTIFIER) {
+					val obj_id = obj.to<IdentifierExpr>();
+					if (obj_id.name == "self") {
+						val self_sym = self.symtab.lookup("self");
+						if (self_sym != null && !self_sym.is_mut) {
+							self.report_error(op_node, "Cannot mutate field '${mem.member}' on immutable receiver 'self' in 'val self' method");
+						}
+					}
+				}
+			}
+			NodeKind.EXPR_INDEX -> {
+				val idx = cur.to<IndexExpr>();
+				var obj = idx.target;
+				while (obj != null && obj.kind == NodeKind.EXPR_GROUP) {
+					obj = obj.to<GroupExpr>().expr;
+				}
+				if (obj != null && obj.kind == NodeKind.EXPR_IDENTIFIER) {
+					val obj_id = obj.to<IdentifierExpr>();
+					if (obj_id.name == "self") {
+						val self_sym = self.symtab.lookup("self");
+						if (self_sym != null && !self_sym.is_mut) {
+							val act = if (is_update) "update" else "mutate";
+							self.report_error(op_node, "Cannot ${act} through index on immutable receiver 'self' in 'val self' method");
+						}
+					}
+				}
+			}
+			NodeKind.EXPR_UNARY -> {
+				val un = cur.to<UnaryExpr>();
+				if (un.op != TokenType.STAR) {
+					val act = if (is_update) "increment/decrement operator" else "assignment";
+					self.report_error(op_node, "Invalid target for ${act}");
+				}
+			}
+			else -> {
+				val act = if (is_update) "increment/decrement operator" else "assignment";
+				self.report_error(op_node, "Invalid target for ${act}");
+			}
+		}
+	}
+
 	pub fn check_assign_expr(var self, node: *AstNode): *Type {
 		if (node is AssignExpr as asgn_ptr) {
 			val asgn = asgn_ptr as &AssignExpr;
@@ -430,6 +508,8 @@ impl BodyPass {
 				if (target_expr is GroupExpr as g) target_expr = g.expr;
 				else break;
 			}
+
+			self.check_lvalue_mutability(target_expr, node, false);
 
 			if (target_expr is IndexExpr as idx) {
 				val target_raw_ty = self.check_expr(idx.target);
@@ -513,12 +593,7 @@ impl BodyPass {
 				else break;
 			}
 
-			if (
-				target_expr.kind != NodeKind.EXPR_IDENTIFIER &&
-				target_expr.kind != NodeKind.EXPR_MEMBER &&
-				target_expr.kind != NodeKind.EXPR_INDEX &&
-				target_expr.kind != NodeKind.EXPR_UNARY
-			) self.report_error(node, "Invalid target for increment/decrement operator");
+			self.check_lvalue_mutability(target_expr, node, true);
 
 			// Index assignment desugaring: container[i]++ -> container.set(i, container.get(i) + 1)
 			if (target_expr is IndexExpr as idx) {
