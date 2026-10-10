@@ -42,7 +42,7 @@ impl FormatBuffer {
 	}
 
 	pub fn write(var self, s: str) {
-		if (s.len == 0) return;
+		if (s.empty()) return;
 		self.ensure_indent();
 		self.sb.append_str(s);
 		self.current_col += s.len;

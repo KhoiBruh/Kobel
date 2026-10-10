@@ -42,7 +42,7 @@ pub fn run_server(): i32 {
 
 	while (true) {
 		val raw_msg = read_message();
-		if (raw_msg.len == 0) break; // EOF: editor closed pipe
+		if (raw_msg.empty()) break; // EOF: editor closed pipe
 
 		val msg = parse_json(raw_msg);
 		if (!msg.is_obj()) continue;
@@ -54,18 +54,18 @@ pub fn run_server(): i32 {
 		when (method) {
 			"initialize" -> {
 				val root_uri = params.get_str("rootUri", "");
-				if (root_uri.len > 0) {
+				if (!root_uri.empty()) {
 					workspace_root = uri_to_path(root_uri);
 				} else {
 					val root_path = params.get_str("rootPath", "");
-					if (root_path.len > 0) {
+					if (!root_path.empty()) {
 						workspace_root = root_path;
 					} else {
 						val wf = params.get_arr("workspaceFolders");
 						if (wf.count() > 0) {
 							val wf_first = wf.at(0);
 							val wf_uri = wf_first.get_str("uri", "");
-							if (wf_uri.len > 0) workspace_root = uri_to_path(wf_uri);
+							if (!wf_uri.empty()) workspace_root = uri_to_path(wf_uri);
 						}
 					}
 				}
@@ -158,7 +158,7 @@ pub fn run_server(): i32 {
 				val char_col = pos.get_num("character", 0) as usz;
 
 				val doc = docs.get(uri);
-				if (doc.text.len > 0) {
+				if (!doc.text.empty()) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
@@ -175,7 +175,7 @@ pub fn run_server(): i32 {
 				val char_col = pos.get_num("character", 0) as usz;
 
 				val doc = docs.get(uri);
-				if (doc.text.len > 0) {
+				if (!doc.text.empty()) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
@@ -188,7 +188,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0) {
+				if (!doc.text.empty()) {
 					val edits = format_document(doc.text);
 					send_response(id, edits);
 				} else {
@@ -200,7 +200,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0) {
+				if (!doc.text.empty()) {
 					val syms = document_symbols(doc.text);
 					send_response(id, syms);
 				} else {
@@ -212,7 +212,7 @@ pub fn run_server(): i32 {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs.get(uri);
-				if (doc.text.len > 0) {
+				if (!doc.text.empty()) {
 					val analysis = analyze_document(doc.path, doc.text, workspace_root);
 					val items = analysis.complete_at();
 					send_response(id, items);

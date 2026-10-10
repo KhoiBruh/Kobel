@@ -461,7 +461,7 @@ impl DeclPass {
 				}
 				LiteralKind.FLOAT -> {
 					val raw = lit.raw_text;
-					val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
+					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 					if (is_f32) {
 						f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
 						return alloc_primitive(&self.arena, type_f32());

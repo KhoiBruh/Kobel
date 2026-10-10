@@ -219,56 +219,19 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 }
 
 pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
-	// Look for "Line "
-	val line_tag = "Line ";
-	var line_idx: usz = 0;
-	var found_line = false;
-	if (err_str.len >= line_tag.len) {
-		for (i in 0..(err_str.len - line_tag.len)) {
-			var m = true;
-			for (k in 0..<line_tag.len) {
-				if (err_str[i + k] != line_tag[k]) {
-					m = false;
-					break;
-				}
-			}
-			if (m) {
-				line_idx = i;
-				found_line = true;
-				break;
-			}
-		}
-	}
-
-	if (!found_line) {
-		// No "Line " in message. Check if message has a prefix before ": "
-		var colon_idx: usz = 0;
-		var found_colon = false;
-		for (i in 0..<err_str.len) {
-			if (err_str[i] == ':') {
-				colon_idx = i;
-				found_colon = true;
-				break;
-			}
-		}
-		if (!found_colon) {
-			// No module or file prefix at all; assume it's for the current document
-			return true;
-		}
-		val prefix = err_str.slice(0, colon_idx);
+	val line_idx = err_str.index_of("Line ");
+	if (line_idx < 0L) {
+		val colon_idx = err_str.index_of(":");
+		if (colon_idx < 0L) return true;
+		val prefix = err_str.slice(0, colon_idx as usz);
 		return match_doc_prefix(prefix, doc_mod, doc_path);
 	}
 
-	if (line_idx == 0) {
-		// Error starts directly with "Line " (no prefix) -> belongs to current doc
-		return true;
-	}
+	if (line_idx == 0L) return true;
 
-	// There is a prefix before "Line "
-	var prefix = err_str.slice(0, line_idx);
-	// Trim trailing spaces and colons: e.g. "lsp.analysis: " -> "lsp.analysis"
-	while (prefix.len > 0 && (prefix[prefix.len - 1] == ' ' || prefix[prefix.len - 1] == ':')) {
-		prefix = prefix.slice(0, prefix.len - 1);
+	var prefix = err_str.slice(0, line_idx as usz);
+	while (prefix.ends_with(" ") || prefix.ends_with(":")) {
+		prefix = prefix.strip_suffix(1);
 	}
 
 	return match_doc_prefix(prefix, doc_mod, doc_path);

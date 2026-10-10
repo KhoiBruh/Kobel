@@ -30,7 +30,7 @@ pub fn parse_mini_toml(content: str): TomlDoc {
 
 	for (line in lines) {
 		val trimmed = line.trim();
-		if (trimmed.is_empty() || trimmed.starts_with("#")) continue;
+		if (trimmed.empty() || trimmed.starts_with("#")) continue;
 
 		if (
 			trimmed.starts_with("[") &&
@@ -55,7 +55,7 @@ pub fn parse_mini_toml(content: str): TomlDoc {
 				) val_clean = val_raw.slice(1, val_raw.len - 1);
 			}
 
-			val full_key = if (current_section.len > 0) "${current_section}.${key_raw}"
+			val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
 			else key_raw;
 
 			doc.entries.put(full_key, val_clean);
@@ -90,27 +90,27 @@ pub fn load_project_config(manifest_path: str): ProjectConfig {
 	if (!file_exists(manifest_path)) return cfg;
 
 	val content = read_file(manifest_path);
-	if (content.is_empty()) return cfg;
+	if (content.empty()) return cfg;
 
 	val doc = parse_mini_toml(content);
 
 	val name = doc.get("package.name", "");
-	if (!name.is_empty()) cfg.name = name;
+	if (!name.empty()) cfg.name = name;
 
 	val ver = doc.get("package.version", "");
-	if (!ver.is_empty()) cfg.version = ver;
+	if (!ver.empty()) cfg.version = ver;
 
 	val entry = doc.get("package.entry", doc.get("build.entry", ""));
-	if (!entry.is_empty()) cfg.entry = entry;
+	if (!entry.empty()) cfg.entry = entry;
 
 	val output = doc.get("build.output", "");
-	if (!output.is_empty()) cfg.output = output;
+	if (!output.empty()) cfg.output = output;
 
 	val cc = doc.get("build.cc", "");
-	if (!cc.is_empty()) cfg.cc = cc;
+	if (!cc.empty()) cfg.cc = cc;
 
 	val test_dir = doc.get("test.dir", "");
-	if (!test_dir.is_empty()) cfg.test_dir = test_dir;
+	if (!test_dir.empty()) cfg.test_dir = test_dir;
 
 	return cfg;
 }

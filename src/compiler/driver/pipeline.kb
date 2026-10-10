@@ -37,7 +37,7 @@ pub struct CompileOptions {
 pub fn compile_pipeline(opts: CompileOptions): i32 {
 	val input_path = opts.input_path;
 	val src = read_file(input_path);
-	if (src.is_empty()) {
+	if (src.empty()) {
 		println("Error: Could not read source file or file is empty: ${input_path}");
 		return 1;
 	}
@@ -52,7 +52,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
 
 	val prog = loader.load_program(input_path, src);
-	if (loader.errors.len > 0) {
+	if (!loader.errors.empty()) {
 		println("Module Errors in ${input_path}:");
 		print_error_list(loader.errors);
 		return 1;
@@ -68,7 +68,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	if (!opts.quiet) println("[2/4] Semantic analysis (declarations)...");
 	val decl_p = DeclPass();
 	decl_p.collect_program(prog);
-	if (decl_p.errors.len > 0) {
+	if (!decl_p.errors.empty()) {
 		println("Semantic Declaration Errors in ${input_path}:");
 		print_error_list(decl_p.errors);
 		return 1;
@@ -77,7 +77,7 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 	if (!opts.quiet) println("[3/4] Semantic analysis (bodies)...");
 	val body_p = BodyPass(decl_p.symtab);
 	body_p.check_program(prog);
-	if (body_p.errors.len > 0) {
+	if (!body_p.errors.empty()) {
 		println("Semantic Type Errors in ${input_path}:");
 		print_error_list(body_p.errors);
 		return 1;
@@ -101,10 +101,10 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 
 	// Native binary compilation
 	var out_path = opts.output_bin;
-	if (out_path.is_empty()) out_path = "${input_path.strip_kb()}.exe";
+	if (out_path.empty()) out_path = "${input_path.strip_kb()}.exe";
 
 	val out_dir = out_path.dir_of();
-	if (!out_dir.is_empty() && !file_exists(out_dir)) {
+	if (!out_dir.empty() && !file_exists(out_dir)) {
 		exec("cmd /c mkdir \"${out_dir.to_win_path()}\" >nul 2>nul");
 	}
 

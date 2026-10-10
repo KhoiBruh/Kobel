@@ -51,14 +51,14 @@ pub struct ModuleLoader {
 
 pub fn detect_project_root(start_dir: str): str {
 	var curr = start_dir;
-	var count: usz = 0UZ;
-	while (curr.len > 0UZ && count < 10UZ) {
+	var count: usz = 0;
+	while (!curr.empty() && count < 10) {
 		val manifest = curr.join_path("kobel.toml");
 		if (file_exists(manifest)) return curr;
 		val test_file = curr.join_path("lib/std/io.kb");
 		if (file_exists(test_file)) return curr;
 		val parent = curr.dir_of();
-		if (parent == curr || parent.len == 0UZ) break;
+		if (parent == curr || parent.empty()) break;
 		curr = parent;
 		count++;
 	}
@@ -69,7 +69,7 @@ impl ModuleLoader {
 
 	pub fn new(entry_dir: str, extra_roots: List<str>): Self {
 		var roots = List<str>();
-		if (entry_dir.len > 0) roots.add(entry_dir);
+		if (!entry_dir.empty()) roots.add(entry_dir);
 
 		for (r in extra_roots) roots.add(r);
 
@@ -79,7 +79,7 @@ impl ModuleLoader {
 
 		// Auto-detect project root if entry_dir is within a Kobel project tree
 		val proj = detect_project_root(entry_dir);
-		if (proj.len > 0UZ) {
+		if (!proj.empty()) {
 			roots.add(proj);
 			roots.add(proj.join_path("lib"));
 			roots.add(proj.join_path("src"));
@@ -113,7 +113,7 @@ impl ModuleLoader {
 		var parser = Parser(tokens);
 		val prog = parser.parse_program();
 
-		if (parser.errors.len > 0) {
+		if (!parser.errors.empty()) {
 			for (msg in parser.errors) self.errors.add("${path}: ${msg}");
 			return null;
 		}
@@ -130,7 +130,7 @@ impl ModuleLoader {
 		for (root in self.roots) {
 			val candidate = root.join_path(rel);
 			val src = read_file(candidate);
-			if (src.len > 0) return ModuleFile(true, candidate, src);
+			if (!src.empty()) return ModuleFile(true, candidate, src);
 		}
 		return ModuleFile(false, "", "");
 	}
@@ -155,7 +155,7 @@ impl ModuleLoader {
 
 		val file = self.find_module(module_name);
 		if (!file.found) {
-			val prefix = if (parent_mod.len > 0UZ) "${parent_mod}: " else "";
+			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
 			val msg = if (line > 0UZ) {
 				"${prefix}Line ${line}, Column ${col}: Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
 			} else {
@@ -169,8 +169,8 @@ impl ModuleLoader {
 		if (prog == null) return;
 
 		val declared = prog.to<Program>().declared_module_name();
-		if (declared.len > 0 && declared != module_name) {
-			val prefix = if (parent_mod.len > 0UZ) "${parent_mod}: " else "";
+		if (!declared.empty() && declared != module_name) {
+			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
 			val msg = if (line > 0UZ) {
 				"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
 			} else {
@@ -194,7 +194,7 @@ impl ModuleLoader {
 					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1),
 					else -> ""
 				};
-				if (mod_name.len > 0) self.ensure_module_at(mod_name, decl.line, decl.col, parent_mod);
+				if (!mod_name.empty()) self.ensure_module_at(mod_name, decl.line, decl.col, parent_mod);
 			}
 		}
 	}
@@ -208,7 +208,7 @@ impl ModuleLoader {
 		if (prog == null) return null;
 
 		var entry_name = prog.to<Program>().declared_module_name();
-		if (entry_name.len == 0) entry_name = entry_path.base_name().path_to_module();
+		if (entry_name.empty()) entry_name = entry_path.base_name().path_to_module();
 
 		self.modules.add(LoadedModule(entry_name, entry_path, prog));
 		self.process_uses(prog, entry_name);

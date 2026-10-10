@@ -1,6 +1,7 @@
 mod compiler.codegen.c_codegen;
 
 use std.collections.list.*;
+use std.str.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;
@@ -707,7 +708,7 @@ impl CCodeGen {
 							)
 						) is_ptr = true;
 					}
-					if (ty_str.len > 0 && ty_str[ty_str.len - 1] == '*') is_ptr = true;
+					if (ty_str.ends_with("*")) is_ptr = true;
 				}
 
 				if (is_ptr) self.pointer_vars.add(vd.name);

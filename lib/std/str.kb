@@ -33,6 +33,8 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 
 impl str {
 
+	pub fn empty(val self) => self.len == 0;
+
 	pub fn is_empty(val self) => self.len == 0;
 
 	pub fn starts_with(val self, prefix: str): bool {

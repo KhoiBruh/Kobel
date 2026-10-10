@@ -81,7 +81,7 @@ impl str {
 
 	// Joins a directory and a relative path with a single '/' separator.
 	pub fn join_path(val self, rel: str): str {
-		if (self.is_empty()) return rel;
+		if (self.empty()) return rel;
 		if (str_is_sep(self[self.len - 1])) return "${self}${rel}";
 		return "${self}/${rel}";
 	}
@@ -103,7 +103,7 @@ impl str {
 	// Builds the C identifier used for a top-level symbol of `module_name`.
 	// "std.io" + "println" -> "std__io__println"
 	pub fn mangle_symbol(val self, name: str): str {
-		if (self.is_empty()) return name;
+		if (self.empty()) return name;
 		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 		val total = self.len * 2 + 2 + name.len;
 		val buf = raw_alloc(total + 1);
@@ -194,7 +194,7 @@ impl str {
 	}
 
 	pub fn trim(val self): str {
-		if (self.is_empty()) return self;
+		if (self.empty()) return self;
 		var start: usz = 0;
 		while (start < self.len) {
 			val c = self[start];

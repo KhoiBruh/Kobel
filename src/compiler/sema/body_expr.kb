@@ -74,7 +74,7 @@ impl BodyPass {
 				LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
 				LiteralKind.FLOAT -> {
 					val raw = lit.raw_text;
-					val is_f32 = raw.len > 0 && (raw[raw.len - 1] == 'f' || raw[raw.len - 1] == 'F');
+					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 					if (is_f32) yield alloc_primitive(&self.arena, type_f32());
 					yield alloc_primitive(&self.arena, type_f64());
 				}

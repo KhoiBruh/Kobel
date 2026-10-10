@@ -120,6 +120,8 @@ fn test_io(): bool {
 
 fn test_str(): bool {
 	val s: str = "Hello, Kobel World!";
+	if (s.empty()) return false;
+	if (!"".empty()) return false;
 	if (s.is_empty()) return false;
 	if (!"".is_empty()) return false;
 

@@ -76,6 +76,8 @@ impl StringBuilder {
 		self.append_char('\n');
 	}
 
+	pub fn empty(val self) => self.len == 0;
+
 	pub fn is_empty(val self) => self.len == 0;
 
 	pub fn last_char(val self) => if (self.len == 0) '\0' else self.buf[self.len - 1] as char;

@@ -92,7 +92,7 @@ pub fn read_message(): str {
 		header_line.delete();
 
 		// Blank line marks the end of headers
-		if (line.len == 0) break;
+		if (line.empty()) break;
 
 		// Check for Content-Length (case-insensitive)
 		val prefix = "content-length:";
