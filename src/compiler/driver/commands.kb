@@ -136,40 +136,17 @@ pub fn discover_test_files(test_dir: str): List<str> {
 		val content = read_file(tmp_list_file);
 		exec("del /f /q \"${tmp_list_file}\" >nul 2>nul");
 		val lines = content.split_lines();
+		val search_token = "/${test_dir}/";
 		for (line in lines) {
 			val trimmed = line.trim();
 			if (!trimmed.is_empty()) {
 				var normalized = trimmed.to_posix_path();
-				val tests_idx = normalized.index_of("/tests/");
+				val tests_idx = normalized.index_of(search_token);
 				if (tests_idx >= 0) {
 					normalized = normalized.slice((tests_idx + 1) as usz, normalized.len);
 				}
 				list.add(normalized);
 			}
-		}
-	}
-
-	if (list.len == 0) {
-		val default_tests = List<str>();
-		default_tests.add("tests/unit/test_lexer.kb");
-		default_tests.add("tests/unit/test_ast.kb");
-		default_tests.add("tests/unit/test_parser.kb");
-		default_tests.add("tests/unit/test_sema_types.kb");
-		default_tests.add("tests/unit/test_sema_symbol.kb");
-		default_tests.add("tests/unit/test_sema_decl.kb");
-		default_tests.add("tests/unit/test_sema_body.kb");
-		default_tests.add("tests/unit/test_codegen.kb");
-		default_tests.add("tests/unit/test_fmt.kb");
-		default_tests.add("tests/unit/test_config.kb");
-		default_tests.add("tests/features/test_syntax.kb");
-		default_tests.add("tests/features/test_control_flow.kb");
-		default_tests.add("tests/features/test_collections.kb");
-		default_tests.add("tests/features/test_types.kb");
-		default_tests.add("tests/features/test_pattern_matching.kb");
-		default_tests.add("tests/stdlib/test_std.kb");
-
-		for (t in default_tests) {
-			if (file_exists(t)) list.add(t);
 		}
 	}
 

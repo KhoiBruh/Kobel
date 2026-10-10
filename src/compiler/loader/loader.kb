@@ -53,6 +53,8 @@ pub fn detect_project_root(start_dir: str): str {
 	var curr = start_dir;
 	var count: usz = 0UZ;
 	while (curr.len > 0UZ && count < 10UZ) {
+		val manifest = curr.join_path("kobel.toml");
+		if (file_exists(manifest)) return curr;
 		val test_file = curr.join_path("lib/std/io.kb");
 		if (file_exists(test_file)) return curr;
 		val parent = curr.dir_of();

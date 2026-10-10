@@ -2680,7 +2680,6 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_progra
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
 int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline__CompileOptions opts);
-config__project__TomlDoc config__project__TomlDoc_new(void);
 const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val);
 config__project__TomlDoc config__project__parse_mini_toml(const char* content);
 config__project__ProjectConfig config__project__ProjectConfig_new(void);
@@ -23059,6 +23058,10 @@ const char* compiler__loader__loader__detect_project_root(const char* start_dir)
     size_t count = ((size_t)0ULL);
     while (((kobel_slen(curr) > ((size_t)0ULL)) && (count < ((size_t)10ULL)))) {
         {
+            const char* manifest = str_join_path(curr, "kobel.toml");
+            if (std__io__file_exists(manifest)) {
+                return curr;
+            }
             const char* test_file = str_join_path(curr, "lib/std/io.kb");
             if (std__io__file_exists(test_file)) {
                 return curr;
@@ -23419,7 +23422,7 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
             std__sys__exec(kobel_concat(kobel_concat(kobel_concat(kobel_concat("move /y \"", str_to_win_path(out_path)), "\" \""), str_to_win_path(old_bin)), "\" >nul 2>nul"));
         }
     }
-    const char* compile_cmd = ((kobel_streq((opts).c_compiler, "clang") || kobel_streq((opts).c_compiler, "gcc")) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((opts).c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" /Fo:\""), str_to_win_path(obj_tmp_path)), "\" \""), c_tmp_path), "\""));
+    const char* compile_cmd = ((kobel_streq((opts).c_compiler, "clang") || kobel_streq((opts).c_compiler, "gcc")) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat((opts).c_compiler, " -O2 -o \""), out_path), "\" \""), c_tmp_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"", out_path), "\" /Fo:\""), str_to_win_path(obj_tmp_path)), "\" \""), c_tmp_path), "\""));
     if ((opts).quiet) {
         {
             compile_cmd = kobel_concat(compile_cmd, " >nul");
@@ -23446,16 +23449,12 @@ int32_t compiler__driver__pipeline__compile_pipeline(compiler__driver__pipeline_
     return 0;
 }
 
-config__project__TomlDoc config__project__TomlDoc_new(void) {
-    return (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
-}
-
 const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val) {
     return std__collections__hash_map__HashMap_str_get_or((&(self)->entries), key, default_val);
 }
 
 config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
-    config__project__TomlDoc doc = config__project__TomlDoc_new();
+    config__project__TomlDoc doc = (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
     std__collections__list__List_str lines = str_split_lines(content);
     const char* current_section = "";
     {
@@ -23467,13 +23466,11 @@ config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
                 const char* trimmed = str_trim(line);
                 if ((str_is_empty(trimmed) || str_starts_with(trimmed, "#"))) {
                     {
-                        {
-                            __for_i = (__for_i + 1);
-                            continue;
-                        }
+                        __for_i = (__for_i + 1);
+                        continue;
                     }
                 }
-                if (((str_starts_with(trimmed, "[") && str_ends_with(trimmed, "]")) && (kobel_slen(trimmed) >= ((size_t)2ULL)))) {
+                if (((str_starts_with(trimmed, "[") && str_ends_with(trimmed, "]")) && (kobel_slen(trimmed) >= 2))) {
                     {
                         current_section = str_trim(kobel_slice(trimmed, ((size_t)1ULL), (kobel_slen(trimmed) - ((size_t)1ULL))));
                         {
@@ -23485,24 +23482,17 @@ config__project__TomlDoc config__project__parse_mini_toml(const char* content) {
                 intptr_t eq_pos = str_index_of(trimmed, "=");
                 if ((eq_pos > 0)) {
                     {
-                        const char* key_raw = str_trim(kobel_slice(trimmed, ((size_t)0ULL), ((size_t)eq_pos)));
-                        const char* val_raw = str_trim(kobel_slice(trimmed, ((size_t)((eq_pos + 1))), kobel_slen(trimmed)));
+                        const char* key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
+                        const char* val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), kobel_slen(trimmed)));
                         const char* val_clean = val_raw;
-                        if ((kobel_slen(val_raw) >= ((size_t)2ULL))) {
+                        if ((kobel_slen(val_raw) >= 2)) {
                             {
                                 if ((((str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || ((str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))))) {
-                                    {
-                                        val_clean = kobel_slice(val_raw, ((size_t)1ULL), (kobel_slen(val_raw) - ((size_t)1ULL)));
-                                    }
+                                    val_clean = kobel_slice(val_raw, 1, (kobel_slen(val_raw) - 1));
                                 }
                             }
                         }
-                        const char* full_key = key_raw;
-                        if ((kobel_slen(current_section) > ((size_t)0ULL))) {
-                            {
-                                full_key = kobel_concat(kobel_concat(current_section, "."), key_raw);
-                            }
-                        }
+                        const char* full_key = ((kobel_slen(current_section) > 0) ? kobel_concat(kobel_concat(current_section, "."), key_raw) : key_raw);
                         std__collections__hash_map__HashMap_str_put((&(doc).entries), full_key, val_clean);
                     }
                 }
@@ -23520,15 +23510,11 @@ config__project__ProjectConfig config__project__ProjectConfig_new(void) {
 config__project__ProjectConfig config__project__load_project_config(const char* manifest_path) {
     config__project__ProjectConfig cfg = config__project__ProjectConfig_new();
     if ((!std__io__file_exists(manifest_path))) {
-        {
-            return cfg;
-        }
+        return cfg;
     }
     const char* content = std__io__read_file(manifest_path);
     if (str_is_empty(content)) {
-        {
-            return cfg;
-        }
+        return cfg;
     }
     config__project__TomlDoc doc = config__project__parse_mini_toml(content);
     const char* name = config__project__TomlDoc_get((&doc), "package.name", "");
@@ -23725,6 +23711,7 @@ std__collections__list__List_str compiler__driver__commands__discover_test_files
             const char* content = std__io__read_file(tmp_list_file);
             std__sys__exec(kobel_concat(kobel_concat("del /f /q \"", tmp_list_file), "\" >nul 2>nul"));
             std__collections__list__List_str lines = str_split_lines(content);
+            const char* search_token = kobel_concat(kobel_concat("/", test_dir), "/");
             {
                 size_t __for_n = std__collections__list__List_str_count((&lines));
                 size_t __for_i = ((size_t)0ULL);
@@ -23735,7 +23722,7 @@ std__collections__list__List_str compiler__driver__commands__discover_test_files
                         if ((!str_is_empty(trimmed))) {
                             {
                                 const char* normalized = str_to_posix_path(trimmed);
-                                intptr_t tests_idx = str_index_of(normalized, "/tests/");
+                                intptr_t tests_idx = str_index_of(normalized, search_token);
                                 if ((tests_idx >= 0)) {
                                     {
                                         normalized = kobel_slice(normalized, ((size_t)((tests_idx + 1))), kobel_slen(normalized));
@@ -23743,40 +23730,6 @@ std__collections__list__List_str compiler__driver__commands__discover_test_files
                                 }
                                 std__collections__list__List_str_add((&list), normalized);
                             }
-                        }
-                        __for_i = (__for_i + 1);
-                    }
-                }
-            }
-        }
-    }
-    if (((list).len == 0)) {
-        {
-            std__collections__list__List_str default_tests = std__collections__list__List_str_new(4);
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_lexer.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_ast.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_parser.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_types.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_symbol.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_decl.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_sema_body.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_codegen.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_fmt.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/unit/test_config.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/features/test_syntax.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/features/test_control_flow.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/features/test_collections.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/features/test_types.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/features/test_pattern_matching.kb");
-            std__collections__list__List_str_add((&default_tests), "tests/stdlib/test_std.kb");
-            {
-                size_t __for_n = std__collections__list__List_str_count((&default_tests));
-                size_t __for_i = ((size_t)0ULL);
-                while ((__for_i < __for_n)) {
-                    {
-                        const char* t = std__collections__list__List_str_at((&default_tests), __for_i);
-                        if (std__io__file_exists(t)) {
-                            std__collections__list__List_str_add((&list), t);
                         }
                         __for_i = (__for_i + 1);
                     }

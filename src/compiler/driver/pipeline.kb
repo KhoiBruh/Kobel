@@ -144,8 +144,8 @@ pub fn compile_pipeline(opts: CompileOptions): i32 {
 		opts.c_compiler == "clang" ||
 		opts.c_compiler == "gcc"
 	) "${opts.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\""
-	// MSVC cl.exe: ensure environment is set up if not already in PATH
-	else "where cl >nul 2>nul || (if exist \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul) else (call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>nul)) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
+	// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
+	else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
 
 	if (opts.quiet) {
 		compile_cmd = "${compile_cmd} >nul";
