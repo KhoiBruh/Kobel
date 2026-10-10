@@ -35,7 +35,7 @@ impl Parser {
 			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
 
 			// Convert the size string to usz (default to 0 if empty)
-			var size = 0UZ;
+			var size: usz = 0;
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = (ch as i32) - ('0' as i32);

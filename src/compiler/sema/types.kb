@@ -105,18 +105,18 @@ impl EnumInfo {
 }
 
 impl PointerType {
-	pub fn type_size(val self) => 8UZ;
-	pub fn type_align(val self) => 8UZ;
+	pub fn type_size(val self): usz => 8;
+	pub fn type_align(val self): usz => 8;
 }
 
 impl ArrayType {
-	pub fn type_size(val self) => self.elem.size * self.length;
-	pub fn type_align(val self) => self.elem.align;
+	pub fn type_size(val self): usz => self.elem.size * self.length;
+	pub fn type_align(val self): usz => self.elem.align;
 }
 
 impl FnType {
-	pub fn type_size(val self) => 8UZ;
-	pub fn type_align(val self) => 8UZ;
+	pub fn type_size(val self): usz => 8;
+	pub fn type_align(val self): usz => 8;
 }
 
 impl StructType {
@@ -211,20 +211,20 @@ impl Arena {
 	pub fn primitive_type(var self, base: Type) => self.alloc_val<Type>(base);
 
 	pub fn pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.alloc_type<PointerType>(PointerType.TAG, 8UZ, 8UZ, PointerType(pointee, is_mut, false));
+		=> self.alloc_type<PointerType>(PointerType.TAG, 8, 8, PointerType(pointee, is_mut, false));
 
 	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.alloc_type<PointerType>(PointerType.TAG, 8UZ, 8UZ, PointerType(pointee, is_mut, true));
+		=> self.alloc_type<PointerType>(PointerType.TAG, 8, 8, PointerType(pointee, is_mut, true));
 
 	pub fn array_type(var self, elem: *Type, length: usz)
 		=> self.alloc_type<ArrayType>(ArrayType.TAG, elem.size * length, elem.align, ArrayType(elem, length));
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type)
-		=> self.alloc_type<FnType>(FnType.TAG, 8UZ, 8UZ, FnType(param_types, return_type));
+		=> self.alloc_type<FnType>(FnType.TAG, 8, 8, FnType(param_types, return_type));
 
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
-		var max_align = 1UZ;
-		var current_offset = 0UZ;
+		var max_align: usz = 1;
+		var current_offset: usz = 0;
 
 		for (i in 0..<fields.len) {
 			var f = fields[i];
@@ -308,8 +308,8 @@ impl Type {
 
 	pub fn layout_struct(var self) {
 		val st = self.as_struct_mut();
-		var max_align = 1UZ;
-		var off = 0UZ;
+		var max_align: usz = 1;
+		var off: usz = 0;
 		for (i in 0..<st.fields.len) {
 			val f = st.fields[i];
 			val fa = f.type_ptr.align;

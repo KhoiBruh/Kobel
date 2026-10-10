@@ -13,7 +13,7 @@ pub struct HashMap<V> {
 
 impl HashMap<V> {
 	pub fn new(): Self<V> {
-		val init_cap = 16UZ;
+		val init_cap: usz = 16;
 		val keys = alloc_array<str>(init_cap);
 		val values = alloc_array<V>(init_cap);
 		val occ = alloc_array<bool>(init_cap);
@@ -23,7 +23,7 @@ impl HashMap<V> {
 	}
 
 	fn hash_key(val self, key: str): usz {
-		var h = 5381UZ;
+		var h: usz = 5381;
 		for (i in 0..<key.len) {
 			val c = key[i] as usz;
 			h = h * 33 + c;

@@ -166,7 +166,7 @@ impl ModuleLoader {
 		val declared = prog.to<Program>().declared_module_name();
 		if (!declared.empty() && declared != module_name) {
 			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-			val msg = if (line > 0UZ) {
+			val msg = if (line > 0) {
 				"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
 			} else {
 				"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"

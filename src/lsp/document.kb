@@ -24,7 +24,7 @@ pub fn uri_to_path(uri: str): str {
 	else s;
 
 	val sb = StringBuilder();
-	var i = 0UZ;
+	var i: usz = 0;
 	while (i < s.len) {
 		val c = s[i];
 		if (c == '%' && i + 2 < s.len) {

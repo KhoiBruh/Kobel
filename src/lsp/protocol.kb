@@ -67,7 +67,7 @@ pub fn send_notification(method: str, params: *JsonValue) {
 // ============================================================================
 
 pub fn read_message(): str {
-	var content_length = 0UZ;
+	var content_length: usz = 0;
 
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
@@ -107,7 +107,7 @@ pub fn read_message(): str {
 				}
 			}
 			if (matches) {
-				var n = 0UZ;
+				var n: usz = 0;
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
 					if (c.is_digit()) {

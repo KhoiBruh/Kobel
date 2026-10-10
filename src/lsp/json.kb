@@ -244,7 +244,7 @@ impl JsonParser {
 						'r' -> sb.append_char('\r');
 						't' -> sb.append_char('\t');
 						'u' -> {
-							var u_count = 0UZ;
+							var u_count: usz = 0;
 							while (u_count < 4 && !self.is_end()) {
 								self.advance();
 								u_count++;

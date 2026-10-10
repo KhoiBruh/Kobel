@@ -20,7 +20,7 @@ pub struct StringBuilder {
 // Kotlin-style constructor: `StringBuilder()`.
 impl StringBuilder {
 	pub fn new(): Self {
-		val init_cap = 32UZ;
+		val init_cap: usz = 32;
 		val raw = raw_alloc(init_cap);
 		return Self(raw, 0, init_cap);
 	}

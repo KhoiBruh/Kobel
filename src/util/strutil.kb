@@ -56,7 +56,7 @@ impl str {
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
-		var last = 0UZ;
+		var last: usz = 0;
 		var found = false;
 		for (i in 0..<self.len) {
 			if (str_is_sep(self[i])) {
@@ -71,7 +71,7 @@ impl str {
 
 	// File name part of a path (input with separators included).
 	pub fn base_name(val self): str {
-		var start = 0UZ;
+		var start: usz = 0;
 		for (i in 0..<self.len) {
 			if (str_is_sep(self[i])) start = i + 1;
 		}
@@ -88,7 +88,7 @@ impl str {
 
 	pub fn split_dots(val self): List<str> {
 		var parts = List<str>();
-		var start = 0UZ;
+		var start: usz = 0;
 		for (i in 0..<self.len) {
 			if (self[i] == '.') {
 				parts.add(self.slice(start, i));
@@ -108,7 +108,7 @@ impl str {
 		val total = self.len * 2 + 2 + name.len;
 		val buf = raw_alloc(total + 1);
 
-		var w = 0UZ;
+		var w: usz = 0;
 		for (c in self) {
 			when (c) {
 				'.' -> {
@@ -213,24 +213,24 @@ impl str {
 
 	pub fn split_lines(val self): List<str> {
 		var res = List<str>();
-		var start: usz = 0UZ;
-		var i: usz = 0UZ;
+		var start: usz = 0;
+		var i: usz = 0;
 		while (i < self.len) {
 			val c = self[i];
 			if (c == '\n') {
 				var line_end = i;
-				if (line_end > start && self[line_end - 1UZ] == '\r') {
-					line_end = line_end - 1UZ;
+				if (line_end > start && self[line_end - 1] == '\r') {
+					line_end = line_end - 1;
 				}
 				res.add(self.slice(start, line_end));
-				start = i + 1UZ;
+				start = i + 1;
 			}
 			i++;
 		}
 		if (start <= self.len) {
 			var line_end = self.len;
-			if (line_end > start && self[line_end - 1UZ] == '\r') {
-				line_end = line_end - 1UZ;
+			if (line_end > start && self[line_end - 1] == '\r') {
+				line_end = line_end - 1;
 			}
 			res.add(self.slice(start, line_end));
 		}
@@ -247,12 +247,12 @@ impl str {
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total = 0UZ;
+	var total: usz = 0;
 	for (i in 0..<count) total += parts[i].len;
 	if (count > 1) total += (count - 1);
 
 	val buf = raw_alloc(total + 1);
-	var w = 0UZ;
+	var w: usz = 0;
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {

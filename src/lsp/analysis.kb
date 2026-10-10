@@ -43,13 +43,13 @@ pub struct LspDiagnostic {
 impl LspDiagnostic {
 
 	pub fn new(err_str: str, source: str): Self {
-		var line = 1UZ;
-		var col = 1UZ;
-		var msg_start = 0UZ;
+		var line: usz = 1;
+		var col: usz = 1;
+		var msg_start: usz = 0;
 
 		// Look for "Line "
 		val line_tag = "Line ";
-		var line_idx = 0UZ;
+		var line_idx: usz = 0;
 		var found_line = false;
 		val l_pos = err_str.index_of(line_tag);
 		if (l_pos >= 0) {
@@ -68,7 +68,7 @@ impl LspDiagnostic {
 
 			// Look for "Column "
 			val col_tag = "Column ";
-			var col_idx = 0UZ;
+			var col_idx: usz = 0;
 			var found_col = false;
 			val rest = err_str.slice(idx, err_str.len);
 			val c_pos = rest.index_of(col_tag);
@@ -78,7 +78,7 @@ impl LspDiagnostic {
 			}
 
 			if (found_col) {
-				var cn = 0UZ;
+				var cn: usz = 0;
 				var c_idx = col_idx;
 				while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
 					cn = cn * 10 + ((err_str[c_idx] as i32) - 48);
@@ -105,9 +105,9 @@ impl LspDiagnostic {
 
 		var end_col = c0 + 1;
 		if (source.len > 0) {
-			var cur_line = 0UZ;
-			var line_start = 0UZ;
-			var pos = 0UZ;
+			var cur_line: usz = 0;
+			var line_start: usz = 0;
+			var pos: usz = 0;
 			while (pos < source.len && cur_line < l0) {
 				if (source[pos] == '\n') {
 					cur_line++;
