@@ -648,6 +648,18 @@ impl CCodeGen {
 		return "(${s})";
 	}
 
+	pub fn gen_block_body(var self, node: *AstNode): str {
+		if (node == null) return "";
+		if (node is BlockStmt as blk) {
+			var res = "";
+			for (s in blk.statements) {
+				res += self.gen_statement(s);
+			}
+			return res;
+		}
+		return self.gen_statement(node);
+	}
+
 	pub fn gen_statement(var self, node: *AstNode): str {
 		if (node == null) return "";
 
@@ -799,13 +811,50 @@ impl CCodeGen {
 				if (cast_decl != "") {
 					res += get_indent(self.indent_level) + cast_decl + "\n";
 				}
-				res = "${res}${self.gen_statement(ifs.then_branch)}";
+				res = "${res}${self.gen_block_body(ifs.then_branch)}";
 				self.indent_level--;
 
-				if (ifs.else_branch != null) {
+				var cur_else = ifs.else_branch;
+				while (cur_else != null) {
+					if (cur_else is IfStmt as elif) {
+						var elif_cond = elif.condition;
+						while (elif_cond != null) {
+							if (elif_cond is GroupExpr as g) {
+								elif_cond = g.expr;
+							} else {
+								break;
+							}
+						}
+						var elif_cast = "";
+						if (elif_cond != null) {
+							if (elif_cond is IsExpr as elif_is_e) {
+								val e = elif_is_e.expr;
+								if (e != null) {
+									if (e is IdentifierExpr as id) {
+										elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
+									}
+								}
+							}
+						}
+
+						res = "${res}${ind}} else if ${self.gen_cond(elif.condition)} {\n";
+						self.indent_level++;
+						if (elif_cast != "") {
+							res += get_indent(self.indent_level) + elif_cast + "\n";
+						}
+						res = "${res}${self.gen_block_body(elif.then_branch)}";
+						self.indent_level--;
+
+						cur_else = elif.else_branch;
+					} else {
+						break;
+					}
+				}
+
+				if (cur_else != null) {
 					res = "${res}${ind}} else {\n";
 					self.indent_level++;
-					res = "${res}${self.gen_statement(ifs.else_branch)}";
+					res = "${res}${self.gen_block_body(cur_else)}";
 					self.indent_level--;
 				}
 				yield "${res}${ind}}\n";
@@ -815,7 +864,7 @@ impl CCodeGen {
 				val ind = get_indent(self.indent_level);
 				var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
 				self.indent_level++;
-				res = "${res}${self.gen_statement(wh.body)}";
+				res = "${res}${self.gen_block_body(wh.body)}";
 				self.indent_level--;
 				yield "${res}${ind}}\n";
 			}
@@ -1021,7 +1070,7 @@ impl CCodeGen {
 					if (cast_decl != "") {
 						res += get_indent(self.indent_level) + cast_decl + "\n";
 					}
-					res += self.gen_statement(arm.body);
+					res += self.gen_block_body(arm.body);
 					self.indent_level--;
 					first = false;
 				}
