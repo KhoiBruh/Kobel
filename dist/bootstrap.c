@@ -2112,7 +2112,6 @@ compiler__ast__expr__LiteralExpr* compiler__ast__node__to_compiler__ast__expr__L
 compiler__ast__expr__IdentifierExpr* compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__BinaryExpr* compiler__ast__node__to_compiler__ast__expr__BinaryExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__UnaryExpr* compiler__ast__node__to_compiler__ast__expr__UnaryExpr(compiler__ast__node__AstNode* self);
-compiler__ast__expr__CallExpr* compiler__ast__node__to_compiler__ast__expr__CallExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__MemberExpr* compiler__ast__node__to_compiler__ast__expr__MemberExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__IndexExpr* compiler__ast__node__to_compiler__ast__expr__IndexExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__AssignExpr* compiler__ast__node__to_compiler__ast__expr__AssignExpr(compiler__ast__node__AstNode* self);
@@ -2122,8 +2121,9 @@ compiler__ast__expr__GroupExpr* compiler__ast__node__to_compiler__ast__expr__Gro
 compiler__ast__expr__IfExpr* compiler__ast__node__to_compiler__ast__expr__IfExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__ArrayLiteralExpr* compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__WhenExpr* compiler__ast__node__to_compiler__ast__expr__WhenExpr(compiler__ast__node__AstNode* self);
-compiler__ast__expr__InterpExpr* compiler__ast__node__to_compiler__ast__expr__InterpExpr(compiler__ast__node__AstNode* self);
 compiler__ast__expr__IsExpr* compiler__ast__node__to_compiler__ast__expr__IsExpr(compiler__ast__node__AstNode* self);
+compiler__ast__expr__CallExpr* compiler__ast__node__to_compiler__ast__expr__CallExpr(compiler__ast__node__AstNode* self);
+compiler__ast__expr__InterpExpr* compiler__ast__node__to_compiler__ast__expr__InterpExpr(compiler__ast__node__AstNode* self);
 compiler__ast__stmt__BlockStmt* compiler__ast__node__to_compiler__ast__stmt__BlockStmt(compiler__ast__node__AstNode* self);
 compiler__ast__stmt__ExprStmt* compiler__ast__node__to_compiler__ast__stmt__ExprStmt(compiler__ast__node__AstNode* self);
 compiler__ast__stmt__VarDeclStmt* compiler__ast__node__to_compiler__ast__stmt__VarDeclStmt(compiler__ast__node__AstNode* self);
@@ -2389,6 +2389,13 @@ void compiler__sema__decl_pass__DeclPass_collect_struct_as(compiler__sema__decl_
 void compiler__sema__decl_pass__DeclPass_collect_fn_as(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* final_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_type(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_call_expr(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_size_query(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template_call(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
+std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__decl_pass__DeclPass_clone_expr_list(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode nodes, compiler__sema__monomorphize__GenSubst* subst);
+std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__decl_pass__DeclPass_clone_type_args(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode nodes, compiler__sema__monomorphize__GenSubst* subst);
+std__collections__list__List_compiler__ast__expr__WhenArm compiler__sema__decl_pass__DeclPass_clone_when_arms(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
+std__collections__list__List_compiler__ast__expr__InterpPart compiler__sema__decl_pass__DeclPass_clone_interp_parts(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst, const char* new_name);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst, const char* new_name);
@@ -8417,10 +8424,6 @@ compiler__ast__expr__UnaryExpr* compiler__ast__node__to_compiler__ast__expr__Una
     return (compiler__ast__expr__UnaryExpr*)self->data;
 }
 
-compiler__ast__expr__CallExpr* compiler__ast__node__to_compiler__ast__expr__CallExpr(compiler__ast__node__AstNode* self) {
-    return (compiler__ast__expr__CallExpr*)self->data;
-}
-
 compiler__ast__expr__MemberExpr* compiler__ast__node__to_compiler__ast__expr__MemberExpr(compiler__ast__node__AstNode* self) {
     return (compiler__ast__expr__MemberExpr*)self->data;
 }
@@ -8457,12 +8460,16 @@ compiler__ast__expr__WhenExpr* compiler__ast__node__to_compiler__ast__expr__When
     return (compiler__ast__expr__WhenExpr*)self->data;
 }
 
-compiler__ast__expr__InterpExpr* compiler__ast__node__to_compiler__ast__expr__InterpExpr(compiler__ast__node__AstNode* self) {
-    return (compiler__ast__expr__InterpExpr*)self->data;
-}
-
 compiler__ast__expr__IsExpr* compiler__ast__node__to_compiler__ast__expr__IsExpr(compiler__ast__node__AstNode* self) {
     return (compiler__ast__expr__IsExpr*)self->data;
+}
+
+compiler__ast__expr__CallExpr* compiler__ast__node__to_compiler__ast__expr__CallExpr(compiler__ast__node__AstNode* self) {
+    return (compiler__ast__expr__CallExpr*)self->data;
+}
+
+compiler__ast__expr__InterpExpr* compiler__ast__node__to_compiler__ast__expr__InterpExpr(compiler__ast__node__AstNode* self) {
+    return (compiler__ast__expr__InterpExpr*)self->data;
 }
 
 compiler__ast__stmt__BlockStmt* compiler__ast__node__to_compiler__ast__stmt__BlockStmt(compiler__ast__node__AstNode* self) {
@@ -11669,110 +11676,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
         compiler__ast__expr__UnaryExpr* u = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(node);
         return compiler__sema__decl_pass__DeclPass_unary(self, u->op, compiler__sema__decl_pass__DeclPass_clone_expr(self, u->operand, subst), node->line, node->col);
     } else if (node->kind == 8) {
-        compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
-        if ((*c->callee).kind == 9) {
-            compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(c->callee);
-            if (kobel_streq(m->member, "size") && ((*m->object).kind == 5)) {
-                compiler__ast__node__AstNode* sa = (((subst != NULL) ? compiler__sema__monomorphize__GenSubst_lookup(subst, (*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(m->object)).name) : NULL));
-                if (sa != NULL) {
-                    return compiler__sema__decl_pass__DeclPass_literal(self, 0, usz_to_str(compiler__sema__decl_pass__DeclPass_ast_type_size(self, sa)), node->line, node->col);
-                }
-            }
-        }
-        if (((*c->callee).kind == 9) && (c->type_args.len > 0)) {
-            compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(c->callee);
-            compiler__sema__symbol__GenTemplate* ft = compiler__sema__decl_pass__DeclPass_find_method_template(self, mem->member);
-            if (ft != NULL) {
-                compiler__ast__node__AstNode* mem_obj = compiler__sema__decl_pass__DeclPass_clone_expr(self, mem->object, subst);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode new_type_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->type_args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->type_args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_type_args, compiler__sema__decl_pass__DeclPass_clone_type(self, ta, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, mem_obj);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                const char* cname = compiler__sema__decl_pass__DeclPass_instantiate_fn(self, ft, new_type_args);
-                return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
-            }
-        }
-        if (((*c->callee).kind == 5) && (c->type_args.len > 0)) {
-            compiler__ast__expr__IdentifierExpr* cid = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(c->callee);
-            compiler__sema__symbol__GenTemplate* ft = compiler__sema__decl_pass__DeclPass_find_fn_template(self, cid->name);
-            if (ft != NULL) {
-                std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->type_args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->type_args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&args, compiler__sema__decl_pass__DeclPass_clone_type(self, ta, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                const char* cname = compiler__sema__decl_pass__DeclPass_instantiate_fn(self, ft, args);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode cargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), cargs, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
-            }
-            compiler__sema__symbol__GenTemplate* st = compiler__sema__decl_pass__DeclPass_find_struct_template(self, cid->name);
-            if (st != NULL) {
-                std__collections__list__List_ptr_compiler__ast__node__AstNode args2 = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->type_args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->type_args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&args2, compiler__sema__decl_pass__DeclPass_clone_type(self, ta, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                compiler__sema__types__Type* cty = compiler__sema__decl_pass__DeclPass_instantiate_struct(self, st, args2);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode cargs2 = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs2, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, (*compiler__sema__types__Type_as_struct(cty)).name, node->line, node->col), cargs2, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
-            }
-        }
-        std__collections__list__List_ptr_compiler__ast__node__AstNode cargs3 = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-        {
-            size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs3, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
-                __for_i = (__for_i + 1);
-            }
-        }
-        return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, c->callee, subst), cargs3, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        return compiler__sema__decl_pass__DeclPass_clone_call_expr(self, node, subst);
     } else if (node->kind == 9) {
         compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
         return compiler__sema__decl_pass__DeclPass_member(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, m->object, subst), m->member, node->line, node->col);
@@ -11796,54 +11700,13 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
         return compiler__sema__decl_pass__DeclPass_if_expr(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, ie->condition, subst), compiler__sema__decl_pass__DeclPass_clone_expr(self, ie->then_branch, subst), compiler__sema__decl_pass__DeclPass_clone_expr(self, ie->else_branch, subst), node->line, node->col);
     } else if (node->kind == 15) {
         compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(node);
-        std__collections__list__List_ptr_compiler__ast__node__AstNode els = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-        {
-            size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__ast__node__AstNode* e = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&al->elements, __for_i);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&els, compiler__sema__decl_pass__DeclPass_clone_expr(self, e, subst));
-                __for_i = (__for_i + 1);
-            }
-        }
-        return compiler__sema__decl_pass__DeclPass_list_literal(self, els, al->list_struct_name, al->elem_type_node, node->line, node->col);
+        return compiler__sema__decl_pass__DeclPass_list_literal(self, compiler__sema__decl_pass__DeclPass_clone_expr_list(self, al->elements, subst), al->list_struct_name, al->elem_type_node, node->line, node->col);
     } else if (node->kind == 17) {
+        std__collections__list__List_compiler__ast__expr__WhenArm arms = compiler__sema__decl_pass__DeclPass_clone_when_arms(self, node, subst);
         compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(node);
-        std__collections__list__List_compiler__ast__expr__WhenArm arms = std__collections__list__List_compiler__ast__expr__WhenArm_new(4);
-        {
-            size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
-                std__collections__list__List_ptr_compiler__ast__node__AstNode pats = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                {
-                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                    size_t __for_i = ((intptr_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&pats, compiler__sema__decl_pass__DeclPass_clone_expr(self, pat, subst));
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                compiler__ast__node__AstNode* arm_body = (((*arm.body).kind == 19) ? compiler__sema__decl_pass__DeclPass_clone_stmt(self, arm.body, subst) : compiler__sema__decl_pass__DeclPass_clone_expr(self, arm.body, subst));
-                std__collections__list__List_compiler__ast__expr__WhenArm_add(&arms, (compiler__ast__expr__WhenArm){ pats, arm.is_else, arm_body, arm.line, arm.col });
-                __for_i = (__for_i + 1);
-            }
-        }
         return compiler__sema__decl_pass__DeclPass_when_expr(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, we->condition, subst), arms, node->line, node->col);
     } else if (node->kind == 18) {
-        compiler__ast__expr__InterpExpr* ie = compiler__ast__node__to_compiler__ast__expr__InterpExpr(node);
-        std__collections__list__List_compiler__ast__expr__InterpPart parts = std__collections__list__List_compiler__ast__expr__InterpPart_new(4);
-        {
-            size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&ie->parts);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&ie->parts, __for_i);
-                std__collections__list__List_compiler__ast__expr__InterpPart_add(&parts, (compiler__ast__expr__InterpPart){ compiler__sema__decl_pass__DeclPass_clone_expr(self, part.expr, subst), part.is_literal });
-                __for_i = (__for_i + 1);
-            }
-        }
-        return compiler__sema__decl_pass__DeclPass_interp(self, parts, node->line, node->col);
+        return compiler__sema__decl_pass__DeclPass_interp(self, compiler__sema__decl_pass__DeclPass_clone_interp_parts(self, node, subst), node->line, node->col);
     } else if (node->kind == 40) {
         compiler__ast__expr__IsExpr* is_e = compiler__ast__node__to_compiler__ast__expr__IsExpr(node);
         compiler__ast__node__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__sema__decl_pass__DeclPass_clone_expr(self, is_e->expr, subst) : NULL);
@@ -11855,6 +11718,165 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
     } else {
         return compiler__sema__decl_pass__DeclPass_identifier(self, "<unsupported-expr>", node->line, node->col);
     }
+}
+
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_call_expr(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
+    compiler__ast__node__AstNode* size_lit = compiler__sema__decl_pass__DeclPass_clone_size_query(self, node, subst);
+    if (size_lit != NULL) {
+        return size_lit;
+    }
+    compiler__ast__node__AstNode* tcall = compiler__sema__decl_pass__DeclPass_clone_template_call(self, node, subst);
+    if (tcall != NULL) {
+        return tcall;
+    }
+    compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
+    std__collections__list__List_ptr_compiler__ast__node__AstNode args = compiler__sema__decl_pass__DeclPass_clone_expr_list(self, c->args, subst);
+    return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, c->callee, subst), args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_size_query(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
+    compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
+    if ((*c->callee).kind != 9) {
+        return NULL;
+    }
+    compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(c->callee);
+    if (!kobel_streq(m->member, "size") || ((*m->object).kind != 5)) {
+        return NULL;
+    }
+    if (subst == NULL) {
+        return NULL;
+    }
+    compiler__ast__node__AstNode* sa = compiler__sema__monomorphize__GenSubst_lookup(subst, (*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(m->object)).name);
+    if (sa == NULL) {
+        return NULL;
+    }
+    return compiler__sema__decl_pass__DeclPass_literal(self, 0, usz_to_str(compiler__sema__decl_pass__DeclPass_ast_type_size(self, sa)), node->line, node->col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template_call(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
+    compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
+    if (c->type_args.len == 0) {
+        return NULL;
+    }
+    if ((*c->callee).kind == 9) {
+        compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(c->callee);
+        compiler__sema__symbol__GenTemplate* ft = compiler__sema__decl_pass__DeclPass_find_method_template(self, mem->member);
+        if (ft == NULL) {
+            return NULL;
+        }
+        compiler__ast__node__AstNode* mem_obj = compiler__sema__decl_pass__DeclPass_clone_expr(self, mem->object, subst);
+        std__collections__list__List_ptr_compiler__ast__node__AstNode targs = compiler__sema__decl_pass__DeclPass_clone_type_args(self, c->type_args, subst);
+        std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, mem_obj);
+        {
+            size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
+            size_t __for_i = ((intptr_t)0ULL);
+            while (__for_i < __for_n) {
+                compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
+                __for_i = (__for_i + 1);
+            }
+        }
+        const char* cname = compiler__sema__decl_pass__DeclPass_instantiate_fn(self, ft, targs);
+        return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    }
+    if ((*c->callee).kind != 5) {
+        return NULL;
+    }
+    compiler__ast__expr__IdentifierExpr* cid = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(c->callee);
+    compiler__sema__symbol__GenTemplate* ft = compiler__sema__decl_pass__DeclPass_find_fn_template(self, cid->name);
+    if (ft != NULL) {
+        std__collections__list__List_ptr_compiler__ast__node__AstNode targs = compiler__sema__decl_pass__DeclPass_clone_type_args(self, c->type_args, subst);
+        const char* cname = compiler__sema__decl_pass__DeclPass_instantiate_fn(self, ft, targs);
+        std__collections__list__List_ptr_compiler__ast__node__AstNode cargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+        {
+            size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
+            size_t __for_i = ((intptr_t)0ULL);
+            while (__for_i < __for_n) {
+                compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
+                __for_i = (__for_i + 1);
+            }
+        }
+        return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), cargs, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    }
+    compiler__sema__symbol__GenTemplate* st = compiler__sema__decl_pass__DeclPass_find_struct_template(self, cid->name);
+    if (st != NULL) {
+        std__collections__list__List_ptr_compiler__ast__node__AstNode targs = compiler__sema__decl_pass__DeclPass_clone_type_args(self, c->type_args, subst);
+        compiler__sema__types__Type* cty = compiler__sema__decl_pass__DeclPass_instantiate_struct(self, st, targs);
+        std__collections__list__List_ptr_compiler__ast__node__AstNode cargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+        {
+            size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
+            size_t __for_i = ((intptr_t)0ULL);
+            while (__for_i < __for_n) {
+                compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
+                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
+                __for_i = (__for_i + 1);
+            }
+        }
+        return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, (*compiler__sema__types__Type_as_struct(cty)).name, node->line, node->col), cargs, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    }
+    return NULL;
+}
+
+std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__decl_pass__DeclPass_clone_expr_list(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode nodes, compiler__sema__monomorphize__GenSubst* subst) {
+    std__collections__list__List_ptr_compiler__ast__node__AstNode out = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nodes);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nodes, __for_i);
+            std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&out, compiler__sema__decl_pass__DeclPass_clone_expr(self, n, subst));
+            __for_i = (__for_i + 1);
+        }
+    }
+    return out;
+}
+
+std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__decl_pass__DeclPass_clone_type_args(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode nodes, compiler__sema__monomorphize__GenSubst* subst) {
+    std__collections__list__List_ptr_compiler__ast__node__AstNode out = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nodes);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nodes, __for_i);
+            std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&out, compiler__sema__decl_pass__DeclPass_clone_type(self, n, subst));
+            __for_i = (__for_i + 1);
+        }
+    }
+    return out;
+}
+
+std__collections__list__List_compiler__ast__expr__WhenArm compiler__sema__decl_pass__DeclPass_clone_when_arms(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
+    compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(node);
+    std__collections__list__List_compiler__ast__expr__WhenArm arms = std__collections__list__List_compiler__ast__expr__WhenArm_new(4);
+    {
+        size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+            std__collections__list__List_ptr_compiler__ast__node__AstNode pats = compiler__sema__decl_pass__DeclPass_clone_expr_list(self, arm.patterns, subst);
+            compiler__ast__node__AstNode* arm_body = (((*arm.body).kind == 19) ? compiler__sema__decl_pass__DeclPass_clone_stmt(self, arm.body, subst) : compiler__sema__decl_pass__DeclPass_clone_expr(self, arm.body, subst));
+            std__collections__list__List_compiler__ast__expr__WhenArm_add(&arms, (compiler__ast__expr__WhenArm){ pats, arm.is_else, arm_body, arm.line, arm.col });
+            __for_i = (__for_i + 1);
+        }
+    }
+    return arms;
+}
+
+std__collections__list__List_compiler__ast__expr__InterpPart compiler__sema__decl_pass__DeclPass_clone_interp_parts(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
+    compiler__ast__expr__InterpExpr* ie = compiler__ast__node__to_compiler__ast__expr__InterpExpr(node);
+    std__collections__list__List_compiler__ast__expr__InterpPart parts = std__collections__list__List_compiler__ast__expr__InterpPart_new(4);
+    {
+        size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&ie->parts);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&ie->parts, __for_i);
+            std__collections__list__List_compiler__ast__expr__InterpPart_add(&parts, (compiler__ast__expr__InterpPart){ compiler__sema__decl_pass__DeclPass_clone_expr(self, part.expr, subst), part.is_literal });
+            __for_i = (__for_i + 1);
+        }
+    }
+    return parts;
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
