@@ -2603,6 +2603,7 @@ bool char_is_hex_digit(char self);
 char char_to_lower(char self);
 char char_to_upper(char self);
 compiler__lexer__token__TokenType compiler__lexer__lexer__lookup_keyword(const char* text);
+compiler__lexer__lexer__Lexer compiler__lexer__lexer__Lexer_new(const char* src);
 bool compiler__lexer__lexer__Lexer_is_end(compiler__lexer__lexer__Lexer* self);
 char compiler__lexer__lexer__Lexer_peek(compiler__lexer__lexer__Lexer* self);
 char compiler__lexer__lexer__Lexer_peek_at(compiler__lexer__lexer__Lexer* self, size_t offset);
@@ -13544,7 +13545,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
 }
 
 bool compiler__sema__desugar_for__for_is_lvalue(compiler__ast__node__AstNode* node) {
-    return (node->kind == 5 ? true : (node->kind == 9 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__MemberExpr(node)).object) : (node->kind == 14 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node)).expr) : false)));
+    return (node->kind == 9 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__MemberExpr(node)).object) : (node->kind == 14 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node)).expr) : (node->kind == 5 ? true : false)));
 }
 
 compiler__ast__node__AstNode* std__mem__arena__Arena_for_usz_type(std__mem__arena__Arena* self, size_t line, size_t col) {
@@ -17792,6 +17793,16 @@ compiler__lexer__token__TokenType compiler__lexer__lexer__lookup_keyword(const c
     return (strcmp(text, "extern") == 0 ? 42 : (strcmp(text, "struct") == 0 ? 43 : (strcmp(text, "enum") == 0 ? 44 : (strcmp(text, "fn") == 0 ? 45 : (strcmp(text, "return") == 0 ? 46 : (strcmp(text, "const") == 0 ? 47 : (strcmp(text, "null") == 0 ? 48 : (strcmp(text, "true") == 0 ? 49 : (strcmp(text, "false") == 0 ? 50 : (strcmp(text, "val") == 0 ? 51 : (strcmp(text, "var") == 0 ? 52 : (strcmp(text, "as") == 0 ? 53 : (strcmp(text, "while") == 0 ? 54 : (strcmp(text, "break") == 0 ? 55 : (strcmp(text, "continue") == 0 ? 56 : (strcmp(text, "if") == 0 ? 57 : (strcmp(text, "else") == 0 ? 58 : (strcmp(text, "when") == 0 ? 59 : (strcmp(text, "mod") == 0 ? 60 : (strcmp(text, "use") == 0 ? 61 : (strcmp(text, "pub") == 0 ? 62 : (strcmp(text, "trait") == 0 ? 63 : (strcmp(text, "impl") == 0 ? 64 : (strcmp(text, "for") == 0 ? 65 : (strcmp(text, "in") == 0 ? 66 : (strcmp(text, "yield") == 0 ? 67 : (strcmp(text, "is") == 0 ? 70 : 41)))))))))))))))))))))))))));
 }
 
+compiler__lexer__lexer__Lexer compiler__lexer__lexer__Lexer_new(const char* src) {
+    const char* s = src;
+    if (kobel_slen(s) >= 3) {
+        if (((((uint8_t)s[0]) == ((uint8_t)239)) && (((uint8_t)s[1]) == ((uint8_t)187))) && (((uint8_t)s[2]) == ((uint8_t)191))) {
+            s = kobel_slice(s, 3, kobel_slen(s));
+        }
+    }
+    return (compiler__lexer__lexer__Lexer){ s, 0, 1, 1 };
+}
+
 bool compiler__lexer__lexer__Lexer_is_end(compiler__lexer__lexer__Lexer* self) {
     return (self->cursor >= kobel_slen(self->src));
 }
@@ -19192,7 +19203,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_interp_stri
                 return compiler__parser__parser__Parser_literal(self, 4, text, line, col);
             }
             const char* src = kobel_slice(text, h_start, h_end);
-            compiler__lexer__lexer__Lexer sub_lexer = (compiler__lexer__lexer__Lexer){ src, 0, 1, 1 };
+            compiler__lexer__lexer__Lexer sub_lexer = compiler__lexer__lexer__Lexer_new(src);
             std__collections__list__List_compiler__lexer__token__Token sub_tokens = compiler__lexer__lexer__Lexer_tokenize(&sub_lexer);
             compiler__parser__parser__Parser sub = compiler__parser__parser__Parser_new(sub_tokens);
             compiler__ast__node__AstNode* hole = compiler__parser__parser__Parser_parse_expression(&sub, compiler__parser__expr__PREC_NONE);
@@ -19775,7 +19786,7 @@ size_t compiler__loader__loader__ModuleLoader_count(compiler__loader__loader__Mo
 }
 
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_parse_source(compiler__loader__loader__ModuleLoader* self, const char* path, const char* source) {
-    compiler__lexer__lexer__Lexer lexer = (compiler__lexer__lexer__Lexer){ source, 0, 1, 1 };
+    compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lexer);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
     compiler__ast__node__AstNode* prog = compiler__parser__parser__Parser_parse_program(&parser);
@@ -21816,7 +21827,7 @@ void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, c
 const char* fmt__formatter__format_source(const char* src, fmt__options__FormatOptions options) {
     std__collections__list__List_fmt__comments__Comment comments = fmt__comments__extract_comments(src);
     fmt__comments__CommentTable comment_table = (fmt__comments__CommentTable){ comments, 0 };
-    compiler__lexer__lexer__Lexer lex = (compiler__lexer__lexer__Lexer){ src, 0, 1, 1 };
+    compiler__lexer__lexer__Lexer lex = compiler__lexer__lexer__Lexer_new(src);
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lex);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
     compiler__ast__node__AstNode* program = compiler__parser__parser__Parser_parse_program(&parser);
@@ -22883,7 +22894,7 @@ void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, const char* l
 
 lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path, const char* source, const char* workspace_root) {
     std__collections__list__List_lsp__analysis__LspDiagnostic diagnostics = std__collections__list__List_lsp__analysis__LspDiagnostic_new(4);
-    compiler__lexer__lexer__Lexer lexer = (compiler__lexer__lexer__Lexer){ source, 0, 1, 1 };
+    compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lexer);
     {
         size_t __for_n = std__collections__list__List_compiler__lexer__token__Token_count(&tokens);
@@ -23107,7 +23118,7 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_complete_at(lsp__analysis__A
 }
 
 lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
-    compiler__lexer__lexer__Lexer lexer = (compiler__lexer__lexer__Lexer){ source, 0, 1, 1 };
+    compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lexer);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
     compiler__ast__node__AstNode* prog_node = compiler__parser__parser__Parser_parse_program(&parser);
