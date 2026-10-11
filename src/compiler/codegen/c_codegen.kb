@@ -637,70 +637,292 @@ impl CCodeGen {
 		if (node == null) return "";
 
 		return when (node) {
-			is BlockStmt as blk -> {
-				val ind = get_indent(self.indent_level);
-				var res = ind + "{\n";
-				self.indent_level++;
-				for (stmt in blk.statements) {
-					res += self.gen_statement(stmt);
+			is BlockStmt as blk -> { yield self.gen_block_stmt(blk); }
+
+			is VarDeclStmt as vd -> { yield self.gen_var_decl_stmt(vd); }
+
+			is IfStmt as ifs -> { yield self.gen_if_stmt(ifs); }
+
+			is WhileStmt as wh -> { yield self.gen_while_stmt(wh); }
+
+			is ReturnStmt as ret -> { yield self.gen_return_stmt(ret); }
+
+			is ExprStmt as es -> { yield self.gen_expr_stmt(es); }
+
+			is BreakStmt -> "${get_indent(self.indent_level)}break;\n";
+
+			is ContinueStmt -> "${get_indent(self.indent_level)}continue;\n";
+
+			is YieldStmt as ys -> { yield self.gen_yield_stmt(ys); }
+
+			is WhenStmt as ws -> { yield self.gen_when_stmt(ws); }
+
+			else -> "";
+		};
+	}
+
+	fn gen_block_stmt(var self, blk: *BlockStmt): str {
+		val ind = get_indent(self.indent_level);
+		var res = ind + "{\n";
+		self.indent_level++;
+		for (stmt in blk.statements) {
+			res += self.gen_statement(stmt);
+		}
+		self.indent_level--;
+		return res + ind + "}\n";
+	}
+
+	fn gen_var_decl_stmt(var self, vd: *VarDeclStmt): str {
+		val ind = get_indent(self.indent_level);
+		var ty_str = "int32_t";
+		var is_ptr = false;
+
+		var elem_hint = "";
+		val t_ann = vd.type_annotation;
+		if (t_ann != null) {
+			ty_str = c_type_from_ast(t_ann);
+			if (
+				t_ann.kind == NodeKind.TYPE_POINTER ||
+				t_ann.kind == NodeKind.TYPE_NULLABLE
+			) is_ptr = true;
+
+			// `[T; N]` is emitted as a pointer, and its literal needs the
+			// element type spelled out.
+			if (t_ann is ArrayType as arr_ast) {
+				is_ptr = true;
+				elem_hint = c_type_from_ast(arr_ast.element_type);
+			}
+		} else if (vd.initializer != null) {
+			val init_e = vd.initializer;
+			ty_str = self.infer_type_from_expr(init_e);
+			if (init_e is CastExpr as cst) {
+				val cst_ty = cst.target_type;
+				if (
+					cst_ty != null && (
+						cst_ty.kind == NodeKind.TYPE_POINTER ||
+						cst_ty.kind == NodeKind.TYPE_NULLABLE
+					)
+				) is_ptr = true;
+			}
+			if (ty_str.ends_with("*")) is_ptr = true;
+		}
+
+		if (is_ptr) self.pointer_vars.add(vd.name);
+		if (ty_str == "const char*") self.str_vars.add(vd.name);
+
+		var init_e = vd.initializer;
+		while (init_e != null) {
+			if (init_e is GroupExpr as g) init_e = g.expr;
+			else break;
+		}
+		if (init_e is WhenExpr as we) {
+			if (we.has_blocks()) {
+				var res = "${ind}${ty_str} ${vd.name};\n";
+				res = "${res}${self.gen_when_with_target(we, vd.name, false)}";
+				return res;
+			}
+		}
+		if (init_e is BinaryExpr as bin) {
+			if (bin.op == TokenType.QUESTION_COLON) {
+				var cur = init_e;
+				var first = true;
+				var res = "";
+				while (cur != null) {
+					while (cur != null) {
+						if (cur is GroupExpr as g) cur = g.expr;
+						else break;
+					}
+					if (cur == null) break;
+					if (cur is BinaryExpr as b) {
+						if (b.op == TokenType.QUESTION_COLON) {
+							if (first) {
+								res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
+								first = false;
+							} else {
+								res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
+							}
+							cur = b.right;
+						} else {
+							res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+							break;
+						}
+					} else {
+						val is_jump = cur.kind == NodeKind.STMT_RETURN ||
+							cur.kind == NodeKind.STMT_BREAK ||
+							cur.kind == NodeKind.STMT_CONTINUE;
+						if (is_jump) {
+							res = "${res}${ind}if (${vd.name} == NULL) {\n";
+							self.indent_level++;
+							res = "${res}${self.gen_statement(cur)}";
+							self.indent_level--;
+							res = "${res}${ind}}\n";
+						} else {
+							res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+						}
+						break;
+					}
 				}
+				return res;
+			}
+		}
+
+		var res = "${ind}${ty_str} ${vd.name}";
+		if (vd.initializer != null) {
+			val saved_hint = self.array_elem_hint;
+			self.array_elem_hint = elem_hint;
+			res = "${res} = ${self.gen_expr(vd.initializer)}";
+			self.array_elem_hint = saved_hint;
+		}
+
+		return "${res};\n";
+	}
+
+	fn gen_if_stmt(var self, ifs: *IfStmt): str {
+		var cond = ifs.condition;
+		while (cond != null) {
+			if (cond is GroupExpr as g) cond = g.expr;
+			else break;
+		}
+
+		var cast_decl = "";
+		if (cond is IsExpr as is_e) {
+			val e = is_e.expr;
+			if (e is IdentifierExpr as id) {
+				val var_name = id.name;
+				cast_decl = self.gen_smart_cast_decl(is_e, var_name, self.indent_level + 1);
+			}
+		}
+
+		val ind = get_indent(self.indent_level);
+		var res = "${ind}if ${self.gen_cond(ifs.condition)} {\n";
+		self.indent_level++;
+		if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
+		res = "${res}${self.gen_block_body(ifs.then_branch)}";
+		self.indent_level--;
+
+		var cur_else = ifs.else_branch;
+		while (cur_else != null) {
+			if (cur_else is IfStmt as elif) {
+				var elif_cond = elif.condition;
+				while (elif_cond != null) {
+					if (elif_cond is GroupExpr as g) {
+						elif_cond = g.expr;
+					} else {
+						break;
+					}
+				}
+				var elif_cast = "";
+				if (elif_cond is IsExpr as elif_is_e) {
+					val e = elif_is_e.expr;
+					if (e is IdentifierExpr as id) {
+						elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
+					}
+				}
+
+				res = "${res}${ind}} else if ${self.gen_cond(elif.condition)} {\n";
+				self.indent_level++;
+				if (!elif_cast.empty()) res += get_indent(self.indent_level) + elif_cast + "\n";
+				res = "${res}${self.gen_block_body(elif.then_branch)}";
 				self.indent_level--;
-				yield res + ind + "}\n";
+
+				cur_else = elif.else_branch;
+			} else break;
+		}
+
+		if (cur_else != null) {
+			res = "${res}${ind}} else {\n";
+			self.indent_level++;
+			res = "${res}${self.gen_block_body(cur_else)}";
+			self.indent_level--;
+		}
+		return "${res}${ind}}\n";
+	}
+
+	fn gen_while_stmt(var self, wh: *WhileStmt): str {
+		val ind = get_indent(self.indent_level);
+		var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
+		self.indent_level++;
+		res = "${res}${self.gen_block_body(wh.body)}";
+		self.indent_level--;
+		return "${res}${ind}}\n";
+	}
+
+	fn gen_return_stmt(var self, ret: *ReturnStmt): str {
+		val ind = get_indent(self.indent_level);
+
+		val ret_val = ret.value;
+		if (ret_val != null) {
+			if (ret_val is WhenExpr as we) {
+				if (we.has_blocks()) {
+					return self.gen_when_with_target(we, "", true);
+				}
 			}
 
-			is VarDeclStmt as vd -> {
-				val ind = get_indent(self.indent_level);
-				var ty_str = "int32_t";
-				var is_ptr = false;
-
-				var elem_hint = "";
-				val t_ann = vd.type_annotation;
-				if (t_ann != null) {
-					ty_str = c_type_from_ast(t_ann);
-					if (
-						t_ann.kind == NodeKind.TYPE_POINTER ||
-						t_ann.kind == NodeKind.TYPE_NULLABLE
-					) is_ptr = true;
-
-					// `[T; N]` is emitted as a pointer, and its literal needs the
-					// element type spelled out.
-					if (t_ann is ArrayType as arr_ast) {
-						is_ptr = true;
-						elem_hint = c_type_from_ast(arr_ast.element_type);
+			var ret_candidate = ret_val;
+			while (ret_candidate != null) {
+				if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
+				else break;
+			}
+			if (ret_candidate is BinaryExpr as bin) {
+				if (bin.op == TokenType.QUESTION_COLON) {
+					var ret_ty = self.current_fn_ret_type;
+					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+					var cur = ret_candidate;
+					var res = "${ind}{\n";
+					self.indent_level++;
+					val inner_ind = get_indent(self.indent_level);
+					res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+					while (cur != null) {
+						while (cur != null) {
+							if (cur is GroupExpr as g) cur = g.expr;
+							else break;
+						}
+						if (cur == null) break;
+						if (cur is BinaryExpr as b) {
+							if (b.op == TokenType.QUESTION_COLON) {
+								res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
+								res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
+								cur = b.right;
+							} else {
+								res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+								break;
+							}
+						} else {
+							res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+							break;
+						}
 					}
-				} else if (vd.initializer != null) {
-					val init_e = vd.initializer;
-					ty_str = self.infer_type_from_expr(init_e);
-					if (init_e is CastExpr as cst) {
-						val cst_ty = cst.target_type;
-						if (
-							cst_ty != null && (
-								cst_ty.kind == NodeKind.TYPE_POINTER ||
-								cst_ty.kind == NodeKind.TYPE_NULLABLE
-							)
-						) is_ptr = true;
-					}
-					if (ty_str.ends_with("*")) is_ptr = true;
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+					return res;
 				}
+			}
 
-				if (is_ptr) self.pointer_vars.add(vd.name);
-				if (ty_str == "const char*") self.str_vars.add(vd.name);
+			return "${ind}return ${self.gen_expr(ret_val)};\n";
+		}
 
-				var init_e = vd.initializer;
-				while (init_e != null) {
-					if (init_e is GroupExpr as g) init_e = g.expr;
+		return "${ind}return;\n";
+	}
+
+	fn gen_expr_stmt(var self, es: *ExprStmt): str {
+		val ind = get_indent(self.indent_level);
+		val e = es.expr;
+		if (e != null) {
+			var asg_candidate = e;
+			while (asg_candidate != null) {
+				if (asg_candidate is GroupExpr as g) asg_candidate = g.expr;
+				else break;
+			}
+			if (asg_candidate is AssignExpr as asg) {
+				var asg_val = asg.value;
+				while (asg_val != null) {
+					if (asg_val is GroupExpr as g) asg_val = g.expr;
 					else break;
 				}
-				if (init_e is WhenExpr as we) {
-					if (we.has_blocks()) {
-						var res = "${ind}${ty_str} ${vd.name};\n";
-						res = "${res}${self.gen_when_with_target(we, vd.name, false)}";
-						yield res;
-					}
-				}
-				if (init_e is BinaryExpr as bin) {
+				if (asg_val is BinaryExpr as bin) {
 					if (bin.op == TokenType.QUESTION_COLON) {
-						var cur = init_e;
+						val tgt = self.gen_expr(asg.target);
+						var cur = asg_val;
 						var first = true;
 						var res = "";
 						while (cur != null) {
@@ -712,14 +934,14 @@ impl CCodeGen {
 							if (cur is BinaryExpr as b) {
 								if (b.op == TokenType.QUESTION_COLON) {
 									if (first) {
-										res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
+										res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
 										first = false;
 									} else {
-										res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
+										res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
 									}
 									cur = b.right;
 								} else {
-									res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+									res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
 									break;
 								}
 							} else {
@@ -727,303 +949,96 @@ impl CCodeGen {
 									cur.kind == NodeKind.STMT_BREAK ||
 									cur.kind == NodeKind.STMT_CONTINUE;
 								if (is_jump) {
-									res = "${res}${ind}if (${vd.name} == NULL) {\n";
+									res = "${res}${ind}if (${tgt} == NULL) {\n";
 									self.indent_level++;
 									res = "${res}${self.gen_statement(cur)}";
 									self.indent_level--;
 									res = "${res}${ind}}\n";
 								} else {
-									res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+									res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
 								}
 								break;
 							}
 						}
-						yield res;
+						return res;
 					}
 				}
-
-				var res = "${ind}${ty_str} ${vd.name}";
-				if (vd.initializer != null) {
-					val saved_hint = self.array_elem_hint;
-					self.array_elem_hint = elem_hint;
-					res = "${res} = ${self.gen_expr(vd.initializer)}";
-					self.array_elem_hint = saved_hint;
-				}
-
-				yield "${res};\n";
 			}
 
-			is IfStmt as ifs -> {
-				var cond = ifs.condition;
-				while (cond != null) {
-					if (cond is GroupExpr as g) cond = g.expr;
-					else break;
-				}
+			var bin_candidate = e;
+			while (bin_candidate != null) {
+				if (bin_candidate is GroupExpr as g) bin_candidate = g.expr;
+				else break;
+			}
+			if (bin_candidate is BinaryExpr as bin) {
+				if (bin.op == TokenType.QUESTION_COLON) {
+					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+						bin.right.kind == NodeKind.STMT_BREAK ||
+						bin.right.kind == NodeKind.STMT_CONTINUE;
 
-				var cast_decl = "";
-				if (cond is IsExpr as is_e) {
-					val e = is_e.expr;
-					if (e is IdentifierExpr as id) {
-						val var_name = id.name;
-						cast_decl = self.gen_smart_cast_decl(is_e, var_name, self.indent_level + 1);
-					}
-				}
-
-				val ind = get_indent(self.indent_level);
-				var res = "${ind}if ${self.gen_cond(ifs.condition)} {\n";
-				self.indent_level++;
-				if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
-				res = "${res}${self.gen_block_body(ifs.then_branch)}";
-				self.indent_level--;
-
-				var cur_else = ifs.else_branch;
-				while (cur_else != null) {
-					if (cur_else is IfStmt as elif) {
-						var elif_cond = elif.condition;
-						while (elif_cond != null) {
-							if (elif_cond is GroupExpr as g) {
-								elif_cond = g.expr;
-							} else {
-								break;
-							}
-						}
-						var elif_cast = "";
-						if (elif_cond is IsExpr as elif_is_e) {
-							val e = elif_is_e.expr;
-							if (e is IdentifierExpr as id) {
-								elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
-							}
-						}
-
-						res = "${res}${ind}} else if ${self.gen_cond(elif.condition)} {\n";
+					if (is_jump) {
+						var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
 						self.indent_level++;
-						if (!elif_cast.empty()) res += get_indent(self.indent_level) + elif_cast + "\n";
-						res = "${res}${self.gen_block_body(elif.then_branch)}";
+						res = "${res}${self.gen_statement(bin.right)}";
 						self.indent_level--;
-
-						cur_else = elif.else_branch;
-					} else break;
+						res = "${res}${ind}}\n";
+						return res;
+					}
 				}
-
-				if (cur_else != null) {
-					res = "${res}${ind}} else {\n";
-					self.indent_level++;
-					res = "${res}${self.gen_block_body(cur_else)}";
-					self.indent_level--;
-				}
-				yield "${res}${ind}}\n";
 			}
-
-			is WhileStmt as wh -> {
-				val ind = get_indent(self.indent_level);
-				var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
-				self.indent_level++;
-				res = "${res}${self.gen_block_body(wh.body)}";
-				self.indent_level--;
-				yield "${res}${ind}}\n";
-			}
-
-			is ReturnStmt as ret -> {
-				val ind = get_indent(self.indent_level);
-
-				val ret_val = ret.value;
-				if (ret_val != null) {
-					if (ret_val is WhenExpr as we) {
-						if (we.has_blocks()) {
-							yield self.gen_when_with_target(we, "", true);
-						}
-					}
-
-					var ret_candidate = ret_val;
-					while (ret_candidate != null) {
-						if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
-						else break;
-					}
-					if (ret_candidate is BinaryExpr as bin) {
-						if (bin.op == TokenType.QUESTION_COLON) {
-							var ret_ty = self.current_fn_ret_type;
-							if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
-							var cur = ret_candidate;
-							var res = "${ind}{\n";
-							self.indent_level++;
-							val inner_ind = get_indent(self.indent_level);
-							res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
-							while (cur != null) {
-								while (cur != null) {
-									if (cur is GroupExpr as g) cur = g.expr;
-									else break;
-								}
-								if (cur == null) break;
-								if (cur is BinaryExpr as b) {
-									if (b.op == TokenType.QUESTION_COLON) {
-										res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
-										res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
-										cur = b.right;
-									} else {
-										res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
-										break;
-									}
-								} else {
-									res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
-									break;
-								}
-							}
-							self.indent_level--;
-							res = "${res}${ind}}\n";
-							yield res;
-						}
-					}
-
-					yield "${ind}return ${self.gen_expr(ret_val)};\n";
-				}
-
-				yield "${ind}return;\n";
-			}
-
-			is ExprStmt as es -> {
-				val ind = get_indent(self.indent_level);
-				val e = es.expr;
-				if (e != null) {
-					var asg_candidate = e;
-					while (asg_candidate != null) {
-						if (asg_candidate is GroupExpr as g) asg_candidate = g.expr;
-						else break;
-					}
-					if (asg_candidate is AssignExpr as asg) {
-						var asg_val = asg.value;
-						while (asg_val != null) {
-							if (asg_val is GroupExpr as g) asg_val = g.expr;
-							else break;
-						}
-						if (asg_val is BinaryExpr as bin) {
-							if (bin.op == TokenType.QUESTION_COLON) {
-								val tgt = self.gen_expr(asg.target);
-								var cur = asg_val;
-								var first = true;
-								var res = "";
-								while (cur != null) {
-									while (cur != null) {
-										if (cur is GroupExpr as g) cur = g.expr;
-										else break;
-									}
-									if (cur == null) break;
-									if (cur is BinaryExpr as b) {
-										if (b.op == TokenType.QUESTION_COLON) {
-											if (first) {
-												res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
-												first = false;
-											} else {
-												res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
-											}
-											cur = b.right;
-										} else {
-											res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
-											break;
-										}
-									} else {
-										val is_jump = cur.kind == NodeKind.STMT_RETURN ||
-											cur.kind == NodeKind.STMT_BREAK ||
-											cur.kind == NodeKind.STMT_CONTINUE;
-										if (is_jump) {
-											res = "${res}${ind}if (${tgt} == NULL) {\n";
-											self.indent_level++;
-											res = "${res}${self.gen_statement(cur)}";
-											self.indent_level--;
-											res = "${res}${ind}}\n";
-										} else {
-											res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
-										}
-										break;
-									}
-								}
-								yield res;
-							}
-						}
-					}
-
-					var bin_candidate = e;
-					while (bin_candidate != null) {
-						if (bin_candidate is GroupExpr as g) bin_candidate = g.expr;
-						else break;
-					}
-					if (bin_candidate is BinaryExpr as bin) {
-						if (bin.op == TokenType.QUESTION_COLON) {
-							val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-								bin.right.kind == NodeKind.STMT_BREAK ||
-								bin.right.kind == NodeKind.STMT_CONTINUE;
-
-							if (is_jump) {
-								var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
-								self.indent_level++;
-								res = "${res}${self.gen_statement(bin.right)}";
-								self.indent_level--;
-								res = "${res}${ind}}\n";
-								yield res;
-							}
-						}
-					}
-				}
-				yield "${ind}${self.gen_expr(es.expr)};\n";
-			}
-
-			is BreakStmt -> "${get_indent(self.indent_level)}break;\n";
-
-			is ContinueStmt -> "${get_indent(self.indent_level)}continue;\n";
-
-			is YieldStmt as ys -> {
-				val ind = get_indent(self.indent_level);
-				if (self.is_yield_return) {
-					if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value)};\n";
-					yield "${ind}return;\n";
-				}
-				if (!self.yield_target.empty()) {
-					if (ys.value != null) yield "${ind}${self.yield_target} = ${self.gen_expr(ys.value)};\n";
-					yield "";
-				}
-				if (ys.value != null) yield "${ind}${self.gen_expr(ys.value)};\n";
-				yield "";
-			}
-
-			is WhenStmt as ws -> {
-				var cond = "";
-				if (ws.condition != null) cond = self.gen_expr(ws.condition);
-				val ind = get_indent(self.indent_level);
-				var res = "";
-				var first = true;
-				for (arm in ws.arms) {
-					var cast_decl = "";
-					val ws_cond = ws.condition;
-					if (ws_cond is IdentifierExpr as id) {
-						if (arm.patterns.len == 1) {
-							val pat = arm.patterns.first();
-							if (pat is IsExpr as is_e) {
-								cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
-							}
-						}
-					}
-
-					if (arm.is_else) {
-						if (first) res += ind + "{\n";
-						else res += ind + "} else {\n";
-					} else {
-						val test = self.gen_when_test(cond, arm.patterns);
-						if (first) res += ind + "if (" + test + ") {\n";
-						else res += ind + "} else if (" + test + ") {\n";
-					}
-					self.indent_level++;
-					if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
-					res += self.gen_block_body(arm.body);
-					self.indent_level--;
-					first = false;
-				}
-				if (!first) res += ind + "}\n";
-				yield res;
-			}
-
-			else -> "";
-		};
+		}
+		return "${ind}${self.gen_expr(es.expr)};\n";
 	}
 
+	fn gen_yield_stmt(var self, ys: *YieldStmt): str {
+		val ind = get_indent(self.indent_level);
+		if (self.is_yield_return) {
+			if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value)};\n";
+			return "${ind}return;\n";
+		}
+		if (!self.yield_target.empty()) {
+			if (ys.value != null) return "${ind}${self.yield_target} = ${self.gen_expr(ys.value)};\n";
+			return "";
+		}
+		if (ys.value != null) return "${ind}${self.gen_expr(ys.value)};\n";
+		return "";
+	}
+
+	fn gen_when_stmt(var self, ws: *WhenStmt): str {
+		var cond = "";
+		if (ws.condition != null) cond = self.gen_expr(ws.condition);
+		val ind = get_indent(self.indent_level);
+		var res = "";
+		var first = true;
+		for (arm in ws.arms) {
+			var cast_decl = "";
+			val ws_cond = ws.condition;
+			if (ws_cond is IdentifierExpr as id) {
+				if (arm.patterns.len == 1) {
+					val pat = arm.patterns.first();
+					if (pat is IsExpr as is_e) {
+						cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+					}
+				}
+			}
+
+			if (arm.is_else) {
+				if (first) res += ind + "{\n";
+				else res += ind + "} else {\n";
+			} else {
+				val test = self.gen_when_test(cond, arm.patterns);
+				if (first) res += ind + "if (" + test + ") {\n";
+				else res += ind + "} else if (" + test + ") {\n";
+			}
+			self.indent_level++;
+			if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
+			res += self.gen_block_body(arm.body);
+			self.indent_level--;
+			first = false;
+		}
+		if (!first) res += ind + "}\n";
+		return res;
+	}
 	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, var_name: str, ind_level: usz): str {
 		val target_name = c_type_from_ast(is_e.target_type);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
