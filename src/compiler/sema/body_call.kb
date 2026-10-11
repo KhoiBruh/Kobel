@@ -33,74 +33,21 @@ impl BodyPass {
 
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 		val callee = call.callee;
-		if (callee != null) {
-			if (callee is MemberExpr as mem) {
-				if (mem.member == "size") {
-					// Mangle the type name so the backend emits sizeof(<c_name>).
-					val obj = mem.object;
-					if (obj != null) {
-						if (obj is IdentifierExpr as id) {
-							// A primitive type name has no C type of its own (`str`,
-							// `bool`, ...), so fold `.size()` to its C size literal.
-							val csize = prim_c_size(id.name);
-							if (csize > 0) {
-								val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
-								val lit_n = node as &AstNode;
-								lit_n.kind = lit.kind;
-								lit_n.data = lit.data;
-								return alloc_primitive(&self.arena, type_usz());
-							}
+		if (callee is MemberExpr as mem) {
+			if (mem.member == "size") return self.lower_size_query(node, mem);
+			if (mem.member == "slice") return self.lower_slice_call(node, mem, call);
 
-							val tsym = self.symtab.lookup(id.name);
-							if (tsym != null && tsym.c_name != id.name) {
-								val id_ref = id as &IdentifierExpr;
-								id_ref.name = tsym.c_name;
-							}
-						}
-					}
-					return alloc_primitive(&self.arena, type_usz());
-				}
-
-				if (mem.member == "slice") {
-					val slice_recv = self.check_expr(mem.object);
-					if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
-					for (arg in call.args) {
-						val at = self.check_expr(arg);
-						if (!at.is_integer()) self.report_error(node, "slice() bounds must be integers");
-					}
-					// Lower to kobel_slice(receiver, start, end); end defaults to length.
-					var sargs = List<*AstNode>();
-					sargs.add(mem.object);
-					if (!call.args.empty()) sargs.add(call.args.first());
-					else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
-					if (call.args.len >= 2) {
-						sargs.add(call.args[1]);
-					} else {
-						var largs = List<*AstNode>();
-						largs.add(mem.object);
-						sargs.add(self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
-					}
-					val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
-					val sl_n = node as &AstNode;
-					sl_n.kind = NodeKind.EXPR_CALL;
-					sl_n.data = sl_call.data;
-					return alloc_primitive(&self.arena, type_str());
-				}
-
-				// Instance method call or primitive method call
-				val m_ty = self.check_method_call(node, mem, call);
-				if (m_ty != null) return m_ty;
-			}
+			// Instance method call or primitive method call
+			val m_ty = self.check_method_call(node, mem, call);
+			if (m_ty != null) return m_ty;
 		}
 
 		// `Self(...)` builds the value directly, so it never consults a
 		// `new` factory (that is what keeps `fn new() => Self(...)` from
 		// calling itself again).
 		var callee_is_self = false;
-		if (callee != null) {
-			if (callee is IdentifierExpr as id) {
-				callee_is_self = (id.name == "Self");
-			}
+		if (callee is IdentifierExpr as id) {
+			callee_is_self = (id.name == "Self");
 		}
 
 		val callee_ty = self.check_expr(call.callee);
@@ -113,6 +60,58 @@ impl BodyPass {
 
 		self.report_error(node, "Callee is not a function or struct");
 		return alloc_primitive(&self.arena, type_none());
+	}
+
+	// `T.size()`. A primitive type name has no C type of its own (`str`, `bool`,
+	// ...), so fold it to its C size literal; otherwise mangle the name so the
+	// backend emits `sizeof(<c_name>)`.
+	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
+		val obj = mem.object;
+		if (obj is IdentifierExpr as id) {
+			val csize = prim_c_size(id.name);
+			if (csize > 0) {
+				val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
+				val lit_n = node as &AstNode;
+				lit_n.kind = lit.kind;
+				lit_n.data = lit.data;
+				return alloc_primitive(&self.arena, type_usz());
+			}
+
+			val tsym = self.symtab.lookup(id.name);
+			if (tsym != null && tsym.c_name != id.name) {
+				val id_ref = id as &IdentifierExpr;
+				id_ref.name = tsym.c_name;
+			}
+		}
+		return alloc_primitive(&self.arena, type_usz());
+	}
+
+	// `s.slice(a, b)` lowers to `kobel_slice(s, a, b)`. Both bounds are optional:
+	// `a` defaults to 0 and `b` to `kobel_slen(s)`.
+	fn lower_slice_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+		val slice_recv = self.check_expr(mem.object);
+		if (slice_recv.kind != DataType.STR) self.report_error(node, "slice() requires a str receiver");
+		for (arg in call.args) {
+			val at = self.check_expr(arg);
+			if (!at.is_integer()) self.report_error(node, "slice() bounds must be integers");
+		}
+
+		var sargs = List<*AstNode>();
+		sargs.add(mem.object);
+		if (!call.args.empty()) sargs.add(call.args.first());
+		else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
+		if (call.args.len >= 2) {
+			sargs.add(call.args[1]);
+		} else {
+			var largs = List<*AstNode>();
+			largs.add(mem.object);
+			sargs.add(self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
+		}
+		val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
+		val sl_n = node as &AstNode;
+		sl_n.kind = NodeKind.EXPR_CALL;
+		sl_n.data = sl_call.data;
+		return alloc_primitive(&self.arena, type_str());
 	}
 
 	// A method may be called with fewer arguments than it declares when the
@@ -248,14 +247,9 @@ impl BodyPass {
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
 		val fn_info = callee_ty.as_fn();
 		val callee = call.callee;
-		if (callee != null) {
-			if (callee is IdentifierExpr as id) {
-				val sym = self.symtab.lookup(id.name);
-				if (sym != null && sym.ast_node != null) {
-					val ast_n = sym.ast_node as *AstNode;
-					if (ast_n != null) { self.append_defaults(ast_n, call.args.len, call); }
-				}
-			}
+		if (callee is IdentifierExpr as id) {
+			val sym = self.symtab.lookup(id.name);
+			if (sym != null) { self.append_defaults(sym.ast_node as *AstNode, call.args.len, call); }
 		}
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 		else {
@@ -294,29 +288,10 @@ impl BodyPass {
 			var nm = s_info.find_method_arity("new", call.args.len);
 			if (nm == null) {
 				for (m in s_info.methods) {
-					if (m.name == "new" && m.ast_node != null) {
-						val ast_fn = m.ast_node as *AstNode;
-						if (ast_fn != null) {
-							if (ast_fn is FnDecl as fn_decl) {
-								if (call.args.len < fn_decl.params.len) {
-									var all_default = true;
-									for (i in call.args.len..<fn_decl.params.len) {
-										if (fn_decl.params[i].default_val == null) {
-											all_default = false;
-											break;
-										}
-									}
-									if (all_default) {
-										nm = m;
-										for (i in call.args.len..<fn_decl.params.len) {
-											call.args.add(self.clone_expr(fn_decl.params[i].default_val));
-										}
-										break;
-									}
-								}
-							}
-						}
-					}
+					if (m.name != "new") continue;
+					if (!self.append_defaults(m.ast_node as *AstNode, call.args.len, call)) continue;
+					nm = m;
+					break;
 				}
 			}
 			if (nm != null) {
