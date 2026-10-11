@@ -2494,13 +2494,26 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_member_on_array
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_member_on_struct(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__MemberExpr* mem, compiler__sema__types__Type* obj_ty);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_index_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_check_lvalue_mutability(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* target_node, compiler__ast__node__AstNode* op_node, bool is_update);
+const char* compiler__sema__body_pass__BodyPass_target_word(compiler__sema__body_pass__BodyPass* self, bool is_update);
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_unwrap_group(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+bool compiler__sema__body_pass__BodyPass_is_immutable_self(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj_node);
+void compiler__sema__body_pass__BodyPass_check_ident_assignable(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* op_node, const char* name, compiler__sema__symbol__Symbol* sym, bool is_update);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_index_assign(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__AssignExpr* asgn, compiler__ast__expr__IndexExpr* idx);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_update_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_cast_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_if_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+const char* compiler__sema__body_pass__BodyPass_arm_smart_cast_sym(compiler__sema__body_pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond);
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_resolve_arm_patterns(compiler__sema__body_pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond, compiler__sema__types__Type* cond_ty);
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_arm_pattern(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* pat, compiler__ast__node__AstNode* cond, compiler__sema__types__Type* cond_ty);
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_arm_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* body, const char* sym, compiler__sema__types__Type* smart_cast_ty);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_arm_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* body);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_pattern(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* subject, compiler__sema__types__Type* subj_ty, compiler__ast__node__AstNode* is_node);
+compiler__sema__symbol__Symbol* compiler__sema__body_pass__BodyPass_find_tag_const(compiler__sema__body_pass__BodyPass* self, const char* struct_name);
+const char* compiler__sema__body_pass__BodyPass_tag_field_name_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s);
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_field_type_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name);
+bool compiler__sema__body_pass__BodyPass_struct_has_field(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_array_literal_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_interp_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
@@ -14137,75 +14150,76 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_index_exp
 }
 
 void compiler__sema__body_pass__BodyPass_check_lvalue_mutability(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* target_node, compiler__ast__node__AstNode* op_node, bool is_update) {
-    compiler__ast__node__AstNode* cur = target_node;
-    while ((cur != NULL) && (cur->kind == 14)) {
-        cur = (*compiler__ast__node__to_compiler__ast__expr__GroupExpr(cur)).expr;
-    }
+    compiler__ast__node__AstNode* cur = compiler__sema__body_pass__BodyPass_unwrap_group(self, target_node);
     if (cur == NULL) {
         return;
     }
     if (cur->kind == 5) {
         compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(cur);
-        compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
-        if (sym != NULL) {
-            if (sym->kind == 1) {
-                const char* act = (is_update ? "update" : "assign to");
-                compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " constant '"), id->name), "'"));
-            } else if (sym->kind == 0) {
-                if (!sym->is_mut) {
-                    const char* act = (is_update ? "update" : "assign to");
-                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable variable '"), id->name), "' declared with 'val'"));
-                }
-            } else if (sym->kind == 2) {
-                if (!sym->is_mut) {
-                    const char* act = (is_update ? "update" : "assign to");
-                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable parameter '"), id->name), "'"));
-                }
-            } else {
-                const char* act = (is_update ? "update" : "assign to");
-                compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " '"), id->name), "'"));
-            }
-        }
+        compiler__sema__body_pass__BodyPass_check_ident_assignable(self, op_node, id->name, compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name), is_update);
     } else if (cur->kind == 9) {
         compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(cur);
-        compiler__ast__node__AstNode* obj = mem->object;
-        while ((obj != NULL) && (obj->kind == 14)) {
-            obj = (*compiler__ast__node__to_compiler__ast__expr__GroupExpr(obj)).expr;
-        }
-        if ((obj != NULL) && (obj->kind == 5)) {
-            compiler__ast__expr__IdentifierExpr* obj_id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(obj);
-            if (kobel_streq(obj_id->name, "self")) {
-                compiler__sema__symbol__Symbol* self_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, "self");
-                if ((self_sym != NULL) && !self_sym->is_mut) {
-                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot mutate field '", mem->member), "' on immutable receiver 'self' in 'val self' method"));
-                }
-            }
+        if (compiler__sema__body_pass__BodyPass_is_immutable_self(self, mem->object)) {
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot mutate field '", mem->member), "' on immutable receiver 'self' in 'val self' method"));
         }
     } else if (cur->kind == 10) {
         compiler__ast__expr__IndexExpr* idx = compiler__ast__node__to_compiler__ast__expr__IndexExpr(cur);
-        compiler__ast__node__AstNode* obj = idx->target;
-        while ((obj != NULL) && (obj->kind == 14)) {
-            obj = (*compiler__ast__node__to_compiler__ast__expr__GroupExpr(obj)).expr;
-        }
-        if ((obj != NULL) && (obj->kind == 5)) {
-            compiler__ast__expr__IdentifierExpr* obj_id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(obj);
-            if (kobel_streq(obj_id->name, "self")) {
-                compiler__sema__symbol__Symbol* self_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, "self");
-                if ((self_sym != NULL) && !self_sym->is_mut) {
-                    const char* act = (is_update ? "update" : "mutate");
-                    compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot ", act), " through index on immutable receiver 'self' in 'val self' method"));
-                }
-            }
+        if (compiler__sema__body_pass__BodyPass_is_immutable_self(self, idx->target)) {
+            const char* act = (is_update ? "update" : "mutate");
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot ", act), " through index on immutable receiver 'self' in 'val self' method"));
         }
     } else if (cur->kind == 7) {
         compiler__ast__expr__UnaryExpr* un = compiler__ast__node__to_compiler__ast__expr__UnaryExpr(cur);
         if (un->op != 8) {
-            const char* act = (is_update ? "increment/decrement operator" : "assignment");
-            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", act));
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", compiler__sema__body_pass__BodyPass_target_word(self, is_update)));
         }
     } else {
-        const char* act = (is_update ? "increment/decrement operator" : "assignment");
-        compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", act));
+        compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat("Invalid target for ", compiler__sema__body_pass__BodyPass_target_word(self, is_update)));
+    }
+}
+
+const char* compiler__sema__body_pass__BodyPass_target_word(compiler__sema__body_pass__BodyPass* self, bool is_update) {
+    return (is_update ? "increment/decrement operator" : "assignment");
+}
+
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_unwrap_group(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
+    compiler__ast__node__AstNode* cur = node;
+    while ((cur != NULL) && (cur->kind == 14)) {
+        cur = (*compiler__ast__node__to_compiler__ast__expr__GroupExpr(cur)).expr;
+    }
+    return cur;
+}
+
+bool compiler__sema__body_pass__BodyPass_is_immutable_self(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj_node) {
+    compiler__ast__node__AstNode* obj = compiler__sema__body_pass__BodyPass_unwrap_group(self, obj_node);
+    if ((obj == NULL) || (obj->kind != 5)) {
+        return false;
+    }
+    compiler__ast__expr__IdentifierExpr* obj_id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(obj);
+    if (!kobel_streq(obj_id->name, "self")) {
+        return false;
+    }
+    compiler__sema__symbol__Symbol* self_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, "self");
+    return ((self_sym != NULL) && !self_sym->is_mut);
+}
+
+void compiler__sema__body_pass__BodyPass_check_ident_assignable(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* op_node, const char* name, compiler__sema__symbol__Symbol* sym, bool is_update) {
+    if (sym == NULL) {
+        return;
+    }
+    const char* act = (is_update ? "update" : "assign to");
+    if (sym->kind == 1) {
+        compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " constant '"), name), "'"));
+    } else if (sym->kind == 0) {
+        if (!sym->is_mut) {
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable variable '"), name), "' declared with 'val'"));
+        }
+    } else if (sym->kind == 2) {
+        if (!sym->is_mut) {
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " immutable parameter '"), name), "'"));
+        }
+    } else {
+        compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot ", act), " '"), name), "'"));
     }
 }
 
@@ -14215,59 +14229,13 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_ex
         bool was_stmt = self->is_stmt_level;
         self->is_stmt_level = false;
         compiler__ast__expr__AssignExpr* asgn = (compiler__ast__expr__AssignExpr*)asgn_ptr;
-        compiler__ast__node__AstNode* target_expr = asgn->target;
-        while (target_expr != NULL) {
-            if ((target_expr != NULL && target_expr->kind == compiler__ast__expr__GroupExpr__TAG)) {
-                compiler__ast__expr__GroupExpr* g = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)target_expr)->data);
-                target_expr = g->expr;
-            } else {
-                break;
-            }
-        }
+        compiler__ast__node__AstNode* target_expr = compiler__sema__body_pass__BodyPass_unwrap_group(self, asgn->target);
         compiler__sema__body_pass__BodyPass_check_lvalue_mutability(self, target_expr, node, false);
         if ((target_expr != NULL && target_expr->kind == compiler__ast__expr__IndexExpr__TAG)) {
             compiler__ast__expr__IndexExpr* idx = (compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)target_expr)->data);
-            compiler__sema__types__Type* target_raw_ty = compiler__sema__body_pass__BodyPass_check_expr(self, idx->target);
-            if (target_raw_ty->kind == 18) {
-                compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(target_raw_ty);
-                compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, "set", 3);
-                if (mi == NULL) {
-                    mi = compiler__sema__types__StructType_find_method(s_info, "set");
-                }
-                if (mi != NULL) {
-                    compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
-                    compiler__sema__types__Type* idx_param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 1);
-                    compiler__sema__types__Type* val_param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 2);
-                    compiler__ast__node__AstNode* val_expr = asgn->value;
-                    if (asgn->op != 5) {
-                        compiler__lexer__token__TokenType bin_op = (asgn->op == 32 ? 6 : (asgn->op == 33 ? 7 : (asgn->op == 34 ? 8 : (asgn->op == 35 ? 9 : (asgn->op == 36 ? 10 : 6)))));
-                        compiler__ast__node__AstNode* get_expr = compiler__sema__body_pass__BodyPass_index(self, idx->target, idx->index, node->line, node->col);
-                        val_expr = compiler__sema__body_pass__BodyPass_binary(self, bin_op, get_expr, asgn->value, node->line, node->col);
-                    }
-                    if ((idx_param_ty != NULL) && compiler__sema__types__Type_is_list(idx_param_ty)) {
-                        compiler__sema__body_pass__BodyPass_coerce_to_list(self, idx->index, idx_param_ty);
-                    }
-                    compiler__sema__types__Type* idx_ty = compiler__sema__body_pass__BodyPass_check_expr(self, idx->index);
-                    if (!compiler__sema__types__Type_can_assign(idx_param_ty, idx_ty)) {
-                        compiler__sema__body_pass__BodyPass_report_error(self, node, "Index type mismatch in index assignment");
-                    }
-                    if ((val_param_ty != NULL) && compiler__sema__types__Type_is_list(val_param_ty)) {
-                        compiler__sema__body_pass__BodyPass_coerce_to_list(self, val_expr, val_param_ty);
-                    }
-                    compiler__sema__types__Type* val_ty = compiler__sema__body_pass__BodyPass_check_expr(self, val_expr);
-                    if (!compiler__sema__types__Type_can_assign(val_param_ty, val_ty)) {
-                        compiler__sema__body_pass__BodyPass_report_error(self, node, "Value type mismatch in index assignment");
-                    }
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, compiler__sema__body_pass__BodyPass_unary(self, 19, idx->target, node->line, node->col));
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, idx->index);
-                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, val_expr);
-                    compiler__ast__node__AstNode* call_node = compiler__sema__body_pass__BodyPass_call(self, compiler__sema__body_pass__BodyPass_identifier(self, mi->c_name, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
-                    compiler__ast__node__AstNode* n = (compiler__ast__node__AstNode*)node;
-                    n->kind = 8;
-                    n->data = call_node->data;
-                    return val_param_ty;
-                }
+            compiler__sema__types__Type* lowered = compiler__sema__body_pass__BodyPass_lower_index_assign(self, node, asgn, idx);
+            if (lowered != NULL) {
+                return lowered;
             }
         }
         compiler__sema__types__Type* target_ty = compiler__sema__body_pass__BodyPass_check_expr(self, asgn->target);
@@ -14298,6 +14266,53 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_assign_ex
         return target_ty;
     }
     return compiler__sema__decl_pass__alloc_primitive(&self->arena, compiler__sema__types__type_none());
+}
+
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_index_assign(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__AssignExpr* asgn, compiler__ast__expr__IndexExpr* idx) {
+    compiler__sema__types__Type* target_raw_ty = compiler__sema__body_pass__BodyPass_check_expr(self, idx->target);
+    if (target_raw_ty->kind != 18) {
+        return NULL;
+    }
+    compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(target_raw_ty);
+    compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, "set", 3);
+    if (mi == NULL) {
+        mi = compiler__sema__types__StructType_find_method(s_info, "set");
+    }
+    if (mi == NULL) {
+        return NULL;
+    }
+    compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
+    compiler__sema__types__Type* idx_param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 1);
+    compiler__sema__types__Type* val_param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 2);
+    compiler__ast__node__AstNode* val_expr = asgn->value;
+    if (asgn->op != 5) {
+        compiler__lexer__token__TokenType bin_op = (asgn->op == 32 ? 6 : (asgn->op == 33 ? 7 : (asgn->op == 34 ? 8 : (asgn->op == 35 ? 9 : (asgn->op == 36 ? 10 : 6)))));
+        compiler__ast__node__AstNode* get_expr = compiler__sema__body_pass__BodyPass_index(self, idx->target, idx->index, node->line, node->col);
+        val_expr = compiler__sema__body_pass__BodyPass_binary(self, bin_op, get_expr, asgn->value, node->line, node->col);
+    }
+    if ((idx_param_ty != NULL) && compiler__sema__types__Type_is_list(idx_param_ty)) {
+        compiler__sema__body_pass__BodyPass_coerce_to_list(self, idx->index, idx_param_ty);
+    }
+    compiler__sema__types__Type* idx_ty = compiler__sema__body_pass__BodyPass_check_expr(self, idx->index);
+    if (!compiler__sema__types__Type_can_assign(idx_param_ty, idx_ty)) {
+        compiler__sema__body_pass__BodyPass_report_error(self, node, "Index type mismatch in index assignment");
+    }
+    if ((val_param_ty != NULL) && compiler__sema__types__Type_is_list(val_param_ty)) {
+        compiler__sema__body_pass__BodyPass_coerce_to_list(self, val_expr, val_param_ty);
+    }
+    compiler__sema__types__Type* val_ty = compiler__sema__body_pass__BodyPass_check_expr(self, val_expr);
+    if (!compiler__sema__types__Type_can_assign(val_param_ty, val_ty)) {
+        compiler__sema__body_pass__BodyPass_report_error(self, node, "Value type mismatch in index assignment");
+    }
+    std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, compiler__sema__body_pass__BodyPass_unary(self, 19, idx->target, node->line, node->col));
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, idx->index);
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, val_expr);
+    compiler__ast__node__AstNode* call_node = compiler__sema__body_pass__BodyPass_call(self, compiler__sema__body_pass__BodyPass_identifier(self, mi->c_name, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* n = (compiler__ast__node__AstNode*)node;
+    n->kind = 8;
+    n->data = call_node->data;
+    return val_param_ty;
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_update_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -14406,64 +14421,9 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_expr
                 if (arm.is_else) {
                     has_else = true;
                 }
-                const char* smart_cast_sym = "";
-                compiler__sema__types__Type* smart_cast_ty = NULL;
-                compiler__ast__node__AstNode* cond = we->condition;
-                if ((cond != NULL) && (arm.patterns.len == 1)) {
-                    if ((cond != NULL && cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
-                        compiler__ast__expr__IdentifierExpr* cond_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)cond)->data);
-                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&arm.patterns);
-                        if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                            compiler__ast__expr__IsExpr* is_e_ptr = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                            compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)is_e_ptr;
-                            if (is_e->expr == NULL) {
-                                is_e->expr = cond;
-                            }
-                            smart_cast_ty = compiler__sema__body_pass__BodyPass_check_is_pattern(self, cond, cond_ty, pat);
-                            if (smart_cast_ty != NULL) {
-                                smart_cast_sym = (str_empty(is_e->alias) ? cond_id->name : is_e->alias);
-                            }
-                        }
-                    }
-                }
-                if (str_empty(smart_cast_sym)) {
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                        size_t __for_i = ((intptr_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
-                            compiler__sema__types__Type* p_ty = NULL;
-                            if (cond != NULL) {
-                                if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                                    compiler__ast__expr__IsExpr* is_e_ptr = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                                    compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)is_e_ptr;
-                                    if (is_e->expr == NULL) {
-                                        is_e->expr = cond;
-                                    }
-                                    compiler__sema__body_pass__BodyPass_check_is_pattern(self, cond, cond_ty, pat);
-                                    p_ty = compiler__sema__decl_pass__alloc_primitive(&self->arena, compiler__sema__types__type_bool());
-                                } else {
-                                    p_ty = compiler__sema__body_pass__BodyPass_check_expr(self, pat);
-                                }
-                            } else {
-                                p_ty = compiler__sema__body_pass__BodyPass_check_expr(self, pat);
-                            }
-                            if ((cond == NULL) && (p_ty->kind != 1)) {
-                                compiler__sema__body_pass__BodyPass_report_error(self, pat, "Boolean when arm condition must be bool");
-                            }
-                            __for_i = (__for_i + 1);
-                        }
-                    }
-                }
-                compiler__sema__types__Type* body_ty = NULL;
-                if (!str_empty(smart_cast_sym) && (smart_cast_ty != NULL)) {
-                    compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
-                    compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ smart_cast_sym, smart_cast_sym, 0, smart_cast_ty, false, false, 0, 0, NULL });
-                    body_ty = compiler__sema__body_pass__BodyPass_check_when_arm_body(self, arm.body);
-                    compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
-                } else {
-                    body_ty = compiler__sema__body_pass__BodyPass_check_when_arm_body(self, arm.body);
-                }
+                compiler__sema__types__Type* smart_cast_ty = compiler__sema__body_pass__BodyPass_resolve_arm_patterns(self, arm.patterns, we->condition, cond_ty);
+                const char* sym = compiler__sema__body_pass__BodyPass_arm_smart_cast_sym(self, arm.patterns, we->condition);
+                compiler__sema__types__Type* body_ty = compiler__sema__body_pass__BodyPass_check_arm_body(self, arm.body, sym, smart_cast_ty);
                 if (result_ty == NULL) {
                     result_ty = body_ty;
                 } else if (!compiler__sema__types__Type_can_assign(result_ty, body_ty)) {
@@ -14483,6 +14443,79 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_expr
         return result_ty;
     }
     return compiler__sema__decl_pass__alloc_primitive(&self->arena, compiler__sema__types__type_none());
+}
+
+const char* compiler__sema__body_pass__BodyPass_arm_smart_cast_sym(compiler__sema__body_pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond) {
+    if ((cond == NULL) || (patterns.len != 1)) {
+        return "";
+    }
+    if ((cond != NULL && cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+        compiler__ast__expr__IdentifierExpr* cond_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)cond)->data);
+        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&patterns);
+        if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+            compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+            if (!str_empty(is_e->alias)) {
+                return is_e->alias;
+            }
+            return cond_id->name;
+        }
+    }
+    return "";
+}
+
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_resolve_arm_patterns(compiler__sema__body_pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond, compiler__sema__types__Type* cond_ty) {
+    if (!str_empty(compiler__sema__body_pass__BodyPass_arm_smart_cast_sym(self, patterns, cond))) {
+        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&patterns);
+        if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+            compiler__ast__expr__IsExpr* is_e_ptr = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+            compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)is_e_ptr;
+            if (is_e->expr == NULL) {
+                is_e->expr = cond;
+            }
+            return compiler__sema__body_pass__BodyPass_check_is_pattern(self, cond, cond_ty, pat);
+        }
+        return NULL;
+    }
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&patterns);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&patterns, __for_i);
+            compiler__sema__types__Type* p_ty = compiler__sema__body_pass__BodyPass_check_arm_pattern(self, pat, cond, cond_ty);
+            if ((cond == NULL) && (p_ty->kind != 1)) {
+                compiler__sema__body_pass__BodyPass_report_error(self, pat, "Boolean when arm condition must be bool");
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return NULL;
+}
+
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_arm_pattern(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* pat, compiler__ast__node__AstNode* cond, compiler__sema__types__Type* cond_ty) {
+    if (cond == NULL) {
+        return compiler__sema__body_pass__BodyPass_check_expr(self, pat);
+    }
+    if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+        compiler__ast__expr__IsExpr* is_e_ptr = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+        compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)is_e_ptr;
+        if (is_e->expr == NULL) {
+            is_e->expr = cond;
+        }
+        compiler__sema__body_pass__BodyPass_check_is_pattern(self, cond, cond_ty, pat);
+        return compiler__sema__decl_pass__alloc_primitive(&self->arena, compiler__sema__types__type_bool());
+    }
+    return compiler__sema__body_pass__BodyPass_check_expr(self, pat);
+}
+
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_arm_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* body, const char* sym, compiler__sema__types__Type* smart_cast_ty) {
+    if (str_empty(sym) || (smart_cast_ty == NULL)) {
+        return compiler__sema__body_pass__BodyPass_check_when_arm_body(self, body);
+    }
+    compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
+    compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ sym, sym, 0, smart_cast_ty, false, false, 0, 0, NULL });
+    compiler__sema__types__Type* body_ty = compiler__sema__body_pass__BodyPass_check_when_arm_body(self, body);
+    compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
+    return body_ty;
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_arm_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* body) {
@@ -14528,16 +14561,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_patter
             return NULL;
         }
         compiler__sema__types__StructType* target_s = compiler__sema__types__Type_as_struct(target_ty);
-        compiler__sema__symbol__Symbol* tag_const_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(target_s->name, "__TAG"));
-        if (tag_const_sym == NULL) {
-            tag_const_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, target_s->name, "TAG");
-        }
-        if (tag_const_sym == NULL) {
-            tag_const_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(target_s->name, "__KIND"));
-        }
-        if (tag_const_sym == NULL) {
-            tag_const_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, target_s->name, "KIND");
-        }
+        compiler__sema__symbol__Symbol* tag_const_sym = compiler__sema__body_pass__BodyPass_find_tag_const(self, target_s->name);
         if ((tag_const_sym == NULL) || (tag_const_sym->kind != 1)) {
             compiler__sema__body_pass__BodyPass_report_error(self, is_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot smart cast to '", target_s->name), "': struct '"), target_s->name), "' must declare a 'const TAG'"));
             return NULL;
@@ -14553,44 +14577,18 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_patter
             return NULL;
         }
         compiler__sema__types__StructType* base_s = compiler__sema__types__Type_as_struct(base_ty);
-        const char* tag_field_name = "";
-        compiler__sema__types__Type* tag_field_ty = NULL;
-        {
-            size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
-                if (((kobel_streq(f.name, "tag") || kobel_streq(f.name, "TAG")) || kobel_streq(f.name, "kind")) || kobel_streq(f.name, "kind_")) {
-                    tag_field_name = f.name;
-                    tag_field_ty = f.type_ptr;
-                    break;
-                }
-                __for_i = (__for_i + 1);
-            }
-        }
+        const char* tag_field_name = compiler__sema__body_pass__BodyPass_tag_field_name_of(self, base_s);
         if (str_empty(tag_field_name)) {
             compiler__sema__body_pass__BodyPass_report_error(self, is_node, kobel_concat(kobel_concat("Subject struct '", base_s->name), "' must have a 'tag', 'TAG', or 'kind' field"));
             return NULL;
         }
+        compiler__sema__types__Type* tag_field_ty = compiler__sema__body_pass__BodyPass_field_type_of(self, base_s, tag_field_name);
         if (!compiler__sema__types__Type_can_assign(tag_field_ty, tag_const_sym->type_ptr)) {
             compiler__sema__body_pass__BodyPass_report_error(self, is_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Tag type mismatch: '", base_s->name), "."), tag_field_name), "' does not match '"), target_s->name), ".TAG'"));
             return NULL;
         }
-        bool has_data_ptr = false;
-        {
-            size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
-            size_t __for_i = ((intptr_t)0ULL);
-            while (__for_i < __for_n) {
-                compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
-                if (kobel_streq(f.name, "data")) {
-                    has_data_ptr = true;
-                    break;
-                }
-                __for_i = (__for_i + 1);
-            }
-        }
         is_e->tag_field = tag_field_name;
-        is_e->has_data = has_data_ptr;
+        is_e->has_data = compiler__sema__body_pass__BodyPass_struct_has_field(self, base_s, "data");
         is_e->base_c_name = base_s->c_name;
         is_e->is_ptr = is_ptr;
         if (is_ptr) {
@@ -14599,6 +14597,65 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_patter
         return target_ty;
     }
     return NULL;
+}
+
+compiler__sema__symbol__Symbol* compiler__sema__body_pass__BodyPass_find_tag_const(compiler__sema__body_pass__BodyPass* self, const char* struct_name) {
+    compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__TAG"));
+    if (sym == NULL) {
+        sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "TAG");
+    }
+    if (sym == NULL) {
+        sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__KIND"));
+    }
+    if (sym == NULL) {
+        sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "KIND");
+    }
+    return sym;
+}
+
+const char* compiler__sema__body_pass__BodyPass_tag_field_name_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s) {
+    {
+        size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
+            if (((kobel_streq(f.name, "tag") || kobel_streq(f.name, "TAG")) || kobel_streq(f.name, "kind")) || kobel_streq(f.name, "kind_")) {
+                return f.name;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return "";
+}
+
+compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_field_type_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name) {
+    {
+        size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
+            if (kobel_streq(f.name, name)) {
+                return f.type_ptr;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return NULL;
+}
+
+bool compiler__sema__body_pass__BodyPass_struct_has_field(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name) {
+    {
+        size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
+            if (kobel_streq(f.name, name)) {
+                return true;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return false;
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
