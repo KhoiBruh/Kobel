@@ -38,9 +38,7 @@ impl BodyPass {
 	// Shared body checker: works for free functions and impl methods. `fn_type`
 	// is the signature already built by DeclPass (methods have no global symbol).
 	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
-		for (n in self.checked_fns) {
-			if (n == fn_node) return;
-		}
+		for (n in self.checked_fns) if (n == fn_node) return;
 		self.checked_fns.add(fn_node);
 
 		val f = fn_node.to<FnDecl>() as &FnDecl;
@@ -72,8 +70,10 @@ impl BodyPass {
 					// Expression body: => expr;
 					val es = f.body.to<ExprStmt>();
 					if (
-						f.return_type != null &&
-						(self.current_fn_return_type != null && self.current_fn_return_type.is_list())
+						f.return_type != null && (
+							self.current_fn_return_type != null &&
+							self.current_fn_return_type.is_list()
+						)
 					) self.coerce_to_list(es.expr, self.current_fn_return_type);
 
 					val body_ty = self.check_expr(es.expr);

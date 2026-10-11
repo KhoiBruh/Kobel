@@ -530,8 +530,14 @@ impl DeclPass {
 			}
 			if (u.target.kind == NodeKind.EXPR_MEMBER) {
 				val mem = u.target.to<MemberExpr>();
-				if (mem.object.kind == NodeKind.EXPR_IDENTIFIER && mem.object.to<IdentifierExpr>().name == "self") {
-					if (self.current_self_type != null && self.current_self_type.kind == DataType.STRUCT) {
+				if (
+					mem.object.kind == NodeKind.EXPR_IDENTIFIER &&
+					mem.object.to<IdentifierExpr>().name == "self"
+				) {
+					if (
+						self.current_self_type != null &&
+						self.current_self_type.kind == DataType.STRUCT
+					) {
 						val s_info = self.current_self_type.as_struct();
 						for (fld in s_info.fields) {
 							if (fld.name == mem.member) {
@@ -601,7 +607,11 @@ impl DeclPass {
 			used_names.add(m_c_name);
 
 			if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
-				self.report_error(m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");
+				self.report_error(m_node,
+					"Duplicate method '${f.name}' "
+					"with ${f.params.len} parameter(s) "
+					"for built-in type '${prim_name}'"
+				);
 			}
 
 			val mi = self.arena.alloc<MethodInfo>();

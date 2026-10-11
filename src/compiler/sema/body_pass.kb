@@ -157,9 +157,10 @@ impl BodyPass {
 		if (node == null) return alloc_primitive(&self.arena, type_none());
 		if (node is GroupExpr as g) return self.check_expr(g.expr);
 
-		if (node.kind != NodeKind.EXPR_BINARY && node.kind != NodeKind.EXPR_ASSIGN) {
-			self.is_stmt_level = false;
-		}
+		if (
+			node.kind != NodeKind.EXPR_BINARY &&
+			node.kind != NodeKind.EXPR_ASSIGN
+		) self.is_stmt_level = false;
 
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);

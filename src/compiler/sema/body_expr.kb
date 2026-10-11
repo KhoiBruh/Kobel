@@ -1008,7 +1008,6 @@ impl BodyPass {
 		return alloc_primitive(&self.arena, type_str());
 	}
 
-
 	// Converts one interpolation hole to `str`, or reports an error and returns null.
 	pub fn interp_piece(var self, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
 		if (ty.kind == DataType.STR) return expr;
