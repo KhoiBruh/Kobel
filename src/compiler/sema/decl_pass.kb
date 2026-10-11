@@ -75,6 +75,21 @@ fn overloaded_names(im: &ImplDecl): List<str> {
 	return names;
 }
 
+// Distinct C name of one method: `base`, or `<base>_<argc>` when the method name
+// is overloaded, bumped to `<base>_<argc>_<k>` while that name is already taken.
+// `taken` holds the owning type's mangled method names so far (struct methods ask
+// their `StructType`, primitive methods track theirs locally).
+fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str {
+	var name = base;
+	if (overloaded) name = "${base}_${argc}";
+	var k: usz = 2;
+	while (name.in_list(taken)) {
+		name = "${base}_${argc}_${k}";
+		k++;
+	}
+	return name;
+}
+
 // The built-in type named `name`, or null when `name` is not a primitive.
 // Primitives are not registered as symbols, so this name table is also how
 // `impl <primitive>` blocks are recognized.
@@ -389,6 +404,9 @@ impl DeclPass {
 
 		// Methods may be overloaded, so each needs a distinct C name.
 		val overloaded = overloaded_names(im);
+		// C names already owned by this struct (from earlier `impl` blocks too).
+		var used_names = List<str>();
+		for (m in st_info.methods) used_names.add(m.c_name);
 
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>() as &FnDecl;
@@ -428,15 +446,11 @@ impl DeclPass {
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
-			val base = "${st_c_name}_${f.name}";
-			var m_c_name = base;
-			if (f.name.in_list(overloaded)) m_c_name = "${base}_${param_types.len}";
 			// Two methods with the same name and arity still need distinct names.
-			var k: usz = 2;
-			while (st_info.find_method_c(m_c_name) != null) {
-				m_c_name = "${base}_${param_types.len}_${k}";
-				k++;
-			}
+			val m_c_name = method_c_name(
+				"${st_c_name}_${f.name}", param_types.len, f.name.in_list(overloaded), used_names
+			);
+			used_names.add(m_c_name);
 
 			val mi = self.arena.alloc<MethodInfo>();
 			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module);
@@ -548,7 +562,9 @@ impl DeclPass {
 		if (!im.trait_name.empty()) self.apply_trait(node, im, prim_name);
 
 		val overloaded = overloaded_names(im);
-		var used = List<str>();
+		// C names this impl has handed out so far (the prim table is global, so
+		// uniqueness is tracked per impl block).
+		var used_names = List<str>();
 
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>() as &FnDecl;
@@ -579,15 +595,10 @@ impl DeclPass {
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
-			val base = "${prim_name}_${f.name}";
-			var m_c_name = base;
-			if (f.name.in_list(overloaded)) m_c_name = "${base}_${param_types.len}";
-			var k: usz = 2;
-			while (m_c_name.in_list(used)) {
-				m_c_name = "${base}_${param_types.len}_${k}";
-				k++;
-			}
-			used.add(m_c_name);
+			val m_c_name = method_c_name(
+				"${prim_name}_${f.name}", param_types.len, f.name.in_list(overloaded), used_names
+			);
+			used_names.add(m_c_name);
 
 			if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
 				self.report_error(m_node, "Duplicate method '${f.name}' with ${f.params.len} parameter(s) for built-in type '${prim_name}'");

@@ -184,6 +184,7 @@ typedef struct compiler__sema__symbol__TraitInfo compiler__sema__symbol__TraitIn
 typedef struct compiler__sema__symbol__PrimMethod compiler__sema__symbol__PrimMethod;
 typedef struct compiler__sema__symbol__GenericReg compiler__sema__symbol__GenericReg;
 typedef struct compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable;
+typedef int32_t compiler__sema__monomorphize__TemplateKind;
 typedef struct compiler__sema__monomorphize__GenSubst compiler__sema__monomorphize__GenSubst;
 typedef struct compiler__sema__decl_pass__DeclPass compiler__sema__decl_pass__DeclPass;
 typedef struct compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass;
@@ -2360,6 +2361,7 @@ void compiler__sema__symbol__SymbolTable_add_import(compiler__sema__symbol__Symb
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_name(compiler__sema__symbol__SymbolTable* self, const char* c_name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struct_const(compiler__sema__symbol__SymbolTable* self, const char* struct_name, const char* member_name);
+bool compiler__sema__monomorphize__template_matches(compiler__sema__monomorphize__TemplateKind kind, compiler__sema__symbol__GenTemplate* t, const char* name);
 compiler__ast__node__AstNode* compiler__sema__monomorphize__GenSubst_lookup(compiler__sema__monomorphize__GenSubst* self, const char* name);
 bool compiler__sema__monomorphize__is_template_decl(compiler__ast__node__AstNode* node);
 std__collections__list__List_str compiler__sema__symbol__GenTemplate_param_names(compiler__sema__symbol__GenTemplate* self);
@@ -2368,6 +2370,8 @@ void compiler__sema__decl_pass__DeclPass_register_template(compiler__sema__decl_
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_gen_template(compiler__sema__decl_pass__DeclPass* self, const char* name, compiler__ast__node__AstNode* node, bool is_method);
 bool compiler__sema__decl_pass__DeclPass_template_in_module(compiler__sema__decl_pass__DeclPass* self, const char* module, const char* name);
 compiler__sema__symbol__Symbol* compiler__sema__decl_pass__DeclPass_find_inst(compiler__sema__decl_pass__DeclPass* self, const char* name);
+std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate compiler__sema__decl_pass__DeclPass_templates_of(compiler__sema__decl_pass__DeclPass* self, compiler__sema__monomorphize__TemplateKind kind);
+compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_template(compiler__sema__decl_pass__DeclPass* self, compiler__sema__monomorphize__TemplateKind kind, const char* name);
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_fn_template(compiler__sema__decl_pass__DeclPass* self, const char* name);
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_method_template(compiler__sema__decl_pass__DeclPass* self, const char* name);
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_struct_template(compiler__sema__decl_pass__DeclPass* self, const char* name);
@@ -2392,6 +2396,7 @@ void compiler__sema__decl_pass__DeclPass_propagate_target_type(compiler__sema__d
 void compiler__sema__decl_pass__DeclPass_rewrite_generics(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__decl_pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
 std__collections__list__List_str compiler__sema__decl_pass__overloaded_names(compiler__ast__decl__ImplDecl* im);
+const char* compiler__sema__decl_pass__method_c_name(const char* base, size_t argc, bool overloaded, std__collections__list__List_str taken);
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name);
 int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s);
 void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod* out, compiler__sema__symbol__TraitMethod* m);
@@ -10935,6 +10940,10 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struc
     return NULL;
 }
 
+bool compiler__sema__monomorphize__template_matches(compiler__sema__monomorphize__TemplateKind kind, compiler__sema__symbol__GenTemplate* t, const char* name) {
+    return (kind == 0 ? (!t->is_method && kobel_streq(t->name, name)) : (kind == 1 ? (t->is_method && kobel_streq(t->name, name)) : kobel_streq(t->name, name)));
+}
+
 compiler__ast__node__AstNode* compiler__sema__monomorphize__GenSubst_lookup(compiler__sema__monomorphize__GenSubst* self, const char* name) {
     {
         size_t __for_e = self->names.len;
@@ -11120,13 +11129,18 @@ compiler__sema__symbol__Symbol* compiler__sema__decl_pass__DeclPass_find_inst(co
     return compiler__sema__symbol__GenericReg_find_inst(&self->symtab.gen, name);
 }
 
-compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_fn_template(compiler__sema__decl_pass__DeclPass* self, const char* name) {
+std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate compiler__sema__decl_pass__DeclPass_templates_of(compiler__sema__decl_pass__DeclPass* self, compiler__sema__monomorphize__TemplateKind kind) {
+    return ((kind == 2) ? self->symtab.gen.struct_templates : self->symtab.gen.fn_templates);
+}
+
+compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_template(compiler__sema__decl_pass__DeclPass* self, compiler__sema__monomorphize__TemplateKind kind, const char* name) {
+    std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate list = compiler__sema__decl_pass__DeclPass_templates_of(self, kind);
     {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
+        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
         size_t __for_i = ((intptr_t)0ULL);
         while (__for_i < __for_n) {
-            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-            if ((!t->is_method && kobel_streq(t->name, name)) && kobel_streq(t->module, self->current_module)) {
+            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
+            if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, self->current_module)) {
                 return t;
             }
             __for_i = (__for_i + 1);
@@ -11140,11 +11154,11 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_fn
             if (kobel_streq(imp.owner_module, self->current_module)) {
                 if (imp.is_wildcard || kobel_streq(imp.local_name, name)) {
                     {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
+                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
                         size_t __for_i = ((intptr_t)0ULL);
                         while (__for_i < __for_n) {
-                            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-                            if ((!t->is_method && kobel_streq(t->name, name)) && kobel_streq(t->module, imp.module_name)) {
+                            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
+                            if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, imp.module_name)) {
                                 return t;
                             }
                             __for_i = (__for_i + 1);
@@ -11156,104 +11170,29 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_fn
         }
     }
     {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
+        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
         size_t __for_i = ((intptr_t)0ULL);
         while (__for_i < __for_n) {
-            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-            if (!t->is_method && kobel_streq(t->name, name)) {
+            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
+            if (compiler__sema__monomorphize__template_matches(kind, t, name)) {
                 return t;
             }
             __for_i = (__for_i + 1);
         }
     }
     return NULL;
+}
+
+compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_fn_template(compiler__sema__decl_pass__DeclPass* self, const char* name) {
+    return compiler__sema__decl_pass__DeclPass_find_template(self, 0, name);
 }
 
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_method_template(compiler__sema__decl_pass__DeclPass* self, const char* name) {
-    {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
-        size_t __for_i = ((intptr_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-            if ((t->is_method && kobel_streq(t->name, name)) && kobel_streq(t->module, self->current_module)) {
-                return t;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    {
-        size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->symtab.imports);
-        size_t __for_i = ((intptr_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__ImportBinding imp = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->symtab.imports, __for_i);
-            if (kobel_streq(imp.owner_module, self->current_module)) {
-                if (imp.is_wildcard || kobel_streq(imp.local_name, name)) {
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
-                        size_t __for_i = ((intptr_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-                            if ((t->is_method && kobel_streq(t->name, name)) && kobel_streq(t->module, imp.module_name)) {
-                                return t;
-                            }
-                            __for_i = (__for_i + 1);
-                        }
-                    }
-                }
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
-        size_t __for_i = ((intptr_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-            if (t->is_method && kobel_streq(t->name, name)) {
-                return t;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    return NULL;
+    return compiler__sema__decl_pass__DeclPass_find_template(self, 1, name);
 }
 
 compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_struct_template(compiler__sema__decl_pass__DeclPass* self, const char* name) {
-    {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.struct_templates);
-        size_t __for_i = ((intptr_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.struct_templates, __for_i);
-            if (kobel_streq(t->name, name) && kobel_streq(t->module, self->current_module)) {
-                return t;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    {
-        size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->symtab.imports);
-        size_t __for_i = ((intptr_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__ImportBinding imp = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->symtab.imports, __for_i);
-            if (kobel_streq(imp.owner_module, self->current_module)) {
-                if (imp.is_wildcard || kobel_streq(imp.local_name, name)) {
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.struct_templates);
-                        size_t __for_i = ((intptr_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.struct_templates, __for_i);
-                            if (kobel_streq(t->name, name) && kobel_streq(t->module, imp.module_name)) {
-                                return t;
-                            }
-                            __for_i = (__for_i + 1);
-                        }
-                    }
-                }
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    return compiler__sema__symbol__GenericReg_find_struct(&self->symtab.gen, name);
+    return compiler__sema__decl_pass__DeclPass_find_template(self, 2, name);
 }
 
 const char* compiler__sema__decl_pass__DeclPass_type_token(compiler__sema__decl_pass__DeclPass* self, compiler__sema__types__Type* ty) {
@@ -12441,6 +12380,19 @@ std__collections__list__List_str compiler__sema__decl_pass__overloaded_names(com
     return names;
 }
 
+const char* compiler__sema__decl_pass__method_c_name(const char* base, size_t argc, bool overloaded, std__collections__list__List_str taken) {
+    const char* name = base;
+    if (overloaded) {
+        name = kobel_concat(kobel_concat(base, "_"), usz_to_str(argc));
+    }
+    size_t k = 2;
+    while (str_in_list(name, taken)) {
+        name = kobel_concat(kobel_concat(kobel_concat(kobel_concat(base, "_"), usz_to_str(argc)), "_"), usz_to_str(k));
+        k++;
+    }
+    return name;
+}
+
 compiler__sema__types__Type* compiler__sema__decl_pass__resolve_primitive_name(std__mem__arena__Arena* arena, const char* name) {
     return (strcmp(name, "none") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_none()) : (strcmp(name, "bool") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_bool()) : (strcmp(name, "char") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_char()) : (strcmp(name, "i8") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i8()) : (strcmp(name, "i16") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i16()) : (strcmp(name, "i32") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i32()) : (strcmp(name, "i64") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i64()) : (strcmp(name, "isz") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_isz()) : (strcmp(name, "u8") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u8()) : (strcmp(name, "u16") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u16()) : (strcmp(name, "u32") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u32()) : (strcmp(name, "u64") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u64()) : (strcmp(name, "usz") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_usz()) : (strcmp(name, "f32") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_f32()) : (strcmp(name, "f64") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_f64()) : (strcmp(name, "str") == 0 ? compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_str()) : NULL))))))))))))))));
 }
@@ -12795,6 +12747,16 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
         compiler__sema__decl_pass__DeclPass_apply_trait(self, node, im, st_info->name);
     }
     std__collections__list__List_str overloaded = compiler__sema__decl_pass__overloaded_names(im);
+    std__collections__list__List_str used_names = std__collections__list__List_str_new(4);
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&st_info->methods);
+        size_t __for_i = ((intptr_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&st_info->methods, __for_i);
+            std__collections__list__List_str_add(&used_names, m->c_name);
+            __for_i = (__for_i + 1);
+        }
+    }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
         size_t __for_i = ((intptr_t)0ULL);
@@ -12844,16 +12806,8 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
                 }
             }
             compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
-            const char* base = kobel_concat(kobel_concat(st_c_name, "_"), f->name);
-            const char* m_c_name = base;
-            if (str_in_list(f->name, overloaded)) {
-                m_c_name = kobel_concat(kobel_concat(base, "_"), usz_to_str(param_types.len));
-            }
-            size_t k = 2;
-            while (compiler__sema__types__StructType_find_method_c(st_info, m_c_name) != NULL) {
-                m_c_name = kobel_concat(kobel_concat(kobel_concat(kobel_concat(base, "_"), usz_to_str(param_types.len)), "_"), usz_to_str(k));
-                k++;
-            }
+            const char* m_c_name = compiler__sema__decl_pass__method_c_name(kobel_concat(kobel_concat(st_c_name, "_"), f->name), param_types.len, str_in_list(f->name, overloaded), used_names);
+            std__collections__list__List_str_add(&used_names, m_c_name);
             compiler__sema__types__MethodInfo* mi = std__mem__arena__alloc_compiler__sema__types__MethodInfo(&self->arena);
             *mi = (compiler__sema__types__MethodInfo){ f->name, m_c_name, fn_type, (uint8_t*)m_node, self->current_module };
             std__collections__list__List_ptr_compiler__sema__types__MethodInfo_add(&st_info->methods, mi);
@@ -12964,7 +12918,7 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
         compiler__sema__decl_pass__DeclPass_apply_trait(self, node, im, prim_name);
     }
     std__collections__list__List_str overloaded = compiler__sema__decl_pass__overloaded_names(im);
-    std__collections__list__List_str used = std__collections__list__List_str_new(4);
+    std__collections__list__List_str used_names = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
         size_t __for_i = ((intptr_t)0ULL);
@@ -13023,17 +12977,8 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
                 }
             }
             compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
-            const char* base = kobel_concat(kobel_concat(prim_name, "_"), f->name);
-            const char* m_c_name = base;
-            if (str_in_list(f->name, overloaded)) {
-                m_c_name = kobel_concat(kobel_concat(base, "_"), usz_to_str(param_types.len));
-            }
-            size_t k = 2;
-            while (str_in_list(m_c_name, used)) {
-                m_c_name = kobel_concat(kobel_concat(kobel_concat(kobel_concat(base, "_"), usz_to_str(param_types.len)), "_"), usz_to_str(k));
-                k++;
-            }
-            std__collections__list__List_str_add(&used, m_c_name);
+            const char* m_c_name = compiler__sema__decl_pass__method_c_name(kobel_concat(kobel_concat(prim_name, "_"), f->name), param_types.len, str_in_list(f->name, overloaded), used_names);
+            std__collections__list__List_str_add(&used_names, m_c_name);
             if (compiler__sema__symbol__SymbolTable_find_prim_method_arity(&self->symtab, prim->kind, f->name, f->params.len) != NULL) {
                 compiler__sema__decl_pass__DeclPass_report_error(self, m_node, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Duplicate method '", f->name), "' with "), usz_to_str(f->params.len)), " parameter(s) for built-in type '"), prim_name), "'"));
             }
