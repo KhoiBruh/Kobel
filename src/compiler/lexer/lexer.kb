@@ -45,6 +45,23 @@ pub struct Lexer {
 
 impl Lexer {
 
+	// A source file may open with a UTF-8 BOM (Windows editors add one). It is not
+	// part of the language, so drop it before the first token instead of letting it
+	// lex as an unknown token at line 1 column 1.
+	pub fn new(src: str): Self {
+		var s = src;
+		if (s.len >= 3) {
+			// `EF BB BF`, the UTF-8 BOM (spelled in decimal because a hex literal
+			// ending in B/D/F is not usable yet, see the literal-suffix bug).
+			if (
+				(s[0] as u8) == (239 as u8) &&
+				(s[1] as u8) == (187 as u8) &&
+				(s[2] as u8) == (191 as u8)
+			) s = s.slice(3, s.len);
+		}
+		return Self(s, 0, 1, 1);
+	}
+
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
 	pub fn peek(val self) => if (self.is_end()) '\0' else self.src[self.cursor];

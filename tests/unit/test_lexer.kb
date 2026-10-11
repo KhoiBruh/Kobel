@@ -9,6 +9,8 @@ use compiler.lexer.token.Token;
 use compiler.lexer.lexer.Lexer;
 
 use std.collections.list.List;
+use std.str.str_from_bytes;
+use std.mem.alloc.raw_alloc;
 
 fn test_keywords(): bool {
 	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for";
@@ -185,6 +187,32 @@ fn test_line_col_tracking(): bool {
 	return true;
 }
 
+// A UTF-8 BOM at the start of a file must be dropped before the first token. The
+// bytes are built here so the test file itself stays plain ASCII.
+fn test_bom_prefix(): bool {
+	val buf = raw_alloc(4);
+	buf[0] = 239 as u8;
+	buf[1] = 187 as u8;
+	buf[2] = 191 as u8;
+	buf[3] = 0 as u8;
+	val code = str_from_bytes(buf, 3) + "val x = 1;";
+
+	var lex: Lexer = Lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 6UZ) {
+		println("  [ERR] BOM-prefixed source: wrong token count");
+		return false;
+	}
+	if (tokens.get(0UZ).type != TokenType.KW_VAL) {
+		println("  [ERR] BOM-prefixed source: BOM leaked into the first token");
+		return false;
+	}
+
+	tokens.delete();
+	return true;
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Lexer tests...");
 
@@ -223,6 +251,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_line_col_tracking");
+
+	if (!test_bom_prefix()) {
+		println("  [FAIL] test_bom_prefix");
+		return 1;
+	}
+	println("  [PASS] test_bom_prefix");
 
 	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
 	return 0;
