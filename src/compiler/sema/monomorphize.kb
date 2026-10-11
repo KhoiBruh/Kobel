@@ -475,74 +475,7 @@ impl DeclPass {
 				yield self.unary(u.op, self.clone_expr(u.operand, subst), node.line, node.col);
 			}
 			NodeKind.EXPR_CALL -> {
-				val c = node.to<CallExpr>();
-
-				// `T.size()` -> integer literal sized for the C representation.
-				if (c.callee.kind == NodeKind.EXPR_MEMBER) {
-					val m = c.callee.to<MemberExpr>();
-					if (m.member == "size" && m.object.kind == NodeKind.EXPR_IDENTIFIER) {
-						val sa = (if (subst != null) subst.lookup(m.object.to<IdentifierExpr>().name) else null);
-						if (sa != null) yield self.literal(
-							LiteralKind.INT,
-							"${self.ast_type_size(sa)}",
-							node.line, node.col
-						);
-					}
-				}
-
-				if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
-					val mem = c.callee.to<MemberExpr>();
-					val ft = self.find_method_template(mem.member);
-					if (ft != null) {
-						val mem_obj = self.clone_expr(mem.object, subst);
-						var new_type_args = List<*AstNode>();
-						for (ta in c.type_args) new_type_args.add(self.clone_type(ta, subst));
-						var new_args = List<*AstNode>();
-						new_args.add(mem_obj);
-						for (a in c.args) new_args.add(self.clone_expr(a, subst));
-
-						val cname = self.instantiate_fn(ft, new_type_args);
-						yield self.call(
-							self.identifier(cname, node.line, node.col),
-							new_args, List<*AstNode>(), node.line, node.col
-						);
-					}
-				}
-
-				if (c.callee.kind == NodeKind.EXPR_IDENTIFIER && c.type_args.len > 0) {
-					val cid = c.callee.to<IdentifierExpr>();
-					val ft = self.find_fn_template(cid.name);
-					if (ft != null) {
-						var args = List<*AstNode>();
-						for (ta in c.type_args) args.add(self.clone_type(ta, subst));
-						val cname = self.instantiate_fn(ft, args);
-						var cargs = List<*AstNode>();
-						for (a in c.args) cargs.add(self.clone_expr(a, subst));
-
-						yield self.call(
-							self.identifier(cname, node.line, node.col),
-							cargs, List<*AstNode>(), node.line, node.col
-						);
-					}
-
-					val st = self.find_struct_template(cid.name);
-					if (st != null) {
-						var args2 = List<*AstNode>();
-						for (ta in c.type_args) args2.add(self.clone_type(ta, subst));
-						val cty = self.instantiate_struct(st, args2);
-						var cargs2 = List<*AstNode>();
-						for (a in c.args) cargs2.add(self.clone_expr(a, subst));
-
-						yield self.call(
-							self.identifier(cty.as_struct().name, node.line, node.col),
-							cargs2, List<*AstNode>(), node.line, node.col
-						);
-					}
-				}
-
-				var cargs3 = List<*AstNode>();
-				for (a in c.args) cargs3.add(self.clone_expr(a, subst));
-				yield self.call(self.clone_expr(c.callee, subst), cargs3, List<*AstNode>(), node.line, node.col);
+				yield self.clone_call_expr(node, subst);
 			}
 			NodeKind.EXPR_MEMBER -> {
 				val m = node.to<MemberExpr>();
@@ -596,32 +529,15 @@ impl DeclPass {
 			}
 			NodeKind.EXPR_ARRAY_LITERAL -> {
 				val al = node.to<ArrayLiteralExpr>();
-				var els = List<*AstNode>();
-				for (e in al.elements) els.add(self.clone_expr(e, subst));
-				yield self.list_literal(els, al.list_struct_name, al.elem_type_node, node.line, node.col);
+				yield self.list_literal(self.clone_expr_list(al.elements, subst), al.list_struct_name, al.elem_type_node, node.line, node.col);
 			}
 			NodeKind.EXPR_WHEN -> {
+				val arms = self.clone_when_arms(node, subst);
 				val we = node.to<WhenExpr>();
-				var arms = List<WhenArm>();
-				for (arm in we.arms) {
-					var pats = List<*AstNode>();
-					for (pat in arm.patterns) pats.add(self.clone_expr(pat, subst));
-					val arm_body = if (arm.body.kind == NodeKind.STMT_BLOCK)
-						self.clone_stmt(arm.body, subst)
-					else
-						self.clone_expr(arm.body, subst);
-					arms.add(WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col));
-				}
-
 				yield self.when_expr(self.clone_expr(we.condition, subst), arms, node.line, node.col);
 			}
 			NodeKind.EXPR_INTERP -> {
-				val ie = node.to<InterpExpr>();
-				var parts = List<InterpPart>();
-				for (part in ie.parts) {
-					parts.add(InterpPart(self.clone_expr(part.expr, subst), part.is_literal));
-				}
-				yield self.interp(parts, node.line, node.col);
+				yield self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
 			}
 			NodeKind.EXPR_IS -> {
 				val is_e = node.to<IsExpr>();
@@ -632,6 +548,116 @@ impl DeclPass {
 			}
 			else -> self.identifier("<unsupported-expr>", node.line, node.col);
 		};
+	}
+
+	// `CALL`: three shapes are rewritten before the generic clone. `T.size()` folds
+	// to a literal, a call carrying type arguments instantiates its template, and
+	// everything else is cloned caller-first like the original.
+	fn clone_call_expr(var self, node: *AstNode, subst: *GenSubst): *AstNode {
+		val size_lit = self.clone_size_query(node, subst);
+		if (size_lit != null) return size_lit;
+
+		val tcall = self.clone_template_call(node, subst);
+		if (tcall != null) return tcall;
+
+		val c = node.to<CallExpr>();
+		val args = self.clone_expr_list(c.args, subst);
+		return self.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
+	}
+
+	// `T.size()` in generic code: the substituted type's C size is known at compile
+	// time, so the call becomes an integer literal. Null when the call is not a
+	// `T.size()` on a type parameter.
+	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst): *AstNode {
+		val c = node.to<CallExpr>();
+		if (c.callee.kind != NodeKind.EXPR_MEMBER) return null;
+		val m = c.callee.to<MemberExpr>();
+		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		if (subst == null) return null;
+		val sa = subst.lookup(m.object.to<IdentifierExpr>().name);
+		if (sa == null) return null;
+		return self.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
+	}
+
+	// A call with explicit type arguments instantiates the matching template and is
+	// rewritten to a call of the instantiated name (`obj.m<X>(...)`, `Fn<X>(...)`,
+	// `Struct<X>(...)`). Null when no template matches, which sends the caller down
+	// its generic clone path.
+	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst): *AstNode {
+		val c = node.to<CallExpr>();
+		if (c.type_args.len == 0) return null;
+
+		if (c.callee.kind == NodeKind.EXPR_MEMBER) {
+			val mem = c.callee.to<MemberExpr>();
+			val ft = self.find_method_template(mem.member);
+			if (ft == null) return null;
+			val mem_obj = self.clone_expr(mem.object, subst);
+			val targs = self.clone_type_args(c.type_args, subst);
+			var new_args = List<*AstNode>();
+			new_args.add(mem_obj);
+			for (a in c.args) new_args.add(self.clone_expr(a, subst));
+			val cname = self.instantiate_fn(ft, targs);
+			return self.call(self.identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		}
+
+		if (c.callee.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		val cid = c.callee.to<IdentifierExpr>();
+
+		val ft = self.find_fn_template(cid.name);
+		if (ft != null) {
+			val targs = self.clone_type_args(c.type_args, subst);
+			val cname = self.instantiate_fn(ft, targs);
+			var cargs = List<*AstNode>();
+			for (a in c.args) cargs.add(self.clone_expr(a, subst));
+			return self.call(self.identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+		}
+
+		val st = self.find_struct_template(cid.name);
+		if (st != null) {
+			val targs = self.clone_type_args(c.type_args, subst);
+			val cty = self.instantiate_struct(st, targs);
+			var cargs = List<*AstNode>();
+			for (a in c.args) cargs.add(self.clone_expr(a, subst));
+			return self.call(self.identifier(cty.as_struct().name, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+		}
+		return null;
+	}
+
+	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
+		var out = List<*AstNode>();
+		for (n in nodes) out.add(self.clone_expr(n, subst));
+		return out;
+	}
+
+	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
+		var out = List<*AstNode>();
+		for (n in nodes) out.add(self.clone_type(n, subst));
+		return out;
+	}
+
+	// A `when` arm's patterns are expressions; its body is a block when written as
+	// `{ ... }`, otherwise a single expression.
+	fn clone_when_arms(var self, node: *AstNode, subst: *GenSubst): List<WhenArm> {
+		val we = node.to<WhenExpr>();
+		var arms = List<WhenArm>();
+		for (arm in we.arms) {
+			val pats = self.clone_expr_list(arm.patterns, subst);
+			val arm_body = if (arm.body.kind == NodeKind.STMT_BLOCK)
+				self.clone_stmt(arm.body, subst)
+			else
+				self.clone_expr(arm.body, subst);
+			arms.add(WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col));
+		}
+		return arms;
+	}
+
+	fn clone_interp_parts(var self, node: *AstNode, subst: *GenSubst): List<InterpPart> {
+		val ie = node.to<InterpExpr>();
+		var parts = List<InterpPart>();
+		for (part in ie.parts) {
+			parts.add(InterpPart(self.clone_expr(part.expr, subst), part.is_literal));
+		}
+		return parts;
 	}
 
 	pub fn clone_stmt(var self, node: *AstNode, subst: *GenSubst): *AstNode {
