@@ -116,9 +116,10 @@ pub fn c_type_from_ast(node: *AstNode): str {
 
 pub fn c_format_int_literal(raw: str): str {
 	// The suffix is stripped through `num_suffix` so a hex digit is never taken for
-	// one: `0xBB` stays 187 instead of becoming `0xB` with an i8 suffix.
+	// one: `0xBB` stays 187 instead of becoming `0xB` with an i8 suffix. The `_`
+	// digit separators are not C syntax, so they go too.
 	val sfx = raw.num_suffix();
-	val body = raw.strip_suffix(sfx.len);
+	val body = raw.strip_suffix(sfx.len).strip_char('_');
 	return when (sfx) {
 		// signed integer
 		"Z" -> "((intptr_t)${body}LL)";
@@ -132,7 +133,7 @@ pub fn c_format_int_literal(raw: str): str {
 		"UL" -> "${body}ULL";
 		"UB" -> "((uint8_t)${body})";
 		"US" -> "((uint16_t)${body})";
-		else -> raw
+		else -> body
 	};
 }
 
@@ -155,20 +156,22 @@ pub fn c_int_literal_c_type(raw: str) => when (raw.num_suffix()) {
 pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else "double";
 
 pub fn c_format_float_literal(raw: str): str {
+	// `_` digit separators are not C syntax, so they are dropped first.
+	val text = raw.strip_char('_');
 	var has_dot = false;
-	for (c in raw) {
+	for (c in text) {
 		if (c == '.' || c == 'e' || c == 'E') {
 			has_dot = true;
 			break;
 		}
 	}
-	if (has_dot) return raw;
+	if (has_dot) return text;
 
-	val len = raw.len;
+	val len = text.len;
 	return when {
-		raw.ends_with("F") -> "${raw.slice(0, len - 1)}.0f";
-		raw.ends_with("D") -> "${raw.slice(0, len - 1)}.0";
-		else -> "${raw}.0"
+		text.ends_with("F") -> "${text.slice(0, len - 1)}.0f";
+		text.ends_with("D") -> "${text.slice(0, len - 1)}.0";
+		else -> "${text}.0"
 	};
 }
 

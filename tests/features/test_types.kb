@@ -340,6 +340,15 @@ fn test_numeric_literals(var t: &Tally) {
 	val wide = 100L;
 	check_i(small as i32, 5, "i8 suffix 5B", t);
 	check_i(wide as i32, 100, "i64 suffix 100L", t);
+
+	// `_` separators are part of the literal syntax but not of C.
+	check_i(1_000, 1000, "separator 1_000", t);
+	check_i(1_000_000, 1000000, "separator 1_000_000", t);
+	check_i(0xFF_FF, 65535, "hex 0xFF_FF", t);
+	check_i(0b1010_1010, 170, "binary 0b1010_1010", t);
+	val hex_suffix = 0xFF_UL;
+	check_i(hex_suffix as i32, 255, "hex 0xFF_UL", t);
+	check_str("${1_000.5}", "1000.5", "float 1_000.5", t);
 }
 
 fn main(): i32 {

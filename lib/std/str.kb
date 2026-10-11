@@ -48,6 +48,21 @@ impl str {
 	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
 		else self.slice(0, self.len - n);
 
+	// `self` without every occurrence of `c`: `1_000` -> `1000`.
+	pub fn strip_char(val self, c: char): str {
+		var buf = raw_alloc(self.len + 1);
+		var w = 0;
+		for (i in 0..<self.len) {
+			val ch = self[i];
+			if (ch != c) {
+				buf[w] = ch as u8;
+				w++;
+			}
+		}
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
+
 	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
 	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
 	fn suffix_tail(val self): str {
