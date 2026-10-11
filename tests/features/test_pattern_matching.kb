@@ -217,6 +217,20 @@ fn main(): i32 {
 		return 1;
 	}
 
+	// Test Case 5: a null subject matches no struct pattern. It must reach the
+	// `else` path instead of dereferencing the tag through the null pointer.
+	val null_node: *Node = null;
+	val null_when = eval(null_node);
+	val null_if = eval_if_with_alias(null_node);
+	val null_expr = eval_expr_alias(null_node);
+	val null_is = null_node is Literal;
+	println("eval(null) = ${null_when}, eval_if_with_alias(null) = ${null_if}");
+	println("eval_expr_alias(null) = ${null_expr}, null is Literal = ${null_is}");
+	if (null_when != 0 || null_if != 0 || null_expr != 0 || null_is) {
+		println("FAIL: null subject in pattern match");
+		return 1;
+	}
+
 	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");
 	return 0;
 }

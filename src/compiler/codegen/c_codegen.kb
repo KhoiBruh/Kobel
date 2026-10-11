@@ -423,14 +423,26 @@ impl CCodeGen {
 		}
 	}
 
+	// Tag test of a smart cast. A pointer subject is compared against NULL
+	// first: reading the tag would dereference it, and a null subject matches no
+	// struct pattern, so the caller takes its `else` path.
+	//
+	// ponytail: the subject is re-evaluated for the NULL test. Safe today
+	// because every subject is a plain path (`p`, `obj.field`); upgrade by
+	// hoisting `void* __subj = ...;` in statement position if a call ever
+	// becomes a subject.
+	pub fn gen_tag_test(var self, subject: str, is_ptr: bool, tag_field: str, target_name: str): str {
+		if (!is_ptr) return "${subject}.${tag_field} == ${target_name}__TAG";
+		return "${subject} != NULL && ${subject}->${tag_field} == ${target_name}__TAG";
+	}
+
 	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
 		val obj = self.gen_expr(is_e.expr);
 		val target_name = c_type_from_ast(is_e.target_type);
 		var tag_field = is_e.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
-		val op = if (is_e.is_ptr) "->" else ".";
 		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
-		return "(${obj_str}${op}${tag_field} == ${target_name}__TAG)";
+		return "(${self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name)})";
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
@@ -447,8 +459,7 @@ impl CCodeGen {
 				val target_name = c_type_from_ast(is_e.target_type);
 				var tag_field = is_e.tag_field;
 				if (tag_field.empty()) tag_field = "tag";
-				val op = if (is_e.is_ptr) "->" else ".";
-				test = "(${cond}${op}${tag_field} == ${target_name}__TAG)";
+				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, target_name);
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == LiteralKind.STRING) {
 					test = "strcmp(${cond}, ${self.gen_expr(p)}) == 0";
