@@ -2155,6 +2155,7 @@ bool str_empty(const char* self);
 bool str_starts_with(const char* self, const char* prefix);
 bool str_ends_with(const char* self, const char* suffix);
 const char* str_strip_suffix(const char* self, size_t n);
+const char* str_strip_char(const char* self, char c);
 const char* str_suffix_tail(const char* self);
 const char* str_num_suffix(const char* self);
 const char* str_repeat(const char* self, size_t n);
@@ -8618,6 +8619,45 @@ bool str_ends_with(const char* self, const char* suffix) {
 
 const char* str_strip_suffix(const char* self, size_t n) {
     return ((kobel_slen(self) <= n) ? "" : kobel_slice(self, 0, (kobel_slen(self) - n)));
+}
+
+const char* str_strip_char(const char* self, char c) {
+    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    int32_t w = 0;
+    {
+        size_t __for_e = kobel_slen(self);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            char ch = self[i];
+            if (ch != c) {
+                buf[w] = (uint8_t)ch;
+                w++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    buf[w] = 0;
+    return std__str__str_from_bytes(buf, w);
 }
 
 const char* str_suffix_tail(const char* self) {
@@ -16232,8 +16272,8 @@ const char* compiler__codegen__c_codegen__c_type_from_ast(compiler__ast__node__A
 
 const char* compiler__codegen__c_codegen__c_format_int_literal(const char* raw) {
     const char* sfx = str_num_suffix(raw);
-    const char* body = str_strip_suffix(raw, kobel_slen(sfx));
-    return (strcmp(sfx, "Z") == 0 ? kobel_concat(kobel_concat("((intptr_t)", body), "LL)") : (strcmp(sfx, "L") == 0 ? kobel_concat(body, "LL") : (strcmp(sfx, "S") == 0 ? kobel_concat(kobel_concat("((int16_t)", body), ")") : (strcmp(sfx, "B") == 0 ? kobel_concat(kobel_concat("((int8_t)", body), ")") : (strcmp(sfx, "U") == 0 ? kobel_concat(body, "U") : (strcmp(sfx, "UZ") == 0 ? kobel_concat(kobel_concat("((size_t)", body), "ULL)") : (strcmp(sfx, "UL") == 0 ? kobel_concat(body, "ULL") : (strcmp(sfx, "UB") == 0 ? kobel_concat(kobel_concat("((uint8_t)", body), ")") : (strcmp(sfx, "US") == 0 ? kobel_concat(kobel_concat("((uint16_t)", body), ")") : raw)))))))));
+    const char* body = str_strip_char(str_strip_suffix(raw, kobel_slen(sfx)), '_');
+    return (strcmp(sfx, "Z") == 0 ? kobel_concat(kobel_concat("((intptr_t)", body), "LL)") : (strcmp(sfx, "L") == 0 ? kobel_concat(body, "LL") : (strcmp(sfx, "S") == 0 ? kobel_concat(kobel_concat("((int16_t)", body), ")") : (strcmp(sfx, "B") == 0 ? kobel_concat(kobel_concat("((int8_t)", body), ")") : (strcmp(sfx, "U") == 0 ? kobel_concat(body, "U") : (strcmp(sfx, "UZ") == 0 ? kobel_concat(kobel_concat("((size_t)", body), "ULL)") : (strcmp(sfx, "UL") == 0 ? kobel_concat(body, "ULL") : (strcmp(sfx, "UB") == 0 ? kobel_concat(kobel_concat("((uint8_t)", body), ")") : (strcmp(sfx, "US") == 0 ? kobel_concat(kobel_concat("((uint16_t)", body), ")") : body)))))))));
 }
 
 const char* compiler__codegen__c_codegen__c_int_literal_c_type(const char* raw) {
@@ -16245,12 +16285,13 @@ const char* compiler__codegen__c_codegen__c_float_literal_c_type(const char* raw
 }
 
 const char* compiler__codegen__c_codegen__c_format_float_literal(const char* raw) {
+    const char* text = str_strip_char(raw, '_');
     bool has_dot = false;
     {
-        size_t __for_n = kobel_slen(raw);
+        size_t __for_n = kobel_slen(text);
         size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
-            char c = raw[__for_i];
+            char c = text[__for_i];
             if (((c == '.') || (c == 'e')) || (c == 'E')) {
                 has_dot = true;
                 break;
@@ -16259,10 +16300,10 @@ const char* compiler__codegen__c_codegen__c_format_float_literal(const char* raw
         }
     }
     if (has_dot) {
-        return raw;
+        return text;
     }
-    size_t len = kobel_slen(raw);
-    return (str_ends_with(raw, "F") ? kobel_concat(kobel_slice(raw, 0, (len - 1)), ".0f") : (str_ends_with(raw, "D") ? kobel_concat(kobel_slice(raw, 0, (len - 1)), ".0") : kobel_concat(raw, ".0")));
+    size_t len = kobel_slen(text);
+    return (str_ends_with(text, "F") ? kobel_concat(kobel_slice(text, 0, (len - 1)), ".0f") : (str_ends_with(text, "D") ? kobel_concat(kobel_slice(text, 0, (len - 1)), ".0") : kobel_concat(text, ".0")));
 }
 
 bool compiler__codegen__c_codegen__expr_needs_parens_for_member(compiler__ast__node__AstNode* node) {
