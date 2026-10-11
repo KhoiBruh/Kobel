@@ -503,66 +503,15 @@ impl CCodeGen {
 		if (expr == null) return "int32_t";
 
 		when (expr) {
-			is LiteralExpr as lit -> {
-				return when (lit.literal_kind) {
-					LiteralKind.STRING -> "const char*",
-					LiteralKind.CHAR -> "char",
-					LiteralKind.FLOAT -> c_float_literal_c_type(lit.raw_text),
-					LiteralKind.BOOL -> "bool",
-					else -> c_int_literal_c_type(lit.raw_text)
-				};
-			}
+			is LiteralExpr as lit -> { return self.gen_literal_type(lit); }
 
-			is IdentifierExpr as id -> {
-				if (self.is_str_var(id.name)) return "const char*";
-				if (self.is_pointer_var(id.name)) return "void*";
-				val ret_ty = self.lookup_fn_ret_type(id.name);
-				if (!ret_ty.empty()) return ret_ty;
-				return "int32_t";
-			}
+			is IdentifierExpr as id -> { return self.gen_identifier_type(id); }
 
-			is CallExpr as call -> {
-				val callee = call.callee;
-				if (callee is MemberExpr as m) {
-					return when (m.member) {
-						"c_str", "slice", "data" -> "const char*";
-						"len", "size", "cap" -> "size_t";
-						else -> "int32_t";
-					};
-				}
-				if (callee is IdentifierExpr as id) {
-					// Runtime string helpers injected by the semantic analyzer.
-					if (id.name == "kobel_concat") return "const char*";
-					if (id.name == "kobel_slice") return "const char*";
-					if (id.name == "kobel_streq") return "bool";
-					if (id.name == "kobel_slen") return "size_t";
-					if (id.name.in_list(self.struct_names)) return id.name;
-					val ret_ty = self.lookup_fn_ret_type(id.name);
-					if (!ret_ty.empty()) return ret_ty;
-				}
-				return "int32_t";
-			}
+			is CallExpr as call -> { return self.gen_call_type(call); }
 
-			is BinaryExpr as bin -> {
-				return when (bin.op) {
-					TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
-					TokenType.LESS, TokenType.LESS_EQUAL,
-					TokenType.GREATER, TokenType.GREATER_EQUAL,
-					TokenType.AND_AND, TokenType.OR_OR -> "bool";
-					else -> self.infer_type_from_expr(bin.left);
-				};
-			}
+			is BinaryExpr as bin -> { return self.gen_binary_type(bin); }
 
-			is UnaryExpr as un -> {
-				return when (un.op) {
-					TokenType.BANG -> "bool";
-					TokenType.AMPERSAND -> {
-						val sub = self.infer_type_from_expr(un.operand);
-						yield sub + "*";
-					}
-					else -> self.infer_type_from_expr(un.operand);
-				};
-			}
+			is UnaryExpr as un -> { return self.gen_unary_type(un); }
 
 			is GroupExpr as g -> {
 				return self.infer_type_from_expr(g.expr);
@@ -572,30 +521,9 @@ impl CCodeGen {
 				return self.infer_type_from_expr(if_e.then_branch);
 			}
 
-			is ArrayLiteralExpr as al -> {
-				if (!al.list_struct_name.empty()) return al.list_struct_name;
-				var elem_c = self.array_elem_hint;
-				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-				else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
-				if (elem_c.empty()) elem_c = "int32_t";
-				return "${elem_c}*";
-			}
+			is ArrayLiteralExpr as al -> { return self.gen_array_literal_type(al); }
 
-			is WhenExpr as we -> {
-				for (arm in we.arms) {
-					val arm_b = arm.body;
-					if (arm_b is BlockStmt as blk) {
-						for (s in blk.statements) {
-							if (s is YieldStmt as ys) {
-								if (ys.value != null) return self.infer_type_from_expr(ys.value);
-							}
-						}
-					} else {
-						return self.infer_type_from_expr(arm_b);
-					}
-				}
-				return "int32_t";
-			}
+			is WhenExpr as we -> { return self.gen_when_expr_type(we); }
 
 			is CastExpr as cst -> {
 				return c_type_from_ast(cst.target_type);
@@ -610,6 +538,99 @@ impl CCodeGen {
 			}
 		}
 
+		return "int32_t";
+	}
+
+	// C type of a literal token: strings/chars/bools pin a type, numbers are sized.
+	fn gen_literal_type(var self, lit: *LiteralExpr): str {
+		return when (lit.literal_kind) {
+			LiteralKind.STRING -> "const char*",
+			LiteralKind.CHAR -> "char",
+			LiteralKind.FLOAT -> c_float_literal_c_type(lit.raw_text),
+			LiteralKind.BOOL -> "bool",
+			else -> c_int_literal_c_type(lit.raw_text)
+		};
+	}
+
+	// C type of a bare name: declared string/pointer locals win, then known functions.
+	fn gen_identifier_type(var self, id: *IdentifierExpr): str {
+		if (self.is_str_var(id.name)) return "const char*";
+		if (self.is_pointer_var(id.name)) return "void*";
+		val ret_ty = self.lookup_fn_ret_type(id.name);
+		if (!ret_ty.empty()) return ret_ty;
+		return "int32_t";
+	}
+
+	// C type of a call: string/size methods, injected runtime helpers, then user functions.
+	fn gen_call_type(var self, call: *CallExpr): str {
+		val callee = call.callee;
+		if (callee is MemberExpr as m) {
+			return when (m.member) {
+				"c_str", "slice", "data" -> "const char*";
+				"len", "size", "cap" -> "size_t";
+				else -> "int32_t";
+			};
+		}
+		if (callee is IdentifierExpr as id) {
+			// Runtime string helpers injected by the semantic analyzer.
+			if (id.name == "kobel_concat") return "const char*";
+			if (id.name == "kobel_slice") return "const char*";
+			if (id.name == "kobel_streq") return "bool";
+			if (id.name == "kobel_slen") return "size_t";
+			if (id.name.in_list(self.struct_names)) return id.name;
+			val ret_ty = self.lookup_fn_ret_type(id.name);
+			if (!ret_ty.empty()) return ret_ty;
+		}
+		return "int32_t";
+	}
+
+	// Comparison/logical operators yield bool, any other binary takes its left type.
+	fn gen_binary_type(var self, bin: *BinaryExpr): str {
+		return when (bin.op) {
+			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
+			TokenType.LESS, TokenType.LESS_EQUAL,
+			TokenType.GREATER, TokenType.GREATER_EQUAL,
+			TokenType.AND_AND, TokenType.OR_OR -> "bool";
+			else -> self.infer_type_from_expr(bin.left);
+		};
+	}
+
+	// `!` yields bool, `&` adds a pointer level, any other unary keeps its operand type.
+	fn gen_unary_type(var self, un: *UnaryExpr): str {
+		return when (un.op) {
+			TokenType.BANG -> "bool";
+			TokenType.AMPERSAND -> {
+				val sub = self.infer_type_from_expr(un.operand);
+				yield sub + "*";
+			}
+			else -> self.infer_type_from_expr(un.operand);
+		};
+	}
+
+	// Array literal: list-struct name if known, else the element type plus a `*`.
+	fn gen_array_literal_type(var self, al: *ArrayLiteralExpr): str {
+		if (!al.list_struct_name.empty()) return al.list_struct_name;
+		var elem_c = self.array_elem_hint;
+		if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
+		else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+		if (elem_c.empty()) elem_c = "int32_t";
+		return "${elem_c}*";
+	}
+
+	// A when-expression takes the type of the first arm that yields a value.
+	fn gen_when_expr_type(var self, we: *WhenExpr): str {
+		for (arm in we.arms) {
+			val arm_b = arm.body;
+			if (arm_b is BlockStmt as blk) {
+				for (s in blk.statements) {
+					if (s is YieldStmt as ys) {
+						if (ys.value != null) return self.infer_type_from_expr(ys.value);
+					}
+				}
+			} else {
+				return self.infer_type_from_expr(arm_b);
+			}
+		}
 		return "int32_t";
 	}
 
@@ -747,45 +768,7 @@ impl CCodeGen {
 		}
 		if (init_e is BinaryExpr as bin) {
 			if (bin.op == TokenType.QUESTION_COLON) {
-				var cur = init_e;
-				var first = true;
-				var res = "";
-				while (cur != null) {
-					while (cur != null) {
-						if (cur is GroupExpr as g) cur = g.expr;
-						else break;
-					}
-					if (cur == null) break;
-					if (cur is BinaryExpr as b) {
-						if (b.op == TokenType.QUESTION_COLON) {
-							if (first) {
-								res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
-								first = false;
-							} else {
-								res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
-							}
-							cur = b.right;
-						} else {
-							res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
-							break;
-						}
-					} else {
-						val is_jump = cur.kind == NodeKind.STMT_RETURN ||
-							cur.kind == NodeKind.STMT_BREAK ||
-							cur.kind == NodeKind.STMT_CONTINUE;
-						if (is_jump) {
-							res = "${res}${ind}if (${vd.name} == NULL) {\n";
-							self.indent_level++;
-							res = "${res}${self.gen_statement(cur)}";
-							self.indent_level--;
-							res = "${res}${ind}}\n";
-						} else {
-							res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
-						}
-						break;
-					}
-				}
-				return res;
+				return self.gen_var_elvis_init(vd, init_e, ind, ty_str);
 			}
 		}
 
@@ -798,6 +781,49 @@ impl CCodeGen {
 		}
 
 		return "${res};\n";
+	}
+
+	// Emit a `a ?: b ?: c` initializer chain as a run of NULL checks.
+	fn gen_var_elvis_init(var self, vd: *VarDeclStmt, init_e: *AstNode, ind: str, ty_str: str): str {
+		var cur = init_e;
+		var first = true;
+		var res = "";
+		while (cur != null) {
+			while (cur != null) {
+				if (cur is GroupExpr as g) cur = g.expr;
+				else break;
+			}
+			if (cur == null) break;
+			if (cur is BinaryExpr as b) {
+				if (b.op == TokenType.QUESTION_COLON) {
+					if (first) {
+						res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
+						first = false;
+					} else {
+						res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
+					}
+					cur = b.right;
+				} else {
+					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+					break;
+				}
+			} else {
+				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
+					cur.kind == NodeKind.STMT_BREAK ||
+					cur.kind == NodeKind.STMT_CONTINUE;
+				if (is_jump) {
+					res = "${res}${ind}if (${vd.name} == NULL) {\n";
+					self.indent_level++;
+					res = "${res}${self.gen_statement(cur)}";
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+				} else {
+					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+				}
+				break;
+			}
+		}
+		return res;
 	}
 
 	fn gen_if_stmt(var self, ifs: *IfStmt): str {
@@ -944,46 +970,7 @@ impl CCodeGen {
 				}
 				if (asg_val is BinaryExpr as bin) {
 					if (bin.op == TokenType.QUESTION_COLON) {
-						val tgt = self.gen_expr(asg.target);
-						var cur = asg_val;
-						var first = true;
-						var res = "";
-						while (cur != null) {
-							while (cur != null) {
-								if (cur is GroupExpr as g) cur = g.expr;
-								else break;
-							}
-							if (cur == null) break;
-							if (cur is BinaryExpr as b) {
-								if (b.op == TokenType.QUESTION_COLON) {
-									if (first) {
-										res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
-										first = false;
-									} else {
-										res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
-									}
-									cur = b.right;
-								} else {
-									res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
-									break;
-								}
-							} else {
-								val is_jump = cur.kind == NodeKind.STMT_RETURN ||
-									cur.kind == NodeKind.STMT_BREAK ||
-									cur.kind == NodeKind.STMT_CONTINUE;
-								if (is_jump) {
-									res = "${res}${ind}if (${tgt} == NULL) {\n";
-									self.indent_level++;
-									res = "${res}${self.gen_statement(cur)}";
-									self.indent_level--;
-									res = "${res}${ind}}\n";
-								} else {
-									res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
-								}
-								break;
-							}
-						}
-						return res;
+						return self.gen_assign_elvis_stmt(asg, asg_val, ind);
 					}
 				}
 			}
@@ -1000,17 +987,66 @@ impl CCodeGen {
 						bin.right.kind == NodeKind.STMT_CONTINUE;
 
 					if (is_jump) {
-						var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
-						self.indent_level++;
-						res = "${res}${self.gen_statement(bin.right)}";
-						self.indent_level--;
-						res = "${res}${ind}}\n";
-						return res;
+						return self.gen_elvis_jump_stmt(bin, ind);
 					}
 				}
 			}
 		}
 		return "${ind}${self.gen_expr(es.expr)};\n";
+	}
+
+	// `x = a ?: b ?: c` assigns the first non-NULL value through a chain of NULL checks.
+	fn gen_assign_elvis_stmt(var self, asg: *AssignExpr, asg_val: *AstNode, ind: str): str {
+		val tgt = self.gen_expr(asg.target);
+		var cur = asg_val;
+		var first = true;
+		var res = "";
+		while (cur != null) {
+			while (cur != null) {
+				if (cur is GroupExpr as g) cur = g.expr;
+				else break;
+			}
+			if (cur == null) break;
+			if (cur is BinaryExpr as b) {
+				if (b.op == TokenType.QUESTION_COLON) {
+					if (first) {
+						res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
+						first = false;
+					} else {
+						res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
+					}
+					cur = b.right;
+				} else {
+					res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+					break;
+				}
+			} else {
+				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
+					cur.kind == NodeKind.STMT_BREAK ||
+					cur.kind == NodeKind.STMT_CONTINUE;
+				if (is_jump) {
+					res = "${res}${ind}if (${tgt} == NULL) {\n";
+					self.indent_level++;
+					res = "${res}${self.gen_statement(cur)}";
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+				} else {
+					res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+				}
+				break;
+			}
+		}
+		return res;
+	}
+
+	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
+	fn gen_elvis_jump_stmt(var self, bin: *BinaryExpr, ind: str): str {
+		var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
+		self.indent_level++;
+		res = "${res}${self.gen_statement(bin.right)}";
+		self.indent_level--;
+		res = "${res}${ind}}\n";
+		return res;
 	}
 
 	fn gen_yield_stmt(var self, ys: *YieldStmt): str {
