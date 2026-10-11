@@ -33,20 +33,14 @@ pub const PREC_PRIMARY: i32 = 11;
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
 // literals and suffixes never contain one.
 pub fn num_literal_is_float(text: str): bool {
-	for (c in text) {
-		if (c == '.') return true;
-	}
-	val len = text.len;
-	if (len > 0) {
-		val last = text[len - 1];
-		if (last == 'f' || last == 'F' || last == 'd' || last == 'D') return true;
-	}
+	for (c in text) if (c == '.') return true;
+	if (text.ends_with("F") || text.ends_with("D")) return true;
 	return false;
 }
 
 // True when the raw token text (quotes included) contains an unescaped `${`.
 pub fn str_has_hole(text: str): bool {
-	var i: usz = 0;
+	var i = 0;
 	while (i < text.len) {
 		val c = text[i];
 		if (c == '\\') {
@@ -72,7 +66,7 @@ pub fn str_has_esc_dollar(text: str): bool {
 pub fn normalize_esc_dollar(text: str): str {
 	if (!str_has_esc_dollar(text)) return text;
 	var out = "";
-	var i: usz = 0;
+	var i = 0;
 	while (i < text.len) {
 		if (text[i] == '\\' && i + 1 < text.len) {
 			if (text[i + 1] == '\\') {
@@ -244,7 +238,7 @@ impl Parser {
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(null, target_type, line, col);
-				if (alias != "") is_node.to<IsExpr>().alias = alias;
+				if (!alias.empty()) is_node.to<IsExpr>().alias = alias;
 				yield is_node;
 			}
 
@@ -393,7 +387,7 @@ impl Parser {
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(left, target_type, line, col);
-				if (alias != "") is_node.to<IsExpr>().alias = alias;
+				if (!alias.empty()) is_node.to<IsExpr>().alias = alias;
 				yield is_node;
 			}
 

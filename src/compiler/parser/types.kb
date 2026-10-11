@@ -65,17 +65,21 @@ impl Parser {
 		}
 
 		// 4. Array type syntax per the spec: Array<T>(N)
-		if (full_name == "Array" && type_args.len == 1 && self.check(TokenType.OPEN_PAREN)) {
+		if (
+			full_name == "Array" &&
+			type_args.len == 1 &&
+			self.check(TokenType.OPEN_PAREN)
+		) {
 			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
 			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
 
 			// Convert the size string to usz
-			var size = 0UZ;
+			var size = 0;
 			for (ch in size_tok.text) {
 				if (ch >= '0' && ch <= '9') {
 					val digit = (ch as i32) - ('0' as i32);
-					size = size * 10 + (digit as usz);
+					size = size * 10 + digit;
 				}
 			}
 

@@ -151,10 +151,13 @@ impl ModuleLoader {
 		val file = self.find_module(module_name);
 		if (!file.found) {
 			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-			val msg = if (line > 0UZ) {
-				"${prefix}Line ${line}, Column ${col}: Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+			val msg = if (line > 0) {
+				"${prefix}Line ${line}, Column ${col}: "
+				"Module '${module_name}' not found "
+				"(searched the entry directory, -I roots, lib/, src/)"
 			} else {
-				"${prefix}Module '${module_name}' not found (searched the entry directory, -I roots, lib/, src/)"
+				"${prefix}Module '${module_name}' "
+				"not found (searched the entry directory, -I roots, lib/, src/)"
 			};
 			self.errors.add(msg);
 			return;
@@ -230,4 +233,3 @@ impl ModuleLoader {
 	}
 
 }
-

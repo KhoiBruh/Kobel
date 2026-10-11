@@ -45,7 +45,24 @@ impl str {
 		return self.slice(self.len - suffix.len, self.len) == suffix;
 	}
 
-	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) "" else self.slice(0, self.len - n);
+	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
+		else self.slice(0, self.len - n);
+
+	// `n` copies of `self` in a single allocation ("" for n == 0).
+	pub fn repeat(val self, n: usz): str {
+		if (n == 0 || self.len == 0) return "";
+		val buf = raw_alloc(self.len * n + 1);
+		var w = 0;
+
+		for (k in 0..<n) {
+			for (i in 0..<self.len) {
+				buf[w] = self[i] as u8;
+				w++;
+			}
+		}
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
 
 	pub fn contains(val self, sub: str): bool {
 		if (sub.len == 0) return true;

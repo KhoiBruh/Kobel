@@ -50,11 +50,7 @@ impl CCodeGen {
 
 }
 
-pub fn get_indent(level: usz): str {
-	var res = "";
-	for (i in 0..<level) res = "${res}    ";
-	return res;
-}
+pub fn get_indent(level: usz) => "    ".repeat(level);
 
 // ============================================================================
 // Type Mapping (Kobel -> C99 Standard Types)
@@ -118,67 +114,39 @@ pub fn c_type_from_ast(node: *AstNode): str {
 	};
 }
 
-pub fn c_format_int_literal(raw: str): str {
-	val len = raw.len;
-	val last = raw[len - 1];
+pub fn c_format_int_literal(raw: str): str => when {
+	// signed integer
+	raw.ends_with("Z") -> "((intptr_t)${raw.strip_suffix(1)}LL)";
+	raw.ends_with("L") -> "${raw.strip_suffix(1)}LL";
+	raw.ends_with("S") -> "((int16_t)${raw.strip_suffix(1)})";
+	raw.ends_with("B") -> "((int8_t)${raw.strip_suffix(1)})";
 
-	if (len >= 2) {
-		val prev = raw[len - 2];
-		if (prev == 'U') {
-			return when (last) {
-				'Z' -> "((size_t)${strip_suffix(raw, 2)}ULL)";
-				'L' -> "${strip_suffix(raw, 2)}ULL";
-				'B' -> "((uint8_t)${strip_suffix(raw, 2)})";
-				'S' -> "((uint16_t)${strip_suffix(raw, 2)})";
-				else -> raw;
-			};
-		}
-	}
-	if (len >= 1) {
-		return when (last) {
-			'L' -> "${strip_suffix(raw, 1)}LL";
-			'Z' -> "((intptr_t)${strip_suffix(raw, 1)}LL)";
-			'B' -> "((int8_t)${strip_suffix(raw, 1)})";
-			'S' -> "((int16_t)${strip_suffix(raw, 1)})";
-			'U' -> "${strip_suffix(raw, 1)}U";
-			else -> raw;
-		};
-	}
+	// unsigned integer
+	raw.ends_with("U") -> "${raw.strip_suffix(1)}U";
+	raw.ends_with("UZ") -> "((size_t)${raw.strip_suffix(2)}ULL)";
+	raw.ends_with("UL") -> "${raw.strip_suffix(2)}ULL";
+	raw.ends_with("UB") -> "((uint8_t)${raw.strip_suffix(2)})";
+	raw.ends_with("US") -> "((uint16_t)${raw.strip_suffix(2)})";
+	else -> raw;
+};
 
-	return raw;
-}
+pub fn c_int_literal_c_type(raw: str) => when {
+	// signed integer
+	raw.ends_with("Z") -> "intptr_t";
+	raw.ends_with("L") -> "int64_t";
+	raw.ends_with("S") -> "int16_t";
+	raw.ends_with("B") -> "int8_t";
 
-pub fn c_int_literal_c_type(raw: str): str {
-	val len = raw.len;
-	if (len >= 2) {
-		val prev = raw[len - 2];
-		val last = raw[len - 1];
-		if (prev == 'U') {
-			if (last == 'Z') return "size_t";
-			if (last == 'L') return "uint64_t";
-			if (last == 'S') return "uint16_t";
-			if (last == 'B') return "uint8_t";
-		}
-	}
-	if (len >= 1) {
-		val last = raw[len - 1];
-		if (last == 'L') return "int64_t";
-		if (last == 'Z') return "intptr_t";
-		if (last == 'U') return "uint32_t";
-		if (last == 'S') return "int16_t";
-		if (last == 'B') return "int8_t";
-	}
-	return "int32_t";
-}
+	// unsigned integer
+	raw.ends_with("U") -> "uint32_t";
+	raw.ends_with("UZ") -> "size_t";
+	raw.ends_with("UL") -> "uint64_t";
+	raw.ends_with("US") -> "uint16_t";
+	raw.ends_with("UB") -> "uint8_t";
+	else -> "int32_t";
+};
 
-pub fn c_float_literal_c_type(raw: str): str {
-	val len = raw.len;
-	if (len >= 1) {
-		val last = raw[len - 1];
-		if (last == 'f' || last == 'F') return "float";
-	}
-	return "double";
-}
+pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else "double";
 
 pub fn c_format_float_literal(raw: str): str {
 	var has_dot = false;
@@ -189,13 +157,13 @@ pub fn c_format_float_literal(raw: str): str {
 		}
 	}
 	if (has_dot) return raw;
+
 	val len = raw.len;
-	if (len > 0) {
-		val last = raw[len - 1];
-		if (last == 'f' || last == 'F') return "${raw.slice(0, len - 1)}.0f";
-		if (last == 'd' || last == 'D') return "${raw.slice(0, len - 1)}.0";
-	}
-	return "${raw}.0";
+	return when {
+		raw.ends_with("F") -> "${raw.slice(0, len - 1)}.0f";
+		raw.ends_with("D") -> "${raw.slice(0, len - 1)}.0";
+		else -> "${raw}.0"
+	};
 }
 
 // ============================================================================
@@ -302,10 +270,10 @@ impl CCodeGen {
 			is ArrayLiteralExpr as al -> {
 				var elem_c = self.array_elem_hint;
 				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-				else if (elem_c == "" && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
-				if (elem_c == "") elem_c = "int32_t";
+				else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				if (elem_c.empty()) elem_c = "int32_t";
 
-				if (al.list_struct_name != "") {
+				if (!al.list_struct_name.empty()) {
 					if (al.elements.empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
 					var arr_res = "(${elem_c}[]){";
 					for (i in 0..<al.elements.len) {
@@ -341,8 +309,12 @@ impl CCodeGen {
 						if (mem.member == "c_str") return self.gen_expr(mem.object);
 						if (mem.member == "slice") {
 							val slice_obj = self.gen_expr(mem.object);
-							if (call.args.len >= 2) return "kobel_slice(${slice_obj}, ${self.gen_expr(call.args.first())}, ${self.gen_expr(call.args[1])})";
-							if (call.args.len == 1) return "kobel_slice(${slice_obj}, ${self.gen_expr(call.args.first())}, strlen(${slice_obj}))";
+							if (call.args.len >= 2) return "kobel_slice(${slice_obj}, "
+															"${self.gen_expr(call.args.first())}, "
+															"${self.gen_expr(call.args[1])})";
+							if (call.args.len == 1) return "kobel_slice(${slice_obj}, "
+															"${self.gen_expr(call.args.first())}, "
+															"strlen(${slice_obj}))";
 							return slice_obj;
 						}
 					}
@@ -455,7 +427,7 @@ impl CCodeGen {
 		val obj = self.gen_expr(is_e.expr);
 		val target_name = c_type_from_ast(is_e.target_type);
 		var tag_field = is_e.tag_field;
-		if (tag_field == "") tag_field = "tag";
+		if (tag_field.empty()) tag_field = "tag";
 		val op = if (is_e.is_ptr) "->" else ".";
 		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
 		return "(${obj_str}${op}${tag_field} == ${target_name}__TAG)";
@@ -469,12 +441,12 @@ impl CCodeGen {
 		for (i in 0..<patterns.len) {
 			val p = patterns[i];
 			var test = "";
-			if (cond == "") {
+			if (cond.empty()) {
 				test = self.gen_expr(p);
 			} else if (p is IsExpr as is_e) {
 				val target_name = c_type_from_ast(is_e.target_type);
 				var tag_field = is_e.tag_field;
-				if (tag_field == "") tag_field = "tag";
+				if (tag_field.empty()) tag_field = "tag";
 				val op = if (is_e.is_ptr) "->" else ".";
 				test = "(${cond}${op}${tag_field} == ${target_name}__TAG)";
 			} else if (p is LiteralExpr as lit) {
@@ -488,7 +460,7 @@ impl CCodeGen {
 			}
 			res = if (i == 0) test else "${res} || ${test}";
 		}
-		if (res == "") res = "1";
+		if (res.empty()) res = "1";
 		return res;
 	}
 
@@ -510,7 +482,7 @@ impl CCodeGen {
 				if (self.is_str_var(id.name)) return "const char*";
 				if (self.is_pointer_var(id.name)) return "void*";
 				val ret_ty = self.lookup_fn_ret_type(id.name);
-				if (ret_ty != "") return ret_ty;
+				if (!ret_ty.empty()) return ret_ty;
 				return "int32_t";
 			}
 
@@ -532,7 +504,7 @@ impl CCodeGen {
 						if (id.name == "kobel_slen") return "size_t";
 						if (id.name.in_list(self.struct_names)) return id.name;
 						val ret_ty = self.lookup_fn_ret_type(id.name);
-						if (ret_ty != "") return ret_ty;
+						if (!ret_ty.empty()) return ret_ty;
 					}
 				}
 				return "int32_t";
@@ -568,11 +540,11 @@ impl CCodeGen {
 			}
 
 			is ArrayLiteralExpr as al -> {
-				if (al.list_struct_name != "") return al.list_struct_name;
+				if (!al.list_struct_name.empty()) return al.list_struct_name;
 				var elem_c = self.array_elem_hint;
 				if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-				else if (elem_c == "" && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
-				if (elem_c == "") elem_c = "int32_t";
+				else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
+				if (elem_c.empty()) elem_c = "int32_t";
 				return "${elem_c}*";
 			}
 
@@ -782,11 +754,8 @@ impl CCodeGen {
 			is IfStmt as ifs -> {
 				var cond = ifs.condition;
 				while (cond != null) {
-					if (cond is GroupExpr as g) {
-						cond = g.expr;
-					} else {
-						break;
-					}
+					if (cond is GroupExpr as g) cond = g.expr;
+					else break;
 				}
 
 				var cast_decl = "";
@@ -805,9 +774,7 @@ impl CCodeGen {
 				val ind = get_indent(self.indent_level);
 				var res = "${ind}if ${self.gen_cond(ifs.condition)} {\n";
 				self.indent_level++;
-				if (cast_decl != "") {
-					res += get_indent(self.indent_level) + cast_decl + "\n";
-				}
+				if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
 				res = "${res}${self.gen_block_body(ifs.then_branch)}";
 				self.indent_level--;
 
@@ -836,16 +803,12 @@ impl CCodeGen {
 
 						res = "${res}${ind}} else if ${self.gen_cond(elif.condition)} {\n";
 						self.indent_level++;
-						if (elif_cast != "") {
-							res += get_indent(self.indent_level) + elif_cast + "\n";
-						}
+						if (!elif_cast.empty()) res += get_indent(self.indent_level) + elif_cast + "\n";
 						res = "${res}${self.gen_block_body(elif.then_branch)}";
 						self.indent_level--;
 
 						cur_else = elif.else_branch;
-					} else {
-						break;
-					}
+					} else break;
 				}
 
 				if (cur_else != null) {
@@ -886,7 +849,7 @@ impl CCodeGen {
 						if (ret_candidate is BinaryExpr as bin) {
 							if (bin.op == TokenType.QUESTION_COLON) {
 								var ret_ty = self.current_fn_ret_type;
-								if (ret_ty == "" || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+								if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
 								var cur = ret_candidate;
 								var res = "${ind}{\n";
 								self.indent_level++;
@@ -1027,7 +990,7 @@ impl CCodeGen {
 					if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value)};\n";
 					yield "${ind}return;\n";
 				}
-				if (self.yield_target != "") {
+				if (!self.yield_target.empty()) {
 					if (ys.value != null) yield "${ind}${self.yield_target} = ${self.gen_expr(ys.value)};\n";
 					yield "";
 				}
@@ -1064,9 +1027,7 @@ impl CCodeGen {
 						else res += ind + "} else if (" + test + ") {\n";
 					}
 					self.indent_level++;
-					if (cast_decl != "") {
-						res += get_indent(self.indent_level) + cast_decl + "\n";
-					}
+					if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
 					res += self.gen_block_body(arm.body);
 					self.indent_level--;
 					first = false;
@@ -1081,13 +1042,13 @@ impl CCodeGen {
 
 	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, var_name: str, ind_level: usz): str {
 		val target_name = c_type_from_ast(is_e.target_type);
-		val bound_name = if (is_e.alias != "") is_e.alias else var_name;
+		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
 		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
 		val next_ind = get_indent(ind_level);
-		if (is_e.alias != "") {
+		if (!is_e.alias.empty()) {
 			if (is_ptr) {
 				self.pointer_vars.add(bound_name);
-				if (is_e.has_data && is_e.base_c_name != "") {
+				if (is_e.has_data && !is_e.base_c_name.empty()) {
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(((${is_e.base_c_name}*)${var_name})->data);";
 				} else {
@@ -1099,7 +1060,7 @@ impl CCodeGen {
 			}
 		} else {
 			if (is_ptr) {
-				if (is_e.has_data && is_e.base_c_name != "") {
+				if (is_e.has_data && !is_e.base_c_name.empty()) {
 					return "void* __orig_${var_name} = (void*)${var_name};"
 							"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)"
 							"(((${is_e.base_c_name}*)__orig_${var_name})->data);";
@@ -1150,9 +1111,7 @@ impl CCodeGen {
 				else ind + "} else if (" + test + ") {\n";
 			}
 			self.indent_level++;
-			if (cast_decl != "") {
-				res += get_indent(self.indent_level) + cast_decl + "\n";
-			}
+			if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
 			val arm_b = arm.body;
 			if (arm_b != null) {
 				if (arm_b is BlockStmt as blk) {

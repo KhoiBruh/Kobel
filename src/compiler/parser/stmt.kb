@@ -22,9 +22,10 @@ impl Parser {
 		val lbrace = self.consume(TokenType.OPEN_BRACE, "Expected '{'");
 		var statements = List<*AstNode>();
 
-		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			statements.add(self.parse_statement());
-		}
+		while (
+			!self.is_end() &&
+			!self.check(TokenType.CLOSE_BRACE)
+		) statements.add(self.parse_statement());
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
 		return self.block_stmt(statements, lbrace.line, lbrace.col);
@@ -188,8 +189,8 @@ impl Parser {
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
-				var value: *AstNode = null;
-				if (!self.check(TokenType.SEMI_COLON)) value = self.parse_expression(PREC_NONE);
+				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE)
+				else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
 				yield self.yield_stmt(value, line, col);
 			}

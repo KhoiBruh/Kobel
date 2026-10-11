@@ -108,7 +108,7 @@ impl BodyPass {
 				return alloc_primitive(&self.arena, type_none());
 			}
 			// Switch to the mangled C name (import alias, symbol from another module)
-			if (sym.c_name != "" && sym.c_name != id.name) id.name = sym.c_name;
+			if (!sym.c_name.empty() && sym.c_name != id.name) id.name = sym.c_name;
 			return sym.type_ptr;
 		}
 		return alloc_primitive(&self.arena, type_none());
@@ -720,14 +720,14 @@ impl BodyPass {
 							if (is_e.expr == null) is_e.expr = cond;
 							smart_cast_ty = self.check_is_pattern(cond, cond_ty, pat);
 							if (smart_cast_ty != null) {
-								if (is_e.alias != "") smart_cast_sym = is_e.alias;
-								else smart_cast_sym = cond_id.name;
+								smart_cast_sym = if (is_e.alias.empty()) cond_id.name
+								else is_e.alias;
 							}
 						}
 					}
 				}
 
-				if (smart_cast_sym == "") {
+				if (smart_cast_sym.empty()) {
 					for (pat in arm.patterns) {
 						var p_ty: *Type = null;
 						if (cond != null) {
@@ -749,7 +749,7 @@ impl BodyPass {
 				}
 
 				var body_ty: *Type = null;
-				if (smart_cast_sym != "" && smart_cast_ty != null) {
+				if (!smart_cast_sym.empty() && smart_cast_ty != null) {
 					self.symtab.enter_scope(false);
 					self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
 					body_ty = self.check_when_arm_body(arm.body);
@@ -844,7 +844,7 @@ impl BodyPass {
 				}
 			}
 
-			if (tag_field_name == "") {
+			if (tag_field_name.empty()) {
 				self.report_error(is_node,
 					"Subject struct '${base_s.name}' must have a"
 					" 'tag', 'TAG', or 'kind' field"
@@ -894,7 +894,7 @@ impl BodyPass {
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
 		if (node is ArrayLiteralExpr as al) {
-			if (al.list_struct_name != "") {
+			if (!al.list_struct_name.empty()) {
 				val sym = self.symtab.lookup(al.list_struct_name);
 				if (sym != null) return sym.type_ptr;
 			}

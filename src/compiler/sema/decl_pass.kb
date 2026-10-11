@@ -288,7 +288,7 @@ impl DeclPass {
 
 				if (name == "Self" && self.current_self_type != null) {
 					val sinfo = self.current_self_type.as_struct();
-					if (sinfo.c_name != "") named.name = sinfo.c_name;
+					if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
 					else named.name = sinfo.name;
 					yield self.current_self_type;
 				}
@@ -385,7 +385,7 @@ impl DeclPass {
 		im.struct_name = st_c_name;
 
 		// `impl Trait for Struct`: verify the contract and pull in default methods.
-		if (im.trait_name != "") self.apply_trait(node, im, st_info.name);
+		if (!im.trait_name.empty()) self.apply_trait(node, im, st_info.name);
 
 		// Methods may be overloaded, so each needs a distinct C name.
 		val overloaded = overloaded_names(im);
@@ -545,7 +545,7 @@ impl DeclPass {
 		// Clear the name so codegen does not treat `self` as a pointer receiver.
 		im.struct_name = "";
 
-		if (im.trait_name != "") self.apply_trait(node, im, prim_name);
+		if (!im.trait_name.empty()) self.apply_trait(node, im, prim_name);
 
 		val overloaded = overloaded_names(im);
 		var used = List<str>();

@@ -68,7 +68,7 @@ impl DocumentStore {
 		return Document();
 	}
 
-	pub fn has(self, uri: str) => self.get(uri).uri != "";
+	pub fn has(self, uri: str) => !self.get(uri).uri.empty();
 
 	pub fn set(var self, uri: str, text: str, version: i64) {
 		val p = uri_to_path(uri);

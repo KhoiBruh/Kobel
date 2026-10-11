@@ -1,14 +1,9 @@
 mod std.collections.string_builder;
 
 use std.mem.alloc.*;
-use std.traits.iterable.Iterable;
+use std.str.str_from_bytes;
 use std.traits.to_str.*;
-
-struct StringRaw {
-	data: *char,
-	len: usz,
-	cap: usz
-}
+use std.traits.iterable.Iterable;
 
 // `len` is the public size accessor; the buffer and capacity are internal.
 pub struct StringBuilder {
@@ -17,10 +12,9 @@ pub struct StringBuilder {
 	cap: usz
 }
 
-// Kotlin-style constructor: `StringBuilder()`.
 impl StringBuilder {
 	pub fn new(): Self {
-		val init_cap: usz = 32;
+		val init_cap = 32;
 		val raw = raw_alloc(init_cap);
 		return Self(raw, 0, init_cap);
 	}
@@ -51,7 +45,7 @@ impl StringBuilder {
 
 		// Emit from the most significant digit: find that digit's place value
 		// first, then peel digits off one at a time (no temporary array needed).
-		var place = 1L;
+		var place = 1;
 		var probe = v;
 		while (probe >= 10) {
 			probe /= 10;
@@ -76,6 +70,31 @@ impl StringBuilder {
 		self.append_char('\n');
 	}
 
+	// `n` copies of `c` (indentation, padding) in one pass.
+	pub fn append_repeat(var self, c: char, n: usz) {
+		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
+		val b = c as u8;
+		for (i in 0..<n) self.buf[self.len + i] = b;
+		self.len += n;
+	}
+
+	// Escapes the sequences C string literals and JSON strings share (backslash,
+	// quote, `\n`, `\r`, `\t`); every other byte is copied verbatim. Callers that
+	// need strict JSON must escape control bytes < 0x20 themselves.
+	pub fn append_escaped(var self, s: str) {
+		for (i in 0..<s.len) {
+			val c = s[i];
+			when (c) {
+				'"' -> self.append_str("\\\"");
+				'\\' -> self.append_str("\\\\");
+				'\n' -> self.append_str("\\n");
+				'\r' -> self.append_str("\\r");
+				'\t' -> self.append_str("\\t");
+				else -> self.append_char(c);
+			}
+		}
+	}
+
 	pub fn empty(val self) => self.len == 0;
 
 	pub fn is_empty(val self) => self.len == 0;
@@ -86,9 +105,7 @@ impl StringBuilder {
 
 	fn grow(var self, min_cap: usz) {
 		var new_cap = self.cap * 2;
-		while (new_cap < min_cap) {
-			new_cap *= 2;
-		}
+		while (new_cap < min_cap) new_cap *= 2;
 		val new_raw = raw_resize(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;
@@ -109,18 +126,8 @@ impl Iterable for StringBuilder {
 impl ToStr for StringBuilder {
 	pub fn to_str(val self): str {
 		val str_data = raw_alloc(self.len + 1);
-		for (i in 0..<self.len) {
-			str_data[i] = self.buf[i];
-		}
+		for (i in 0..<self.len) str_data[i] = self.buf[i];
 		str_data[self.len] = 0;
-
-		val raw = alloc<StringRaw>();
-		raw.data = str_data as *char;
-		raw.len = self.len;
-		raw.cap = self.len + 1;
-		val sp = raw as *str;
-		val res = *sp;
-		release<StringRaw>(raw);
-		return res;
+		return str_from_bytes(str_data, self.len);
 	}
 }

@@ -7,8 +7,8 @@ use std.collections.list.List;
 // ============================================================================
 // String utilities shared by the compiler
 //
-// These helpers build strings from raw byte buffers (raw_alloc + StrRaw) so
-// that they keep working regardless of how `str` is represented by the
+// These helpers build strings from raw byte buffers (raw_alloc + str_from_bytes)
+// so that they keep working regardless of how `str` is represented by the
 // active backend (they never rely on `str + str` operator overloading).
 // ============================================================================
 
@@ -108,7 +108,7 @@ impl str {
 		val total = self.len * 2 + 2 + name.len;
 		val buf = raw_alloc(total + 1);
 
-		var w: usz = 0;
+		var w = 0;
 		for (c in self) {
 			when (c) {
 				'.' -> {
@@ -140,13 +140,16 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn normalize_path(val self): str {
+	// Path-byte remap: every `from` byte becomes `to`, and A-Z lowercases when
+	// `fold_case` (only `normalize_path` needs that). One pass, one allocation —
+	// shared by the three path-conversion helpers below.
+	fn remap_path_bytes(val self, from: char, to: char, fold_case: bool): str {
 		val buf = raw_alloc(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
 			buf[i] = when {
-				c == '\\' -> '/' as u8;
-				c >= 'A' && c <= 'Z' -> ((c as i32) + 32) as u8;
+				c == from -> to as u8;
+				fold_case && c >= 'A' && c <= 'Z' -> ((c as i32) + 32) as u8;
 				else -> c as u8;
 			};
 		}
@@ -155,29 +158,13 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
-	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
-	pub fn to_win_path(val self): str {
-		val buf = raw_alloc(self.len + 1);
-		for (i in 0..<self.len) {
-			val c = self[i];
-			buf[i] = if (c == '/') '\\' as u8 else c as u8;
-		}
+	pub fn normalize_path(val self) => self.remap_path_bytes('\\', '/', true);
 
-		buf[self.len] = 0;
-		return str_from_bytes(buf, self.len);
-	}
+	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
+	pub fn to_win_path(val self) => self.remap_path_bytes('/', '\\', false);
 
 	// Converts '\\' to '/' for cross-platform and POSIX path representations
-	pub fn to_posix_path(val self): str {
-		val buf = raw_alloc(self.len + 1);
-		for (i in 0..<self.len) {
-			val c = self[i];
-			buf[i] = if (c == '\\') '/' as u8 else c as u8;
-		}
-
-		buf[self.len] = 0;
-		return str_from_bytes(buf, self.len);
-	}
+	pub fn to_posix_path(val self) => self.remap_path_bytes('\\', '/', false);
 
 	pub fn in_list(val self, list: List<str>): bool {
 		for (item in list) {
@@ -213,8 +200,8 @@ impl str {
 
 	pub fn split_lines(val self): List<str> {
 		var res = List<str>();
-		var start: usz = 0;
-		var i: usz = 0;
+		var start = 0;
+		var i = 0;
 		while (i < self.len) {
 			val c = self[i];
 			if (c == '\n') {
@@ -227,6 +214,7 @@ impl str {
 			}
 			i++;
 		}
+
 		if (start <= self.len) {
 			var line_end = self.len;
 			if (line_end > start && self[line_end - 1] == '\r') {
@@ -238,21 +226,21 @@ impl str {
 	}
 
 	pub fn hash_stamp(val self): str {
-		var h: u64 = 5381UL;
+		var h = 5381UL;
 		for (c in self) {
-			h = ((h * 33UL) + (c as u64)) % 1000000007UL;
+			h = ((h * 33) + (c as u64)) % 1000000007;
 		}
 		return "${h}_${self.len}";
 	}
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total: usz = 0;
+	var total = 0;
 	for (i in 0..<count) total += parts[i].len;
 	if (count > 1) total += (count - 1);
 
 	val buf = raw_alloc(total + 1);
-	var w: usz = 0;
+	var w = 0;
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {

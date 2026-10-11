@@ -178,7 +178,7 @@ impl CCodeGen {
 				if (i > 0) proto = "${proto}, ";
 				val p = f.params[i];
 				var p_ty = c_type_from_ast(p.type_node);
-				if (self_c_type != "" && p.name == "self" && p.type_node == null) {
+				if (!self_c_type.empty() && p.name == "self" && p.type_node == null) {
 					p_ty = "${self_c_type}*";
 				}
 				proto = "${proto}${p_ty} ${p.name}";
@@ -195,7 +195,7 @@ impl CCodeGen {
 		self.str_vars = List<str>();
 		for (p in f.params) {
 			val p_tn = p.type_node;
-			if (self_c_type != "" && p.name == "self" && p_tn == null) {
+			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {
 				self.pointer_vars.add(p.name);
 			} else if (p_tn != null) {
 				when (p_tn) {

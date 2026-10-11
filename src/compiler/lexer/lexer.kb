@@ -224,7 +224,7 @@ impl Lexer {
 	// Nested braces, string literals, char literals and nested `${...}` are all
 	// honoured so the matching '}' is the right one.
 	pub fn skip_hole(var self) {
-		var depth: i32 = 0;
+		var depth = 0;
 		while (!self.is_end()) {
 			val c = self.peek();
 			when (c) {
@@ -296,7 +296,6 @@ impl Lexer {
 			}
 			if (c == '\'') return;
 			self.next();
-
 		}
 	}
 

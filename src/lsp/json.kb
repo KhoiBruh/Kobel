@@ -54,20 +54,9 @@ pub fn json_obj() => json_box(JsonValue(JsonKind.JOBJ));
 
 fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 	sb.append_char('"');
-	for (i in 0..<s.len) {
-		val c = s[i];
-		when (c) {
-			'"' -> sb.append_str("\\\"");
-			'\\' -> sb.append_str("\\\\");
-			'\n' -> sb.append_str("\\n");
-			'\r' -> sb.append_str("\\r");
-			'\t' -> sb.append_str("\\t");
-			else -> sb.append_char(c);
-		}
-	}
+	sb.append_escaped(s);
 	sb.append_char('"');
 }
-
 
 // ============================================================================
 // Methods on JsonValue

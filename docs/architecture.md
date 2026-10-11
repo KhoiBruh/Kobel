@@ -159,8 +159,8 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
 
 Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, của `StringBuilder`/`HashMap` (trừ `len`
-là accessor công khai), và các struct nội bộ (`StringRaw` ở `io.kb`/`string_builder.kb`, `StrRaw` ở
-`str.kb`) **không** `pub` — module khác phải đi qua constructor/method. Riêng `List.data` / `List.len`
+là accessor công khai), và struct nội bộ `StrRaw` (ở `str.kb`) **không** `pub` — module khác phải đi qua
+constructor/method. Riêng `List.data` / `List.len`
 giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2).
 
 Toàn bộ các kiểu container (stdlib) và các pass/bộ nạp của compiler **chỉ** dựng bằng cú pháp constructor

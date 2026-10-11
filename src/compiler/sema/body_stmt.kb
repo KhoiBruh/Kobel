@@ -104,7 +104,7 @@ impl BodyPass {
 						if (subj_sym != null) {
 							smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
 							if (smart_cast_ty != null) {
-								if (is_e.alias != "") smart_cast_sym = is_e.alias;
+								if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
 								else smart_cast_sym = id_name;
 							}
 						}
@@ -113,7 +113,7 @@ impl BodyPass {
 			}
 		}
 
-		if (smart_cast_sym != "" && smart_cast_ty != null) {
+		if (!smart_cast_sym.empty() && smart_cast_ty != null) {
 			self.symtab.enter_scope(false);
 			self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
 			self.check_statement(if_s.then_branch);
@@ -183,7 +183,7 @@ impl BodyPass {
 							if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
 							smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
 							if (smart_cast_ty != null) {
-								if (is_e.alias != "") smart_cast_sym = is_e.alias;
+								if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
 								else smart_cast_sym = ws_id.name;
 							}
 						}
@@ -191,7 +191,7 @@ impl BodyPass {
 				}
 			}
 
-			if (smart_cast_sym == "") {
+			if (smart_cast_sym.empty()) {
 				for (pat in arm.patterns) {
 					var p_ty: *Type = null;
 					var is_is_pat = false;
@@ -213,14 +213,12 @@ impl BodyPass {
 				}
 			}
 
-			if (smart_cast_sym != "" && smart_cast_ty != null) {
+			if (!smart_cast_sym.empty() && smart_cast_ty != null) {
 				self.symtab.enter_scope(false);
 				self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
 				self.check_statement(arm.body);
 				self.symtab.exit_scope();
-			} else {
-				self.check_statement(arm.body);
-			}
+			} else self.check_statement(arm.body);
 		}
 	}
 

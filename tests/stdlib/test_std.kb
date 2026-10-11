@@ -97,6 +97,17 @@ fn test_collections(): bool {
 	if (sb.last_char() != '\n') return false;
 	sb.delete();
 
+	// 4. append_repeat / append_escaped
+	var sb2: StringBuilder = StringBuilder();
+	sb2.append_repeat(' ', 3UZ);
+	sb2.append_str("x");
+	sb2.append_escaped("a\"b\\c\nd");
+	if (sb2.to_str() != "   xa\\\"b\\\\c\\nd") return false;
+	sb2.clear();
+	sb2.append_repeat('x', 100UZ);
+	if (sb2.len != 100UZ || sb2.last_char() != 'x') return false;
+	sb2.delete();
+
 	return true;
 }
 
@@ -138,6 +149,11 @@ fn test_str(): bool {
 	if (s.index_of("Missing") != -1) return false;
 
 	if (s.strip_suffix(7UZ) != "Hello, Kobel") return false;
+
+	if ("ab".repeat(3UZ) != "ababab") return false;
+	if ("ab".repeat(0UZ) != "") return false;
+	if (s.repeat(1UZ) != s) return false;
+	if ("".repeat(4UZ) != "") return false;
 
 	return true;
 }

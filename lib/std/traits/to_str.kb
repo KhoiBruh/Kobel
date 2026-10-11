@@ -26,7 +26,7 @@ pub trait ToStr {
 // first so the digits can be written forward into an exactly sized buffer.
 fn fmt_u64(n0: u64): str {
 	var n = n0;
-	var digits: usz = 1;
+	var digits = 1;
 	var probe = n;
 	while (probe >= 10) {
 		probe /= 10;
@@ -38,7 +38,7 @@ fn fmt_u64(n0: u64): str {
 	var i = digits;
 	while (i > 0) {
 		i--;
-		buf[i] = (48UL + (n % 10)) as u8;
+		buf[i] = (48 + (n % 10)) as u8;
 		n /= 10;
 	}
 	return str_from_bytes(buf, digits);
@@ -56,10 +56,7 @@ fn fmt_char(c: char): str {
 	return str_from_bytes(buf, 1);
 }
 
-fn fmt_bool(b: bool): str {
-	if (b) return "true";
-	return "false";
-}
+fn fmt_bool(b: bool) => if (b) "true" else "false";
 
 // `n` copies of the character '0'.
 fn fmt_zeros(n: usz): str {

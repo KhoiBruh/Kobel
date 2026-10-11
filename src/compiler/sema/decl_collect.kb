@@ -64,7 +64,7 @@ impl DeclPass {
 		}
 
 		var local_name = u.symbol_name;
-		if (u.alias != "") local_name = u.alias;
+		if (!u.alias.empty()) local_name = u.alias;
 		self.symtab.add_import(mod_name, u.symbol_name, local_name, false);
 	}
 

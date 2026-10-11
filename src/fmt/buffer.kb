@@ -11,19 +11,16 @@ use fmt.options.*;
 pub struct FormatBuffer {
 	pub sb: StringBuilder,
 	pub options: FormatOptions,
-	pub indent_level: usz,
-	pub align_spaces: usz,
-	pub current_col: usz,
-	pub at_line_start: bool,
-	pub blank_lines: usz
+	pub indent_level: usz = 0,
+	pub align_spaces: usz = 0,
+	pub current_col: usz = 0,
+	pub at_line_start: bool = true,
+	pub blank_lines: usz = 0
 }
 
 impl FormatBuffer {
 
-	pub fn new(options: FormatOptions) => Self(
-		StringBuilder(),
-		options, 0, 0, 0, true, 0
-	);
+	pub fn new(options: FormatOptions) => Self(StringBuilder(), options);
 
 	pub fn ensure_indent(var self) {
 		if (!self.at_line_start) return;
