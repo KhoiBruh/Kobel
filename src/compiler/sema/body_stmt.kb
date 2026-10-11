@@ -94,20 +94,15 @@ impl BodyPass {
 			else break;
 		}
 
-		if (cond != null) {
-			if (cond is IsExpr as is_e) {
-				val is_expr = is_e.expr;
-				if (is_expr != null) {
-					if (is_expr is IdentifierExpr as id) {
-						val id_name = id.name;
-						val subj_sym = self.symtab.lookup(id_name);
-						if (subj_sym != null) {
-							smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
-							if (smart_cast_ty != null) {
-								if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
-								else smart_cast_sym = id_name;
-							}
-						}
+		if (cond is IsExpr as is_e) {
+			val is_expr = is_e.expr;
+			if (is_expr is IdentifierExpr as id) {
+				val subj_sym = self.symtab.lookup(id.name);
+				if (subj_sym != null) {
+					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
+					if (smart_cast_ty != null) {
+						if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
+						else smart_cast_sym = id.name;
 					}
 				}
 			}
@@ -174,18 +169,16 @@ impl BodyPass {
 			var smart_cast_ty: *Type = null;
 
 			val ws_cond = ws.condition;
-			if (ws_cond != null) {
-				if (ws_cond is IdentifierExpr as ws_id) {
-					if (arm.patterns.len == 1) {
-						val pat = arm.patterns.first();
-						if (pat is IsExpr as is_e) {
-							val is_e_mut = is_e as &IsExpr;
-							if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
-							smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
-							if (smart_cast_ty != null) {
-								if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
-								else smart_cast_sym = ws_id.name;
-							}
+			if (ws_cond is IdentifierExpr as ws_id) {
+				if (arm.patterns.len == 1) {
+					val pat = arm.patterns.first();
+					if (pat is IsExpr as is_e) {
+						val is_e_mut = is_e as &IsExpr;
+						if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
+						smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
+						if (smart_cast_ty != null) {
+							if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
+							else smart_cast_sym = ws_id.name;
 						}
 					}
 				}
