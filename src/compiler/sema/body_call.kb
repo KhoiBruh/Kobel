@@ -115,6 +115,92 @@ impl BodyPass {
 		return alloc_primitive(&self.arena, type_none());
 	}
 
+	// A method may be called with fewer arguments than it declares when the
+	// missing tail all has defaults; clone those defaults into the call so the
+	// arity check and the backend see the complete argument list.
+	fn append_defaults(var self, node: *AstNode, argc: usz, call: &CallExpr): bool {
+		if (node is FnDecl as f) {
+			if (argc >= f.params.len) return false;
+			for (i in argc..<f.params.len) {
+				if (f.params[i].default_val == null) return false;
+			}
+			for (i in argc..<f.params.len) {
+				call.args.add(self.clone_expr(f.params[i].default_val));
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// Overload resolution is by arity, so an exact match wins; otherwise the
+	// first candidate whose missing tail is all-default does. `found` is the
+	// exact-arity result, already resolved by the caller.
+	fn method_with_defaults(var self, name: str, argc: usz, cands: List<*MethodInfo>, call: &CallExpr, found: *MethodInfo): *MethodInfo {
+		if (found != null) return found;
+		for (m in cands) {
+			if (m.name != name || m.ast_node == null) continue;
+			val ast_n = m.ast_node as *AstNode;
+			if (ast_n == null) continue;
+			if (!self.append_defaults(ast_n, argc, call)) continue;
+			return m;
+		}
+		return null;
+	}
+
+	// An arrow-bodied method (`fn f() => expr`) has no body checked by the
+	// declaration pass, so check it here, with `self` bound to the receiver
+	// type and the module switched to the one declaring the method.
+	fn check_arrow_method_body(var self, mi: *MethodInfo, obj_ty: *Type) {
+		val ast_n = mi.ast_node as *AstNode;
+		if (ast_n == null) return;
+		if (ast_n is FnDecl as f) {
+			if (f.body == null || f.body.kind != NodeKind.STMT_EXPR || f.return_type != null) return;
+			val prev_self = self.current_self_type;
+			val prev_ret = self.current_fn_return_type;
+			val prev_mod = self.symtab.current_module;
+			if (mi.module.len > 0) self.symtab.set_current_module(mi.module);
+			self.current_self_type = obj_ty;
+			self.check_fn_body(ast_n, mi.fn_type);
+			self.current_self_type = prev_self;
+			self.current_fn_return_type = prev_ret;
+			self.symtab.set_current_module(prev_mod);
+		}
+	}
+
+	// Check the arguments, then rewrite `recv.m(args)` into `c_name(recv, args)`.
+	// `by_ref` says how a non-pointer receiver is passed: `&recv` for a struct
+	// method, `recv` itself (deref when the receiver is a pointer) for a
+	// primitive method.
+	fn lower_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type, obj_is_ptr: bool, by_ref: bool): *Type {
+		val fn_info = mi.fn_type.as_fn();
+		self.check_arrow_method_body(mi, obj_ty);
+
+		if (call.args.len + 1 != fn_info.param_types.len) {
+			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+		} else {
+			for (i in 0..<call.args.len) {
+				val param_ty = fn_info.param_types[i + 1];
+				val arg_n = call.args[i];
+				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
+				val arg_ty = self.check_expr(arg_n);
+				if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
+			}
+		}
+
+		var new_args = List<*AstNode>();
+		if (by_ref == obj_is_ptr) {
+			new_args.add(mem.object);
+		} else {
+			var op = TokenType.STAR;
+			if (by_ref) op = TokenType.AMPERSAND;
+			new_args.add(self.unary(op, mem.object, node.line, node.col));
+		}
+		for (arg in call.args) new_args.add(arg);
+		call.args = new_args;
+		call.callee = self.identifier(mi.c_name, node.line, node.col);
+		return fn_info.return_type;
+	}
+
 	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
 		// Instance method call: obj.m(args) -> Struct_m(self, args)
 		val obj_raw_ty = self.check_expr(mem.object);
@@ -124,159 +210,32 @@ impl BodyPass {
 			obj_is_ptr = true;
 			obj_ty = obj_ty.as_pointer().pointee;
 		}
+		val argc = call.args.len + 1;
+
 		if (obj_ty.kind == DataType.STRUCT) {
 			val s_info = obj_ty.as_struct();
 			// Pick the overload whose arity matches; fall back to a name
 			// lookup so an arity error still reads as before.
-			if (s_info.count_method_arity(mem.member, call.args.len + 1) > 1) {
+			if (s_info.count_method_arity(mem.member, argc) > 1) {
 				self.report_error(
 					node,
 					"Ambiguous call to '${mem.member}': "
 					"overloading by parameter type is not supported"
 				);
 			}
-			var mi = s_info.find_method_arity(mem.member, call.args.len + 1);
-			if (mi == null) {
-				for (m in s_info.methods) {
-					if (m.name == mem.member && m.ast_node != null) {
-						val ast_fn = m.ast_node as *AstNode;
-						if (ast_fn != null) {
-							if (ast_fn is FnDecl as f) {
-								if (call.args.len + 1 < f.params.len) {
-									var all_default = true;
-									for (i in (call.args.len + 1)..<f.params.len) {
-										if (f.params[i].default_val == null) {
-											all_default = false;
-											break;
-										}
-									}
-									if (all_default) {
-										mi = m;
-										for (i in (call.args.len + 1)..<f.params.len) {
-											call.args.add(self.clone_expr(f.params[i].default_val));
-										}
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			var mi = s_info.find_method_arity(mem.member, argc);
+			mi = self.method_with_defaults(mem.member, argc, s_info.methods, call, mi);
 			if (mi == null) mi = s_info.find_method(mem.member);
-			if (mi != null) {
-				val fn_info = mi.fn_type.as_fn();
-				if (mi.ast_node != null) {
-					val ast_n = mi.ast_node as *AstNode;
-					if (ast_n != null) {
-						if (ast_n is FnDecl as f) {
-							if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
-								val prev_self = self.current_self_type;
-								val prev_ret = self.current_fn_return_type;
-								val prev_mod = self.symtab.current_module;
-								if (mi.module.len > 0) self.symtab.set_current_module(mi.module);
-								self.current_self_type = obj_ty;
-								self.check_fn_body(ast_n, mi.fn_type);
-								self.current_self_type = prev_self;
-								self.current_fn_return_type = prev_ret;
-								self.symtab.set_current_module(prev_mod);
-							}
-						}
-					}
-				}
-				if (call.args.len + 1 != fn_info.param_types.len) {
-					self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
-				} else {
-					for (i in 0..<call.args.len) {
-						val param_ty = fn_info.param_types[i + 1];
-						val arg_n = call.args[i];
-						if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
-						val arg_ty = self.check_expr(arg_n);
-						if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
-					}
-				}
-
-				// Desugar to a free-function call with the receiver as first argument.
-				var new_args = List<*AstNode>();
-				if (obj_is_ptr) new_args.add(mem.object);
-				else new_args.add(self.unary(TokenType.AMPERSAND, mem.object, node.line, node.col));
-				for (arg in call.args) new_args.add(arg);
-				call.args = new_args;
-				call.callee = self.identifier(mi.c_name, node.line, node.col);
-				return fn_info.return_type;
-			}
+			// Struct methods take the receiver by reference.
+			if (mi != null) return self.lower_method_call(node, mem, call, mi, obj_ty, obj_is_ptr, true);
 		}
 
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
-		var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, call.args.len + 1);
-		if (pmi == null) {
-			for (pm in self.symtab.prim_methods) {
-				if (pm.kind == obj_ty.kind && pm.info.name == mem.member && pm.info.ast_node != null) {
-					val ast_fn = pm.info.ast_node as *AstNode;
-					if (ast_fn != null) {
-						if (ast_fn is FnDecl as f) {
-							if (call.args.len + 1 < f.params.len) {
-								var all_default = true;
-								for (i in (call.args.len + 1)..<f.params.len) {
-									if (f.params[i].default_val == null) {
-										all_default = false;
-										break;
-									}
-								}
-								if (all_default) {
-									pmi = pm.info;
-									for (i in (call.args.len + 1)..<f.params.len) {
-										call.args.add(self.clone_expr(f.params[i].default_val));
-									}
-									break;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+		var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, argc);
+		pmi = self.method_with_defaults(mem.member, argc, self.symtab.prim_methods_of(obj_ty.kind), call, pmi);
 		if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
-		if (pmi != null) {
-			val fn_info = pmi.fn_type.as_fn();
-			if (pmi.ast_node != null) {
-				val ast_n = pmi.ast_node as *AstNode;
-				if (ast_n != null) {
-					if (ast_n is FnDecl as f) {
-						if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type == null) {
-							val prev_self = self.current_self_type;
-							val prev_ret = self.current_fn_return_type;
-							val prev_mod = self.symtab.current_module;
-							if (pmi.module.len > 0) self.symtab.set_current_module(pmi.module);
-							self.current_self_type = obj_ty;
-							self.check_fn_body(ast_n, pmi.fn_type);
-							self.current_self_type = prev_self;
-							self.current_fn_return_type = prev_ret;
-							self.symtab.set_current_module(prev_mod);
-						}
-					}
-				}
-			}
-			if (call.args.len + 1 != fn_info.param_types.len) {
-				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
-			} else {
-				for (i in 0..<call.args.len) {
-					val param_ty = fn_info.param_types[i + 1];
-					val arg_n = call.args[i];
-					if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
-					val arg_ty = self.check_expr(arg_n);
-					if (!param_ty.can_assign(arg_ty)) self.report_error(node, "Argument type mismatch in method call '${mem.member}'");
-				}
-			}
-
-			var new_args = List<*AstNode>();
-			if (obj_is_ptr) new_args.add(self.unary(TokenType.STAR, mem.object, node.line, node.col));
-			else new_args.add(mem.object);
-			for (arg in call.args) new_args.add(arg);
-			call.args = new_args;
-			call.callee = self.identifier(pmi.c_name, node.line, node.col);
-			return fn_info.return_type;
-		}
+		// Primitive methods take the receiver by value.
+		if (pmi != null) return self.lower_method_call(node, mem, call, pmi, obj_ty, obj_is_ptr, false);
 
 		if (obj_ty.kind == DataType.STRUCT) {
 			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
@@ -294,24 +253,7 @@ impl BodyPass {
 				val sym = self.symtab.lookup(id.name);
 				if (sym != null && sym.ast_node != null) {
 					val ast_n = sym.ast_node as *AstNode;
-					if (ast_n != null) {
-						if (ast_n is FnDecl as f) {
-							if (call.args.len < f.params.len) {
-								var all_default = true;
-								for (i in call.args.len..<f.params.len) {
-									if (f.params[i].default_val == null) {
-										all_default = false;
-										break;
-									}
-								}
-								if (all_default) {
-									for (i in call.args.len..<f.params.len) {
-										call.args.add(self.clone_expr(f.params[i].default_val));
-									}
-								}
-							}
-						}
-					}
+					if (ast_n != null) { self.append_defaults(ast_n, call.args.len, call); }
 				}
 			}
 		}
