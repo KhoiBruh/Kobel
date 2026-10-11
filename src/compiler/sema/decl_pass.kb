@@ -139,16 +139,19 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 }
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
-	if (raw.ends_with("UB")) return alloc_primitive(arena, type_u8());
-	if (raw.ends_with("US")) return alloc_primitive(arena, type_u16());
-	if (raw.ends_with("UL")) return alloc_primitive(arena, type_u64());
-	if (raw.ends_with("UZ")) return alloc_primitive(arena, type_usz());
+	// The suffix sets the width. It is read through `num_suffix` so that a hex
+	// digit is never mistaken for one: `0xBB` is the i32 187, not `0xB` as an i8.
+	val sfx = raw.num_suffix();
+	if (sfx == "UB") return alloc_primitive(arena, type_u8());
+	if (sfx == "US") return alloc_primitive(arena, type_u16());
+	if (sfx == "UL") return alloc_primitive(arena, type_u64());
+	if (sfx == "UZ") return alloc_primitive(arena, type_usz());
 
-	if (raw.ends_with("U")) return alloc_primitive(arena, type_u32());
-	if (raw.ends_with("L")) return alloc_primitive(arena, type_i64());
-	if (raw.ends_with("S")) return alloc_primitive(arena, type_i16());
-	if (raw.ends_with("Z")) return alloc_primitive(arena, type_isz());
-	if (raw.ends_with("B")) return alloc_primitive(arena, type_i8());
+	if (sfx == "U") return alloc_primitive(arena, type_u32());
+	if (sfx == "L") return alloc_primitive(arena, type_i64());
+	if (sfx == "S") return alloc_primitive(arena, type_i16());
+	if (sfx == "Z") return alloc_primitive(arena, type_isz());
+	if (sfx == "B") return alloc_primitive(arena, type_i8());
 
 	return alloc_primitive(arena, type_i32());
 }

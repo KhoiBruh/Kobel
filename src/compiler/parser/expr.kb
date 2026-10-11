@@ -34,8 +34,10 @@ pub const PREC_PRIMARY: i32 = 11;
 // literals and suffixes never contain one.
 pub fn num_literal_is_float(text: str): bool {
 	for (c in text) if (c == '.') return true;
-	if (text.ends_with("F") || text.ends_with("D")) return true;
-	return false;
+	// A trailing F/D is only a float suffix when the literal really carries one:
+	// `0xEF` ends in F but is the integer 239.
+	val sfx = text.num_suffix();
+	return sfx == "F" || sfx == "D";
 }
 
 // True when the raw token text (quotes included) contains an unescaped `${`.

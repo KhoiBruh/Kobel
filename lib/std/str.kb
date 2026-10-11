@@ -48,6 +48,52 @@ impl str {
 	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
 		else self.slice(0, self.len - n);
 
+	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
+	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
+	fn suffix_tail(val self): str {
+		if (self.len >= 2) {
+			val two = self.slice(self.len - 2, self.len);
+			if (two == "UZ" || two == "UL" || two == "UB" || two == "US") return two;
+		}
+		if (self.len == 0) return "";
+		val last = self.slice(self.len - 1, self.len);
+		if (
+			last == "U" || last == "L" || last == "S" || last == "B" ||
+			last == "Z" || last == "D" || last == "F"
+		) return last;
+		return "";
+	}
+
+	// The type suffix of a numeric literal, or "" when it carries none: `100L` ->
+	// "L", `0xFF_UL` -> "UL", `1.5F` -> "F".
+	//
+	// A radix-prefixed literal (`0x…`, `0b…`, `0o…`) only carries a suffix after
+	// the `_` separator, because B, D and F are digits there: `0xBF` is the number
+	// 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
+	pub fn num_suffix(val self): str {
+		if (self.len == 0) return "";
+
+		var zone = self;
+		var radix = false;
+		if (self.len > 2 && self[0] == '0') {
+			val r = self[1];
+			if (r == 'x' || r == 'X' || r == 'b' || r == 'B' || r == 'o' || r == 'O') {
+				radix = true;
+				zone = "";
+				for (i in 2..<self.len) {
+					if (self[i] == '_') zone = self.slice(i + 1, self.len);
+				}
+			}
+		}
+		if (zone.len == 0) return "";
+
+		val tail = zone.suffix_tail();
+		// For a radix literal the whole zone has to be the suffix, or a digit such
+		// as the second F of `0xFF_FF` would be read as one.
+		if (radix && zone.len != tail.len) return "";
+		return tail;
+	}
+
 	// `n` copies of `self` in a single allocation ("" for n == 0).
 	pub fn repeat(val self, n: usz): str {
 		if (n == 0 || self.len == 0) return "";

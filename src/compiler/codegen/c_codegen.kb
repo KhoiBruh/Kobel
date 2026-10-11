@@ -114,36 +114,42 @@ pub fn c_type_from_ast(node: *AstNode): str {
 	};
 }
 
-pub fn c_format_int_literal(raw: str): str => when {
+pub fn c_format_int_literal(raw: str): str {
+	// The suffix is stripped through `num_suffix` so a hex digit is never taken for
+	// one: `0xBB` stays 187 instead of becoming `0xB` with an i8 suffix.
+	val sfx = raw.num_suffix();
+	val body = raw.strip_suffix(sfx.len);
+	return when (sfx) {
+		// signed integer
+		"Z" -> "((intptr_t)${body}LL)";
+		"L" -> "${body}LL";
+		"S" -> "((int16_t)${body})";
+		"B" -> "((int8_t)${body})";
+
+		// unsigned integer
+		"U" -> "${body}U";
+		"UZ" -> "((size_t)${body}ULL)";
+		"UL" -> "${body}ULL";
+		"UB" -> "((uint8_t)${body})";
+		"US" -> "((uint16_t)${body})";
+		else -> raw
+	};
+}
+
+pub fn c_int_literal_c_type(raw: str) => when (raw.num_suffix()) {
 	// signed integer
-	raw.ends_with("Z") -> "((intptr_t)${raw.strip_suffix(1)}LL)";
-	raw.ends_with("L") -> "${raw.strip_suffix(1)}LL";
-	raw.ends_with("S") -> "((int16_t)${raw.strip_suffix(1)})";
-	raw.ends_with("B") -> "((int8_t)${raw.strip_suffix(1)})";
+	"Z" -> "intptr_t";
+	"L" -> "int64_t";
+	"S" -> "int16_t";
+	"B" -> "int8_t";
 
 	// unsigned integer
-	raw.ends_with("U") -> "${raw.strip_suffix(1)}U";
-	raw.ends_with("UZ") -> "((size_t)${raw.strip_suffix(2)}ULL)";
-	raw.ends_with("UL") -> "${raw.strip_suffix(2)}ULL";
-	raw.ends_with("UB") -> "((uint8_t)${raw.strip_suffix(2)})";
-	raw.ends_with("US") -> "((uint16_t)${raw.strip_suffix(2)})";
-	else -> raw;
-};
-
-pub fn c_int_literal_c_type(raw: str) => when {
-	// signed integer
-	raw.ends_with("Z") -> "intptr_t";
-	raw.ends_with("L") -> "int64_t";
-	raw.ends_with("S") -> "int16_t";
-	raw.ends_with("B") -> "int8_t";
-
-	// unsigned integer
-	raw.ends_with("U") -> "uint32_t";
-	raw.ends_with("UZ") -> "size_t";
-	raw.ends_with("UL") -> "uint64_t";
-	raw.ends_with("US") -> "uint16_t";
-	raw.ends_with("UB") -> "uint8_t";
-	else -> "int32_t";
+	"U" -> "uint32_t";
+	"UZ" -> "size_t";
+	"UL" -> "uint64_t";
+	"US" -> "uint16_t";
+	"UB" -> "uint8_t";
+	else -> "int32_t"
 };
 
 pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else "double";
