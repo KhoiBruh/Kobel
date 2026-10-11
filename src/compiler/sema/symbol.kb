@@ -243,6 +243,16 @@ impl SymbolTable {
 		return null;
 	}
 
+	// Every method of a primitive kind, in declaration order (default-argument
+	// resolution walks this list like it walks `StructType.methods`).
+	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
+		var out = List<*MethodInfo>();
+		for (pm in self.prim_methods) {
+			if (pm.kind == kind) out.add(pm.info);
+		}
+		return out;
+	}
+
 	// Primitive method by its mangled C name (used when re-visiting an impl).
 	pub fn find_prim_method_c(val self, c_name: str): *MethodInfo {
 		for (pm in self.prim_methods) {
