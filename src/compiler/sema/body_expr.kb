@@ -119,104 +119,129 @@ impl BodyPass {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
 
-			if (bin.op == TokenType.QUESTION_COLON) {
-				val lt = self.check_expr(bin.left);
-				if (
-					lt.kind != DataType.POINTER &&
-					lt.kind != DataType.STR
-				) self.report_error(
-					bin.left,
-					"Left-hand side of Elvis operator '?:' "
-					"must be a pointer or string"
-				);
-
-				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-					bin.right.kind == NodeKind.STMT_BREAK ||
-					bin.right.kind == NodeKind.STMT_CONTINUE;
-
-				if (is_jump) {
-					if (!was_stmt) self.report_error(
-						bin.right,
-						"Elvis operator with jump statement "
-						"('return', 'break', 'continue') "
-						"is only allowed in variable declarations, "
-						"assignments, or statement expressions"
-					);
-					self.check_statement(bin.right);
-				} else {
-					self.is_stmt_level = was_stmt;
-					val rt = self.check_expr(bin.right);
-					self.is_stmt_level = false;
-					if (!lt.can_assign(rt)) self.report_error(
-						bin.right,
-						"Right-hand side of Elvis operator '?:'"
-						" has incompatible type"
-					);
-				}
-
-				if (lt.kind == DataType.POINTER) {
-					val pt = lt.as_pointer();
-					if (pt.is_nullable)
-						return self.arena.pointer_type(pt.pointee, pt.is_mut);
-				}
-				return lt;
-			}
+			// `a ?: b` is not a value operator: the left side decides whether the
+			// right side is evaluated at all.
+			if (bin.op == TokenType.QUESTION_COLON) return self.check_elvis_expr(node, bin, was_stmt);
 
 			val lt = self.check_expr(bin.left);
 			val rt = self.check_expr(bin.right);
 
-			// 1. Arithmetic operators (+, -, *, /, %)
+			// One rule per operator group; each returns the result type.
 			when (bin.op) {
 				TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
 				TokenType.SLASH, TokenType.PERCENT -> {
-					if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
-						// Rewrite `str + str` into a runtime concat call so the C
-						// backend does not emit pointer arithmetic.
-						var cat_args = List<*AstNode>();
-						cat_args.add(bin.left);
-						cat_args.add(bin.right);
-						val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-						val cat_n = node as &AstNode;
-						cat_n.kind = NodeKind.EXPR_CALL;
-						cat_n.data = cat_call.data;
-						return alloc_primitive(&self.arena, type_str());
-					}
-					if (lt.is_numeric() && rt.is_numeric()) return lt;
-					self.report_error(node, "Arithmetic operator not supported for these types");
-					return lt;
+					return self.check_arith_op(node, bin, lt, rt);
 				}
-				// 2. Equality comparison (==, !=)
 				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
-					if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
-						// Content comparison instead of C pointer comparison.
-						val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
-						val eq_n = node as &AstNode;
-						eq_n.kind = wrapped.kind;
-						eq_n.data = wrapped.data;
-						return alloc_primitive(&self.arena, type_bool());
-					}
-					if (!lt.can_assign(rt) && !rt.can_assign(lt)) self.report_error(node, "Cannot compare different types");
-					return alloc_primitive(&self.arena, type_bool());
+					return self.check_equality_op(node, bin, lt, rt);
 				}
-				// 3. Ordering comparison (<, <=, >, >=)
 				TokenType.LESS, TokenType.LESS_EQUAL,
 				TokenType.GREATER, TokenType.GREATER_EQUAL -> {
-					val is_num_comp = lt.is_numeric() && rt.is_numeric();
-					val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
-					if (!is_num_comp && !is_char_comp) self.report_error(node, "Comparison requires numeric or char operands");
-					return alloc_primitive(&self.arena, type_bool());
+					return self.check_ordering_op(node, lt, rt);
 				}
-				// 4. Logic (&&, ||)
 				TokenType.AND_AND, TokenType.OR_OR -> {
-					if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
-						self.report_error(node, "Logical operators require bool operands");
-					}
-					return alloc_primitive(&self.arena, type_bool());
+					return self.check_logic_op(node, lt, rt);
 				}
 				else -> return lt;
 			}
 		}
 		return alloc_primitive(&self.arena, type_none());
+	}
+
+	// `a ?: b`. The left side must be a pointer or `str`, and the right side is
+	// only evaluated when the left is null. A jump statement on the right
+	// (`x ?: return y`) is allowed at statement level, where the statement itself
+	// supplies the value.
+	fn check_elvis_expr(var self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
+		val lt = self.check_expr(bin.left);
+		if (
+			lt.kind != DataType.POINTER &&
+			lt.kind != DataType.STR
+		) self.report_error(
+			bin.left,
+			"Left-hand side of Elvis operator '?:' "
+			"must be a pointer or string"
+		);
+
+		val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+			bin.right.kind == NodeKind.STMT_BREAK ||
+			bin.right.kind == NodeKind.STMT_CONTINUE;
+
+		if (is_jump) {
+			if (!was_stmt) self.report_error(
+				bin.right,
+				"Elvis operator with jump statement "
+				"('return', 'break', 'continue') "
+				"is only allowed in variable declarations, "
+				"assignments, or statement expressions"
+			);
+			self.check_statement(bin.right);
+		} else {
+			self.is_stmt_level = was_stmt;
+			val rt = self.check_expr(bin.right);
+			self.is_stmt_level = false;
+			if (!lt.can_assign(rt)) self.report_error(
+				bin.right,
+				"Right-hand side of Elvis operator '?:'"
+				" has incompatible type"
+			);
+		}
+
+		if (lt.kind == DataType.POINTER) {
+			val pt = lt.as_pointer();
+			if (pt.is_nullable)
+				return self.arena.pointer_type(pt.pointee, pt.is_mut);
+		}
+		return lt;
+	}
+
+	// `+ - * / %`: `str + str` becomes a runtime concat call, every other operand
+	// pair must be numeric, and the result keeps the left operand's type.
+	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
+			// Rewrite `str + str` into a runtime concat call so the C
+			// backend does not emit pointer arithmetic.
+			var cat_args = List<*AstNode>();
+			cat_args.add(bin.left);
+			cat_args.add(bin.right);
+			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
+			val cat_n = node as &AstNode;
+			cat_n.kind = NodeKind.EXPR_CALL;
+			cat_n.data = cat_call.data;
+			return alloc_primitive(&self.arena, type_str());
+		}
+		if (lt.is_numeric() && rt.is_numeric()) return lt;
+		self.report_error(node, "Arithmetic operator not supported for these types");
+		return lt;
+	}
+
+	// `== !=`: `str` compares by content, everything else by value.
+	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
+			// Content comparison instead of C pointer comparison.
+			val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+			val eq_n = node as &AstNode;
+			eq_n.kind = wrapped.kind;
+			eq_n.data = wrapped.data;
+			return alloc_primitive(&self.arena, type_bool());
+		}
+		if (!lt.can_assign(rt) && !rt.can_assign(lt)) self.report_error(node, "Cannot compare different types");
+		return alloc_primitive(&self.arena, type_bool());
+	}
+
+	// `< <= > >=`: numbers and chars only.
+	fn check_ordering_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
+		val is_num_comp = lt.is_numeric() && rt.is_numeric();
+		val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
+		if (!is_num_comp && !is_char_comp) self.report_error(node, "Comparison requires numeric or char operands");
+		return alloc_primitive(&self.arena, type_bool());
+	}
+
+	fn check_logic_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
+		if (lt.kind != DataType.BOOL || rt.kind != DataType.BOOL) {
+			self.report_error(node, "Logical operators require bool operands");
+		}
+		return alloc_primitive(&self.arena, type_bool());
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
@@ -253,28 +278,75 @@ impl BodyPass {
 		if (node is MemberExpr as mem_ptr) {
 			val mem = mem_ptr as &MemberExpr;
 
-			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
-			val obj = mem.object;
-			if (obj is IdentifierExpr as enum_id) {
-				val ei = self.symtab.find_enum_info(enum_id.name);
-				if (ei != null) {
-					val mi = ei.find_member(mem.member);
-					if (mi == null) {
-						self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
-						return alloc_primitive(&self.arena, type_none());
-					}
-					// Reuse the node as a plain integer literal for the backend.
-					val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
-					val n = node as &AstNode;
-					n.kind = NodeKind.EXPR_LITERAL;
-					n.data = lit.data;
-					val carrier = self.arena.alloc<Type>();
-					*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
-					return carrier;
-				}
+			// Enum member (`NodeKind.EXPR_LITERAL`) and struct constant
+			// (`Foo.CONST`) both rewrite the node in place, so they resolve
+			// before the receiver type is even checked.
+			val const_ty = self.check_const_member(node, mem);
+			if (const_ty != null) return const_ty;
 
-				// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
-				val s_sym = self.symtab.lookup(enum_id.name);
+			var obj_ty = self.check_expr(mem.object);
+
+			// Pointer results that are not plain identifiers cannot be recognized
+			// by the backend's name-based pointer tracking, so dereference them
+			// here: `p.field` becomes `(*p).field`.
+			if (
+				obj_ty.kind == DataType.POINTER &&
+				mem.object.kind != NodeKind.EXPR_IDENTIFIER
+			) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
+
+			// Automatic pointer unwrapping: p.x when p is *Point or &Point
+			var obj_was_ptr = false;
+			if (obj_ty.kind == DataType.POINTER) {
+				obj_was_ptr = true;
+				obj_ty = obj_ty.as_pointer().pointee;
+			}
+
+			// Enum `.value`: identity on the underlying integer. The node is
+			// rewritten to the receiver so the backend emits it unchanged.
+			if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
+				val n = node as &AstNode;
+				n.kind = mem.object.kind;
+				n.data = mem.object.data;
+				return obj_ty.as_enum().underlying;
+			}
+
+			if (obj_ty.kind == DataType.STR) return self.member_on_str(node, mem);
+			if (obj_ty.kind == DataType.ARRAY) return self.member_on_array(node, mem, obj_ty);
+			if (obj_ty.kind != DataType.STRUCT) {
+				self.report_error(node, "Member access on non-struct type");
+				return alloc_primitive(&self.arena, type_none());
+			}
+			return self.member_on_struct(node, mem, obj_ty);
+		}
+		return alloc_primitive(&self.arena, type_none());
+	}
+
+	// Enum member `E.MEMBER` or struct constant `Foo.CONST`, both rewritten in
+	// place into a node the backend emits as-is. Null when the receiver is not an
+	// enum or struct name, so the caller carries on with a normal member access.
+	fn check_const_member(var self, node: *AstNode, mem: &MemberExpr): *Type {
+		val obj = mem.object;
+		if (obj is IdentifierExpr as enum_id) {
+			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
+			val ei = self.symtab.find_enum_info(enum_id.name);
+			if (ei != null) {
+				val mi = ei.find_member(mem.member);
+				if (mi == null) {
+					self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
+					return alloc_primitive(&self.arena, type_none());
+				}
+				// Reuse the node as a plain integer literal for the backend.
+				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
+				val n = node as &AstNode;
+				n.kind = NodeKind.EXPR_LITERAL;
+				n.data = lit.data;
+				val carrier = self.arena.alloc<Type>();
+				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
+				return carrier;
+			}
+
+			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
+			val s_sym = self.symtab.lookup(enum_id.name);
 			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
 				var c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}");
 				if (c_sym == null) {
@@ -292,88 +364,63 @@ impl BodyPass {
 				}
 			}
 		}
+		return null;
+	}
 
-		var obj_ty = self.check_expr(mem.object);
-
-		// Pointer results that are not plain identifiers cannot be recognized
-		// by the backend's name-based pointer tracking, so dereference them
-		// here: `p.field` becomes `(*p).field`.
-		if (
-			obj_ty.kind == DataType.POINTER &&
-			mem.object.kind != NodeKind.EXPR_IDENTIFIER
-		) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
-
-		// Automatic pointer unwrapping: p.x when p is *Point or &Point
-		var obj_was_ptr = false;
-		if (obj_ty.kind == DataType.POINTER) {
-			obj_was_ptr = true;
-			obj_ty = obj_ty.as_pointer().pointee;
+	// `str` lowers to a bare `const char*`, so its members cannot go through the
+	// struct field path.
+	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type {
+		if (mem.member == "len" || mem.member == "size") {
+			// Lower to a runtime call: the C backend cannot tell that an
+			// arbitrary expression has type `str`.
+			var len_args = List<*AstNode>();
+			len_args.add(mem.object);
+			val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
+			val len_n = node as &AstNode;
+			len_n.kind = NodeKind.EXPR_CALL;
+			len_n.data = len_call.data;
+			return alloc_primitive(&self.arena, type_usz());
 		}
-
-		// Enum `.value`: identity on the underlying integer. The node is
-		// rewritten to the receiver so the backend emits it unchanged.
-		if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
-			val n = node as &AstNode;
-			n.kind = mem.object.kind;
-			n.data = mem.object.data;
-			return obj_ty.as_enum().underlying;
+		if (mem.member == "cap") return alloc_primitive(&self.arena, type_usz());
+		if (mem.member == "c_str") {
+			val char_ty = alloc_primitive(&self.arena, type_char());
+			val char_ptr = self.arena.pointer_type(char_ty, false);
+			return self.arena.fn_type(List<*Type>(), char_ptr);
 		}
-
-		if (obj_ty.kind == DataType.STR) {
-			if (mem.member == "len" || mem.member == "size") {
-				// Lower to a runtime call: the C backend cannot tell that an
-				// arbitrary expression has type `str`.
-				var len_args = List<*AstNode>();
-				len_args.add(mem.object);
-				val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
-				val len_n = node as &AstNode;
-				len_n.kind = NodeKind.EXPR_CALL;
-				len_n.data = len_call.data;
-				return alloc_primitive(&self.arena, type_usz());
-			}
-			if (mem.member == "cap") {
-				return alloc_primitive(&self.arena, type_usz());
-			}
-			if (mem.member == "c_str") {
-				val char_ty = alloc_primitive(&self.arena, type_char());
-				val char_ptr = self.arena.pointer_type(char_ty, false);
-				return self.arena.fn_type(List<*Type>(), char_ptr);
-			}
-			if (mem.member == "data") {
-				// `str` lowers to a bare `const char*`, so `.data` is the
-				// pointer itself: rewrite the access to its receiver.
-				val char_ty = alloc_primitive(&self.arena, type_char());
-				val dn = node as &AstNode;
-				dn.kind = mem.object.kind;
-				dn.data = mem.object.data;
-				return self.arena.pointer_type(char_ty, false);
-			}
+		if (mem.member == "data") {
+			// `.data` is the pointer itself, so the access becomes its receiver.
+			val char_ty = alloc_primitive(&self.arena, type_char());
+			val dn = node as &AstNode;
+			dn.kind = mem.object.kind;
+			dn.data = mem.object.data;
+			return self.arena.pointer_type(char_ty, false);
 		}
+		self.report_error(node, "Member access on non-struct type");
+		return alloc_primitive(&self.arena, type_none());
+	}
 
-		if (obj_ty.kind == DataType.ARRAY) {
-			val arr = obj_ty.as_array();
-			if (mem.member == "len" || mem.member == "size") {
-				// The size of a fixed-size array is known at compile time.
-				val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
-				val ln = node as &AstNode;
-				ln.kind = lit.kind;
-				ln.data = lit.data;
-				return alloc_primitive(&self.arena, type_usz());
-			}
-			if (mem.member == "data") {
-				// A fixed-size array already is a pointer to its first element.
-				val dn = node as &AstNode;
-				dn.kind = mem.object.kind;
-				dn.data = mem.object.data;
-				return self.arena.pointer_type(arr.elem, true);
-			}
+	// `[T; N]`: the length is a compile-time constant, and the value already is a
+	// pointer to its first element.
+	fn member_on_array(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
+		val arr = obj_ty.as_array();
+		if (mem.member == "len" || mem.member == "size") {
+			val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
+			val ln = node as &AstNode;
+			ln.kind = lit.kind;
+			ln.data = lit.data;
+			return alloc_primitive(&self.arena, type_usz());
 		}
-
-		if (obj_ty.kind != DataType.STRUCT) {
-			self.report_error(node, "Member access on non-struct type");
-			return alloc_primitive(&self.arena, type_none());
+		if (mem.member == "data") {
+			val dn = node as &AstNode;
+			dn.kind = mem.object.kind;
+			dn.data = mem.object.data;
+			return self.arena.pointer_type(arr.elem, true);
 		}
+		self.report_error(node, "Member access on non-struct type");
+		return alloc_primitive(&self.arena, type_none());
+	}
 
+	fn member_on_struct(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
 		val s_info = obj_ty.as_struct();
 		for (f in s_info.fields) {
 			if (f.name != mem.member) continue;
@@ -383,10 +430,7 @@ impl BodyPass {
 			}
 			return f.type_ptr;
 		}
-
 		self.report_error(node, "Struct '${s_info.name}' has no member named '${mem.member}'");
-			return alloc_primitive(&self.arena, type_none());
-		}
 		return alloc_primitive(&self.arena, type_none());
 	}
 
