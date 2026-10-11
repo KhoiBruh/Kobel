@@ -2155,6 +2155,8 @@ bool str_empty(const char* self);
 bool str_starts_with(const char* self, const char* prefix);
 bool str_ends_with(const char* self, const char* suffix);
 const char* str_strip_suffix(const char* self, size_t n);
+const char* str_suffix_tail(const char* self);
+const char* str_num_suffix(const char* self);
 const char* str_repeat(const char* self, size_t n);
 bool str_contains(const char* self, const char* sub);
 intptr_t str_index_of(const char* self, const char* sub);
@@ -8618,6 +8620,76 @@ const char* str_strip_suffix(const char* self, size_t n) {
     return ((kobel_slen(self) <= n) ? "" : kobel_slice(self, 0, (kobel_slen(self) - n)));
 }
 
+const char* str_suffix_tail(const char* self) {
+    if (kobel_slen(self) >= 2) {
+        const char* two = kobel_slice(self, (kobel_slen(self) - 2), kobel_slen(self));
+        if (((kobel_streq(two, "UZ") || kobel_streq(two, "UL")) || kobel_streq(two, "UB")) || kobel_streq(two, "US")) {
+            return two;
+        }
+    }
+    if (kobel_slen(self) == 0) {
+        return "";
+    }
+    const char* last = kobel_slice(self, (kobel_slen(self) - 1), kobel_slen(self));
+    if ((((((kobel_streq(last, "U") || kobel_streq(last, "L")) || kobel_streq(last, "S")) || kobel_streq(last, "B")) || kobel_streq(last, "Z")) || kobel_streq(last, "D")) || kobel_streq(last, "F")) {
+        return last;
+    }
+    return "";
+}
+
+const char* str_num_suffix(const char* self) {
+    if (kobel_slen(self) == 0) {
+        return "";
+    }
+    const char* zone = self;
+    bool radix = false;
+    if ((kobel_slen(self) > 2) && (self[0] == '0')) {
+        char r = self[1];
+        if ((((((r == 'x') || (r == 'X')) || (r == 'b')) || (r == 'B')) || (r == 'o')) || (r == 'O')) {
+            radix = true;
+            zone = "";
+            {
+                size_t __for_e = kobel_slen(self);
+                size_t __for_i = __for_e;
+                __for_i = 2;
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    __for_go = (__for_i < __for_e);
+                } else {
+                    __for_go = (__for_i > __for_e);
+                }
+                while (__for_go) {
+                    size_t i = __for_i;
+                    if (self[i] == '_') {
+                        zone = kobel_slice(self, (i + 1), kobel_slen(self));
+                    }
+                    if (__for_up) {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    } else {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                    if (__for_go) {
+                        if (__for_up) {
+                            __for_i = (__for_i + 1);
+                        } else {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (kobel_slen(zone) == 0) {
+        return "";
+    }
+    const char* tail = str_suffix_tail(zone);
+    if (radix && (kobel_slen(zone) != kobel_slen(tail))) {
+        return "";
+    }
+    return tail;
+}
+
 const char* str_repeat(const char* self, size_t n) {
     if ((n == 0) || (kobel_slen(self) == 0)) {
         return "";
@@ -9353,7 +9425,7 @@ const char* str_mangle_symbol(const char* self, const char* name) {
     int32_t w = 0;
     {
         size_t __for_n = kobel_slen(self);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = self[__for_i];
             if (c == '.') {
@@ -9375,7 +9447,7 @@ const char* str_mangle_symbol(const char* self, const char* name) {
     w += 2;
     {
         size_t __for_n = kobel_slen(name);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = name[__for_i];
             buf[w] = (uint8_t)c;
@@ -9437,7 +9509,7 @@ const char* str_to_posix_path(const char* self) {
 bool str_in_list(const char* self, std__collections__list__List_str list) {
     {
         size_t __for_n = std__collections__list__List_str_count(&list);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* item = std__collections__list__List_str_at(&list, __for_i);
             if (kobel_streq(item, self)) {
@@ -9541,7 +9613,7 @@ const char* str_hash_stamp(const char* self) {
     uint64_t h = 5381ULL;
     {
         size_t __for_n = kobel_slen(self);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = self[__for_i];
             h = (((h * 33) + ((uint64_t)c)) % 1000000007);
@@ -9602,7 +9674,7 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
             const char* p = std__collections__list__List_str_get(&parts, i);
             {
                 size_t __for_n = kobel_slen(p);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     char c = p[__for_i];
                     buf[w] = (uint8_t)c;
@@ -9638,7 +9710,7 @@ config__project__TomlDoc config__project__TomlDoc_new(const char* content) {
     const char* current_section = "";
     {
         size_t __for_n = std__collections__list__List_str_count(&lines);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* line = std__collections__list__List_str_at(&lines, __for_i);
             const char* trimmed = str_trim(line);
@@ -9788,7 +9860,7 @@ const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* 
 const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&self->declarations);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* decl = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&self->declarations, __for_i);
             if (decl != NULL && decl->kind == compiler__ast__decl__ModuleDecl__TAG) {
@@ -9996,7 +10068,7 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_program(std__mem__arena__Ar
 compiler__sema__types__EnumMemberInfo* compiler__sema__types__EnumInfo_find_member(compiler__sema__types__EnumInfo* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_count(&self->members);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__EnumMemberInfo* m = std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_at(&self->members, __for_i);
             if (kobel_streq(m->name, name)) {
@@ -10035,7 +10107,7 @@ size_t compiler__sema__types__FnType_type_align(compiler__sema__types__FnType* s
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method(compiler__sema__types__StructType* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&self->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&self->methods, __for_i);
             if (kobel_streq(m->name, name)) {
@@ -10050,7 +10122,7 @@ compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method_arity(compiler__sema__types__StructType* self, const char* name, size_t argc) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&self->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&self->methods, __for_i);
             if (kobel_streq(m->name, name) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
@@ -10066,7 +10138,7 @@ size_t compiler__sema__types__StructType_count_method_arity(compiler__sema__type
     size_t n = 0;
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&self->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&self->methods, __for_i);
             if (kobel_streq(m->name, name) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
@@ -10081,7 +10153,7 @@ size_t compiler__sema__types__StructType_count_method_arity(compiler__sema__type
 compiler__sema__types__MethodInfo* compiler__sema__types__StructType_find_method_c(compiler__sema__types__StructType* self, const char* c_name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&self->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&self->methods, __for_i);
             if (kobel_streq(m->c_name, c_name)) {
@@ -10531,7 +10603,7 @@ const char* compiler__sema__types__Type_to_str(compiler__sema__types__Type* self
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_lookup(compiler__sema__symbol__Scope* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count(&self->symbols);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__Symbol* sym = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at(&self->symbols, __for_i);
             if (kobel_streq(sym->name, name)) {
@@ -10554,7 +10626,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_at(compiler__sema_
 compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_lookup(compiler__sema__symbol__ModuleScope* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count(&self->symbols);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__Symbol* sym = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at(&self->symbols, __for_i);
             if (kobel_streq(sym->name, name)) {
@@ -10577,7 +10649,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_at(compiler_
 compiler__sema__symbol__TraitMethod* compiler__sema__symbol__TraitInfo_find_method(compiler__sema__symbol__TraitInfo* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_count(&self->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__TraitMethod* m = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_at(&self->methods, __for_i);
             if (kobel_streq(m->name, name)) {
@@ -10596,7 +10668,7 @@ bool compiler__sema__symbol__TraitInfo_has_impl(compiler__sema__symbol__TraitInf
 compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_struct(compiler__sema__symbol__GenericReg* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->struct_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->struct_templates, __for_i);
             if (kobel_streq(t->name, name)) {
@@ -10611,7 +10683,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_str
 compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_fn(compiler__sema__symbol__GenericReg* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->fn_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->fn_templates, __for_i);
             if (kobel_streq(t->name, name)) {
@@ -10626,7 +10698,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_fn(
 compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_impl(compiler__sema__symbol__GenericReg* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->impl_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->impl_templates, __for_i);
             if (kobel_streq(t->name, name)) {
@@ -10641,7 +10713,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__symbol__GenericReg_find_imp
 compiler__sema__symbol__Symbol* compiler__sema__symbol__GenericReg_find_inst(compiler__sema__symbol__GenericReg* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count(&self->inst_syms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__Symbol* s = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at(&self->inst_syms, __for_i);
             if (kobel_streq(s->name, name)) {
@@ -10670,7 +10742,7 @@ void compiler__sema__symbol__SymbolTable_register_prim_method(compiler__sema__sy
 compiler__sema__types__MethodInfo* compiler__sema__symbol__SymbolTable_find_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_count(&self->prim_methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__PrimMethod* pm = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_at(&self->prim_methods, __for_i);
             if ((pm->kind == kind) && kobel_streq((*pm->info).name, name)) {
@@ -10685,7 +10757,7 @@ compiler__sema__types__MethodInfo* compiler__sema__symbol__SymbolTable_find_prim
 compiler__sema__types__MethodInfo* compiler__sema__symbol__SymbolTable_find_prim_method_arity(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, const char* name, size_t argc) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_count(&self->prim_methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__PrimMethod* pm = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_at(&self->prim_methods, __for_i);
             if (((pm->kind == kind) && kobel_streq((*pm->info).name, name)) && ((*compiler__sema__types__Type_as_fn((*pm->info).fn_type)).param_types.len == argc)) {
@@ -10701,7 +10773,7 @@ std__collections__list__List_ptr_compiler__sema__types__MethodInfo compiler__sem
     std__collections__list__List_ptr_compiler__sema__types__MethodInfo out = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_count(&self->prim_methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__PrimMethod* pm = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_at(&self->prim_methods, __for_i);
             if (pm->kind == kind) {
@@ -10716,7 +10788,7 @@ std__collections__list__List_ptr_compiler__sema__types__MethodInfo compiler__sem
 compiler__sema__types__MethodInfo* compiler__sema__symbol__SymbolTable_find_prim_method_c(compiler__sema__symbol__SymbolTable* self, const char* c_name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_count(&self->prim_methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__PrimMethod* pm = std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_at(&self->prim_methods, __for_i);
             if (kobel_streq((*pm->info).c_name, c_name)) {
@@ -10735,7 +10807,7 @@ void compiler__sema__symbol__SymbolTable_register_trait(compiler__sema__symbol__
 compiler__sema__symbol__TraitInfo* compiler__sema__symbol__SymbolTable_find_trait(compiler__sema__symbol__SymbolTable* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_count(&self->traits);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__TraitInfo* t = std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_at(&self->traits, __for_i);
             if (kobel_streq(t->name, name)) {
@@ -10754,7 +10826,7 @@ void compiler__sema__symbol__SymbolTable_register_enum_info(compiler__sema__symb
 compiler__sema__types__EnumInfo* compiler__sema__symbol__SymbolTable_find_enum_info(compiler__sema__symbol__SymbolTable* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__EnumInfo_count(&self->enums);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__EnumInfo* e = std__collections__list__List_ptr_compiler__sema__types__EnumInfo_at(&self->enums, __for_i);
             if (kobel_streq(e->name, name) || kobel_streq(e->c_name, name)) {
@@ -10793,7 +10865,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_curre
     compiler__sema__symbol__Scope* scope = self->current_scope;
     {
         size_t __for_n = compiler__sema__symbol__Scope_count(scope);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__Scope_at(scope, __for_i);
             if (kobel_streq(sym->name, name)) {
@@ -10810,7 +10882,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     while (curr != NULL) {
         {
             size_t __for_n = compiler__sema__symbol__Scope_count(curr);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__Scope_at(curr, __for_i);
                 if (kobel_streq(sym->name, name)) {
@@ -10827,7 +10899,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     }
     {
         size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->imports);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ImportBinding b = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->imports, __for_i);
             if ((!b.is_wildcard && kobel_streq(b.local_name, name)) && kobel_streq(b.owner_module, self->current_module)) {
@@ -10838,7 +10910,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     }
     {
         size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->imports);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ImportBinding b2 = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->imports, __for_i);
             if (b2.is_wildcard && kobel_streq(b2.owner_module, self->current_module)) {
@@ -10852,7 +10924,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count(&self->gen.inst_syms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__Symbol* isym = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at(&self->gen.inst_syms, __for_i);
             if (kobel_streq(isym->name, name)) {
@@ -10881,7 +10953,7 @@ const char* compiler__sema__symbol__SymbolTable_set_current_module(compiler__sem
 compiler__sema__symbol__ModuleScope* compiler__sema__symbol__SymbolTable_find_module(compiler__sema__symbol__SymbolTable* self, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count(&self->modules);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->modules, __for_i);
             if (kobel_streq(sc->name, name)) {
@@ -10964,12 +11036,12 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_nam
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count(&self->modules);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->modules, __for_i);
             {
                 size_t __for_n = compiler__sema__symbol__ModuleScope_count(sc);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__ModuleScope_at(sc, __for_i);
                     if (kobel_streq(sym->c_name, c_name) && !kobel_streq(sym->c_name, sym->name)) {
@@ -10988,7 +11060,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struc
     const char* direct = kobel_concat(kobel_concat(struct_name, "__"), member_name);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count(&self->modules);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->modules, __for_i);
             compiler__sema__symbol__Symbol* s = compiler__sema__symbol__ModuleScope_lookup(sc, direct);
@@ -11049,7 +11121,7 @@ std__collections__list__List_str compiler__sema__symbol__GenTemplate_param_names
         compiler__ast__decl__StructDecl* s = compiler__ast__node__to_compiler__ast__decl__StructDecl(self->node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__decl__GenericParam_count(&s->type_params);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__decl__GenericParam tp = std__collections__list__List_compiler__ast__decl__GenericParam_at(&s->type_params, __for_i);
                 std__collections__list__List_str_add(&names, tp.name);
@@ -11060,7 +11132,7 @@ std__collections__list__List_str compiler__sema__symbol__GenTemplate_param_names
         compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(self->node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__decl__GenericParam_count(&f->type_params);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__decl__GenericParam p = std__collections__list__List_compiler__ast__decl__GenericParam_at(&f->type_params, __for_i);
                 std__collections__list__List_str_add(&names, p.name);
@@ -11071,7 +11143,7 @@ std__collections__list__List_str compiler__sema__symbol__GenTemplate_param_names
         compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(self->node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__decl__GenericParam_count(&im->type_params);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__decl__GenericParam p = std__collections__list__List_compiler__ast__decl__GenericParam_at(&im->type_params, __for_i);
                 std__collections__list__List_str_add(&names, p.name);
@@ -11105,7 +11177,7 @@ void compiler__sema__decl_pass__DeclPass_register_template(compiler__sema__decl_
         } else {
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                     compiler__ast__decl__FnDecl* f = (compiler__ast__decl__FnDecl*)compiler__ast__node__to_compiler__ast__decl__FnDecl(m);
@@ -11163,7 +11235,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_gen_tem
 bool compiler__sema__decl_pass__DeclPass_template_in_module(compiler__sema__decl_pass__DeclPass* self, const char* module, const char* name) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.struct_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.struct_templates, __for_i);
             if (kobel_streq(t->name, name) && kobel_streq(t->module, module)) {
@@ -11174,7 +11246,7 @@ bool compiler__sema__decl_pass__DeclPass_template_in_module(compiler__sema__decl
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.fn_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* f = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.fn_templates, __for_i);
             if (kobel_streq(f->name, name) && kobel_streq(f->module, module)) {
@@ -11198,7 +11270,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_te
     std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate list = compiler__sema__decl_pass__DeclPass_templates_of(self, kind);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
             if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, self->current_module)) {
@@ -11209,14 +11281,14 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_te
     }
     {
         size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->symtab.imports);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ImportBinding imp = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->symtab.imports, __for_i);
             if (kobel_streq(imp.owner_module, self->current_module)) {
                 if (imp.is_wildcard || kobel_streq(imp.local_name, name)) {
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
                             if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, imp.module_name)) {
@@ -11232,7 +11304,7 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_te
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
             if (compiler__sema__monomorphize__template_matches(kind, t, name)) {
@@ -11453,7 +11525,7 @@ void compiler__sema__decl_pass__DeclPass_check_bounds(compiler__sema__decl_pass_
             }
             {
                 size_t __for_n = std__collections__list__List_str_count(&gp.bounds);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     const char* b = std__collections__list__List_str_at(&gp.bounds, __for_i);
                     compiler__sema__symbol__TraitInfo* bt = compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, b);
@@ -11516,7 +11588,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_instantiate_str
     compiler__sema__decl_pass__DeclPass_collect_struct_as(self, sclone, cname, tmpl->module);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&self->symtab.gen.impl_templates);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__GenTemplate* impl_tmpl = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&self->symtab.gen.impl_templates, __for_i);
             if (!kobel_streq(impl_tmpl->name, tmpl->name)) {
@@ -11574,7 +11646,7 @@ void compiler__sema__decl_pass__DeclPass_collect_struct_as(compiler__sema__decl_
     bool has_private = false;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__StructField_count(&s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at(&s->fields, __for_i);
             compiler__sema__types__Type* f_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f.type_node);
@@ -11596,7 +11668,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn_as(compiler__sema__decl_pass
     std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__List_ptr_compiler__sema__types__Type_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
             std__collections__list__List_ptr_compiler__sema__types__Type_add(&param_types, compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, p.type_node));
@@ -11628,7 +11700,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_type(com
                 std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nt->type_args);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nt->type_args, __for_i);
                         std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&args, compiler__sema__decl_pass__DeclPass_clone_type(self, ta, subst));
@@ -11642,7 +11714,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_type(com
         std__collections__list__List_ptr_compiler__ast__node__AstNode targs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nt->type_args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nt->type_args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&targs, compiler__sema__decl_pass__DeclPass_clone_type(self, ta, subst));
@@ -11778,7 +11850,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template
         std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, mem_obj);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
@@ -11799,7 +11871,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template
         std__collections__list__List_ptr_compiler__ast__node__AstNode cargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
@@ -11815,7 +11887,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template
         std__collections__list__List_ptr_compiler__ast__node__AstNode cargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&cargs, compiler__sema__decl_pass__DeclPass_clone_expr(self, a, subst));
@@ -11831,7 +11903,7 @@ std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__de
     std__collections__list__List_ptr_compiler__ast__node__AstNode out = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nodes);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nodes, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&out, compiler__sema__decl_pass__DeclPass_clone_expr(self, n, subst));
@@ -11845,7 +11917,7 @@ std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__de
     std__collections__list__List_ptr_compiler__ast__node__AstNode out = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nodes);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nodes, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&out, compiler__sema__decl_pass__DeclPass_clone_type(self, n, subst));
@@ -11860,7 +11932,7 @@ std__collections__list__List_compiler__ast__expr__WhenArm compiler__sema__decl_p
     std__collections__list__List_compiler__ast__expr__WhenArm arms = std__collections__list__List_compiler__ast__expr__WhenArm_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode pats = compiler__sema__decl_pass__DeclPass_clone_expr_list(self, arm.patterns, subst);
@@ -11877,7 +11949,7 @@ std__collections__list__List_compiler__ast__expr__InterpPart compiler__sema__dec
     std__collections__list__List_compiler__ast__expr__InterpPart parts = std__collections__list__List_compiler__ast__expr__InterpPart_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&ie->parts);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&ie->parts, __for_i);
             std__collections__list__List_compiler__ast__expr__InterpPart_add(&parts, (compiler__ast__expr__InterpPart){ compiler__sema__decl_pass__DeclPass_clone_expr(self, part.expr, subst), part.is_literal });
@@ -11896,7 +11968,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_stmt(com
         std__collections__list__List_ptr_compiler__ast__node__AstNode ss = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&b->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&b->statements, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&ss, compiler__sema__decl_pass__DeclPass_clone_stmt(self, s, subst));
@@ -11939,13 +12011,13 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_stmt(com
         std__collections__list__List_compiler__ast__stmt__WhenStmtArm arms = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_new(4);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&w->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&w->arms, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode pats = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
                         std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&pats, compiler__sema__decl_pass__DeclPass_clone_expr(self, pat, subst));
@@ -11967,7 +12039,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_fn(compi
     std__collections__list__List_compiler__ast__decl__Param params = std__collections__list__List_compiler__ast__decl__Param_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
             compiler__ast__node__AstNode* pt = ((p.type_node != NULL) ? compiler__sema__decl_pass__DeclPass_clone_type(self, p.type_node, subst) : NULL);
@@ -11985,7 +12057,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_struct(c
     std__collections__list__List_compiler__ast__decl__StructField fields = std__collections__list__List_compiler__ast__decl__StructField_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__StructField_count(&s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at(&s->fields, __for_i);
             compiler__ast__node__AstNode* dflt = ((f.default_val != NULL) ? compiler__sema__decl_pass__DeclPass_clone_expr(self, f.default_val, subst) : NULL);
@@ -12001,7 +12073,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_impl(com
     std__collections__list__List_ptr_compiler__ast__node__AstNode methods = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
             compiler__ast__decl__FnDecl* mf = compiler__ast__node__to_compiler__ast__decl__FnDecl(m);
@@ -12036,7 +12108,7 @@ void compiler__sema__decl_pass__DeclPass_propagate_target_type(compiler__sema__d
                     std__collections__list__List_ptr_compiler__ast__node__AstNode new_targs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nt->type_args);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nt->type_args, __for_i);
                             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_targs, ta);
@@ -12063,7 +12135,7 @@ void compiler__sema__decl_pass__DeclPass_propagate_target_type(compiler__sema__d
         compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(cur);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
                 compiler__sema__decl_pass__DeclPass_propagate_target_type(self, target_type_node, arm.body);
@@ -12112,7 +12184,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_named_type(compiler__sema__decl
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&nt->type_args);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&nt->type_args, __for_i);
             compiler__sema__decl_pass__DeclPass_rewrite_generics(self, ta);
@@ -12134,7 +12206,7 @@ void compiler__sema__decl_pass__DeclPass_rewrite_call_target(compiler__sema__dec
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, mem_obj);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                     std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, a);
@@ -12170,7 +12242,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_expr_generics(compiler__sema__d
         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, c->callee);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                 compiler__sema__decl_pass__DeclPass_rewrite_generics(self, a);
@@ -12216,7 +12288,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_expr_generics(compiler__sema__d
         compiler__ast__expr__ArrayLiteralExpr* al = compiler__ast__node__to_compiler__ast__expr__ArrayLiteralExpr(node);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* e = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&al->elements, __for_i);
                 compiler__sema__decl_pass__DeclPass_rewrite_generics(self, e);
@@ -12229,12 +12301,12 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_expr_generics(compiler__sema__d
         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, we->condition);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
                         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, pat);
@@ -12250,7 +12322,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_expr_generics(compiler__sema__d
         compiler__ast__expr__InterpExpr* ie = compiler__ast__node__to_compiler__ast__expr__InterpExpr(node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&ie->parts);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&ie->parts, __for_i);
                 compiler__sema__decl_pass__DeclPass_rewrite_generics(self, part.expr);
@@ -12275,7 +12347,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_stmt_generics(compiler__sema__d
         compiler__ast__stmt__BlockStmt* b = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(node);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&b->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&b->statements, __for_i);
                 compiler__sema__decl_pass__DeclPass_rewrite_generics(self, s);
@@ -12325,12 +12397,12 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_stmt_generics(compiler__sema__d
         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, w->condition);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&w->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&w->arms, __for_i);
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
                         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, pat);
@@ -12352,7 +12424,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_decl_generics(compiler__sema__d
         compiler__ast__decl__StructDecl* s = compiler__ast__node__to_compiler__ast__decl__StructDecl(node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__decl__StructField_count(&s->fields);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__decl__StructField fld = std__collections__list__List_compiler__ast__decl__StructField_at(&s->fields, __for_i);
                 if ((fld.type_node != NULL) && (fld.default_val != NULL)) {
@@ -12370,7 +12442,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_decl_generics(compiler__sema__d
         compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
                 if ((p.type_node != NULL) && (p.default_val != NULL)) {
@@ -12396,7 +12468,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_decl_generics(compiler__sema__d
         compiler__ast__decl__ImplDecl* im = compiler__ast__node__to_compiler__ast__decl__ImplDecl(node);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                 if ((*compiler__ast__node__to_compiler__ast__decl__FnDecl(m)).type_params.len > 0) {
@@ -12420,7 +12492,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_decl_generics(compiler__sema__d
         compiler__ast__decl__ExternBlock* ext = compiler__ast__node__to_compiler__ast__decl__ExternBlock(node);
         {
             size_t __for_n = compiler__ast__decl__ExternBlock_count(ext);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* d = compiler__ast__decl__ExternBlock_at(ext, __for_i);
                 compiler__sema__decl_pass__DeclPass_rewrite_generics(self, d);
@@ -12537,7 +12609,7 @@ int64_t compiler__sema__decl_pass__parse_decimal_i64(const char* s) {
     int64_t v = 0LL;
     {
         size_t __for_n = kobel_slen(s);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = s[__for_i];
             if ((c >= '0') && (c <= '9')) {
@@ -12588,31 +12660,32 @@ void compiler__sema__decl_pass__trait_put_method(std__collections__list__List_pt
 }
 
 compiler__sema__types__Type* compiler__sema__decl_pass__int_literal_type(std__mem__arena__Arena* arena, const char* raw) {
-    if (str_ends_with(raw, "UB")) {
+    const char* sfx = str_num_suffix(raw);
+    if (kobel_streq(sfx, "UB")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u8());
     }
-    if (str_ends_with(raw, "US")) {
+    if (kobel_streq(sfx, "US")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u16());
     }
-    if (str_ends_with(raw, "UL")) {
+    if (kobel_streq(sfx, "UL")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u64());
     }
-    if (str_ends_with(raw, "UZ")) {
+    if (kobel_streq(sfx, "UZ")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_usz());
     }
-    if (str_ends_with(raw, "U")) {
+    if (kobel_streq(sfx, "U")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_u32());
     }
-    if (str_ends_with(raw, "L")) {
+    if (kobel_streq(sfx, "L")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i64());
     }
-    if (str_ends_with(raw, "S")) {
+    if (kobel_streq(sfx, "S")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i16());
     }
-    if (str_ends_with(raw, "Z")) {
+    if (kobel_streq(sfx, "Z")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_isz());
     }
-    if (str_ends_with(raw, "B")) {
+    if (kobel_streq(sfx, "B")) {
         return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i8());
     }
     return compiler__sema__decl_pass__alloc_primitive(arena, compiler__sema__types__type_i32());
@@ -12886,7 +12959,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
     std__collections__list__List_str used_names = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&st_info->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&st_info->methods, __for_i);
             std__collections__list__List_str_add(&used_names, m->c_name);
@@ -12895,7 +12968,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
             compiler__ast__decl__FnDecl* f = (compiler__ast__decl__FnDecl*)compiler__ast__node__to_compiler__ast__decl__FnDecl(m_node);
@@ -12906,7 +12979,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
             if (kobel_streq(f->name, "new")) {
                 {
                     size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
                         if (kobel_streq(p.name, "self")) {
@@ -12919,7 +12992,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
             std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__List_ptr_compiler__sema__types__Type_new(4);
             {
                 size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
                     compiler__sema__types__Type* pt = NULL;
@@ -13009,7 +13082,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_infer_decl_retu
             compiler__ast__expr__IdentifierExpr* id = compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(u->target);
             {
                 size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
                     if (kobel_streq(p.name, id->name) && (p.type_node != NULL)) {
@@ -13027,7 +13100,7 @@ compiler__sema__types__Type* compiler__sema__decl_pass__DeclPass_infer_decl_retu
                     compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(self->current_self_type);
                     {
                         size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&s_info->fields);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__sema__types__StructField fld = std__collections__list__List_compiler__sema__types__StructField_at(&s_info->fields, __for_i);
                             if (kobel_streq(fld.name, mem->member)) {
@@ -13057,7 +13130,7 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
     std__collections__list__List_str used_names = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
             compiler__ast__decl__FnDecl* f = (compiler__ast__decl__FnDecl*)compiler__ast__node__to_compiler__ast__decl__FnDecl(m_node);
@@ -13139,7 +13212,7 @@ void compiler__sema__decl_pass__DeclPass_trait_record_impl(compiler__sema__decl_
     std__collections__list__List_str_add(&t->impls, struct_name);
     {
         size_t __for_n = std__collections__list__List_str_count(&t->bases);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* bname = std__collections__list__List_str_at(&t->bases, __for_i);
             compiler__sema__decl_pass__DeclPass_trait_record_impl(self, compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, bname), struct_name);
@@ -13158,7 +13231,7 @@ void compiler__sema__decl_pass__DeclPass_trait_effective(compiler__sema__decl_pa
     std__collections__list__List_str_add(seen, t->name);
     {
         size_t __for_n = std__collections__list__List_str_count(&t->bases);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* bname = std__collections__list__List_str_at(&t->bases, __for_i);
             compiler__sema__decl_pass__DeclPass_trait_effective(self, compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, bname), out, seen);
@@ -13167,7 +13240,7 @@ void compiler__sema__decl_pass__DeclPass_trait_effective(compiler__sema__decl_pa
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_count(&t->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__TraitMethod* m = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_at(&t->methods, __for_i);
             compiler__sema__decl_pass__trait_put_method(out, m);
@@ -13188,13 +13261,13 @@ void compiler__sema__decl_pass__DeclPass_apply_trait(compiler__sema__decl_pass__
     compiler__sema__decl_pass__DeclPass_trait_effective(self, t, &effective, &seen);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_count(&effective);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__TraitMethod* tm = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_at(&effective, __for_i);
             bool have = false;
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                     compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(m);
@@ -13224,7 +13297,7 @@ void compiler__sema__decl_pass__DeclPass_apply_trait(compiler__sema__decl_pass__
 compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name, size_t arity) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_count(&list);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__TraitMethod* m = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_at(&list, __for_i);
             if (kobel_streq(m->name, name) && (m->arity == arity)) {
@@ -13290,7 +13363,7 @@ void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pas
     bool has_private = false;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__StructField_count(&s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at(&s->fields, __for_i);
             compiler__sema__types__Type* f_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f.type_node);
@@ -13315,7 +13388,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn(compiler__sema__decl_pass__D
     std__collections__list__List_ptr_compiler__sema__types__Type param_types = std__collections__list__List_ptr_compiler__sema__types__Type_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
             compiler__sema__types__Type* p_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, p.type_node);
@@ -13351,7 +13424,7 @@ void compiler__sema__decl_pass__DeclPass_collect_enum(compiler__sema__decl_pass_
     int64_t next_val = 0;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__EnumMember_count(&e->members);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__EnumMember m = std__collections__list__List_compiler__ast__decl__EnumMember_at(&e->members, __for_i);
             int64_t v = next_val;
@@ -13398,7 +13471,7 @@ void compiler__sema__decl_pass__DeclPass_collect_extern_block(compiler__sema__de
     self->is_extern = true;
     {
         size_t __for_n = compiler__ast__decl__ExternBlock_count(ext);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* d = compiler__ast__decl__ExternBlock_at(ext, __for_i);
             compiler__sema__decl_pass__DeclPass_collect_declaration(self, d);
@@ -13417,7 +13490,7 @@ void compiler__sema__decl_pass__DeclPass_collect_trait(compiler__sema__decl_pass
     std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod methods = std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&t->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&t->methods, __for_i);
             compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(m);
@@ -13465,7 +13538,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
     compiler__ast__decl__Program* prog = compiler__ast__node__to_compiler__ast__decl__Program(program_node);
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* d0 = compiler__ast__decl__Program_at(prog, __for_i);
             if (d0->kind == 30) {
@@ -13480,7 +13553,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
     }
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* d1 = compiler__ast__decl__Program_at(prog, __for_i);
             if (d1->kind != 35) {
@@ -13491,7 +13564,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
     }
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* d1 = compiler__ast__decl__Program_at(prog, __for_i);
             if (d1->kind == 30) {
@@ -13505,7 +13578,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
     }
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* d = compiler__ast__decl__Program_at(prog, __for_i);
             if ((d->kind == 30)) {
@@ -13523,7 +13596,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
         std__collections__list__List_ptr_compiler__ast__node__AstNode combined = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&self->symtab.gen.pending);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* pn = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&self->symtab.gen.pending, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&combined, pn);
@@ -13532,7 +13605,7 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
         }
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* d = compiler__ast__decl__Program_at(prog, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&combined, d);
@@ -13588,7 +13661,7 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
         compiler__ast__stmt__BlockStmt* b = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(node);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&b->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&b->statements, __for_i);
                 std__mem__arena__Arena_for_inject_step(self, stmt, step);
@@ -13603,7 +13676,7 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
         compiler__ast__stmt__WhenStmt* w = compiler__ast__node__to_compiler__ast__stmt__WhenStmt(node);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&w->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&w->arms, __for_i);
                 std__mem__arena__Arena_for_inject_step(self, arm.body, step);
@@ -13614,7 +13687,7 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
         std__collections__list__List_ptr_compiler__ast__node__AstNode stmts = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(step);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(step, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&stmts, s);
@@ -13684,7 +13757,7 @@ void std__mem__arena__Arena_desugar_for(std__mem__arena__Arena* self, compiler__
     std__collections__list__List_ptr_compiler__ast__node__AstNode body_stmts = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&head);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&head, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&body_stmts, s);
@@ -13696,7 +13769,7 @@ void std__mem__arena__Arena_desugar_for(std__mem__arena__Arena* self, compiler__
             compiler__ast__stmt__BlockStmt* b = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(fs->body);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&b->statements);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&b->statements, __for_i);
                     std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&body_stmts, s);
@@ -13709,7 +13782,7 @@ void std__mem__arena__Arena_desugar_for(std__mem__arena__Arena* self, compiler__
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&step);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&step, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&body_stmts, s);
@@ -13826,7 +13899,7 @@ void compiler__sema__body_pass__BodyPass_coerce_to_list(compiler__sema__body_pas
         al->elem_type_node = std__mem__arena__Arena_ast_type_from_type(&self->arena, elem_ty);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* el = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&al->elements, __for_i);
                 if ((elem_ty != NULL) && compiler__sema__types__Type_is_list(elem_ty)) {
@@ -13850,7 +13923,7 @@ void compiler__sema__body_pass__BodyPass_coerce_to_list(compiler__sema__body_pas
         compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)node)->data);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
                 compiler__sema__body_pass__BodyPass_coerce_to_list(self, arm.body, list_ty);
@@ -14171,7 +14244,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_member_on_struc
     compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(obj_ty);
     {
         size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&s_info->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&s_info->fields, __for_i);
             if (!kobel_streq(f.name, mem->member)) {
@@ -14505,7 +14578,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_expr
         bool has_else = false;
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
                 if (arm.is_else) {
@@ -14568,7 +14641,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_resolve_arm_pat
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&patterns);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&patterns, __for_i);
             compiler__sema__types__Type* p_ty = compiler__sema__body_pass__BodyPass_check_arm_pattern(self, pat, cond, cond_ty);
@@ -14615,7 +14688,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_arm_
         compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                 if ((stmt != NULL && stmt->kind == compiler__ast__stmt__YieldStmt__TAG)) {
@@ -14706,7 +14779,7 @@ compiler__sema__symbol__Symbol* compiler__sema__body_pass__BodyPass_find_tag_con
 const char* compiler__sema__body_pass__BodyPass_tag_field_name_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s) {
     {
         size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
             if (((kobel_streq(f.name, "tag") || kobel_streq(f.name, "TAG")) || kobel_streq(f.name, "kind")) || kobel_streq(f.name, "kind_")) {
@@ -14721,7 +14794,7 @@ const char* compiler__sema__body_pass__BodyPass_tag_field_name_of(compiler__sema
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_field_type_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name) {
     {
         size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
             if (kobel_streq(f.name, name)) {
@@ -14736,7 +14809,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_field_type_of(c
 bool compiler__sema__body_pass__BodyPass_struct_has_field(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s, const char* name) {
     {
         size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&base_s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&base_s->fields, __for_i);
             if (kobel_streq(f.name, name)) {
@@ -14819,7 +14892,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_interp_ex
         compiler__ast__node__AstNode* acc = NULL;
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&ie->parts);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&ie->parts, __for_i);
                 compiler__ast__node__AstNode* piece = part.expr;
@@ -14883,7 +14956,7 @@ void compiler__sema__body_pass__BodyPass_check_block_stmt(compiler__sema__body_p
     compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
             compiler__sema__body_pass__BodyPass_check_statement(self, stmt);
@@ -15029,7 +15102,7 @@ void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pa
     }
     {
         size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&ws->arms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&ws->arms, __for_i);
             const char* smart_cast_sym = "";
@@ -15059,7 +15132,7 @@ void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pa
             if (str_empty(smart_cast_sym)) {
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
                         compiler__sema__types__Type* p_ty = NULL;
@@ -15125,7 +15198,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_for_iterable_ty
         compiler__sema__types__StructType* s_mem = compiler__sema__types__Type_as_struct(obj);
         {
             size_t __for_n = std__collections__list__List_compiler__sema__types__StructField_count(&s_mem->fields);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__sema__types__StructField f = std__collections__list__List_compiler__sema__types__StructField_at(&s_mem->fields, __for_i);
                 if (kobel_streq(f.name, mem->member)) {
@@ -15215,7 +15288,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_slice_cal
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&call->args);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&call->args, __for_i);
             compiler__sema__types__Type* at = compiler__sema__body_pass__BodyPass_check_expr(self, arg);
@@ -15321,7 +15394,7 @@ compiler__sema__types__MethodInfo* compiler__sema__body_pass__BodyPass_method_wi
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&cands);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&cands, __for_i);
             if (!kobel_streq(m->name, name) || (m->ast_node == NULL)) {
@@ -15423,7 +15496,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_method_ca
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&call->args);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&call->args, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&new_args, arg);
@@ -15557,7 +15630,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_struct_ct
         if (nm == NULL) {
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&s_info->methods);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&s_info->methods, __for_i);
                     if (!kobel_streq(m->name, "new")) {
@@ -15738,7 +15811,7 @@ void compiler__sema__body_pass__BodyPass_check_fn(compiler__sema__body_pass__Bod
 void compiler__sema__body_pass__BodyPass_check_fn_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node, compiler__sema__types__Type* fn_type) {
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&self->checked_fns);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* n = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&self->checked_fns, __for_i);
             if (n == fn_node) {
@@ -15787,7 +15860,7 @@ void compiler__sema__body_pass__BodyPass_check_fn_body(compiler__sema__body_pass
             compiler__ast__stmt__BlockStmt* blk = compiler__ast__node__to_compiler__ast__stmt__BlockStmt(f->body);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                     compiler__sema__body_pass__BodyPass_check_statement(self, stmt);
@@ -15819,7 +15892,7 @@ void compiler__sema__body_pass__BodyPass_check_impl(compiler__sema__body_pass__B
     if (str_empty(im->struct_name)) {
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                 compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(m_node);
@@ -15844,7 +15917,7 @@ void compiler__sema__body_pass__BodyPass_check_impl(compiler__sema__body_pass__B
     self->current_self_type = st_sym->type_ptr;
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
             compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(m_node);
@@ -15869,7 +15942,7 @@ void compiler__sema__body_pass__BodyPass_check_program(compiler__sema__body_pass
         self->symtab = decl_p.symtab;
         {
             size_t __for_n = std__collections__list__List_str_count(&decl_p.errors);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* msg = std__collections__list__List_str_at(&decl_p.errors, __for_i);
                 std__collections__list__List_str_add(&self->errors, msg);
@@ -15880,7 +15953,7 @@ void compiler__sema__body_pass__BodyPass_check_program(compiler__sema__body_pass
     compiler__ast__decl__Program* prog = compiler__ast__node__to_compiler__ast__decl__Program(program_node);
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
             if (decl != NULL && decl->kind == compiler__ast__decl__ModuleDecl__TAG) {
@@ -15961,7 +16034,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
         std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* a = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&args, compiler__sema__body_pass__BodyPass_clone_expr(self, a));
@@ -15971,7 +16044,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
         std__collections__list__List_ptr_compiler__ast__node__AstNode targs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&c->type_args);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* ta = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&c->type_args, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&targs, ta);
@@ -15993,7 +16066,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
         std__collections__list__List_ptr_compiler__ast__node__AstNode els = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* e = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&al->elements, __for_i);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&els, compiler__sema__body_pass__BodyPass_clone_expr(self, e));
@@ -16158,11 +16231,13 @@ const char* compiler__codegen__c_codegen__c_type_from_ast(compiler__ast__node__A
 }
 
 const char* compiler__codegen__c_codegen__c_format_int_literal(const char* raw) {
-    return (str_ends_with(raw, "Z") ? kobel_concat(kobel_concat("((intptr_t)", str_strip_suffix(raw, 1)), "LL)") : (str_ends_with(raw, "L") ? kobel_concat(str_strip_suffix(raw, 1), "LL") : (str_ends_with(raw, "S") ? kobel_concat(kobel_concat("((int16_t)", str_strip_suffix(raw, 1)), ")") : (str_ends_with(raw, "B") ? kobel_concat(kobel_concat("((int8_t)", str_strip_suffix(raw, 1)), ")") : (str_ends_with(raw, "U") ? kobel_concat(str_strip_suffix(raw, 1), "U") : (str_ends_with(raw, "UZ") ? kobel_concat(kobel_concat("((size_t)", str_strip_suffix(raw, 2)), "ULL)") : (str_ends_with(raw, "UL") ? kobel_concat(str_strip_suffix(raw, 2), "ULL") : (str_ends_with(raw, "UB") ? kobel_concat(kobel_concat("((uint8_t)", str_strip_suffix(raw, 2)), ")") : (str_ends_with(raw, "US") ? kobel_concat(kobel_concat("((uint16_t)", str_strip_suffix(raw, 2)), ")") : raw)))))))));
+    const char* sfx = str_num_suffix(raw);
+    const char* body = str_strip_suffix(raw, kobel_slen(sfx));
+    return (strcmp(sfx, "Z") == 0 ? kobel_concat(kobel_concat("((intptr_t)", body), "LL)") : (strcmp(sfx, "L") == 0 ? kobel_concat(body, "LL") : (strcmp(sfx, "S") == 0 ? kobel_concat(kobel_concat("((int16_t)", body), ")") : (strcmp(sfx, "B") == 0 ? kobel_concat(kobel_concat("((int8_t)", body), ")") : (strcmp(sfx, "U") == 0 ? kobel_concat(body, "U") : (strcmp(sfx, "UZ") == 0 ? kobel_concat(kobel_concat("((size_t)", body), "ULL)") : (strcmp(sfx, "UL") == 0 ? kobel_concat(body, "ULL") : (strcmp(sfx, "UB") == 0 ? kobel_concat(kobel_concat("((uint8_t)", body), ")") : (strcmp(sfx, "US") == 0 ? kobel_concat(kobel_concat("((uint16_t)", body), ")") : raw)))))))));
 }
 
 const char* compiler__codegen__c_codegen__c_int_literal_c_type(const char* raw) {
-    return (str_ends_with(raw, "Z") ? "intptr_t" : (str_ends_with(raw, "L") ? "int64_t" : (str_ends_with(raw, "S") ? "int16_t" : (str_ends_with(raw, "B") ? "int8_t" : (str_ends_with(raw, "U") ? "uint32_t" : (str_ends_with(raw, "UZ") ? "size_t" : (str_ends_with(raw, "UL") ? "uint64_t" : (str_ends_with(raw, "US") ? "uint16_t" : (str_ends_with(raw, "UB") ? "uint8_t" : "int32_t")))))))));
+    return (strcmp(str_num_suffix(raw), "Z") == 0 ? "intptr_t" : (strcmp(str_num_suffix(raw), "L") == 0 ? "int64_t" : (strcmp(str_num_suffix(raw), "S") == 0 ? "int16_t" : (strcmp(str_num_suffix(raw), "B") == 0 ? "int8_t" : (strcmp(str_num_suffix(raw), "U") == 0 ? "uint32_t" : (strcmp(str_num_suffix(raw), "UZ") == 0 ? "size_t" : (strcmp(str_num_suffix(raw), "UL") == 0 ? "uint64_t" : (strcmp(str_num_suffix(raw), "US") == 0 ? "uint16_t" : (strcmp(str_num_suffix(raw), "UB") == 0 ? "uint8_t" : "int32_t")))))))));
 }
 
 const char* compiler__codegen__c_codegen__c_float_literal_c_type(const char* raw) {
@@ -16173,7 +16248,7 @@ const char* compiler__codegen__c_codegen__c_format_float_literal(const char* raw
     bool has_dot = false;
     {
         size_t __for_n = kobel_slen(raw);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = raw[__for_i];
             if (((c == '.') || (c == 'e')) || (c == 'E')) {
@@ -16676,7 +16751,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
         compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)expr)->data);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
                 compiler__ast__node__AstNode* arm_b = arm.body;
@@ -16685,7 +16760,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
                         compiler__ast__stmt__BlockStmt* blk = (compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)arm_b)->data);
                         {
                             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-                            size_t __for_i = ((intptr_t)0ULL);
+                            size_t __for_i = ((size_t)0ULL);
                             while (__for_i < __for_n) {
                                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                                 if (s != NULL) {
@@ -16722,7 +16797,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
 bool compiler__ast__expr__WhenExpr_has_blocks(compiler__ast__expr__WhenExpr* self) {
     {
         size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&self->arms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&self->arms, __for_i);
             compiler__ast__node__AstNode* arm_b = arm.body;
@@ -16735,7 +16810,7 @@ bool compiler__ast__expr__WhenExpr_has_blocks(compiler__ast__expr__WhenExpr* sel
             }
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* p = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
                     if ((p != NULL && p->kind == compiler__ast__expr__IsExpr__TAG)) {
@@ -16771,7 +16846,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_block_body(compiler__code
         const char* res = "";
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                 res = kobel_concat(res, compiler__codegen__c_codegen__CCodeGen_gen_statement(self, s));
@@ -16794,7 +16869,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_statement(compiler__codeg
         self->indent_level++;
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                 res = kobel_concat(res, compiler__codegen__c_codegen__CCodeGen_gen_statement(self, stmt));
@@ -17216,7 +17291,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_statement(compiler__codeg
         bool first = true;
         {
             size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&ws->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&ws->arms, __for_i);
                 const char* cast_decl = "";
@@ -17310,7 +17385,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     self->is_yield_return = is_ret;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
             const char* cast_decl = "";
@@ -17343,7 +17418,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
                     compiler__ast__stmt__BlockStmt* blk = (compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)arm_b)->data);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                             res = kobel_concat(res, compiler__codegen__c_codegen__CCodeGen_gen_statement(self, s));
@@ -17374,7 +17449,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         const char* c_code = compiler__codegen__c_runtime__C_PRELUDE;
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
                 if (compiler__ast__node__AstNode_is_template(decl)) {
@@ -17399,7 +17474,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         c_code = kobel_concat(c_code, "\n");
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl2 = compiler__ast__decl__Program_at(prog, __for_i);
                 if (compiler__ast__node__AstNode_is_template(decl2)) {
@@ -17413,7 +17488,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
                     compiler__ast__decl__ImplDecl* im = (compiler__ast__decl__ImplDecl*)(((compiler__ast__node__AstNode*)decl2)->data);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* mnode = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                             if ((mnode != NULL && mnode->kind == compiler__ast__decl__FnDecl__TAG)) {
@@ -17431,7 +17506,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
                     compiler__ast__decl__ExternBlock* ext = (compiler__ast__decl__ExternBlock*)(((compiler__ast__node__AstNode*)decl2)->data);
                     {
                         size_t __for_n = compiler__ast__decl__ExternBlock_count(ext);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* e_decl = compiler__ast__decl__ExternBlock_at(ext, __for_i);
                             if ((e_decl != NULL && e_decl->kind == compiler__ast__decl__FnDecl__TAG)) {
@@ -17448,7 +17523,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         c_code = kobel_concat(c_code, "\n");
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
                 if (!compiler__ast__node__AstNode_is_template(decl)) {
@@ -17463,7 +17538,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         }
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl_list = compiler__ast__decl__Program_at(prog, __for_i);
                 if (!compiler__ast__node__AstNode_is_template(decl_list)) {
@@ -17479,7 +17554,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         }
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
                 if (compiler__ast__node__AstNode_is_template(decl)) {
@@ -17494,7 +17569,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
                     compiler__ast__decl__ImplDecl* im = (compiler__ast__decl__ImplDecl*)(((compiler__ast__node__AstNode*)decl)->data);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* mnode = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                             if ((mnode != NULL && mnode->kind == compiler__ast__decl__FnDecl__TAG)) {
@@ -17515,7 +17590,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
         c_code = kobel_concat(c_code, "\n");
         {
             size_t __for_n = compiler__ast__decl__Program_count(prog);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
                 if (compiler__ast__node__AstNode_is_template(decl)) {
@@ -17530,7 +17605,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen
                     compiler__ast__decl__ImplDecl* im = (compiler__ast__decl__ImplDecl*)(((compiler__ast__node__AstNode*)decl)->data);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                        size_t __for_i = ((intptr_t)0ULL);
+                        size_t __for_i = ((size_t)0ULL);
                         while (__for_i < __for_n) {
                             compiler__ast__node__AstNode* mnode = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                             if ((mnode != NULL && mnode->kind == compiler__ast__decl__FnDecl__TAG)) {
@@ -17558,7 +17633,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_struct_decl(compiler__cod
     const char* res = kobel_concat(kobel_concat("struct ", s->name), " {\n");
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__StructField_count(&s->fields);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__StructField f = std__collections__list__List_compiler__ast__decl__StructField_at(&s->fields, __for_i);
             const char* ty = compiler__codegen__c_codegen__c_type_from_ast(f.type_node);
@@ -17634,7 +17709,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen
     self->str_vars = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__Param_count(&f->params);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
             compiler__ast__node__AstNode* p_tn = p.type_node;
@@ -17661,7 +17736,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen
         compiler__ast__stmt__BlockStmt* blk = (compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)f_body)->data);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&blk->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* stmt = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&blk->statements, __for_i);
                 res = kobel_concat(res, compiler__codegen__c_codegen__CCodeGen_gen_statement(self, stmt));
@@ -18577,7 +18652,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
         size_t size = 0;
         {
             size_t __for_n = kobel_slen(size_tok.text);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 char ch = size_tok.text[__for_i];
                 if ((ch >= '0') && (ch <= '9')) {
@@ -18612,7 +18687,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
         int32_t size = 0;
         {
             size_t __for_n = kobel_slen(size_tok.text);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 char ch = size_tok.text[__for_i];
                 if ((ch >= '0') && (ch <= '9')) {
@@ -18638,7 +18713,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_type(compil
 bool compiler__parser__expr__num_literal_is_float(const char* text) {
     {
         size_t __for_n = kobel_slen(text);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             char c = text[__for_i];
             if (c == '.') {
@@ -18647,10 +18722,8 @@ bool compiler__parser__expr__num_literal_is_float(const char* text) {
             __for_i = (__for_i + 1);
         }
     }
-    if (str_ends_with(text, "F") || str_ends_with(text, "D")) {
-        return true;
-    }
-    return false;
+    const char* sfx = str_num_suffix(text);
+    return (kobel_streq(sfx, "F") || kobel_streq(sfx, "D"));
 }
 
 bool compiler__parser__expr__str_has_hole(const char* text) {
@@ -19210,7 +19283,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_interp_stri
             if (sub.errors.len > 0) {
                 {
                     size_t __for_n = std__collections__list__List_str_count(&sub.errors);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         const char* msg = std__collections__list__List_str_at(&sub.errors, __for_i);
                         std__collections__list__List_str_add(&self->errors, kobel_concat("in interpolation hole: ", msg));
@@ -19566,7 +19639,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_impl_decl(c
             std__collections__list__List_compiler__ast__decl__GenericParam s_params = compiler__parser__parser__Parser_parse_generic_params(self);
             {
                 size_t __for_n = std__collections__list__List_compiler__ast__decl__GenericParam_count(&s_params);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__decl__GenericParam p = std__collections__list__List_compiler__ast__decl__GenericParam_at(&s_params, __for_i);
                     std__collections__list__List_compiler__ast__decl__GenericParam_add(&type_params, p);
@@ -19716,7 +19789,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_program(com
     }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&self->struct_consts);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* c = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&self->struct_consts, __for_i);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&declarations, c);
@@ -19755,7 +19828,7 @@ compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader_ne
     }
     {
         size_t __for_n = std__collections__list__List_str_count(&extra_roots);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* r = std__collections__list__List_str_at(&extra_roots, __for_i);
             std__collections__list__List_str_add(&roots, r);
@@ -19793,7 +19866,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_parse_sourc
     if (!std__collections__list__List_str_empty(&parser.errors)) {
         {
             size_t __for_n = std__collections__list__List_str_count(&parser.errors);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* msg = std__collections__list__List_str_at(&parser.errors, __for_i);
                 std__collections__list__List_str_add(&self->errors, kobel_concat(kobel_concat(path, ": "), msg));
@@ -19809,7 +19882,7 @@ compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleLoader_find
     const char* rel = kobel_concat(str_module_to_rel(module_name), ".kb");
     {
         size_t __for_n = std__collections__list__List_str_count(&self->roots);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* root = std__collections__list__List_str_at(&self->roots, __for_i);
             const char* candidate = str_join_path(root, rel);
@@ -19826,7 +19899,7 @@ compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleLoader_find
 bool compiler__loader__loader__ModuleLoader_is_known(compiler__loader__loader__ModuleLoader* self, const char* module_name) {
     {
         size_t __for_n = std__collections__list__List_compiler__loader__loader__LoadedModule_count(&self->modules);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__loader__loader__LoadedModule lm = std__collections__list__List_compiler__loader__loader__LoadedModule_at(&self->modules, __for_i);
             if (kobel_streq(lm.name, module_name)) {
@@ -19869,7 +19942,7 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
     compiler__ast__decl__Program* prog = compiler__ast__node__to_compiler__ast__decl__Program(program_node);
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
             if ((decl != NULL && decl->kind == compiler__ast__decl__UseDecl__TAG)) {
@@ -19903,7 +19976,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
     std__collections__list__List_ptr_compiler__ast__node__AstNode decls = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__list__List_compiler__loader__loader__LoadedModule_count(&self->ordered);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__loader__loader__LoadedModule lm = std__collections__list__List_compiler__loader__loader__LoadedModule_at(&self->ordered, __for_i);
             if (lm.program != NULL) {
@@ -19911,7 +19984,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
                 compiler__ast__decl__Program* p = compiler__ast__node__to_compiler__ast__decl__Program(lm.program);
                 {
                     size_t __for_n = compiler__ast__decl__Program_count(p);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__ast__node__AstNode* d = compiler__ast__decl__Program_at(p, __for_i);
                         std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&decls, d);
@@ -19928,7 +20001,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors) {
     {
         size_t __for_n = std__collections__list__List_str_count(&errors);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* msg = std__collections__list__List_str_at(&errors, __for_i);
             std__io__println(kobel_concat("  [ERROR] ", msg));
@@ -20062,7 +20135,7 @@ const char* compiler__driver__commands__compute_project_stamp(config__project__P
         std__collections__list__List_str lines = str_split_lines(file_list);
         {
             size_t __for_n = std__collections__list__List_str_count(&lines);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* line = std__collections__list__List_str_at(&lines, __for_i);
                 const char* fpath = str_trim(line);
@@ -20143,7 +20216,7 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
     const char* run_cmd = (str_contains(out_bin, " ") ? kobel_concat(kobel_concat("\"", out_bin), "\"") : out_bin);
     {
         size_t __for_n = std__collections__list__List_str_count(&extra_args);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* arg = std__collections__list__List_str_at(&extra_args, __for_i);
             run_cmd = (str_contains(arg, " ") ? kobel_concat(kobel_concat(kobel_concat(run_cmd, " \""), arg), "\"") : kobel_concat(kobel_concat(run_cmd, " "), arg));
@@ -20168,7 +20241,7 @@ std__collections__list__List_str compiler__driver__commands__discover_test_files
         const char* search_token = kobel_concat(kobel_concat("/", test_dir), "/");
         {
             size_t __for_n = std__collections__list__List_str_count(&lines);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* line = std__collections__list__List_str_at(&lines, __for_i);
                 const char* trimmed = str_trim(line);
@@ -20193,7 +20266,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
     std__collections__list__List_str active_tests = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_str_count(&all_tests);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* t = std__collections__list__List_str_at(&all_tests, __for_i);
             if (str_empty(filter) || str_contains(t, filter)) {
@@ -20221,7 +20294,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
     }
     {
         size_t __for_n = std__collections__list__List_str_count(&active_tests);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* tpath = std__collections__list__List_str_at(&active_tests, __for_i);
             std__io__print(kobel_concat(kobel_concat("[*] ", tpath), " ... "));
@@ -20270,7 +20343,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
         std__io__println("[ERROR] The following tests failed:");
         {
             size_t __for_n = std__collections__list__List_str_count(&failed_names);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* name = std__collections__list__List_str_at(&failed_names, __for_i);
                 std__io__println(kobel_concat("  - ", name));
@@ -21132,7 +21205,7 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
         fmt__buffer__FormatBuffer_write(&self->buf, "\"");
         {
             size_t __for_n = std__collections__list__List_compiler__ast__expr__InterpPart_count(&interp->parts);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__expr__InterpPart part = std__collections__list__List_compiler__ast__expr__InterpPart_at(&interp->parts, __for_i);
                 compiler__ast__node__AstNode* expr = part.expr;
@@ -21166,7 +21239,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
         fmt__buffer__FormatBuffer_indent(&self->buf);
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&b->statements);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__node__AstNode* s = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&b->statements, __for_i);
                 fmt__buffer__FormatBuffer_newline(&self->buf);
@@ -21303,7 +21376,7 @@ void fmt__formatter__Formatter_format_stmt(fmt__formatter__Formatter* self, comp
         fmt__buffer__FormatBuffer_indent(&self->buf);
         {
             size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&ws->arms);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&ws->arms, __for_i);
                 fmt__buffer__FormatBuffer_newline(&self->buf);
@@ -21604,7 +21677,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_indent(&self->buf);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
                     fmt__buffer__FormatBuffer_double_newline(&self->buf);
@@ -21664,7 +21737,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_indent(&self->buf);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&tr->methods);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* m = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&tr->methods, __for_i);
                     fmt__buffer__FormatBuffer_newline(&self->buf);
@@ -21757,7 +21830,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             fmt__buffer__FormatBuffer_indent(&self->buf);
             {
                 size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&eb->declarations);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     compiler__ast__node__AstNode* d = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&eb->declarations, __for_i);
                     fmt__buffer__FormatBuffer_newline(&self->buf);
@@ -22626,7 +22699,7 @@ const char* lsp__document__uri_to_path(const char* uri) {
 lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri) {
     {
         size_t __for_n = std__collections__list__List_lsp__document__Document_count(&self->docs);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             lsp__document__Document d = std__collections__list__List_lsp__document__Document_at(&self->docs, __for_i);
             if (kobel_streq(d.uri, uri)) {
@@ -22682,7 +22755,7 @@ void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, con
     std__collections__list__List_lsp__document__Document new_docs = std__collections__list__List_lsp__document__Document_new(4);
     {
         size_t __for_n = std__collections__list__List_lsp__document__Document_count(&self->docs);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             lsp__document__Document d = std__collections__list__List_lsp__document__Document_at(&self->docs, __for_i);
             if (!kobel_streq(d.uri, uri)) {
@@ -22863,7 +22936,7 @@ bool lsp__analysis__is_error_for_doc(const char* err_str, const char* doc_mod, c
 compiler__lexer__token__Token lsp__analysis__find_token_at(std__collections__list__List_compiler__lexer__token__Token tokens, size_t target_line, size_t target_col) {
     {
         size_t __for_n = std__collections__list__List_compiler__lexer__token__Token_count(&tokens);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at(&tokens, __for_i);
             if (tok.line == target_line) {
@@ -22898,7 +22971,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lexer);
     {
         size_t __for_n = std__collections__list__List_compiler__lexer__token__Token_count(&tokens);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at(&tokens, __for_i);
             if (tok.type == 69) {
@@ -22914,7 +22987,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
     if (parser.errors.len > 0) {
         {
             size_t __for_n = std__collections__list__List_str_count(&parser.errors);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* err_msg = std__collections__list__List_str_at(&parser.errors, __for_i);
                 std__collections__list__List_lsp__analysis__LspDiagnostic_add(&diagnostics, lsp__analysis__LspDiagnostic_new(err_msg, source));
@@ -22943,7 +23016,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
     if (loader.errors.len > 0) {
         {
             size_t __for_n = std__collections__list__List_str_count(&loader.errors);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 const char* err_msg = std__collections__list__List_str_at(&loader.errors, __for_i);
                 if (lsp__analysis__is_error_for_doc(err_msg, doc_mod, path)) {
@@ -22959,7 +23032,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
         if (decl_p.errors.len > 0) {
             {
                 size_t __for_n = std__collections__list__List_str_count(&decl_p.errors);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     const char* err_msg = std__collections__list__List_str_at(&decl_p.errors, __for_i);
                     if (lsp__analysis__is_error_for_doc(err_msg, doc_mod, path)) {
@@ -22974,7 +23047,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
         if (body_p.errors.len > 0) {
             {
                 size_t __for_n = std__collections__list__List_str_count(&body_p.errors);
-                size_t __for_i = ((intptr_t)0ULL);
+                size_t __for_i = ((size_t)0ULL);
                 while (__for_i < __for_n) {
                     const char* err_msg = std__collections__list__List_str_at(&body_p.errors, __for_i);
                     if (lsp__analysis__is_error_for_doc(err_msg, doc_mod, path)) {
@@ -23097,12 +23170,12 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_complete_at(lsp__analysis__A
     if (self->has_symtab) {
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count(&self->symtab.modules);
-            size_t __for_i = ((intptr_t)0ULL);
+            size_t __for_i = ((size_t)0ULL);
             while (__for_i < __for_n) {
                 compiler__sema__symbol__ModuleScope* mod_scope = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->symtab.modules, __for_i);
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_count(&mod_scope->symbols);
-                    size_t __for_i = ((intptr_t)0ULL);
+                    size_t __for_i = ((size_t)0ULL);
                     while (__for_i < __for_n) {
                         compiler__sema__symbol__Symbol* sym = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_at(&mod_scope->symbols, __for_i);
                         int64_t k = (sym->kind == 3 ? 3 : (sym->kind == 4 ? 22 : (sym->kind == 5 ? 13 : (sym->kind == 0 ? 6 : (sym->kind == 1 ? 21 : 6)))));
@@ -23129,7 +23202,7 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
     compiler__ast__decl__Program* prog = compiler__ast__node__to_compiler__ast__decl__Program(prog_node);
     {
         size_t __for_n = compiler__ast__decl__Program_count(prog);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* decl = compiler__ast__decl__Program_at(prog, __for_i);
             const char* sym_name = "";
@@ -23217,7 +23290,7 @@ void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, con
     lsp__json__JsonValue* diags_arr = lsp__json__json_arr();
     {
         size_t __for_n = std__collections__list__List_lsp__analysis__LspDiagnostic_count(&analysis.diagnostics);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             lsp__analysis__LspDiagnostic d = std__collections__list__List_lsp__analysis__LspDiagnostic_at(&analysis.diagnostics, __for_i);
             lsp__json__JsonValue_add(diags_arr, lsp__analysis__LspDiagnostic_to_json(&d));
@@ -23462,7 +23535,7 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
     fmt__options__FormatOptions options = (fmt__options__FormatOptions){ 4, true, 100, true };
     {
         size_t __for_n = std__collections__list__List_str_count(&files);
-        size_t __for_i = ((intptr_t)0ULL);
+        size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             const char* fpath = std__collections__list__List_str_at(&files, __for_i);
             const char* src = std__io__read_file(fpath);
