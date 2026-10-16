@@ -1072,11 +1072,15 @@ impl CCodeGen {
 		for (arm in ws.arms) {
 			var cast_decl = "";
 			val ws_cond = ws.condition;
-			if (ws_cond is IdentifierExpr as id) {
-				if (arm.patterns.len == 1) {
-					val pat = arm.patterns.first();
-					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+			if (ws_cond != null) {
+				if (ws_cond is IdentifierExpr as id) {
+					if (arm.patterns.len == 1) {
+						val pat = arm.patterns.first();
+						if (pat != null) {
+							if (pat is IsExpr as is_e) {
+								cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+							}
+						}
 					}
 				}
 			}
@@ -1150,11 +1154,15 @@ impl CCodeGen {
 		for (arm in we.arms) {
 			var cast_decl = "";
 			val we_cond = we.condition;
-			if (we_cond is IdentifierExpr as id) {
-				if (arm.patterns.len == 1) {
-					val pat = arm.patterns.first();
-					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+			if (we_cond != null) {
+				if (we_cond is IdentifierExpr as id) {
+					if (arm.patterns.len == 1) {
+						val pat = arm.patterns.first();
+						if (pat != null) {
+							if (pat is IsExpr as is_e) {
+								cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+							}
+						}
 					}
 				}
 			}

@@ -31,8 +31,7 @@ impl BodyPass {
 	pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 		if (node == null || list_ty == null) return;
 		when (node) {
-			is ArrayLiteralExpr as al_ptr -> {
-				val al = al_ptr as &ArrayLiteralExpr;
+			is ArrayLiteralExpr as var al -> {
 				val s = list_ty.as_struct();
 				al.list_struct_name = s.c_name;
 
@@ -668,7 +667,8 @@ impl BodyPass {
 
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
 			val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
-			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty);
+			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, we.condition);
+			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut);
 
 			if (result_ty == null) result_ty = body_ty;
 			else self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
@@ -687,12 +687,31 @@ impl BodyPass {
 		if (cond == null || patterns.len != 1) return "";
 		if (cond is IdentifierExpr as cond_id) {
 			val pat = patterns.first();
-			if (pat is IsExpr as is_e) {
-				if (!is_e.alias.empty()) return is_e.alias;
-				return cond_id.name;
+			if (pat != null) {
+				if (pat is IsExpr as is_e) {
+					if (!is_e.alias.empty()) return is_e.alias;
+					return cond_id.name;
+				}
 			}
 		}
 		return "";
+	}
+
+	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
+	// or mutating the subject directly when subject was already mutable).
+	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode): bool {
+		if (cond == null || patterns.len != 1) return false;
+		if (cond is IdentifierExpr as cond_id) {
+			val pat = patterns.first();
+			if (pat != null) {
+				if (pat is IsExpr as is_e) {
+					if (!is_e.alias.empty()) return is_e.is_mut;
+					val subj_sym = self.symtab.lookup(cond_id.name);
+					return subj_sym != null && subj_sym.is_mut;
+				}
+			}
+		}
+		return false;
 	}
 
 	// Checks the patterns of one arm and returns the type its binding gets, or null
@@ -731,10 +750,10 @@ impl BodyPass {
 	}
 
 	// An arm that binds a name checks its body inside a scope holding that name.
-	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type): *Type {
+	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body);
 		self.symtab.enter_scope(false);
-		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
 		val body_ty = self.check_when_arm_body(body);
 		self.symtab.exit_scope();
 		return body_ty;
@@ -782,8 +801,10 @@ impl BodyPass {
 		// The subject may be the struct itself or a pointer to it.
 		var base_ty = subj_ty;
 		var is_ptr = false;
+		var subj_is_mut = false;
 		if (base_ty != null && base_ty.kind == DataType.POINTER) {
 			is_ptr = true;
+			subj_is_mut = base_ty.as_pointer().is_mut;
 			base_ty = base_ty.as_pointer().pointee;
 		}
 		if (base_ty == null || base_ty.kind != DataType.STRUCT) {
@@ -812,7 +833,7 @@ impl BodyPass {
 		is_e.has_data = self.struct_has_field(base_s, "data");
 		is_e.base_c_name = base_s.c_name;
 		is_e.is_ptr = is_ptr;
-		if (is_ptr) return self.arena.pointer_type(target_ty, false);
+		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.is_mut || (is_e.alias.empty() && subj_is_mut));
 		return target_ty;
 	}
 

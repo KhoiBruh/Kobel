@@ -126,6 +126,45 @@ fn eval_if_no_alias(node: *Node): i32 {
 	return 0;
 }
 
+// Case 6: Mutable pattern binding ('is Type as var alias' and 'is Type as &alias')
+fn add_ten(l: &Literal) {
+	l.value += 10;
+}
+
+fn mutate_when_var(node: *Node) {
+	when (node) {
+		is Literal as var lit -> {
+			lit.value = 100;
+			add_ten(lit);
+		}
+		else -> {}
+	}
+}
+
+fn mutate_when_ref(node: *Node) {
+	when (node) {
+		is Literal as &lit -> {
+			lit.value = 200;
+			add_ten(lit);
+		}
+		else -> {}
+	}
+}
+
+fn mutate_if_var(node: *Node) {
+	if (node is Literal as var lit) {
+		lit.value = 300;
+		add_ten(lit);
+	}
+}
+
+fn mutate_if_ref(node: *Node) {
+	if (node is Literal as &lit) {
+		lit.value = 400;
+		add_ten(lit);
+	}
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Pattern Matching & Smart Cast ===");
 
@@ -228,6 +267,38 @@ fn main(): i32 {
 	println("eval_expr_alias(null) = ${null_expr}, null is Literal = ${null_is}");
 	if (null_when != 0 || null_if != 0 || null_expr != 0 || null_is) {
 		println("FAIL: null subject in pattern match");
+		return 1;
+	}
+
+	// Test Case 6: Mutable pattern binding ('is Type as var alias' and 'is Type as &alias')
+	var mut_lit = Literal(Literal.TAG, 1);
+	val mut_ptr = &mut_lit as *Node;
+
+	mutate_when_var(mut_ptr);
+	println("mutate_when_var: ${mut_lit.value}");
+	if (mut_lit.value != 110) {
+		println("FAIL: mutate_when_var");
+		return 1;
+	}
+
+	mutate_when_ref(mut_ptr);
+	println("mutate_when_ref: ${mut_lit.value}");
+	if (mut_lit.value != 210) {
+		println("FAIL: mutate_when_ref");
+		return 1;
+	}
+
+	mutate_if_var(mut_ptr);
+	println("mutate_if_var: ${mut_lit.value}");
+	if (mut_lit.value != 310) {
+		println("FAIL: mutate_if_var");
+		return 1;
+	}
+
+	mutate_if_ref(mut_ptr);
+	println("mutate_if_ref: ${mut_lit.value}");
+	if (mut_lit.value != 410) {
+		println("FAIL: mutate_if_ref");
 		return 1;
 	}
 

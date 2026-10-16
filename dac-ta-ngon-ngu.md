@@ -331,6 +331,25 @@ val result = when (x) {          // when là biểu thức, dùng độc lập �
 };
 ```
 
+### Pattern Matching & Smart Cast (`when` và `if`)
+
+Pattern matching hỗ trợ kiểm tra kiểu cấu trúc dạng tagged union (struct có `const TAG` hoặc `kind`), tự động smart cast và cho phép binding bất biến (`as alias` / `as val alias`) hoặc khả biến (`as var alias` / `as &alias`):
+
+```kobel
+when (node) {
+    is Literal as lit -> lit.value;             // bind chỉ đọc 'lit: *Literal'
+    is Binary as var b -> {                     // bind khả biến 'b: &Binary' (hoặc 'as &b')
+        b.left = new_node;
+        yield eval(b.left) + eval(b.right);
+    }
+    else -> 0;
+};
+
+if (node is Literal as var lit) {
+    lit.value = 42;
+}
+```
+
 Ba dạng range (`a..b`, `a..<b`, `a>..<b`) đều **quyết định chiều tăng/giảm lúc chạy** theo thứ tự hai
 biên được viết (`10..0` chạy ngược). Biến vòng là **bản sao chỉ đọc**, chỉ sống trong thân vòng;
 `continue` vẫn bước biến đếm. Dạng nửa mở `a..<b` là idiom cho vòng chỉ mục vì không bao giờ phải

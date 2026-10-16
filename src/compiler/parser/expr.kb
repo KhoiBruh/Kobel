@@ -231,16 +231,29 @@ impl Parser {
 				yield self.unary(tok.type, operand, line, col);
 			}
 
-			// Type pattern: is Type [as alias]
+			// Type pattern: is Type [as [var|val|&] alias]
 			TokenType.KW_IS -> {
 				val target_type = self.parse_type();
 				var alias = "";
+				var is_mut = false;
 				if (self.match_token(TokenType.KW_AS)) {
+					if (self.match_token(TokenType.KW_VAR)) {
+						is_mut = true;
+						self.match_token(TokenType.AMPERSAND);
+					} else if (self.match_token(TokenType.AMPERSAND)) {
+						is_mut = true;
+					} else {
+						self.match_token(TokenType.KW_VAL);
+					}
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(null, target_type, line, col);
-				if (!alias.empty()) is_node.to<IsExpr>().alias = alias;
+				if (!alias.empty()) {
+					val is_expr = is_node.to<IsExpr>();
+					is_expr.alias = alias;
+					is_expr.is_mut = is_mut;
+				}
 				yield is_node;
 			}
 
@@ -380,16 +393,29 @@ impl Parser {
 				yield self.cast(left, target_type, line, col);
 			}
 
-			// Type Test: left is Type [as alias]
+			// Type Test: left is Type [as [var|val|&] alias]
 			self.match_token(TokenType.KW_IS) -> {
 				val target_type = self.parse_type();
 				var alias = "";
+				var is_mut = false;
 				if (self.match_token(TokenType.KW_AS)) {
+					if (self.match_token(TokenType.KW_VAR)) {
+						is_mut = true;
+						self.match_token(TokenType.AMPERSAND);
+					} else if (self.match_token(TokenType.AMPERSAND)) {
+						is_mut = true;
+					} else {
+						self.match_token(TokenType.KW_VAL);
+					}
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(left, target_type, line, col);
-				if (!alias.empty()) is_node.to<IsExpr>().alias = alias;
+				if (!alias.empty()) {
+					val is_expr = is_node.to<IsExpr>();
+					is_expr.alias = alias;
+					is_expr.is_mut = is_mut;
+				}
 				yield is_node;
 			}
 

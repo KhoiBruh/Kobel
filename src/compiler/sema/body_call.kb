@@ -67,7 +67,7 @@ impl BodyPass {
 	// backend emits `sizeof(<c_name>)`.
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
-		if (obj is IdentifierExpr as id) {
+		if (obj is IdentifierExpr as var id) {
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
 				val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
@@ -77,8 +77,7 @@ impl BodyPass {
 
 			val tsym = self.symtab.lookup(id.name);
 			if (tsym != null && tsym.c_name != id.name) {
-				val id_ref = id as &IdentifierExpr;
-				id_ref.name = tsym.c_name;
+				id.name = tsym.c_name;
 			}
 		}
 		return self.t_usz();
