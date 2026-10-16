@@ -2,6 +2,8 @@ mod tests.features.test_syntax;
 
 use std.io.*;
 use std.collections.list.List;
+use std.collections.hash_map.HashMap;
+use std.collections.hash_set.HashSet;
 
 // ============================================================================
 // Feature Suite 1: Core Syntax, Operators, and Control Expressions
@@ -360,6 +362,37 @@ fn test_adjacent_strings(): bool {
 	return true;
 }
 
+fn test_in_operator(): bool {
+	// 1. in str
+	val s = "hello world";
+	if ("world" !in s) return false;
+	if ("xyz" in s) return false;
+
+	// 2. in List<str>
+	var list = List<str>();
+	list.add("foo");
+	list.add("bar");
+	if ("foo" !in list) return false;
+	if ("baz" in list) return false;
+	list.delete();
+
+	// 3. in HashMap
+	var map = HashMap<i32>();
+	map["k1"] = 10;
+	if ("k1" !in map) return false;
+	if ("k2" in map) return false;
+	map.delete();
+
+	// 4. in HashSet
+	var set = HashSet();
+	set.add("alpha");
+	if ("alpha" !in set) return false;
+	if ("beta" in set) return false;
+	set.delete();
+
+	return true;
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Core Syntax & Operators ===");
 
@@ -404,6 +437,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_adjacent_strings");
+
+	if (!test_in_operator()) {
+		println("  [FAIL] test_in_operator");
+		return 1;
+	}
+	println("  [PASS] test_in_operator");
 
 	println("=== ALL CORE SYNTAX TESTS PASSED! ===");
 	return 0;

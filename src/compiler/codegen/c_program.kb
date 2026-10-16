@@ -191,8 +191,8 @@ impl CCodeGen {
 
 		self.current_fn_ret_type = ret_ty;
 
-		self.pointer_vars = List<str>();
-		self.str_vars = List<str>();
+		self.pointer_vars.clear();
+		self.str_vars.clear();
 		for (p in f.params) {
 			val p_tn = p.type_node;
 			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {

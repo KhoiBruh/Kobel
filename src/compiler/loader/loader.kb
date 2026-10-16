@@ -18,6 +18,7 @@ use std.io.read_file;
 use std.io.file_exists;
 use std.collections.list.*;
 use std.collections.hash_map.*;
+use std.collections.hash_set.*;
 
 use util.strutil.*;
 
@@ -48,7 +49,7 @@ pub struct ModuleLoader {
 	pub ordered: List<LoadedModule>,
 	pub errors: List<str>,
 	pub arena: Arena,
-	known: HashMap<bool> = HashMap<bool>()
+	known: HashSet
 }
 
 pub fn detect_project_root(start_dir: str): str {
@@ -93,7 +94,7 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<str>(),
 			Arena(524288),
-			HashMap<bool>()
+			HashSet()
 		);
 	}
 
@@ -138,13 +139,13 @@ impl ModuleLoader {
 		return ModuleFile(false, "", "");
 	}
 
-	pub fn is_known(val self, module_name: str): bool => self.known.contains(module_name);
+	pub fn is_known(val self, module_name: str): bool => module_name in self.known;
 
 	pub fn ensure_module(var self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
 		if (self.is_known(module_name)) return;
 
 		// Mark it first to avoid infinite recursion when imports form a cycle
-		self.known[module_name] = true;
+		self.known.add(module_name);
 		self.modules.add(LoadedModule(module_name, "", null));
 
 		val file = self.find_module(module_name);
@@ -207,7 +208,7 @@ impl ModuleLoader {
 		var entry_name = prog.to<Program>().declared_module_name();
 		if (entry_name.empty()) entry_name = entry_path.base_name().path_to_module();
 
-		self.known[entry_name] = true;
+		self.known.add(entry_name);
 		self.modules.add(LoadedModule(entry_name, entry_path, prog));
 		self.process_uses(prog, entry_name);
 		self.ordered.add(LoadedModule(entry_name, entry_path, prog));

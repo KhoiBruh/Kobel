@@ -83,6 +83,9 @@ impl BodyPass {
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
 
+	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
+		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
+
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node) {

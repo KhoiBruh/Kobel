@@ -16,6 +16,7 @@ use std.mem.arena.Arena;
 use std.collections.list.List;
 
 use std.collections.hash_map.HashMap;
+use std.collections.hash_set.HashSet;
 
 use std.collections.string_builder.StringBuilder;
 
@@ -146,6 +147,37 @@ fn test_collections(): bool {
 	sb2.append_repeat('x', 100UZ);
 	if (sb2.len != 100UZ || sb2.last_char() != 'x') return false;
 	sb2.delete();
+
+	// 5. HashSet
+	var set: HashSet = HashSet();
+	if (!set.empty() || set.count() != 0UZ) return false;
+	if (!set.add("apple")) return false;
+	if (!set.add("banana")) return false;
+	if (set.add("apple")) return false;
+	if (set.len != 2UZ || !set.contains("apple") || !set.contains("banana")) return false;
+	if (set.contains("orange")) return false;
+	val set_list = set.to_list();
+	if (set_list.len != 2UZ) return false;
+	set_list.delete();
+	if (!set.remove("apple")) return false;
+	if (set.contains("apple")) return false;
+	if (set.len != 1UZ) return false;
+	set.clear();
+	if (!set.empty() || set.len != 0UZ) return false;
+	set.delete();
+
+	// 6. str.replace_char & str.join
+	val orig_path = "a.b.c";
+	if (orig_path.replace_char('.', '/') != "a/b/c") return false;
+	var parts = List<str>();
+	parts.add("hello");
+	parts.add("world");
+	parts.add("kobel");
+	val joined = ", ".join(parts);
+	if (joined != "hello, world, kobel") return false;
+	val dot_joined = ".".join(parts);
+	if (dot_joined != "hello.world.kobel") return false;
+	parts.delete();
 
 	return true;
 }

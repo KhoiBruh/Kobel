@@ -62,14 +62,9 @@ impl List<T> {
 		return self.data[self.len];
 	}
 
-//	pub fn find(val self, value: T): T {
-//		for (i in 0..self.len) {
-//			val item = self.data[i];
-//			if (item == value) return item;
-//		}
-
-//		return null;
-//	}
+	pub fn add_all(var self, other: List<T>) {
+		for (i in 0..<other.len) self.add(other.data[i]);
+	}
 
 	pub fn clear(var self) => self.len = 0;
 

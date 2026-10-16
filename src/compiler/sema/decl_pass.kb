@@ -3,6 +3,7 @@ mod compiler.sema.decl_pass;
 use std.str.*;
 use std.mem.arena.*;
 use std.collections.list.*;
+use std.collections.hash_set.*;
 
 use util.strutil.*;
 
@@ -64,7 +65,7 @@ fn overloaded_names(im: &ImplDecl): List<str> {
 	var names = List<str>();
 	for (a in 0..<im.methods.len) {
 		val na = im.methods[a].to<FnDecl>().name;
-		if (na.in_list(names)) continue;
+		if (na in names) continue;
 		for (b in (a + 1)..<im.methods.len) {
 			if (im.methods[b].to<FnDecl>().name == na) {
 				names.add(na);
@@ -83,7 +84,7 @@ fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str 
 	var name = base;
 	if (overloaded) name = "${base}_${argc}";
 	var k: usz = 2;
-	while (name.in_list(taken)) {
+	while (name in taken) {
 		name = "${base}_${argc}_${k}";
 		k++;
 	}
@@ -475,7 +476,7 @@ impl DeclPass {
 
 			// Two methods with the same name and arity still need distinct names.
 			val m_c_name = method_c_name(
-				"${st_c_name}_${f.name}", param_types.len, f.name.in_list(overloaded), used_names
+				"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
 			);
 			used_names.add(m_c_name);
 
@@ -629,7 +630,7 @@ impl DeclPass {
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
 			val m_c_name = method_c_name(
-				"${prim_name}_${f.name}", param_types.len, f.name.in_list(overloaded), used_names
+				"${prim_name}_${f.name}", param_types.len, f.name in overloaded, used_names
 			);
 			used_names.add(m_c_name);
 
@@ -667,9 +668,9 @@ impl DeclPass {
 // visited first, so a method declared in a derived trait replaces a same-named
 // inherited one. `seen` stops a cycle in a mis-declared `trait A : B` /
 // `trait B : A` chain.
-	pub fn trait_effective(var self, t: *TraitInfo, out: &List<*TraitMethod>, seen: &List<str>) {
+	pub fn trait_effective(var self, t: *TraitInfo, out: &List<*TraitMethod>, seen: &HashSet) {
 		if (t == null) return;
-		if (t.name.in_list(*seen)) return;
+		if (t.name in *seen) return;
 		seen.add(t.name);
 
 		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
@@ -692,9 +693,9 @@ impl DeclPass {
 		self.trait_record_impl(t, struct_name);
 
 		// A trait inherits every method of its base traits, so the contract covers
-		// the flattened set rather than just the methods written in this trait.
+// the flattened set rather than just the methods written in this trait.
 		var effective = List<*TraitMethod>();
-		var seen = List<str>();
+		var seen = HashSet();
 		self.trait_effective(t, &effective, &seen);
 
 		for (tm in effective) {

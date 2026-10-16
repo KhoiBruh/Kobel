@@ -3,6 +3,7 @@ mod compiler.codegen.c_codegen;
 use std.str.*;
 use std.collections.list.*;
 use std.collections.hash_map.*;
+use std.collections.hash_set.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;
@@ -19,9 +20,9 @@ use compiler.ast.decl.*;
 pub struct CCodeGen {
 	pub indent_level: usz = 0,
 	pub struct_names: List<str> = List<str>(),
-	pub struct_map: HashMap<bool> = HashMap<bool>(),
-	pub pointer_vars: List<str> = List<str>(),
-	pub str_vars: List<str> = List<str>(),
+	pub struct_map: HashSet = HashSet(),
+	pub pointer_vars: HashSet = HashSet(),
+	pub str_vars: HashSet = HashSet(),
 	pub fn_ret_types: HashMap<str> = HashMap<str>(),
 	pub errors: List<str> = List<str>(),
 	// C element type for the array literal being emitted, when the surrounding
@@ -34,15 +35,29 @@ pub struct CCodeGen {
 
 impl CCodeGen {
 
-	pub fn is_pointer_var(val self, name: str) => name.in_list(self.pointer_vars);
+	pub fn new(): Self => Self(
+		0,
+		List<str>(),
+		HashSet(),
+		HashSet(),
+		HashSet(),
+		HashMap<str>(),
+		List<str>(),
+		"",
+		"",
+		false,
+		""
+	);
 
-	pub fn is_str_var(val self, name: str) => name.in_list(self.str_vars);
+	pub fn is_pointer_var(val self, name: str) => name in self.pointer_vars;
 
-	pub fn is_struct_name(val self, name: str): bool => self.struct_map.contains(name);
+	pub fn is_str_var(val self, name: str) => name in self.str_vars;
+
+	pub fn is_struct_name(val self, name: str): bool => name in self.struct_map;
 
 	pub fn register_struct(var self, name: str) {
 		self.struct_names.add(name);
-		self.struct_map[name] = true;
+		self.struct_map.add(name);
 	}
 
 	pub fn lookup_fn_ret_type(val self, name: str): str => self.fn_ret_types.get_or(name, "");
@@ -329,23 +344,17 @@ impl CCodeGen {
 		else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
 		if (elem_c.empty()) elem_c = "int32_t";
 
+		var elems_str = List<str>();
+		for (el in al.elements) elems_str.add(self.gen_expr(el));
+		val joined_elems = ", ".join(elems_str);
+		val arr_res = "(${elem_c}[]){${joined_elems}}";
+
 		if (!al.list_struct_name.empty()) {
 			if (al.elements.empty()) return "${al.list_struct_name}_from_array(NULL, 0)";
-			var arr_res = "(${elem_c}[]){";
-			for (i in 0..<al.elements.len) {
-				if (i > 0) arr_res = "${arr_res}, ";
-				arr_res = "${arr_res}${self.gen_expr(al.elements[i])}";
-			}
-			arr_res = "${arr_res}}";
 			return "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
 		}
 
-		var res = "(${elem_c}[]){";
-		for (i in 0..<al.elements.len) {
-			if (i > 0) res = "${res}, ";
-			res = "${res}${self.gen_expr(al.elements[i])}";
-		}
-		return "${res}}";
+		return arr_res;
 	}
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
@@ -383,22 +392,16 @@ impl CCodeGen {
 			is_struct = self.is_struct_name(id.name);
 		}
 
+		var args_str = List<str>();
+		for (arg in call.args) args_str.add(self.gen_expr(arg));
+		val joined_args = ", ".join(args_str);
+
 		if (is_struct) {
-			var res = "(${callee_str}){ ";
-			for (i in 0..<call.args.len) {
-				if (i > 0) res = "${res}, ";
-				res = "${res}${self.gen_expr(call.args[i])}";
-			}
-			return "${res} }";
+			return "(${callee_str}){ ${joined_args} }";
 		}
 
 		// Ordinary C function call: func(arg1, arg2)
-		var res = "${callee_str}(";
-		for (i in 0..<call.args.len) {
-			if (i > 0) res = "${res}, ";
-			res = "${res}${self.gen_expr(call.args[i])}";
-		}
-		return "${res})";
+		return "${callee_str}(${joined_args})";
 	}
 
 	// Member access lowers to ./->; len/size on strings inlines strlen.

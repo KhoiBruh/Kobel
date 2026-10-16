@@ -1,0 +1,148 @@
+mod std.collections.hash_set;
+
+use std.mem.alloc.*;
+use std.collections.list.List;
+
+// `len` is the public size accessor; the storage is internal.
+pub struct HashSet {
+	keys: &str,
+	occupied: &bool,
+	pub len: usz = 0,
+	cap: usz = 0
+}
+
+impl HashSet {
+	pub fn new(init_cap: usz = 16): Self {
+		var cap = init_cap;
+		if (cap < 8) cap = 8;
+		val keys = alloc_array<str>(cap);
+		val occ = alloc_array<bool>(cap);
+
+		for (i in 0..<cap) occ[i] = false;
+		return Self(keys, occ, 0, cap);
+	}
+
+	fn hash_key(val self, key: str): usz {
+		var h: usz = 5381;
+		for (i in 0..<key.len) {
+			val c = key[i] as usz;
+			h = h * 33 + c;
+		}
+		return h;
+	}
+
+	fn dist(val self, from: usz, to: usz): usz {
+		if (to >= from) return to - from;
+		return self.cap + to - from;
+	}
+
+	pub fn add(var self, key: str): bool {
+		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
+
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) return false;
+			idx = (idx + 1) % self.cap;
+		}
+
+		self.keys[idx] = key;
+		self.occupied[idx] = true;
+		self.len++;
+		return true;
+	}
+
+	pub fn contains(val self, key: str): bool {
+		if (self.len == 0 || self.cap == 0) return false;
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) return true;
+			idx = (idx + 1) % self.cap;
+		}
+		return false;
+	}
+
+	pub fn remove(var self, key: str): bool {
+		if (self.len == 0 || self.cap == 0) return false;
+
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) {
+				var i = idx;
+				var j = (idx + 1) % self.cap;
+				while (self.occupied[j]) {
+					val k = self.hash_key(self.keys[j]) % self.cap;
+					if (self.dist(k, j) > self.dist(k, i)) {
+						self.keys[i] = self.keys[j];
+						i = j;
+					}
+					j = (j + 1) % self.cap;
+				}
+				self.occupied[i] = false;
+				self.len--;
+				return true;
+			}
+			idx = (idx + 1) % self.cap;
+		}
+		return false;
+	}
+
+	pub fn clear(var self) {
+		if (self.cap > 0) {
+			for (i in 0..<self.cap) self.occupied[i] = false;
+		}
+		self.len = 0;
+	}
+
+	pub fn empty(val self): bool => self.len == 0;
+
+	pub fn is_empty(val self): bool => self.len == 0;
+
+	pub fn count(val self): usz => self.len;
+
+	pub fn to_list(val self): List<str> {
+		var res = List<str>();
+		if (self.cap == 0) return res;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i]) res.add(self.keys[i]);
+		}
+		return res;
+	}
+
+	fn grow(var self) {
+		val old_cap = self.cap;
+		val old_keys = self.keys;
+		val old_occ = self.occupied;
+
+		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
+		val keys = alloc_array<str>(new_cap);
+		val new_occ = alloc_array<bool>(new_cap);
+
+		for (j in 0..<new_cap) new_occ[j] = false;
+
+		self.keys = keys;
+		self.occupied = new_occ;
+		self.cap = new_cap;
+		self.len = 0;
+
+		if (old_cap > 0) {
+			for (i in 0..<old_cap) {
+				if (old_occ[i]) self.add(old_keys[i]);
+			}
+			release<str>(old_keys);
+			release<bool>(old_occ);
+		}
+	}
+
+	pub fn delete(self): none {
+		if (self.cap > 0) {
+			release<str>(self.keys);
+			release<bool>(self.occupied);
+		}
+	}
+}

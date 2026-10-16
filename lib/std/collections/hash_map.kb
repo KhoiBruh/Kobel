@@ -8,8 +8,8 @@ pub struct HashMap<V> {
 	keys: &str,
 	values: &V,
 	occupied: &bool,
-	pub len: usz,
-	cap: usz
+	pub len: usz = 0,
+	cap: usz = 0
 }
 
 impl HashMap<V> {
@@ -39,7 +39,7 @@ impl HashMap<V> {
 	}
 
 	pub fn put(var self, key: str, value: V) {
-		if (self.len * 10 >= self.cap * 7) self.grow();
+		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
 
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
@@ -61,7 +61,7 @@ impl HashMap<V> {
 	pub fn set(var self, key: str, value: V) => self.put(key, value);
 
 	pub fn contains(val self, key: str): bool {
-		if (self.len == 0) return false;
+		if (self.len == 0 || self.cap == 0) return false;
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
 
@@ -73,7 +73,7 @@ impl HashMap<V> {
 	}
 
 	pub fn get(val self, key: str): *V {
-		if (self.len == 0) return null;
+		if (self.len == 0 || self.cap == 0) return null;
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
 
@@ -85,7 +85,7 @@ impl HashMap<V> {
 	}
 
 	pub fn get_or(val self, key: str, default_val: V): V {
-		if (self.len == 0) return default_val;
+		if (self.len == 0 || self.cap == 0) return default_val;
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
 
@@ -97,7 +97,7 @@ impl HashMap<V> {
 	}
 
 	pub fn remove(var self, key: str): bool {
-		if (self.len == 0) return false;
+		if (self.len == 0 || self.cap == 0) return false;
 
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
@@ -125,7 +125,9 @@ impl HashMap<V> {
 	}
 
 	pub fn clear(var self) {
-		for (i in 0..<self.cap) self.occupied[i] = false;
+		if (self.cap > 0) {
+			for (i in 0..<self.cap) self.occupied[i] = false;
+		}
 		self.len = 0;
 	}
 
@@ -137,6 +139,7 @@ impl HashMap<V> {
 
 	pub fn keys(val self): List<str> {
 		var res = List<str>();
+		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) res.add(self.keys[i]);
 		}
@@ -145,6 +148,7 @@ impl HashMap<V> {
 
 	pub fn values(val self): List<V> {
 		var res = List<V>();
+		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) res.add(self.values[i]);
 		}
@@ -157,7 +161,7 @@ impl HashMap<V> {
 		val old_vals = self.values;
 		val old_occ = self.occupied;
 
-		val new_cap = old_cap * 2;
+		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
 		val keys = alloc_array<str>(new_cap);
 		val values = alloc_array<V>(new_cap);
 		val new_occ = alloc_array<bool>(new_cap);
@@ -170,18 +174,21 @@ impl HashMap<V> {
 		self.cap = new_cap;
 		self.len = 0;
 
-		for (i in 0..<old_cap) {
-			if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
+		if (old_cap > 0) {
+			for (i in 0..<old_cap) {
+				if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
+			}
+			release<str>(old_keys);
+			release<V>(old_vals);
+			release<bool>(old_occ);
 		}
-
-		release<str>(old_keys);
-		release<V>(old_vals);
-		release<bool>(old_occ);
 	}
 
 	pub fn delete(self): none {
-		release<str>(self.keys);
-		release<V>(self.values);
-		release<bool>(self.occupied);
+		if (self.cap > 0) {
+			release<str>(self.keys);
+			release<V>(self.values);
+			release<bool>(self.occupied);
+		}
 	}
 }

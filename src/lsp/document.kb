@@ -64,7 +64,7 @@ impl DocumentStore {
 
 	pub fn get(self, uri: str): Document => self.doc_map.get_or(uri, Document());
 
-	pub fn has(self, uri: str): bool => self.doc_map.contains(uri);
+	pub fn has(self, uri: str): bool => uri in self.doc_map;
 
 	pub fn set(var self, uri: str, text: str, version: i64) {
 		val p = uri_to_path(uri);

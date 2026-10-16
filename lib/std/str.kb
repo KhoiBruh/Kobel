@@ -1,6 +1,7 @@
 mod std.str;
 
 use std.mem.alloc.*;
+use std.collections.list.List;
 
 // ============================================================================
 // std.str - low-level `str` construction
@@ -59,6 +60,51 @@ impl str {
 		}
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
+	}
+
+	pub fn replace_char(val self, from: char, to: char): str {
+		if (self.len == 0) return self;
+		val buf = alloc_array<u8>(self.len + 1);
+		for (i in 0..<self.len) {
+			val c = self[i];
+			if (c == from) buf[i] = to as u8;
+			else buf[i] = c as u8;
+		}
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
+	pub fn join(val self, list: List<str>): str {
+		if (list.len == 0) return "";
+		if (list.len == 1) return list.data[0];
+		var total = 0;
+		for (i in 0..<list.len) total += list.data[i].len;
+		total += self.len * (list.len - 1);
+
+		val buf = alloc_array<u8>(total + 1);
+		var w = 0;
+		for (i in 0..<list.len) {
+			val item = list.data[i];
+			for (c in item) {
+				buf[w] = c as u8;
+				w++;
+			}
+			if (i + 1 < list.len) {
+				for (c in self) {
+					buf[w] = c as u8;
+					w++;
+				}
+			}
+		}
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
+
+	pub fn in_list(val self, list: List<str>): bool {
+		for (i in 0..<list.len) {
+			if (list.data[i] == self) return true;
+		}
+		return false;
 	}
 
 	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",

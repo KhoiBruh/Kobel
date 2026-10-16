@@ -136,6 +136,9 @@ impl BodyPass {
 			TokenType.AND_AND, TokenType.OR_OR -> {
 				return self.check_logic_op(node, lt, rt);
 			}
+			TokenType.KW_IN -> {
+				return self.check_in_op(node, bin, lt, rt);
+			}
 			else -> return lt;
 		}
 	}
@@ -226,6 +229,30 @@ impl BodyPass {
 	fn check_logic_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
 		self.ensure(lt.kind == DataType.BOOL && rt.kind == DataType.BOOL, node, "Logical operators require bool operands");
 		return self.t_bool();
+	}
+
+	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		if (rt.is_list()) {
+			val s = rt.as_struct();
+			if (s.fields.len > 0 && s.fields[0].type_ptr != null && s.fields[0].type_ptr.kind == DataType.POINTER) {
+				val elem_t = s.fields[0].type_ptr.as_pointer().pointee;
+				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
+					var args = List<*AstNode>();
+					args.add(bin.right);
+					val mem = self.member(bin.left, "in_list", node.line, node.col);
+					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
+					self.replace_node(node, call_node);
+					return self.check_expr(node);
+				}
+			}
+		}
+
+		var args = List<*AstNode>();
+		args.add(bin.left);
+		val mem = self.member(bin.right, "contains", node.line, node.col);
+		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
+		self.replace_node(node, call_node);
+		return self.check_expr(node);
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {

@@ -134,7 +134,7 @@ impl TraitInfo {
 		return null;
 	}
 
-	pub fn has_impl(self, struct_name: str) => struct_name.in_list(self.impls);
+	pub fn has_impl(self, struct_name: str) => struct_name in self.impls;
 }
 
 // A method declared by an `impl <primitive> { ... }` block. Primitives are not
@@ -366,7 +366,7 @@ impl SymbolTable {
 
 	pub fn find_module(val self, name: str): *ModuleScope => self.module_map.get_or(name, null);
 
-	pub fn module_exists(val self, name: str) => self.module_map.contains(name);
+	pub fn module_exists(val self, name: str) => name in self.module_map;
 
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
