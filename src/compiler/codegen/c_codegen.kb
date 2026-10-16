@@ -2,6 +2,7 @@ mod compiler.codegen.c_codegen;
 
 use std.str.*;
 use std.collections.list.*;
+use std.collections.hash_map.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;
@@ -18,10 +19,10 @@ use compiler.ast.decl.*;
 pub struct CCodeGen {
 	pub indent_level: usz = 0,
 	pub struct_names: List<str> = List<str>(),
+	pub struct_map: HashMap<bool> = HashMap<bool>(),
 	pub pointer_vars: List<str> = List<str>(),
 	pub str_vars: List<str> = List<str>(),
-	pub fn_names: List<str> = List<str>(),
-	pub fn_ret_types: List<str> = List<str>(),
+	pub fn_ret_types: HashMap<str> = HashMap<str>(),
 	pub errors: List<str> = List<str>(),
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
@@ -37,15 +38,17 @@ impl CCodeGen {
 
 	pub fn is_str_var(val self, name: str) => name.in_list(self.str_vars);
 
-	pub fn lookup_fn_ret_type(val self, name: str): str {
-		val idx = name.index_in_list(self.fn_names);
-		if (idx >= 0) return self.fn_ret_types[idx];
-		return "";
+	pub fn is_struct_name(val self, name: str): bool => self.struct_map.contains(name);
+
+	pub fn register_struct(var self, name: str) {
+		self.struct_names.add(name);
+		self.struct_map[name] = true;
 	}
 
+	pub fn lookup_fn_ret_type(val self, name: str): str => self.fn_ret_types.get_or(name, "");
+
 	pub fn register_fn(var self, name: str, ret_type: str) {
-		self.fn_names.add(name);
-		self.fn_ret_types.add(ret_type);
+		self.fn_ret_types[name] = ret_type;
 	}
 
 }
@@ -377,7 +380,7 @@ impl CCodeGen {
 		// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
 		var is_struct = false;
 		if (callee is IdentifierExpr as id) {
-			is_struct = id.name.in_list(self.struct_names);
+			is_struct = self.is_struct_name(id.name);
 		}
 
 		if (is_struct) {
@@ -577,7 +580,7 @@ impl CCodeGen {
 			if (id.name == "kobel_slice") return "const char*";
 			if (id.name == "kobel_streq") return "bool";
 			if (id.name == "kobel_slen") return "size_t";
-			if (id.name.in_list(self.struct_names)) return id.name;
+			if (self.is_struct_name(id.name)) return id.name;
 			val ret_ty = self.lookup_fn_ret_type(id.name);
 			if (!ret_ty.empty()) return ret_ty;
 		}

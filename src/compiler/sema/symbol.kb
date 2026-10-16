@@ -2,6 +2,7 @@ mod compiler.sema.symbol;
 
 use std.mem.arena.*;
 use std.collections.list.*;
+use std.collections.hash_map.*;
 use std.traits.iterable.Iterable;
 
 use compiler.sema.types.Type;
@@ -154,11 +155,17 @@ pub struct GenericReg {
 	pub fn_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub inst_syms: List<*Symbol> = List<*Symbol>(),
+	pub inst_map: HashMap<*Symbol> = HashMap<*Symbol>(),
 	pub inst_names: List<str> = List<str>(),
 	pub pending: List<*AstNode> = List<*AstNode>()
 }
 
 impl GenericReg {
+	pub fn add_inst(var self, sym: *Symbol) {
+		self.inst_syms.add(sym);
+		self.inst_map[sym.name] = sym;
+	}
+
 	pub fn find_struct(val self, name: str): *GenTemplate {
 		for (t in self.struct_templates) {
 			if (t.name == name) return t;
@@ -180,12 +187,7 @@ impl GenericReg {
 		return null;
 	}
 
-	pub fn find_inst(val self, name: str): *Symbol {
-		for (s in self.inst_syms) {
-			if (s.name == name) return s;
-		}
-		return null;
-	}
+	pub fn find_inst(val self, name: str): *Symbol => self.inst_map.get_or(name, null);
 }
 
 pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym);
@@ -341,9 +343,8 @@ impl SymbolTable {
 		}
 
 		// 5. Instantiated generic symbols (their name already equals the mangled C name)
-		for (isym in self.gen.inst_syms) {
-			if (isym.name == name) return isym;
-		}
+		val isym = self.gen.find_inst(name);
+		if (isym != null) return isym;
 
 		// 6. Mangled C name (idempotent on repeated resolution)
 		return self.lookup_c_name(name);

@@ -35,7 +35,7 @@ impl CCodeGen {
 			if (decl.is_template()) continue;
 			when (decl) {
 				is StructDecl as s -> {
-					self.struct_names.add(s.name);
+					self.register_struct(s.name);
 					c_code = "${c_code}typedef struct ${s.name} ${s.name};\n";
 				}
 				is EnumDecl as e -> {
@@ -148,7 +148,7 @@ impl CCodeGen {
 }
 
 	pub fn gen_struct_decl(var self, s: *StructDecl): str {
-		self.struct_names.add(s.name);
+		self.register_struct(s.name);
 
 		var res = "struct ${s.name} {\n";
 		for (f in s.fields) {
