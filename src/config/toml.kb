@@ -1,0 +1,57 @@
+mod config.toml;
+
+use std.collections.list.List;
+use std.collections.hash_map.HashMap;
+
+use util.strutil.*;
+
+pub struct Toml {
+	pub entries: HashMap<str> = HashMap()
+}
+
+impl Toml {
+
+	pub fn new(content: str): Self {
+		var self = Self();
+		val lines = content.split_lines();
+		var current_section = "";
+
+		for (line in lines) {
+			val trimmed = line.trim();
+			if (trimmed.empty() || trimmed.starts_with("#")) continue;
+
+			if (
+				trimmed.starts_with("[") &&
+				trimmed.ends_with("]") &&
+				trimmed.len >= 2
+			) {
+				current_section = trimmed.slice(1, trimmed.len - 1).trim();
+				continue;
+			}
+
+			val eq_pos = trimmed.index_of("=");
+			if (eq_pos > 0) {
+				val key_raw = trimmed.slice(0, eq_pos).trim();
+				val val_raw = trimmed.slice(eq_pos + 1, trimmed.len).trim();
+
+				// Unquote string literals if surrounded by quotes
+				val val_clean = if (
+					val_raw.len >= 2 &&
+					(val_raw.starts_with("\"") && val_raw.ends_with("\"")) ||
+					(val_raw.starts_with("'") && val_raw.ends_with("'"))
+				) val_raw.slice(1, val_raw.len - 1)
+				else val_raw;
+
+				val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
+				else key_raw;
+
+				self.entries.put(full_key, val_clean);
+			}
+		}
+
+		return self;
+	}
+
+	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
+
+}
