@@ -71,17 +71,13 @@ impl Iterable for Scope {
 
 pub struct ModuleScope {
 	pub name: str,
-	pub symbols: List<*Symbol> = List<*Symbol>()
+	pub symbols: List<*Symbol> = List<*Symbol>(),
+	pub sym_map: HashMap<*Symbol> = HashMap<*Symbol>()
 }
 
 impl ModuleScope {
 
-	pub fn lookup(self, name: str): *Symbol {
-		for (sym in self.symbols) {
-			if (sym.name == name) return sym;
-		}
-		return null;
-	}
+	pub fn lookup(self, name: str): *Symbol => self.sym_map.get_or(name, null);
 }
 
 impl Iterable for ModuleScope {
@@ -205,13 +201,17 @@ pub struct SymbolTable {
 	// (e.g. `sc.symbols.add(...)`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope> = List<*ModuleScope>(),
+	pub module_map: HashMap<*ModuleScope> = HashMap<*ModuleScope>(),
 	pub imports: List<ImportBinding> = List<ImportBinding>(),
 	// Enum member tables, keyed by source name / mangled C name.
 	pub enums: List<*EnumInfo> = List<*EnumInfo>(),
+	pub enum_map: HashMap<*EnumInfo> = HashMap<*EnumInfo>(),
 	// Collected `trait` declarations, by source name.
 	pub traits: List<*TraitInfo> = List<*TraitInfo>(),
+	pub trait_map: HashMap<*TraitInfo> = HashMap<*TraitInfo>(),
 	// Methods extending the built-in (primitive) types.
 	pub prim_methods: List<*PrimMethod> = List<*PrimMethod>(),
+	pub c_name_map: HashMap<*Symbol> = HashMap<*Symbol>(),
 	pub gen: GenericReg = GenericReg()
 }
 
@@ -263,23 +263,22 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn register_trait(var self, info: *TraitInfo) => self.traits.add(info);
-
-	pub fn find_trait(val self, name: str): *TraitInfo {
-		for (t in self.traits) {
-			if (t.name == name) return t;
-		}
-		return null;
+	pub fn register_trait(var self, info: *TraitInfo) {
+		self.traits.add(info);
+		self.trait_map[info.name] = info;
 	}
 
-	pub fn register_enum_info(var self, info: *EnumInfo) => self.enums.add(info);
+	pub fn find_trait(val self, name: str): *TraitInfo => self.trait_map.get_or(name, null);
 
-	pub fn find_enum_info(val self, name: str): *EnumInfo {
-		for (e in self.enums) {
-			if (e.name == name || e.c_name == name) return e;
+	pub fn register_enum_info(var self, info: *EnumInfo) {
+		self.enums.add(info);
+		self.enum_map[info.name] = info;
+		if (!info.c_name.empty() && info.c_name != info.name) {
+			self.enum_map[info.c_name] = info;
 		}
-		return null;
 	}
+
+	pub fn find_enum_info(val self, name: str): *EnumInfo => self.enum_map.get_or(name, null);
 
 	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
 		val new_sc = self.arena.alloc_val<Scope>(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
@@ -363,33 +362,34 @@ impl SymbolTable {
 
 	pub fn set_current_module(var self, name: str) => self.current_module = name;
 
-	pub fn find_module(val self, name: str): *ModuleScope {
-		for (sc in self.modules) {
-			if (sc.name == name) return sc;
-		}
-		return null;
-	}
+	pub fn find_module(val self, name: str): *ModuleScope => self.module_map.get_or(name, null);
 
-	pub fn module_exists(val self, name: str) => self.find_module(name) != null;
+	pub fn module_exists(val self, name: str) => self.module_map.contains(name);
 
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
-		for (m in 0..<self.modules.len) {
-			val sc = self.modules[m];
-			if (sc.name == module_name) {
-				if (sc.lookup(sym.name) != null) return false;
-				val sym_ptr = self.arena.alloc_val<Symbol>(sym);
-				sc.symbols.add(sym_ptr);
-				self.modules[m] = sc;
-				return true;
+		val sc = self.find_module(module_name);
+		if (sc != null) {
+			if (sc.lookup(sym.name) != null) return false;
+			val sym_ptr = self.arena.alloc_val<Symbol>(sym);
+			sc.symbols.add(sym_ptr);
+			sc.sym_map[sym.name] = sym_ptr;
+			if (!sym.c_name.empty() && sym.c_name != sym.name) {
+				self.c_name_map[sym.c_name] = sym_ptr;
 			}
+			return true;
 		}
 
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
 		val fresh = self.arena.alloc_val<ModuleScope>(ModuleScope(module_name));
 		val sym_ptr2 = self.arena.alloc_val<Symbol>(sym);
 		fresh.symbols.add(sym_ptr2);
+		fresh.sym_map[sym.name] = sym_ptr2;
 		self.modules.add(fresh);
+		self.module_map[module_name] = fresh;
+		if (!sym.c_name.empty() && sym.c_name != sym.name) {
+			self.c_name_map[sym.c_name] = sym_ptr2;
+		}
 		return true;
 	}
 
@@ -408,12 +408,7 @@ impl SymbolTable {
 	// Look up by generated C name (used when re-resolving a mangled name).
 	pub fn lookup_c_name(val self, c_name: str): *Symbol {
 		if (c_name.len == 0) return null;
-		for (sc in self.modules) {
-			for (sym in sc) {
-				if (sym.c_name == c_name && sym.c_name != sym.name) return sym;
-			}
-		}
-		return null;
+		return self.c_name_map.get_or(c_name, null);
 	}
 
 	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol {

@@ -2,6 +2,7 @@ mod lsp.document;
 
 use std.ascii.*;
 use std.collections.list.*;
+use std.collections.hash_map.*;
 use std.collections.string_builder.*;
 
 use util.strutil.*;
@@ -56,37 +57,22 @@ pub fn uri_to_path(uri: str): str {
 // ============================================================================
 
 pub struct DocumentStore {
-	pub docs: List<Document> = List<Document>()
+	pub doc_map: HashMap<Document> = HashMap<Document>()
 }
 
 impl DocumentStore {
 
-	pub fn get(self, uri: str): Document {
-		for (d in self.docs) {
-			if (d.uri == uri) return d;
-		}
-		return Document();
-	}
+	pub fn get(self, uri: str): Document => self.doc_map.get_or(uri, Document());
 
-	pub fn has(self, uri: str) => !self.get(uri).uri.empty();
+	pub fn has(self, uri: str): bool => self.doc_map.contains(uri);
 
 	pub fn set(var self, uri: str, text: str, version: i64) {
 		val p = uri_to_path(uri);
-		for (i in 0..<self.docs.len) {
-			if (self.docs[i].uri == uri) {
-				self.docs[i] = Document(uri, p, text, version);
-				return;
-			}
-		}
-		self.docs.add(Document(uri, p, text, version));
+		self.doc_map[uri] = Document(uri, p, text, version);
 	}
 
 	pub fn remove(var self, uri: str) {
-		var new_docs = List<Document>();
-		for (d in self.docs) {
-			if (d.uri != uri) new_docs.add(d);
-		}
-		self.docs = new_docs;
+		self.doc_map.remove(uri);
 	}
 
 }
