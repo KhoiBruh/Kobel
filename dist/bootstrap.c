@@ -57,6 +57,7 @@ typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__types__En
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo;
 typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo;
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod;
+typedef struct std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding;
 typedef struct std__collections__list__List_bool std__collections__list__List_bool;
 typedef struct std__collections__hash_map__HashMap_bool std__collections__hash_map__HashMap_bool;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
@@ -183,8 +184,8 @@ typedef struct compiler__sema__types__EnumInfo compiler__sema__types__EnumInfo;
 typedef int32_t compiler__sema__symbol__SymbolKind;
 typedef struct compiler__sema__symbol__Symbol compiler__sema__symbol__Symbol;
 typedef struct compiler__sema__symbol__Scope compiler__sema__symbol__Scope;
-typedef struct compiler__sema__symbol__ModuleScope compiler__sema__symbol__ModuleScope;
 typedef struct compiler__sema__symbol__ImportBinding compiler__sema__symbol__ImportBinding;
+typedef struct compiler__sema__symbol__ModuleScope compiler__sema__symbol__ModuleScope;
 typedef struct compiler__sema__symbol__GenTemplate compiler__sema__symbol__GenTemplate;
 typedef struct compiler__sema__symbol__TraitMethod compiler__sema__symbol__TraitMethod;
 typedef struct compiler__sema__symbol__TraitInfo compiler__sema__symbol__TraitInfo;
@@ -392,6 +393,14 @@ struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo
 
 struct std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod {
     compiler__sema__symbol__PrimMethod** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding {
+    const char** keys;
+    compiler__sema__symbol__ImportBinding* values;
+    bool* occupied;
     size_t len;
     size_t cap;
 };
@@ -864,18 +873,18 @@ struct compiler__sema__symbol__Scope {
     bool is_fn_boundary;
 };
 
-struct compiler__sema__symbol__ModuleScope {
-    const char* name;
-    std__collections__list__List_ptr_compiler__sema__symbol__Symbol symbols;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol sym_map;
-};
-
 struct compiler__sema__symbol__ImportBinding {
     const char* module_name;
     const char* symbol_name;
     const char* local_name;
     bool is_wildcard;
     const char* owner_module;
+};
+
+struct compiler__sema__symbol__ModuleScope {
+    const char* name;
+    std__collections__list__List_ptr_compiler__sema__symbol__Symbol symbols;
+    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol sym_map;
 };
 
 struct compiler__sema__symbol__GenTemplate {
@@ -927,6 +936,10 @@ struct compiler__sema__symbol__SymbolTable {
     std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo trait_map;
     std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod prim_methods;
     std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol c_name_map;
+    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol struct_const_map;
+    std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding explicit_imports;
+    std__collections__list__List_str wildcard_owners;
+    std__collections__list__List_str wildcard_modules;
     compiler__sema__symbol__GenericReg gen;
 };
 
@@ -1944,6 +1957,23 @@ compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__s
 void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_insert(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self, size_t index, compiler__sema__symbol__PrimMethod* value);
 std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_clone(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
 void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_delete(std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod* self);
+std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_contains(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
+compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
+compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val);
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_is_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
 size_t std__collections__list__List_bool_count(std__collections__list__List_bool* self);
 bool std__collections__list__List_bool_at(std__collections__list__List_bool* self, size_t i);
 bool* std__mem__alloc__resize_bool(bool* ptr, size_t count);
@@ -8418,6 +8448,379 @@ void std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_delete(
     std__mem__alloc__release_ptr_compiler__sema__symbol__PrimMethod(self->data);
 }
 
+std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    const char** keys = std__mem__alloc__alloc_array_str(cap);
+    compiler__sema__symbol__ImportBinding* values = std__mem__alloc__alloc_array_compiler__sema__symbol__ImportBinding(cap);
+    bool* occ = std__mem__alloc__alloc_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding){ keys, values, occ, 0, cap };
+}
+
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    size_t h = 5381;
+    {
+        size_t __for_e = kobel_slen(key);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            size_t c = (size_t)key[i];
+            h = ((h * 33) + c);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return h;
+}
+
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
+    if ((self->len * 10) >= (self->cap * 7)) {
+        std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(self);
+    }
+    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
+    std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_contains(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    if (self->len == 0) {
+        return false;
+    }
+    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    if (self->len == 0) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val) {
+    if (self->len == 0) {
+        return default_val;
+    }
+    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return default_val;
+}
+
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    if (self->len == 0) {
+        return false;
+    }
+    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(self, k, i) < std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    return (self->len == 0);
+}
+
+bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_is_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    return self->len;
+}
+
+std__collections__list__List_str std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    std__collections__list__List_str res = std__collections__list__List_str_new(4);
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_str_add(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    std__collections__list__List_compiler__sema__symbol__ImportBinding res = std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4);
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_compiler__sema__symbol__ImportBinding_add(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    size_t old_cap = self->cap;
+    const char** old_keys = self->keys;
+    compiler__sema__symbol__ImportBinding* old_vals = self->values;
+    bool* old_occ = self->occupied;
+    size_t new_cap = (old_cap * 2);
+    const char** keys = std__mem__alloc__alloc_array_str(new_cap);
+    compiler__sema__symbol__ImportBinding* values = std__mem__alloc__alloc_array_compiler__sema__symbol__ImportBinding(new_cap);
+    bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->keys = keys;
+    self->values = values;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+    self->len = 0;
+    {
+        size_t __for_e = old_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (old_occ[i]) {
+                std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(self, old_keys[i], old_vals[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    std__mem__alloc__release_str(old_keys);
+    std__mem__alloc__release_compiler__sema__symbol__ImportBinding(old_vals);
+    std__mem__alloc__release_bool(old_occ);
+}
+
+void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+    std__mem__alloc__release_str(self->keys);
+    std__mem__alloc__release_compiler__sema__symbol__ImportBinding(self->values);
+    std__mem__alloc__release_bool(self->occupied);
+}
+
 size_t std__collections__list__List_bool_count(std__collections__list__List_bool* self) {
     return self->len;
 }
@@ -13604,7 +14007,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__are
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void) {
     std__mem__arena__Arena arena = std__mem__arena__Arena_new(65536);
     compiler__sema__symbol__Scope* root_scope = std__mem__arena__alloc_val_compiler__sema__symbol__Scope(&arena, (compiler__sema__symbol__Scope){ NULL, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), false });
-    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_new(16), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__types__EnumInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__types__EnumInfo_new(16), std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo_new(16), std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__list__List_str_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) } };
+    return (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_new(16), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__types__EnumInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__types__EnumInfo_new(16), std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__TraitInfo_new(16), std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(16), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__list__List_str_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) } };
 }
 
 void compiler__sema__symbol__SymbolTable_register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__PrimMethod* pm) {
@@ -13752,29 +14155,44 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     if (own != NULL) {
         return own;
     }
-    {
-        size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->imports);
-        size_t __for_i = ((size_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__ImportBinding b = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->imports, __for_i);
-            if ((!b.is_wildcard && kobel_streq(b.local_name, name)) && kobel_streq(b.owner_module, self->current_module)) {
-                return compiler__sema__symbol__SymbolTable_lookup_in_module(self, b.module_name, b.symbol_name);
-            }
-            __for_i = (__for_i + 1);
+    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
+    if (b != NULL) {
+        compiler__sema__symbol__Symbol* found = compiler__sema__symbol__SymbolTable_lookup_in_module(self, b->module_name, b->symbol_name);
+        if (found != NULL) {
+            return found;
         }
     }
     {
-        size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->imports);
-        size_t __for_i = ((size_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__ImportBinding b2 = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->imports, __for_i);
-            if (b2.is_wildcard && kobel_streq(b2.owner_module, self->current_module)) {
-                compiler__sema__symbol__Symbol* found = compiler__sema__symbol__SymbolTable_lookup_in_module(self, b2.module_name, name);
+        size_t __for_e = self->wildcard_owners.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_streq(std__collections__list__List_str_get(&self->wildcard_owners, i), self->current_module)) {
+                compiler__sema__symbol__Symbol* found = compiler__sema__symbol__SymbolTable_lookup_in_module(self, std__collections__list__List_str_get(&self->wildcard_modules, i), name);
                 if (found != NULL) {
                     return found;
                 }
             }
-            __for_i = (__for_i + 1);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
         }
     }
     compiler__sema__symbol__Symbol* isym = compiler__sema__symbol__GenericReg_find_inst(&self->gen, name);
@@ -13818,6 +14236,9 @@ bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol
         if (!str_empty(sym.c_name) && !kobel_streq(sym.c_name, sym.name)) {
             std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr);
         }
+        if (sym.kind == 1) {
+            std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr);
+        }
         return true;
     }
     compiler__sema__symbol__ModuleScope* fresh = std__mem__arena__alloc_val_compiler__sema__symbol__ModuleScope(&self->arena, (compiler__sema__symbol__ModuleScope){ module_name, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16) });
@@ -13829,6 +14250,9 @@ bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol
     if (!str_empty(sym.c_name) && !kobel_streq(sym.c_name, sym.name)) {
         std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr2);
     }
+    if (sym.kind == 1) {
+        std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr2);
+    }
     return true;
 }
 
@@ -13837,7 +14261,14 @@ bool compiler__sema__symbol__SymbolTable_define_global(compiler__sema__symbol__S
 }
 
 void compiler__sema__symbol__SymbolTable_add_import(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* symbol_name, const char* local_name, bool is_wildcard) {
-    std__collections__list__List_compiler__sema__symbol__ImportBinding_add(&self->imports, (compiler__sema__symbol__ImportBinding){ module_name, symbol_name, local_name, is_wildcard, self->current_module });
+    compiler__sema__symbol__ImportBinding binding = (compiler__sema__symbol__ImportBinding){ module_name, symbol_name, local_name, is_wildcard, self->current_module };
+    std__collections__list__List_compiler__sema__symbol__ImportBinding_add(&self->imports, binding);
+    if (is_wildcard) {
+        std__collections__list__List_str_add(&self->wildcard_owners, self->current_module);
+        std__collections__list__List_str_add(&self->wildcard_modules, module_name);
+    } else {
+        std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name), binding);
+    }
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* name) {
@@ -13857,14 +14288,18 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_nam
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struct_const(compiler__sema__symbol__SymbolTable* self, const char* struct_name, const char* member_name) {
     const char* direct = kobel_concat(kobel_concat(struct_name, "__"), member_name);
+    compiler__sema__symbol__Symbol* s = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(&self->struct_const_map, direct, NULL);
+    if (s != NULL) {
+        return s;
+    }
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_count(&self->modules);
         size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->modules, __for_i);
-            compiler__sema__symbol__Symbol* s = compiler__sema__symbol__ModuleScope_lookup(sc, direct);
-            if ((s != NULL) && (s->kind == 1)) {
-                return s;
+            compiler__sema__symbol__Symbol* sc_s = compiler__sema__symbol__ModuleScope_lookup(sc, direct);
+            if ((sc_s != NULL) && (sc_s->kind == 1)) {
+                return sc_s;
             }
             __for_i = (__for_i + 1);
         }
@@ -14078,27 +14513,59 @@ compiler__sema__symbol__GenTemplate* compiler__sema__decl_pass__DeclPass_find_te
             __for_i = (__for_i + 1);
         }
     }
+    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
+    if (b != NULL) {
+        {
+            size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
+            size_t __for_i = ((size_t)0ULL);
+            while (__for_i < __for_n) {
+                compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
+                if (compiler__sema__monomorphize__template_matches(kind, t, b->symbol_name) && kobel_streq(t->module, b->module_name)) {
+                    return t;
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
     {
-        size_t __for_n = std__collections__list__List_compiler__sema__symbol__ImportBinding_count(&self->symtab.imports);
-        size_t __for_i = ((size_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__symbol__ImportBinding imp = std__collections__list__List_compiler__sema__symbol__ImportBinding_at(&self->symtab.imports, __for_i);
-            if (kobel_streq(imp.owner_module, self->current_module)) {
-                if (imp.is_wildcard || kobel_streq(imp.local_name, name)) {
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
-                        size_t __for_i = ((size_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
-                            if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, imp.module_name)) {
-                                return t;
-                            }
-                            __for_i = (__for_i + 1);
+        size_t __for_e = self->symtab.wildcard_owners.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_streq(std__collections__list__List_str_get(&self->symtab.wildcard_owners, i), self->current_module)) {
+                const char* wmod = std__collections__list__List_str_get(&self->symtab.wildcard_modules, i);
+                {
+                    size_t __for_n = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_count(&list);
+                    size_t __for_i = ((size_t)0ULL);
+                    while (__for_i < __for_n) {
+                        compiler__sema__symbol__GenTemplate* t = std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_at(&list, __for_i);
+                        if (compiler__sema__monomorphize__template_matches(kind, t, name) && kobel_streq(t->module, wmod)) {
+                            return t;
                         }
+                        __for_i = (__for_i + 1);
                     }
                 }
             }
-            __for_i = (__for_i + 1);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
         }
     }
     {

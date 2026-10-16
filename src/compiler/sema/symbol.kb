@@ -69,6 +69,18 @@ impl Iterable for Scope {
 // Module Scope & Imports
 // ============================================================================
 
+// A `use` that resolved to a symbol of another module.
+// When `is_wildcard` = true, every symbol of `module_name` is usable.
+// `owner_module` is the module the `use` was written in, so imports stay
+// scoped: two modules importing the same name do not affect each other.
+pub struct ImportBinding {
+	pub module_name: str,
+	pub symbol_name: str,
+	pub local_name: str,
+	pub is_wildcard: bool,
+	pub owner_module: str
+}
+
 pub struct ModuleScope {
 	pub name: str,
 	pub symbols: List<*Symbol> = List<*Symbol>(),
@@ -83,18 +95,6 @@ impl ModuleScope {
 impl Iterable for ModuleScope {
 	pub fn count(val self) => self.symbols.len;
 	pub fn at(val self, i: usz) => self.symbols[i];
-}
-
-// A `use` that resolved to a symbol of another module.
-// When `is_wildcard` = true, every symbol of `module_name` is usable.
-// `owner_module` is the module the `use` was written in, so imports stay
-// scoped: two modules importing the same name do not affect each other.
-pub struct ImportBinding {
-	pub module_name: str,
-	pub symbol_name: str,
-	pub local_name: str,
-	pub is_wildcard: bool,
-	pub owner_module: str
 }
 
 // A generic declaration kept as a template until instantiated.
@@ -212,6 +212,10 @@ pub struct SymbolTable {
 	// Methods extending the built-in (primitive) types.
 	pub prim_methods: List<*PrimMethod> = List<*PrimMethod>(),
 	pub c_name_map: HashMap<*Symbol> = HashMap<*Symbol>(),
+	pub struct_const_map: HashMap<*Symbol> = HashMap<*Symbol>(),
+	pub explicit_imports: HashMap<ImportBinding> = HashMap<ImportBinding>(),
+	pub wildcard_owners: List<str> = List<str>(),
+	pub wildcard_modules: List<str> = List<str>(),
 	pub gen: GenericReg = GenericReg()
 }
 
@@ -325,18 +329,16 @@ impl SymbolTable {
 		if (own != null) return own;
 
 		// 3. Explicit imports (by original name or alias), scoped to this module
-		for (b in self.imports) {
-			if (
-				!b.is_wildcard &&
-				b.local_name == name &&
-				b.owner_module == self.current_module
-			) return self.lookup_in_module(b.module_name, b.symbol_name);
+		val b = self.explicit_imports.get("${self.current_module}::${name}");
+		if (b != null) {
+			val found = self.lookup_in_module(b.module_name, b.symbol_name);
+			if (found != null) return found;
 		}
 
 		// 4. Wildcard imports, scoped to this module
-		for (b2 in self.imports) {
-			if (b2.is_wildcard && b2.owner_module == self.current_module) {
-				val found = self.lookup_in_module(b2.module_name, name);
+		for (i in 0..<self.wildcard_owners.len) {
+			if (self.wildcard_owners[i] == self.current_module) {
+				val found = self.lookup_in_module(self.wildcard_modules[i], name);
 				if (found != null) return found;
 			}
 		}
@@ -377,6 +379,9 @@ impl SymbolTable {
 			if (!sym.c_name.empty() && sym.c_name != sym.name) {
 				self.c_name_map[sym.c_name] = sym_ptr;
 			}
+			if (sym.kind == SymbolKind.CONST) {
+				self.struct_const_map[sym.name] = sym_ptr;
+			}
 			return true;
 		}
 
@@ -390,14 +395,25 @@ impl SymbolTable {
 		if (!sym.c_name.empty() && sym.c_name != sym.name) {
 			self.c_name_map[sym.c_name] = sym_ptr2;
 		}
+		if (sym.kind == SymbolKind.CONST) {
+			self.struct_const_map[sym.name] = sym_ptr2;
+		}
 		return true;
 	}
 
 	// Define a top-level declaration into the module currently being collected.
 	pub fn define_global(var self, sym: Symbol) => self.define_in_module(self.current_module, sym);
 
-	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) =>
-		self.imports.add(ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module));
+	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
+		val binding = ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module);
+		self.imports.add(binding);
+		if (is_wildcard) {
+			self.wildcard_owners.add(self.current_module);
+			self.wildcard_modules.add(module_name);
+		} else {
+			self.explicit_imports["${self.current_module}::${local_name}"] = binding;
+		}
+	}
 
 	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol {
 		val sc = self.find_module(module_name);
@@ -413,9 +429,11 @@ impl SymbolTable {
 
 	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol {
 		val direct = "${struct_name}__${member_name}";
+		val s = self.struct_const_map.get_or(direct, null);
+		if (s != null) return s;
 		for (sc in self.modules) {
-			val s = sc.lookup(direct);
-			if (s != null && s.kind == SymbolKind.CONST) return s;
+			val sc_s = sc.lookup(direct);
+			if (sc_s != null && sc_s.kind == SymbolKind.CONST) return sc_s;
 		}
 		return null;
 	}
