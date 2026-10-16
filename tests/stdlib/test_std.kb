@@ -70,14 +70,53 @@ fn test_collections(): bool {
 
 	// 2. HashMap
 	var map: HashMap<i32> = HashMap<i32>();
+	if (!map.empty() || map.count() != 0UZ) return false;
+
 	map.put("first", 100);
-	map.put("second", 200);
+	map["second"] = 200; // tests map[k] = v (set)
 	map.put("third", 300);
-	if (!map.contains("second")) return false;
+
+	if (map.empty() || map.len != 3UZ || map.count() != 3UZ) return false;
+	if (!map.contains("second") || !map.contains("first") || !map.contains("third")) return false;
 	if (map.contains("not_found")) return false;
+
+	// test get and get_or
+	val p_first = map.get("first");
+	if (p_first == null || *p_first != 100) return false;
+	val p_sec = map.get("second");
+	if (p_sec == null || *p_sec != 200) return false;
+	if (map.get("missing") != null) return false;
+
 	if (map.get_or("first", 0) != 100) return false;
 	if (map.get_or("third", 0) != 300) return false;
 	if (map.get_or("missing", -1) != -1) return false;
+
+	// test overwrite via indexing
+	map["first"] = 101;
+	if (map.len != 3UZ) return false;
+	val p_first_upd = map.get("first");
+	if (p_first_upd == null || *p_first_upd != 101) return false;
+
+	// test keys and values
+	val all_keys = map.keys();
+	if (all_keys.len != 3UZ) return false;
+	all_keys.delete();
+
+	val all_vals = map.values();
+	if (all_vals.len != 3UZ) return false;
+	all_vals.delete();
+
+	// test remove
+	if (!map.remove("second")) return false;
+	if (map.contains("second")) return false;
+	if (map.len != 2UZ) return false;
+	if (map.remove("second")) return false; // already removed
+	if (map.remove("nonexistent")) return false;
+
+	// test clear
+	map.clear();
+	if (!map.empty() || map.len != 0UZ) return false;
+	if (map.contains("first") || map.contains("third")) return false;
 	map.delete();
 
 	// 3. StringBuilder

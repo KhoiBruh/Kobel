@@ -155,8 +155,8 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (constructor inherent); impl `Iterable` nên `for (x in list)` chạy |
 | `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (constructor inherent) |
 | `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (constructor inherent); impl `Iterable` nên `for (c in sb)` duyệt từng ký tự |
-| `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): byte `raw_alloc/raw_resize/raw_release`; typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` |
-| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng `raw_*` của facade |
+| `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` gọi libc trực tiếp |
+| `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng facade `std.mem.alloc` |
 
 Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, của `StringBuilder`/`HashMap` (trừ `len`
 là accessor công khai), và struct nội bộ `StrRaw` (ở `str.kb`) **không** `pub` — module khác phải đi qua
@@ -179,7 +179,7 @@ Quy ước ABI quan trọng:
 - **Cấp phát có kiểu**: hai lối vào, đều tự ép kiểu (không cần `as *T`):
   - **heap** — `alloc<T>()`, `alloc_array<T>(n)`, `resize<T>(p, n)`, `release<T>(p)` (`std.mem.alloc`).
   - **arena** — `arena_alloc<T>(&arena)` (`std.mem.arena`); vùng nhớ chết theo arena.
-  - Mọi cấp phát thô (kể cả arena/list/string_builder/hash_map) đều đi qua facade `std.mem.alloc` (`raw_alloc`…).
+  - Mọi cấp phát bộ nhớ (arena/list/string_builder/hash_map...) đều đi qua generic facade `std.mem.alloc` (`alloc<T>`, `alloc_array<T>`...).
 - Thao tác chuỗi không dùng toán tử: dùng helper `kobel_*` do codegen chèn (§6.3).
 
 ---

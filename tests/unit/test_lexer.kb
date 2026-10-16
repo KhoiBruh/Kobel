@@ -10,7 +10,7 @@ use compiler.lexer.lexer.Lexer;
 
 use std.collections.list.List;
 use std.str.str_from_bytes;
-use std.mem.alloc.raw_alloc;
+use std.mem.alloc.alloc_array;
 
 fn test_keywords(): bool {
 	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for";
@@ -190,7 +190,7 @@ fn test_line_col_tracking(): bool {
 // A UTF-8 BOM at the start of a file must be dropped before the first token. The
 // bytes are built here so the test file itself stays plain ASCII.
 fn test_bom_prefix(): bool {
-	val buf = raw_alloc(4);
+	val buf = alloc_array<u8>(4);
 	buf[0] = 239 as u8;
 	buf[1] = 187 as u8;
 	buf[2] = 191 as u8;

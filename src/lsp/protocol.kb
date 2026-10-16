@@ -122,11 +122,11 @@ pub fn read_message(): str {
 	if (content_length == 0) return "";
 
 	// 2. Read exactly content_length bytes
-	val buf = raw_alloc(content_length + 1);
+	val buf = alloc_array<u8>(content_length + 1);
 	for (i in 0..<content_length) {
 		val ch = getchar();
 		if (ch < 0) {
-			raw_release(buf);
+			release<u8>(buf);
 			return ""; // Unexpected EOF
 		}
 		buf[i] = ch as u8;

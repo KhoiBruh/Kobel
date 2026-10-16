@@ -1,7 +1,7 @@
 mod std.io;
 
 use std.str.str_from_bytes;
-use std.mem.alloc.raw_alloc;
+use std.mem.alloc.alloc_array;
 
 extern "libc" {
 	fn puts(s: *char): i32;
@@ -35,7 +35,7 @@ pub fn read_file(path: str): str {
 
 	fseek(f, 0L, 0);
 	val sz = size_i64 as usz;
-	val buf = raw_alloc(sz + 1);
+	val buf = alloc_array<u8>(sz + 1);
 	if (buf == null) {
 		fclose(f);
 		return "";
@@ -70,4 +70,3 @@ pub fn file_exists(path: str): bool {
 	fclose(f);
 	return true;
 }
-

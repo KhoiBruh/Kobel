@@ -1,7 +1,6 @@
 mod std.str;
 
-use std.mem.alloc.raw_alloc;
-use std.mem.alloc.raw_release;
+use std.mem.alloc.*;
 
 // ============================================================================
 // std.str - low-level `str` construction
@@ -20,14 +19,13 @@ struct StrRaw {
 
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
-	val raw_mem = raw_alloc(24);
-	val r = raw_mem as &StrRaw;
+	val r = alloc<StrRaw>();
 	r.data = buf as *char;
 	r.len = len;
 	r.cap = len + 1;
 	val sp: *str = r as *str;
 	val res: str = *sp;
-	raw_release(raw_mem);
+	release<StrRaw>(r);
 	return res;
 }
 
@@ -50,7 +48,7 @@ impl str {
 
 	// `self` without every occurrence of `c`: `1_000` -> `1000`.
 	pub fn strip_char(val self, c: char): str {
-		var buf = raw_alloc(self.len + 1);
+		var buf = alloc_array<u8>(self.len + 1);
 		var w = 0;
 		for (i in 0..<self.len) {
 			val ch = self[i];
@@ -112,7 +110,7 @@ impl str {
 	// `n` copies of `self` in a single allocation ("" for n == 0).
 	pub fn repeat(val self, n: usz): str {
 		if (n == 0 || self.len == 0) return "";
-		val buf = raw_alloc(self.len * n + 1);
+		val buf = alloc_array<u8>(self.len * n + 1);
 		var w = 0;
 
 		for (k in 0..<n) {

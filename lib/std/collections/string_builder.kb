@@ -15,7 +15,7 @@ pub struct StringBuilder {
 impl StringBuilder {
 	pub fn new(): Self {
 		val init_cap = 32;
-		val raw = raw_alloc(init_cap);
+		val raw = alloc_array<u8>(init_cap);
 		return Self(raw, 0, init_cap);
 	}
 
@@ -106,14 +106,14 @@ impl StringBuilder {
 	fn grow(var self, min_cap: usz) {
 		var new_cap = self.cap * 2;
 		while (new_cap < min_cap) new_cap *= 2;
-		val new_raw = raw_resize(self.buf, new_cap);
+		val new_raw = resize<u8>(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;
 	}
 
-	// NOTE: block body instead of `=> raw_release(...)`:
+	// NOTE: block body instead of `=> release(...)`:
 	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
-	pub fn delete(self) => raw_release(self.buf);
+	pub fn delete(self) => release<u8>(self.buf);
 }
 
 // `for (c in sb)` walks the built characters.
@@ -125,7 +125,7 @@ impl Iterable for StringBuilder {
 
 impl ToStr for StringBuilder {
 	pub fn to_str(val self): str {
-		val str_data = raw_alloc(self.len + 1);
+		val str_data = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) str_data[i] = self.buf[i];
 		str_data[self.len] = 0;
 		return str_from_bytes(str_data, self.len);

@@ -60,7 +60,7 @@ typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collec
 typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
 typedef struct std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic;
 typedef struct std__str__StrRaw std__str__StrRaw;
-typedef struct config__project__TomlDoc config__project__TomlDoc;
+typedef struct config__toml__Toml config__toml__Toml;
 typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct std__mem__arena__ArenaBlock std__mem__arena__ArenaBlock;
 typedef struct std__mem__arena__Arena std__mem__arena__Arena;
@@ -399,7 +399,7 @@ struct std__str__StrRaw {
     size_t cap;
 };
 
-struct config__project__TomlDoc {
+struct config__toml__Toml {
     std__collections__hash_map__HashMap_str entries;
 };
 
@@ -1379,11 +1379,21 @@ std__collections__list__List_str std__collections__list__List_str_clone(std__col
 void std__collections__list__List_str_delete(std__collections__list__List_str* self);
 bool* std__mem__alloc__alloc_array_bool(size_t count);
 void std__mem__alloc__release_bool(bool* ptr);
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void);
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(size_t init_cap);
 size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_dist(std__collections__hash_map__HashMap_str* self, size_t from, size_t to);
 void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
+void std__collections__hash_map__HashMap_str_set(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
 bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key);
+const char** std__collections__hash_map__HashMap_str_get(std__collections__hash_map__HashMap_str* self, const char* key);
 const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val);
+bool std__collections__hash_map__HashMap_str_remove(std__collections__hash_map__HashMap_str* self, const char* key);
+void std__collections__hash_map__HashMap_str_clear(std__collections__hash_map__HashMap_str* self);
+bool std__collections__hash_map__HashMap_str_empty(std__collections__hash_map__HashMap_str* self);
+bool std__collections__hash_map__HashMap_str_is_empty(std__collections__hash_map__HashMap_str* self);
+size_t std__collections__hash_map__HashMap_str_count(std__collections__hash_map__HashMap_str* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_keys(std__collections__hash_map__HashMap_str* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_values(std__collections__hash_map__HashMap_str* self);
 void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self);
 void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self);
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self);
@@ -1906,6 +1916,12 @@ lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiag
 void std__collections__list__List_lsp__analysis__LspDiagnostic_insert(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t index, lsp__analysis__LspDiagnostic value);
 std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_clone(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
 void std__collections__list__List_lsp__analysis__LspDiagnostic_delete(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
+std__str__StrRaw* std__mem__alloc__alloc_std__str__StrRaw(void);
+void std__mem__alloc__release_std__str__StrRaw(std__str__StrRaw* ptr);
+uint8_t* std__mem__alloc__alloc_array_u8(size_t count);
+std__mem__arena__ArenaBlock* std__mem__alloc__alloc_std__mem__arena__ArenaBlock(void);
+void std__mem__alloc__release_u8(uint8_t* ptr);
+void std__mem__alloc__release_std__mem__arena__ArenaBlock(std__mem__arena__ArenaBlock* ptr);
 compiler__ast__node__DummyTemplateDecl* compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(compiler__ast__node__AstNode* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_compiler__ast__node__AstNode(std__mem__arena__Arena* self);
 compiler__ast__node__AstNode* std__mem__arena__alloc_val_compiler__ast__node__AstNode(std__mem__arena__Arena* self, compiler__ast__node__AstNode value);
@@ -2147,10 +2163,8 @@ compiler__ast__decl__TraitDecl* compiler__ast__node__to_compiler__ast__decl__Tra
 compiler__sema__symbol__TraitMethod* std__mem__arena__alloc_compiler__sema__symbol__TraitMethod(std__mem__arena__Arena* self);
 compiler__sema__symbol__TraitInfo* std__mem__arena__alloc_compiler__sema__symbol__TraitInfo(std__mem__arena__Arena* self);
 compiler__ast__decl__Program* compiler__ast__node__to_compiler__ast__decl__Program(compiler__ast__node__AstNode* self);
+uint8_t* std__mem__alloc__resize_u8(uint8_t* ptr, size_t count);
 lsp__json__JsonValue* std__mem__alloc__alloc_lsp__json__JsonValue(void);
-uint8_t* std__mem__alloc__raw_alloc(size_t size);
-uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size);
-void std__mem__alloc__raw_release(uint8_t* ptr);
 const char* std__str__str_from_bytes(uint8_t* buf, size_t len);
 bool str_empty(const char* self);
 bool str_starts_with(const char* self, const char* prefix);
@@ -2210,8 +2224,8 @@ const char* str_trim(const char* self);
 std__collections__list__List_str str_split_lines(const char* self);
 const char* str_hash_stamp(const char* self);
 const char* util__strutil__str_join_dots(std__collections__list__List_str parts, size_t count);
-config__project__TomlDoc config__project__TomlDoc_new(const char* content);
-const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val);
+config__toml__Toml config__toml__Toml_new(const char* content);
+const char* config__toml__Toml_get(config__toml__Toml* self, const char* key, const char* default_val);
 config__project__ProjectConfig config__project__ProjectConfig_new(const char* manifest_path);
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(const char* cmd);
@@ -2914,15 +2928,15 @@ const char* std__collections__list__List_str_at(std__collections__list__List_str
 }
 
 const char** std__mem__alloc__alloc_array_str(size_t count) {
-    return (const char**)std__mem__alloc__raw_alloc((count * 8));
+    return (const char**)malloc((count * 8));
 }
 
 const char** std__mem__alloc__resize_str(const char** ptr, size_t count) {
-    return (const char**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (const char**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_str(const char** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_str std__collections__list__List_str_new(size_t cap) {
@@ -3069,20 +3083,23 @@ void std__collections__list__List_str_delete(std__collections__list__List_str* s
 }
 
 bool* std__mem__alloc__alloc_array_bool(size_t count) {
-    return (bool*)std__mem__alloc__raw_alloc((count * 1));
+    return (bool*)malloc((count * 1));
 }
 
 void std__mem__alloc__release_bool(bool* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(void) {
-    size_t init_cap = 16;
-    const char** keys = std__mem__alloc__alloc_array_str(init_cap);
-    const char** values = std__mem__alloc__alloc_array_str(init_cap);
-    bool* occ = std__mem__alloc__alloc_array_bool(init_cap);
+std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    const char** keys = std__mem__alloc__alloc_array_str(cap);
+    const char** values = std__mem__alloc__alloc_array_str(cap);
+    bool* occ = std__mem__alloc__alloc_array_bool(cap);
     {
-        size_t __for_e = init_cap;
+        size_t __for_e = cap;
         size_t __for_i = __for_e;
         __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
@@ -3109,7 +3126,7 @@ std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_
             }
         }
     }
-    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, init_cap };
+    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, cap };
 }
 
 size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key) {
@@ -3146,6 +3163,13 @@ size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_m
     return h;
 }
 
+size_t std__collections__hash_map__HashMap_str_dist(std__collections__hash_map__HashMap_str* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
 void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
     if ((self->len * 10) >= (self->cap * 7)) {
         std__collections__hash_map__HashMap_str_grow(self);
@@ -3165,7 +3189,14 @@ void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__Has
     self->len++;
 }
 
+void std__collections__hash_map__HashMap_str_set(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
+    std__collections__hash_map__HashMap_str_put(self, key, value);
+}
+
 bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key) {
+    if (self->len == 0) {
+        return false;
+    }
     size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
@@ -3177,7 +3208,25 @@ bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map
     return false;
 }
 
+const char** std__collections__hash_map__HashMap_str_get(std__collections__hash_map__HashMap_str* self, const char* key) {
+    if (self->len == 0) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
 const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val) {
+    if (self->len == 0) {
+        return default_val;
+    }
     size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
@@ -3187,6 +3236,148 @@ const char* std__collections__hash_map__HashMap_str_get_or(std__collections__has
         idx = ((idx + 1) % self->cap);
     }
     return default_val;
+}
+
+bool std__collections__hash_map__HashMap_str_remove(std__collections__hash_map__HashMap_str* self, const char* key) {
+    if (self->len == 0) {
+        return false;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (std__collections__hash_map__HashMap_str_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_dist(self, k, i) < std__collections__hash_map__HashMap_str_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__hash_map__HashMap_str_clear(std__collections__hash_map__HashMap_str* self) {
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__hash_map__HashMap_str_empty(std__collections__hash_map__HashMap_str* self) {
+    return (self->len == 0);
+}
+
+bool std__collections__hash_map__HashMap_str_is_empty(std__collections__hash_map__HashMap_str* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__hash_map__HashMap_str_count(std__collections__hash_map__HashMap_str* self) {
+    return self->len;
+}
+
+std__collections__list__List_str std__collections__hash_map__HashMap_str_keys(std__collections__hash_map__HashMap_str* self) {
+    std__collections__list__List_str res = std__collections__list__List_str_new(4);
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_str_add(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__list__List_str std__collections__hash_map__HashMap_str_values(std__collections__hash_map__HashMap_str* self) {
+    std__collections__list__List_str res = std__collections__list__List_str_new(4);
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_str_add(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
 }
 
 void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self) {
@@ -3281,15 +3472,15 @@ compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__no
 }
 
 compiler__ast__node__AstNode** std__mem__alloc__alloc_array_ptr_compiler__ast__node__AstNode(size_t count) {
-    return (compiler__ast__node__AstNode**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__ast__node__AstNode**)malloc((count * 8));
 }
 
 compiler__ast__node__AstNode** std__mem__alloc__resize_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr, size_t count) {
-    return (compiler__ast__node__AstNode**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__ast__node__AstNode**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_new(size_t cap) {
@@ -3444,15 +3635,15 @@ compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__W
 }
 
 compiler__ast__expr__WhenArm* std__mem__alloc__alloc_array_compiler__ast__expr__WhenArm(size_t count) {
-    return (compiler__ast__expr__WhenArm*)std__mem__alloc__raw_alloc((count * 56));
+    return (compiler__ast__expr__WhenArm*)malloc((count * 56));
 }
 
 compiler__ast__expr__WhenArm* std__mem__alloc__resize_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr, size_t count) {
-    return (compiler__ast__expr__WhenArm*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 56));
+    return (compiler__ast__expr__WhenArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
 void std__mem__alloc__release_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__WhenArm_new(size_t cap) {
@@ -3607,15 +3798,15 @@ compiler__ast__expr__InterpPart std__collections__list__List_compiler__ast__expr
 }
 
 compiler__ast__expr__InterpPart* std__mem__alloc__alloc_array_compiler__ast__expr__InterpPart(size_t count) {
-    return (compiler__ast__expr__InterpPart*)std__mem__alloc__raw_alloc((count * 16));
+    return (compiler__ast__expr__InterpPart*)malloc((count * 16));
 }
 
 compiler__ast__expr__InterpPart* std__mem__alloc__resize_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr, size_t count) {
-    return (compiler__ast__expr__InterpPart*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 16));
+    return (compiler__ast__expr__InterpPart*)realloc((uint8_t*)ptr, (count * 16));
 }
 
 void std__mem__alloc__release_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__expr__InterpPart std__collections__list__List_compiler__ast__expr__InterpPart_new(size_t cap) {
@@ -3770,15 +3961,15 @@ compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stm
 }
 
 compiler__ast__stmt__WhenStmtArm* std__mem__alloc__alloc_array_compiler__ast__stmt__WhenStmtArm(size_t count) {
-    return (compiler__ast__stmt__WhenStmtArm*)std__mem__alloc__raw_alloc((count * 56));
+    return (compiler__ast__stmt__WhenStmtArm*)malloc((count * 56));
 }
 
 compiler__ast__stmt__WhenStmtArm* std__mem__alloc__resize_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr, size_t count) {
-    return (compiler__ast__stmt__WhenStmtArm*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 56));
+    return (compiler__ast__stmt__WhenStmtArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
 void std__mem__alloc__release_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__stmt__WhenStmtArm std__collections__list__List_compiler__ast__stmt__WhenStmtArm_new(size_t cap) {
@@ -3933,15 +4124,15 @@ compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__de
 }
 
 compiler__ast__decl__GenericParam* std__mem__alloc__alloc_array_compiler__ast__decl__GenericParam(size_t count) {
-    return (compiler__ast__decl__GenericParam*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__ast__decl__GenericParam*)malloc((count * 40));
 }
 
 compiler__ast__decl__GenericParam* std__mem__alloc__resize_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr, size_t count) {
-    return (compiler__ast__decl__GenericParam*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__ast__decl__GenericParam*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__decl__GenericParam std__collections__list__List_compiler__ast__decl__GenericParam_new(size_t cap) {
@@ -4096,15 +4287,15 @@ compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Par
 }
 
 compiler__ast__decl__Param* std__mem__alloc__alloc_array_compiler__ast__decl__Param(size_t count) {
-    return (compiler__ast__decl__Param*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__ast__decl__Param*)malloc((count * 40));
 }
 
 compiler__ast__decl__Param* std__mem__alloc__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count) {
-    return (compiler__ast__decl__Param*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__ast__decl__Param*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__decl__Param std__collections__list__List_compiler__ast__decl__Param_new(size_t cap) {
@@ -4259,15 +4450,15 @@ compiler__ast__decl__StructField std__collections__list__List_compiler__ast__dec
 }
 
 compiler__ast__decl__StructField* std__mem__alloc__alloc_array_compiler__ast__decl__StructField(size_t count) {
-    return (compiler__ast__decl__StructField*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__ast__decl__StructField*)malloc((count * 40));
 }
 
 compiler__ast__decl__StructField* std__mem__alloc__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count) {
-    return (compiler__ast__decl__StructField*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__ast__decl__StructField*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__decl__StructField std__collections__list__List_compiler__ast__decl__StructField_new(size_t cap) {
@@ -4422,15 +4613,15 @@ compiler__ast__decl__EnumMember std__collections__list__List_compiler__ast__decl
 }
 
 compiler__ast__decl__EnumMember* std__mem__alloc__alloc_array_compiler__ast__decl__EnumMember(size_t count) {
-    return (compiler__ast__decl__EnumMember*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__ast__decl__EnumMember*)malloc((count * 40));
 }
 
 compiler__ast__decl__EnumMember* std__mem__alloc__resize_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr, size_t count) {
-    return (compiler__ast__decl__EnumMember*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__ast__decl__EnumMember*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__ast__decl__EnumMember std__collections__list__List_compiler__ast__decl__EnumMember_new(size_t cap) {
@@ -4585,15 +4776,15 @@ compiler__sema__types__StructField std__collections__list__List_compiler__sema__
 }
 
 compiler__sema__types__StructField* std__mem__alloc__alloc_array_compiler__sema__types__StructField(size_t count) {
-    return (compiler__sema__types__StructField*)std__mem__alloc__raw_alloc((count * 48));
+    return (compiler__sema__types__StructField*)malloc((count * 48));
 }
 
 compiler__sema__types__StructField* std__mem__alloc__resize_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr, size_t count) {
-    return (compiler__sema__types__StructField*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 48));
+    return (compiler__sema__types__StructField*)realloc((uint8_t*)ptr, (count * 48));
 }
 
 void std__mem__alloc__release_compiler__sema__types__StructField(compiler__sema__types__StructField* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__sema__types__StructField std__collections__list__List_compiler__sema__types__StructField_new(size_t cap) {
@@ -4748,15 +4939,15 @@ compiler__sema__types__MethodInfo* std__collections__list__List_ptr_compiler__se
 }
 
 compiler__sema__types__MethodInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__types__MethodInfo(size_t count) {
-    return (compiler__sema__types__MethodInfo**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__types__MethodInfo**)malloc((count * 8));
 }
 
 compiler__sema__types__MethodInfo** std__mem__alloc__resize_ptr_compiler__sema__types__MethodInfo(compiler__sema__types__MethodInfo** ptr, size_t count) {
-    return (compiler__sema__types__MethodInfo**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__types__MethodInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__types__MethodInfo(compiler__sema__types__MethodInfo** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__types__MethodInfo std__collections__list__List_ptr_compiler__sema__types__MethodInfo_new(size_t cap) {
@@ -4911,15 +5102,15 @@ compiler__sema__types__Type* std__collections__list__List_ptr_compiler__sema__ty
 }
 
 compiler__sema__types__Type** std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(size_t count) {
-    return (compiler__sema__types__Type**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__types__Type**)malloc((count * 8));
 }
 
 compiler__sema__types__Type** std__mem__alloc__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count) {
-    return (compiler__sema__types__Type**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__types__Type**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__List_ptr_compiler__sema__types__Type_new(size_t cap) {
@@ -5074,15 +5265,15 @@ compiler__sema__types__EnumMemberInfo* std__collections__list__List_ptr_compiler
 }
 
 compiler__sema__types__EnumMemberInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumMemberInfo(size_t count) {
-    return (compiler__sema__types__EnumMemberInfo**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__types__EnumMemberInfo**)malloc((count * 8));
 }
 
 compiler__sema__types__EnumMemberInfo** std__mem__alloc__resize_ptr_compiler__sema__types__EnumMemberInfo(compiler__sema__types__EnumMemberInfo** ptr, size_t count) {
-    return (compiler__sema__types__EnumMemberInfo**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__types__EnumMemberInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__types__EnumMemberInfo(compiler__sema__types__EnumMemberInfo** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo std__collections__list__List_ptr_compiler__sema__types__EnumMemberInfo_new(size_t cap) {
@@ -5237,15 +5428,15 @@ compiler__sema__symbol__Symbol* std__collections__list__List_ptr_compiler__sema_
 }
 
 compiler__sema__symbol__Symbol** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__Symbol(size_t count) {
-    return (compiler__sema__symbol__Symbol**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__Symbol**)malloc((count * 8));
 }
 
 compiler__sema__symbol__Symbol** std__mem__alloc__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count) {
-    return (compiler__sema__symbol__Symbol**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__Symbol**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(size_t cap) {
@@ -5400,15 +5591,15 @@ compiler__sema__symbol__TraitMethod* std__collections__list__List_ptr_compiler__
 }
 
 compiler__sema__symbol__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitMethod(size_t count) {
-    return (compiler__sema__symbol__TraitMethod**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__TraitMethod**)malloc((count * 8));
 }
 
 compiler__sema__symbol__TraitMethod** std__mem__alloc__resize_ptr_compiler__sema__symbol__TraitMethod(compiler__sema__symbol__TraitMethod** ptr, size_t count) {
-    return (compiler__sema__symbol__TraitMethod**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__TraitMethod**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__TraitMethod(compiler__sema__symbol__TraitMethod** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod_new(size_t cap) {
@@ -5563,15 +5754,15 @@ compiler__sema__symbol__GenTemplate* std__collections__list__List_ptr_compiler__
 }
 
 compiler__sema__symbol__GenTemplate** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__GenTemplate(size_t count) {
-    return (compiler__sema__symbol__GenTemplate**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__GenTemplate**)malloc((count * 8));
 }
 
 compiler__sema__symbol__GenTemplate** std__mem__alloc__resize_ptr_compiler__sema__symbol__GenTemplate(compiler__sema__symbol__GenTemplate** ptr, size_t count) {
-    return (compiler__sema__symbol__GenTemplate**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__GenTemplate**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__GenTemplate(compiler__sema__symbol__GenTemplate** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate std__collections__list__List_ptr_compiler__sema__symbol__GenTemplate_new(size_t cap) {
@@ -5726,15 +5917,15 @@ compiler__sema__symbol__ModuleScope* std__collections__list__List_ptr_compiler__
 }
 
 compiler__sema__symbol__ModuleScope** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__ModuleScope(size_t count) {
-    return (compiler__sema__symbol__ModuleScope**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__ModuleScope**)malloc((count * 8));
 }
 
 compiler__sema__symbol__ModuleScope** std__mem__alloc__resize_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr, size_t count) {
-    return (compiler__sema__symbol__ModuleScope**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__ModuleScope**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(size_t cap) {
@@ -5889,15 +6080,15 @@ compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sem
 }
 
 compiler__sema__symbol__ImportBinding* std__mem__alloc__alloc_array_compiler__sema__symbol__ImportBinding(size_t count) {
-    return (compiler__sema__symbol__ImportBinding*)std__mem__alloc__raw_alloc((count * 72));
+    return (compiler__sema__symbol__ImportBinding*)malloc((count * 72));
 }
 
 compiler__sema__symbol__ImportBinding* std__mem__alloc__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count) {
-    return (compiler__sema__symbol__ImportBinding*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 72));
+    return (compiler__sema__symbol__ImportBinding*)realloc((uint8_t*)ptr, (count * 72));
 }
 
 void std__mem__alloc__release_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding_new(size_t cap) {
@@ -6052,15 +6243,15 @@ compiler__sema__types__EnumInfo* std__collections__list__List_ptr_compiler__sema
 }
 
 compiler__sema__types__EnumInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__types__EnumInfo(size_t count) {
-    return (compiler__sema__types__EnumInfo**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__types__EnumInfo**)malloc((count * 8));
 }
 
 compiler__sema__types__EnumInfo** std__mem__alloc__resize_ptr_compiler__sema__types__EnumInfo(compiler__sema__types__EnumInfo** ptr, size_t count) {
-    return (compiler__sema__types__EnumInfo**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__types__EnumInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__types__EnumInfo(compiler__sema__types__EnumInfo** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__types__EnumInfo std__collections__list__List_ptr_compiler__sema__types__EnumInfo_new(size_t cap) {
@@ -6215,15 +6406,15 @@ compiler__sema__symbol__TraitInfo* std__collections__list__List_ptr_compiler__se
 }
 
 compiler__sema__symbol__TraitInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__TraitInfo(size_t count) {
-    return (compiler__sema__symbol__TraitInfo**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__TraitInfo**)malloc((count * 8));
 }
 
 compiler__sema__symbol__TraitInfo** std__mem__alloc__resize_ptr_compiler__sema__symbol__TraitInfo(compiler__sema__symbol__TraitInfo** ptr, size_t count) {
-    return (compiler__sema__symbol__TraitInfo**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__TraitInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__TraitInfo(compiler__sema__symbol__TraitInfo** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo std__collections__list__List_ptr_compiler__sema__symbol__TraitInfo_new(size_t cap) {
@@ -6378,15 +6569,15 @@ compiler__sema__symbol__PrimMethod* std__collections__list__List_ptr_compiler__s
 }
 
 compiler__sema__symbol__PrimMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__PrimMethod(size_t count) {
-    return (compiler__sema__symbol__PrimMethod**)std__mem__alloc__raw_alloc((count * 8));
+    return (compiler__sema__symbol__PrimMethod**)malloc((count * 8));
 }
 
 compiler__sema__symbol__PrimMethod** std__mem__alloc__resize_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr, size_t count) {
-    return (compiler__sema__symbol__PrimMethod**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (compiler__sema__symbol__PrimMethod**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__symbol__PrimMethod(compiler__sema__symbol__PrimMethod** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod std__collections__list__List_ptr_compiler__sema__symbol__PrimMethod_new(size_t cap) {
@@ -6541,15 +6732,15 @@ compiler__lexer__token__Token std__collections__list__List_compiler__lexer__toke
 }
 
 compiler__lexer__token__Token* std__mem__alloc__alloc_array_compiler__lexer__token__Token(size_t count) {
-    return (compiler__lexer__token__Token*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__lexer__token__Token*)malloc((count * 40));
 }
 
 compiler__lexer__token__Token* std__mem__alloc__resize_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr, size_t count) {
-    return (compiler__lexer__token__Token*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__lexer__token__Token*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token_new(size_t cap) {
@@ -6704,15 +6895,15 @@ compiler__loader__loader__LoadedModule std__collections__list__List_compiler__lo
 }
 
 compiler__loader__loader__LoadedModule* std__mem__alloc__alloc_array_compiler__loader__loader__LoadedModule(size_t count) {
-    return (compiler__loader__loader__LoadedModule*)std__mem__alloc__raw_alloc((count * 40));
+    return (compiler__loader__loader__LoadedModule*)malloc((count * 40));
 }
 
 compiler__loader__loader__LoadedModule* std__mem__alloc__resize_compiler__loader__loader__LoadedModule(compiler__loader__loader__LoadedModule* ptr, size_t count) {
-    return (compiler__loader__loader__LoadedModule*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (compiler__loader__loader__LoadedModule*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_compiler__loader__loader__LoadedModule(compiler__loader__loader__LoadedModule* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule_new(size_t cap) {
@@ -6867,15 +7058,15 @@ fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_at(st
 }
 
 fmt__comments__Comment* std__mem__alloc__alloc_array_fmt__comments__Comment(size_t count) {
-    return (fmt__comments__Comment*)std__mem__alloc__raw_alloc((count * 40));
+    return (fmt__comments__Comment*)malloc((count * 40));
 }
 
 fmt__comments__Comment* std__mem__alloc__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count) {
-    return (fmt__comments__Comment*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 40));
+    return (fmt__comments__Comment*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 void std__mem__alloc__release_fmt__comments__Comment(fmt__comments__Comment* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment_new(size_t cap) {
@@ -7030,15 +7221,15 @@ lsp__json__JsonValue* std__collections__list__List_ptr_lsp__json__JsonValue_at(s
 }
 
 lsp__json__JsonValue** std__mem__alloc__alloc_array_ptr_lsp__json__JsonValue(size_t count) {
-    return (lsp__json__JsonValue**)std__mem__alloc__raw_alloc((count * 8));
+    return (lsp__json__JsonValue**)malloc((count * 8));
 }
 
 lsp__json__JsonValue** std__mem__alloc__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count) {
-    return (lsp__json__JsonValue**)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 8));
+    return (lsp__json__JsonValue**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 void std__mem__alloc__release_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue_new(size_t cap) {
@@ -7193,15 +7384,15 @@ lsp__document__Document std__collections__list__List_lsp__document__Document_at(
 }
 
 lsp__document__Document* std__mem__alloc__alloc_array_lsp__document__Document(size_t count) {
-    return (lsp__document__Document*)std__mem__alloc__raw_alloc((count * 56));
+    return (lsp__document__Document*)malloc((count * 56));
 }
 
 lsp__document__Document* std__mem__alloc__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count) {
-    return (lsp__document__Document*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 56));
+    return (lsp__document__Document*)realloc((uint8_t*)ptr, (count * 56));
 }
 
 void std__mem__alloc__release_lsp__document__Document(lsp__document__Document* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document_new(size_t cap) {
@@ -7356,15 +7547,15 @@ lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiag
 }
 
 lsp__analysis__LspDiagnostic* std__mem__alloc__alloc_array_lsp__analysis__LspDiagnostic(size_t count) {
-    return (lsp__analysis__LspDiagnostic*)std__mem__alloc__raw_alloc((count * 56));
+    return (lsp__analysis__LspDiagnostic*)malloc((count * 56));
 }
 
 lsp__analysis__LspDiagnostic* std__mem__alloc__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count) {
-    return (lsp__analysis__LspDiagnostic*)std__mem__alloc__raw_resize((uint8_t*)ptr, (count * 56));
+    return (lsp__analysis__LspDiagnostic*)realloc((uint8_t*)ptr, (count * 56));
 }
 
 void std__mem__alloc__release_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr) {
-    std__mem__alloc__raw_release((uint8_t*)ptr);
+    free((uint8_t*)ptr);
 }
 
 std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new(size_t cap) {
@@ -7508,6 +7699,30 @@ std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list
 
 void std__collections__list__List_lsp__analysis__LspDiagnostic_delete(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
     std__mem__alloc__release_lsp__analysis__LspDiagnostic(self->data);
+}
+
+std__str__StrRaw* std__mem__alloc__alloc_std__str__StrRaw(void) {
+    return (std__str__StrRaw*)malloc(24);
+}
+
+void std__mem__alloc__release_std__str__StrRaw(std__str__StrRaw* ptr) {
+    free((uint8_t*)ptr);
+}
+
+uint8_t* std__mem__alloc__alloc_array_u8(size_t count) {
+    return (uint8_t*)malloc((count * 1));
+}
+
+std__mem__arena__ArenaBlock* std__mem__alloc__alloc_std__mem__arena__ArenaBlock(void) {
+    return (std__mem__arena__ArenaBlock*)malloc(32);
+}
+
+void std__mem__alloc__release_u8(uint8_t* ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__mem__alloc__release_std__mem__arena__ArenaBlock(std__mem__arena__ArenaBlock* ptr) {
+    free((uint8_t*)ptr);
 }
 
 compiler__ast__node__DummyTemplateDecl* compiler__ast__node__to_compiler__ast__node__DummyTemplateDecl(compiler__ast__node__AstNode* self) {
@@ -8619,31 +8834,22 @@ compiler__ast__decl__Program* compiler__ast__node__to_compiler__ast__decl__Progr
     return (compiler__ast__decl__Program*)self->data;
 }
 
+uint8_t* std__mem__alloc__resize_u8(uint8_t* ptr, size_t count) {
+    return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+}
+
 lsp__json__JsonValue* std__mem__alloc__alloc_lsp__json__JsonValue(void) {
-    return (lsp__json__JsonValue*)std__mem__alloc__raw_alloc(104);
-}
-
-uint8_t* std__mem__alloc__raw_alloc(size_t size) {
-    return malloc(size);
-}
-
-uint8_t* std__mem__alloc__raw_resize(uint8_t* ptr, size_t size) {
-    return realloc(ptr, size);
-}
-
-void std__mem__alloc__raw_release(uint8_t* ptr) {
-    free(ptr);
+    return (lsp__json__JsonValue*)malloc(104);
 }
 
 const char* std__str__str_from_bytes(uint8_t* buf, size_t len) {
-    uint8_t* raw_mem = std__mem__alloc__raw_alloc(24);
-    std__str__StrRaw* r = (std__str__StrRaw*)raw_mem;
+    std__str__StrRaw* r = std__mem__alloc__alloc_std__str__StrRaw();
     r->data = (const char*)buf;
     r->len = len;
     r->cap = (len + 1);
     const char** sp = (const char**)r;
     const char* res = *sp;
-    std__mem__alloc__raw_release(raw_mem);
+    std__mem__alloc__release_std__str__StrRaw(r);
     return res;
 }
 
@@ -8670,7 +8876,7 @@ const char* str_strip_suffix(const char* self, size_t n) {
 }
 
 const char* str_strip_char(const char* self, char c) {
-    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((kobel_slen(self) + 1));
     int32_t w = 0;
     {
         size_t __for_e = kobel_slen(self);
@@ -8782,7 +8988,7 @@ const char* str_repeat(const char* self, size_t n) {
     if ((n == 0) || (kobel_slen(self) == 0)) {
         return "";
     }
-    uint8_t* buf = std__mem__alloc__raw_alloc(((kobel_slen(self) * n) + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8(((kobel_slen(self) * n) + 1));
     int32_t w = 0;
     {
         size_t __for_e = n;
@@ -8998,7 +9204,7 @@ const char* std__traits__to_str__fmt_u64(uint64_t n0) {
         probe /= 10;
         digits++;
     }
-    uint8_t* buf = std__mem__alloc__raw_alloc((digits + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((digits + 1));
     buf[digits] = 0;
     int32_t i = digits;
     while (i > 0) {
@@ -9017,7 +9223,7 @@ const char* std__traits__to_str__fmt_i64(int64_t v) {
 }
 
 const char* std__traits__to_str__fmt_char(char c) {
-    uint8_t* buf = std__mem__alloc__raw_alloc(2);
+    uint8_t* buf = std__mem__alloc__alloc_array_u8(2);
     buf[0] = (uint8_t)c;
     buf[1] = 0;
     return std__str__str_from_bytes(buf, 1);
@@ -9031,7 +9237,7 @@ const char* std__traits__to_str__fmt_zeros(size_t n) {
     if (n == 0) {
         return "";
     }
-    uint8_t* buf = std__mem__alloc__raw_alloc((n + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((n + 1));
     {
         size_t __for_e = n;
         size_t __for_i = __for_e;
@@ -9246,7 +9452,7 @@ const char* std__io__read_file(const char* path) {
     }
     fseek(f, 0LL, 0);
     size_t sz = (size_t)size_i64;
-    uint8_t* buf = std__mem__alloc__raw_alloc((sz + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((sz + 1));
     if (buf == NULL) {
         fclose(f);
         return "";
@@ -9295,7 +9501,7 @@ bool util__strutil__str_is_sep(char c) {
 }
 
 const char* str_module_to_rel(const char* self) {
-    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((kobel_slen(self) + 1));
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
@@ -9335,7 +9541,7 @@ const char* str_module_to_rel(const char* self) {
 
 const char* str_path_to_module(const char* self) {
     const char* stem = str_strip_kb(self);
-    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(stem) + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((kobel_slen(stem) + 1));
     {
         size_t __for_e = kobel_slen(stem);
         size_t __for_i = __for_e;
@@ -9509,7 +9715,7 @@ const char* str_mangle_symbol(const char* self, const char* name) {
         return name;
     }
     size_t total = (((kobel_slen(self) * 2) + 2) + kobel_slen(name));
-    uint8_t* buf = std__mem__alloc__raw_alloc((total + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((total + 1));
     int32_t w = 0;
     {
         size_t __for_n = kobel_slen(self);
@@ -9548,7 +9754,7 @@ const char* str_mangle_symbol(const char* self, const char* name) {
 }
 
 const char* str_remap_path_bytes(const char* self, char from, char to, bool fold_case) {
-    uint8_t* buf = std__mem__alloc__raw_alloc((kobel_slen(self) + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((kobel_slen(self) + 1));
     {
         size_t __for_e = kobel_slen(self);
         size_t __for_i = __for_e;
@@ -9744,7 +9950,7 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
     if (count > 1) {
         total += (count - 1);
     }
-    uint8_t* buf = std__mem__alloc__raw_alloc((total + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((total + 1));
     int32_t w = 0;
     {
         size_t __for_e = count;
@@ -9792,8 +9998,8 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
     return std__str__str_from_bytes(buf, w);
 }
 
-config__project__TomlDoc config__project__TomlDoc_new(const char* content) {
-    config__project__TomlDoc self = (config__project__TomlDoc){ std__collections__hash_map__HashMap_str_new() };
+config__toml__Toml config__toml__Toml_new(const char* content) {
+    config__toml__Toml self = (config__toml__Toml){ std__collections__hash_map__HashMap_str_new(16) };
     std__collections__list__List_str lines = str_split_lines(content);
     const char* current_section = "";
     {
@@ -9827,7 +10033,7 @@ config__project__TomlDoc config__project__TomlDoc_new(const char* content) {
     return self;
 }
 
-const char* config__project__TomlDoc_get(config__project__TomlDoc* self, const char* key, const char* default_val) {
+const char* config__toml__Toml_get(config__toml__Toml* self, const char* key, const char* default_val) {
     return std__collections__hash_map__HashMap_str_get_or(&self->entries, key, default_val);
 }
 
@@ -9840,28 +10046,28 @@ config__project__ProjectConfig config__project__ProjectConfig_new(const char* ma
     if (str_empty(content)) {
         return self;
     }
-    config__project__TomlDoc doc = config__project__TomlDoc_new(content);
-    const char* name = config__project__TomlDoc_get(&doc, "package.name", "");
+    config__toml__Toml doc = config__toml__Toml_new(content);
+    const char* name = config__toml__Toml_get(&doc, "package.name", "");
     if (!str_empty(name)) {
         self.name = name;
     }
-    const char* ver = config__project__TomlDoc_get(&doc, "package.version", "");
+    const char* ver = config__toml__Toml_get(&doc, "package.version", "");
     if (!str_empty(ver)) {
         self.version = ver;
     }
-    const char* entry = config__project__TomlDoc_get(&doc, "package.entry", config__project__TomlDoc_get(&doc, "build.entry", ""));
+    const char* entry = config__toml__Toml_get(&doc, "package.entry", config__toml__Toml_get(&doc, "build.entry", ""));
     if (!str_empty(entry)) {
         self.entry = entry;
     }
-    const char* output = config__project__TomlDoc_get(&doc, "build.output", "");
+    const char* output = config__toml__Toml_get(&doc, "build.output", "");
     if (!str_empty(output)) {
         self.output = output;
     }
-    const char* cc = config__project__TomlDoc_get(&doc, "build.cc", "");
+    const char* cc = config__toml__Toml_get(&doc, "build.cc", "");
     if (!str_empty(cc)) {
         self.cc = cc;
     }
-    const char* test_dir = config__project__TomlDoc_get(&doc, "test.dir", "");
+    const char* test_dir = config__toml__Toml_get(&doc, "test.dir", "");
     if (!str_empty(test_dir)) {
         self.test_dir = test_dir;
     }
@@ -9906,9 +10112,8 @@ void std__mem__arena__Arena_new_block(std__mem__arena__Arena* self, size_t min_s
     if (sz < min_size) {
         sz = min_size;
     }
-    uint8_t* data = std__mem__alloc__raw_alloc(sz);
-    uint8_t* blk_mem = std__mem__alloc__raw_alloc(sizeof(std__mem__arena__ArenaBlock));
-    std__mem__arena__ArenaBlock* blk = (std__mem__arena__ArenaBlock*)blk_mem;
+    uint8_t* data = std__mem__alloc__alloc_array_u8(sz);
+    std__mem__arena__ArenaBlock* blk = std__mem__alloc__alloc_std__mem__arena__ArenaBlock();
     blk->data = data;
     blk->size = sz;
     blk->used = 0;
@@ -9930,8 +10135,8 @@ void std__mem__arena__Arena_delete(std__mem__arena__Arena* self) {
     while (curr != NULL) {
         std__mem__arena__ArenaBlock* blk = (std__mem__arena__ArenaBlock*)curr;
         std__mem__arena__ArenaBlock* next_blk = blk->next;
-        std__mem__alloc__raw_release(blk->data);
-        std__mem__alloc__raw_release((uint8_t*)curr);
+        std__mem__alloc__release_u8(blk->data);
+        std__mem__alloc__release_std__mem__arena__ArenaBlock((std__mem__arena__ArenaBlock*)curr);
         curr = next_blk;
     }
     self->current = NULL;
@@ -20395,7 +20600,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
 
 std__collections__string_builder__StringBuilder std__collections__string_builder__StringBuilder_new(void) {
     int32_t init_cap = 32;
-    uint8_t* raw = std__mem__alloc__raw_alloc(init_cap);
+    uint8_t* raw = std__mem__alloc__alloc_array_u8(init_cap);
     return (std__collections__string_builder__StringBuilder){ raw, 0, init_cap };
 }
 
@@ -20582,13 +20787,13 @@ void std__collections__string_builder__StringBuilder_grow(std__collections__stri
     while (new_cap < min_cap) {
         new_cap *= 2;
     }
-    uint8_t* new_raw = std__mem__alloc__raw_resize(self->buf, new_cap);
+    uint8_t* new_raw = std__mem__alloc__resize_u8(self->buf, new_cap);
     self->buf = new_raw;
     self->cap = new_cap;
 }
 
 void std__collections__string_builder__StringBuilder_delete(std__collections__string_builder__StringBuilder* self) {
-    std__mem__alloc__raw_release(self->buf);
+    std__mem__alloc__release_u8(self->buf);
 }
 
 size_t std__collections__string_builder__StringBuilder_count(std__collections__string_builder__StringBuilder* self) {
@@ -20600,7 +20805,7 @@ char std__collections__string_builder__StringBuilder_at(std__collections__string
 }
 
 const char* std__collections__string_builder__StringBuilder_to_str(std__collections__string_builder__StringBuilder* self) {
-    uint8_t* str_data = std__mem__alloc__raw_alloc((self->len + 1));
+    uint8_t* str_data = std__mem__alloc__alloc_array_u8((self->len + 1));
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -22661,7 +22866,7 @@ const char* lsp__protocol__read_message(void) {
     if (content_length == 0) {
         return "";
     }
-    uint8_t* buf = std__mem__alloc__raw_alloc((content_length + 1));
+    uint8_t* buf = std__mem__alloc__alloc_array_u8((content_length + 1));
     {
         size_t __for_e = content_length;
         size_t __for_i = __for_e;
@@ -22677,7 +22882,7 @@ const char* lsp__protocol__read_message(void) {
             size_t i = __for_i;
             int32_t ch = getchar();
             if (ch < 0) {
-                std__mem__alloc__raw_release(buf);
+                std__mem__alloc__release_u8(buf);
                 return "";
             }
             buf[i] = (uint8_t)ch;

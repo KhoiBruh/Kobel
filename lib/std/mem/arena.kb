@@ -43,9 +43,8 @@ impl Arena {
 		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data = raw_alloc(sz);
-		val blk_mem = raw_alloc(ArenaBlock.size());
-		val blk = blk_mem as &ArenaBlock;
+		val data = alloc_array<u8>(sz);
+		val blk = alloc<ArenaBlock>();
 
 		blk.data = data;
 		blk.size = sz;
@@ -68,8 +67,8 @@ impl Arena {
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;
 			val next_blk = blk.next;
-			raw_release(blk.data);
-			raw_release(curr as &u8);
+			release<u8>(blk.data);
+			release<ArenaBlock>(curr as *ArenaBlock);
 			curr = next_blk;
 		}
 		self.current = null;
@@ -83,4 +82,3 @@ impl Arena {
 		return ptr;
 	}
 }
-

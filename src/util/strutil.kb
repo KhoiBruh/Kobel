@@ -1,13 +1,13 @@
 mod util.strutil;
 
 use std.str.*;
-use std.mem.alloc.raw_alloc;
+use std.mem.alloc.alloc_array;
 use std.collections.list.List;
 
 // ============================================================================
 // String utilities shared by the compiler
 //
-// These helpers build strings from raw byte buffers (raw_alloc + str_from_bytes)
+// These helpers build strings from byte buffers (alloc_array<u8> + str_from_bytes)
 // so that they keep working regardless of how `str` is represented by the
 // active backend (they never rely on `str + str` operator overloading).
 // ============================================================================
@@ -25,7 +25,7 @@ pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 impl str {
 	// "std.io" -> "std/io" (module path -> relative file path, without extension)
 	pub fn module_to_rel(val self): str {
-		val buf = raw_alloc(self.len + 1);
+		val buf = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
 			if (c == '.') buf[i] = '/' as u8;
@@ -38,7 +38,7 @@ impl str {
 	// "sub/x.kb" -> "sub.x"  (relative file path -> module name)
 	pub fn path_to_module(val self): str {
 		val stem = self.strip_kb();
-		val buf = raw_alloc(stem.len + 1);
+		val buf = alloc_array<u8>(stem.len + 1);
 		for (i in 0..<stem.len) {
 			val c = stem[i];
 			if (str_is_sep(c)) buf[i] = '.' as u8;
@@ -106,7 +106,7 @@ impl str {
 		if (self.empty()) return name;
 		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 		val total = self.len * 2 + 2 + name.len;
-		val buf = raw_alloc(total + 1);
+		val buf = alloc_array<u8>(total + 1);
 
 		var w = 0;
 		for (c in self) {
@@ -144,7 +144,7 @@ impl str {
 	// `fold_case` (only `normalize_path` needs that). One pass, one allocation —
 	// shared by the three path-conversion helpers below.
 	fn remap_path_bytes(val self, from: char, to: char, fold_case: bool): str {
-		val buf = raw_alloc(self.len + 1);
+		val buf = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
 			buf[i] = when {
@@ -239,7 +239,7 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	for (i in 0..<count) total += parts[i].len;
 	if (count > 1) total += (count - 1);
 
-	val buf = raw_alloc(total + 1);
+	val buf = alloc_array<u8>(total + 1);
 	var w = 0;
 	for (i in 0..<count) {
 		val p = parts[i];
