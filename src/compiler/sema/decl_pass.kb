@@ -179,6 +179,30 @@ impl DeclPass {
 
 	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>());
 
+	// Primitive type shorthands (fresh arena allocation per call).
+	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
+	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
+	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
+	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
+	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
+	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
+
+	// Switches the module context (both the pass and its symbol table) and
+	// returns the previous module so the caller can restore it.
+	pub fn enter_module(var self, module: str): str {
+		val prev = self.current_module;
+		if (module.len > 0) {
+			self.current_module = module;
+			self.symtab.set_current_module(module);
+		}
+		return prev;
+	}
+
+	pub fn leave_module(var self, prev: str) {
+		self.current_module = prev;
+		self.symtab.set_current_module(prev);
+	}
+
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.make<NamedType>(NamedType.TAG, NamedType(name, type_args), line, col);
 
@@ -297,7 +321,7 @@ impl DeclPass {
 	}
 
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
-		if (node == null) return alloc_primitive(&self.arena, type_none());
+		if (node == null) return self.t_none();
 
 		return when (node.kind) {
 			NodeKind.TYPE_NAMED -> {
@@ -334,7 +358,7 @@ impl DeclPass {
 				}
 
 				self.report_error(node, "Unknown type '${name}'");
-				yield alloc_primitive(&self.arena, type_none());
+				yield self.t_none();
 			}
 			NodeKind.TYPE_POINTER -> {
 				val ptr_ast = node.to<PointerType>();
@@ -358,7 +382,7 @@ impl DeclPass {
 				}
 				yield res_ty;
 			}
-			else -> alloc_primitive(&self.arena, type_none());
+			else -> self.t_none();
 		};
 	}
 
@@ -444,7 +468,7 @@ impl DeclPass {
 				ret_type = self.resolve_ast_type(f.return_type);
 			} else {
 				ret_type = self.infer_decl_return_type(f);
-				if (ret_type == null) ret_type = alloc_primitive(&self.arena, type_none());
+				if (ret_type == null) ret_type = self.t_none();
 			}
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
@@ -484,22 +508,22 @@ impl DeclPass {
 					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 					if (is_f32) {
 						f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
-						return alloc_primitive(&self.arena, type_f32());
+						return self.t_prim(type_f32());
 					}
 					f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
-					return alloc_primitive(&self.arena, type_f64());
+					return self.t_prim(type_f64());
 				}
 				LiteralKind.BOOL -> {
 					f.return_type = self.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
-					return alloc_primitive(&self.arena, type_bool());
+					return self.t_bool();
 				}
 				LiteralKind.STRING -> {
 					f.return_type = self.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
-					return alloc_primitive(&self.arena, type_str());
+					return self.t_str();
 				}
 				LiteralKind.CHAR -> {
 					f.return_type = self.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
-					return alloc_primitive(&self.arena, type_char());
+					return self.t_char();
 				}
 				else -> {}
 			}
@@ -599,7 +623,7 @@ impl DeclPass {
 				ret_type = self.resolve_ast_type(f.return_type);
 			} else {
 				ret_type = self.infer_decl_return_type(f);
-				if (ret_type == null) ret_type = alloc_primitive(&self.arena, type_none());
+				if (ret_type == null) ret_type = self.t_none();
 			}
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);

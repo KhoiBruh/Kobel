@@ -38,32 +38,21 @@ impl BodyPass {
 
 	pub fn check_var_decl_stmt(var self, node: *AstNode) {
 		val vd = node.to<VarDeclStmt>() as &VarDeclStmt;
-		var var_ty = alloc_primitive(&self.arena, type_none());
-
+		var var_ty = self.t_none();
 		var has_init = false;
-		var init_ty = alloc_primitive(&self.arena, type_none());
 
 		if (vd.type_annotation != null) {
 			var_ty = self.resolve_type(vd.type_annotation);
 			if (vd.initializer != null) {
 				has_init = true;
 				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(vd.initializer, var_ty);
-
-				val prev_stmt = self.is_stmt_level;
-				self.is_stmt_level = true;
-				init_ty = self.check_expr(vd.initializer);
-				self.is_stmt_level = prev_stmt;
-				if (!var_ty.can_assign(init_ty))
-					self.report_error(node, "Type mismatch in variable declaration for '${vd.name}'");
+				val init_ty = self.check_expr_stmt(vd.initializer);
+				self.ensure(var_ty.can_assign(init_ty), node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
 		} else {
 			if (vd.initializer != null) {
 				has_init = true;
-				val prev_stmt = self.is_stmt_level;
-				self.is_stmt_level = true;
-				init_ty = self.check_expr(vd.initializer);
-				self.is_stmt_level = prev_stmt;
-				var_ty = init_ty;
+				var_ty = self.check_expr_stmt(vd.initializer);
 			} else {
 				self.report_error(node, "Variable '${vd.name}' without type must have initializer");
 			}
@@ -75,32 +64,28 @@ impl BodyPass {
 			vd.type_annotation = self.arena.ast_type_from_type(var_ty);
 
 		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col, null));
-		if (!ok) self.report_error(node, "Variable '${vd.name}' is already defined in this scope");
+		self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
 	}
 
 	pub fn check_if_stmt(var self, node: *AstNode) {
 		val if_s = node.to<IfStmt>();
 		val cond_ty = self.check_expr(if_s.condition);
-		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "If statement condition must be bool");
+		self.ensure(cond_ty.kind == DataType.BOOL, node, "If statement condition must be bool");
 
 		var smart_cast_sym = "";
 		var smart_cast_ty: *Type = null;
 
-		var cond = if_s.condition;
-		while (cond != null) {
-			if (cond is GroupExpr as g) cond = g.expr;
-			else break;
-		}
-
-		if (cond is IsExpr as is_e) {
+		val cond = self.unwrap_group(if_s.condition);
+		if (cond != null && cond.kind == NodeKind.EXPR_IS) {
+			val is_e = cond.to<IsExpr>();
 			val is_expr = is_e.expr;
-			if (is_expr is IdentifierExpr as id) {
+			if (is_expr != null && is_expr.kind == NodeKind.EXPR_IDENTIFIER) {
+				val id = is_expr.to<IdentifierExpr>();
 				val subj_sym = self.symtab.lookup(id.name);
 				if (subj_sym != null) {
 					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
 					if (smart_cast_ty != null) {
-						if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
-						else smart_cast_sym = id.name;
+						smart_cast_sym = if (!is_e.alias.empty()) is_e.alias else id.name;
 					}
 				}
 			}
@@ -121,7 +106,7 @@ impl BodyPass {
 	pub fn check_while_stmt(var self, node: *AstNode) {
 		val wh = node.to<WhileStmt>();
 		val cond_ty = self.check_expr(wh.condition);
-		if (cond_ty.kind != DataType.BOOL) self.report_error(node, "While statement condition must be bool");
+		self.ensure(cond_ty.kind == DataType.BOOL, node, "While statement condition must be bool");
 		self.loop_depth++;
 		self.check_statement(wh.body);
 		self.loop_depth--;
@@ -129,9 +114,7 @@ impl BodyPass {
 
 	pub fn check_for_stmt(var self, node: *AstNode) {
 		val fs = node.to<ForStmt>() as &ForStmt;
-		if (!fs.is_range && !for_is_lvalue(fs.iterable)) {
-			self.report_error(node, "The iterated expression of a 'for' must be a variable or a field");
-		}
+		self.ensure(fs.is_range || for_is_lvalue(fs.iterable), node, "The iterated expression of a 'for' must be a variable or a field");
 		// Containers that implement `Iterable` are walked through the trait
 		// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
 		// lowering (see desugar_for_iterable).
@@ -152,11 +135,10 @@ impl BodyPass {
 			) self.coerce_to_list(ret.value, self.current_fn_return_type);
 
 			val val_ty = self.check_expr(ret.value);
-
-			if (!self.current_fn_return_type.can_assign(val_ty))
-				self.report_error(node, "Return value type does not match function return type");
-		} else if (self.current_fn_return_type.kind != DataType.NONE)
-			self.report_error(node, "Non-none function must return a value");
+			self.ensure(self.current_fn_return_type.can_assign(val_ty), node, "Return value type does not match function return type");
+		} else {
+			self.ensure(self.current_fn_return_type.kind == DataType.NONE, node, "Non-none function must return a value");
+		}
 	}
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
@@ -165,50 +147,12 @@ impl BodyPass {
 		if (ws.condition != null) cond_ty = self.check_expr(ws.condition);
 
 		for (arm in ws.arms) {
-			var smart_cast_sym = "";
-			var smart_cast_ty: *Type = null;
+			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, ws.condition, cond_ty);
+			val sym = self.arm_smart_cast_sym(arm.patterns, ws.condition);
 
-			val ws_cond = ws.condition;
-			if (ws_cond is IdentifierExpr as ws_id) {
-				if (arm.patterns.len == 1) {
-					val pat = arm.patterns.first();
-					if (pat is IsExpr as is_e) {
-						val is_e_mut = is_e as &IsExpr;
-						if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
-						smart_cast_ty = self.check_is_pattern(ws.condition, cond_ty, pat);
-						if (smart_cast_ty != null) {
-							if (!is_e.alias.empty()) smart_cast_sym = is_e.alias;
-							else smart_cast_sym = ws_id.name;
-						}
-					}
-				}
-			}
-
-			if (smart_cast_sym.empty()) {
-				for (pat in arm.patterns) {
-					var p_ty: *Type = null;
-					var is_is_pat = false;
-					if (ws.condition != null) {
-						if (pat is IsExpr as is_e) {
-							is_is_pat = true;
-							val is_e_mut = is_e as &IsExpr;
-							if (is_e_mut.expr == null) is_e_mut.expr = ws.condition;
-							self.check_is_pattern(ws.condition, cond_ty, pat);
-							p_ty = alloc_primitive(&self.arena, type_bool());
-						}
-					}
-					if (!is_is_pat) {
-						p_ty = self.check_expr(pat);
-					}
-
-					if (ws.condition == null && p_ty.kind != DataType.BOOL)
-						self.report_error(pat, "Boolean when arm condition must be bool");
-				}
-			}
-
-			if (!smart_cast_sym.empty() && smart_cast_ty != null) {
+			if (!sym.empty() && smart_cast_ty != null) {
 				self.symtab.enter_scope(false);
-				self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
+				self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, false, false, 0, 0));
 				self.check_statement(arm.body);
 				self.symtab.exit_scope();
 			} else self.check_statement(arm.body);

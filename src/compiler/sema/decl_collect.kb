@@ -111,7 +111,7 @@ impl DeclPass {
 			ret_type = self.resolve_ast_type(f.return_type);
 		} else {
 			ret_type = self.infer_decl_return_type(f);
-			if (ret_type == null) ret_type = alloc_primitive(&self.arena, type_none());
+			if (ret_type == null) ret_type = self.t_none();
 		}
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
@@ -127,7 +127,7 @@ impl DeclPass {
 
 	pub fn collect_enum(var self, node: *AstNode) {
 		val e = node.to<EnumDecl>() as &EnumDecl;
-		var under_type = alloc_primitive(&self.arena, type_i32());
+		var under_type = self.t_prim(type_i32());
 		if (e.underlying_type != null) under_type = self.resolve_ast_type(e.underlying_type);
 
 		// Resolve member values: implicit members continue from the previous value.
@@ -166,7 +166,7 @@ impl DeclPass {
 
 	pub fn collect_const(var self, node: *AstNode) {
 		val c = node.to<ConstDecl>() as &ConstDecl;
-		var c_type = alloc_primitive(&self.arena, type_i32());
+		var c_type = self.t_prim(type_i32());
 		if (c.type_node != null) c_type = self.resolve_ast_type(c.type_node);
 	
 		val c_name = self.c_name_for(c.name);

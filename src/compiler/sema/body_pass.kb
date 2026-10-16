@@ -126,6 +126,51 @@ impl BodyPass {
 		};
 	}
 
+	// ============================================================================
+	// Shorthands
+	// ============================================================================
+
+	// Primitive result types. Each call allocates a fresh `Type` in the arena,
+	// exactly like `self.t_prim(type_xxx())` did.
+	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
+	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
+	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
+	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
+	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
+	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
+
+	// Rewrites `node` in place so it becomes `with` (the parent keeps pointing
+	// at the same node, which is how sema lowers sugar for the backend).
+	pub fn replace_node(var self, node: *AstNode, with: *AstNode) {
+		val n = node as &AstNode;
+		n.kind = with.kind;
+		n.data = with.data;
+	}
+
+	// Reports `msg` at `node` unless `cond` holds.
+	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
+		if (!cond) self.report_error(node, msg);
+	}
+
+	pub fn enter_module(var self, module: str): str {
+		val prev = self.symtab.current_module;
+		if (module.len > 0) self.symtab.set_current_module(module);
+		return prev;
+	}
+
+	pub fn leave_module(var self, prev: str) {
+		self.symtab.set_current_module(prev);
+	}
+
+	// Evaluates an expression with statement-level context (allowing statement-only constructs like jump Elvis)
+	pub fn check_expr_stmt(var self, expr: *AstNode): *Type {
+		val prev = self.is_stmt_level;
+		self.is_stmt_level = true;
+		val ty = self.check_expr(expr);
+		self.is_stmt_level = prev;
+		return ty;
+	}
+
 	pub fn report_error(var self, node: *AstNode, msg: str) {
 		// Prefix the module name (if any) so we know which module an error is in for multi-module builds
 		var loc: str = "";
@@ -154,7 +199,7 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn check_expr(var self, node: *AstNode): *Type {
-		if (node == null) return alloc_primitive(&self.arena, type_none());
+		if (node == null) return self.t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr);
 
 		if (
@@ -178,7 +223,7 @@ impl BodyPass {
 			NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
 			NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
 			NodeKind.EXPR_IS -> self.check_is_expr(node);
-			else -> alloc_primitive(&self.arena, type_none());
+			else -> self.t_none();
 		};
 	}
 
@@ -190,10 +235,7 @@ impl BodyPass {
 		if (node == null) return;
 
 		if (node is ExprStmt as es) {
-			val prev_stmt = self.is_stmt_level;
-			self.is_stmt_level = true;
-			self.check_expr(es.expr);
-			self.is_stmt_level = prev_stmt;
+			self.check_expr_stmt(es.expr);
 			return;
 		}
 		if (node is YieldStmt as ys) {
