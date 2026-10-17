@@ -15595,7 +15595,24 @@ void compiler__sema__decl_pass__DeclPass_check_bounds(compiler__sema__decl_pass_
             }
             const char* aname = (*compiler__ast__node__to_compiler__ast__types__NamedType(arg)).name;
             compiler__sema__symbol__Symbol* asym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, aname);
-            if ((asym == NULL) || ((*asym->type_ptr).kind != 18)) {
+            if (asym == NULL) {
+                {
+                    if (__for_up) {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    } else {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                    if (__for_go) {
+                        if (__for_up) {
+                            __for_i = (__for_i + 1);
+                        } else {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                    continue;
+                }
+            }
+            if ((*asym->type_ptr).kind != 18) {
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -15749,10 +15766,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn_as(compiler__sema__decl_pass
             __for_i = (__for_i + 1);
         }
     }
-    compiler__sema__types__Type* ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
-    if (f->return_type != NULL) {
-        ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type);
-    }
+    compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type) : compiler__sema__decl_pass__DeclPass_t_none(self));
     compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
     compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__box_symbol(&self->arena, (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, f->is_pub, node->line, node->col, (uint8_t*)node }));
     f->name = final_name;

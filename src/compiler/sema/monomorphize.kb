@@ -278,8 +278,8 @@ impl DeclPass {
 			val arg = arg_asts[i];
 			if (arg.kind != NodeKind.TYPE_NAMED) continue;
 			val aname = arg.to<NamedType>().name;
-			val asym = self.symtab.lookup(aname);
-			if (asym == null || asym.type_ptr.kind != DataType.STRUCT) continue;
+			val asym = self.symtab.lookup(aname) ?: continue;
+			if (asym.type_ptr.kind != DataType.STRUCT) continue;
 
 			for (b in gp.bounds) {
 				val bt = self.symtab.find_trait(b);
@@ -386,8 +386,7 @@ impl DeclPass {
 		val f = node.to<FnDecl>() as &FnDecl;
 		var param_types = List<*Type>();
 		for (p in f.params) param_types.add(self.resolve_ast_type(p.type_node));
-		var ret_type = self.t_none();
-		if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type);
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
 		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node as *u8)));
