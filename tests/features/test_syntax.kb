@@ -353,6 +353,27 @@ fn test_null_safety(): bool {
 	if (elvis_chained_ret(null, &y) != 20) return false;
 	if (elvis_chained_ret(&x, &y) != 10) return false;
 
+	// 10. Elvis yield jump in when expression
+	val when_test1 = when (1) {
+		1 -> {
+			val p: *i32? = null;
+			val unwrapped = p ?: yield 404;
+			yield *unwrapped;
+		}
+		else -> 0
+	};
+	if (when_test1 != 404) return false;
+
+	val when_test2 = when (1) {
+		1 -> {
+			val p: *i32? = &x;
+			val unwrapped = p ?: yield 404;
+			yield *unwrapped;
+		}
+		else -> 0
+	};
+	if (when_test2 != 10) return false;
+
 	return true;
 }
 

@@ -441,7 +441,9 @@ impl DeclPass {
 		if (
 			node.kind == NodeKind.STMT_RETURN ||
 			node.kind == NodeKind.STMT_BREAK ||
-			node.kind == NodeKind.STMT_CONTINUE
+			node.kind == NodeKind.STMT_CONTINUE ||
+			node.kind == NodeKind.STMT_YIELD ||
+			node.kind == NodeKind.STMT_BLOCK
 		) return self.clone_stmt(node, subst);
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> {
@@ -549,11 +551,8 @@ impl DeclPass {
 	// to a literal, a call carrying type arguments instantiates its template, and
 	// everything else is cloned caller-first like the original.
 	fn clone_call_expr(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val size_lit = self.clone_size_query(node, subst);
-		if (size_lit != null) return size_lit;
-
-		val tcall = self.clone_template_call(node, subst);
-		if (tcall != null) return tcall;
+		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
+		if (special != null) return special;
 
 		val c = node.to<CallExpr>();
 		val args = self.clone_expr_list(c.args, subst);

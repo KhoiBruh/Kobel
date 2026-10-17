@@ -169,14 +169,12 @@ impl BodyPass {
 		is GroupExpr as g -> self.for_iterable_type(g.expr),
 
 		is IdentifierExpr as id -> {
-			val sym = self.symtab.lookup(id.name);
-			if (sym != null) yield sym.type_ptr;
-			yield null;
+			val sym = self.symtab.lookup(id.name) ?: yield null;
+			yield sym.type_ptr;
 		}
 
 		is MemberExpr as mem -> {
-			var obj = self.for_iterable_type(mem.object);
-			if (obj == null) yield null;
+			var obj = self.for_iterable_type(mem.object) ?: yield null;
 
 			if (obj.kind == DataType.POINTER) obj = obj.as_pointer().pointee;
 			if (obj.kind != DataType.STRUCT) yield null;

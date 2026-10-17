@@ -30,7 +30,9 @@ pub struct CCodeGen {
 	pub array_elem_hint: str = "",
 	pub yield_target: str = "",
 	pub is_yield_return: bool = false,
-	pub current_fn_ret_type: str = ""
+	pub current_fn_ret_type: str = "",
+	pub yield_exit_label: str = "",
+	pub when_label_counter: usz = 0
 }
 
 impl CCodeGen {
@@ -46,7 +48,9 @@ impl CCodeGen {
 		"",
 		"",
 		false,
-		""
+		"",
+		"",
+		0
 	);
 
 	pub fn is_pointer_var(val self, name: str) => name in self.pointer_vars;
@@ -826,6 +830,7 @@ impl CCodeGen {
 				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
 					cur.kind == NodeKind.STMT_BREAK ||
 					cur.kind == NodeKind.STMT_CONTINUE ||
+					cur.kind == NodeKind.STMT_YIELD ||
 					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
 					res = "${res}${ind}if (${vd.name} == NULL) {\n";
@@ -1001,6 +1006,7 @@ impl CCodeGen {
 					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 						bin.right.kind == NodeKind.STMT_BREAK ||
 						bin.right.kind == NodeKind.STMT_CONTINUE ||
+						bin.right.kind == NodeKind.STMT_YIELD ||
 						bin.right.kind == NodeKind.STMT_BLOCK;
 
 					if (is_jump) {
@@ -1041,6 +1047,7 @@ impl CCodeGen {
 				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
 					cur.kind == NodeKind.STMT_BREAK ||
 					cur.kind == NodeKind.STMT_CONTINUE ||
+					cur.kind == NodeKind.STMT_YIELD ||
 					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
 					res = "${res}${ind}if (${tgt} == NULL) {\n";
@@ -1074,8 +1081,12 @@ impl CCodeGen {
 			return "${ind}return;\n";
 		}
 		if (!self.yield_target.empty()) {
-			if (ys.value != null) return "${ind}${self.yield_target} = ${self.gen_expr(ys.value)};\n";
-			return "";
+			val val_str = if (ys.value != null) self.gen_expr(ys.value) else "";
+			var res = if (!val_str.empty()) "${ind}${self.yield_target} = ${val_str};\n" else "";
+			if (!self.yield_exit_label.empty()) {
+				res = "${res}${ind}goto ${self.yield_exit_label};\n";
+			}
+			return res;
 		}
 		if (ys.value != null) return "${ind}${self.gen_expr(ys.value)};\n";
 		return "";
@@ -1166,6 +1177,16 @@ impl CCodeGen {
 
 		val prev_target = self.yield_target;
 		val prev_is_ret = self.is_yield_return;
+		val prev_exit = self.yield_exit_label;
+
+		self.when_label_counter++;
+		val when_id = self.when_label_counter;
+		if (!is_ret) {
+			self.yield_exit_label = "__when_end_${when_id}";
+		} else {
+			self.yield_exit_label = "";
+		}
+
 		self.yield_target = target_name;
 		self.is_yield_return = is_ret;
 
@@ -1209,8 +1230,13 @@ impl CCodeGen {
 		}
 		if (!first) res += ind + "}\n";
 
+		if (!is_ret) {
+			res = "${res}${ind}${self.yield_exit_label}:;\n";
+		}
+
 		self.yield_target = prev_target;
 		self.is_yield_return = prev_is_ret;
+		self.yield_exit_label = prev_exit;
 		return res;
 	}
 

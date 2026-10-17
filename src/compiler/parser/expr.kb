@@ -373,6 +373,17 @@ impl Parser {
 						val kw_col = self.previous().col;
 						yield self.continue_stmt(kw_line, kw_col);
 					}
+					self.match_token(TokenType.KW_YIELD) -> {
+						val kw_line = self.previous().line;
+						val kw_col = self.previous().col;
+						val value = if (
+							!self.check(TokenType.SEMI_COLON) &&
+							!self.check(TokenType.CLOSE_BRACE) &&
+							!self.check(TokenType.CLOSE_PAREN)
+						) self.parse_expression(PREC_NONE) else null;
+
+						yield self.yield_stmt(value, kw_line, kw_col);
+					}
 					else -> self.parse_expression(PREC_ELVIS - 1);
 				};
 

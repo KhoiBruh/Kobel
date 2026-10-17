@@ -975,6 +975,8 @@ struct compiler__codegen__c_codegen__CCodeGen {
     const char* yield_target;
     bool is_yield_return;
     const char* current_fn_ret_type;
+    const char* yield_exit_label;
+    size_t when_label_counter;
 };
 
 struct compiler__lexer__lexer__Lexer {
@@ -15802,7 +15804,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
     if (node == NULL) {
         return NULL;
     }
-    if (((node->kind == 25) || (node->kind == 26)) || (node->kind == 27)) {
+    if (((((node->kind == 25) || (node->kind == 26)) || (node->kind == 27)) || (node->kind == 29)) || (node->kind == 19)) {
         return compiler__sema__decl_pass__DeclPass_clone_stmt(self, node, subst);
     }
     if (node->kind == 4) {
@@ -15865,13 +15867,10 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_call_expr(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__monomorphize__GenSubst* subst) {
-    compiler__ast__node__AstNode* size_lit = compiler__sema__decl_pass__DeclPass_clone_size_query(self, node, subst);
-    if (size_lit != NULL) {
-        return size_lit;
-    }
-    compiler__ast__node__AstNode* tcall = compiler__sema__decl_pass__DeclPass_clone_template_call(self, node, subst);
-    if (tcall != NULL) {
-        return tcall;
+    compiler__ast__node__AstNode* special = compiler__sema__decl_pass__DeclPass_clone_size_query(self, node, subst);
+    if (special == NULL) special = compiler__sema__decl_pass__DeclPass_clone_template_call(self, node, subst);
+    if (special != NULL) {
+        return special;
     }
     compiler__ast__expr__CallExpr* c = compiler__ast__node__to_compiler__ast__expr__CallExpr(node);
     std__collections__list__List_ptr_compiler__ast__node__AstNode args = compiler__sema__decl_pass__DeclPass_clone_expr_list(self, c->args, subst);
@@ -17281,9 +17280,7 @@ void compiler__sema__decl_pass__DeclPass_collect_prim_impl(compiler__sema__decl_
                 ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type);
             } else {
                 ret_type = compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f);
-                if (ret_type == NULL) {
-                    ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
-                }
+                if (ret_type == NULL) ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
             }
             compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
             const char* m_c_name = compiler__sema__decl_pass__method_c_name(kobel_concat(kobel_concat(prim_name, "_"), f->name), param_types.len, str_in_list(f->name, overloaded), used_names);
@@ -17496,13 +17493,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn(compiler__sema__decl_pass__D
             __for_i = (__for_i + 1);
         }
     }
-    compiler__sema__types__Type* ret_type = NULL;
-    if (f->return_type != NULL) {
-        ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type);
-    } else {
-        ret_type = compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f);
-        if (ret_type == NULL) ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
-    }
+    compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f) : compiler__sema__decl_pass__DeclPass_t_none(self)));
     compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
     const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, f->name);
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ f->name, c_name, 3, fn_type, false, f->is_pub, node->line, node->col, (uint8_t*)node });
@@ -18133,10 +18124,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_binary_ex
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_elvis_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__BinaryExpr* bin, bool was_stmt) {
     compiler__sema__types__Type* lt = compiler__sema__body_pass__BodyPass_check_expr(self, bin->left);
     compiler__sema__body_pass__BodyPass_ensure(self, ((lt->kind == 16) || (lt->kind == 15)), bin->left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
-    bool is_jump = (((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 19));
+    bool is_jump = ((((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 29)) || ((*bin->right).kind == 19));
     compiler__sema__types__Type* rt = NULL;
     if (is_jump) {
-        compiler__sema__body_pass__BodyPass_ensure(self, was_stmt, bin->right, "Elvis operator with jump statement ('return', 'break', 'continue') is only allowed in variable declarations, assignments, or statement expressions");
+        compiler__sema__body_pass__BodyPass_ensure(self, was_stmt, bin->right, "Elvis operator with jump statement ('return', 'yield', 'break', 'continue') is only allowed in variable declarations, assignments, or statement expressions");
         compiler__sema__body_pass__BodyPass_check_statement(self, bin->right);
     } else {
         self->is_stmt_level = was_stmt;
@@ -19126,10 +19117,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_for_iterable_ty
     } else if (node != NULL && node->kind == compiler__ast__expr__IdentifierExpr__TAG) {
         compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)node)->data);
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
-        if (sym != NULL) {
-            return sym->type_ptr;
+        if (sym == NULL) {
+            return NULL;
         }
-        return NULL;
+        return sym->type_ptr;
     } else if (node != NULL && node->kind == compiler__ast__expr__MemberExpr__TAG) {
         compiler__ast__expr__MemberExpr* mem = (compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data);
         compiler__sema__types__Type* obj = compiler__sema__body_pass__BodyPass_for_iterable_type(self, mem->object);
@@ -20155,7 +20146,7 @@ size_t compiler__sema__body_pass__prim_c_size(const char* name) {
 }
 
 compiler__codegen__c_codegen__CCodeGen compiler__codegen__c_codegen__CCodeGen_new(void) {
-    return (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new(4), std__collections__hash_set__HashSet_new(16), std__collections__hash_set__HashSet_new(16), std__collections__hash_set__HashSet_new(16), std__collections__hash_map__HashMap_str_new(16), std__collections__list__List_str_new(4), "", "", false, "" };
+    return (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__list__List_str_new(4), std__collections__hash_set__HashSet_new(16), std__collections__hash_set__HashSet_new(16), std__collections__hash_set__HashSet_new(16), std__collections__hash_map__HashMap_str_new(16), std__collections__list__List_str_new(4), "", "", false, "", "", 0 };
 }
 
 bool compiler__codegen__c_codegen__CCodeGen_is_pointer_var(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
@@ -20463,6 +20454,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
         } else {
             is_str = kobel_streq(compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, obj_node), "const char*");
         }
+        __when_end_20:;
         if (is_str) {
             return kobel_concat(kobel_concat("(uint64_t)strlen(", compiler__codegen__c_codegen__CCodeGen_gen_expr(self, obj_node)), ")");
         }
@@ -20964,7 +20956,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_var_elvis_init(compiler__
                 break;
             }
         } else {
-            bool is_jump = ((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 19));
+            bool is_jump = (((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 29)) || (cur->kind == 19));
             if (is_jump) {
                 res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), vd->name), " == NULL) {\n");
                 self->indent_level++;
@@ -21171,7 +21163,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_expr_stmt(compiler__codeg
         if ((bin_candidate != NULL && bin_candidate->kind == compiler__ast__expr__BinaryExpr__TAG)) {
             compiler__ast__expr__BinaryExpr* bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)bin_candidate)->data);
             if (bin->op == 37) {
-                bool is_jump = (((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 19));
+                bool is_jump = ((((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 29)) || ((*bin->right).kind == 19));
                 if (is_jump) {
                     return compiler__codegen__c_codegen__CCodeGen_gen_elvis_jump_stmt(self, bin, ind);
                 }
@@ -21213,7 +21205,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_assign_elvis_stmt(compile
                 break;
             }
         } else {
-            bool is_jump = ((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 19));
+            bool is_jump = (((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 29)) || (cur->kind == 19));
             if (is_jump) {
                 res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), tgt), " == NULL) {\n");
                 self->indent_level++;
@@ -21247,10 +21239,12 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_yield_stmt(compiler__code
         return kobel_concat(ind, "return;\n");
     }
     if (!str_empty(self->yield_target)) {
-        if (ys->value != NULL) {
-            return kobel_concat(kobel_concat(kobel_concat(kobel_concat(ind, self->yield_target), " = "), compiler__codegen__c_codegen__CCodeGen_gen_expr(self, ys->value)), ";\n");
+        const char* val_str = ((ys->value != NULL) ? compiler__codegen__c_codegen__CCodeGen_gen_expr(self, ys->value) : "");
+        const char* res = (!str_empty(val_str) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(ind, self->yield_target), " = "), val_str), ";\n") : "");
+        if (!str_empty(self->yield_exit_label)) {
+            res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "goto "), self->yield_exit_label), ";\n");
         }
-        return "";
+        return res;
     }
     if (ys->value != NULL) {
         return kobel_concat(kobel_concat(ind, compiler__codegen__c_codegen__CCodeGen_gen_expr(self, ys->value)), ";\n");
@@ -21357,6 +21351,14 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     bool first = true;
     const char* prev_target = self->yield_target;
     bool prev_is_ret = self->is_yield_return;
+    const char* prev_exit = self->yield_exit_label;
+    self->when_label_counter++;
+    size_t when_id = self->when_label_counter;
+    if (!is_ret) {
+        self->yield_exit_label = kobel_concat("__when_end_", usz_to_str(when_id));
+    } else {
+        self->yield_exit_label = "";
+    }
     self->yield_target = target_name;
     self->is_yield_return = is_ret;
     {
@@ -21414,8 +21416,12 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     if (!first) {
         res = kobel_concat(res, kobel_concat(ind, "}\n"));
     }
+    if (!is_ret) {
+        res = kobel_concat(kobel_concat(kobel_concat(res, ind), self->yield_exit_label), ":;\n");
+    }
     self->yield_target = prev_target;
     self->is_yield_return = prev_is_ret;
+    self->yield_exit_label = prev_exit;
     return res;
 }
 
@@ -23017,17 +23023,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             right = compiler__parser__parser__Parser_return_stmt(self, value, kw_line, kw_col);
+            goto __when_end_28;
         } else if (compiler__parser__parser__Parser_match_token(self, 55)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_break_stmt(self, kw_line, kw_col);
+            goto __when_end_28;
         } else if (compiler__parser__parser__Parser_match_token(self, 56)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_continue_stmt(self, kw_line, kw_col);
+            goto __when_end_28;
+        } else if (compiler__parser__parser__Parser_match_token(self, 67)) {
+            size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
+            size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
+            compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
+            right = compiler__parser__parser__Parser_yield_stmt(self, value, kw_line, kw_col);
+            goto __when_end_28;
         } else {
             right = compiler__parser__parser__Parser_parse_expression(self, (compiler__parser__expr__PREC_ELVIS - 1));
         }
+        __when_end_28:;
         return compiler__parser__parser__Parser_binary(self, 37, left, right, line, col);
     } else if (compiler__parser__parser__Parser_match_token(self, 3)) {
         compiler__lexer__token__Token member_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected identifier after '.'");
@@ -23524,9 +23540,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         } else if (!kobel_streq(pname.text, "self")) {
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
             ptype = compiler__parser__parser__Parser_parse_type(self);
+            goto __when_end_31;
         } else {
             ptype = NULL;
         }
+        __when_end_31:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         std__collections__list__List_compiler__ast__decl__Param_add(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -23544,9 +23562,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
             } else if (!kobel_streq(p_name.text, "self")) {
                 compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
                 p_type = compiler__parser__parser__Parser_parse_type(self);
+                goto __when_end_32;
             } else {
                 p_type = NULL;
             }
+            __when_end_32:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             std__collections__list__List_compiler__ast__decl__Param_add(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -23558,12 +23578,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression body");
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
+        goto __when_end_33;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' or '{' for function body");
         body = NULL;
+        goto __when_end_33;
     }
+    __when_end_33:;
     return compiler__parser__parser__Parser_fn_decl(self, name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 }
 
@@ -24192,17 +24215,22 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
     if (!std__io__file_exists(cfg.output)) {
         std__io__println(kobel_concat(kobel_concat("Target '", cfg.output), "' not found. Building first..."));
         needs_build = true;
+        goto __when_end_35;
     } else if (!std__io__file_exists(stamp_file)) {
         std__io__println("No previous build stamp found. Rebuilding...");
         needs_build = true;
+        goto __when_end_35;
     } else {
         const char* saved_stamp = str_trim(std__io__read_file(stamp_file));
         if (!kobel_streq(saved_stamp, current_stamp)) {
             std__io__println("Source changes detected. Rebuilding...");
             needs_build = true;
+            goto __when_end_35;
         }
         needs_build = false;
+        goto __when_end_35;
     }
+    __when_end_35:;
     if (needs_build) {
         int32_t build_code = compiler__driver__commands__cmd_build(manifest_path);
         if (build_code != 0) {
@@ -27143,8 +27171,8 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
     compiler__lexer__lexer__Lexer lexer = compiler__lexer__lexer__Lexer_new(source);
     std__collections__list__List_compiler__lexer__token__Token tokens = compiler__lexer__lexer__Lexer_tokenize(&lexer);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
-    compiler__ast__node__AstNode* prog_node = compiler__parser__parser__Parser_parse_program(&parser);
     lsp__json__JsonValue* arr = lsp__json__json_arr();
+    compiler__ast__node__AstNode* prog_node = compiler__parser__parser__Parser_parse_program(&parser);
     if (prog_node == NULL) {
         return arr;
     }

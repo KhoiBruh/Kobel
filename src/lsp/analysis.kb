@@ -540,10 +540,8 @@ pub fn document_symbols(source: str): *JsonValue {
 	var lexer = Lexer(source);
 	val tokens = lexer.tokenize();
 	var parser = Parser(tokens);
-	val prog_node = parser.parse_program();
-
 	val arr = json_arr();
-	if (prog_node == null) return arr;
+	val prog_node = parser.parse_program() ?: return arr;
 
 	val prog = prog_node.to<Program>();
 	for (decl in prog) {
