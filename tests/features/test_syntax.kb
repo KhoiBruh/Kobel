@@ -53,6 +53,17 @@ impl PointWithDefaults {
 	}
 }
 
+struct SafeNode {
+	pub name: str,
+	pub next: *SafeNode? = null,
+	pub child: *SafeNode? = null
+}
+
+impl SafeNode {
+	pub fn get_name(val self): str => self.name;
+	pub fn get_child(val self): *SafeNode? => self.child;
+}
+
 fn greet_default(name: str, greeting: str = "Hello", punctuation: str = "!"): str {
 	return "${greeting}, ${name}${punctuation}";
 }
@@ -377,6 +388,72 @@ fn test_null_safety(): bool {
 	return true;
 }
 
+fn safe_call_chain_ret(node: *SafeNode?): str {
+	return node?.child?.name ?: "none";
+}
+
+fn safe_call_jump_ret(node: *SafeNode?): str {
+	val name = node?.child?.name ?: return "escaped";
+	return name;
+}
+
+fn test_safe_calls(): bool {
+	// 1. Safe access on null pointer
+	val null_node: *SafeNode? = null;
+	val s1: str = null_node?.name ?: "fallback";
+	if (s1 != "fallback") return false;
+
+	// 2. Safe access on non-null pointer
+	var leaf = SafeNode("leaf", null, null);
+	val s2: str = (&leaf)?.name ?: "fallback";
+	if (s2 != "leaf") return false;
+
+	// 3. Chained safe member access
+	var root = SafeNode("root", null, &leaf);
+	val s3: str = (&root)?.child?.name ?: "fallback";
+	if (s3 != "leaf") return false;
+
+	val s4: str = null_node?.child?.name ?: "fallback";
+	if (s4 != "fallback") return false;
+
+	var lonely = SafeNode("lonely", null, null);
+	val s5: str = (&lonely)?.child?.name ?: "fallback";
+	if (s5 != "fallback") return false;
+
+	// 4. Safe call with Elvis return jump
+	if (safe_call_jump_ret(null) != "escaped") return false;
+	if (safe_call_jump_ret(&lonely) != "escaped") return false;
+	if (safe_call_jump_ret(&root) != "leaf") return false;
+
+	// 5. Safe call in helper return
+	if (safe_call_chain_ret(null) != "none") return false;
+	if (safe_call_chain_ret(&lonely) != "none") return false;
+	if (safe_call_chain_ret(&root) != "leaf") return false;
+
+	// 6. Safe method call
+	val m1: str = null_node?.get_name() ?: "no-name";
+	if (m1 != "no-name") return false;
+
+	val m2: str = (&leaf)?.get_name() ?: "no-name";
+	if (m2 != "leaf") return false;
+
+	val m3: *SafeNode? = (&root)?.get_child() ?: null;
+	if (m3 == null) return false;
+	val m3_name: str = m3?.name ?: "";
+	if (m3_name != "leaf") return false;
+
+	// 7. Chained safe call with continue
+	var cont_count: i32 = 0;
+	for (i in 0..<4) {
+		val node_opt: *SafeNode? = if (i == 2) &root else null;
+		val child_name = node_opt?.child?.name ?: continue;
+		if (child_name == "leaf") cont_count = cont_count + 1;
+	}
+	if (cont_count != 1) return false;
+
+	return true;
+}
+
 fn test_adjacent_strings(): bool {
 	// 1. Basic adjacent strings
 	val s1 = "Hello " "world!";
@@ -475,6 +552,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_null_safety");
+
+	if (!test_safe_calls()) {
+		println("  [FAIL] test_safe_calls");
+		return 1;
+	}
+	println("  [PASS] test_safe_calls");
 
 	if (!test_adjacent_strings()) {
 		println("  [FAIL] test_adjacent_strings");

@@ -213,6 +213,21 @@ fn test_bom_prefix(): bool {
 	return true;
 }
 
+fn test_question_operators(): bool {
+	val code: str = "? ?: ?.";
+	var lex: Lexer = Lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 4UZ) return false;
+	if (tokens.get(0UZ).type != TokenType.QUESTION) return false;
+	if (tokens.get(1UZ).type != TokenType.QUESTION_COLON) return false;
+	if (tokens.get(2UZ).type != TokenType.QUESTION_DOT) return false;
+	if (tokens.get(3UZ).type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Lexer tests...");
 
@@ -227,6 +242,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_operators");
+
+	if (!test_question_operators()) {
+		println("  [FAIL] test_question_operators");
+		return 1;
+	}
+	println("  [PASS] test_question_operators");
 
 	if (!test_literals()) {
 		println("  [FAIL] test_literals");

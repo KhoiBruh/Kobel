@@ -187,9 +187,26 @@ impl BodyPass {
 			new_args.add(self.unary(op, mem.object, node.line, node.col));
 		}
 		for (arg in call.args) new_args.add(arg);
+
+		var ret_ty = fn_info.return_type;
+		if (mem.is_safe) {
+			self.ensure(ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR, node, "Safe method call '?.' requires return type to be a pointer or string");
+
+			val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+			val cond = self.binary(TokenType.BANG_EQUAL, mem.object, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
+			val if_node = self.if_expr(cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
+			self.replace_node(node, if_node);
+
+			if (ret_ty.kind == DataType.POINTER) {
+				val pt = ret_ty.as_pointer();
+				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+			}
+			return ret_ty;
+		}
+
 		call.args = new_args;
 		call.callee = self.identifier(mi.c_name, node.line, node.col);
-		return fn_info.return_type;
+		return ret_ty;
 	}
 
 	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
@@ -200,6 +217,10 @@ impl BodyPass {
 		if (obj_ty.kind == DataType.POINTER) {
 			obj_is_ptr = true;
 			obj_ty = obj_ty.as_pointer().pointee;
+		}
+		if (mem.is_safe && !obj_is_ptr) {
+			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
+			return self.t_none();
 		}
 		val argc = call.args.len + 1;
 

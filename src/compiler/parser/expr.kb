@@ -178,7 +178,7 @@ impl Parser {
 		TokenType.PLUS, TokenType.MINUS -> PREC_TERM;
 		TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> PREC_FACTOR;
 		TokenType.KW_AS -> PREC_UNARY;
-		TokenType.DOT, TokenType.OPEN_PAREN,
+		TokenType.DOT, TokenType.QUESTION_DOT, TokenType.OPEN_PAREN,
 		TokenType.OPEN_BRACKET, TokenType.PLUS_PLUS,
 		TokenType.MINUS_MINUS -> PREC_CALL;
 		else -> PREC_NONE;
@@ -390,10 +390,14 @@ impl Parser {
 				yield self.binary(TokenType.QUESTION_COLON, left, right, line, col);
 			}
 
-			// 3. Member Access: left.member
+			// 3. Member Access: left.member or left?.member
 			self.match_token(TokenType.DOT) -> {
 				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
 				yield self.member(left, member_tok.text, line, col);
+			}
+			self.match_token(TokenType.QUESTION_DOT) -> {
+				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '?.'");
+				yield self.safe_member(left, member_tok.text, line, col);
 			}
 
 			// 3. Index Access: left[index]

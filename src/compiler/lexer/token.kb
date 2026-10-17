@@ -44,6 +44,7 @@ pub enum TokenType {
 	SLASH_EQUAL,   // /=
 	PERCENT_EQUAL, // %=
 	QUESTION_COLON,// ?:
+	QUESTION_DOT,  // ?.
 
 	// Literals
 	CHAR,

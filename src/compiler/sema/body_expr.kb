@@ -302,6 +302,7 @@ impl BodyPass {
 		// by the backend's name-based pointer tracking, so dereference them
 		// here: `p.field` becomes `(*p).field`.
 		if (
+			!mem.is_safe &&
 			obj_ty.kind == DataType.POINTER &&
 			mem.object.kind != NodeKind.EXPR_IDENTIFIER
 		) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
@@ -313,6 +314,11 @@ impl BodyPass {
 			obj_ty = obj_ty.as_pointer().pointee;
 		}
 
+		if (mem.is_safe && !obj_was_ptr) {
+			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
+			return self.t_none();
+		}
+
 		// Enum `.value`: identity on the underlying integer. The node is
 		// rewritten to the receiver so the backend emits it unchanged.
 		if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
@@ -320,13 +326,29 @@ impl BodyPass {
 			return obj_ty.as_enum().underlying;
 		}
 
-		if (obj_ty.kind == DataType.STR) return self.member_on_str(node, mem);
-		if (obj_ty.kind == DataType.ARRAY) return self.member_on_array(node, mem, obj_ty);
-		if (obj_ty.kind != DataType.STRUCT) {
+		var ret_ty = self.t_none();
+		if (obj_ty.kind == DataType.STR) ret_ty = self.member_on_str(node, mem);
+		else if (obj_ty.kind == DataType.ARRAY) ret_ty = self.member_on_array(node, mem, obj_ty);
+		else if (obj_ty.kind != DataType.STRUCT) {
 			self.report_error(node, "Member access on non-struct type");
 			return self.t_none();
+		} else {
+			ret_ty = self.member_on_struct(node, mem, obj_ty);
 		}
-		return self.member_on_struct(node, mem, obj_ty);
+
+		if (mem.is_safe) {
+			self.ensure(
+				ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR,
+				node,
+				"Safe call operator '?.' requires field to be a pointer or string"
+			);
+			if (ret_ty.kind == DataType.POINTER) {
+				val pt = ret_ty.as_pointer();
+				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+			}
+		}
+
+		return ret_ty;
 	}
 
 	// Enum member `E.MEMBER` or struct constant `Foo.CONST`, both rewritten in
@@ -478,6 +500,9 @@ impl BodyPass {
 			}
 			NodeKind.EXPR_MEMBER -> {
 				val mem = cur.to<MemberExpr>();
+				if (mem.is_safe) {
+					self.report_error(op_node, "Cannot assign to safe navigation expression");
+				}
 				if (self.is_immutable_self(mem.object)) {
 					self.report_error(op_node,
 						"Cannot mutate field '${mem.member}' "

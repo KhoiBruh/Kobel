@@ -262,10 +262,43 @@ fn test_adjacent_strings_parsing() {
 	println("  [PASS] test_adjacent_strings_parsing");
 }
 
+fn test_safe_member_and_elvis_parsing() {
+	val src = "user?.profile?.name ?: \"guest\"";
+	var lexer = Lexer(src);
+	val tokens = lexer.tokenize();
+
+	var parser = Parser(tokens);
+	val expr = parser.parse_expression(PREC_NONE);
+
+	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr (elvis)");
+	val elvis_bin = expr.to<BinaryExpr>();
+	assert_true(elvis_bin.op == TokenType.QUESTION_COLON, "Operator must be '?:'");
+
+	val left = elvis_bin.left;
+	assert_true(left.kind == NodeKind.EXPR_MEMBER, "LHS must be MemberExpr");
+	val name_mem = left.to<MemberExpr>();
+	assert_true(name_mem.is_safe, "name_mem must be safe");
+	assert_eq_str(name_mem.member, "name", "Member must be 'name'");
+
+	val inner_obj = name_mem.object;
+	assert_true(inner_obj.kind == NodeKind.EXPR_MEMBER, "inner_obj must be MemberExpr");
+	val prof_mem = inner_obj.to<MemberExpr>();
+	assert_true(prof_mem.is_safe, "prof_mem must be safe");
+	assert_eq_str(prof_mem.member, "profile", "Member must be 'profile'");
+
+	val user_obj = prof_mem.object;
+	assert_true(user_obj.kind == NodeKind.EXPR_IDENTIFIER, "user_obj must be IdentifierExpr");
+	val user_id = user_obj.to<IdentifierExpr>();
+	assert_eq_str(user_id.name, "user", "Identifier must be 'user'");
+
+	println("  [PASS] test_safe_member_and_elvis_parsing");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_expression_parsing();
 	test_call_and_member_parsing();
+	test_safe_member_and_elvis_parsing();
 	test_type_parsing();
 	test_statement_parsing();
 	test_full_program_parsing();

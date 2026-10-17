@@ -555,6 +555,7 @@ struct compiler__ast__expr__CallExpr {
 struct compiler__ast__expr__MemberExpr {
     compiler__ast__node__AstNode* object;
     const char* member;
+    bool is_safe;
 };
 
 struct compiler__ast__expr__IndexExpr {
@@ -2471,6 +2472,7 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_binary(std__mem__arena__Are
 compiler__ast__node__AstNode* std__mem__arena__Arena_unary(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_call(std__mem__arena__Arena* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
+compiler__ast__node__AstNode* std__mem__arena__Arena_safe_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_index(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_assign(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_compound_assign(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
@@ -2674,6 +2676,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_binary(compile
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_unary(compiler__sema__decl_pass__DeclPass* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_call(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_member(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_safe_member(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_index(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_compound_assign(compiler__sema__decl_pass__DeclPass* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_update(compiler__sema__decl_pass__DeclPass* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col);
@@ -2814,6 +2817,8 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_unary(compiler
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_call(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_index(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_member(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_safe_member(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_if_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_t_none(compiler__sema__body_pass__BodyPass* self);
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_t_bool(compiler__sema__body_pass__BodyPass* self);
@@ -2925,6 +2930,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_binary(compiler__
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_unary(compiler__parser__parser__Parser* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_call(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* callee, std__collections__list__List_ptr_compiler__ast__node__AstNode args, std__collections__list__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__parser__parser__Parser_safe_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_index(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_assign(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_compound_assign(compiler__parser__parser__Parser* self, compiler__lexer__token__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
@@ -11296,7 +11302,7 @@ compiler__ast__node__AstNode* compiler__ast__node__make_compiler__ast__expr__Cal
 }
 
 compiler__ast__expr__MemberExpr* std__mem__arena__alloc_compiler__ast__expr__MemberExpr(std__mem__arena__Arena* self) {
-    return (compiler__ast__expr__MemberExpr*)std__mem__arena__Arena_alloc_bytes(self, 24, 8);
+    return (compiler__ast__expr__MemberExpr*)std__mem__arena__Arena_alloc_bytes(self, 32, 8);
 }
 
 compiler__ast__expr__MemberExpr* std__mem__arena__alloc_val_compiler__ast__expr__MemberExpr(std__mem__arena__Arena* self, compiler__ast__expr__MemberExpr value) {
@@ -14032,7 +14038,11 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_call(std__mem__arena__Arena
 }
 
 compiler__ast__node__AstNode* std__mem__arena__Arena_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, false }, line, col);
+}
+
+compiler__ast__node__AstNode* std__mem__arena__Arena_safe_member(std__mem__arena__Arena* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, true }, line, col);
 }
 
 compiler__ast__node__AstNode* std__mem__arena__Arena_index(std__mem__arena__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
@@ -15754,9 +15764,9 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_type(com
     }
     if (node->kind == 0) {
         compiler__ast__types__NamedType* nt = compiler__ast__node__to_compiler__ast__types__NamedType(node);
-        compiler__ast__node__AstNode* sa = (((subst != NULL) ? compiler__sema__monomorphize__GenSubst_lookup(subst, nt->name) : NULL));
+        compiler__ast__node__AstNode* sa = ((subst != NULL) ? compiler__sema__monomorphize__GenSubst_lookup(subst, nt->name) : NULL);
         if (sa != NULL) {
-            return compiler__sema__decl_pass__DeclPass_clone_type(self, sa, NULL);
+            return compiler__sema__decl_pass__DeclPass_clone_type(self, (compiler__ast__node__AstNode*)sa, NULL);
         }
         if (nt->type_args.len > 0) {
             compiler__sema__symbol__GenTemplate* tmpl = compiler__sema__decl_pass__DeclPass_find_struct_template(self, nt->name);
@@ -15823,7 +15833,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
         return compiler__sema__decl_pass__DeclPass_clone_call_expr(self, node, subst);
     } else if (node->kind == 9) {
         compiler__ast__expr__MemberExpr* m = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
-        return compiler__sema__decl_pass__DeclPass_member(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, m->object, subst), m->member, node->line, node->col);
+        return (m->is_safe ? compiler__sema__decl_pass__DeclPass_safe_member(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, m->object, subst), m->member, node->line, node->col) : compiler__sema__decl_pass__DeclPass_member(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, m->object, subst), m->member, node->line, node->col));
     } else if (node->kind == 10) {
         compiler__ast__expr__IndexExpr* ix = compiler__ast__node__to_compiler__ast__expr__IndexExpr(node);
         return compiler__sema__decl_pass__DeclPass_index(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl_pass__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
@@ -15886,10 +15896,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_size_que
     if (!kobel_streq(m->member, "size") || ((*m->object).kind != 5)) {
         return NULL;
     }
-    if (subst == NULL) {
-        return NULL;
-    }
-    compiler__ast__node__AstNode* sa = compiler__sema__monomorphize__GenSubst_lookup(subst, (*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(m->object)).name);
+    compiler__ast__node__AstNode* sa = ((subst != NULL) ? compiler__sema__monomorphize__GenSubst_lookup(subst, (*compiler__ast__node__to_compiler__ast__expr__IdentifierExpr(m->object)).name) : NULL);
     if (sa == NULL) {
         return NULL;
     }
@@ -15921,7 +15928,12 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_template
             }
         }
         const char* cname = compiler__sema__decl_pass__DeclPass_instantiate_fn(self, ft, targs);
-        return compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* call_node = compiler__sema__decl_pass__DeclPass_call(self, compiler__sema__decl_pass__DeclPass_identifier(self, cname, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        if (mem->is_safe) {
+            compiler__ast__node__AstNode* cond = compiler__sema__decl_pass__DeclPass_binary(self, 22, mem_obj, compiler__sema__decl_pass__DeclPass_literal(self, 5, "null", node->line, node->col), node->line, node->col);
+            return compiler__sema__decl_pass__DeclPass_if_expr(self, cond, call_node, compiler__sema__decl_pass__DeclPass_literal(self, 5, "null", node->line, node->col), node->line, node->col);
+        }
+        return call_node;
     }
     if ((*c->callee).kind != 5) {
         return NULL;
@@ -16837,7 +16849,11 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_call(compiler_
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_member(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, false }, line, col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_safe_member(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, true }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_index(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
@@ -17707,7 +17723,19 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
 }
 
 bool compiler__sema__desugar_for__for_is_lvalue(compiler__ast__node__AstNode* node) {
-    return (node->kind == 9 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__MemberExpr(node)).object) : (node->kind == 14 ? compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node)).expr) : (node->kind == 5 ? true : false)));
+    if (node->kind == 9) {
+        compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(node);
+        if (mem->is_safe) {
+            return false;
+        }
+        return compiler__sema__desugar_for__for_is_lvalue(mem->object);
+    } else if (node->kind == 14) {
+        return compiler__sema__desugar_for__for_is_lvalue((*compiler__ast__node__to_compiler__ast__expr__GroupExpr(node)).expr);
+    } else if (node->kind == 5) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 compiler__ast__node__AstNode* std__mem__arena__Arena_for_usz_type(std__mem__arena__Arena* self, size_t line, size_t col) {
@@ -18114,7 +18142,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_binary_ex
         return compiler__sema__body_pass__BodyPass_check_ordering_op(self, node, lt, rt);
     } else if (bin->op == 25 || bin->op == 26) {
         return compiler__sema__body_pass__BodyPass_check_logic_op(self, node, lt, rt);
-    } else if (bin->op == 66) {
+    } else if (bin->op == 67) {
         return compiler__sema__body_pass__BodyPass_check_in_op(self, node, bin, lt, rt);
     } else {
         return lt;
@@ -18238,7 +18266,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_member_ex
         return const_ty;
     }
     compiler__sema__types__Type* obj_ty = compiler__sema__body_pass__BodyPass_check_expr(self, mem->object);
-    if ((obj_ty->kind == 16) && ((*mem->object).kind != 5)) {
+    if ((!mem->is_safe && (obj_ty->kind == 16)) && ((*mem->object).kind != 5)) {
         mem->object = compiler__sema__body_pass__BodyPass_unary(self, 8, mem->object, node->line, node->col);
     }
     bool obj_was_ptr = false;
@@ -18246,21 +18274,33 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_member_ex
         obj_was_ptr = true;
         obj_ty = (*compiler__sema__types__Type_as_pointer(obj_ty)).pointee;
     }
+    if (mem->is_safe && !obj_was_ptr) {
+        compiler__sema__body_pass__BodyPass_report_error(self, node, "Safe call operator '?.' requires a pointer receiver");
+        return compiler__sema__body_pass__BodyPass_t_none(self);
+    }
     if ((kobel_streq(mem->member, "value") && !obj_was_ptr) && compiler__sema__types__Type_is_enum(obj_ty)) {
         compiler__sema__body_pass__BodyPass_replace_node(self, node, mem->object);
         return (*compiler__sema__types__Type_as_enum(obj_ty)).underlying;
     }
+    compiler__sema__types__Type* ret_ty = compiler__sema__body_pass__BodyPass_t_none(self);
     if (obj_ty->kind == 15) {
-        return compiler__sema__body_pass__BodyPass_member_on_str(self, node, mem);
-    }
-    if (obj_ty->kind == 17) {
-        return compiler__sema__body_pass__BodyPass_member_on_array(self, node, mem, obj_ty);
-    }
-    if (obj_ty->kind != 18) {
+        ret_ty = compiler__sema__body_pass__BodyPass_member_on_str(self, node, mem);
+    } else if (obj_ty->kind == 17) {
+        ret_ty = compiler__sema__body_pass__BodyPass_member_on_array(self, node, mem, obj_ty);
+    } else if (obj_ty->kind != 18) {
         compiler__sema__body_pass__BodyPass_report_error(self, node, "Member access on non-struct type");
         return compiler__sema__body_pass__BodyPass_t_none(self);
+    } else {
+        ret_ty = compiler__sema__body_pass__BodyPass_member_on_struct(self, node, mem, obj_ty);
     }
-    return compiler__sema__body_pass__BodyPass_member_on_struct(self, node, mem, obj_ty);
+    if (mem->is_safe) {
+        compiler__sema__body_pass__BodyPass_ensure(self, ((ret_ty->kind == 16) || (ret_ty->kind == 15)), node, "Safe call operator '?.' requires field to be a pointer or string");
+        if (ret_ty->kind == 16) {
+            compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
+            ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+        }
+    }
+    return ret_ty;
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_const_member(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__MemberExpr* mem) {
@@ -18400,6 +18440,9 @@ void compiler__sema__body_pass__BodyPass_check_lvalue_mutability(compiler__sema_
         compiler__sema__body_pass__BodyPass_check_ident_assignable(self, op_node, id->name, compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name), is_update);
     } else if (cur->kind == 9) {
         compiler__ast__expr__MemberExpr* mem = compiler__ast__node__to_compiler__ast__expr__MemberExpr(cur);
+        if (mem->is_safe) {
+            compiler__sema__body_pass__BodyPass_report_error(self, op_node, "Cannot assign to safe navigation expression");
+        }
         if (compiler__sema__body_pass__BodyPass_is_immutable_self(self, mem->object)) {
             compiler__sema__body_pass__BodyPass_report_error(self, op_node, kobel_concat(kobel_concat("Cannot mutate field '", mem->member), "' on immutable receiver 'self' in 'val self' method"));
         }
@@ -19429,9 +19472,22 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_method_ca
             __for_i = (__for_i + 1);
         }
     }
+    compiler__sema__types__Type* ret_ty = fn_info->return_type;
+    if (mem->is_safe) {
+        compiler__sema__body_pass__BodyPass_ensure(self, ((ret_ty->kind == 16) || (ret_ty->kind == 15)), node, "Safe method call '?.' requires return type to be a pointer or string");
+        compiler__ast__node__AstNode* call_node = compiler__sema__body_pass__BodyPass_call(self, compiler__sema__body_pass__BodyPass_identifier(self, mi->c_name, node->line, node->col), new_args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* cond = compiler__sema__body_pass__BodyPass_binary(self, 22, mem->object, compiler__sema__body_pass__BodyPass_literal(self, 5, "null", node->line, node->col), node->line, node->col);
+        compiler__ast__node__AstNode* if_node = compiler__sema__body_pass__BodyPass_if_expr(self, cond, call_node, compiler__sema__body_pass__BodyPass_literal(self, 5, "null", node->line, node->col), node->line, node->col);
+        compiler__sema__body_pass__BodyPass_replace_node(self, node, if_node);
+        if (ret_ty->kind == 16) {
+            compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
+            ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+        }
+        return ret_ty;
+    }
     call->args = new_args;
     call->callee = compiler__sema__body_pass__BodyPass_identifier(self, mi->c_name, node->line, node->col);
-    return fn_info->return_type;
+    return ret_ty;
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_call(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__MemberExpr* mem, compiler__ast__expr__CallExpr* call) {
@@ -19441,6 +19497,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
     if (obj_ty->kind == 16) {
         obj_is_ptr = true;
         obj_ty = (*compiler__sema__types__Type_as_pointer(obj_ty)).pointee;
+    }
+    if (mem->is_safe && !obj_is_ptr) {
+        compiler__sema__body_pass__BodyPass_report_error(self, node, "Safe call operator '?.' requires a pointer receiver");
+        return compiler__sema__body_pass__BodyPass_t_none(self);
     }
     size_t argc = (call->args.len + 1);
     if (obj_ty->kind == 18) {
@@ -19936,7 +19996,15 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_index(compiler
 }
 
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_member(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, false }, line, col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_safe_member(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, true }, line, col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_if_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__IfExpr(&self->arena, compiler__ast__expr__IfExpr__TAG, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -19980,7 +20048,7 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_clone_expr(com
         return compiler__ast__node__make_compiler__ast__expr__CallExpr(&self->arena, compiler__ast__expr__CallExpr__TAG, (compiler__ast__expr__CallExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, c->callee), args, targs }, node->line, node->col);
     } else if (node != NULL && node->kind == compiler__ast__expr__MemberExpr__TAG) {
         compiler__ast__expr__MemberExpr* m = (compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, m->object), m->member }, node->line, node->col);
+        return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, m->object), m->member, m->is_safe }, node->line, node->col);
     } else if (node != NULL && node->kind == compiler__ast__expr__IndexExpr__TAG) {
         compiler__ast__expr__IndexExpr* ix = (compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)node)->data);
         return compiler__ast__node__make_compiler__ast__expr__IndexExpr(&self->arena, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__expr__IndexExpr){ compiler__sema__body_pass__BodyPass_clone_expr(self, ix->target), compiler__sema__body_pass__BodyPass_clone_expr(self, ix->index) }, node->line, node->col);
@@ -20454,7 +20522,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
         } else {
             is_str = kobel_streq(compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, obj_node), "const char*");
         }
-        __when_end_20:;
+        __when_end_21:;
         if (is_str) {
             return kobel_concat(kobel_concat("(uint64_t)strlen(", compiler__codegen__c_codegen__CCodeGen_gen_expr(self, obj_node)), ")");
         }
@@ -20466,6 +20534,9 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
         is_ptr = compiler__codegen__c_codegen__CCodeGen_is_pointer_var(self, id->name);
     }
     const char* obj_str = (compiler__codegen__c_codegen__expr_needs_parens_for_member(obj_node) ? kobel_concat(kobel_concat("(", obj), ")") : obj);
+    if (mem->is_safe) {
+        return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL ? "), obj_str), "->"), mem->member), " : NULL)");
+    }
     if (is_ptr) {
         return kobel_concat(kobel_concat(obj_str, "->"), mem->member);
     }
@@ -21847,7 +21918,7 @@ char char_to_upper(char self) {
 }
 
 compiler__lexer__token__TokenType compiler__lexer__lexer__lookup_keyword(const char* text) {
-    return (strcmp(text, "extern") == 0 ? 42 : (strcmp(text, "struct") == 0 ? 43 : (strcmp(text, "enum") == 0 ? 44 : (strcmp(text, "fn") == 0 ? 45 : (strcmp(text, "return") == 0 ? 46 : (strcmp(text, "const") == 0 ? 47 : (strcmp(text, "null") == 0 ? 48 : (strcmp(text, "true") == 0 ? 49 : (strcmp(text, "false") == 0 ? 50 : (strcmp(text, "val") == 0 ? 51 : (strcmp(text, "var") == 0 ? 52 : (strcmp(text, "as") == 0 ? 53 : (strcmp(text, "while") == 0 ? 54 : (strcmp(text, "break") == 0 ? 55 : (strcmp(text, "continue") == 0 ? 56 : (strcmp(text, "if") == 0 ? 57 : (strcmp(text, "else") == 0 ? 58 : (strcmp(text, "when") == 0 ? 59 : (strcmp(text, "mod") == 0 ? 60 : (strcmp(text, "use") == 0 ? 61 : (strcmp(text, "pub") == 0 ? 62 : (strcmp(text, "trait") == 0 ? 63 : (strcmp(text, "impl") == 0 ? 64 : (strcmp(text, "for") == 0 ? 65 : (strcmp(text, "in") == 0 ? 66 : (strcmp(text, "yield") == 0 ? 67 : (strcmp(text, "is") == 0 ? 70 : 41)))))))))))))))))))))))))));
+    return (strcmp(text, "extern") == 0 ? 43 : (strcmp(text, "struct") == 0 ? 44 : (strcmp(text, "enum") == 0 ? 45 : (strcmp(text, "fn") == 0 ? 46 : (strcmp(text, "return") == 0 ? 47 : (strcmp(text, "const") == 0 ? 48 : (strcmp(text, "null") == 0 ? 49 : (strcmp(text, "true") == 0 ? 50 : (strcmp(text, "false") == 0 ? 51 : (strcmp(text, "val") == 0 ? 52 : (strcmp(text, "var") == 0 ? 53 : (strcmp(text, "as") == 0 ? 54 : (strcmp(text, "while") == 0 ? 55 : (strcmp(text, "break") == 0 ? 56 : (strcmp(text, "continue") == 0 ? 57 : (strcmp(text, "if") == 0 ? 58 : (strcmp(text, "else") == 0 ? 59 : (strcmp(text, "when") == 0 ? 60 : (strcmp(text, "mod") == 0 ? 61 : (strcmp(text, "use") == 0 ? 62 : (strcmp(text, "pub") == 0 ? 63 : (strcmp(text, "trait") == 0 ? 64 : (strcmp(text, "impl") == 0 ? 65 : (strcmp(text, "for") == 0 ? 66 : (strcmp(text, "in") == 0 ? 67 : (strcmp(text, "yield") == 0 ? 68 : (strcmp(text, "is") == 0 ? 71 : 42)))))))))))))))))))))))))));
 }
 
 compiler__lexer__lexer__Lexer compiler__lexer__lexer__Lexer_new(const char* src) {
@@ -22031,7 +22102,7 @@ compiler__lexer__token__Token compiler__lexer__lexer__Lexer_scan_number(compiler
             }
         }
     }
-    return compiler__lexer__lexer__Lexer_make_token(self, 39, start_cursor, start_col);
+    return compiler__lexer__lexer__Lexer_make_token(self, 40, start_cursor, start_col);
 }
 
 compiler__lexer__token__Token compiler__lexer__lexer__Lexer_scan_string(compiler__lexer__lexer__Lexer* self, size_t start_cursor, size_t start_col) {
@@ -22067,9 +22138,9 @@ compiler__lexer__token__Token compiler__lexer__lexer__Lexer_scan_string(compiler
         compiler__lexer__lexer__Lexer_next(self);
     }
     if (!closed) {
-        return compiler__lexer__lexer__Lexer_make_token(self, 69, start_cursor, start_col);
+        return compiler__lexer__lexer__Lexer_make_token(self, 70, start_cursor, start_col);
     }
-    return compiler__lexer__lexer__Lexer_make_token(self, 40, start_cursor, start_col);
+    return compiler__lexer__lexer__Lexer_make_token(self, 41, start_cursor, start_col);
 }
 
 void compiler__lexer__lexer__Lexer_skip_hole(compiler__lexer__lexer__Lexer* self) {
@@ -22158,14 +22229,14 @@ compiler__lexer__token__Token compiler__lexer__lexer__Lexer_scan_char(compiler__
             compiler__lexer__lexer__Lexer_next(self);
         }
     }
-    return compiler__lexer__lexer__Lexer_make_token(self, 38, start_cursor, start_col);
+    return compiler__lexer__lexer__Lexer_make_token(self, 39, start_cursor, start_col);
 }
 
 compiler__lexer__token__Token compiler__lexer__lexer__Lexer_next_token(compiler__lexer__lexer__Lexer* self) {
     while (true) {
         compiler__lexer__lexer__Lexer_skip_space(self);
         if (compiler__lexer__lexer__Lexer_is_end(self)) {
-            return (compiler__lexer__token__Token){ 68, "", self->line, self->col };
+            return (compiler__lexer__token__Token){ 69, "", self->line, self->col };
         }
         size_t start_cursor = self->cursor;
         size_t start_col = self->col;
@@ -22284,10 +22355,13 @@ compiler__lexer__token__Token compiler__lexer__lexer__Lexer_next_token(compiler_
             if (compiler__lexer__lexer__Lexer_match(self, '|')) {
                 return compiler__lexer__lexer__Lexer_make_token(self, 26, start_cursor, start_col);
             }
-            return compiler__lexer__lexer__Lexer_make_token(self, 69, start_cursor, start_col);
+            return compiler__lexer__lexer__Lexer_make_token(self, 70, start_cursor, start_col);
         } else if (c == '?') {
             if (compiler__lexer__lexer__Lexer_match(self, ':')) {
                 return compiler__lexer__lexer__Lexer_make_token(self, 37, start_cursor, start_col);
+            }
+            if (compiler__lexer__lexer__Lexer_match(self, '.')) {
+                return compiler__lexer__lexer__Lexer_make_token(self, 38, start_cursor, start_col);
             }
             return compiler__lexer__lexer__Lexer_make_token(self, 20, start_cursor, start_col);
         } else {
@@ -22297,10 +22371,10 @@ compiler__lexer__token__Token compiler__lexer__lexer__Lexer_next_token(compiler_
             if (char_is_digit(c)) {
                 return compiler__lexer__lexer__Lexer_scan_number(self, start_cursor, start_col);
             }
-            return compiler__lexer__lexer__Lexer_make_token(self, 69, start_cursor, start_col);
+            return compiler__lexer__lexer__Lexer_make_token(self, 70, start_cursor, start_col);
         }
     }
-    return (compiler__lexer__token__Token){ 69, "", self->line, self->col };
+    return (compiler__lexer__token__Token){ 70, "", self->line, self->col };
 }
 
 std__collections__list__List_compiler__lexer__token__Token compiler__lexer__lexer__Lexer_tokenize(compiler__lexer__lexer__Lexer* self) {
@@ -22308,7 +22382,7 @@ std__collections__list__List_compiler__lexer__token__Token compiler__lexer__lexe
     while (true) {
         compiler__lexer__token__Token tok = compiler__lexer__lexer__Lexer_next_token(self);
         std__collections__list__List_compiler__lexer__token__Token_add(&tokens, tok);
-        if (tok.type == 68) {
+        if (tok.type == 69) {
             break;
         }
     }
@@ -22356,7 +22430,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_call(compiler__pa
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
-    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member }, line, col);
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, false }, line, col);
+}
+
+compiler__ast__node__AstNode* compiler__parser__parser__Parser_safe_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, const char* member, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__expr__MemberExpr(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__expr__MemberExpr){ obj, member, true }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_index(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
@@ -22496,7 +22574,7 @@ bool compiler__parser__parser__Parser_is_end(compiler__parser__parser__Parser* s
         return true;
     }
     compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_get(&self->tokens, self->current);
-    return (tok.type == 68);
+    return (tok.type == 69);
 }
 
 compiler__lexer__token__Token compiler__parser__parser__Parser_peek(compiler__parser__parser__Parser* self) {
@@ -22559,7 +22637,7 @@ void compiler__parser__parser__Parser_synchronize(compiler__parser__parser__Pars
             return;
         }
         compiler__lexer__token__Token cur = compiler__parser__parser__Parser_peek(self);
-        if (cur.type == 45 || cur.type == 43 || cur.type == 51 || cur.type == 52 || cur.type == 57 || cur.type == 59 || cur.type == 54 || cur.type == 65 || cur.type == 46 || cur.type == 62 || cur.type == 60 || cur.type == 61 || cur.type == 44 || cur.type == 63 || cur.type == 64 || cur.type == 42) {
+        if (cur.type == 46 || cur.type == 44 || cur.type == 52 || cur.type == 53 || cur.type == 58 || cur.type == 60 || cur.type == 55 || cur.type == 66 || cur.type == 47 || cur.type == 63 || cur.type == 61 || cur.type == 62 || cur.type == 45 || cur.type == 64 || cur.type == 65 || cur.type == 43) {
             return;
         } else {
             compiler__parser__parser__Parser_advance(self);
@@ -22593,7 +22671,7 @@ bool compiler__parser__parser__Parser_is_generic_args_ahead(compiler__parser__pa
                 if (depth == 0) {
                     return (((i + 1) < self->tokens.len) && (std__collections__list__List_compiler__lexer__token__Token_get(&self->tokens, (i + 1)).type == 15));
                 }
-            } else if (tok.type == 0 || tok.type == 17 || tok.type == 18 || tok.type == 68) {
+            } else if (tok.type == 0 || tok.type == 17 || tok.type == 18 || tok.type == 69) {
                 return false;
             } else {
             }
@@ -22629,7 +22707,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
     if (compiler__parser__parser__Parser_match_token(self, 13)) {
         compiler__ast__node__AstNode* elem_type = compiler__parser__parser__Parser_parse_type(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after array element type");
-        compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 39, "Expected integer literal for array size");
+        compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 40, "Expected integer literal for array size");
         compiler__parser__parser__Parser_consume(self, 14, "Expected ']' after array size");
         size_t size = 0;
         {
@@ -22646,10 +22724,10 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
         }
         return compiler__parser__parser__Parser_array_type(self, elem_type, size, line, col);
     }
-    compiler__lexer__token__Token id_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected type name");
+    compiler__lexer__token__Token id_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected type name");
     const char* full_name = id_tok.text;
     while (compiler__parser__parser__Parser_match_token(self, 3)) {
-        compiler__lexer__token__Token seg = compiler__parser__parser__Parser_consume(self, 41, "Expected identifier after '.' in type path");
+        compiler__lexer__token__Token seg = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after '.' in type path");
         full_name = kobel_concat(kobel_concat(full_name, "."), seg.text);
     }
     std__collections__list__List_ptr_compiler__ast__node__AstNode type_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
@@ -22664,7 +22742,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_single_type
     }
     if ((kobel_streq(full_name, "Array") && (type_args.len == 1)) && compiler__parser__parser__Parser_check(self, 15)) {
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'Array<T>'");
-        compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 39, "Expected integer literal for array size");
+        compiler__lexer__token__Token size_tok = compiler__parser__parser__Parser_consume(self, 40, "Expected integer literal for array size");
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after array size");
         int32_t size = 0;
         {
@@ -22868,10 +22946,10 @@ int32_t compiler__parser__parser__Parser_get_infix_precedence(compiler__parser__
         return compiler__parser__expr__PREC_AND;
     } else if (t == 21 || t == 22) {
         return compiler__parser__expr__PREC_EQUALITY;
-    } else if (t == 23 || t == 11 || t == 24 || t == 70 || t == 66) {
+    } else if (t == 23 || t == 11 || t == 24 || t == 71 || t == 67) {
         return compiler__parser__expr__PREC_COMPARISON;
     } else if (t == 4) {
-        if (compiler__parser__parser__Parser_peek_at(self, 1).type == 66) {
+        if (compiler__parser__parser__Parser_peek_at(self, 1).type == 67) {
             return compiler__parser__expr__PREC_COMPARISON;
         }
         return compiler__parser__expr__PREC_NONE;
@@ -22884,9 +22962,9 @@ int32_t compiler__parser__parser__Parser_get_infix_precedence(compiler__parser__
         return compiler__parser__expr__PREC_TERM;
     } else if (t == 8 || t == 9 || t == 10) {
         return compiler__parser__expr__PREC_FACTOR;
-    } else if (t == 53) {
+    } else if (t == 54) {
         return compiler__parser__expr__PREC_UNARY;
-    } else if (t == 3 || t == 15 || t == 13 || t == 30 || t == 31) {
+    } else if (t == 3 || t == 38 || t == 15 || t == 13 || t == 30 || t == 31) {
         return compiler__parser__expr__PREC_CALL;
     } else {
         return compiler__parser__expr__PREC_NONE;
@@ -22897,22 +22975,22 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_prefix(comp
     compiler__lexer__token__Token tok = compiler__parser__parser__Parser_advance(self);
     size_t line = tok.line;
     size_t col = tok.col;
-    if (tok.type == 39) {
+    if (tok.type == 40) {
         if (compiler__parser__expr__num_literal_is_float(tok.text)) {
             return compiler__parser__parser__Parser_literal(self, 1, tok.text, line, col);
         }
         return compiler__parser__parser__Parser_literal(self, 0, tok.text, line, col);
-    } else if (tok.type == 40) {
-        return compiler__parser__parser__Parser_parse_string_literal(self, tok, line, col);
-    } else if (tok.type == 38) {
-        return compiler__parser__parser__Parser_literal(self, 3, tok.text, line, col);
-    } else if (tok.type == 49) {
-        return compiler__parser__parser__Parser_literal(self, 2, "true", line, col);
-    } else if (tok.type == 50) {
-        return compiler__parser__parser__Parser_literal(self, 2, "false", line, col);
-    } else if (tok.type == 48) {
-        return compiler__parser__parser__Parser_literal(self, 5, "null", line, col);
     } else if (tok.type == 41) {
+        return compiler__parser__parser__Parser_parse_string_literal(self, tok, line, col);
+    } else if (tok.type == 39) {
+        return compiler__parser__parser__Parser_literal(self, 3, tok.text, line, col);
+    } else if (tok.type == 50) {
+        return compiler__parser__parser__Parser_literal(self, 2, "true", line, col);
+    } else if (tok.type == 51) {
+        return compiler__parser__parser__Parser_literal(self, 2, "false", line, col);
+    } else if (tok.type == 49) {
+        return compiler__parser__parser__Parser_literal(self, 5, "null", line, col);
+    } else if (tok.type == 42) {
         return compiler__parser__parser__Parser_identifier(self, tok.text, line, col);
     } else if (tok.type == 15) {
         compiler__ast__node__AstNode* inner = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
@@ -22934,20 +23012,20 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_prefix(comp
     } else if (tok.type == 7 || tok.type == 4 || tok.type == 8 || tok.type == 19) {
         compiler__ast__node__AstNode* operand = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_UNARY);
         return compiler__parser__parser__Parser_unary(self, tok.type, operand, line, col);
-    } else if (tok.type == 70) {
+    } else if (tok.type == 71) {
         compiler__ast__node__AstNode* target_type = compiler__parser__parser__Parser_parse_type(self);
         const char* alias = "";
         bool is_mut = false;
-        if (compiler__parser__parser__Parser_match_token(self, 53)) {
-            if (compiler__parser__parser__Parser_match_token(self, 52)) {
+        if (compiler__parser__parser__Parser_match_token(self, 54)) {
+            if (compiler__parser__parser__Parser_match_token(self, 53)) {
                 is_mut = true;
                 compiler__parser__parser__Parser_match_token(self, 19);
             } else if (compiler__parser__parser__Parser_match_token(self, 19)) {
                 is_mut = true;
             } else {
-                compiler__parser__parser__Parser_match_token(self, 51);
+                compiler__parser__parser__Parser_match_token(self, 52);
             }
-            compiler__lexer__token__Token alias_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected identifier after 'as'");
+            compiler__lexer__token__Token alias_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after 'as'");
             alias = alias_tok.text;
         }
         compiler__ast__node__AstNode* is_node = compiler__parser__parser__Parser_is_expr(self, NULL, target_type, line, col);
@@ -22957,15 +23035,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_prefix(comp
             is_expr->is_mut = is_mut;
         }
         return is_node;
-    } else if (tok.type == 57) {
+    } else if (tok.type == 58) {
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'if'");
         compiler__ast__node__AstNode* condition = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after if condition");
         compiler__ast__node__AstNode* then_branch = compiler__parser__parser__Parser_parse_if_expr_branch(self);
-        compiler__parser__parser__Parser_consume(self, 58, "Expected 'else' in if expression");
+        compiler__parser__parser__Parser_consume(self, 59, "Expected 'else' in if expression");
         compiler__ast__node__AstNode* else_branch = compiler__parser__parser__Parser_parse_if_expr_branch(self);
         return compiler__parser__parser__Parser_if_expr(self, condition, then_branch, else_branch, line, col);
-    } else if (tok.type == 59) {
+    } else if (tok.type == 60) {
         compiler__ast__node__AstNode* condition = NULL;
         if (compiler__parser__parser__Parser_match_token(self, 15)) {
             condition = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
@@ -22978,7 +23056,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_prefix(comp
             size_t arm_col = compiler__parser__parser__Parser_peek(self).col;
             bool is_else = false;
             std__collections__list__List_ptr_compiler__ast__node__AstNode patterns = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-            if (compiler__parser__parser__Parser_match_token(self, 58)) {
+            if (compiler__parser__parser__Parser_match_token(self, 59)) {
                 is_else = true;
             } else {
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&patterns, compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE));
@@ -23018,57 +23096,60 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
     }
     if (compiler__parser__parser__Parser_match_token(self, 37)) {
         compiler__ast__node__AstNode* right;
-        if (compiler__parser__parser__Parser_match_token(self, 46)) {
+        if (compiler__parser__parser__Parser_match_token(self, 47)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             right = compiler__parser__parser__Parser_return_stmt(self, value, kw_line, kw_col);
-            goto __when_end_28;
-        } else if (compiler__parser__parser__Parser_match_token(self, 55)) {
-            size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
-            size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
-            right = compiler__parser__parser__Parser_break_stmt(self, kw_line, kw_col);
-            goto __when_end_28;
+            goto __when_end_29;
         } else if (compiler__parser__parser__Parser_match_token(self, 56)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
+            right = compiler__parser__parser__Parser_break_stmt(self, kw_line, kw_col);
+            goto __when_end_29;
+        } else if (compiler__parser__parser__Parser_match_token(self, 57)) {
+            size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
+            size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_continue_stmt(self, kw_line, kw_col);
-            goto __when_end_28;
-        } else if (compiler__parser__parser__Parser_match_token(self, 67)) {
+            goto __when_end_29;
+        } else if (compiler__parser__parser__Parser_match_token(self, 68)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             right = compiler__parser__parser__Parser_yield_stmt(self, value, kw_line, kw_col);
-            goto __when_end_28;
+            goto __when_end_29;
         } else {
             right = compiler__parser__parser__Parser_parse_expression(self, (compiler__parser__expr__PREC_ELVIS - 1));
         }
-        __when_end_28:;
+        __when_end_29:;
         return compiler__parser__parser__Parser_binary(self, 37, left, right, line, col);
     } else if (compiler__parser__parser__Parser_match_token(self, 3)) {
-        compiler__lexer__token__Token member_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected identifier after '.'");
+        compiler__lexer__token__Token member_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after '.'");
         return compiler__parser__parser__Parser_member(self, left, member_tok.text, line, col);
+    } else if (compiler__parser__parser__Parser_match_token(self, 38)) {
+        compiler__lexer__token__Token member_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after '?.'");
+        return compiler__parser__parser__Parser_safe_member(self, left, member_tok.text, line, col);
     } else if (compiler__parser__parser__Parser_match_token(self, 13)) {
         compiler__ast__node__AstNode* index = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 14, "Expected ']' after array index");
         return compiler__parser__parser__Parser_index(self, left, index, line, col);
-    } else if (compiler__parser__parser__Parser_match_token(self, 53)) {
+    } else if (compiler__parser__parser__Parser_match_token(self, 54)) {
         compiler__ast__node__AstNode* target_type = compiler__parser__parser__Parser_parse_type(self);
         return compiler__parser__parser__Parser_cast(self, left, target_type, line, col);
-    } else if (compiler__parser__parser__Parser_match_token(self, 70)) {
+    } else if (compiler__parser__parser__Parser_match_token(self, 71)) {
         compiler__ast__node__AstNode* target_type = compiler__parser__parser__Parser_parse_type(self);
         const char* alias = "";
         bool is_mut = false;
-        if (compiler__parser__parser__Parser_match_token(self, 53)) {
-            if (compiler__parser__parser__Parser_match_token(self, 52)) {
+        if (compiler__parser__parser__Parser_match_token(self, 54)) {
+            if (compiler__parser__parser__Parser_match_token(self, 53)) {
                 is_mut = true;
                 compiler__parser__parser__Parser_match_token(self, 19);
             } else if (compiler__parser__parser__Parser_match_token(self, 19)) {
                 is_mut = true;
             } else {
-                compiler__parser__parser__Parser_match_token(self, 51);
+                compiler__parser__parser__Parser_match_token(self, 52);
             }
-            compiler__lexer__token__Token alias_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected identifier after 'as'");
+            compiler__lexer__token__Token alias_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after 'as'");
             alias = alias_tok.text;
         }
         compiler__ast__node__AstNode* is_node = compiler__parser__parser__Parser_is_expr(self, left, target_type, line, col);
@@ -23078,14 +23159,14 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
             is_expr->is_mut = is_mut;
         }
         return is_node;
-    } else if (compiler__parser__parser__Parser_match_token(self, 66)) {
+    } else if (compiler__parser__parser__Parser_match_token(self, 67)) {
         compiler__ast__node__AstNode* right = compiler__parser__parser__Parser_parse_expression(self, prec);
-        return compiler__parser__parser__Parser_binary(self, 66, left, right, line, col);
-    } else if ((compiler__parser__parser__Parser_check(self, 4) && (compiler__parser__parser__Parser_peek_at(self, 1).type == 66))) {
+        return compiler__parser__parser__Parser_binary(self, 67, left, right, line, col);
+    } else if ((compiler__parser__parser__Parser_check(self, 4) && (compiler__parser__parser__Parser_peek_at(self, 1).type == 67))) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_advance(self);
         compiler__ast__node__AstNode* right = compiler__parser__parser__Parser_parse_expression(self, prec);
-        compiler__ast__node__AstNode* in_expr = compiler__parser__parser__Parser_binary(self, 66, left, right, line, col);
+        compiler__ast__node__AstNode* in_expr = compiler__parser__parser__Parser_binary(self, 67, left, right, line, col);
         return compiler__parser__parser__Parser_unary(self, 4, in_expr, line, col);
     } else if ((compiler__parser__parser__Parser_check(self, 12) && compiler__parser__parser__Parser_is_generic_args_ahead(self))) {
         compiler__parser__parser__Parser_advance(self);
@@ -23150,34 +23231,34 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_stateme
     size_t col = tok.col;
     if (tok.type == 17) {
         return compiler__parser__parser__Parser_parse_arm_block(self);
-    } else if (tok.type == 51 || tok.type == 52) {
+    } else if (tok.type == 52 || tok.type == 53) {
         compiler__parser__parser__Parser_advance(self);
-        bool is_mut = (tok.type == 52);
-        compiler__lexer__token__Token id_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected variable name");
+        bool is_mut = (tok.type == 53);
+        compiler__lexer__token__Token id_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected variable name");
         compiler__ast__node__AstNode* ty_node = (compiler__parser__parser__Parser_match_token(self, 1) ? compiler__parser__parser__Parser_parse_type(self) : NULL);
         compiler__ast__node__AstNode* init_node = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after variable declaration");
         return compiler__parser__parser__Parser_var_decl(self, is_mut, id_tok.text, ty_node, init_node, line, col);
-    } else if (tok.type == 57) {
+    } else if (tok.type == 58) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'if'");
         compiler__ast__node__AstNode* condition = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after if condition");
         compiler__ast__node__AstNode* then_branch = compiler__parser__parser__Parser_parse_arm_statement(self);
-        compiler__ast__node__AstNode* else_branch = (compiler__parser__parser__Parser_match_token(self, 58) ? compiler__parser__parser__Parser_parse_arm_statement(self) : NULL);
+        compiler__ast__node__AstNode* else_branch = (compiler__parser__parser__Parser_match_token(self, 59) ? compiler__parser__parser__Parser_parse_arm_statement(self) : NULL);
         return compiler__parser__parser__Parser_if_stmt(self, condition, then_branch, else_branch, line, col);
-    } else if (tok.type == 54) {
+    } else if (tok.type == 55) {
         compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'while'");
         compiler__ast__node__AstNode* condition = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after while condition");
         compiler__ast__node__AstNode* body = compiler__parser__parser__Parser_parse_arm_statement(self);
         return compiler__parser__parser__Parser_while_stmt(self, condition, body, kw.line, kw.col);
-    } else if (tok.type == 65) {
+    } else if (tok.type == 66) {
         compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'for'");
-        compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected loop variable name");
-        compiler__parser__parser__Parser_consume(self, 66, "Expected 'in' after loop variable");
+        compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected loop variable name");
+        compiler__parser__parser__Parser_consume(self, 67, "Expected 'in' after loop variable");
         compiler__ast__node__AstNode* first = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
         bool is_range = false;
         bool is_open = false;
@@ -23206,22 +23287,22 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_stateme
         compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after for header");
         compiler__ast__node__AstNode* body = compiler__parser__parser__Parser_parse_arm_statement(self);
         return compiler__parser__parser__Parser_for_stmt(self, name_tok.text, is_range, is_open, is_half_open, iterable, range_start, range_end, body, kw.line, kw.col);
-    } else if (tok.type == 59) {
+    } else if (tok.type == 60) {
         return compiler__parser__parser__Parser_parse_when_stmt(self);
-    } else if (tok.type == 55) {
+    } else if (tok.type == 56) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after break");
         return compiler__parser__parser__Parser_break_stmt(self, line, col);
-    } else if (tok.type == 56) {
+    } else if (tok.type == 57) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after continue");
         return compiler__parser__parser__Parser_continue_stmt(self, line, col);
-    } else if (tok.type == 67) {
+    } else if (tok.type == 68) {
         compiler__parser__parser__Parser_advance(self);
         compiler__ast__node__AstNode* value = (!compiler__parser__parser__Parser_check(self, 0) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after yield");
         return compiler__parser__parser__Parser_yield_stmt(self, value, line, col);
-    } else if (tok.type == 46) {
+    } else if (tok.type == 47) {
         compiler__parser__parser__Parser_advance(self);
         compiler__ast__node__AstNode* value = (!compiler__parser__parser__Parser_check(self, 0) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after return");
@@ -23244,7 +23325,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_arm_block(c
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_string_literal(compiler__parser__parser__Parser* self, compiler__lexer__token__Token tok, size_t line, size_t col) {
-    if (!compiler__parser__parser__Parser_check(self, 40)) {
+    if (!compiler__parser__parser__Parser_check(self, 41)) {
         if (compiler__parser__expr__str_has_hole(tok.text)) {
             return compiler__parser__parser__Parser_parse_interp_string(self, tok.text, line, col);
         }
@@ -23254,7 +23335,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_string_lite
     if (kobel_slen(tok.text) >= 2) {
         combined_inner = kobel_slice(tok.text, 1, (kobel_slen(tok.text) - 1));
     }
-    while (compiler__parser__parser__Parser_check(self, 40)) {
+    while (compiler__parser__parser__Parser_check(self, 41)) {
         compiler__lexer__token__Token next_tok = compiler__parser__parser__Parser_advance(self);
         if (kobel_slen(next_tok.text) >= 2) {
             combined_inner = kobel_concat(combined_inner, kobel_slice(next_tok.text, 1, (kobel_slen(next_tok.text) - 1)));
@@ -23345,8 +23426,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_block_stmt(
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_var_decl_stmt(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    bool is_mut = (kw.type == 52);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected variable name");
+    bool is_mut = (kw.type == 53);
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected variable name");
     compiler__ast__node__AstNode* type_ann = (compiler__parser__parser__Parser_match_token(self, 1) ? compiler__parser__parser__Parser_parse_type(self) : NULL);
     compiler__ast__node__AstNode* init = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
     compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after variable declaration");
@@ -23359,7 +23440,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_if_stmt(com
     compiler__ast__node__AstNode* condition = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
     compiler__parser__parser__Parser_consume(self, 16, "Expected ')' after if condition");
     compiler__ast__node__AstNode* then_branch = compiler__parser__parser__Parser_parse_statement(self);
-    compiler__ast__node__AstNode* else_branch = (compiler__parser__parser__Parser_match_token(self, 58) ? compiler__parser__parser__Parser_parse_statement(self) : NULL);
+    compiler__ast__node__AstNode* else_branch = (compiler__parser__parser__Parser_match_token(self, 59) ? compiler__parser__parser__Parser_parse_statement(self) : NULL);
     return compiler__parser__parser__Parser_if_stmt(self, condition, then_branch, else_branch, kw.line, kw.col);
 }
 
@@ -23375,8 +23456,8 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_while_stmt(
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_for_stmt(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
     compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after 'for'");
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected loop variable name");
-    compiler__parser__parser__Parser_consume(self, 66, "Expected 'in' after loop variable");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected loop variable name");
+    compiler__parser__parser__Parser_consume(self, 67, "Expected 'in' after loop variable");
     compiler__ast__node__AstNode* first = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_COMPARISON);
     bool is_range = false;
     bool is_open = false;
@@ -23428,7 +23509,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_when_stmt(c
         size_t arm_col = compiler__parser__parser__Parser_peek(self).col;
         bool is_else = false;
         std__collections__list__List_ptr_compiler__ast__node__AstNode patterns = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-        if (compiler__parser__parser__Parser_match_token(self, 58)) {
+        if (compiler__parser__parser__Parser_match_token(self, 59)) {
             is_else = true;
         } else {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&patterns, compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE));
@@ -23452,27 +23533,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_statement(c
     size_t col = tok.col;
     if (tok.type == 17) {
         return compiler__parser__parser__Parser_parse_block_stmt(self);
-    } else if (tok.type == 51 || tok.type == 52) {
+    } else if (tok.type == 52 || tok.type == 53) {
         return compiler__parser__parser__Parser_parse_var_decl_stmt(self);
-    } else if (tok.type == 57) {
+    } else if (tok.type == 58) {
         return compiler__parser__parser__Parser_parse_if_stmt(self);
-    } else if (tok.type == 54) {
-        return compiler__parser__parser__Parser_parse_while_stmt(self);
-    } else if (tok.type == 65) {
-        return compiler__parser__parser__Parser_parse_for_stmt(self);
-    } else if (tok.type == 46) {
-        return compiler__parser__parser__Parser_parse_return_stmt(self);
-    } else if (tok.type == 59) {
-        return compiler__parser__parser__Parser_parse_when_stmt(self);
     } else if (tok.type == 55) {
+        return compiler__parser__parser__Parser_parse_while_stmt(self);
+    } else if (tok.type == 66) {
+        return compiler__parser__parser__Parser_parse_for_stmt(self);
+    } else if (tok.type == 47) {
+        return compiler__parser__parser__Parser_parse_return_stmt(self);
+    } else if (tok.type == 60) {
+        return compiler__parser__parser__Parser_parse_when_stmt(self);
+    } else if (tok.type == 56) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after break");
         return compiler__parser__parser__Parser_break_stmt(self, line, col);
-    } else if (tok.type == 56) {
+    } else if (tok.type == 57) {
         compiler__parser__parser__Parser_advance(self);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after continue");
         return compiler__parser__parser__Parser_continue_stmt(self, line, col);
-    } else if (tok.type == 67) {
+    } else if (tok.type == 68) {
         compiler__parser__parser__Parser_advance(self);
         compiler__ast__node__AstNode* value = (!compiler__parser__parser__Parser_check(self, 0) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after yield");
@@ -23490,25 +23571,25 @@ std__collections__list__List_compiler__ast__decl__GenericParam compiler__parser_
         return params;
     }
     if (!compiler__parser__parser__Parser_check(self, 11)) {
-        compiler__lexer__token__Token p_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected generic parameter name");
+        compiler__lexer__token__Token p_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected generic parameter name");
         std__collections__list__List_str bounds = std__collections__list__List_str_new(4);
         if (compiler__parser__parser__Parser_match_token(self, 1)) {
-            compiler__lexer__token__Token b_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected trait bound name");
+            compiler__lexer__token__Token b_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected trait bound name");
             std__collections__list__List_str_add(&bounds, b_tok.text);
             while (compiler__parser__parser__Parser_match_token(self, 6)) {
-                compiler__lexer__token__Token b2 = compiler__parser__parser__Parser_consume(self, 41, "Expected trait bound name");
+                compiler__lexer__token__Token b2 = compiler__parser__parser__Parser_consume(self, 42, "Expected trait bound name");
                 std__collections__list__List_str_add(&bounds, b2.text);
             }
         }
         std__collections__list__List_compiler__ast__decl__GenericParam_add(&params, (compiler__ast__decl__GenericParam){ p_tok.text, bounds });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
-            compiler__lexer__token__Token next_p = compiler__parser__parser__Parser_consume(self, 41, "Expected generic parameter name");
+            compiler__lexer__token__Token next_p = compiler__parser__parser__Parser_consume(self, 42, "Expected generic parameter name");
             std__collections__list__List_str next_bounds = std__collections__list__List_str_new(4);
             if (compiler__parser__parser__Parser_match_token(self, 1)) {
-                compiler__lexer__token__Token b_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected trait bound name");
+                compiler__lexer__token__Token b_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected trait bound name");
                 std__collections__list__List_str_add(&next_bounds, b_tok.text);
                 while (compiler__parser__parser__Parser_match_token(self, 6)) {
-                    compiler__lexer__token__Token b2 = compiler__parser__parser__Parser_consume(self, 41, "Expected trait bound name");
+                    compiler__lexer__token__Token b2 = compiler__parser__parser__Parser_consume(self, 42, "Expected trait bound name");
                     std__collections__list__List_str_add(&next_bounds, b2.text);
                 }
             }
@@ -23521,52 +23602,52 @@ std__collections__list__List_compiler__ast__decl__GenericParam compiler__parser_
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(compiler__parser__parser__Parser* self, bool is_pub) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected function name");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected function name");
     std__collections__list__List_compiler__ast__decl__GenericParam type_params = compiler__parser__parser__Parser_parse_generic_params(self);
     compiler__parser__parser__Parser_consume(self, 15, "Expected '(' after function name");
     std__collections__list__List_compiler__ast__decl__Param params = std__collections__list__List_compiler__ast__decl__Param_new(4);
     if (!compiler__parser__parser__Parser_check(self, 16)) {
         bool is_mut = false;
         bool has_val = false;
-        if (compiler__parser__parser__Parser_match_token(self, 52)) {
+        if (compiler__parser__parser__Parser_match_token(self, 53)) {
             is_mut = true;
-        } else if (compiler__parser__parser__Parser_match_token(self, 51)) {
+        } else if (compiler__parser__parser__Parser_match_token(self, 52)) {
             has_val = true;
         }
-        compiler__lexer__token__Token pname = compiler__parser__parser__Parser_consume(self, 41, "Expected parameter name");
+        compiler__lexer__token__Token pname = compiler__parser__parser__Parser_consume(self, 42, "Expected parameter name");
         compiler__ast__node__AstNode* ptype;
         if (compiler__parser__parser__Parser_match_token(self, 1)) {
             ptype = compiler__parser__parser__Parser_parse_type(self);
         } else if (!kobel_streq(pname.text, "self")) {
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_31;
+            goto __when_end_32;
         } else {
             ptype = NULL;
         }
-        __when_end_31:;
+        __when_end_32:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         std__collections__list__List_compiler__ast__decl__Param_add(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
             bool p_is_mut = false;
             bool p_has_val = false;
-            if (compiler__parser__parser__Parser_match_token(self, 52)) {
+            if (compiler__parser__parser__Parser_match_token(self, 53)) {
                 p_is_mut = true;
-            } else if (compiler__parser__parser__Parser_match_token(self, 51)) {
+            } else if (compiler__parser__parser__Parser_match_token(self, 52)) {
                 p_has_val = true;
             }
-            compiler__lexer__token__Token p_name = compiler__parser__parser__Parser_consume(self, 41, "Expected parameter name");
+            compiler__lexer__token__Token p_name = compiler__parser__parser__Parser_consume(self, 42, "Expected parameter name");
             compiler__ast__node__AstNode* p_type;
             if (compiler__parser__parser__Parser_match_token(self, 1)) {
                 p_type = compiler__parser__parser__Parser_parse_type(self);
             } else if (!kobel_streq(p_name.text, "self")) {
                 compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
                 p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_32;
+                goto __when_end_33;
             } else {
                 p_type = NULL;
             }
-            __when_end_32:;
+            __when_end_33:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             std__collections__list__List_compiler__ast__decl__Param_add(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -23578,43 +23659,43 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression body");
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_33;
+        goto __when_end_34;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' or '{' for function body");
         body = NULL;
-        goto __when_end_33;
+        goto __when_end_34;
     }
-    __when_end_33:;
+    __when_end_34:;
     return compiler__parser__parser__Parser_fn_decl(self, name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_struct_decl(compiler__parser__parser__Parser* self, bool is_pub) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected struct name");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected struct name");
     std__collections__list__List_compiler__ast__decl__GenericParam type_params = compiler__parser__parser__Parser_parse_generic_params(self);
     compiler__parser__parser__Parser_consume(self, 17, "Expected '{' before struct fields");
     std__collections__list__List_compiler__ast__decl__StructField fields = std__collections__list__List_compiler__ast__decl__StructField_new(4);
     while (!compiler__parser__parser__Parser_check(self, 18) && !compiler__parser__parser__Parser_is_end(self)) {
         bool f_pub = false;
-        if (compiler__parser__parser__Parser_match_token(self, 62)) {
+        if (compiler__parser__parser__Parser_match_token(self, 63)) {
             f_pub = true;
         }
-        if (compiler__parser__parser__Parser_check(self, 47)) {
+        if (compiler__parser__parser__Parser_check(self, 48)) {
             compiler__ast__node__AstNode* c_decl = compiler__parser__parser__Parser_parse_const_decl(self, f_pub);
             compiler__ast__decl__ConstDecl* c = (compiler__ast__decl__ConstDecl*)compiler__ast__node__to_compiler__ast__decl__ConstDecl(c_decl);
             c->name = kobel_concat(kobel_concat(name_tok.text, "__"), c->name);
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&self->struct_consts, c_decl);
             continue;
         }
-        if (!compiler__parser__parser__Parser_check(self, 41)) {
+        if (!compiler__parser__parser__Parser_check(self, 42)) {
             compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
             compiler__parser__parser__Parser_error(self, tok, "Expected field name in struct declaration");
             compiler__parser__parser__Parser_advance(self);
             continue;
         }
-        compiler__lexer__token__Token fname = compiler__parser__parser__Parser_consume(self, 41, "Expected field name");
+        compiler__lexer__token__Token fname = compiler__parser__parser__Parser_consume(self, 42, "Expected field name");
         compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after field name");
         compiler__ast__node__AstNode* ftype = compiler__parser__parser__Parser_parse_type(self);
         compiler__ast__node__AstNode* f_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
@@ -23628,14 +23709,14 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_struct_decl
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_trait_decl(compiler__parser__parser__Parser* self, bool is_pub) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected trait name");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected trait name");
     std__collections__list__List_compiler__ast__decl__GenericParam type_params = compiler__parser__parser__Parser_parse_generic_params(self);
     std__collections__list__List_str bases = std__collections__list__List_str_new(4);
     if (compiler__parser__parser__Parser_match_token(self, 1)) {
-        compiler__lexer__token__Token base1 = compiler__parser__parser__Parser_consume(self, 41, "Expected base trait name");
+        compiler__lexer__token__Token base1 = compiler__parser__parser__Parser_consume(self, 42, "Expected base trait name");
         std__collections__list__List_str_add(&bases, base1.text);
         while (compiler__parser__parser__Parser_match_token(self, 6)) {
-            compiler__lexer__token__Token next_base = compiler__parser__parser__Parser_consume(self, 41, "Expected base trait name");
+            compiler__lexer__token__Token next_base = compiler__parser__parser__Parser_consume(self, 42, "Expected base trait name");
             std__collections__list__List_str_add(&bases, next_base.text);
         }
     }
@@ -23643,9 +23724,9 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_trait_decl(
     std__collections__list__List_ptr_compiler__ast__node__AstNode methods = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     while (!compiler__parser__parser__Parser_check(self, 18) && !compiler__parser__parser__Parser_is_end(self)) {
         bool m_pub = false;
-        if (compiler__parser__parser__Parser_match_token(self, 62)) {
+        if (compiler__parser__parser__Parser_match_token(self, 63)) {
             m_pub = true;
-        } else if (compiler__parser__parser__Parser_check(self, 45)) {
+        } else if (compiler__parser__parser__Parser_check(self, 46)) {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&methods, compiler__parser__parser__Parser_parse_fn_decl(self, m_pub));
         } else {
             compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
@@ -23660,15 +23741,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_trait_decl(
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_impl_decl(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
     std__collections__list__List_compiler__ast__decl__GenericParam type_params = compiler__parser__parser__Parser_parse_generic_params(self);
-    const char* first_name = compiler__parser__parser__Parser_consume(self, 41, "Expected struct or trait name").text;
+    const char* first_name = compiler__parser__parser__Parser_consume(self, 42, "Expected struct or trait name").text;
     if (std__collections__list__List_compiler__ast__decl__GenericParam_empty(&type_params) && compiler__parser__parser__Parser_check(self, 12)) {
         type_params = compiler__parser__parser__Parser_parse_generic_params(self);
     }
     const char* struct_name = first_name;
     const char* trait_name = "";
-    if (compiler__parser__parser__Parser_match_token(self, 65)) {
+    if (compiler__parser__parser__Parser_match_token(self, 66)) {
         trait_name = first_name;
-        compiler__lexer__token__Token s_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected struct name after 'for'");
+        compiler__lexer__token__Token s_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected struct name after 'for'");
         struct_name = s_tok.text;
         if (compiler__parser__parser__Parser_check(self, 12)) {
             std__collections__list__List_compiler__ast__decl__GenericParam s_params = compiler__parser__parser__Parser_parse_generic_params(self);
@@ -23687,9 +23768,9 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_impl_decl(c
     std__collections__list__List_ptr_compiler__ast__node__AstNode methods = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     while (!compiler__parser__parser__Parser_check(self, 18) && !compiler__parser__parser__Parser_is_end(self)) {
         bool m_pub = false;
-        if (compiler__parser__parser__Parser_match_token(self, 62)) {
+        if (compiler__parser__parser__Parser_match_token(self, 63)) {
             m_pub = true;
-        } else if (compiler__parser__parser__Parser_check(self, 45)) {
+        } else if (compiler__parser__parser__Parser_check(self, 46)) {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&methods, compiler__parser__parser__Parser_parse_fn_decl(self, m_pub));
         } else {
             compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
@@ -23703,12 +23784,12 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_impl_decl(c
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_enum_decl(compiler__parser__parser__Parser* self, bool is_pub) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected enum name");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected enum name");
     compiler__ast__node__AstNode* underlying_type = (compiler__parser__parser__Parser_match_token(self, 1) ? compiler__parser__parser__Parser_parse_type(self) : NULL);
     compiler__parser__parser__Parser_consume(self, 17, "Expected '{' before enum members");
     std__collections__list__List_compiler__ast__decl__EnumMember members = std__collections__list__List_compiler__ast__decl__EnumMember_new(4);
     while (!compiler__parser__parser__Parser_check(self, 18) && !compiler__parser__parser__Parser_is_end(self)) {
-        compiler__lexer__token__Token m_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected enum member name");
+        compiler__lexer__token__Token m_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected enum member name");
         compiler__ast__node__AstNode* m_val = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         std__collections__list__List_compiler__ast__decl__EnumMember_add(&members, (compiler__ast__decl__EnumMember){ m_tok.text, m_val, m_tok.line, m_tok.col });
         compiler__parser__parser__Parser_match_token(self, 2);
@@ -23719,7 +23800,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_enum_decl(c
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_const_decl(compiler__parser__parser__Parser* self, bool is_pub) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
-    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 41, "Expected constant name");
+    compiler__lexer__token__Token name_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected constant name");
     compiler__ast__node__AstNode* type_node = (compiler__parser__parser__Parser_match_token(self, 1) ? compiler__parser__parser__Parser_parse_type(self) : NULL);
     compiler__parser__parser__Parser_consume(self, 5, "Expected '=' in const declaration");
     compiler__ast__node__AstNode* val_node = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
@@ -23730,11 +23811,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_const_decl(
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_module_decl(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
     std__collections__list__List_str path = std__collections__list__List_str_new(4);
-    const char* first_seg = compiler__parser__parser__Parser_consume(self, 41, "Expected module path segment").text;
+    const char* first_seg = compiler__parser__parser__Parser_consume(self, 42, "Expected module path segment").text;
     std__collections__list__List_str_add(&path, first_seg);
     const char* full_path = first_seg;
     while (compiler__parser__parser__Parser_match_token(self, 3)) {
-        const char* seg = compiler__parser__parser__Parser_consume(self, 41, "Expected module path segment after '.'").text;
+        const char* seg = compiler__parser__parser__Parser_consume(self, 42, "Expected module path segment after '.'").text;
         std__collections__list__List_str_add(&path, seg);
         full_path = kobel_concat(kobel_concat(full_path, "."), seg);
     }
@@ -23745,7 +23826,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_module_decl
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_use_decl(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
     std__collections__list__List_str path = std__collections__list__List_str_new(4);
-    const char* first_seg = compiler__parser__parser__Parser_consume(self, 41, "Expected path in use declaration").text;
+    const char* first_seg = compiler__parser__parser__Parser_consume(self, 42, "Expected path in use declaration").text;
     std__collections__list__List_str_add(&path, first_seg);
     const char* full_path = first_seg;
     bool is_wildcard = false;
@@ -23757,13 +23838,13 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_use_decl(co
             full_path = kobel_concat(full_path, ".*");
             break;
         }
-        const char* seg = compiler__parser__parser__Parser_consume(self, 41, "Expected path segment after '.'").text;
+        const char* seg = compiler__parser__parser__Parser_consume(self, 42, "Expected path segment after '.'").text;
         std__collections__list__List_str_add(&path, seg);
         symbol_name = seg;
         full_path = kobel_concat(kobel_concat(full_path, "."), seg);
     }
-    if (compiler__parser__parser__Parser_match_token(self, 53)) {
-        alias = compiler__parser__parser__Parser_consume(self, 41, "Expected alias after 'as'").text;
+    if (compiler__parser__parser__Parser_match_token(self, 54)) {
+        alias = compiler__parser__parser__Parser_consume(self, 42, "Expected alias after 'as'").text;
     }
     compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after use declaration");
     return compiler__parser__parser__Parser_use_decl(self, path, full_path, symbol_name, alias, is_wildcard, kw.line, kw.col);
@@ -23772,7 +23853,7 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_use_decl(co
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_extern_block(compiler__parser__parser__Parser* self) {
     compiler__lexer__token__Token kw = compiler__parser__parser__Parser_advance(self);
     const char* abi = "C";
-    if (compiler__parser__parser__Parser_check(self, 40)) {
+    if (compiler__parser__parser__Parser_check(self, 41)) {
         abi = compiler__parser__parser__Parser_advance(self).text;
     }
     compiler__parser__parser__Parser_consume(self, 17, "Expected '{' before extern declarations");
@@ -23786,27 +23867,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_extern_bloc
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_declaration(compiler__parser__parser__Parser* self) {
     bool is_pub = false;
-    if (compiler__parser__parser__Parser_match_token(self, 62)) {
+    if (compiler__parser__parser__Parser_match_token(self, 63)) {
         is_pub = true;
     }
     compiler__lexer__token__Token tok = compiler__parser__parser__Parser_peek(self);
-    if (tok.type == 45) {
+    if (tok.type == 46) {
         return compiler__parser__parser__Parser_parse_fn_decl(self, is_pub);
-    } else if (tok.type == 43) {
-        return compiler__parser__parser__Parser_parse_struct_decl(self, is_pub);
-    } else if (tok.type == 63) {
-        return compiler__parser__parser__Parser_parse_trait_decl(self, is_pub);
-    } else if (tok.type == 64) {
-        return compiler__parser__parser__Parser_parse_impl_decl(self);
     } else if (tok.type == 44) {
+        return compiler__parser__parser__Parser_parse_struct_decl(self, is_pub);
+    } else if (tok.type == 64) {
+        return compiler__parser__parser__Parser_parse_trait_decl(self, is_pub);
+    } else if (tok.type == 65) {
+        return compiler__parser__parser__Parser_parse_impl_decl(self);
+    } else if (tok.type == 45) {
         return compiler__parser__parser__Parser_parse_enum_decl(self, is_pub);
-    } else if (tok.type == 47) {
+    } else if (tok.type == 48) {
         return compiler__parser__parser__Parser_parse_const_decl(self, is_pub);
-    } else if (tok.type == 60) {
-        return compiler__parser__parser__Parser_parse_module_decl(self);
     } else if (tok.type == 61) {
+        return compiler__parser__parser__Parser_parse_module_decl(self);
+    } else if (tok.type == 62) {
         return compiler__parser__parser__Parser_parse_use_decl(self);
-    } else if (tok.type == 42) {
+    } else if (tok.type == 43) {
         return compiler__parser__parser__Parser_parse_extern_block(self);
     } else {
         if (is_pub) {
@@ -24215,22 +24296,22 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
     if (!std__io__file_exists(cfg.output)) {
         std__io__println(kobel_concat(kobel_concat("Target '", cfg.output), "' not found. Building first..."));
         needs_build = true;
-        goto __when_end_35;
+        goto __when_end_36;
     } else if (!std__io__file_exists(stamp_file)) {
         std__io__println("No previous build stamp found. Rebuilding...");
         needs_build = true;
-        goto __when_end_35;
+        goto __when_end_36;
     } else {
         const char* saved_stamp = str_trim(std__io__read_file(stamp_file));
         if (!kobel_streq(saved_stamp, current_stamp)) {
             std__io__println("Source changes detected. Rebuilding...");
             needs_build = true;
-            goto __when_end_35;
+            goto __when_end_36;
         }
         needs_build = false;
-        goto __when_end_35;
+        goto __when_end_36;
     }
-    __when_end_35:;
+    __when_end_36:;
     if (needs_build) {
         int32_t build_code = compiler__driver__commands__cmd_build(manifest_path);
         if (build_code != 0) {
@@ -24909,7 +24990,7 @@ std__collections__list__List_fmt__comments__Comment fmt__comments__extract_comme
 }
 
 const char* fmt__formatter__op_to_str(compiler__lexer__token__TokenType op) {
-    return (op == 6 ? "+" : (op == 7 ? "-" : (op == 8 ? "*" : (op == 9 ? "/" : (op == 10 ? "%" : (op == 21 ? "==" : (op == 22 ? "!=" : (op == 12 ? "<" : (op == 23 ? "<=" : (op == 11 ? ">" : (op == 24 ? ">=" : (op == 25 ? "&&" : (op == 26 ? "||" : (op == 5 ? "=" : (op == 32 ? "+=" : (op == 33 ? "-=" : (op == 34 ? "*=" : (op == 35 ? "/=" : (op == 36 ? "%=" : (op == 37 ? "?:" : (op == 29 ? ".." : (op == 4 ? "!" : (op == 30 ? "++" : (op == 31 ? "--" : (op == 19 ? "&" : (op == 20 ? "?" : ""))))))))))))))))))))))))));
+    return (op == 6 ? "+" : (op == 7 ? "-" : (op == 8 ? "*" : (op == 9 ? "/" : (op == 10 ? "%" : (op == 21 ? "==" : (op == 22 ? "!=" : (op == 12 ? "<" : (op == 23 ? "<=" : (op == 11 ? ">" : (op == 24 ? ">=" : (op == 25 ? "&&" : (op == 26 ? "||" : (op == 5 ? "=" : (op == 32 ? "+=" : (op == 33 ? "-=" : (op == 34 ? "*=" : (op == 35 ? "/=" : (op == 36 ? "%=" : (op == 37 ? "?:" : (op == 38 ? "?." : (op == 29 ? ".." : (op == 4 ? "!" : (op == 30 ? "++" : (op == 31 ? "--" : (op == 19 ? "&" : (op == 20 ? "?" : "")))))))))))))))))))))))))));
 }
 
 fmt__formatter__Formatter fmt__formatter__Formatter_new(fmt__options__FormatOptions options, fmt__comments__CommentTable comments) {
@@ -25079,7 +25160,11 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
     } else if (node != NULL && node->kind == compiler__ast__expr__MemberExpr__TAG) {
         compiler__ast__expr__MemberExpr* m = (compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data);
         fmt__formatter__Formatter_format_expr(self, m->object);
-        fmt__buffer__FormatBuffer_write(&self->buf, ".");
+        if (m->is_safe) {
+            fmt__buffer__FormatBuffer_write(&self->buf, "?.");
+        } else {
+            fmt__buffer__FormatBuffer_write(&self->buf, ".");
+        }
         fmt__buffer__FormatBuffer_write(&self->buf, m->member);
     } else if (node != NULL && node->kind == compiler__ast__expr__IndexExpr__TAG) {
         compiler__ast__expr__IndexExpr* idx = (compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)node)->data);
@@ -26925,7 +27010,7 @@ compiler__lexer__token__Token lsp__analysis__find_token_at(std__collections__lis
             __for_i = (__for_i + 1);
         }
     }
-    return (compiler__lexer__token__Token){ 69, "", 0, 0 };
+    return (compiler__lexer__token__Token){ 70, "", 0, 0 };
 }
 
 const char* lsp__analysis__keyword_hover(const char* kw) {
@@ -26951,7 +27036,7 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(const char* path
         size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__lexer__token__Token tok = std__collections__list__List_compiler__lexer__token__Token_at(&tokens, __for_i);
-            if (tok.type == 69) {
+            if (tok.type == 70) {
                 size_t l0 = ((tok.line > 0) ? (tok.line - 1) : 0);
                 size_t c0 = ((tok.col > 0) ? (tok.col - 1) : 0);
                 std__collections__list__List_lsp__analysis__LspDiagnostic_add(&diagnostics, (lsp__analysis__LspDiagnostic){ l0, c0, l0, (c0 + 1), 1, "Unrecognized character or syntax" });
@@ -27044,7 +27129,7 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__Anal
     size_t target_line = (line0 + 1);
     size_t target_col = (col0 + 1);
     compiler__lexer__token__Token tok = lsp__analysis__find_token_at(self->tokens, target_line, target_col);
-    if ((tok.type == 69) || (kobel_slen(tok.text) == 0)) {
+    if ((tok.type == 70) || (kobel_slen(tok.text) == 0)) {
         return lsp__json__json_null();
     }
     const char* kw_doc = lsp__analysis__keyword_hover(tok.text);
@@ -27056,7 +27141,7 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__Anal
         lsp__json__JsonValue_set(res, "contents", contents);
         return res;
     }
-    if (self->has_symtab && (tok.type == 41)) {
+    if (self->has_symtab && (tok.type == 42)) {
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, tok.text);
         if (sym != NULL) {
             const char* md = "```kobel\n";
@@ -27077,7 +27162,7 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis_
     size_t target_line = (line0 + 1);
     size_t target_col = (col0 + 1);
     compiler__lexer__token__Token tok = lsp__analysis__find_token_at(self->tokens, target_line, target_col);
-    if ((tok.type != 41) || (kobel_slen(tok.text) == 0)) {
+    if ((tok.type != 42) || (kobel_slen(tok.text) == 0)) {
         return lsp__json__json_null();
     }
     if (self->has_symtab) {

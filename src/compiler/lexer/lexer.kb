@@ -436,6 +436,7 @@ impl Lexer {
 
 				'?' -> {
 					if (self.match(':')) yield self.make_token(TokenType.QUESTION_COLON, start_cursor, start_col);
+					if (self.match('.')) yield self.make_token(TokenType.QUESTION_DOT, start_cursor, start_col);
 					yield self.make_token(TokenType.QUESTION, start_cursor, start_col);
 				}
 

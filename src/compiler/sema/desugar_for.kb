@@ -17,7 +17,11 @@ use compiler.lexer.token.*;
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
 pub fn for_is_lvalue(node: *AstNode): bool => when (node.kind) {
-	NodeKind.EXPR_MEMBER -> for_is_lvalue(node.to<MemberExpr>().object);
+	NodeKind.EXPR_MEMBER -> {
+		val mem = node.to<MemberExpr>();
+		if (mem.is_safe) yield false;
+		yield for_is_lvalue(mem.object);
+	}
 	NodeKind.EXPR_GROUP -> for_is_lvalue(node.to<GroupExpr>().expr);
 	NodeKind.EXPR_IDENTIFIER -> true;
 	else -> false;

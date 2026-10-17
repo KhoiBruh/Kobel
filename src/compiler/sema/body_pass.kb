@@ -86,6 +86,12 @@ impl BodyPass {
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
 		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
 
+	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
+		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member, true), line, col);
+
+	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
+		=> self.arena.make<IfExpr>(IfExpr.TAG, IfExpr(condition, then_branch, else_branch), line, col);
+
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node) {
@@ -109,7 +115,7 @@ impl BodyPass {
 				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
 			}
 			is MemberExpr as m -> {
-				yield self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member), node.line, node.col);
+				yield self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member, m.is_safe), node.line, node.col);
 			}
 			is IndexExpr as ix -> {
 				yield self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)), node.line, node.col);

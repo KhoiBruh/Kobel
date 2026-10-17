@@ -57,6 +57,9 @@ impl Arena {
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
 		=> self.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
 
+	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz)
+		=> self.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member, true), line, col);
+
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz)
 		=> self.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
 

@@ -41,6 +41,7 @@ pub fn op_to_str(op: TokenType): str => when (op) {
 	TokenType.SLASH_EQUAL -> "/=",
 	TokenType.PERCENT_EQUAL -> "%=",
 	TokenType.QUESTION_COLON -> "?:",
+	TokenType.QUESTION_DOT -> "?.",
 	TokenType.DOT_DOT -> "..",
 	TokenType.BANG -> "!",
 	TokenType.PLUS_PLUS -> "++",
@@ -144,7 +145,8 @@ impl Formatter {
 			}
 			is MemberExpr as m -> {
 				self.format_expr(m.object);
-				self.buf.write(".");
+				if (m.is_safe) self.buf.write("?.");
+				else self.buf.write(".");
 				self.buf.write(m.member);
 			}
 			is IndexExpr as idx -> {

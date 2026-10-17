@@ -425,6 +425,9 @@ impl CCodeGen {
 			is_ptr = self.is_pointer_var(id.name);
 		}
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
+		if (mem.is_safe) {
+			return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+		}
 		if (is_ptr) return "${obj_str}->${mem.member}";
 		return "${obj_str}.${mem.member}";
 	}

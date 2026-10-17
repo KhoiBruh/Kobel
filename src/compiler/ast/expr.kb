@@ -49,7 +49,8 @@ pub struct CallExpr {
 pub struct MemberExpr {
 	pub const TAG = NodeKind.EXPR_MEMBER;
 	pub object: *AstNode,
-	pub member: str
+	pub member: str,
+	pub is_safe: bool = false
 }
 
 pub struct IndexExpr {
