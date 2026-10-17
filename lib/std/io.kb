@@ -23,8 +23,7 @@ pub fn print(s: str) {
 pub fn println(s: str) => puts(s.c_str());
 
 pub fn read_file(path: str): str {
-	val f = fopen(path.c_str(), "rb");
-	if (f == null) return "";
+	val f = fopen(path.c_str(), "rb") ?: return "";
 
 	fseek(f, 0L, 2);
 	val size_i64 = ftell(f);
@@ -49,24 +48,21 @@ pub fn read_file(path: str): str {
 }
 
 pub fn write_file(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "wb");
-	if (f == null) return false;
+	val f = fopen(path.c_str(), "wb") ?: return false;
 	val written = fwrite(content.c_str(), 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
 
 pub fn append_file(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "ab");
-	if (f == null) return false;
+	val f = fopen(path.c_str(), "ab") ?: return false;
 	val written = fwrite(content.c_str(), 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
 
 pub fn file_exists(path: str): bool {
-	val f = fopen(path.c_str(), "rb");
-	if (f == null) return false;
+	val f = fopen(path.c_str(), "rb") ?: return false;
 	fclose(f);
 	return true;
 }

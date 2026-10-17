@@ -17112,9 +17112,7 @@ void compiler__sema__decl_pass__DeclPass_collect_impl(compiler__sema__decl_pass_
                 ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type);
             } else {
                 ret_type = compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f);
-                if (ret_type == NULL) {
-                    ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
-                }
+                if (ret_type == NULL) ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
             }
             compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
             const char* m_c_name = compiler__sema__decl_pass__method_c_name(kobel_concat(kobel_concat(st_c_name, "_"), f->name), param_types.len, str_in_list(f->name, overloaded), used_names);
@@ -17503,9 +17501,7 @@ void compiler__sema__decl_pass__DeclPass_collect_fn(compiler__sema__decl_pass__D
         ret_type = compiler__sema__decl_pass__DeclPass_resolve_ast_type(self, f->return_type);
     } else {
         ret_type = compiler__sema__decl_pass__DeclPass_infer_decl_return_type(self, f);
-        if (ret_type == NULL) {
-            ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
-        }
+        if (ret_type == NULL) ret_type = compiler__sema__decl_pass__DeclPass_t_none(self);
     }
     compiler__sema__types__Type* fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
     const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, f->name);

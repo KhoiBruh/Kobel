@@ -940,8 +940,7 @@ impl BodyPass {
 			var piece = part.expr;
 			if (!part.is_literal) {
 				val pty = self.check_expr(piece);
-				piece = self.interp_piece(node, piece, pty);
-				if (piece == null) return self.t_str();
+				piece = self.interp_piece(node, piece, pty) ?: return self.t_str();
 			}
 			if (acc == null) acc = piece;
 			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);

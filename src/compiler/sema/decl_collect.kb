@@ -106,13 +106,8 @@ impl DeclPass {
 			param_types.add(p_type);
 		}
 
-		var ret_type: *Type = null;
-		if (f.return_type != null) {
-			ret_type = self.resolve_ast_type(f.return_type);
-		} else {
-			ret_type = self.infer_decl_return_type(f);
-			if (ret_type == null) ret_type = self.t_none();
-		}
+		var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+		else self.infer_decl_return_type(f) ?: self.t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
 		val c_name = self.c_name_for(f.name);
