@@ -467,12 +467,8 @@ impl DeclPass {
 				param_types.add(pt);
 			}
 
-			var ret_type: *Type = null;
-			if (f.return_type != null) {
-				ret_type = self.resolve_ast_type(f.return_type);
-			} else {
-				ret_type = self.infer_decl_return_type(f) ?: self.t_none();
-			}
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+			else self.infer_decl_return_type(f) ?: self.t_none();
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
@@ -496,10 +492,10 @@ impl DeclPass {
 	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
 		if (f.body == null || f.body.kind != NodeKind.STMT_EXPR) return null;
 		val es = f.body.to<ExprStmt>();
-		if (es.expr == null) return null;
+		val expr = es.expr ?: return null;
 
-		if (es.expr.kind == NodeKind.EXPR_LITERAL) {
-			val lit = es.expr.to<LiteralExpr>();
+		if (expr.kind == NodeKind.EXPR_LITERAL) {
+			val lit = expr.to<LiteralExpr>();
 			when (lit.literal_kind) {
 				LiteralKind.INT -> {
 					val p_type = int_literal_type(&self.arena, lit.raw_text);
@@ -532,8 +528,8 @@ impl DeclPass {
 			}
 		}
 
-		if (es.expr.kind == NodeKind.EXPR_MEMBER) {
-			val mem = es.expr.to<MemberExpr>();
+		if (expr.kind == NodeKind.EXPR_MEMBER) {
+			val mem = expr.to<MemberExpr>();
 			if (mem.object != null && mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
 				val id = mem.object.to<IdentifierExpr>();
 				val sym = self.symtab.lookup(id.name);
@@ -547,8 +543,8 @@ impl DeclPass {
 			}
 		}
 
-		if (es.expr.kind == NodeKind.EXPR_UPDATE) {
-			val u = es.expr.to<UpdateExpr>();
+		if (expr.kind == NodeKind.EXPR_UPDATE) {
+			val u = expr.to<UpdateExpr>();
 			if (u.target.kind == NodeKind.EXPR_IDENTIFIER) {
 				val id = u.target.to<IdentifierExpr>();
 				for (p in f.params) {
@@ -621,12 +617,8 @@ impl DeclPass {
 				param_types.add(pt);
 			}
 
-			var ret_type: *Type = null;
-			if (f.return_type != null) {
-				ret_type = self.resolve_ast_type(f.return_type);
-			} else {
-				ret_type = self.infer_decl_return_type(f) ?: self.t_none();
-			}
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+			else self.infer_decl_return_type(f) ?: self.t_none();
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 

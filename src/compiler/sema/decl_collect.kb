@@ -122,8 +122,8 @@ impl DeclPass {
 
 	pub fn collect_enum(var self, node: *AstNode) {
 		val e = node.to<EnumDecl>() as &EnumDecl;
-		var under_type = self.t_prim(type_i32());
-		if (e.underlying_type != null) under_type = self.resolve_ast_type(e.underlying_type);
+		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type)
+		else self.t_prim(type_i32());
 
 		// Resolve member values: implicit members continue from the previous value.
 		var members = List<*EnumMemberInfo>();
@@ -161,8 +161,8 @@ impl DeclPass {
 
 	pub fn collect_const(var self, node: *AstNode) {
 		val c = node.to<ConstDecl>() as &ConstDecl;
-		var c_type = self.t_prim(type_i32());
-		if (c.type_node != null) c_type = self.resolve_ast_type(c.type_node);
+		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node)
+		else self.t_prim(type_i32());
 	
 		val c_name = self.c_name_for(c.name);
 		val ok = self.symtab.define_global(
