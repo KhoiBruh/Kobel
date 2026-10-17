@@ -20,6 +20,18 @@ use compiler.parser.stmt.*;
 
 impl Parser {
 
+	pub fn is_valid_op_name(self, name: str): bool => when (name) {
+		"plus", "minus", "mul", "div", "rem",
+		"bit_and", "bit_or", "bit_xor", "shl", "shr",
+		"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
+		"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign",
+		"get", "set",
+		"equals", "compare",
+		"negate", "not",
+		"contains" -> true,
+		else -> false
+	};
+
 	pub fn parse_generic_params(var self): List<GenericParam> {
 		var params = List<GenericParam>();
 		if (!self.match_token(TokenType.LESS)) return params;
@@ -137,6 +149,82 @@ impl Parser {
 		return self.fn_decl(name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 	}
 
+	pub fn parse_op_decl(var self, is_pub: bool): *AstNode {
+		val kw = self.advance(); // 'op'
+		val name_tok = self.peek();
+		val op_name = name_tok.text;
+		if (!self.is_valid_op_name(op_name)) {
+			self.error(name_tok, "Invalid operator name '${op_name}'. Expected one of: plus, minus, mul, div, rem, plus_assign, minus_assign, mul_assign, div_assign, rem_assign, get, set, equals, compare, negate, not, contains");
+		}
+		self.advance();
+
+		val type_params = self.parse_generic_params();
+
+		self.consume(TokenType.OPEN_PAREN, "Expected '(' after operator name");
+		var params = List<Param>();
+
+		if (!self.check(TokenType.CLOSE_PAREN)) {
+			var is_mut = false;
+			var has_val = false;
+			if (self.match_token(TokenType.KW_VAR)) is_mut = true;
+			else if (self.match_token(TokenType.KW_VAL)) has_val = true;
+
+			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
+			val ptype = when {
+				self.match_token(TokenType.COLON) -> self.parse_type();
+				pname.text != "self" -> {
+					self.consume(TokenType.COLON, "Expected ':' after parameter name");
+					yield self.parse_type();
+				}
+				else -> null;
+			};
+
+			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			params.add(Param(pname.text, ptype, is_mut, has_val, p_default));
+
+			while (self.match_token(TokenType.COMMA)) {
+				var p_is_mut = false;
+				var p_has_val = false;
+				if (self.match_token(TokenType.KW_VAR)) p_is_mut = true;
+				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
+
+				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
+				val p_type = when {
+					self.match_token(TokenType.COLON) -> self.parse_type();
+					p_name.text != "self" -> {
+						self.consume(TokenType.COLON, "Expected ':' after parameter name");
+						yield self.parse_type();
+					}
+					else -> null;
+				};
+
+				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+				else null;
+				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val, p_def));
+			}
+		}
+
+		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after parameters");
+
+		val return_type = if (self.match_token(TokenType.COLON)) self.parse_type()
+		else null;
+
+		var body = when {
+			self.match_token(TokenType.FAT_ARROW) -> {
+				val expr = self.parse_expression(PREC_NONE);
+				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
+				yield self.expr_stmt(expr, expr.line, expr.col);
+			}
+			self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
+			else -> {
+				self.consume(TokenType.SEMI_COLON, "Expected ';' or '{' for operator body");
+				yield null;
+			}
+		};
+
+		return self.fn_decl(op_name, type_params, params, return_type, body, is_pub, kw.line, kw.col, true);
+	}
+
 	pub fn parse_struct_decl(var self, is_pub: bool): *AstNode {
 		val kw = self.advance(); // 'struct'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected struct name");
@@ -157,7 +245,14 @@ impl Parser {
 				continue;
 			}
 
-			if (!self.check(TokenType.IDENTIFIER)) {
+			if (self.check(TokenType.KW_OP)) {
+				if (self.peek_at(1).type != TokenType.COLON) {
+					val tok = self.peek();
+					self.error(tok, "Operators must be defined inside an 'impl' block, not directly inside 'struct'");
+					self.advance();
+					continue;
+				}
+			} else if (!self.check(TokenType.IDENTIFIER)) {
 				val tok = self.peek();
 				self.error(tok, "Expected field name in struct declaration");
 				self.advance();
@@ -203,6 +298,7 @@ impl Parser {
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
 				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
+				self.check(TokenType.KW_OP) -> methods.add(self.parse_op_decl(m_pub));
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside trait");
@@ -247,6 +343,7 @@ impl Parser {
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
 				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
+				self.check(TokenType.KW_OP) -> methods.add(self.parse_op_decl(m_pub));
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside impl");
@@ -370,6 +467,11 @@ impl Parser {
 			TokenType.KW_MOD -> self.parse_module_decl();
 			TokenType.KW_USE -> self.parse_use_decl();
 			TokenType.KW_EXTERN -> self.parse_extern_block();
+			TokenType.KW_OP -> {
+				self.error(tok, "Operator declarations can only be defined inside an 'impl' block");
+				self.advance();
+				yield null;
+			}
 			else -> {
 				// Top-level statement or syntax error
 				if (is_pub) self.error(tok, "'pub' modifier is not allowed on this statement");

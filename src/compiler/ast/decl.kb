@@ -41,7 +41,8 @@ pub struct FnDecl {
 	pub params: List<Param>,
 	pub return_type: *AstNode,
 	pub body: *AstNode,
-	pub is_pub: bool
+	pub is_pub: bool,
+	pub is_op: bool = false
 }
 
 pub struct StructField {

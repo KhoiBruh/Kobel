@@ -744,7 +744,8 @@ impl DeclPass {
 			List<GenericParam>(),
 			params, rt,
 			self.clone_stmt(f.body, subst),
-			f.is_pub, node.line, node.col
+			f.is_pub, node.line, node.col,
+			f.is_op
 		);
 	}
 

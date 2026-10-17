@@ -56,7 +56,8 @@ pub struct MethodInfo {
 	pub c_name: str,
 	pub fn_type: *Type,
 	pub ast_node: *u8,
-	pub module: str
+	pub module: str,
+	pub is_op: bool = false
 }
 
 pub struct StructType {
@@ -148,6 +149,43 @@ impl StructType {
 			if (m.c_name == c_name) return m;
 		}
 		return null;
+	}
+
+	pub fn find_operator(val self, op_name: str, arg_types: List<*Type>): *MethodInfo {
+		var exact_match: *MethodInfo = null;
+		var assignable_match: *MethodInfo = null;
+
+		for (m in self.methods) {
+			if (!m.is_op || m.name != op_name) continue;
+			val fn_t = m.fn_type.as_fn();
+			if (fn_t.param_types.len != arg_types.len) continue;
+
+			var all_exact = true;
+			var all_assignable = true;
+			for (i in 1..<arg_types.len) {
+				val param_t = fn_t.param_types[i];
+				val arg_t = arg_types[i];
+				if (param_t == null || arg_t == null) {
+					all_exact = false;
+					all_assignable = false;
+					break;
+				}
+				if (!param_t.can_assign(arg_t)) {
+					all_assignable = false;
+					all_exact = false;
+					break;
+				}
+				if (param_t.kind != arg_t.kind) {
+					all_exact = false;
+				}
+			}
+
+			if (all_exact) return m;
+			if (all_assignable && assignable_match == null) {
+				assignable_match = m;
+			}
+		}
+		return assignable_match;
 	}
 }
 

@@ -206,7 +206,7 @@ impl Parser {
 			TokenType.KW_TRUE -> self.literal(LiteralKind.BOOL, "true", line, col);
 			TokenType.KW_FALSE -> self.literal(LiteralKind.BOOL, "false", line, col);
 			TokenType.KW_NULL -> self.literal(LiteralKind.NULL_VAL, "null", line, col);
-			TokenType.IDENTIFIER -> self.identifier(tok.text, line, col);
+			TokenType.IDENTIFIER, TokenType.KW_OP -> self.identifier(tok.text, line, col);
 
 			// Grouping: (expr)
 			TokenType.OPEN_PAREN -> {

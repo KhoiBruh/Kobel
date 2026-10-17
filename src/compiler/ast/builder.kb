@@ -143,8 +143,8 @@ impl Arena {
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz)
 		=> self.make<UseDecl>(UseDecl.TAG, UseDecl(path, full_path, symbol_name, alias, is_wildcard), line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz)
-		=> self.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz, is_op: bool = false)
+		=> self.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub, is_op), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
 		=> self.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, fields, is_pub), line, col);

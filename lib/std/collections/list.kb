@@ -41,7 +41,7 @@ impl List<T> {
 
 	pub fn new(cap: usz = 4) => Self(alloc_array<T>(cap), 0, cap);
 
-	pub fn get(val self, index: usz) => self.data[index];
+	pub op get(val self, index: usz): T => self.data[index];
 
 	pub fn first(val self) => self.data[0];
 
@@ -49,7 +49,9 @@ impl List<T> {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn set(var self, index: usz, value: T) => self.data[index] = value;
+	pub op set(var self, index: usz, value: T) => self.data[index] = value;
+
+	pub op plus_assign(var self, value: T) => self.add(value);
 
 	pub fn add(var self, value: T) {
 		if (self.len == self.cap) self.grow();

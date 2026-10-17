@@ -207,6 +207,33 @@ impl BodyPass {
 			return self.t_str();
 		}
 		if (lt.is_numeric() && rt.is_numeric()) return lt;
+
+		if (lt.kind == DataType.STRUCT) {
+			val op_name = when (bin.op) {
+				TokenType.PLUS -> "plus",
+				TokenType.MINUS -> "minus",
+				TokenType.STAR -> "mul",
+				TokenType.SLASH -> "div",
+				TokenType.PERCENT -> "rem",
+				else -> ""
+			};
+			if (!op_name.empty()) {
+				val s_info = lt.as_struct();
+				var arg_types = List<*Type>();
+				arg_types.add(lt);
+				arg_types.add(rt);
+				val mi = s_info.find_operator(op_name, arg_types);
+				if (mi != null) {
+					var new_args = List<*AstNode>();
+					new_args.add(self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col));
+					new_args.add(bin.right);
+					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					self.replace_node(node, call_node);
+					return mi.fn_type.as_fn().return_type;
+				}
+			}
+		}
+
 		self.report_error(node, "Arithmetic operator not supported for these types");
 		return lt;
 	}
@@ -219,6 +246,26 @@ impl BodyPass {
 			self.replace_node(node, wrapped);
 			return self.t_bool();
 		}
+
+		if (lt.kind == DataType.STRUCT) {
+			val s_info = lt.as_struct();
+			var arg_types = List<*Type>();
+			arg_types.add(lt);
+			arg_types.add(rt);
+			val mi = s_info.find_operator("equals", arg_types);
+			if (mi != null) {
+				var new_args = List<*AstNode>();
+				new_args.add(self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col));
+				new_args.add(bin.right);
+				var call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+				if (bin.op == TokenType.BANG_EQUAL) {
+					call_node = self.unary(TokenType.BANG, call_node, node.line, node.col);
+				}
+				self.replace_node(node, call_node);
+				return self.t_bool();
+			}
+		}
+
 		self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
 		return self.t_bool();
 	}
@@ -237,6 +284,22 @@ impl BodyPass {
 	}
 
 	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		if (rt.kind == DataType.STRUCT) {
+			val s_info = rt.as_struct();
+			var arg_types = List<*Type>();
+			arg_types.add(rt);
+			arg_types.add(lt);
+			val mi = s_info.find_operator("contains", arg_types);
+			if (mi != null) {
+				var new_args = List<*AstNode>();
+				new_args.add(self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col));
+				new_args.add(bin.left);
+				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+				self.replace_node(node, call_node);
+				return self.t_bool();
+			}
+		}
+
 		if (rt.is_list()) {
 			val s = rt.as_struct();
 			if (s.fields.len > 0 && s.fields[0].type_ptr != null && s.fields[0].type_ptr.kind == DataType.POINTER) {
@@ -263,6 +326,27 @@ impl BodyPass {
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
 		val un = node.to<UnaryExpr>();
 		val op_ty = self.check_expr(un.operand);
+
+		if (op_ty.kind == DataType.STRUCT) {
+			val op_name = when (un.op) {
+				TokenType.MINUS -> "negate",
+				TokenType.BANG -> "not",
+				else -> ""
+			};
+			if (!op_name.empty()) {
+				val s_info = op_ty.as_struct();
+				var arg_types = List<*Type>();
+				arg_types.add(op_ty);
+				val mi = s_info.find_operator(op_name, arg_types);
+				if (mi != null) {
+					var new_args = List<*AstNode>();
+					new_args.add(self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col));
+					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+					self.replace_node(node, call_node);
+					return mi.fn_type.as_fn().return_type;
+				}
+			}
+		}
 
 		return when (un.op) {
 			TokenType.MINUS -> {
@@ -465,21 +549,26 @@ impl BodyPass {
 
 		if (target_ty.kind == DataType.STRUCT) {
 			val s_info = target_ty.as_struct();
-			val mi = s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
+			var arg_types = List<*Type>();
+			arg_types.add(target_ty);
+			arg_types.add(index_ty);
+			val mi = s_info.find_operator("get", arg_types) ?: s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
 
-			val fn_info = mi.fn_type.as_fn();
-			val param_ty = fn_info.param_types[1];
-			if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
-			self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
+			if (mi != null) {
+				val fn_info = mi.fn_type.as_fn();
+				val param_ty = fn_info.param_types[1];
+				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
+				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
-			var new_args = List<*AstNode>();
-			new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-			new_args.add(idx.index);
+				var new_args = List<*AstNode>();
+				new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
+				new_args.add(idx.index);
 
-			val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-			self.replace_node(node, call_node);
+				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+				self.replace_node(node, call_node);
 
-			return fn_info.return_type;
+				return fn_info.return_type;
+			}
 		}
 
 		self.report_error(node, "Index access on non-indexable type");
@@ -604,6 +693,32 @@ impl BodyPass {
 		}
 
 		if (asgn.op != TokenType.EQUAL) {
+			if (target_ty.kind == DataType.STRUCT) {
+				val op_name = when (asgn.op) {
+					TokenType.PLUS_EQUAL -> "plus_assign",
+					TokenType.MINUS_EQUAL -> "minus_assign",
+					TokenType.STAR_EQUAL -> "mul_assign",
+					TokenType.SLASH_EQUAL -> "div_assign",
+					TokenType.PERCENT_EQUAL -> "rem_assign",
+					else -> ""
+				};
+				if (!op_name.empty()) {
+					val s_info = target_ty.as_struct();
+					var arg_types = List<*Type>();
+					arg_types.add(target_ty);
+					arg_types.add(val_ty);
+					val mi = s_info.find_operator(op_name, arg_types);
+					if (mi != null) {
+						var new_args = List<*AstNode>();
+						new_args.add(self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col));
+						new_args.add(asgn.value);
+						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						self.replace_node(node, call_node);
+						return target_ty;
+					}
+				}
+			}
+
 			self.ensure(target_ty.is_numeric() && val_ty.is_numeric(), node, "Compound assignment operator requires numeric operands");
 		}
 
@@ -634,7 +749,15 @@ impl BodyPass {
 		val target_raw_ty = self.check_expr(idx.target);
 		if (target_raw_ty.kind != DataType.STRUCT) return null;
 		val s_info = target_raw_ty.as_struct();
-		val mi = s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
+		val idx_ty_raw = self.check_expr(idx.index);
+		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
+
+		var arg_types = List<*Type>();
+		arg_types.add(target_raw_ty);
+		arg_types.add(idx_ty_raw);
+		if (val_ty_raw != null) arg_types.add(val_ty_raw);
+
+		val mi = s_info.find_operator("set", arg_types) ?: s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
 
 		val fn_info = mi.fn_type.as_fn();
 		val idx_param_ty = fn_info.param_types[1];
@@ -652,11 +775,10 @@ impl BodyPass {
 		}
 
 		if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
-		val idx_ty = self.check_expr(idx.index);
-		self.ensure(idx_param_ty.can_assign(idx_ty), node, "Index type mismatch in index ${what}");
+		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
 
 		if ((val_param_ty != null && val_param_ty.is_list())) self.coerce_to_list(val_expr, val_param_ty);
-		val val_ty = self.check_expr(val_expr);
+		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr) else val_ty_raw;
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();

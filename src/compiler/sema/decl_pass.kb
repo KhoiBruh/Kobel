@@ -303,8 +303,8 @@ impl DeclPass {
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
 		=> self.arena.make<ModuleDecl>(ModuleDecl.TAG, ModuleDecl(path, full_path), line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub), line, col);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz, is_op: bool = false): *AstNode
+		=> self.arena.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub, is_op), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<AstStructField>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, fields, is_pub), line, col);
@@ -454,6 +454,51 @@ impl DeclPass {
 				}
 			}
 
+			if (f.is_op) {
+				if (f.params.len == 0 || f.params[0].name != "self") {
+					self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${st_info.name}'");
+				} else {
+					val is_mut_self = f.params[0].is_mut;
+					when (f.name) {
+						"plus", "minus", "mul", "div", "rem",
+						"bit_and", "bit_or", "bit_xor", "shl", "shr",
+						"equals", "compare", "contains" -> {
+							if (f.params.len != 2) {
+								self.report_error(m_node, "Binary operator '${f.name}' must take exactly 1 parameter besides 'self'");
+							}
+						}
+						"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
+						"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
+							if (!is_mut_self) {
+								self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
+							}
+							if (f.params.len != 2) {
+								self.report_error(m_node, "Compound assignment operator '${f.name}' must take exactly 1 parameter besides 'self'");
+							}
+						}
+						"get" -> {
+							if (f.params.len < 2) {
+								self.report_error(m_node, "Index operator 'get' must take at least 1 parameter besides 'self'");
+							}
+						}
+						"set" -> {
+							if (!is_mut_self) {
+								self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
+							}
+							if (f.params.len < 3) {
+								self.report_error(m_node, "Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)");
+							}
+						}
+						"negate", "not" -> {
+							if (f.params.len != 1) {
+								self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
+							}
+						}
+						else -> {}
+					}
+				}
+			}
+
 			var param_types = List<*Type>();
 
 			for (p in f.params) {
@@ -479,7 +524,7 @@ impl DeclPass {
 			used_names.add(m_c_name);
 
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
 			st_info.methods.add(mi);
 
 			// Uniquify the AST name so the backend emits the mangled method name.
@@ -636,7 +681,7 @@ impl DeclPass {
 			}
 
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
 			val pm = self.arena.alloc<PrimMethod>();
 			*pm = PrimMethod(prim.kind, mi);
 			self.symtab.register_prim_method(pm);

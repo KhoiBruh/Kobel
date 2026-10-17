@@ -479,7 +479,8 @@ impl Formatter {
 			}
 			is FnDecl as f -> {
 				if (f.is_pub) self.buf.write("pub ");
-				self.buf.write("fn ");
+				if (f.is_op) self.buf.write("op ");
+				else self.buf.write("fn ");
 				self.buf.write(f.name);
 				self.format_type_params(f.type_params);
 				self.buf.write("(");

@@ -1,0 +1,189 @@
+mod test.test_operators;
+
+use std.io.print;
+use std.io.println;
+use std.collections.list.List;
+
+fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+	}
+}
+
+fn assert_eq_i32(actual: i32, expected: i32, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		print(msg);
+		print(" | Expected: ");
+		print("${expected}");
+		print(", got: ");
+		println("${actual}");
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Test Struct: Vector2 with arithmetic and overloading
+// ----------------------------------------------------------------------------
+
+pub struct Vector2 {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Vector2 {
+	pub fn new(x: i32, y: i32) => Self(x, y);
+
+	// Overloaded op plus: Vector2 + Vector2
+	pub op plus(val self, other: Vector2): Vector2 => Vector2(self.x + other.x, self.y + other.y);
+
+	// Overloaded op plus: Vector2 + i32 (scalar)
+	pub op plus(val self, scalar: i32): Vector2 => Vector2(self.x + scalar, self.y + scalar);
+
+	// op minus: Vector2 - Vector2
+	pub op minus(val self, other: Vector2): Vector2 => Vector2(self.x - other.x, self.y - other.y);
+
+	// op mul: Vector2 * i32
+	pub op mul(val self, factor: i32): Vector2 => Vector2(self.x * factor, self.y * factor);
+
+	// op negate: -Vector2
+	pub op negate(val self): Vector2 => Vector2(0 - self.x, 0 - self.y);
+
+	// op equals: Vector2 == Vector2
+	pub op equals(val self, other: Vector2): bool => self.x == other.x && self.y == other.y;
+
+	// op plus_assign: Vector2 += Vector2
+	pub op plus_assign(var self, other: Vector2) {
+		self.x = self.x + other.x;
+		self.y = self.y + other.y;
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Test Struct: Buffer with indexing get and set
+// ----------------------------------------------------------------------------
+
+pub struct IntBuffer {
+	pub a: i32,
+	pub b: i32,
+	pub c: i32
+}
+
+impl IntBuffer {
+	pub fn new(a: i32, b: i32, c: i32) => Self(a, b, c);
+
+	pub op get(val self, idx: usz): i32 => when (idx) {
+		0UZ -> self.a,
+		1UZ -> self.b,
+		2UZ -> self.c,
+		else -> 0
+	};
+
+	pub op set(var self, idx: usz, val_in: i32) {
+		when (idx) {
+			0UZ -> self.a = val_in;
+			1UZ -> self.b = val_in;
+			2UZ -> self.c = val_in;
+			else -> {}
+		}
+	}
+
+	pub op plus_assign(var self, delta: i32) {
+		self.a = self.a + delta;
+		self.b = self.b + delta;
+		self.c = self.c + delta;
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Test Execution
+// ----------------------------------------------------------------------------
+
+fn test_vector_ops() {
+	val v1 = Vector2(10, 20);
+	val v2 = Vector2(3, 5);
+
+	// Test Vector2 + Vector2
+	val v_add = v1 + v2;
+	assert_eq_i32(v_add.x, 13, "Vector2 + Vector2: x");
+	assert_eq_i32(v_add.y, 25, "Vector2 + Vector2: y");
+
+	// Test Overloaded Vector2 + i32 (scalar)
+	val v_scalar = v1 + 100;
+	assert_eq_i32(v_scalar.x, 110, "Vector2 + i32: x");
+	assert_eq_i32(v_scalar.y, 120, "Vector2 + i32: y");
+
+	// Test Vector2 - Vector2
+	val v_sub = v1 - v2;
+	assert_eq_i32(v_sub.x, 7, "Vector2 - Vector2: x");
+	assert_eq_i32(v_sub.y, 15, "Vector2 - Vector2: y");
+
+	// Test Vector2 * i32
+	val v_mul = v1 * 3;
+	assert_eq_i32(v_mul.x, 30, "Vector2 * i32: x");
+	assert_eq_i32(v_mul.y, 60, "Vector2 * i32: y");
+
+	// Test Unary negate -Vector2
+	val v_neg = -v1;
+	assert_eq_i32(v_neg.x, -10, "-Vector2: x");
+	assert_eq_i32(v_neg.y, -20, "-Vector2: y");
+
+	// Test == and !=
+	assert_true(v1 == Vector2(10, 20), "Vector2 == Vector2 (equal)");
+	assert_true(v1 != v2, "Vector2 != Vector2 (not equal)");
+
+	// Test +=
+	var v_mut = Vector2(1, 2);
+	v_mut += Vector2(10, 20);
+	assert_eq_i32(v_mut.x, 11, "Vector2 += Vector2: x");
+	assert_eq_i32(v_mut.y, 22, "Vector2 += Vector2: y");
+}
+
+fn test_buffer_index_ops() {
+	var buf = IntBuffer(10, 20, 30);
+
+	// Test op get
+	assert_eq_i32(buf[0UZ], 10, "buf[0]");
+	assert_eq_i32(buf[1UZ], 20, "buf[1]");
+	assert_eq_i32(buf[2UZ], 30, "buf[2]");
+
+	// Test op set
+	buf[1UZ] = 99;
+	assert_eq_i32(buf[1UZ], 99, "buf[1] after set");
+
+	// Test op plus_assign
+	buf += 5;
+	assert_eq_i32(buf[0UZ], 15, "buf[0] after +=");
+	assert_eq_i32(buf[1UZ], 104, "buf[1] after +=");
+	assert_eq_i32(buf[2UZ], 35, "buf[2] after +=");
+}
+
+fn test_list_ops() {
+	var list = List<i32>();
+
+	// Test op plus_assign (+=)
+	list += 100;
+	list += 200;
+	list += 300;
+
+	assert_eq_i32(list.len as i32, 3, "List length after +=");
+
+	// Test op get ([])
+	assert_eq_i32(list[0UZ], 100, "list[0]");
+	assert_eq_i32(list[1UZ], 200, "list[1]");
+	assert_eq_i32(list[2UZ], 300, "list[2]");
+
+	// Test op set ([] =)
+	list[1UZ] = 777;
+	assert_eq_i32(list[1UZ], 777, "list[1] after [] =");
+
+	list.delete();
+}
+
+pub fn main() {
+	println("=== Running Operator Overloading Tests ===");
+	test_vector_ops();
+	test_buffer_index_ops();
+	test_list_ops();
+	println("All operator tests passed!");
+}
