@@ -145,8 +145,7 @@ impl BodyPass {
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
 		val ws = node.to<WhenStmt>();
-		var cond_ty: *Type = null;
-		if (ws.condition != null) cond_ty = self.check_expr(ws.condition);
+		val cond_ty = if (ws.condition != null) self.check_expr(ws.condition) else null;
 
 		for (arm in ws.arms) {
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, ws.condition, cond_ty);

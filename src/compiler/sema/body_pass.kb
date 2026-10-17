@@ -182,9 +182,8 @@ impl BodyPass {
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
 		// Prefix the module name (if any) so we know which module an error is in for multi-module builds
-		var loc: str = "";
-		if (node != null) loc = "Line ${node.line}, Column ${node.col}: ${msg}";
-		else loc = msg;
+		val loc = if (node != null) "Line ${node.line}, Column ${node.col}: ${msg}"
+		else msg;
 
 		if (self.symtab.current_module.len > 0) {
 			self.errors.add("${self.symtab.current_module}: ${loc}");

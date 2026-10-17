@@ -30,8 +30,8 @@ impl BodyPass {
 
 	pub fn check_fn(var self, fn_node: *AstNode) {
 		val f = fn_node.to<FnDecl>();
-		val sym = self.symtab.lookup(f.name);
-		if (sym == null || sym.type_ptr.kind != DataType.FN) return;
+		val sym = self.symtab.lookup(f.name) ?: return;
+		if (sym.type_ptr.kind != DataType.FN) return;
 		self.check_fn_body(fn_node, sym.type_ptr);
 	}
 
@@ -107,8 +107,8 @@ impl BodyPass {
 			return;
 		}
 
-		val st_sym = self.symtab.lookup(im.struct_name);
-		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) return;
+		val st_sym = self.symtab.lookup(im.struct_name) ?: return;
+		if (st_sym.type_ptr.kind != DataType.STRUCT) return;
 		val st_info = st_sym.type_ptr.as_struct();
 
 		// Make `Self` resolve to this struct inside every method body.

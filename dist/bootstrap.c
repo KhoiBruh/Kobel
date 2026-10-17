@@ -19111,10 +19111,7 @@ void compiler__sema__body_pass__BodyPass_check_return_stmt(compiler__sema__body_
 
 void compiler__sema__body_pass__BodyPass_check_when_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__stmt__WhenStmt* ws = compiler__ast__node__to_compiler__ast__stmt__WhenStmt(node);
-    compiler__sema__types__Type* cond_ty = NULL;
-    if (ws->condition != NULL) {
-        cond_ty = compiler__sema__body_pass__BodyPass_check_expr(self, ws->condition);
-    }
+    compiler__sema__types__Type* cond_ty = ((ws->condition != NULL) ? compiler__sema__body_pass__BodyPass_check_expr(self, ws->condition) : NULL);
     {
         size_t __for_n = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_count(&ws->arms);
         size_t __for_i = ((size_t)0ULL);
@@ -19767,7 +19764,10 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_struct_ct
 void compiler__sema__body_pass__BodyPass_check_fn(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* fn_node) {
     compiler__ast__decl__FnDecl* f = compiler__ast__node__to_compiler__ast__decl__FnDecl(fn_node);
     compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, f->name);
-    if ((sym == NULL) || ((*sym->type_ptr).kind != 19)) {
+    if (sym == NULL) {
+        return;
+    }
+    if ((*sym->type_ptr).kind != 19) {
         return;
     }
     compiler__sema__body_pass__BodyPass_check_fn_body(self, fn_node, sym->type_ptr);
@@ -19875,7 +19875,10 @@ void compiler__sema__body_pass__BodyPass_check_impl(compiler__sema__body_pass__B
         return;
     }
     compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, im->struct_name);
-    if ((st_sym == NULL) || ((*st_sym->type_ptr).kind != 18)) {
+    if (st_sym == NULL) {
+        return;
+    }
+    if ((*st_sym->type_ptr).kind != 18) {
         return;
     }
     compiler__sema__types__StructType* st_info = compiler__sema__types__Type_as_struct(st_sym->type_ptr);
@@ -20116,12 +20119,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_expr_stmt
 }
 
 void compiler__sema__body_pass__BodyPass_report_error(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* msg) {
-    const char* loc = "";
-    if (node != NULL) {
-        loc = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", usz_to_str(node->line)), ", Column "), usz_to_str(node->col)), ": "), msg);
-    } else {
-        loc = msg;
-    }
+    const char* loc = ((node != NULL) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Line ", usz_to_str(node->line)), ", Column "), usz_to_str(node->col)), ": "), msg) : msg);
     if (kobel_slen(self->symtab.current_module) > 0) {
         std__collections__list__List_str_add(&self->errors, kobel_concat(kobel_concat(self->symtab.current_module, ": "), loc));
     } else {
