@@ -24014,17 +24014,22 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
         size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
             compiler__loader__loader__LoadedModule lm = std__collections__list__List_compiler__loader__loader__LoadedModule_at(&self->ordered, __for_i);
-            if (lm.program != NULL) {
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&decls, compiler__loader__loader__ModuleLoader_module_decl(self, str_split_dots(lm.name), lm.name, 0, 0));
-                compiler__ast__decl__Program* p = compiler__ast__node__to_compiler__ast__decl__Program(lm.program);
+            compiler__ast__node__AstNode* prog = lm.program;
+            if (prog == NULL) {
                 {
-                    size_t __for_n = compiler__ast__decl__Program_count(p);
-                    size_t __for_i = ((size_t)0ULL);
-                    while (__for_i < __for_n) {
-                        compiler__ast__node__AstNode* d = compiler__ast__decl__Program_at(p, __for_i);
-                        std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&decls, d);
-                        __for_i = (__for_i + 1);
-                    }
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&decls, compiler__loader__loader__ModuleLoader_module_decl(self, str_split_dots(lm.name), lm.name, 0, 0));
+            compiler__ast__decl__Program* p = compiler__ast__node__to_compiler__ast__decl__Program(prog);
+            {
+                size_t __for_n = compiler__ast__decl__Program_count(p);
+                size_t __for_i = ((size_t)0ULL);
+                while (__for_i < __for_n) {
+                    compiler__ast__node__AstNode* d = compiler__ast__decl__Program_at(p, __for_i);
+                    std__collections__list__List_ptr_compiler__ast__node__AstNode_add(&decls, d);
+                    __for_i = (__for_i + 1);
                 }
             }
             __for_i = (__for_i + 1);

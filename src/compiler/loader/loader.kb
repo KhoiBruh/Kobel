@@ -219,13 +219,12 @@ impl ModuleLoader {
 		var decls = List<*AstNode>();
 
 		for (lm in self.ordered) {
-			if (lm.program != null) {
-				// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-				decls.add(self.module_decl(lm.name.split_dots(), lm.name, 0, 0));
+			val prog = lm.program ?: continue;
+			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
+			decls.add(self.module_decl(lm.name.split_dots(), lm.name, 0, 0));
 
-				val p = lm.program.to<Program>();
-				for (d in p) decls.add(d);
-			}
+			val p = prog.to<Program>();
+			for (d in p) decls.add(d);
 		}
 
 		return self.program(decls, 0, 0);
