@@ -343,10 +343,10 @@ impl CCodeGen {
 	// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
 	// to a pointer, which is how this backend represents an array value.
 	fn gen_array_literal_expr(var self, al: *ArrayLiteralExpr): str {
-		var elem_c = self.array_elem_hint;
-		if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-		else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
-		if (elem_c.empty()) elem_c = "int32_t";
+		val elem_c = if (al.elem_type_node != null) c_type_from_ast(al.elem_type_node)
+		else if (!self.array_elem_hint.empty()) self.array_elem_hint
+		else if (!al.elements.empty()) self.infer_type_from_expr(al.elements.first())
+		else "int32_t";
 
 		var elems_str = List<str>();
 		for (el in al.elements) elems_str.add(self.gen_expr(el));
@@ -447,8 +447,7 @@ impl CCodeGen {
 
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
 	fn gen_when_expr(var self, we: *WhenExpr): str {
-		var cond = "";
-		if (we.condition != null) cond = self.gen_expr(we.condition);
+		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
 		var res = "0";
 		var i = we.arms.len;
 		while (i > 0) {
@@ -632,10 +631,10 @@ impl CCodeGen {
 	// Array literal: list-struct name if known, else the element type plus a `*`.
 	fn gen_array_literal_type(var self, al: *ArrayLiteralExpr): str {
 		if (!al.list_struct_name.empty()) return al.list_struct_name;
-		var elem_c = self.array_elem_hint;
-		if (al.elem_type_node != null) elem_c = c_type_from_ast(al.elem_type_node);
-		else if (elem_c.empty() && !al.elements.empty()) elem_c = self.infer_type_from_expr(al.elements.first());
-		if (elem_c.empty()) elem_c = "int32_t";
+		val elem_c = if (al.elem_type_node != null) c_type_from_ast(al.elem_type_node)
+		else if (!self.array_elem_hint.empty()) self.array_elem_hint
+		else if (!al.elements.empty()) self.infer_type_from_expr(al.elements.first())
+		else "int32_t";
 		return "${elem_c}*";
 	}
 
@@ -1096,8 +1095,7 @@ impl CCodeGen {
 	}
 
 	fn gen_when_stmt(var self, ws: *WhenStmt): str {
-		var cond = "";
-		if (ws.condition != null) cond = self.gen_expr(ws.condition);
+		val cond = if (ws.condition != null) self.gen_expr(ws.condition) else "";
 		val ind = get_indent(self.indent_level);
 		var res = "";
 		var first = true;
@@ -1172,8 +1170,7 @@ impl CCodeGen {
 	}
 
 	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool): str {
-		var cond = "";
-		if (we.condition != null) cond = self.gen_expr(we.condition);
+		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
 		val ind = get_indent(self.indent_level);
 		var res = "";
 		var first = true;

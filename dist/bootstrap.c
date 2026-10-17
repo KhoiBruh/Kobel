@@ -20394,15 +20394,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_unary_expr(compiler__code
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_array_literal_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__ArrayLiteralExpr* al) {
-    const char* elem_c = self->array_elem_hint;
-    if (al->elem_type_node != NULL) {
-        elem_c = compiler__codegen__c_codegen__c_type_from_ast(al->elem_type_node);
-    } else if (str_empty(elem_c) && !std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements)) {
-        elem_c = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&al->elements));
-    }
-    if (str_empty(elem_c)) {
-        elem_c = "int32_t";
-    }
+    const char* elem_c = ((al->elem_type_node != NULL) ? compiler__codegen__c_codegen__c_type_from_ast(al->elem_type_node) : (!str_empty(self->array_elem_hint) ? self->array_elem_hint : (!std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements) ? compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&al->elements)) : "int32_t")));
     std__collections__list__List_str elems_str = std__collections__list__List_str_new(4);
     {
         size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
@@ -20510,10 +20502,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_assign_expr(compiler__cod
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__WhenExpr* we) {
-    const char* cond = "";
-    if (we->condition != NULL) {
-        cond = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, we->condition);
-    }
+    const char* cond = ((we->condition != NULL) ? compiler__codegen__c_codegen__CCodeGen_gen_expr(self, we->condition) : "");
     const char* res = "0";
     size_t i = we->arms.len;
     while (i > 0) {
@@ -20724,15 +20713,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_array_literal_type(compil
     if (!str_empty(al->list_struct_name)) {
         return al->list_struct_name;
     }
-    const char* elem_c = self->array_elem_hint;
-    if (al->elem_type_node != NULL) {
-        elem_c = compiler__codegen__c_codegen__c_type_from_ast(al->elem_type_node);
-    } else if (str_empty(elem_c) && !std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements)) {
-        elem_c = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&al->elements));
-    }
-    if (str_empty(elem_c)) {
-        elem_c = "int32_t";
-    }
+    const char* elem_c = ((al->elem_type_node != NULL) ? compiler__codegen__c_codegen__c_type_from_ast(al->elem_type_node) : (!str_empty(self->array_elem_hint) ? self->array_elem_hint : (!std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements) ? compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&al->elements)) : "int32_t")));
     return kobel_concat(elem_c, "*");
 }
 
@@ -21285,10 +21266,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_yield_stmt(compiler__code
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_stmt(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__stmt__WhenStmt* ws) {
-    const char* cond = "";
-    if (ws->condition != NULL) {
-        cond = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, ws->condition);
-    }
+    const char* cond = ((ws->condition != NULL) ? compiler__codegen__c_codegen__CCodeGen_gen_expr(self, ws->condition) : "");
     const char* ind = compiler__codegen__c_codegen__get_indent(self->indent_level);
     const char* res = "";
     bool first = true;
@@ -21374,10 +21352,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(compiler_
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__WhenExpr* we, const char* target_name, bool is_ret) {
-    const char* cond = "";
-    if (we->condition != NULL) {
-        cond = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, we->condition);
-    }
+    const char* cond = ((we->condition != NULL) ? compiler__codegen__c_codegen__CCodeGen_gen_expr(self, we->condition) : "");
     const char* ind = compiler__codegen__c_codegen__get_indent(self->indent_level);
     const char* res = "";
     bool first = true;
@@ -21660,16 +21635,8 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_struct_decl(compiler__cod
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__decl__FnDecl* f, bool is_proto, const char* self_c_type) {
-    const char* ret_ty = "void";
+    const char* ret_ty = compiler__codegen__c_codegen__CCodeGen_fn_ret_c_type(self, f);
     compiler__ast__node__AstNode* f_body = f->body;
-    if (f->return_type != NULL) {
-        ret_ty = compiler__codegen__c_codegen__c_type_from_ast(f->return_type);
-    } else if (f_body != NULL) {
-        if ((f_body != NULL && f_body->kind == compiler__ast__stmt__ExprStmt__TAG)) {
-            compiler__ast__stmt__ExprStmt* es = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)f_body)->data);
-            ret_ty = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, es->expr);
-        }
-    }
     const char* proto = kobel_concat(kobel_concat(kobel_concat(ret_ty, " "), f->name), "(");
     if (std__collections__list__List_compiler__ast__decl__Param_empty(&f->params)) {
         proto = kobel_concat(proto, "void");

@@ -162,14 +162,8 @@ impl CCodeGen {
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
 	// method ("" for free functions). It types the untyped `self` receiver.
 	pub fn gen_fn_decl(var self, f: *FnDecl, is_proto: bool, self_c_type: str): str {
-		var ret_ty = "void";
+		val ret_ty = self.fn_ret_c_type(f);
 		val f_body = f.body;
-		if (f.return_type != null) ret_ty = c_type_from_ast(f.return_type);
-		else if (f_body != null) {
-			if (f_body is ExprStmt as es) {
-				ret_ty = self.infer_type_from_expr(es.expr);
-			}
-		}
 
 		var proto = "${ret_ty} ${f.name}(";
 		if (f.params.empty()) proto = "${proto}void";
