@@ -376,13 +376,9 @@ impl BodyPass {
 			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
 			val s_sym = self.symtab.lookup(enum_id.name);
 			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
-				var c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}");
-				if (c_sym == null) {
-					c_sym = self.symtab.lookup_struct_const(enum_id.name, mem.member);
-				}
-				if (c_sym == null) {
-					c_sym = self.symtab.lookup_struct_const(s_sym.name, mem.member);
-				}
+				val c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}")
+					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
+					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
 				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
 					val id_node = self.identifier(c_sym.c_name, node.line, node.col);
 					self.replace_node(node, id_node);
@@ -709,8 +705,7 @@ impl BodyPass {
 
 	pub fn check_when_expr(var self, node: *AstNode): *Type {
 		val we = node.to<WhenExpr>();
-		var cond_ty: *Type = null;
-		if (we.condition != null) cond_ty = self.check_expr(we.condition);
+		val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
 
 		self.when_depth++;
 		var result_ty: *Type = null;
@@ -971,7 +966,7 @@ impl BodyPass {
 			if (acc == null) acc = piece;
 			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
 		}
-		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		acc = acc ?: self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 
 		self.replace_node(node, acc);
 		return self.t_str();

@@ -235,17 +235,18 @@ impl BodyPass {
 					"overloading by parameter type is not supported"
 				);
 			}
-			var mi = s_info.find_method_arity(mem.member, argc);
-			mi = self.method_with_defaults(mem.member, argc, s_info.methods, call, mi);
-			if (mi == null) mi = s_info.find_method(mem.member);
+			val mi = self.method_with_defaults(
+				mem.member, argc, s_info.methods, call, s_info.find_method_arity(mem.member, argc)
+			) ?: s_info.find_method(mem.member);
 			// Struct methods take the receiver by reference.
 			if (mi != null) return self.lower_method_call(node, mem, call, mi, obj_ty, obj_is_ptr, true);
 		}
 
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
-		var pmi = self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, argc);
-		pmi = self.method_with_defaults(mem.member, argc, self.symtab.prim_methods_of(obj_ty.kind), call, pmi);
-		if (pmi == null) pmi = self.symtab.find_prim_method(obj_ty.kind, mem.member);
+		val pmi = self.method_with_defaults(
+			mem.member, argc, self.symtab.prim_methods_of(obj_ty.kind), call,
+			self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, argc)
+		) ?: self.symtab.find_prim_method(obj_ty.kind, mem.member);
 		// Primitive methods take the receiver by value.
 		if (pmi != null) return self.lower_method_call(node, mem, call, pmi, obj_ty, obj_is_ptr, false);
 
@@ -298,15 +299,9 @@ impl BodyPass {
 				"Ambiguous call to 'new': "
 				"overloading by parameter type is not supported"
 			);
-			var nm = s_info.find_method_arity("new", call.args.len);
-			if (nm == null) {
-				for (m in s_info.methods) {
-					if (m.name != "new") continue;
-					if (!self.append_defaults(m.ast_node as *AstNode, call.args.len, call)) continue;
-					nm = m;
-					break;
-				}
-			}
+			val nm = self.method_with_defaults(
+				"new", call.args.len, s_info.methods, call, s_info.find_method_arity("new", call.args.len)
+			);
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn();
 				for (i in 0..<call.args.len) {

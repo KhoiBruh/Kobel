@@ -18306,12 +18306,8 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_const_mem
         compiler__sema__symbol__Symbol* s_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, enum_id->name);
         if ((s_sym != NULL) && (s_sym->kind == 4)) {
             compiler__sema__symbol__Symbol* c_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(kobel_concat(enum_id->name, "__"), mem->member));
-            if (c_sym == NULL) {
-                c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, enum_id->name, mem->member);
-            }
-            if (c_sym == NULL) {
-                c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, s_sym->name, mem->member);
-            }
+            if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, enum_id->name, mem->member);
+            if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, s_sym->name, mem->member);
             if ((c_sym != NULL) && (c_sym->kind == 1)) {
                 compiler__ast__node__AstNode* id_node = compiler__sema__body_pass__BodyPass_identifier(self, c_sym->c_name, node->line, node->col);
                 compiler__sema__body_pass__BodyPass_replace_node(self, node, id_node);
@@ -18609,10 +18605,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_if_expr(c
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__expr__WhenExpr* we = compiler__ast__node__to_compiler__ast__expr__WhenExpr(node);
-    compiler__sema__types__Type* cond_ty = NULL;
-    if (we->condition != NULL) {
-        cond_ty = compiler__sema__body_pass__BodyPass_check_expr(self, we->condition);
-    }
+    compiler__sema__types__Type* cond_ty = ((we->condition != NULL) ? compiler__sema__body_pass__BodyPass_check_expr(self, we->condition) : NULL);
     self->when_depth++;
     compiler__sema__types__Type* result_ty = NULL;
     bool has_else = false;
@@ -18960,9 +18953,8 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_interp_ex
             __for_i = (__for_i + 1);
         }
     }
-    if (acc == NULL) {
-        acc = compiler__sema__body_pass__BodyPass_literal(self, 4, "\"\"", node->line, node->col);
-    }
+    acc = acc;
+    if (acc == NULL) acc = compiler__sema__body_pass__BodyPass_literal(self, 4, "\"\"", node->line, node->col);
     compiler__sema__body_pass__BodyPass_replace_node(self, node, acc);
     return compiler__sema__body_pass__BodyPass_t_str(self);
 }
@@ -19488,20 +19480,14 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_method_ca
         if (compiler__sema__types__StructType_count_method_arity(s_info, mem->member, argc) > 1) {
             compiler__sema__body_pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Ambiguous call to '", mem->member), "': overloading by parameter type is not supported"));
         }
-        compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, mem->member, argc);
-        mi = compiler__sema__body_pass__BodyPass_method_with_defaults(self, mem->member, argc, s_info->methods, call, mi);
-        if (mi == NULL) {
-            mi = compiler__sema__types__StructType_find_method(s_info, mem->member);
-        }
+        compiler__sema__types__MethodInfo* mi = compiler__sema__body_pass__BodyPass_method_with_defaults(self, mem->member, argc, s_info->methods, call, compiler__sema__types__StructType_find_method_arity(s_info, mem->member, argc));
+        if (mi == NULL) mi = compiler__sema__types__StructType_find_method(s_info, mem->member);
         if (mi != NULL) {
             return compiler__sema__body_pass__BodyPass_lower_method_call(self, node, mem, call, mi, obj_ty, obj_is_ptr, true);
         }
     }
-    compiler__sema__types__MethodInfo* pmi = compiler__sema__symbol__SymbolTable_find_prim_method_arity(&self->symtab, obj_ty->kind, mem->member, argc);
-    pmi = compiler__sema__body_pass__BodyPass_method_with_defaults(self, mem->member, argc, compiler__sema__symbol__SymbolTable_prim_methods_of(&self->symtab, obj_ty->kind), call, pmi);
-    if (pmi == NULL) {
-        pmi = compiler__sema__symbol__SymbolTable_find_prim_method(&self->symtab, obj_ty->kind, mem->member);
-    }
+    compiler__sema__types__MethodInfo* pmi = compiler__sema__body_pass__BodyPass_method_with_defaults(self, mem->member, argc, compiler__sema__symbol__SymbolTable_prim_methods_of(&self->symtab, obj_ty->kind), call, compiler__sema__symbol__SymbolTable_find_prim_method_arity(&self->symtab, obj_ty->kind, mem->member, argc));
+    if (pmi == NULL) pmi = compiler__sema__symbol__SymbolTable_find_prim_method(&self->symtab, obj_ty->kind, mem->member);
     if (pmi != NULL) {
         return compiler__sema__body_pass__BodyPass_lower_method_call(self, node, mem, call, pmi, obj_ty, obj_is_ptr, false);
     }
@@ -19592,27 +19578,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_struct_ct
         if (compiler__sema__types__StructType_count_method_arity(s_info, "new", call->args.len) > 1) {
             compiler__sema__body_pass__BodyPass_report_error(self, node, "Ambiguous call to 'new': overloading by parameter type is not supported");
         }
-        compiler__sema__types__MethodInfo* nm = compiler__sema__types__StructType_find_method_arity(s_info, "new", call->args.len);
-        if (nm == NULL) {
-            {
-                size_t __for_n = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_count(&s_info->methods);
-                size_t __for_i = ((size_t)0ULL);
-                while (__for_i < __for_n) {
-                    compiler__sema__types__MethodInfo* m = std__collections__list__List_ptr_compiler__sema__types__MethodInfo_at(&s_info->methods, __for_i);
-                    if (!kobel_streq(m->name, "new")) {
-                        __for_i = (__for_i + 1);
-                        continue;
-                    }
-                    if (!compiler__sema__body_pass__BodyPass_append_defaults(self, (compiler__ast__node__AstNode*)m->ast_node, call->args.len, call)) {
-                        __for_i = (__for_i + 1);
-                        continue;
-                    }
-                    nm = m;
-                    break;
-                    __for_i = (__for_i + 1);
-                }
-            }
-        }
+        compiler__sema__types__MethodInfo* nm = compiler__sema__body_pass__BodyPass_method_with_defaults(self, "new", call->args.len, s_info->methods, call, compiler__sema__types__StructType_find_method_arity(s_info, "new", call->args.len));
         if (nm != NULL) {
             compiler__sema__types__FnType* n_info = compiler__sema__types__Type_as_fn(nm->fn_type);
             {
