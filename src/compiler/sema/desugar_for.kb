@@ -92,6 +92,14 @@ impl Arena {
 				val w = node.to<WhenStmt>();
 				for (arm in w.arms) self.for_inject_step(arm.body, step);
 			}
+			NodeKind.STMT_VAR_DECL -> {
+				val vd = node.to<VarDeclStmt>();
+				self.for_inject_step_expr(vd.initializer, step);
+			}
+			NodeKind.STMT_EXPR -> {
+				val es = node.to<ExprStmt>();
+				self.for_inject_step_expr(es.expr, step);
+			}
 			NodeKind.STMT_CONTINUE -> {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts.add(s);
@@ -102,6 +110,23 @@ impl Arena {
 				n.data = blk.data;
 			}
 			else -> {}
+		}
+	}
+
+	fn for_inject_step_expr(var self, expr: *AstNode, step: &List<*AstNode>) {
+		if (expr == null) return;
+		var cur = expr;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		if (cur == null) return;
+		if (cur is BinaryExpr as bin) {
+			if (bin.op == TokenType.QUESTION_COLON) {
+				self.for_inject_step(bin.right, step);
+			}
+		} else if (cur is AssignExpr as asg) {
+			self.for_inject_step_expr(asg.value, step);
 		}
 	}
 

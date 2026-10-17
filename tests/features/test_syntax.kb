@@ -229,6 +229,11 @@ fn elvis_helper_ret(val ptr: *i32?): i32 {
 	return *unwrapped;
 }
 
+fn elvis_chained_ret(val p1: *i32?, val p2: *i32?): i32 {
+	val unwrapped = p1 ?: p2 ?: return 99;
+	return *unwrapped;
+}
+
 fn track_ptr(p: *i32?, c: *Counter): *i32? {
 	c.count++;
 	return p;
@@ -329,6 +334,24 @@ fn test_null_safety(): bool {
 	val s_orig: str = "custom";
 	val s2: str = s_orig ?: "fallback";
 	if (s2 != "custom") return false;
+
+	// 7. Null literal fallback
+	val fb_lit: *i32 = null ?: &x;
+	if (*fb_lit != 10) return false;
+
+	// 8. Elvis continue jump
+	var cont_count: i32 = 0;
+	for (i in 0..<5) {
+		val p: *i32? = if (i % 2 == 0) null else &x;
+		val unwrapped = p ?: continue;
+		cont_count = cont_count + 1;
+	}
+	if (cont_count != 2) return false;
+
+	// 9. Chained Elvis with return jump
+	if (elvis_chained_ret(null, null) != 99) return false;
+	if (elvis_chained_ret(null, &y) != 20) return false;
+	if (elvis_chained_ret(&x, &y) != 10) return false;
 
 	return true;
 }

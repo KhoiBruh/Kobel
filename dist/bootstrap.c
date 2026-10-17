@@ -2727,6 +2727,7 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_for_set_go(std__mem__arena_
 compiler__ast__node__AstNode* std__mem__arena__Arena_for_bump(std__mem__arena__Arena* self, compiler__lexer__token__TokenType op, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_for_by_dir(std__mem__arena__Arena* self, compiler__ast__node__AstNode* up_stmt, compiler__ast__node__AstNode* down_stmt, size_t line, size_t col);
 void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compiler__ast__node__AstNode* node, std__collections__list__List_ptr_compiler__ast__node__AstNode* step);
+void std__mem__arena__Arena_for_inject_step_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, std__collections__list__List_ptr_compiler__ast__node__AstNode* step);
 compiler__ast__node__AstNode* std__mem__arena__Arena_desugar_for_iter_method(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode* pre, std__collections__list__List_ptr_compiler__ast__node__AstNode* head, std__collections__list__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_desugar_for_iterable(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode* pre, std__collections__list__List_ptr_compiler__ast__node__AstNode* head, std__collections__list__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_desugar_for_range(std__mem__arena__Arena* self, std__collections__list__List_ptr_compiler__ast__node__AstNode* pre, std__collections__list__List_ptr_compiler__ast__node__AstNode* head, std__collections__list__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
@@ -15002,11 +15003,12 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
             }
         }
     }
-    compiler__sema__symbol__Symbol* isym = compiler__sema__symbol__GenericReg_find_inst(&self->gen, name);
-    if (isym != NULL) {
-        return isym;
+    {
+        compiler__sema__symbol__Symbol* __ret_tmp;
+        __ret_tmp = compiler__sema__symbol__GenericReg_find_inst(&self->gen, name);
+        if (__ret_tmp != NULL) return __ret_tmp;
+        return compiler__sema__symbol__SymbolTable_lookup_c_name(self, name);
     }
-    return compiler__sema__symbol__SymbolTable_lookup_c_name(self, name);
 }
 
 bool compiler__sema__symbol__SymbolTable_define(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__Symbol sym) {
@@ -15080,10 +15082,10 @@ void compiler__sema__symbol__SymbolTable_add_import(compiler__sema__symbol__Symb
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* name) {
     compiler__sema__symbol__ModuleScope* sc = compiler__sema__symbol__SymbolTable_find_module(self, module_name);
-    if (sc != NULL) {
-        return compiler__sema__symbol__ModuleScope_lookup(sc, name);
+    if (sc == NULL) {
+        return NULL;
     }
-    return NULL;
+    return compiler__sema__symbol__ModuleScope_lookup(sc, name);
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_name(compiler__sema__symbol__SymbolTable* self, const char* c_name) {
@@ -17783,6 +17785,12 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
                 __for_i = (__for_i + 1);
             }
         }
+    } else if (node->kind == 21) {
+        compiler__ast__stmt__VarDeclStmt* vd = compiler__ast__node__to_compiler__ast__stmt__VarDeclStmt(node);
+        std__mem__arena__Arena_for_inject_step_expr(self, vd->initializer, step);
+    } else if (node->kind == 20) {
+        compiler__ast__stmt__ExprStmt* es = compiler__ast__node__to_compiler__ast__stmt__ExprStmt(node);
+        std__mem__arena__Arena_for_inject_step_expr(self, es->expr, step);
     } else if (node->kind == 27) {
         std__collections__list__List_ptr_compiler__ast__node__AstNode stmts = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         {
@@ -17800,6 +17808,33 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
         n->kind = 19;
         n->data = blk->data;
     } else {
+    }
+}
+
+void std__mem__arena__Arena_for_inject_step_expr(std__mem__arena__Arena* self, compiler__ast__node__AstNode* expr, std__collections__list__List_ptr_compiler__ast__node__AstNode* step) {
+    if (expr == NULL) {
+        return;
+    }
+    compiler__ast__node__AstNode* cur = expr;
+    while (cur != NULL) {
+        if ((cur != NULL && cur->kind == compiler__ast__expr__GroupExpr__TAG)) {
+            compiler__ast__expr__GroupExpr* g = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)cur)->data);
+            cur = g->expr;
+        } else {
+            break;
+        }
+    }
+    if (cur == NULL) {
+        return;
+    }
+    if ((cur != NULL && cur->kind == compiler__ast__expr__BinaryExpr__TAG)) {
+        compiler__ast__expr__BinaryExpr* bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)cur)->data);
+        if (bin->op == 37) {
+            std__mem__arena__Arena_for_inject_step(self, bin->right, step);
+        }
+    } else if ((cur != NULL && cur->kind == compiler__ast__expr__AssignExpr__TAG)) {
+        compiler__ast__expr__AssignExpr* asg = (compiler__ast__expr__AssignExpr*)(((compiler__ast__node__AstNode*)cur)->data);
+        std__mem__arena__Arena_for_inject_step_expr(self, asg->value, step);
     }
 }
 
@@ -18102,18 +18137,23 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_binary_ex
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_elvis_expr(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__BinaryExpr* bin, bool was_stmt) {
     compiler__sema__types__Type* lt = compiler__sema__body_pass__BodyPass_check_expr(self, bin->left);
     compiler__sema__body_pass__BodyPass_ensure(self, ((lt->kind == 16) || (lt->kind == 15)), bin->left, "Left-hand side of Elvis operator '?:' must be a pointer or string");
-    bool is_jump = ((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27));
+    bool is_jump = (((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 19));
+    compiler__sema__types__Type* rt = NULL;
     if (is_jump) {
         compiler__sema__body_pass__BodyPass_ensure(self, was_stmt, bin->right, "Elvis operator with jump statement ('return', 'break', 'continue') is only allowed in variable declarations, assignments, or statement expressions");
         compiler__sema__body_pass__BodyPass_check_statement(self, bin->right);
     } else {
         self->is_stmt_level = was_stmt;
-        compiler__sema__types__Type* rt = compiler__sema__body_pass__BodyPass_check_expr(self, bin->right);
+        rt = compiler__sema__body_pass__BodyPass_check_expr(self, bin->right);
         self->is_stmt_level = false;
-        compiler__sema__body_pass__BodyPass_ensure(self, compiler__sema__types__Type_can_assign(lt, rt), bin->right, "Right-hand side of Elvis operator '?:' has incompatible type");
+        bool lt_is_null_lit = ((lt->kind == 16) && ((*(*compiler__sema__types__Type_as_pointer(lt)).pointee).kind == 0));
+        compiler__sema__body_pass__BodyPass_ensure(self, ((compiler__sema__types__Type_can_assign(lt, rt) || lt_is_null_lit) || ((rt != NULL) && compiler__sema__types__Type_can_assign(rt, lt))), bin->right, "Right-hand side of Elvis operator '?:' has incompatible type");
     }
     if (lt->kind == 16) {
         compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(lt);
+        if ((((*pt->pointee).kind == 0) && !is_jump) && (rt != NULL)) {
+            return rt;
+        }
         if (pt->is_nullable) {
             return std__mem__arena__Arena_pointer_type_3_2(&self->arena, pt->pointee, pt->is_mut);
         }
@@ -18345,9 +18385,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_index_exp
     if (target_ty->kind == 18) {
         compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(target_ty);
         compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, "get", 2);
-        if (mi == NULL) {
-            mi = compiler__sema__types__StructType_find_method(s_info, "get");
-        }
+        if (mi == NULL) mi = compiler__sema__types__StructType_find_method(s_info, "get");
         compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
         compiler__sema__types__Type* param_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 1);
         if ((param_ty != NULL) && compiler__sema__types__Type_is_list(param_ty)) {
@@ -18488,9 +18526,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_index_wri
     }
     compiler__sema__types__StructType* s_info = compiler__sema__types__Type_as_struct(target_raw_ty);
     compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_arity(s_info, "set", 3);
-    if (mi == NULL) {
-        mi = compiler__sema__types__StructType_find_method(s_info, "set");
-    }
+    if (mi == NULL) mi = compiler__sema__types__StructType_find_method(s_info, "set");
     if (mi == NULL) {
         return NULL;
     }
@@ -18772,17 +18808,16 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_is_patter
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__body_pass__BodyPass_find_tag_const(compiler__sema__body_pass__BodyPass* self, const char* struct_name) {
-    compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__TAG"));
-    if (sym == NULL) {
-        sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "TAG");
+    {
+        compiler__sema__symbol__Symbol* __ret_tmp;
+        __ret_tmp = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__TAG"));
+        if (__ret_tmp != NULL) return __ret_tmp;
+        __ret_tmp = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "TAG");
+        if (__ret_tmp != NULL) return __ret_tmp;
+        __ret_tmp = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__KIND"));
+        if (__ret_tmp != NULL) return __ret_tmp;
+        return compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "KIND");
     }
-    if (sym == NULL) {
-        sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(struct_name, "__KIND"));
-    }
-    if (sym == NULL) {
-        sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, struct_name, "KIND");
-    }
-    return sym;
 }
 
 const char* compiler__sema__body_pass__BodyPass_tag_field_name_of(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__StructType* base_s) {
@@ -19308,10 +19343,12 @@ compiler__sema__types__MethodInfo* compiler__sema__body_pass__BodyPass_method_wi
                 __for_i = (__for_i + 1);
                 continue;
             }
-            compiler__ast__node__AstNode* ast_n = (compiler__ast__node__AstNode*)m->ast_node;
+            compiler__ast__node__AstNode* ast_n = ((compiler__ast__node__AstNode*)m->ast_node);
             if (ast_n == NULL) {
-                __for_i = (__for_i + 1);
-                continue;
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
             }
             if (!compiler__sema__body_pass__BodyPass_append_defaults(self, ast_n, argc, call)) {
                 __for_i = (__for_i + 1);
@@ -19325,7 +19362,7 @@ compiler__sema__types__MethodInfo* compiler__sema__body_pass__BodyPass_method_wi
 }
 
 void compiler__sema__body_pass__BodyPass_check_arrow_method_body(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__MethodInfo* mi, compiler__sema__types__Type* obj_ty) {
-    compiler__ast__node__AstNode* ast_n = (compiler__ast__node__AstNode*)mi->ast_node;
+    compiler__ast__node__AstNode* ast_n = ((compiler__ast__node__AstNode*)mi->ast_node);
     if (ast_n == NULL) {
         return;
     }
@@ -20587,7 +20624,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_literal_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__LiteralExpr* lit) {
-    return (lit->literal_kind == 4 ? "const char*" : (lit->literal_kind == 3 ? "char" : (lit->literal_kind == 1 ? compiler__codegen__c_codegen__c_float_literal_c_type(lit->raw_text) : (lit->literal_kind == 2 ? "bool" : compiler__codegen__c_codegen__c_int_literal_c_type(lit->raw_text)))));
+    return (lit->literal_kind == 4 ? "const char*" : (lit->literal_kind == 3 ? "char" : (lit->literal_kind == 1 ? compiler__codegen__c_codegen__c_float_literal_c_type(lit->raw_text) : (lit->literal_kind == 2 ? "bool" : (lit->literal_kind == 5 ? "void*" : compiler__codegen__c_codegen__c_int_literal_c_type(lit->raw_text))))));
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_identifier_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__IdentifierExpr* id) {
@@ -20636,7 +20673,20 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_call_type(compiler__codeg
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_binary_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__BinaryExpr* bin) {
-    return (bin->op == 21 || bin->op == 22 || bin->op == 12 || bin->op == 23 || bin->op == 11 || bin->op == 24 || bin->op == 25 || bin->op == 26 ? "bool" : compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, bin->left));
+    if (bin->op == 21 || bin->op == 22 || bin->op == 12 || bin->op == 23 || bin->op == 11 || bin->op == 24 || bin->op == 25 || bin->op == 26) {
+        return "bool";
+    } else if (bin->op == 37) {
+        const char* lt = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, bin->left);
+        if (kobel_streq(lt, "void*") || kobel_streq(lt, "int32_t")) {
+            const char* rt = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, bin->right);
+            if ((!str_empty(rt) && !kobel_streq(rt, "void*")) && !kobel_streq(rt, "int32_t")) {
+                return rt;
+            }
+        }
+        return lt;
+    } else {
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, bin->left);
+    }
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_unary_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__UnaryExpr* un) {
@@ -20918,7 +20968,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_var_elvis_init(compiler__
                 break;
             }
         } else {
-            bool is_jump = (((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27));
+            bool is_jump = ((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 19));
             if (is_jump) {
                 res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), vd->name), " == NULL) {\n");
                 self->indent_level++;
@@ -21125,7 +21175,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_expr_stmt(compiler__codeg
         if ((bin_candidate != NULL && bin_candidate->kind == compiler__ast__expr__BinaryExpr__TAG)) {
             compiler__ast__expr__BinaryExpr* bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)bin_candidate)->data);
             if (bin->op == 37) {
-                bool is_jump = ((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27));
+                bool is_jump = (((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 19));
                 if (is_jump) {
                     return compiler__codegen__c_codegen__CCodeGen_gen_elvis_jump_stmt(self, bin, ind);
                 }
@@ -21167,7 +21217,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_assign_elvis_stmt(compile
                 break;
             }
         } else {
-            bool is_jump = (((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27));
+            bool is_jump = ((((cur->kind == 25) || (cur->kind == 26)) || (cur->kind == 27)) || (cur->kind == 19));
             if (is_jump) {
                 res = kobel_concat(kobel_concat(kobel_concat(kobel_concat(res, ind), "if ("), tgt), " == NULL) {\n");
                 self->indent_level++;

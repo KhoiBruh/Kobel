@@ -343,12 +343,8 @@ impl SymbolTable {
 			}
 		}
 
-		// 5. Instantiated generic symbols (their name already equals the mangled C name)
-		val isym = self.gen.find_inst(name);
-		if (isym != null) return isym;
-
-		// 6. Mangled C name (idempotent on repeated resolution)
-		return self.lookup_c_name(name);
+		// 5. Instantiated generic symbols (or fallback to mangled C name)
+		return self.gen.find_inst(name) ?: self.lookup_c_name(name);
 	}
 
 	pub fn define(var self, sym: Symbol): bool {
@@ -416,9 +412,8 @@ impl SymbolTable {
 	}
 
 	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol {
-		val sc = self.find_module(module_name);
-		if (sc != null) return sc.lookup(name);
-		return null;
+		val sc = self.find_module(module_name) ?: return null;
+		return sc.lookup(name);
 	}
 
 	// Look up by generated C name (used when re-resolving a mangled name).

@@ -338,8 +338,7 @@ impl DeclPass {
 
 		self.leave_module(prev_mod);
 
-		val sym = self.find_inst(cname);
-		if (sym == null) return self.t_none();
+		val sym = self.find_inst(cname) ?: return self.t_none();
 		return sym.type_ptr;
 	}
 
@@ -570,8 +569,7 @@ impl DeclPass {
 		val m = c.callee.to<MemberExpr>();
 		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
 		if (subst == null) return null;
-		val sa = subst.lookup(m.object.to<IdentifierExpr>().name);
-		if (sa == null) return null;
+		val sa = subst.lookup(m.object.to<IdentifierExpr>().name) ?: return null;
 		return self.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
 	}
 
@@ -585,8 +583,7 @@ impl DeclPass {
 
 		if (c.callee.kind == NodeKind.EXPR_MEMBER) {
 			val mem = c.callee.to<MemberExpr>();
-			val ft = self.find_method_template(mem.member);
-			if (ft == null) return null;
+			val ft = self.find_method_template(mem.member) ?: return null;
 			val mem_obj = self.clone_expr(mem.object, subst);
 			val targs = self.clone_type_args(c.type_args, subst);
 			var new_args = List<*AstNode>();

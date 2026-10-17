@@ -554,6 +554,7 @@ impl CCodeGen {
 			LiteralKind.CHAR -> "char",
 			LiteralKind.FLOAT -> c_float_literal_c_type(lit.raw_text),
 			LiteralKind.BOOL -> "bool",
+			LiteralKind.NULL_VAL -> "void*",
 			else -> c_int_literal_c_type(lit.raw_text)
 		};
 	}
@@ -597,6 +598,14 @@ impl CCodeGen {
 			TokenType.LESS, TokenType.LESS_EQUAL,
 			TokenType.GREATER, TokenType.GREATER_EQUAL,
 			TokenType.AND_AND, TokenType.OR_OR -> "bool";
+			TokenType.QUESTION_COLON -> {
+				val lt = self.infer_type_from_expr(bin.left);
+				if (lt == "void*" || lt == "int32_t") {
+					val rt = self.infer_type_from_expr(bin.right);
+					if (!rt.empty() && rt != "void*" && rt != "int32_t") yield rt;
+				}
+				yield lt;
+			}
 			else -> self.infer_type_from_expr(bin.left);
 		};
 	}
@@ -816,7 +825,8 @@ impl CCodeGen {
 			} else {
 				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
 					cur.kind == NodeKind.STMT_BREAK ||
-					cur.kind == NodeKind.STMT_CONTINUE;
+					cur.kind == NodeKind.STMT_CONTINUE ||
+					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
 					res = "${res}${ind}if (${vd.name} == NULL) {\n";
 					self.indent_level++;
@@ -990,7 +1000,8 @@ impl CCodeGen {
 				if (bin.op == TokenType.QUESTION_COLON) {
 					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 						bin.right.kind == NodeKind.STMT_BREAK ||
-						bin.right.kind == NodeKind.STMT_CONTINUE;
+						bin.right.kind == NodeKind.STMT_CONTINUE ||
+						bin.right.kind == NodeKind.STMT_BLOCK;
 
 					if (is_jump) {
 						return self.gen_elvis_jump_stmt(bin, ind);
@@ -1029,7 +1040,8 @@ impl CCodeGen {
 			} else {
 				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
 					cur.kind == NodeKind.STMT_BREAK ||
-					cur.kind == NodeKind.STMT_CONTINUE;
+					cur.kind == NodeKind.STMT_CONTINUE ||
+					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
 					res = "${res}${ind}if (${tgt} == NULL) {\n";
 					self.indent_level++;

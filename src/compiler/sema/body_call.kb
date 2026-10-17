@@ -133,8 +133,7 @@ impl BodyPass {
 		if (found != null) return found;
 		for (m in cands) {
 			if (m.name != name || m.ast_node == null) continue;
-			val ast_n = m.ast_node as *AstNode;
-			if (ast_n == null) continue;
+			val ast_n = (m.ast_node as *AstNode) ?: continue;
 			if (!self.append_defaults(ast_n, argc, call)) continue;
 			return m;
 		}
@@ -145,8 +144,7 @@ impl BodyPass {
 	// declaration pass, so check it here, with `self` bound to the receiver
 	// type and the module switched to the one declaring the method.
 	fn check_arrow_method_body(var self, mi: *MethodInfo, obj_ty: *Type) {
-		val ast_n = mi.ast_node as *AstNode;
-		if (ast_n == null) return;
+		val ast_n = (mi.ast_node as *AstNode) ?: return;
 		if (ast_n is FnDecl as f) {
 			if (f.body == null || f.body.kind != NodeKind.STMT_EXPR || f.return_type != null) return;
 			val prev_self = self.current_self_type;

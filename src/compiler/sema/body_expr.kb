@@ -157,8 +157,10 @@ impl BodyPass {
 
 		val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
 			bin.right.kind == NodeKind.STMT_BREAK ||
-			bin.right.kind == NodeKind.STMT_CONTINUE;
+			bin.right.kind == NodeKind.STMT_CONTINUE ||
+			bin.right.kind == NodeKind.STMT_BLOCK;
 
+		var rt: *Type = null;
 		if (is_jump) {
 			self.ensure(
 				was_stmt,
@@ -171,10 +173,11 @@ impl BodyPass {
 			self.check_statement(bin.right);
 		} else {
 			self.is_stmt_level = was_stmt;
-			val rt = self.check_expr(bin.right);
+			rt = self.check_expr(bin.right);
 			self.is_stmt_level = false;
+			val lt_is_null_lit = lt.kind == DataType.POINTER && lt.as_pointer().pointee.kind == DataType.NONE;
 			self.ensure(
-				lt.can_assign(rt),
+				lt.can_assign(rt) || lt_is_null_lit || (rt != null && rt.can_assign(lt)),
 				bin.right,
 				"Right-hand side of Elvis operator '?:' has incompatible type"
 			);
@@ -182,6 +185,7 @@ impl BodyPass {
 
 		if (lt.kind == DataType.POINTER) {
 			val pt = lt.as_pointer();
+			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
 			if (pt.is_nullable)
 				return self.arena.pointer_type(pt.pointee, pt.is_mut);
 		}
@@ -442,8 +446,7 @@ impl BodyPass {
 
 		if (target_ty.kind == DataType.STRUCT) {
 			val s_info = target_ty.as_struct();
-			var mi = s_info.find_method_arity("get", 2);
-			if (mi == null) mi = s_info.find_method("get");
+			val mi = s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
 
 			val fn_info = mi.fn_type.as_fn();
 			val param_ty = fn_info.param_types[1];
@@ -465,8 +468,7 @@ impl BodyPass {
 	}
 
 	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {
-		val cur = self.unwrap_group(target_node);
-		if (cur == null) return;
+		val cur = self.unwrap_group(target_node) ?: return;
 
 		when (cur.kind) {
 			NodeKind.EXPR_IDENTIFIER -> {
@@ -610,9 +612,7 @@ impl BodyPass {
 		val target_raw_ty = self.check_expr(idx.target);
 		if (target_raw_ty.kind != DataType.STRUCT) return null;
 		val s_info = target_raw_ty.as_struct();
-		var mi = s_info.find_method_arity("set", 3);
-		if (mi == null) mi = s_info.find_method("set");
-		if (mi == null) return null;
+		val mi = s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
 
 		val fn_info = mi.fn_type.as_fn();
 		val idx_param_ty = fn_info.param_types[1];
@@ -867,11 +867,10 @@ impl BodyPass {
 	// The tag constant a pattern compares against, under any of the spellings a
 	// tagged struct may use. Null when the struct declares none.
 	fn find_tag_const(var self, struct_name: str): *Symbol {
-		var sym = self.symtab.lookup("${struct_name}__TAG");
-		if (sym == null) sym = self.symtab.lookup_struct_const(struct_name, "TAG");
-		if (sym == null) sym = self.symtab.lookup("${struct_name}__KIND");
-		if (sym == null) sym = self.symtab.lookup_struct_const(struct_name, "KIND");
-		return sym;
+		return self.symtab.lookup("${struct_name}__TAG")
+			?: self.symtab.lookup_struct_const(struct_name, "TAG")
+			?: self.symtab.lookup("${struct_name}__KIND")
+			?: self.symtab.lookup_struct_const(struct_name, "KIND");
 	}
 
 	// Name of the field a pattern reads the tag from, or "" when the struct has
