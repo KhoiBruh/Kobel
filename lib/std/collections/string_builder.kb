@@ -65,6 +65,22 @@ impl StringBuilder {
 
 	pub fn append_bool(var self, b: bool) => if (b) self.append_str("true") else self.append_str("false");
 
+	pub op plus_assign(var self, s: str) => self.append_str(s);
+
+	pub op plus_assign(var self, c: char) => self.append_char(c);
+
+	pub op plus_assign(var self, n: i64) => self.append_i64(n);
+
+	pub op plus_assign(var self, n: i32) => self.append_i32(n);
+
+	pub op plus_assign(var self, b: bool) => self.append_bool(b);
+
+	pub op get(val self, i: usz): char => self.buf[i] as char;
+
+	pub op set(var self, i: usz, c: char) {
+		self.buf[i] = c as u8;
+	}
+
 	pub fn append_line(var self, s: str) {
 		self.append_str(s);
 		self.append_char('\n');

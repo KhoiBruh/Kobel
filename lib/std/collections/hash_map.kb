@@ -58,9 +58,9 @@ impl HashMap<V> {
 		self.len++;
 	}
 
-	pub fn set(var self, key: str, value: V) => self.put(key, value);
+	pub op set(var self, key: str, value: V) => self.put(key, value);
 
-	pub fn contains(val self, key: str): bool {
+	pub op contains(val self, key: str): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 		val h = self.hash_key(key);
 		var idx = h % self.cap;
@@ -72,7 +72,7 @@ impl HashMap<V> {
 		return false;
 	}
 
-	pub fn get(val self, key: str): *V {
+	pub op get(val self, key: str): *V {
 		if (self.len == 0 || self.cap == 0) return null;
 		val h = self.hash_key(key);
 		var idx = h % self.cap;

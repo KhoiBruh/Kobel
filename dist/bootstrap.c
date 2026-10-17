@@ -2475,6 +2475,7 @@ std__collections__hash_set__HashSet std__collections__hash_set__HashSet_new(size
 size_t std__collections__hash_set__HashSet_hash_key(std__collections__hash_set__HashSet* self, const char* key);
 size_t std__collections__hash_set__HashSet_dist(std__collections__hash_set__HashSet* self, size_t from, size_t to);
 bool std__collections__hash_set__HashSet_add(std__collections__hash_set__HashSet* self, const char* key);
+void std__collections__hash_set__HashSet_plus_assign(std__collections__hash_set__HashSet* self, const char* key);
 bool std__collections__hash_set__HashSet_contains(std__collections__hash_set__HashSet* self, const char* key);
 bool std__collections__hash_set__HashSet_remove(std__collections__hash_set__HashSet* self, const char* key);
 void std__collections__hash_set__HashSet_clear(std__collections__hash_set__HashSet* self);
@@ -3070,6 +3071,13 @@ void std__collections__string_builder__StringBuilder_append_str(std__collections
 void std__collections__string_builder__StringBuilder_append_i64(std__collections__string_builder__StringBuilder* self, int64_t n);
 void std__collections__string_builder__StringBuilder_append_i32(std__collections__string_builder__StringBuilder* self, int32_t n);
 void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b);
+void std__collections__string_builder__StringBuilder_plus_assign_2(std__collections__string_builder__StringBuilder* self, const char* s);
+void std__collections__string_builder__StringBuilder_plus_assign_2_2(std__collections__string_builder__StringBuilder* self, char c);
+void std__collections__string_builder__StringBuilder_plus_assign_2_3(std__collections__string_builder__StringBuilder* self, int64_t n);
+void std__collections__string_builder__StringBuilder_plus_assign_2_4(std__collections__string_builder__StringBuilder* self, int32_t n);
+void std__collections__string_builder__StringBuilder_plus_assign_2_5(std__collections__string_builder__StringBuilder* self, bool b);
+char std__collections__string_builder__StringBuilder_get(std__collections__string_builder__StringBuilder* self, size_t i);
+void std__collections__string_builder__StringBuilder_set(std__collections__string_builder__StringBuilder* self, size_t i, char c);
 void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s);
 void std__collections__string_builder__StringBuilder_append_repeat(std__collections__string_builder__StringBuilder* self, char c, size_t n);
 void std__collections__string_builder__StringBuilder_append_escaped(std__collections__string_builder__StringBuilder* self, const char* s);
@@ -13891,6 +13899,10 @@ bool std__collections__hash_set__HashSet_add(std__collections__hash_set__HashSet
     self->occupied[idx] = true;
     self->len++;
     return true;
+}
+
+void std__collections__hash_set__HashSet_plus_assign(std__collections__hash_set__HashSet* self, const char* key) {
+    std__collections__hash_set__HashSet_add(self, key);
 }
 
 bool std__collections__hash_set__HashSet_contains(std__collections__hash_set__HashSet* self, const char* key) {
@@ -24928,6 +24940,34 @@ void std__collections__string_builder__StringBuilder_append_i32(std__collections
 
 void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b) {
     (b ? std__collections__string_builder__StringBuilder_append_str(self, "true") : std__collections__string_builder__StringBuilder_append_str(self, "false"));
+}
+
+void std__collections__string_builder__StringBuilder_plus_assign_2(std__collections__string_builder__StringBuilder* self, const char* s) {
+    std__collections__string_builder__StringBuilder_append_str(self, s);
+}
+
+void std__collections__string_builder__StringBuilder_plus_assign_2_2(std__collections__string_builder__StringBuilder* self, char c) {
+    std__collections__string_builder__StringBuilder_append_char(self, c);
+}
+
+void std__collections__string_builder__StringBuilder_plus_assign_2_3(std__collections__string_builder__StringBuilder* self, int64_t n) {
+    std__collections__string_builder__StringBuilder_append_i64(self, n);
+}
+
+void std__collections__string_builder__StringBuilder_plus_assign_2_4(std__collections__string_builder__StringBuilder* self, int32_t n) {
+    std__collections__string_builder__StringBuilder_append_i32(self, n);
+}
+
+void std__collections__string_builder__StringBuilder_plus_assign_2_5(std__collections__string_builder__StringBuilder* self, bool b) {
+    std__collections__string_builder__StringBuilder_append_bool(self, b);
+}
+
+char std__collections__string_builder__StringBuilder_get(std__collections__string_builder__StringBuilder* self, size_t i) {
+    return (char)self->buf[i];
+}
+
+void std__collections__string_builder__StringBuilder_set(std__collections__string_builder__StringBuilder* self, size_t i, char c) {
+    self->buf[i] = (uint8_t)c;
 }
 
 void std__collections__string_builder__StringBuilder_append_line(std__collections__string_builder__StringBuilder* self, const char* s) {

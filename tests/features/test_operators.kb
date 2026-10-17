@@ -3,6 +3,9 @@ mod test.test_operators;
 use std.io.print;
 use std.io.println;
 use std.collections.list.List;
+use std.collections.hash_map.HashMap;
+use std.collections.hash_set.HashSet;
+use std.collections.string_builder.StringBuilder;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -180,10 +183,82 @@ fn test_list_ops() {
 	list.delete();
 }
 
+fn test_hash_map_ops() {
+	var map = HashMap<i32>();
+
+	// Test op set: map[key] = val
+	map["apple"] = 100;
+	map["banana"] = 200;
+
+	// Test op contains: key in map
+	assert_true("apple" in map, "'apple' in map");
+	assert_true("banana" in map, "'banana' in map");
+	assert_true(!("cherry" in map), "!('cherry' in map)");
+
+	// Test op get: map[key]
+	val apple_ptr = map["apple"];
+	assert_true(apple_ptr != null, "apple_ptr != null");
+	assert_eq_i32(*apple_ptr, 100, "*map['apple']");
+
+	val banana_ptr = map["banana"];
+	assert_true(banana_ptr != null, "banana_ptr != null");
+	assert_eq_i32(*banana_ptr, 200, "*map['banana']");
+
+	// Overwrite via [] =
+	map["apple"] = 999;
+	assert_eq_i32(*map["apple"], 999, "*map['apple'] after update");
+
+	map.delete();
+}
+
+fn test_hash_set_ops() {
+	var set = HashSet();
+
+	// Test op plus_assign: set += key
+	set += "alpha";
+	set += "beta";
+	set += "gamma";
+
+	// Test op contains: key in set
+	assert_true("alpha" in set, "'alpha' in set");
+	assert_true("beta" in set, "'beta' in set");
+	assert_true("gamma" in set, "'gamma' in set");
+	assert_true(!("delta" in set), "!('delta' in set)");
+
+	set.delete();
+}
+
+fn test_string_builder_ops() {
+	var sb = StringBuilder();
+
+	// Test op plus_assign overloads: sb += str, sb += char, sb += i64, etc.
+	sb += "Hello";
+	sb += ' ';
+	sb += "World";
+	sb += '!';
+	sb += 42L;
+
+	assert_true(sb.to_str() == "Hello World!42", "sb.to_str() == 'Hello World!42'");
+
+	// Test op get: sb[i]
+	assert_true(sb[0UZ] == 'H', "sb[0] == 'H'");
+	assert_true(sb[6UZ] == 'W', "sb[6] == 'W'");
+
+	// Test op set: sb[i] = 'h'
+	sb[0UZ] = 'h';
+	assert_true(sb[0UZ] == 'h', "sb[0] after set == 'h'");
+
+	sb.delete();
+}
+
 pub fn main() {
 	println("=== Running Operator Overloading Tests ===");
 	test_vector_ops();
 	test_buffer_index_ops();
 	test_list_ops();
+	test_hash_map_ops();
+	test_hash_set_ops();
+	test_string_builder_ops();
 	println("All operator tests passed!");
 }
+
