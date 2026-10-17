@@ -26217,7 +26217,7 @@ void lsp__json__JsonValue_set(lsp__json__JsonValue* self, const char* key, lsp__
 }
 
 lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, const char* key) {
-    if ((self == NULL) && (self->kind != 5)) {
+    if ((self == NULL) || (self->kind != 5)) {
         return lsp__json__json_null();
     }
     {
@@ -27143,17 +27143,18 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__Anal
     }
     if (self->has_symtab && (tok.type == 42)) {
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, tok.text);
-        if (sym != NULL) {
-            const char* md = "```kobel\n";
-            md = (sym->kind == 3 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "fn "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 4 ? kobel_concat(kobel_concat(md, "struct "), sym->name) : (sym->kind == 5 ? kobel_concat(kobel_concat(md, "enum "), sym->name) : (sym->kind == 0 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "var "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 1 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "const "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 2 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "param "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : kobel_concat(kobel_concat(kobel_concat(md, sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr))))))));
-            md = kobel_concat(md, "\n```");
-            lsp__json__JsonValue* res = lsp__json__json_obj();
-            lsp__json__JsonValue* contents = lsp__json__json_obj();
-            lsp__json__JsonValue_set(contents, "kind", lsp__json__json_str("markdown"));
-            lsp__json__JsonValue_set(contents, "value", lsp__json__json_str(md));
-            lsp__json__JsonValue_set(res, "contents", contents);
-            return res;
+        if (sym == NULL) {
+            return lsp__json__json_null();
         }
+        const char* md = "```kobel\n";
+        md = (sym->kind == 3 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "fn "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 4 ? kobel_concat(kobel_concat(md, "struct "), sym->name) : (sym->kind == 5 ? kobel_concat(kobel_concat(md, "enum "), sym->name) : (sym->kind == 0 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "var "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 1 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "const "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 2 ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(md, "param "), sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : kobel_concat(kobel_concat(kobel_concat(md, sym->name), ": "), compiler__sema__types__Type_to_str(sym->type_ptr))))))));
+        md = kobel_concat(md, "\n```");
+        lsp__json__JsonValue* res = lsp__json__json_obj();
+        lsp__json__JsonValue* contents = lsp__json__json_obj();
+        lsp__json__JsonValue_set(contents, "kind", lsp__json__json_str("markdown"));
+        lsp__json__JsonValue_set(contents, "value", lsp__json__json_str(md));
+        lsp__json__JsonValue_set(res, "contents", contents);
+        return res;
     }
     return lsp__json__json_null();
 }
@@ -27167,7 +27168,10 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis_
     }
     if (self->has_symtab) {
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, tok.text);
-        if ((sym != NULL) && (sym->line > 0)) {
+        if (sym == NULL) {
+            return lsp__json__json_null();
+        }
+        if (sym->line > 0) {
             lsp__json__JsonValue* res = lsp__json__json_obj();
             lsp__json__JsonValue_set(res, "uri", lsp__json__json_str(doc_uri));
             lsp__json__JsonValue* range = lsp__json__json_obj();
@@ -27392,12 +27396,10 @@ int32_t lsp__server__run_server(void) {
                     workspace_root = root_path;
                 } else {
                     lsp__json__JsonValue* wf = lsp__json__JsonValue_get_arr(params, "workspaceFolders");
-                    if (lsp__json__JsonValue_count(wf) > 0) {
-                        lsp__json__JsonValue* wf_first = lsp__json__JsonValue_at(wf, 0);
-                        const char* wf_uri = lsp__json__JsonValue_get_str(wf_first, "uri", "");
-                        if (!str_empty(wf_uri)) {
-                            workspace_root = lsp__document__uri_to_path(wf_uri);
-                        }
+                    const char* wf_uri = ((lsp__json__JsonValue_at(wf, 0) != NULL) ? lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(wf, 0), "uri", "") : NULL);
+                    if (wf_uri == NULL) wf_uri = "";
+                    if (!str_empty(wf_uri)) {
+                        workspace_root = lsp__document__uri_to_path(wf_uri);
                     }
                 }
             }
@@ -27442,8 +27444,9 @@ int32_t lsp__server__run_server(void) {
             const char* uri = lsp__json__JsonValue_get_str(text_doc, "uri", "");
             int64_t version = lsp__json__JsonValue_get_num(text_doc, "version", 0);
             lsp__json__JsonValue* changes = lsp__json__JsonValue_get_arr(params, "contentChanges");
-            if (lsp__json__JsonValue_count(changes) > 0) {
-                const char* new_text = lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(changes, 0), "text", "");
+            const char* new_text = ((lsp__json__JsonValue_at(changes, 0) != NULL) ? lsp__json__JsonValue_get_str(lsp__json__JsonValue_at(changes, 0), "text", "") : NULL);
+            if (new_text == NULL) new_text = "";
+            if (!str_empty(new_text)) {
                 lsp__document__DocumentStore_set(&docs, uri, new_text, version);
                 lsp__server__publish_doc_diagnostics(uri, new_text, workspace_root);
             }

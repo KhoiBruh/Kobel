@@ -120,7 +120,7 @@ impl JsonValue {
 	}
 
 	pub fn get(val self, key: str): *JsonValue {
-		if (self == null && self.kind != JsonKind.JOBJ) return json_null();
+		if (self == null || self.kind != JsonKind.JOBJ) return json_null();
 		for (i in 0..<self.obj_keys.len) {
 			if (self.obj_keys[i] == key) return self.obj_vals[i];
 		}

@@ -61,11 +61,8 @@ pub fn run_server(): i32 {
 						workspace_root = root_path;
 					} else {
 						val wf = params.get_arr("workspaceFolders");
-						if (wf.count() > 0) {
-							val wf_first = wf.at(0);
-							val wf_uri = wf_first.get_str("uri", "");
-							if (!wf_uri.empty()) workspace_root = uri_to_path(wf_uri);
-						}
+						val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
+						if (!wf_uri.empty()) workspace_root = uri_to_path(wf_uri);
 					}
 				}
 
@@ -130,8 +127,8 @@ pub fn run_server(): i32 {
 				val uri = text_doc.get_str("uri", "");
 				val version = text_doc.get_num("version", 0);
 				val changes = params.get_arr("contentChanges");
-				if (changes.count() > 0) {
-					val new_text = changes.at(0).get_str("text", "");
+				val new_text = changes.at(0)?.get_str("text", "") ?: "";
+				if (!new_text.empty()) {
 					docs.set(uri, new_text, version);
 					publish_doc_diagnostics(uri, new_text, workspace_root);
 				}

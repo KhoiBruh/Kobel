@@ -401,27 +401,25 @@ impl AnalysisResult {
 
 		// 2. Check identifier symbol in symbol table
 		if (self.has_symtab && tok.type == TokenType.IDENTIFIER) {
-			val sym = self.symtab.lookup(tok.text);
-			if (sym != null) {
-				var md = "```kobel\n";
-				md = when (sym.kind) {
-					SymbolKind.FN -> "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
-					SymbolKind.STRUCT -> "${md}struct ${sym.name}";
-					SymbolKind.ENUM -> "${md}enum ${sym.name}";
-					SymbolKind.VAR -> "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
-					SymbolKind.CONST -> "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
-					SymbolKind.PARAM -> "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
-					else -> "${md}${sym.name}: ${sym.type_ptr.to_str()}";
-				};
-				md = "${md}\n```";
+			val sym = self.symtab.lookup(tok.text) ?: return json_null();
+			var md = "```kobel\n";
+			md = when (sym.kind) {
+				SymbolKind.FN -> "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
+				SymbolKind.STRUCT -> "${md}struct ${sym.name}";
+				SymbolKind.ENUM -> "${md}enum ${sym.name}";
+				SymbolKind.VAR -> "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
+				SymbolKind.CONST -> "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
+				SymbolKind.PARAM -> "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
+				else -> "${md}${sym.name}: ${sym.type_ptr.to_str()}";
+			};
+			md = "${md}\n```";
 
-				val res = json_obj();
-				val contents = json_obj();
-				contents.set("kind", json_str("markdown"));
-				contents.set("value", json_str(md));
-				res.set("contents", contents);
-				return res;
-			}
+			val res = json_obj();
+			val contents = json_obj();
+			contents.set("kind", json_str("markdown"));
+			contents.set("value", json_str(md));
+			res.set("contents", contents);
+			return res;
 		}
 
 		return json_null();
@@ -439,8 +437,8 @@ impl AnalysisResult {
 		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0) return json_null();
 
 		if (self.has_symtab) {
-			val sym = self.symtab.lookup(tok.text);
-			if (sym != null && sym.line > 0) {
+			val sym = self.symtab.lookup(tok.text) ?: return json_null();
+			if (sym.line > 0) {
 				val res = json_obj();
 				res.set("uri", json_str(doc_uri));
 
