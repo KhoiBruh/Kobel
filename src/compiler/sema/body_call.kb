@@ -170,7 +170,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i + 1];
 				val arg_n = call.args[i];
-				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
+				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
 			}
@@ -268,7 +268,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = call.args[i];
-				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
+				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n);
 				if (!param_ty.can_assign(arg_ty)) {
 					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
@@ -305,7 +305,7 @@ impl BodyPass {
 				for (i in 0..<call.args.len) {
 					val param_ty = n_info.param_types[i];
 					val arg_n = call.args[i];
-					if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(arg_n, param_ty);
+					if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val arg_ty = self.check_expr(arg_n);
 					self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
 				}

@@ -24,7 +24,7 @@ pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
 impl str {
 	// "std.io" -> "std/io" (module path -> relative file path, without extension)
-	pub fn module_to_rel(val self): str => self.replace_char('.', '/');
+	pub fn module_to_rel(val self) => self.replace_char('.', '/');
 
 	// "sub/x.kb" -> "sub.x"  (relative file path -> module name)
 	pub fn path_to_module(val self): str {
@@ -39,11 +39,10 @@ impl str {
 		return str_from_bytes(buf, stem.len);
 	}
 
-	pub fn has_kb_suffix(val self): bool => self.ends_with(".kb");
+	pub fn has_kb_suffix(val self) => self.ends_with(".kb");
 
 	// Strips a trailing ".kb" extension when present.
 	pub fn strip_kb(val self): str => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
-
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
@@ -156,8 +155,6 @@ impl str {
 
 	// Converts '\\' to '/' for cross-platform and POSIX path representations
 	pub fn to_posix_path(val self) => self.remap_path_bytes('\\', '/', false);
-
-	pub fn index_in_list(val self, list: List<str>): isz => list.index_of(self);
 
 	pub fn trim(val self): str {
 		if (self.empty()) return self;

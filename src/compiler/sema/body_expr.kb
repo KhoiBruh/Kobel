@@ -543,7 +543,7 @@ impl BodyPass {
 			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
 				val param_ty = fn_info.param_types[1];
-				if ((param_ty != null && param_ty.is_list())) self.coerce_to_list(idx.index, param_ty);
+				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
 				var new_args = List<*AstNode>();
@@ -661,7 +661,7 @@ impl BodyPass {
 		}
 
 		val target_ty = self.check_expr(asgn.target);
-		if ((target_ty != null && target_ty.is_list())) self.coerce_to_list(asgn.value, target_ty);
+		if (target_ty != null && target_ty.is_list()) self.coerce_to_list(asgn.value, target_ty);
 		val prev_stmt = self.is_stmt_level;
 		self.is_stmt_level = was_stmt;
 		val val_ty = self.check_expr(asgn.value);
@@ -760,10 +760,10 @@ impl BodyPass {
 			val_expr = self.binary(op, get_expr, operand, node.line, node.col);
 		}
 
-		if ((idx_param_ty != null && idx_param_ty.is_list())) self.coerce_to_list(idx.index, idx_param_ty);
+		if (idx_param_ty != null && idx_param_ty.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
 		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
 
-		if ((val_param_ty != null && val_param_ty.is_list())) self.coerce_to_list(val_expr, val_param_ty);
+		if (val_param_ty != null && val_param_ty.is_list()) self.coerce_to_list(val_expr, val_param_ty);
 		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr) else val_ty_raw;
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
