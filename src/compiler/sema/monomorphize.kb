@@ -442,6 +442,7 @@ impl DeclPass {
 			node.kind == NodeKind.STMT_YIELD ||
 			node.kind == NodeKind.STMT_BLOCK
 		) return self.clone_stmt(node, subst);
+
 		return when (node.kind) {
 			NodeKind.EXPR_LITERAL -> {
 				val l = node.to<LiteralExpr>();
@@ -464,9 +465,7 @@ impl DeclPass {
 				val u = node.to<UnaryExpr>();
 				yield self.unary(u.op, self.clone_expr(u.operand, subst), node.line, node.col);
 			}
-			NodeKind.EXPR_CALL -> {
-				yield self.clone_call_expr(node, subst);
-			}
+			NodeKind.EXPR_CALL -> self.clone_call_expr(node, subst);
 			NodeKind.EXPR_MEMBER -> {
 				val m = node.to<MemberExpr>();
 				yield if (m.is_safe)
@@ -522,16 +521,19 @@ impl DeclPass {
 			}
 			NodeKind.EXPR_ARRAY_LITERAL -> {
 				val al = node.to<ArrayLiteralExpr>();
-				yield self.list_literal(self.clone_expr_list(al.elements, subst), al.list_struct_name, al.elem_type_node, node.line, node.col);
+				yield self.list_literal(
+					self.clone_expr_list(al.elements, subst),
+					al.list_struct_name,
+					al.elem_type_node,
+					node.line, node.col
+				);
 			}
 			NodeKind.EXPR_WHEN -> {
 				val arms = self.clone_when_arms(node, subst);
 				val we = node.to<WhenExpr>();
 				yield self.when_expr(self.clone_expr(we.condition, subst), arms, node.line, node.col);
 			}
-			NodeKind.EXPR_INTERP -> {
-				yield self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
-			}
+			NodeKind.EXPR_INTERP -> self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
 			NodeKind.EXPR_IS -> {
 				val is_e = node.to<IsExpr>();
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
@@ -841,7 +843,7 @@ impl DeclPass {
 
 	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
 	// argument list rewritten element by element.
-	fn rewrite_type_generics(var self, node: *AstNode): bool => when (node.kind) {
+	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
 		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node),
 		NodeKind.TYPE_POINTER -> self.rewrite_child(node.to<PointerType>().pointee),
 		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.to<ArrayType>().element_type),

@@ -857,11 +857,9 @@ impl BodyPass {
 		if (cond == null || patterns.len != 1) return "";
 		if (cond is IdentifierExpr as cond_id) {
 			val pat = patterns.first();
-			if (pat != null) {
-				if (pat is IsExpr as is_e) {
-					if (!is_e.alias.empty()) return is_e.alias;
-					return cond_id.name;
-				}
+			if (pat is IsExpr as is_e) {
+				if (!is_e.alias.empty()) return is_e.alias;
+				return cond_id.name;
 			}
 		}
 		return "";
@@ -873,12 +871,10 @@ impl BodyPass {
 		if (cond == null || patterns.len != 1) return false;
 		if (cond is IdentifierExpr as cond_id) {
 			val pat = patterns.first();
-			if (pat != null) {
-				if (pat is IsExpr as is_e) {
-					if (!is_e.alias.empty()) return is_e.is_mut;
-					val subj_sym = self.symtab.lookup(cond_id.name);
-					return subj_sym != null && subj_sym.is_mut;
-				}
+			if (pat is IsExpr as is_e) {
+				if (!is_e.alias.empty()) return is_e.is_mut;
+				val subj_sym = self.symtab.lookup(cond_id.name);
+				return subj_sym != null && subj_sym.is_mut;
 			}
 		}
 		return false;

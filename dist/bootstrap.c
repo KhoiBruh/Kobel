@@ -19016,14 +19016,12 @@ const char* compiler__sema__body_pass__BodyPass_arm_smart_cast_sym(compiler__sem
     if ((cond != NULL && cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
         compiler__ast__expr__IdentifierExpr* cond_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)cond)->data);
         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&patterns);
-        if (pat != NULL) {
-            if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                if (!str_empty(is_e->alias)) {
-                    return is_e->alias;
-                }
-                return cond_id->name;
+        if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+            compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+            if (!str_empty(is_e->alias)) {
+                return is_e->alias;
             }
+            return cond_id->name;
         }
     }
     return "";
@@ -19036,15 +19034,13 @@ bool compiler__sema__body_pass__BodyPass_arm_smart_cast_is_mut(compiler__sema__b
     if ((cond != NULL && cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
         compiler__ast__expr__IdentifierExpr* cond_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)cond)->data);
         compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&patterns);
-        if (pat != NULL) {
-            if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                if (!str_empty(is_e->alias)) {
-                    return is_e->is_mut;
-                }
-                compiler__sema__symbol__Symbol* subj_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cond_id->name);
-                return ((subj_sym != NULL) && subj_sym->is_mut);
+        if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+            compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+            if (!str_empty(is_e->alias)) {
+                return is_e->is_mut;
             }
+            compiler__sema__symbol__Symbol* subj_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cond_id->name);
+            return ((subj_sym != NULL) && subj_sym->is_mut);
         }
     }
     return false;
@@ -20650,61 +20646,74 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_expr(compiler__codegen__c
         return "";
     }
     if (node != NULL && node->kind == compiler__ast__expr__LiteralExpr__TAG) {
-        compiler__ast__expr__LiteralExpr* lit = (compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_literal_expr(self, lit);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__LiteralExpr* node = (compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_literal_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__IdentifierExpr__TAG) {
-        compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return id->name;
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__IdentifierExpr* node = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return node->name;
     } else if (node != NULL && node->kind == compiler__ast__expr__GroupExpr__TAG) {
-        compiler__ast__expr__GroupExpr* g = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        const char* inner = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, g->expr);
-        if (g->expr != NULL) {
-            if (((*g->expr).kind == 6) || ((*g->expr).kind == 14)) {
-                return inner;
-            }
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__GroupExpr* node = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        const char* inner = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->expr);
+        if ((node->expr != NULL) && (((*node->expr).kind == 6) || ((*node->expr).kind == 14))) {
+            return inner;
         }
         return kobel_concat(kobel_concat("(", inner), ")");
     } else if (node != NULL && node->kind == compiler__ast__expr__BinaryExpr__TAG) {
-        compiler__ast__expr__BinaryExpr* bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_binary_expr(self, bin);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__BinaryExpr* node = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_binary_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__UnaryExpr__TAG) {
-        compiler__ast__expr__UnaryExpr* un = (compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_unary_expr(self, un);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__UnaryExpr* node = (compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_unary_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__ArrayLiteralExpr__TAG) {
-        compiler__ast__expr__ArrayLiteralExpr* al = (compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_array_literal_expr(self, al);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__ArrayLiteralExpr* node = (compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_array_literal_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__CallExpr__TAG) {
-        compiler__ast__expr__CallExpr* call = (compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_call_expr(self, call);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__CallExpr* node = (compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_call_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__MemberExpr__TAG) {
-        compiler__ast__expr__MemberExpr* mem = (compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_member_expr(self, mem);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__MemberExpr* node = (compiler__ast__expr__MemberExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_member_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__IndexExpr__TAG) {
-        compiler__ast__expr__IndexExpr* idx = (compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return kobel_concat(kobel_concat(kobel_concat(compiler__codegen__c_codegen__CCodeGen_gen_expr(self, idx->target), "["), compiler__codegen__c_codegen__CCodeGen_gen_expr(self, idx->index)), "]");
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__IndexExpr* node = (compiler__ast__expr__IndexExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return kobel_concat(kobel_concat(kobel_concat(compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->target), "["), compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->index)), "]");
     } else if (node != NULL && node->kind == compiler__ast__expr__AssignExpr__TAG) {
-        compiler__ast__expr__AssignExpr* asgn = (compiler__ast__expr__AssignExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_assign_expr(self, asgn);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__AssignExpr* node = (compiler__ast__expr__AssignExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_assign_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__UpdateExpr__TAG) {
-        compiler__ast__expr__UpdateExpr* u = (compiler__ast__expr__UpdateExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        const char* op_str = ((u->op == 30) ? "++" : "--");
-        return kobel_concat(compiler__codegen__c_codegen__CCodeGen_gen_expr(self, u->target), op_str);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__UpdateExpr* node = (compiler__ast__expr__UpdateExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        const char* op_str = ((node->op == 30) ? "++" : "--");
+        return kobel_concat(compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->target), op_str);
     } else if (node != NULL && node->kind == compiler__ast__expr__CastExpr__TAG) {
-        compiler__ast__expr__CastExpr* cst = (compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        const char* ty = compiler__codegen__c_codegen__c_type_from_ast(cst->target_type);
-        return kobel_concat(kobel_concat(kobel_concat("(", ty), ")"), compiler__codegen__c_codegen__CCodeGen_gen_expr(self, cst->expr));
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__CastExpr* node = (compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        const char* ty = compiler__codegen__c_codegen__c_type_from_ast(node->target_type);
+        return kobel_concat(kobel_concat(kobel_concat("(", ty), ")"), compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->expr));
     } else if (node != NULL && node->kind == compiler__ast__expr__IfExpr__TAG) {
-        compiler__ast__expr__IfExpr* if_e = (compiler__ast__expr__IfExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        const char* cond = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, if_e->condition);
-        const char* th = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, if_e->then_branch);
-        const char* el = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, if_e->else_branch);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__IfExpr* node = (compiler__ast__expr__IfExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        const char* cond = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->condition);
+        const char* th = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->then_branch);
+        const char* el = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, node->else_branch);
         return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", cond), " ? "), th), " : "), el), ")");
     } else if (node != NULL && node->kind == compiler__ast__expr__WhenExpr__TAG) {
-        compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_when_expr(self, we);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__WhenExpr* node = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_when_expr(self, node);
     } else if (node != NULL && node->kind == compiler__ast__expr__IsExpr__TAG) {
-        compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_is_expr(self, is_e);
+        void* __orig_node = (void*)node;
+        compiler__ast__expr__IsExpr* node = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_is_expr(self, node);
     } else {
         return "";
     }
@@ -20766,10 +20775,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_array_literal_expr(compil
     const char* joined_elems = str_join(", ", elems_str);
     const char* arr_res = kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", elem_c), "[]){"), joined_elems), "}");
     if (!str_empty(al->list_struct_name)) {
-        if (std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements)) {
-            return kobel_concat(al->list_struct_name, "_from_array(NULL, 0)");
-        }
-        return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(al->list_struct_name, "_from_array("), arr_res), ", "), usz_to_str(al->elements.len)), ")");
+        return (std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&al->elements) ? kobel_concat(al->list_struct_name, "_from_array(NULL, 0)") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(al->list_struct_name, "_from_array("), arr_res), ", "), usz_to_str(al->elements.len)), ")"));
     }
     return arr_res;
 }
@@ -20833,7 +20839,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
         } else {
             is_str = kobel_streq(compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, obj_node), "const char*");
         }
-        __when_end_21:;
+        __when_end_22:;
         if (is_str) {
             return kobel_concat(kobel_concat("(uint64_t)strlen(", compiler__codegen__c_codegen__CCodeGen_gen_expr(self, obj_node)), ")");
         }
@@ -20948,46 +20954,53 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_test(compiler__codeg
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* expr) {
-    if (expr == NULL) {
-        return "int32_t";
-    }
     if (expr != NULL && expr->kind == compiler__ast__expr__LiteralExpr__TAG) {
-        compiler__ast__expr__LiteralExpr* lit = (compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_literal_type(self, lit);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__LiteralExpr* expr = (compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_literal_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__IdentifierExpr__TAG) {
-        compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_identifier_type(self, id);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__IdentifierExpr* expr = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_identifier_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__CallExpr__TAG) {
-        compiler__ast__expr__CallExpr* call = (compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_call_type(self, call);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__CallExpr* expr = (compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_call_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__BinaryExpr__TAG) {
-        compiler__ast__expr__BinaryExpr* bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_binary_type(self, bin);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__BinaryExpr* expr = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_binary_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__UnaryExpr__TAG) {
-        compiler__ast__expr__UnaryExpr* un = (compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_unary_type(self, un);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__UnaryExpr* expr = (compiler__ast__expr__UnaryExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_unary_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__GroupExpr__TAG) {
-        compiler__ast__expr__GroupExpr* g = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, g->expr);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__GroupExpr* expr = (compiler__ast__expr__GroupExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, expr->expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__IfExpr__TAG) {
-        compiler__ast__expr__IfExpr* if_e = (compiler__ast__expr__IfExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, if_e->then_branch);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__IfExpr* expr = (compiler__ast__expr__IfExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, expr->then_branch);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__ArrayLiteralExpr__TAG) {
-        compiler__ast__expr__ArrayLiteralExpr* al = (compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_array_literal_type(self, al);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__ArrayLiteralExpr* expr = (compiler__ast__expr__ArrayLiteralExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_array_literal_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__WhenExpr__TAG) {
-        compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_when_expr_type(self, we);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__WhenExpr* expr = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_when_expr_type(self, expr);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__CastExpr__TAG) {
-        compiler__ast__expr__CastExpr* cst = (compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__c_type_from_ast(cst->target_type);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__CastExpr* expr = (compiler__ast__expr__CastExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__c_type_from_ast(expr->target_type);
     } else if (expr != NULL && expr->kind == compiler__ast__expr__UpdateExpr__TAG) {
-        compiler__ast__expr__UpdateExpr* u = (compiler__ast__expr__UpdateExpr*)(((compiler__ast__node__AstNode*)expr)->data);
-        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, u->target);
+        void* __orig_expr = (void*)expr;
+        compiler__ast__expr__UpdateExpr* expr = (compiler__ast__expr__UpdateExpr*)(((compiler__ast__node__AstNode*)__orig_expr)->data);
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, expr->target);
     } else {
         return "int32_t";
     }
-    return "int32_t";
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_literal_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__LiteralExpr* lit) {
@@ -21057,14 +21070,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_binary_type(compiler__cod
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_unary_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__UnaryExpr* un) {
-    if (un->op == 4) {
-        return "bool";
-    } else if (un->op == 19) {
-        const char* sub = compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, un->operand);
-        return kobel_concat(sub, "*");
-    } else {
-        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, un->operand);
-    }
+    return (un->op == 4 ? "bool" : (un->op == 19 ? kobel_concat(compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, un->operand), "*") : compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, un->operand)));
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_array_literal_type(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__expr__ArrayLiteralExpr* al) {
@@ -21140,10 +21146,8 @@ bool compiler__ast__expr__WhenExpr_has_blocks(compiler__ast__expr__WhenExpr* sel
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_cond(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* cond) {
     const char* s = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, cond);
-    if (cond != NULL) {
-        if ((cond->kind == 6) || (cond->kind == 14)) {
-            return s;
-        }
+    if ((cond != NULL) && ((cond->kind == 6) || (cond->kind == 14))) {
+        return s;
     }
     return kobel_concat(kobel_concat("(", s), ")");
 }
@@ -21170,27 +21174,30 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_block_body(compiler__code
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_statement(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__AstNode* node) {
-    if (node == NULL) {
-        return "";
-    }
     if (node != NULL && node->kind == compiler__ast__stmt__BlockStmt__TAG) {
-        compiler__ast__stmt__BlockStmt* blk = (compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_block_stmt(self, blk);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__BlockStmt* node = (compiler__ast__stmt__BlockStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_block_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__VarDeclStmt__TAG) {
-        compiler__ast__stmt__VarDeclStmt* vd = (compiler__ast__stmt__VarDeclStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_var_decl_stmt(self, vd);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__VarDeclStmt* node = (compiler__ast__stmt__VarDeclStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_var_decl_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__IfStmt__TAG) {
-        compiler__ast__stmt__IfStmt* ifs = (compiler__ast__stmt__IfStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_if_stmt(self, ifs);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__IfStmt* node = (compiler__ast__stmt__IfStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_if_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__WhileStmt__TAG) {
-        compiler__ast__stmt__WhileStmt* wh = (compiler__ast__stmt__WhileStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_while_stmt(self, wh);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__WhileStmt* node = (compiler__ast__stmt__WhileStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_while_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__ReturnStmt__TAG) {
-        compiler__ast__stmt__ReturnStmt* ret = (compiler__ast__stmt__ReturnStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_return_stmt(self, ret);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__ReturnStmt* node = (compiler__ast__stmt__ReturnStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_return_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__ExprStmt__TAG) {
-        compiler__ast__stmt__ExprStmt* es = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_expr_stmt(self, es);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__ExprStmt* node = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_expr_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__BreakStmt__TAG) {
         void* __orig_node = (void*)node;
         compiler__ast__stmt__BreakStmt* node = (compiler__ast__stmt__BreakStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
@@ -21200,11 +21207,13 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_statement(compiler__codeg
         compiler__ast__stmt__ContinueStmt* node = (compiler__ast__stmt__ContinueStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
         return kobel_concat(compiler__codegen__c_codegen__get_indent(self->indent_level), "continue;\n");
     } else if (node != NULL && node->kind == compiler__ast__stmt__YieldStmt__TAG) {
-        compiler__ast__stmt__YieldStmt* ys = (compiler__ast__stmt__YieldStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_yield_stmt(self, ys);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__YieldStmt* node = (compiler__ast__stmt__YieldStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_yield_stmt(self, node);
     } else if (node != NULL && node->kind == compiler__ast__stmt__WhenStmt__TAG) {
-        compiler__ast__stmt__WhenStmt* ws = (compiler__ast__stmt__WhenStmt*)(((compiler__ast__node__AstNode*)node)->data);
-        return compiler__codegen__c_codegen__CCodeGen_gen_when_stmt(self, ws);
+        void* __orig_node = (void*)node;
+        compiler__ast__stmt__WhenStmt* node = (compiler__ast__stmt__WhenStmt*)(((compiler__ast__node__AstNode*)__orig_node)->data);
+        return compiler__codegen__c_codegen__CCodeGen_gen_when_stmt(self, node);
     } else {
         return "";
     }
@@ -21426,13 +21435,13 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_while_stmt(compiler__code
 const char* compiler__codegen__c_codegen__CCodeGen_gen_return_stmt(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__stmt__ReturnStmt* ret) {
     const char* ind = compiler__codegen__c_codegen__get_indent(self->indent_level);
     compiler__ast__node__AstNode* ret_val = ret->value;
-    if (ret_val != NULL) {
-        if ((ret_val != NULL && ret_val->kind == compiler__ast__expr__WhenExpr__TAG)) {
-            compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)ret_val)->data);
-            if (compiler__ast__expr__WhenExpr_has_blocks(we)) {
-                return compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(self, we, "", true);
-            }
+    if ((ret_val != NULL && ret_val->kind == compiler__ast__expr__WhenExpr__TAG)) {
+        compiler__ast__expr__WhenExpr* we = (compiler__ast__expr__WhenExpr*)(((compiler__ast__node__AstNode*)ret_val)->data);
+        if (compiler__ast__expr__WhenExpr_has_blocks(we)) {
+            return compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(self, we, "", true);
         }
+    }
+    if (ret_val != NULL) {
         compiler__ast__node__AstNode* ret_candidate = ret_val;
         while (ret_candidate != NULL) {
             if ((ret_candidate != NULL && ret_candidate->kind == compiler__ast__expr__GroupExpr__TAG)) {
@@ -21635,17 +21644,13 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_stmt(compiler__codeg
             compiler__ast__stmt__WhenStmtArm arm = std__collections__list__List_compiler__ast__stmt__WhenStmtArm_at(&ws->arms, __for_i);
             const char* cast_decl = "";
             compiler__ast__node__AstNode* ws_cond = ws->condition;
-            if (ws_cond != NULL) {
-                if ((ws_cond != NULL && ws_cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
-                    compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)ws_cond)->data);
-                    if (arm.patterns.len == 1) {
-                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&arm.patterns);
-                        if (pat != NULL) {
-                            if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                                compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                                cast_decl = compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(self, is_e, id->name, (self->indent_level + 1));
-                            }
-                        }
+            if ((ws_cond != NULL && ws_cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+                compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)ws_cond)->data);
+                if (arm.patterns.len == 1) {
+                    compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&arm.patterns);
+                    if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+                        compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+                        cast_decl = compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(self, is_e, id->name, (self->indent_level + 1));
                     }
                 }
             }
@@ -21719,11 +21724,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     const char* prev_exit = self->yield_exit_label;
     self->when_label_counter++;
     size_t when_id = self->when_label_counter;
-    if (!is_ret) {
-        self->yield_exit_label = kobel_concat("__when_end_", usz_to_str(when_id));
-    } else {
-        self->yield_exit_label = "";
-    }
+    self->yield_exit_label = (is_ret ? "" : kobel_concat("__when_end_", usz_to_str(when_id)));
     self->yield_target = target_name;
     self->is_yield_return = is_ret;
     {
@@ -21733,17 +21734,13 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
             compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
             const char* cast_decl = "";
             compiler__ast__node__AstNode* we_cond = we->condition;
-            if (we_cond != NULL) {
-                if ((we_cond != NULL && we_cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
-                    compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)we_cond)->data);
-                    if (arm.patterns.len == 1) {
-                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&arm.patterns);
-                        if (pat != NULL) {
-                            if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
-                                compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
-                                cast_decl = compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(self, is_e, id->name, (self->indent_level + 1));
-                            }
-                        }
+            if ((we_cond != NULL && we_cond->kind == compiler__ast__expr__IdentifierExpr__TAG)) {
+                compiler__ast__expr__IdentifierExpr* id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)we_cond)->data);
+                if (arm.patterns.len == 1) {
+                    compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_first(&arm.patterns);
+                    if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG)) {
+                        compiler__ast__expr__IsExpr* is_e = (compiler__ast__expr__IsExpr*)(((compiler__ast__node__AstNode*)pat)->data);
+                        cast_decl = compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(self, is_e, id->name, (self->indent_level + 1));
                     }
                 }
             }
@@ -22158,11 +22155,9 @@ const char* compiler__codegen__c_codegen__CCodeGen_fn_ret_c_type(compiler__codeg
         return compiler__codegen__c_codegen__c_type_from_ast(f->return_type);
     }
     compiler__ast__node__AstNode* f_body = f->body;
-    if (f_body != NULL) {
-        if ((f_body != NULL && f_body->kind == compiler__ast__stmt__ExprStmt__TAG)) {
-            compiler__ast__stmt__ExprStmt* es = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)f_body)->data);
-            return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, es->expr);
-        }
+    if ((f_body != NULL && f_body->kind == compiler__ast__stmt__ExprStmt__TAG)) {
+        compiler__ast__stmt__ExprStmt* es = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)f_body)->data);
+        return compiler__codegen__c_codegen__CCodeGen_infer_type_from_expr(self, es->expr);
     }
     return "void";
 }
@@ -23390,27 +23385,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             right = compiler__parser__parser__Parser_return_stmt(self, value, kw_line, kw_col);
-            goto __when_end_29;
+            goto __when_end_30;
         } else if (compiler__parser__parser__Parser_match_token(self, 56)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_break_stmt(self, kw_line, kw_col);
-            goto __when_end_29;
+            goto __when_end_30;
         } else if (compiler__parser__parser__Parser_match_token(self, 57)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_continue_stmt(self, kw_line, kw_col);
-            goto __when_end_29;
+            goto __when_end_30;
         } else if (compiler__parser__parser__Parser_match_token(self, 68)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             right = compiler__parser__parser__Parser_yield_stmt(self, value, kw_line, kw_col);
-            goto __when_end_29;
+            goto __when_end_30;
         } else {
             right = compiler__parser__parser__Parser_parse_expression(self, (compiler__parser__expr__PREC_ELVIS - 1));
         }
-        __when_end_29:;
+        __when_end_30:;
         return compiler__parser__parser__Parser_binary(self, 37, left, right, line, col);
     } else if (compiler__parser__parser__Parser_match_token(self, 3)) {
         compiler__lexer__token__Token member_tok = compiler__parser__parser__Parser_consume(self, 42, "Expected identifier after '.'");
@@ -23914,11 +23909,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         } else if (!kobel_streq(pname.text, "self")) {
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_32;
+            goto __when_end_33;
         } else {
             ptype = NULL;
         }
-        __when_end_32:;
+        __when_end_33:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         std__collections__list__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -23936,11 +23931,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
             } else if (!kobel_streq(p_name.text, "self")) {
                 compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
                 p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_33;
+                goto __when_end_34;
             } else {
                 p_type = NULL;
             }
-            __when_end_33:;
+            __when_end_34:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             std__collections__list__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -23952,15 +23947,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression body");
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_34;
+        goto __when_end_35;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' or '{' for function body");
         body = NULL;
-        goto __when_end_34;
+        goto __when_end_35;
     }
-    __when_end_34:;
+    __when_end_35:;
     return compiler__parser__parser__Parser_fn_decl(self, name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col, false);
 }
 
@@ -23990,11 +23985,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         } else if (!kobel_streq(pname.text, "self")) {
             compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_35;
+            goto __when_end_36;
         } else {
             ptype = NULL;
         }
-        __when_end_35:;
+        __when_end_36:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
         std__collections__list__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -24012,11 +24007,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
             } else if (!kobel_streq(p_name.text, "self")) {
                 compiler__parser__parser__Parser_consume(self, 1, "Expected ':' after parameter name");
                 p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_36;
+                goto __when_end_37;
             } else {
                 p_type = NULL;
             }
-            __when_end_36:;
+            __when_end_37:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE) : NULL);
             std__collections__list__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -24028,15 +24023,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, compiler__parser__expr__PREC_NONE);
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after expression body");
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_37;
+        goto __when_end_38;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, "Expected ';' or '{' for operator body");
         body = NULL;
-        goto __when_end_37;
+        goto __when_end_38;
     }
-    __when_end_37:;
+    __when_end_38:;
     return compiler__parser__parser__Parser_fn_decl(self, op_name, type_params, params, return_type, body, is_pub, kw.line, kw.col, true);
 }
 
@@ -24685,22 +24680,22 @@ int32_t compiler__driver__commands__cmd_run(const char* manifest_path, std__coll
     if (!std__io__file_exists(cfg.output)) {
         std__io__println(kobel_concat(kobel_concat("Target '", cfg.output), "' not found. Building first..."));
         needs_build = true;
-        goto __when_end_39;
+        goto __when_end_40;
     } else if (!std__io__file_exists(stamp_file)) {
         std__io__println("No previous build stamp found. Rebuilding...");
         needs_build = true;
-        goto __when_end_39;
+        goto __when_end_40;
     } else {
         const char* saved_stamp = str_trim(std__io__read_file(stamp_file));
         if (!kobel_streq(saved_stamp, current_stamp)) {
             std__io__println("Source changes detected. Rebuilding...");
             needs_build = true;
-            goto __when_end_39;
+            goto __when_end_40;
         }
         needs_build = false;
-        goto __when_end_39;
+        goto __when_end_40;
     }
-    __when_end_39:;
+    __when_end_40:;
     if (needs_build) {
         int32_t build_code = compiler__driver__commands__cmd_build(manifest_path);
         if (build_code != 0) {
