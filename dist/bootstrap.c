@@ -2895,6 +2895,8 @@ compiler__ast__node__AstNode* compiler__sema__body_pass__BodyPass_interp_piece(c
 void compiler__sema__body_pass__BodyPass_check_block_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_check_var_decl_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__body_pass__BodyPass_collect_and_conditions(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* expr);
+bool compiler__sema__body_pass__BodyPass_is_null_literal(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__body_pass__BodyPass_check_null_guard(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right);
 void compiler__sema__body_pass__BodyPass_check_if_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_check_while_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_check_for_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
@@ -20033,6 +20035,57 @@ std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__bo
     return res;
 }
 
+bool compiler__sema__body_pass__BodyPass_is_null_literal(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
+    if (node == NULL) {
+        return false;
+    }
+    compiler__ast__node__AstNode* cur = compiler__sema__body_pass__BodyPass_unwrap_group(self, node);
+    {
+        compiler__ast__expr__LiteralExpr* lit = NULL;
+        if ((cur != NULL && cur->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = (compiler__ast__expr__LiteralExpr*)(((compiler__ast__node__AstNode*)cur)->data), 1))) {
+            return (lit->literal_kind == 5);
+        }
+    }
+    return false;
+}
+
+void compiler__sema__body_pass__BodyPass_check_null_guard(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right) {
+    compiler__ast__node__AstNode* l = compiler__sema__body_pass__BodyPass_unwrap_group(self, left);
+    compiler__ast__node__AstNode* r = compiler__sema__body_pass__BodyPass_unwrap_group(self, right);
+    const char* var_name = "";
+    if (compiler__sema__body_pass__BodyPass_is_null_literal(self, r)) {
+        {
+            compiler__ast__expr__IdentifierExpr* l_id = NULL;
+            if ((l != NULL && l->kind == compiler__ast__expr__IdentifierExpr__TAG && (l_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)l)->data), 1))) {
+                var_name = l_id->name;
+            }
+        }
+    } else if (compiler__sema__body_pass__BodyPass_is_null_literal(self, l)) {
+        {
+            compiler__ast__expr__IdentifierExpr* r_id = NULL;
+            if ((r != NULL && r->kind == compiler__ast__expr__IdentifierExpr__TAG && (r_id = (compiler__ast__expr__IdentifierExpr*)(((compiler__ast__node__AstNode*)r)->data), 1))) {
+                var_name = r_id->name;
+            }
+        }
+    }
+    if (str_empty(var_name)) {
+        return;
+    }
+    compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, var_name);
+    if ((sym == NULL) || (sym->type_ptr == NULL)) {
+        return;
+    }
+    if ((*sym->type_ptr).kind != 16) {
+        return;
+    }
+    compiler__sema__types__PointerType* ptr_ty = compiler__sema__types__Type_as_pointer(sym->type_ptr);
+    if (!ptr_ty->is_nullable) {
+        return;
+    }
+    compiler__sema__types__Type* non_null_ty = std__mem__arena__Arena_pointer_type_3_2(&self->arena, ptr_ty->pointee, ptr_ty->is_mut);
+    compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->is_mut, sym->is_pub, 0, 0, NULL });
+}
+
 void compiler__sema__body_pass__BodyPass_check_if_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__stmt__IfStmt* if_s = compiler__ast__node__to_compiler__ast__stmt__IfStmt(node);
     std__collections__list__List_ptr_compiler__ast__node__AstNode conds = compiler__sema__body_pass__BodyPass_collect_and_conditions(self, if_s->condition);
@@ -20072,6 +20125,14 @@ void compiler__sema__body_pass__BodyPass_check_if_stmt(compiler__sema__body_pass
                     }
                 }
             }
+            {
+                compiler__ast__expr__BinaryExpr* bin = NULL;
+                if ((unwrapped_c != NULL && unwrapped_c->kind == compiler__ast__expr__BinaryExpr__TAG && (bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)unwrapped_c)->data), 1))) {
+                    if (bin->op == 22) {
+                        compiler__sema__body_pass__BodyPass_check_null_guard(self, bin->left, bin->right);
+                    }
+                }
+            }
             __for_i = (__for_i + 1);
         }
     }
@@ -20106,16 +20167,51 @@ void compiler__sema__body_pass__BodyPass_check_if_stmt(compiler__sema__body_pass
     compiler__sema__body_pass__BodyPass_check_statement(self, if_s->then_branch);
     compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
     if (if_s->else_branch != NULL) {
+        bool else_null_guard = false;
+        compiler__ast__node__AstNode* single_c = compiler__sema__body_pass__BodyPass_unwrap_group(self, if_s->condition);
+        {
+            compiler__ast__expr__BinaryExpr* eq_bin = NULL;
+            if ((single_c != NULL && single_c->kind == compiler__ast__expr__BinaryExpr__TAG && (eq_bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)single_c)->data), 1))) {
+                if (eq_bin->op == 21) {
+                    compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
+                    compiler__sema__body_pass__BodyPass_check_null_guard(self, eq_bin->left, eq_bin->right);
+                    else_null_guard = true;
+                }
+            }
+        }
         compiler__sema__body_pass__BodyPass_check_statement(self, if_s->else_branch);
+        if (else_null_guard) {
+            compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
+        }
     }
 }
 
 void compiler__sema__body_pass__BodyPass_check_while_stmt(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__stmt__WhileStmt* wh = compiler__ast__node__to_compiler__ast__stmt__WhileStmt(node);
-    compiler__sema__types__Type* cond_ty = compiler__sema__body_pass__BodyPass_check_expr(self, wh->condition);
-    compiler__sema__body_pass__BodyPass_ensure(self, (cond_ty->kind == 1), node, "While statement condition must be bool");
+    std__collections__list__List_ptr_compiler__ast__node__AstNode conds = compiler__sema__body_pass__BodyPass_collect_and_conditions(self, wh->condition);
     self->loop_depth++;
+    compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&conds);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* c = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&conds, __for_i);
+            compiler__sema__types__Type* c_ty = compiler__sema__body_pass__BodyPass_check_expr(self, c);
+            compiler__sema__body_pass__BodyPass_ensure(self, (c_ty->kind == 1), c, "While statement condition must be bool");
+            compiler__ast__node__AstNode* unwrapped_c = compiler__sema__body_pass__BodyPass_unwrap_group(self, c);
+            {
+                compiler__ast__expr__BinaryExpr* bin = NULL;
+                if ((unwrapped_c != NULL && unwrapped_c->kind == compiler__ast__expr__BinaryExpr__TAG && (bin = (compiler__ast__expr__BinaryExpr*)(((compiler__ast__node__AstNode*)unwrapped_c)->data), 1))) {
+                    if (bin->op == 22) {
+                        compiler__sema__body_pass__BodyPass_check_null_guard(self, bin->left, bin->right);
+                    }
+                }
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
     compiler__sema__body_pass__BodyPass_check_statement(self, wh->body);
+    compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
     self->loop_depth--;
 }
 
@@ -23031,6 +23127,10 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen
                 if (p_tn != NULL && p_tn->kind == compiler__ast__types__PointerType__TAG) {
                     void* __orig_p_tn = (void*)p_tn;
                     compiler__ast__types__PointerType* p_tn = (compiler__ast__types__PointerType*)(((compiler__ast__node__AstNode*)__orig_p_tn)->data);
+                    std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, p.name);
+                } else if (p_tn != NULL && p_tn->kind == compiler__ast__types__NullableType__TAG) {
+                    void* __orig_p_tn = (void*)p_tn;
+                    compiler__ast__types__NullableType* p_tn = (compiler__ast__types__NullableType*)(((compiler__ast__node__AstNode*)__orig_p_tn)->data);
                     std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, p.name);
                 } else if (p_tn != NULL && p_tn->kind == compiler__ast__types__NamedType__TAG) {
                     compiler__ast__types__NamedType* named = (compiler__ast__types__NamedType*)(((compiler__ast__node__AstNode*)p_tn)->data);

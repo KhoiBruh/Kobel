@@ -385,6 +385,42 @@ fn test_null_safety(): bool {
 	};
 	if (when_test2 != 10) return false;
 
+	// 11. Smart cast on != null and == null
+	val opt_p: *i32? = &x;
+	var smart_cast_ok = false;
+	if (opt_p != null) {
+		val nn_p: *i32 = opt_p;
+		if (*nn_p == 10) smart_cast_ok = true;
+	}
+	if (!smart_cast_ok) return false;
+
+	// Compound condition with != null
+	var compound_ok = false;
+	if (opt_p != null && *opt_p == 10) {
+		compound_ok = true;
+	}
+	if (!compound_ok) return false;
+
+	// == null else branch smart cast
+	var else_ok = false;
+	if (opt_p == null) {
+		return false;
+	} else {
+		val nn_p2: *i32 = opt_p;
+		if (*nn_p2 == 10) else_ok = true;
+	}
+	if (!else_ok) return false;
+
+	// while loop != null smart cast
+	var while_p: *i32? = &x;
+	var while_count = 0;
+	while (while_p != null) {
+		val nn_p3: *i32 = while_p;
+		while_count = while_count + *nn_p3;
+		while_p = null;
+	}
+	if (while_count != 10) return false;
+
 	return true;
 }
 

@@ -87,6 +87,36 @@ impl BodyPass {
 		return res;
 	}
 
+	fn is_null_literal(var self, node: *AstNode): bool {
+		if (node == null) return false;
+		val cur = self.unwrap_group(node);
+		if (cur is LiteralExpr as lit) {
+			return lit.literal_kind == LiteralKind.NULL_VAL;
+		}
+		return false;
+	}
+
+	fn check_null_guard(var self, left: *AstNode, right: *AstNode) {
+		val l = self.unwrap_group(left);
+		val r = self.unwrap_group(right);
+		var var_name = "";
+		if (self.is_null_literal(r)) {
+			if (l is IdentifierExpr as l_id) var_name = l_id.name;
+		} else if (self.is_null_literal(l)) {
+			if (r is IdentifierExpr as r_id) var_name = r_id.name;
+		}
+		if (var_name.empty()) return;
+
+		val sym = self.symtab.lookup(var_name);
+		if (sym == null || sym.type_ptr == null) return;
+		if (sym.type_ptr.kind != DataType.POINTER) return;
+		val ptr_ty = sym.type_ptr.as_pointer();
+		if (!ptr_ty.is_nullable) return;
+
+		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
+		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0));
+	}
+
 	pub fn check_if_stmt(var self, node: *AstNode) {
 		val if_s = node.to<IfStmt>();
 		val conds = self.collect_and_conditions(if_s.condition);
@@ -120,6 +150,12 @@ impl BodyPass {
 					}
 				}
 			}
+
+			if (unwrapped_c is BinaryExpr as bin) {
+				if (bin.op == TokenType.BANG_EQUAL) {
+					self.check_null_guard(bin.left, bin.right);
+				}
+			}
 		}
 
 		for (i in 0..<no_alias_syms.len) {
@@ -129,15 +165,46 @@ impl BodyPass {
 		self.check_statement(if_s.then_branch);
 		self.symtab.exit_scope();
 
-		if (if_s.else_branch != null) self.check_statement(if_s.else_branch);
+		if (if_s.else_branch != null) {
+			var else_null_guard = false;
+			val single_c = self.unwrap_group(if_s.condition);
+			if (single_c is BinaryExpr as eq_bin) {
+				if (eq_bin.op == TokenType.EQUAL_EQUAL) {
+					self.symtab.enter_scope(false);
+					self.check_null_guard(eq_bin.left, eq_bin.right);
+					else_null_guard = true;
+				}
+			}
+
+			self.check_statement(if_s.else_branch);
+
+			if (else_null_guard) {
+				self.symtab.exit_scope();
+			}
+		}
 	}
 
 	pub fn check_while_stmt(var self, node: *AstNode) {
 		val wh = node.to<WhileStmt>();
-		val cond_ty = self.check_expr(wh.condition);
-		self.ensure(cond_ty.kind == DataType.BOOL, node, "While statement condition must be bool");
+		val conds = self.collect_and_conditions(wh.condition);
+
 		self.loop_depth++;
+		self.symtab.enter_scope(false);
+
+		for (c in conds) {
+			val c_ty = self.check_expr(c);
+			self.ensure(c_ty.kind == DataType.BOOL, c, "While statement condition must be bool");
+
+			val unwrapped_c = self.unwrap_group(c);
+			if (unwrapped_c is BinaryExpr as bin) {
+				if (bin.op == TokenType.BANG_EQUAL) {
+					self.check_null_guard(bin.left, bin.right);
+				}
+			}
+		}
+
 		self.check_statement(wh.body);
+		self.symtab.exit_scope();
 		self.loop_depth--;
 	}
 

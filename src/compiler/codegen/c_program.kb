@@ -194,6 +194,7 @@ impl CCodeGen {
 			} else if (p_tn != null) {
 				when (p_tn) {
 					is PointerType -> self.pointer_vars += p.name;
+					is NullableType -> self.pointer_vars += p.name;
 					is NamedType as named -> {
 						if (named.name == "str") self.str_vars += p.name;
 					}
