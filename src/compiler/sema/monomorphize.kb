@@ -107,22 +107,19 @@ impl DeclPass {
 					self.symtab.gen.impl_templates += self.gen_template(im.struct_name, node, true);
 				} else {
 					for (m in im.methods) {
-						val mf = m;
-						if (mf is FnDecl as f) {
-							if (f.type_params.len > 0) {
-								val f_mut = f as &FnDecl;
-								for (i in 0..<f.params.len) {
-									val p = f.params[i];
-									if (p.name == "self" && p.type_node == null) {
-										val prim = resolve_primitive_name(&self.arena, im.struct_name);
-										val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
-										val self_ty_node = if (prim != null) named
-											else self.pointer_type(p.is_mut, named, m.line, m.col);
-										f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
-									}
+						if (m is FnDecl as f && f.type_params.len > 0) {
+							val f_mut = f as &FnDecl;
+							for (i in 0..<f.params.len) {
+								val p = f.params[i];
+								if (p.name == "self" && p.type_node == null) {
+									val prim = resolve_primitive_name(&self.arena, im.struct_name);
+									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
+									val self_ty_node = if (prim != null) named
+										else self.pointer_type(p.is_mut, named, m.line, m.col);
+									f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
-								self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
 							}
+							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
 						}
 					}
 				}
@@ -847,39 +844,36 @@ impl DeclPass {
 	// receiver as its first argument, and a template name is replaced by the
 	// instantiated (mangled) one.
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
+		if (c.type_args.len == 0) return;
 		val callee = c.callee;
 		if (callee is MemberExpr as mem) {
-			if (c.type_args.len > 0) {
-				val ft = self.find_method_template(mem.member);
-				if (ft != null) {
-					val mem_obj = mem.object;
-					val cname = self.instantiate_fn(ft, c.type_args);
-					c.callee = self.identifier(cname, node.line, node.col);
-					var new_args = List<*AstNode>();
-					new_args += mem_obj;
-					for (a in c.args) new_args += a;
-					c.args = new_args;
-					c.type_args = List<*AstNode>();
-				}
+			val ft = self.find_method_template(mem.member);
+			if (ft != null) {
+				val mem_obj = mem.object;
+				val cname = self.instantiate_fn(ft, c.type_args);
+				c.callee = self.identifier(cname, node.line, node.col);
+				var new_args = List<*AstNode>();
+				new_args += mem_obj;
+				for (a in c.args) new_args += a;
+				c.args = new_args;
+				c.type_args = List<*AstNode>();
 			}
 		}
 
 		if (callee is IdentifierExpr as cid) {
-			if (c.type_args.len > 0) {
-				val ft = self.find_fn_template(cid.name);
-				if (ft != null) {
-					val cname = self.instantiate_fn(ft, c.type_args);
+			val ft = self.find_fn_template(cid.name);
+			if (ft != null) {
+				val cname = self.instantiate_fn(ft, c.type_args);
+				val cid_mut = cid as &IdentifierExpr;
+				cid_mut.name = cname;
+				c.type_args = List<*AstNode>();
+			} else {
+				val st = self.find_struct_template(cid.name);
+				if (st != null) {
+					val cty = self.instantiate_struct(st, c.type_args);
 					val cid_mut = cid as &IdentifierExpr;
-					cid_mut.name = cname;
+					cid_mut.name = cty.as_struct().name;
 					c.type_args = List<*AstNode>();
-				} else {
-					val st = self.find_struct_template(cid.name);
-					if (st != null) {
-						val cty = self.instantiate_struct(st, c.type_args);
-						val cid_mut = cid as &IdentifierExpr;
-						cid_mut.name = cty.as_struct().name;
-						c.type_args = List<*AstNode>();
-					}
 				}
 			}
 		}
@@ -1028,11 +1022,8 @@ impl DeclPass {
 				self.rewrite_generics(f.return_type);
 				val prev_ret = self.current_fn_return_type;
 				self.current_fn_return_type = f.return_type;
-				val fbody = f.body;
-				if (fbody is ExprStmt as es) {
-					if (f.return_type != null) {
-						self.propagate_target_type(f.return_type, es.expr);
-					}
+				if (f.body is ExprStmt as es && f.return_type != null) {
+					self.propagate_target_type(f.return_type, es.expr);
 				}
 				self.rewrite_generics(f.body);
 				self.current_fn_return_type = prev_ret;
@@ -1040,7 +1031,7 @@ impl DeclPass {
 			}
 			is ImplDecl as im -> {
 				for (m in im.methods) {
-					if (m.to<FnDecl>().type_params.len > 0) continue;
+					if (m is FnDecl as f && f.type_params.len > 0) continue;
 					self.rewrite_generics(m);
 				}
 				yield true;

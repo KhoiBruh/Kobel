@@ -62,8 +62,7 @@ impl CCodeGen {
 				}
 				is ImplDecl as im -> {
 					for (mnode in im.methods) {
-						if (mnode is FnDecl as f) {
-							if (f.type_params.len > 0) continue;
+						if (mnode is FnDecl as f && f.type_params.len == 0) {
 							self.register_fn(f.name, self.fn_ret_c_type(f));
 						}
 					}
@@ -81,31 +80,25 @@ impl CCodeGen {
 
 		// 3. Struct Definitions
 		for (decl in prog) {
-			if (!decl.is_template()) {
-				if (decl is StructDecl) {
-					c_code = "${c_code}${self.gen_struct_decl(decl)}";
-				}
+			if (!decl.is_template() && decl is StructDecl as s) {
+				c_code = "${c_code}${self.gen_struct_decl(s)}";
 			}
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
 		for (decl_list in prog) {
-			if (!decl_list.is_template()) {
-				if (decl_list is StructDecl as s) {
-					if (s.name.starts_with("std__collections__list__List")) {
-						c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
-							"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
-							"    size_t cap = (n < 4) ? 4 : n;\n"
-							"    void* data = malloc(cap * elem_size);\n"
-							"    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n"
-							"    ${s.name} l;\n"
-							"    l.data = data;\n"
-							"    l.len = n;\n"
-							"    l.cap = cap;\n"
-							"    return l;\n"
-							"}\n\n";
-					}
-				}
+			if (!decl_list.is_template() && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
+				c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
+					"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
+					"    size_t cap = (n < 4) ? 4 : n;\n"
+					"    void* data = malloc(cap * elem_size);\n"
+					"    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n"
+					"    ${s.name} l;\n"
+					"    l.data = data;\n"
+					"    l.len = n;\n"
+					"    l.cap = cap;\n"
+					"    return l;\n"
+					"}\n\n";
 			}
 		}
 
@@ -116,8 +109,7 @@ impl CCodeGen {
 				is FnDecl -> c_code = "${c_code}${self.gen_fn_decl(decl, true, "")}";
 				is ImplDecl as im -> {
 					for (mnode in im.methods) {
-						if (mnode is FnDecl as f) {
-							if (f.type_params.len > 0) continue;
+						if (mnode is FnDecl as f && f.type_params.len == 0) {
 							c_code = "${c_code}${self.gen_fn_decl(f, true, im.struct_name)}";
 						}
 					}
@@ -133,8 +125,7 @@ impl CCodeGen {
 				is FnDecl -> c_code = "${c_code}${self.gen_fn_decl(decl, false, "")}";
 				is ImplDecl as im -> {
 					for (mnode in im.methods) {
-						if (mnode is FnDecl as f) {
-							if (f.type_params.len > 0) continue;
+						if (mnode is FnDecl as f && f.type_params.len == 0) {
 							c_code = "${c_code}${self.gen_fn_decl(f, false, im.struct_name)}";
 						}
 					}
@@ -215,45 +206,34 @@ impl CCodeGen {
 				val es_e = es.expr;
 				var is_special = false;
 				if (ret_ty != "void" && es_e != null) {
-					if (es_e is WhenExpr as we) {
-						if (we.has_blocks()) {
-							res = "${res}${self.gen_when_with_target(we, "", true)}";
-							is_special = true;
-						}
+					if (es_e is WhenExpr as we && we.has_blocks()) {
+						res = "${res}${self.gen_when_with_target(we, "", true)}";
+						is_special = true;
 					}
 					var es_candidate = es_e;
 					while (es_candidate != null) {
 						if (es_candidate is GroupExpr as g) es_candidate = g.expr;
 						else break;
 					}
-					if (!is_special && es_candidate != null) {
-						if (es_candidate is BinaryExpr as bin) {
-							if (bin.op == TokenType.QUESTION_COLON) {
-								var cur = es_candidate;
-								res = "${res}    ${ret_ty} __ret_tmp;\n";
-								while (cur != null) {
-									while (cur != null) {
-										if (cur is GroupExpr as g) cur = g.expr;
-										else break;
-									}
-									if (cur == null) break;
-									if (cur is BinaryExpr as b) {
-										if (b.op == TokenType.QUESTION_COLON) {
-											res = "${res}    __ret_tmp = ${self.gen_expr(b.left)};\n";
-											res = "${res}    if (__ret_tmp != NULL) return __ret_tmp;\n";
-											cur = b.right;
-										} else {
-											res = "${res}    return ${self.gen_expr(cur)};\n";
-											break;
-										}
-									} else {
-										res = "${res}    return ${self.gen_expr(cur)};\n";
-										break;
-									}
-								}
-								is_special = true;
+					if (!is_special && es_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+						var cur = es_candidate;
+						res = "${res}    ${ret_ty} __ret_tmp;\n";
+						while (cur != null) {
+							while (cur != null) {
+								if (cur is GroupExpr as g) cur = g.expr;
+								else break;
+							}
+							if (cur == null) break;
+							if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
+								res = "${res}    __ret_tmp = ${self.gen_expr(b.left)};\n";
+								res = "${res}    if (__ret_tmp != NULL) return __ret_tmp;\n";
+								cur = b.right;
+							} else {
+								res = "${res}    return ${self.gen_expr(cur)};\n";
+								break;
 							}
 						}
+						is_special = true;
 					}
 				}
 				if (!is_special) {

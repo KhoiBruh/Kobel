@@ -631,11 +631,9 @@ impl BodyPass {
 	// (`var self`). False when the object is not `self` at all.
 	fn is_immutable_self(var self, obj_node: *AstNode): bool {
 		val obj = self.unwrap_group(obj_node);
-		if (obj is IdentifierExpr as obj_id) {
-			if (obj_id.name == "self") {
-				val self_sym = self.symtab.lookup("self");
-				return self_sym != null && !self_sym.is_mut;
-			}
+		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
+			val self_sym = self.symtab.lookup("self");
+			return self_sym != null && !self_sym.is_mut;
 		}
 		return false;
 	}
@@ -853,8 +851,7 @@ impl BodyPass {
 	// the arm binds nothing, which is the case for every multi-pattern arm, every
 	// arm of a `when` without a subject, and any non-`is` pattern.
 	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode): str {
-		if (cond == null || patterns.len != 1) return "";
-		if (cond is IdentifierExpr as cond_id) {
+		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
 			val pat = patterns.first();
 			if (pat is IsExpr as is_e) {
 				if (!is_e.alias.empty()) return is_e.alias;
@@ -867,8 +864,7 @@ impl BodyPass {
 	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
 	// or mutating the subject directly when subject was already mutable).
 	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode): bool {
-		if (cond == null || patterns.len != 1) return false;
-		if (cond is IdentifierExpr as cond_id) {
+		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
 			val pat = patterns.first();
 			if (pat is IsExpr as is_e) {
 				if (!is_e.alias.empty()) return is_e.is_mut;
@@ -928,8 +924,7 @@ impl BodyPass {
 			self.symtab.enter_scope(false);
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
-					if (ys.value != null) yield_ty = self.check_expr(ys.value);
-					else yield_ty = self.t_none();
+					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.t_none();
 				} else self.check_statement(stmt);
 			}
 			self.symtab.exit_scope();

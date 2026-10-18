@@ -391,8 +391,8 @@ impl DeclPass {
 		if (expr is LiteralExpr as lit) {
 			return parse_decimal_i64(lit.raw_text);
 		}
-		if (expr is UnaryExpr as un) {
-			if (un.op == TokenType.MINUS) return 0 - self.enum_const_i64(un.operand);
+		if (expr is UnaryExpr as un && un.op == TokenType.MINUS) {
+			return 0 - self.enum_const_i64(un.operand);
 		}
 		self.report_error(expr, "Enum member value must be an integer constant");
 		return 0;
@@ -531,10 +531,8 @@ impl DeclPass {
 	}
 
 	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
-		val body = f.body;
-		if (body is ExprStmt as es) {
+		if (f.body is ExprStmt as es && es.expr != null) {
 			val expr = es.expr;
-			if (expr == null) return null;
 
 			if (expr is LiteralExpr as lit) {
 				when (lit.literal_kind) {
@@ -569,23 +567,19 @@ impl DeclPass {
 				}
 			}
 
-			if (expr is MemberExpr as mem) {
-				val mem_obj = mem.object;
-				if (mem_obj is IdentifierExpr as id) {
-					val sym = self.symtab.lookup(id.name);
-					if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
-						val ei = sym.type_ptr.as_enum();
-						if (ei.find_member(mem.member) != null) {
-							f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
-							return sym.type_ptr;
-						}
+			if (expr is MemberExpr as mem && mem.object is IdentifierExpr as id) {
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
+					val ei = sym.type_ptr.as_enum();
+					if (ei.find_member(mem.member) != null) {
+						f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
+						return sym.type_ptr;
 					}
 				}
 			}
 
 			if (expr is UpdateExpr as u) {
-				val u_tgt = u.target;
-				if (u_tgt is IdentifierExpr as id) {
+				if (u.target is IdentifierExpr as id) {
 					for (p in f.params) {
 						if (p.name == id.name && p.type_node != null) {
 							f.return_type = p.type_node;
@@ -593,24 +587,20 @@ impl DeclPass {
 						}
 					}
 				}
-				if (u_tgt is MemberExpr as mem) {
-					val mem_obj = mem.object;
-					if (mem_obj is IdentifierExpr as obj_id) {
-						if (obj_id.name == "self") {
-							if (
-								self.current_self_type != null &&
-								self.current_self_type.kind == DataType.STRUCT
-							) {
-								val s_info = self.current_self_type.as_struct();
-								for (fld in s_info.fields) {
-									if (fld.name == mem.member) {
-										val tname = primitive_type_name(fld.type_ptr);
-										if (tname != "none") {
-											f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
-											return fld.type_ptr;
-										}
-									}
-								}
+				if (
+					u.target is MemberExpr as mem &&
+					mem.object is IdentifierExpr as obj_id &&
+					obj_id.name == "self" &&
+					self.current_self_type != null &&
+					self.current_self_type.kind == DataType.STRUCT
+				) {
+					val s_info = self.current_self_type.as_struct();
+					for (fld in s_info.fields) {
+						if (fld.name == mem.member) {
+							val tname = primitive_type_name(fld.type_ptr);
+							if (tname != "none") {
+								f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
+								return fld.type_ptr;
 							}
 						}
 					}

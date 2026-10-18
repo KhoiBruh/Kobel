@@ -120,10 +120,8 @@ impl Arena {
 			else break;
 		}
 		if (cur == null) return;
-		if (cur is BinaryExpr as bin) {
-			if (bin.op == TokenType.QUESTION_COLON) {
-				self.for_inject_step(bin.right, step);
-			}
+		if (cur is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+			self.for_inject_step(bin.right, step);
 		} else if (cur is AssignExpr as asg) {
 			self.for_inject_step_expr(asg.value, step);
 		}

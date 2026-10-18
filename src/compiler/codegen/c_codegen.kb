@@ -621,9 +621,7 @@ impl CCodeGen {
 			val arm_b = arm.body;
 			if (arm_b is BlockStmt as blk) {
 				for (s in blk.statements) {
-					if (s is YieldStmt as ys) {
-						if (ys.value != null) return self.infer_type_from_expr(ys.value);
-					}
+					if (s is YieldStmt as ys && ys.value != null) return self.infer_type_from_expr(ys.value);
 				}
 			} else {
 				return self.infer_type_from_expr(arm_b);
@@ -851,13 +849,11 @@ impl CCodeGen {
 			}
 		}
 
-		if (cur is IsExpr as is_e) {
-			if (!is_e.alias.empty()) {
-				val target_name = c_type_from_ast(is_e.target_type);
-				val decl = "${target_name}* ${is_e.alias} = NULL;";
-				self.pointer_vars += is_e.alias;
-				res += ConditionAlias(is_e.alias, target_name, decl);
-			}
+		if (cur is IsExpr as is_e && !is_e.alias.empty()) {
+			val target_name = c_type_from_ast(is_e.target_type);
+			val decl = "${target_name}* ${is_e.alias} = NULL;";
+			self.pointer_vars += is_e.alias;
+			res += ConditionAlias(is_e.alias, target_name, decl);
 		}
 
 		return res;
@@ -904,13 +900,8 @@ impl CCodeGen {
 		}
 
 		var cast_decl = "";
-		if (cond is IsExpr as is_e) {
-			if (is_e.alias.empty()) {
-				val e = is_e.expr;
-				if (e is IdentifierExpr as id) {
-					cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
-				}
-			}
+		if (cond is IsExpr as is_e && is_e.alias.empty() && is_e.expr is IdentifierExpr as id) {
+			cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
 		}
 
 		val ind = get_indent(self.indent_level);
@@ -946,13 +937,8 @@ impl CCodeGen {
 				}
 
 				var elif_cast = "";
-				if (elif_cond is IsExpr as elif_is_e) {
-					if (elif_is_e.alias.empty()) {
-						val e = elif_is_e.expr;
-						if (e is IdentifierExpr as id) {
-							elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
-						}
-					}
+				if (elif_cond is IsExpr as elif_is_e && elif_is_e.alias.empty() && elif_is_e.expr is IdentifierExpr as id) {
+					elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
 				}
 
 				res = "${res}${if_ind}} else if ${self.gen_cond(elif.condition)} {\n";
@@ -995,10 +981,8 @@ impl CCodeGen {
 		val ind = get_indent(self.indent_level);
 
 		val ret_val = ret.value;
-		if (ret_val is WhenExpr as we) {
-			if (we.has_blocks()) {
-				return self.gen_when_with_target(we, "", true);
-			}
+		if (ret_val is WhenExpr as we && we.has_blocks()) {
+			return self.gen_when_with_target(we, "", true);
 		}
 
 		if (ret_val != null) {
@@ -1007,39 +991,32 @@ impl CCodeGen {
 				if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
 				else break;
 			}
-			if (ret_candidate is BinaryExpr as bin) {
-				if (bin.op == TokenType.QUESTION_COLON) {
-					var ret_ty = self.current_fn_ret_type;
-					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
-					var cur = ret_candidate;
-					var res = "${ind}{\n";
-					self.indent_level++;
-					val inner_ind = get_indent(self.indent_level);
-					res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+			if (ret_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+				var ret_ty = self.current_fn_ret_type;
+				if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+				var cur = ret_candidate;
+				var res = "${ind}{\n";
+				self.indent_level++;
+				val inner_ind = get_indent(self.indent_level);
+				res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+				while (cur != null) {
 					while (cur != null) {
-						while (cur != null) {
-							if (cur is GroupExpr as g) cur = g.expr;
-							else break;
-						}
-						if (cur == null) break;
-						if (cur is BinaryExpr as b) {
-							if (b.op == TokenType.QUESTION_COLON) {
-								res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
-								res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
-								cur = b.right;
-							} else {
-								res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
-								break;
-							}
-						} else {
-							res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
-							break;
-						}
+						if (cur is GroupExpr as g) cur = g.expr;
+						else break;
 					}
-					self.indent_level--;
-					res = "${res}${ind}}\n";
-					return res;
+					if (cur == null) break;
+					if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
+						res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
+						res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
+						cur = b.right;
+					} else {
+						res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+						break;
+					}
 				}
+				self.indent_level--;
+				res = "${res}${ind}}\n";
+				return res;
 			}
 
 			return "${ind}return ${self.gen_expr(ret_val)};\n";
@@ -1063,10 +1040,8 @@ impl CCodeGen {
 					if (asg_val is GroupExpr as g) asg_val = g.expr;
 					else break;
 				}
-				if (asg_val is BinaryExpr as bin) {
-					if (bin.op == TokenType.QUESTION_COLON) {
-						return self.gen_assign_elvis_stmt(asg, asg_val, ind);
-					}
+				if (asg_val is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+					return self.gen_assign_elvis_stmt(asg, asg_val, ind);
 				}
 			}
 
@@ -1075,17 +1050,15 @@ impl CCodeGen {
 				if (bin_candidate is GroupExpr as g) bin_candidate = g.expr;
 				else break;
 			}
-			if (bin_candidate is BinaryExpr as bin) {
-				if (bin.op == TokenType.QUESTION_COLON) {
-					val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-						bin.right.kind == NodeKind.STMT_BREAK ||
-						bin.right.kind == NodeKind.STMT_CONTINUE ||
-						bin.right.kind == NodeKind.STMT_YIELD ||
-						bin.right.kind == NodeKind.STMT_BLOCK;
+			if (bin_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
+					bin.right.kind == NodeKind.STMT_BREAK ||
+					bin.right.kind == NodeKind.STMT_CONTINUE ||
+					bin.right.kind == NodeKind.STMT_YIELD ||
+					bin.right.kind == NodeKind.STMT_BLOCK;
 
-					if (is_jump) {
-						return self.gen_elvis_jump_stmt(bin, ind);
-					}
+				if (is_jump) {
+					return self.gen_elvis_jump_stmt(bin, ind);
 				}
 			}
 		}

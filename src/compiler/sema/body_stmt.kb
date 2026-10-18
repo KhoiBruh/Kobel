@@ -73,14 +73,12 @@ impl BodyPass {
 		val cur = self.unwrap_group(expr);
 		if (cur == null) return res;
 
-		if (cur is BinaryExpr as bin) {
-			if (bin.op == TokenType.AND_AND) {
-				val left = self.collect_and_conditions(bin.left);
-				val right = self.collect_and_conditions(bin.right);
-				for (l in left) res += l;
-				for (r in right) res += r;
-				return res;
-			}
+		if (cur is BinaryExpr as bin && bin.op == TokenType.AND_AND) {
+			val left = self.collect_and_conditions(bin.left);
+			val right = self.collect_and_conditions(bin.right);
+			for (l in left) res += l;
+			for (r in right) res += r;
+			return res;
 		}
 
 		res += cur;
@@ -100,10 +98,10 @@ impl BodyPass {
 		val l = self.unwrap_group(left);
 		val r = self.unwrap_group(right);
 		var var_name = "";
-		if (self.is_null_literal(r)) {
-			if (l is IdentifierExpr as l_id) var_name = l_id.name;
-		} else if (self.is_null_literal(l)) {
-			if (r is IdentifierExpr as r_id) var_name = r_id.name;
+		if (self.is_null_literal(r) && l is IdentifierExpr as l_id) {
+			var_name = l_id.name;
+		} else if (self.is_null_literal(l) && r is IdentifierExpr as r_id) {
+			var_name = r_id.name;
 		}
 		if (var_name.empty()) return;
 
@@ -138,23 +136,18 @@ impl BodyPass {
 				if (cast_ty != null) {
 					if (!is_e.alias.empty()) {
 						self.symtab.define(Symbol(is_e.alias, is_e.alias, SymbolKind.VAR, cast_ty, is_e.is_mut, false, 0, 0));
-					} else {
-						val e = is_e.expr;
-						if (e is IdentifierExpr as id) {
-							val subj_sym = self.symtab.lookup(id.name);
-							val is_mut = if (subj_sym != null) subj_sym.is_mut else false;
-							no_alias_syms += id.name;
-							no_alias_tys += cast_ty;
-							no_alias_muts += is_mut;
-						}
+					} else if (is_e.expr is IdentifierExpr as id) {
+						val subj_sym = self.symtab.lookup(id.name);
+						val is_mut = if (subj_sym != null) subj_sym.is_mut else false;
+						no_alias_syms += id.name;
+						no_alias_tys += cast_ty;
+						no_alias_muts += is_mut;
 					}
 				}
 			}
 
-			if (unwrapped_c is BinaryExpr as bin) {
-				if (bin.op == TokenType.BANG_EQUAL) {
-					self.check_null_guard(bin.left, bin.right);
-				}
+			if (unwrapped_c is BinaryExpr as bin && bin.op == TokenType.BANG_EQUAL) {
+				self.check_null_guard(bin.left, bin.right);
 			}
 		}
 
@@ -168,12 +161,10 @@ impl BodyPass {
 		if (if_s.else_branch != null) {
 			var else_null_guard = false;
 			val single_c = self.unwrap_group(if_s.condition);
-			if (single_c is BinaryExpr as eq_bin) {
-				if (eq_bin.op == TokenType.EQUAL_EQUAL) {
-					self.symtab.enter_scope(false);
-					self.check_null_guard(eq_bin.left, eq_bin.right);
-					else_null_guard = true;
-				}
+			if (single_c is BinaryExpr as eq_bin && eq_bin.op == TokenType.EQUAL_EQUAL) {
+				self.symtab.enter_scope(false);
+				self.check_null_guard(eq_bin.left, eq_bin.right);
+				else_null_guard = true;
 			}
 
 			self.check_statement(if_s.else_branch);
@@ -196,10 +187,8 @@ impl BodyPass {
 			self.ensure(c_ty.kind == DataType.BOOL, c, "While statement condition must be bool");
 
 			val unwrapped_c = self.unwrap_group(c);
-			if (unwrapped_c is BinaryExpr as bin) {
-				if (bin.op == TokenType.BANG_EQUAL) {
-					self.check_null_guard(bin.left, bin.right);
-				}
+			if (unwrapped_c is BinaryExpr as bin && bin.op == TokenType.BANG_EQUAL) {
+				self.check_null_guard(bin.left, bin.right);
 			}
 		}
 
