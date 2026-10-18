@@ -208,6 +208,134 @@ impl str {
 		}
 		return "${h}_${self.len}";
 	}
+
+	pub fn trim_indent(val self): str => multiline_trim_indent(self);
+}
+
+pub fn str_is_blank(s: str): bool {
+	for (c in s) {
+		if (c != ' ' && c != '\t' && c != '\r') return false;
+	}
+	return true;
+}
+
+pub fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str {
+	var prefix = "";
+	var first = true;
+
+	for (i in start_idx..<end_idx) {
+		val line = lines[i];
+		if (str_is_blank(line)) continue;
+
+		var ws = "";
+		for (c in line) {
+			if (c == ' ' || c == '\t') ws = "${ws}${c}";
+			else break;
+		}
+
+		if (first) {
+			prefix = ws;
+			first = false;
+		} else {
+			var match_len: usz = 0;
+			val max_l = if (prefix.len < ws.len) prefix.len else ws.len;
+			while (match_len < max_l && prefix[match_len] == ws[match_len]) {
+				match_len++;
+			}
+			prefix = prefix.slice(0, match_len);
+		}
+	}
+
+	return prefix;
+}
+
+pub fn multiline_trim_indent(raw: str): str {
+	if (raw.empty()) return "";
+	val lines = raw.split_lines();
+	if (lines.len == 0) return "";
+	if (lines.len == 1) return lines[0];
+
+	var start_idx: usz = 0;
+	if (str_is_blank(lines[0])) {
+		start_idx = 1;
+	}
+
+	var end_idx: usz = lines.len;
+	if (end_idx > start_idx && str_is_blank(lines[end_idx - 1])) {
+		end_idx = end_idx - 1;
+	}
+
+	val prefix = common_whitespace_prefix(lines, start_idx, end_idx);
+
+	var res = "";
+	var first = true;
+	for (i in start_idx..<end_idx) {
+		val line = lines[i];
+		val trimmed_line = if (str_is_blank(line)) ""
+		else if (line.starts_with(prefix)) line.slice(prefix.len, line.len)
+		else line;
+
+		if (first) {
+			res = trimmed_line;
+			first = false;
+		} else {
+			res = "${res}\n${trimmed_line}";
+		}
+	}
+
+	return res;
+}
+
+pub fn multiline_escape_for_c(text: str): str {
+	var out = "\"";
+	var i: usz = 0;
+	while (i < text.len) {
+		val c = text[i];
+		if (c == '\\') {
+			if (i + 1 < text.len) {
+				val next_c = text[i + 1];
+				if (next_c == '$') {
+					out = "${out}$";
+					i += 2;
+					continue;
+				}
+				if (next_c == '\\') {
+					out = "${out}\\\\";
+					i += 2;
+					continue;
+				}
+				if (next_c == '"') {
+					out = "${out}\\\"";
+					i += 2;
+					continue;
+				}
+				out = "${out}\\${next_c}";
+				i += 2;
+				continue;
+			}
+			out = "${out}\\\\";
+			i++;
+			continue;
+		}
+		if (c == '"') {
+			out = "${out}\\\"";
+			i++;
+			continue;
+		}
+		if (c == '\n') {
+			out = "${out}\\n";
+			i++;
+			continue;
+		}
+		if (c == '\r') {
+			i++;
+			continue;
+		}
+		out = "${out}${text.slice(i, i + 1)}";
+		i++;
+	}
+	out = "${out}\"";
+	return out;
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {

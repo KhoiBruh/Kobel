@@ -262,6 +262,19 @@ fn test_adjacent_strings_parsing() {
 	println("  [PASS] test_adjacent_strings_parsing");
 }
 
+fn test_multiline_string_parsing() {
+	val src = "\"\"\"\n\tline 1\n\tline 2\n\"\"\"";
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val expr = parser.parse_expression(PREC_NONE);
+
+	assert_true(expr.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
+	val lit = expr.to<LiteralExpr>();
+	assert_eq_str(lit.raw_text, "\"line 1\\nline 2\"", "Trimmed multiline literal must be '\"line 1\\nline 2\"'");
+
+	println("  [PASS] test_multiline_string_parsing");
+}
+
 fn test_safe_member_and_elvis_parsing() {
 	val src = "user?.profile?.name ?: \"guest\"";
 	var lexer = Lexer(src);
@@ -303,6 +316,7 @@ fn main(): i32 {
 	test_statement_parsing();
 	test_full_program_parsing();
 	test_adjacent_strings_parsing();
+	test_multiline_string_parsing();
 	println("[ALL PASSED] Bootstrap Parser passed all tests successfully!");
 	return 0;
 }

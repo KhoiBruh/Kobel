@@ -519,6 +519,57 @@ fn test_adjacent_strings(): bool {
 	return true;
 }
 
+fn test_multiline_strings(): bool {
+	// 1. Basic multiline string with trimIndent
+	val s1 = """
+		Line 1
+		Line 2
+		Line 3
+	""";
+	if (s1 != "Line 1\nLine 2\nLine 3") return false;
+
+	// 2. Multiline string with nested quotes without escaping
+	val s2 = """
+		<div class="container">
+			<span id="title">Hello</span>
+		</div>
+	""";
+	if (s2 != "<div class=\"container\">\n\t<span id=\"title\">Hello</span>\n</div>") return false;
+
+	// 3. Multiline string with string interpolation
+	val lang = "Kobel";
+	val ver = 1;
+	val s3 = """
+		Language: ${lang}
+		Version: ${ver}
+	""";
+	if (s3 != "Language: Kobel\nVersion: 1") return false;
+
+	// 4. Single-line triple quotes
+	val s4 = """Hello World""";
+	if (s4 != "Hello World") return false;
+
+	// 5. Empty triple quotes
+	val s5 = """""";
+	if (s5 != "") return false;
+
+	// 6. Multiline with internal empty lines
+	val s6 = """
+		Paragraph 1
+
+		Paragraph 2
+	""";
+	if (s6 != "Paragraph 1\n\nParagraph 2") return false;
+
+	// 7. Escaped dollar sign in multiline string
+	val s7 = """
+		Price: \$100
+	""";
+	if (s7 != "Price: $100") return false;
+
+	return true;
+}
+
 fn test_in_operator(): bool {
 	// 1. in str
 	val s = "hello world";
@@ -600,6 +651,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_adjacent_strings");
+
+	if (!test_multiline_strings()) {
+		println("  [FAIL] test_multiline_strings");
+		return 1;
+	}
+	println("  [PASS] test_multiline_strings");
 
 	if (!test_in_operator()) {
 		println("  [FAIL] test_in_operator");

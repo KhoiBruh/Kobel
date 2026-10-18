@@ -1,6 +1,7 @@
 mod compiler.parser.expr;
 
 use std.collections.list.*;
+use util.strutil.*;
 
 use compiler.lexer.token.*;
 use compiler.lexer.lexer.*;
@@ -103,8 +104,30 @@ pub fn interp_skip_char_lit(text: str, start: usz): usz {
 	return text.len;
 }
 
-// Skips a "..." literal inside a hole (it may itself contain `${...}`).
+// Skips a "..." or """...""" literal inside a hole (it may itself contain `${...}`).
 pub fn interp_skip_quoted(text: str, start: usz): usz {
+	if (start + 2 < text.len && text[start + 1] == '"' && text[start + 2] == '"') {
+		var i = start + 3;
+		while (i < text.len) {
+			val c = text[i];
+			if (c == '\\') {
+				i += 2;
+				continue;
+			}
+			if (c == '"' && i + 2 < text.len && text[i + 1] == '"' && text[i + 2] == '"') {
+				return i + 3;
+			}
+			if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
+				val e = interp_find_close(text, i + 2);
+				if (e < 0) return text.len;
+				i = (e as usz) + 1;
+				continue;
+			}
+			i++;
+		}
+		return text.len;
+	}
+
 	var i = start + 1;
 	while (i < text.len) {
 		val c = text[i];
@@ -116,7 +139,7 @@ pub fn interp_skip_quoted(text: str, start: usz): usz {
 		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
 			val e = interp_find_close(text, i + 2);
 			if (e < 0) return text.len;
-			i = e + 1;
+			i = (e as usz) + 1;
 			continue;
 		}
 		i++;
@@ -644,6 +667,10 @@ impl Parser {
 	}
 
 	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {
+		if (tok.text.starts_with("\"\"\"")) {
+			return self.parse_multiline_string(tok.text, line, col);
+		}
+
 		if (!self.check(TokenType.STRING)) {
 			if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
 			return self.literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
@@ -662,6 +689,108 @@ impl Parser {
 		val combined = "\"${combined_inner}\"";
 		if (str_has_hole(combined)) return self.parse_interp_string(combined, line, col);
 		return self.literal(LiteralKind.STRING, normalize_esc_dollar(combined), line, col);
+	}
+
+	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
+		if (text.len < 6) return self.literal(LiteralKind.STRING, "\"\"", line, col);
+		val inner = text.slice(3, text.len - 3);
+		val trimmed = multiline_trim_indent(inner);
+
+		if (str_has_hole(trimmed)) {
+			return self.parse_interp_multiline(trimmed, line, col);
+		}
+
+		val c_literal = multiline_escape_for_c(trimmed);
+		return self.literal(LiteralKind.STRING, c_literal, line, col);
+	}
+
+	pub fn parse_interp_multiline(var self, text: str, line: usz, col: usz): *AstNode {
+		var parts = List<InterpPart>();
+		val end = text.len;
+		var i: usz = 0;
+		var lit = "";
+		var has_lit = false;
+
+		while (i < end) {
+			val c = text[i];
+			if (c == '\\') {
+				if (i + 1 < end) {
+					val next_c = text[i + 1];
+					if (next_c == '$') {
+						lit = "${lit}$";
+						has_lit = true;
+						i += 2;
+						continue;
+					}
+					if (next_c == '\\') {
+						lit = "${lit}\\\\";
+						has_lit = true;
+						i += 2;
+						continue;
+					}
+					if (next_c == '"') {
+						lit = "${lit}\\\"";
+						has_lit = true;
+						i += 2;
+						continue;
+					}
+					lit = "${lit}\\${next_c}";
+					has_lit = true;
+					i += 2;
+					continue;
+				}
+				lit = "${lit}\\\\";
+				has_lit = true;
+				i++;
+				continue;
+			}
+			if (c == '"') {
+				lit = "${lit}\\\"";
+				has_lit = true;
+				i++;
+				continue;
+			}
+			if (c == '\n') {
+				lit = "${lit}\\n";
+				has_lit = true;
+				i++;
+				continue;
+			}
+			if (c == '\r') {
+				i++;
+				continue;
+			}
+			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
+				if (has_lit) {
+					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
+					lit = "";
+					has_lit = false;
+				}
+				val h_start = i + 2;
+				val h_end = interp_find_close(text, h_start);
+				if (h_end < 0) {
+					self.errors += "Unterminated interpolation hole in multiline string literal";
+					return self.literal(LiteralKind.STRING, "\"\"", line, col);
+				}
+				val src = text.slice(h_start, h_end as usz);
+				var sub_lexer = Lexer(src);
+				val sub_tokens = sub_lexer.tokenize();
+				var sub = Parser(sub_tokens);
+				val hole = sub.parse_expression(PREC_NONE);
+				if (!sub.errors.empty()) {
+					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
+				}
+				parts += InterpPart(hole, false);
+				i = (h_end as usz) + 1;
+				continue;
+			}
+			lit = "${lit}${text.slice(i, i + 1)}";
+			has_lit = true;
+			i++;
+		}
+
+		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
+		return self.interp(parts, line, col);
 	}
 
 	pub fn parse_interp_string(var self, text: str, line: usz, col: usz): *AstNode {

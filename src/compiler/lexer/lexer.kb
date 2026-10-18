@@ -238,6 +238,41 @@ impl Lexer {
 		return self.make_token(TokenType.STRING, start_cursor, start_col);
 	}
 
+	pub fn scan_multiline_string(var self, start_cursor: usz, start_col: usz): Token {
+		var closed = false;
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (c == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"') {
+				self.next();
+				self.next();
+				self.next();
+				closed = true;
+				break;
+			}
+			if (c == '\\') {
+				self.next(); // consume '\'
+				if (!self.is_end()) {
+					val esc = self.peek();
+					if (esc == '\r' || esc == '\n') self.newline();
+					else self.next();
+				}
+				continue;
+			}
+			if (c == '\r' || c == '\n') {
+				self.newline();
+				continue;
+			}
+			if (c == '$' && self.peek_at(1) == '{') {
+				self.next(); // '$'
+				self.skip_hole();
+				continue;
+			}
+			self.next();
+		}
+		if (!closed) return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+		return self.make_token(TokenType.STRING, start_cursor, start_col);
+	}
+
 	// Consumes a `${ ... }` hole body; the cursor sits on the '{'.
 	// Nested braces, string literals, char literals and nested `${...}` are all
 	// honoured so the matching '}' is the right one.
@@ -258,7 +293,11 @@ impl Lexer {
 					continue;
 				}
 				'"' -> {
-					self.skip_string_raw();
+					if (self.peek_at(1) == '"' && self.peek_at(2) == '"') {
+						self.skip_multiline_string_raw();
+					} else {
+						self.skip_string_raw();
+					}
 					continue;
 				}
 				'\'' -> {
@@ -271,6 +310,40 @@ impl Lexer {
 				}
 				else -> self.next();
 			}
+		}
+	}
+
+	pub fn skip_multiline_string_raw(var self) {
+		self.next(); // 1st quote
+		self.next(); // 2nd quote
+		self.next(); // 3rd quote
+		while (!self.is_end()) {
+			val c = self.peek();
+			if (c == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"') {
+				self.next();
+				self.next();
+				self.next();
+				return;
+			}
+			if (c == '\\') {
+				self.next();
+				if (!self.is_end()) {
+					val esc = self.peek();
+					if (esc == '\r' || esc == '\n') self.newline();
+					else self.next();
+				}
+				continue;
+			}
+			if (c == '$' && self.peek_at(1) == '{') {
+				self.next(); // '$'
+				self.skip_hole();
+				continue;
+			}
+			if (c == '\r' || c == '\n') {
+				self.newline();
+				continue;
+			}
+			self.next();
 		}
 	}
 
@@ -362,7 +435,14 @@ impl Lexer {
 					if (self.match('=')) yield self.make_token(TokenType.STAR_EQUAL, start_cursor, start_col);
 					yield self.make_token(TokenType.STAR, start_cursor, start_col);
 				}
-				'"' -> self.scan_string(start_cursor, start_col);
+				'"' -> {
+					if (self.peek() == '"' && self.peek_at(1) == '"') {
+						self.next();
+						self.next();
+						yield self.scan_multiline_string(start_cursor, start_col);
+					}
+					yield self.scan_string(start_cursor, start_col);
+				}
 				'\'' -> self.scan_char(start_cursor, start_col);
 
 				'=' -> {

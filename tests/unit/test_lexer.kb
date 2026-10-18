@@ -119,6 +119,27 @@ fn test_literals(): bool {
 	return true;
 }
 
+fn test_multiline_string_lexer(): bool {
+	val code: str = "\"\"\"\nhello\nworld\n\"\"\" \"\"\"single\"\"\" \"\"\"\"\"\"";
+	var lex: Lexer = Lexer(code);
+	var tokens: List<Token> = lex.tokenize();
+
+	if (tokens.len != 4UZ) return false;
+	if (tokens[0UZ].type != TokenType.STRING) return false;
+	if (tokens[0UZ].text != "\"\"\"\nhello\nworld\n\"\"\"") return false;
+
+	if (tokens[1UZ].type != TokenType.STRING) return false;
+	if (tokens[1UZ].text != "\"\"\"single\"\"\"") return false;
+
+	if (tokens[2UZ].type != TokenType.STRING) return false;
+	if (tokens[2UZ].text != "\"\"\"\"\"\"") return false;
+
+	if (tokens[3UZ].type != TokenType.END_OF_FILE) return false;
+
+	tokens.delete();
+	return true;
+}
+
 fn test_numeric_prefixes_and_suffixes(): bool {
 	val code: str = "0xFF 0b1010 0o77 1_000_000 100L 50U 10_000_US 3.14F 2.5D";
 	var lex: Lexer = Lexer(code);
@@ -254,6 +275,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_literals");
+
+	if (!test_multiline_string_lexer()) {
+		println("  [FAIL] test_multiline_string_lexer");
+		return 1;
+	}
+	println("  [PASS] test_multiline_string_lexer");
 
 	if (!test_numeric_prefixes_and_suffixes()) {
 		println("  [FAIL] test_numeric_prefixes_and_suffixes");

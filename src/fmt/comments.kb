@@ -91,6 +91,39 @@ pub fn extract_comments(src: str): List<Comment> {
 
 		// Skip string literals
 		if (c == '"') {
+			if (i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
+				i += 3;
+				col += 3;
+				while (i < len) {
+					if (src[i] == '"' && i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
+						i += 3;
+						col += 3;
+						break;
+					}
+					if (src[i] == '\\' && i + 1 < len) {
+						i += 2;
+						col += 2;
+						continue;
+					}
+					if (src[i] == '\n') {
+						line++;
+						col = 1;
+						i++;
+						continue;
+					}
+					if (src[i] == '\r') {
+						if (i + 1 < len && src[i + 1] == '\n') i++;
+						line++;
+						col = 1;
+						i++;
+						continue;
+					}
+					i++;
+					col++;
+				}
+				continue;
+			}
+
 			i++;
 			col++;
 			while (i < len && src[i] != '"') {
