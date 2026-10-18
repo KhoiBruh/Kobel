@@ -58,8 +58,8 @@ impl Parser {
 		var type_args = List<*AstNode>();
 		if (self.match_token(TokenType.LESS)) {
 			if (!self.check(TokenType.GREATER)) {
-				type_args.add(self.parse_type());
-				while (self.match_token(TokenType.COMMA)) type_args.add(self.parse_type());
+				type_args += self.parse_type();
+				while (self.match_token(TokenType.COMMA)) type_args += self.parse_type();
 			}
 			self.consume(TokenType.GREATER, "Expected '>' after type arguments");
 		}

@@ -32,10 +32,10 @@ fn print_usage() {
 fn run_build(): i32 => cmd_build("kobel.toml");
 
 fn run_project(argc: i32, argv: &*char): i32 {
-	val extra_args = List<str>();
+	var extra_args = List<str>();
 	var i = 2;
 	while (i < argc) {
-		extra_args.add(cstr_to_str(argv[i]));
+		extra_args += cstr_to_str(argv[i]);
 		i++;
 	}
 	return cmd_run("kobel.toml", extra_args);
@@ -64,7 +64,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 	}
 
 	var write_in_place = false;
-	val files = List<str>();
+	var files = List<str>();
 
 	var i = 2;
 	while (i < argc) {
@@ -75,7 +75,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 				println("Usage: kobel fmt [-w] <files...>");
 				return 0;
 			}
-			else -> files.add(arg);
+			else -> files += arg;
 		}
 		i++;
 	}

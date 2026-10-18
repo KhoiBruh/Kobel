@@ -54,9 +54,7 @@ impl HashSet {
 		return true;
 	}
 
-	pub op plus_assign(var self, key: str) {
-		self.add(key);
-	}
+	pub op plus_assign(var self, key: str) => self.add(key);
 
 	pub op contains(val self, key: str): bool {
 		if (self.len == 0 || self.cap == 0) return false;
@@ -104,9 +102,7 @@ impl HashSet {
 		self.len = 0;
 	}
 
-	pub fn empty(val self): bool => self.len == 0;
-
-	pub fn is_empty(val self): bool => self.len == 0;
+	pub fn empty(val self) => self.len == 0;
 
 	pub fn to_list(val self): List<str> {
 		var res = List<str>();
@@ -142,7 +138,7 @@ impl HashSet {
 		}
 	}
 
-	pub fn delete(self): none {
+	pub fn delete(self) {
 		if (self.cap > 0) {
 			release<str>(self.keys);
 			release<bool>(self.occupied);
@@ -152,7 +148,7 @@ impl HashSet {
 
 // `for (key in set)` walks the set keys.
 impl Iterable for HashSet {
-	pub fn count(val self): usz => self.len;
+	pub fn count(val self) => self.len;
 
 	pub fn at(val self, i: usz): str {
 		var seen: usz = 0;
@@ -165,4 +161,3 @@ impl Iterable for HashSet {
 		return "";
 	}
 }
-

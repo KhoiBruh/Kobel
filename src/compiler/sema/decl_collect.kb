@@ -87,7 +87,7 @@ impl DeclPass {
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
 			val s_info = s_type.as_struct_mut();
-			s_info.fields.add(StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8));
+			s_info.fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8);
 			if (!f.is_pub) has_private = true;
 		}
 		val st_info = s_type.as_struct_mut();
@@ -103,7 +103,7 @@ impl DeclPass {
 
 		for (p in f.params) {
 			val p_type = self.resolve_ast_type(p.type_node);
-			param_types.add(p_type);
+			param_types += p_type;
 		}
 
 		var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
@@ -134,7 +134,7 @@ impl DeclPass {
 
 			val mi = self.arena.alloc<EnumMemberInfo>();
 			*mi = EnumMemberInfo(m.name, v);
-			members.add(mi);
+			members += mi;
 
 			next_val = v + 1;
 		}
@@ -204,7 +204,7 @@ impl DeclPass {
 			}
 			val tm = self.arena.alloc<TraitMethod>();
 			*tm = TraitMethod(f.name, f.params.len, f.body != null, m);
-			methods.add(tm);
+			methods += tm;
 		}
 	
 		val ti = self.arena.alloc<TraitInfo>();
@@ -273,9 +273,9 @@ impl DeclPass {
 		// definitions must precede the structs that embed them (e.g. a field of
 		// type List<T>), and each carries its own module marker.
 		if (self.symtab.gen.pending.len > 0) {
-			val combined = List<*AstNode>();
-			for (pn in self.symtab.gen.pending) combined.add(pn);
-			for (d in prog) combined.add(d);
+			var combined = List<*AstNode>();
+			for (pn in self.symtab.gen.pending) combined += pn;
+			for (d in prog) combined += d;
 			val p_info = program_node.to<Program>() as &Program;
 			p_info.declarations = combined;
 		}

@@ -68,7 +68,7 @@ fn overloaded_names(im: &ImplDecl): List<str> {
 		if (na in names) continue;
 		for (b in (a + 1)..<im.methods.len) {
 			if (im.methods[b].to<FnDecl>().name == na) {
-				names.add(na);
+				names += na;
 				break;
 			}
 		}
@@ -320,8 +320,8 @@ impl DeclPass {
 	pub fn report_error(var self, node: *AstNode, msg: str) {
 		val loc = "Line ${node.line}, Column ${node.col}: ";
 		if (self.current_module.len > 0) {
-			self.errors.add("${self.current_module}: ${loc}${msg}");
-		} else self.errors.add(loc + msg);
+			self.errors += "${self.current_module}: ${loc}${msg}";
+		} else self.errors += loc + msg;
 	}
 
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
@@ -437,7 +437,7 @@ impl DeclPass {
 		val overloaded = overloaded_names(im);
 		// C names already owned by this struct (from earlier `impl` blocks too).
 		var used_names = List<str>();
-		for (m in st_info.methods) used_names.add(m.c_name);
+		for (m in st_info.methods) used_names += m.c_name;
 
 		for (m_node in im.methods) {
 			val f = m_node.to<FnDecl>() as &FnDecl;
@@ -509,7 +509,7 @@ impl DeclPass {
 				} else {
 					pt = self.resolve_ast_type(p.type_node);
 				}
-				param_types.add(pt);
+				param_types += pt;
 			}
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
@@ -521,11 +521,11 @@ impl DeclPass {
 			val m_c_name = method_c_name(
 				"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
 			);
-			used_names.add(m_c_name);
+			used_names += m_c_name;
 
 			val mi = self.arena.alloc<MethodInfo>();
 			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
-			st_info.methods.add(mi);
+			st_info.methods += mi;
 
 			// Uniquify the AST name so the backend emits the mangled method name.
 			f.name = m_c_name;
@@ -659,7 +659,7 @@ impl DeclPass {
 				} else {
 					pt = self.resolve_ast_type(p.type_node);
 				}
-				param_types.add(pt);
+				param_types += pt;
 			}
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
@@ -670,7 +670,7 @@ impl DeclPass {
 			val m_c_name = method_c_name(
 				"${prim_name}_${f.name}", param_types.len, f.name in overloaded, used_names
 			);
-			used_names.add(m_c_name);
+			used_names += m_c_name;
 
 			if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
 				self.report_error(m_node,
@@ -698,7 +698,7 @@ impl DeclPass {
 	pub fn trait_record_impl(var self, t: *TraitInfo, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
-		t.impls.add(struct_name);
+		t.impls += struct_name;
 		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
@@ -752,7 +752,7 @@ impl DeclPass {
 				);
 				continue;
 			}
-			im.methods.add(self.clone_fn(tm.node, null, tm.name));
+			im.methods += self.clone_fn(tm.node, null, tm.name);
 		}
 	}
 }

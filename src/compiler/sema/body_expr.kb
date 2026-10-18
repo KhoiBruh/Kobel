@@ -200,8 +200,8 @@ impl BodyPass {
 			// Rewrite `str + str` into a runtime concat call so the C
 			// backend does not emit pointer arithmetic.
 			var cat_args = List<*AstNode>();
-			cat_args.add(bin.left);
-			cat_args.add(bin.right);
+			cat_args += bin.left;
+			cat_args += bin.right;
 			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
 			self.replace_node(node, cat_call);
 			return self.t_str();
@@ -220,13 +220,13 @@ impl BodyPass {
 			if (!op_name.empty()) {
 				val s_info = lt.as_struct();
 				var arg_types = List<*Type>();
-				arg_types.add(lt);
-				arg_types.add(rt);
+				arg_types += lt;
+				arg_types += rt;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
 					var new_args = List<*AstNode>();
-					new_args.add(self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col));
-					new_args.add(bin.right);
+					new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+					new_args += bin.right;
 					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 					self.replace_node(node, call_node);
 					return mi.fn_type.as_fn().return_type;
@@ -250,13 +250,13 @@ impl BodyPass {
 		if (lt.kind == DataType.STRUCT) {
 			val s_info = lt.as_struct();
 			var arg_types = List<*Type>();
-			arg_types.add(lt);
-			arg_types.add(rt);
+			arg_types += lt;
+			arg_types += rt;
 			val mi = s_info.find_operator("equals", arg_types);
 			if (mi != null) {
 				var new_args = List<*AstNode>();
-				new_args.add(self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col));
-				new_args.add(bin.right);
+				new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+				new_args += bin.right;
 				var call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 				if (bin.op == TokenType.BANG_EQUAL) {
 					call_node = self.unary(TokenType.BANG, call_node, node.line, node.col);
@@ -287,13 +287,13 @@ impl BodyPass {
 		if (rt.kind == DataType.STRUCT) {
 			val s_info = rt.as_struct();
 			var arg_types = List<*Type>();
-			arg_types.add(rt);
-			arg_types.add(lt);
+			arg_types += rt;
+			arg_types += lt;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
 				var new_args = List<*AstNode>();
-				new_args.add(self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col));
-				new_args.add(bin.left);
+				new_args += self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+				new_args += bin.left;
 				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 				self.replace_node(node, call_node);
 				return self.t_bool();
@@ -306,7 +306,7 @@ impl BodyPass {
 				val elem_t = s.fields[0].type_ptr.as_pointer().pointee;
 				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
 					var args = List<*AstNode>();
-					args.add(bin.right);
+					args += bin.right;
 					val mem = self.member(bin.left, "in_list", node.line, node.col);
 					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
 					self.replace_node(node, call_node);
@@ -316,7 +316,7 @@ impl BodyPass {
 		}
 
 		var args = List<*AstNode>();
-		args.add(bin.left);
+		args += bin.left;
 		val mem = self.member(bin.right, "contains", node.line, node.col);
 		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
 		self.replace_node(node, call_node);
@@ -336,11 +336,11 @@ impl BodyPass {
 			if (!op_name.empty()) {
 				val s_info = op_ty.as_struct();
 				var arg_types = List<*Type>();
-				arg_types.add(op_ty);
+				arg_types += op_ty;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
 					var new_args = List<*AstNode>();
-					new_args.add(self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col));
+					new_args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
 					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 					self.replace_node(node, call_node);
 					return mi.fn_type.as_fn().return_type;
@@ -480,7 +480,7 @@ impl BodyPass {
 			// Lower to a runtime call: the C backend cannot tell that an
 			// arbitrary expression has type `str`.
 			var len_args = List<*AstNode>();
-			len_args.add(mem.object);
+			len_args += mem.object;
 			val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
 			self.replace_node(node, len_call);
 			return self.t_usz();
@@ -550,8 +550,8 @@ impl BodyPass {
 		if (target_ty.kind == DataType.STRUCT) {
 			val s_info = target_ty.as_struct();
 			var arg_types = List<*Type>();
-			arg_types.add(target_ty);
-			arg_types.add(index_ty);
+			arg_types += target_ty;
+			arg_types += index_ty;
 			val mi = s_info.find_operator("get", arg_types) ?: s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
 
 			if (mi != null) {
@@ -561,8 +561,8 @@ impl BodyPass {
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
 				var new_args = List<*AstNode>();
-				new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-				new_args.add(idx.index);
+				new_args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+				new_args += idx.index;
 
 				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 				self.replace_node(node, call_node);
@@ -684,8 +684,8 @@ impl BodyPass {
 		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
 		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
 			var cat_args = List<*AstNode>();
-			cat_args.add(asgn.target);
-			cat_args.add(asgn.value);
+			cat_args += asgn.target;
+			cat_args += asgn.value;
 			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
 			asgn.value = cat_call;
 			asgn.op = TokenType.EQUAL;
@@ -705,16 +705,16 @@ impl BodyPass {
 				if (!op_name.empty()) {
 					val s_info = target_ty.as_struct();
 					var arg_types = List<*Type>();
-					arg_types.add(target_ty);
-					arg_types.add(val_ty);
+					arg_types += target_ty;
+					arg_types += val_ty;
 					val mi = s_info.find_operator(op_name, arg_types);
 					if (mi != null) {
 						var new_args = List<*AstNode>();
-						new_args.add(self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col));
-						new_args.add(asgn.value);
+						new_args += self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+						new_args += asgn.value;
 						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 						self.replace_node(node, call_node);
-						return target_ty;
+						return mi.fn_type.as_fn().return_type;
 					}
 				}
 			}
@@ -753,9 +753,9 @@ impl BodyPass {
 		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
 
 		var arg_types = List<*Type>();
-		arg_types.add(target_raw_ty);
-		arg_types.add(idx_ty_raw);
-		if (val_ty_raw != null) arg_types.add(val_ty_raw);
+		arg_types += target_raw_ty;
+		arg_types += idx_ty_raw;
+		if (val_ty_raw != null) arg_types += val_ty_raw;
 
 		val mi = s_info.find_operator("set", arg_types) ?: s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
 
@@ -782,9 +782,9 @@ impl BodyPass {
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();
-		new_args.add(self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col));
-		new_args.add(idx.index);
-		new_args.add(val_expr);
+		new_args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		new_args += idx.index;
+		new_args += val_expr;
 
 		val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 		self.replace_node(node, call_node);

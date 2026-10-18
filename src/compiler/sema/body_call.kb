@@ -94,15 +94,15 @@ impl BodyPass {
 		}
 
 		var sargs = List<*AstNode>();
-		sargs.add(mem.object);
-		if (!call.args.empty()) sargs.add(call.args.first());
-		else sargs.add(self.literal(LiteralKind.INT, "0", node.line, node.col));
+		sargs += mem.object;
+		if (!call.args.empty()) sargs += call.args.first();
+		else sargs += self.literal(LiteralKind.INT, "0", node.line, node.col);
 		if (call.args.len >= 2) {
-			sargs.add(call.args[1]);
+			sargs += call.args[1];
 		} else {
 			var largs = List<*AstNode>();
-			largs.add(mem.object);
-			sargs.add(self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col));
+			largs += mem.object;
+			sargs += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
 		}
 		val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
 		self.replace_node(node, sl_call);
@@ -119,7 +119,7 @@ impl BodyPass {
 				if (f.params[i].default_val == null) return false;
 			}
 			for (i in argc..<f.params.len) {
-				call.args.add(self.clone_expr(f.params[i].default_val));
+				call.args += self.clone_expr(f.params[i].default_val);
 			}
 			return true;
 		}
@@ -180,13 +180,13 @@ impl BodyPass {
 
 		var new_args = List<*AstNode>();
 		if (by_ref == obj_is_ptr) {
-			new_args.add(mem.object);
+			new_args += mem.object;
 		} else {
 			var op = TokenType.STAR;
 			if (by_ref) op = TokenType.AMPERSAND;
-			new_args.add(self.unary(op, mem.object, node.line, node.col));
+			new_args += self.unary(op, mem.object, node.line, node.col);
 		}
-		for (arg in call.args) new_args.add(arg);
+		for (arg in call.args) new_args += arg;
 
 		var ret_ty = fn_info.return_type;
 		if (mem.is_safe) {
@@ -339,7 +339,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args.add(self.clone_expr(s_info.fields[i].default_val as *AstNode));
+					call.args += self.clone_expr(s_info.fields[i].default_val as *AstNode);
 				}
 			}
 		}

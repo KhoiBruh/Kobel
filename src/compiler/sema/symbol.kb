@@ -158,7 +158,7 @@ pub struct GenericReg {
 
 impl GenericReg {
 	pub fn add_inst(var self, sym: *Symbol) {
-		self.inst_syms.add(sym);
+		self.inst_syms += sym;
 		self.inst_map[sym.name] = sym;
 	}
 
@@ -198,7 +198,7 @@ pub struct SymbolTable {
 	pub current_module: str = "",
 	// NOTE: List<*ModuleScope> rather than List<ModuleScope>:
 	// `List.get` returns a COPY of the value (val), so any change through the copy
-	// (e.g. `sc.symbols.add(...)`) will not be visible on the next access.
+	// (e.g. `sc.symbols += ...`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope> = List<*ModuleScope>(),
 	pub module_map: HashMap<*ModuleScope> = HashMap<*ModuleScope>(),
@@ -226,7 +226,9 @@ impl SymbolTable {
 		return Self(root_scope, arena);
 	}
 
-	pub fn register_prim_method(var self, pm: *PrimMethod) => self.prim_methods.add(pm);
+	pub fn register_prim_method(var self, pm: *PrimMethod) {
+		self.prim_methods += pm;
+	}
 
 	// Method of a primitive type by its source name (used by `x.m()` resolution).
 	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo {
@@ -254,7 +256,7 @@ impl SymbolTable {
 	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
 		var out = List<*MethodInfo>();
 		for (pm in self.prim_methods) {
-			if (pm.kind == kind) out.add(pm.info);
+			if (pm.kind == kind) out += pm.info;
 		}
 		return out;
 	}
@@ -268,14 +270,14 @@ impl SymbolTable {
 	}
 
 	pub fn register_trait(var self, info: *TraitInfo) {
-		self.traits.add(info);
+		self.traits += info;
 		self.trait_map[info.name] = info;
 	}
 
 	pub fn find_trait(val self, name: str): *TraitInfo => self.trait_map.get_or(name, null);
 
 	pub fn register_enum_info(var self, info: *EnumInfo) {
-		self.enums.add(info);
+		self.enums += info;
 		self.enum_map[info.name] = info;
 		if (!info.c_name.empty() && info.c_name != info.name) {
 			self.enum_map[info.c_name] = info;
@@ -354,7 +356,7 @@ impl SymbolTable {
 
 		val sym_ptr = self.arena.alloc_val<Symbol>(sym);
 
-		self.current_scope.symbols.add(sym_ptr);
+		self.current_scope.symbols += sym_ptr;
 		return true;
 	}
 
@@ -370,7 +372,7 @@ impl SymbolTable {
 		if (sc != null) {
 			if (sc.lookup(sym.name) != null) return false;
 			val sym_ptr = self.arena.alloc_val<Symbol>(sym);
-			sc.symbols.add(sym_ptr);
+			sc.symbols += sym_ptr;
 			sc.sym_map[sym.name] = sym_ptr;
 			if (!sym.c_name.empty() && sym.c_name != sym.name) {
 				self.c_name_map[sym.c_name] = sym_ptr;
@@ -384,9 +386,9 @@ impl SymbolTable {
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
 		val fresh = self.arena.alloc_val<ModuleScope>(ModuleScope(module_name));
 		val sym_ptr2 = self.arena.alloc_val<Symbol>(sym);
-		fresh.symbols.add(sym_ptr2);
+		fresh.symbols += sym_ptr2;
 		fresh.sym_map[sym.name] = sym_ptr2;
-		self.modules.add(fresh);
+		self.modules += fresh;
 		self.module_map[module_name] = fresh;
 		if (!sym.c_name.empty() && sym.c_name != sym.name) {
 			self.c_name_map[sym.c_name] = sym_ptr2;
@@ -402,10 +404,10 @@ impl SymbolTable {
 
 	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
 		val binding = ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module);
-		self.imports.add(binding);
+		self.imports += binding;
 		if (is_wildcard) {
-			self.wildcard_owners.add(self.current_module);
-			self.wildcard_modules.add(module_name);
+			self.wildcard_owners += self.current_module;
+			self.wildcard_modules += module_name;
 		} else {
 			self.explicit_imports["${self.current_module}::${local_name}"] = binding;
 		}

@@ -104,7 +104,7 @@ impl JsonValue {
 	pub fn is_obj(val self) => self != null && self.kind == JsonKind.JOBJ;
 
 	pub fn add(var self, val_item: *JsonValue) {
-		if (self.kind == JsonKind.JARR) self.arr_val.add(val_item);
+		if (self.kind == JsonKind.JARR) self.arr_val += val_item;
 	}
 
 	pub fn set(var self, key: str, val_item: *JsonValue) {
@@ -115,8 +115,8 @@ impl JsonValue {
 				return;
 			}
 		}
-		self.obj_keys.add(key);
-		self.obj_vals.add(val_item);
+		self.obj_keys += key;
+		self.obj_vals += val_item;
 	}
 
 	pub fn get(val self, key: str): *JsonValue {

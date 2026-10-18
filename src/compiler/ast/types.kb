@@ -8,7 +8,7 @@ use compiler.ast.node.NodeKind;
 pub struct NamedType {
 	pub const TAG = NodeKind.TYPE_NAMED;
 	pub name: str,
-	pub type_args: List<*AstNode> = List<*AstNode>()
+	pub type_args: List<*AstNode> = List()
 }
 
 pub struct PointerType {

@@ -145,7 +145,7 @@ pub fn extract_comments(src: str): List<Comment> {
 				col++;
 			}
 			val text = src.slice(start_i, i);
-			comments.add(Comment(text, start_line, start_col, false));
+			comments += Comment(text, start_line, start_col, false);
 			continue;
 		}
 
@@ -172,7 +172,7 @@ pub fn extract_comments(src: str): List<Comment> {
 				}
 			}
 			val text = src.slice(start_i, i);
-			comments.add(Comment(text, start_line, start_col, true));
+			comments += Comment(text, start_line, start_col, true);
 			continue;
 		}
 

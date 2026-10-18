@@ -109,9 +109,9 @@ impl BodyPass {
 			}
 			is CallExpr as c -> {
 				var args = List<*AstNode>();
-				for (a in c.args) args.add(self.clone_expr(a));
+				for (a in c.args) args += self.clone_expr(a);
 				var targs = List<*AstNode>();
-				for (ta in c.type_args) targs.add(ta);
+				for (ta in c.type_args) targs += ta;
 				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
 			}
 			is MemberExpr as m -> {
@@ -125,7 +125,7 @@ impl BodyPass {
 			}
 			is ArrayLiteralExpr as al -> {
 				var els = List<*AstNode>();
-				for (e in al.elements) els.add(self.clone_expr(e));
+				for (e in al.elements) els += self.clone_expr(e);
 				yield self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node), node.line, node.col);
 			}
 			is CastExpr as cst -> {
@@ -186,8 +186,8 @@ impl BodyPass {
 		else msg;
 
 		if (self.symtab.current_module.len > 0) {
-			self.errors.add("${self.symtab.current_module}: ${loc}");
-		} else self.errors.add(loc);
+			self.errors += "${self.symtab.current_module}: ${loc}";
+		} else self.errors += loc;
 	}
 
 	pub fn resolve_type(var self, node: *AstNode): *Type {

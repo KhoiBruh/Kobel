@@ -131,11 +131,9 @@ impl HashMap<V> {
 		self.len = 0;
 	}
 
-	pub fn empty(val self): bool => self.len == 0;
+	pub fn empty(val self) => self.len == 0;
 
-	pub fn is_empty(val self): bool => self.len == 0;
-
-	pub fn count(val self): usz => self.len;
+	pub fn count(val self) => self.len;
 
 	pub fn keys(val self): List<str> {
 		var res = List<str>();

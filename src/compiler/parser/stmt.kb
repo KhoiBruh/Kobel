@@ -25,7 +25,7 @@ impl Parser {
 		while (
 			!self.is_end() &&
 			!self.check(TokenType.CLOSE_BRACE)
-		) statements.add(self.parse_statement());
+		) statements += self.parse_statement();
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
 		return self.block_stmt(statements, lbrace.line, lbrace.col);
@@ -146,15 +146,15 @@ impl Parser {
 
 			if (self.match_token(TokenType.KW_ELSE)) is_else = true;
 			else {
-				patterns.add(self.parse_expression(PREC_NONE));
+				patterns += self.parse_expression(PREC_NONE);
 				while (self.match_token(TokenType.COMMA)) {
-					patterns.add(self.parse_expression(PREC_NONE));
+					patterns += self.parse_expression(PREC_NONE);
 				}
 			}
 
 			self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 			val body = self.parse_statement();
-			arms.add(WhenStmtArm(patterns, is_else, body, arm_line, arm_col));
+			arms += WhenStmtArm(patterns, is_else, body, arm_line, arm_col);
 
 			self.match_token(TokenType.COMMA);
 			self.match_token(TokenType.SEMI_COLON);

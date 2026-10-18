@@ -217,12 +217,12 @@ impl Parser {
 
 			// Array Literal: [a, b, c]
 			TokenType.OPEN_BRACKET -> {
-				val elements = List<*AstNode>();
+				var elements = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_BRACKET)) {
-					elements.add(self.parse_expression(PREC_NONE));
+					elements += self.parse_expression(PREC_NONE);
 					while (self.match_token(TokenType.COMMA)) {
 						if (self.check(TokenType.CLOSE_BRACKET)) break;
-						elements.add(self.parse_expression(PREC_NONE));
+						elements += self.parse_expression(PREC_NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
@@ -295,9 +295,9 @@ impl Parser {
 
 					if (self.match_token(TokenType.KW_ELSE)) is_else = true;
 					else {
-						patterns.add(self.parse_expression(PREC_NONE));
+						patterns += self.parse_expression(PREC_NONE);
 						while (self.match_token(TokenType.COMMA)) {
-							patterns.add(self.parse_expression(PREC_NONE));
+							patterns += self.parse_expression(PREC_NONE);
 						}
 					}
 
@@ -305,7 +305,7 @@ impl Parser {
 					val body = if (self.check(TokenType.OPEN_BRACE)) self.parse_arm_block()
 					else self.parse_expression(PREC_NONE);
 
-					arms.add(WhenArm(patterns, is_else, body, arm_line, arm_col));
+					arms += WhenArm(patterns, is_else, body, arm_line, arm_col);
 
 					self.match_token(TokenType.COMMA);
 					self.match_token(TokenType.SEMI_COLON);
@@ -458,16 +458,16 @@ impl Parser {
 			self.check(TokenType.LESS) && self.is_generic_args_ahead() -> {
 				self.advance(); // consume '<'
 				var type_args = List<*AstNode>();
-				type_args.add(self.parse_type());
-				while (self.match_token(TokenType.COMMA)) type_args.add(self.parse_type());
+				type_args += self.parse_type();
+				while (self.match_token(TokenType.COMMA)) type_args += self.parse_type();
 				self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
 
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
 				var args = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args.add(self.parse_expression(PREC_NONE));
+					args += self.parse_expression(PREC_NONE);
 					while (self.match_token(TokenType.COMMA)) {
-						args.add(self.parse_expression(PREC_NONE));
+						args += self.parse_expression(PREC_NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
@@ -478,9 +478,9 @@ impl Parser {
 			self.match_token(TokenType.OPEN_PAREN) -> {
 				var args = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args.add(self.parse_expression(PREC_NONE));
+					args += self.parse_expression(PREC_NONE);
 					while (self.match_token(TokenType.COMMA)) {
-						args.add(self.parse_expression(PREC_NONE));
+						args += self.parse_expression(PREC_NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
@@ -637,7 +637,7 @@ impl Parser {
 		val lbrace = self.consume(TokenType.OPEN_BRACE, "Expected '{'");
 		var stmts = List<*AstNode>();
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			stmts.add(self.parse_arm_statement());
+			stmts += self.parse_arm_statement();
 		}
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
 		return self.block_stmt(stmts, lbrace.line, lbrace.col);
@@ -689,14 +689,14 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts.add(InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
+					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
 					lit = "";
 					has_lit = false;
 				}
 				val h_start = i + 2;
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
-					self.errors.add("Unterminated interpolation hole in string literal");
+					self.errors += "Unterminated interpolation hole in string literal";
 					return self.literal(LiteralKind.STRING, text, line, col);
 				}
 				val src = text.slice(h_start, h_end);
@@ -705,9 +705,9 @@ impl Parser {
 				var sub = Parser(sub_tokens);
 				val hole = sub.parse_expression(PREC_NONE);
 				if (sub.errors.len > 0) {
-					for (msg in sub.errors) self.errors.add("in interpolation hole: ${msg}");
+					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
 				}
-				parts.add(InterpPart(hole, false));
+				parts += InterpPart(hole, false);
 				i = h_end + 1;
 				continue;
 			}
@@ -716,7 +716,7 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts.add(InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true));
+		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
 		return self.interp(parts, line, col);
 	}
 

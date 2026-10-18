@@ -42,8 +42,8 @@ pub struct UnaryExpr {
 pub struct CallExpr {
 	pub const TAG = NodeKind.EXPR_CALL;
 	pub callee: *AstNode,
-	pub args: List<*AstNode> = List<*AstNode>(),
-	pub type_args: List<*AstNode> = List<*AstNode>()
+	pub args: List<*AstNode> = List(),
+	pub type_args: List<*AstNode> = List()
 }
 
 pub struct MemberExpr {

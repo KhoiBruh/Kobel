@@ -24,14 +24,14 @@ impl Arena {
 	// by codegen and has no symbol table entry.
 	pub fn interp_call(var self, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
-		args.add(arg);
+		args += arg;
 		return self.call(self.identifier(name, line, col), args, List<*AstNode>(), line, col);
 	}
 
 	pub fn interp_concat(var self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
-		args.add(a);
-		args.add(b_node);
+		args += a;
+		args += b_node;
 		return self.call(self.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
 	}
 
@@ -80,8 +80,8 @@ impl Arena {
 	// Builds `kobel_streq(a, b)`, optionally negated, for str equality.
 	pub fn make_str_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode {
 		var eargs = List<*AstNode>();
-		eargs.add(left);
-		eargs.add(right);
+		eargs += left;
+		eargs += right;
 		val eq_call = self.call(self.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
 		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
 		return eq_call;

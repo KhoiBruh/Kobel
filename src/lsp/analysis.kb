@@ -312,7 +312,7 @@ impl AnalysisResult {
 			if (tok.type == TokenType.UNKNOWN) {
 				val l0 = if (tok.line > 0) tok.line - 1 else 0;
 				val c0 = if (tok.col > 0) tok.col - 1 else 0;
-				diagnostics.add(LspDiagnostic(l0, c0, l0, c0 + 1, 1, "Unrecognized character or syntax"));
+				diagnostics += LspDiagnostic(l0, c0, l0, c0 + 1, 1, "Unrecognized character or syntax");
 			}
 		}
 
@@ -322,7 +322,7 @@ impl AnalysisResult {
 
 		if (parser.errors.len > 0) {
 			for (err_msg in parser.errors) {
-				diagnostics.add(LspDiagnostic(err_msg, source));
+				diagnostics += LspDiagnostic(err_msg, source);
 			}
 			var empty_symtab = SymbolTable();
 			return AnalysisResult(diagnostics, empty_symtab, false, tokens);
@@ -335,9 +335,9 @@ impl AnalysisResult {
 		val entry_dir = path.dir_of();
 		var extra_roots = List<str>();
 		if (workspace_root.len > 0) {
-			extra_roots.add(workspace_root);
-			extra_roots.add(workspace_root.join_path("lib"));
-			extra_roots.add(workspace_root.join_path("src"));
+			extra_roots += workspace_root;
+			extra_roots += workspace_root.join_path("lib");
+			extra_roots += workspace_root.join_path("src");
 		}
 
 		var loader = ModuleLoader(entry_dir, extra_roots);
@@ -347,7 +347,7 @@ impl AnalysisResult {
 		if (loader.errors.len > 0) {
 			for (err_msg in loader.errors) {
 				if (is_error_for_doc(err_msg, doc_mod, path)) {
-					diagnostics.add(LspDiagnostic(err_msg, source));
+					diagnostics += LspDiagnostic(err_msg, source);
 				}
 			}
 		}
@@ -358,7 +358,7 @@ impl AnalysisResult {
 			if (decl_p.errors.len > 0) {
 				for (err_msg in decl_p.errors) {
 					if (is_error_for_doc(err_msg, doc_mod, path)) {
-						diagnostics.add(LspDiagnostic(err_msg, source));
+						diagnostics += LspDiagnostic(err_msg, source);
 					}
 				}
 			}
@@ -369,7 +369,7 @@ impl AnalysisResult {
 			if (body_p.errors.len > 0) {
 				for (err_msg in body_p.errors) {
 					if (is_error_for_doc(err_msg, doc_mod, path)) {
-						diagnostics.add(LspDiagnostic(err_msg, source));
+						diagnostics += LspDiagnostic(err_msg, source);
 					}
 				}
 			}

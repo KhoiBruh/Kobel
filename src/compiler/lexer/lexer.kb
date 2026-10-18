@@ -456,7 +456,7 @@ impl Lexer {
 		var tokens = List<Token>();
 		while (true) {
 			val tok = self.next_token();
-			tokens.add(tok);
+			tokens += tok;
 			if (tok.type == TokenType.END_OF_FILE) break;
 		}
 		return tokens;

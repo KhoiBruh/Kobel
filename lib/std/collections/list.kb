@@ -41,7 +41,7 @@ impl List<T> {
 
 	pub fn new(cap: usz = 4) => Self(alloc_array<T>(cap), 0, cap);
 
-	pub op get(val self, index: usz): T => self.data[index];
+	pub op get(val self, index: usz) => self.data[index];
 
 	pub fn first(val self) => self.data[0];
 

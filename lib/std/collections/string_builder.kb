@@ -75,11 +75,9 @@ impl StringBuilder {
 
 	pub op plus_assign(var self, b: bool) => self.append_bool(b);
 
-	pub op get(val self, i: usz): char => self.buf[i] as char;
+	pub op get(val self, i: usz) => self.buf[i] as char;
 
-	pub op set(var self, i: usz, c: char) {
-		self.buf[i] = c as u8;
-	}
+	pub op set(var self, i: usz, c: char) => self.buf[i] = c as u8;
 
 	pub fn append_line(var self, s: str) {
 		self.append_str(s);
@@ -113,8 +111,6 @@ impl StringBuilder {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn is_empty(val self) => self.len == 0;
-
 	pub fn last_char(val self) => if (self.len == 0) '\0' else self.buf[self.len - 1] as char;
 
 	pub fn clear(var self) => self.len = 0;
@@ -127,8 +123,6 @@ impl StringBuilder {
 		self.cap = new_cap;
 	}
 
-	// NOTE: block body instead of `=> release(...)`:
-	// v0 cannot resolve module-level `extern` fns from arrow bodies inside impl.
 	pub fn delete(self) => release<u8>(self.buf);
 }
 

@@ -39,7 +39,7 @@ impl BodyPass {
 	// is the signature already built by DeclPass (methods have no global symbol).
 	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
 		for (n in self.checked_fns) if (n == fn_node) return;
-		self.checked_fns.add(fn_node);
+		self.checked_fns += fn_node;
 
 		val f = fn_node.to<FnDecl>() as &FnDecl;
 
@@ -132,7 +132,7 @@ impl BodyPass {
 
 			// Inherit SymbolTable and merge errors from DeclPass
 			self.symtab = decl_p.symtab;
-			for (msg in decl_p.errors) self.errors.add(msg);
+			for (msg in decl_p.errors) self.errors += msg;
 		}
 
 		// Step 2: Analyze each function body of each module (program already merged)

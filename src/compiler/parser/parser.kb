@@ -195,9 +195,9 @@ impl Parser {
 	}
 
 	// Record a parse error with line and column
-	pub fn error(var self, tok: Token, msg: str) => self.errors.add(
-		"Line ${tok.line}, Column ${tok.col}: ${msg}"
-	);
+	pub fn error(var self, tok: Token, msg: str) {
+		self.errors += "Line ${tok.line}, Column ${tok.col}: ${msg}";
+	}
 
 	pub fn consume(var self, t: TokenType, msg: str): Token {
 		if (self.check(t)) return self.advance();

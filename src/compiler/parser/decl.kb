@@ -42,14 +42,14 @@ impl Parser {
 
 			if (self.match_token(TokenType.COLON)) {
 				val b_tok = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
-				bounds.add(b_tok.text);
+				bounds += b_tok.text;
 
 				while (self.match_token(TokenType.PLUS)) {
 					val b2 = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
-					bounds.add(b2.text);
+					bounds += b2.text;
 				}
 			}
-			params.add(GenericParam(p_tok.text, bounds));
+			params += GenericParam(p_tok.text, bounds);
 
 			while (self.match_token(TokenType.COMMA)) {
 				val next_p = self.consume(TokenType.IDENTIFIER, "Expected generic parameter name");
@@ -57,14 +57,14 @@ impl Parser {
 
 				if (self.match_token(TokenType.COLON)) {
 					val b_tok = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
-					next_bounds.add(b_tok.text);
+					next_bounds += b_tok.text;
 
 					while (self.match_token(TokenType.PLUS)) {
 						val b2 = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
-						next_bounds.add(b2.text);
+						next_bounds += b2.text;
 					}
 				}
-				params.add(GenericParam(next_p.text, next_bounds));
+				params += GenericParam(next_p.text, next_bounds);
 			}
 		}
 
@@ -101,7 +101,7 @@ impl Parser {
 			};
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
-			params.add(Param(pname.text, ptype, is_mut, has_val, p_default));
+			params += Param(pname.text, ptype, is_mut, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
 				var p_is_mut = false;
@@ -121,7 +121,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
 				else null;
-				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val, p_def));
+				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
 			}
 		}
 
@@ -180,7 +180,7 @@ impl Parser {
 			};
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
-			params.add(Param(pname.text, ptype, is_mut, has_val, p_default));
+			params += Param(pname.text, ptype, is_mut, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
 				var p_is_mut = false;
@@ -200,7 +200,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
 				else null;
-				params.add(Param(p_name.text, p_type, p_is_mut, p_has_val, p_def));
+				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
 			}
 		}
 
@@ -241,7 +241,7 @@ impl Parser {
 				val c_decl = self.parse_const_decl(f_pub);
 				val c = c_decl.to<ConstDecl>() as &ConstDecl;
 				c.name = "${name_tok.text}__${c.name}";
-				self.struct_consts.add(c_decl);
+				self.struct_consts += c_decl;
 				continue;
 			}
 
@@ -264,7 +264,7 @@ impl Parser {
 			val ftype = self.parse_type();
 			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
 			else null;
-			fields.add(StructField(fname.text, ftype, f_pub, f_default));
+			fields += StructField(fname.text, ftype, f_pub, f_default);
 
 			self.match_token(TokenType.COMMA);
 			self.match_token(TokenType.SEMI_COLON);
@@ -282,10 +282,10 @@ impl Parser {
 		var bases = List<str>();
 		if (self.match_token(TokenType.COLON)) {
 			val base1 = self.consume(TokenType.IDENTIFIER, "Expected base trait name");
-			bases.add(base1.text);
+			bases += base1.text;
 			while (self.match_token(TokenType.PLUS)) {
 				val next_base = self.consume(TokenType.IDENTIFIER, "Expected base trait name");
-				bases.add(next_base.text);
+				bases += next_base.text;
 			}
 		}
 
@@ -297,8 +297,8 @@ impl Parser {
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
-				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
-				self.check(TokenType.KW_OP) -> methods.add(self.parse_op_decl(m_pub));
+				self.check(TokenType.KW_FN) -> methods += self.parse_fn_decl(m_pub);
+				self.check(TokenType.KW_OP) -> methods += self.parse_op_decl(m_pub);
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside trait");
@@ -330,7 +330,7 @@ impl Parser {
 			struct_name = s_tok.text;
 			if (self.check(TokenType.LESS)) {
 				val s_params = self.parse_generic_params();
-				for (p in s_params) type_params.add(p);
+				for (p in s_params) type_params += p;
 			}
 		}
 
@@ -342,8 +342,8 @@ impl Parser {
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
-				self.check(TokenType.KW_FN) -> methods.add(self.parse_fn_decl(m_pub));
-				self.check(TokenType.KW_OP) -> methods.add(self.parse_op_decl(m_pub));
+				self.check(TokenType.KW_FN) -> methods += self.parse_fn_decl(m_pub);
+				self.check(TokenType.KW_OP) -> methods += self.parse_op_decl(m_pub);
 				else -> {
 					val tok = self.peek();
 					self.error(tok, "Expected method declaration inside impl");
@@ -369,7 +369,7 @@ impl Parser {
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected enum member name");
 			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
 			else null;
-			members.add(EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col));
+			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col);
 
 			self.match_token(TokenType.COMMA);
 		}
@@ -394,12 +394,12 @@ impl Parser {
 		val kw = self.advance(); // 'mod'
 		var path = List<str>();
 		val first_seg = self.consume(TokenType.IDENTIFIER, "Expected module path segment").text;
-		path.add(first_seg);
+		path += first_seg;
 		var full_path = first_seg;
 
 		while (self.match_token(TokenType.DOT)) {
 			val seg = self.consume(TokenType.IDENTIFIER, "Expected module path segment after '.'").text;
-			path.add(seg);
+			path += seg;
 			full_path = "${full_path}.${seg}";
 		}
 
@@ -411,7 +411,7 @@ impl Parser {
 		val kw = self.advance(); // 'use'
 		var path = List<str>();
 		val first_seg = self.consume(TokenType.IDENTIFIER, "Expected path in use declaration").text;
-		path.add(first_seg);
+		path += first_seg;
 		var full_path = first_seg;
 		var is_wildcard = false;
 		var symbol_name = first_seg;
@@ -424,7 +424,7 @@ impl Parser {
 				break;
 			}
 			val seg = self.consume(TokenType.IDENTIFIER, "Expected path segment after '.'").text;
-			path.add(seg);
+			path += seg;
 			symbol_name = seg;
 			full_path = "${full_path}.${seg}";
 		}
@@ -445,7 +445,7 @@ impl Parser {
 		var declarations = List<*AstNode>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			declarations.add(self.parse_declaration());
+			declarations += self.parse_declaration();
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after extern declarations");
@@ -484,8 +484,8 @@ impl Parser {
 	pub fn parse_program(var self): *AstNode {
 		var declarations = List<*AstNode>();
 
-		while (!self.is_end()) declarations.add(self.parse_declaration());
-		for (c in self.struct_consts) declarations.add(c);
+		while (!self.is_end()) declarations += self.parse_declaration();
+		for (c in self.struct_consts) declarations += c;
 
 		return self.program(declarations, 1, 1);
 	}

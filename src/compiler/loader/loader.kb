@@ -72,20 +72,20 @@ impl ModuleLoader {
 
 	pub fn new(entry_dir: str, extra_roots: List<str>): Self {
 		var roots = List<str>();
-		if (!entry_dir.empty()) roots.add(entry_dir);
+		if (!entry_dir.empty()) roots += entry_dir;
 
-		for (r in extra_roots) roots.add(r);
+		for (r in extra_roots) roots += r;
 
 		// Default roots: the standard library (lib/) and the compiler source (src/)
-		roots.add("lib");
-		roots.add("src");
+		roots += "lib";
+		roots += "src";
 
 		// Auto-detect project root if entry_dir is within a Kobel project tree
 		val proj = detect_project_root(entry_dir);
 		if (!proj.empty()) {
-			roots.add(proj);
-			roots.add(proj.join_path("lib"));
-			roots.add(proj.join_path("src"));
+			roots += proj;
+			roots += proj.join_path("lib");
+			roots += proj.join_path("src");
 		}
 
 		return Self(
@@ -118,7 +118,7 @@ impl ModuleLoader {
 		val prog = parser.parse_program();
 
 		if (!parser.errors.empty()) {
-			for (msg in parser.errors) self.errors.add("${path}: ${msg}");
+			for (msg in parser.errors) self.errors += "${path}: ${msg}";
 			return null;
 		}
 
@@ -146,7 +146,7 @@ impl ModuleLoader {
 
 		// Mark it first to avoid infinite recursion when imports form a cycle
 		self.known += module_name;
-		self.modules.add(LoadedModule(module_name, "", null));
+		self.modules += LoadedModule(module_name, "", null);
 
 		val file = self.find_module(module_name);
 		if (!file.found) {
@@ -159,7 +159,7 @@ impl ModuleLoader {
 				"${prefix}Module '${module_name}' "
 				"not found (searched the entry directory, -I roots, lib/, src/)"
 			};
-			self.errors.add(msg);
+			self.errors += msg;
 			return;
 		}
 
@@ -173,13 +173,13 @@ impl ModuleLoader {
 			} else {
 				"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
 			};
-			self.errors.add(msg);
+			self.errors += msg;
 			return;
 		}
 
 		// Load dependencies first, then add this module to the merge order
 		self.process_uses(prog, module_name);
-		self.ordered.add(LoadedModule(module_name, file.path, prog));
+		self.ordered += LoadedModule(module_name, file.path, prog);
 	}
 
 	pub fn process_uses(var self, program_node: *AstNode, parent_mod: str) {
@@ -207,9 +207,9 @@ impl ModuleLoader {
 		if (entry_name.empty()) entry_name = entry_path.base_name().path_to_module();
 
 		self.known += entry_name;
-		self.modules.add(LoadedModule(entry_name, entry_path, prog));
+		self.modules += LoadedModule(entry_name, entry_path, prog);
 		self.process_uses(prog, entry_name);
-		self.ordered.add(LoadedModule(entry_name, entry_path, prog));
+		self.ordered += LoadedModule(entry_name, entry_path, prog);
 
 		return self.build_merged_program();
 	}
@@ -221,10 +221,10 @@ impl ModuleLoader {
 		for (lm in self.ordered) {
 			val prog = lm.program ?: continue;
 			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-			decls.add(self.module_decl(lm.name.split_dots(), lm.name, 0, 0));
+			decls += self.module_decl(lm.name.split_dots(), lm.name, 0, 0);
 
 			val p = prog.to<Program>();
-			for (d in p) decls.add(d);
+			for (d in p) decls += d;
 		}
 
 		return self.program(decls, 0, 0);

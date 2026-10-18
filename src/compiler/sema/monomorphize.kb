@@ -65,18 +65,16 @@ pub fn is_template_decl(node: *AstNode) => node.is_template();
 impl GenTemplate {
 	pub fn param_names(val self): List<str> {
 		var names = List<str>();
-		when (self.node.kind) {
-			NodeKind.DECL_STRUCT -> {
-				val s = self.node.to<StructDecl>();
-				for (tp in s.type_params) names.add(tp.name);
+		val node = self.node;
+		when (node) {
+			is StructDecl as s -> {
+				for (tp in s.type_params) names += tp.name;
 			}
-			NodeKind.DECL_FN -> {
-				val f = self.node.to<FnDecl>();
-				for (p in f.type_params) names.add(p.name);
+			is FnDecl as f -> {
+				for (p in f.type_params) names += p.name;
 			}
-			NodeKind.DECL_IMPL -> {
-				val im = self.node.to<ImplDecl>();
-				for (p in im.type_params) names.add(p.name);
+			is ImplDecl as im -> {
+				for (p in im.type_params) names += p.name;
 			}
 			else -> {}
 		}
@@ -99,16 +97,16 @@ impl DeclPass {
 		when (node.kind) {
 			NodeKind.DECL_STRUCT -> {
 				val s = node.to<StructDecl>();
-				if (s.type_params.len > 0) self.symtab.gen.struct_templates.add(self.gen_template(s.name, node, false));
+				if (s.type_params.len > 0) self.symtab.gen.struct_templates += self.gen_template(s.name, node, false);
 			}
 			NodeKind.DECL_FN -> {
 				val f = node.to<FnDecl>();
-				if (f.type_params.len > 0) self.symtab.gen.fn_templates.add(self.gen_template(f.name, node, false));
+				if (f.type_params.len > 0) self.symtab.gen.fn_templates += self.gen_template(f.name, node, false);
 			}
 			NodeKind.DECL_IMPL -> {
 				val im = node.to<ImplDecl>();
 				if (im.type_params.len > 0) {
-					self.symtab.gen.impl_templates.add(self.gen_template(im.struct_name, node, true));
+					self.symtab.gen.impl_templates += self.gen_template(im.struct_name, node, true);
 				} else {
 					for (m in im.methods) {
 						val f = m.to<FnDecl>() as &FnDecl;
@@ -123,7 +121,7 @@ impl DeclPass {
 									f.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
 							}
-							self.symtab.gen.fn_templates.add(self.gen_template(f.name, m, true));
+							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
 						}
 					}
 				}
@@ -301,8 +299,8 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		self.symtab.gen.pending.add(self.module_decl(module.split_dots(), module, node.line, node.col));
-		self.symtab.gen.pending.add(node);
+		self.symtab.gen.pending += self.module_decl(module.split_dots(), module, node.line, node.col);
+		self.symtab.gen.pending += node;
 	}
 
 	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
@@ -314,7 +312,7 @@ impl DeclPass {
 		val existing = self.find_inst(cname);
 		if (existing != null) return existing.type_ptr;
 
-		self.symtab.gen.inst_names.add(cname);
+		self.symtab.gen.inst_names += cname;
 
 		val prev_mod = self.enter_module(tmpl.module);
 
@@ -350,7 +348,7 @@ impl DeclPass {
 
 		if (self.find_inst(cname) != null) return cname;
 
-		self.symtab.gen.inst_names.add(cname);
+		self.symtab.gen.inst_names += cname;
 
 		val prev_mod = self.enter_module(tmpl.module);
 
@@ -372,7 +370,7 @@ impl DeclPass {
 		var has_private = false;
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			s_type.as_struct_mut().fields.add(StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8));
+			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8);
 			if (!f.is_pub) has_private = true;
 		}
 		val st_info = s_type.as_struct_mut();
@@ -385,7 +383,7 @@ impl DeclPass {
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
 		val f = node.to<FnDecl>() as &FnDecl;
 		var param_types = List<*Type>();
-		for (p in f.params) param_types.add(self.resolve_ast_type(p.type_node));
+		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
 		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
@@ -409,14 +407,14 @@ impl DeclPass {
 					val tmpl = self.find_struct_template(nt.name);
 					if (tmpl != null) {
 						var args = List<*AstNode>();
-						for (ta in nt.type_args) args.add(self.clone_type(ta, subst));
+						for (ta in nt.type_args) args += self.clone_type(ta, subst);
 						val cty = self.instantiate_struct(tmpl, args);
 						yield self.named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
 					}
 				}
 
 				var targs = List<*AstNode>();
-				for (ta in nt.type_args) targs.add(self.clone_type(ta, subst));
+				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
 				yield self.named_type(nt.name, targs, node.line, node.col);
 			}
 			NodeKind.TYPE_POINTER -> {
@@ -587,8 +585,8 @@ impl DeclPass {
 			val mem_obj = self.clone_expr(mem.object, subst);
 			val targs = self.clone_type_args(c.type_args, subst);
 			var new_args = List<*AstNode>();
-			new_args.add(mem_obj);
-			for (a in c.args) new_args.add(self.clone_expr(a, subst));
+			new_args += mem_obj;
+			for (a in c.args) new_args += self.clone_expr(a, subst);
 			val cname = self.instantiate_fn(ft, targs);
 			val call_node = self.call(self.identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 			if (mem.is_safe) {
@@ -606,7 +604,7 @@ impl DeclPass {
 			val targs = self.clone_type_args(c.type_args, subst);
 			val cname = self.instantiate_fn(ft, targs);
 			var cargs = List<*AstNode>();
-			for (a in c.args) cargs.add(self.clone_expr(a, subst));
+			for (a in c.args) cargs += self.clone_expr(a, subst);
 			return self.call(self.identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
 		}
 
@@ -615,7 +613,7 @@ impl DeclPass {
 			val targs = self.clone_type_args(c.type_args, subst);
 			val cty = self.instantiate_struct(st, targs);
 			var cargs = List<*AstNode>();
-			for (a in c.args) cargs.add(self.clone_expr(a, subst));
+			for (a in c.args) cargs += self.clone_expr(a, subst);
 			return self.call(self.identifier(cty.as_struct().name, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
 		}
 		return null;
@@ -623,13 +621,13 @@ impl DeclPass {
 
 	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
 		var out = List<*AstNode>();
-		for (n in nodes) out.add(self.clone_expr(n, subst));
+		for (n in nodes) out += self.clone_expr(n, subst);
 		return out;
 	}
 
 	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
 		var out = List<*AstNode>();
-		for (n in nodes) out.add(self.clone_type(n, subst));
+		for (n in nodes) out += self.clone_type(n, subst);
 		return out;
 	}
 
@@ -644,7 +642,7 @@ impl DeclPass {
 				self.clone_stmt(arm.body, subst)
 			else
 				self.clone_expr(arm.body, subst);
-			arms.add(WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col));
+			arms += WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col);
 		}
 		return arms;
 	}
@@ -653,7 +651,7 @@ impl DeclPass {
 		val ie = node.to<InterpExpr>();
 		var parts = List<InterpPart>();
 		for (part in ie.parts) {
-			parts.add(InterpPart(self.clone_expr(part.expr, subst), part.is_literal));
+			parts += InterpPart(self.clone_expr(part.expr, subst), part.is_literal);
 		}
 		return parts;
 	}
@@ -664,7 +662,7 @@ impl DeclPass {
 			NodeKind.STMT_BLOCK -> {
 				val b = node.to<BlockStmt>();
 				var ss = List<*AstNode>();
-				for (s in b.statements) ss.add(self.clone_stmt(s, subst));
+				for (s in b.statements) ss += self.clone_stmt(s, subst);
 				yield self.block_stmt(ss, node.line, node.col);
 			}
 			NodeKind.STMT_EXPR -> {
@@ -721,8 +719,8 @@ impl DeclPass {
 				var arms = List<WhenStmtArm>();
 				for (arm in w.arms) {
 					var pats = List<*AstNode>();
-					for (pat in arm.patterns) pats.add(self.clone_expr(pat, subst));
-					arms.add(WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col));
+					for (pat in arm.patterns) pats += self.clone_expr(pat, subst);
+					arms += WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
 				}
 				yield self.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
 			}
@@ -736,7 +734,7 @@ impl DeclPass {
 		for (p in f.params) {
 			val pt = if (p.type_node != null) self.clone_type(p.type_node, subst) else null;
 			val dflt = if (p.default_val != null) self.clone_expr(p.default_val, subst) else null;
-			params.add(Param(p.name, pt, p.is_mut, p.has_val, dflt));
+			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
 		}
 		val rt = if (f.return_type != null) self.clone_type(f.return_type, subst) else null;
 		return self.fn_decl(
@@ -754,7 +752,7 @@ impl DeclPass {
 		var fields = List<AstStructField>();
 		for (f in s.fields) {
 			val dflt = if (f.default_val != null) self.clone_expr(f.default_val, subst) else null;
-			fields.add(AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub, dflt));
+			fields += AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub, dflt);
 		}
 		return self.struct_decl(new_name, List<GenericParam>(), fields, s.is_pub, node.line, node.col);
 	}
@@ -766,7 +764,7 @@ impl DeclPass {
 			val mf = m.to<FnDecl>();
 			// Keep the source method name: collect_impl mangles it against the
 			// concrete struct name and registers it for method lookup.
-			methods.add(self.clone_fn(m, subst, mf.name));
+			methods += self.clone_fn(m, subst, mf.name);
 		}
 		// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
 		// be checked against the trait and pick up its default methods.
@@ -794,7 +792,7 @@ impl DeclPass {
 					if (nt.type_args.len > 0) {
 						if (cid.name == nt.name) {
 							var new_targs = List<*AstNode>();
-							for (ta in nt.type_args) new_targs.add(ta);
+							for (ta in nt.type_args) new_targs += ta;
 							call.type_args = new_targs;
 						}
 					} else {
@@ -877,8 +875,8 @@ impl DeclPass {
 				val cname = self.instantiate_fn(ft, c.type_args);
 				c.callee = self.identifier(cname, node.line, node.col);
 				var new_args = List<*AstNode>();
-				new_args.add(mem_obj);
-				for (a in c.args) new_args.add(a);
+				new_args += mem_obj;
+				for (a in c.args) new_args += a;
 				c.args = new_args;
 				c.type_args = List<*AstNode>();
 			}

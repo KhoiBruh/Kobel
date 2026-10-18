@@ -349,7 +349,7 @@ impl CCodeGen {
 		else "int32_t";
 
 		var elems_str = List<str>();
-		for (el in al.elements) elems_str.add(self.gen_expr(el));
+		for (el in al.elements) elems_str += self.gen_expr(el);
 		val joined_elems = ", ".join(elems_str);
 		val arr_res = "(${elem_c}[]){${joined_elems}}";
 
@@ -397,7 +397,7 @@ impl CCodeGen {
 		}
 
 		var args_str = List<str>();
-		for (arg in call.args) args_str.add(self.gen_expr(arg));
+		for (arg in call.args) args_str += self.gen_expr(arg);
 		val joined_args = ", ".join(args_str);
 
 		if (is_struct) {
