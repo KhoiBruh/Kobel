@@ -17,6 +17,12 @@ use compiler.ast.decl.*;
 // C99 Backend Code Generator
 // ============================================================================
 
+pub struct ConditionAlias {
+	pub name: str,
+	pub c_type: str,
+	pub decl: str
+}
+
 pub struct CCodeGen {
 	pub indent_level: usz = 0,
 	pub struct_names: List<str> = List<str>(),
@@ -470,7 +476,20 @@ impl CCodeGen {
 		var tag_field = is_e.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
 		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
-		return "(${self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name)})";
+		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name);
+		if (!is_e.alias.empty()) {
+			val cast_val = if (is_e.is_ptr) {
+				if (is_e.has_data && !is_e.base_c_name.empty()) {
+					"(${target_name}*)(((${is_e.base_c_name}*)${obj_str})->data)"
+				} else {
+					"(${target_name}*)${obj_str}"
+				}
+			} else {
+				"(${target_name}*)&${obj_str}"
+			};
+			return "(${tag_test} && (${is_e.alias} = ${cast_val}, 1))";
+		}
+		return "(${tag_test})";
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
@@ -794,7 +813,90 @@ impl CCodeGen {
 		return res;
 	}
 
+	pub fn collect_condition_aliases(var self, expr: *AstNode): List<ConditionAlias> {
+		var res = List<ConditionAlias>();
+		if (expr == null) return res;
+		var cur = expr;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		if (cur == null) return res;
+
+		if (cur is BinaryExpr as bin) {
+			if (bin.op == TokenType.AND_AND) {
+				val left = self.collect_condition_aliases(bin.left);
+				val right = self.collect_condition_aliases(bin.right);
+				for (l in left) {
+					var found = false;
+					for (item in res) {
+						if (item.name == l.name) {
+							found = true;
+							break;
+						}
+					}
+					if (!found) res += l;
+				}
+				for (r in right) {
+					var found = false;
+					for (item in res) {
+						if (item.name == r.name) {
+							found = true;
+							break;
+						}
+					}
+					if (!found) res += r;
+				}
+				return res;
+			}
+		}
+
+		if (cur is IsExpr as is_e) {
+			if (!is_e.alias.empty()) {
+				val target_name = c_type_from_ast(is_e.target_type);
+				val decl = "${target_name}* ${is_e.alias} = NULL;";
+				self.pointer_vars += is_e.alias;
+				res += ConditionAlias(is_e.alias, target_name, decl);
+			}
+		}
+
+		return res;
+	}
+
+	fn has_alias_type_conflict(var self, expr: *AstNode, aliases: List<ConditionAlias>): bool {
+		val cond_aliases = self.collect_condition_aliases(expr);
+		for (ca in cond_aliases) {
+			for (a in aliases) {
+				if (ca.name == a.name && ca.c_type != a.c_type) return true;
+			}
+		}
+		return false;
+	}
+
 	fn gen_if_stmt(var self, ifs: *IfStmt): str {
+		var aliases = self.collect_condition_aliases(ifs.condition);
+
+		var cur_elif = ifs.else_branch;
+		while (cur_elif != null) {
+			if (cur_elif is IfStmt as elif) {
+				if (self.has_alias_type_conflict(elif.condition, aliases)) {
+					break;
+				}
+				val elif_aliases = self.collect_condition_aliases(elif.condition);
+				for (ea in elif_aliases) {
+					var found = false;
+					for (a in aliases) {
+						if (a.name == ea.name) {
+							found = true;
+							break;
+						}
+					}
+					if (!found) aliases += ea;
+				}
+				cur_elif = elif.else_branch;
+			} else break;
+		}
+
 		var cond = ifs.condition;
 		while (cond != null) {
 			if (cond is GroupExpr as g) cond = g.expr;
@@ -803,15 +905,28 @@ impl CCodeGen {
 
 		var cast_decl = "";
 		if (cond is IsExpr as is_e) {
-			val e = is_e.expr;
-			if (e is IdentifierExpr as id) {
-				val var_name = id.name;
-				cast_decl = self.gen_smart_cast_decl(is_e, var_name, self.indent_level + 1);
+			if (is_e.alias.empty()) {
+				val e = is_e.expr;
+				if (e is IdentifierExpr as id) {
+					cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+				}
 			}
 		}
 
 		val ind = get_indent(self.indent_level);
-		var res = "${ind}if ${self.gen_cond(ifs.condition)} {\n";
+		val has_aliases = !aliases.empty();
+		var res = "";
+
+		if (has_aliases) {
+			res = "${ind}{\n";
+			self.indent_level++;
+			for (a in aliases) {
+				res = "${res}${get_indent(self.indent_level)}${a.decl}\n";
+			}
+		}
+
+		val if_ind = get_indent(self.indent_level);
+		res = "${res}${if_ind}if ${self.gen_cond(ifs.condition)} {\n";
 		self.indent_level++;
 		if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
 		res = "${res}${self.gen_block_body(ifs.then_branch)}";
@@ -820,23 +935,27 @@ impl CCodeGen {
 		var cur_else = ifs.else_branch;
 		while (cur_else != null) {
 			if (cur_else is IfStmt as elif) {
+				if (self.has_alias_type_conflict(elif.condition, aliases)) {
+					break;
+				}
+
 				var elif_cond = elif.condition;
 				while (elif_cond != null) {
-					if (elif_cond is GroupExpr as g) {
-						elif_cond = g.expr;
-					} else {
-						break;
-					}
+					if (elif_cond is GroupExpr as g) elif_cond = g.expr;
+					else break;
 				}
+
 				var elif_cast = "";
 				if (elif_cond is IsExpr as elif_is_e) {
-					val e = elif_is_e.expr;
-					if (e is IdentifierExpr as id) {
-						elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
+					if (elif_is_e.alias.empty()) {
+						val e = elif_is_e.expr;
+						if (e is IdentifierExpr as id) {
+							elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
+						}
 					}
 				}
 
-				res = "${res}${ind}} else if ${self.gen_cond(elif.condition)} {\n";
+				res = "${res}${if_ind}} else if ${self.gen_cond(elif.condition)} {\n";
 				self.indent_level++;
 				if (!elif_cast.empty()) res += get_indent(self.indent_level) + elif_cast + "\n";
 				res = "${res}${self.gen_block_body(elif.then_branch)}";
@@ -847,12 +966,20 @@ impl CCodeGen {
 		}
 
 		if (cur_else != null) {
-			res = "${res}${ind}} else {\n";
+			res = "${res}${if_ind}} else {\n";
 			self.indent_level++;
 			res = "${res}${self.gen_block_body(cur_else)}";
 			self.indent_level--;
 		}
-		return "${res}${ind}}\n";
+
+		res = "${res}${if_ind}}\n";
+
+		if (has_aliases) {
+			self.indent_level--;
+			res = "${res}${ind}}\n";
+		}
+
+		return res;
 	}
 
 	fn gen_while_stmt(var self, wh: *WhileStmt): str {

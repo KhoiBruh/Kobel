@@ -126,6 +126,20 @@ fn eval_if_no_alias(node: *Node): i32 {
 	return 0;
 }
 
+// Case 7: Compound boolean conditions with smart casts in 'if'
+fn eval_compound_condition(node: *Node): i32 {
+	if (node is Literal as lit && lit.value > 15) {
+		return lit.value * 2;
+	} else if (node is Literal as lit && lit.value <= 15) {
+		return lit.value + 1;
+	} else if (node is Binary as b && b.left != null && b.right != null) {
+		if (b.left is Literal as l_lit && b.right is Literal as r_lit) {
+			return l_lit.value + r_lit.value;
+		}
+	}
+	return -1;
+}
+
 // Case 6: Mutable pattern binding ('is Type as var alias' and 'is Type as &alias')
 fn add_ten(l: &Literal) {
 	l.value += 10;
@@ -299,6 +313,17 @@ fn main(): i32 {
 	println("mutate_if_ref: ${mut_lit.value}");
 	if (mut_lit.value != 410) {
 		println("FAIL: mutate_if_ref");
+		return 1;
+	}
+
+	// Test Case 7: Compound boolean conditions with smart casts in 'if'
+	val c1 = eval_compound_condition(&lit1 as *Node);
+	val c2 = eval_compound_condition(&lit2 as *Node);
+	val c3 = eval_compound_condition(&bin as *Node);
+	val c4 = eval_compound_condition(null_node);
+	println("compound: c1=${c1}, c2=${c2}, c3=${c3}, c4=${c4}");
+	if (c1 != 11 || c2 != 50 || c3 != 35 || c4 != -1) {
+		println("FAIL: eval_compound_condition");
 		return 1;
 	}
 

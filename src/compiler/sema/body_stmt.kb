@@ -67,38 +67,67 @@ impl BodyPass {
 		self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
 	}
 
+	fn collect_and_conditions(var self, expr: *AstNode): List<*AstNode> {
+		var res = List<*AstNode>();
+		if (expr == null) return res;
+		val cur = self.unwrap_group(expr);
+		if (cur == null) return res;
+
+		if (cur is BinaryExpr as bin) {
+			if (bin.op == TokenType.AND_AND) {
+				val left = self.collect_and_conditions(bin.left);
+				val right = self.collect_and_conditions(bin.right);
+				for (l in left) res += l;
+				for (r in right) res += r;
+				return res;
+			}
+		}
+
+		res += cur;
+		return res;
+	}
+
 	pub fn check_if_stmt(var self, node: *AstNode) {
 		val if_s = node.to<IfStmt>();
-		val cond_ty = self.check_expr(if_s.condition);
-		self.ensure(cond_ty.kind == DataType.BOOL, node, "If statement condition must be bool");
+		val conds = self.collect_and_conditions(if_s.condition);
 
-		var smart_cast_sym = "";
-		var smart_cast_ty: *Type = null;
-		var smart_cast_mut = false;
+		self.symtab.enter_scope(false);
 
-		val cond = self.unwrap_group(if_s.condition);
-		if (cond is IsExpr as is_e) {
-			val is_expr = is_e.expr;
-			if (is_expr is IdentifierExpr as id) {
-				val subj_sym = self.symtab.lookup(id.name);
-				if (subj_sym != null) {
-					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);
-					if (smart_cast_ty != null) {
-						smart_cast_sym = if (!is_e.alias.empty()) is_e.alias else id.name;
-						smart_cast_mut = if (!is_e.alias.empty()) is_e.is_mut else subj_sym.is_mut;
+		var no_alias_syms = List<str>();
+		var no_alias_tys = List<*Type>();
+		var no_alias_muts = List<bool>();
+
+		for (c in conds) {
+			val c_ty = self.check_expr(c);
+			self.ensure(c_ty.kind == DataType.BOOL, c, "If statement condition must be bool");
+
+			val unwrapped_c = self.unwrap_group(c);
+			if (unwrapped_c is IsExpr as is_e) {
+				val subj_ty = self.check_expr(is_e.expr);
+				val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, unwrapped_c);
+				if (cast_ty != null) {
+					if (!is_e.alias.empty()) {
+						self.symtab.define(Symbol(is_e.alias, is_e.alias, SymbolKind.VAR, cast_ty, is_e.is_mut, false, 0, 0));
+					} else {
+						val e = is_e.expr;
+						if (e is IdentifierExpr as id) {
+							val subj_sym = self.symtab.lookup(id.name);
+							val is_mut = if (subj_sym != null) subj_sym.is_mut else false;
+							no_alias_syms += id.name;
+							no_alias_tys += cast_ty;
+							no_alias_muts += is_mut;
+						}
 					}
 				}
 			}
 		}
 
-		if (!smart_cast_sym.empty() && smart_cast_ty != null) {
-			self.symtab.enter_scope(false);
-			self.symtab.define(Symbol(smart_cast_sym, smart_cast_sym, SymbolKind.VAR, smart_cast_ty, smart_cast_mut, false, 0, 0));
-			self.check_statement(if_s.then_branch);
-			self.symtab.exit_scope();
-		} else {
-			self.check_statement(if_s.then_branch);
+		for (i in 0..<no_alias_syms.len) {
+			self.symtab.define(Symbol(no_alias_syms[i], no_alias_syms[i], SymbolKind.VAR, no_alias_tys[i], no_alias_muts[i], false, 0, 0));
 		}
+
+		self.check_statement(if_s.then_branch);
+		self.symtab.exit_scope();
 
 		if (if_s.else_branch != null) self.check_statement(if_s.else_branch);
 	}
