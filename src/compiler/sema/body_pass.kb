@@ -95,18 +95,26 @@ impl BodyPass {
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node) {
-			is LiteralExpr as lit -> {
-				yield self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lit.literal_kind, lit.raw_text), node.line, node.col);
-			}
-			is IdentifierExpr as id -> {
-				yield self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(id.name), node.line, node.col);
-			}
-			is BinaryExpr as b -> {
-				yield self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)), node.line, node.col);
-			}
-			is UnaryExpr as u -> {
-				yield self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(u.op, self.clone_expr(u.operand)), node.line, node.col);
-			}
+			is LiteralExpr as lit -> self.arena.make<LiteralExpr>(
+				LiteralExpr.TAG, LiteralExpr(lit.literal_kind, lit.raw_text),
+				node.line, node.col
+			);
+
+			is IdentifierExpr as id -> self.arena.make<IdentifierExpr>(
+				IdentifierExpr.TAG, IdentifierExpr(id.name),
+				node.line, node.col
+			);
+
+			is BinaryExpr as b -> self.arena.make<BinaryExpr>(
+				BinaryExpr.TAG, BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)),
+				node.line, node.col
+			);
+
+			is UnaryExpr as u -> self.arena.make<UnaryExpr>(
+				UnaryExpr.TAG, UnaryExpr(u.op, self.clone_expr(u.operand)),
+				node.line, node.col
+			);
+
 			is CallExpr as c -> {
 				var args = List<*AstNode>();
 				for (a in c.args) args += self.clone_expr(a);
@@ -114,23 +122,34 @@ impl BodyPass {
 				for (ta in c.type_args) targs += ta;
 				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
 			}
-			is MemberExpr as m -> {
-				yield self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member, m.is_safe), node.line, node.col);
-			}
-			is IndexExpr as ix -> {
-				yield self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)), node.line, node.col);
-			}
-			is GroupExpr as g -> {
-				yield self.arena.make<GroupExpr>(GroupExpr.TAG, GroupExpr(self.clone_expr(g.expr)), node.line, node.col);
-			}
+			is MemberExpr as m -> self.arena.make<MemberExpr>(
+				MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member, m.is_safe),
+				node.line, node.col
+			);
+
+			is IndexExpr as ix -> self.arena.make<IndexExpr>(
+				IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)),
+				node.line, node.col
+			);
+
+			is GroupExpr as g -> self.arena.make<GroupExpr>(
+				GroupExpr.TAG, GroupExpr(self.clone_expr(g.expr)),
+				node.line, node.col
+			);
+
 			is ArrayLiteralExpr as al -> {
 				var els = List<*AstNode>();
 				for (e in al.elements) els += self.clone_expr(e);
-				yield self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node), node.line, node.col);
+				yield self.arena.make<ArrayLiteralExpr>(
+					ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node),
+					node.line, node.col
+				);
 			}
-			is CastExpr as cst -> {
-				yield self.arena.make<CastExpr>(CastExpr.TAG, CastExpr(self.clone_expr(cst.expr), cst.target_type), node.line, node.col);
-			}
+
+			is CastExpr as cst -> self.arena.make<CastExpr>(
+				CastExpr.TAG, CastExpr(self.clone_expr(cst.expr), cst.target_type),
+				node.line, node.col
+			);
 			else -> node;
 		};
 	}
@@ -282,4 +301,3 @@ pub fn prim_c_size(name: str): usz => when (name) {
 	"i64", "u64", "isz", "usz", "f64", "str" -> 8;
 	else -> 0;
 };
-

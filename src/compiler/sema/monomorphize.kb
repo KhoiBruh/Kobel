@@ -66,15 +66,9 @@ impl GenTemplate {
 		var names = List<str>();
 		val node = self.node;
 		when (node) {
-			is StructDecl as s -> {
-				for (tp in s.type_params) names += tp.name;
-			}
-			is FnDecl as f -> {
-				for (p in f.type_params) names += p.name;
-			}
-			is ImplDecl as im -> {
-				for (p in im.type_params) names += p.name;
-			}
+			is StructDecl -> for (tp in node.type_params) names += tp.name;
+			is FnDecl -> for (p in node.type_params) names += p.name;
+			is ImplDecl -> for (p in node.type_params) names += p.name;
 			else -> {}
 		}
 		return names;
@@ -439,83 +433,86 @@ impl DeclPass {
 
 		val target = node;
 		return when (target) {
-			is LiteralExpr as l -> {
-				yield self.literal(l.literal_kind, l.raw_text, node.line, node.col);
-			}
-			is IdentifierExpr as id -> {
-				yield self.identifier(id.name, node.line, node.col);
-			}
-			is BinaryExpr as b -> {
-				yield self.binary(
-					b.op,
-					self.clone_expr(b.left, subst),
-					self.clone_expr(b.right, subst),
-					node.line, node.col
-				);
-			}
-			is UnaryExpr as u -> {
-				yield self.unary(u.op, self.clone_expr(u.operand, subst), node.line, node.col);
-			}
+			is LiteralExpr as l -> self.literal(
+				l.literal_kind, l.raw_text,
+				node.line, node.col
+			);
+
+			is IdentifierExpr as id -> self.identifier(id.name, node.line, node.col);
+
+			is BinaryExpr as b -> self.binary(
+				b.op,
+				self.clone_expr(b.left, subst),
+				self.clone_expr(b.right, subst),
+				node.line, node.col
+			);
+
+			is UnaryExpr as u -> self.unary(
+				u.op, self.clone_expr(u.operand, subst),
+				node.line, node.col
+			);
+
 			is CallExpr -> self.clone_call_expr(node, subst);
-			is MemberExpr as m -> {
-				yield if (m.is_safe)
+
+			is MemberExpr as m -> if (m.is_safe)
 					self.safe_member(self.clone_expr(m.object, subst), m.member, node.line, node.col)
 				else
 					self.member(self.clone_expr(m.object, subst), m.member, node.line, node.col);
-			}
-			is IndexExpr as ix -> {
-				yield self.index(
-					self.clone_expr(ix.target, subst),
-					self.clone_expr(ix.index, subst),
-					node.line, node.col
-				);
-			}
-			is AssignExpr as a -> {
-				yield self.compound_assign(
-					a.op,
-					self.clone_expr(a.target, subst),
-					self.clone_expr(a.value, subst),
-					node.line, node.col
-				);
-			}
-			is UpdateExpr as u -> {
-				yield self.update(
-					u.op,
-					self.clone_expr(u.target, subst),
-					node.line, node.col
-				);
-			}
-			is CastExpr as cst -> {
-				yield self.cast(
-					self.clone_expr(cst.expr, subst),
-					self.clone_type(cst.target_type, subst),
-					node.line, node.col
-				);
-			}
-			is GroupExpr as g -> {
-				yield self.group(self.clone_expr(g.expr, subst), node.line, node.col);
-			}
-			is IfExpr as ie -> {
-				yield self.if_expr(
-					self.clone_expr(ie.condition, subst),
-					self.clone_expr(ie.then_branch, subst),
-					self.clone_expr(ie.else_branch, subst),
-					node.line, node.col
-				);
-			}
-			is ArrayLiteralExpr as al -> {
-				yield self.list_literal(
-					self.clone_expr_list(al.elements, subst),
-					al.list_struct_name,
-					al.elem_type_node,
-					node.line, node.col
-				);
-			}
-			is WhenExpr as we -> {
-				val arms = self.clone_when_arms(node, subst);
-				yield self.when_expr(self.clone_expr(we.condition, subst), arms, node.line, node.col);
-			}
-			is InterpExpr -> self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
+			is IndexExpr as ix -> self.index(
+				self.clone_expr(ix.target, subst),
+				self.clone_expr(ix.index, subst),
+				node.line, node.col
+			);
+
+			is AssignExpr as a -> self.compound_assign(
+				a.op,
+				self.clone_expr(a.target, subst),
+				self.clone_expr(a.value, subst),
+				node.line, node.col
+			);
+
+			is UpdateExpr as u -> self.update(
+				u.op,
+				self.clone_expr(u.target, subst),
+				node.line, node.col
+			);
+
+			is CastExpr as cst -> self.cast(
+				self.clone_expr(cst.expr, subst),
+				self.clone_type(cst.target_type, subst),
+				node.line, node.col
+			);
+
+			is GroupExpr as g -> self.group(
+				self.clone_expr(g.expr, subst),
+				node.line, node.col
+			);
+
+			is IfExpr as ie -> self.if_expr(
+				self.clone_expr(ie.condition, subst),
+				self.clone_expr(ie.then_branch, subst),
+				self.clone_expr(ie.else_branch, subst),
+				node.line, node.col
+			);
+
+			is ArrayLiteralExpr as al -> self.list_literal(
+				self.clone_expr_list(al.elements, subst),
+				al.list_struct_name,
+				al.elem_type_node,
+				node.line, node.col
+			);
+
+			is WhenExpr as we -> self.when_expr(
+				self.clone_expr(we.condition, subst),
+				self.clone_when_arms(node, subst),
+				node.line, node.col
+			);
+
+			is InterpExpr -> self.interp(
+				self.clone_interp_parts(node, subst),
+				node.line, node.col
+			);
+
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
 				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
@@ -526,6 +523,7 @@ impl DeclPass {
 				}
 				yield res_is;
 			}
+
 			else -> self.identifier("<unsupported-expr>", node.line, node.col);
 		};
 	}
@@ -573,8 +571,15 @@ impl DeclPass {
 			val cname = self.instantiate_fn(ft, targs);
 			val call_node = self.call(self.identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 			if (mem.is_safe) {
-				val cond = self.binary(TokenType.BANG_EQUAL, mem_obj, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
-				return self.if_expr(cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
+				val cond = self.binary(
+					TokenType.BANG_EQUAL, mem_obj,
+					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+					node.line, node.col
+				);
+				return self.if_expr(
+					cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+					node.line, node.col
+				);
 			}
 			return call_node;
 		}
@@ -586,7 +591,10 @@ impl DeclPass {
 				val cname = self.instantiate_fn(ft, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(self.identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+				return self.call(
+					self.identifier(cname, node.line, node.col),
+					cargs, List<*AstNode>(), node.line, node.col
+				);
 			}
 
 			val st = self.find_struct_template(cid.name);
@@ -595,7 +603,10 @@ impl DeclPass {
 				val cty = self.instantiate_struct(st, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(self.identifier(cty.as_struct().name, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+				return self.call(
+					self.identifier(cty.as_struct().name, node.line, node.col),
+					cargs, List<*AstNode>(), node.line, node.col
+				);
 			}
 		}
 
@@ -648,48 +659,56 @@ impl DeclPass {
 				for (s in b.statements) ss += self.clone_stmt(s, subst);
 				yield self.block_stmt(ss, node.line, node.col);
 			}
-			is ExprStmt as e -> {
-				yield self.expr_stmt(self.clone_expr(e.expr, subst), node.line, node.col);
-			}
+
+			is ExprStmt as e -> self.expr_stmt(
+				self.clone_expr(e.expr, subst),
+				node.line, node.col
+			);
+
 			is VarDeclStmt as v -> {
 				val ta = if (v.type_annotation != null) self.clone_type(v.type_annotation, subst) else null;
 				val init = self.clone_expr(v.initializer, subst);
 				if (ta != null && init != null) self.propagate_target_type(ta, init);
 				yield self.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
 			}
-			is IfStmt as s -> {
-				yield self.if_stmt(
-					self.clone_expr(s.condition, subst),
-					self.clone_stmt(s.then_branch, subst),
-					self.clone_stmt(s.else_branch, subst),
-					node.line, node.col
-				);
-			}
-			is WhileStmt as w -> {
-				yield self.while_stmt(
-					self.clone_expr(w.condition, subst),
-					self.clone_stmt(w.body, subst),
-					node.line, node.col
-				);
-			}
-			is ForStmt as f -> {
-				yield self.for_stmt(
-					f.var_name, f.is_range, f.is_open, f.is_half_open,
-					self.clone_expr(f.iterable, subst),
-					self.clone_expr(f.range_start, subst),
-					self.clone_expr(f.range_end, subst),
-					self.clone_stmt(f.body, subst),
-					node.line, node.col
-				);
-			}
-			is ReturnStmt as r -> {
-				yield self.return_stmt(self.clone_expr(r.value, subst), node.line, node.col);
-			}
-			is YieldStmt as y -> {
-				yield self.yield_stmt(self.clone_expr(y.value, subst), node.line, node.col);
-			}
+
+			is IfStmt as s -> self.if_stmt(
+				self.clone_expr(s.condition, subst),
+				self.clone_stmt(s.then_branch, subst),
+				self.clone_stmt(s.else_branch, subst),
+				node.line, node.col
+			);
+
+
+			is WhileStmt as w -> self.while_stmt(
+				self.clone_expr(w.condition, subst),
+				self.clone_stmt(w.body, subst),
+				node.line, node.col
+			);
+
+			is ForStmt as f -> self.for_stmt(
+				f.var_name, f.is_range, f.is_open, f.is_half_open,
+				self.clone_expr(f.iterable, subst),
+				self.clone_expr(f.range_start, subst),
+				self.clone_expr(f.range_end, subst),
+				self.clone_stmt(f.body, subst),
+				node.line, node.col
+			);
+
+			is ReturnStmt as r -> self.return_stmt(
+				self.clone_expr(r.value, subst),
+				node.line, node.col
+			);
+
+			is YieldStmt as y -> self.yield_stmt(
+				self.clone_expr(y.value, subst),
+				node.line, node.col
+			);
+
 			is BreakStmt -> self.break_stmt(node.line, node.col);
+
 			is ContinueStmt -> self.continue_stmt(node.line, node.col);
+
 			is WhenStmt as w -> {
 				var arms = List<WhenStmtArm>();
 				for (arm in w.arms) {
@@ -699,6 +718,7 @@ impl DeclPass {
 				}
 				yield self.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
 			}
+
 			else -> null;
 		};
 	}

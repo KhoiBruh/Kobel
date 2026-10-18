@@ -70,8 +70,7 @@ impl BodyPass {
 	fn collect_and_conditions(var self, expr: *AstNode): List<*AstNode> {
 		var res = List<*AstNode>();
 		if (expr == null) return res;
-		val cur = self.unwrap_group(expr);
-		if (cur == null) return res;
+		val cur = self.unwrap_group(expr) ?: return res;
 
 		if (cur is BinaryExpr as bin && bin.op == TokenType.AND_AND) {
 			val left = self.collect_and_conditions(bin.left);
@@ -88,9 +87,7 @@ impl BodyPass {
 	fn is_null_literal(var self, node: *AstNode): bool {
 		if (node == null) return false;
 		val cur = self.unwrap_group(node);
-		if (cur is LiteralExpr as lit) {
-			return lit.literal_kind == LiteralKind.NULL_VAL;
-		}
+		if (cur is LiteralExpr) return cur.literal_kind == LiteralKind.NULL_VAL;
 		return false;
 	}
 

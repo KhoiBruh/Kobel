@@ -347,7 +347,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val f_ty = s_info.fields[i].type_ptr;
 				val arg_n = call.args[i];
-				if ((f_ty != null && f_ty.is_list())) self.coerce_to_list(arg_n, f_ty);
+				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
 				val arg_ty = self.check_expr(arg_n);
 				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor");
 			}

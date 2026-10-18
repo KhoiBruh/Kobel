@@ -17,11 +17,8 @@ use compiler.lexer.token.*;
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
 pub fn for_is_lvalue(node: *AstNode): bool => when (node) {
-	is MemberExpr as mem -> {
-		if (mem.is_safe) yield false;
-		yield for_is_lvalue(mem.object);
-	}
-	is GroupExpr as g -> for_is_lvalue(g.expr);
+	is MemberExpr -> if (node.is_safe) false else for_is_lvalue(node.object);
+	is GroupExpr -> for_is_lvalue(node.expr);
 	is IdentifierExpr -> true;
 	else -> false;
 };
@@ -83,22 +80,14 @@ impl Arena {
 
 		val target = node;
 		when (target) {
-			is BlockStmt as b -> {
-				for (stmt in b.statements) self.for_inject_step(stmt, step);
+			is BlockStmt -> for (stmt in target.statements) self.for_inject_step(stmt, step);
+			is IfStmt -> {
+				self.for_inject_step(target.then_branch, step);
+				self.for_inject_step(target.else_branch, step);
 			}
-			is IfStmt as s -> {
-				self.for_inject_step(s.then_branch, step);
-				self.for_inject_step(s.else_branch, step);
-			}
-			is WhenStmt as w -> {
-				for (arm in w.arms) self.for_inject_step(arm.body, step);
-			}
-			is VarDeclStmt as vd -> {
-				self.for_inject_step_expr(vd.initializer, step);
-			}
-			is ExprStmt as es -> {
-				self.for_inject_step_expr(es.expr, step);
-			}
+			is WhenStmt -> for (arm in target.arms) self.for_inject_step(arm.body, step);
+			is VarDeclStmt -> self.for_inject_step_expr(target.initializer, step);
+			is ExprStmt -> self.for_inject_step_expr(target.expr, step);
 			is ContinueStmt -> {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts.add(s);

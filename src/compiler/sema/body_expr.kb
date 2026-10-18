@@ -42,27 +42,17 @@ impl BodyPass {
 				al.elem_type_node = self.arena.ast_type_from_type(elem_ty);
 
 				for (el in al.elements) {
-					if ((elem_ty != null && elem_ty.is_list())) {
-						self.coerce_to_list(el, elem_ty);
-					}
+					if (elem_ty != null && elem_ty.is_list()) self.coerce_to_list(el, elem_ty);
 					val el_ty = self.check_expr(el);
-					if (!elem_ty.can_assign(el_ty)) {
-						self.report_error(el, "Element type mismatch in List literal");
-					}
+					if (!elem_ty.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
 				}
 			}
-			is IfExpr as ife -> {
-				self.coerce_to_list(ife.then_branch, list_ty);
-				self.coerce_to_list(ife.else_branch, list_ty);
+			is IfExpr -> {
+				self.coerce_to_list(node.then_branch, list_ty);
+				self.coerce_to_list(node.else_branch, list_ty);
 			}
-			is GroupExpr as grp -> {
-				self.coerce_to_list(grp.expr, list_ty);
-			}
-			is WhenExpr as we -> {
-				for (arm in we.arms) {
-					self.coerce_to_list(arm.body, list_ty);
-				}
-			}
+			is GroupExpr -> self.coerce_to_list(node.expr, list_ty);
+			is WhenExpr -> for (arm in node.arms) self.coerce_to_list(arm.body, list_ty);
 			else -> {}
 		}
 	}
@@ -80,10 +70,7 @@ impl BodyPass {
 			LiteralKind.BOOL -> self.t_bool();
 			LiteralKind.STRING -> self.t_str();
 			LiteralKind.CHAR -> self.t_char();
-			LiteralKind.NULL_VAL -> {
-				val none_ty = self.t_none();
-				yield self.arena.pointer_type(none_ty, false);
-			}
+			LiteralKind.NULL_VAL -> self.arena.pointer_type(self.t_none(), false);
 			else -> self.t_none();
 		};
 	}
@@ -121,26 +108,20 @@ impl BodyPass {
 		val rt = self.check_expr(bin.right);
 
 		// One rule per operator group; each returns the result type.
-		when (bin.op) {
+		return when (bin.op) {
 			TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
-			TokenType.SLASH, TokenType.PERCENT -> {
-				return self.check_arith_op(node, bin, lt, rt);
-			}
-			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> {
-				return self.check_equality_op(node, bin, lt, rt);
-			}
+			TokenType.SLASH, TokenType.PERCENT -> self.check_arith_op(node, bin, lt, rt);
+
+			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> self.check_equality_op(node, bin, lt, rt);
+
 			TokenType.LESS, TokenType.LESS_EQUAL,
-			TokenType.GREATER, TokenType.GREATER_EQUAL -> {
-				return self.check_ordering_op(node, lt, rt);
-			}
-			TokenType.AND_AND, TokenType.OR_OR -> {
-				return self.check_logic_op(node, lt, rt);
-			}
-			TokenType.KW_IN -> {
-				return self.check_in_op(node, bin, lt, rt);
-			}
-			else -> return lt;
-		}
+			TokenType.GREATER, TokenType.GREATER_EQUAL -> self.check_ordering_op(node, lt, rt);
+
+			TokenType.AND_AND, TokenType.OR_OR -> self.check_logic_op(node, lt, rt);
+
+			TokenType.KW_IN -> self.check_in_op(node, bin, lt, rt);
+			else -> lt;
+		};
 	}
 
 	// `a ?: b`. The left side must be a pointer or `str`, and the right side is
@@ -584,22 +565,22 @@ impl BodyPass {
 		val cur = self.unwrap_group(target_node) ?: return;
 
 		when (cur) {
-			is IdentifierExpr as id -> {
-				self.check_ident_assignable(op_node, id.name, self.symtab.lookup(id.name), is_update);
-			}
-			is MemberExpr as mem -> {
-				if (mem.is_safe) {
-					self.report_error(op_node, "Cannot assign to safe navigation expression");
-				}
-				if (self.is_immutable_self(mem.object)) {
+			is IdentifierExpr -> self.check_ident_assignable(
+				op_node, cur.name, self.symtab.lookup(cur.name), is_update
+			);
+
+			is MemberExpr -> {
+				if (cur.is_safe) self.report_error(op_node, "Cannot assign to safe navigation expression");
+				if (self.is_immutable_self(cur.object)) {
 					self.report_error(op_node,
-						"Cannot mutate field '${mem.member}' "
+						"Cannot mutate field '${cur.member}' "
 						"on immutable receiver 'self' in 'val self' method"
 					);
 				}
 			}
-			is IndexExpr as idx -> {
-				if (self.is_immutable_self(idx.target)) {
+
+			is IndexExpr -> {
+				if (self.is_immutable_self(cur.target)) {
 					val act = if (is_update) "update" else "mutate";
 					self.report_error(op_node,
 						"Cannot ${act} through index on immutable receiver"
@@ -607,20 +588,21 @@ impl BodyPass {
 					);
 				}
 			}
-			is UnaryExpr as un -> {
-				// `*p = v` is a write through the pointee; any other unary target
-				// is not assignable.
-				if (un.op != TokenType.STAR) {
-					self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");
-				}
+
+			// `*p = v` is a write through the pointee; any other unary target
+			// is not assignable.
+			is UnaryExpr -> {
+				if (cur.op != TokenType.STAR) self.report_error(
+					op_node, "Invalid target for ${self.target_word(is_update)}"
+				);
 			}
+
 			else -> self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");
 		}
 	}
 
 	// How an invalid or immutable target is described in an error message.
-	fn target_word(val self, is_update: bool): str =>
-		if (is_update) "increment/decrement operator" else "assignment";
+	fn target_word(val self, update: bool) => if (update) "increment/decrement operator" else "assignment";
 
 	// Strip the parentheses a target may be wrapped in.
 	pub fn unwrap_group(var self, node: *AstNode): *AstNode {
@@ -656,7 +638,9 @@ impl BodyPass {
 				);
 			}
 			SymbolKind.PARAM -> {
-				if (!sym.is_mut) self.report_error(op_node, "Cannot ${act} immutable parameter '${name}'");
+				if (!sym.is_mut) self.report_error(
+					op_node, "Cannot ${act} immutable parameter '${name}'"
+				);
 			}
 			else -> self.report_error(op_node, "Cannot ${act} '${name}'");
 		}
