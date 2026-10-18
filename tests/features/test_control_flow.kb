@@ -391,6 +391,91 @@ fn test_iter_list_field(var t: &Tally) {
 	bag.items.delete();
 }
 
+// ============================================================================
+// `defer` statement tests (scope-based LIFO execution)
+// ============================================================================
+
+fn test_defer_basic(var t: &Tally) {
+	var trace = "";
+	{
+		trace += "A;";
+		defer trace += "1;";
+		trace += "B;";
+		defer trace += "2;";
+		trace += "C;";
+	}
+	check(trace == "A;B;C;2;1;", "basic defer must execute in LIFO order at scope exit", t);
+}
+
+fn test_defer_block(var t: &Tally) {
+	var trace = "";
+	{
+		trace += "start;";
+		defer {
+			trace += "d1;";
+			trace += "d2;";
+		}
+		trace += "end;";
+	}
+	check(trace == "start;end;d1;d2;", "block defer must execute its body at scope exit", t);
+}
+
+fn test_defer_nested_scopes(var t: &Tally) {
+	var trace = "";
+	{
+		defer trace += "outer;";
+		trace += "1;";
+		{
+			defer trace += "inner;";
+			trace += "2;";
+		}
+		trace += "3;";
+	}
+	check(trace == "1;2;inner;3;outer;", "nested scopes must unwind defers when leaving inner block", t);
+}
+
+fn helper_return_with_defer(cond: bool, var trace: &str): i32 {
+	defer *trace += "defer_outer;";
+	if (cond) {
+		defer *trace += "defer_inner;";
+		return 42;
+	}
+	*trace += "after_if;";
+	return 100;
+}
+
+fn test_defer_early_return(var t: &Tally) {
+	var trace1 = "";
+	val r1 = helper_return_with_defer(true, &trace1);
+	check(r1 == 42, "early return value must be 42", t);
+	check(trace1 == "defer_inner;defer_outer;", "early return must unwind all active defers in LIFO", t);
+
+	var trace2 = "";
+	val r2 = helper_return_with_defer(false, &trace2);
+	check(r2 == 100, "normal return value must be 100", t);
+	check(trace2 == "after_if;defer_outer;", "normal path must run defers before return", t);
+}
+
+fn test_defer_loop(var t: &Tally) {
+	var trace = "";
+	var i = 0;
+	while (i < 3) {
+		defer trace += "L;";
+		if (i == 1) {
+			defer trace += "C;";
+			i++;
+			continue;
+		}
+		if (i == 2) {
+			defer trace += "B;";
+			break;
+		}
+		trace += "${i};";
+		i++;
+	}
+	check(trace == "0;L;C;L;B;L;", "defer in loop with continue and break must unwind correctly", t);
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Control Flow & Loops ===");
 
@@ -415,6 +500,11 @@ fn main(): i32 {
 	test_iter_string_builder(&t);
 	test_iter_struct_elements(&t);
 	test_iter_list_field(&t);
+	test_defer_basic(&t);
+	test_defer_block(&t);
+	test_defer_nested_scopes(&t);
+	test_defer_early_return(&t);
+	test_defer_loop(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap for-loop tests");

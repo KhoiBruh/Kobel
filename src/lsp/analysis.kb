@@ -362,6 +362,13 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 		```
 		Declares external C ABI foreign functions.
 	""",
+	"defer" -> """
+		```kobel
+		defer <stmt>;
+		defer { <body> }
+		```
+		Defers execution of a statement or block until the surrounding scope exits.
+	""",
 	"as" -> "Type casting operator: `expr as Type`.",
 	else -> ""
 };

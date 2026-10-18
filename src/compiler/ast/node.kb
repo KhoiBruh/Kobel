@@ -38,6 +38,7 @@ pub enum NodeKind {
 	STMT_CONTINUE,
 	STMT_FOR,
 	STMT_YIELD,
+	STMT_DEFER,
 
 	// Declarations
 	DECL_MODULE,

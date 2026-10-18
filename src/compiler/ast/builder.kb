@@ -133,6 +133,9 @@ impl Arena {
 	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz)
 		=> self.make<YieldStmt>(YieldStmt.TAG, YieldStmt(value), line, col);
 
+	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz)
+		=> self.make<DeferStmt>(DeferStmt.TAG, DeferStmt(body), line, col);
+
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------

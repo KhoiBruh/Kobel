@@ -178,6 +178,10 @@ impl CCodeGen {
 
 		self.pointer_vars.clear();
 		self.str_vars.clear();
+		self.defer_nodes.clear();
+		self.scope_starts.clear();
+		self.scope_jumped.clear();
+		self.loop_defer_depths.clear();
 		for (p in f.params) {
 			val p_tn = p.type_node;
 			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {
@@ -198,9 +202,7 @@ impl CCodeGen {
 
 		when (f_body) {
 			is BlockStmt as blk -> {
-				for (stmt in blk.statements) {
-					res = "${res}${self.gen_statement(stmt)}";
-				}
+				res = "${res}${self.gen_block_body(f_body)}";
 			}
 			is ExprStmt as es -> {
 				val es_e = es.expr;

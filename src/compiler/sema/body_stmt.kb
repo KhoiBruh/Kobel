@@ -209,6 +209,8 @@ impl BodyPass {
 	}
 
 	pub fn check_return_stmt(var self, node: *AstNode) {
+		if (self.defer_depth > 0UZ)
+			self.report_error(node, "Return statement is not allowed inside defer");
 		val ret = node.to<ReturnStmt>();
 		if (ret.value != null) {
 			if (

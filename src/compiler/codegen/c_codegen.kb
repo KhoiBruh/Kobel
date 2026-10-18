@@ -38,7 +38,11 @@ pub struct CCodeGen {
 	pub is_yield_return: bool = false,
 	pub current_fn_ret_type: str = "",
 	pub yield_exit_label: str = "",
-	pub when_label_counter: usz = 0
+	pub when_label_counter: usz = 0,
+	pub defer_nodes: List<*AstNode> = List<*AstNode>(),
+	pub scope_starts: List<usz> = List<usz>(),
+	pub scope_jumped: List<bool> = List<bool>(),
+	pub loop_defer_depths: List<usz> = List<usz>()
 }
 
 impl CCodeGen {
@@ -56,8 +60,60 @@ impl CCodeGen {
 		false,
 		"",
 		"",
-		0
+		0,
+		List<*AstNode>(),
+		List<usz>(),
+		List<bool>(),
+		List<usz>()
 	);
+
+	pub fn enter_defer_scope(var self) {
+		self.scope_starts += self.defer_nodes.len;
+		self.scope_jumped += false;
+	}
+
+	pub fn add_defer(var self, stmt: *AstNode) {
+		self.defer_nodes += stmt;
+	}
+
+	pub fn mark_current_scope_jumped(var self) {
+		if (!self.scope_jumped.empty()) {
+			self.scope_jumped.pop();
+			self.scope_jumped += true;
+		}
+	}
+
+	pub fn exit_defer_scope(var self): str {
+		if (self.scope_starts.empty()) return "";
+		val start_idx = self.scope_starts.pop();
+		val jumped = self.scope_jumped.pop();
+		var res = "";
+		if (!jumped) {
+			var i = self.defer_nodes.len;
+			while (i > start_idx) {
+				i--;
+				res += self.gen_statement(self.defer_nodes[i]);
+			}
+		}
+		while (self.defer_nodes.len > start_idx) {
+			self.defer_nodes.pop();
+		}
+		return res;
+	}
+
+	pub fn has_active_defers(val self): bool => !self.defer_nodes.empty();
+
+	pub fn gen_defers_unwind(var self, target_depth: usz): str {
+		var res = "";
+		if (self.defer_nodes.empty()) return res;
+		val min_idx = if (target_depth < self.scope_starts.len) self.scope_starts[target_depth] else 0UZ;
+		var i = self.defer_nodes.len;
+		while (i > min_idx) {
+			i--;
+			res += self.gen_statement(self.defer_nodes[i]);
+		}
+		return res;
+	}
 
 	pub fn is_pointer_var(val self, name: str) => name in self.pointer_vars;
 
@@ -78,7 +134,7 @@ impl CCodeGen {
 
 }
 
-pub fn get_indent(level: usz) => "    ".repeat(level);
+pub fn get_indent(level: usz): str => "    ".repeat(level);
 
 // ============================================================================
 // Type Mapping (Kobel -> C99 Standard Types)
@@ -666,13 +722,18 @@ impl CCodeGen {
 	pub fn gen_block_body(var self, node: *AstNode): str {
 		if (node == null) return "";
 		if (node is BlockStmt as blk) {
+			self.enter_defer_scope();
 			var res = "";
 			for (s in blk.statements) {
 				res += self.gen_statement(s);
 			}
+			res += self.exit_defer_scope();
 			return res;
 		}
-		return self.gen_statement(node);
+		self.enter_defer_scope();
+		var res = self.gen_statement(node);
+		res += self.exit_defer_scope();
+		return res;
 	}
 
 	pub fn gen_statement(var self, node: *AstNode) => when (node) {
@@ -682,10 +743,14 @@ impl CCodeGen {
 		is WhileStmt -> self.gen_while_stmt(node);
 		is ReturnStmt -> self.gen_return_stmt(node);
 		is ExprStmt -> self.gen_expr_stmt(node);
-		is BreakStmt -> "${get_indent(self.indent_level)}break;\n";
-		is ContinueStmt -> "${get_indent(self.indent_level)}continue;\n";
+		is BreakStmt -> self.gen_break_stmt();
+		is ContinueStmt -> self.gen_continue_stmt();
 		is YieldStmt -> self.gen_yield_stmt(node);
 		is WhenStmt -> self.gen_when_stmt(node);
+		is DeferStmt as ds -> {
+			self.add_defer(ds.body);
+			yield "";
+		}
 		else -> "";
 	};
 
@@ -693,11 +758,31 @@ impl CCodeGen {
 		val ind = get_indent(self.indent_level);
 		var res = ind + "{\n";
 		self.indent_level++;
+		self.enter_defer_scope();
 		for (stmt in blk.statements) {
 			res += self.gen_statement(stmt);
 		}
+		res += self.exit_defer_scope();
 		self.indent_level--;
 		return res + ind + "}\n";
+	}
+
+	fn gen_break_stmt(var self): str {
+		val ind = get_indent(self.indent_level);
+		self.mark_current_scope_jumped();
+		if (self.loop_defer_depths.empty()) return ind + "break;\n";
+		val target_depth = self.loop_defer_depths.last();
+		val defers = self.gen_defers_unwind(target_depth);
+		return defers + ind + "break;\n";
+	}
+
+	fn gen_continue_stmt(var self): str {
+		val ind = get_indent(self.indent_level);
+		self.mark_current_scope_jumped();
+		if (self.loop_defer_depths.empty()) return ind + "continue;\n";
+		val target_depth = self.loop_defer_depths.last();
+		val defers = self.gen_defers_unwind(target_depth);
+		return defers + ind + "continue;\n";
 	}
 
 	fn gen_var_decl_stmt(var self, vd: *VarDeclStmt): str {
@@ -973,7 +1058,9 @@ impl CCodeGen {
 		val ind = get_indent(self.indent_level);
 		var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
 		self.indent_level++;
+		self.loop_defer_depths += self.scope_starts.len;
 		res = "${res}${self.gen_block_body(wh.body)}";
+		self.loop_defer_depths.pop();
 		self.indent_level--;
 		return "${res}${ind}}\n";
 	}
@@ -986,44 +1073,63 @@ impl CCodeGen {
 			return self.gen_when_with_target(we, "", true);
 		}
 
-		if (ret_val != null) {
-			var ret_candidate = ret_val;
-			while (ret_candidate != null) {
-				if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
-				else break;
-			}
-			if (ret_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
-				var ret_ty = self.current_fn_ret_type;
-				if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
-				var cur = ret_candidate;
-				var res = "${ind}{\n";
-				self.indent_level++;
-				val inner_ind = get_indent(self.indent_level);
-				res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
-				while (cur != null) {
-					while (cur != null) {
-						if (cur is GroupExpr as g) cur = g.expr;
-						else break;
-					}
-					if (cur == null) break;
-					if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
-						res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
-						res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
-						cur = b.right;
-					} else {
-						res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
-						break;
-					}
+		if (!self.has_active_defers()) {
+			if (ret_val != null) {
+				var ret_candidate = ret_val;
+				while (ret_candidate != null) {
+					if (ret_candidate is GroupExpr as g) ret_candidate = g.expr;
+					else break;
 				}
-				self.indent_level--;
-				res = "${res}${ind}}\n";
-				return res;
+				if (ret_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
+					var ret_ty = self.current_fn_ret_type;
+					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+					var cur = ret_candidate;
+					var res = "${ind}{\n";
+					self.indent_level++;
+					val inner_ind = get_indent(self.indent_level);
+					res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+					while (cur != null) {
+						while (cur != null) {
+							if (cur is GroupExpr as g) cur = g.expr;
+							else break;
+						}
+						if (cur == null) break;
+						if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
+							res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
+							res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
+							cur = b.right;
+						} else {
+							res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+							break;
+						}
+					}
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+					return res;
+				}
+
+				return "${ind}return ${self.gen_expr(ret_val)};\n";
 			}
 
-			return "${ind}return ${self.gen_expr(ret_val)};\n";
+			return "${ind}return;\n";
 		}
 
-		return "${ind}return;\n";
+		self.mark_current_scope_jumped();
+		if (ret_val != null) {
+			var ret_ty = self.current_fn_ret_type;
+			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(ret_val);
+			var res = "${ind}{\n";
+			self.indent_level++;
+			val inner_ind = get_indent(self.indent_level);
+			res = "${res}${inner_ind}${ret_ty} __ret_tmp = ${self.gen_expr(ret_val)};\n";
+			res = res + self.gen_defers_unwind(0UZ);
+			res = "${res}${inner_ind}return __ret_tmp;\n";
+			self.indent_level--;
+			res = "${res}${ind}}\n";
+			return res;
+		}
+
+		return self.gen_defers_unwind(0UZ) + ind + "return;\n";
 	}
 
 	fn gen_expr_stmt(var self, es: *ExprStmt): str {

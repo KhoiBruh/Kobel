@@ -164,6 +164,12 @@ impl Parser {
 		return self.when_stmt(condition, arms, kw.line, kw.col);
 	}
 
+	pub fn parse_defer_stmt(var self): *AstNode {
+		val kw = self.advance(); // 'defer'
+		val body = self.parse_statement();
+		return self.defer_stmt(body, kw.line, kw.col);
+	}
+
 	pub fn parse_statement(var self): *AstNode {
 		val tok = self.peek();
 		val line = tok.line;
@@ -177,6 +183,7 @@ impl Parser {
 			TokenType.KW_FOR -> self.parse_for_stmt();
 			TokenType.KW_RETURN -> self.parse_return_stmt();
 			TokenType.KW_WHEN -> self.parse_when_stmt();
+			TokenType.KW_DEFER -> self.parse_defer_stmt();
 			TokenType.KW_BREAK -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");

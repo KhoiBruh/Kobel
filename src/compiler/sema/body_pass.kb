@@ -47,7 +47,8 @@ pub struct BodyPass {
 	pub has_symtab: bool,
 	pub when_depth: usz = 0,
 	pub checked_fns: List<*AstNode> = List(),
-	pub is_stmt_level: bool = false
+	pub is_stmt_level: bool = false,
+	pub defer_depth: usz = 0
 }
 
 impl BodyPass {
@@ -265,7 +266,17 @@ impl BodyPass {
 			self.check_expr_stmt(es.expr);
 			return;
 		}
+		if (node is DeferStmt as ds) {
+			if (self.defer_depth > 0UZ)
+				self.report_error(node, "Nested defer statement is not allowed inside defer");
+			self.defer_depth++;
+			self.check_statement(ds.body);
+			self.defer_depth--;
+			return;
+		}
 		if (node is YieldStmt as ys) {
+			if (self.defer_depth > 0UZ)
+				self.report_error(node, "Yield statement is not allowed inside defer");
 			if (self.when_depth == 0)
 				self.report_error(node, "Yield statement outside of when expression");
 
@@ -281,6 +292,8 @@ impl BodyPass {
 			NodeKind.STMT_FOR -> self.check_for_stmt(node);
 			NodeKind.STMT_RETURN -> self.check_return_stmt(node);
 			NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
+				if (self.defer_depth > 0UZ)
+					self.report_error(node, "Break or continue statement is not allowed inside defer");
 				if (self.loop_depth == 0)
 					self.report_error(node, "Break or continue statement outside of loop");
 			}

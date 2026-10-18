@@ -338,6 +338,64 @@ fn test_elvis_jump_restriction() {
 	println("  [PASS] test_elvis_jump_restriction");
 }
 
+fn test_defer_restrictions() {
+	// 1. Disallow return inside defer
+	val src1 = """
+		fn test(): none {
+		    defer return;
+		}
+	""";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	var bp1 = BodyPass();
+	bp1.check_program(p1.parse_program());
+	assert_true(bp1.errors.len >= 1UZ, "Return inside defer must be rejected");
+
+	// 2. Disallow break inside defer
+	val src2 = """
+		fn test(): none {
+		    while (true) {
+		        defer break;
+		    }
+		}
+	""";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	var bp2 = BodyPass();
+	bp2.check_program(p2.parse_program());
+	assert_true(bp2.errors.len >= 1UZ, "Break inside defer must be rejected");
+
+	// 3. Disallow continue inside defer
+	val src3 = """
+		fn test(): none {
+		    while (true) {
+		        defer continue;
+		    }
+		}
+	""";
+	var l3 = Lexer(src3);
+	var p3 = Parser(l3.tokenize());
+	var bp3 = BodyPass();
+	bp3.check_program(p3.parse_program());
+	assert_true(bp3.errors.len >= 1UZ, "Continue inside defer must be rejected");
+
+	// 4. Disallow nested defer inside defer
+	val src4 = """
+		fn test(): none {
+		    defer {
+		        defer 1 + 2;
+		    }
+		}
+	""";
+	var l4 = Lexer(src4);
+	var p4 = Parser(l4.tokenize());
+	var bp4 = BodyPass();
+	bp4.check_program(p4.parse_program());
+	assert_true(bp4.errors.len >= 1UZ, "Nested defer inside defer must be rejected");
+
+	println("  [PASS] test_defer_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
 	test_valid_program();
@@ -347,6 +405,7 @@ fn main(): i32 {
 	test_return_type_mismatch();
 	test_val_immutability();
 	test_elvis_jump_restriction();
+	test_defer_restrictions();
 	println("[ALL PASSED] Bootstrap Semantic BodyPass passed all tests successfully!");
 	return 0;
 }

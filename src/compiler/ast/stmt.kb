@@ -86,3 +86,8 @@ pub struct YieldStmt {
 	pub const TAG = NodeKind.STMT_YIELD;
 	pub value: *AstNode
 }
+
+pub struct DeferStmt {
+	pub const TAG = NodeKind.STMT_DEFER;
+	pub body: *AstNode
+}

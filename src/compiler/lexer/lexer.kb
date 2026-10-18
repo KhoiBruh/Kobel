@@ -34,6 +34,7 @@ pub fn lookup_keyword(text: str) => when (text) {
 	"yield" -> TokenType.KW_YIELD,
 	"is" -> TokenType.KW_IS,
 	"op" -> TokenType.KW_OP,
+	"defer" -> TokenType.KW_DEFER,
 	else -> TokenType.IDENTIFIER
 };
 
