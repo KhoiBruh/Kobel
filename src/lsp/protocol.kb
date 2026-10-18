@@ -72,26 +72,20 @@ pub fn read_message(): str {
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
 		var header_line = StringBuilder();
+		defer header_line.delete();
 		var has_any = false;
 		while (true) {
 			val ch = getchar();
-			if (ch < 0) {
-				header_line.delete();
-				return ""; // EOF
-			}
+			if (ch < 0) return ""; // EOF
 			has_any = true;
 			val c = ch as char;
 			if (c == '\n') break;
 			if (c != '\r') header_line += c;
 		}
 
-		if (!has_any) {
-			header_line.delete();
-			return "";
-		}
+		if (!has_any) return "";
 
 		val line = header_line.to_str();
-		header_line.delete();
 
 		// Blank line marks the end of headers
 		if (line.empty()) break;

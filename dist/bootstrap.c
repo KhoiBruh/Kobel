@@ -3139,6 +3139,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_break_stmt(com
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_continue_stmt(compiler__sema__decl_pass__DeclPass* self, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_when_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* condition, std__collections__list__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_yield_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_defer_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* body, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_module_decl(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_str path, const char* full_path, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_fn_decl(compiler__sema__decl_pass__DeclPass* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op);
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_struct_decl(compiler__sema__decl_pass__DeclPass* self, const char* name, std__collections__list__List_compiler__ast__decl__GenericParam type_params, std__collections__list__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col);
@@ -17848,9 +17849,11 @@ const char* std__str__str_from_bytes(uint8_t* buf, size_t len) {
     r->len = len;
     r->cap = (len + 1);
     const char** sp = (const char**)r;
-    const char* res = *sp;
-    std__mem__alloc__release_std__str__StrRaw(r);
-    return res;
+    {
+        const char* __ret_tmp = *sp;
+        std__mem__alloc__release_std__str__StrRaw(r);
+        return __ret_tmp;
+    }
 }
 
 bool str_empty(const char* self) {
@@ -21975,6 +21978,9 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_stmt(com
             }
         }
         return compiler__sema__decl_pass__DeclPass_when_stmt(self, compiler__sema__decl_pass__DeclPass_clone_expr(self, w->condition, subst), arms, node->line, node->col);
+    } else if (target != NULL && target->kind == compiler__ast__stmt__DeferStmt__TAG) {
+        compiler__ast__stmt__DeferStmt* d = (compiler__ast__stmt__DeferStmt*)(((compiler__ast__node__AstNode*)target)->data);
+        return compiler__sema__decl_pass__DeclPass_defer_stmt(self, compiler__sema__decl_pass__DeclPass_clone_stmt(self, d->body, subst), node->line, node->col);
     } else {
         return NULL;
     }
@@ -22361,6 +22367,9 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_stmt_generics(compiler__sema__d
     } else if (cur != NULL && cur->kind == compiler__ast__stmt__YieldStmt__TAG) {
         compiler__ast__stmt__YieldStmt* y = (compiler__ast__stmt__YieldStmt*)(((compiler__ast__node__AstNode*)cur)->data);
         return compiler__sema__decl_pass__DeclPass_rewrite_child(self, y->value);
+    } else if (cur != NULL && cur->kind == compiler__ast__stmt__DeferStmt__TAG) {
+        compiler__ast__stmt__DeferStmt* d = (compiler__ast__stmt__DeferStmt*)(((compiler__ast__node__AstNode*)cur)->data);
+        return compiler__sema__decl_pass__DeclPass_rewrite_child(self, d->body);
     } else if (cur != NULL && cur->kind == compiler__ast__stmt__WhenStmt__TAG) {
         compiler__ast__stmt__WhenStmt* w = (compiler__ast__stmt__WhenStmt*)(((compiler__ast__node__AstNode*)cur)->data);
         compiler__sema__decl_pass__DeclPass_rewrite_generics(self, w->condition);
@@ -22839,6 +22848,10 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_when_stmt(comp
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_yield_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
     return compiler__ast__node__make_compiler__ast__stmt__YieldStmt(&self->arena, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__stmt__YieldStmt){ value }, line, col);
+}
+
+compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_defer_stmt(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return compiler__ast__node__make_compiler__ast__stmt__DeferStmt(&self->arena, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__stmt__DeferStmt){ body }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_module_decl(compiler__sema__decl_pass__DeclPass* self, std__collections__list__List_str path, const char* full_path, size_t line, size_t col) {
@@ -24798,9 +24811,11 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_arm_body(
     }
     compiler__sema__symbol__SymbolTable_enter_scope(&self->symtab, false);
     compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ sym, sym, 0, smart_cast_ty, is_mut, false, 0, 0, NULL });
-    compiler__sema__types__Type* body_ty = compiler__sema__body_pass__BodyPass_check_when_arm_body(self, body);
-    compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
-    return body_ty;
+    {
+        compiler__sema__types__Type* __ret_tmp = compiler__sema__body_pass__BodyPass_check_when_arm_body(self, body);
+        compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
+        return __ret_tmp;
+    }
 }
 
 compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_arm_body(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* body) {
@@ -24825,12 +24840,19 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_when_arm_
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
             if (yield_ty == NULL) {
                 compiler__sema__body_pass__BodyPass_report_error(self, body, "When arm block must yield a value");
-                return compiler__sema__body_pass__BodyPass_t_none(self);
+                {
+                    compiler__sema__types__Type* __ret_tmp = compiler__sema__body_pass__BodyPass_t_none(self);
+                    compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
+                    return __ret_tmp;
+                }
             }
-            return yield_ty;
+            {
+                compiler__sema__types__Type* __ret_tmp = yield_ty;
+                compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
+                return __ret_tmp;
+            }
         }
     }
     return compiler__sema__body_pass__BodyPass_check_expr(self, body);
@@ -33160,9 +33182,11 @@ size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self) {
 const char* lsp__json__JsonValue_serialize(lsp__json__JsonValue* self) {
     std__collections__string_builder__StringBuilder sb = std__collections__string_builder__StringBuilder_new();
     lsp__json__JsonValue_serialize_to(self, &sb);
-    const char* res = std__collections__string_builder__StringBuilder_to_str(&sb);
-    std__collections__string_builder__StringBuilder_delete(&sb);
-    return res;
+    {
+        const char* __ret_tmp = std__collections__string_builder__StringBuilder_to_str(&sb);
+        std__collections__string_builder__StringBuilder_delete(&sb);
+        return __ret_tmp;
+    }
 }
 
 bool lsp__json__JsonParser_is_end(lsp__json__JsonParser* self) {
@@ -33228,9 +33252,11 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
             std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, c);
         }
     }
-    const char* res = std__collections__string_builder__StringBuilder_to_str(&sb);
-    std__collections__string_builder__StringBuilder_delete(&sb);
-    return res;
+    {
+        const char* __ret_tmp = std__collections__string_builder__StringBuilder_to_str(&sb);
+        std__collections__string_builder__StringBuilder_delete(&sb);
+        return __ret_tmp;
+    }
 }
 
 int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
@@ -33490,8 +33516,11 @@ const char* lsp__protocol__read_message(void) {
         while (true) {
             int32_t ch = getchar();
             if (ch < 0) {
-                std__collections__string_builder__StringBuilder_delete(&header_line);
-                return "";
+                {
+                    const char* __ret_tmp = "";
+                    std__collections__string_builder__StringBuilder_delete(&header_line);
+                    return __ret_tmp;
+                }
             }
             has_any = true;
             char c = (char)ch;
@@ -33503,12 +33532,15 @@ const char* lsp__protocol__read_message(void) {
             }
         }
         if (!has_any) {
-            std__collections__string_builder__StringBuilder_delete(&header_line);
-            return "";
+            {
+                const char* __ret_tmp = "";
+                std__collections__string_builder__StringBuilder_delete(&header_line);
+                return __ret_tmp;
+            }
         }
         const char* line = std__collections__string_builder__StringBuilder_to_str(&header_line);
-        std__collections__string_builder__StringBuilder_delete(&header_line);
         if (str_empty(line)) {
+            std__collections__string_builder__StringBuilder_delete(&header_line);
             break;
         }
         const char* prefix = "content-length:";
@@ -33581,6 +33613,7 @@ const char* lsp__protocol__read_message(void) {
                 content_length = n;
             }
         }
+        std__collections__string_builder__StringBuilder_delete(&header_line);
     }
     if (content_length == 0) {
         return "";
@@ -33651,9 +33684,11 @@ const char* lsp__document__uri_to_path(const char* uri) {
         }
         i++;
     }
-    const char* res = std__collections__string_builder__StringBuilder_to_str(&sb);
-    std__collections__string_builder__StringBuilder_delete(&sb);
-    return res;
+    {
+        const char* __ret_tmp = std__collections__string_builder__StringBuilder_to_str(&sb);
+        std__collections__string_builder__StringBuilder_delete(&sb);
+        return __ret_tmp;
+    }
 }
 
 lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri) {

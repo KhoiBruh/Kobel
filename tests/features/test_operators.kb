@@ -163,6 +163,7 @@ fn test_buffer_index_ops() {
 
 fn test_list_ops() {
 	var list = List<i32>();
+	defer list.delete();
 
 	// Test op plus_assign (+=)
 	list += 100;
@@ -179,12 +180,11 @@ fn test_list_ops() {
 	// Test op set ([] =)
 	list[1UZ] = 777;
 	assert_eq_i32(list[1UZ], 777, "list[1] after [] =");
-
-	list.delete();
 }
 
 fn test_hash_map_ops() {
 	var map = HashMap<i32>();
+	defer map.delete();
 
 	// Test op set: map[key] = val
 	map["apple"] = 100;
@@ -207,12 +207,11 @@ fn test_hash_map_ops() {
 	// Overwrite via [] =
 	map["apple"] = 999;
 	assert_eq_i32(*map["apple"], 999, "*map['apple'] after update");
-
-	map.delete();
 }
 
 fn test_hash_set_ops() {
 	var set = HashSet();
+	defer set.delete();
 
 	// Test op plus_assign: set += key
 	set += "alpha";
@@ -232,12 +231,11 @@ fn test_hash_set_ops() {
 		count++;
 	}
 	assert_eq_i32(count, 3, "HashSet iteration count == 3");
-
-	set.delete();
 }
 
 fn test_string_builder_ops() {
 	var sb = StringBuilder();
+	defer sb.delete();
 
 	// Test op plus_assign overloads: sb += str, sb += char, sb += i64, etc.
 	sb += "Hello";
@@ -255,8 +253,6 @@ fn test_string_builder_ops() {
 	// Test op set: sb[i] = 'h'
 	sb[0UZ] = 'h';
 	assert_true(sb[0UZ] == 'h', "sb[0] after set == 'h'");
-
-	sb.delete();
 }
 
 pub fn main() {

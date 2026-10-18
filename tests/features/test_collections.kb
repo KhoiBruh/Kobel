@@ -131,6 +131,7 @@ fn test_interpolation_and_formatting(): bool {
 
 fn test_hash_map(): bool {
 	var map: HashMap<i32> = HashMap<i32>();
+	defer map.delete();
 	if (!map.empty()) return false;
 
 	// Insert 60 items to test multiple resizes (cap 16 -> 32 -> 64 -> 128)
@@ -173,15 +174,18 @@ fn test_hash_map(): bool {
 	}
 
 	// Check keys() and values()
-	val ks = map.keys();
-	if (ks.len != 30UZ) return false;
-	ks.delete();
+	{
+		val ks = map.keys();
+		defer ks.delete();
+		if (ks.len != 30UZ) return false;
+	}
 
-	val vs = map.values();
-	if (vs.len != 30UZ) return false;
-	vs.delete();
+	{
+		val vs = map.values();
+		defer vs.delete();
+		if (vs.len != 30UZ) return false;
+	}
 
-	map.delete();
 	return true;
 }
 

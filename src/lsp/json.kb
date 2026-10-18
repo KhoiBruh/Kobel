@@ -175,10 +175,9 @@ impl JsonValue {
 
 	pub fn serialize(val self): str {
 		var sb = StringBuilder();
+		defer sb.delete();
 		self.serialize_to(&sb);
-		val res = sb.to_str();
-		sb.delete();
-		return res;
+		return sb.to_str();
 	}
 
 }
@@ -216,6 +215,7 @@ impl JsonParser {
 	pub fn parse_string(var self): str {
 		self.advance(); // Skip opening quote '"'
 		var sb = StringBuilder();
+		defer sb.delete();
 		while (!self.is_end()) {
 			val c = self.advance();
 			when (c) {
@@ -246,9 +246,7 @@ impl JsonParser {
 			}
 		}
 
-		val res = sb.to_str();
-		sb.delete();
-		return res;
+		return sb.to_str();
 	}
 
 	pub fn parse_number(var self): i64 {

@@ -77,6 +77,7 @@ fn eval_expr(node: *AstNode): i32 {
 
 fn test_expression_tree(): bool {
 	var arena = Arena(16384UZ);
+	defer arena.delete();
 
 	// Build: (10 + 20) * 3
 	val lit10 = arena.literal(LiteralKind.INT, "10", 1UZ, 2UZ);
@@ -84,8 +85,8 @@ fn test_expression_tree(): bool {
 	val add_expr = arena.binary(TokenType.PLUS, lit10, lit20, 1UZ, 5UZ);
 	val group_expr = arena.group(add_expr, 1UZ, 1UZ);
 
-	val lit3 = arena.literal(LiteralKind.INT, "3", 1UZ, 13UZ);
-	val mul_expr = arena.binary(TokenType.STAR, group_expr, lit3, 1UZ, 11UZ);
+	val lit3 = arena.literal(LiteralKind.INT, "3", 1UZ, 12UZ);
+	val mul_expr = arena.binary(TokenType.STAR, group_expr, lit3, 1UZ, 10UZ);
 
 	if (mul_expr.kind != NodeKind.EXPR_BINARY) return false;
 
@@ -104,12 +105,12 @@ fn test_expression_tree(): bool {
 	val val_result = eval_expr(mul_expr);
 	if (val_result != 90) return false;
 
-	arena.delete();
 	return true;
 }
 
 fn test_statement_nodes(): bool {
 	var arena = Arena(16384UZ);
+	defer arena.delete();
 
 	// var count: i32 = 42;
 	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1UZ, 12UZ);
@@ -145,12 +146,12 @@ fn test_statement_nodes(): bool {
 	if (ifs.condition.kind != NodeKind.EXPR_BINARY) return false;
 	if (ifs.then_branch.kind != NodeKind.STMT_BLOCK) return false;
 
-	arena.delete();
 	return true;
 }
 
 fn test_declaration_nodes(): bool {
 	var arena = Arena(16384UZ);
+	defer arena.delete();
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
@@ -186,12 +187,12 @@ fn test_declaration_nodes(): bool {
 	if (fn_d.params[0UZ].name != "a") return false;
 	if (fn_d.params[1UZ].name != "b") return false;
 
-	arena.delete();
 	return true;
 }
 
 fn test_program_iterable(): bool {
 	var arena = Arena();
+	defer arena.delete();
 	var decls = List<*AstNode>();
 	val d1 = arena.fn_decl("f1", List<GenericParam>(), List<Param>(), null, null, true, 1UZ, 1UZ);
 	val d2 = arena.fn_decl("f2", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
@@ -213,12 +214,12 @@ fn test_program_iterable(): bool {
 	}
 	if (count2 != 2UZ) return false;
 
-	arena.delete();
 	return true;
 }
 
 fn test_arena_ast_methods(): bool {
 	var arena = Arena();
+	defer arena.delete();
 
 	val lit_node = arena.literal(LiteralKind.INT, "123", 1UZ, 1UZ);
 	val lit = lit_node.to<LiteralExpr>();
@@ -259,7 +260,6 @@ fn test_arena_ast_methods(): bool {
 	if (bin_d.left.to<LiteralExpr>().raw_text != "456") return false;
 	if (bin_d.right.to<IdentifierExpr>().name != "y") return false;
 
-	arena.delete();
 	return true;
 }
 

@@ -97,6 +97,7 @@ fn test_range_bound_type(var t: &Tally, n: usz) {
 
 fn test_iter_list(var t: &Tally) {
 	var nums = List<i32>();
+	defer nums.delete();
 	nums.add(10);
 	nums.add(20);
 	nums.add(30);
@@ -114,7 +115,6 @@ fn test_iter_list(var t: &Tally) {
 	check(nums.len == 3UZ, "list must keep its length after the loop", t);
 	nums.add(40);
 	check(nums.len == 4UZ, "list must still be appendable after the loop", t);
-	nums.delete();
 }
 
 fn test_iter_str(var t: &Tally) {
@@ -175,11 +175,11 @@ fn test_break_continue(var t: &Tally) {
 // The loop variable is read-only and fresh on every iteration.
 fn test_loop_var_is_fresh(var t: &Tally) {
 	var sum = List<i32>();
+	defer sum.delete();
 	for (i in 0..3) sum += i;
 	val a = sum[0];
 	val b = sum[2];
 	check(a == 0 && b == 2, "loop variable must be fresh per iteration", t);
-	sum.delete();
 }
 
 // A generic function body containing `for` (exercises monomorphization + clone).
@@ -191,11 +191,11 @@ fn count_items<T>(xs: List<T>): i32 {
 
 fn test_generic_for(var t: &Tally) {
 	var nums = List<i32>();
+	defer nums.delete();
 	nums.add(5);
 	nums.add(6);
 	val n = count_items<i32>(nums);
 	check(n == 2, "generic function with for must count 2", t);
-	nums.delete();
 }
 
 // Half-open ranges: the end bound is excluded, so `0..<n` works for an empty
@@ -239,10 +239,12 @@ fn test_range_half_open(var t: &Tally) {
 // `0..<n` is the index-loop idiom: index any number of parallel containers.
 fn test_range_half_open_index(var t: &Tally) {
 	var nums = List<i32>();
+	defer nums.delete();
 	nums.add(10);
 	nums.add(20);
 	nums.add(30);
 	var rev = List<i32>();
+	defer rev.delete();
 	rev += 1;
 	rev += 2;
 	rev += 3;
@@ -255,9 +257,6 @@ fn test_range_half_open_index(var t: &Tally) {
 	}
 	check(sum == 66, "indexed half-open loop must sum both lists", t);
 	check(seps == 2, "indexed half-open loop must see i > 0 twice", t);
-
-	nums.delete();
-	rev.delete();
 }
 
 // Empty container: `0..<len` with len = 0 must not iterate at all (the closed
@@ -342,6 +341,7 @@ fn test_array_literal(var t: &Tally) {
 
 fn test_iter_string_builder(var t: &Tally) {
 	var sb = StringBuilder();
+	defer sb.delete();
 	sb.append_str("abc");
 	sb.append_i32(7);
 
@@ -356,11 +356,11 @@ fn test_iter_string_builder(var t: &Tally) {
 	check(count == 4, "StringBuilder iteration must run len times", t);
 	check(first == 'a', "StringBuilder iteration must start at the first char", t);
 	check(last == '7', "StringBuilder iteration must see appended digits", t);
-	sb.delete();
 }
 
 fn test_iter_struct_elements(var t: &Tally) {
 	var items = List<Bundle>();
+	defer items.delete();
 	items.add(Bundle("one", 1));
 	items.add(Bundle("two", 2));
 
@@ -372,7 +372,6 @@ fn test_iter_struct_elements(var t: &Tally) {
 	}
 	check(count == 2, "List<struct> iteration must run twice", t);
 	check(ids == 3, "List<struct> iteration must yield whole elements", t);
-	items.delete();
 }
 
 // A `for` over a container that lives in a field goes through the same path.
@@ -382,13 +381,13 @@ struct Bag {
 
 fn test_iter_list_field(var t: &Tally) {
 	var bag = Bag(List<i32>());
+	defer bag.items.delete();
 	bag.items.add(4);
 	bag.items.add(5);
 
 	var sum: i32 = 0;
 	for (n in bag.items) sum = sum + n;
 	check(sum == 9, "iteration over a List field", t);
-	bag.items.delete();
 }
 
 // ============================================================================

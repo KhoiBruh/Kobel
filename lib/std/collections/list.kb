@@ -13,9 +13,9 @@ use std.traits.iterable.Iterable;
 
 	Usage:
 		var list = List<i32>();
+		defer list.delete();
 		list += 42;
 		val x = list[0];
-		list.delete();
 */
 
 // `cap` is private: another module cannot build a List from its fields and must

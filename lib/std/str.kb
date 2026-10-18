@@ -21,13 +21,12 @@ struct StrRaw {
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
 	val r = alloc<StrRaw>();
+	defer release<StrRaw>(r);
 	r.data = buf as *char;
 	r.len = len;
 	r.cap = len + 1;
 	val sp: *str = r as *str;
-	val res: str = *sp;
-	release<StrRaw>(r);
-	return res;
+	return *sp;
 }
 
 impl str {

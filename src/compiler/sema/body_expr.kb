@@ -901,22 +901,21 @@ impl BodyPass {
 	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body);
 		self.symtab.enter_scope(false);
+		defer self.symtab.exit_scope();
 		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
-		val body_ty = self.check_when_arm_body(body);
-		self.symtab.exit_scope();
-		return body_ty;
+		return self.check_when_arm_body(body);
 	}
 
 	pub fn check_when_arm_body(var self, body: *AstNode): *Type {
 		if (body is BlockStmt as blk) {
 			var yield_ty: *Type = null;
 			self.symtab.enter_scope(false);
+			defer self.symtab.exit_scope();
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
 					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.t_none();
 				} else self.check_statement(stmt);
 			}
-			self.symtab.exit_scope();
 			if (yield_ty == null) {
 				self.report_error(body, "When arm block must yield a value");
 				return self.t_none();

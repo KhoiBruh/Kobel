@@ -13,11 +13,12 @@ use std.str.str_from_bytes;
 use std.mem.alloc.alloc_array;
 
 fn test_keywords(): bool {
-	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for";
+	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for defer";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
-	if (tokens.len != 24UZ) {
+	if (tokens.len != 25UZ) {
 		println("  [ERR] Keyword token count mismatch");
 		return false;
 	}
@@ -45,9 +46,9 @@ fn test_keywords(): bool {
 	if (tokens[20UZ].type != TokenType.KW_TRAIT) return false;
 	if (tokens[21UZ].type != TokenType.KW_IMPL) return false;
 	if (tokens[22UZ].type != TokenType.KW_FOR) return false;
-	if (tokens[23UZ].type != TokenType.END_OF_FILE) return false;
+	if (tokens[23UZ].type != TokenType.KW_DEFER) return false;
+	if (tokens[24UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -55,6 +56,7 @@ fn test_operators(): bool {
 	val code: str = "= == => + - -> * / % < <= > >= ! != && || : ; , . [ ] ( ) { } &";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens[0UZ].type != TokenType.EQUAL) return false;
 	if (tokens[1UZ].type != TokenType.EQUAL_EQUAL) return false;
@@ -86,7 +88,6 @@ fn test_operators(): bool {
 	if (tokens[27UZ].type != TokenType.AMPERSAND) return false;
 	if (tokens[28UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -94,6 +95,7 @@ fn test_literals(): bool {
 	val code: str = "123 45.67 \"hello world\" 'a' '\\n'";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 6UZ) return false;
 
@@ -115,7 +117,6 @@ fn test_literals(): bool {
 	val t5: Token = tokens[5UZ];
 	if (t5.type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -123,6 +124,7 @@ fn test_multiline_string_lexer(): bool {
 	val code: str = "\"\"\"\nhello\nworld\n\"\"\" \"\"\"single\"\"\" \"\"\"\"\"\"";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 4UZ) return false;
 	if (tokens[0UZ].type != TokenType.STRING) return false;
@@ -136,7 +138,6 @@ fn test_multiline_string_lexer(): bool {
 
 	if (tokens[3UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -144,6 +145,7 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 	val code: str = "0xFF 0b1010 0o77 1_000_000 100L 50U 10_000_US 3.14F 2.5D";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 10UZ) return false;
 
@@ -158,7 +160,6 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 	if (tokens[8UZ].type != TokenType.NUMBER || tokens[8UZ].text != "2.5D") return false;
 	if (tokens[9UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -166,6 +167,7 @@ fn test_comments_and_whitespace(): bool {
 	val code: str = "val a = 1; // single line comment\nval b = 2; /* multi\nline\ncomment */ val c = 3;";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 16UZ) return false;
 
@@ -189,7 +191,6 @@ fn test_comments_and_whitespace(): bool {
 
 	if (tokens[15UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -197,6 +198,7 @@ fn test_line_col_tracking(): bool {
 	val code: str = "val x = 1;\nval y = 2;";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	val t0: Token = tokens[0UZ];
 	if (t0.text != "val" || t0.line != 1UZ || t0.col != 1UZ) return false;
@@ -204,7 +206,6 @@ fn test_line_col_tracking(): bool {
 	val t5: Token = tokens[5UZ];
 	if (t5.text != "val" || t5.line != 2UZ || t5.col != 1UZ) return false;
 
-	tokens.delete();
 	return true;
 }
 
@@ -220,6 +221,7 @@ fn test_bom_prefix(): bool {
 
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 6UZ) {
 		println("  [ERR] BOM-prefixed source: wrong token count");
@@ -230,7 +232,6 @@ fn test_bom_prefix(): bool {
 		return false;
 	}
 
-	tokens.delete();
 	return true;
 }
 
@@ -238,6 +239,7 @@ fn test_question_operators(): bool {
 	val code: str = "? ?: ?.";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
+	defer tokens.delete();
 
 	if (tokens.len != 4UZ) return false;
 	if (tokens[0UZ].type != TokenType.QUESTION) return false;
@@ -245,7 +247,6 @@ fn test_question_operators(): bool {
 	if (tokens[2UZ].type != TokenType.QUESTION_DOT) return false;
 	if (tokens[3UZ].type != TokenType.END_OF_FILE) return false;
 
-	tokens.delete();
 	return true;
 }
 

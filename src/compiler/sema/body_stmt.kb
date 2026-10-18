@@ -32,8 +32,8 @@ impl BodyPass {
 	pub fn check_block_stmt(var self, node: *AstNode) {
 		val blk = node.to<BlockStmt>();
 		self.symtab.enter_scope(false);
+		defer self.symtab.exit_scope();
 		for (stmt in blk.statements) self.check_statement(stmt);
-		self.symtab.exit_scope();
 	}
 
 	pub fn check_var_decl_stmt(var self, node: *AstNode) {
@@ -177,7 +177,9 @@ impl BodyPass {
 		val conds = self.collect_and_conditions(wh.condition);
 
 		self.loop_depth++;
+		defer self.loop_depth--;
 		self.symtab.enter_scope(false);
+		defer self.symtab.exit_scope();
 
 		for (c in conds) {
 			val c_ty = self.check_expr(c);
@@ -190,8 +192,6 @@ impl BodyPass {
 		}
 
 		self.check_statement(wh.body);
-		self.symtab.exit_scope();
-		self.loop_depth--;
 	}
 
 	pub fn check_for_stmt(var self, node: *AstNode) {

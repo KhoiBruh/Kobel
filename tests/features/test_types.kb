@@ -254,16 +254,20 @@ fn test_generic_trait_impl(var t: &Tally) {
 // --- 12. std.List built through the New trait -------------------------------
 
 fn test_list_ctor(var t: &Tally) {
-	var xs = List<i32>();
-	check_i(xs.len, 0, "List<i32>() starts empty", t);
-	xs += 7;
-	check_i(xs.len, 1, "List<i32>() is usable", t);
-	check_i(xs[0], 7, "List<i32>() holds the value", t);
-	xs.delete();
+	{
+		var xs = List<i32>();
+		defer xs.delete();
+		check_i(xs.len, 0, "List<i32>() starts empty", t);
+		xs += 7;
+		check_i(xs.len, 1, "List<i32>() is usable", t);
+		check_i(xs[0], 7, "List<i32>() holds the value", t);
+	}
 
-	var ys = List<i32>(16UZ);
-	check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
-	ys.delete();
+	{
+		var ys = List<i32>(16UZ);
+		defer ys.delete();
+		check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
+	}
 }
 
 // --- 13. std types built through New ---------------------------------------
@@ -272,27 +276,35 @@ fn test_list_ctor(var t: &Tally) {
 // fields mean this is the only way to build them from another module.
 
 fn test_std_ctors(var t: &Tally) {
-	var a = Arena(4096UZ);
-	val p = a.alloc<i32>();
-	*p = 7;
-	check_i(*p, 7, "Arena(block_size) + a.alloc<T>", t);
-	val p2 = a.alloc_val<i32>(42);
-	check_i(*p2, 42, "a.alloc_val<T>(value)", t);
-	a.delete();
+	{
+		var a = Arena(4096UZ);
+		defer a.delete();
+		val p = a.alloc<i32>();
+		*p = 7;
+		check_i(*p, 7, "Arena(block_size) + a.alloc<T>", t);
+		val p2 = a.alloc_val<i32>(42);
+		check_i(*p2, 42, "a.alloc_val<T>(value)", t);
+	}
 
-	var dflt = Arena();
-	dflt.delete();
+	{
+		var dflt = Arena();
+		defer dflt.delete();
+	}
 
-	var m = HashMap<i32>();
-	m.put("k", 5);
-	check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
-	m.delete();
+	{
+		var m = HashMap<i32>();
+		defer m.delete();
+		m.put("k", 5);
+		check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
+	}
 
-	var sb = StringBuilder();
-	sb.append_str("hi");
-	sb.append_i32(42);
-	check_str(sb.to_str(), "hi42", "StringBuilder() ctor", t);
-	sb.delete();
+	{
+		var sb = StringBuilder();
+		defer sb.delete();
+		sb.append_str("hi");
+		sb.append_i32(42);
+		check_str(sb.to_str(), "hi42", "StringBuilder() ctor", t);
+	}
 }
 
 

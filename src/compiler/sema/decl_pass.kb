@@ -300,6 +300,9 @@ impl DeclPass {
 	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.make<YieldStmt>(YieldStmt.TAG, YieldStmt(value), line, col);
 
+	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz): *AstNode
+		=> self.arena.make<DeferStmt>(DeferStmt.TAG, DeferStmt(body), line, col);
+
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
 		=> self.arena.make<ModuleDecl>(ModuleDecl.TAG, ModuleDecl(path, full_path), line, col);
 

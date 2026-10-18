@@ -578,25 +578,25 @@ fn test_in_operator(): bool {
 
 	// 2. in List<str>
 	var list = List<str>();
+	defer list.delete();
 	list.add("foo");
 	list.add("bar");
 	if ("foo" !in list) return false;
 	if ("baz" in list) return false;
-	list.delete();
 
 	// 3. in HashMap
 	var map = HashMap<i32>();
+	defer map.delete();
 	map["k1"] = 10;
 	if ("k1" !in map) return false;
 	if ("k2" in map) return false;
-	map.delete();
 
 	// 4. in HashSet
 	var set = HashSet();
+	defer set.delete();
 	set.add("alpha");
 	if ("alpha" !in set) return false;
 	if ("beta" in set) return false;
-	set.delete();
 
 	return true;
 }

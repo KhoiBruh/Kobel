@@ -34,19 +34,20 @@ fn test_ascii(): bool {
 
 fn test_arena(): bool {
 	var arena: Arena = Arena(1024UZ);
+	defer arena.delete();
 	val p1: &u8 = arena.alloc_bytes(64UZ, 8UZ);
 	val p2: &u8 = arena.alloc_bytes(128UZ, 8UZ);
 	if (p1 == null || p2 == null) return false;
 	arena.reset();
 	val p3: &u8 = arena.alloc_bytes(32UZ, 8UZ);
 	if (p3 == null) return false;
-	arena.delete();
 	return true;
 }
 
 fn test_collections(): bool {
 	// 1. List
 	var list: List<i32> = List<i32>();
+	defer list.delete();
 	list += 10;
 	list += 20;
 	list += 30;
@@ -61,30 +62,33 @@ fn test_collections(): bool {
 	if (rem != 15 || list.len != 3UZ || list[1UZ] != 20) return false;
 
 	// test clone
-	var cloned = list.clone();
-	if (cloned.len != 3UZ || cloned[2UZ] != 30) return false;
-	cloned.delete();
+	{
+		var cloned = list.clone();
+		defer cloned.delete();
+		if (cloned.len != 3UZ || cloned[2UZ] != 30) return false;
+	}
 
 	val pop_val: i32 = list.pop();
 	if (pop_val != 30 || list.len != 2UZ) return false;
 
 	// test extend, in/contains, index_of, remove, reverse, pop_or
-	var ext_list = List<i32>();
-	ext_list += 40;
-	ext_list += 50;
-	list.extend(ext_list); // [10, 20, 40, 50]
-	if (list.len != 4UZ || !(40 in list) || list.contains(99)) return false;
-	if (list.index_of(40) != 2 || list.index_of(99) != -1) return false;
-	if (!list.remove(40) || (40 in list) || list.len != 3UZ) return false;
-	list.reverse(); // [50, 20, 10]
-	if (list[0UZ] != 50 || list[2UZ] != 10) return false;
-	if (list.pop_or(0) != 10) return false;
-	ext_list.delete();
-
-	list.delete();
+	{
+		var ext_list = List<i32>();
+		defer ext_list.delete();
+		ext_list += 40;
+		ext_list += 50;
+		list.extend(ext_list); // [10, 20, 40, 50]
+		if (list.len != 4UZ || !(40 in list) || list.contains(99)) return false;
+		if (list.index_of(40) != 2 || list.index_of(99) != -1) return false;
+		if (!list.remove(40) || (40 in list) || list.len != 3UZ) return false;
+		list.reverse(); // [50, 20, 10]
+		if (list[0UZ] != 50 || list[2UZ] != 10) return false;
+		if (list.pop_or(0) != 10) return false;
+	}
 
 	// 2. HashMap
 	var map: HashMap<i32> = HashMap<i32>();
+	defer map.delete();
 	if (!map.empty() || map.count() != 0UZ) return false;
 
 	map.put("first", 100);
@@ -113,13 +117,17 @@ fn test_collections(): bool {
 	if (p_first_upd == null || *p_first_upd != 101) return false;
 
 	// test keys and values
-	val all_keys = map.keys();
-	if (all_keys.len != 3UZ) return false;
-	all_keys.delete();
+	{
+		val all_keys = map.keys();
+		defer all_keys.delete();
+		if (all_keys.len != 3UZ) return false;
+	}
 
-	val all_vals = map.values();
-	if (all_vals.len != 3UZ) return false;
-	all_vals.delete();
+	{
+		val all_vals = map.values();
+		defer all_vals.delete();
+		if (all_vals.len != 3UZ) return false;
+	}
 
 	// test remove
 	if (!map.remove("second")) return false;
@@ -132,66 +140,75 @@ fn test_collections(): bool {
 	map.clear();
 	if (!map.empty() || map.len != 0UZ) return false;
 	if ("first" in map || "third" in map) return false;
-	map.delete();
 
 	// 3. StringBuilder
-	var sb: StringBuilder = StringBuilder();
-	if (!sb.empty()) return false;
-	sb += "Kobel";
-	if (sb.empty()) return false;
-	if (sb.last_char() != 'l') return false;
-	sb += ' ';
-	sb += "Compiler v";
-	sb += 1;
-	sb += " ";
-	sb += true;
-	sb.append_line("!");
-	val result_str: str = sb.to_str();
-	if (result_str != "Kobel Compiler v1 true!\n") return false;
-	if (sb.last_char() != '\n') return false;
-	sb.delete();
+	{
+		var sb: StringBuilder = StringBuilder();
+		defer sb.delete();
+		if (!sb.empty()) return false;
+		sb += "Kobel";
+		if (sb.empty()) return false;
+		if (sb.last_char() != 'l') return false;
+		sb += ' ';
+		sb += "Compiler v";
+		sb += 1;
+		sb += " ";
+		sb += true;
+		sb.append_line("!");
+		val result_str: str = sb.to_str();
+		if (result_str != "Kobel Compiler v1 true!\n") return false;
+		if (sb.last_char() != '\n') return false;
+	}
 
 	// 4. append_repeat / append_escaped
-	var sb2: StringBuilder = StringBuilder();
-	sb2.append_repeat(' ', 3UZ);
-	sb2.append_str("x");
-	sb2.append_escaped("a\"b\\c\nd");
-	if (sb2.to_str() != "   xa\\\"b\\\\c\\nd") return false;
-	sb2.clear();
-	sb2.append_repeat('x', 100UZ);
-	if (sb2.len != 100UZ || sb2.last_char() != 'x') return false;
-	sb2.delete();
+	{
+		var sb2: StringBuilder = StringBuilder();
+		defer sb2.delete();
+		sb2.append_repeat(' ', 3UZ);
+		sb2.append_str("x");
+		sb2.append_escaped("a\"b\\c\nd");
+		if (sb2.to_str() != "   xa\\\"b\\\\c\\nd") return false;
+		sb2.clear();
+		sb2.append_repeat('x', 100UZ);
+		if (sb2.len != 100UZ || sb2.last_char() != 'x') return false;
+	}
 
 	// 5. HashSet
-	var set: HashSet = HashSet();
-	if (!set.empty() || set.count() != 0UZ) return false;
-	if (!set.add("apple")) return false;
-	if (!set.add("banana")) return false;
-	if (set.add("apple")) return false;
-	if (set.len != 2UZ || !("apple" in set) || !("banana" in set)) return false;
-	if ("orange" in set) return false;
-	val set_list = set.to_list();
-	if (set_list.len != 2UZ) return false;
-	set_list.delete();
-	if (!set.remove("apple")) return false;
-	if ("apple" in set) return false;
-	if (set.len != 1UZ) return false;
-	set.clear();
-	if (!set.empty() || set.len != 0UZ) return false;
-	set.delete();
+	{
+		var set: HashSet = HashSet();
+		defer set.delete();
+		if (!set.empty() || set.count() != 0UZ) return false;
+		if (!set.add("apple")) return false;
+		if (!set.add("banana")) return false;
+		if (set.add("apple")) return false;
+		if (set.len != 2UZ || !("apple" in set) || !("banana" in set)) return false;
+		if ("orange" in set) return false;
+		{
+			val set_list = set.to_list();
+			defer set_list.delete();
+			if (set_list.len != 2UZ) return false;
+		}
+		if (!set.remove("apple")) return false;
+		if ("apple" in set) return false;
+		if (set.len != 1UZ) return false;
+		set.clear();
+		if (!set.empty() || set.len != 0UZ) return false;
+	}
 
 	// 6. str.replace_char & str.join
 	val orig_path = "a.b.c";
 	if (orig_path.replace_char('.', '/') != "a/b/c") return false;
-	var parts = List<str>();
-	parts.add("hello");
-	parts.add("world");
-	parts.add("kobel");
-	val joined = ", ".join(parts);
-	if (joined != "hello, world, kobel") return false;
-	val dot_joined = ".".join(parts);
-	if (dot_joined != "hello.world.kobel") return false;
-	parts.delete();
+	{
+		var parts = List<str>();
+		defer parts.delete();
+		parts.add("hello");
+		parts.add("world");
+		parts.add("kobel");
+		val joined = ", ".join(parts);
+		if (joined != "hello, world, kobel") return false;
+		val dot_joined = ".".join(parts);
+		if (dot_joined != "hello.world.kobel") return false;
+	}
 
 	return true;
 }

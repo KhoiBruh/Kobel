@@ -719,6 +719,11 @@ impl DeclPass {
 				yield self.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
 			}
 
+			is DeferStmt as d -> self.defer_stmt(
+				self.clone_stmt(d.body, subst),
+				node.line, node.col
+			);
+
 			else -> null;
 		};
 	}
@@ -1002,6 +1007,7 @@ impl DeclPass {
 				yield true;
 			}
 			is YieldStmt as y -> self.rewrite_child(y.value),
+			is DeferStmt as d -> self.rewrite_child(d.body),
 			is WhenStmt as w -> {
 				self.rewrite_generics(w.condition);
 				for (arm in w.arms) {
