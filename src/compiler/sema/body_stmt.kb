@@ -77,11 +77,9 @@ impl BodyPass {
 		var smart_cast_mut = false;
 
 		val cond = self.unwrap_group(if_s.condition);
-		if (cond != null && cond.kind == NodeKind.EXPR_IS) {
-			val is_e = cond.to<IsExpr>();
+		if (cond is IsExpr as is_e) {
 			val is_expr = is_e.expr;
-			if (is_expr != null && is_expr.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = is_expr.to<IdentifierExpr>();
+			if (is_expr is IdentifierExpr as id) {
 				val subj_sym = self.symtab.lookup(id.name);
 				if (subj_sym != null) {
 					smart_cast_ty = self.check_is_pattern(is_e.expr, subj_sym.type_ptr, cond);

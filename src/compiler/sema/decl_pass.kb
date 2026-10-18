@@ -327,9 +327,8 @@ impl DeclPass {
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
 		if (node == null) return self.t_none();
 
-		return when (node.kind) {
-			NodeKind.TYPE_NAMED -> {
-				val named = node.to<NamedType>() as &NamedType;
+		return when (node) {
+			is NamedType as var named -> {
 				val name = named.name;
 
 				if (name == "Self" && self.current_self_type != null) {
@@ -364,18 +363,15 @@ impl DeclPass {
 				self.report_error(node, "Unknown type '${name}'");
 				yield self.t_none();
 			}
-			NodeKind.TYPE_POINTER -> {
-				val ptr_ast = node.to<PointerType>();
+			is PointerType as ptr_ast -> {
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
 				yield self.arena.pointer_type(pointee, ptr_ast.is_mut);
 			}
-			NodeKind.TYPE_ARRAY -> {
-				val arr_ast = node.to<ArrayType>();
+			is ArrayType as arr_ast -> {
 				val elem = self.resolve_ast_type(arr_ast.element_type);
 				yield self.arena.array_type(elem, arr_ast.size);
 			}
-			NodeKind.TYPE_NULLABLE -> {
-				val null_ast = node.to<NullableType>();
+			is NullableType as null_ast -> {
 				val inner_ty = self.resolve_ast_type(null_ast.inner);
 				var res_ty = inner_ty;
 				if (inner_ty.kind == DataType.POINTER) {
@@ -535,87 +531,85 @@ impl DeclPass {
 	}
 
 	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
-		if (f.body == null || f.body.kind != NodeKind.STMT_EXPR) return null;
-		val es = f.body.to<ExprStmt>();
-		val expr = es.expr ?: return null;
+		val body = f.body;
+		if (body is ExprStmt as es) {
+			val expr = es.expr;
+			if (expr == null) return null;
 
-		if (expr.kind == NodeKind.EXPR_LITERAL) {
-			val lit = expr.to<LiteralExpr>();
-			when (lit.literal_kind) {
-				LiteralKind.INT -> {
-					val p_type = int_literal_type(&self.arena, lit.raw_text);
-					f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
-					return p_type;
-				}
-				LiteralKind.FLOAT -> {
-					val raw = lit.raw_text;
-					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
-					if (is_f32) {
-						f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
-						return self.t_prim(type_f32());
+			if (expr is LiteralExpr as lit) {
+				when (lit.literal_kind) {
+					LiteralKind.INT -> {
+						val p_type = int_literal_type(&self.arena, lit.raw_text);
+						f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
+						return p_type;
 					}
-					f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
-					return self.t_prim(type_f64());
-				}
-				LiteralKind.BOOL -> {
-					f.return_type = self.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
-					return self.t_bool();
-				}
-				LiteralKind.STRING -> {
-					f.return_type = self.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
-					return self.t_str();
-				}
-				LiteralKind.CHAR -> {
-					f.return_type = self.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
-					return self.t_char();
-				}
-				else -> {}
-			}
-		}
-
-		if (expr.kind == NodeKind.EXPR_MEMBER) {
-			val mem = expr.to<MemberExpr>();
-			if (mem.object != null && mem.object.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = mem.object.to<IdentifierExpr>();
-				val sym = self.symtab.lookup(id.name);
-				if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
-					val ei = sym.type_ptr.as_enum();
-					if (ei.find_member(mem.member) != null) {
-						f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
-						return sym.type_ptr;
+					LiteralKind.FLOAT -> {
+						val raw = lit.raw_text;
+						val is_f32 = raw.ends_with("f") || raw.ends_with("F");
+						if (is_f32) {
+							f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
+							return self.t_prim(type_f32());
+						}
+						f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
+						return self.t_prim(type_f64());
 					}
+					LiteralKind.BOOL -> {
+						f.return_type = self.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
+						return self.t_bool();
+					}
+					LiteralKind.STRING -> {
+						f.return_type = self.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
+						return self.t_str();
+					}
+					LiteralKind.CHAR -> {
+						f.return_type = self.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
+						return self.t_char();
+					}
+					else -> {}
 				}
 			}
-		}
 
-		if (expr.kind == NodeKind.EXPR_UPDATE) {
-			val u = expr.to<UpdateExpr>();
-			if (u.target.kind == NodeKind.EXPR_IDENTIFIER) {
-				val id = u.target.to<IdentifierExpr>();
-				for (p in f.params) {
-					if (p.name == id.name && p.type_node != null) {
-						f.return_type = p.type_node;
-						return self.resolve_ast_type(p.type_node);
+			if (expr is MemberExpr as mem) {
+				val mem_obj = mem.object;
+				if (mem_obj is IdentifierExpr as id) {
+					val sym = self.symtab.lookup(id.name);
+					if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
+						val ei = sym.type_ptr.as_enum();
+						if (ei.find_member(mem.member) != null) {
+							f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
+							return sym.type_ptr;
+						}
 					}
 				}
 			}
-			if (u.target.kind == NodeKind.EXPR_MEMBER) {
-				val mem = u.target.to<MemberExpr>();
-				if (
-					mem.object.kind == NodeKind.EXPR_IDENTIFIER &&
-					mem.object.to<IdentifierExpr>().name == "self"
-				) {
-					if (
-						self.current_self_type != null &&
-						self.current_self_type.kind == DataType.STRUCT
-					) {
-						val s_info = self.current_self_type.as_struct();
-						for (fld in s_info.fields) {
-							if (fld.name == mem.member) {
-								val tname = primitive_type_name(fld.type_ptr);
-								if (tname != "none") {
-									f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
-									return fld.type_ptr;
+
+			if (expr is UpdateExpr as u) {
+				val u_tgt = u.target;
+				if (u_tgt is IdentifierExpr as id) {
+					for (p in f.params) {
+						if (p.name == id.name && p.type_node != null) {
+							f.return_type = p.type_node;
+							return self.resolve_ast_type(p.type_node);
+						}
+					}
+				}
+				if (u_tgt is MemberExpr as mem) {
+					val mem_obj = mem.object;
+					if (mem_obj is IdentifierExpr as obj_id) {
+						if (obj_id.name == "self") {
+							if (
+								self.current_self_type != null &&
+								self.current_self_type.kind == DataType.STRUCT
+							) {
+								val s_info = self.current_self_type.as_struct();
+								for (fld in s_info.fields) {
+									if (fld.name == mem.member) {
+										val tname = primitive_type_name(fld.type_ptr);
+										if (tname != "none") {
+											f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
+											return fld.type_ptr;
+										}
+									}
 								}
 							}
 						}

@@ -200,13 +200,12 @@ pub fn c_format_float_literal(raw: str): str {
 // ============================================================================
 
 pub fn expr_needs_parens_for_member(node: *AstNode): bool {
-	if (node == null) return false;
-	return when (node.kind) {
-		NodeKind.EXPR_IDENTIFIER,
-		NodeKind.EXPR_MEMBER,
-		NodeKind.EXPR_CALL,
-		NodeKind.EXPR_INDEX,
-		NodeKind.EXPR_GROUP -> false;
+	return when (node) {
+		is IdentifierExpr,
+		is MemberExpr,
+		is CallExpr,
+		is IndexExpr,
+		is GroupExpr -> false;
 		else -> true;
 	};
 }
@@ -223,12 +222,8 @@ impl CCodeGen {
 
 			is GroupExpr -> {
 				val inner = self.gen_expr(node.expr);
-				if (
-					node.expr != null && (
-						node.expr.kind == NodeKind.EXPR_BINARY ||
-						node.expr.kind == NodeKind.EXPR_GROUP
-					)
-				) yield inner;
+				val ne = node.expr;
+				if (ne is BinaryExpr || ne is GroupExpr) yield inner;
 				yield "(${inner})";
 			}
 

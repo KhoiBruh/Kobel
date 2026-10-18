@@ -94,34 +94,35 @@ impl GenTemplate {
 impl DeclPass {
 
 	pub fn register_template(var self, node: *AstNode) {
-		when (node.kind) {
-			NodeKind.DECL_STRUCT -> {
-				val s = node.to<StructDecl>();
+		val cur = node;
+		when (cur) {
+			is StructDecl as s -> {
 				if (s.type_params.len > 0) self.symtab.gen.struct_templates += self.gen_template(s.name, node, false);
 			}
-			NodeKind.DECL_FN -> {
-				val f = node.to<FnDecl>();
+			is FnDecl as f -> {
 				if (f.type_params.len > 0) self.symtab.gen.fn_templates += self.gen_template(f.name, node, false);
 			}
-			NodeKind.DECL_IMPL -> {
-				val im = node.to<ImplDecl>();
+			is ImplDecl as im -> {
 				if (im.type_params.len > 0) {
 					self.symtab.gen.impl_templates += self.gen_template(im.struct_name, node, true);
 				} else {
 					for (m in im.methods) {
-						val f = m.to<FnDecl>() as &FnDecl;
-						if (f.type_params.len > 0) {
-							for (i in 0..<f.params.len) {
-								val p = f.params[i];
-								if (p.name == "self" && p.type_node == null) {
-									val prim = resolve_primitive_name(&self.arena, im.struct_name);
-									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
-									val self_ty_node = if (prim != null) named
-										else self.pointer_type(p.is_mut, named, m.line, m.col);
-									f.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
+						val mf = m;
+						if (mf is FnDecl as f) {
+							if (f.type_params.len > 0) {
+								val f_mut = f as &FnDecl;
+								for (i in 0..<f.params.len) {
+									val p = f.params[i];
+									if (p.name == "self" && p.type_node == null) {
+										val prim = resolve_primitive_name(&self.arena, im.struct_name);
+										val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
+										val self_ty_node = if (prim != null) named
+											else self.pointer_type(p.is_mut, named, m.line, m.col);
+										f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
+									}
 								}
+								self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
 							}
-							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
 						}
 					}
 				}
@@ -397,9 +398,9 @@ impl DeclPass {
 
 	pub fn clone_type(var self, node: *AstNode, subst: *GenSubst): *AstNode {
 		if (node == null) return null;
-		return when (node.kind) {
-			NodeKind.TYPE_NAMED -> {
-				val nt = node.to<NamedType>();
+		val target = node;
+		return when (target) {
+			is NamedType as nt -> {
 				val sa = subst?.lookup(nt.name);
 				if (sa != null) yield self.clone_type(sa as *AstNode, null);
 
@@ -417,16 +418,13 @@ impl DeclPass {
 				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
 				yield self.named_type(nt.name, targs, node.line, node.col);
 			}
-			NodeKind.TYPE_POINTER -> {
-				val pt = node.to<PointerType>();
+			is PointerType as pt -> {
 				yield self.pointer_type(pt.is_mut, self.clone_type(pt.pointee, subst), node.line, node.col);
 			}
-			NodeKind.TYPE_ARRAY -> {
-				val at = node.to<ArrayType>();
+			is ArrayType as at -> {
 				yield self.array_type(self.clone_type(at.element_type, subst), at.size, node.line, node.col);
 			}
-			NodeKind.TYPE_NULLABLE -> {
-				val nt = node.to<NullableType>();
+			is NullableType as nt -> {
 				yield self.nullable_type(self.clone_type(nt.inner, subst), node.line, node.col);
 			}
 			else -> self.named_type("none", List<*AstNode>(), node.line, node.col);
@@ -443,17 +441,15 @@ impl DeclPass {
 			node.kind == NodeKind.STMT_BLOCK
 		) return self.clone_stmt(node, subst);
 
-		return when (node.kind) {
-			NodeKind.EXPR_LITERAL -> {
-				val l = node.to<LiteralExpr>();
+		val target = node;
+		return when (target) {
+			is LiteralExpr as l -> {
 				yield self.literal(l.literal_kind, l.raw_text, node.line, node.col);
 			}
-			NodeKind.EXPR_IDENTIFIER -> {
-				val id = node.to<IdentifierExpr>();
+			is IdentifierExpr as id -> {
 				yield self.identifier(id.name, node.line, node.col);
 			}
-			NodeKind.EXPR_BINARY -> {
-				val b = node.to<BinaryExpr>();
+			is BinaryExpr as b -> {
 				yield self.binary(
 					b.op,
 					self.clone_expr(b.left, subst),
@@ -461,28 +457,24 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_UNARY -> {
-				val u = node.to<UnaryExpr>();
+			is UnaryExpr as u -> {
 				yield self.unary(u.op, self.clone_expr(u.operand, subst), node.line, node.col);
 			}
-			NodeKind.EXPR_CALL -> self.clone_call_expr(node, subst);
-			NodeKind.EXPR_MEMBER -> {
-				val m = node.to<MemberExpr>();
+			is CallExpr -> self.clone_call_expr(node, subst);
+			is MemberExpr as m -> {
 				yield if (m.is_safe)
 					self.safe_member(self.clone_expr(m.object, subst), m.member, node.line, node.col)
 				else
 					self.member(self.clone_expr(m.object, subst), m.member, node.line, node.col);
 			}
-			NodeKind.EXPR_INDEX -> {
-				val ix = node.to<IndexExpr>();
+			is IndexExpr as ix -> {
 				yield self.index(
 					self.clone_expr(ix.target, subst),
 					self.clone_expr(ix.index, subst),
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_ASSIGN -> {
-				val a = node.to<AssignExpr>();
+			is AssignExpr as a -> {
 				yield self.compound_assign(
 					a.op,
 					self.clone_expr(a.target, subst),
@@ -490,28 +482,24 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_UPDATE -> {
-				val u = node.to<UpdateExpr>();
+			is UpdateExpr as u -> {
 				yield self.update(
 					u.op,
 					self.clone_expr(u.target, subst),
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_CAST -> {
-				val cst = node.to<CastExpr>();
+			is CastExpr as cst -> {
 				yield self.cast(
 					self.clone_expr(cst.expr, subst),
 					self.clone_type(cst.target_type, subst),
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_GROUP -> {
-				val g = node.to<GroupExpr>();
+			is GroupExpr as g -> {
 				yield self.group(self.clone_expr(g.expr, subst), node.line, node.col);
 			}
-			NodeKind.EXPR_IF -> {
-				val ie = node.to<IfExpr>();
+			is IfExpr as ie -> {
 				yield self.if_expr(
 					self.clone_expr(ie.condition, subst),
 					self.clone_expr(ie.then_branch, subst),
@@ -519,8 +507,7 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_ARRAY_LITERAL -> {
-				val al = node.to<ArrayLiteralExpr>();
+			is ArrayLiteralExpr as al -> {
 				yield self.list_literal(
 					self.clone_expr_list(al.elements, subst),
 					al.list_struct_name,
@@ -528,14 +515,12 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.EXPR_WHEN -> {
+			is WhenExpr as we -> {
 				val arms = self.clone_when_arms(node, subst);
-				val we = node.to<WhenExpr>();
 				yield self.when_expr(self.clone_expr(we.condition, subst), arms, node.line, node.col);
 			}
-			NodeKind.EXPR_INTERP -> self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
-			NodeKind.EXPR_IS -> {
-				val is_e = node.to<IsExpr>();
+			is InterpExpr -> self.interp(self.clone_interp_parts(node, subst), node.line, node.col);
+			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
 				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
 				if (!is_e.alias.empty()) {
@@ -581,8 +566,8 @@ impl DeclPass {
 		val c = node.to<CallExpr>();
 		if (c.type_args.len == 0) return null;
 
-		if (c.callee.kind == NodeKind.EXPR_MEMBER) {
-			val mem = c.callee.to<MemberExpr>();
+		val callee = c.callee;
+		if (callee is MemberExpr as mem) {
 			val ft = self.find_method_template(mem.member) ?: return null;
 			val mem_obj = self.clone_expr(mem.object, subst);
 			val targs = self.clone_type_args(c.type_args, subst);
@@ -598,26 +583,26 @@ impl DeclPass {
 			return call_node;
 		}
 
-		if (c.callee.kind != NodeKind.EXPR_IDENTIFIER) return null;
-		val cid = c.callee.to<IdentifierExpr>();
+		if (callee is IdentifierExpr as cid) {
+			val ft = self.find_fn_template(cid.name);
+			if (ft != null) {
+				val targs = self.clone_type_args(c.type_args, subst);
+				val cname = self.instantiate_fn(ft, targs);
+				var cargs = List<*AstNode>();
+				for (a in c.args) cargs += self.clone_expr(a, subst);
+				return self.call(self.identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+			}
 
-		val ft = self.find_fn_template(cid.name);
-		if (ft != null) {
-			val targs = self.clone_type_args(c.type_args, subst);
-			val cname = self.instantiate_fn(ft, targs);
-			var cargs = List<*AstNode>();
-			for (a in c.args) cargs += self.clone_expr(a, subst);
-			return self.call(self.identifier(cname, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+			val st = self.find_struct_template(cid.name);
+			if (st != null) {
+				val targs = self.clone_type_args(c.type_args, subst);
+				val cty = self.instantiate_struct(st, targs);
+				var cargs = List<*AstNode>();
+				for (a in c.args) cargs += self.clone_expr(a, subst);
+				return self.call(self.identifier(cty.as_struct().name, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
+			}
 		}
 
-		val st = self.find_struct_template(cid.name);
-		if (st != null) {
-			val targs = self.clone_type_args(c.type_args, subst);
-			val cty = self.instantiate_struct(st, targs);
-			var cargs = List<*AstNode>();
-			for (a in c.args) cargs += self.clone_expr(a, subst);
-			return self.call(self.identifier(cty.as_struct().name, node.line, node.col), cargs, List<*AstNode>(), node.line, node.col);
-		}
 		return null;
 	}
 
@@ -660,26 +645,23 @@ impl DeclPass {
 
 	pub fn clone_stmt(var self, node: *AstNode, subst: *GenSubst): *AstNode {
 		if (node == null) return null;
-		return when (node.kind) {
-			NodeKind.STMT_BLOCK -> {
-				val b = node.to<BlockStmt>();
+		val target = node;
+		return when (target) {
+			is BlockStmt as b -> {
 				var ss = List<*AstNode>();
 				for (s in b.statements) ss += self.clone_stmt(s, subst);
 				yield self.block_stmt(ss, node.line, node.col);
 			}
-			NodeKind.STMT_EXPR -> {
-				val e = node.to<ExprStmt>();
+			is ExprStmt as e -> {
 				yield self.expr_stmt(self.clone_expr(e.expr, subst), node.line, node.col);
 			}
-			NodeKind.STMT_VAR_DECL -> {
-				val v = node.to<VarDeclStmt>();
+			is VarDeclStmt as v -> {
 				val ta = if (v.type_annotation != null) self.clone_type(v.type_annotation, subst) else null;
 				val init = self.clone_expr(v.initializer, subst);
 				if (ta != null && init != null) self.propagate_target_type(ta, init);
 				yield self.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
 			}
-			NodeKind.STMT_IF -> {
-				val s = node.to<IfStmt>();
+			is IfStmt as s -> {
 				yield self.if_stmt(
 					self.clone_expr(s.condition, subst),
 					self.clone_stmt(s.then_branch, subst),
@@ -687,16 +669,14 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.STMT_WHILE -> {
-				val w = node.to<WhileStmt>();
+			is WhileStmt as w -> {
 				yield self.while_stmt(
 					self.clone_expr(w.condition, subst),
 					self.clone_stmt(w.body, subst),
 					node.line, node.col
 				);
 			}
-			NodeKind.STMT_FOR -> {
-				val f = node.to<ForStmt>();
+			is ForStmt as f -> {
 				yield self.for_stmt(
 					f.var_name, f.is_range, f.is_open, f.is_half_open,
 					self.clone_expr(f.iterable, subst),
@@ -706,18 +686,15 @@ impl DeclPass {
 					node.line, node.col
 				);
 			}
-			NodeKind.STMT_RETURN -> {
-				val r = node.to<ReturnStmt>();
+			is ReturnStmt as r -> {
 				yield self.return_stmt(self.clone_expr(r.value, subst), node.line, node.col);
 			}
-			NodeKind.STMT_YIELD -> {
-				val y = node.to<YieldStmt>();
+			is YieldStmt as y -> {
 				yield self.yield_stmt(self.clone_expr(y.value, subst), node.line, node.col);
 			}
-			NodeKind.STMT_BREAK -> self.break_stmt(node.line, node.col);
-			NodeKind.STMT_CONTINUE -> self.continue_stmt(node.line, node.col);
-			NodeKind.STMT_WHEN -> {
-				val w = node.to<WhenStmt>();
+			is BreakStmt -> self.break_stmt(node.line, node.col);
+			is ContinueStmt -> self.continue_stmt(node.line, node.col);
+			is WhenStmt as w -> {
 				var arms = List<WhenStmtArm>();
 				for (arm in w.arms) {
 					var pats = List<*AstNode>();
@@ -777,49 +754,50 @@ impl DeclPass {
 	// to a call expression initializer without type arguments (e.g. `List()`).
 	pub fn propagate_target_type(var self, target_type_node: *AstNode, init_node: *AstNode) {
 		if (target_type_node == null || init_node == null) return;
-		if (target_type_node.kind != NodeKind.TYPE_NAMED) return;
-		val nt = target_type_node.to<NamedType>();
+		if (target_type_node is NamedType as nt) {
+			var cur = init_node;
+			while (cur != null) {
+				if (cur is GroupExpr as g) cur = g.expr;
+				else break;
+			}
+			if (cur == null) return;
 
-		var cur = init_node;
-		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) {
-			cur = cur.to<GroupExpr>().expr;
-		}
-		if (cur == null) return;
-
-		when (cur.kind) {
-			NodeKind.EXPR_CALL -> {
-				val call = cur.to<CallExpr>() as &CallExpr;
-				if (call.callee.kind == NodeKind.EXPR_IDENTIFIER && call.type_args.empty()) {
-					val cid = call.callee.to<IdentifierExpr>() as &IdentifierExpr;
-					if (nt.type_args.len > 0) {
-						if (cid.name == nt.name) {
-							var new_targs = List<*AstNode>();
-							for (ta in nt.type_args) new_targs += ta;
-							call.type_args = new_targs;
-						}
-					} else {
-						val tmpl = self.find_struct_template(cid.name);
-						if (tmpl != null) {
-							val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
-							if (nt.name.starts_with(prefix)) {
-								cid.name = nt.name;
+			when (cur) {
+				is CallExpr as call -> {
+					val callee = call.callee;
+					if (callee is IdentifierExpr as cid) {
+						if (call.type_args.empty()) {
+							if (nt.type_args.len > 0) {
+								if (cid.name == nt.name) {
+									var new_targs = List<*AstNode>();
+									for (ta in nt.type_args) new_targs += ta;
+									val call_mut = call as &CallExpr;
+									call_mut.type_args = new_targs;
+								}
+							} else {
+								val tmpl = self.find_struct_template(cid.name);
+								if (tmpl != null) {
+									val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
+									if (nt.name.starts_with(prefix)) {
+										val cid_mut = cid as &IdentifierExpr;
+										cid_mut.name = nt.name;
+									}
+								}
 							}
 						}
 					}
 				}
-			}
-			NodeKind.EXPR_IF -> {
-				val ife = cur.to<IfExpr>();
-				self.propagate_target_type(target_type_node, ife.then_branch);
-				self.propagate_target_type(target_type_node, ife.else_branch);
-			}
-			NodeKind.EXPR_WHEN -> {
-				val we = cur.to<WhenExpr>();
-				for (arm in we.arms) {
-					self.propagate_target_type(target_type_node, arm.body);
+				is IfExpr as ife -> {
+					self.propagate_target_type(target_type_node, ife.then_branch);
+					self.propagate_target_type(target_type_node, ife.else_branch);
 				}
+				is WhenExpr as we -> {
+					for (arm in we.arms) {
+						self.propagate_target_type(target_type_node, arm.body);
+					}
+				}
+				else -> {}
 			}
-			else -> {}
 		}
 	}
 
@@ -869,222 +847,218 @@ impl DeclPass {
 	// receiver as its first argument, and a template name is replaced by the
 	// instantiated (mangled) one.
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
-		if (c.callee.kind == NodeKind.EXPR_MEMBER && c.type_args.len > 0) {
-			val mem = c.callee.to<MemberExpr>();
-			val ft = self.find_method_template(mem.member);
-			if (ft != null) {
-				val mem_obj = mem.object;
-				val cname = self.instantiate_fn(ft, c.type_args);
-				c.callee = self.identifier(cname, node.line, node.col);
-				var new_args = List<*AstNode>();
-				new_args += mem_obj;
-				for (a in c.args) new_args += a;
-				c.args = new_args;
-				c.type_args = List<*AstNode>();
+		val callee = c.callee;
+		if (callee is MemberExpr as mem) {
+			if (c.type_args.len > 0) {
+				val ft = self.find_method_template(mem.member);
+				if (ft != null) {
+					val mem_obj = mem.object;
+					val cname = self.instantiate_fn(ft, c.type_args);
+					c.callee = self.identifier(cname, node.line, node.col);
+					var new_args = List<*AstNode>();
+					new_args += mem_obj;
+					for (a in c.args) new_args += a;
+					c.args = new_args;
+					c.type_args = List<*AstNode>();
+				}
 			}
 		}
 
-		if (c.callee.kind == NodeKind.EXPR_IDENTIFIER && c.type_args.len > 0) {
-			val cid = c.callee.to<IdentifierExpr>() as &IdentifierExpr;
-			val ft = self.find_fn_template(cid.name);
-			if (ft != null) {
-				val cname = self.instantiate_fn(ft, c.type_args);
-				cid.name = cname;
-				c.type_args = List<*AstNode>();
-			} else {
-				val st = self.find_struct_template(cid.name);
-				if (st != null) {
-					val cty = self.instantiate_struct(st, c.type_args);
-					cid.name = cty.as_struct().name;
+		if (callee is IdentifierExpr as cid) {
+			if (c.type_args.len > 0) {
+				val ft = self.find_fn_template(cid.name);
+				if (ft != null) {
+					val cname = self.instantiate_fn(ft, c.type_args);
+					val cid_mut = cid as &IdentifierExpr;
+					cid_mut.name = cname;
 					c.type_args = List<*AstNode>();
+				} else {
+					val st = self.find_struct_template(cid.name);
+					if (st != null) {
+						val cty = self.instantiate_struct(st, c.type_args);
+						val cid_mut = cid as &IdentifierExpr;
+						cid_mut.name = cty.as_struct().name;
+						c.type_args = List<*AstNode>();
+					}
 				}
 			}
 		}
 	}
 
-	fn rewrite_expr_generics(var self, node: *AstNode): bool => when (node.kind) {
-		NodeKind.EXPR_CALL -> {
-			val c = node.to<CallExpr>() as &CallExpr;
-			self.rewrite_call_target(node, c);
-			self.rewrite_generics(c.callee);
-			for (a in c.args) self.rewrite_generics(a);
-			yield true;
-		}
-		NodeKind.EXPR_BINARY -> {
-			val b = node.to<BinaryExpr>();
-			self.rewrite_generics(b.left);
-			self.rewrite_generics(b.right);
-			yield true;
-		}
-		NodeKind.EXPR_UNARY -> self.rewrite_child(node.to<UnaryExpr>().operand),
-		NodeKind.EXPR_MEMBER -> self.rewrite_child(node.to<MemberExpr>().object),
-		NodeKind.EXPR_INDEX -> {
-			val ix = node.to<IndexExpr>();
-			self.rewrite_generics(ix.target);
-			self.rewrite_generics(ix.index);
-			yield true;
-		}
-		NodeKind.EXPR_ASSIGN -> {
-			val a = node.to<AssignExpr>();
-			self.rewrite_generics(a.target);
-			self.rewrite_generics(a.value);
-			yield true;
-		}
-		NodeKind.EXPR_UPDATE -> self.rewrite_child(node.to<UpdateExpr>().target),
-		NodeKind.EXPR_CAST -> {
-			val cst = node.to<CastExpr>();
-			self.rewrite_generics(cst.expr);
-			self.rewrite_generics(cst.target_type);
-			yield true;
-		}
-		NodeKind.EXPR_GROUP -> self.rewrite_child(node.to<GroupExpr>().expr),
-		NodeKind.EXPR_IF -> {
-			val ie = node.to<IfExpr>();
-			self.rewrite_generics(ie.condition);
-			self.rewrite_generics(ie.then_branch);
-			self.rewrite_generics(ie.else_branch);
-			yield true;
-		}
-		NodeKind.EXPR_ARRAY_LITERAL -> {
-			val al = node.to<ArrayLiteralExpr>();
-			for (e in al.elements) self.rewrite_generics(e);
-			yield true;
-		}
-		NodeKind.EXPR_WHEN -> {
-			val we = node.to<WhenExpr>();
-			self.rewrite_generics(we.condition);
-			for (arm in we.arms) {
-				for (pat in arm.patterns) self.rewrite_generics(pat);
-				self.rewrite_generics(arm.body);
+	fn rewrite_expr_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is CallExpr as c -> {
+				val c_mut = c as &CallExpr;
+				self.rewrite_call_target(node, c_mut);
+				self.rewrite_generics(c.callee);
+				for (a in c.args) self.rewrite_generics(a);
+				yield true;
 			}
-			yield true;
-		}
-		NodeKind.EXPR_INTERP -> {
-			val ie = node.to<InterpExpr>();
-			for (part in ie.parts) self.rewrite_generics(part.expr);
-			yield true;
-		}
-		NodeKind.EXPR_IS -> {
-			val is_e = node.to<IsExpr>();
-			if (is_e.expr != null) self.rewrite_generics(is_e.expr);
-			self.rewrite_generics(is_e.target_type);
-			yield true;
-		}
-		else -> false
-	};
-
-	fn rewrite_stmt_generics(var self, node: *AstNode): bool => when (node.kind) {
-		NodeKind.STMT_BLOCK -> {
-			val b = node.to<BlockStmt>();
-			for (s in b.statements) self.rewrite_generics(s);
-			yield true;
-		}
-		NodeKind.STMT_EXPR -> self.rewrite_child(node.to<ExprStmt>().expr),
-		NodeKind.STMT_VAR_DECL -> {
-			val v = node.to<VarDeclStmt>();
-			if (v.type_annotation != null && v.initializer != null) {
-				self.propagate_target_type(v.type_annotation, v.initializer);
+			is BinaryExpr as b -> {
+				self.rewrite_generics(b.left);
+				self.rewrite_generics(b.right);
+				yield true;
 			}
-			self.rewrite_generics(v.type_annotation);
-			self.rewrite_generics(v.initializer);
-			yield true;
-		}
-		NodeKind.STMT_IF -> {
-			val s = node.to<IfStmt>();
-			self.rewrite_generics(s.condition);
-			self.rewrite_generics(s.then_branch);
-			self.rewrite_generics(s.else_branch);
-			yield true;
-		}
-		NodeKind.STMT_WHILE -> {
-			val w = node.to<WhileStmt>();
-			self.rewrite_generics(w.condition);
-			self.rewrite_generics(w.body);
-			yield true;
-		}
-		NodeKind.STMT_FOR -> {
-			val f = node.to<ForStmt>();
-			self.rewrite_generics(f.iterable);
-			self.rewrite_generics(f.range_start);
-			self.rewrite_generics(f.range_end);
-			self.rewrite_generics(f.body);
-			yield true;
-		}
-		NodeKind.STMT_RETURN -> {
-			val r = node.to<ReturnStmt>();
-			if (r.value != null && self.current_fn_return_type != null) {
-				self.propagate_target_type(self.current_fn_return_type, r.value);
+			is UnaryExpr as u -> self.rewrite_child(u.operand),
+			is MemberExpr as m -> self.rewrite_child(m.object),
+			is IndexExpr as ix -> {
+				self.rewrite_generics(ix.target);
+				self.rewrite_generics(ix.index);
+				yield true;
 			}
-			self.rewrite_generics(r.value);
-			yield true;
-		}
-		NodeKind.STMT_YIELD -> self.rewrite_child(node.to<YieldStmt>().value),
-		NodeKind.STMT_WHEN -> {
-			val w = node.to<WhenStmt>();
-			self.rewrite_generics(w.condition);
-			for (arm in w.arms) {
-				for (pat in arm.patterns) self.rewrite_generics(pat);
-				self.rewrite_generics(arm.body);
+			is AssignExpr as a -> {
+				self.rewrite_generics(a.target);
+				self.rewrite_generics(a.value);
+				yield true;
 			}
-			yield true;
-		}
-		else -> false
-	};
-
-	fn rewrite_decl_generics(var self, node: *AstNode): bool => when (node.kind) {
-		NodeKind.DECL_STRUCT -> {
-			val s = node.to<StructDecl>();
-			for (fld in s.fields) {
-				if (fld.type_node != null && fld.default_val != null) {
-					self.propagate_target_type(fld.type_node, fld.default_val);
+			is UpdateExpr as u -> self.rewrite_child(u.target),
+			is CastExpr as cst -> {
+				self.rewrite_generics(cst.expr);
+				self.rewrite_generics(cst.target_type);
+				yield true;
+			}
+			is GroupExpr as g -> self.rewrite_child(g.expr),
+			is IfExpr as ie -> {
+				self.rewrite_generics(ie.condition);
+				self.rewrite_generics(ie.then_branch);
+				self.rewrite_generics(ie.else_branch);
+				yield true;
+			}
+			is ArrayLiteralExpr as al -> {
+				for (e in al.elements) self.rewrite_generics(e);
+				yield true;
+			}
+			is WhenExpr as we -> {
+				self.rewrite_generics(we.condition);
+				for (arm in we.arms) {
+					for (pat in arm.patterns) self.rewrite_generics(pat);
+					self.rewrite_generics(arm.body);
 				}
-				self.rewrite_generics(fld.type_node);
-				if (fld.default_val != null) self.rewrite_generics(fld.default_val);
+				yield true;
 			}
-			yield true;
-		}
-		NodeKind.DECL_FN -> {
-			val f = node.to<FnDecl>();
-			for (p in f.params) {
-				if (p.type_node != null && p.default_val != null) {
-					self.propagate_target_type(p.type_node, p.default_val);
+			is InterpExpr as ie -> {
+				for (part in ie.parts) self.rewrite_generics(part.expr);
+				yield true;
+			}
+			is IsExpr as is_e -> {
+				if (is_e.expr != null) self.rewrite_generics(is_e.expr);
+				self.rewrite_generics(is_e.target_type);
+				yield true;
+			}
+			else -> false;
+		};
+	}
+
+	fn rewrite_stmt_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is BlockStmt as b -> {
+				for (s in b.statements) self.rewrite_generics(s);
+				yield true;
+			}
+			is ExprStmt as e -> self.rewrite_child(e.expr),
+			is VarDeclStmt as v -> {
+				if (v.type_annotation != null && v.initializer != null) {
+					self.propagate_target_type(v.type_annotation, v.initializer);
 				}
-				self.rewrite_generics(p.type_node);
-				if (p.default_val != null) self.rewrite_generics(p.default_val);
+				self.rewrite_generics(v.type_annotation);
+				self.rewrite_generics(v.initializer);
+				yield true;
 			}
-			self.rewrite_generics(f.return_type);
-			val prev_ret = self.current_fn_return_type;
-			self.current_fn_return_type = f.return_type;
-			if (f.body != null && f.body.kind == NodeKind.STMT_EXPR && f.return_type != null) {
-				self.propagate_target_type(f.return_type, f.body.to<ExprStmt>().expr);
+			is IfStmt as s -> {
+				self.rewrite_generics(s.condition);
+				self.rewrite_generics(s.then_branch);
+				self.rewrite_generics(s.else_branch);
+				yield true;
 			}
-			self.rewrite_generics(f.body);
-			self.current_fn_return_type = prev_ret;
-			yield true;
-		}
-		NodeKind.DECL_IMPL -> {
-			val im = node.to<ImplDecl>();
-			for (m in im.methods) {
-				if (m.to<FnDecl>().type_params.len > 0) continue;
-				self.rewrite_generics(m);
+			is WhileStmt as w -> {
+				self.rewrite_generics(w.condition);
+				self.rewrite_generics(w.body);
+				yield true;
 			}
-			yield true;
-		}
-		NodeKind.DECL_CONST -> {
-			val c = node.to<ConstDecl>();
-			if (c.type_node != null && c.value != null) {
-				self.propagate_target_type(c.type_node, c.value);
+			is ForStmt as f -> {
+				self.rewrite_generics(f.iterable);
+				self.rewrite_generics(f.range_start);
+				self.rewrite_generics(f.range_end);
+				self.rewrite_generics(f.body);
+				yield true;
 			}
-			self.rewrite_generics(c.type_node);
-			self.rewrite_generics(c.value);
-			yield true;
-		}
-		NodeKind.DECL_EXTERN_BLOCK -> {
-			val ext = node.to<ExternBlock>();
-			for (d in ext) self.rewrite_generics(d);
-			yield true;
-		}
-		else -> false
-	};
+			is ReturnStmt as r -> {
+				if (r.value != null && self.current_fn_return_type != null) {
+					self.propagate_target_type(self.current_fn_return_type, r.value);
+				}
+				self.rewrite_generics(r.value);
+				yield true;
+			}
+			is YieldStmt as y -> self.rewrite_child(y.value),
+			is WhenStmt as w -> {
+				self.rewrite_generics(w.condition);
+				for (arm in w.arms) {
+					for (pat in arm.patterns) self.rewrite_generics(pat);
+					self.rewrite_generics(arm.body);
+				}
+				yield true;
+			}
+			else -> false;
+		};
+	}
+
+	fn rewrite_decl_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is StructDecl as s -> {
+				for (fld in s.fields) {
+					if (fld.type_node != null && fld.default_val != null) {
+						self.propagate_target_type(fld.type_node, fld.default_val);
+					}
+					self.rewrite_generics(fld.type_node);
+					if (fld.default_val != null) self.rewrite_generics(fld.default_val);
+				}
+				yield true;
+			}
+			is FnDecl as f -> {
+				for (p in f.params) {
+					if (p.type_node != null && p.default_val != null) {
+						self.propagate_target_type(p.type_node, p.default_val);
+					}
+					self.rewrite_generics(p.type_node);
+					if (p.default_val != null) self.rewrite_generics(p.default_val);
+				}
+				self.rewrite_generics(f.return_type);
+				val prev_ret = self.current_fn_return_type;
+				self.current_fn_return_type = f.return_type;
+				val fbody = f.body;
+				if (fbody is ExprStmt as es) {
+					if (f.return_type != null) {
+						self.propagate_target_type(f.return_type, es.expr);
+					}
+				}
+				self.rewrite_generics(f.body);
+				self.current_fn_return_type = prev_ret;
+				yield true;
+			}
+			is ImplDecl as im -> {
+				for (m in im.methods) {
+					if (m.to<FnDecl>().type_params.len > 0) continue;
+					self.rewrite_generics(m);
+				}
+				yield true;
+			}
+			is ConstDecl as c -> {
+				if (c.type_node != null && c.value != null) {
+					self.propagate_target_type(c.type_node, c.value);
+				}
+				self.rewrite_generics(c.type_node);
+				self.rewrite_generics(c.value);
+				yield true;
+			}
+			is ExternBlock as ext -> {
+				for (d in ext) self.rewrite_generics(d);
+				yield true;
+			}
+			else -> false;
+		};
+	}
 
 }

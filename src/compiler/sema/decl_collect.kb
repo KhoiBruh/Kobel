@@ -258,14 +258,11 @@ impl DeclPass {
 		// concrete structs / functions / methods as needed. Module markers are
 		// replayed so each declaration resolves names in its own module.
 		for (d in prog) {
-			when {
-				d.kind == NodeKind.DECL_MODULE -> {
-					val m2 = d.to<ModuleDecl>();
-					self.current_module = m2.full_path;
-					self.symtab.set_current_module(m2.full_path);
-				}
-				!is_template_decl(d) -> self.rewrite_generics(d);
-				else -> {}
+			if (d is ModuleDecl as m2) {
+				self.current_module = m2.full_path;
+				self.symtab.set_current_module(m2.full_path);
+			} else if (!is_template_decl(d)) {
+				self.rewrite_generics(d);
 			}
 		}
 	

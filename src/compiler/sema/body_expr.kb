@@ -578,13 +578,11 @@ impl BodyPass {
 	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {
 		val cur = self.unwrap_group(target_node) ?: return;
 
-		when (cur.kind) {
-			NodeKind.EXPR_IDENTIFIER -> {
-				val id = cur.to<IdentifierExpr>();
+		when (cur) {
+			is IdentifierExpr as id -> {
 				self.check_ident_assignable(op_node, id.name, self.symtab.lookup(id.name), is_update);
 			}
-			NodeKind.EXPR_MEMBER -> {
-				val mem = cur.to<MemberExpr>();
+			is MemberExpr as mem -> {
 				if (mem.is_safe) {
 					self.report_error(op_node, "Cannot assign to safe navigation expression");
 				}
@@ -595,8 +593,7 @@ impl BodyPass {
 					);
 				}
 			}
-			NodeKind.EXPR_INDEX -> {
-				val idx = cur.to<IndexExpr>();
+			is IndexExpr as idx -> {
 				if (self.is_immutable_self(idx.target)) {
 					val act = if (is_update) "update" else "mutate";
 					self.report_error(op_node,
@@ -605,8 +602,7 @@ impl BodyPass {
 					);
 				}
 			}
-			NodeKind.EXPR_UNARY -> {
-				val un = cur.to<UnaryExpr>();
+			is UnaryExpr as un -> {
 				// `*p = v` is a write through the pointee; any other unary target
 				// is not assignable.
 				if (un.op != TokenType.STAR) {
@@ -624,8 +620,9 @@ impl BodyPass {
 	// Strip the parentheses a target may be wrapped in.
 	pub fn unwrap_group(var self, node: *AstNode): *AstNode {
 		var cur = node;
-		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) {
-			cur = cur.to<GroupExpr>().expr;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
 		}
 		return cur;
 	}
@@ -634,11 +631,13 @@ impl BodyPass {
 	// (`var self`). False when the object is not `self` at all.
 	fn is_immutable_self(var self, obj_node: *AstNode): bool {
 		val obj = self.unwrap_group(obj_node);
-		if (obj == null || obj.kind != NodeKind.EXPR_IDENTIFIER) return false;
-		val obj_id = obj.to<IdentifierExpr>();
-		if (obj_id.name != "self") return false;
-		val self_sym = self.symtab.lookup("self");
-		return self_sym != null && !self_sym.is_mut;
+		if (obj is IdentifierExpr as obj_id) {
+			if (obj_id.name == "self") {
+				val self_sym = self.symtab.lookup("self");
+				return self_sym != null && !self_sym.is_mut;
+			}
+		}
+		return false;
 	}
 
 	// Constants, `val` locals, and `val` parameters cannot be assigned to.
@@ -885,8 +884,7 @@ impl BodyPass {
 	pub fn resolve_arm_patterns(var self, patterns: List<*AstNode>, cond: *AstNode, cond_ty: *Type): *Type {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
 			val pat = patterns.first();
-			if (pat != null && pat.kind == NodeKind.EXPR_IS) {
-				val is_e = pat.to<IsExpr>() as &IsExpr;
+			if (pat is IsExpr as var is_e) {
 				if (is_e.expr == null) is_e.expr = cond;
 				return self.check_is_pattern(cond, cond_ty, pat);
 			}
@@ -906,8 +904,7 @@ impl BodyPass {
 	// test; without one, the pattern stands for itself and must be a bool.
 	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode, cond_ty: *Type): *Type {
 		if (cond == null) return self.check_expr(pat);
-		if (pat != null && pat.kind == NodeKind.EXPR_IS) {
-			val is_e = pat.to<IsExpr>() as &IsExpr;
+		if (pat is IsExpr as var is_e) {
 			if (is_e.expr == null) is_e.expr = cond;
 			self.check_is_pattern(cond, cond_ty, pat);
 			return self.t_bool();

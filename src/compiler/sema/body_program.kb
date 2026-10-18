@@ -58,36 +58,33 @@ impl BodyPass {
 		}
 
 		// Analyze the function body
-		if (f.body != null) {
-			when (f.body.kind) {
-				NodeKind.STMT_BLOCK -> {
-					val blk = f.body.to<BlockStmt>();
-					for (stmt in blk.statements) {
-						self.check_statement(stmt);
-					}
+		val f_body = f.body;
+		when (f_body) {
+			is BlockStmt as blk -> {
+				for (stmt in blk.statements) {
+					self.check_statement(stmt);
 				}
-				NodeKind.STMT_EXPR -> {
-					// Expression body: => expr;
-					val es = f.body.to<ExprStmt>();
-					if (
-						f.return_type != null && (
-							self.current_fn_return_type != null &&
-							self.current_fn_return_type.is_list()
-						)
-					) self.coerce_to_list(es.expr, self.current_fn_return_type);
-
-					val body_ty = self.check_expr(es.expr);
-					if (f.return_type == null) {
-						val fn_info_mut = fn_type.as_fn_mut();
-						fn_info_mut.return_type = body_ty;
-						self.current_fn_return_type = body_ty;
-						f.return_type = self.arena.ast_type_from_type(body_ty);
-					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
-						self.report_error(fn_node, "Expression body type does not match function return type");
-					}
-				}
-				else -> {}
 			}
+			is ExprStmt as es -> {
+				// Expression body: => expr;
+				if (
+					f.return_type != null && (
+						self.current_fn_return_type != null &&
+						self.current_fn_return_type.is_list()
+					)
+				) self.coerce_to_list(es.expr, self.current_fn_return_type);
+
+				val body_ty = self.check_expr(es.expr);
+				if (f.return_type == null) {
+					val fn_info_mut = fn_type.as_fn_mut();
+					fn_info_mut.return_type = body_ty;
+					self.current_fn_return_type = body_ty;
+					f.return_type = self.arena.ast_type_from_type(body_ty);
+				} else if (!self.current_fn_return_type.can_assign(body_ty)) {
+					self.report_error(fn_node, "Expression body type does not match function return type");
+				}
+			}
+			else -> {}
 		}
 
 		self.symtab.exit_scope();
