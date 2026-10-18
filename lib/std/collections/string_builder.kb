@@ -35,11 +35,11 @@ impl StringBuilder {
 	pub fn append_i64(var self, n: i64) {
 		var v = n;
 		if (v == 0) {
-			self.append_char('0');
+			self += '0';
 			return;
 		}
 		if (v < 0) {
-			self.append_char('-');
+			self += '-';
 			v = -v;
 		}
 
@@ -55,7 +55,7 @@ impl StringBuilder {
 		var rest = v;
 		while (place > 0) {
 			val digit = rest / place;
-			self.append_char(((digit as i32) + 48) as char);
+			self += ((digit as i32) + 48) as char;
 			rest -= digit * place;
 			place /= 10;
 		}
@@ -63,7 +63,7 @@ impl StringBuilder {
 
 	pub fn append_i32(var self, n: i32) => self.append_i64(n as i64);
 
-	pub fn append_bool(var self, b: bool) => if (b) self.append_str("true") else self.append_str("false");
+	pub fn append_bool(var self, b: bool) => if (b) self += "true" else self += "false";
 
 	pub op plus_assign(var self, s: str) => self.append_str(s);
 
@@ -73,6 +73,8 @@ impl StringBuilder {
 
 	pub op plus_assign(var self, n: i32) => self.append_i32(n);
 
+	pub op plus_assign(var self, n: usz) => self.append_i64(n as i64);
+
 	pub op plus_assign(var self, b: bool) => self.append_bool(b);
 
 	pub op get(val self, i: usz) => self.buf[i] as char;
@@ -80,8 +82,8 @@ impl StringBuilder {
 	pub op set(var self, i: usz, c: char) => self.buf[i] = c as u8;
 
 	pub fn append_line(var self, s: str) {
-		self.append_str(s);
-		self.append_char('\n');
+		self += s;
+		self += '\n';
 	}
 
 	// `n` copies of `c` (indentation, padding) in one pass.
@@ -99,12 +101,12 @@ impl StringBuilder {
 		for (i in 0..<s.len) {
 			val c = s[i];
 			when (c) {
-				'"' -> self.append_str("\\\"");
-				'\\' -> self.append_str("\\\\");
-				'\n' -> self.append_str("\\n");
-				'\r' -> self.append_str("\\r");
-				'\t' -> self.append_str("\\t");
-				else -> self.append_char(c);
+				'"' -> self += "\\\"";
+				'\\' -> self += "\\\\";
+				'\n' -> self += "\\n";
+				'\r' -> self += "\\r";
+				'\t' -> self += "\\t";
+				else -> self += c;
 			}
 		}
 	}

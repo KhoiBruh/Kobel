@@ -77,31 +77,31 @@ impl Formatter {
 		if (node == null) return;
 		when (node) {
 			is NamedType as nt -> {
-				self.buf.write(nt.name);
+				self.buf += nt.name;
 				if (nt.type_args.len > 0) {
-					self.buf.write("<");
+					self.buf += "<";
 					for (i in 0..<nt.type_args.len) {
-						if (i > 0) self.buf.write(", ");
+						if (i > 0) self.buf += ", ";
 						self.format_type(nt.type_args[i]);
 					}
-					self.buf.write(">");
+					self.buf += ">";
 				}
 			}
 			is PointerType as pt -> {
-				if (pt.is_mut) self.buf.write("&");
-				else self.buf.write("*");
+				if (pt.is_mut) self.buf += "&";
+				else self.buf += "*";
 				self.format_type(pt.pointee);
 			}
 			is ArrayType as at -> {
-				self.buf.write("[");
+				self.buf += "[";
 				self.format_type(at.element_type);
-				self.buf.write("; ");
-				self.buf.write("${at.size}");
-				self.buf.write("]");
+				self.buf += "; ";
+				self.buf += "${at.size}";
+				self.buf += "]";
 			}
 			is NullableType as nt -> {
 				self.format_type(nt.inner);
-				self.buf.write("?");
+				self.buf += "?";
 			}
 		}
 	}
@@ -113,129 +113,129 @@ impl Formatter {
 	pub fn format_expr(var self, node: *AstNode) {
 		if (node == null) return;
 		when (node) {
-			is LiteralExpr as lit -> self.buf.write(lit.raw_text);
-			is IdentifierExpr as id -> self.buf.write(id.name);
+			is LiteralExpr as lit -> self.buf += lit.raw_text;
+			is IdentifierExpr as id -> self.buf += id.name;
 			is BinaryExpr as b -> {
 				self.format_expr(b.left);
 				self.buf.space();
-				self.buf.write(op_to_str(b.op));
+				self.buf += op_to_str(b.op);
 				self.buf.space();
 				self.format_expr(b.right);
 			}
 			is UnaryExpr as u -> {
-				self.buf.write(op_to_str(u.op));
+				self.buf += op_to_str(u.op);
 				self.format_expr(u.operand);
 			}
 			is CallExpr as c -> {
 				self.format_expr(c.callee);
 				if (c.type_args.len > 0) {
-					self.buf.write("<");
+					self.buf += "<";
 					for (i in 0..<c.type_args.len) {
-						if (i > 0) self.buf.write(", ");
+						if (i > 0) self.buf += ", ";
 						self.format_type(c.type_args[i]);
 					}
-					self.buf.write(">");
+					self.buf += ">";
 				}
-				self.buf.write("(");
+				self.buf += "(";
 				for (j in 0..<c.args.len) {
-					if (j > 0) self.buf.write(", ");
+					if (j > 0) self.buf += ", ";
 					self.format_expr(c.args[j]);
 				}
-				self.buf.write(")");
+				self.buf += ")";
 			}
 			is MemberExpr as m -> {
 				self.format_expr(m.object);
-				if (m.is_safe) self.buf.write("?.");
-				else self.buf.write(".");
-				self.buf.write(m.member);
+				if (m.is_safe) self.buf += "?.";
+				else self.buf += ".";
+				self.buf += m.member;
 			}
 			is IndexExpr as idx -> {
 				self.format_expr(idx.target);
-				self.buf.write("[");
+				self.buf += "[";
 				self.format_expr(idx.index);
-				self.buf.write("]");
+				self.buf += "]";
 			}
 			is AssignExpr as a -> {
 				self.format_expr(a.target);
 				self.buf.space();
-				self.buf.write(op_to_str(a.op));
+				self.buf += op_to_str(a.op);
 				self.buf.space();
 				self.format_expr(a.value);
 			}
 			is UpdateExpr as u -> {
 				self.format_expr(u.target);
-				self.buf.write(op_to_str(u.op));
+				self.buf += op_to_str(u.op);
 			}
 			is CastExpr as cst -> {
 				self.format_expr(cst.expr);
-				self.buf.write(" as ");
+				self.buf += " as ";
 				self.format_type(cst.target_type);
 			}
 			is GroupExpr as g -> {
-				self.buf.write("(");
+				self.buf += "(";
 				self.format_expr(g.expr);
-				self.buf.write(")");
+				self.buf += ")";
 			}
 			is ArrayLiteralExpr as al -> {
-				self.buf.write("[");
+				self.buf += "[";
 				for (i in 0..<al.elements.len) {
-					if (i > 0) self.buf.write(", ");
+					if (i > 0) self.buf += ", ";
 					self.format_expr(al.elements[i]);
 				}
-				self.buf.write("]");
+				self.buf += "]";
 			}
 			is IfExpr as ie -> {
-				self.buf.write("if (");
+				self.buf += "if (";
 				self.format_expr(ie.condition);
-				self.buf.write(") ");
+				self.buf += ") ";
 				self.format_expr(ie.then_branch);
 				if (ie.else_branch != null) {
-					self.buf.write(" else ");
+					self.buf += " else ";
 					self.format_expr(ie.else_branch);
 				}
 			}
 			is WhenExpr as we -> {
-				self.buf.write("when (");
+				self.buf += "when (";
 				self.format_expr(we.condition);
-				self.buf.write(") {");
+				self.buf += ") {";
 				self.buf.indent();
 				for (i in 0..<we.arms.len) {
 					self.buf.newline();
 					val arm = we.arms[i];
 					if (arm.is_else) {
-						self.buf.write("else -> ");
+						self.buf += "else -> ";
 					} else {
 						for (p in 0..<arm.patterns.len) {
-							if (p > 0) self.buf.write(", ");
+							if (p > 0) self.buf += ", ";
 							self.format_expr(arm.patterns[p]);
 						}
-						self.buf.write(" -> ");
+						self.buf += " -> ";
 					}
 					self.format_expr(arm.body);
-					if (i + 1 < we.arms.len) self.buf.write(",");
+					if (i + 1 < we.arms.len) self.buf += ",";
 				}
 				self.buf.dedent();
 				self.buf.newline();
-				self.buf.write("}");
+				self.buf += "}";
 			}
 			is InterpExpr as interp -> {
-				self.buf.write("\"");
+				self.buf += "\"";
 				for (part in interp.parts) {
 					val expr = part.expr;
 					if (expr is LiteralExpr as lit) {
 						val text = lit.raw_text;
 						// Strip enclosing quotes from string literal
 						if (text.len >= 2) {
-							self.buf.write(text.slice(1, text.len - 1));
+							self.buf += text.slice(1, text.len - 1);
 						}
 					} else {
-						self.buf.write_char('$');
-						self.buf.write_char('{');
+						self.buf += '$';
+						self.buf += '{';
 						self.format_expr(expr);
-						self.buf.write("}");
+						self.buf += "}";
 					}
 				}
-				self.buf.write("\"");
+				self.buf += "\"";
 			}
 		}
 	}
@@ -250,7 +250,7 @@ impl Formatter {
 
 		when (node) {
 			is BlockStmt as b -> {
-				self.buf.write("{");
+				self.buf += "{";
 				self.buf.indent();
 				for (s in b.statements) {
 					self.buf.newline();
@@ -258,32 +258,32 @@ impl Formatter {
 				}
 				self.buf.dedent();
 				self.buf.newline();
-				self.buf.write("}");
+				self.buf += "}";
 			}
 			is ExprStmt as es -> {
 				self.format_expr(es.expr);
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is VarDeclStmt as v -> {
-				if (v.is_mut) self.buf.write("var ");
-				else self.buf.write("val ");
-				self.buf.write(v.name);
+				if (v.is_mut) self.buf += "var ";
+				else self.buf += "val ";
+				self.buf += v.name;
 				if (v.type_annotation != null) {
-					self.buf.write(": ");
+					self.buf += ": ";
 					self.format_type(v.type_annotation);
 				}
 				if (v.initializer != null) {
-					self.buf.write(" = ");
+					self.buf += " = ";
 					self.format_expr(v.initializer);
 				}
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is IfStmt as s -> {
-				self.buf.write("if (");
+				self.buf += "if (";
 				self.format_expr(s.condition);
-				self.buf.write(") ");
+				self.buf += ") ";
 
 				if (s.then_branch.kind == NodeKind.STMT_BLOCK) {
 					self.format_stmt(s.then_branch);
@@ -296,10 +296,10 @@ impl Formatter {
 
 				if (s.else_branch != null) {
 					if (s.then_branch.kind == NodeKind.STMT_BLOCK) {
-						self.buf.write(" else ");
+						self.buf += " else ";
 					} else {
 						self.buf.newline();
-						self.buf.write("else ");
+						self.buf += "else ";
 					}
 
 					if (
@@ -315,9 +315,9 @@ impl Formatter {
 				}
 			}
 			is WhileStmt as w -> {
-				self.buf.write("while (");
+				self.buf += "while (";
 				self.format_expr(w.condition);
-				self.buf.write(") ");
+				self.buf += ") ";
 				if (w.body.kind == NodeKind.STMT_BLOCK) {
 					self.format_stmt(w.body);
 				} else {
@@ -328,20 +328,20 @@ impl Formatter {
 				}
 			}
 			is ForStmt as f -> {
-				self.buf.write("for (");
-				self.buf.write(f.var_name);
-				self.buf.write(" in ");
+				self.buf += "for (";
+				self.buf += f.var_name;
+				self.buf += " in ";
 				if (f.is_range) {
 					self.format_expr(f.range_start);
-					if (f.is_open) self.buf.write(">..<");
-					else if (f.is_half_open) self.buf.write("..<");
-					else self.buf.write("..");
+					if (f.is_open) self.buf += ">..<";
+					else if (f.is_half_open) self.buf += "..<";
+					else self.buf += "..";
 					self.format_expr(f.range_end);
 				} else {
 					self.format_expr(f.iterable);
 				}
 
-				self.buf.write(") ");
+				self.buf += ") ";
 				if (f.body.kind == NodeKind.STMT_BLOCK) {
 					self.format_stmt(f.body);
 				} else {
@@ -352,55 +352,55 @@ impl Formatter {
 				}
 			}
 			is ReturnStmt as r -> {
-				self.buf.write("return");
+				self.buf += "return";
 				if (r.value != null) {
 					self.buf.space();
 					self.format_expr(r.value);
 				}
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is YieldStmt as y -> {
-				self.buf.write("yield");
+				self.buf += "yield";
 				if (y.value != null) {
 					self.buf.space();
 					self.format_expr(y.value);
 				}
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is BreakStmt as b -> {
-				self.buf.write("break;");
+				self.buf += "break;";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is ContinueStmt as c -> {
-				self.buf.write("continue;");
+				self.buf += "continue;";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is DeferStmt as d -> {
-				self.buf.write("defer ");
+				self.buf += "defer ";
 				self.format_stmt(d.body);
 			}
 			is WhenStmt as ws -> {
-				self.buf.write("when (");
+				self.buf += "when (";
 				self.format_expr(ws.condition);
-				self.buf.write(") {");
+				self.buf += ") {";
 				self.buf.indent();
 				for (arm in ws.arms) {
 					self.buf.newline();
-					if (arm.is_else) self.buf.write("else -> ");
+					if (arm.is_else) self.buf += "else -> ";
 					else {
 						for (p in 0..<arm.patterns.len) {
-							if (p > 0) self.buf.write(", ");
+							if (p > 0) self.buf += ", ";
 							self.format_expr(arm.patterns[p]);
 						}
-						self.buf.write(" -> ");
+						self.buf += " -> ";
 					}
 					self.format_stmt(arm.body);
 				}
 				self.buf.dedent();
 				self.buf.newline();
-				self.buf.write("}");
+				self.buf += "}";
 			}
 		}
 	}
@@ -411,20 +411,20 @@ impl Formatter {
 
 	pub fn format_type_params(var self, type_params: List<GenericParam>) {
 		if (type_params.len == 0) return;
-		self.buf.write("<");
+		self.buf += "<";
 		for (i in 0..<type_params.len) {
-			if (i > 0) self.buf.write(", ");
+			if (i > 0) self.buf += ", ";
 			val tp = type_params[i];
-			self.buf.write(tp.name);
+			self.buf += tp.name;
 			if (tp.bounds.len > 0) {
-				self.buf.write(": ");
+				self.buf += ": ";
 				for (b in 0..<tp.bounds.len) {
-					if (b > 0) self.buf.write(" + ");
-					self.buf.write(tp.bounds[b]);
+					if (b > 0) self.buf += " + ";
+					self.buf += tp.bounds[b];
 				}
 			}
 		}
-		self.buf.write(">");
+		self.buf += ">";
 	}
 
 	// ------------------------------------------------------------------------
@@ -437,77 +437,77 @@ impl Formatter {
 
 		when (node) {
 			is ModuleDecl as m -> {
-				self.buf.write("mod ");
-				self.buf.write(m.full_path);
-				self.buf.write(";");
+				self.buf += "mod ";
+				self.buf += m.full_path;
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 				self.buf.newline();
 			}
 			is UseDecl as u -> {
-				self.buf.write("use ");
-				self.buf.write(u.full_path);
+				self.buf += "use ";
+				self.buf += u.full_path;
 				if (u.alias.len > 0) {
-					self.buf.write(" as ");
-					self.buf.write(u.alias);
+					self.buf += " as ";
+					self.buf += u.alias;
 				}
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is StructDecl as s -> {
-				if (s.is_pub) self.buf.write("pub ");
-				self.buf.write("struct ");
-				self.buf.write(s.name);
+				if (s.is_pub) self.buf += "pub ";
+				self.buf += "struct ";
+				self.buf += s.name;
 				self.format_type_params(s.type_params);
-				self.buf.write(" {");
+				self.buf += " {";
 
 				if (s.fields.len > 0) {
 					self.buf.indent();
 					for (i in 0..<s.fields.len) {
 						self.buf.newline();
 						val f = s.fields[i];
-						if (f.is_pub) self.buf.write("pub ");
-						self.buf.write(f.name);
-						self.buf.write(": ");
+						if (f.is_pub) self.buf += "pub ";
+						self.buf += f.name;
+						self.buf += ": ";
 						self.format_type(f.type_node);
 						if (f.default_val != null) {
-							self.buf.write(" = ");
+							self.buf += " = ";
 							self.format_expr(f.default_val);
 						}
-						if (i + 1 < s.fields.len) self.buf.write(",");
+						if (i + 1 < s.fields.len) self.buf += ",";
 					}
 					self.buf.dedent();
 					self.buf.newline();
 				}
-				self.buf.write("}");
+				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is FnDecl as f -> {
-				if (f.is_pub) self.buf.write("pub ");
-				if (f.is_op) self.buf.write("op ");
-				else self.buf.write("fn ");
-				self.buf.write(f.name);
+				if (f.is_pub) self.buf += "pub ";
+				if (f.is_op) self.buf += "op ";
+				else self.buf += "fn ";
+				self.buf += f.name;
 				self.format_type_params(f.type_params);
-				self.buf.write("(");
+				self.buf += "(";
 
 				for (i in 0..<f.params.len) {
-					if (i > 0) self.buf.write(", ");
+					if (i > 0) self.buf += ", ";
 					val p = f.params[i];
-					if (p.is_mut) self.buf.write("var ");
-					else if (p.has_val) self.buf.write("val ");
-					self.buf.write(p.name);
+					if (p.is_mut) self.buf += "var ";
+					else if (p.has_val) self.buf += "val ";
+					self.buf += p.name;
 					if (p.type_node != null) {
-						self.buf.write(": ");
+						self.buf += ": ";
 						self.format_type(p.type_node);
 					}
 					if (p.default_val != null) {
-						self.buf.write(" = ");
+						self.buf += " = ";
 						self.format_expr(p.default_val);
 					}
 				}
-				self.buf.write(")");
+				self.buf += ")";
 
 				if (f.return_type != null) {
-					self.buf.write(": ");
+					self.buf += ": ";
 					self.format_type(f.return_type);
 				}
 
@@ -515,36 +515,36 @@ impl Formatter {
 					val body = f.body;
 					when (body) {
 						is BlockStmt -> {
-							self.buf.write(" ");
+							self.buf += " ";
 							self.format_stmt(f.body);
 						}
 						is ExprStmt as es -> {
-							self.buf.write(" => ");
+							self.buf += " => ";
 							self.format_expr(es.expr);
-							self.buf.write(";");
+							self.buf += ";";
 						}
 						else -> {
-							self.buf.write(" ");
+							self.buf += " ";
 							self.format_stmt(f.body);
 						}
 					}
-				} else self.buf.write(";");
+				} else self.buf += ";";
 
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is ImplDecl as im -> {
-				self.buf.write("impl");
+				self.buf += "impl";
 				if (im.type_params.len > 0) {
 					self.buf.space();
 					self.format_type_params(im.type_params);
 				}
 				self.buf.space();
 				if (im.trait_name.len > 0) {
-					self.buf.write(im.trait_name);
-					self.buf.write(" for ");
+					self.buf += im.trait_name;
+					self.buf += " for ";
 				}
-				self.buf.write(im.struct_name);
-				self.buf.write(" {");
+				self.buf += im.struct_name;
+				self.buf += " {";
 
 				if (im.methods.len > 0) {
 					self.buf.indent();
@@ -555,22 +555,22 @@ impl Formatter {
 					self.buf.dedent();
 					self.buf.newline();
 				}
-				self.buf.write("}");
+				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is TraitDecl as tr -> {
-				if (tr.is_pub) self.buf.write("pub ");
-				self.buf.write("trait ");
-				self.buf.write(tr.name);
+				if (tr.is_pub) self.buf += "pub ";
+				self.buf += "trait ";
+				self.buf += tr.name;
 				self.format_type_params(tr.type_params);
 				if (tr.bases.len > 0) {
-					self.buf.write(" : ");
+					self.buf += " : ";
 					for (i in 0..<tr.bases.len) {
-						if (i > 0) self.buf.write(", ");
-						self.buf.write(tr.bases[i]);
+						if (i > 0) self.buf += ", ";
+						self.buf += tr.bases[i];
 					}
 				}
-				self.buf.write(" {");
+				self.buf += " {";
 
 				if (tr.methods.len > 0) {
 					self.buf.indent();
@@ -581,54 +581,54 @@ impl Formatter {
 					self.buf.dedent();
 					self.buf.newline();
 				}
-				self.buf.write("}");
+				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is EnumDecl as en -> {
-				if (en.is_pub) self.buf.write("pub ");
-				self.buf.write("enum ");
-				self.buf.write(en.name);
+				if (en.is_pub) self.buf += "pub ";
+				self.buf += "enum ";
+				self.buf += en.name;
 				if (en.underlying_type != null) {
-					self.buf.write(": ");
+					self.buf += ": ";
 					self.format_type(en.underlying_type);
 				}
-				self.buf.write(" {");
+				self.buf += " {";
 
 				if (en.members.len > 0) {
 					self.buf.indent();
 					for (i in 0..<en.members.len) {
 						self.buf.newline();
 						val mem = en.members[i];
-						self.buf.write(mem.name);
+						self.buf += mem.name;
 						if (mem.value != null) {
-							self.buf.write(" = ");
+							self.buf += " = ";
 							self.format_expr(mem.value);
 						}
-						if (i + 1 < en.members.len) self.buf.write(",");
+						if (i + 1 < en.members.len) self.buf += ",";
 					}
 					self.buf.dedent();
 					self.buf.newline();
 				}
-				self.buf.write("}");
+				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is ConstDecl as c -> {
-				if (c.is_pub) self.buf.write("pub ");
-				self.buf.write("const ");
-				self.buf.write(c.name);
+				if (c.is_pub) self.buf += "pub ";
+				self.buf += "const ";
+				self.buf += c.name;
 				if (c.type_node != null) {
-					self.buf.write(": ");
+					self.buf += ": ";
 					self.format_type(c.type_node);
 				}
-				self.buf.write(" = ");
+				self.buf += " = ";
 				self.format_expr(c.value);
-				self.buf.write(";");
+				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is ExternBlock as eb -> {
-				self.buf.write("extern \"");
-				self.buf.write(eb.abi);
-				self.buf.write("\" {");
+				self.buf += "extern \"";
+				self.buf += eb.abi;
+				self.buf += "\" {";
 
 				if (eb.declarations.len > 0) {
 					self.buf.indent();
@@ -639,7 +639,7 @@ impl Formatter {
 					self.buf.dedent();
 					self.buf.newline();
 				}
-				self.buf.write("}");
+				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 		}

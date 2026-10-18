@@ -135,7 +135,7 @@ fn test_pointer_and_array_types() {
 
 	// Test fn_type
 	var params = List<*Type>();
-	params.add(&t_i32);
+	params += &t_i32;
 	val fn_ty = arena.fn_type(params, &t_i32);
 	assert_eq_usz(fn_ty.as_fn().param_types.len, 1UZ, "fn_ty param count must be 1");
 
@@ -173,9 +173,9 @@ fn test_struct_layout() {
 	var t_i64 = type_i64();
 
 	var fields = List<StructField>();
-	fields.add(StructField("a", &t_u8, 0UZ, true, null));
-	fields.add(StructField("b", &t_i32, 0UZ, true, null));
-	fields.add(StructField("c", &t_i64, 0UZ, true, null));
+	fields += StructField("a", &t_u8, 0UZ, true, null);
+	fields += StructField("b", &t_i32, 0UZ, true, null);
+	fields += StructField("c", &t_i64, 0UZ, true, null);
 
 	val s_ty = arena.struct_type("Sample", fields);
 
@@ -208,8 +208,8 @@ fn test_type_equality_and_assignability() {
 	var t_i64 = type_i64();
 	var t_bool = type_bool();
 
-	assert_true(t_i32_1.equals(&t_i32_2), "i32 must equal i32");
-	assert_true(!t_i32_1.equals(&t_i64), "i32 must not equal i64");
+	assert_true(t_i32_1 == t_i32_2, "i32 must equal i32");
+	assert_true(t_i32_1 != t_i64, "i32 must not equal i64");
 
 	assert_true(t_i32_1.can_assign(&t_i32_2), "i32 can assign to i32");
 	assert_true(!t_bool.can_assign(&t_i32_1), "i32 cannot assign to bool");

@@ -115,9 +115,9 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		out_bin.index_of(":") < 0
 	) out_bin = ".\\${out_bin}";
 
-	var run_cmd = if (out_bin.contains(" ")) "\"${out_bin}\"" else out_bin;
+	var run_cmd = if (" " in out_bin) "\"${out_bin}\"" else out_bin;
 	for (arg in extra_args) {
-		run_cmd = if (arg.contains(" ")) "${run_cmd} \"${arg}\""
+		run_cmd = if (" " in arg) "${run_cmd} \"${arg}\""
 		else "${run_cmd} ${arg}";
 	}
 
@@ -157,7 +157,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 
 	for (t in all_tests) if (
 		filter.empty() ||
-		t.contains(filter)
+		filter in t
 	) active_tests += t;
 
 	println("============================================================");
@@ -196,7 +196,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		}
 
 		val win_bin = test_bin.to_win_path();
-		val run_cmd = if (win_bin.contains(" ")) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
+		val run_cmd = if (" " in win_bin) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
 		val test_res = exec(run_cmd);
 
 		// Clean up the temporary test binary

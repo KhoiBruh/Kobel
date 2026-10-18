@@ -130,7 +130,7 @@ fn test_statement_nodes(): bool {
 
 	// { return count; }
 	var stmts = List<*AstNode>();
-	stmts.add(ret_stmt);
+	stmts += ret_stmt;
 	val block = arena.block_stmt(stmts, 2UZ, 1UZ);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
 	val blk = block.to<BlockStmt>();
@@ -156,8 +156,8 @@ fn test_declaration_nodes(): bool {
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
 	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1UZ, 1UZ);
-	params.add(Param("a", ty_i32, false, false, null));
-	params.add(Param("b", ty_i32, false, false, null));
+	params += Param("a", ty_i32, false, false, null);
+	params += Param("b", ty_i32, false, false, null);
 
 	val id_a = arena.identifier("a", 1UZ, 1UZ);
 	val id_b = arena.identifier("b", 1UZ, 1UZ);
@@ -165,7 +165,7 @@ fn test_declaration_nodes(): bool {
 	val ret_stmt = arena.return_stmt(add_expr, 1UZ, 1UZ);
 
 	var body_stmts = List<*AstNode>();
-	body_stmts.add(ret_stmt);
+	body_stmts += ret_stmt;
 	val body = arena.block_stmt(body_stmts, 1UZ, 1UZ);
 
 	val fn_node = arena.fn_decl(
@@ -196,8 +196,8 @@ fn test_program_iterable(): bool {
 	var decls = List<*AstNode>();
 	val d1 = arena.fn_decl("f1", List<GenericParam>(), List<Param>(), null, null, true, 1UZ, 1UZ);
 	val d2 = arena.fn_decl("f2", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
-	decls.add(d1);
-	decls.add(d2);
+	decls += d1;
+	decls += d2;
 	val prog_node = arena.program(decls, 1UZ, 1UZ);
 	val prog = prog_node.to<Program>();
 

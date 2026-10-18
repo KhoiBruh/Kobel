@@ -294,15 +294,15 @@ fn test_std_ctors(var t: &Tally) {
 	{
 		var m = HashMap<i32>();
 		defer m.delete();
-		m.put("k", 5);
+		m["k"] = 5;
 		check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
 	}
 
 	{
 		var sb = StringBuilder();
 		defer sb.delete();
-		sb.append_str("hi");
-		sb.append_i32(42);
+		sb += "hi";
+		sb += 42;
 		check_str(sb.to_str(), "hi42", "StringBuilder() ctor", t);
 	}
 }
@@ -322,8 +322,8 @@ fn test_generic_target_typing(var t: &Tally) {
 	check_i(nums.len as i32, 0, "nums is List<i32> with len 0", t);
 
 	var words: List<str> = List();
-	words.add("hello");
-	words.add("world");
+	words += "hello";
+	words += "world";
 	check_i(words.len as i32, 2, "words has len 2", t);
 	check_str(words[0], "hello", "words[0] == hello", t);
 

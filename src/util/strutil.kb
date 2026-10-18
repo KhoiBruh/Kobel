@@ -81,12 +81,12 @@ impl str {
 		var start: usz = 0;
 		for (i in 0..<self.len) {
 			if (self[i] == '.') {
-				parts.add(self.slice(start, i));
+				parts += self.slice(start, i);
 				start = i + 1;
 			}
 		}
 
-		parts.add(self.slice(start));
+		parts += self.slice(start);
 		return parts;
 	}
 
@@ -185,7 +185,7 @@ impl str {
 				if (line_end > start && self[line_end - 1] == '\r') {
 					line_end = line_end - 1;
 				}
-				res.add(self.slice(start, line_end));
+				res += self.slice(start, line_end);
 				start = i + 1;
 			}
 			i++;
@@ -196,7 +196,7 @@ impl str {
 			if (line_end > start && self[line_end - 1] == '\r') {
 				line_end = line_end - 1;
 			}
-			res.add(self.slice(start, line_end));
+			res += self.slice(start, line_end);
 		}
 		return res;
 	}

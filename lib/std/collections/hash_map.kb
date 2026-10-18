@@ -139,7 +139,7 @@ impl HashMap<V> {
 		var res = List<str>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res.add(self.keys[i]);
+			if (self.occupied[i]) res += self.keys[i];
 		}
 		return res;
 	}
@@ -148,7 +148,7 @@ impl HashMap<V> {
 		var res = List<V>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res.add(self.values[i]);
+			if (self.occupied[i]) res += self.values[i];
 		}
 		return res;
 	}
@@ -174,7 +174,7 @@ impl HashMap<V> {
 
 		if (old_cap > 0) {
 			for (i in 0..<old_cap) {
-				if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
+				if (old_occ[i]) self[old_keys[i]] = old_vals[i];
 			}
 			release<str>(old_keys);
 			release<V>(old_vals);

@@ -61,7 +61,9 @@ pub struct DocumentStore {
 
 impl DocumentStore {
 
-	pub fn get(self, uri: str): Document => self.doc_map.get_or(uri, Document());
+	pub op get(val self, uri: str): Document => self.doc_map.get_or(uri, Document());
+
+	pub op contains(val self, uri: str): bool => uri in self.doc_map;
 
 	pub fn has(self, uri: str): bool => uri in self.doc_map;
 

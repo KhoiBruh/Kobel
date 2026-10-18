@@ -32,7 +32,7 @@ impl CommentTable {
 		while (self.cursor < self.comments.len) {
 			val c = self.comments[self.cursor];
 			if (c.line >= target_line) break;
-			buf.write(c.text);
+			buf += c.text;
 			buf.newline();
 			self.cursor++;
 		}
@@ -43,7 +43,7 @@ impl CommentTable {
 			val c = self.comments[self.cursor];
 			if (c.line == current_line) {
 				buf.space();
-				buf.write(c.text);
+				buf += c.text;
 				self.cursor++;
 			} else break;
 		}
@@ -52,7 +52,7 @@ impl CommentTable {
 	pub fn emit_remaining(var self, var buf: &FormatBuffer) {
 		while (self.cursor < self.comments.len) {
 			val c = self.comments[self.cursor];
-			buf.write(c.text);
+			buf += c.text;
 			buf.newline();
 			self.cursor++;
 		}

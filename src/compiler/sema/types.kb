@@ -124,12 +124,18 @@ impl StructType {
 
 	pub fn find_method(val self, name: str): *MethodInfo {
 		for (m in self.methods) {
+			if (!m.is_op && m.name == name) return m;
+		}
+		for (m in self.methods) {
 			if (m.name == name) return m;
 		}
 		return null;
 	}
 
 	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo {
+		for (m in self.methods) {
+			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+		}
 		for (m in self.methods) {
 			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
 		}
@@ -139,7 +145,7 @@ impl StructType {
 	pub fn count_method_arity(val self, name: str, argc: usz): usz {
 		var n: usz = 0;
 		for (m in self.methods) {
-			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) n++;
+			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) n++;
 		}
 		return n;
 	}
@@ -401,6 +407,8 @@ impl Type {
 			else -> true;
 		};
 	}
+
+	pub op equals(val self, b: Type): bool => self.equals(&b);
 
 	pub fn can_assign(val self, source: *Type): bool {
 		if (self.equals(source)) return true;

@@ -54,4 +54,12 @@ impl Toml {
 
 	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
 
+	pub op get(val self, key: str): str => self.entries.get_or(key, "");
+
+	pub op set(var self, key: str, value: str) {
+		self.entries[key] = value;
+	}
+
+	pub op contains(val self, key: str): bool => key in self.entries;
+
 }

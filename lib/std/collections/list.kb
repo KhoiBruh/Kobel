@@ -65,7 +65,7 @@ impl List<T> {
 	}
 
 	pub fn extend(var self, other: Self) {
-		for (data in other) self.add(data);
+		for (data in other) self += data;
 	}
 
 	pub fn clear(var self) => self.len = 0;
@@ -108,7 +108,7 @@ impl List<T> {
 	pub fn clone(val self): Self {
 		val cap = if (self.cap > 0) self.cap else 4;
 		var res = Self(alloc_array<T>(cap), 0, cap);
-		for (i in 0..<self.len) res.add(self.data[i]);
+		for (i in 0..<self.len) res += self.data[i];
 		return res;
 	}
 
@@ -137,7 +137,7 @@ impl List<T> {
 		var res = Self(alloc_array<T>(count), 0, count);
 		if (start >= self.len) return res;
 		val end = if (start + count > self.len) self.len else start + count;
-		for (i in start..<end) res.add(self.data[i]);
+		for (i in start..<end) res += self.data[i];
 		return res;
 	}
 
@@ -157,7 +157,7 @@ impl List<T> {
 		return -1;
 	}
 
-	pub fn contains(val self, value: T) => self.index_of(value) != -1;
+	pub op contains(val self, value: T) => self.index_of(value) != -1;
 
 	pub fn remove(var self, value: T): bool {
 		val idx = self.index_of(value);

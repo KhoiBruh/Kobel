@@ -30,9 +30,9 @@ struct CustomIndexBox {
 }
 
 impl CustomIndexBox {
-	pub fn get(val self, i: usz): i32 => if (i == 0UZ) self.a else self.b;
+	pub op get(val self, i: usz): i32 => if (i == 0UZ) self.a else self.b;
 
-	pub fn set(var self, i: usz, v: i32) {
+	pub op set(var self, i: usz, v: i32) {
 		if (i == 0UZ) self.a = v;
 		else self.b = v;
 	}

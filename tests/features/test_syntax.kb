@@ -579,8 +579,8 @@ fn test_in_operator(): bool {
 	// 2. in List<str>
 	var list = List<str>();
 	defer list.delete();
-	list.add("foo");
-	list.add("bar");
+	list += "foo";
+	list += "bar";
 	if ("foo" !in list) return false;
 	if ("baz" in list) return false;
 
@@ -594,7 +594,7 @@ fn test_in_operator(): bool {
 	// 4. in HashSet
 	var set = HashSet();
 	defer set.delete();
-	set.add("alpha");
+	set += "alpha";
 	if ("alpha" !in set) return false;
 	if ("beta" in set) return false;
 

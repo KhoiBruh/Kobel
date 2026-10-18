@@ -1,6 +1,7 @@
 mod compiler.codegen.c_program;
 
 use std.collections.list.*;
+use std.collections.string_builder.*;
 
 use util.strutil.*;
 
@@ -27,8 +28,11 @@ impl CCodeGen {
 	pub fn gen_program(var self, program_node: *AstNode): str {
 		if (program_node is Program as prog) {
 
+		var sb = StringBuilder();
+		defer sb.delete();
+
 		// 1. C Standard Headers & Runtime Helpers
-		var c_code = C_PRELUDE;
+		sb += C_PRELUDE;
 
 		// 2. First collect struct names, function names and return types
 		for (decl in prog) {
@@ -36,21 +40,21 @@ impl CCodeGen {
 			when (decl) {
 				is StructDecl as s -> {
 					self.register_struct(s.name);
-					c_code = "${c_code}typedef struct ${s.name} ${s.name};\n";
+					sb += "typedef struct ${s.name} ${s.name};\n";
 				}
 				is EnumDecl as e -> {
 					// Enums lower to their underlying integer type; member access becomes
 					// an integer literal during semantic analysis.
 					val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
-					c_code = "${c_code}typedef ${under} ${e.name};\n";
+					sb += "typedef ${under} ${e.name};\n";
 				}
 				is ConstDecl as c -> {
 					// Module-level constants become preprocessor macros.
-					c_code = "${c_code}#define ${c.name} ${self.gen_expr(c.value)}\n";
+					sb += "#define ${c.name} ${self.gen_expr(c.value)}\n";
 				}
 			}
 		}
-		c_code = "${c_code}\n";
+		sb += "\n";
 
 		// 2b. Register function return types (arrow bodies are inferred). Done after
 		// all struct names are known so inference can resolve struct constructors.
@@ -76,19 +80,19 @@ impl CCodeGen {
 				}
 			}
 		}
-		c_code = "${c_code}\n";
+		sb += "\n";
 
 		// 3. Struct Definitions
 		for (decl in prog) {
 			if (!decl.is_template() && decl is StructDecl as s) {
-				c_code = "${c_code}${self.gen_struct_decl(s)}";
+				sb += self.gen_struct_decl(s);
 			}
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
 		for (decl_list in prog) {
 			if (!decl_list.is_template() && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
-				c_code = "${c_code}static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
+				sb += "static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
 					"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
 					"    size_t cap = (n < 4) ? 4 : n;\n"
 					"    void* data = malloc(cap * elem_size);\n"
@@ -106,34 +110,34 @@ impl CCodeGen {
 		for (decl in prog) {
 			if (decl.is_template()) continue;
 			when (decl) {
-				is FnDecl -> c_code = "${c_code}${self.gen_fn_decl(decl, true, "")}";
+				is FnDecl -> sb += self.gen_fn_decl(decl, true, "");
 				is ImplDecl as im -> {
 					for (mnode in im.methods) {
 						if (mnode is FnDecl as f && f.type_params.len == 0) {
-							c_code = "${c_code}${self.gen_fn_decl(f, true, im.struct_name)}";
+							sb += self.gen_fn_decl(f, true, im.struct_name);
 						}
 					}
 				}
 			}
 		}
-		c_code = "${c_code}\n";
+		sb += "\n";
 
 		// 5. Function Implementations
 		for (decl in prog) {
 			if (decl.is_template()) continue;
 			when (decl) {
-				is FnDecl -> c_code = "${c_code}${self.gen_fn_decl(decl, false, "")}";
+				is FnDecl -> sb += self.gen_fn_decl(decl, false, "");
 				is ImplDecl as im -> {
 					for (mnode in im.methods) {
 						if (mnode is FnDecl as f && f.type_params.len == 0) {
-							c_code = "${c_code}${self.gen_fn_decl(f, false, im.struct_name)}";
+							sb += self.gen_fn_decl(f, false, im.struct_name);
 						}
 					}
 				}
 			}
 		}
 
-		return c_code;
+		return sb.to_str();
 	}
 	return "";
 }

@@ -33,22 +33,22 @@ impl ProjectConfig {
 
 		val doc = Toml(content);
 
-		val name = doc.get("package.name", "");
+		val name = doc["package.name"];
 		if (!name.empty()) self.name = name;
 
-		val ver = doc.get("package.version", "");
+		val ver = doc["package.version"];
 		if (!ver.empty()) self.version = ver;
 
-		val entry = doc.get("package.entry", doc.get("build.entry", ""));
+		val entry = doc.get("package.entry", doc["build.entry"]);
 		if (!entry.empty()) self.entry = entry;
 
-		val output = doc.get("build.output", "");
+		val output = doc["build.output"];
 		if (!output.empty()) self.output = output;
 
-		val cc = doc.get("build.cc", "");
+		val cc = doc["build.cc"];
 		if (!cc.empty()) self.cc = cc;
 
-		val test_dir = doc.get("test.dir", "");
+		val test_dir = doc["test.dir"];
 		if (!test_dir.empty()) self.test_dir = test_dir;
 
 		return self;

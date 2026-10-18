@@ -98,9 +98,9 @@ fn test_range_bound_type(var t: &Tally, n: usz) {
 fn test_iter_list(var t: &Tally) {
 	var nums = List<i32>();
 	defer nums.delete();
-	nums.add(10);
-	nums.add(20);
-	nums.add(30);
+	nums += 10;
+	nums += 20;
+	nums += 30;
 
 	var sum: i32 = 0;
 	var count: i32 = 0;
@@ -113,7 +113,7 @@ fn test_iter_list(var t: &Tally) {
 
 	// The list is borrowed, not moved: it must stay usable after the loop.
 	check(nums.len == 3UZ, "list must keep its length after the loop", t);
-	nums.add(40);
+	nums += 40;
 	check(nums.len == 4UZ, "list must still be appendable after the loop", t);
 }
 
@@ -192,8 +192,8 @@ fn count_items<T>(xs: List<T>): i32 {
 fn test_generic_for(var t: &Tally) {
 	var nums = List<i32>();
 	defer nums.delete();
-	nums.add(5);
-	nums.add(6);
+	nums += 5;
+	nums += 6;
 	val n = count_items<i32>(nums);
 	check(n == 2, "generic function with for must count 2", t);
 }
@@ -240,9 +240,9 @@ fn test_range_half_open(var t: &Tally) {
 fn test_range_half_open_index(var t: &Tally) {
 	var nums = List<i32>();
 	defer nums.delete();
-	nums.add(10);
-	nums.add(20);
-	nums.add(30);
+	nums += 10;
+	nums += 20;
+	nums += 30;
 	var rev = List<i32>();
 	defer rev.delete();
 	rev += 1;
@@ -342,8 +342,8 @@ fn test_array_literal(var t: &Tally) {
 fn test_iter_string_builder(var t: &Tally) {
 	var sb = StringBuilder();
 	defer sb.delete();
-	sb.append_str("abc");
-	sb.append_i32(7);
+	sb += "abc";
+	sb += 7;
 
 	var count: i32 = 0;
 	var first: char = '?';
@@ -361,8 +361,8 @@ fn test_iter_string_builder(var t: &Tally) {
 fn test_iter_struct_elements(var t: &Tally) {
 	var items = List<Bundle>();
 	defer items.delete();
-	items.add(Bundle("one", 1));
-	items.add(Bundle("two", 2));
+	items += Bundle("one", 1);
+	items += Bundle("two", 2);
 
 	var ids: i32 = 0;
 	var count: i32 = 0;
@@ -382,8 +382,8 @@ struct Bag {
 fn test_iter_list_field(var t: &Tally) {
 	var bag = Bag(List<i32>());
 	defer bag.items.delete();
-	bag.items.add(4);
-	bag.items.add(5);
+	bag.items += 4;
+	bag.items += 5;
 
 	var sum: i32 = 0;
 	for (n in bag.items) sum = sum + n;

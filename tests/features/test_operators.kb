@@ -255,6 +255,37 @@ fn test_string_builder_ops() {
 	assert_true(sb[0UZ] == 'h', "sb[0] after set == 'h'");
 }
 
+fn append_via_ptr(sb: &StringBuilder, list: &List<i32>, set: &HashSet, map: &HashMap<i32>) {
+	sb += "ptr";
+	sb += '_';
+	sb += 99UZ;
+	list += 42;
+	set += "ptr_key";
+	map["ptr_k"] = 123;
+}
+
+fn test_pointer_receiver_ops() {
+	var sb = StringBuilder();
+	defer sb.delete();
+	var list = List<i32>();
+	defer list.delete();
+	var set = HashSet();
+	defer set.delete();
+	var map = HashMap<i32>();
+	defer map.delete();
+
+	append_via_ptr(&sb, &list, &set, &map);
+
+	assert_true(sb.to_str() == "ptr_99", "pointer receiver sb += worked");
+	assert_eq_i32(list.len as i32, 1, "pointer receiver list += len");
+	assert_eq_i32(list[0UZ], 42, "pointer receiver list[0]");
+	assert_true(42 in &list, "42 in &list");
+	assert_true("ptr_key" in &set, "'ptr_key' in &set");
+	assert_true("ptr_k" in &map, "'ptr_k' in &map");
+	val map_ptr = &map;
+	assert_eq_i32(*map_ptr["ptr_k"], 123, "*(&map)['ptr_k'] == 123");
+}
+
 pub fn main() {
 	println("=== Running Operator Overloading Tests ===");
 	test_vector_ops();
@@ -263,6 +294,7 @@ pub fn main() {
 	test_hash_map_ops();
 	test_hash_set_ops();
 	test_string_builder_ops();
+	test_pointer_receiver_ops();
 	println("All operator tests passed!");
 }
 

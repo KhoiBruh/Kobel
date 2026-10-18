@@ -20,11 +20,11 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	val analysis = AnalysisResult(p, text, workspace_root);
 
 	val diags_arr = json_arr();
-	for (d in analysis.diagnostics) diags_arr.add(d.to_json());
+	for (d in analysis.diagnostics) diags_arr += d.to_json();
 
 	val notif_params = json_obj();
-	notif_params.set("uri", json_str(uri));
-	notif_params.set("diagnostics", diags_arr);
+	notif_params["uri"] = json_str(uri);
+	notif_params["diagnostics"] = diags_arr;
 	send_notification("textDocument/publishDiagnostics", notif_params);
 }
 
@@ -47,7 +47,7 @@ pub fn run_server(): i32 {
 		if (!msg.is_obj()) continue;
 
 		val method = msg.get_str("method", "");
-		val id = msg.get("id");
+		val id = msg["id"];
 		val params = msg.get_obj("params");
 
 		when (method) {
@@ -76,25 +76,25 @@ pub fn run_server(): i32 {
 				// - documentFormattingProvider: true
 				// - documentSymbolProvider: true
 				// - completionProvider: triggers on '.' and ':'
-				caps.set("textDocumentSync", json_num(1));
-				caps.set("hoverProvider", json_bool(true));
-				caps.set("definitionProvider", json_bool(true));
-				caps.set("documentFormattingProvider", json_bool(true));
-				caps.set("documentSymbolProvider", json_bool(true));
+				caps["textDocumentSync"] = json_num(1);
+				caps["hoverProvider"] = json_bool(true);
+				caps["definitionProvider"] = json_bool(true);
+				caps["documentFormattingProvider"] = json_bool(true);
+				caps["documentSymbolProvider"] = json_bool(true);
 
 				val comp = json_obj();
 				val triggers = json_arr();
-				triggers.add(json_str("."));
-				triggers.add(json_str(":"));
-				comp.set("triggerCharacters", triggers);
-				caps.set("completionProvider", comp);
+				triggers += json_str(".");
+				triggers += json_str(":");
+				comp["triggerCharacters"] = triggers;
+				caps["completionProvider"] = comp;
 
 				val server_info = json_obj();
-				server_info.set("name", json_str("kobel-lsp"));
-				server_info.set("version", json_str("1.0.0"));
+				server_info["name"] = json_str("kobel-lsp");
+				server_info["version"] = json_str("1.0.0");
 
-				res.set("capabilities", caps);
-				res.set("serverInfo", server_info);
+				res["capabilities"] = caps;
+				res["serverInfo"] = server_info;
 				send_response(id, res);
 			}
 
@@ -141,8 +141,8 @@ pub fn run_server(): i32 {
 
 				// Clear diagnostics when file is closed
 				val p = json_obj();
-				p.set("uri", json_str(uri));
-				p.set("diagnostics", json_arr());
+				p["uri"] = json_str(uri);
+				p["diagnostics"] = json_arr();
 				send_notification("textDocument/publishDiagnostics", p);
 			}
 
@@ -153,7 +153,7 @@ pub fn run_server(): i32 {
 				val line = pos.get_num("line", 0) as usz;
 				val char_col = pos.get_num("character", 0) as usz;
 
-				val doc = docs.get(uri);
+				val doc = docs[uri];
 				if (!doc.text.empty()) {
 					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val h = analysis.hover_at(line, char_col);
@@ -170,7 +170,7 @@ pub fn run_server(): i32 {
 				val line = pos.get_num("line", 0) as usz;
 				val char_col = pos.get_num("character", 0) as usz;
 
-				val doc = docs.get(uri);
+				val doc = docs[uri];
 				if (!doc.text.empty()) {
 					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val def_res = analysis.definition_at(uri, line, char_col);
@@ -183,7 +183,7 @@ pub fn run_server(): i32 {
 			"textDocument/formatting" -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs.get(uri);
+				val doc = docs[uri];
 				if (!doc.text.empty()) {
 					val edits = format_document(doc.text);
 					send_response(id, edits);
@@ -195,7 +195,7 @@ pub fn run_server(): i32 {
 			"textDocument/documentSymbol" -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs.get(uri);
+				val doc = docs[uri];
 				if (!doc.text.empty()) {
 					val syms = document_symbols(doc.text);
 					send_response(id, syms);
@@ -207,7 +207,7 @@ pub fn run_server(): i32 {
 			"textDocument/completion" -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs.get(uri);
+				val doc = docs[uri];
 				if (!doc.text.empty()) {
 					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
 					val items = analysis.complete_at();

@@ -270,15 +270,17 @@ impl BodyPass {
 	}
 
 	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (rt.kind == DataType.STRUCT) {
-			val s_info = rt.as_struct();
+		val r_is_ptr = rt.kind == DataType.POINTER;
+		val r_struct_ty = if (r_is_ptr) rt.as_pointer().pointee else rt;
+		if (r_struct_ty != null && r_struct_ty.kind == DataType.STRUCT) {
+			val s_info = r_struct_ty.as_struct();
 			var arg_types = List<*Type>();
-			arg_types += rt;
+			arg_types += r_struct_ty;
 			arg_types += lt;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
 				var new_args = List<*AstNode>();
-				new_args += self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+				new_args += if (r_is_ptr) bin.right else self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
 				new_args += bin.left;
 				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 				self.replace_node(node, call_node);
@@ -523,7 +525,11 @@ impl BodyPass {
 		val target_ty = self.check_expr(idx.target);
 		val index_ty = self.check_expr(idx.index);
 
-		if (target_ty.kind == DataType.ARRAY || target_ty.kind == DataType.STR || target_ty.kind == DataType.POINTER) {
+		if (
+			target_ty.kind == DataType.ARRAY ||
+			target_ty.kind == DataType.STR ||
+			(target_ty.kind == DataType.POINTER && index_ty.is_integer())
+		) {
 			self.ensure(index_ty.is_integer(), node, "Index must be integer");
 			return when (target_ty.kind) {
 				DataType.ARRAY -> target_ty.as_array().elem;
@@ -533,10 +539,12 @@ impl BodyPass {
 			};
 		}
 
-		if (target_ty.kind == DataType.STRUCT) {
-			val s_info = target_ty.as_struct();
+		val t_is_ptr = target_ty.kind == DataType.POINTER;
+		val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
+		if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
+			val s_info = t_struct_ty.as_struct();
 			var arg_types = List<*Type>();
-			arg_types += target_ty;
+			arg_types += t_struct_ty;
 			arg_types += index_ty;
 			val mi = s_info.find_operator("get", arg_types) ?: s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
 
@@ -547,7 +555,7 @@ impl BodyPass {
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
 				var new_args = List<*AstNode>();
-				new_args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+				new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
 				new_args += idx.index;
 
 				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
@@ -555,6 +563,11 @@ impl BodyPass {
 
 				return fn_info.return_type;
 			}
+		}
+
+		if (target_ty.kind == DataType.POINTER) {
+			self.ensure(index_ty.is_integer(), node, "Index must be integer");
+			return target_ty.as_pointer().pointee;
 		}
 
 		self.report_error(node, "Index access on non-indexable type");
@@ -652,10 +665,9 @@ impl BodyPass {
 		self.is_stmt_level = false;
 		val target_expr = self.unwrap_group(asgn.target);
 
-		self.check_lvalue_mutability(target_expr, node, false);
-
 		// Index assignment desugaring: container[i] = val -> container.set(i, val)
 		if (target_expr is IndexExpr as idx) {
+			self.check_lvalue_mutability(target_expr, node, false);
 			val lowered = self.lower_index_assign(node, asgn, idx);
 			if (lowered != null) return lowered;
 		}
@@ -666,6 +678,42 @@ impl BodyPass {
 		self.is_stmt_level = was_stmt;
 		val val_ty = self.check_expr(asgn.value);
 		self.is_stmt_level = prev_stmt;
+
+		if (asgn.op != TokenType.EQUAL) {
+			val t_is_ptr = target_ty.kind == DataType.POINTER;
+			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
+			if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
+				val op_name = when (asgn.op) {
+					TokenType.PLUS_EQUAL -> "plus_assign",
+					TokenType.MINUS_EQUAL -> "minus_assign",
+					TokenType.STAR_EQUAL -> "mul_assign",
+					TokenType.SLASH_EQUAL -> "div_assign",
+					TokenType.PERCENT_EQUAL -> "rem_assign",
+					else -> ""
+				};
+				if (!op_name.empty()) {
+					val s_info = t_struct_ty.as_struct();
+					var arg_types = List<*Type>();
+					arg_types += t_struct_ty;
+					arg_types += val_ty;
+					val mi = s_info.find_operator(op_name, arg_types);
+					if (mi != null) {
+						if (!t_is_ptr) self.check_lvalue_mutability(target_expr, node, false);
+						else if (self.is_immutable_self(target_expr)) {
+							self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
+						}
+						var new_args = List<*AstNode>();
+						new_args += if (t_is_ptr) asgn.target else self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+						new_args += asgn.value;
+						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+						self.replace_node(node, call_node);
+						return mi.fn_type.as_fn().return_type;
+					}
+				}
+			}
+		}
+
+		self.check_lvalue_mutability(target_expr, node, false);
 
 		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
 		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
@@ -679,32 +727,6 @@ impl BodyPass {
 		}
 
 		if (asgn.op != TokenType.EQUAL) {
-			if (target_ty.kind == DataType.STRUCT) {
-				val op_name = when (asgn.op) {
-					TokenType.PLUS_EQUAL -> "plus_assign",
-					TokenType.MINUS_EQUAL -> "minus_assign",
-					TokenType.STAR_EQUAL -> "mul_assign",
-					TokenType.SLASH_EQUAL -> "div_assign",
-					TokenType.PERCENT_EQUAL -> "rem_assign",
-					else -> ""
-				};
-				if (!op_name.empty()) {
-					val s_info = target_ty.as_struct();
-					var arg_types = List<*Type>();
-					arg_types += target_ty;
-					arg_types += val_ty;
-					val mi = s_info.find_operator(op_name, arg_types);
-					if (mi != null) {
-						var new_args = List<*AstNode>();
-						new_args += self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
-						new_args += asgn.value;
-						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-						self.replace_node(node, call_node);
-						return mi.fn_type.as_fn().return_type;
-					}
-				}
-			}
-
 			self.ensure(target_ty.is_numeric() && val_ty.is_numeric(), node, "Compound assignment operator requires numeric operands");
 		}
 
@@ -733,13 +755,18 @@ impl BodyPass {
 	// the element. `what` names the construct in error messages.
 	fn lower_index_write(var self, node: *AstNode, idx: *IndexExpr, op: TokenType, rhs: *AstNode, what: str): *Type {
 		val target_raw_ty = self.check_expr(idx.target);
-		if (target_raw_ty.kind != DataType.STRUCT) return null;
-		val s_info = target_raw_ty.as_struct();
+		val t_is_ptr = target_raw_ty.kind == DataType.POINTER;
+		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer().pointee else target_raw_ty;
+		if (t_struct_ty == null || t_struct_ty.kind != DataType.STRUCT) return null;
+
 		val idx_ty_raw = self.check_expr(idx.index);
+		if (t_is_ptr && idx_ty_raw.is_integer()) return null;
+
+		val s_info = t_struct_ty.as_struct();
 		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
 
 		var arg_types = List<*Type>();
-		arg_types += target_raw_ty;
+		arg_types += t_struct_ty;
 		arg_types += idx_ty_raw;
 		if (val_ty_raw != null) arg_types += val_ty_raw;
 
@@ -768,7 +795,7 @@ impl BodyPass {
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();
-		new_args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
 		new_args += idx.index;
 		new_args += val_expr;
 

@@ -91,9 +91,9 @@ fn test_collections(): bool {
 	defer map.delete();
 	if (!map.empty() || map.count() != 0UZ) return false;
 
-	map.put("first", 100);
+	map["first"] = 100;
 	map["second"] = 200; // tests map[k] = v (set)
-	map.put("third", 300);
+	map["third"] = 300;
 
 	if (map.empty() || map.len != 3UZ || map.count() != 3UZ) return false;
 	if (!("second" in map) || !("first" in map) || !("third" in map)) return false;
@@ -165,7 +165,7 @@ fn test_collections(): bool {
 		var sb2: StringBuilder = StringBuilder();
 		defer sb2.delete();
 		sb2.append_repeat(' ', 3UZ);
-		sb2.append_str("x");
+		sb2 += "x";
 		sb2.append_escaped("a\"b\\c\nd");
 		if (sb2.to_str() != "   xa\\\"b\\\\c\\nd") return false;
 		sb2.clear();
@@ -201,9 +201,9 @@ fn test_collections(): bool {
 	{
 		var parts = List<str>();
 		defer parts.delete();
-		parts.add("hello");
-		parts.add("world");
-		parts.add("kobel");
+		parts += "hello";
+		parts += "world";
+		parts += "kobel";
 		val joined = ", ".join(parts);
 		if (joined != "hello, world, kobel") return false;
 		val dot_joined = ".".join(parts);
@@ -244,8 +244,8 @@ fn test_str(): bool {
 	if (!s.ends_with("World!")) return false;
 	if (s.ends_with("Hello")) return false;
 
-	if (!s.contains("Kobel")) return false;
-	if (s.contains("Python")) return false;
+	if ("Kobel" !in s) return false;
+	if ("Python" in s) return false;
 
 	if (s.index_of("Kobel") != 7) return false;
 	if (s.index_of("Missing") != -1) return false;

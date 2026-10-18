@@ -108,7 +108,7 @@ impl HashSet {
 		var res = List<str>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res.add(self.keys[i]);
+			if (self.occupied[i]) res += self.keys[i];
 		}
 		return res;
 	}
@@ -131,7 +131,7 @@ impl HashSet {
 
 		if (old_cap > 0) {
 			for (i in 0..<old_cap) {
-				if (old_occ[i]) self.add(old_keys[i]);
+				if (old_occ[i]) self += old_keys[i];
 			}
 			release<str>(old_keys);
 			release<bool>(old_occ);

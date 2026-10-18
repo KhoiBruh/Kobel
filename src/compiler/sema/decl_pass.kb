@@ -136,7 +136,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 			return;
 		}
 	}
-	out.add(m);
+	out += m;
 }
 
 pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
@@ -695,8 +695,8 @@ impl DeclPass {
 // `trait B : A` chain.
 	pub fn trait_effective(var self, t: *TraitInfo, out: &List<*TraitMethod>, seen: &HashSet) {
 		if (t == null) return;
-		if (t.name in *seen) return;
-		seen.add(t.name);
+		if (t.name in seen) return;
+		seen += t.name;
 
 		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
 		for (m in t.methods) trait_put_method(out, m);

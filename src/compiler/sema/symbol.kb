@@ -58,6 +58,14 @@ impl Scope {
 		}
 		return null;
 	}
+
+	pub op get(val self, name: str): *Symbol => self.lookup(name);
+
+	pub op contains(val self, name: str): bool => self.lookup(name) != null;
+
+	pub op plus_assign(var self, sym: *Symbol) {
+		self.symbols += sym;
+	}
 }
 
 impl Iterable for Scope {
@@ -88,8 +96,16 @@ pub struct ModuleScope {
 }
 
 impl ModuleScope {
-
 	pub fn lookup(self, name: str): *Symbol => self.sym_map.get_or(name, null);
+
+	pub op get(val self, name: str): *Symbol => self.lookup(name);
+
+	pub op contains(val self, name: str): bool => name in self.sym_map;
+
+	pub op plus_assign(var self, sym: *Symbol) {
+		self.symbols += sym;
+		self.sym_map[sym.name] = sym;
+	}
 }
 
 impl Iterable for ModuleScope {
@@ -356,7 +372,7 @@ impl SymbolTable {
 
 		val sym_ptr = self.arena.alloc_val<Symbol>(sym);
 
-		self.current_scope.symbols += sym_ptr;
+		self.current_scope += sym_ptr;
 		return true;
 	}
 
@@ -370,10 +386,9 @@ impl SymbolTable {
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
 		val sc = self.find_module(module_name);
 		if (sc != null) {
-			if (sc.lookup(sym.name) != null) return false;
+			if (sym.name in sc) return false;
 			val sym_ptr = self.arena.alloc_val<Symbol>(sym);
-			sc.symbols += sym_ptr;
-			sc.sym_map[sym.name] = sym_ptr;
+			sc += sym_ptr;
 			if (!sym.c_name.empty() && sym.c_name != sym.name) {
 				self.c_name_map[sym.c_name] = sym_ptr;
 			}
@@ -386,8 +401,7 @@ impl SymbolTable {
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
 		val fresh = self.arena.alloc_val<ModuleScope>(ModuleScope(module_name));
 		val sym_ptr2 = self.arena.alloc_val<Symbol>(sym);
-		fresh.symbols += sym_ptr2;
-		fresh.sym_map[sym.name] = sym_ptr2;
+		fresh += sym_ptr2;
 		self.modules += fresh;
 		self.module_map[module_name] = fresh;
 		if (!sym.c_name.empty() && sym.c_name != sym.name) {

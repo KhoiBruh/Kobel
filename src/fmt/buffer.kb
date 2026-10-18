@@ -52,6 +52,10 @@ impl FormatBuffer {
 		self.blank_lines = 0;
 	}
 
+	pub op plus_assign(var self, s: str) => self.write(s);
+
+	pub op plus_assign(var self, c: char) => self.write_char(c);
+
 	pub fn space(var self) => self.write(" ");
 
 	pub fn newline(var self) {
