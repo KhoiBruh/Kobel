@@ -5,16 +5,20 @@ use config.project.*;
 use config.toml.*;
 
 fn test_toml_parser(): bool {
-	val toml_content = "# Kobel Project Configuration\n" +
-		"[package]\n" +
-		"name = \"my_project\"\n" +
-		"version = \"0.2.1\"\n\n" +
-		"[build]\n" +
-		"entry = \"src/app.kb\"\n" +
-		"output = \"bin/app.exe\"\n" +
-		"cc = \"clang\"\n\n" +
-		"[test]\n" +
-		"dir = \"my_tests\"\n";
+	val toml_content = """
+		# Kobel Project Configuration
+		[package]
+		name = "my_project"
+		version = "0.2.1"
+
+		[build]
+		entry = "src/app.kb"
+		output = "bin/app.exe"
+		cc = "clang"
+
+		[test]
+		dir = "my_tests"
+	""";
 
 	val doc = Toml(toml_content);
 

@@ -46,15 +46,17 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 // ============================================================================
 
 fn test_collect_program() {
-	val src = "mod sample.math;\n" +
-		"use std.io.println;\n" +
-		"struct Point {\n" +
-		"    pub x: i32,\n" +
-		"    pub y: i32\n" +
-		"}\n" +
-		"fn add(a: i32, b: i32): i32 => a + b;\n" +
-		"fn scale(p: &Point, factor: i32): none {\n" +
-		"}\n";
+	val src = """
+		mod sample.math;
+		use std.io.println;
+		struct Point {
+		    pub x: i32,
+		    pub y: i32
+		}
+		fn add(a: i32, b: i32): i32 => a + b;
+		fn scale(p: &Point, factor: i32): none {
+		}
+	""";
 
 	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();
@@ -114,8 +116,10 @@ fn test_collect_program() {
 // ============================================================================
 
 fn test_duplicate_declarations() {
-	val src = "fn compute(): i32 => 1;\n" +
-		"fn compute(): i32 => 2;\n";
+	val src = """
+		fn compute(): i32 => 1;
+		fn compute(): i32 => 2;
+	""";
 
 	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();

@@ -175,17 +175,19 @@ fn test_statement_parsing() {
 // ============================================================================
 
 fn test_full_program_parsing() {
-	val src = "mod sample.math;\n" +
-		"use std.io.println;\n" +
-		"pub struct Vector2D {\n" +
-		"    pub x: i32,\n" +
-		"    pub y: i32\n" +
-		"}\n" +
-		"pub fn add(a: i32, b: i32): i32 => a + b;\n" +
-		"fn main(): i32 {\n" +
-		"    val v: Vector2D = Vector2D(10, 20);\n" +
-		"    return add(v.x, v.y);\n" +
-		"}\n";
+	val src = """
+		mod sample.math;
+		use std.io.println;
+		pub struct Vector2D {
+		    pub x: i32,
+		    pub y: i32
+		}
+		pub fn add(a: i32, b: i32): i32 => a + b;
+		fn main(): i32 {
+		    val v: Vector2D = Vector2D(10, 20);
+		    return add(v.x, v.y);
+		}
+	""";
 
 	var lexer = Lexer(src);
 	val tokens = lexer.tokenize();

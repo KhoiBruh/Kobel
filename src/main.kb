@@ -14,19 +14,21 @@ use fmt.formatter.*;
 use lsp.server.*;
 
 fn print_usage() {
-	println("============================================================");
-	println("  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  ");
-	println("============================================================");
-	println("Usage: kobel <command> [args]");
-	println("");
-	println("Commands:");
-	println("  build             Build project (kobel.toml)");
-	println("  run [args...]     Run project (rebuilds if changed)");
-	println("  test [filter]     Run test suite");
-	println("  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)");
-	println("  fmt [-w] <files>  Format Kobel source code");
-	println("  lsp               Start Language Server Protocol server");
-	println("  version           Display compiler version");
+	println("""
+		============================================================
+		  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  
+		============================================================
+		Usage: kobel <command> [args]
+
+		Commands:
+		  build             Build project (kobel.toml)
+		  run [args...]     Run project (rebuilds if changed)
+		  test [filter]     Run test suite
+		  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)
+		  fmt [-w] <files>  Format Kobel source code
+		  lsp               Start Language Server Protocol server
+		  version           Display compiler version
+	""");
 }
 
 fn run_build(): i32 => cmd_build("kobel.toml");

@@ -213,13 +213,14 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		}
 	}
 
-	println("");
-	println("============================================================");
-	println("                      TEST SUMMARY                          ");
-	println("============================================================");
-	println("Passed: ${pass_count}");
-	println("Failed: ${fail_count}");
-	println("Total:  ${active_tests.len}");
+	println("""
+		============================================================
+		                      TEST SUMMARY                          
+		============================================================
+		Passed: ${pass_count}
+		Failed: ${fail_count}
+		Total:  ${active_tests.len}
+	""");
 
 	if (fail_count > 0) {
 		println("");

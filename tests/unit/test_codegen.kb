@@ -37,16 +37,18 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 // ============================================================================
 
 fn test_end_to_end_codegen() {
-	val src = "struct Point {\n" +
-		"    pub x: i32,\n" +
-		"    pub y: i32\n" +
-		"}\n" +
-		"fn add(a: i32, b: i32): i32 => a + b;\n" +
-		"fn main(): i32 {\n" +
-		"    val p = Point(10, 20);\n" +
-		"    val total = add(p.x, p.y);\n" +
-		"    return total;\n" +
-		"}\n";
+	val src = """
+		struct Point {
+		    pub x: i32,
+		    pub y: i32
+		}
+		fn add(a: i32, b: i32): i32 => a + b;
+		fn main(): i32 {
+		    val p = Point(10, 20);
+		    val total = add(p.x, p.y);
+		    return total;
+		}
+	""";
 
 	// 1. Lexer
 	var lexer = Lexer(src);
