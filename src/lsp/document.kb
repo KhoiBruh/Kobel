@@ -24,7 +24,7 @@ pub fn uri_to_path(uri: str): str {
 	else if (s.len >= 7 && s.slice(0, 7) == "file://") s.slice(7, s.len)
 	else s;
 
-	val sb = StringBuilder();
+	var sb = StringBuilder();
 	var i: usz = 0;
 	while (i < s.len) {
 		val c = s[i];
@@ -32,18 +32,18 @@ pub fn uri_to_path(uri: str): str {
 			val h1 = s[i + 1];
 			val h2 = s[i + 2];
 			if (h1 == '3' && (h2 == 'a' || h2 == 'A')) {
-				sb.append_char(':');
+				sb += ':';
 				i += 3;
 				continue;
 			}
 			if (h1 == '2' && h2 == '0') {
-				sb.append_char(' ');
+				sb += ' ';
 				i += 3;
 				continue;
 			}
 		}
 
-		if (c == '/') sb.append_char('\\'); else sb.append_char(c);
+		if (c == '/') sb += '\\'; else sb += c;
 		i++;
 	}
 

@@ -162,7 +162,7 @@ impl DeclPass {
 		for (t in list) {
 			if (template_matches(kind, t, name) && t.module == self.current_module) return t;
 		}
-		val b = self.symtab.explicit_imports.get("${self.current_module}::${name}");
+		val b = self.symtab.explicit_imports["${self.current_module}::${name}"];
 		if (b != null) {
 			for (t in list) {
 				if (template_matches(kind, t, b.symbol_name) && t.module == b.module_name) return t;

@@ -45,7 +45,7 @@ impl Toml {
 				val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
 				else key_raw;
 
-				self.entries.put(full_key, val_clean);
+				self.entries[full_key] = val_clean;
 			}
 		}
 

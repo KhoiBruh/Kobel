@@ -125,7 +125,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 }
 
 pub fn discover_test_files(test_dir: str): List<str> {
-	val list = List<str>();
+	var list = List<str>();
 	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
 	val tmp_list_file = "build/.kobel_test_list.tmp";
 	val find_cmd = "cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul";
@@ -142,7 +142,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 				var normalized = trimmed.to_posix_path();
 				val tests_idx = normalized.index_of(search_token);
 				if (tests_idx >= 0) normalized = normalized.slice(tests_idx + 1, normalized.len);
-				list.add(normalized);
+				list += normalized;
 			}
 		}
 	}
@@ -153,12 +153,12 @@ pub fn discover_test_files(test_dir: str): List<str> {
 pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
 	val all_tests = discover_test_files(cfg.test_dir);
-	val active_tests = List<str>();
+	var active_tests = List<str>();
 
 	for (t in all_tests) if (
 		filter.empty() ||
 		t.contains(filter)
-	) active_tests.add(t);
+	) active_tests += t;
 
 	println("============================================================");
 	if (filter.empty()) println("  Running Kobel Test Suite (${active_tests.len} tests)");
@@ -172,7 +172,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 
 	var pass_count = 0;
 	var fail_count = 0;
-	val failed_names = List<str>();
+	var failed_names = List<str>();
 
 	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
 
@@ -191,7 +191,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		if (compile_res != 0) {
 			println("FAIL (compilation error)");
 			fail_count++;
-			failed_names.add(tpath);
+			failed_names += tpath;
 			continue;
 		}
 
@@ -209,7 +209,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		} else {
 			println("FAIL (exit code ${test_res})");
 			fail_count++;
-			failed_names.add(tpath);
+			failed_names += tpath;
 		}
 	}
 

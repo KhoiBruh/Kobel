@@ -226,24 +226,24 @@ impl JsonParser {
 
 					val esc = self.advance();
 					when (esc) {
-						'"' -> sb.append_char('"');
-						'\\' -> sb.append_char('\\');
-						'/' -> sb.append_char('/');
-						'n' -> sb.append_char('\n');
-						'r' -> sb.append_char('\r');
-						't' -> sb.append_char('\t');
+						'"' -> sb += '"';
+						'\\' -> sb += '\\';
+						'/' -> sb += '/';
+						'n' -> sb += '\n';
+						'r' -> sb += '\r';
+						't' -> sb += '\t';
 						'u' -> {
 							var u_count: usz = 0;
 							while (u_count < 4 && !self.is_end()) {
 								self.advance();
 								u_count++;
 							}
-							sb.append_char('?');
+							sb += '?';
 						}
-						else -> sb.append_char(esc);
+						else -> sb += esc;
 					}
 				}
-				else -> sb.append_char(c);
+				else -> sb += c;
 			}
 		}
 

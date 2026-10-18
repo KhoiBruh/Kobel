@@ -13,8 +13,8 @@ use std.traits.iterable.Iterable;
 
 	Usage:
 		var list = List<i32>();
-		list.add(42);
-		val x = list.get(0);
+		list += 42;
+		val x = list[0];
 		list.delete();
 */
 

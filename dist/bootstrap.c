@@ -2481,10 +2481,11 @@ bool std__collections__hash_set__HashSet_remove(std__collections__hash_set__Hash
 void std__collections__hash_set__HashSet_clear(std__collections__hash_set__HashSet* self);
 bool std__collections__hash_set__HashSet_empty(std__collections__hash_set__HashSet* self);
 bool std__collections__hash_set__HashSet_is_empty(std__collections__hash_set__HashSet* self);
-size_t std__collections__hash_set__HashSet_count(std__collections__hash_set__HashSet* self);
 std__collections__list__List_str std__collections__hash_set__HashSet_to_list(std__collections__hash_set__HashSet* self);
 void std__collections__hash_set__HashSet_grow(std__collections__hash_set__HashSet* self);
 void std__collections__hash_set__HashSet_delete(std__collections__hash_set__HashSet* self);
+size_t std__collections__hash_set__HashSet_count(std__collections__hash_set__HashSet* self);
+const char* std__collections__hash_set__HashSet_at(std__collections__hash_set__HashSet* self, size_t i);
 const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self);
 const char* compiler__ast__decl__Program_declared_module_name(compiler__ast__decl__Program* self);
 size_t compiler__ast__decl__ExternBlock_count(compiler__ast__decl__ExternBlock* self);
@@ -13683,7 +13684,7 @@ config__toml__Toml config__toml__Toml_new(const char* content) {
                 const char* val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), kobel_slen(trimmed)));
                 const char* val_clean = ((((kobel_slen(val_raw) >= 2) && (str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || (str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))) ? kobel_slice(val_raw, 1, (kobel_slen(val_raw) - 1)) : val_raw);
                 const char* full_key = (!str_empty(current_section) ? kobel_concat(kobel_concat(current_section, "."), key_raw) : key_raw);
-                std__collections__hash_map__HashMap_str_put(&self.entries, full_key, val_clean);
+                std__collections__hash_map__HashMap_str_set(&self.entries, full_key, val_clean);
             }
             __for_i = (__for_i + 1);
         }
@@ -13989,10 +13990,6 @@ bool std__collections__hash_set__HashSet_is_empty(std__collections__hash_set__Ha
     return (self->len == 0);
 }
 
-size_t std__collections__hash_set__HashSet_count(std__collections__hash_set__HashSet* self) {
-    return self->len;
-}
-
 std__collections__list__List_str std__collections__hash_set__HashSet_to_list(std__collections__hash_set__HashSet* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
@@ -14111,6 +14108,48 @@ void std__collections__hash_set__HashSet_delete(std__collections__hash_set__Hash
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+size_t std__collections__hash_set__HashSet_count(std__collections__hash_set__HashSet* self) {
+    return self->len;
+}
+
+const char* std__collections__hash_set__HashSet_at(std__collections__hash_set__HashSet* self, size_t i) {
+    size_t seen = 0;
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t idx = __for_i;
+            if (self->occupied[idx]) {
+                if (seen == i) {
+                    return self->keys[idx];
+                }
+                seen++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return "";
 }
 
 const char* compiler__lexer__token__Token_to_str(compiler__lexer__token__Token* self) {
@@ -20550,8 +20589,8 @@ bool compiler__codegen__c_codegen__CCodeGen_is_struct_name(compiler__codegen__c_
 }
 
 void compiler__codegen__c_codegen__CCodeGen_register_struct(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
-    std__collections__list__List_str_add(&self->struct_names, name);
-    std__collections__hash_set__HashSet_add(&self->struct_map, name);
+    std__collections__list__List_str_plus_assign(&self->struct_names, name);
+    std__collections__hash_set__HashSet_plus_assign(&self->struct_map, name);
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_lookup_fn_ret_type(compiler__codegen__c_codegen__CCodeGen* self, const char* name) {
@@ -21259,10 +21298,10 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_var_decl_stmt(compiler__c
         }
     }
     if (is_ptr) {
-        std__collections__hash_set__HashSet_add(&self->pointer_vars, vd->name);
+        std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, vd->name);
     }
     if (kobel_streq(ty_str, "const char*")) {
-        std__collections__hash_set__HashSet_add(&self->str_vars, vd->name);
+        std__collections__hash_set__HashSet_plus_assign(&self->str_vars, vd->name);
     }
     compiler__ast__node__AstNode* init_e = vd->initializer;
     while (init_e != NULL) {
@@ -21687,14 +21726,14 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_smart_cast_decl(compiler_
     const char* next_ind = compiler__codegen__c_codegen__get_indent(ind_level);
     if (!str_empty(is_e->alias)) {
         if (is_ptr) {
-            std__collections__hash_set__HashSet_add(&self->pointer_vars, bound_name);
+            std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, bound_name);
             if (is_e->has_data && !str_empty(is_e->base_c_name)) {
                 return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(target_name, "* "), bound_name), " = ("), target_name), "*)((("), is_e->base_c_name), "*)"), var_name), ")->data);");
             } else {
                 return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(target_name, "* "), bound_name), " = ("), target_name), "*)"), var_name), ";");
             }
         } else {
-            std__collections__hash_set__HashSet_add(&self->pointer_vars, bound_name);
+            std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, bound_name);
             return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(target_name, "* "), bound_name), " = ("), target_name), "*)&"), var_name), ";");
         }
     } else {
@@ -22054,16 +22093,16 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_fn_decl(compiler__codegen
             compiler__ast__decl__Param p = std__collections__list__List_compiler__ast__decl__Param_at(&f->params, __for_i);
             compiler__ast__node__AstNode* p_tn = p.type_node;
             if ((!str_empty(self_c_type) && kobel_streq(p.name, "self")) && (p_tn == NULL)) {
-                std__collections__hash_set__HashSet_add(&self->pointer_vars, p.name);
+                std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, p.name);
             } else if (p_tn != NULL) {
                 if (p_tn != NULL && p_tn->kind == compiler__ast__types__PointerType__TAG) {
                     void* __orig_p_tn = (void*)p_tn;
                     compiler__ast__types__PointerType* p_tn = (compiler__ast__types__PointerType*)(((compiler__ast__node__AstNode*)__orig_p_tn)->data);
-                    std__collections__hash_set__HashSet_add(&self->pointer_vars, p.name);
+                    std__collections__hash_set__HashSet_plus_assign(&self->pointer_vars, p.name);
                 } else if (p_tn != NULL && p_tn->kind == compiler__ast__types__NamedType__TAG) {
                     compiler__ast__types__NamedType* named = (compiler__ast__types__NamedType*)(((compiler__ast__node__AstNode*)p_tn)->data);
                     if (kobel_streq(named->name, "str")) {
-                        std__collections__hash_set__HashSet_add(&self->str_vars, p.name);
+                        std__collections__hash_set__HashSet_plus_assign(&self->str_vars, p.name);
                     }
                 }
             }
@@ -24405,7 +24444,7 @@ void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__load
     if (compiler__loader__loader__ModuleLoader_is_known(self, module_name)) {
         return;
     }
-    std__collections__hash_set__HashSet_add(&self->known, module_name);
+    std__collections__hash_set__HashSet_plus_assign(&self->known, module_name);
     std__collections__list__List_compiler__loader__loader__LoadedModule_add(&self->modules, (compiler__loader__loader__LoadedModule){ module_name, "", NULL });
     compiler__loader__loader__ModuleFile file = compiler__loader__loader__ModuleLoader_find_module(self, module_name);
     if (!file.found) {
@@ -24457,7 +24496,7 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_progra
     if (str_empty(entry_name)) {
         entry_name = str_path_to_module(str_base_name(entry_path));
     }
-    std__collections__hash_set__HashSet_add(&self->known, entry_name);
+    std__collections__hash_set__HashSet_plus_assign(&self->known, entry_name);
     std__collections__list__List_compiler__loader__loader__LoadedModule_add(&self->modules, (compiler__loader__loader__LoadedModule){ entry_name, entry_path, prog });
     compiler__loader__loader__ModuleLoader_process_uses(self, prog, entry_name);
     std__collections__list__List_compiler__loader__loader__LoadedModule_add(&self->ordered, (compiler__loader__loader__LoadedModule){ entry_name, entry_path, prog });
@@ -24753,7 +24792,7 @@ std__collections__list__List_str compiler__driver__commands__discover_test_files
                     if (tests_idx >= 0) {
                         normalized = kobel_slice(normalized, (tests_idx + 1), kobel_slen(normalized));
                     }
-                    std__collections__list__List_str_add(&list, normalized);
+                    std__collections__list__List_str_plus_assign(&list, normalized);
                 }
                 __for_i = (__for_i + 1);
             }
@@ -24772,7 +24811,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
         while (__for_i < __for_n) {
             const char* t = std__collections__list__List_str_at(&all_tests, __for_i);
             if (str_empty(filter) || str_contains(t, filter)) {
-                std__collections__list__List_str_add(&active_tests, t);
+                std__collections__list__List_str_plus_assign(&active_tests, t);
             }
             __for_i = (__for_i + 1);
         }
@@ -24811,7 +24850,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
             if (compile_res != 0) {
                 std__io__println("FAIL (compilation error)");
                 fail_count++;
-                std__collections__list__List_str_add(&failed_names, tpath);
+                std__collections__list__List_str_plus_assign(&failed_names, tpath);
                 {
                     __for_i = (__for_i + 1);
                     continue;
@@ -24828,7 +24867,7 @@ int32_t compiler__driver__commands__cmd_test(const char* manifest_path, const ch
             } else {
                 std__io__println(kobel_concat(kobel_concat("FAIL (exit code ", i32_to_str(test_res)), ")"));
                 fail_count++;
-                std__collections__list__List_str_add(&failed_names, tpath);
+                std__collections__list__List_str_plus_assign(&failed_names, tpath);
             }
             __for_i = (__for_i + 1);
         }
@@ -25148,7 +25187,7 @@ void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self) {
         }
         while (__for_go) {
             size_t i = __for_i;
-            std__collections__string_builder__StringBuilder_append_char(&self->sb, '\t');
+            std__collections__string_builder__StringBuilder_plus_assign_2_2(&self->sb, '\t');
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -25177,7 +25216,7 @@ void fmt__buffer__FormatBuffer_ensure_indent(fmt__buffer__FormatBuffer* self) {
             }
             while (__for_go) {
                 size_t j = __for_i;
-                std__collections__string_builder__StringBuilder_append_char(&self->sb, ' ');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&self->sb, ' ');
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -25202,14 +25241,14 @@ void fmt__buffer__FormatBuffer_write(fmt__buffer__FormatBuffer* self, const char
         return;
     }
     fmt__buffer__FormatBuffer_ensure_indent(self);
-    std__collections__string_builder__StringBuilder_append_str(&self->sb, s);
+    std__collections__string_builder__StringBuilder_plus_assign_2(&self->sb, s);
     self->current_col += kobel_slen(s);
     self->blank_lines = 0;
 }
 
 void fmt__buffer__FormatBuffer_write_char(fmt__buffer__FormatBuffer* self, char c) {
     fmt__buffer__FormatBuffer_ensure_indent(self);
-    std__collections__string_builder__StringBuilder_append_char(&self->sb, c);
+    std__collections__string_builder__StringBuilder_plus_assign_2_2(&self->sb, c);
     self->current_col++;
     self->blank_lines = 0;
 }
@@ -25225,7 +25264,7 @@ void fmt__buffer__FormatBuffer_newline(fmt__buffer__FormatBuffer* self) {
         }
         self->blank_lines++;
     }
-    std__collections__string_builder__StringBuilder_append_char(&self->sb, '\n');
+    std__collections__string_builder__StringBuilder_plus_assign_2_2(&self->sb, '\n');
     self->at_line_start = true;
     self->current_col = 0;
 }
@@ -26781,29 +26820,29 @@ const char* lsp__json__JsonParser_parse_string(lsp__json__JsonParser* self) {
             }
             char esc = lsp__json__JsonParser_advance(self);
             if (esc == '"') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '"');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '"');
             } else if (esc == '\\') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '\\');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '\\');
             } else if (esc == '/') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '/');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '/');
             } else if (esc == 'n') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '\n');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '\n');
             } else if (esc == 'r') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '\r');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '\r');
             } else if (esc == 't') {
-                std__collections__string_builder__StringBuilder_append_char(&sb, '\t');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '\t');
             } else if (esc == 'u') {
                 size_t u_count = 0;
                 while ((u_count < 4) && !lsp__json__JsonParser_is_end(self)) {
                     lsp__json__JsonParser_advance(self);
                     u_count++;
                 }
-                std__collections__string_builder__StringBuilder_append_char(&sb, '?');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '?');
             } else {
-                std__collections__string_builder__StringBuilder_append_char(&sb, esc);
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, esc);
             }
         } else {
-            std__collections__string_builder__StringBuilder_append_char(&sb, c);
+            std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, c);
         }
     }
     const char* res = std__collections__string_builder__StringBuilder_to_str(&sb);
@@ -27077,7 +27116,7 @@ const char* lsp__protocol__read_message(void) {
                 break;
             }
             if (c != '\r') {
-                std__collections__string_builder__StringBuilder_append_char(&header_line, c);
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&header_line, c);
             }
         }
         if (!has_any) {
@@ -27212,20 +27251,20 @@ const char* lsp__document__uri_to_path(const char* uri) {
             char h1 = s[(i + 1)];
             char h2 = s[(i + 2)];
             if ((h1 == '3') && ((h2 == 'a') || (h2 == 'A'))) {
-                std__collections__string_builder__StringBuilder_append_char(&sb, ':');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, ':');
                 i += 3;
                 continue;
             }
             if ((h1 == '2') && (h2 == '0')) {
-                std__collections__string_builder__StringBuilder_append_char(&sb, ' ');
+                std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, ' ');
                 i += 3;
                 continue;
             }
         }
         if (c == '/') {
-            std__collections__string_builder__StringBuilder_append_char(&sb, '\\');
+            std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, '\\');
         } else {
-            std__collections__string_builder__StringBuilder_append_char(&sb, c);
+            std__collections__string_builder__StringBuilder_plus_assign_2_2(&sb, c);
         }
         i++;
     }

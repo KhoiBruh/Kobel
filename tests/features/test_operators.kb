@@ -225,6 +225,14 @@ fn test_hash_set_ops() {
 	assert_true("gamma" in set, "'gamma' in set");
 	assert_true(!("delta" in set), "!('delta' in set)");
 
+	// Test for loop over HashSet
+	var count = 0;
+	for (item in set) {
+		assert_true(item in set, "item in set during iteration");
+		count++;
+	}
+	assert_eq_i32(count, 3, "HashSet iteration count == 3");
+
 	set.delete();
 }
 

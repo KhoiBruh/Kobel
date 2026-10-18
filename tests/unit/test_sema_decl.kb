@@ -77,10 +77,10 @@ fn test_collect_program() {
 	val s_info = sym_pt.type_ptr.as_struct();
 	assert_eq_str(s_info.name, "Point", "Struct name must match");
 	assert_eq_usz(s_info.fields.len, 2UZ, "Point struct must have 2 fields");
-	assert_eq_str(s_info.fields.get(0UZ).name, "x", "Field 0 must be x");
-	assert_true(s_info.fields.get(0UZ).type_ptr.kind == DataType.I32, "Field x must be i32");
-	assert_eq_str(s_info.fields.get(1UZ).name, "y", "Field 1 must be y");
-	assert_true(s_info.fields.get(1UZ).type_ptr.kind == DataType.I32, "Field y must be i32");
+	assert_eq_str(s_info.fields[0UZ].name, "x", "Field 0 must be x");
+	assert_true(s_info.fields[0UZ].type_ptr.kind == DataType.I32, "Field x must be i32");
+	assert_eq_str(s_info.fields[1UZ].name, "y", "Field 1 must be y");
+	assert_true(s_info.fields[1UZ].type_ptr.kind == DataType.I32, "Field y must be i32");
 
 	// 2. Check the Symbol 'add'
 	val sym_add = decl_pass.symtab.lookup("add");
@@ -90,8 +90,8 @@ fn test_collect_program() {
 
 	val fn_add = sym_add.type_ptr.as_fn();
 	assert_eq_usz(fn_add.param_types.len, 2UZ, "add must take 2 params");
-	assert_true(fn_add.param_types.get(0UZ).kind == DataType.I32, "Param 0 must be i32");
-	assert_true(fn_add.param_types.get(1UZ).kind == DataType.I32, "Param 1 must be i32");
+	assert_true(fn_add.param_types[0UZ].kind == DataType.I32, "Param 0 must be i32");
+	assert_true(fn_add.param_types[1UZ].kind == DataType.I32, "Param 1 must be i32");
 	assert_true(fn_add.return_type.kind == DataType.I32, "add return type must be i32");
 
 	// 3. Check the Symbol 'scale' (uses a pointer to struct Point)
@@ -100,7 +100,7 @@ fn test_collect_program() {
 	val fn_scale = sym_scale.type_ptr.as_fn();
 	assert_eq_usz(fn_scale.param_types.len, 2UZ, "scale must take 2 params");
 
-	val p0 = fn_scale.param_types.get(0UZ);
+	val p0 = fn_scale.param_types[0UZ];
 	assert_true(p0.kind == DataType.POINTER, "Param 0 of scale must be pointer");
 	val p0_ptr = p0.as_pointer();
 	assert_true(p0_ptr.is_mut, "Param 0 must be mutable pointer (&Point)");

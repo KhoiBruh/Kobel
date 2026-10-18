@@ -142,7 +142,7 @@ fn test_type_parsing() {
 	assert_eq_str(named.name, "std.collections.List", "Type path must match");
 	assert_eq_usz(named.type_args.len, 1UZ, "Type must have 1 generic argument");
 
-	val arg0 = named.type_args.get(0UZ);
+	val arg0 = named.type_args[0UZ];
 	assert_true(arg0.kind == NodeKind.TYPE_POINTER, "Generic argument must be PointerType");
 
 	println("  [PASS] test_type_parsing");
@@ -200,19 +200,19 @@ fn test_full_program_parsing() {
 	assert_eq_usz(prog.declarations.len, 5UZ, "Program must contain 5 declarations");
 
 	// Decl 0: ModuleDecl
-	val d0 = prog.declarations.get(0UZ);
+	val d0 = prog.declarations[0UZ];
 	assert_true(d0.kind == NodeKind.DECL_MODULE, "Decl 0 must be DECL_MODULE");
 	val m_decl = d0.to<ModuleDecl>();
 	assert_eq_str(m_decl.full_path, "sample.math", "Module path must match");
 
 	// Decl 1: UseDecl
-	val d1 = prog.declarations.get(1UZ);
+	val d1 = prog.declarations[1UZ];
 	assert_true(d1.kind == NodeKind.DECL_USE, "Decl 1 must be DECL_USE");
 	val u_decl = d1.to<UseDecl>();
 	assert_eq_str(u_decl.full_path, "std.io.println", "Use path must match");
 
 	// Decl 2: StructDecl
-	val d2 = prog.declarations.get(2UZ);
+	val d2 = prog.declarations[2UZ];
 	assert_true(d2.kind == NodeKind.DECL_STRUCT, "Decl 2 must be DECL_STRUCT");
 	val s_decl = d2.to<StructDecl>();
 	assert_eq_str(s_decl.name, "Vector2D", "Struct name must match");
@@ -220,7 +220,7 @@ fn test_full_program_parsing() {
 	assert_eq_usz(s_decl.fields.len, 2UZ, "Struct must have 2 fields");
 
 	// Decl 3: FnDecl (add)
-	val d3 = prog.declarations.get(3UZ);
+	val d3 = prog.declarations[3UZ];
 	assert_true(d3.kind == NodeKind.DECL_FN, "Decl 3 must be DECL_FN");
 	val fn_add = d3.to<FnDecl>();
 	assert_eq_str(fn_add.name, "add", "Function name must be 'add'");
@@ -228,7 +228,7 @@ fn test_full_program_parsing() {
 	assert_eq_usz(fn_add.params.len, 2UZ, "Function must have 2 params");
 
 	// Decl 4: FnDecl (main)
-	val d4 = prog.declarations.get(4UZ);
+	val d4 = prog.declarations[4UZ];
 	assert_true(d4.kind == NodeKind.DECL_FN, "Decl 4 must be DECL_FN");
 	val fn_main = d4.to<FnDecl>();
 	assert_eq_str(fn_main.name, "main", "Function name must be 'main'");

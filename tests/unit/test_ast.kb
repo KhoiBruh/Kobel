@@ -183,8 +183,8 @@ fn test_declaration_nodes(): bool {
 	if (fn_d.name != "add") return false;
 	if (!fn_d.is_pub) return false;
 	if (fn_d.params.len != 2UZ) return false;
-	if (fn_d.params.get(0UZ).name != "a") return false;
-	if (fn_d.params.get(1UZ).name != "b") return false;
+	if (fn_d.params[0UZ].name != "a") return false;
+	if (fn_d.params[1UZ].name != "b") return false;
 
 	arena.delete();
 	return true;

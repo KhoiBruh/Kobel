@@ -329,7 +329,7 @@ impl SymbolTable {
 		if (own != null) return own;
 
 		// 3. Explicit imports (by original name or alias), scoped to this module
-		val b = self.explicit_imports.get("${self.current_module}::${name}");
+		val b = self.explicit_imports["${self.current_module}::${name}"];
 		if (b != null) {
 			val found = self.lookup_in_module(b.module_name, b.symbol_name);
 			if (found != null) return found;

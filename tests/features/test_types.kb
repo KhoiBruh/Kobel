@@ -256,9 +256,9 @@ fn test_generic_trait_impl(var t: &Tally) {
 fn test_list_ctor(var t: &Tally) {
 	var xs = List<i32>();
 	check_i(xs.len, 0, "List<i32>() starts empty", t);
-	xs.add(7);
+	xs += 7;
 	check_i(xs.len, 1, "List<i32>() is usable", t);
-	check_i(xs.get(0), 7, "List<i32>() holds the value", t);
+	check_i(xs[0], 7, "List<i32>() holds the value", t);
 	xs.delete();
 
 	var ys = List<i32>(16UZ);

@@ -187,9 +187,9 @@ fn test_struct_layout() {
 	assert_eq_usz(s_ty.to_mut<StructType>().fields.len, 3UZ, "s_ty.to_mut<StructType>() fields len must be 3");
 	assert_eq_usz(s_info.fields.len, 3UZ, "Field count must be 3");
 
-	assert_eq_usz(s_info.fields.get(0UZ).offset, 0UZ, "Field a offset must be 0");
-	assert_eq_usz(s_info.fields.get(1UZ).offset, 4UZ, "Field b offset must be 4 (after 3B padding)");
-	assert_eq_usz(s_info.fields.get(2UZ).offset, 8UZ, "Field c offset must be 8");
+	assert_eq_usz(s_info.fields[0UZ].offset, 0UZ, "Field a offset must be 0");
+	assert_eq_usz(s_info.fields[1UZ].offset, 4UZ, "Field b offset must be 4 (after 3B padding)");
+	assert_eq_usz(s_info.fields[2UZ].offset, 8UZ, "Field c offset must be 8");
 
 	arena.delete();
 	println("  [PASS] test_struct_layout");

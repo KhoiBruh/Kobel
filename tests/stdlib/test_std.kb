@@ -47,22 +47,22 @@ fn test_arena(): bool {
 fn test_collections(): bool {
 	// 1. List
 	var list: List<i32> = List<i32>();
-	list.add(10);
-	list.add(20);
-	list.add(30);
+	list += 10;
+	list += 20;
+	list += 30;
 	if (list.len != 3UZ) return false;
-	if (list.get(1UZ) != 20) return false;
+	if (list[1UZ] != 20) return false;
 	// test insert
 	list.insert(1UZ, 15); // [10, 15, 20, 30]
-	if (list.len != 4UZ || list.get(1UZ) != 15 || list.get(2UZ) != 20) return false;
+	if (list.len != 4UZ || list[1UZ] != 15 || list[2UZ] != 20) return false;
 
 	// test remove_at
 	val rem: i32 = list.remove_at(1UZ); // [10, 20, 30]
-	if (rem != 15 || list.len != 3UZ || list.get(1UZ) != 20) return false;
+	if (rem != 15 || list.len != 3UZ || list[1UZ] != 20) return false;
 
 	// test clone
 	var cloned = list.clone();
-	if (cloned.len != 3UZ || cloned.get(2UZ) != 30) return false;
+	if (cloned.len != 3UZ || cloned[2UZ] != 30) return false;
 	cloned.delete();
 
 	val pop_val: i32 = list.pop();
@@ -78,15 +78,15 @@ fn test_collections(): bool {
 	map.put("third", 300);
 
 	if (map.empty() || map.len != 3UZ || map.count() != 3UZ) return false;
-	if (!map.contains("second") || !map.contains("first") || !map.contains("third")) return false;
-	if (map.contains("not_found")) return false;
+	if (!("second" in map) || !("first" in map) || !("third" in map)) return false;
+	if ("not_found" in map) return false;
 
 	// test get and get_or
-	val p_first = map.get("first");
+	val p_first = map["first"];
 	if (p_first == null || *p_first != 100) return false;
-	val p_sec = map.get("second");
+	val p_sec = map["second"];
 	if (p_sec == null || *p_sec != 200) return false;
-	if (map.get("missing") != null) return false;
+	if (map["missing"] != null) return false;
 
 	if (map.get_or("first", 0) != 100) return false;
 	if (map.get_or("third", 0) != 300) return false;
@@ -95,7 +95,7 @@ fn test_collections(): bool {
 	// test overwrite via indexing
 	map["first"] = 101;
 	if (map.len != 3UZ) return false;
-	val p_first_upd = map.get("first");
+	val p_first_upd = map["first"];
 	if (p_first_upd == null || *p_first_upd != 101) return false;
 
 	// test keys and values
@@ -109,7 +109,7 @@ fn test_collections(): bool {
 
 	// test remove
 	if (!map.remove("second")) return false;
-	if (map.contains("second")) return false;
+	if ("second" in map) return false;
 	if (map.len != 2UZ) return false;
 	if (map.remove("second")) return false; // already removed
 	if (map.remove("nonexistent")) return false;
@@ -117,20 +117,20 @@ fn test_collections(): bool {
 	// test clear
 	map.clear();
 	if (!map.empty() || map.len != 0UZ) return false;
-	if (map.contains("first") || map.contains("third")) return false;
+	if ("first" in map || "third" in map) return false;
 	map.delete();
 
 	// 3. StringBuilder
 	var sb: StringBuilder = StringBuilder();
 	if (!sb.empty()) return false;
-	sb.append_str("Kobel");
+	sb += "Kobel";
 	if (sb.empty()) return false;
 	if (sb.last_char() != 'l') return false;
-	sb.append_char(' ');
-	sb.append_str("Compiler v");
-	sb.append_i32(1);
-	sb.append_str(" ");
-	sb.append_bool(true);
+	sb += ' ';
+	sb += "Compiler v";
+	sb += 1;
+	sb += " ";
+	sb += true;
 	sb.append_line("!");
 	val result_str: str = sb.to_str();
 	if (result_str != "Kobel Compiler v1 true!\n") return false;
@@ -154,13 +154,13 @@ fn test_collections(): bool {
 	if (!set.add("apple")) return false;
 	if (!set.add("banana")) return false;
 	if (set.add("apple")) return false;
-	if (set.len != 2UZ || !set.contains("apple") || !set.contains("banana")) return false;
-	if (set.contains("orange")) return false;
+	if (set.len != 2UZ || !("apple" in set) || !("banana" in set)) return false;
+	if ("orange" in set) return false;
 	val set_list = set.to_list();
 	if (set_list.len != 2UZ) return false;
 	set_list.delete();
 	if (!set.remove("apple")) return false;
-	if (set.contains("apple")) return false;
+	if ("apple" in set) return false;
 	if (set.len != 1UZ) return false;
 	set.clear();
 	if (!set.empty() || set.len != 0UZ) return false;

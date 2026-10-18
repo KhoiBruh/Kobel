@@ -2,6 +2,7 @@ mod std.collections.hash_set;
 
 use std.mem.alloc.*;
 use std.collections.list.List;
+use std.traits.iterable.Iterable;
 
 // `len` is the public size accessor; the storage is internal.
 pub struct HashSet {
@@ -107,8 +108,6 @@ impl HashSet {
 
 	pub fn is_empty(val self): bool => self.len == 0;
 
-	pub fn count(val self): usz => self.len;
-
 	pub fn to_list(val self): List<str> {
 		var res = List<str>();
 		if (self.cap == 0) return res;
@@ -150,3 +149,20 @@ impl HashSet {
 		}
 	}
 }
+
+// `for (key in set)` walks the set keys.
+impl Iterable for HashSet {
+	pub fn count(val self): usz => self.len;
+
+	pub fn at(val self, i: usz): str {
+		var seen: usz = 0;
+		for (idx in 0..<self.cap) {
+			if (self.occupied[idx]) {
+				if (seen == i) return self.keys[idx];
+				seen++;
+			}
+		}
+		return "";
+	}
+}
+

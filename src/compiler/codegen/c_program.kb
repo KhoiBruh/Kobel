@@ -190,12 +190,12 @@ impl CCodeGen {
 		for (p in f.params) {
 			val p_tn = p.type_node;
 			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {
-				self.pointer_vars.add(p.name);
+				self.pointer_vars += p.name;
 			} else if (p_tn != null) {
 				when (p_tn) {
-					is PointerType -> self.pointer_vars.add(p.name);
+					is PointerType -> self.pointer_vars += p.name;
 					is NamedType as named -> {
-						if (named.name == "str") self.str_vars.add(p.name);
+						if (named.name == "str") self.str_vars += p.name;
 					}
 				}
 			}

@@ -50,14 +50,14 @@ fn test_list_literals(): bool {
 	// 1. Basic List literal
 	val nums: List<i32> = [1, 2, 3, 4, 5];
 	if (nums.len != 5) return false;
-	if (nums.get(0) != 1 || nums.get(4) != 5) return false;
+	if (nums[0] != 1 || nums[4] != 5) return false;
 
 	// 2. Empty List literal + add
 	var empty: List<str> = [];
 	if (empty.len != 0) return false;
-	empty.add("first");
-	empty.add("second");
-	if (empty.len != 2 || empty.get(0) != "first" || empty.get(1) != "second") return false;
+	empty += "first";
+	empty += "second";
+	if (empty.len != 2 || empty[0] != "first" || empty[1] != "second") return false;
 
 	// 3. Passing literal directly to function
 	val s = sum_list([10, 20, 30, 40]);
@@ -65,14 +65,14 @@ fn test_list_literals(): bool {
 
 	// 4. Returning literal from function
 	val words = make_strings();
-	if (words.len != 4 || words.get(0) != "kobel" || words.get(3) != "literal") return false;
+	if (words.len != 4 || words[0] != "kobel" || words[3] != "literal") return false;
 
 	// 5. Nested list literal
 	val matrix: List<List<i32>> = [[1, 2], [3, 4]];
 	if (matrix.len != 2) return false;
-	val row0 = matrix.get(0);
-	val row1 = matrix.get(1);
-	if (row0.get(1) != 2 || row1.get(0) != 3) return false;
+	val row0 = matrix[0];
+	val row1 = matrix[1];
+	if (row0[1] != 2 || row1[0] != 3) return false;
 
 	return true;
 }
@@ -144,8 +144,8 @@ fn test_hash_map(): bool {
 	// Check all 60 items
 	for (i in 0..<60) {
 		val key = "key_${i}";
-		if (!map.contains(key)) return false;
-		val p = map.get(key);
+		if (!(key in map)) return false;
+		val p = map[key];
 		if (p == null || *p != i as i32 * 10) return false;
 	}
 
@@ -163,11 +163,11 @@ fn test_hash_map(): bool {
 	for (i in 0..<60) {
 		val key = "key_${i}";
 		if (i % 2 == 0) {
-			if (map.contains(key)) return false;
-			if (map.get(key) != null) return false;
+			if (key in map) return false;
+			if (map[key] != null) return false;
 		} else {
-			if (!map.contains(key)) return false;
-			val p = map.get(key);
+			if (!(key in map)) return false;
+			val p = map[key];
 			if (p == null || *p != i as i32 * 10) return false;
 		}
 	}

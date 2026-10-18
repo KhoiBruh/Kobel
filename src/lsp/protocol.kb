@@ -82,7 +82,7 @@ pub fn read_message(): str {
 			has_any = true;
 			val c = ch as char;
 			if (c == '\n') break;
-			if (c != '\r') header_line.append_char(c);
+			if (c != '\r') header_line += c;
 		}
 
 		if (!has_any) {

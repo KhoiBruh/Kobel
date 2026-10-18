@@ -60,8 +60,8 @@ impl CCodeGen {
 	pub fn is_struct_name(val self, name: str): bool => name in self.struct_map;
 
 	pub fn register_struct(var self, name: str) {
-		self.struct_names.add(name);
-		self.struct_map.add(name);
+		self.struct_names += name;
+		self.struct_map += name;
 	}
 
 	pub fn lookup_fn_ret_type(val self, name: str): str => self.fn_ret_types.get_or(name, "");
@@ -772,8 +772,8 @@ impl CCodeGen {
 			if (ty_str.ends_with("*")) is_ptr = true;
 		}
 
-		if (is_ptr) self.pointer_vars.add(vd.name);
-		if (ty_str == "const char*") self.str_vars.add(vd.name);
+		if (is_ptr) self.pointer_vars += vd.name;
+		if (ty_str == "const char*") self.str_vars += vd.name;
 
 		var init_e = vd.initializer;
 		while (init_e != null) {
@@ -1139,7 +1139,7 @@ impl CCodeGen {
 		val next_ind = get_indent(ind_level);
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
-				self.pointer_vars.add(bound_name);
+				self.pointer_vars += bound_name;
 				if (is_e.has_data && !is_e.base_c_name.empty()) {
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(((${is_e.base_c_name}*)${var_name})->data);";
@@ -1147,7 +1147,7 @@ impl CCodeGen {
 					return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 				}
 			} else {
-				self.pointer_vars.add(bound_name);
+				self.pointer_vars += bound_name;
 				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 			}
 		} else {

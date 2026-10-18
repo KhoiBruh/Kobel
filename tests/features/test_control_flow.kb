@@ -175,9 +175,9 @@ fn test_break_continue(var t: &Tally) {
 // The loop variable is read-only and fresh on every iteration.
 fn test_loop_var_is_fresh(var t: &Tally) {
 	var sum = List<i32>();
-	for (i in 0..3) sum.add(i);
-	val a = sum.get(0);
-	val b = sum.get(2);
+	for (i in 0..3) sum += i;
+	val a = sum[0];
+	val b = sum[2];
 	check(a == 0 && b == 2, "loop variable must be fresh per iteration", t);
 	sum.delete();
 }
@@ -243,15 +243,15 @@ fn test_range_half_open_index(var t: &Tally) {
 	nums.add(20);
 	nums.add(30);
 	var rev = List<i32>();
-	rev.add(1);
-	rev.add(2);
-	rev.add(3);
+	rev += 1;
+	rev += 2;
+	rev += 3;
 
 	var sum: i32 = 0;
 	var seps: i32 = 0;
 	for (i in 0..<nums.len) {
 		if (i > 0) seps = seps + 1;
-		sum = sum + nums.get(i) + rev.get(i);
+		sum = sum + nums[i] + rev[i];
 	}
 	check(sum == 66, "indexed half-open loop must sum both lists", t);
 	check(seps == 2, "indexed half-open loop must see i > 0 twice", t);
