@@ -157,12 +157,7 @@ impl str {
 	// Converts '\\' to '/' for cross-platform and POSIX path representations
 	pub fn to_posix_path(val self) => self.remap_path_bytes('\\', '/', false);
 
-	pub fn index_in_list(val self, list: List<str>): isz {
-		for (i in 0..<list.len) {
-			if (list[i] == self) return i as isz;
-		}
-		return -1;
-	}
+	pub fn index_in_list(val self, list: List<str>): isz => list.index_of(self);
 
 	pub fn trim(val self): str {
 		if (self.empty()) return self;

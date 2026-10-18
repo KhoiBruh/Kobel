@@ -53,9 +53,8 @@ pub struct GenSubst {
 
 impl GenSubst {
 	pub fn lookup(val self, name: str): *AstNode {
-		for (i in 0..<self.names.len) {
-			if (self.names[i] == name) return self.args[i];
-		}
+		val idx = self.names.index_of(name);
+		if (idx >= 0) return self.args[idx as usz];
 		return null;
 	}
 }
@@ -852,10 +851,7 @@ impl DeclPass {
 				val mem_obj = mem.object;
 				val cname = self.instantiate_fn(ft, c.type_args);
 				c.callee = self.identifier(cname, node.line, node.col);
-				var new_args = List<*AstNode>();
-				new_args += mem_obj;
-				for (a in c.args) new_args += a;
-				c.args = new_args;
+				c.args.insert(0, mem_obj);
 				c.type_args = List<*AstNode>();
 			}
 		}

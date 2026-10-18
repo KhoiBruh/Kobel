@@ -248,6 +248,7 @@ impl BodyPass {
 		}
 
 		if (lt.kind == DataType.STRUCT) {
+			self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
 			val s_info = lt.as_struct();
 			var arg_types = List<*Type>();
 			arg_types += lt;
@@ -264,6 +265,10 @@ impl BodyPass {
 				self.replace_node(node, call_node);
 				return self.t_bool();
 			}
+
+			val wrapped = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
+			self.replace_node(node, wrapped);
+			return self.t_bool();
 		}
 
 		self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");

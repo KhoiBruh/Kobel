@@ -109,11 +109,10 @@ impl JsonValue {
 
 	pub fn set(var self, key: str, val_item: *JsonValue) {
 		if (self.kind != JsonKind.JOBJ) return;
-		for (i in 0..<self.obj_keys.len) {
-			if (self.obj_keys[i] == key) {
-				self.obj_vals[i] = val_item;
-				return;
-			}
+		val idx = self.obj_keys.index_of(key);
+		if (idx >= 0) {
+			self.obj_vals[idx as usz] = val_item;
+			return;
 		}
 		self.obj_keys += key;
 		self.obj_vals += val_item;
@@ -121,12 +120,12 @@ impl JsonValue {
 
 	pub fn get(val self, key: str): *JsonValue {
 		if (self == null || self.kind != JsonKind.JOBJ) return json_null();
-		for (i in 0..<self.obj_keys.len) {
-			if (self.obj_keys[i] == key) return self.obj_vals[i];
-		}
-
+		val idx = self.obj_keys.index_of(key);
+		if (idx >= 0) return self.obj_vals[idx as usz];
 		return json_null();
 	}
+
+	pub fn has(val self, key: str): bool => self != null && self.kind == JsonKind.JOBJ && key in self.obj_keys;
 
 	pub fn get_str(val self, key: str, def_val: str): str {
 		val v = self.get(key);

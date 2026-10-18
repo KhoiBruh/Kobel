@@ -100,12 +100,7 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn in_list(val self, list: List<str>): bool {
-		for (i in 0..<list.len) {
-			if (list.data[i] == self) return true;
-		}
-		return false;
-	}
+	pub fn in_list(val self, list: List<str>): bool => list.contains(self);
 
 	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
 	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.

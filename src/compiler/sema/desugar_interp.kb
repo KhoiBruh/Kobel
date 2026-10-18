@@ -86,5 +86,16 @@ impl Arena {
 		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
 		return eq_call;
 	}
+
+	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated, for default struct equality.
+	pub fn make_mem_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, size: usz, line: usz, col: usz): *AstNode {
+		var eargs = List<*AstNode>();
+		eargs += self.unary(TokenType.AMPERSAND, left, line, col);
+		eargs += self.unary(TokenType.AMPERSAND, right, line, col);
+		eargs += self.literal(LiteralKind.INT, "${size}UZ", line, col);
+		val eq_call = self.call(self.identifier("kobel_memeq", line, col), eargs, List<*AstNode>(), line, col);
+		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
+		return eq_call;
+	}
 }
 

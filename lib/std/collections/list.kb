@@ -112,5 +112,81 @@ impl List<T> {
 		return res;
 	}
 
+	pub fn pop_or(var self, default_val: T): T {
+		if (self.len == 0) return default_val;
+		return self.pop();
+	}
+
+	pub fn swap(var self, i: usz, j: usz) {
+		val tmp = self.data[i];
+		self.data[i] = self.data[j];
+		self.data[j] = tmp;
+	}
+
+	pub fn reverse(var self) {
+		if (self.len <= 1) return;
+		var l: usz = 0;
+		var r: usz = self.len - 1;
+		while (l < r) {
+			val tmp = self.data[l];
+			self.data[l] = self.data[r];
+			self.data[r] = tmp;
+			l++;
+			r--;
+		}
+	}
+
+	pub fn sub_list(val self, start: usz, count: usz): Self<T> {
+		var res = Self(alloc_array<T>(count), 0, count);
+		if (start >= self.len) return res;
+		val end = if (start + count > self.len) self.len else start + count;
+		for (i in start..<end) res.add(self.data[i]);
+		return res;
+	}
+
+	pub fn extend(var self, other: List<T>) => self.add_all(other);
+
+	pub fn index_of(val self, value: T): isz {
+		for (i in 0..<self.len) {
+			if (self.data[i] == value) return i as isz;
+		}
+		return -1;
+	}
+
+	pub fn last_index_of(val self, value: T): isz {
+		if (self.len == 0) return -1;
+		var i = self.len - 1;
+		while (true) {
+			if (self.data[i] == value) return i as isz;
+			if (i == 0) break;
+			i--;
+		}
+		return -1;
+	}
+
+	pub fn contains(val self, value: T): bool => self.index_of(value) != -1;
+
+	pub fn remove(var self, value: T): bool {
+		val idx = self.index_of(value);
+		if (idx < 0) return false;
+		self.remove_at(idx as usz);
+		return true;
+	}
+
+	pub fn remove_all(var self, value: T): usz {
+		var write: usz = 0;
+		var removed: usz = 0;
+		for (i in 0..<self.len) {
+			if (self.data[i] == value) {
+				removed++;
+			} else {
+				if (write != i) self.data[write] = self.data[i];
+				write++;
+			}
+		}
+		self.len = write;
+		return removed;
+	}
+
 	pub fn delete(self) => release<T>(self.data);
 }

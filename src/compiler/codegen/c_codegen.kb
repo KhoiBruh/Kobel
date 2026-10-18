@@ -571,6 +571,7 @@ impl CCodeGen {
 			if (id.name == "kobel_concat") return "const char*";
 			if (id.name == "kobel_slice") return "const char*";
 			if (id.name == "kobel_streq") return "bool";
+			if (id.name == "kobel_memeq") return "bool";
 			if (id.name == "kobel_slen") return "size_t";
 			if (self.is_struct_name(id.name)) return id.name;
 			val ret_ty = self.lookup_fn_ret_type(id.name);

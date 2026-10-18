@@ -74,7 +74,7 @@ impl ModuleLoader {
 		var roots = List<str>();
 		if (!entry_dir.empty()) roots += entry_dir;
 
-		for (r in extra_roots) roots += r;
+		roots.extend(extra_roots);
 
 		// Default roots: the standard library (lib/) and the compiler source (src/)
 		roots += "lib";

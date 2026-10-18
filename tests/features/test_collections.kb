@@ -185,6 +185,70 @@ fn test_hash_map(): bool {
 	return true;
 }
 
+fn test_list_utilities(): bool {
+	// 1. index_of and last_index_of
+	val l: List<i32> = [10, 20, 30, 20, 50];
+	if (l.index_of(10) != 0) return false;
+	if (l.index_of(20) != 1) return false;
+	if (l.index_of(50) != 4) return false;
+	if (l.index_of(99) != -1) return false;
+
+	if (l.last_index_of(20) != 3) return false;
+	if (l.last_index_of(50) != 4) return false;
+	if (l.last_index_of(99) != -1) return false;
+
+	// 2. contains and in operator
+	if (!l.contains(30) || l.contains(99)) return false;
+	if (!(30 in l)) return false;
+	if (!(99 !in l)) return false;
+
+	// 3. remove
+	var m: List<i32> = [10, 20, 30, 40];
+	if (!m.remove(20)) return false;
+	if (m.len != 3 || m[0] != 10 || m[1] != 30 || m[2] != 40) return false;
+	if (m.remove(99)) return false;
+
+	// 4. remove_all
+	var r: List<i32> = [1, 2, 3, 2, 4, 2, 5];
+	val removed = r.remove_all(2);
+	if (removed != 3UZ || r.len != 4) return false;
+	if (r[0] != 1 || r[1] != 3 || r[2] != 4 || r[3] != 5) return false;
+
+	// 5. pop_or
+	var p: List<i32> = [10, 20];
+	if (p.pop_or(0) != 20) return false;
+	if (p.pop_or(0) != 10) return false;
+	if (p.pop_or(999) != 999) return false;
+
+	// 6. swap
+	var s: List<i32> = [10, 20, 30];
+	s.swap(0UZ, 2UZ);
+	if (s[0] != 30 || s[1] != 20 || s[2] != 10) return false;
+
+	// 7. reverse
+	var rev: List<i32> = [1, 2, 3, 4, 5];
+	rev.reverse();
+	if (rev[0] != 5 || rev[1] != 4 || rev[2] != 3 || rev[3] != 2 || rev[4] != 1) return false;
+
+	// 8. sub_list
+	val sl = rev.sub_list(1UZ, 3UZ);
+	if (sl.len != 3 || sl[0] != 4 || sl[1] != 3 || sl[2] != 2) return false;
+
+	// 9. extend
+	var ext: List<i32> = [1, 2];
+	ext.extend([3, 4]);
+	if (ext.len != 4 || ext[0] != 1 || ext[1] != 2 || ext[2] != 3 || ext[3] != 4) return false;
+
+	// 10. Struct list with memeq
+	val pts: List<Point2D> = [Point2D(1, 2), Point2D(3, 4)];
+	if (!(Point2D(3, 4) in pts)) return false;
+	if (!(Point2D(5, 6) !in pts)) return false;
+	if (pts.index_of(Point2D(3, 4)) != 1) return false;
+	if (pts.index_of(Point2D(9, 9)) != -1) return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Collections, Indexing & Formatting ===");
 
@@ -211,6 +275,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_interpolation_and_formatting");
+
+	if (!test_list_utilities()) {
+		println("  [FAIL] test_list_utilities");
+		return 1;
+	}
+	println("  [PASS] test_list_utilities");
 
 	println("=== ALL COLLECTIONS & FORMATTING TESTS PASSED! ===");
 	return 0;

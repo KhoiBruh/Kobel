@@ -329,8 +329,7 @@ impl Parser {
 			val s_tok = self.consume(TokenType.IDENTIFIER, "Expected struct name after 'for'");
 			struct_name = s_tok.text;
 			if (self.check(TokenType.LESS)) {
-				val s_params = self.parse_generic_params();
-				for (p in s_params) type_params += p;
+				type_params.extend(self.parse_generic_params());
 			}
 		}
 
@@ -485,7 +484,7 @@ impl Parser {
 		var declarations = List<*AstNode>();
 
 		while (!self.is_end()) declarations += self.parse_declaration();
-		for (c in self.struct_consts) declarations += c;
+		declarations.extend(self.struct_consts);
 
 		return self.program(declarations, 1, 1);
 	}

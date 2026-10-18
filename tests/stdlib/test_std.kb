@@ -67,6 +67,20 @@ fn test_collections(): bool {
 
 	val pop_val: i32 = list.pop();
 	if (pop_val != 30 || list.len != 2UZ) return false;
+
+	// test extend, in/contains, index_of, remove, reverse, pop_or
+	var ext_list = List<i32>();
+	ext_list += 40;
+	ext_list += 50;
+	list.extend(ext_list); // [10, 20, 40, 50]
+	if (list.len != 4UZ || !(40 in list) || list.contains(99)) return false;
+	if (list.index_of(40) != 2 || list.index_of(99) != -1) return false;
+	if (!list.remove(40) || (40 in list) || list.len != 3UZ) return false;
+	list.reverse(); // [50, 20, 10]
+	if (list[0UZ] != 50 || list[2UZ] != 10) return false;
+	if (list.pop_or(0) != 10) return false;
+	ext_list.delete();
+
 	list.delete();
 
 	// 2. HashMap
