@@ -217,9 +217,9 @@ Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu ph�
   `fn_ret_c_type` chỉ đọc lại, không suy luận.
 - Tên kiểu trong AST được sema **đổi sang tên C đã mangle** ngay khi giải kiểu.
 
-Hệ quả: codegen chỉ còn heuristic **theo hình dạng cấu trúc**, không theo tên biến: `is_struct_name`
-(nhận biết `Point(...)` là compound literal) và tên field tag của pattern matching (xem §6.5). Hai chỗ
-này là mục tiêu của P2/P3 trong lộ trình §9.4, không phải chỗ vá tạm.
+Hệ quả: codegen chỉ còn heuristic **theo hình dạng cấu trúc**, không theo tên biến: tên field tag của
+pattern matching (xem §6.5). `Point(...)` không còn là heuristic: sema hạ nó thành node `StructCtorExpr`
+(`resolved_node`), codegen chỉ phát `(Type){...}`. Chỗ còn lại là mục tiêu của P2/P3 trong lộ trình §9.4.
 
 Bất biến đi kèm (đã có test C snapshot bảo vệ, §8.1): **thay đổi sema/codegen không được đổi C sinh ra
 cho corpus test**, trừ khi đó là chủ đích và golden được cập nhật trong cùng commit.
@@ -516,8 +516,9 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
-Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
-`tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
+Heuristic còn lại sau P1/P2 (mục tiêu P3): `tag_field_name_of` (nhận tag theo tên
+`tag/TAG/kind/kind_`) trong pattern matching. `is_struct_name` chỉ còn dùng để khỏi phát typedef hai lần
+cho struct vừa khai báo trước vừa định nghĩa (`305261e`).
 
 **Definition of done của P2 (phần I1, đã đạt):** 0 call site `replace_node`, 0 phép gán `kind`/`data`;
 mọi hạ cấp đi qua `lower` (hoặc qua `resolved_node` mà check đã kiểm). Sema chỉ còn sửa *field*:
