@@ -124,30 +124,12 @@ impl BodyPass {
 		return null;
 	}
 
-	// An arrow-bodied method (`fn f() => expr`) has no body checked by the
-	// declaration pass, so check it here, with `self` bound to the receiver
-	// type and the module switched to the one declaring the method.
-	fn check_arrow_method_body(var self, mi: *MethodInfo, obj_ty: *Type) {
-		val ast_n = (mi.ast_node as *AstNode) ?: return;
-		if (ast_n is FnDecl as f && f.body is ExprStmt && f.return_type == null) {
-			val prev_self = self.current_self_type;
-			val prev_ret = self.current_fn_return_type;
-			val prev_mod = self.enter_module(mi.module);
-			self.current_self_type = obj_ty;
-			self.check_fn_body(ast_n, mi.fn_type);
-			self.current_self_type = prev_self;
-			self.current_fn_return_type = prev_ret;
-			self.leave_module(prev_mod);
-		}
-	}
-
 	// Check the arguments and record which method was chosen. Rewriting the call
 	// into `c_name(recv, args)` is the `lower` pass's job: it reads
 	// `resolved_method` and derives the receiver convention from the types, so
 	// the checker never has to build replacement nodes.
 	fn bind_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type): *Type {
 		val fn_info = mi.fn_type.as_fn();
-		self.check_arrow_method_body(mi, obj_ty);
 
 		if (call.args.len + 1 != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
@@ -160,6 +142,8 @@ impl BodyPass {
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
 			}
 		}
+
+		if (self.arrow_pending(mi.ast_node as *AstNode)) self.infer_blocked = true;
 
 		var ret_ty = fn_info.return_type;
 		if (mem.is_safe) {
@@ -228,7 +212,10 @@ impl BodyPass {
 		val callee = call.callee;
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
-			if (sym != null) { self.append_defaults(sym.ast_node as *AstNode, call.args.len, call); }
+			if (sym != null) {
+				self.append_defaults(sym.ast_node as *AstNode, call.args.len, call);
+				if (self.arrow_pending(sym.ast_node as *AstNode)) self.infer_blocked = true;
+			}
 		}
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 		else {

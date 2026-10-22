@@ -26,6 +26,15 @@ use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
 
+// One arrow-bodied function whose return type is still unknown, together with
+// the context its body has to be checked in (defining module and `Self` type).
+struct ArrowCandidate {
+	pub node: *AstNode,
+	pub fn_type: *Type,
+	pub self_ty: *Type,
+	pub module: str
+}
+
 impl BodyPass {
 
 	pub fn check_fn(var self, fn_node: *AstNode) {
@@ -135,6 +144,10 @@ impl BodyPass {
 			for (msg in decl_p.errors) self.errors += msg;
 		}
 
+		// Step 1.5: resolve the return type of every arrow-bodied function first,
+		// so no call site has to check a callee's body on demand.
+		self.infer_arrow_returns(program_node);
+
 		// Step 2: Analyze each function body of each module (program already merged)
 		val prog = program_node.to<Program>();
 		for (decl in prog) {
@@ -147,6 +160,134 @@ impl BodyPass {
 				}
 			}
 		}
+	}
+
+	// ============================================================================
+	// Arrow Return-Type Inference
+	// ============================================================================
+
+	// Collects every arrow-bodied function (`fn f() => expr`) whose return type is
+	// still unknown and resolves it, retrying when an attempt calls another
+	// unresolved arrow function. This replaces the old on-demand "check the
+	// callee body from the call site" behaviour: by the time bodies are checked,
+	// every arrow function has a return type, so checking is a single pass.
+	pub fn infer_arrow_returns(var self, program_node: *AstNode) {
+		val prog = program_node.to<Program>();
+		val saved_mod = self.symtab.current_module;
+		var pending = List<*ArrowCandidate>();
+
+		for (decl in prog) {
+			if (decl.kind == NodeKind.DECL_MODULE) {
+				val m = decl.to<ModuleDecl>();
+				self.symtab.set_current_module(m.full_path);
+				continue;
+			}
+			val cur_mod = self.symtab.current_module;
+
+			if (decl.kind == NodeKind.DECL_FN) {
+				val f = decl.to<FnDecl>();
+				if (f.type_params.len > 0) continue;
+				if (!self.arrow_pending(decl)) continue;
+				val sym = self.symtab.lookup(f.name) ?: continue;
+				pending += self.arrow_candidate(decl, sym.type_ptr, null, cur_mod);
+			} else if (decl.kind == NodeKind.DECL_IMPL) {
+				val im = decl.to<ImplDecl>();
+				if (im.type_params.len > 0) continue;
+				if (im.struct_name.empty()) {
+					for (m_node in im.methods) {
+						if (!self.arrow_pending(m_node)) continue;
+						val mf = m_node.to<FnDecl>();
+						val mi = self.symtab.find_prim_method_c(mf.name) ?: continue;
+						val self_ty = mi.fn_type.as_fn().param_types[0];
+						pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, cur_mod);
+					}
+				} else {
+					val st_sym = self.symtab.lookup(im.struct_name) ?: continue;
+					if (st_sym.type_ptr.kind != DataType.STRUCT) continue;
+					val st_info = st_sym.type_ptr.as_struct();
+					for (m_node in im.methods) {
+						if (!self.arrow_pending(m_node)) continue;
+						val mf = m_node.to<FnDecl>();
+						val mi = st_info.find_method_c(mf.name) ?: continue;
+						pending += self.arrow_candidate(m_node, mi.fn_type, st_sym.type_ptr, cur_mod);
+					}
+				}
+			}
+		}
+		self.symtab.set_current_module(saved_mod);
+
+		var progress = true;
+		while (progress && !pending.empty()) {
+			progress = false;
+			var next = List<*ArrowCandidate>();
+			for (c in pending) {
+				if (self.try_infer_arrow(c)) progress = true;
+				else next += c;
+			}
+			pending = next;
+		}
+
+		for (c in pending) {
+			self.report_error(c.node,
+				"Cannot infer the return type of this arrow function; "
+				"annotate it with an explicit type"
+			);
+		}
+	}
+
+	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type, module: str): *ArrowCandidate {
+		val c = self.arena.alloc<ArrowCandidate>();
+		*c = ArrowCandidate(node, fn_type, self_ty, module);
+		return c;
+	}
+
+	// One attempt: check the arrow body in the candidate's context. Returns false
+	// (and rolls back its diagnostics) when the body depends on an arrow function
+	// that is still unresolved, so the caller retries on a later round.
+	fn try_infer_arrow(var self, c: *ArrowCandidate): bool {
+		val f = c.node.to<FnDecl>() as &FnDecl;
+		if (f.return_type != null) return true;
+		if (c.fn_type == null) return true;
+		val fn_info = c.fn_type.as_fn();
+
+		val err_mark = self.errors.len;
+		val saved_blocked = self.infer_blocked;
+		val saved_self = self.current_self_type;
+		val saved_ret = self.current_fn_return_type;
+
+		self.infer_blocked = false;
+		self.current_self_type = c.self_ty;
+		self.current_fn_return_type = fn_info.return_type;
+		val prev_mod = self.enter_module(c.module);
+
+		self.symtab.enter_scope(true);
+		for (i in 0..<f.params.len) {
+			val p = f.params[i];
+			val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.t_none();
+			self.symtab.define(Symbol(
+				p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false,
+				c.node.line, c.node.col, null
+			));
+		}
+		val body_ty = self.check_expr(f.body.to<ExprStmt>().expr);
+		self.symtab.exit_scope();
+
+		self.current_self_type = saved_self;
+		self.current_fn_return_type = saved_ret;
+		self.leave_module(prev_mod);
+
+		if (self.infer_blocked) {
+			self.infer_blocked = saved_blocked;
+			while (self.errors.len > err_mark) self.errors.pop();
+			return false;
+		}
+		self.infer_blocked = saved_blocked;
+
+		val fn_mut = c.fn_type.as_fn_mut();
+		fn_mut.return_type = body_ty;
+		f.return_type = self.arena.ast_type_from_type(body_ty);
+		self.checked_fns += c.node;
+		return true;
 	}
 
 }

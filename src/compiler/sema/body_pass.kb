@@ -57,7 +57,11 @@ pub struct BodyPass {
 	// so checking a body never builds a second DeclPass (see `resolve_type`).
 	// Held by value: `has_decl` says whether it was populated.
 	pub decl: DeclPass = DeclPass(),
-	pub has_decl: bool = false
+	pub has_decl: bool = false,
+	// Set while inferring arrow-function return types: the current attempt called
+	// a function whose return type is not known yet, so the attempt is rolled
+	// back and retried after that function is resolved.
+	pub infer_blocked: bool = false
 }
 
 impl BodyPass {
@@ -276,6 +280,17 @@ impl BodyPass {
 	fn annotate_type(var self, node: *AstNode, ty: *Type) {
 		if (node == null || ty == null) return;
 		node.type_ptr = ty as *u8;
+	}
+
+	// True for an arrow-bodied function (`fn f() => expr`) whose return type is
+	// still unknown. A call to one of these during inference blocks the attempt.
+	fn arrow_pending(val self, ast: *AstNode): bool {
+		if (ast == null) return false;
+		if (ast.kind != NodeKind.DECL_FN) return false;
+		val f = ast.to<FnDecl>();
+		if (f.return_type != null) return false;
+		if (f.body == null) return false;
+		return f.body.kind == NodeKind.STMT_EXPR;
 	}
 
 	fn check_expr_node(var self, node: *AstNode): *Type => when (node.kind) {
