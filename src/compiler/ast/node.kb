@@ -71,7 +71,11 @@ pub struct AstNode {
 	// Method or operator the checker picked for this node (`*MethodInfo`, again
 	// untyped). `lower` needs it to spell the C call without repeating the
 	// overload/trait resolution the checker already did.
-	pub resolved_method: *u8 = null
+	pub resolved_method: *u8 = null,
+	// A leaf the checker resolved directly: an enum member becomes an integer
+	// literal, a struct constant becomes its mangled identifier. `lower` uses it
+	// as the node's replacement.
+	pub resolved_node: *AstNode = null
 }
 
 pub struct DummyTemplateDecl {

@@ -405,7 +405,7 @@ impl BodyPass {
 				}
 				// Reuse the node as a plain integer literal for the backend.
 				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
-				self.replace_node(node, lit);
+				node.resolved_node = lit;
 				val carrier = self.arena.alloc<Type>();
 				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
 				return carrier;
@@ -418,8 +418,7 @@ impl BodyPass {
 					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
 					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
 				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
-					val id_node = self.identifier(c_sym.c_name, node.line, node.col);
-					self.replace_node(node, id_node);
+					node.resolved_node = self.identifier(c_sym.c_name, node.line, node.col);
 					return c_sym.type_ptr;
 				}
 			}

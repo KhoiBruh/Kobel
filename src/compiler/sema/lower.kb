@@ -98,6 +98,9 @@ impl BodyPass {
 
 	pub fn lower_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
+		// A constant the checker already resolved to a leaf (enum member, struct
+		// const, primitive size): use it as-is.
+		if (node.resolved_node != null) return self.lowered(node, node.resolved_node);
 		var out = node;
 		when (node) {
 			is BinaryExpr as var b -> {

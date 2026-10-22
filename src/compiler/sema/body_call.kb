@@ -63,15 +63,14 @@ impl BodyPass {
 	}
 
 	// `T.size()`. A primitive type name has no C type of its own (`str`, `bool`,
-	// ...), so fold it to its C size literal; otherwise mangle the name so the
+	// ...), so resolve it to its C size literal; otherwise mangle the name so the
 	// backend emits `sizeof(<c_name>)`.
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as var id) {
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
-				val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
-				self.replace_node(node, lit);
+				node.resolved_node = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
 				return self.t_usz();
 			}
 
