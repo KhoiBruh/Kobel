@@ -46,7 +46,9 @@ impl DeclPass {
 
 		if (u.is_wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
-			self.symtab.add_import(w_mod, "", "", true);
+			if (!self.symtab.has_wildcard(self.current_module, w_mod)) {
+				self.symtab.add_import(w_mod, "", "", true);
+			}
 			return;
 		}
 
@@ -68,7 +70,23 @@ impl DeclPass {
 
 		var local_name = u.symbol_name;
 		if (!u.alias.empty()) local_name = u.alias;
+		if (self.symtab.explicit_imports["${self.current_module}::${local_name}"] != null) return;
 		self.symtab.add_import(mod_name, u.symbol_name, local_name, false);
+	}
+
+	// Registers a struct's name with an opaque type, without resolving its fields.
+	// Every struct gets one before the definition pass, so a field may mention a
+	// type from a module that imports us back (import cycles). Idempotent.
+	fn declare_struct_shell(var self, node: *AstNode, s: *StructDecl) {
+		val c_name = self.c_name_for(s.name);
+		val s_type = self.arena.struct_type(s.name, List<StructField>());
+		s_type.as_struct_mut().c_name = c_name;
+		s_type.as_struct_mut().module = self.current_module;
+		s_type.as_struct_mut().is_defined = false;
+		val ok = self.symtab.define_global(
+			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node)
+		);
+		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 	}
 
 	pub fn collect_struct(var self, node: *AstNode) {
@@ -79,16 +97,14 @@ impl DeclPass {
 		// A forward declaration (`struct A;`) registers an opaque type; the later
 		// definition fills that same type in, so pointers may refer to it early.
 		if (s.is_forward) {
-			val fwd_name = self.c_name_for(s.name);
-			val fwd_type = self.arena.struct_type(s.name, List<StructField>());
-			fwd_type.as_struct_mut().c_name = fwd_name;
-			fwd_type.as_struct_mut().module = self.current_module;
-			fwd_type.as_struct_mut().is_defined = false;
-			val ok = self.symtab.define_global(
-				Symbol(s.name, fwd_name, SymbolKind.STRUCT, fwd_type, false, s.is_pub, node.line, node.col, node)
-			);
-			if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
-			s.name = fwd_name;
+			val existing_fwd = self.symtab.lookup_in_module(self.current_module, s.name);
+			if (existing_fwd != null) {
+				s.name = existing_fwd.c_name;
+				return;
+			}
+			self.declare_struct_shell(node, s);
+			val created = self.symtab.lookup_in_module(self.current_module, s.name);
+			if (created != null) s.name = created.c_name;
 			return;
 		}
 
@@ -372,7 +388,42 @@ impl DeclPass {
 			}
 		}
 	
-		// Pass 1a: collect ordinary declarations (templates and impls are deferred).
+
+		// Pass 0.4: register wildcard imports before anything resolves a name, so
+		// the shell pass below can find a type forward-declared in another module.
+		// Explicit imports need their target symbol, so they wait for pass 1a.
+		for (d_use in prog) {
+			when (d_use.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d_use);
+				NodeKind.DECL_USE -> {
+					val u_wild = d_use.as_use_decl();
+					if (u_wild.is_wildcard) self.collect_use(d_use);
+				}
+				else -> {}
+			}
+		}
+
+		// Pass 0.5: declare every struct name with an opaque type before any field
+		// is resolved. Imports may form cycles, so a field can mention a type from
+		// a module that is collected later; the passes below fill these shells.
+		for (d_half in prog) {
+			when (d_half.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d_half);
+				NodeKind.DECL_STRUCT -> {
+					val s_half = d_half.as_struct_decl();
+					if (s_half.type_params.len == 0) {
+						// Global lookup: a forward declaration in another module is the
+						// shell this definition will fill in.
+						val existing_half = self.symtab.lookup(s_half.name);
+						if (existing_half == null) self.declare_struct_shell(d_half, s_half);
+					}
+				}
+				else -> {}
+			}
+		}
+
+		// Pass 1a: collect ordinary declarations (templates, impls and imports - the
+		// imports were already registered in pass 0.4 - are deferred).
 		for (d1 in prog) {
 			if (d1.kind != NodeKind.DECL_IMPL) self.collect_declaration(d1);
 		}
