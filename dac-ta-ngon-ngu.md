@@ -423,6 +423,10 @@ if (node is Literal as var lit) {
 }
 ```
 
+- **Tag là field đầu tiên** của struct: `is X` so `subject.<field đầu tiên>` với `X.TAG`. Không có tìm
+  theo tên; struct tham gia pattern matching phải khai báo field tag **đầu tiên** (ví dụ `tag` hoặc
+  `kind`) và một `const TAG`. AST của compiler dùng `kind`, payload enum dùng `tag`.
+
 Ba dạng range (`a..b`, `a..<b`, `a>..<b`) đều **quyết định chiều tăng/giảm lúc chạy** theo thứ tự hai
 biên được viết (`10..0` chạy ngược). Biến vòng là **bản sao chỉ đọc**, chỉ sống trong thân vòng;
 `continue` vẫn bước biến đếm. Dạng nửa mở `a..<b` là idiom cho vòng chỉ mục vì không bao giờ phải

@@ -246,9 +246,9 @@ Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu ph�
   `fn_ret_c_type` chỉ đọc lại, không suy luận.
 - Tên kiểu trong AST được sema **đổi sang tên C đã mangle** ngay khi giải kiểu.
 
-Hệ quả: codegen chỉ còn heuristic **theo hình dạng cấu trúc**, không theo tên biến: tên field tag của
-pattern matching (xem §6.5). `Point(...)` không còn là heuristic: sema hạ nó thành node `StructCtorExpr`
-(`resolved_node`), codegen chỉ phát `(Type){...}`. Chỗ còn lại là mục tiêu của P2/P3 trong lộ trình §9.4.
+Hệ quả: codegen **không còn heuristic theo tên** nào. `Point(...)` là node `StructCtorExpr` do sema tạo;
+typedef struct do `StructDecl.emit_typedef` quyết định (không còn tập tên); tag của pattern matching là
+**field đầu tiên** của struct (quy tắc ngôn ngữ, không dò tên).
 
 Bất biến đi kèm (đã có test C snapshot bảo vệ, §8.1): **thay đổi sema/codegen không được đổi C sinh ra
 cho corpus test**, trừ khi đó là chủ đích và golden được cập nhật trong cùng commit.
@@ -595,15 +595,14 @@ thật của hằng `TAG` (struct có thể được định nghĩa ở module k
 **P‑1 hoàn tất.** Cả bốn năng lực đã có: forward declaration (trong và xuyên module), generic method
 phân giải ở body pass, payload enum (dùng cho `Type.data` và `AstNode.data`), import vòng và associated
 type. Hệ quả kiến trúc: không còn lý do chẻ module theo SCC; `Type`/`AstNode` không còn payload `*u8` do
-thiếu năng lực ngôn ngữ. Hai heuristic cuối của backend: `is_struct_name` (chống typedef trùng) và
-`tag_field_name_of` (chỉ còn nhận `tag`/`kind`).
+thiếu năng lực ngôn ngữ. **Không còn heuristic tên** ở backend: typedef do `emit_typedef` quyết định, tag
+của pattern là field đầu tiên (`a1b5566`, §6.1).
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
-Heuristic còn lại sau P1/P2/P3: `tag_field_name_of` — chỉ còn nhận `tag` (quy ước tài liệu) hoặc `kind`
-(AstNode dùng); nhánh `has_data` (payload `data: *u8` kiểu cũ) đã bị xoá (`eef948f`).
-`is_struct_name` chỉ còn dùng để khỏi phát typedef hai lần cho struct vừa khai báo trước vừa định nghĩa
-(`305261e`).
+Heuristic tên đã về 0 (`a1b5566`): nhánh `has_data` (payload `data: *u8` kiểu cũ) xoá ở `eef948f`, tag nay
+là **field đầu tiên** của struct, và typedef do `StructDecl.emit_typedef` quyết định (thay cho tập tên
+`is_struct_name`).
 
 **Definition of done của P2 (phần I1, đã đạt):** 0 call site `replace_node`, 0 phép gán `kind`/`data`;
 mọi hạ cấp đi qua `lower` (hoặc qua `resolved_node` mà check đã kiểm). Sema chỉ còn sửa *field*:
