@@ -147,6 +147,23 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 - **Bảng ký hiệu** (`sema/symbol.kb`): scope lồng nhau + module scope + import + registry enum + registry generic.
 - **Arena**: mọi AST/kiểu cấp phát từ arena (`std.mem.arena`), giải phóng một lần.
 
+### 3.5 Import vòng
+
+Loader đã chấp nhận chu trình (đánh dấu module trước khi duyệt `use`, nên cạnh quay lại bị bỏ qua) và
+`ordered` là post-order nên phụ thuộc luôn đứng trước. Vấn đề cũ nằm ở DeclPass: nó giải field type ngay
+khi gặp struct, nên struct ở module A không thấy kiểu của module B nếu B import ngược lại A. Hai pass sớm
+sửa việc đó:
+
+- **Pass 0.4**: đăng ký **wildcard import** trước khi bất cứ tên nào được giải (explicit import vẫn chờ
+  pass 1a vì cần symbol đích). Việc đăng ký là idempotent nên pass 1a chạy lại vô hại.
+- **Pass 0.5**: mỗi `struct` không generic được **khai báo trước** dưới dạng shell (tên + type rỗng,
+  `is_defined = false`); pass định nghĩa điền vào shell qua đúng nhánh merge của forward declaration.
+
+Nhờ vậy con trỏ chéo module hoạt động (`struct A { b: *B }` ↔ `struct B { a: *A }`, test
+`test_loader_cycles.kb`). Giới hạn: tham chiếu chéo **theo giá trị** (hoặc `[B; N]`) vẫn sai vì shell
+chưa có size tại lúc giải — C cũng không cho struct chứa chính nó theo giá trị, nên đây là giới hạn tự
+nhiên chứ không phải thiếu sót cần vá.
+
 ---
 
 ## 4. Kiến trúc v0 (seed)
@@ -535,7 +552,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
-| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`, `fe850db`) đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`); **generic method** phân giải ở body pass theo kiểu receiver (`121a335`); **payload enum** (`8801e08`) với test `test_payload_enum.kb`. Còn: import vòng, associated type, và **dùng** payload enum để thay `Type.data`/`AstNode.data: *u8` |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **gần xong**: forward declaration (`fe850db`, dùng cho `Type.methods` `4d28738`); **generic method** ở body pass (`121a335`); **payload enum** (`8801e08`); **payload enum cho `Type.data`** (`6de4052`) và **`AstNode.data`** (`fa01876`); **import vòng** (`00c1b8c`, test `test_loader_cycles.kb`, §3.5). Còn: **associated type** |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
@@ -564,8 +581,9 @@ vòng**; mỗi variant có accessor `as_<shape>()`. `arena.make<T>` bị thay b�
 `T`. Pattern `is LiteralExpr` trên `AstNode` bind `node.data.u.LiteralExpr.inner` và so tag qua C name
 thật của hằng `TAG` (struct có thể được định nghĩa ở module khác nơi khai báo trước).
 
-**Bước tiếp theo của P‑1.** Còn: **import vòng** (giờ là nhu cầu kiến trúc, không còn bắt buộc cho AST)
-và **associated type**. `is_struct_name`/`tag_field_name_of` vẫn là hai heuristic cuối của backend.
+**Bước tiếp theo của P‑1.** Chỉ còn **associated type**. Import vòng đã xong (`00c1b8c`, §3.5) và không
+còn là lý do để chẻ module theo SCC. `is_struct_name`/`tag_field_name_of` vẫn là hai heuristic cuối của
+backend.
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.

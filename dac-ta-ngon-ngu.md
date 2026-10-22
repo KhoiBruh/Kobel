@@ -480,6 +480,10 @@ use a.c.B;        // trùng tên -> dùng qua tiền tố module cuối: b.B và
 
 - Nếu tiền tố module cuối cũng trùng nhau → bắt buộc `use ... as <alias>`. **Không cho phép** viết đường dẫn đầy đủ để giải quyết trùng tên (làm code xấu).
 - Visibility: chỉ có `pub` (không có `protected`/`internal`).
+- **Import vòng được phép**: hai module có thể `use` lẫn nhau. Kiểu tham chiếu chéo phải đi qua **con trỏ**
+  (`struct A { b: *B }` / `struct B { a: *A }`); tham chiếu chéo **theo giá trị** vẫn không hợp lệ (C cũng
+  không cho struct chứa chính nó theo giá trị). Tên struct được khai báo trước khi giải field type, nên
+  thứ tự khai báo giữa các module không còn quan trọng.
 
 ---
 
