@@ -441,11 +441,16 @@ impl DeclPass {
 			methods += self.clone_fn(m, subst, mf.name);
 		}
 		// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
-		// be checked against the trait and pick up its default methods.
+		// be checked against the trait and pick up its default methods. Associated
+		// type bindings are cloned with the type arguments substituted.
+		var bindings = List<AssocBinding>();
+		for (b in im.assoc_bindings) {
+			bindings += AssocBinding(b.name, self.clone_type(b.type_node, subst));
+		}
 		return self.impl_decl(
 			new_struct_name, List<GenericParam>(),
 			im.trait_name, methods,
-			node.line, node.col
+			node.line, node.col, bindings
 		);
 	}
 

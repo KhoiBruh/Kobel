@@ -355,8 +355,20 @@ impl DeclPass {
 			methods += tm;
 		}
 	
+		for (a in t.assoc_types) {
+			var seen_before = false;
+			for (a2 in t.assoc_types) {
+				if (a2 == a) {
+					if (seen_before) {
+						self.report_error(node, "Duplicate associated type '${a}' in trait '${t.name}'");
+					}
+					seen_before = true;
+				}
+			}
+		}
+
 		val ti = self.arena.alloc<TraitInfo>();
-		*ti = TraitInfo(t.name, t.bases, methods, List<str>());
+		*ti = TraitInfo(t.name, t.bases, methods, List<str>(), t.assoc_types);
 		self.symtab.register_trait(ti);
 	}
 

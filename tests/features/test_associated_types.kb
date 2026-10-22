@@ -1,0 +1,70 @@
+mod test.associated_types;
+
+// Associated types: a trait declares `type Item;`, an impl binds it, and
+// `Self.Item` in the impl's signatures and bodies resolves to the bound type.
+
+trait Container {
+	type Item;
+	fn first(val self): Self.Item;
+	fn get(val self, i: usz): Self.Item;
+	fn put(val self, v: Self.Item): none;
+	// A default method may use the associated type too.
+	fn echo(val self): Self.Item {
+		return self.first();
+	}
+}
+
+struct IntBox {
+	pub v: i32
+}
+
+impl Container for IntBox {
+	type Item = i32;
+
+	fn first(val self): Self.Item {
+		return self.v;
+	}
+
+	fn get(val self, i: usz): Self.Item {
+		val base: Self.Item = self.v;
+		return base + (i as i32);
+	}
+
+	fn put(val self, v: Self.Item): none {
+	}
+}
+
+struct NamedBox {
+	pub name: str
+}
+
+impl Container for NamedBox {
+	type Item = str;
+
+	fn first(val self): Self.Item {
+		return self.name;
+	}
+
+	fn get(val self, i: usz): Self.Item {
+		return self.name;
+	}
+
+	fn put(val self, v: Self.Item): none {
+	}
+}
+
+fn main(): i32 {
+	val b = IntBox(7);
+	if (b.first() != 7) return 1;
+	if (b.get(3) != 10) return 2;
+
+	val n = NamedBox("kobel");
+	if (n.first() != "kobel") return 3;
+	if (n.get(1) != "kobel") return 4;
+	if (b.echo() != 7) return 5;
+	if (n.echo() != "kobel") return 6;
+	b.put(1);
+	n.put("x");
+
+	return 0;
+}

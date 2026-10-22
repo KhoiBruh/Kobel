@@ -314,8 +314,8 @@ impl DeclPass {
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<AstStructField>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.arena.alloc_val<StructDecl>(StructDecl(name, type_params, fields, is_pub))), line, col);
 
-	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods))), line, col);
+	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List()): *AstNode
+		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
 	pub fn c_name_for(self, name: str): str {
 		if (self.is_extern || name == "main") return name;
@@ -341,6 +341,31 @@ impl DeclPass {
 					if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
 					else named.name = sinfo.name;
 					yield self.current_self_type;
+				}
+
+				// `Self.Item`: a trait associated type bound by the enclosing impl.
+				if (name.starts_with("Self.")) {
+					val assoc = name.slice(5, name.len);
+					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
+						self.report_error(node, "Associated type '${name}' used outside of an impl");
+						yield self.t_none();
+					}
+					val self_name = self.current_self_type.as_struct().name;
+					val bound = self.symtab.find_assoc_type(self_name, assoc);
+					if (bound == null) {
+						self.report_error(node,
+							"Trait associated type '${assoc}' is not bound for '${self_name}'"
+						);
+						yield self.t_none();
+					}
+					if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
+						self.report_error(node,
+							"Associated type '${assoc}' must be a named type (struct, enum or primitive)"
+						);
+						yield self.t_none();
+					}
+					named.name = self.ast_type_name_of(bound);
+					yield bound;
 				}
 
 				val prim = resolve_primitive_name(self.symtab.prims_of(), name);
@@ -430,6 +455,10 @@ impl DeclPass {
 
 		// Rename so the backend can learn the receiver type of each method.
 		im.struct_name = st_c_name;
+
+		// `type Item = ...;` bindings, resolved before any method signature or body
+		// in this impl so `Self.Item` resolves.
+		self.register_assoc_bindings(node, im, st_type, st_info.name);
 
 		// `impl Trait for Struct`: verify the contract and pull in default methods.
 		if (!im.trait_name.empty()) self.apply_trait(node, im, st_info.name);
@@ -533,6 +562,18 @@ impl DeclPass {
 		}
 
 		self.current_self_type = null;
+	}
+
+	// The AST-level name for a resolved type, for nodes whose annotation has to be
+	// rewritten (an associated type binding must become a concrete C name).
+	fn ast_type_name_of(val self, ty: *Type): str {
+		if (ty.kind == DataType.STRUCT) {
+			val s_info = ty.as_struct();
+			if (!s_info.c_name.empty()) return s_info.c_name;
+			return s_info.name;
+		}
+		if (ty.is_enum()) return ty.as_enum().c_name;
+		return primitive_type_name(ty);
 	}
 
 	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
@@ -707,6 +748,56 @@ impl DeclPass {
 // default method the impl left out is copied in. A copy is an ordinary method
 // AST node, so the backend emits it like a hand-written one. Generic impls
 // return earlier, so no type substitution is ever needed here.
+	// Resolves an impl's `type Item = T;` bindings and checks them against the
+	// trait's `type Item;` declarations. The binding is stored by struct name, so
+	// `Self.Item` can be resolved during declaration collection and later while
+	// checking method bodies.
+	fn register_assoc_bindings(var self, node: *AstNode, im: &ImplDecl, st_type: *Type, struct_name: str) {
+		var trait_info: *TraitInfo = null;
+		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
+		if (trait_info == null) {
+			if (!im.assoc_bindings.empty()) {
+				self.report_error(node,
+					"Associated types can only be bound in an impl of a known trait"
+				);
+			}
+			return;
+		}
+
+		val assoc_decls = trait_info.assoc_types;
+		for (b in im.assoc_bindings) {
+			var declared = false;
+			for (a in assoc_decls) if (a == b.name) declared = true;
+			if (!declared) {
+				self.report_error(node,
+					"Trait '${trait_info.name}' has no associated type '${b.name}'"
+				);
+			}
+			if (self.symtab.find_assoc_type(struct_name, b.name) != null) {
+				self.report_error(node,
+					"Duplicate binding of associated type '${b.name}' for '${struct_name}'"
+				);
+				continue;
+			}
+			val bound = self.resolve_ast_type(b.type_node);
+			if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
+				self.report_error(b.type_node,
+					"Associated type '${b.name}' must be a named type (struct, enum or primitive)"
+				);
+				continue;
+			}
+			self.symtab.set_assoc_type(struct_name, b.name, bound);
+		}
+
+		for (required in assoc_decls) {
+			if (self.symtab.find_assoc_type(struct_name, required) == null) {
+				self.report_error(node,
+					"Impl of trait '${trait_info.name}' must bind associated type '${required}'"
+				);
+			}
+		}
+	}
+
 	pub fn apply_trait(var self, node: *AstNode, im: &ImplDecl, struct_name: str) {
 		val t = self.symtab.find_trait(im.trait_name);
 		if (t == null) {

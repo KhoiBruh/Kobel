@@ -296,12 +296,19 @@ impl Parser {
 
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before trait body");
 		var methods = List<*AstNode>();
+		var assoc = List<str>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			var m_pub = false;
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
+				self.check(TokenType.IDENTIFIER) && self.peek().text == "type" -> {
+					self.advance(); // 'type'
+					val a_name = self.consume(TokenType.IDENTIFIER, "Expected associated type name");
+					self.consume(TokenType.SEMI_COLON, "Expected ';' after associated type");
+					assoc += a_name.text;
+				}
 				self.check(TokenType.KW_FN) -> methods += self.parse_fn_decl(m_pub);
 				self.check(TokenType.KW_OP) -> methods += self.parse_op_decl(m_pub);
 				else -> {
@@ -313,7 +320,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
-		return self.trait_decl(name_tok.text, type_params, bases, methods, is_pub, kw.line, kw.col);
+		return self.trait_decl(name_tok.text, type_params, bases, methods, is_pub, kw.line, kw.col, assoc);
 	}
 
 	pub fn parse_impl_decl(var self): *AstNode {
@@ -340,12 +347,21 @@ impl Parser {
 
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before impl body");
 		var methods = List<*AstNode>();
+		var bindings = List<AssocBinding>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			var m_pub = false;
 
 			when {
 				self.match_token(TokenType.KW_PUB) -> m_pub = true;
+				self.check(TokenType.IDENTIFIER) && self.peek().text == "type" -> {
+					self.advance(); // 'type'
+					val a_name = self.consume(TokenType.IDENTIFIER, "Expected associated type name");
+					self.consume(TokenType.EQUAL, "Expected '=' in associated type binding");
+					val a_ty = self.parse_type();
+					self.consume(TokenType.SEMI_COLON, "Expected ';' after associated type binding");
+					bindings += AssocBinding(a_name.text, a_ty);
+				}
 				self.check(TokenType.KW_FN) -> methods += self.parse_fn_decl(m_pub);
 				self.check(TokenType.KW_OP) -> methods += self.parse_op_decl(m_pub);
 				else -> {
@@ -357,7 +373,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after impl body");
-		return self.impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col);
+		return self.impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col, bindings);
 	}
 
 	pub fn parse_enum_decl(var self, is_pub: bool): *AstNode {

@@ -72,7 +72,15 @@ pub struct TraitDecl {
 	pub type_params: List<GenericParam>,
 	pub bases: List<str>,
 	pub methods: List<*AstNode>,
-	pub is_pub: bool
+	pub is_pub: bool,
+	// `type Item;` declarations: names only, the impl supplies the type.
+	pub assoc_types: List<str> = List()
+}
+
+// One `type Name = Type;` binding in an impl of a trait with associated types.
+pub struct AssocBinding {
+	pub name: str,
+	pub type_node: *AstNode
 }
 
 pub struct ImplDecl {
@@ -80,7 +88,8 @@ pub struct ImplDecl {
 	pub struct_name: str,
 	pub type_params: List<GenericParam>,
 	pub trait_name: str,
-	pub methods: List<*AstNode>
+	pub methods: List<*AstNode>,
+	pub assoc_bindings: List<AssocBinding> = List()
 }
 
 // One named field of an enum variant's payload: `Circle(radius: f64)`.

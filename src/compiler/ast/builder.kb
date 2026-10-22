@@ -157,11 +157,11 @@ impl Arena {
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
 		=> self.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.alloc_val<StructDecl>(StructDecl(name, type_params, fields, is_pub))), line, col);
 
-	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz)
-		=> self.alloc_node(TraitDecl.TAG, NodeData.TraitDecl(self.alloc_val<TraitDecl>(TraitDecl(name, type_params, bases, methods, is_pub))), line, col);
+	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List())
+		=> self.alloc_node(TraitDecl.TAG, NodeData.TraitDecl(self.alloc_val<TraitDecl>(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
 
-	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods))), line, col);
+	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List())
+		=> self.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
 	pub fn enum_decl(var self, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz)
 		=> self.alloc_node(EnumDecl.TAG, NodeData.EnumDecl(self.alloc_val<EnumDecl>(EnumDecl(name, underlying_type, members, is_pub))), line, col);
