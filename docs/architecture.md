@@ -403,6 +403,17 @@ phân giải về method của struct ngay ở sema.
 - Sau `collect_impl`, method trait trở thành method bình thường của struct ⇒ `self.m()`/`obj.m()` do
   `body_pass` hạ như mọi method khác (`Struct_m(&obj, …)`); codegen không biết trait là gì.
 
+**Associated type** (`type Item;` / `type Item = T;`). `TraitInfo.assoc_types` giữ danh sách tên trait
+khai báo; `ImplDecl.assoc_bindings` giữ binding của impl. `register_assoc_bindings` (gọi ở đầu
+`collect_impl`, **trước** `apply_trait` và trước khi collect method) kiểm hợp đồng (đủ, không lạ, không
+trùng), giải kiểu binding với `current_self_type` = struct đang impl rồi lưu vào
+`SymbolTable.assoc_types` theo khóa `<struct>.<assoc>` — nên body pass (dùng lại `DeclPass`) cũng tra
+được. `resolve_ast_type` nhận tên `Self.Item`: trả kiểu đã bind và **đổi tên AST annotation** sang tên C
+của kiểu đó (vì `gen_fn_decl`/var decl đọc AST, không đọc `Type`). Hệ quả: binding phải là kiểu có tên
+(struct/enum/primitive), không phải con trỏ/mảng. Impl generic clone binding kèm substitution
+(`clone_impl`), nên mỗi instance có binding riêng; method mặc định của trait dùng `Self.Item` cũng chạy
+vì chúng được clone vào impl sau khi binding đã đăng ký.
+
 **Method cho kiểu nguyên thuỷ** (`impl i32 { … }`, `impl str { … }`): primitive không phải struct.
 Từ P3 mỗi kiểu nguyên thuỷ có **một instance chuẩn** (`PrimTypes`, giữ trong arena của `SymbolTable`),
 nên `i32` là cùng một con trỏ ở mọi nơi; method của nó nằm **trên chính `Type`** (payload `PrimMethods`)
@@ -552,7 +563,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
-| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **gần xong**: forward declaration (`fe850db`, dùng cho `Type.methods` `4d28738`); **generic method** ở body pass (`121a335`); **payload enum** (`8801e08`); **payload enum cho `Type.data`** (`6de4052`) và **`AstNode.data`** (`fa01876`); **import vòng** (`00c1b8c`, test `test_loader_cycles.kb`, §3.5). Còn: **associated type** |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **xong**: forward declaration (`fe850db`, dùng cho `Type.methods` `4d28738`); **generic method** ở body pass (`121a335`); **payload enum** (`8801e08`); **payload enum cho `Type.data`** (`6de4052`) và **`AstNode.data`** (`fa01876`); **import vòng** (`00c1b8c`, test `test_loader_cycles.kb`, §3.5); **associated type** (`31bd32c`, test `test_associated_types.kb`, §6.6) |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
@@ -581,9 +592,11 @@ vòng**; mỗi variant có accessor `as_<shape>()`. `arena.make<T>` bị thay b�
 `T`. Pattern `is LiteralExpr` trên `AstNode` bind `node.data.u.LiteralExpr.inner` và so tag qua C name
 thật của hằng `TAG` (struct có thể được định nghĩa ở module khác nơi khai báo trước).
 
-**Bước tiếp theo của P‑1.** Chỉ còn **associated type**. Import vòng đã xong (`00c1b8c`, §3.5) và không
-còn là lý do để chẻ module theo SCC. `is_struct_name`/`tag_field_name_of` vẫn là hai heuristic cuối của
-backend.
+**P‑1 hoàn tất.** Cả bốn năng lực đã có: forward declaration (trong và xuyên module), generic method
+phân giải ở body pass, payload enum (dùng cho `Type.data` và `AstNode.data`), import vòng và associated
+type. Hệ quả kiến trúc: không còn lý do chẻ module theo SCC; `Type`/`AstNode` không còn payload `*u8` do
+thiếu năng lực ngôn ngữ. Hai heuristic cuối của backend: `is_struct_name` (chống typedef trùng) và
+`tag_field_name_of` (chỉ còn nhận `tag`/`kind`).
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
