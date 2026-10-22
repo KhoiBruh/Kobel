@@ -16,11 +16,12 @@ use std.mem.arena.*;
 use std.collections.list.*;
 
 use compiler.ast.node.*;
-use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
+use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
 use compiler.sema.body_pass.*;
 
 impl BodyPass {
@@ -186,8 +187,8 @@ impl BodyPass {
 
 		if (self.is_array_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
-				val arr = obj.resolved_type.to<ArrayType>();
-				val lit = self.literal(LiteralKind.INT, "${arr.size}UZ", node.line, node.col);
+				val arr = self.type_of(obj).as_array();
+				val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
 				return self.lowered(node, lit);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -224,17 +225,23 @@ impl BodyPass {
 	// Type predicates over the checked annotations
 	// ============================================================================
 
+	// The semantic type sema attached while checking. Groups are transparent:
+	// `check_expr` recurses into them without annotating the group itself.
+	fn type_of(var self, node: *AstNode): *Type {
+		var cur = node;
+		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.to<GroupExpr>().expr;
+		if (cur == null) return null;
+		return cur.sema_type as *Type;
+	}
+
 	fn is_str_expr(var self, node: *AstNode): bool {
-		val t = node.resolved_type;
-		if (t == null) return false;
-		if (t.kind != NodeKind.TYPE_NAMED) return false;
-		return t.to<NamedType>().name == "str";
+		val t = self.type_of(node);
+		return t != null && t.kind == DataType.STR;
 	}
 
 	fn is_array_expr(var self, node: *AstNode): bool {
-		val t = node.resolved_type;
-		if (t == null) return false;
-		return t.kind == NodeKind.TYPE_ARRAY;
+		val t = self.type_of(node);
+		return t != null && t.kind == DataType.ARRAY;
 	}
 
 }

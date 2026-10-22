@@ -243,10 +243,12 @@ impl BodyPass {
 
 	// Records the resolved type on the expression. Every lowering keeps the
 	// value's type, so annotating after the check describes the node codegen
-	// will actually see.
+	// will actually see. Two channels: `resolved_type` for the backend (an AST
+	// type node) and `sema_type` for later sema passes (the compiler's `*Type`).
 	fn annotate_type(var self, node: *AstNode, ty: *Type) {
 		if (node == null || ty == null) return;
 		node.resolved_type = self.arena.ast_type_from_type(ty);
+		node.sema_type = ty as *u8;
 	}
 
 	fn check_expr_node(var self, node: *AstNode): *Type => when (node.kind) {

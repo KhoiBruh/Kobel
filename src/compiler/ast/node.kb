@@ -63,7 +63,11 @@ pub struct AstNode {
 	// codegen. Keeping it on the node means the backend never has to re-derive
 	// a type from the node's shape or from variable names. Null on declarations
 	// and on nodes that desugaring synthesises.
-	pub resolved_type: *AstNode = null
+	pub resolved_type: *AstNode = null,
+	// The same type as the compiler's own `*Type` (untyped here so `ast` stays a
+	// leaf module). Passes that need struct fields, sizes or method tables read
+	// this one; codegen keeps using `resolved_type`.
+	pub sema_type: *u8 = null
 }
 
 pub struct DummyTemplateDecl {
