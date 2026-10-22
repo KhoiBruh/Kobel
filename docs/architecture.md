@@ -347,6 +347,15 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
     template cùng tên đều được nhân bản (`instantiate_struct` duyệt hết `impl_templates`), và
     `clone_impl` **giữ `trait_name`** nên hợp đồng trait được kiểm cả trên bản monomorphized.
 
+**Payload enum (P‑1).** Variant mang field có tên (`Circle(radius: f64)`). Sema hạ enum thành **một
+struct**: field `tag: i32` + (về mặt layout) union các payload struct; mỗi variant có struct type
+riêng tên `Enum.Variant` (C name `Enum__Variant`) và symbol hằng `Enum.Variant__TAG`. Nhờ vậy toàn bộ
+máy `is` sẵn có dùng lại được: `is Shape.Circle as c` chỉ cần thêm `payload_path` (`u.Circle`) để
+backend bind `&subject.u.Circle`; dựng giá trị (`Shape.Circle(...)`, `Shape.Empty`) hạ thành
+`EnumCtorExpr` (sema tạo, `lower` đi vào args, codegen phát compound literal). Enum **không payload**
+giữ nguyên: kiểu nguyên thuỷ + `.value` (integer literal). Phía C: phát struct variant, struct
+`{ int32_t tag; union {...} u; }`, typedef và macro tag.
+
 ### 6.6 Trait (tĩnh, monomorphized)
 
 Trait trong Kobel là **dispatch tĩnh kiểu Rust** — không có vtable/`dyn`; mọi lời gọi method đều
@@ -518,7 +527,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
-| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`, `fe850db`) đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`), test `test_forward.kb`; **generic method** phân giải ở body pass theo kiểu receiver (`121a335`), test `test_generic_methods.kb`. Còn: payload enum (sum type), import vòng, associated type |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`, `fe850db`) đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`); **generic method** phân giải ở body pass theo kiểu receiver (`121a335`); **payload enum** (`8801e08`) với test `test_payload_enum.kb`. Còn: import vòng, associated type, và **dùng** payload enum để thay `Type.data`/`AstNode.data: *u8` |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
@@ -531,6 +540,13 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 (`20a9341`) để `Symbol.ast_node`, `MethodInfo.ast_node`, `StructField.default_val` định kiểu được
 `*AstNode`; gốc được sửa ở `121a335`: template ghi `self_type`, lookup khớp theo kiểu receiver, và
 generic method được instantiate trong body pass rồi thay node qua `resolved_node`.
+
+**Bước tiếp theo của P‑1 (dùng payload enum).** `Type.data` đang là `*u8` trỏ tới
+`PointerType/ArrayType/StructType/FnType/EnumInfo`; với forward declaration + payload enum, nó có thể
+thành một payload enum ngay trong `sema.types` (`enum TypeData { Pointer(PointerType), ... }`), bỏ hẳn
+`data: *u8` và các accessor `self.data as *X`. `AstNode.data` thì chưa: payload của nó nằm rải ở
+`ast.types/expr/stmt/decl`, nên cần **import vòng** (hoặc gom payload về `ast.node`) trước khi thay
+bằng sum type.
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.

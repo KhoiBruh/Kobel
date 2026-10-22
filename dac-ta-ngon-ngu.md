@@ -6,7 +6,7 @@
 
 - **Loại ngôn ngữ:** đa năng, thủ tục kết hợp hướng đối tượng — không có `class`, chỉ có `struct` (thuần túy chứa dữ liệu) và `impl` (chứa các hàm triển khai), cùng `trait` (trừu tượng, không virtual/vtable — mọi dispatch giải quyết tĩnh lúc biên dịch qua overload resolution).
 - **Biên dịch:** xuống LLVM IR → mã máy native. Compiler v0 viết bằng C++ (dùng LLVM C++ API); mục tiêu dài hạn là bootstrap — viết lại compiler bằng chính ngôn ngữ (gọi LLVM qua C API ổn định `llvm-c` qua `extern`).
-- **Đối tượng hướng tới:** cả người mới lẫn có kinh nghiệm — ưu tiên dễ hiểu, thân thiện, tránh phình cú pháp kiểu Java (không cho tự định nghĩa attribute mới, không cho enum mang dữ liệu vì đã có union...).
+- **Đối tượng hướng tới:** cả người mới lẫn có kinh nghiệm — ưu tiên dễ hiểu, thân thiện, tránh phình cú pháp kiểu Java (không cho tự định nghĩa attribute mới; enum mang dữ liệu chỉ ở dạng payload enum tường minh, không phải class).
 - **Quản lý bộ nhớ:** không GC — mỗi giá trị có đúng một chủ sở hữu, tự động giải phóng khi hết scope. Compiler chỉ kiểm tra move (Phương án A — không có borrow checker đầy đủ kiểu Rust).
 - **Nền tảng mục tiêu:** Windows; Linux (x86-64, ARM64, RISC-V64); ESP32 dòng RISC-V (không hỗ trợ ESP8266/ESP32-Xtensa vì LLVM upstream không hỗ trợ Xtensa).
 - **Runtime:** giai đoạn đầu phụ thuộc libc (qua `extern "libc"`). Chế độ "đứng độc lập" (tự gọi syscall trực tiếp, tự viết `_start`, không cần libc) đã bàn về cơ chế nhưng hoãn lại — quá phức tạp cho giai đoạn đầu, để dành làm tính năng tùy chọn sau này.
@@ -275,7 +275,35 @@ Status.A.value      // lấy số nguyên
 Status.of(505)       // trả về Status? (nullable, không phải fault — chỉ 1 lý do thất bại)
 ```
 
-- **Không mang dữ liệu thêm** (khác Java/Kotlin) — vai trò đó do union struct đảm nhiệm (`Circle | Square`), tránh 2 cách biểu diễn trùng khái niệm sum type.
+- Enum **thường** không mang dữ liệu: nó là kiểu nguyên thuỷ có tên, dùng trong số học/so sánh.
+- Cần mang dữ liệu thì dùng **payload enum** (dưới đây) — vẫn là sum type, không phải class.
+
+### Enum có dữ liệu (payload enum)
+
+```
+enum Shape {
+    Circle(radius: f64),
+    Rect(width: f64, height: f64),
+    Empty
+}
+
+val c = Shape.Circle(2.0)
+val e = Shape.Empty              // variant không dữ liệu dùng như giá trị
+
+val a = when (c) {
+    is Shape.Circle as circle -> 3.14 * circle.radius * circle.radius,
+    is Shape.Rect as r -> r.width * r.height,
+    is Shape.Empty -> 0.0,
+    else -> 0.0
+};
+```
+
+- Variant mang **field có tên**; `is Shape.Circle as x` bind `x` thành **con trỏ** tới payload, nên
+  `x.radius` dùng được với cả subject giá trị lẫn con trỏ (`*Shape`).
+- Variant có dữ liệu phải dựng bằng `Shape.Circle(...)`; variant rỗng dùng trực tiếp (`Shape.Empty`).
+- Biểu diễn C: `struct Shape { int32_t tag; union { struct {...} Circle; ... } u; }`; mỗi variant là một
+  struct type (`Shape.Circle`, C name `Shape__Circle`) và một tag (`Shape__Circle__TAG`).
+- Chưa hỗ trợ: enum generic, khai báo giá trị tường minh (`= 5`) hoặc kiểu nền (`: u16`) cho payload enum.
 
 ### `alias` — đa năng
 
