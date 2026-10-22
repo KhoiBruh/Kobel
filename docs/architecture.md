@@ -116,8 +116,8 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 
 ### 3.4 Đơn vị dữ liệu trung tâm
 
-- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8 }`; `data` trỏ tới payload
-  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
+- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, resolved_type: *AstNode }`; `data` trỏ tới payload
+  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `resolved_type` là node kiểu do sema gắn cho **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
 - **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data }` với `data` trỏ tới payload
   (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`). `DataType = VOID→NONE | … | STRUCT | FN`.
 - **Bảng ký hiệu** (`sema/symbol.kb`): scope lồng nhau + module scope + import + registry enum + registry generic.
@@ -190,14 +190,21 @@ Quy ước ABI quan trọng:
 
 Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu phải được sema gắn sẵn vào AST**:
 
-- Biến nội bộ không có annotation được sema **chèn `type_annotation`** (`ast_type_from_type`).
-- Kiểu trả về của arrow-fn (`fn f() => expr`) được codegen suy ra qua `infer_type_from_expr`, và
-  pass đăng ký hàm cũng dùng cùng logic (`fn_ret_c_type`) để prototype khớp định nghĩa.
+- Mỗi biểu thức đã kiểm tra mang kiểu đã giải trong `AstNode.resolved_type` (một node kiểu AST do
+  `ast_type_from_type` dựng). `check_expr` gắn kiểu **sau khi** node đã bị hạ cấp, nên annotation luôn
+  mô tả đúng node mà codegen nhìn thấy. Codegen đọc qua `c_type_of(node)`; **không** còn hàm suy luận
+  kiểu nào trong backend.
+- Biến nội bộ không có annotation vẫn được sema **chèn `type_annotation`** (`ast_type_from_type`).
+- Kiểu trả về của arrow-fn (`fn f() => expr`) do sema ghi vào `FnDecl.return_type`
+  (`check_fn_body`); `fn_ret_c_type` chỉ đọc lại, không suy luận.
 - Tên kiểu trong AST được sema **đổi sang tên C đã mangle** ngay khi giải kiểu.
 
-Hệ quả: codegen dùng heuristic theo tên (`pointer_vars`, `str_vars`) chỉ như bổ trợ; chỗ nào không
-chắc thì sema phải biến đổi AST cho tường minh (ví dụ: truy cập member qua con trỏ không phải biến
-được viết lại thành `(*p).field`).
+Hệ quả: codegen chỉ còn heuristic **theo hình dạng cấu trúc**, không theo tên biến: `is_struct_name`
+(nhận biết `Point(...)` là compound literal) và tên field tag của pattern matching (xem §6.5). Hai chỗ
+này là mục tiêu của P2/P3 trong lộ trình §9.4, không phải chỗ vá tạm.
+
+Bất biến đi kèm (đã có test C snapshot bảo vệ, §8.1): **thay đổi sema/codegen không được đổi C sinh ra
+cho corpus test**, trừ khi đó là chủ đích và golden được cập nhật trong cùng commit.
 
 ### 6.2 Desugar trong sema (body_pass)
 
@@ -364,7 +371,11 @@ kobel_v2.exe src/main.kb -emit-c b.c     # v2 dựng từ a.c
 sha256(a.c) == sha256(b.c)
 ```
 
-Đây là tiêu chí "self-host đạt" (đã đạt). Dự kiến mã hoá thành task `fixpoint` trong `tools/bootstrap.ps1`.
+Đây là tiêu chí "self-host đạt" (đã đạt) và nay kiểm tự động bằng `kobel fixpoint`.
+
+⚠ Fixpoint **chỉ** chứng minh tính ổn định, không chứng minh tính đúng: một lỗi lặp lại ở cả hai thế hệ
+vẫn cho fixpoint xanh. Vì vậy cổng này phải đi kèm `kobel test` (hành vi) và `kobel snap` (C sinh ra) —
+xem §8.1.
 
 Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về hành vi đầu ra.
 
@@ -379,8 +390,18 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 | Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
 | Build compiler | `build/kobel.exe build` (tự động theo `kobel.toml`, xuất `build/kobel.exe`) |
 | Run project | `build/kobel.exe run [args...]` (tự động kiểm tra thay đổi mã nguồn trước khi chạy) |
-| Test suite | `build/kobel.exe test [filter]` (chạy 16 bài kiểm tra chuẩn hóa với bộ lọc linh hoạt) |
+| Test suite | `build/kobel.exe test [filter]` (chạy 17 bài kiểm tra chuẩn hóa với bộ lọc linh hoạt) |
+| C snapshot | `build/kobel.exe snap` (so C sinh ra với `tests/golden/`); `snap --update` để chấp nhận thay đổi |
+| Fixpoint | `build/kobel.exe fixpoint` (build thế hệ 2 từ C của chính nó rồi so byte) |
 | Regenerate seed | `build/kobel.exe src/main.kb -emit-c dist/bootstrap.c` |
+
+**Cổng kiểm tra trước khi commit** (cả ba phải xanh): `kobel build` → `kobel test` → `kobel snap` →
+`kobel fixpoint`. `snap` là cổng bắt thay đổi ngữ nghĩa mà test hành vi bỏ sót; `fixpoint` là cổng bắt
+thay đổi làm mất tính self-host. Khi `snap` báo lệch, phải khẳng định thay đổi là chủ đích rồi mới
+`snap --update` và commit `tests/golden/` **cùng** commit mã nguồn.
+
+Mỗi golden là một digest (`hash_stamp` của toàn bộ C sinh ra), không phải bản C đầy đủ: đủ để phát hiện
+lệch, gọn để review. Corpus gồm toàn bộ `tests/**/test_*.kb` cộng `src/main.kb` (chính compiler).
 
 Tất cả các tệp sinh ra khi dựng và kiểm thử (`.exe`, `.obj`, `.tmp.*`, `.kobel_stamp`) đều được cô lập bên trong thư mục `build/`.
 
@@ -429,7 +450,7 @@ và v1).
 | 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl_pass`→`+decl_collect`, `body_pass`→`+body_program`, `c_codegen`→`+c_program`. Phần core/monomorph giữ nguyên ở module gốc vì là SCC. `runtime.c.inc`: chưa tách (prelude C vẫn trong `c_program`) | vừa |
 | 4 | **bỏ v0/LLVM**: commit `dist/bootstrap.c`, seed = C compiler | vừa (nhưng xoá ~12 700 LOC) |
 
-Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
+Sau mỗi pha: build v1 → tự biên dịch → `test` + `snap` + `fixpoint` (xem §8.1).
 
 ### 9.3 Đích cuối
 
@@ -439,6 +460,33 @@ Sau mỗi pha: build v1 → tự biên dịch → `fixpoint` → 8/8 test.
 - Repo còn ~8 900 LOC (Kobel + std) + 1 file C seed.
 - Tính năng mới chỉ viết **một lần** ở `compiler/self`; vòng lặp phát triển là: sửa `.kb` → build bằng
   seed C → `fixpoint` tự kiểm.
+
+### 9.4 Tái cấu trúc ngữ nghĩa (typed IR) — trạng thái
+
+Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
+
+- **I1.** AST bất biến sau parse; mọi hạ cấp sinh node mới (không `replace_node`).
+- **I2.** Codegen **không** suy luận kiểu; mọi quyết định ngữ nghĩa được vật chất hoá thành dữ liệu có kiểu.
+- **I3.** Pass một chiều, thuần: `resolve → check → lower → codegen`; không pass nào gọi ngược pass khác
+  (hiện `BodyPass.resolve_type` vẫn tạo `DeclPass` — vi phạm I3, sẽ xử lý ở P3).
+
+| Pha | Nội dung | Trạng thái |
+|---|---|---|
+| **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
+| **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | chưa |
+| **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | chưa |
+| **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
+
+**Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
+`Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
+phải **thêm năng lực đó vào compiler hiện tại trước**, nếu không bản viết lại sẽ lặp lại đúng kiểu code cũ.
+
+**Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
+`lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
+Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
+`tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
 
 ---
 
