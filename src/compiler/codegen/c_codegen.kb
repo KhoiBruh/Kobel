@@ -421,16 +421,6 @@ impl CCodeGen {
 				return "sizeof(${c_type})";
 			}
 			if (mem.member == "c_str") return self.gen_expr(mem.object);
-			if (mem.member == "slice") {
-				val slice_obj = self.gen_expr(mem.object);
-				if (call.args.len >= 2) return "kobel_slice(${slice_obj}, "
-												"${self.gen_expr(call.args.first())}, "
-												"${self.gen_expr(call.args[1])})";
-				if (call.args.len == 1) return "kobel_slice(${slice_obj}, "
-												"${self.gen_expr(call.args.first())}, "
-												"strlen(${slice_obj}))";
-				return slice_obj;
-			}
 		}
 
 		val callee_str = self.gen_expr(call.callee);
@@ -449,16 +439,10 @@ impl CCodeGen {
 		return "${callee_str}(${joined_args})";
 	}
 
-	// Member access lowers to ./->; len/size on strings inlines strlen.
+	// Member access lowers to ./->. `str`/array `len` and `data` were already
+	// rewritten by the lower pass, so this only sees real fields.
 	fn gen_member_expr(var self, mem: *MemberExpr): str {
 		val obj_node = mem.object;
-		if (mem.member == "len" || mem.member == "size") {
-			val is_str = when (obj_node) {
-				is LiteralExpr as lit -> lit.literal_kind == LiteralKind.STRING,
-				else -> self.c_type_of(obj_node) == "const char*"
-			};
-			if (is_str) return "(uint64_t)strlen(${self.gen_expr(obj_node)})";
-		}
 		val obj = self.gen_expr(obj_node);
 		// A member access on a pointer value needs `->`; the receiver of a
 		// non-identifier pointer is dereferenced by sema instead.

@@ -14,7 +14,6 @@ mod compiler.sema.lower;
 
 use std.mem.arena.*;
 use std.collections.list.*;
-use std.io.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;
