@@ -128,7 +128,7 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 
 - **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, type_ptr: *u8 }`; `data` trỏ tới payload
   (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `type_ptr` là `*Type` đã giải của **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
-- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data, methods }` với `data` trỏ tới payload
+- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data, methods: *PrimMethods }` với `data` trỏ tới payload
   (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`); `methods` trỏ tới payload `PrimMethods`
   cho method của kiểu nguyên thuỷ. `DataType = VOID→NONE | … | STRUCT | FN`. `PrimTypes` giữ **instance
   chuẩn** cho 16 kiểu nguyên thuỷ (một con trỏ cho mỗi kiểu trong toàn bộ lần biên dịch).
@@ -371,9 +371,9 @@ chứ không còn bảng phụ:
   tự `*` nếu receiver là con trỏ).
 - `check_impl` nhận diện impl nguyên thuỷ qua `struct_name == ""` và kiểm body bằng `find_prim_method_c`.
 
-`Type` phải khai báo **trước** `MethodInfo` (ngôn ngữ không có forward declaration), nên `methods` là
-con trỏ payload `*u8` tới `PrimMethods` chứ không phải `List<*MethodInfo>` trực tiếp — lý do kỹ thuật của
-ngôn ngữ, không phải lựa chọn thẩm mỹ.
+`Type` khai báo **trước** `MethodInfo`, còn danh sách method của nó cần `MethodInfo`, nên `PrimMethods`
+được **khai báo trước** (`struct PrimMethods;`, P‑1) và định nghĩa sau `MethodInfo`; `Type.methods` là
+`*PrimMethods`. Trước khi có khai báo trước, chỗ này buộc phải là `*u8` + cast.
 
 Nền tảng này nuôi **trait `ToStr`** (`lib/std/traits/to_str.kb`, gom qua umbrella `lib/std/fmt.kb`).
 Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.traits.to_str` — để impl
@@ -508,7 +508,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
-| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`) đã có (`fe850db`) và đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`), kèm test `test_forward.kb`. Còn: payload enum (sum type), generic method/associated type, import vòng |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),

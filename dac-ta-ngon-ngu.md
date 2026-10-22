@@ -179,6 +179,25 @@ struct Node {
 
 Dùng con trỏ thô nullable, cấp phát/giải phóng thủ công qua `extern "libc"` + `defer`. Chưa có smart pointer sở hữu tự động (kiểu `Box<T>` của Rust) — để dành làm sau.
 
+### Khai báo trước (`struct A;`)
+
+Hai struct tham chiếu lẫn nhau cần một cái tên xuất hiện trước khi nó được định nghĩa. Khai báo trước đăng ký tên đó như một kiểu **chưa hoàn chỉnh**: dùng được sau con trỏ, chưa dùng được theo giá trị.
+
+```
+struct A;                 // tên 'A' dùng được từ đây (chỉ qua *A)
+
+struct B {
+    pub a: *A
+}
+
+struct A {                // định nghĩa hoàn tất cùng một kiểu 'A'
+    pub v: i32,
+    pub b: *B
+}
+```
+
+Khai báo trước và định nghĩa là **một kiểu duy nhất**; backend phát typedef một lần và thân struct ở chỗ định nghĩa. Dùng kiểu chưa hoàn chỉnh theo giá trị (field, biến, tham số) là lỗi (C compiler báo incomplete type).
+
 ### Iterator
 
 Trait riêng, bắt buộc với `Array`, `Slice`, `List`, `Map`, `HashMap`, range (`0..10`...) để dùng được trong `for (... in ...)`.
