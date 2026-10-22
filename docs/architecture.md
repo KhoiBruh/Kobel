@@ -116,10 +116,12 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 
 ### 3.4 Đơn vị dữ liệu trung tâm
 
-- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, resolved_type: *AstNode }`; `data` trỏ tới payload
-  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `resolved_type` là node kiểu do sema gắn cho **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
-- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data }` với `data` trỏ tới payload
-  (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`). `DataType = VOID→NONE | … | STRUCT | FN`.
+- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, type_ptr: *u8 }`; `data` trỏ tới payload
+  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `type_ptr` là `*Type` đã giải của **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
+- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data, methods }` với `data` trỏ tới payload
+  (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`); `methods` trỏ tới payload `PrimMethods`
+  cho method của kiểu nguyên thuỷ. `DataType = VOID→NONE | … | STRUCT | FN`. `PrimTypes` giữ **instance
+  chuẩn** cho 16 kiểu nguyên thuỷ (một con trỏ cho mỗi kiểu trong toàn bộ lần biên dịch).
 - **Bảng ký hiệu** (`sema/symbol.kb`): scope lồng nhau + module scope + import + registry enum + registry generic.
 - **Arena**: mọi AST/kiểu cấp phát từ arena (`std.mem.arena`), giải phóng một lần.
 
@@ -190,13 +192,11 @@ Quy ước ABI quan trọng:
 
 Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu phải được sema gắn sẵn vào AST**:
 
-- Mỗi biểu thức đã kiểm tra mang kiểu đã giải trong `AstNode.resolved_type` (một node kiểu AST do
-  `ast_type_from_type` dựng). `check_expr` gắn kiểu **sau khi** node đã bị hạ cấp, nên annotation luôn
-  mô tả đúng node mà codegen nhìn thấy. Codegen đọc qua `c_type_of(node)`; **không** còn hàm suy luận
-  kiểu nào trong backend.
-- Cùng kiểu đó còn được giữ dưới dạng `AstNode.sema_type` (con trỏ `*Type`, khai báo `*u8` để module
-  `ast` vẫn là lá). Pass `lower` đọc kênh này khi cần `size`, field struct hay bảng method; codegen
-  không dùng.
+- Mỗi biểu thức đã kiểm tra mang kiểu đã giải trong `AstNode.type_ptr` (`*Type`, khai báo `*u8` để module
+  `ast` vẫn là lá). `check_expr` gắn kiểu **sau khi** node đã bị hạ cấp, nên annotation luôn mô tả đúng
+  node mà codegen nhìn thấy. Codegen ánh xạ sang C bằng `c_type_from_type` (module
+  `codegen/c_type.kb`); **không** còn hàm suy luận kiểu nào trong backend. Pass `lower` cũng đọc chính
+  kênh này khi cần `size`, field struct hay bảng method.
 - Quyết định **phân giải** (method/operator nào được chọn) được ghi vào `AstNode.resolved_method`
   (`*MethodInfo`, cũng là `*u8`). Nhờ vậy `lower` dựng lời gọi C mà không tra lại overload/trait —
   và không có hai bản logic phân giải có thể lệch nhau.
@@ -346,15 +346,19 @@ phân giải về method của struct ngay ở sema.
 
 **Method cho kiểu nguyên thuỷ** (`impl i32 { … }`, `impl str { … }`): primitive không phải struct.
 Từ P3 mỗi kiểu nguyên thuỷ có **một instance chuẩn** (`PrimTypes`, giữ trong arena của `SymbolTable`),
-nên `i32` là cùng một con trỏ ở mọi nơi — điều kiện để sau này gắn method thẳng vào `Type`. Hiện tại
-vẫn dùng bảng phụ:
+nên `i32` là cùng một con trỏ ở mọi nơi; method của nó nằm **trên chính `Type`** (payload `PrimMethods`)
+chứ không còn bảng phụ:
 - `collect_impl` nhận ra tên kiểu qua `resolve_primitive_name` (trả instance chuẩn) và gọi
   `collect_prim_impl`: điền kiểu tường minh cho tham số `self` (để backend truyền **theo giá trị**,
-  vd `int32_t self`) rồi ghi method vào bảng `SymbolTable.prim_methods` (khoá theo `DataType`),
-  tên C = `<prim>_<method>` (`i32_to_str`).
-- `body_pass` tra `find_prim_method(kind, name)` khi receiver là kiểu nguyên thuỷ ⇒ hạ `x.m(args)` thành
-  `<prim>_m(x, args)` (receiver theo giá trị, tự `*` nếu receiver là con trỏ).
+  vd `int32_t self`) rồi `prim.add_method(mi)`, tên C = `<prim>_<method>` (`i32_to_str`).
+- `body_pass` tra `find_prim_method(kind, name)` (helper mỏng trên `SymbolTable`, đọc instance chuẩn)
+  khi receiver là kiểu nguyên thuỷ ⇒ hạ `x.m(args)` thành `<prim>_m(x, args)` (receiver theo giá trị,
+  tự `*` nếu receiver là con trỏ).
 - `check_impl` nhận diện impl nguyên thuỷ qua `struct_name == ""` và kiểm body bằng `find_prim_method_c`.
+
+`Type` phải khai báo **trước** `MethodInfo` (ngôn ngữ không có forward declaration), nên `methods` là
+con trỏ payload `*u8` tới `PrimMethods` chứ không phải `List<*MethodInfo>` trực tiếp — lý do kỹ thuật của
+ngôn ngữ, không phải lựa chọn thẩm mỹ.
 
 Nền tảng này nuôi **trait `ToStr`** (`lib/std/traits/to_str.kb`, gom qua umbrella `lib/std/fmt.kb`).
 Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.traits.to_str` — để impl
@@ -486,8 +490,8 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đạt I1** (`415fc4e`, `d68221f`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` cũng đi qua `resolved_node`. Pass `lower` + ba kênh (`sema_type`, `resolved_method`, `resolved_node`) là nơi duy nhất lắp replacement. Còn `check_arrow_method_body`: arrow fn chưa có kiểu trả về tại thời điểm bị gọi, nên chỉ bỏ được sau khi có suy luận kiểu trả về theo nhu cầu (demand/fixpoint có memo) cho arrow fn — xem ghi chú dưới |
-| **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **đang làm**: primitive canonical (`4afe848`), `DummyTemplateDecl` đã xoá (`de7b2eb`) — `decl_is_template` đọc field thật. Còn: intern pointer/array/struct, một `TypeResolver` dùng chung (bỏ `BodyPass.resolve_type` tạo `DeclPass`), và sau đó thay `resolved_type: *AstNode` bằng `*Type` + `c_type_from_type` |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đạt I1** (`415fc4e`, `d68221f`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` cũng đi qua `resolved_node`. Pass `lower` + ba kênh (`type_ptr`, `resolved_method`, `resolved_node`) là nơi duy nhất lắp replacement. Còn `check_arrow_method_body`: arrow fn chưa có kiểu trả về tại thời điểm bị gọi, nên chỉ bỏ được sau khi có suy luận kiểu trả về theo nhu cầu (demand/fixpoint có memo) cho arrow fn — xem ghi chú dưới |
+| **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
 
