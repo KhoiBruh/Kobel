@@ -11,6 +11,7 @@ use compiler.sema.decl_pass.*;
 use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_program.*;
+use compiler.sema.lower.*;
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_program.*;
 use compiler.loader.loader.*;
@@ -96,6 +97,10 @@ impl CompileOptions {
 			print_error_list(body_p.errors);
 			return 1;
 		}
+
+		// Sugar that needs no further checking is lowered in a separate pass, so
+		// the checker never rewrites a node's kind in place.
+		body_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");
 		val codegen = CCodeGen();

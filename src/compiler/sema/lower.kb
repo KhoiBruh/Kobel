@@ -1,0 +1,241 @@
+mod compiler.sema.lower;
+
+// ============================================================================
+// Lowering pass
+//
+// Runs after `check_program`, when every checked expression already carries its
+// resolved type. It rewrites sugar into forms the C backend can emit directly
+// and **returns replacement nodes** instead of mutating a node's kind in place.
+//
+// Rules are moved here one family at a time. This file starts with string and
+// array members (`len`/`size`/`data`) and `str.slice`; everything else is still
+// lowered during checking (see `replace_node` call sites in `body_expr`).
+// ============================================================================
+
+use std.mem.arena.*;
+use std.collections.list.*;
+use std.io.*;
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.sema.body_pass.*;
+
+impl BodyPass {
+
+	pub fn lower_program(var self, program_node: *AstNode) {
+		val prog = program_node.to<Program>();
+		for (decl in prog) {
+			when (decl) {
+				is FnDecl as var f -> f.body = self.lower_stmt(f.body);
+				is ImplDecl as var im -> {
+					for (i in 0..<im.methods.len) {
+						val m = im.methods[i];
+						if (m is FnDecl as var mf) mf.body = self.lower_stmt(mf.body);
+					}
+				}
+				is ConstDecl as var c -> c.value = self.lower_expr(c.value);
+				else -> {}
+			}
+		}
+	}
+
+	// ============================================================================
+	// Statements
+	// ============================================================================
+
+	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
+		if (node == null) return null;
+		when (node) {
+			is BlockStmt as var blk -> {
+				for (i in 0..<blk.statements.len) blk.statements[i] = self.lower_stmt(blk.statements[i]);
+			}
+			is ExprStmt as var es -> es.expr = self.lower_expr(es.expr);
+			is VarDeclStmt as var vd -> vd.initializer = self.lower_expr(vd.initializer);
+			is IfStmt as var ifs -> {
+				ifs.condition = self.lower_expr(ifs.condition);
+				ifs.then_branch = self.lower_stmt(ifs.then_branch);
+				ifs.else_branch = self.lower_stmt(ifs.else_branch);
+			}
+			is WhileStmt as var wh -> {
+				wh.condition = self.lower_expr(wh.condition);
+				wh.body = self.lower_stmt(wh.body);
+			}
+			is ForStmt as var fr -> {
+				fr.iterable = self.lower_expr(fr.iterable);
+				fr.range_start = self.lower_expr(fr.range_start);
+				fr.range_end = self.lower_expr(fr.range_end);
+				fr.body = self.lower_stmt(fr.body);
+			}
+			is ReturnStmt as var ret -> ret.value = self.lower_expr(ret.value);
+			is WhenStmt as var ws -> {
+				ws.condition = self.lower_expr(ws.condition);
+				for (i in 0..<ws.arms.len) {
+					var arm = ws.arms[i];
+					arm.body = self.lower_stmt(arm.body);
+					for (k in 0..<arm.patterns.len) arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					ws.arms[i] = arm;
+				}
+			}
+			is YieldStmt as var ys -> ys.value = self.lower_expr(ys.value);
+			is DeferStmt as var ds -> ds.body = self.lower_stmt(ds.body);
+			else -> {}
+		}
+		return node;
+	}
+
+	// ============================================================================
+	// Expressions
+	// ============================================================================
+
+	pub fn lower_expr(var self, node: *AstNode): *AstNode {
+		if (node == null) return null;
+		var out = node;
+		when (node) {
+			is BinaryExpr as var b -> {
+				b.left = self.lower_expr(b.left);
+				b.right = self.lower_expr(b.right);
+			}
+			is UnaryExpr as var u -> u.operand = self.lower_expr(u.operand);
+			is CallExpr as var c -> {
+				c.callee = self.lower_expr(c.callee);
+				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
+				out = self.lower_call(node, c);
+			}
+			is MemberExpr as var m -> {
+				m.object = self.lower_expr(m.object);
+				out = self.lower_member(node, m);
+			}
+			is IndexExpr as var ix -> {
+				ix.target = self.lower_expr(ix.target);
+				ix.index = self.lower_expr(ix.index);
+			}
+			is AssignExpr as var asg -> {
+				asg.target = self.lower_expr(asg.target);
+				asg.value = self.lower_expr(asg.value);
+			}
+			is UpdateExpr as var up -> up.target = self.lower_expr(up.target);
+			is CastExpr as var cst -> cst.expr = self.lower_expr(cst.expr);
+			is GroupExpr as var g -> g.expr = self.lower_expr(g.expr);
+			is ArrayLiteralExpr as var al -> {
+				for (i in 0..<al.elements.len) al.elements[i] = self.lower_expr(al.elements[i]);
+			}
+			is IfExpr as var ie -> {
+				ie.condition = self.lower_expr(ie.condition);
+				ie.then_branch = self.lower_expr(ie.then_branch);
+				ie.else_branch = self.lower_expr(ie.else_branch);
+			}
+			is WhenExpr as var we -> {
+				we.condition = self.lower_expr(we.condition);
+				for (i in 0..<we.arms.len) {
+					var arm = we.arms[i];
+					arm.body = self.lower_arm_body(arm.body);
+					for (k in 0..<arm.patterns.len) arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					we.arms[i] = arm;
+				}
+			}
+			is InterpExpr as var ip -> {
+				for (i in 0..<ip.parts.len) {
+					var part = ip.parts[i];
+					part.expr = self.lower_expr(part.expr);
+					ip.parts[i] = part;
+				}
+			}
+			is IsExpr as var ise -> ise.expr = self.lower_expr(ise.expr);
+			else -> {}
+		}
+		return out;
+	}
+
+	// ============================================================================
+	// Rewrite rules
+	// ============================================================================
+
+	// A `when` arm body is either an expression or a block of statements (the
+	// block form yields a value), so pick the right walker for it.
+	fn lower_arm_body(var self, body: *AstNode): *AstNode {
+		if (body != null && body.kind == NodeKind.STMT_BLOCK) return self.lower_stmt(body);
+		return self.lower_expr(body);
+	}
+
+	// A replacement keeps the value's type, which the checker already stored on
+	// the original node; the backend reads it from the node it now sees.
+	fn lowered(var self, original: *AstNode, replacement: *AstNode): *AstNode {
+		replacement.resolved_type = original.resolved_type;
+		return replacement;
+	}
+
+	// `s.len`/`s.size` -> `kobel_slen(s)`; `s.data` -> `s`; `arr.len`/`arr.size`
+	// -> a compile-time literal; `arr.data` -> `arr`. The receiver's own type is
+	// enough to decide, so no symbol table is needed here.
+	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
+		val obj = mem.object;
+		if (obj == null) return node;
+
+		if (self.is_str_expr(obj)) {
+			if (mem.member == "len" || mem.member == "size") {
+				var args = List<*AstNode>();
+				args += obj;
+				val call = self.call(self.identifier("kobel_slen", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+				return self.lowered(node, call);
+			}
+			if (mem.member == "data") return self.lowered(node, obj);
+		}
+
+		if (self.is_array_expr(obj)) {
+			if (mem.member == "len" || mem.member == "size") {
+				val arr = obj.resolved_type.to<ArrayType>();
+				val lit = self.literal(LiteralKind.INT, "${arr.size}UZ", node.line, node.col);
+				return self.lowered(node, lit);
+			}
+			if (mem.member == "data") return self.lowered(node, obj);
+		}
+
+		return node;
+	}
+
+	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`. Omitted bounds default to 0 and
+	// `kobel_slen(s)`, which is the contract `check_slice_call` validated.
+	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee;
+		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
+		val mem = callee.to<MemberExpr>() as &MemberExpr;
+		if (mem.member != "slice") return node;
+		if (!self.is_str_expr(mem.object)) return node;
+
+		var args = List<*AstNode>();
+		args += mem.object;
+		if (!call.args.empty()) args += call.args.first();
+		else args += self.literal(LiteralKind.INT, "0", node.line, node.col);
+		if (call.args.len >= 2) args += call.args[1];
+		else {
+			var largs = List<*AstNode>();
+			largs += mem.object;
+			args += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
+		}
+
+		val slice_call = self.call(self.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, slice_call);
+	}
+
+	// ============================================================================
+	// Type predicates over the checked annotations
+	// ============================================================================
+
+	fn is_str_expr(var self, node: *AstNode): bool {
+		val t = node.resolved_type;
+		if (t == null) return false;
+		if (t.kind != NodeKind.TYPE_NAMED) return false;
+		return t.to<NamedType>().name == "str";
+	}
+
+	fn is_array_expr(var self, node: *AstNode): bool {
+		val t = node.resolved_type;
+		if (t == null) return false;
+		return t.kind == NodeKind.TYPE_ARRAY;
+	}
+
+}

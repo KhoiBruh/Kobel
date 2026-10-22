@@ -35,7 +35,7 @@ impl BodyPass {
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
 			if (mem.member == "size") return self.lower_size_query(node, mem);
-			if (mem.member == "slice") return self.lower_slice_call(node, mem, call);
+			if (mem.member == "slice") return self.check_slice_call(node, mem, call);
 
 			// Instance method call or primitive method call
 			val m_ty = self.check_method_call(node, mem, call);
@@ -83,29 +83,15 @@ impl BodyPass {
 		return self.t_usz();
 	}
 
-	// `s.slice(a, b)` lowers to `kobel_slice(s, a, b)`. Both bounds are optional:
-	// `a` defaults to 0 and `b` to `kobel_slen(s)`.
-	fn lower_slice_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+	// `s.slice(a, b)` is validated here; the `lower` pass rewrites it into
+	// `kobel_slice(s, a, b)` with defaults (0 and `kobel_slen(s)`).
+	fn check_slice_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
 		val slice_recv = self.check_expr(mem.object);
 		self.ensure(slice_recv.kind == DataType.STR, node, "slice() requires a str receiver");
 		for (arg in call.args) {
 			val at = self.check_expr(arg);
 			self.ensure(at.is_integer(), node, "slice() bounds must be integers");
 		}
-
-		var sargs = List<*AstNode>();
-		sargs += mem.object;
-		if (!call.args.empty()) sargs += call.args.first();
-		else sargs += self.literal(LiteralKind.INT, "0", node.line, node.col);
-		if (call.args.len >= 2) {
-			sargs += call.args[1];
-		} else {
-			var largs = List<*AstNode>();
-			largs += mem.object;
-			sargs += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
-		}
-		val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, sl_call);
 		return self.t_str();
 	}
 

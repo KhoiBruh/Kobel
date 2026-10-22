@@ -462,17 +462,10 @@ impl BodyPass {
 	}
 
 	// `str` lowers to a bare `const char*`, so its members cannot go through the
-	// struct field path.
+	// struct field path. This only decides the type: the `lower` pass rewrites
+	// `.len`/`.data` into what the backend can emit.
 	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type {
-		if (mem.member == "len" || mem.member == "size") {
-			// Lower to a runtime call: the C backend cannot tell that an
-			// arbitrary expression has type `str`.
-			var len_args = List<*AstNode>();
-			len_args += mem.object;
-			val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
-			self.replace_node(node, len_call);
-			return self.t_usz();
-		}
+		if (mem.member == "len" || mem.member == "size") return self.t_usz();
 		if (mem.member == "cap") return self.t_usz();
 		if (mem.member == "c_str") {
 			val char_ty = self.t_char();
@@ -480,9 +473,7 @@ impl BodyPass {
 			return self.arena.fn_type(List<*Type>(), char_ptr);
 		}
 		if (mem.member == "data") {
-			// `.data` is the pointer itself, so the access becomes its receiver.
 			val char_ty = self.t_char();
-			self.replace_node(node, mem.object);
 			return self.arena.pointer_type(char_ty, false);
 		}
 		self.report_error(node, "Member access on non-struct type");
@@ -490,18 +481,11 @@ impl BodyPass {
 	}
 
 	// `[T; N]`: the length is a compile-time constant, and the value already is a
-	// pointer to its first element.
+	// pointer to its first element. Lowering of both members happens in `lower`.
 	fn member_on_array(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
 		val arr = obj_ty.as_array();
-		if (mem.member == "len" || mem.member == "size") {
-			val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
-			self.replace_node(node, lit);
-			return self.t_usz();
-		}
-		if (mem.member == "data") {
-			self.replace_node(node, mem.object);
-			return self.arena.pointer_type(arr.elem, true);
-		}
+		if (mem.member == "len" || mem.member == "size") return self.t_usz();
+		if (mem.member == "data") return self.arena.pointer_type(arr.elem, true);
 		self.report_error(node, "Member access on non-struct type");
 		return self.t_none();
 	}
