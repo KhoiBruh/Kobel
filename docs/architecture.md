@@ -194,6 +194,9 @@ Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu ph�
   `ast_type_from_type` dựng). `check_expr` gắn kiểu **sau khi** node đã bị hạ cấp, nên annotation luôn
   mô tả đúng node mà codegen nhìn thấy. Codegen đọc qua `c_type_of(node)`; **không** còn hàm suy luận
   kiểu nào trong backend.
+- Cùng kiểu đó còn được giữ dưới dạng `AstNode.sema_type` (con trỏ `*Type`, khai báo `*u8` để module
+  `ast` vẫn là lá). Pass `lower` đọc kênh này khi cần `size`, field struct hay bảng method; codegen
+  không dùng.
 - Biến nội bộ không có annotation vẫn được sema **chèn `type_annotation`** (`ast_type_from_type`).
 - Kiểu trả về của arrow-fn (`fn f() => expr`) do sema ghi vào `FnDecl.return_type`
   (`check_fn_body`); `fn_ret_c_type` chỉ đọc lại, không suy luận.
@@ -478,7 +481,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đang làm**: pass `lower` đã có, nhóm string member/`slice` đã chuyển (`400dea0`, `b9bbc57`). Còn: operator chuỗi, nội suy, method/ctor, `for`, safe-call — và `check_arrow_method_body` chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân" (arrow fn chưa có kiểu trả về lúc bị gọi) |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đang làm**: pass `lower` + kênh `sema_type` đã có. Đã chuyển: string member/`slice` (`400dea0`, `b9bbc57`), operator chuỗi (`5d3cbb1`), nội suy (`ebf3ee3`). Còn **15 call site `replace_node`** (operator/equality struct, enum & struct const, method/ctor, `T.size()`, `for`, safe-call, index update) — các nhóm này cần **tái dùng quyết định phân giải** của check (`MethodInfo`, `StructType`, enum value) chứ không chỉ kiểu, nên làm cùng lúc với P3. `check_arrow_method_body` chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân" (arrow fn chưa có kiểu trả về lúc bị gọi) |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | chưa |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
@@ -492,14 +495,17 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
 `tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
 
-**Nhóm hạ cấp còn lại trong `check_*` (P2):** `+`/`==`/`!=`/`+=` trên `str`; nội suy chuỗi;
-enum/struct const member; method call, constructor, `Self(...)`; `for`; safe-call. Mỗi nhóm chuyển
-sang `lower` xong thì xoá `replace_node` tương ứng; khi hết `replace_node`, `BodyPass` không còn
-được đổi `kind`/`data` của node và I1 đạt.
+**Nhóm hạ cấp còn lại trong `check_*` (P2):** operator/equality trên struct, enum & struct const
+member, method call, constructor/`Self(...)`, `T.size()`, `for`, safe-call, index update. Mỗi nhóm
+chuyển sang `lower` xong thì xoá `replace_node` tương ứng; khi hết `replace_node`, `BodyPass` không
+còn được đổi `kind`/`data` của node và I1 đạt.
 
-Lưu ý kỹ thuật cho các nhóm sau: `lower` hiện chỉ có node kiểu **AST** (`resolved_type`), đủ cho
-`str`/array nhưng **không** đủ cho việc cần `size`/`StructType`/`MethodInfo` (struct equality, method
-call, ctor). Các nhóm đó cần thêm một kênh `*Type` (hoặc `TypeStore` của P3) trước khi chuyển.
+Lưu ý kỹ thuật cho các nhóm sau: `lower` đã có cả `resolved_type` (cho codegen) và `sema_type` (cho
+`size`/`StructType`), nên **kiểu** không còn là rào cản. Rào cản thật là **quyết định phân giải**:
+method/trait overload nào được chọn, `new` hay dựng theo field, enum value nào, `for` đi đường
+`Iterable` hay `.len`/`.data`. Nếu `lower` tự tra lại lần nữa thì logic phân giải bị nhân đôi và hai
+bên có thể lệch nhau. Vì vậy bước tiếp theo là một **kênh phân giải** (check ghi lại `MethodInfo` /
+`StructField` / enum value đã chọn, `lower` chỉ đọc) — đây chính là phần lõi của P3.
 
 ---
 
