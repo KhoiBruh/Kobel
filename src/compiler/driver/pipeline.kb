@@ -23,6 +23,21 @@ pub fn print_error_list(errors: List<str>) {
 	for (msg in errors) println("  [ERROR] ${msg}");
 }
 
+// Command line that turns `c_path` into `exe_path` with the given backend.
+// `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
+// Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
+pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
+	var cmd = if (
+		cc == "clang" ||
+		cc == "gcc"
+	) "${cc} -O2 -o \"${exe_path}\" \"${c_path}\""
+	// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
+	else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\"";
+
+	if (quiet) cmd = "${cmd} >nul";
+	return cmd;
+}
+
 pub struct CompileOptions {
 	pub input_path: str = "",
 	pub output_bin: str = "",
@@ -121,14 +136,7 @@ impl CompileOptions {
 			exec("move /y \"${out_path.to_win_path()}\" \"${old_bin.to_win_path()}\" >nul 2>nul");
 		}
 
-		var compile_cmd = if (
-			self.c_compiler == "clang" ||
-			self.c_compiler == "gcc"
-		) "${self.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\""
-		// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
-		else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
-
-		if (self.quiet) compile_cmd = "${compile_cmd} >nul";
+		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
 
 		val exit_code = exec(compile_cmd);
 		if (exit_code != 0) {
