@@ -61,15 +61,23 @@ impl DeclPass {
 				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
 				yield self.named_type(nt.name, targs, node.line, node.col);
 			}
-			is PointerType as pt -> {
-				yield self.pointer_type(pt.is_mut, self.clone_type(pt.pointee, subst), node.line, node.col);
-			}
-			is ArrayType as at -> {
-				yield self.array_type(self.clone_type(at.element_type, subst), at.size, node.line, node.col);
-			}
-			is NullableType as nt -> {
-				yield self.nullable_type(self.clone_type(nt.inner, subst), node.line, node.col);
-			}
+
+			is PointerType as pt -> self.pointer_type(
+				pt.is_mut,
+				self.clone_type(pt.pointee, subst),
+				node.line, node.col
+			);
+
+			is ArrayType as at -> self.array_type(
+				self.clone_type(at.element_type, subst),
+				at.size, node.line, node.col
+			);
+
+			is NullableType as nt -> self.nullable_type(
+				self.clone_type(nt.inner, subst),
+				node.line, node.col
+			);
+
 			else -> self.named_type("none", List<*AstNode>(), node.line, node.col);
 		};
 	}
@@ -223,15 +231,22 @@ impl DeclPass {
 			new_args += mem_obj;
 			for (a in c.args) new_args += self.clone_expr(a, subst);
 			val cname = self.instantiate_fn(ft, targs);
-			val call_node = self.call(self.identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+			val call_node = self.call(
+				self.identifier(cname, node.line, node.col),
+				new_args, List<*AstNode>(),
+				node.line, node.col
+			);
+
 			if (mem.is_safe) {
 				val cond = self.binary(
 					TokenType.BANG_EQUAL, mem_obj,
 					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
 					node.line, node.col
 				);
+
 				return self.if_expr(
-					cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+					cond, call_node,
+					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
 					node.line, node.col
 				);
 			}
@@ -427,7 +442,11 @@ impl DeclPass {
 		}
 		// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
 		// be checked against the trait and pick up its default methods.
-		return self.impl_decl(new_struct_name, List<GenericParam>(), im.trait_name, methods, node.line, node.col);
+		return self.impl_decl(
+			new_struct_name, List<GenericParam>(),
+			im.trait_name, methods,
+			node.line, node.col
+		);
 	}
 
 }
