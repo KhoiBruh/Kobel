@@ -7,8 +7,9 @@ mod compiler.sema.lower;
 // resolved type. It rewrites sugar into forms the C backend can emit directly
 // and **returns replacement nodes** instead of mutating a node's kind in place.
 //
-// Rules are moved here one family at a time. This file starts with string and
-// array members (`len`/`size`/`data`) and `str.slice`; everything else is still
+// Rules are moved here one family at a time. Families already moved: string
+// and array members (`len`/`size`/`data`), `str.slice`, string operators
+// (`+`, `==`, `!=`, `+=`) and string interpolation. Everything else is still
 // lowered during checking (see `replace_node` call sites in `body_expr`).
 // ============================================================================
 
@@ -148,6 +149,7 @@ impl BodyPass {
 					part.expr = self.lower_expr(part.expr);
 					ip.parts[i] = part;
 				}
+				out = self.lower_interp(node, ip);
 			}
 			is IsExpr as var ise -> ise.expr = self.lower_expr(ise.expr);
 			else -> {}
@@ -201,6 +203,52 @@ impl BodyPass {
 		cat.sema_type = node.sema_type;
 		asgn.value = cat;
 		asgn.op = TokenType.EQUAL;
+	}
+
+	// `"a${x}b"` -> a chain of `kobel_concat` calls, with every hole converted by
+	// the `ToStr` implementation for its type. The checker already rejected holes
+	// without one, so a failed lookup here leaves the expression untouched.
+	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
+		var acc: *AstNode = null;
+		for (i in 0..<ie.parts.len) {
+			val part = ie.parts[i];
+			var piece = part.expr;
+			if (!part.is_literal) {
+				val conv = self.to_str_expr(piece, node.line, node.col);
+				if (conv != null) piece = conv;
+			}
+			if (acc == null) acc = piece;
+			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
+		}
+		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		return self.lowered(node, acc);
+	}
+
+	// The `str` conversion of one value: identity for `str`, otherwise a call to
+	// the primitive or struct `to_str` method (`&value` when it is a value).
+	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode {
+		val ty = self.type_of(expr);
+		if (ty == null) return null;
+		if (ty.kind == DataType.STR) return expr;
+
+		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
+		if (pmi != null) return self.arena.interp_call(pmi.c_name, expr, line, col);
+
+		var cur_ty = ty;
+		var is_ptr = false;
+		if (cur_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			cur_ty = cur_ty.as_pointer().pointee;
+		}
+		if (cur_ty.kind == DataType.STRUCT) {
+			val mi = cur_ty.as_struct().find_method("to_str");
+			if (mi != null) {
+				var arg = expr;
+				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, line, col);
+				return self.arena.interp_call(mi.c_name, arg, line, col);
+			}
+		}
+		return null;
 	}
 
 	// `s.len`/`s.size` -> `kobel_slen(s)`; `s.data` -> `s`; `arr.len`/`arr.size`
