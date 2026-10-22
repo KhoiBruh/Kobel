@@ -82,7 +82,10 @@ pub struct StructType {
 	pub module: str,
 	// True when some field is not `pub`: another module may not build the
 	// struct from its fields and must go through a `new` constructor.
-	pub has_private: bool
+	pub has_private: bool,
+	// False for a type that is only forward-declared so far (`struct A;`). Such a
+	// type may be pointed to, but not embedded by value until it is defined.
+	pub is_defined: bool = true
 }
 
 pub struct FnType {

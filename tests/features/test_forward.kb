@@ -1,0 +1,19 @@
+mod test.forward;
+
+// Forward declarations: `struct A;` makes the name usable behind a pointer
+// before the definition appears, which is how mutually referencing types are
+// written.
+
+struct A;
+struct B { pub a: *A }
+struct A { pub v: i32, pub b: *B }
+
+fn main(): i32 {
+	var a = A(5, null);
+	var b = B(&a);
+	a.b = &b;
+	if (a.v != 5) return 1;
+	if (b.a.v != 5) return 2;
+	if (a.b.a.v != 5) return 3;
+	return 0;
+}

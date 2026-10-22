@@ -57,7 +57,10 @@ pub struct StructDecl {
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub fields: List<StructField>,
-	pub is_pub: bool
+	pub is_pub: bool,
+	// `struct A;` — declares the name without a body. The definition (`struct A
+	// { ... }`) is merged into the same type during declaration collection.
+	pub is_forward: bool = false
 }
 
 pub struct TraitDecl {

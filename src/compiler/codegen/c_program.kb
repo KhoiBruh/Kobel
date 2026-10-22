@@ -42,8 +42,12 @@ impl CCodeGen {
 			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is StructDecl as s -> {
-					self.register_struct(s.name);
-					sb += "typedef struct ${s.name} ${s.name};\n";
+					// A forward declaration and its definition are two AST nodes for
+					// one C type, so emit the typedef only once.
+					if (!self.is_struct_name(s.name)) {
+						self.register_struct(s.name);
+						sb += "typedef struct ${s.name} ${s.name};\n";
+					}
 				}
 				is EnumDecl as e -> {
 					// Enums lower to their underlying integer type; member access becomes
@@ -120,6 +124,9 @@ impl CCodeGen {
 }
 
 	pub fn gen_struct_decl(var self, s: *StructDecl): str {
+		// The definition carries the fields; a forward declaration only
+		// contributes the typedef emitted in the first pass.
+		if (s.is_forward) return "";
 		self.register_struct(s.name);
 
 		var res = "struct ${s.name} {\n";

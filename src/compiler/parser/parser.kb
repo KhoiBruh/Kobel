@@ -139,6 +139,10 @@ impl Parser {
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, fields, is_pub), line, col);
 
+	// `struct Name;` — an opaque declaration whose definition may follow later.
+	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, is_pub: bool, line: usz, col: usz): *AstNode
+		=> self.arena.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, List<StructField>(), is_pub, true), line, col);
+
 	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.make<TraitDecl>(TraitDecl.TAG, TraitDecl(name, type_params, bases, methods, is_pub), line, col);
 

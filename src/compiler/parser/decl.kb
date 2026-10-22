@@ -230,6 +230,11 @@ impl Parser {
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected struct name");
 		val type_params = self.parse_generic_params();
 
+		// `struct Name;`: an opaque declaration whose definition may follow later.
+		if (self.match_token(TokenType.SEMI_COLON)) {
+			return self.struct_decl_forward(name_tok.text, type_params, is_pub, kw.line, kw.col);
+		}
+
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before struct fields");
 		var fields = List<StructField>();
 
