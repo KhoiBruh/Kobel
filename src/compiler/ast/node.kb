@@ -67,7 +67,11 @@ pub struct AstNode {
 	// The same type as the compiler's own `*Type` (untyped here so `ast` stays a
 	// leaf module). Passes that need struct fields, sizes or method tables read
 	// this one; codegen keeps using `resolved_type`.
-	pub sema_type: *u8 = null
+	pub sema_type: *u8 = null,
+	// Method or operator the checker picked for this node (`*MethodInfo`, again
+	// untyped). `lower` needs it to spell the C call without repeating the
+	// overload/trait resolution the checker already did.
+	pub resolved_method: *u8 = null
 }
 
 pub struct DummyTemplateDecl {

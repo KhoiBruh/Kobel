@@ -25,6 +25,7 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
+use compiler.sema.types.MethodInfo;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 
@@ -108,7 +109,8 @@ impl BodyPass {
 			is CallExpr as var c -> {
 				c.callee = self.lower_expr(c.callee);
 				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
-				out = self.lower_call(node, c);
+				if (node.resolved_method != null) out = self.lower_bound_call(node, c);
+				else out = self.lower_call(node, c);
 			}
 			is MemberExpr as var m -> {
 				m.object = self.lower_expr(m.object);
@@ -180,6 +182,12 @@ impl BodyPass {
 	// -> `kobel_streq(a, b)`, negated for `!=`. Operand types were validated by
 	// the checker; this only spells the runtime helper.
 	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+		// `a ?: return b` keeps a whole statement on the right, so it needs the
+		// statement walker rather than the expression one.
+		if (bin.op == TokenType.QUESTION_COLON) {
+			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
+			return node;
+		}
 		if (bin.op == TokenType.PLUS) {
 			if (!self.is_str_expr(bin.left)) return node;
 			val cat = self.arena.interp_concat(bin.left, bin.right, node.line, node.col);
@@ -280,6 +288,41 @@ impl BodyPass {
 		return node;
 	}
 
+	// A method call the checker bound: `recv.m(args)` -> `c_name(recv, args)`.
+	// A struct receiver is passed by reference (`&recv`, or the pointer itself);
+	// a primitive receiver by value (`recv`, or `*recv` when it is a pointer).
+	// `?.` keeps its null guard, wrapping the call in `recv != NULL ? ... : NULL`.
+	fn lower_bound_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee;
+		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
+		val mem = callee.to<MemberExpr>() as &MemberExpr;
+		val mi = node.resolved_method as *MethodInfo;
+		val recv = mem.object;
+
+		val recv_ty = self.type_of(recv);
+		val obj_is_ptr = recv_ty != null && recv_ty.kind == DataType.POINTER;
+		var inner_ty = recv_ty;
+		if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
+		val by_ref = inner_ty != null && inner_ty.kind == DataType.STRUCT;
+
+		var new_args = List<*AstNode>();
+		if (by_ref == obj_is_ptr) new_args += recv;
+		else {
+			var op = TokenType.STAR;
+			if (by_ref) op = TokenType.AMPERSAND;
+			new_args += self.unary(op, recv, node.line, node.col);
+		}
+		for (arg in call.args) new_args += arg;
+
+		val direct = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		if (!mem.is_safe) return self.lowered(node, direct);
+
+		val null_lit = self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
+		val cond = self.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
+		val maybe = self.if_expr(cond, direct, null_lit, node.line, node.col);
+		return self.lowered(node, maybe);
+	}
+
 	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`. Omitted bounds default to 0 and
 	// `kobel_slen(s)`, which is the contract `check_slice_call` validated.
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
@@ -320,6 +363,17 @@ impl BodyPass {
 	fn is_str_expr(var self, node: *AstNode): bool {
 		val t = self.type_of(node);
 		return t != null && t.kind == DataType.STR;
+	}
+
+	// True for the statement nodes that can sit in an expression position (the
+	// right side of `?:` is allowed to be `return`/`yield`/`break`/`continue`/block).
+	fn is_stmt_node(var self, node: *AstNode): bool {
+		if (node == null) return false;
+		return node.kind == NodeKind.STMT_RETURN ||
+			node.kind == NodeKind.STMT_BREAK ||
+			node.kind == NodeKind.STMT_CONTINUE ||
+			node.kind == NodeKind.STMT_YIELD ||
+			node.kind == NodeKind.STMT_BLOCK;
 	}
 
 	fn is_array_expr(var self, node: *AstNode): bool {

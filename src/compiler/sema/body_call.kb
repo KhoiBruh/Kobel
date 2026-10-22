@@ -142,11 +142,11 @@ impl BodyPass {
 		}
 	}
 
-	// Check the arguments, then rewrite `recv.m(args)` into `c_name(recv, args)`.
-	// `by_ref` says how a non-pointer receiver is passed: `&recv` for a struct
-	// method, `recv` itself (deref when the receiver is a pointer) for a
-	// primitive method.
-	fn lower_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type, obj_is_ptr: bool, by_ref: bool): *Type {
+	// Check the arguments and record which method was chosen. Rewriting the call
+	// into `c_name(recv, args)` is the `lower` pass's job: it reads
+	// `resolved_method` and derives the receiver convention from the types, so
+	// the checker never has to build replacement nodes.
+	fn bind_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type): *Type {
 		val fn_info = mi.fn_type.as_fn();
 		self.check_arrow_method_body(mi, obj_ty);
 
@@ -162,34 +162,16 @@ impl BodyPass {
 			}
 		}
 
-		var new_args = List<*AstNode>();
-		if (by_ref == obj_is_ptr) {
-			new_args += mem.object;
-		} else {
-			var op = TokenType.STAR;
-			if (by_ref) op = TokenType.AMPERSAND;
-			new_args += self.unary(op, mem.object, node.line, node.col);
-		}
-		for (arg in call.args) new_args += arg;
-
 		var ret_ty = fn_info.return_type;
 		if (mem.is_safe) {
 			self.ensure(ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR, node, "Safe method call '?.' requires return type to be a pointer or string");
-
-			val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-			val cond = self.binary(TokenType.BANG_EQUAL, mem.object, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
-			val if_node = self.if_expr(cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
-			self.replace_node(node, if_node);
-
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
 				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
 			}
-			return ret_ty;
 		}
 
-		call.args = new_args;
-		call.callee = self.identifier(mi.c_name, node.line, node.col);
+		node.resolved_method = mi as *u8;
 		return ret_ty;
 	}
 
@@ -223,7 +205,7 @@ impl BodyPass {
 				mem.member, argc, s_info.methods, call, s_info.find_method_arity(mem.member, argc)
 			) ?: s_info.find_method(mem.member);
 			// Struct methods take the receiver by reference.
-			if (mi != null) return self.lower_method_call(node, mem, call, mi, obj_ty, obj_is_ptr, true);
+			if (mi != null) return self.bind_method_call(node, mem, call, mi, obj_ty);
 		}
 
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
@@ -232,7 +214,7 @@ impl BodyPass {
 			self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, argc)
 		) ?: self.symtab.find_prim_method(obj_ty.kind, mem.member);
 		// Primitive methods take the receiver by value.
-		if (pmi != null) return self.lower_method_call(node, mem, call, pmi, obj_ty, obj_is_ptr, false);
+		if (pmi != null) return self.bind_method_call(node, mem, call, pmi, obj_ty);
 
 		if (obj_ty.kind == DataType.STRUCT) {
 			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
