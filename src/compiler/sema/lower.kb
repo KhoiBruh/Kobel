@@ -20,8 +20,11 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
+use compiler.lexer.token.*;
+
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
+use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 
 impl BodyPass {
@@ -98,6 +101,7 @@ impl BodyPass {
 			is BinaryExpr as var b -> {
 				b.left = self.lower_expr(b.left);
 				b.right = self.lower_expr(b.right);
+				out = self.lower_binary(node, b);
 			}
 			is UnaryExpr as var u -> u.operand = self.lower_expr(u.operand);
 			is CallExpr as var c -> {
@@ -116,6 +120,7 @@ impl BodyPass {
 			is AssignExpr as var asg -> {
 				asg.target = self.lower_expr(asg.target);
 				asg.value = self.lower_expr(asg.value);
+				self.lower_assign(node, asg);
 			}
 			is UpdateExpr as var up -> up.target = self.lower_expr(up.target);
 			is CastExpr as var cst -> cst.expr = self.lower_expr(cst.expr);
@@ -165,7 +170,37 @@ impl BodyPass {
 	// the original node; the backend reads it from the node it now sees.
 	fn lowered(var self, original: *AstNode, replacement: *AstNode): *AstNode {
 		replacement.resolved_type = original.resolved_type;
+		replacement.sema_type = original.sema_type;
 		return replacement;
+	}
+
+	// `a + b` on strings -> `kobel_concat(a, b)`; `a == b` / `a != b` on strings
+	// -> `kobel_streq(a, b)`, negated for `!=`. Operand types were validated by
+	// the checker; this only spells the runtime helper.
+	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+		if (bin.op == TokenType.PLUS) {
+			if (!self.is_str_expr(bin.left)) return node;
+			val cat = self.arena.interp_concat(bin.left, bin.right, node.line, node.col);
+			return self.lowered(node, cat);
+		}
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			if (!self.is_str_expr(bin.left) || !self.is_str_expr(bin.right)) return node;
+			val eq = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+			return self.lowered(node, eq);
+		}
+		return node;
+	}
+
+	// `s += str` -> `s = kobel_concat(s, str)`, keeping the assignment node and
+	// only swapping its operator and right-hand side.
+	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr) {
+		if (asgn.op != TokenType.PLUS_EQUAL) return;
+		if (!self.is_str_expr(asgn.target)) return;
+		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
+		cat.resolved_type = node.resolved_type;
+		cat.sema_type = node.sema_type;
+		asgn.value = cat;
+		asgn.op = TokenType.EQUAL;
 	}
 
 	// `s.len`/`s.size` -> `kobel_slen(s)`; `s.data` -> `s`; `arr.len`/`arr.size`

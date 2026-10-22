@@ -174,19 +174,11 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `+ - * / %`: `str + str` becomes a runtime concat call, every other operand
-	// pair must be numeric, and the result keeps the left operand's type.
+	// `+ - * / %`: `str + str` is lowered to a runtime concat call by the `lower`
+	// pass, every other operand pair must be numeric, and the result keeps the
+	// left operand's type.
 	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
-			// Rewrite `str + str` into a runtime concat call so the C
-			// backend does not emit pointer arithmetic.
-			var cat_args = List<*AstNode>();
-			cat_args += bin.left;
-			cat_args += bin.right;
-			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-			self.replace_node(node, cat_call);
-			return self.t_str();
-		}
+		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.t_str();
 		if (lt.is_numeric() && rt.is_numeric()) return lt;
 
 		if (lt.kind == DataType.STRUCT) {
@@ -219,14 +211,10 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `== !=`: `str` compares by content, everything else by value.
+	// `== !=`: `str` compares by content (lowered to `kobel_streq` by `lower`),
+	// everything else by value.
 	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
-			// Content comparison instead of C pointer comparison.
-			val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
-			self.replace_node(node, wrapped);
-			return self.t_bool();
-		}
+		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.t_bool();
 
 		if (lt.kind == DataType.STRUCT) {
 			self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
@@ -699,16 +687,8 @@ impl BodyPass {
 
 		self.check_lvalue_mutability(target_expr, node, false);
 
-		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
-		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
-			var cat_args = List<*AstNode>();
-			cat_args += asgn.target;
-			cat_args += asgn.value;
-			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-			asgn.value = cat_call;
-			asgn.op = TokenType.EQUAL;
-			return target_ty;
-		}
+		// `s += str` is lowered to `s = kobel_concat(s, str)` by the `lower` pass.
+		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) return target_ty;
 
 		if (asgn.op != TokenType.EQUAL) {
 			self.ensure(target_ty.is_numeric() && val_ty.is_numeric(), node, "Compound assignment operator requires numeric operands");
