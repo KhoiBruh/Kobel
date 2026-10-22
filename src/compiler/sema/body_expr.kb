@@ -298,10 +298,7 @@ impl BodyPass {
 				arg_types += op_ty;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					var new_args = List<*AstNode>();
-					new_args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
+					node.resolved_method = mi as *u8;
 					return mi.fn_type.as_fn().return_type;
 				}
 			}
@@ -362,10 +359,8 @@ impl BodyPass {
 			return self.t_none();
 		}
 
-		// Enum `.value`: identity on the underlying integer. The node is
-		// rewritten to the receiver so the backend emits it unchanged.
+		// Enum `.value`: identity on the underlying integer; `lower` drops it.
 		if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
-			self.replace_node(node, mem.object);
 			return obj_ty.as_enum().underlying;
 		}
 
@@ -509,13 +504,7 @@ impl BodyPass {
 				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
-				var new_args = List<*AstNode>();
-				new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
-				new_args += idx.index;
-
-				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				self.replace_node(node, call_node);
-
+				node.resolved_method = mi as *u8;
 				return fn_info.return_type;
 			}
 		}

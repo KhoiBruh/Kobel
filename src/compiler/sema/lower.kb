@@ -105,7 +105,10 @@ impl BodyPass {
 				b.right = self.lower_expr(b.right);
 				out = self.lower_binary(node, b);
 			}
-			is UnaryExpr as var u -> u.operand = self.lower_expr(u.operand);
+			is UnaryExpr as var u -> {
+				u.operand = self.lower_expr(u.operand);
+				out = self.lower_unary(node, u);
+			}
 			is CallExpr as var c -> {
 				c.callee = self.lower_expr(c.callee);
 				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
@@ -119,6 +122,7 @@ impl BodyPass {
 			is IndexExpr as var ix -> {
 				ix.target = self.lower_expr(ix.target);
 				ix.index = self.lower_expr(ix.index);
+				out = self.lower_index(node, ix);
 			}
 			is AssignExpr as var asg -> {
 				asg.target = self.lower_expr(asg.target);
@@ -303,6 +307,10 @@ impl BodyPass {
 		val obj = mem.object;
 		if (obj == null) return node;
 
+		// Enum `.value` is identity on the underlying integer.
+		val obj_ty = self.type_of(obj);
+		if (obj_ty != null && obj_ty.is_enum() && mem.member == "value") return self.lowered(node, obj);
+
 		if (self.is_str_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
 				var args = List<*AstNode>();
@@ -323,6 +331,31 @@ impl BodyPass {
 		}
 
 		return node;
+	}
+
+	// A bound unary operator: `-x` -> `c_name(&x)`.
+	fn lower_unary(var self, node: *AstNode, un: &UnaryExpr): *AstNode {
+		if (node.resolved_method == null) return node;
+		val mi = node.resolved_method as *MethodInfo;
+		var args = List<*AstNode>();
+		args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
+		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, call);
+	}
+
+	// A bound index access: `list[i]` -> `c_name(&list, i)` (`c_name(list, i)`
+	// when the container is already a pointer).
+	fn lower_index(var self, node: *AstNode, idx: &IndexExpr): *AstNode {
+		if (node.resolved_method == null) return node;
+		val mi = node.resolved_method as *MethodInfo;
+		val target_ty = self.type_of(idx.target);
+		val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+		var args = List<*AstNode>();
+		if (t_is_ptr) args += idx.target;
+		else args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		args += idx.index;
+		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, call);
 	}
 
 	// A method call the checker bound: `recv.m(args)` -> `c_name(recv, args)`.
