@@ -17,18 +17,23 @@ use compiler.parser.types.parse_type;
 // Operator Precedence Levels
 // ============================================================================
 
-pub const PREC_NONE: i32 = 0;
-pub const PREC_ASSIGN: i32 = 1;       // =
-pub const PREC_ELVIS: i32 = 2;        // ?:
-pub const PREC_OR: i32 = 3;           // ||
-pub const PREC_AND: i32 = 4;          // &&
-pub const PREC_EQUALITY: i32 = 5;     // ==, !=
-pub const PREC_COMPARISON: i32 = 6;   // <, <=, >, >=
-pub const PREC_TERM: i32 = 7;         // +, -
-pub const PREC_FACTOR: i32 = 8;       // *, /, %
-pub const PREC_UNARY: i32 = 9;        // -, !, *, &, as
-pub const PREC_CALL: i32 = 10;        // ., (), [], <args>()
-pub const PREC_PRIMARY: i32 = 11;
+// Operator precedence levels, loosest first. `parse_expression(min_prec)` stops
+// as soon as the next infix operator binds no tighter than `min_prec`; a member's
+// position in this list *is* its binding power.
+pub enum Precedence {
+	NONE,        // no infix operator here
+	ASSIGN,      // =
+	ELVIS,       // ?:
+	OR,          // ||
+	AND,         // &&
+	EQUALITY,    // ==, !=
+	COMPARISON,  // <, <=, >, >=, in, is
+	TERM,        // +, -
+	FACTOR,      // *, /, %
+	UNARY,       // -, !, *, &, as
+	CALL,        // ., (), [], <args>()
+	PRIMARY
+}
 
 // Whether a NUMBER token holds a float: the lexer scans the fractional part
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
@@ -179,32 +184,32 @@ pub fn interp_find_close(text: str, start: usz): isz {
 
 impl Parser {
 
-	pub fn get_infix_precedence(var self, t: TokenType) => when (t) {
+	pub fn get_infix_precedence(var self, t: TokenType): Precedence => when (t) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL,
 		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
-		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> PREC_ASSIGN;
-		TokenType.QUESTION_COLON -> PREC_ELVIS;
-		TokenType.OR_OR -> PREC_OR;
-		TokenType.AND_AND -> PREC_AND;
-		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> PREC_EQUALITY;
+		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> Precedence.ASSIGN;
+		TokenType.QUESTION_COLON -> Precedence.ELVIS;
+		TokenType.OR_OR -> Precedence.OR;
+		TokenType.AND_AND -> Precedence.AND;
+		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> Precedence.EQUALITY;
 		TokenType.LESS_EQUAL, TokenType.GREATER,
 		TokenType.GREATER_EQUAL, TokenType.KW_IS,
-		TokenType.KW_IN -> PREC_COMPARISON;
+		TokenType.KW_IN -> Precedence.COMPARISON;
 		TokenType.BANG -> {
-			if (self.peek_at(1).type == TokenType.KW_IN) yield PREC_COMPARISON;
-			yield PREC_NONE;
+			if (self.peek_at(1).type == TokenType.KW_IN) yield Precedence.COMPARISON;
+			yield Precedence.NONE;
 		}
 		TokenType.LESS -> {
-			if (self.is_generic_args_ahead()) yield PREC_CALL;
-			yield PREC_COMPARISON;
+			if (self.is_generic_args_ahead()) yield Precedence.CALL;
+			yield Precedence.COMPARISON;
 		}
-		TokenType.PLUS, TokenType.MINUS -> PREC_TERM;
-		TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> PREC_FACTOR;
-		TokenType.KW_AS -> PREC_UNARY;
+		TokenType.PLUS, TokenType.MINUS -> Precedence.TERM;
+		TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> Precedence.FACTOR;
+		TokenType.KW_AS -> Precedence.UNARY;
 		TokenType.DOT, TokenType.QUESTION_DOT, TokenType.OPEN_PAREN,
 		TokenType.OPEN_BRACKET, TokenType.PLUS_PLUS,
-		TokenType.MINUS_MINUS -> PREC_CALL;
-		else -> PREC_NONE;
+		TokenType.MINUS_MINUS -> Precedence.CALL;
+		else -> Precedence.NONE;
 	};
 
 	// ============================================================================
@@ -233,7 +238,7 @@ impl Parser {
 
 			// Grouping: (expr)
 			TokenType.OPEN_PAREN -> {
-				val inner = self.parse_expression(PREC_NONE);
+				val inner = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
 				yield self.group(inner, line, col);
 			}
@@ -242,10 +247,10 @@ impl Parser {
 			TokenType.OPEN_BRACKET -> {
 				var elements = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_BRACKET)) {
-					elements += self.parse_expression(PREC_NONE);
+					elements += self.parse_expression(Precedence.NONE);
 					while (self.match_token(TokenType.COMMA)) {
 						if (self.check(TokenType.CLOSE_BRACKET)) break;
-						elements += self.parse_expression(PREC_NONE);
+						elements += self.parse_expression(Precedence.NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
@@ -255,7 +260,7 @@ impl Parser {
 			// Prefix Unary: -, !, *, &
 			TokenType.MINUS, TokenType.BANG,
 			TokenType.STAR, TokenType.AMPERSAND -> {
-				val operand = self.parse_expression(PREC_UNARY);
+				val operand = self.parse_expression(Precedence.UNARY);
 				yield self.unary(tok.type, operand, line, col);
 			}
 
@@ -288,7 +293,7 @@ impl Parser {
 			// If Expression: if (cond) then_expr else else_expr
 			TokenType.KW_IF -> {
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
-				val condition = self.parse_expression(PREC_NONE);
+				val condition = self.parse_expression(Precedence.NONE);
 
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 				val then_branch = self.parse_if_expr_branch();
@@ -304,7 +309,7 @@ impl Parser {
 				// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
 				var condition: *AstNode = null;
 				if (self.match_token(TokenType.OPEN_PAREN)) {
-					condition = self.parse_expression(PREC_NONE);
+					condition = self.parse_expression(Precedence.NONE);
 					self.consume(TokenType.CLOSE_PAREN, "Expected ')' after when condition");
 				}
 				self.consume(TokenType.OPEN_BRACE, "Expected '{' before when arms");
@@ -318,15 +323,15 @@ impl Parser {
 
 					if (self.match_token(TokenType.KW_ELSE)) is_else = true;
 					else {
-						patterns += self.parse_expression(PREC_NONE);
+						patterns += self.parse_expression(Precedence.NONE);
 						while (self.match_token(TokenType.COMMA)) {
-							patterns += self.parse_expression(PREC_NONE);
+							patterns += self.parse_expression(Precedence.NONE);
 						}
 					}
 
 					self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 					val body = if (self.check(TokenType.OPEN_BRACE)) self.parse_arm_block()
-					else self.parse_expression(PREC_NONE);
+					else self.parse_expression(Precedence.NONE);
 
 					arms += WhenArm(patterns, is_else, body, arm_line, arm_col);
 
@@ -345,7 +350,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_infix(var self, left: *AstNode, prec: i32): *AstNode {
+	pub fn parse_infix(var self, left: *AstNode, prec: Precedence): *AstNode {
 		val tok = self.peek();
 		val line = tok.line;
 		val col = tok.col;
@@ -365,7 +370,9 @@ impl Parser {
 			TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
 			TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> {
 				val op_tok = self.advance();
-				val right = self.parse_expression(PREC_ASSIGN - 1);
+				// Right-associative: the RHS is parsed at the loosest level, so a
+				// nested `=` binds inside this one.
+				val right = self.parse_expression(Precedence.NONE);
 				return self.compound_assign(op_tok.type, left, right, line, col);
 			}
 			else -> {}
@@ -382,7 +389,7 @@ impl Parser {
 							!self.check(TokenType.SEMI_COLON) &&
 							!self.check(TokenType.CLOSE_BRACE) &&
 							!self.check(TokenType.CLOSE_PAREN)
-						) self.parse_expression(PREC_NONE) else null;
+						) self.parse_expression(Precedence.NONE) else null;
 
 						yield self.return_stmt(value, kw_line, kw_col);
 					}
@@ -403,11 +410,12 @@ impl Parser {
 							!self.check(TokenType.SEMI_COLON) &&
 							!self.check(TokenType.CLOSE_BRACE) &&
 							!self.check(TokenType.CLOSE_PAREN)
-						) self.parse_expression(PREC_NONE) else null;
+						) self.parse_expression(Precedence.NONE) else null;
 
 						yield self.yield_stmt(value, kw_line, kw_col);
 					}
-					else -> self.parse_expression(PREC_ELVIS - 1);
+					// One level below ELVIS keeps `?:` right-associative.
+					else -> self.parse_expression(Precedence.ASSIGN);
 				};
 
 				yield self.binary(TokenType.QUESTION_COLON, left, right, line, col);
@@ -425,7 +433,7 @@ impl Parser {
 
 			// 3. Index Access: left[index]
 			self.match_token(TokenType.OPEN_BRACKET) -> {
-				val index = self.parse_expression(PREC_NONE);
+				val index = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array index");
 				yield self.index(left, index, line, col);
 			}
@@ -488,9 +496,9 @@ impl Parser {
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
 				var args = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args += self.parse_expression(PREC_NONE);
+					args += self.parse_expression(Precedence.NONE);
 					while (self.match_token(TokenType.COMMA)) {
-						args += self.parse_expression(PREC_NONE);
+						args += self.parse_expression(Precedence.NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
@@ -501,9 +509,9 @@ impl Parser {
 			self.match_token(TokenType.OPEN_PAREN) -> {
 				var args = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args += self.parse_expression(PREC_NONE);
+					args += self.parse_expression(Precedence.NONE);
 					while (self.match_token(TokenType.COMMA)) {
-						args += self.parse_expression(PREC_NONE);
+						args += self.parse_expression(Precedence.NONE);
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
@@ -519,7 +527,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_expression(var self, min_prec: i32): *AstNode {
+	pub fn parse_expression(var self, min_prec: Precedence): *AstNode {
 		var left = self.parse_prefix();
 
 		while (!self.is_end()) {
@@ -535,11 +543,11 @@ impl Parser {
 	// Branch of an if expression: either a plain expression or a `{ expr }` block.
 	pub fn parse_if_expr_branch(var self): *AstNode {
 		if (self.match_token(TokenType.OPEN_BRACE)) {
-			val e = self.parse_expression(PREC_NONE);
+			val e = self.parse_expression(Precedence.NONE);
 			self.consume(TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
 			return e;
 		}
-		return self.parse_expression(PREC_NONE);
+		return self.parse_expression(Precedence.NONE);
 	}
 
 	pub fn parse_arm_statement(var self): *AstNode {
@@ -554,7 +562,7 @@ impl Parser {
 				val is_mut = tok.type == TokenType.KW_VAR;
 				val id_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
 				val ty_node = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
-				val init_node = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+				val init_node = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
 
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
@@ -564,7 +572,7 @@ impl Parser {
 			TokenType.KW_IF -> {
 				self.advance();
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
-				val condition = self.parse_expression(PREC_NONE);
+				val condition = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 				val then_branch = self.parse_arm_statement();
 				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement()
@@ -575,7 +583,7 @@ impl Parser {
 			TokenType.KW_WHILE -> {
 				val kw = self.advance();
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'while'");
-				val condition = self.parse_expression(PREC_NONE);
+				val condition = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 				val body = self.parse_arm_statement();
 
@@ -587,7 +595,7 @@ impl Parser {
 				val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
 				self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
-				val first = self.parse_expression(PREC_COMPARISON);
+				val first = self.parse_expression(Precedence.COMPARISON);
 
 				var is_range = false;
 				var is_open = false;
@@ -601,7 +609,7 @@ impl Parser {
 						is_range = true;
 						range_start = first;
 						if (self.match_token(TokenType.LESS)) is_half_open = true;
-						range_end = self.parse_expression(PREC_COMPARISON);
+						range_end = self.parse_expression(Precedence.COMPARISON);
 					}
 					self.check(TokenType.GREATER) &&
 					self.peek_at(1).type == TokenType.DOT_DOT -> {
@@ -613,7 +621,7 @@ impl Parser {
 						self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
 						self.consume(TokenType.LESS, "Expected '<' to close an open range");
 
-						range_end = self.parse_expression(PREC_COMPARISON);
+						range_end = self.parse_expression(Precedence.COMPARISON);
 					}
 					else -> iterable = first;
 				}
@@ -638,18 +646,18 @@ impl Parser {
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
-				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE) else null;
+				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
 				yield self.yield_stmt(value, line, col);
 			}
 			TokenType.KW_RETURN -> {
 				self.advance();
-				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE) else null;
+				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after return");
 				yield self.return_stmt(value, line, col);
 			}
 			else -> {
-				val expr = self.parse_expression(PREC_NONE);
+				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
 				yield self.expr_stmt(expr, line, col);
 			}
@@ -776,7 +784,7 @@ impl Parser {
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
 				var sub = Parser(sub_tokens);
-				val hole = sub.parse_expression(PREC_NONE);
+				val hole = sub.parse_expression(Precedence.NONE);
 				if (!sub.errors.empty()) {
 					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
 				}
@@ -832,7 +840,7 @@ impl Parser {
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
 				var sub = Parser(sub_tokens);
-				val hole = sub.parse_expression(PREC_NONE);
+				val hole = sub.parse_expression(Precedence.NONE);
 				if (sub.errors.len > 0) {
 					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
 				}

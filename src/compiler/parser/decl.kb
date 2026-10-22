@@ -100,7 +100,7 @@ impl Parser {
 				else -> null;
 			};
 
-			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
 			params += Param(pname.text, ptype, is_mut, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
@@ -119,7 +119,7 @@ impl Parser {
 					else -> null;
 				};
 
-				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
 				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
 			}
@@ -133,7 +133,7 @@ impl Parser {
 		var body = when {
 			// Expression body: => expr;
 			self.match_token(TokenType.FAT_ARROW) -> {
-				val expr = self.parse_expression(PREC_NONE);
+				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
 				yield self.expr_stmt(expr, expr.line, expr.col);
 			}
@@ -179,7 +179,7 @@ impl Parser {
 				else -> null;
 			};
 
-			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE) else null;
+			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
 			params += Param(pname.text, ptype, is_mut, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
@@ -198,7 +198,7 @@ impl Parser {
 					else -> null;
 				};
 
-				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
 				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
 			}
@@ -211,7 +211,7 @@ impl Parser {
 
 		var body = when {
 			self.match_token(TokenType.FAT_ARROW) -> {
-				val expr = self.parse_expression(PREC_NONE);
+				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
 				yield self.expr_stmt(expr, expr.line, expr.col);
 			}
@@ -262,7 +262,7 @@ impl Parser {
 			val fname = self.consume(TokenType.IDENTIFIER, "Expected field name");
 			self.consume(TokenType.COLON, "Expected ':' after field name");
 			val ftype = self.parse_type();
-			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+			val f_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 			else null;
 			fields += StructField(fname.text, ftype, f_pub, f_default);
 
@@ -366,7 +366,7 @@ impl Parser {
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected enum member name");
-			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 			else null;
 			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col);
 
@@ -383,7 +383,7 @@ impl Parser {
 		val type_node = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
 
 		self.consume(TokenType.EQUAL, "Expected '=' in const declaration");
-		val val_node = self.parse_expression(PREC_NONE);
+		val val_node = self.parse_expression(Precedence.NONE);
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after const declaration");
 
 		return self.const_decl(name_tok.text, type_node, val_node, is_pub, kw.line, kw.col);

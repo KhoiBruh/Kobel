@@ -34,7 +34,7 @@ use compiler.ast.decl.FnDecl;
 use compiler.ast.node.AstNode;
 
 use compiler.parser.parser.Parser;
-use compiler.parser.expr.PREC_NONE;
+use compiler.parser.expr.Precedence;
 use compiler.parser.types.parse_type;
 use compiler.parser.stmt.parse_statement;
 use compiler.parser.decl.parse_program;
@@ -77,7 +77,7 @@ fn test_expression_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr");
 	val bin_root = expr.to<BinaryExpr>();
@@ -106,7 +106,7 @@ fn test_call_and_member_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_CALL, "Top node must be CallExpr");
 	val call_expr = expr.to<CallExpr>();
@@ -245,7 +245,7 @@ fn test_adjacent_strings_parsing() {
 	val src1 = "\"hello \" \"world\"";
 	var lexer1 = Lexer(src1);
 	var parser1 = Parser(lexer1.tokenize());
-	val expr1 = parser1.parse_expression(PREC_NONE);
+	val expr1 = parser1.parse_expression(Precedence.NONE);
 
 	assert_true(expr1.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
 	val lit1 = expr1.to<LiteralExpr>();
@@ -255,7 +255,7 @@ fn test_adjacent_strings_parsing() {
 	val src2 = "\"a\" \n \"b\" \n \"c\"";
 	var lexer2 = Lexer(src2);
 	var parser2 = Parser(lexer2.tokenize());
-	val expr2 = parser2.parse_expression(PREC_NONE);
+	val expr2 = parser2.parse_expression(Precedence.NONE);
 
 	assert_true(expr2.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
 	val lit2 = expr2.to<LiteralExpr>();
@@ -268,7 +268,7 @@ fn test_multiline_string_parsing() {
 	val src = "\"\"\"\n\tline 1\n\tline 2\n\"\"\"";
 	var lexer = Lexer(src);
 	var parser = Parser(lexer.tokenize());
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
 	val lit = expr.to<LiteralExpr>();
@@ -283,7 +283,7 @@ fn test_safe_member_and_elvis_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr (elvis)");
 	val elvis_bin = expr.to<BinaryExpr>();
