@@ -385,6 +385,15 @@ impl SymbolTable {
 
 	pub fn module_exists(val self, name: str) => name in self.module_map;
 
+
+	// True when `owner` already wildcard-imports `module_name`.
+	pub fn has_wildcard(val self, owner: str, module_name: str): bool {
+		for (i in 0..<self.wildcard_owners.len) {
+			if (self.wildcard_owners[i] == owner && self.wildcard_modules[i] == module_name) return true;
+		}
+		return false;
+	}
+
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
 		val sc = self.find_module(module_name);

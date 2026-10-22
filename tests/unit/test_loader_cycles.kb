@@ -1,0 +1,73 @@
+mod test.loader_cycles;
+
+// Import cycles: two modules that import each other, each declaring a struct
+// with a pointer to the other's type. The loader tolerates the cycle and the
+// declaration pass fills both structs (struct names are declared before any
+// field type is resolved).
+
+use std.collections.list.*;
+use std.io.print;
+use std.io.println;
+use std.io.write_file;
+
+use compiler.loader.loader.ModuleLoader;
+use compiler.sema.decl_pass.DeclPass;
+use compiler.sema.decl_collect.*;
+use compiler.sema.types.DataType;
+use compiler.ast.node.*;
+
+fn main(): i32 {
+	// The modules live under build/ (ignored by git) and are rewritten per run.
+	write_file("build/cyc_a.kb",
+		"mod cyc_a;\nuse cyc_b.*;\npub struct A { pub b: *B, pub v: i32 }\n");
+	write_file("build/cyc_b.kb",
+		"mod cyc_b;\nuse cyc_a.*;\npub struct B { pub a: *A, pub w: i32 }\n");
+
+	val entry = "mod cyc_entry;\nuse cyc_a.*;\nuse cyc_b.*;\nfn main(): i32 { return 0; }\n";
+	var loader = ModuleLoader("build", List<str>());
+	val prog = loader.load_program("build/cyc_entry.kb", entry);
+	if (prog == null || !loader.errors.empty()) {
+		println("ASSERTION FAILED: the cyclic modules must load");
+		return 1;
+	}
+
+	var dp = DeclPass();
+	dp.collect_program(prog);
+	if (!dp.errors.empty()) {
+		println("ASSERTION FAILED: cyclic modules must collect without errors");
+		return 2;
+	}
+
+	val sa = dp.symtab.lookup_in_module("cyc_a", "A");
+	val sb = dp.symtab.lookup_in_module("cyc_b", "B");
+	if (sa == null || sb == null) {
+		println("ASSERTION FAILED: both structs must be declared");
+		return 3;
+	}
+
+	val a_info = sa.type_ptr.as_struct();
+	val b_info = sb.type_ptr.as_struct();
+	if (a_info.fields.len != 2 || b_info.fields.len != 2) {
+		println("ASSERTION FAILED: both structs must be filled in");
+		return 4;
+	}
+
+	val a_field = a_info.fields[0].type_ptr;
+	if (a_field.kind != DataType.POINTER) {
+		println("ASSERTION FAILED: A.b must be a pointer");
+		return 5;
+	}
+	if (a_field.as_pointer().pointee.as_struct().name != "B") {
+		println("ASSERTION FAILED: A.b must point at B");
+		return 6;
+	}
+
+	val b_field = b_info.fields[0].type_ptr;
+	if (b_field.as_pointer().pointee.as_struct().name != "A") {
+		println("ASSERTION FAILED: B.a must point at A");
+		return 7;
+	}
+
+	println("  [PASS] test_loader_cycles");
+	return 0;
+}
