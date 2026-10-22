@@ -484,7 +484,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đang làm**: pass `lower` + hai kênh (`sema_type`, `resolved_method`) đã có. Đã chuyển: string member/`slice` (`400dea0`, `b9bbc57`), operator chuỗi (`5d3cbb1`), nội suy (`ebf3ee3`), method call (`fdcc024`), operator/equality struct (`8211c7e`). Còn **10 call site** (enum & struct const, `T.size()`, ctor/`Self(...)`, `in`/`contains`, index update, safe member). `check_arrow_method_body` chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân" (arrow fn chưa có kiểu trả về lúc bị gọi) |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **gần xong**: pass `lower` + ba kênh (`sema_type`, `resolved_method`, `resolved_node`) đã có; **`replace_node` đã xoá** (`415fc4e`). Đã chuyển: string member/`slice`, operator chuỗi, nội suy, method call, operator/equality/unary struct, index read, enum & struct const, `T.size()` primitive, `in`, index write. Còn: `desugar_for` vẫn đổi `kind`/`data` tại chỗ (`desugar_for.kb:97`, `:270`) và `check_arrow_method_body` (chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân") |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | chưa |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
@@ -498,17 +498,11 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
 `tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
 
-**Nhóm hạ cấp còn lại trong `check_*` (P2):** enum & struct const member, `T.size()`,
-constructor/`Self(...)`, `in`/`contains`, index update, safe member. Mỗi nhóm chuyển sang `lower` xong
-thì xoá `replace_node` tương ứng; khi hết `replace_node`, `BodyPass` không còn được đổi `kind`/`data`
-của node và I1 đạt.
-
-Lưu ý kỹ thuật cho các nhóm sau: `lower` đã có `resolved_type` (cho codegen), `sema_type` (cho
-`size`/`StructType`) và `resolved_method` (cho method/operator). Ba nhóm còn lại cần thêm **giá trị đã
-phân giải** chứ không chỉ `MethodInfo`: enum member (số nguyên), struct const (tên C đã mangle) và
-quyết định của constructor (`new` overload nào hay dựng theo field). Hướng đúng là mở rộng kênh phân
-giải thành một slot chung (`resolved_*` hoặc bảng phụ keyed theo node) thay vì mỗi nhóm một field —
-đây là phần còn lại của P3.
+**Nhóm hạ cấp còn lại trong `check_*` (P2):** chỉ còn `desugar_for` đổi `kind`/`data` tại chỗ. Ngoài ra
+sema vẫn sửa vài *field* (không đổi node): đổi tên identifier sang tên C đã mangle, chèn
+`type_annotation`, bọc `(*p)` khi truy cập member qua con trỏ — đây là các phép "ghi chú", không phải
+thay node. `check_arrow_method_body` (check thân arrow method khi gặp lời gọi) chỉ bỏ được sau khi tách
+"check chữ ký" khỏi "check thân".
 
 ---
 

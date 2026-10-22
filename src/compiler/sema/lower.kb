@@ -7,10 +7,12 @@ mod compiler.sema.lower;
 // resolved type. It rewrites sugar into forms the C backend can emit directly
 // and **returns replacement nodes** instead of mutating a node's kind in place.
 //
-// Rules are moved here one family at a time. Families already moved: string
-// and array members (`len`/`size`/`data`), `str.slice`, string operators
-// (`+`, `==`, `!=`, `+=`) and string interpolation. Everything else is still
-// lowered during checking (see `replace_node` call sites in `body_expr`).
+// The checker leaves decisions on the nodes it checks (`sema_type`, the bound
+// `resolved_method`, a resolved `resolved_node`); this pass is the only one that
+// installs replacements. Rules: string/array members (`len`/`size`/`data`),
+// `str.slice`, string operators (`+`, `==`, `!=`, `+=`), string interpolation,
+// method and operator calls, unary operators, index access/write, enum `.value`,
+// and the constants the checker resolved (enum members, struct consts, sizes).
 // ============================================================================
 
 use std.mem.arena.*;
