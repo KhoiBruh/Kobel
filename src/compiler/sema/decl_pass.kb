@@ -671,9 +671,7 @@ impl DeclPass {
 
 			val mi = self.arena.alloc<MethodInfo>();
 			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
-			val pm = self.arena.alloc<PrimMethod>();
-			*pm = PrimMethod(prim.kind, mi);
-			self.symtab.register_prim_method(pm);
+			self.symtab.register_prim_method(prim, mi);
 
 			// Uniquify the AST name so the backend emits the mangled method name.
 			f.name = m_c_name;

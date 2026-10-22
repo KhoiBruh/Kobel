@@ -24,7 +24,10 @@ pub struct Type {
 	pub kind: DataType,
 	pub size: usz,
 	pub align: usz,
-	pub data: *u8
+	pub data: *u8,
+	// Methods of a built-in type (`impl i32 { ... }`), stored through a
+	// `PrimMethods` payload because `Type` is declared before `MethodInfo`.
+	pub methods: *u8 = null
 }
 
 pub struct PointerType {
@@ -58,6 +61,13 @@ pub struct MethodInfo {
 	pub ast_node: *u8,
 	pub module: str,
 	pub is_op: bool = false
+}
+
+// Methods of a built-in type. Kept as a payload because `Type` must be declared
+// before `MethodInfo` (no forward declarations), while the method list needs
+// `MethodInfo`. `Type.methods` points here for the canonical primitive types.
+pub struct PrimMethods {
+	pub list: List<*MethodInfo> = List()
 }
 
 pub struct StructType {
@@ -254,25 +264,35 @@ pub struct PrimTypes {
 	pub types: List<*Type>
 }
 
+// A canonical primitive with an empty `PrimMethods` payload attached, so
+// `impl i32 { ... }` can append to it later.
+fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
+	var t = arena.primitive_type(type_primitive(kind));
+	val pm = arena.alloc<PrimMethods>();
+	*pm = PrimMethods();
+	t.methods = pm as *u8;
+	return t;
+}
+
 impl PrimTypes {
 	pub fn new(var arena: &Arena): Self {
 		var types = List<*Type>();
-		types += arena.primitive_type(type_primitive(DataType.NONE));
-		types += arena.primitive_type(type_primitive(DataType.BOOL));
-		types += arena.primitive_type(type_primitive(DataType.CHAR));
-		types += arena.primitive_type(type_primitive(DataType.I8));
-		types += arena.primitive_type(type_primitive(DataType.I16));
-		types += arena.primitive_type(type_primitive(DataType.I32));
-		types += arena.primitive_type(type_primitive(DataType.I64));
-		types += arena.primitive_type(type_primitive(DataType.ISZ));
-		types += arena.primitive_type(type_primitive(DataType.U8));
-		types += arena.primitive_type(type_primitive(DataType.U16));
-		types += arena.primitive_type(type_primitive(DataType.U32));
-		types += arena.primitive_type(type_primitive(DataType.U64));
-		types += arena.primitive_type(type_primitive(DataType.USZ));
-		types += arena.primitive_type(type_primitive(DataType.F32));
-		types += arena.primitive_type(type_primitive(DataType.F64));
-		types += arena.primitive_type(type_primitive(DataType.STR));
+		types += prim_with_methods(arena, DataType.NONE);
+		types += prim_with_methods(arena, DataType.BOOL);
+		types += prim_with_methods(arena, DataType.CHAR);
+		types += prim_with_methods(arena, DataType.I8);
+		types += prim_with_methods(arena, DataType.I16);
+		types += prim_with_methods(arena, DataType.I32);
+		types += prim_with_methods(arena, DataType.I64);
+		types += prim_with_methods(arena, DataType.ISZ);
+		types += prim_with_methods(arena, DataType.U8);
+		types += prim_with_methods(arena, DataType.U16);
+		types += prim_with_methods(arena, DataType.U32);
+		types += prim_with_methods(arena, DataType.U64);
+		types += prim_with_methods(arena, DataType.USZ);
+		types += prim_with_methods(arena, DataType.F32);
+		types += prim_with_methods(arena, DataType.F64);
+		types += prim_with_methods(arena, DataType.STR);
 		return Self(types);
 	}
 
@@ -349,6 +369,45 @@ impl Type {
 	pub fn alloc_pointer(val self, var arena: &Arena, is_mut: bool) => arena.pointer_type(self as *Type, is_mut);
 	pub fn alloc_nullable_pointer(val self, var arena: &Arena, is_mut: bool) => arena.nullable_pointer_type(self as *Type, is_mut);
 	pub fn alloc_array(val self, var arena: &Arena, length: usz) => arena.array_type(self as *Type, length);
+
+	// Methods of a built-in type. Called through the canonical instance from
+	// `PrimTypes`, so `i32` accumulates exactly one method list.
+	pub fn add_method(var self, mi: *MethodInfo) {
+		if (self.methods == null) return;
+		val pm = self.methods as &PrimMethods;
+		pm.list += mi;
+	}
+
+	// The method list, empty when this type has no payload (a non-canonical
+	// primitive built by `type_primitive`, a pointer, an array, ...).
+	pub fn method_list(val self): List<*MethodInfo> {
+		if (self.methods == null) return List<*MethodInfo>();
+		return (self.methods as *PrimMethods).list;
+	}
+
+	pub fn method_named(val self, name: str): *MethodInfo {
+		val list = self.method_list();
+		for (m in list) {
+			if (m.name == name) return m;
+		}
+		return null;
+	}
+
+	pub fn method_arity(val self, name: str, argc: usz): *MethodInfo {
+		val list = self.method_list();
+		for (m in list) {
+			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+		}
+		return null;
+	}
+
+	pub fn method_by_c_name(val self, c_name: str): *MethodInfo {
+		val list = self.method_list();
+		for (m in list) {
+			if (m.c_name == c_name) return m;
+		}
+		return null;
+	}
 
 	pub fn is_signed_integer(val self) => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
