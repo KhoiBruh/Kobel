@@ -94,10 +94,20 @@ compiler.sema.types        ← std.list, std.arena
 compiler.sema.symbol       ← sema.types, ast.node, std.list, std.arena
 compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std   (core + monomorph)
 compiler.sema.decl_collect ← sema.decl_pass, ast.*, ast.builder, sema.{types,symbol}, strutil, std
-compiler.sema.body_pass    ← ast.*, ast.builder, sema.*, lexer.token, strutil, std   (core)
-compiler.sema.body_program ← sema.body_pass, sema.decl_{pass,collect}, ast.*, sema.*, std
-compiler.codegen.c_codegen ← ast.*, lexer.token, std.list                            (core)
-compiler.codegen.c_program ← codegen.c_codegen, ast.*, lexer.token, std.list
+compiler.sema.body_pass    ← ast.*, ast.builder, sema.{types,symbol,decl_pass,desugar_*}, lexer.token, std  (core + dispatcher)
+compiler.sema.body_expr    ← body_pass, primaries & operator families
+compiler.sema.body_access  ← body_pass, member/index, lvalue, assignment, indexed write
+compiler.sema.body_pattern ← body_pass, when/is patterns
+compiler.sema.body_interp  ← body_pass, interpolation holes
+compiler.sema.body_call    ← body_pass, body_expr (call resolution, ctors)
+compiler.sema.body_stmt    ← body_pass, desugar_for (statements, `for` driver)
+compiler.sema.body_program ← body_pass, decl_{pass,collect} (function/program drivers)
+compiler.sema.lower        ← body_pass, ast.*, sema.{types,desugar_interp}   (rewrites sugar for C)
+compiler.codegen.c_type    ← ast.types, sema.types
+compiler.codegen.c_codegen ← ast.*, sema.types, c_type (state, literals, type helpers)
+compiler.codegen.c_expr    ← c_codegen, c_type (expression emission)
+compiler.codegen.c_stmt    ← c_codegen, c_type (statement emission)
+compiler.codegen.c_program ← codegen.{c_codegen,c_expr,c_stmt,c_type}, ast.*, lexer.token, std.list
 util.strutil               ← std.list   (chuỗi/số dùng chung: str_*, usz_to_str, cstr_to_str)
 compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, util.strutil, std
 main                        ← sema.{decl_pass,decl_collect,body_pass,body_program}, codegen.{c_codegen,c_program}, loader, util.strutil, std
