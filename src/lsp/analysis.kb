@@ -451,7 +451,7 @@ impl AnalysisResult {
 			}
 
 			// 4. Type & body semantic analysis (BodyPass)
-			var body_p = BodyPass(decl_p.symtab);
+			var body_p = BodyPass(decl_p.symtab, decl_p);
 			body_p.check_program(full_prog);
 			if (body_p.errors.len > 0) {
 				for (err_msg in body_p.errors) {

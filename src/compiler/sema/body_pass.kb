@@ -49,7 +49,12 @@ pub struct BodyPass {
 	pub when_depth: usz = 0,
 	pub checked_fns: List<*AstNode> = List(),
 	pub is_stmt_level: bool = false,
-	pub defer_depth: usz = 0
+	pub defer_depth: usz = 0,
+	// Declaration pass whose type resolver and instance tables this pass reuses,
+	// so checking a body never builds a second DeclPass (see `resolve_type`).
+	// Held by value: `has_decl` says whether it was populated.
+	pub decl: DeclPass = DeclPass(),
+	pub has_decl: bool = false
 }
 
 impl BodyPass {
@@ -65,6 +70,18 @@ impl BodyPass {
 		var arena = Arena();
 		val none_ty = alloc_primitive(&arena, type_none());
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+	}
+
+	// Standard construction: reuse the declaration pass of the same compilation
+	// for type resolution and generic instantiation.
+	pub fn new(symtab: SymbolTable, decl: DeclPass): Self {
+		var arena = Arena();
+		val none_ty = alloc_primitive(&arena, type_none());
+		var bp = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+		bp.decl = decl;
+		bp.has_decl = true;
+		bp.symtab.prims = decl.symtab.prims_of();
+		return bp;
 	}
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
@@ -204,11 +221,27 @@ impl BodyPass {
 	}
 
 	pub fn resolve_type(var self, node: *AstNode): *Type {
+		if (self.has_decl) {
+			// Reuse the declaration pass: same symbol table, arena and instance
+			// tables, so an instantiation made while checking a body stays
+			// coherent with the ones made while collecting declarations. The
+			// table is threaded through by value, so hand the current one over
+			// and take back whatever the resolver added.
+			self.decl.symtab = self.symtab;
+			self.decl.current_module = self.symtab.current_module;
+			self.decl.current_self_type = self.current_self_type;
+			self.decl.errors = self.errors;
+			val ty = self.decl.resolve_ast_type(node);
+			self.symtab = self.decl.symtab;
+			self.errors = self.decl.errors;
+			return ty;
+		}
+
+		// Standalone use (tests): resolve through a throwaway pass.
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);
-
 		val ty = decl_p.resolve_ast_type(node);
 		self.arena = decl_p.arena;
 		self.errors = decl_p.errors;

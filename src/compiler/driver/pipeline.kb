@@ -90,7 +90,7 @@ impl CompileOptions {
 		}
 
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
-		val body_p = BodyPass(decl_p.symtab);
+		val body_p = BodyPass(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
 		if (!body_p.errors.empty()) {
 			println("Semantic Type Errors in ${input_path}:");
