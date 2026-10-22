@@ -3379,6 +3379,7 @@ bool compiler__sema__symbol__SymbolTable_define(compiler__sema__symbol__SymbolTa
 const char* compiler__sema__symbol__SymbolTable_set_current_module(compiler__sema__symbol__SymbolTable* self, const char* name);
 compiler__sema__symbol__ModuleScope* compiler__sema__symbol__SymbolTable_find_module(compiler__sema__symbol__SymbolTable* self, const char* name);
 bool compiler__sema__symbol__SymbolTable_module_exists(compiler__sema__symbol__SymbolTable* self, const char* name);
+bool compiler__sema__symbol__SymbolTable_has_wildcard(compiler__sema__symbol__SymbolTable* self, const char* owner, const char* module_name);
 bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, compiler__sema__symbol__Symbol sym);
 bool compiler__sema__symbol__SymbolTable_define_global(compiler__sema__symbol__SymbolTable* self, compiler__sema__symbol__Symbol sym);
 void compiler__sema__symbol__SymbolTable_add_import(compiler__sema__symbol__SymbolTable* self, const char* module_name, const char* symbol_name, const char* local_name, bool is_wildcard);
@@ -3501,6 +3502,7 @@ bool compiler__sema__decl_pass__DeclPass_rewrite_decl_generics(compiler__sema__d
 compiler__sema__symbol__TraitMethod* compiler__sema__decl_collect__trait_method_in(std__collections__list__List_ptr_compiler__sema__symbol__TraitMethod list, const char* name, size_t arity);
 void compiler__sema__decl_pass__DeclPass_collect_module(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__DeclPass_collect_use(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__decl_pass__DeclPass_declare_struct_shell(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__StructDecl* s);
 void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__DeclPass_collect_fn(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl_pass__DeclPass_collect_enum(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node);
@@ -21758,6 +21760,40 @@ bool compiler__sema__symbol__SymbolTable_module_exists(compiler__sema__symbol__S
     return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_contains(&self->module_map, name);
 }
 
+bool compiler__sema__symbol__SymbolTable_has_wildcard(compiler__sema__symbol__SymbolTable* self, const char* owner, const char* module_name) {
+    {
+        size_t __for_e = self->wildcard_owners.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_streq(std__collections__list__List_str_get(&self->wildcard_owners, i), owner) && kobel_streq(std__collections__list__List_str_get(&self->wildcard_modules, i), module_name)) {
+                return true;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return false;
+}
+
 bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, compiler__sema__symbol__Symbol sym) {
     compiler__sema__symbol__ModuleScope* sc = compiler__sema__symbol__SymbolTable_find_module(self, module_name);
     if (sc != NULL) {
@@ -24236,7 +24272,9 @@ void compiler__sema__decl_pass__DeclPass_collect_use(compiler__sema__decl_pass__
     compiler__ast__node__UseDecl* u = compiler__ast__node__AstNode_as_use_decl(node);
     if (u->is_wildcard) {
         const char* w_mod = util__strutil__str_join_dots(u->path, u->path.len);
-        compiler__sema__symbol__SymbolTable_add_import(&self->symtab, w_mod, "", "", true);
+        if (!compiler__sema__symbol__SymbolTable_has_wildcard(&self->symtab, self->current_module, w_mod)) {
+            compiler__sema__symbol__SymbolTable_add_import(&self->symtab, w_mod, "", "", true);
+        }
         return;
     }
     if (u->path.len < 2) {
@@ -24261,7 +24299,22 @@ void compiler__sema__decl_pass__DeclPass_collect_use(compiler__sema__decl_pass__
     if (!str_empty(u->alias)) {
         local_name = u->alias;
     }
+    if (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name)) != NULL) {
+        return;
+    }
     compiler__sema__symbol__SymbolTable_add_import(&self->symtab, mod_name, u->symbol_name, local_name, false);
+}
+
+void compiler__sema__decl_pass__DeclPass_declare_struct_shell(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__StructDecl* s) {
+    const char* c_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, s->name);
+    compiler__sema__types__Type* s_type = std__mem__arena__Arena_struct_type(&self->arena, s->name, std__collections__list__List_compiler__sema__types__StructField_new(4));
+    (*compiler__sema__types__Type_as_struct_mut(s_type)).c_name = c_name;
+    (*compiler__sema__types__Type_as_struct_mut(s_type)).module = self->current_module;
+    (*compiler__sema__types__Type_as_struct_mut(s_type)).is_defined = false;
+    bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ s->name, c_name, 4, s_type, false, s->is_pub, node->line, node->col, node });
+    if (!ok) {
+        compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", s->name), "'"));
+    }
 }
 
 void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pass__DeclPass* self, compiler__ast__node__AstNode* node) {
@@ -24270,16 +24323,16 @@ void compiler__sema__decl_pass__DeclPass_collect_struct(compiler__sema__decl_pas
         return;
     }
     if (s->is_forward) {
-        const char* fwd_name = compiler__sema__decl_pass__DeclPass_c_name_for(self, s->name);
-        compiler__sema__types__Type* fwd_type = std__mem__arena__Arena_struct_type(&self->arena, s->name, std__collections__list__List_compiler__sema__types__StructField_new(4));
-        (*compiler__sema__types__Type_as_struct_mut(fwd_type)).c_name = fwd_name;
-        (*compiler__sema__types__Type_as_struct_mut(fwd_type)).module = self->current_module;
-        (*compiler__sema__types__Type_as_struct_mut(fwd_type)).is_defined = false;
-        bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ s->name, fwd_name, 4, fwd_type, false, s->is_pub, node->line, node->col, node });
-        if (!ok) {
-            compiler__sema__decl_pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Duplicate struct declaration '", s->name), "'"));
+        compiler__sema__symbol__Symbol* existing_fwd = compiler__sema__symbol__SymbolTable_lookup_in_module(&self->symtab, self->current_module, s->name);
+        if (existing_fwd != NULL) {
+            s->name = existing_fwd->c_name;
+            return;
         }
-        s->name = fwd_name;
+        compiler__sema__decl_pass__DeclPass_declare_struct_shell(self, node, s);
+        compiler__sema__symbol__Symbol* created = compiler__sema__symbol__SymbolTable_lookup_in_module(&self->symtab, self->current_module, s->name);
+        if (created != NULL) {
+            s->name = created->c_name;
+        }
         return;
     }
     compiler__sema__symbol__Symbol* existing = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, s->name);
@@ -24580,6 +24633,43 @@ void compiler__sema__decl_pass__DeclPass_collect_program(compiler__sema__decl_pa
                 compiler__sema__decl_pass__DeclPass_collect_trait(self, d0);
             } else {
                 compiler__sema__decl_pass__DeclPass_register_template(self, d0);
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = compiler__ast__node__Program_count(prog);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* d_use = compiler__ast__node__Program_at(prog, __for_i);
+            if (d_use->kind == 31) {
+                compiler__sema__decl_pass__DeclPass_collect_module(self, d_use);
+            } else if (d_use->kind == 32) {
+                compiler__ast__node__UseDecl* u_wild = compiler__ast__node__AstNode_as_use_decl(d_use);
+                if (u_wild->is_wildcard) {
+                    compiler__sema__decl_pass__DeclPass_collect_use(self, d_use);
+                }
+            } else {
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = compiler__ast__node__Program_count(prog);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* d_half = compiler__ast__node__Program_at(prog, __for_i);
+            if (d_half->kind == 31) {
+                compiler__sema__decl_pass__DeclPass_collect_module(self, d_half);
+            } else if (d_half->kind == 34) {
+                compiler__ast__node__StructDecl* s_half = compiler__ast__node__AstNode_as_struct_decl(d_half);
+                if (s_half->type_params.len == 0) {
+                    compiler__sema__symbol__Symbol* existing_half = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, s_half->name);
+                    if (existing_half == NULL) {
+                        compiler__sema__decl_pass__DeclPass_declare_struct_shell(self, d_half, s_half);
+                    }
+                }
+            } else {
             }
             __for_i = (__for_i + 1);
         }
