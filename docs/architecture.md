@@ -484,7 +484,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **gần xong**: pass `lower` + ba kênh (`sema_type`, `resolved_method`, `resolved_node`) đã có; **`replace_node` đã xoá** (`415fc4e`). Đã chuyển: string member/`slice`, operator chuỗi, nội suy, method call, operator/equality/unary struct, index read, enum & struct const, `T.size()` primitive, `in`, index write. Còn: `desugar_for` vẫn đổi `kind`/`data` tại chỗ (`desugar_for.kb:97`, `:270`) và `check_arrow_method_body` (chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân") |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đạt I1** (`415fc4e`, `d68221f`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` cũng đi qua `resolved_node`. Pass `lower` + ba kênh (`sema_type`, `resolved_method`, `resolved_node`) là nơi duy nhất lắp replacement. Còn `check_arrow_method_body`: arrow fn chưa có kiểu trả về tại thời điểm bị gọi, nên chỉ bỏ được sau khi có suy luận kiểu trả về theo nhu cầu (demand/fixpoint có memo) cho arrow fn — xem ghi chú dưới |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | chưa |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
@@ -498,11 +498,16 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
 `tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
 
-**Nhóm hạ cấp còn lại trong `check_*` (P2):** chỉ còn `desugar_for` đổi `kind`/`data` tại chỗ. Ngoài ra
-sema vẫn sửa vài *field* (không đổi node): đổi tên identifier sang tên C đã mangle, chèn
-`type_annotation`, bọc `(*p)` khi truy cập member qua con trỏ — đây là các phép "ghi chú", không phải
-thay node. `check_arrow_method_body` (check thân arrow method khi gặp lời gọi) chỉ bỏ được sau khi tách
-"check chữ ký" khỏi "check thân".
+**Definition of done của P2 (phần I1, đã đạt):** 0 call site `replace_node`, 0 phép gán `kind`/`data`;
+mọi hạ cấp đi qua `lower` (hoặc qua `resolved_node` mà check đã kiểm). Sema chỉ còn sửa *field*:
+đổi tên identifier sang tên C, chèn `type_annotation`, bọc `(*p)` — ghi chú, không thay node.
+
+**Vì sao còn `check_arrow_method_body`.** `fn f() => expr` chưa có kiểu trả về cho tới khi thân được
+kiểm, nên lời gọi `f()` ở chỗ khác cần kiểu ngay. Cơ chế hiện tại là kiểm thân arrow method **theo nhu
+cầu** ngay trong lúc kiểm lời gọi (kèm lưu/khôi phục ba field chứa ngữ cảnh). Bỏ được nó cần một
+trong: (a) suy luận kiểu trả về kiểu demand có memo (đệ quy như hiện tại nhưng tách thành hàm riêng,
+không đụng ngữ cảnh pass), (b) lặp fixpoint trên các arrow fn cho tới khi kiểu ổn định, hoặc (c) sắp
+thứ tự theo phụ thuộc gọi. Đây là việc của một bước riêng, không phải "dọn" đơn thuần.
 
 ---
 
