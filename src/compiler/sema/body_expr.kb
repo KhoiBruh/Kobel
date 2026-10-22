@@ -60,7 +60,7 @@ impl BodyPass {
 	pub fn check_literal_expr(var self, node: *AstNode): *Type {
 		val lit = node.to<LiteralExpr>();
 		return when (lit.literal_kind) {
-			LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
+			LiteralKind.INT -> int_literal_type(self.symtab.prims_of(), lit.raw_text);
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");

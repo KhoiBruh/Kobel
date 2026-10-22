@@ -105,7 +105,7 @@ impl DeclPass {
 							for (i in 0..<f.params.len) {
 								val p = f.params[i];
 								if (p.name == "self" && p.type_node == null) {
-									val prim = resolve_primitive_name(&self.arena, im.struct_name);
+									val prim = resolve_primitive_name(self.symtab.prims_of(), im.struct_name);
 									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
 										else self.pointer_type(p.is_mut, named, m.line, m.col);

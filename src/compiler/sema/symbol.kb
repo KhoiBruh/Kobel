@@ -9,6 +9,7 @@ use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
+use compiler.sema.types.PrimTypes;
 use compiler.ast.node.AstNode;
 // ============================================================================
 // SymbolKind Enumeration
@@ -232,7 +233,9 @@ pub struct SymbolTable {
 	pub explicit_imports: HashMap<ImportBinding> = HashMap<ImportBinding>(),
 	pub wildcard_owners: List<str> = List<str>(),
 	pub wildcard_modules: List<str> = List<str>(),
-	pub gen: GenericReg = GenericReg()
+	pub gen: GenericReg = GenericReg(),
+	// Canonical primitive types, built on first use from this table's arena.
+	pub prims: *PrimTypes = null
 }
 
 impl SymbolTable {
@@ -240,6 +243,14 @@ impl SymbolTable {
 		val arena = Arena();
 		val root_scope = arena.alloc_val<Scope>(Scope());
 		return Self(root_scope, arena);
+	}
+
+	pub fn prims_of(var self): *PrimTypes {
+		if (self.prims == null) {
+			self.prims = self.arena.alloc<PrimTypes>();
+			*self.prims = PrimTypes(&self.arena);
+		}
+		return self.prims;
 	}
 
 	pub fn register_prim_method(var self, pm: *PrimMethod) {

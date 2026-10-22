@@ -243,6 +243,48 @@ pub fn type_f64() => type_primitive(DataType.F64);
 pub fn type_str() => type_primitive(DataType.STR);
 
 // ============================================================================
+// Canonical Primitive Types
+// ============================================================================
+
+// One `*Type` per primitive kind for the whole compilation. Previously every
+// `t_str()` allocated a fresh `Type`, so two `str` annotations were different
+// pointers and methods could not hang off the type itself; now `i32` is one
+// pointer everywhere and identity checks are meaningful.
+pub struct PrimTypes {
+	pub types: List<*Type>
+}
+
+impl PrimTypes {
+	pub fn new(var arena: &Arena): Self {
+		var types = List<*Type>();
+		types += arena.primitive_type(type_primitive(DataType.NONE));
+		types += arena.primitive_type(type_primitive(DataType.BOOL));
+		types += arena.primitive_type(type_primitive(DataType.CHAR));
+		types += arena.primitive_type(type_primitive(DataType.I8));
+		types += arena.primitive_type(type_primitive(DataType.I16));
+		types += arena.primitive_type(type_primitive(DataType.I32));
+		types += arena.primitive_type(type_primitive(DataType.I64));
+		types += arena.primitive_type(type_primitive(DataType.ISZ));
+		types += arena.primitive_type(type_primitive(DataType.U8));
+		types += arena.primitive_type(type_primitive(DataType.U16));
+		types += arena.primitive_type(type_primitive(DataType.U32));
+		types += arena.primitive_type(type_primitive(DataType.U64));
+		types += arena.primitive_type(type_primitive(DataType.USZ));
+		types += arena.primitive_type(type_primitive(DataType.F32));
+		types += arena.primitive_type(type_primitive(DataType.F64));
+		types += arena.primitive_type(type_primitive(DataType.STR));
+		return Self(types);
+	}
+
+	// The canonical type for a primitive kind; null when `kind` is not one of the
+	// kinds registered above (pointer, array, struct, fn).
+	pub fn get(val self, kind: DataType): *Type {
+		for (t in self.types) if (t.kind == kind) return t;
+		return null;
+	}
+}
+
+// ============================================================================
 // Complex Type Allocators (impl Arena Extension)
 // ============================================================================
 

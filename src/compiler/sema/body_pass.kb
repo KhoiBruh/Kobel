@@ -160,14 +160,14 @@ impl BodyPass {
 	// Shorthands
 	// ============================================================================
 
-	// Primitive result types. Each call allocates a fresh `Type` in the arena,
-	// exactly like `self.t_prim(type_xxx())` did.
-	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
-	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
-	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
-	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
-	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
-	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
+	// Primitive result types: the canonical instance from the symbol table, so
+	// two `str` annotations are the same pointer.
+	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
+	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
+	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
+	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
+	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
+	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
 
 	// Reports `msg` at `node` unless `cond` holds.
 	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {

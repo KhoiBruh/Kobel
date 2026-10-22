@@ -20,6 +20,7 @@ use compiler.sema.monomorphize.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
+use compiler.sema.types.PrimTypes;
 use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.type_bool;
@@ -93,24 +94,24 @@ fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str 
 
 // The built-in type named `name`, or null when `name` is not a primitive.
 // Primitives are not registered as symbols, so this name table is also how
-// `impl <primitive>` blocks are recognized.
-pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type => when (name) {
-	"none" -> alloc_primitive(arena, type_none());
-	"bool" -> alloc_primitive(arena, type_bool());
-	"char" -> alloc_primitive(arena, type_char());
-	"i8" -> alloc_primitive(arena, type_i8());
-	"i16" -> alloc_primitive(arena, type_i16());
-	"i32" -> alloc_primitive(arena, type_i32());
-	"i64" -> alloc_primitive(arena, type_i64());
-	"isz" -> alloc_primitive(arena, type_isz());
-	"u8" -> alloc_primitive(arena, type_u8());
-	"u16" -> alloc_primitive(arena, type_u16());
-	"u32" -> alloc_primitive(arena, type_u32());
-	"u64" -> alloc_primitive(arena, type_u64());
-	"usz" -> alloc_primitive(arena, type_usz());
-	"f32" -> alloc_primitive(arena, type_f32());
-	"f64" -> alloc_primitive(arena, type_f64());
-	"str" -> alloc_primitive(arena, type_str());
+// `impl <primitive>` blocks are recognized. Returns the canonical instance.
+pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type => when (name) {
+	"none" -> prims.get(DataType.NONE);
+	"bool" -> prims.get(DataType.BOOL);
+	"char" -> prims.get(DataType.CHAR);
+	"i8" -> prims.get(DataType.I8);
+	"i16" -> prims.get(DataType.I16);
+	"i32" -> prims.get(DataType.I32);
+	"i64" -> prims.get(DataType.I64);
+	"isz" -> prims.get(DataType.ISZ);
+	"u8" -> prims.get(DataType.U8);
+	"u16" -> prims.get(DataType.U16);
+	"u32" -> prims.get(DataType.U32);
+	"u64" -> prims.get(DataType.U64);
+	"usz" -> prims.get(DataType.USZ);
+	"f32" -> prims.get(DataType.F32);
+	"f64" -> prims.get(DataType.F64);
+	"str" -> prims.get(DataType.STR);
 	else -> null;
 };
 
@@ -139,22 +140,22 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	out += m;
 }
 
-pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
+pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
 	// The suffix sets the width. It is read through `num_suffix` so that a hex
 	// digit is never mistaken for one: `0xBB` is the i32 187, not `0xB` as an i8.
 	val sfx = raw.num_suffix();
-	if (sfx == "UB") return alloc_primitive(arena, type_u8());
-	if (sfx == "US") return alloc_primitive(arena, type_u16());
-	if (sfx == "UL") return alloc_primitive(arena, type_u64());
-	if (sfx == "UZ") return alloc_primitive(arena, type_usz());
+	if (sfx == "UB") return prims.get(DataType.U8);
+	if (sfx == "US") return prims.get(DataType.U16);
+	if (sfx == "UL") return prims.get(DataType.U64);
+	if (sfx == "UZ") return prims.get(DataType.USZ);
 
-	if (sfx == "U") return alloc_primitive(arena, type_u32());
-	if (sfx == "L") return alloc_primitive(arena, type_i64());
-	if (sfx == "S") return alloc_primitive(arena, type_i16());
-	if (sfx == "Z") return alloc_primitive(arena, type_isz());
-	if (sfx == "B") return alloc_primitive(arena, type_i8());
+	if (sfx == "U") return prims.get(DataType.U32);
+	if (sfx == "L") return prims.get(DataType.I64);
+	if (sfx == "S") return prims.get(DataType.I16);
+	if (sfx == "Z") return prims.get(DataType.ISZ);
+	if (sfx == "B") return prims.get(DataType.I8);
 
-	return alloc_primitive(arena, type_i32());
+	return prims.get(DataType.I32);
 }
 
 pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
@@ -180,13 +181,14 @@ impl DeclPass {
 
 	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>());
 
-	// Primitive type shorthands (fresh arena allocation per call).
-	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
-	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
-	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
-	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
-	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
-	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
+// Primitive type shorthands: the canonical instance from the symbol table, so
+// `i32` is one pointer for the whole compilation.
+	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
+	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
+	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
+	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
+	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
+	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
 
 	// Switches the module context (both the pass and its symbol table) and
 	// returns the previous module so the caller can restore it.
@@ -341,7 +343,7 @@ impl DeclPass {
 					yield self.current_self_type;
 				}
 
-				val prim = resolve_primitive_name(&self.arena, name);
+				val prim = resolve_primitive_name(self.symtab.prims_of(), name);
 				if (prim != null) yield prim;
 
 				// Generic struct instantiation: List<i32> -> concrete struct.
@@ -408,7 +410,7 @@ impl DeclPass {
 		if (im.type_params.len > 0) return;
 
 		// `impl <primitive> { ... }`: the methods extend a built-in type.
-		val prim = resolve_primitive_name(&self.arena, im.struct_name);
+		val prim = resolve_primitive_name(self.symtab.prims_of(), im.struct_name);
 		if (prim != null) {
 			self.collect_prim_impl(node, im, prim);
 			return;
@@ -540,7 +542,7 @@ impl DeclPass {
 			if (expr is LiteralExpr as lit) {
 				when (lit.literal_kind) {
 					LiteralKind.INT -> {
-						val p_type = int_literal_type(&self.arena, lit.raw_text);
+						val p_type = int_literal_type(self.symtab.prims_of(), lit.raw_text);
 						f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
 						return p_type;
 					}
