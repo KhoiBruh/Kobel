@@ -132,10 +132,13 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 
 - **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, type_ptr: *u8 }`; `data` trỏ tới payload
   (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `type_ptr` là `*Type` đã giải của **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
-- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data, methods: *PrimMethods }` với `data` trỏ tới payload
-  (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`); `methods` trỏ tới payload `PrimMethods`
-  cho method của kiểu nguyên thuỷ. `DataType = VOID→NONE | … | STRUCT | FN`. `PrimTypes` giữ **instance
-  chuẩn** cho 16 kiểu nguyên thuỷ (một con trỏ cho mỗi kiểu trong toàn bộ lần biên dịch).
+- **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data: TypePayload, methods: *PrimMethods }`.
+  `TypePayload` là **payload enum** (`NONE | Pointer | Array | Struct | Fn | Enum`) chứa con trỏ tới
+  payload tương ứng (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`); accessor
+  `as_pointer/as_array/as_struct*/as_fn*/as_enum` là pattern match có kiểm tra (sai kind → null), hết
+  `data as *X`. `methods` trỏ tới payload `PrimMethods` cho method của kiểu nguyên thuỷ.
+  `DataType = VOID→NONE | … | STRUCT | FN`. `PrimTypes` giữ **instance chuẩn** cho 16 kiểu nguyên thuỷ
+  (một con trỏ cho mỗi kiểu trong toàn bộ lần biên dịch).
 - **Bảng ký hiệu** (`sema/symbol.kb`): scope lồng nhau + module scope + import + registry enum + registry generic.
 - **Arena**: mọi AST/kiểu cấp phát từ arena (`std.mem.arena`), giải phóng một lần.
 
@@ -541,12 +544,16 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 `*AstNode`; gốc được sửa ở `121a335`: template ghi `self_type`, lookup khớp theo kiểu receiver, và
 generic method được instantiate trong body pass rồi thay node qua `resolved_node`.
 
-**Bước tiếp theo của P‑1 (dùng payload enum).** `Type.data` đang là `*u8` trỏ tới
-`PointerType/ArrayType/StructType/FnType/EnumInfo`; với forward declaration + payload enum, nó có thể
-thành một payload enum ngay trong `sema.types` (`enum TypeData { Pointer(PointerType), ... }`), bỏ hẳn
-`data: *u8` và các accessor `self.data as *X`. `AstNode.data` thì chưa: payload của nó nằm rải ở
+**Payload enum trong type model (đã làm, `6de4052`).** `Type.data` từ `*u8` thành `TypePayload`
+(`NONE | Pointer | Array | Struct | Fn | Enum`), payload struct forward-declared trước enum; accessor là
+pattern match, `is_enum` đọc variant `Enum`, `type_payload` thay generic `alloc_type<T>`. Cùng commit:
+alias của arm `when` bind được trên **mọi biểu thức subject** (`when (h.shape) { is Shape.Circle as c -> ... }`),
+không chỉ subject là identifier — checker và codegen cùng nới điều kiện, subject chỉ cần có tên khi
+*rebind chính nó*.
+
+**Bước tiếp theo của P‑1.** `AstNode.data` vẫn là `*u8`: payload của nó nằm rải ở
 `ast.types/expr/stmt/decl`, nên cần **import vòng** (hoặc gom payload về `ast.node`) trước khi thay
-bằng sum type.
+bằng sum type. Hai hạng mục còn lại: import vòng và associated type.
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
