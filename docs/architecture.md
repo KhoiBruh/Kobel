@@ -211,8 +211,10 @@ Codegen C không có bảng ký hiệu. Vì vậy **mọi thứ cần kiểu ph�
   (`*MethodInfo`, cũng là `*u8`). Nhờ vậy `lower` dựng lời gọi C mà không tra lại overload/trait —
   và không có hai bản logic phân giải có thể lệch nhau.
 - Biến nội bộ không có annotation vẫn được sema **chèn `type_annotation`** (`ast_type_from_type`).
-- Kiểu trả về của arrow-fn (`fn f() => expr`) do sema ghi vào `FnDecl.return_type`
-  (`check_fn_body`); `fn_ret_c_type` chỉ đọc lại, không suy luận.
+- Kiểu trả về của arrow-fn (`fn f() => expr`) do **pass suy luận riêng** (`infer_arrow_returns`) tính
+  trước khi kiểm thân hàm: nó kiểm biểu thức thân trong scope riêng, lặp tới fixpoint khi gặp arrow fn
+  khác chưa có kiểu, rồi ghi vào `FnType.return_type` và `FnDecl.return_type`.
+  `fn_ret_c_type` chỉ đọc lại, không suy luận.
 - Tên kiểu trong AST được sema **đổi sang tên C đã mangle** ngay khi giải kiểu.
 
 Hệ quả: codegen chỉ còn heuristic **theo hình dạng cấu trúc**, không theo tên biến: `is_struct_name`
@@ -503,7 +505,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đạt I1** (`415fc4e`, `d68221f`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` cũng đi qua `resolved_node`. Pass `lower` + ba kênh (`type_ptr`, `resolved_method`, `resolved_node`) là nơi duy nhất lắp replacement. Còn `check_arrow_method_body`: arrow fn chưa có kiểu trả về tại thời điểm bị gọi, nên chỉ bỏ được sau khi có suy luận kiểu trả về theo nhu cầu (demand/fixpoint có memo) cho arrow fn — xem ghi chú dưới |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
@@ -521,12 +523,13 @@ Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Poi
 mọi hạ cấp đi qua `lower` (hoặc qua `resolved_node` mà check đã kiểm). Sema chỉ còn sửa *field*:
 đổi tên identifier sang tên C, chèn `type_annotation`, bọc `(*p)` — ghi chú, không thay node.
 
-**Vì sao còn `check_arrow_method_body`.** `fn f() => expr` chưa có kiểu trả về cho tới khi thân được
-kiểm, nên lời gọi `f()` ở chỗ khác cần kiểu ngay. Cơ chế hiện tại là kiểm thân arrow method **theo nhu
-cầu** ngay trong lúc kiểm lời gọi (kèm lưu/khôi phục ba field chứa ngữ cảnh). Bỏ được nó cần một
-trong: (a) suy luận kiểu trả về kiểu demand có memo (đệ quy như hiện tại nhưng tách thành hàm riêng,
-không đụng ngữ cảnh pass), (b) lặp fixpoint trên các arrow fn cho tới khi kiểu ổn định, hoặc (c) sắp
-thứ tự theo phụ thuộc gọi. Đây là việc của một bước riêng, không phải "dọn" đơn thuần.
+**Suy luận kiểu trả về của arrow-fn.** `fn f() => expr` chưa có kiểu trả về cho tới khi thân được
+kiểm. `infer_arrow_returns` chạy **trước** khi kiểm thân hàm: kiểm biểu thức thân trong scope riêng
+(module + `Self` của khai báo), và nếu gặp lời gọi tới một arrow fn khác chưa có kiểu thì đánh dấu lần
+thử là "chưa xong", **rollback chẩn đoán** rồi thử lại ở vòng sau — một fixpoint trên đồ thị gọi.
+Hàm suy luận xong được đánh dấu đã kiểm, nên pass chính bỏ qua; chu trình bị báo lỗi rõ ràng
+("annotate it explicitly") thay vì đệ quy vô hạn. Nhờ vậy không còn việc kiểm thân callee từ trong lúc
+kiểm lời gọi (re-entrancy cũ).
 
 ---
 
