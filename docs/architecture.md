@@ -569,9 +569,10 @@ và **associated type**. `is_struct_name`/`tag_field_name_of` vẫn là hai heur
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
-Heuristic còn lại sau P1/P2 (mục tiêu P3): `tag_field_name_of` (nhận tag theo tên
-`tag/TAG/kind/kind_`) trong pattern matching. `is_struct_name` chỉ còn dùng để khỏi phát typedef hai lần
-cho struct vừa khai báo trước vừa định nghĩa (`305261e`).
+Heuristic còn lại sau P1/P2/P3: `tag_field_name_of` — chỉ còn nhận `tag` (quy ước tài liệu) hoặc `kind`
+(AstNode dùng); nhánh `has_data` (payload `data: *u8` kiểu cũ) đã bị xoá (`eef948f`).
+`is_struct_name` chỉ còn dùng để khỏi phát typedef hai lần cho struct vừa khai báo trước vừa định nghĩa
+(`305261e`).
 
 **Definition of done của P2 (phần I1, đã đạt):** 0 call site `replace_node`, 0 phép gán `kind`/`data`;
 mọi hạ cấp đi qua `lower` (hoặc qua `resolved_node` mà check đã kiểm). Sema chỉ còn sửa *field*:
