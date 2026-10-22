@@ -61,7 +61,7 @@ v1 chỉ có **4 bước**, in ra dưới dạng `[n/4]`:
 |---|---|---|
 | 1 | `load_program(loader, input_path, src)` | `loader` nạp entry + mọi `use` (đệ quy), mỗi module: lex → parse → AST |
 | 2 | `collect_program(decl_collect, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphize (core nằm ở `decl_pass`) |
-| 3 | `check_program(body_program, prog)` | kiểm tra thân hàm, **desugar** (xem §6.2), gắn kiểu cho biến nội bộ (core nằm ở `body_pass`) |
+| 3 | `check_program(body_program, prog)` rồi `lower_program(lower, prog)` | kiểm tra thân hàm, gắn kiểu cho biến nội bộ (core ở `body_pass`); sau đó một pass **lower** riêng hạ cấp các dạng đường (xem §6.2) |
 | 4 | `gen_program(c_program, prog)` | sinh C99 rồi `write_file`; nếu không `-emit-c` thì gọi C compiler + chạy (core nằm ở `c_codegen`) |
 
 **Module search roots** (giống v0): thư mục file entry → các root `-I` → `lib` → `src`.
@@ -206,7 +206,11 @@ này là mục tiêu của P2/P3 trong lộ trình §9.4, không phải chỗ v�
 Bất biến đi kèm (đã có test C snapshot bảo vệ, §8.1): **thay đổi sema/codegen không được đổi C sinh ra
 cho corpus test**, trừ khi đó là chủ đích và golden được cập nhật trong cùng commit.
 
-### 6.2 Desugar trong sema (body_pass)
+### 6.2 Desugar trong sema (body_pass + lower)
+
+Từ P2, sema tách làm hai việc: `check_*` **chỉ** quyết định kiểu và báo lỗi; `sema/lower.kb` **viết lại**
+cây sau khi mọi thân hàm đã được kiểm. Bảng dưới ghi nơi hạ cấp từng dạng; cột "Lower" là các dạng đã
+chuyển sang pass riêng, phần còn lại vẫn hạ ngay trong `check_*` (`replace_node`).
 
 | Cú pháp nguồn | Hạ thành |
 |---|---|
@@ -474,7 +478,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 |---|---|---|
 | **P0** | Lưới an toàn: `kobel snap` (golden C) + `kobel fixpoint` (§8.1) | **xong** (`bd99dbd`, `8ce626c`) |
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
-| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | chưa |
+| **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đang làm**: pass `lower` đã có, nhóm string member/`slice` đã chuyển (`400dea0`, `b9bbc57`). Còn: operator chuỗi, nội suy, method/ctor, `for`, safe-call — và `check_arrow_method_body` chỉ bỏ được sau khi tách "check chữ ký" khỏi "check thân" (arrow fn chưa có kiểu trả về lúc bị gọi) |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | chưa |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
@@ -487,6 +491,15 @@ phải **thêm năng lực đó vào compiler hiện tại trước**, nếu kh�
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
 Heuristic còn lại sau P1 (mục tiêu P2/P3): `is_struct_name` khi phát `Point(...)`, và
 `tag_field_name_of` (nhận tag theo tên `tag/TAG/kind/kind_`) trong pattern matching.
+
+**Nhóm hạ cấp còn lại trong `check_*` (P2):** `+`/`==`/`!=`/`+=` trên `str`; nội suy chuỗi;
+enum/struct const member; method call, constructor, `Self(...)`; `for`; safe-call. Mỗi nhóm chuyển
+sang `lower` xong thì xoá `replace_node` tương ứng; khi hết `replace_node`, `BodyPass` không còn
+được đổi `kind`/`data` của node và I1 đạt.
+
+Lưu ý kỹ thuật cho các nhóm sau: `lower` hiện chỉ có node kiểu **AST** (`resolved_type`), đủ cho
+`str`/array nhưng **không** đủ cho việc cần `size`/`StructType`/`MethodInfo` (struct equality, method
+call, ctor). Các nhóm đó cần thêm một kênh `*Type` (hoặc `TypeStore` của P3) trước khi chuyển.
 
 ---
 
