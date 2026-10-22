@@ -265,7 +265,10 @@ impl CCodeGen {
 	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
 		if (f.return_type != null) return c_type_from_ast(f.return_type);
 		val f_body = f.body;
-		if (f_body is ExprStmt as es) return self.infer_type_from_expr(es.expr);
+		if (f_body is ExprStmt as es) {
+			val ty = self.c_type_of(es.expr);
+			if (!ty.empty()) return ty;
+		}
 		return "void";
 	}
 

@@ -58,7 +58,12 @@ pub struct AstNode {
 	pub kind: NodeKind,
 	pub line: usz,
 	pub col: usz,
-	pub data: *u8
+	pub data: *u8,
+	// Resolved semantic type of an expression, filled in by sema and read by
+	// codegen. Keeping it on the node means the backend never has to re-derive
+	// a type from the node's shape or from variable names. Null on declarations
+	// and on nodes that desugaring synthesises.
+	pub resolved_type: *AstNode = null
 }
 
 pub struct DummyTemplateDecl {

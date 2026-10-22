@@ -405,7 +405,7 @@ impl CCodeGen {
 
 			!self.array_elem_hint.empty() -> self.array_elem_hint;
 
-			!al.elements.empty() -> self.infer_type_from_expr(al.elements.first());
+			!al.elements.empty() -> self.c_type_or(al.elements.first(), "int32_t");
 
 			else -> "int32_t";
 		};
@@ -471,15 +471,16 @@ impl CCodeGen {
 		val obj_node = mem.object;
 		if (mem.member == "len" || mem.member == "size") {
 			val is_str = when (obj_node) {
-				is IdentifierExpr as id -> self.is_str_var(id.name),
 				is LiteralExpr as lit -> lit.literal_kind == LiteralKind.STRING,
-				else -> self.infer_type_from_expr(obj_node) == "const char*"
+				else -> self.c_type_of(obj_node) == "const char*"
 			};
 			if (is_str) return "(uint64_t)strlen(${self.gen_expr(obj_node)})";
 		}
 		val obj = self.gen_expr(obj_node);
+		// A member access on a pointer value needs `->`; the receiver of a
+		// non-identifier pointer is dereferenced by sema instead.
 		var is_ptr = false;
-		if (obj_node is IdentifierExpr as id) is_ptr = self.is_pointer_var(id.name);
+		if (obj_node.kind == NodeKind.EXPR_IDENTIFIER) is_ptr = self.c_type_of(obj_node).ends_with("*");
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
 		if (mem.is_safe) return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
 		if (is_ptr) return "${obj_str}->${mem.member}";
@@ -578,113 +579,21 @@ impl CCodeGen {
 		return res;
 	}
 
-	pub fn infer_type_from_expr(var self, expr: *AstNode): str => when (expr) {
-		is LiteralExpr -> self.gen_literal_type(expr);
-		is IdentifierExpr -> self.gen_identifier_type(expr);
-		is CallExpr -> self.gen_call_type(expr);
-		is BinaryExpr -> self.gen_binary_type(expr);
-		is UnaryExpr -> self.gen_unary_type(expr);
-		is GroupExpr -> self.infer_type_from_expr(expr.expr);
-		is IfExpr -> self.infer_type_from_expr(expr.then_branch);
-		is ArrayLiteralExpr -> self.gen_array_literal_type(expr);
-		is WhenExpr -> self.gen_when_expr_type(expr);
-		is CastExpr -> c_type_from_ast(expr.target_type);
-		is UpdateExpr -> self.infer_type_from_expr(expr.target);
-		else -> "int32_t";
-	};
-
-	// C type of a literal token: strings/chars/bools pin a type, numbers are sized.
-	fn gen_literal_type(var self, lit: *LiteralExpr) => when (lit.literal_kind) {
-		LiteralKind.STRING -> "const char*";
-		LiteralKind.CHAR -> "char";
-		LiteralKind.FLOAT -> c_float_literal_c_type(lit.raw_text);
-		LiteralKind.BOOL -> "bool";
-		LiteralKind.NULL_VAL -> "void*";
-		else -> c_int_literal_c_type(lit.raw_text);
-	};
-
-	// C type of a bare name: declared string/pointer locals win, then known functions.
-	fn gen_identifier_type(var self, id: *IdentifierExpr): str {
-		if (self.is_str_var(id.name)) return "const char*";
-		if (self.is_pointer_var(id.name)) return "void*";
-		val ret_ty = self.lookup_fn_ret_type(id.name);
-		if (!ret_ty.empty()) return ret_ty;
-		return "int32_t";
+	// C type of an expression: sema resolved it and stored the result on the
+	// node, so the backend never re-derives a type from syntax or from variable
+	// names. Empty for nodes that desugaring synthesised and were never checked.
+	pub fn c_type_of(val self, expr: *AstNode): str {
+		if (expr == null) return "";
+		val ann = expr.resolved_type;
+		if (ann == null) return "";
+		return c_type_from_ast(ann);
 	}
 
-	// C type of a call: string/size methods, injected runtime helpers, then user functions.
-	fn gen_call_type(var self, call: *CallExpr): str {
-		val callee = call.callee;
-		if (callee is MemberExpr as m) {
-			return when (m.member) {
-				"c_str", "slice", "data" -> "const char*";
-				"len", "size", "cap" -> "size_t";
-				else -> "int32_t";
-			};
-		}
-		if (callee is IdentifierExpr as id) {
-			// Runtime string helpers injected by the semantic analyzer.
-			if (id.name == "kobel_concat") return "const char*";
-			if (id.name == "kobel_slice") return "const char*";
-			if (id.name == "kobel_streq") return "bool";
-			if (id.name == "kobel_memeq") return "bool";
-			if (id.name == "kobel_slen") return "size_t";
-			if (self.is_struct_name(id.name)) return id.name;
-			val ret_ty = self.lookup_fn_ret_type(id.name);
-			if (!ret_ty.empty()) return ret_ty;
-		}
-		return "int32_t";
-	}
-
-	// Comparison/logical operators yield bool, any other binary takes its left type.
-	fn gen_binary_type(var self, bin: *BinaryExpr) => when (bin.op) {
-		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
-		TokenType.LESS, TokenType.LESS_EQUAL,
-		TokenType.GREATER, TokenType.GREATER_EQUAL,
-		TokenType.AND_AND, TokenType.OR_OR -> "bool";
-		TokenType.QUESTION_COLON -> {
-			val lt = self.infer_type_from_expr(bin.left);
-			if (lt == "void*" || lt == "int32_t") {
-				val rt = self.infer_type_from_expr(bin.right);
-				if (!rt.empty() && rt != "void*" && rt != "int32_t") yield rt;
-			}
-			yield lt;
-		}
-		else -> self.infer_type_from_expr(bin.left);
-	};
-
-	// `!` yields bool, `&` adds a pointer level, any other unary keeps its operand type.
-	fn gen_unary_type(var self, un: *UnaryExpr) => when (un.op) {
-		TokenType.BANG -> "bool";
-		TokenType.AMPERSAND -> self.infer_type_from_expr(un.operand) + "*";
-		else -> self.infer_type_from_expr(un.operand);
-	};
-
-	// Array literal: list-struct name if known, else the element type plus a `*`.
-	fn gen_array_literal_type(var self, al: *ArrayLiteralExpr): str {
-		if (!al.list_struct_name.empty()) return al.list_struct_name;
-		val elem_c = when {
-			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node)
-			!self.array_elem_hint.empty() -> self.array_elem_hint
-			!al.elements.empty() -> self.infer_type_from_expr(al.elements.first())
-			else -> "int32_t";
-		};
-		return "${elem_c}*";
-	}
-
-	// A when-expression takes the type of the first arm that yields a value.
-	fn gen_when_expr_type(var self, we: *WhenExpr): str {
-		for (arm in we.arms) {
-			val arm_b = arm.body;
-			if (arm_b is BlockStmt as blk) {
-				for (s in blk.statements) {
-					if (s is YieldStmt as ys && ys.value != null) return self.infer_type_from_expr(ys.value);
-				}
-			} else {
-				return self.infer_type_from_expr(arm_b);
-			}
-		}
-		return "int32_t";
+	// Same, with a fallback for synthesised nodes.
+	pub fn c_type_or(val self, expr: *AstNode, fallback: str): str {
+		val ty = self.c_type_of(expr);
+		if (ty.empty()) return fallback;
+		return ty;
 	}
 
 }
@@ -807,7 +716,7 @@ impl CCodeGen {
 			}
 		} else if (vd.initializer != null) {
 			val init_e = vd.initializer;
-			ty_str = self.infer_type_from_expr(init_e);
+			ty_str = self.c_type_or(init_e, "int32_t");
 			if (init_e is CastExpr as cst) {
 				val cst_ty = cst.target_type;
 				if (
@@ -1082,7 +991,7 @@ impl CCodeGen {
 				}
 				if (ret_candidate is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
 					var ret_ty = self.current_fn_ret_type;
-					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(bin.left);
+					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(bin.left, "int32_t");
 					var cur = ret_candidate;
 					var res = "${ind}{\n";
 					self.indent_level++;
@@ -1117,7 +1026,7 @@ impl CCodeGen {
 		self.mark_current_scope_jumped();
 		if (ret_val != null) {
 			var ret_ty = self.current_fn_ret_type;
-			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.infer_type_from_expr(ret_val);
+			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ret_val, "int32_t");
 			var res = "${ind}{\n";
 			self.indent_level++;
 			val inner_ind = get_indent(self.indent_level);
