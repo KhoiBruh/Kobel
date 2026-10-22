@@ -118,6 +118,8 @@ impl DeclPass {
 			// Definition of a forward-declared struct: complete the same type.
 			val fwd_type = existing.type_ptr;
 			fwd_type.as_struct_mut().is_defined = true;
+			// A forward declaration elsewhere already emits this type's typedef.
+			if (existing.ast_node != node) s.emit_typedef = false;
 			val def_name = s.name;
 			s.name = fwd_type.as_struct().c_name;
 			var fwd_private = false;
@@ -355,8 +357,20 @@ impl DeclPass {
 			methods += tm;
 		}
 	
+		for (a in t.assoc_types) {
+			var seen_before = false;
+			for (a2 in t.assoc_types) {
+				if (a2 == a) {
+					if (seen_before) {
+						self.report_error(node, "Duplicate associated type '${a}' in trait '${t.name}'");
+					}
+					seen_before = true;
+				}
+			}
+		}
+
 		val ti = self.arena.alloc<TraitInfo>();
-		*ti = TraitInfo(t.name, t.bases, methods, List<str>());
+		*ti = TraitInfo(t.name, t.bases, methods, List<str>(), t.assoc_types);
 		self.symtab.register_trait(ti);
 	}
 

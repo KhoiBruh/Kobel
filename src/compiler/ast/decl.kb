@@ -63,7 +63,10 @@ pub struct StructDecl {
 	pub is_pub: bool,
 	// `struct A;` — declares the name without a body. The definition (`struct A
 	// { ... }`) is merged into the same type during declaration collection.
-	pub is_forward: bool = false
+	pub is_forward: bool = false,
+	// False when a forward declaration already emitted this type's C typedef, so
+	// the backend emits it exactly once.
+	pub emit_typedef: bool = true
 }
 
 pub struct TraitDecl {
@@ -72,7 +75,15 @@ pub struct TraitDecl {
 	pub type_params: List<GenericParam>,
 	pub bases: List<str>,
 	pub methods: List<*AstNode>,
-	pub is_pub: bool
+	pub is_pub: bool,
+	// `type Item;` declarations: names only, the impl supplies the type.
+	pub assoc_types: List<str> = List()
+}
+
+// One `type Name = Type;` binding in an impl of a trait with associated types.
+pub struct AssocBinding {
+	pub name: str,
+	pub type_node: *AstNode
 }
 
 pub struct ImplDecl {
@@ -80,7 +91,8 @@ pub struct ImplDecl {
 	pub struct_name: str,
 	pub type_params: List<GenericParam>,
 	pub trait_name: str,
-	pub methods: List<*AstNode>
+	pub methods: List<*AstNode>,
+	pub assoc_bindings: List<AssocBinding> = List()
 }
 
 // One named field of an enum variant's payload: `Circle(radius: f64)`.

@@ -250,6 +250,32 @@ impl B for A {
 - Một struct implement được nhiều trait cùng lúc.
 - Trait có thể kế thừa trait khác.
 
+### Associated type (kiểu liên kết trong trait)
+
+Trait có thể để **impl tự chọn kiểu** cho một vai trò, thay vì buộc cả trait phải generic:
+
+```
+trait Container {
+    type Item;
+    fn first(val self): Self.Item;
+    fn put(val self, v: Self.Item): none;
+}
+
+impl Container for IntBox {
+    type Item = i32;
+    fn first(val self): Self.Item => self.v;
+    fn put(val self, v: Self.Item): none { }
+}
+```
+
+- Khai báo `type Name;` trong trait, bind `type Name = Type;` trong impl.
+- Dùng qua `Self.Name` (return type, parameter, annotation trong thân hàm, và cả method mặc định
+  của trait khi được kéo vào impl).
+- Ràng buộc: impl phải bind **đủ** các associated type, không được bind tên lạ, mỗi tên bind một lần.
+  Kiểu bind phải là kiểu **có tên** (struct/enum/primitive) — con trỏ/mảng chưa hỗ trợ vì annotation
+  được thay bằng tên C.
+- Impl generic (`impl Container for Box<T> { type Item = T; }`) bind theo type argument của từng instance.
+
 ### Fault (kiểu lỗi)
 
 ```
@@ -396,6 +422,10 @@ if (node is Literal as var lit) {
     lit.value = 42;
 }
 ```
+
+- **Tag là field đầu tiên** của struct: `is X` so `subject.<field đầu tiên>` với `X.TAG`. Không có tìm
+  theo tên; struct tham gia pattern matching phải khai báo field tag **đầu tiên** (ví dụ `tag` hoặc
+  `kind`) và một `const TAG`. AST của compiler dùng `kind`, payload enum dùng `tag`.
 
 Ba dạng range (`a..b`, `a..<b`, `a>..<b`) đều **quyết định chiều tăng/giảm lúc chạy** theo thứ tự hai
 biên được viết (`10..0` chạy ngược). Biến vòng là **bản sao chỉ đọc**, chỉ sống trong thân vòng;

@@ -143,11 +143,11 @@ impl Parser {
 	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.arena.alloc_val<StructDecl>(StructDecl(name, type_params, List<StructField>(), is_pub, true))), line, col);
 
-	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(TraitDecl.TAG, NodeData.TraitDecl(self.arena.alloc_val<TraitDecl>(TraitDecl(name, type_params, bases, methods, is_pub))), line, col);
+	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List()): *AstNode
+		=> self.arena.alloc_node(TraitDecl.TAG, NodeData.TraitDecl(self.arena.alloc_val<TraitDecl>(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
 
-	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods))), line, col);
+	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List()): *AstNode
+		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
 	pub fn enum_decl(var self, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(EnumDecl.TAG, NodeData.EnumDecl(self.arena.alloc_val<EnumDecl>(EnumDecl(name, underlying_type, members, is_pub))), line, col);

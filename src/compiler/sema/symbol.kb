@@ -143,7 +143,9 @@ pub struct TraitInfo {
 	pub bases: List<str>,
 	pub methods: List<*TraitMethod>,
 	// Source names of the structs with an `impl Trait for Struct` block.
-	pub impls: List<str>
+	pub impls: List<str>,
+	// `type Item;` names the impl must bind.
+	pub assoc_types: List<str> = List()
 }
 
 impl TraitInfo {
@@ -231,6 +233,8 @@ pub struct SymbolTable {
 	pub explicit_imports: HashMap<ImportBinding> = HashMap<ImportBinding>(),
 	pub wildcard_owners: List<str> = List<str>(),
 	pub wildcard_modules: List<str> = List<str>(),
+	// Trait associated-type bindings: "<struct>.<assoc>" -> concrete type.
+	pub assoc_types: HashMap<*Type> = HashMap<*Type>(),
 	pub gen: GenericReg = GenericReg(),
 	// Canonical primitive types, built on first use from this table's arena.
 	pub prims: *PrimTypes = null
@@ -393,6 +397,14 @@ impl SymbolTable {
 		}
 		return false;
 	}
+
+	// Associated type bindings: "<struct source name>.<assoc name>" -> concrete type.
+	pub fn set_assoc_type(var self, struct_name: str, assoc: str, ty: *Type) {
+		self.assoc_types["${struct_name}.${assoc}"] = ty;
+	}
+
+	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type
+		=> self.assoc_types.get_or("${struct_name}.${assoc}", null);
 
 	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
