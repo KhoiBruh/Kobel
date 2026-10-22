@@ -315,8 +315,11 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
   - `List<X>` ở vị trí kiểu → instantiate; `f<X>(...)` / `Struct<X>(...)` → instantiate ở pass quét AST.
   - Instance sinh bằng **clone AST + thay type param**, tên C = `<mangle(template)>_<token(type arg)>`,
     trong đó token lấy từ **tên C đã mangle** của type arg (tránh trùng tên giữa các module).
-  - Instance đăng ký vào `inst_syms` (tra cứu toàn cục) và được **chèn lên đầu** `program.declarations`
-    để struct instance đứng trước struct dùng nó.
+  - Mỗi instance là một cặp `module marker, decl` trong **một** danh sách `instances`, theo thứ tự
+    tạo (dependency luôn đứng trước instance cần nó). Danh sách này vừa là **worklist**: sau pass quét
+    khai báo, `drain_instances()` rewrite từng instance trong module của template, lặp tới fixpoint, để
+    generic use nào clone bỏ sót cũng được instantiate trước khi kiểm thân hàm. Cuối cùng danh sách
+    được **đặt trước** `program.declarations` để struct instance đứng trước struct dùng nó.
   - Chỉ hỗ trợ **type argument tường minh**; không suy luận type arg.
   - Một kiểu generic có thể có **nhiều `impl`** (impl inherent + impl trait); khi instantiate, **mọi**
     template cùng tên đều được nhân bản (`instantiate_struct` duyệt hết `impl_templates`), và
@@ -492,7 +495,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **đạt I1** (`415fc4e`, `d68221f`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` cũng đi qua `resolved_node`. Pass `lower` + ba kênh (`type_ptr`, `resolved_method`, `resolved_node`) là nơi duy nhất lắp replacement. Còn `check_arrow_method_body`: arrow fn chưa có kiểu trả về tại thời điểm bị gọi, nên chỉ bỏ được sau khi có suy luận kiểu trả về theo nhu cầu (demand/fixpoint có memo) cho arrow fn — xem ghi chú dưới |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
-| **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | chưa |
+| **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | chưa |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
