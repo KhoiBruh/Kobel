@@ -48,7 +48,7 @@ pub struct Symbol {
 
 pub struct Scope {
 	pub parent: *Scope = null,
-	pub symbols: List<*Symbol> = List<*Symbol>(),
+	pub symbols: List<*Symbol> = List(),
 	pub is_fn_boundary: bool = false
 }
 
@@ -60,9 +60,9 @@ impl Scope {
 		return null;
 	}
 
-	pub op get(val self, name: str): *Symbol => self.lookup(name);
+	pub op get(val self, name: str) => self.lookup(name);
 
-	pub op contains(val self, name: str): bool => self.lookup(name) != null;
+	pub op contains(val self, name: str) => self.lookup(name) != null;
 
 	pub op plus_assign(var self, sym: *Symbol) {
 		self.symbols += sym;
@@ -92,16 +92,16 @@ pub struct ImportBinding {
 
 pub struct ModuleScope {
 	pub name: str,
-	pub symbols: List<*Symbol> = List<*Symbol>(),
-	pub sym_map: HashMap<*Symbol> = HashMap<*Symbol>()
+	pub symbols: List<*Symbol> = List(),
+	pub sym_map: HashMap<*Symbol> = HashMap()
 }
 
 impl ModuleScope {
-	pub fn lookup(self, name: str): *Symbol => self.sym_map.get_or(name, null);
+	pub fn lookup(self, name: str) => self.sym_map.get_or(name, null);
 
-	pub op get(val self, name: str): *Symbol => self.lookup(name);
+	pub op get(val self, name: str) => self.lookup(name);
 
-	pub op contains(val self, name: str): bool => name in self.sym_map;
+	pub op contains(val self, name: str) => name in self.sym_map;
 
 	pub op plus_assign(var self, sym: *Symbol) {
 		self.symbols += sym;
@@ -123,6 +123,23 @@ pub struct GenTemplate {
 	// For a method template, the source name of the impl's target type. Method
 	// lookup matches on it, so `A.pick<T>` and `B.pick<T>` stay distinct.
 	pub self_type: str = ""
+}
+
+// What kind of declaration an instance was produced from.
+pub enum InstanceKind {
+	STRUCT,
+	FUNCTION
+}
+
+// One monomorphized instance: the template it came from, the resolved type
+// arguments and the declaration that carries it (a struct view or a function
+// clone). Identity is `(template, args)`, not the mangled name.
+pub struct InstanceRecord {
+	pub kind: InstanceKind,
+	pub template: *GenTemplate,
+	pub args: List<*Type>,
+	pub c_name: str,
+	pub decl: *AstNode
 }
 
 // A method declared inside a `trait` block. `has_default` is true when the
@@ -166,6 +183,9 @@ pub struct GenericReg {
 	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub inst_syms: List<*Symbol> = List<*Symbol>(),
 	pub inst_map: HashMap<*Symbol> = HashMap<*Symbol>(),
+	// Typed instance records: the identity used by monomorphization is
+	// (template, resolved type arguments), not the mangled C name.
+	pub records: List<*InstanceRecord> = List<*InstanceRecord>(),
 	// Declarations produced by instantiation, as `module marker, decl` pairs in
 	// creation order (a dependency always precedes the instance that needs it).
 	// The same list is the rewrite worklist: each instance still gets a fixpoint
@@ -201,6 +221,24 @@ impl GenericReg {
 	}
 
 	pub fn find_inst(val self, name: str): *Symbol => self.inst_map.get_or(name, null);
+
+	pub fn add_record(var self, rec: *InstanceRecord) {
+		self.records += rec;
+	}
+
+	// Typed lookup: same template and equal argument types.
+	pub fn find_instance(val self, tmpl: *GenTemplate, args: List<*Type>, kind: InstanceKind): *InstanceRecord {
+		for (r in self.records) {
+			if (r.template != tmpl || r.kind != kind) continue;
+			if (r.args.len != args.len) continue;
+			var same = true;
+			for (i in 0..<args.len) {
+				if (!r.args[i].equals(args[i])) same = false;
+			}
+			if (same) return r;
+		}
+		return null;
+	}
 }
 
 pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym);
@@ -217,24 +255,24 @@ pub struct SymbolTable {
 	// `List.get` returns a COPY of the value (val), so any change through the copy
 	// (e.g. `sc.symbols += ...`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
-	pub modules: List<*ModuleScope> = List<*ModuleScope>(),
-	pub module_map: HashMap<*ModuleScope> = HashMap<*ModuleScope>(),
-	pub imports: List<ImportBinding> = List<ImportBinding>(),
+	pub modules: List<*ModuleScope> = List(),
+	pub module_map: HashMap<*ModuleScope> = HashMap(),
+	pub imports: List<ImportBinding> = List(),
 	// Enum member tables, keyed by source name / mangled C name.
-	pub enums: List<*EnumInfo> = List<*EnumInfo>(),
-	pub enum_map: HashMap<*EnumInfo> = HashMap<*EnumInfo>(),
+	pub enums: List<*EnumInfo> = List(),
+	pub enum_map: HashMap<*EnumInfo> = HashMap(),
 	// Collected `trait` declarations, by source name.
-	pub traits: List<*TraitInfo> = List<*TraitInfo>(),
-	pub trait_map: HashMap<*TraitInfo> = HashMap<*TraitInfo>(),
+	pub traits: List<*TraitInfo> = List(),
+	pub trait_map: HashMap<*TraitInfo> = HashMap(),
 	// Methods extending the built-in (primitive) types live on the canonical
 	// `Type` of each kind (see `PrimTypes`); these helpers are the read side.
-	pub c_name_map: HashMap<*Symbol> = HashMap<*Symbol>(),
-	pub struct_const_map: HashMap<*Symbol> = HashMap<*Symbol>(),
-	pub explicit_imports: HashMap<ImportBinding> = HashMap<ImportBinding>(),
-	pub wildcard_owners: List<str> = List<str>(),
-	pub wildcard_modules: List<str> = List<str>(),
+	pub c_name_map: HashMap<*Symbol> = HashMap(),
+	pub struct_const_map: HashMap<*Symbol> = HashMap(),
+	pub explicit_imports: HashMap<ImportBinding> = HashMap(),
+	pub wildcard_owners: List<str> = List(),
+	pub wildcard_modules: List<str> = List(),
 	// Trait associated-type bindings: "<struct>.<assoc>" -> concrete type.
-	pub assoc_types: HashMap<*Type> = HashMap<*Type>(),
+	pub assoc_types: HashMap<*Type> = HashMap(),
 	pub gen: GenericReg = GenericReg(),
 	// Canonical primitive types, built on first use from this table's arena.
 	pub prims: *PrimTypes = null
@@ -388,7 +426,6 @@ impl SymbolTable {
 	pub fn find_module(val self, name: str): *ModuleScope => self.module_map.get_or(name, null);
 
 	pub fn module_exists(val self, name: str) => name in self.module_map;
-
 
 	// True when `owner` already wildcard-imports `module_name`.
 	pub fn has_wildcard(val self, owner: str, module_name: str): bool {

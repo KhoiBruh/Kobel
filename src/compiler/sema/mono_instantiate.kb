@@ -46,6 +46,13 @@ impl DeclPass {
 		var args = List<*Type>();
 		for (a in arg_asts) args += self.resolve_ast_type(a);
 
+		// Identity is (template, resolved arguments), not the mangled name.
+		val known = self.symtab.gen.find_instance(tmpl, args, InstanceKind.STRUCT);
+		if (known != null) {
+			val known_sym = self.find_inst(known.c_name);
+			if (known_sym != null) return known_sym.type_ptr;
+		}
+
 		val base = tmpl.module.mangle_symbol(tmpl.name);
 		val cname = "${base}_${self.type_token_list_of(args)}";
 
@@ -92,7 +99,11 @@ impl DeclPass {
 			self.queue_decl(impl_tmpl.module, iclone);
 		}
 
-		self.queue_decl(tmpl.module, self.struct_decl_view(cname, fields, decl.is_pub, tmpl.node.line, tmpl.node.col));
+		val view = self.struct_decl_view(cname, fields, decl.is_pub, tmpl.node.line, tmpl.node.col);
+		self.queue_decl(tmpl.module, view);
+		val rec = self.arena.alloc<InstanceRecord>();
+		*rec = InstanceRecord(InstanceKind.STRUCT, tmpl, args, cname, view);
+		self.symtab.gen.add_record(rec);
 
 		self.leave_module(prev_mod);
 
@@ -149,6 +160,11 @@ impl DeclPass {
 	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
 		self.check_bounds(tmpl, arg_asts);
 
+		var args = List<*Type>();
+		for (a in arg_asts) args += self.resolve_ast_type(a);
+		val known = self.symtab.gen.find_instance(tmpl, args, InstanceKind.FUNCTION);
+		if (known != null) return known.c_name;
+
 		// A method's mangled name includes its receiver type, so `A.pick<T>` and
 		// `B.pick<T>` (same module) do not collide.
 		var base = tmpl.module.mangle_symbol(tmpl.name);
@@ -165,11 +181,13 @@ impl DeclPass {
 		val fclone = self.clone_fn(tmpl.node, subst, cname);
 		self.collect_fn_as(fclone, cname);
 		self.queue_decl(tmpl.module, fclone);
+		val rec = self.arena.alloc<InstanceRecord>();
+		*rec = InstanceRecord(InstanceKind.FUNCTION, tmpl, args, cname, fclone);
+		self.symtab.gen.add_record(rec);
 
 		self.leave_module(prev_mod);
 		return cname;
 	}
-
 
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
 		val f = node.as_fn_decl() as &FnDecl;

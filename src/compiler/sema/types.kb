@@ -580,9 +580,13 @@ impl Type {
 				yield arr_a.length == arr_b.length && arr_a.elem.equals(arr_b.elem);
 			}
 			DataType.STRUCT -> {
+				// Struct names are only unique per module: compare the mangled C name
+				// when there is one, so `a::Item` and `b::Item` stay distinct.
 				val s_a = self.as_struct();
 				val s_b = b.as_struct();
-				yield s_a.name == s_b.name;
+				val n_a = if (s_a.c_name.empty()) s_a.name else s_a.c_name;
+				val n_b = if (s_b.c_name.empty()) s_b.name else s_b.c_name;
+				yield n_a == n_b;
 			}
 			DataType.FN -> {
 				val f_a = self.as_fn();
