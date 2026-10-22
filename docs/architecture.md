@@ -130,8 +130,13 @@ thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_
 
 ### 3.4 Đơn vị dữ liệu trung tâm
 
-- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: *u8, type_ptr: *u8 }`; `data` trỏ tới payload
-  (`LiteralExpr`, `CallExpr`, `FnDecl`, …). `type_ptr` là `*Type` đã giải của **biểu thức** (xem §6.1), để codegen không phải suy luận. Payload truy cập qua generic downcast `node.to<T>()`, tạo qua extension methods trên `Arena` (`arena.*`) hoặc generic factory `arena.make<T>()`. Toàn bộ các factory method được tinh gọn thành 1-liner ủy quyền qua generic `make<T>()`.
+- **AST** (`src/compiler/ast`): `AstNode { kind, line, col, data: NodeData, type_ptr: *u8 }`.
+  `NodeData` là **payload enum**, mỗi variant giữ `*Payload` (`LiteralExpr`, `CallExpr`, `FnDecl`, …);
+  truy cập qua accessor `node.as_<shape>()` (pattern match), tạo node qua
+  `arena.alloc_node(kind, NodeData.<Shape>(payload), line, col)` và các builder 1-liner trên `Arena`.
+  Payload struct được **khai báo trước** trong `ast.node`, định nghĩa ở `ast.types/expr/stmt/decl`
+  (forward declaration xuyên module), nên đồ thị module vẫn một chiều. `type_ptr` là `*Type` đã giải
+  của **biểu thức** (xem §6.1), để codegen không phải suy luận.
 - **Kiểu sema** (`sema/types.kb`): `Type { kind, size, align, data: TypePayload, methods: *PrimMethods }`.
   `TypePayload` là **payload enum** (`NONE | Pointer | Array | Struct | Fn | Enum`) chứa con trỏ tới
   payload tương ứng (`PointerType`, `ArrayType`, `StructType`, `FnType`, `EnumInfo`); accessor
@@ -551,9 +556,16 @@ alias của arm `when` bind được trên **mọi biểu thức subject** (`whe
 không chỉ subject là identifier — checker và codegen cùng nới điều kiện, subject chỉ cần có tên khi
 *rebind chính nó*.
 
-**Bước tiếp theo của P‑1.** `AstNode.data` vẫn là `*u8`: payload của nó nằm rải ở
-`ast.types/expr/stmt/decl`, nên cần **import vòng** (hoặc gom payload về `ast.node`) trước khi thay
-bằng sum type. Hai hạng mục còn lại: import vòng và associated type.
+**Payload enum trong AST (đã làm, `fa01876`).** `AstNode.data` từ `*u8` thành `NodeData`, một variant
+cho mỗi hình dạng node (44 variant, payload là `*Shape`). Payload struct **khai báo trước** trong
+`ast.node` và được định nghĩa ở module khác (forward declaration xuyên module), nên **không cần import
+vòng**; mỗi variant có accessor `as_<shape>()`. `arena.make<T>` bị thay bằng
+`arena.alloc_node(kind, NodeData.<Shape>(...), line, col)` vì factory generic không chọn được variant từ
+`T`. Pattern `is LiteralExpr` trên `AstNode` bind `node.data.u.LiteralExpr.inner` và so tag qua C name
+thật của hằng `TAG` (struct có thể được định nghĩa ở module khác nơi khai báo trước).
+
+**Bước tiếp theo của P‑1.** Còn: **import vòng** (giờ là nhu cầu kiến trúc, không còn bắt buộc cho AST)
+và **associated type**. `is_struct_name`/`tag_field_name_of` vẫn là hai heuristic cuối của backend.
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
