@@ -59,7 +59,7 @@ impl GenSubst {
 	}
 }
 
-pub fn is_template_decl(node: *AstNode) => node.is_template();
+pub fn is_template_decl(node: *AstNode) => decl_is_template(node);
 
 impl GenTemplate {
 	pub fn param_names(val self): List<str> {

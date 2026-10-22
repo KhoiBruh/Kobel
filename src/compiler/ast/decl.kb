@@ -129,3 +129,13 @@ impl Iterable for Program {
 	pub fn count(val self) => self.declarations.len;
 	pub fn at(val self, i: usz) => self.declarations[i];
 }
+
+// Whether a declaration carries generic parameters (`struct S<T>`, `fn f<T>`,
+// `impl S<T>`). Lives here, next to the payload structs, so it reads their real
+// fields instead of type-punning the node payload.
+pub fn decl_is_template(node: *AstNode): bool => when (node.kind) {
+	NodeKind.DECL_STRUCT -> node.to<StructDecl>().type_params.len > 0;
+	NodeKind.DECL_FN -> node.to<FnDecl>().type_params.len > 0;
+	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0;
+	else -> false;
+};

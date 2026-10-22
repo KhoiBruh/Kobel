@@ -36,7 +36,7 @@ impl CCodeGen {
 
 		// 2. First collect struct names, function names and return types
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is StructDecl as s -> {
 					self.register_struct(s.name);
@@ -58,14 +58,14 @@ impl CCodeGen {
 
 		// 3. Struct Definitions
 		for (decl in prog) {
-			if (!decl.is_template() && decl is StructDecl as s) {
+			if (!decl_is_template(decl) && decl is StructDecl as s) {
 				sb += self.gen_struct_decl(s);
 			}
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
 		for (decl_list in prog) {
-			if (!decl_list.is_template() && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
+			if (!decl_is_template(decl_list) && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
 				sb += "static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
 					"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
 					"    size_t cap = (n < 4) ? 4 : n;\n"
@@ -82,7 +82,7 @@ impl CCodeGen {
 
 		// 4. Function Prototypes
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is FnDecl -> sb += self.gen_fn_decl(decl, true, "");
 				is ImplDecl as im -> {
@@ -98,7 +98,7 @@ impl CCodeGen {
 
 		// 5. Function Implementations
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is FnDecl -> sb += self.gen_fn_decl(decl, false, "");
 				is ImplDecl as im -> {
