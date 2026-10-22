@@ -174,9 +174,9 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `+ - * / %`: `str + str` is lowered to a runtime concat call by the `lower`
-	// pass, every other operand pair must be numeric, and the result keeps the
-	// left operand's type.
+	// `+ - * / %`: `str + str` is lowered to a runtime concat call, an overloaded
+	// struct operator to the method bound here, every other pair must be numeric.
+	// The result keeps the left operand's type.
 	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.t_str();
 		if (lt.is_numeric() && rt.is_numeric()) return lt;
@@ -197,11 +197,7 @@ impl BodyPass {
 				arg_types += rt;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					var new_args = List<*AstNode>();
-					new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
-					new_args += bin.right;
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
+					node.resolved_method = mi as *u8;
 					return mi.fn_type.as_fn().return_type;
 				}
 			}
@@ -211,8 +207,8 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `== !=`: `str` compares by content (lowered to `kobel_streq` by `lower`),
-	// everything else by value.
+	// `== !=`: `str` compares by content, structs through an `equals` operator or
+	// a byte compare, everything else by value. All forms are lowered by `lower`.
 	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.t_bool();
 
@@ -223,20 +219,7 @@ impl BodyPass {
 			arg_types += lt;
 			arg_types += rt;
 			val mi = s_info.find_operator("equals", arg_types);
-			if (mi != null) {
-				var new_args = List<*AstNode>();
-				new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
-				new_args += bin.right;
-				var call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				if (bin.op == TokenType.BANG_EQUAL) {
-					call_node = self.unary(TokenType.BANG, call_node, node.line, node.col);
-				}
-				self.replace_node(node, call_node);
-				return self.t_bool();
-			}
-
-			val wrapped = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
-			self.replace_node(node, wrapped);
+			if (mi != null) node.resolved_method = mi as *u8;
 			return self.t_bool();
 		}
 
@@ -674,11 +657,7 @@ impl BodyPass {
 						else if (self.is_immutable_self(target_expr)) {
 							self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
 						}
-						var new_args = List<*AstNode>();
-						new_args += if (t_is_ptr) asgn.target else self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
-						new_args += asgn.value;
-						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-						self.replace_node(node, call_node);
+						node.resolved_method = mi as *u8;
 						return mi.fn_type.as_fn().return_type;
 					}
 				}

@@ -123,7 +123,7 @@ impl BodyPass {
 			is AssignExpr as var asg -> {
 				asg.target = self.lower_expr(asg.target);
 				asg.value = self.lower_expr(asg.value);
-				self.lower_assign(node, asg);
+				out = self.lower_assign(node, asg);
 			}
 			is UpdateExpr as var up -> up.target = self.lower_expr(up.target);
 			is CastExpr as var cst -> cst.expr = self.lower_expr(cst.expr);
@@ -179,8 +179,9 @@ impl BodyPass {
 	}
 
 	// `a + b` on strings -> `kobel_concat(a, b)`; `a == b` / `a != b` on strings
-	// -> `kobel_streq(a, b)`, negated for `!=`. Operand types were validated by
-	// the checker; this only spells the runtime helper.
+	// -> `kobel_streq(a, b)`, negated for `!=`; a bound struct operator -> its
+	// method; struct equality without an `equals` method -> `kobel_memeq`.
+	// Operand types were validated by the checker; this only spells the call.
 	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
 		// `a ?: return b` keeps a whole statement on the right, so it needs the
 		// statement walker rather than the expression one.
@@ -188,29 +189,65 @@ impl BodyPass {
 			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
 			return node;
 		}
-		if (bin.op == TokenType.PLUS) {
-			if (!self.is_str_expr(bin.left)) return node;
+		if (bin.op == TokenType.PLUS && self.is_str_expr(bin.left)) {
 			val cat = self.arena.interp_concat(bin.left, bin.right, node.line, node.col);
 			return self.lowered(node, cat);
 		}
 		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
-			if (!self.is_str_expr(bin.left) || !self.is_str_expr(bin.right)) return node;
-			val eq = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
-			return self.lowered(node, eq);
+			if (self.is_str_expr(bin.left) && self.is_str_expr(bin.right)) {
+				val eq = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+				return self.lowered(node, eq);
+			}
+		}
+
+		// An overloaded operator the checker picked: `c_name(&left, right)`.
+		if (node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			var args = List<*AstNode>();
+			args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+			args += bin.right;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			if (bin.op == TokenType.BANG_EQUAL) {
+				return self.lowered(node, self.unary(TokenType.BANG, call, node.line, node.col));
+			}
+			return self.lowered(node, call);
+		}
+
+		// Struct equality without an `equals` method: byte compare by size.
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			val lt = self.type_of(bin.left);
+			if (lt != null && lt.kind == DataType.STRUCT) {
+				val eq = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
+				return self.lowered(node, eq);
+			}
 		}
 		return node;
 	}
 
-	// `s += str` -> `s = kobel_concat(s, str)`, keeping the assignment node and
-	// only swapping its operator and right-hand side.
-	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr) {
-		if (asgn.op != TokenType.PLUS_EQUAL) return;
-		if (!self.is_str_expr(asgn.target)) return;
+	// Two assignment lowerings: an overloaded compound operator becomes the bound
+	// method call, and `s += str` keeps the assignment but wraps the right side in
+	// `kobel_concat(s, str)`.
+	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr): *AstNode {
+		if (node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			val target_ty = self.type_of(asgn.target);
+			val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (t_is_ptr) args += asgn.target;
+			else args += self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+			args += asgn.value;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			return self.lowered(node, call);
+		}
+
+		if (asgn.op != TokenType.PLUS_EQUAL) return node;
+		if (!self.is_str_expr(asgn.target)) return node;
 		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
 		cat.resolved_type = node.resolved_type;
 		cat.sema_type = node.sema_type;
 		asgn.value = cat;
 		asgn.op = TokenType.EQUAL;
+		return node;
 	}
 
 	// `"a${x}b"` -> a chain of `kobel_concat` calls, with every hole converted by
