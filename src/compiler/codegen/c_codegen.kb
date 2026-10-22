@@ -28,8 +28,7 @@ pub struct ConditionAlias {
 
 pub struct CCodeGen {
 	pub indent_level: usz = 0,
-	pub struct_names: List<str> = List<str>(),
-	pub struct_map: HashSet = HashSet(),
+
 	pub errors: List<str> = List<str>(),
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
@@ -49,8 +48,6 @@ impl CCodeGen {
 
 	pub fn new(): Self => Self(
 		0,
-		List<str>(),
-		HashSet(),
 		List<str>(),
 		"",
 		"",
@@ -112,12 +109,6 @@ impl CCodeGen {
 		return res;
 	}
 
-	pub fn is_struct_name(val self, name: str): bool => name in self.struct_map;
-
-	pub fn register_struct(var self, name: str) {
-		self.struct_names += name;
-		self.struct_map += name;
-	}
 
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.

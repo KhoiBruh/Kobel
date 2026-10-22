@@ -43,9 +43,8 @@ impl CCodeGen {
 			when (decl) {
 				is StructDecl as s -> {
 					// A forward declaration and its definition are two AST nodes for
-					// one C type, so emit the typedef only once.
-					if (!self.is_struct_name(s.name)) {
-						self.register_struct(s.name);
+					// one C type; the declaration pass marks which one emits it.
+					if (s.is_forward || s.emit_typedef) {
 						sb += "typedef struct ${s.name} ${s.name};\n";
 					}
 				}
@@ -140,7 +139,6 @@ impl CCodeGen {
 		// The definition carries the fields; a forward declaration only
 		// contributes the typedef emitted in the first pass.
 		if (s.is_forward) return "";
-		self.register_struct(s.name);
 
 		var res = "struct ${s.name} {\n";
 		for (f in s.fields) {

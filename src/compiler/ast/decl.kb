@@ -63,7 +63,10 @@ pub struct StructDecl {
 	pub is_pub: bool,
 	// `struct A;` — declares the name without a body. The definition (`struct A
 	// { ... }`) is merged into the same type during declaration collection.
-	pub is_forward: bool = false
+	pub is_forward: bool = false,
+	// False when a forward declaration already emitted this type's C typedef, so
+	// the backend emits it exactly once.
+	pub emit_typedef: bool = true
 }
 
 pub struct TraitDecl {

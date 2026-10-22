@@ -181,7 +181,7 @@ impl BodyPass {
 		val tag_field_name = self.tag_field_name_of(base_s);
 		if (tag_field_name.empty()) {
 			self.report_error(is_node,
-				"Subject struct '${base_s.name}' must have a 'tag' or 'kind' field"
+				"Subject struct '${base_s.name}' must have a tag field as its first field"
 			);
 			return null;
 		}
@@ -242,13 +242,11 @@ impl BodyPass {
 			?: self.symtab.lookup_struct_const(struct_name, "KIND");
 	}
 
-	// Name of the field a pattern reads the tag from: `tag` (the documented
-	// convention) or `kind` (what AstNode uses). "" when neither exists.
+	// The tag is the struct's first field: that is the language rule for `is`
+	// patterns, so no field name is guessed.
 	fn tag_field_name_of(var self, base_s: *StructType): str {
-		for (f in base_s.fields) {
-			if (f.name == "tag" || f.name == "kind") return f.name;
-		}
-		return "";
+		if (base_s.fields.empty()) return "";
+		return base_s.fields[0].name;
 	}
 
 	fn field_type_of(var self, base_s: *StructType, name: str): *Type {
