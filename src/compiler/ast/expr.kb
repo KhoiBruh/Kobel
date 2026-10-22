@@ -129,7 +129,6 @@ pub struct IsExpr {
 	pub target_type: *AstNode,
 	pub alias: str = "",
 	pub tag_field: str = "",
-	pub has_data: bool = false,
 	pub base_c_name: str = "",
 	pub is_ptr: bool = false,
 	pub is_mut: bool = false,

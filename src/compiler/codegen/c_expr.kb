@@ -306,8 +306,6 @@ impl CCodeGen {
 				if (!is_e.payload_path.empty()) {
 					if (is_e.payload_ptr) "${obj_str}->${is_e.payload_path}"
 					else "(${target_name}*)(&(${obj_str})->${is_e.payload_path})"
-				} else if (is_e.has_data && !is_e.base_c_name.empty()) {
-					"(${target_name}*)(((${is_e.base_c_name}*)${obj_str})->data)"
 				} else {
 					"(${target_name}*)${obj_str}"
 				}

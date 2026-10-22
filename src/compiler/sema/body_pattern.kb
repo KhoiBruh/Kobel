@@ -181,7 +181,7 @@ impl BodyPass {
 		val tag_field_name = self.tag_field_name_of(base_s);
 		if (tag_field_name.empty()) {
 			self.report_error(is_node,
-				"Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field"
+				"Subject struct '${base_s.name}' must have a 'tag' or 'kind' field"
 			);
 			return null;
 		}
@@ -195,7 +195,6 @@ impl BodyPass {
 		}
 
 		is_e.tag_field = tag_field_name;
-		is_e.has_data = self.struct_has_field(base_s, "data");
 		is_e.base_c_name = base_s.c_name;
 		is_e.is_ptr = is_ptr;
 
@@ -209,8 +208,7 @@ impl BodyPass {
 			if (data_enum != null && data_enum.is_payload) {
 				is_e.payload_path = "data.u.${target_s.name}.inner";
 				is_e.payload_ptr = true;
-				is_e.has_data = false;
-				is_e.tag_const = tag_const_sym.c_name;
+					is_e.tag_const = tag_const_sym.c_name;
 			}
 		}
 
@@ -244,13 +242,11 @@ impl BodyPass {
 			?: self.symtab.lookup_struct_const(struct_name, "KIND");
 	}
 
-	// Name of the field a pattern reads the tag from, or "" when the struct has
-	// none of the accepted spellings.
+	// Name of the field a pattern reads the tag from: `tag` (the documented
+	// convention) or `kind` (what AstNode uses). "" when neither exists.
 	fn tag_field_name_of(var self, base_s: *StructType): str {
 		for (f in base_s.fields) {
-			if (f.name == "tag" || f.name == "TAG" || f.name == "kind" || f.name == "kind_") {
-				return f.name;
-			}
+			if (f.name == "tag" || f.name == "kind") return f.name;
 		}
 		return "";
 	}
@@ -260,13 +256,6 @@ impl BodyPass {
 			if (f.name == name) return f.type_ptr;
 		}
 		return null;
-	}
-
-	fn struct_has_field(var self, base_s: *StructType, name: str): bool {
-		for (f in base_s.fields) {
-			if (f.name == name) return true;
-		}
-		return false;
 	}
 
 	pub fn check_is_expr(var self, node: *AstNode): *Type {

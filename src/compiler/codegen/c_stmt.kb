@@ -622,12 +622,7 @@ impl CCodeGen {
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&(${var_name})->${is_e.payload_path});";
 				}
-				if (is_e.has_data && !is_e.base_c_name.empty()) {
-					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(((${is_e.base_c_name}*)${var_name})->data);";
-				} else {
-					return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
-				}
+				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 			} else {
 				if (!is_e.payload_path.empty()) {
 					if (is_e.payload_ptr) return "${target_name}* ${bound_name} = (${var_name}).${is_e.payload_path};";
@@ -646,15 +641,9 @@ impl CCodeGen {
 						"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)(${bound});";
 			}
 			if (is_ptr) {
-				if (is_e.has_data && !is_e.base_c_name.empty()) {
-					return "void* __orig_${var_name} = (void*)${var_name};"
-							"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)"
-							"(((${is_e.base_c_name}*)__orig_${var_name})->data);";
-				} else {
-					return "void* __orig_${var_name} = (void*)${var_name};"
-							"\n${next_ind}${target_name}* ${var_name} = "
-							"(${target_name}*)__orig_${var_name};";
-				}
+				return "void* __orig_${var_name} = (void*)${var_name};"
+						"\n${next_ind}${target_name}* ${var_name} = "
+						"(${target_name}*)__orig_${var_name};";
 			} else {
 				return "void* __orig_${var_name} = (void*)&${var_name};"
 						"\n${next_ind}${target_name}* ${var_name} = "
