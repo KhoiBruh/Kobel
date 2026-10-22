@@ -59,15 +59,10 @@ pub struct AstNode {
 	pub line: usz,
 	pub col: usz,
 	pub data: *u8,
-	// Resolved semantic type of an expression, filled in by sema and read by
-	// codegen. Keeping it on the node means the backend never has to re-derive
-	// a type from the node's shape or from variable names. Null on declarations
-	// and on nodes that desugaring synthesises.
-	pub resolved_type: *AstNode = null,
-	// The same type as the compiler's own `*Type` (untyped here so `ast` stays a
-	// leaf module). Passes that need struct fields, sizes or method tables read
-	// this one; codegen keeps using `resolved_type`.
-	pub sema_type: *u8 = null,
+	// Resolved semantic type of an expression (the compiler's `*Type`, kept
+	// untyped so `ast` stays a leaf). Sema fills it; codegen and `lower` read it.
+	// Null on declarations and on nodes that desugaring synthesises.
+	pub type_ptr: *u8 = null,
 	// Method or operator the checker picked for this node (`*MethodInfo`, again
 	// untyped). `lower` needs it to spell the C call without repeating the
 	// overload/trait resolution the checker already did.

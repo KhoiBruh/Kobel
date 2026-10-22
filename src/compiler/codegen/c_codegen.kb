@@ -12,6 +12,10 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
+use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
+use compiler.codegen.c_type.*;
+
 // ============================================================================
 // C99 Backend Code Generator
 // ============================================================================
@@ -118,66 +122,6 @@ impl CCodeGen {
 }
 
 pub fn get_indent(level: usz): str => "    ".repeat(level);
-
-// ============================================================================
-// Type Mapping (Kobel -> C99 Standard Types)
-// ============================================================================
-
-pub fn c_type_from_ast(node: *AstNode): str {
-	if (node == null) return "void";
-
-	return when (node) {
-		is NamedType as named -> {
-			val name = named.name;
-
-			yield when (name) {
-				"none" -> "void";
-				"bool" -> "bool";
-				"char" -> "char";
-				"i8" -> "int8_t";
-				"i16" -> "int16_t";
-				"i32" -> "int32_t";
-				"i64" -> "int64_t";
-				"isz" -> "intptr_t";
-				"u8" -> "uint8_t";
-				"u16" -> "uint16_t";
-				"u32" -> "uint32_t";
-				"u64" -> "uint64_t";
-				"usz" -> "size_t";
-				"f32" -> "float";
-				"f64" -> "double";
-				"str" -> "const char*";
-				else -> name;
-			};
-		}
-
-		is PointerType as ptr -> {
-			val sub = c_type_from_ast(ptr.pointee);
-			if (ptr.is_mut) return sub + "*";
-
-			val pointee = ptr.pointee;
-			if (pointee is NamedType as named) {
-				// `str` and `*char` stay const so string literals and `.c_str()`
-				// results can be passed. Other read-only pointers are emitted as
-				// plain pointers: the language does not enforce const-correctness
-				// and the compiler's own source writes through `*T`.
-				if (named.name == "str") yield "${sub}*";
-				if (named.name == "char") yield "const ${sub}*";
-			}
-
-			yield "${sub}*";
-		}
-
-		is ArrayType as arr -> {
-			val sub = c_type_from_ast(arr.element_type);
-			yield "${sub}*";
-		}
-
-		is NullableType as null_t ->  c_type_from_ast(null_t.inner);
-
-		else -> "void*";
-	};
-}
 
 pub fn c_format_int_literal(raw: str): str {
 	// The suffix is stripped through `num_suffix` so a hex digit is never taken for
@@ -551,9 +495,9 @@ impl CCodeGen {
 	// names. Empty for nodes that desugaring synthesised and were never checked.
 	pub fn c_type_of(val self, expr: *AstNode): str {
 		if (expr == null) return "";
-		val ann = expr.resolved_type;
-		if (ann == null) return "";
-		return c_type_from_ast(ann);
+		val ty = expr.type_ptr as *Type;
+		if (ty == null) return "";
+		return c_type_from_type(ty);
 	}
 
 	// Same, with a fallback for synthesised nodes.
@@ -567,9 +511,9 @@ impl CCodeGen {
 	// value itself, while a struct value has to be addressed.
 	fn is_pointer_value(val self, node: *AstNode): bool {
 		if (node == null) return false;
-		val ann = node.resolved_type;
-		if (ann == null) return false;
-		return ann.kind == NodeKind.TYPE_POINTER || ann.kind == NodeKind.TYPE_NULLABLE;
+		val ty = node.type_ptr as *Type;
+		if (ty == null) return false;
+		return ty.kind == DataType.POINTER;
 	}
 
 }

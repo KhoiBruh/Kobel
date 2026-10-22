@@ -7,7 +7,7 @@ mod compiler.sema.lower;
 // resolved type. It rewrites sugar into forms the C backend can emit directly
 // and **returns replacement nodes** instead of mutating a node's kind in place.
 //
-// The checker leaves decisions on the nodes it checks (`sema_type`, the bound
+// The checker leaves decisions on the nodes it checks (`type_ptr`, the bound
 // `resolved_method`, a resolved `resolved_node`); this pass is the only one that
 // installs replacements. Rules: string/array members (`len`/`size`/`data`),
 // `str.slice`, string operators (`+`, `==`, `!=`, `+=`), string interpolation,
@@ -185,8 +185,7 @@ impl BodyPass {
 	// A replacement keeps the value's type, which the checker already stored on
 	// the original node; the backend reads it from the node it now sees.
 	fn lowered(var self, original: *AstNode, replacement: *AstNode): *AstNode {
-		replacement.resolved_type = original.resolved_type;
-		replacement.sema_type = original.sema_type;
+		replacement.type_ptr = original.type_ptr;
 		return replacement;
 	}
 
@@ -269,8 +268,7 @@ impl BodyPass {
 		if (asgn.op != TokenType.PLUS_EQUAL) return node;
 		if (!self.is_str_expr(asgn.target)) return node;
 		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
-		cat.resolved_type = node.resolved_type;
-		cat.sema_type = node.sema_type;
+		cat.type_ptr = node.type_ptr;
 		asgn.value = cat;
 		asgn.op = TokenType.EQUAL;
 		return node;
@@ -449,7 +447,7 @@ impl BodyPass {
 		var cur = node;
 		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.to<GroupExpr>().expr;
 		if (cur == null) return null;
-		return cur.sema_type as *Type;
+		return cur.type_ptr as *Type;
 	}
 
 	fn is_str_expr(var self, node: *AstNode): bool {
