@@ -72,14 +72,51 @@ impl CCodeGen {
 		}
 		sb += "\n\n";
 
-		// 3. Struct definitions (and the struct shape of a payload enum)
+		// 3. Struct bodies, in dependency order: a by-value field needs its struct
+		// complete first, and a monomorphized instance may embed a struct that is
+		// declared later in the program. A payload enum emits its variant structs
+		// together with its tag/union struct, and may itself be embedded by value.
+		var items = List<*AstNode>();
 		for (decl in prog) {
 			if (decl_is_template(decl)) continue;
 			if (decl is StructDecl as s) {
-				sb += self.gen_struct_decl(s);
+				if (!s.is_forward) items += decl;
 			} else if (decl is EnumDecl as e) {
-				sb += self.gen_payload_enum(e);
+				if (self.enum_has_payload(e)) items += decl;
 			}
+		}
+		var order = List<*AstNode>();
+		var emitted = List<str>();
+		while (!items.empty()) {
+			var next = List<*AstNode>();
+			var progressed = false;
+			for (item in items) {
+				val item_name = self.body_item_name(item);
+				var ready = true;
+				val deps = self.body_item_deps(item);
+				for (dep in deps) {
+					if (dep.empty() || dep == item_name) continue;
+					if (self.list_has_name(emitted, dep)) continue;
+					if (self.item_name_exists(items, dep)) ready = false;
+				}
+				if (ready) {
+					order += item;
+					emitted += item_name;
+					progressed = true;
+				} else {
+					next += item;
+				}
+			}
+			if (!progressed) {
+				// A by-value cycle cannot exist in C; keep the program order.
+				for (item in next) order += item;
+				break;
+			}
+			items = next;
+		}
+		for (item in order) {
+			if (item is StructDecl as s) sb += self.gen_struct_decl(s);
+			else if (item is EnumDecl as e) sb += self.gen_payload_enum(e);
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
@@ -134,6 +171,45 @@ impl CCodeGen {
 	}
 	return "";
 }
+
+	// C name of the struct a field embeds by value ("" for pointers, arrays and
+	// primitives): such a struct must be emitted before the field's owner.
+	fn by_value_struct_name(val self, node: *AstNode): str {
+		if (node == null) return "";
+		if (node.kind != NodeKind.TYPE_NAMED) return "";
+		return node.as_named_type().name;
+	}
+
+	fn list_has_name(val self, names: List<str>, name: str): bool {
+		for (n in names) if (n == name) return true;
+		return false;
+	}
+
+	fn body_item_name(val self, item: *AstNode): str {
+		if (item is StructDecl as s) return s.name;
+		if (item is EnumDecl as e) return e.name;
+		return "";
+	}
+
+	// Names a body item needs complete before it can be emitted.
+	fn body_item_deps(val self, item: *AstNode): List<str> {
+		var deps = List<str>();
+		if (item is StructDecl as s) {
+			for (f in s.fields) deps += self.by_value_struct_name(f.type_node);
+		} else if (item is EnumDecl as e) {
+			for (m in e.members) {
+				for (f in m.payload) deps += self.by_value_struct_name(f.type_node);
+			}
+		}
+		return deps;
+	}
+
+	fn item_name_exists(val self, items: List<*AstNode>, name: str): bool {
+		for (item in items) {
+			if (self.body_item_name(item) == name) return true;
+		}
+		return false;
+	}
 
 	pub fn gen_struct_decl(var self, s: *StructDecl): str {
 		// The definition carries the fields; a forward declaration only

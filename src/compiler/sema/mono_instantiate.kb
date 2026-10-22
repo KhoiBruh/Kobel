@@ -19,6 +19,7 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.decl.StructField as AstStructField;
 use compiler.ast.builder.*;
 use compiler.sema.symbol.*;
 
@@ -34,21 +35,51 @@ use compiler.sema.monomorphize.*;
 
 impl DeclPass {
 
+	// Instantiation is parameterised by *types*: the template's field types are
+	// resolved with its type parameters bound to the argument types, which builds
+	// the instance's `StructType` directly. No AST clone is made and the template
+	// AST is never rewritten; a thin `StructDecl` view is emitted only so the C
+	// backend can print the struct.
 	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
 		self.check_bounds(tmpl, arg_asts);
 
+		var args = List<*Type>();
+		for (a in arg_asts) args += self.resolve_ast_type(a);
+
 		val base = tmpl.module.mangle_symbol(tmpl.name);
-		val cname = "${base}_${self.type_token_list(arg_asts)}";
+		val cname = "${base}_${self.type_token_list_of(args)}";
 
 		val existing = self.find_inst(cname);
 		if (existing != null) return existing.type_ptr;
 
+		val decl = tmpl.node.as_struct_decl();
 		val prev_mod = self.enter_module(tmpl.module);
 
-		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
+		val s_type = self.arena.struct_type(cname, List<StructField>());
+		s_type.as_struct_mut().c_name = cname;
+		// A monomorphized instance belongs to the module that declared its template.
+		s_type.as_struct_mut().module = tmpl.module;
+		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(
+			cname, cname, SymbolKind.STRUCT, s_type, false, decl.is_pub,
+			tmpl.node.line, tmpl.node.col, tmpl.node
+		)));
 
-		val sclone = self.clone_struct(tmpl.node, subst, cname);
-		self.collect_struct_as(sclone, cname, tmpl.module);
+		val mark = self.subst_names.len;
+		self.push_subst(tmpl.param_names(), args);
+
+		var has_private = false;
+		var fields = List<StructField>();
+		for (f in decl.fields) {
+			val f_type = self.resolve_ast_type(f.type_node);
+			fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val);
+			if (!f.is_pub) has_private = true;
+		}
+
+		self.pop_subst(mark);
+
+		for (f in fields) s_type.as_struct_mut().fields += f;
+		s_type.as_struct_mut().has_private = has_private;
+		s_type.layout_struct();
 
 		// A generic type may have several `impl` blocks (an inherent one plus any
 		// number of trait impls), so instantiate every matching template.
@@ -61,12 +92,58 @@ impl DeclPass {
 			self.queue_decl(impl_tmpl.module, iclone);
 		}
 
-		self.queue_decl(tmpl.module, sclone);
+		self.queue_decl(tmpl.module, self.struct_decl_view(cname, fields, decl.is_pub, tmpl.node.line, tmpl.node.col));
 
 		self.leave_module(prev_mod);
 
 		val sym = self.find_inst(cname) ?: return self.t_none();
 		return sym.type_ptr;
+	}
+
+	// The C backend walks declarations, so each instance gets a declaration view
+	// whose field types are the resolved ones (never the template's `T`).
+	fn struct_decl_view(var self, name: str, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode {
+		var ast_fields = List<AstStructField>();
+		for (f in fields) {
+			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.is_pub, f.default_val);
+		}
+		return self.struct_decl(name, List<GenericParam>(), ast_fields, is_pub, line, col);
+	}
+
+	// Binds type-parameter names to argument types for `resolve_ast_type`.
+	fn push_subst(var self, names: List<str>, args: List<*Type>) {
+		for (i in 0..<names.len) {
+			self.subst_names += names[i];
+			if (i < args.len) self.subst_types += args[i];
+			else self.subst_types += self.t_none();
+		}
+	}
+
+	fn pop_subst(var self, mark: usz) {
+		while (self.subst_names.len > mark) {
+			self.subst_names.pop();
+			self.subst_types.pop();
+		}
+	}
+
+	// Name token for a resolved type argument, based on its mangled C name.
+	fn canonical_type_token(val self, ty: *Type): str {
+		if (ty.is_enum()) return ty.as_enum().c_name;
+		if (ty.kind == DataType.STRUCT) {
+			val s_info = ty.as_struct();
+			if (!s_info.c_name.empty()) return s_info.c_name;
+			return s_info.name;
+		}
+		return self.type_token(ty);
+	}
+
+	fn type_token_list_of(val self, args: List<*Type>): str {
+		var res = "";
+		for (i in 0..<args.len) {
+			res = if (i > 0) "${res}_${self.canonical_type_token(args[i])}"
+			else self.canonical_type_token(args[i]);
+		}
+		return res;
 	}
 
 	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
@@ -93,24 +170,6 @@ impl DeclPass {
 		return cname;
 	}
 
-	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
-		val s = node.as_struct_decl() as &StructDecl;
-		val s_type = self.arena.struct_type(final_name, List<StructField>());
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node)));
-		s.name = final_name;
-
-		var has_private = false;
-		for (f in s.fields) {
-			val f_type = self.resolve_ast_type(f.type_node);
-			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val);
-			if (!f.is_pub) has_private = true;
-		}
-		val st_info = s_type.as_struct_mut();
-		// A monomorphized instance belongs to the module that declared its template.
-		st_info.module = module;
-		st_info.has_private = has_private;
-		s_type.layout_struct();
-	}
 
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
 		val f = node.as_fn_decl() as &FnDecl;

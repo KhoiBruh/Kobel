@@ -421,15 +421,6 @@ impl DeclPass {
 		return clone;
 	}
 
-	pub fn clone_struct(var self, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
-		val s = node.as_struct_decl();
-		var fields = List<AstStructField>();
-		for (f in s.fields) {
-			val dflt = if (f.default_val != null) self.clone_expr(f.default_val, subst) else null;
-			fields += AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub, dflt);
-		}
-		return self.struct_decl(new_name, List<GenericParam>(), fields, s.is_pub, node.line, node.col);
-	}
 
 	pub fn clone_impl(var self, node: *AstNode, subst: *GenSubst, new_struct_name: str): *AstNode {
 		val im = node.as_impl_decl();

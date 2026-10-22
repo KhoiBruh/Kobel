@@ -17,6 +17,7 @@ use compiler.ast.decl.*;
 use compiler.ast.builder.*;
 use compiler.sema.symbol.*;
 use compiler.sema.monomorphize.*;
+use compiler.sema.desugar_interp.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
@@ -56,6 +57,11 @@ pub struct DeclPass {
 	// Currently collecting declarations inside the `extern "libc" { ... }` block
 	pub is_extern: bool = false,
 	pub current_self_type: *Type = null,
+	// Type-parameter substitution while instantiating a generic struct: a type
+	// parameter name resolves to the corresponding argument *Type. This is the
+	// parameterised part of instantiation - the template AST is never rewritten.
+	pub subst_names: List<str> = List<str>(),
+	pub subst_types: List<*Type> = List<*Type>(),
 	pub current_fn_return_type: *AstNode = null
 }
 
@@ -336,6 +342,12 @@ impl DeclPass {
 			is NamedType as var named -> {
 				val name = named.name;
 
+				// Inside an instantiation a type parameter resolves to its argument.
+				// The node is left untouched: template AST nodes are shared.
+				for (i in 0..<self.subst_names.len) {
+					if (self.subst_names[i] == name) yield self.subst_types[i];
+				}
+
 				if (name == "Self" && self.current_self_type != null) {
 					val sinfo = self.current_self_type.as_struct();
 					if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
@@ -376,8 +388,12 @@ impl DeclPass {
 					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
-						named.name = cty.as_struct().name;
-						named.type_args = List<*AstNode>();
+						// A template's annotation is shared with every instance, so it is
+						// only rewritten when it belongs to a concrete declaration.
+						if (self.subst_names.empty()) {
+							named.name = cty.as_struct().name;
+							named.type_args = List<*AstNode>();
+						}
 						yield cty;
 					}
 				}
