@@ -92,6 +92,14 @@ impl CCodeGen {
 
 			is IsExpr -> self.gen_is_expr(node);
 
+			// A struct value built from its fields: `(Point){ 1, 2 }`.
+			is StructCtorExpr -> {
+				var ctor_args = List<str>();
+				for (a in node.args) ctor_args += self.gen_expr(a);
+				val joined = ", ".join(ctor_args);
+				yield "(${node.c_name}){ ${joined} }";
+			}
+
 			else -> "";
 		};
 	}
@@ -210,15 +218,9 @@ impl CCodeGen {
 
 		val callee_str = self.gen_expr(call.callee);
 
-		// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
-		var is_struct = false;
-		if (callee is IdentifierExpr as id) is_struct = self.is_struct_name(id.name);
-
 		var args_str = List<str>();
 		for (arg in call.args) args_str += self.gen_expr(arg);
 		val joined_args = ", ".join(args_str);
-
-		if (is_struct) return "(${callee_str}){ ${joined_args} }";
 
 		// Ordinary C function call: func(arg1, arg2)
 		return "${callee_str}(${joined_args})";

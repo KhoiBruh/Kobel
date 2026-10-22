@@ -51,7 +51,10 @@ pub enum NodeKind {
 	DECL_CONST,
 	DECL_EXTERN_BLOCK,
 	PROGRAM,
-	EXPR_IS
+	EXPR_IS,
+	// A struct value built from its fields, e.g. `Point(1, 2)` -> `(Point){1, 2}`.
+	// Never produced by the parser: sema creates it when construction is resolved.
+	EXPR_STRUCT_CTOR
 }
 
 pub struct AstNode {

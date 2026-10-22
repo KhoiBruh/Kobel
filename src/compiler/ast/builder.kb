@@ -54,6 +54,10 @@ impl Arena {
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz)
 		=> self.make<CallExpr>(CallExpr.TAG, CallExpr(callee, args, type_args), line, col);
 
+	// A struct value built from its fields (`Point(1, 2)`), created by sema.
+	pub fn struct_ctor(var self, c_name: str, args: List<*AstNode>, line: usz, col: usz)
+		=> self.make<StructCtorExpr>(StructCtorExpr.TAG, StructCtorExpr(c_name, args), line, col);
+
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
 		=> self.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
 

@@ -134,3 +134,12 @@ pub struct IsExpr {
 	pub is_ptr: bool = false,
 	pub is_mut: bool = false
 }
+
+// A struct value built from its fields: `Point(1, 2)` when the type has no
+// matching `new` (or `Self(...)`, which always builds raw). Sema creates this
+// node so the backend never has to guess a constructor from the callee's name.
+pub struct StructCtorExpr {
+	pub const TAG = NodeKind.EXPR_STRUCT_CTOR;
+	pub c_name: str,
+	pub args: List<*AstNode> = List()
+}

@@ -306,6 +306,10 @@ impl BodyPass {
 				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor");
 			}
 		}
+
+		// Field construction becomes an explicit struct-literal node, so the backend
+		// no longer recognises a constructor by the callee's name.
+		node.resolved_node = self.arena.struct_ctor(s_info.c_name, call.args, node.line, node.col);
 		return callee_ty;
 	}
 

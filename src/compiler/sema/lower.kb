@@ -166,6 +166,9 @@ impl BodyPass {
 				out = self.lower_interp(node, ip);
 			}
 			is IsExpr as var ise -> ise.expr = self.lower_expr(ise.expr);
+			is StructCtorExpr as var sc -> {
+				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
+			}
 			else -> {}
 		}
 		return out;
