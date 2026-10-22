@@ -1,0 +1,342 @@
+mod compiler.sema.mono_rewrite;
+
+// ============================================================================
+// Generic Syntax Rewriting
+//
+// Rewriting generic syntax in place after collection: `f<X>(...)`,
+// `Struct<X>` type nodes and `T.size()` are replaced by their instantiated
+// counterparts before any body is checked.
+// ============================================================================
+
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
+use compiler.lexer.token.TokenType;
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+use compiler.ast.builder.*;
+use compiler.sema.symbol.*;
+
+use compiler.sema.types.DataType;
+use compiler.sema.types.Type;
+use compiler.sema.types.StructField;
+use compiler.sema.types.type_none;
+use compiler.sema.types.MethodInfo;
+
+use compiler.sema.decl_pass.*;
+use compiler.ast.decl.StructField as AstStructField;
+use compiler.sema.monomorphize.*;
+
+impl DeclPass {
+
+	// Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
+	// to a call expression initializer without type arguments (e.g. `List()`).
+	pub fn propagate_target_type(var self, target_type_node: *AstNode, init_node: *AstNode) {
+		if (target_type_node == null || init_node == null) return;
+		if (target_type_node is NamedType as nt) {
+			var cur = init_node;
+			while (cur != null) {
+				if (cur is GroupExpr as g) cur = g.expr;
+				else break;
+			}
+			if (cur == null) return;
+
+			when (cur) {
+				is CallExpr as call -> {
+					val callee = call.callee;
+					if (callee is IdentifierExpr as cid) {
+						if (call.type_args.empty()) {
+							if (nt.type_args.len > 0) {
+								if (cid.name == nt.name) {
+									var new_targs = List<*AstNode>();
+									for (ta in nt.type_args) new_targs += ta;
+									val call_mut = call as &CallExpr;
+									call_mut.type_args = new_targs;
+								}
+							} else {
+								val tmpl = self.find_struct_template(cid.name);
+								if (tmpl != null) {
+									val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
+									if (nt.name.starts_with(prefix)) {
+										val cid_mut = cid as &IdentifierExpr;
+										cid_mut.name = nt.name;
+									}
+								}
+							}
+						}
+					}
+				}
+				is IfExpr as ife -> {
+					self.propagate_target_type(target_type_node, ife.then_branch);
+					self.propagate_target_type(target_type_node, ife.else_branch);
+				}
+				is WhenExpr as we -> {
+					for (arm in we.arms) {
+						self.propagate_target_type(target_type_node, arm.body);
+					}
+				}
+				else -> {}
+			}
+		}
+	}
+
+	// ----------------------------------------------------------------------------
+	// Generic-use rewriting over non-template declarations
+	// ----------------------------------------------------------------------------
+
+	pub fn rewrite_generics(var self, node: *AstNode) {
+		if (node == null) return;
+		if (self.rewrite_type_generics(node)) return;
+		if (self.rewrite_expr_generics(node)) return;
+		if (self.rewrite_stmt_generics(node)) return;
+		self.rewrite_decl_generics(node);
+	}
+
+	// Rewrite a child node and report the parent as handled.
+	fn rewrite_child(var self, child: *AstNode): bool {
+		self.rewrite_generics(child);
+		return true;
+	}
+
+	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
+	// argument list rewritten element by element.
+	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
+		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node),
+		NodeKind.TYPE_POINTER -> self.rewrite_child(node.to<PointerType>().pointee),
+		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.to<ArrayType>().element_type),
+		else -> false
+	};
+
+	fn rewrite_named_type(var self, node: *AstNode): bool {
+		val nt = node.to<NamedType>() as &NamedType;
+		if (nt.type_args.len > 0) {
+			val tmpl = self.find_struct_template(nt.name);
+			if (tmpl != null) {
+				val cty = self.instantiate_struct(tmpl, nt.type_args);
+				nt.name = cty.as_struct().name;
+				nt.type_args = List<*AstNode>();
+				return true;
+			}
+		}
+		for (ta in nt.type_args) self.rewrite_generics(ta);
+		return true;
+	}
+
+	// The callee of a call carrying type arguments: a method template takes the
+	// receiver as its first argument, and a template name is replaced by the
+	// instantiated (mangled) one.
+	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
+		if (c.type_args.len == 0) return;
+		val callee = c.callee;
+		if (callee is MemberExpr as mem) {
+			val ft = self.find_method_template(mem.member);
+			if (ft != null) {
+				val mem_obj = mem.object;
+				val cname = self.instantiate_fn(ft, c.type_args);
+				c.callee = self.identifier(cname, node.line, node.col);
+				c.args.insert(0, mem_obj);
+				c.type_args = List<*AstNode>();
+			}
+		}
+
+		if (callee is IdentifierExpr as cid) {
+			val ft = self.find_fn_template(cid.name);
+			if (ft != null) {
+				val cname = self.instantiate_fn(ft, c.type_args);
+				val cid_mut = cid as &IdentifierExpr;
+				cid_mut.name = cname;
+				c.type_args = List<*AstNode>();
+			} else {
+				val st = self.find_struct_template(cid.name);
+				if (st != null) {
+					val cty = self.instantiate_struct(st, c.type_args);
+					val cid_mut = cid as &IdentifierExpr;
+					cid_mut.name = cty.as_struct().name;
+					c.type_args = List<*AstNode>();
+				}
+			}
+		}
+	}
+
+	fn rewrite_expr_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is CallExpr as c -> {
+				val c_mut = c as &CallExpr;
+				self.rewrite_call_target(node, c_mut);
+				self.rewrite_generics(c.callee);
+				for (a in c.args) self.rewrite_generics(a);
+				yield true;
+			}
+			is BinaryExpr as b -> {
+				self.rewrite_generics(b.left);
+				self.rewrite_generics(b.right);
+				yield true;
+			}
+			is UnaryExpr as u -> self.rewrite_child(u.operand),
+			is MemberExpr as m -> self.rewrite_child(m.object),
+			is IndexExpr as ix -> {
+				self.rewrite_generics(ix.target);
+				self.rewrite_generics(ix.index);
+				yield true;
+			}
+			is AssignExpr as a -> {
+				self.rewrite_generics(a.target);
+				self.rewrite_generics(a.value);
+				yield true;
+			}
+			is UpdateExpr as u -> self.rewrite_child(u.target),
+			is CastExpr as cst -> {
+				self.rewrite_generics(cst.expr);
+				self.rewrite_generics(cst.target_type);
+				yield true;
+			}
+			is GroupExpr as g -> self.rewrite_child(g.expr),
+			is IfExpr as ie -> {
+				self.rewrite_generics(ie.condition);
+				self.rewrite_generics(ie.then_branch);
+				self.rewrite_generics(ie.else_branch);
+				yield true;
+			}
+			is ArrayLiteralExpr as al -> {
+				for (e in al.elements) self.rewrite_generics(e);
+				yield true;
+			}
+			is WhenExpr as we -> {
+				self.rewrite_generics(we.condition);
+				for (arm in we.arms) {
+					for (pat in arm.patterns) self.rewrite_generics(pat);
+					self.rewrite_generics(arm.body);
+				}
+				yield true;
+			}
+			is InterpExpr as ie -> {
+				for (part in ie.parts) self.rewrite_generics(part.expr);
+				yield true;
+			}
+			is IsExpr as is_e -> {
+				if (is_e.expr != null) self.rewrite_generics(is_e.expr);
+				self.rewrite_generics(is_e.target_type);
+				yield true;
+			}
+			else -> false;
+		};
+	}
+
+	fn rewrite_stmt_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is BlockStmt as b -> {
+				for (s in b.statements) self.rewrite_generics(s);
+				yield true;
+			}
+			is ExprStmt as e -> self.rewrite_child(e.expr),
+			is VarDeclStmt as v -> {
+				if (v.type_annotation != null && v.initializer != null) {
+					self.propagate_target_type(v.type_annotation, v.initializer);
+				}
+				self.rewrite_generics(v.type_annotation);
+				self.rewrite_generics(v.initializer);
+				yield true;
+			}
+			is IfStmt as s -> {
+				self.rewrite_generics(s.condition);
+				self.rewrite_generics(s.then_branch);
+				self.rewrite_generics(s.else_branch);
+				yield true;
+			}
+			is WhileStmt as w -> {
+				self.rewrite_generics(w.condition);
+				self.rewrite_generics(w.body);
+				yield true;
+			}
+			is ForStmt as f -> {
+				self.rewrite_generics(f.iterable);
+				self.rewrite_generics(f.range_start);
+				self.rewrite_generics(f.range_end);
+				self.rewrite_generics(f.body);
+				yield true;
+			}
+			is ReturnStmt as r -> {
+				if (r.value != null && self.current_fn_return_type != null) {
+					self.propagate_target_type(self.current_fn_return_type, r.value);
+				}
+				self.rewrite_generics(r.value);
+				yield true;
+			}
+			is YieldStmt as y -> self.rewrite_child(y.value),
+			is DeferStmt as d -> self.rewrite_child(d.body),
+			is WhenStmt as w -> {
+				self.rewrite_generics(w.condition);
+				for (arm in w.arms) {
+					for (pat in arm.patterns) self.rewrite_generics(pat);
+					self.rewrite_generics(arm.body);
+				}
+				yield true;
+			}
+			else -> false;
+		};
+	}
+
+	fn rewrite_decl_generics(var self, node: *AstNode): bool {
+		val cur = node;
+		return when (cur) {
+			is StructDecl as s -> {
+				for (fld in s.fields) {
+					if (fld.type_node != null && fld.default_val != null) {
+						self.propagate_target_type(fld.type_node, fld.default_val);
+					}
+					self.rewrite_generics(fld.type_node);
+					if (fld.default_val != null) self.rewrite_generics(fld.default_val);
+				}
+				yield true;
+			}
+			is FnDecl as f -> {
+				for (p in f.params) {
+					if (p.type_node != null && p.default_val != null) {
+						self.propagate_target_type(p.type_node, p.default_val);
+					}
+					self.rewrite_generics(p.type_node);
+					if (p.default_val != null) self.rewrite_generics(p.default_val);
+				}
+				self.rewrite_generics(f.return_type);
+				val prev_ret = self.current_fn_return_type;
+				self.current_fn_return_type = f.return_type;
+				if (f.body is ExprStmt as es && f.return_type != null) {
+					self.propagate_target_type(f.return_type, es.expr);
+				}
+				self.rewrite_generics(f.body);
+				self.current_fn_return_type = prev_ret;
+				yield true;
+			}
+			is ImplDecl as im -> {
+				for (m in im.methods) {
+					if (m is FnDecl as f && f.type_params.len > 0) continue;
+					self.rewrite_generics(m);
+				}
+				yield true;
+			}
+			is ConstDecl as c -> {
+				if (c.type_node != null && c.value != null) {
+					self.propagate_target_type(c.type_node, c.value);
+				}
+				self.rewrite_generics(c.type_node);
+				self.rewrite_generics(c.value);
+				yield true;
+			}
+			is ExternBlock as ext -> {
+				for (d in ext) self.rewrite_generics(d);
+				yield true;
+			}
+			else -> false;
+		};
+	}
+
+
+}

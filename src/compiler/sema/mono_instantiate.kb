@@ -1,0 +1,121 @@
+mod compiler.sema.mono_instantiate;
+
+// ============================================================================
+// Generic Instantiation
+//
+// Instantiation of a template: substitute its type parameters, name the C
+// symbol, register it and queue the clone for body checking.
+// ============================================================================
+
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
+use compiler.lexer.token.TokenType;
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+use compiler.ast.builder.*;
+use compiler.sema.symbol.*;
+
+use compiler.sema.types.DataType;
+use compiler.sema.types.Type;
+use compiler.sema.types.StructField;
+use compiler.sema.types.type_none;
+use compiler.sema.types.MethodInfo;
+
+use compiler.sema.decl_pass.*;
+use compiler.ast.decl.StructField as AstStructField;
+use compiler.sema.monomorphize.*;
+
+impl DeclPass {
+
+	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
+		self.check_bounds(tmpl, arg_asts);
+
+		val base = tmpl.module.mangle_symbol(tmpl.name);
+		val cname = "${base}_${self.type_token_list(arg_asts)}";
+
+		val existing = self.find_inst(cname);
+		if (existing != null) return existing.type_ptr;
+
+		val prev_mod = self.enter_module(tmpl.module);
+
+		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
+
+		val sclone = self.clone_struct(tmpl.node, subst, cname);
+		self.collect_struct_as(sclone, cname, tmpl.module);
+
+		// A generic type may have several `impl` blocks (an inherent one plus any
+		// number of trait impls), so instantiate every matching template.
+		for (impl_tmpl in self.symtab.gen.impl_templates) {
+			if (impl_tmpl.name != tmpl.name) continue;
+			self.enter_module(impl_tmpl.module);
+			val isubst = self.alloc_subst(impl_tmpl.param_names(), arg_asts);
+			val iclone = self.clone_impl(impl_tmpl.node, isubst, cname);
+			self.collect_impl(iclone);
+			self.queue_decl(impl_tmpl.module, iclone);
+		}
+
+		self.queue_decl(tmpl.module, sclone);
+
+		self.leave_module(prev_mod);
+
+		val sym = self.find_inst(cname) ?: return self.t_none();
+		return sym.type_ptr;
+	}
+
+	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
+		self.check_bounds(tmpl, arg_asts);
+
+		val base = tmpl.module.mangle_symbol(tmpl.name);
+		val cname = "${base}_${self.type_token_list(arg_asts)}";
+
+		if (self.find_inst(cname) != null) return cname;
+
+		val prev_mod = self.enter_module(tmpl.module);
+
+		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
+		val fclone = self.clone_fn(tmpl.node, subst, cname);
+		self.collect_fn_as(fclone, cname);
+		self.queue_decl(tmpl.module, fclone);
+
+		self.leave_module(prev_mod);
+		return cname;
+	}
+
+	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
+		val s = node.to<StructDecl>() as &StructDecl;
+		val s_type = self.arena.struct_type(final_name, List<StructField>());
+		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node)));
+		s.name = final_name;
+
+		var has_private = false;
+		for (f in s.fields) {
+			val f_type = self.resolve_ast_type(f.type_node);
+			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val);
+			if (!f.is_pub) has_private = true;
+		}
+		val st_info = s_type.as_struct_mut();
+		// A monomorphized instance belongs to the module that declared its template.
+		st_info.module = module;
+		st_info.has_private = has_private;
+		s_type.layout_struct();
+	}
+
+	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
+		val f = node.to<FnDecl>() as &FnDecl;
+		var param_types = List<*Type>();
+		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
+
+		val fn_type = self.arena.fn_type(param_types, ret_type);
+		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
+		f.name = final_name;
+	}
+
+}
