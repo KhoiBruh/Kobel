@@ -92,10 +92,7 @@ impl Arena {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts += s;
 				stmts += self.continue_stmt(node.line, node.col);
-				val blk = self.block_stmt(stmts, node.line, node.col);
-				val n = node as &AstNode;
-				n.kind = NodeKind.STMT_BLOCK;
-				n.data = blk.data;
+				node.resolved_node = self.block_stmt(stmts, node.line, node.col);
 			}
 			else -> {}
 		}
@@ -236,9 +233,10 @@ impl Arena {
 		return self.for_id("__for_go", line, col);
 	}
 
-	// Lowers `node` (a STMT_FOR) in place into a block holding hidden locals plus a
-	// while-loop, so every later pass sees an ordinary block.
-	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool) {
+	// Builds the block that replaces a STMT_FOR: hidden locals plus a while-loop.
+	// The checker stores it as `resolved_node` and checks that block directly;
+	// `lower` installs it, so nothing swaps a node's kind here.
+	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool): *AstNode {
 		val line = node.line;
 		val col = node.col;
 
@@ -265,10 +263,7 @@ impl Arena {
 
 		pre += self.while_stmt(cond, self.block_stmt(body_stmts, line, col), line, col);
 
-		val blk = self.block_stmt(pre, line, col);
-		val n = node as &AstNode;
-		n.kind = NodeKind.STMT_BLOCK;
-		n.data = blk.data;
+		return self.block_stmt(pre, line, col);
 	}
 }
 

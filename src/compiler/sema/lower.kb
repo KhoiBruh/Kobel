@@ -56,6 +56,9 @@ impl BodyPass {
 
 	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
+		// `for` (and the continue step-injection) are built by the checker and
+		// installed here, so a statement node keeps its kind while being checked.
+		if (node.resolved_node != null) return self.lower_stmt(node.resolved_node);
 		when (node) {
 			is BlockStmt as var blk -> {
 				for (i in 0..<blk.statements.len) blk.statements[i] = self.lower_stmt(blk.statements[i]);
