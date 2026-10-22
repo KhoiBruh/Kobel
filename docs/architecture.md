@@ -92,8 +92,12 @@ compiler.ast.builder       ← ast.*, lexer.token, std.list, std.arena
 compiler.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
 compiler.sema.types        ← std.list, std.arena
 compiler.sema.symbol       ← sema.types, ast.node, std.list, std.arena
-compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std   (core + monomorph)
-compiler.sema.decl_collect ← sema.decl_pass, ast.*, ast.builder, sema.{types,symbol}, strutil, std
+compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std   (core)
+compiler.sema.monomorphize ← sema.{types,symbol,decl_pass}, ast.*, std   (template tables, substitution, worklist)
+compiler.sema.mono_instantiate ← monomorphize (instantiate_*, collect_*_as)
+compiler.sema.mono_clone   ← monomorphize (clone_* : AST + type-parameter substitution)
+compiler.sema.mono_rewrite ← monomorphize (rewrite_generics: calls, type nodes, T.size())
+compiler.sema.decl_collect ← sema.{decl_pass,monomorphize,mono_*}, ast.*, ast.builder, sema.{types,symbol}, strutil, std
 compiler.sema.body_pass    ← ast.*, ast.builder, sema.{types,symbol,decl_pass,desugar_*}, lexer.token, std  (core + dispatcher)
 compiler.sema.body_expr    ← body_pass, primaries & operator families
 compiler.sema.body_access  ← body_pass, member/index, lvalue, assignment, indexed write
