@@ -198,7 +198,7 @@ impl DeclPass {
 		// The symbol's type is an integer type that carries the EnumInfo, so enum
 		// values stay usable in arithmetic/comparisons while `.value` is recognized.
 		val carrier = self.arena.alloc<Type>();
-		*carrier = Type(under_type.kind, under_type.size, under_type.align, info as *u8);
+		*carrier = Type(under_type.kind, under_type.size, under_type.align, TypePayload.Enum(info));
 
 		val ok = self.symtab.define_global(
 			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.is_pub, node.line, node.col, node)

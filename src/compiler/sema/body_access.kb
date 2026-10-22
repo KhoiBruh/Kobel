@@ -127,7 +127,7 @@ impl BodyPass {
 				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
 				node.resolved_node = lit;
 				val carrier = self.arena.alloc<Type>();
-				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
+				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei));
 				return carrier;
 			}
 

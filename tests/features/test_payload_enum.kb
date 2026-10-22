@@ -19,6 +19,16 @@ fn area(s: Shape): f64 {
 	};
 }
 
+// An alias binds on a member-expression subject too, not only on a plain name.
+struct Holder { pub shape: Shape }
+
+fn holder_area(h: Holder): f64 {
+	return when (h.shape) {
+		is Shape.Circle as c -> 3.0 * c.radius * c.radius,
+		else -> 0.0
+	};
+}
+
 fn radius_of(p: *Shape): f64 {
 	return when (p) {
 		is Shape.Circle as c -> c.radius,
@@ -57,6 +67,9 @@ fn main(): i32 {
 
 	if (radius_of(&c) != 2.0) return 7;
 	if (radius_of(&r) != 0.0) return 8;
+
+	val h = Holder(c);
+	if (holder_area(h) != 12.0) return 12;
 
 	if (kind_of(c) != 1) return 9;
 	if (kind_of(r) != 2) return 10;

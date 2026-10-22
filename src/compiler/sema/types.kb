@@ -26,11 +26,31 @@ pub enum DataType {
 // (which it lists). Forward declarations exist exactly for this shape.
 struct PrimMethods;
 
+// The payload structs each `Type` kind carries. They are declared first so the
+// payload enum can name them; their definitions follow (and each one points
+// back at `Type`).
+struct PointerType;
+struct ArrayType;
+struct StructType;
+struct FnType;
+struct EnumInfo;
+
+// What a `Type` carries besides kind/size/align. `None` covers primitives, and
+// a payload enum keeps the variant (and its accessors) checked.
+pub enum TypePayload {
+	NONE,
+	Pointer(inner: *PointerType),
+	Array(inner: *ArrayType),
+	Struct(inner: *StructType),
+	Fn(inner: *FnType),
+	Enum(inner: *EnumInfo)
+}
+
 pub struct Type {
 	pub kind: DataType,
 	pub size: usz,
 	pub align: usz,
-	pub data: *u8,
+	pub data: TypePayload,
 	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
 	// type and for primitives built by `type_primitive`, which are not canonical.
 	pub methods: *PrimMethods = null
@@ -231,7 +251,7 @@ impl StructType {
 // Primitive Types Constructors
 // ============================================================================
 
-pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, null);
+pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, TypePayload.NONE);
 
 pub fn type_primitive(kind: DataType): Type {
 	val size: usz = when (kind) {
@@ -250,7 +270,7 @@ pub fn type_primitive(kind: DataType): Type {
 		DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64, DataType.STR -> 8;
 		else -> 8;
 	};
-	return Type(kind, size, align, null);
+	return Type(kind, size, align, TypePayload.NONE);
 }
 
 pub fn type_none() => type_primitive(DataType.NONE);
@@ -331,24 +351,31 @@ impl PrimTypes {
 // ============================================================================
 
 impl Arena {
-	pub fn alloc_type<T>(var self, kind: DataType, size: usz, align: usz, info: T): *Type {
-		val info_ptr = self.alloc_val<T>(info);
-		return self.alloc_val<Type>(Type(kind, size, align, info_ptr as *u8));
+	pub fn type_payload(var self, kind: DataType, size: usz, align: usz, data: TypePayload): *Type {
+		return self.alloc_val<Type>(Type(kind, size, align, data));
 	}
 
 	pub fn primitive_type(var self, base: Type) => self.alloc_val<Type>(base);
 
-	pub fn pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.alloc_type<PointerType>(PointerType.TAG, 8, 8, PointerType(pointee, is_mut, false));
+	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
+		val inner = self.alloc_val<PointerType>(PointerType(pointee, is_mut, false));
+		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
+	}
 
-	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool)
-		=> self.alloc_type<PointerType>(PointerType.TAG, 8, 8, PointerType(pointee, is_mut, true));
+	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
+		val inner = self.alloc_val<PointerType>(PointerType(pointee, is_mut, true));
+		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
+	}
 
-	pub fn array_type(var self, elem: *Type, length: usz)
-		=> self.alloc_type<ArrayType>(ArrayType.TAG, elem.size * length, elem.align, ArrayType(elem, length));
+	pub fn array_type(var self, elem: *Type, length: usz): *Type {
+		val inner = self.alloc_val<ArrayType>(ArrayType(elem, length));
+		return self.type_payload(ArrayType.TAG, elem.size * length, elem.align, TypePayload.Array(inner));
+	}
 
-	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type)
-		=> self.alloc_type<FnType>(FnType.TAG, 8, 8, FnType(param_types, return_type));
+	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type {
+		val inner = self.alloc_val<FnType>(FnType(param_types, return_type));
+		return self.type_payload(FnType.TAG, 8, 8, TypePayload.Fn(inner));
+	}
 
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
 		var max_align: usz = 1;
@@ -370,24 +397,71 @@ impl Arena {
 		val total_rem = current_offset % max_align;
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
-		val struct_info = StructType(name, name, fields, List<*MethodInfo>(), "", false);
-		return self.alloc_type<StructType>(StructType.TAG, current_offset, max_align, struct_info);
+		val struct_info = self.alloc_val<StructType>(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		return self.type_payload(StructType.TAG, current_offset, max_align, TypePayload.Struct(struct_info));
 	}
 }
 
 // ============================================================================
-// Downcasts to the payload variant. These are plain casts on data rather than
-// a generic 	o<T> helper: a generic method named 	o would share that name
-// with AstNode.to<T>, and template lookup is by name, so the two would shadow
-// each other depending on module load order.
+// Payload accessors. A wrong-kind accessor returns null instead of casting an
+// unrelated payload; callers branch on `kind` first.
 impl Type {
-	pub fn as_pointer(val self) => self.data as *PointerType;
-	pub fn as_array(val self) => self.data as *ArrayType;
-	pub fn as_struct(val self) => self.data as *StructType;
-	pub fn as_struct_mut(val self) => self.data as &StructType;
-	pub fn as_fn(val self) => self.data as *FnType;
-	pub fn as_fn_mut(val self) => self.data as &FnType;
-	pub fn as_enum(val self) => self.data as *EnumInfo;
+	// The payload is bound to a local first: arm aliases bind subjects by name.
+	pub fn as_pointer(val self): *PointerType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Pointer as p -> p.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_array(val self): *ArrayType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Array as p -> p.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_struct(val self): *StructType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Struct as p -> p.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_struct_mut(val self): &StructType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Struct as p -> p.inner as &StructType,
+			else -> null
+		};
+	}
+
+	pub fn as_fn(val self): *FnType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Fn as p -> p.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_fn_mut(val self): &FnType {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Fn as p -> p.inner as &FnType,
+			else -> null
+		};
+	}
+
+	pub fn as_enum(val self): *EnumInfo {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Enum as p -> p.inner,
+			else -> null
+		};
+	}
 
 	pub fn alloc_pointer(val self, var arena: &Arena, is_mut: bool) => arena.pointer_type(self as *Type, is_mut);
 	pub fn alloc_nullable_pointer(val self, var arena: &Arena, is_mut: bool) => arena.nullable_pointer_type(self as *Type, is_mut);
@@ -452,16 +526,10 @@ impl Type {
 
 	pub fn is_char(val self) => self.kind == DataType.CHAR;
 
-	pub fn is_enum(val self): bool {
-		if (self.data == null) return false;
-		return when (self.kind) {
-			DataType.I8, DataType.I16, DataType.I32,
-			DataType.I64, DataType.ISZ, DataType.U8,
-			DataType.U16, DataType.U32, DataType.U64,
-			DataType.USZ -> true;
-			else -> false;
-		};
-	}
+	pub fn is_enum(val self): bool => when (self.data) {
+		is TypePayload.Enum -> true;
+		else -> false;
+	};
 
 	pub fn is_numeric(val self) => self.is_integer() || self.is_float();
 

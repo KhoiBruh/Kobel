@@ -562,6 +562,18 @@ impl CCodeGen {
 		return "";
 	}
 
+	// Name an arm binds: its alias, or the subject's own name for a plain
+	// identifier subject. Empty when the arm binds nothing.
+	fn when_arm_binding(val self, patterns: List<*AstNode>, cond: *AstNode): str {
+		if (cond == null || patterns.len != 1) return "";
+		val pat = patterns.first();
+		if (pat is IsExpr as is_e) {
+			if (!is_e.alias.empty()) return is_e.alias;
+			if (cond.kind == NodeKind.EXPR_IDENTIFIER) return cond.to<IdentifierExpr>().name;
+		}
+		return "";
+	}
+
 	fn gen_when_stmt(var self, ws: *WhenStmt): str {
 		val cond = if (ws.condition != null) self.gen_expr(ws.condition) else "";
 		val ind = get_indent(self.indent_level);
@@ -569,13 +581,15 @@ impl CCodeGen {
 		var first = true;
 		for (arm in ws.arms) {
 			var cast_decl = "";
-			val ws_cond = ws.condition;
-			if (ws_cond is IdentifierExpr as id) {
-				if (arm.patterns.len == 1) {
-					val pat = arm.patterns.first();
-					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, id.name, self.indent_level + 1);
+			val bound = self.when_arm_binding(arm.patterns, ws.condition);
+			if (!bound.empty()) {
+				val pat_node = arm.patterns.first();
+				if (pat_node is IsExpr as is_e) {
+					var subj_expr = self.gen_expr(ws.condition);
+					if (ws.condition.kind == NodeKind.EXPR_IDENTIFIER) {
+						subj_expr = ws.condition.to<IdentifierExpr>().name;
 					}
+					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
 				}
 			}
 
@@ -665,13 +679,15 @@ impl CCodeGen {
 
 		for (arm in we.arms) {
 			var cast_decl = "";
-			val we_cond = we.condition;
-			if (we_cond is IdentifierExpr as id) {
-				if (arm.patterns.len == 1) {
-					val pat = arm.patterns.first();
-					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, id.name, self.indent_level + 1);
+			val bound = self.when_arm_binding(arm.patterns, we.condition);
+			if (!bound.empty()) {
+				val pat_node = arm.patterns.first();
+				if (pat_node is IsExpr as is_e) {
+					var subj_expr = self.gen_expr(we.condition);
+					if (we.condition.kind == NodeKind.EXPR_IDENTIFIER) {
+						subj_expr = we.condition.to<IdentifierExpr>().name;
 					}
+					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
 				}
 			}
 

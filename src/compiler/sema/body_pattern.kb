@@ -57,12 +57,13 @@ impl BodyPass {
 	// the arm binds nothing, which is the case for every multi-pattern arm, every
 	// arm of a `when` without a subject, and any non-`is` pattern.
 	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode): str {
-		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
-			val pat = patterns.first();
-			if (pat is IsExpr as is_e) {
-				if (!is_e.alias.empty()) return is_e.alias;
-				return cond_id.name;
-			}
+		if (cond == null || patterns.len != 1) return "";
+		val pat = patterns.first();
+		if (pat is IsExpr as is_e) {
+			// An explicit alias binds regardless of the subject's shape; binding the
+			// subject itself (no alias) only makes sense when it has a name.
+			if (!is_e.alias.empty()) return is_e.alias;
+			if (cond is IdentifierExpr as cond_id) return cond_id.name;
 		}
 		return "";
 	}
@@ -70,10 +71,11 @@ impl BodyPass {
 	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
 	// or mutating the subject directly when subject was already mutable).
 	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode): bool {
-		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
-			val pat = patterns.first();
-			if (pat is IsExpr as is_e) {
-				if (!is_e.alias.empty()) return is_e.is_mut;
+		if (cond == null || patterns.len != 1) return false;
+		val pat = patterns.first();
+		if (pat is IsExpr as is_e) {
+			if (!is_e.alias.empty()) return is_e.is_mut;
+			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
 				return subj_sym != null && subj_sym.is_mut;
 			}
