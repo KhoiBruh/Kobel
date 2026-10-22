@@ -29,13 +29,17 @@ use compiler.sema.body_expr.*;
 impl BodyPass {
 
 	pub fn check_call_expr(var self, node: *AstNode): *Type {
-		val call = node.to<CallExpr>() as &CallExpr;
+		val call = node.as_call_expr() as &CallExpr;
 
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
 			if (mem.member == "size") return self.lower_size_query(node, mem);
-			if (mem.member == "slice") return self.lower_slice_call(node, mem, call);
+			if (mem.member == "slice") return self.check_slice_call(node, mem, call);
+
+			// `Shape.Circle(1.5)`: a payload-enum variant.
+			val enum_ty = self.check_enum_ctor_call(node, mem, call);
+			if (enum_ty != null) return enum_ty;
 
 			// Instance method call or primitive method call
 			val m_ty = self.check_method_call(node, mem, call);
@@ -63,15 +67,14 @@ impl BodyPass {
 	}
 
 	// `T.size()`. A primitive type name has no C type of its own (`str`, `bool`,
-	// ...), so fold it to its C size literal; otherwise mangle the name so the
+	// ...), so resolve it to its C size literal; otherwise mangle the name so the
 	// backend emits `sizeof(<c_name>)`.
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as var id) {
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
-				val lit = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
-				self.replace_node(node, lit);
+				node.resolved_node = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
 				return self.t_usz();
 			}
 
@@ -83,29 +86,15 @@ impl BodyPass {
 		return self.t_usz();
 	}
 
-	// `s.slice(a, b)` lowers to `kobel_slice(s, a, b)`. Both bounds are optional:
-	// `a` defaults to 0 and `b` to `kobel_slen(s)`.
-	fn lower_slice_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+	// `s.slice(a, b)` is validated here; the `lower` pass rewrites it into
+	// `kobel_slice(s, a, b)` with defaults (0 and `kobel_slen(s)`).
+	fn check_slice_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
 		val slice_recv = self.check_expr(mem.object);
 		self.ensure(slice_recv.kind == DataType.STR, node, "slice() requires a str receiver");
 		for (arg in call.args) {
 			val at = self.check_expr(arg);
 			self.ensure(at.is_integer(), node, "slice() bounds must be integers");
 		}
-
-		var sargs = List<*AstNode>();
-		sargs += mem.object;
-		if (!call.args.empty()) sargs += call.args.first();
-		else sargs += self.literal(LiteralKind.INT, "0", node.line, node.col);
-		if (call.args.len >= 2) {
-			sargs += call.args[1];
-		} else {
-			var largs = List<*AstNode>();
-			largs += mem.object;
-			sargs += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
-		}
-		val sl_call = self.call(self.identifier("kobel_slice", node.line, node.col), sargs, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, sl_call);
 		return self.t_str();
 	}
 
@@ -132,37 +121,19 @@ impl BodyPass {
 		if (found != null) return found;
 		for (m in cands) {
 			if (m.name != name || m.ast_node == null) continue;
-			val ast_n = (m.ast_node as *AstNode) ?: continue;
+			val ast_n = m.ast_node ?: continue;
 			if (!self.append_defaults(ast_n, argc, call)) continue;
 			return m;
 		}
 		return null;
 	}
 
-	// An arrow-bodied method (`fn f() => expr`) has no body checked by the
-	// declaration pass, so check it here, with `self` bound to the receiver
-	// type and the module switched to the one declaring the method.
-	fn check_arrow_method_body(var self, mi: *MethodInfo, obj_ty: *Type) {
-		val ast_n = (mi.ast_node as *AstNode) ?: return;
-		if (ast_n is FnDecl as f && f.body is ExprStmt && f.return_type == null) {
-			val prev_self = self.current_self_type;
-			val prev_ret = self.current_fn_return_type;
-			val prev_mod = self.enter_module(mi.module);
-			self.current_self_type = obj_ty;
-			self.check_fn_body(ast_n, mi.fn_type);
-			self.current_self_type = prev_self;
-			self.current_fn_return_type = prev_ret;
-			self.leave_module(prev_mod);
-		}
-	}
-
-	// Check the arguments, then rewrite `recv.m(args)` into `c_name(recv, args)`.
-	// `by_ref` says how a non-pointer receiver is passed: `&recv` for a struct
-	// method, `recv` itself (deref when the receiver is a pointer) for a
-	// primitive method.
-	fn lower_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type, obj_is_ptr: bool, by_ref: bool): *Type {
+	// Check the arguments and record which method was chosen. Rewriting the call
+	// into `c_name(recv, args)` is the `lower` pass's job: it reads
+	// `resolved_method` and derives the receiver convention from the types, so
+	// the checker never has to build replacement nodes.
+	fn bind_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type): *Type {
 		val fn_info = mi.fn_type.as_fn();
-		self.check_arrow_method_body(mi, obj_ty);
 
 		if (call.args.len + 1 != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
@@ -176,34 +147,18 @@ impl BodyPass {
 			}
 		}
 
-		var new_args = List<*AstNode>();
-		if (by_ref == obj_is_ptr) {
-			new_args += mem.object;
-		} else {
-			var op = TokenType.STAR;
-			if (by_ref) op = TokenType.AMPERSAND;
-			new_args += self.unary(op, mem.object, node.line, node.col);
-		}
-		for (arg in call.args) new_args += arg;
+		if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
 
 		var ret_ty = fn_info.return_type;
 		if (mem.is_safe) {
 			self.ensure(ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR, node, "Safe method call '?.' requires return type to be a pointer or string");
-
-			val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-			val cond = self.binary(TokenType.BANG_EQUAL, mem.object, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
-			val if_node = self.if_expr(cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col), node.line, node.col);
-			self.replace_node(node, if_node);
-
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
 				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
 			}
-			return ret_ty;
 		}
 
-		call.args = new_args;
-		call.callee = self.identifier(mi.c_name, node.line, node.col);
+		node.resolved_method = mi as *u8;
 		return ret_ty;
 	}
 
@@ -222,6 +177,13 @@ impl BodyPass {
 		}
 		val argc = call.args.len + 1;
 
+		// `x.m<T>(...)`: a generic method is instantiated here, where the receiver
+		// type is known, and the call becomes a plain free-function call.
+		if (call.type_args.len > 0) {
+			val g_ty = self.check_generic_method_call(node, mem, call, obj_ty, obj_is_ptr);
+			if (g_ty != null) return g_ty;
+		}
+
 		if (obj_ty.kind == DataType.STRUCT) {
 			val s_info = obj_ty.as_struct();
 			// Pick the overload whose arity matches; fall back to a name
@@ -237,7 +199,7 @@ impl BodyPass {
 				mem.member, argc, s_info.methods, call, s_info.find_method_arity(mem.member, argc)
 			) ?: s_info.find_method(mem.member);
 			// Struct methods take the receiver by reference.
-			if (mi != null) return self.lower_method_call(node, mem, call, mi, obj_ty, obj_is_ptr, true);
+			if (mi != null) return self.bind_method_call(node, mem, call, mi, obj_ty);
 		}
 
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
@@ -246,7 +208,7 @@ impl BodyPass {
 			self.symtab.find_prim_method_arity(obj_ty.kind, mem.member, argc)
 		) ?: self.symtab.find_prim_method(obj_ty.kind, mem.member);
 		// Primitive methods take the receiver by value.
-		if (pmi != null) return self.lower_method_call(node, mem, call, pmi, obj_ty, obj_is_ptr, false);
+		if (pmi != null) return self.bind_method_call(node, mem, call, pmi, obj_ty);
 
 		if (obj_ty.kind == DataType.STRUCT) {
 			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
@@ -256,13 +218,136 @@ impl BodyPass {
 		return null;
 	}
 
+	// `x.m<T>(...)` where `m` is a generic method. The template is chosen by
+	// receiver type (not by name alone), instantiated with T, and the call is
+	// checked as the resulting free function with the receiver as first argument.
+	// `lower` emits the replacement node registered in `resolved_node`.
+	fn check_generic_method_call(
+		var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr,
+		obj_ty: *Type, obj_is_ptr: bool
+	): *Type {
+		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct().name
+			else primitive_type_name(obj_ty);
+		if (recv_name.empty()) return null;
+
+		val tmpl = self.find_method_template_for(mem.member, recv_name);
+		if (tmpl == null) return null;
+
+		val cname = self.instantiate_method(tmpl, call.type_args, obj_ty);
+		val sym = self.symtab.lookup(cname);
+		if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
+
+		// The clone's return type comes from its body, so that body must be checked
+		// before its signature is read.
+		self.ensure_callee_ready(sym);
+		val fn_info = sym.type_ptr.as_fn();
+
+		// Struct methods take `&receiver` unless the receiver is already a pointer;
+		// primitive methods take the receiver by value.
+		var args = List<*AstNode>();
+		if (obj_ty.kind == DataType.STRUCT && !obj_is_ptr) {
+			args += self.unary(TokenType.AMPERSAND, mem.object, node.line, node.col);
+		} else {
+			args += mem.object;
+		}
+		for (a in call.args) args += a;
+
+		val new_call = self.call(
+			self.identifier(cname, node.line, node.col),
+			args, List<*AstNode>(), node.line, node.col
+		);
+
+		if (args.len != fn_info.param_types.len) {
+			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+		} else {
+			// Argument 0 is the receiver, already checked above.
+			for (i in 1..<args.len) {
+				val param_ty = fn_info.param_types[i];
+				val arg_n = args[i];
+				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val arg_ty = self.check_expr(arg_n);
+				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
+			}
+		}
+
+		node.resolved_node = new_call;
+		return fn_info.return_type;
+	}
+
+	// A clone's return type comes from checking its body, so a call to a clone
+	// whose type is still unknown triggers that check first. During arrow
+	// inference the attempt is rolled back instead (see infer_arrow_returns).
+	fn ensure_callee_ready(var self, sym: *Symbol) {
+		if (sym == null) return;
+		if (!self.arrow_pending(sym.ast_node)) return;
+
+		// Checking another body must not leak its return type into ours.
+		val saved_ret = self.current_fn_return_type;
+		self.check_fn(sym.ast_node);
+		self.current_fn_return_type = saved_ret;
+
+		// Still unknown: the callee depends on something unresolved (a cycle), so
+		// the current arrow-inference attempt has to be retried later.
+		if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
+	}
+
+	// `Enum.Variant(args)`: a payload-enum value. Null when the callee's receiver
+	// is not a payload enum, which sends the call down the ordinary method path.
+	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+		val obj = mem.object;
+		if (obj.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		val enum_id = obj.as_identifier_expr();
+		val ei = self.symtab.find_enum_info(enum_id.name);
+		if (ei == null || !ei.is_payload) return null;
+
+		val e_sym = self.symtab.lookup(ei.name);
+		if (e_sym == null) return null;
+
+		val mi = ei.find_member(mem.member);
+		if (mi == null) {
+			self.report_error(node, "Enum '${enum_id.name}' has no variant '${mem.member}'");
+			return self.t_none();
+		}
+
+		var field_types = List<*Type>();
+		if (mi.payload_ty != null) {
+			val payload_fields = mi.payload_ty.as_struct().fields;
+			for (f in payload_fields) field_types += f.type_ptr;
+		}
+
+		if (call.args.len != field_types.len) {
+			self.report_error(node,
+				"Argument count mismatch in variant '${enum_id.name}.${mem.member}'"
+			);
+		} else {
+			for (i in 0..<call.args.len) {
+				val f_ty = field_types[i];
+				val arg_n = call.args[i];
+				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
+				val arg_ty = self.check_expr(arg_n);
+				self.ensure(f_ty.can_assign(arg_ty), node,
+					"Field type mismatch in variant '${enum_id.name}.${mem.member}'"
+				);
+			}
+		}
+
+		val payload_path = if (field_types.empty()) "" else mi.payload_path;
+		node.resolved_node = self.arena.enum_ctor(
+			ei.c_name, ei.tag_field, mi.value, payload_path, call.args, node.line, node.col
+		);
+		return e_sym.type_ptr;
+	}
+
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
-		val fn_info = callee_ty.as_fn();
 		val callee = call.callee;
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
-			if (sym != null) { self.append_defaults(sym.ast_node as *AstNode, call.args.len, call); }
+			if (sym != null) {
+				self.append_defaults(sym.ast_node, call.args.len, call);
+				self.ensure_callee_ready(sym);
+			}
 		}
+		val fn_info = callee_ty.as_fn();
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 		else {
 			for (i in 0..<call.args.len) {
@@ -309,7 +394,10 @@ impl BodyPass {
 					val arg_ty = self.check_expr(arg_n);
 					self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
 				}
-				call.callee = self.identifier(nm.c_name, node.line, node.col);
+				// The chosen `new` is recorded, not spliced into the callee: `lower`
+				// emits `c_name(args)`. This keeps checking idempotent (a retried
+				// check sees the same struct constructor, not a mangled identifier).
+				node.resolved_method = nm as *u8;
 				return n_info.return_type;
 			}
 		}
@@ -337,7 +425,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args += self.clone_expr(s_info.fields[i].default_val as *AstNode);
+					call.args += self.clone_expr(s_info.fields[i].default_val);
 				}
 			}
 		}
@@ -352,6 +440,10 @@ impl BodyPass {
 				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor");
 			}
 		}
+
+		// Field construction becomes an explicit struct-literal node, so the backend
+		// no longer recognises a constructor by the callee's name.
+		node.resolved_node = self.arena.struct_ctor(s_info.c_name, call.args, node.line, node.col);
 		return callee_ty;
 	}
 

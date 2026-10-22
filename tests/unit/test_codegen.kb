@@ -12,7 +12,7 @@ use compiler.sema.body_pass.BodyPass;
 use compiler.sema.body_stmt.*;
 use compiler.sema.body_expr.*;
 use compiler.sema.body_call.*;
-use compiler.sema.body_program.check_program;
+use compiler.sema.body_program.*;
 
 use compiler.codegen.c_codegen.CCodeGen;
 use compiler.codegen.c_program.*;

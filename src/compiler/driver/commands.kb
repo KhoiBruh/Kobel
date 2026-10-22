@@ -233,3 +233,154 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	println("[SUCCESS] All tests passed successfully!");
 	return 0;
 }
+
+// ============================================================================
+// Snapshot & Fixpoint Gates
+//
+// `snap` pins the C emitted for the compiler source and the test corpus: any
+// change in semantic analysis or codegen shows up as a digest diff instead of
+// leaking into a binary that happens to still pass its own tests.
+//
+// `fixpoint` pins self-hosting: the compiler rebuilt from its own C output must
+// emit byte-identical C. This is the bootstrap contract from docs/architecture.md.
+// ============================================================================
+
+// Snapshot corpus: every behavioural test plus the compiler itself.
+pub fn snap_corpus(test_dir: str): List<str> {
+	var corpus = discover_test_files(test_dir);
+	corpus += "src/main.kb";
+	return corpus;
+}
+
+// Flat name for a source path: `tests/unit/test_lexer.kb` becomes
+// `tests_unit_test_lexer_kb`, so goldens stay one file per entry.
+pub fn snap_name(path: str): str {
+	var out = "";
+	for (c in path) {
+		if (c == '/' || c == '\\' || c == '.') out += "_";
+		else out += "${c}";
+	}
+	return out;
+}
+
+fn ensure_dir(path: str) {
+	if (!file_exists(path)) exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
+}
+
+pub fn cmd_snap(manifest_path: str, update: bool): i32 {
+	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
+	val golden_dir = "tests/golden";
+	val tmp_dir = "build/snap";
+	ensure_dir(golden_dir);
+	ensure_dir(tmp_dir);
+
+	val corpus = snap_corpus(cfg.test_dir);
+	println("============================================================");
+	if (update) println("  Updating C snapshots (${corpus.len} sources)");
+	else println("  Checking C snapshots (${corpus.len} sources)");
+	println("============================================================");
+
+	var fail_count = 0;
+	for (src in corpus) {
+		print("[*] ${src} ... ");
+		val flat = snap_name(src);
+		val c_path = "${tmp_dir}/${flat}.c";
+
+		val opts = CompileOptions();
+		opts.input_path = src;
+		opts.emit_c_path = c_path;
+		opts.only_emit_c = true;
+		opts.quiet = true;
+		if (opts.compile() != 0) {
+			println("FAIL (emit-c error)");
+			fail_count++;
+			continue;
+		}
+
+		val digest = read_file(c_path).hash_stamp();
+		val golden_path = "${golden_dir}/${flat}.txt";
+		if (update) {
+			write_file(golden_path, "${digest}\n");
+			println("UPDATED");
+			continue;
+		}
+
+		if (!file_exists(golden_path)) {
+			println("FAIL (missing golden; run 'kobel snap --update')");
+			fail_count++;
+			continue;
+		}
+
+		val expected = read_file(golden_path).trim();
+		if (expected == digest) println("PASS");
+		else {
+			println("FAIL");
+			println("    expected ${expected}");
+			println("    actual   ${digest}");
+			fail_count++;
+		}
+	}
+
+	println("------------------------------------------------------------");
+	if (fail_count > 0) {
+		println("[ERROR] ${fail_count} snapshot(s) changed. If the change is intended, run 'kobel snap --update' and commit tests/golden.");
+		return 1;
+	}
+	println("[SUCCESS] All ${corpus.len} snapshots match.");
+	return 0;
+}
+
+pub fn cmd_fixpoint(manifest_path: str): i32 {
+	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
+	val dir = "build/fixpoint";
+	ensure_dir(dir);
+
+	val stage1_c = "${dir}/stage1.c";
+	val stage2_c = "${dir}/stage2.c";
+	val stage2_exe = "${dir}/kobel_v2.exe";
+	val stage2_obj = "${dir}/kobel_v2.obj";
+
+	println("[1/3] Emitting C from the current compiler...");
+	val opts = CompileOptions();
+	opts.input_path = cfg.entry;
+	opts.emit_c_path = stage1_c;
+	opts.only_emit_c = true;
+	opts.quiet = true;
+	if (opts.compile() != 0) {
+		println("[ERROR] Could not emit C for '${cfg.entry}'.");
+		return 1;
+	}
+
+	println("[2/3] Building the second-generation compiler...");
+	exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+	if (!file_exists(stage2_exe)) {
+		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");
+		return 1;
+	}
+
+	println("[3/3] Re-emitting C with the second-generation compiler...");
+	var run_exe = stage2_exe.to_win_path();
+	if (" " in run_exe) run_exe = "\"${run_exe}\"";
+	val exit_code = exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
+	if (exit_code != 0) {
+		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
+		return 1;
+	}
+
+	val first = read_file(stage1_c);
+	val second = read_file(stage2_c);
+	if (first == second) {
+		println("[SUCCESS] Fixpoint reached: stage1.c == stage2.c (${first.len} bytes).");
+		return 0;
+	}
+
+	println("[ERROR] Fixpoint broken: stage1.c (${first.len} bytes) != stage2.c (${second.len} bytes).");
+	val a_lines = first.split_lines();
+	val b_lines = second.split_lines();
+	var i: usz = 0;
+	while (i < a_lines.len && i < b_lines.len && a_lines[i] == b_lines[i]) i++;
+	println("  First difference at line ${i + 1}:");
+	if (i < a_lines.len) println("    stage1: ${a_lines[i]}");
+	if (i < b_lines.len) println("    stage2: ${b_lines[i]}");
+	return 1;
+}

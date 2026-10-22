@@ -30,14 +30,14 @@ use compiler.sema.body_expr.*;
 impl BodyPass {
 
 	pub fn check_block_stmt(var self, node: *AstNode) {
-		val blk = node.to<BlockStmt>();
+		val blk = node.as_block_stmt();
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
 		for (stmt in blk.statements) self.check_statement(stmt);
 	}
 
 	pub fn check_var_decl_stmt(var self, node: *AstNode) {
-		val vd = node.to<VarDeclStmt>() as &VarDeclStmt;
+		val vd = node.as_var_decl_stmt() as &VarDeclStmt;
 		var var_ty = self.t_none();
 		var has_init = false;
 
@@ -113,7 +113,7 @@ impl BodyPass {
 	}
 
 	pub fn check_if_stmt(var self, node: *AstNode) {
-		val if_s = node.to<IfStmt>();
+		val if_s = node.as_if_stmt();
 		val conds = self.collect_and_conditions(if_s.condition);
 
 		self.symtab.enter_scope(false);
@@ -173,7 +173,7 @@ impl BodyPass {
 	}
 
 	pub fn check_while_stmt(var self, node: *AstNode) {
-		val wh = node.to<WhileStmt>();
+		val wh = node.as_while_stmt();
 		val conds = self.collect_and_conditions(wh.condition);
 
 		self.loop_depth++;
@@ -195,7 +195,7 @@ impl BodyPass {
 	}
 
 	pub fn check_for_stmt(var self, node: *AstNode) {
-		val fs = node.to<ForStmt>() as &ForStmt;
+		val fs = node.as_for_stmt() as &ForStmt;
 		self.ensure(fs.is_range || for_is_lvalue(fs.iterable), node, "The iterated expression of a 'for' must be a variable or a field");
 		// Containers that implement `Iterable` are walked through the trait
 		// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
@@ -203,15 +203,17 @@ impl BodyPass {
 		var use_iter_trait = false;
 		if (!fs.is_range) use_iter_trait = self.struct_implements_iterable(self.for_iterable_type(fs.iterable));
 
-		self.arena.desugar_for(node, fs, use_iter_trait);
-		// `node` now holds the lowered block; check it through the normal path.
-		self.check_statement(node);
+		// `desugar_for` builds the replacement block without installing it: check
+		// that block directly and let `lower` put it in place of the `for`.
+		val block = self.arena.desugar_for(node, fs, use_iter_trait);
+		node.resolved_node = block;
+		self.check_statement(block);
 	}
 
 	pub fn check_return_stmt(var self, node: *AstNode) {
 		if (self.defer_depth > 0UZ)
 			self.report_error(node, "Return statement is not allowed inside defer");
-		val ret = node.to<ReturnStmt>();
+		val ret = node.as_return_stmt();
 		if (ret.value != null) {
 			if (
 				self.current_fn_return_type != null &&
@@ -226,7 +228,7 @@ impl BodyPass {
 	}
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
-		val ws = node.to<WhenStmt>();
+		val ws = node.as_when_stmt();
 		val cond_ty = if (ws.condition != null) self.check_expr(ws.condition) else null;
 
 		for (arm in ws.arms) {

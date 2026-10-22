@@ -4,7 +4,7 @@ use std.collections.list.*;
 
 use compiler.lexer.token.*;
 
-use compiler.ast.node.AstNode;
+use compiler.ast.node.*;
 use compiler.ast.stmt.WhenStmtArm;
 use compiler.ast.builder.*;
 use compiler.parser.parser.*;
@@ -39,7 +39,7 @@ impl Parser {
 		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type()
 		else null;
 
-		val init = if (self.match_token(TokenType.EQUAL)) self.parse_expression(PREC_NONE)
+		val init = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 		else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
@@ -49,7 +49,7 @@ impl Parser {
 	pub fn parse_if_stmt(var self): *AstNode {
 		val kw = self.advance(); // 'if'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
-		val condition = self.parse_expression(PREC_NONE);
+		val condition = self.parse_expression(Precedence.NONE);
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
 
 		val then_branch = self.parse_statement();
@@ -62,7 +62,7 @@ impl Parser {
 	pub fn parse_while_stmt(var self): *AstNode {
 		val kw = self.advance(); // 'while'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'while'");
-		val condition = self.parse_expression(PREC_NONE);
+		val condition = self.parse_expression(Precedence.NONE);
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 
 		val body = self.parse_statement();
@@ -78,7 +78,7 @@ impl Parser {
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
 		self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
-		val first = self.parse_expression(PREC_COMPARISON);
+		val first = self.parse_expression(Precedence.COMPARISON);
 
 		var is_range = false;
 		var is_open = false;
@@ -94,7 +94,7 @@ impl Parser {
 				// `a..<b` excludes the end bound, so `for (i in 0..<seq.len)` is the
 				// index loop that never has to subtract one (which would wrap at 0).
 				if (self.match_token(TokenType.LESS)) is_half_open = true;
-				range_end = self.parse_expression(PREC_COMPARISON);
+				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
 			self.check(TokenType.GREATER) &&
@@ -105,7 +105,7 @@ impl Parser {
 				self.advance(); // '>'
 				self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
 				self.consume(TokenType.LESS, "Expected '<' to close an open range");
-				range_end = self.parse_expression(PREC_COMPARISON);
+				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
 			else -> iterable = first;
@@ -121,7 +121,7 @@ impl Parser {
 
 	pub fn parse_return_stmt(var self): *AstNode {
 		val kw = self.advance(); // 'return'
-		val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE) else null;
+		val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after return statement");
 		return self.return_stmt(value, kw.line, kw.col);
@@ -132,7 +132,7 @@ impl Parser {
 		// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
 		var condition: *AstNode = null;
 		if (self.match_token(TokenType.OPEN_PAREN)) {
-			condition = self.parse_expression(PREC_NONE);
+			condition = self.parse_expression(Precedence.NONE);
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after when condition");
 		}
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before when statement arms");
@@ -146,9 +146,9 @@ impl Parser {
 
 			if (self.match_token(TokenType.KW_ELSE)) is_else = true;
 			else {
-				patterns += self.parse_expression(PREC_NONE);
+				patterns += self.parse_expression(Precedence.NONE);
 				while (self.match_token(TokenType.COMMA)) {
-					patterns += self.parse_expression(PREC_NONE);
+					patterns += self.parse_expression(Precedence.NONE);
 				}
 			}
 
@@ -196,13 +196,13 @@ impl Parser {
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
-				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(PREC_NONE)
+				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE)
 				else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
 				yield self.yield_stmt(value, line, col);
 			}
 			else -> {
-				val expr = self.parse_expression(PREC_NONE);
+				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
 				yield self.expr_stmt(expr, line, col);
 			}

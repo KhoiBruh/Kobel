@@ -1,0 +1,56 @@
+mod compiler.sema.body_interp;
+
+// ============================================================================
+// BodyPass - String Interpolation Checking
+//
+// String interpolation: checking the holes and their ToStr contract.
+// The concat chain itself is built by the `lower` pass.
+// ============================================================================
+
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use util.strutil.*;
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.lexer.token.*;
+
+use compiler.sema.types.*;
+use compiler.sema.symbol.*;
+use compiler.sema.decl_pass.*;
+use compiler.sema.body_pass.*;
+use compiler.sema.desugar_interp.*;
+
+impl BodyPass {
+
+	// The `kobel_concat` chain is built by the `lower` pass; checking a hole means
+	// checking its expression and requiring a `ToStr` conversion.
+	pub fn check_interp_expr(var self, node: *AstNode): *Type {
+		val ie = node.as_interp_expr();
+		for (part in ie.parts) {
+			if (part.is_literal) continue;
+			val pty = self.check_expr(part.expr);
+			self.ensure_to_str(part.expr, pty);
+		}
+		return self.t_str();
+	}
+
+	// A hole is fine when it is `str` or some `to_str` implementation applies;
+	// `lower` picks that implementation while rewriting.
+	fn ensure_to_str(var self, node: *AstNode, ty: *Type) {
+		if (ty.kind == DataType.STR) return;
+		if (self.symtab.find_prim_method(ty.kind, "to_str") != null) return;
+
+		var cur_ty = ty;
+		if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
+		if (cur_ty.kind == DataType.STRUCT && cur_ty.as_struct().find_method("to_str") != null) return;
+
+		self.report_error(node, "Interpolated value must implement ToStr");
+	}
+
+}

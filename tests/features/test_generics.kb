@@ -1,0 +1,41 @@
+mod test.generics;
+
+// Generic instantiation through bodies: a generic function that builds a generic
+// container locally, a generic function that calls another generic function with
+// explicit type arguments, and a nested instantiation. These all exercise the
+// instance worklist in the declaration pass.
+
+use std.collections.list.*;
+
+fn id<U>(x: U): U {
+	return x;
+}
+
+fn wrap<U>(x: U): List<U> {
+	var l: List<U> = List<U>();
+	l += x;
+	return l;
+}
+
+fn twice<U>(x: U): U {
+	val y = id<U>(x);
+	return y;
+}
+
+fn main(): i32 {
+	var inner: List<i32> = wrap<i32>(7);
+	if (inner.len != 1) return 1;
+	if (inner[0] != 7) return 2;
+
+	val n = twice<i32>(41);
+	if (n != 41) return 3;
+
+	var nested: List<List<i32>> = List<List<i32>>();
+	nested += inner;
+	if (nested.len != 1) return 4;
+	val first = nested[0];
+	if (first.len != 1) return 5;
+	if (first[0] != 7) return 6;
+
+	return 0;
+}

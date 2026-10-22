@@ -59,7 +59,7 @@ impl GenSubst {
 	}
 }
 
-pub fn is_template_decl(node: *AstNode) => node.is_template();
+pub fn is_template_decl(node: *AstNode) => decl_is_template(node);
 
 impl GenTemplate {
 	pub fn param_names(val self): List<str> {
@@ -77,9 +77,9 @@ impl GenTemplate {
 	// The declared generic parameters of a template (empty for an impl template,
 	// whose parameters live on the struct it belongs to).
 	pub fn params(val self) => when (self.node.kind) {
-		NodeKind.DECL_STRUCT -> self.node.to<StructDecl>().type_params,
-		NodeKind.DECL_FN -> self.node.to<FnDecl>().type_params,
-		NodeKind.DECL_IMPL -> self.node.to<ImplDecl>().type_params,
+		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params,
+		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params,
+		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params,
 		else -> List<GenericParam>()
 	};
 }
@@ -105,14 +105,14 @@ impl DeclPass {
 							for (i in 0..<f.params.len) {
 								val p = f.params[i];
 								if (p.name == "self" && p.type_node == null) {
-									val prim = resolve_primitive_name(&self.arena, im.struct_name);
+									val prim = resolve_primitive_name(self.symtab.prims_of(), im.struct_name);
 									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
 										else self.pointer_type(p.is_mut, named, m.line, m.col);
 									f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
 							}
-							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
+							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true, im.struct_name);
 						}
 					}
 				}
@@ -121,9 +121,11 @@ impl DeclPass {
 		}
 	}
 
-	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool): *GenTemplate {
+	// self_type is the impl's target type for a method template ("" otherwise),
+	// which lets a method be looked up by its receiver instead of by name alone.
+	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenTemplate {
 		val t = self.arena.alloc<GenTemplate>();
-		*t = GenTemplate(name, self.current_module, node, is_method);
+		*t = GenTemplate(name, self.current_module, node, is_method, self_type);
 		return t;
 	}
 
@@ -144,36 +146,44 @@ impl DeclPass {
 		if (kind == TemplateKind.STRUCT) self.symtab.gen.struct_templates
 		else self.symtab.gen.fn_templates;
 
+	// A method template also has to agree on the receiver type: two structs may
+	// declare a generic method with the same name.
+	fn template_fits(val self, kind: TemplateKind, t: *GenTemplate, name: str, self_type: str): bool {
+		if (!template_matches(kind, t, name)) return false;
+		if (self_type.empty()) return true;
+		return t.self_type == self_type;
+	}
+
 	// Visible from the current module: own module first, then imports (a wildcard
 	// import, or an alias that matches `name`), then any module.
-	fn find_template(val self, kind: TemplateKind, name: str): *GenTemplate {
+	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenTemplate {
 		val list = self.templates_of(kind);
 		for (t in list) {
-			if (template_matches(kind, t, name) && t.module == self.current_module) return t;
+			if (self.template_fits(kind, t, name, self_type) && t.module == self.current_module) return t;
 		}
 		val b = self.symtab.explicit_imports["${self.current_module}::${name}"];
 		if (b != null) {
 			for (t in list) {
-				if (template_matches(kind, t, b.symbol_name) && t.module == b.module_name) return t;
+				if (self.template_fits(kind, t, b.symbol_name, self_type) && t.module == b.module_name) return t;
 			}
 		}
 		for (i in 0..<self.symtab.wildcard_owners.len) {
 			if (self.symtab.wildcard_owners[i] == self.current_module) {
 				val wmod = self.symtab.wildcard_modules[i];
 				for (t in list) {
-					if (template_matches(kind, t, name) && t.module == wmod) return t;
+					if (self.template_fits(kind, t, name, self_type) && t.module == wmod) return t;
 				}
 			}
 		}
 		for (t in list) {
-			if (template_matches(kind, t, name)) return t;
+			if (self.template_fits(kind, t, name, self_type)) return t;
 		}
 		return null;
 	}
 
 	pub fn find_fn_template(val self, name: str) => self.find_template(TemplateKind.FN, name);
 
-	pub fn find_method_template(val self, name: str) => self.find_template(TemplateKind.METHOD, name);
+	pub fn find_method_template(val self, name: str, self_type: str = "") => self.find_template(TemplateKind.METHOD, name, self_type);
 
 	pub fn find_struct_template(val self, name: str) => self.find_template(TemplateKind.STRUCT, name);
 
@@ -219,11 +229,11 @@ impl DeclPass {
 		return when (node.kind) {
 			NodeKind.TYPE_NAMED -> {
 				self.resolve_ast_type(node);
-				yield node.to<NamedType>().name;
+				yield node.as_named_type().name;
 			}
-			NodeKind.TYPE_POINTER -> "ptr_${self.ast_type_token(node.to<PointerType>().pointee)}";
+			NodeKind.TYPE_POINTER -> "ptr_${self.ast_type_token(node.as_pointer_type().pointee)}";
 			NodeKind.TYPE_ARRAY -> {
-				val a = node.to<ArrayType>();
+				val a = node.as_array_type();
 				yield "arr${a.size}_${self.ast_type_token(a.element_type)}";
 			}
 			else -> "x";
@@ -236,11 +246,11 @@ impl DeclPass {
 		return when (node.kind) {
 			NodeKind.TYPE_POINTER -> 8;
 			NodeKind.TYPE_ARRAY -> {
-				val a = node.to<ArrayType>();
+				val a = node.as_array_type();
 				yield a.size * self.ast_type_size(a.element_type);
 			}
 			NodeKind.TYPE_NAMED -> {
-				val name = node.to<NamedType>().name;
+				val name = node.as_named_type().name;
 				if (name == "str") yield 8;
 				if (name == "i8" || name == "u8" || name == "bool" || name == "char") yield 1;
 				if (name == "i16" || name == "u16") yield 2;
@@ -266,7 +276,7 @@ impl DeclPass {
 
 			val arg = arg_asts[i];
 			if (arg.kind != NodeKind.TYPE_NAMED) continue;
-			val aname = arg.to<NamedType>().name;
+			val aname = arg.as_named_type().name;
 			val asym = self.symtab.lookup(aname) ?: continue;
 			if (asym.type_ptr.kind != DataType.STRUCT) continue;
 
@@ -290,788 +300,28 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		self.symtab.gen.pending += self.module_decl(module.split_dots(), module, node.line, node.col);
-		self.symtab.gen.pending += node;
+		val marker = self.module_decl(module.split_dots(), module, node.line, node.col);
+		// One pair per instance: it is both the declaration to emit and the entry to
+		// rewrite (the clone's own generic uses still have to be resolved).
+		self.symtab.gen.instances += marker;
+		self.symtab.gen.instances += node;
 	}
 
-	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
-		self.check_bounds(tmpl, arg_asts);
-
-		val base = tmpl.module.mangle_symbol(tmpl.name);
-		val cname = "${base}_${self.type_token_list(arg_asts)}";
-
-		val existing = self.find_inst(cname);
-		if (existing != null) return existing.type_ptr;
-
-		self.symtab.gen.inst_names += cname;
-
-		val prev_mod = self.enter_module(tmpl.module);
-
-		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
-
-		val sclone = self.clone_struct(tmpl.node, subst, cname);
-		self.collect_struct_as(sclone, cname, tmpl.module);
-
-		// A generic type may have several `impl` blocks (an inherent one plus any
-		// number of trait impls), so instantiate every matching template.
-		for (impl_tmpl in self.symtab.gen.impl_templates) {
-			if (impl_tmpl.name != tmpl.name) continue;
-			self.enter_module(impl_tmpl.module);
-			val isubst = self.alloc_subst(impl_tmpl.param_names(), arg_asts);
-			val iclone = self.clone_impl(impl_tmpl.node, isubst, cname);
-			self.collect_impl(iclone);
-			self.queue_decl(impl_tmpl.module, iclone);
+	// Drains the instance worklist. Rewriting an instance can discover further
+	// generic uses and queue more instances, so this runs to a fixpoint; each
+	// entry is rewritten with its template's module in scope.
+	pub fn drain_instances(var self) {
+		var i = 0;
+		while (i + 1 < self.symtab.gen.instances.len) {
+			val marker = self.symtab.gen.instances[i];
+			val decl = self.symtab.gen.instances[i + 1];
+			i += 2;
+			if (marker is ModuleDecl as m) {
+				self.current_module = m.full_path;
+				self.symtab.set_current_module(m.full_path);
+			}
+			self.rewrite_generics(decl);
 		}
-
-		self.queue_decl(tmpl.module, sclone);
-
-		self.leave_module(prev_mod);
-
-		val sym = self.find_inst(cname) ?: return self.t_none();
-		return sym.type_ptr;
-	}
-
-	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
-		self.check_bounds(tmpl, arg_asts);
-
-		val base = tmpl.module.mangle_symbol(tmpl.name);
-		val cname = "${base}_${self.type_token_list(arg_asts)}";
-
-		if (self.find_inst(cname) != null) return cname;
-
-		self.symtab.gen.inst_names += cname;
-
-		val prev_mod = self.enter_module(tmpl.module);
-
-		val subst = self.alloc_subst(tmpl.param_names(), arg_asts);
-		val fclone = self.clone_fn(tmpl.node, subst, cname);
-		self.collect_fn_as(fclone, cname);
-		self.queue_decl(tmpl.module, fclone);
-
-		self.leave_module(prev_mod);
-		return cname;
-	}
-
-	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
-		val s = node.to<StructDecl>() as &StructDecl;
-		val s_type = self.arena.struct_type(final_name, List<StructField>());
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node as *u8)));
-		s.name = final_name;
-
-		var has_private = false;
-		for (f in s.fields) {
-			val f_type = self.resolve_ast_type(f.type_node);
-			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8);
-			if (!f.is_pub) has_private = true;
-		}
-		val st_info = s_type.as_struct_mut();
-		// A monomorphized instance belongs to the module that declared its template.
-		st_info.module = module;
-		st_info.has_private = has_private;
-		s_type.layout_struct();
-	}
-
-	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
-		val f = node.to<FnDecl>() as &FnDecl;
-		var param_types = List<*Type>();
-		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
-
-		val fn_type = self.arena.fn_type(param_types, ret_type);
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node as *u8)));
-		f.name = final_name;
-	}
-
-	// ----------------------------------------------------------------------------
-	// AST cloning with type-parameter substitution
-	// ----------------------------------------------------------------------------
-
-	pub fn clone_type(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		if (node == null) return null;
-		val target = node;
-		return when (target) {
-			is NamedType as nt -> {
-				val sa = subst?.lookup(nt.name);
-				if (sa != null) yield self.clone_type(sa as *AstNode, null);
-
-				if (nt.type_args.len > 0) {
-					val tmpl = self.find_struct_template(nt.name);
-					if (tmpl != null) {
-						var args = List<*AstNode>();
-						for (ta in nt.type_args) args += self.clone_type(ta, subst);
-						val cty = self.instantiate_struct(tmpl, args);
-						yield self.named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
-					}
-				}
-
-				var targs = List<*AstNode>();
-				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
-				yield self.named_type(nt.name, targs, node.line, node.col);
-			}
-			is PointerType as pt -> {
-				yield self.pointer_type(pt.is_mut, self.clone_type(pt.pointee, subst), node.line, node.col);
-			}
-			is ArrayType as at -> {
-				yield self.array_type(self.clone_type(at.element_type, subst), at.size, node.line, node.col);
-			}
-			is NullableType as nt -> {
-				yield self.nullable_type(self.clone_type(nt.inner, subst), node.line, node.col);
-			}
-			else -> self.named_type("none", List<*AstNode>(), node.line, node.col);
-		};
-	}
-
-	pub fn clone_expr(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		if (node == null) return null;
-		if (
-			node.kind == NodeKind.STMT_RETURN ||
-			node.kind == NodeKind.STMT_BREAK ||
-			node.kind == NodeKind.STMT_CONTINUE ||
-			node.kind == NodeKind.STMT_YIELD ||
-			node.kind == NodeKind.STMT_BLOCK
-		) return self.clone_stmt(node, subst);
-
-		val target = node;
-		return when (target) {
-			is LiteralExpr as l -> self.literal(
-				l.literal_kind, l.raw_text,
-				node.line, node.col
-			);
-
-			is IdentifierExpr as id -> self.identifier(id.name, node.line, node.col);
-
-			is BinaryExpr as b -> self.binary(
-				b.op,
-				self.clone_expr(b.left, subst),
-				self.clone_expr(b.right, subst),
-				node.line, node.col
-			);
-
-			is UnaryExpr as u -> self.unary(
-				u.op, self.clone_expr(u.operand, subst),
-				node.line, node.col
-			);
-
-			is CallExpr -> self.clone_call_expr(node, subst);
-
-			is MemberExpr as m -> if (m.is_safe)
-					self.safe_member(self.clone_expr(m.object, subst), m.member, node.line, node.col)
-				else
-					self.member(self.clone_expr(m.object, subst), m.member, node.line, node.col);
-			is IndexExpr as ix -> self.index(
-				self.clone_expr(ix.target, subst),
-				self.clone_expr(ix.index, subst),
-				node.line, node.col
-			);
-
-			is AssignExpr as a -> self.compound_assign(
-				a.op,
-				self.clone_expr(a.target, subst),
-				self.clone_expr(a.value, subst),
-				node.line, node.col
-			);
-
-			is UpdateExpr as u -> self.update(
-				u.op,
-				self.clone_expr(u.target, subst),
-				node.line, node.col
-			);
-
-			is CastExpr as cst -> self.cast(
-				self.clone_expr(cst.expr, subst),
-				self.clone_type(cst.target_type, subst),
-				node.line, node.col
-			);
-
-			is GroupExpr as g -> self.group(
-				self.clone_expr(g.expr, subst),
-				node.line, node.col
-			);
-
-			is IfExpr as ie -> self.if_expr(
-				self.clone_expr(ie.condition, subst),
-				self.clone_expr(ie.then_branch, subst),
-				self.clone_expr(ie.else_branch, subst),
-				node.line, node.col
-			);
-
-			is ArrayLiteralExpr as al -> self.list_literal(
-				self.clone_expr_list(al.elements, subst),
-				al.list_struct_name,
-				al.elem_type_node,
-				node.line, node.col
-			);
-
-			is WhenExpr as we -> self.when_expr(
-				self.clone_expr(we.condition, subst),
-				self.clone_when_arms(node, subst),
-				node.line, node.col
-			);
-
-			is InterpExpr -> self.interp(
-				self.clone_interp_parts(node, subst),
-				node.line, node.col
-			);
-
-			is IsExpr as is_e -> {
-				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
-				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
-				if (!is_e.alias.empty()) {
-					val res_e = res_is.to<IsExpr>();
-					res_e.alias = is_e.alias;
-					res_e.is_mut = is_e.is_mut;
-				}
-				yield res_is;
-			}
-
-			else -> self.identifier("<unsupported-expr>", node.line, node.col);
-		};
-	}
-
-	// `CALL`: three shapes are rewritten before the generic clone. `T.size()` folds
-	// to a literal, a call carrying type arguments instantiates its template, and
-	// everything else is cloned caller-first like the original.
-	fn clone_call_expr(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
-		if (special != null) return special;
-
-		val c = node.to<CallExpr>();
-		val args = self.clone_expr_list(c.args, subst);
-		return self.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
-	}
-
-	// `T.size()` in generic code: the substituted type's C size is known at compile
-	// time, so the call becomes an integer literal. Null when the call is not a
-	// `T.size()` on a type parameter.
-	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val c = node.to<CallExpr>();
-		if (c.callee.kind != NodeKind.EXPR_MEMBER) return null;
-		val m = c.callee.to<MemberExpr>();
-		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
-		val sa = subst?.lookup(m.object.to<IdentifierExpr>().name) ?: return null;
-		return self.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
-	}
-
-	// A call with explicit type arguments instantiates the matching template and is
-	// rewritten to a call of the instantiated name (`obj.m<X>(...)`, `Fn<X>(...)`,
-	// `Struct<X>(...)`). Null when no template matches, which sends the caller down
-	// its generic clone path.
-	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val c = node.to<CallExpr>();
-		if (c.type_args.len == 0) return null;
-
-		val callee = c.callee;
-		if (callee is MemberExpr as mem) {
-			val ft = self.find_method_template(mem.member) ?: return null;
-			val mem_obj = self.clone_expr(mem.object, subst);
-			val targs = self.clone_type_args(c.type_args, subst);
-			var new_args = List<*AstNode>();
-			new_args += mem_obj;
-			for (a in c.args) new_args += self.clone_expr(a, subst);
-			val cname = self.instantiate_fn(ft, targs);
-			val call_node = self.call(self.identifier(cname, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-			if (mem.is_safe) {
-				val cond = self.binary(
-					TokenType.BANG_EQUAL, mem_obj,
-					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
-					node.line, node.col
-				);
-				return self.if_expr(
-					cond, call_node, self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
-					node.line, node.col
-				);
-			}
-			return call_node;
-		}
-
-		if (callee is IdentifierExpr as cid) {
-			val ft = self.find_fn_template(cid.name);
-			if (ft != null) {
-				val targs = self.clone_type_args(c.type_args, subst);
-				val cname = self.instantiate_fn(ft, targs);
-				var cargs = List<*AstNode>();
-				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(
-					self.identifier(cname, node.line, node.col),
-					cargs, List<*AstNode>(), node.line, node.col
-				);
-			}
-
-			val st = self.find_struct_template(cid.name);
-			if (st != null) {
-				val targs = self.clone_type_args(c.type_args, subst);
-				val cty = self.instantiate_struct(st, targs);
-				var cargs = List<*AstNode>();
-				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(
-					self.identifier(cty.as_struct().name, node.line, node.col),
-					cargs, List<*AstNode>(), node.line, node.col
-				);
-			}
-		}
-
-		return null;
-	}
-
-	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
-		var out = List<*AstNode>();
-		for (n in nodes) out += self.clone_expr(n, subst);
-		return out;
-	}
-
-	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenSubst): List<*AstNode> {
-		var out = List<*AstNode>();
-		for (n in nodes) out += self.clone_type(n, subst);
-		return out;
-	}
-
-	// A `when` arm's patterns are expressions; its body is a block when written as
-	// `{ ... }`, otherwise a single expression.
-	fn clone_when_arms(var self, node: *AstNode, subst: *GenSubst): List<WhenArm> {
-		val we = node.to<WhenExpr>();
-		var arms = List<WhenArm>();
-		for (arm in we.arms) {
-			val pats = self.clone_expr_list(arm.patterns, subst);
-			val arm_body = if (arm.body.kind == NodeKind.STMT_BLOCK)
-				self.clone_stmt(arm.body, subst)
-			else
-				self.clone_expr(arm.body, subst);
-			arms += WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col);
-		}
-		return arms;
-	}
-
-	fn clone_interp_parts(var self, node: *AstNode, subst: *GenSubst): List<InterpPart> {
-		val ie = node.to<InterpExpr>();
-		var parts = List<InterpPart>();
-		for (part in ie.parts) {
-			parts += InterpPart(self.clone_expr(part.expr, subst), part.is_literal);
-		}
-		return parts;
-	}
-
-	pub fn clone_stmt(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		if (node == null) return null;
-		val target = node;
-		return when (target) {
-			is BlockStmt as b -> {
-				var ss = List<*AstNode>();
-				for (s in b.statements) ss += self.clone_stmt(s, subst);
-				yield self.block_stmt(ss, node.line, node.col);
-			}
-
-			is ExprStmt as e -> self.expr_stmt(
-				self.clone_expr(e.expr, subst),
-				node.line, node.col
-			);
-
-			is VarDeclStmt as v -> {
-				val ta = if (v.type_annotation != null) self.clone_type(v.type_annotation, subst) else null;
-				val init = self.clone_expr(v.initializer, subst);
-				if (ta != null && init != null) self.propagate_target_type(ta, init);
-				yield self.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
-			}
-
-			is IfStmt as s -> self.if_stmt(
-				self.clone_expr(s.condition, subst),
-				self.clone_stmt(s.then_branch, subst),
-				self.clone_stmt(s.else_branch, subst),
-				node.line, node.col
-			);
-
-
-			is WhileStmt as w -> self.while_stmt(
-				self.clone_expr(w.condition, subst),
-				self.clone_stmt(w.body, subst),
-				node.line, node.col
-			);
-
-			is ForStmt as f -> self.for_stmt(
-				f.var_name, f.is_range, f.is_open, f.is_half_open,
-				self.clone_expr(f.iterable, subst),
-				self.clone_expr(f.range_start, subst),
-				self.clone_expr(f.range_end, subst),
-				self.clone_stmt(f.body, subst),
-				node.line, node.col
-			);
-
-			is ReturnStmt as r -> self.return_stmt(
-				self.clone_expr(r.value, subst),
-				node.line, node.col
-			);
-
-			is YieldStmt as y -> self.yield_stmt(
-				self.clone_expr(y.value, subst),
-				node.line, node.col
-			);
-
-			is BreakStmt -> self.break_stmt(node.line, node.col);
-
-			is ContinueStmt -> self.continue_stmt(node.line, node.col);
-
-			is WhenStmt as w -> {
-				var arms = List<WhenStmtArm>();
-				for (arm in w.arms) {
-					var pats = List<*AstNode>();
-					for (pat in arm.patterns) pats += self.clone_expr(pat, subst);
-					arms += WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
-				}
-				yield self.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
-			}
-
-			is DeferStmt as d -> self.defer_stmt(
-				self.clone_stmt(d.body, subst),
-				node.line, node.col
-			);
-
-			else -> null;
-		};
-	}
-
-	pub fn clone_fn(var self, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
-		val f = node.to<FnDecl>();
-		var params = List<Param>();
-		for (p in f.params) {
-			val pt = if (p.type_node != null) self.clone_type(p.type_node, subst) else null;
-			val dflt = if (p.default_val != null) self.clone_expr(p.default_val, subst) else null;
-			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
-		}
-		val rt = if (f.return_type != null) self.clone_type(f.return_type, subst) else null;
-		return self.fn_decl(
-			new_name,
-			List<GenericParam>(),
-			params, rt,
-			self.clone_stmt(f.body, subst),
-			f.is_pub, node.line, node.col,
-			f.is_op
-		);
-	}
-
-	pub fn clone_struct(var self, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
-		val s = node.to<StructDecl>();
-		var fields = List<AstStructField>();
-		for (f in s.fields) {
-			val dflt = if (f.default_val != null) self.clone_expr(f.default_val, subst) else null;
-			fields += AstStructField(f.name, self.clone_type(f.type_node, subst), f.is_pub, dflt);
-		}
-		return self.struct_decl(new_name, List<GenericParam>(), fields, s.is_pub, node.line, node.col);
-	}
-
-	pub fn clone_impl(var self, node: *AstNode, subst: *GenSubst, new_struct_name: str): *AstNode {
-		val im = node.to<ImplDecl>();
-		var methods = List<*AstNode>();
-		for (m in im.methods) {
-			val mf = m.to<FnDecl>();
-			// Keep the source method name: collect_impl mangles it against the
-			// concrete struct name and registers it for method lookup.
-			methods += self.clone_fn(m, subst, mf.name);
-		}
-		// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
-		// be checked against the trait and pick up its default methods.
-		return self.impl_decl(new_struct_name, List<GenericParam>(), im.trait_name, methods, node.line, node.col);
-	}
-
-	// Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
-	// to a call expression initializer without type arguments (e.g. `List()`).
-	pub fn propagate_target_type(var self, target_type_node: *AstNode, init_node: *AstNode) {
-		if (target_type_node == null || init_node == null) return;
-		if (target_type_node is NamedType as nt) {
-			var cur = init_node;
-			while (cur != null) {
-				if (cur is GroupExpr as g) cur = g.expr;
-				else break;
-			}
-			if (cur == null) return;
-
-			when (cur) {
-				is CallExpr as call -> {
-					val callee = call.callee;
-					if (callee is IdentifierExpr as cid) {
-						if (call.type_args.empty()) {
-							if (nt.type_args.len > 0) {
-								if (cid.name == nt.name) {
-									var new_targs = List<*AstNode>();
-									for (ta in nt.type_args) new_targs += ta;
-									val call_mut = call as &CallExpr;
-									call_mut.type_args = new_targs;
-								}
-							} else {
-								val tmpl = self.find_struct_template(cid.name);
-								if (tmpl != null) {
-									val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
-									if (nt.name.starts_with(prefix)) {
-										val cid_mut = cid as &IdentifierExpr;
-										cid_mut.name = nt.name;
-									}
-								}
-							}
-						}
-					}
-				}
-				is IfExpr as ife -> {
-					self.propagate_target_type(target_type_node, ife.then_branch);
-					self.propagate_target_type(target_type_node, ife.else_branch);
-				}
-				is WhenExpr as we -> {
-					for (arm in we.arms) {
-						self.propagate_target_type(target_type_node, arm.body);
-					}
-				}
-				else -> {}
-			}
-		}
-	}
-
-	// ----------------------------------------------------------------------------
-	// Generic-use rewriting over non-template declarations
-	// ----------------------------------------------------------------------------
-
-	pub fn rewrite_generics(var self, node: *AstNode) {
-		if (node == null) return;
-		if (self.rewrite_type_generics(node)) return;
-		if (self.rewrite_expr_generics(node)) return;
-		if (self.rewrite_stmt_generics(node)) return;
-		self.rewrite_decl_generics(node);
-	}
-
-	// Rewrite a child node and report the parent as handled.
-	fn rewrite_child(var self, child: *AstNode): bool {
-		self.rewrite_generics(child);
-		return true;
-	}
-
-	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
-	// argument list rewritten element by element.
-	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
-		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node),
-		NodeKind.TYPE_POINTER -> self.rewrite_child(node.to<PointerType>().pointee),
-		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.to<ArrayType>().element_type),
-		else -> false
-	};
-
-	fn rewrite_named_type(var self, node: *AstNode): bool {
-		val nt = node.to<NamedType>() as &NamedType;
-		if (nt.type_args.len > 0) {
-			val tmpl = self.find_struct_template(nt.name);
-			if (tmpl != null) {
-				val cty = self.instantiate_struct(tmpl, nt.type_args);
-				nt.name = cty.as_struct().name;
-				nt.type_args = List<*AstNode>();
-				return true;
-			}
-		}
-		for (ta in nt.type_args) self.rewrite_generics(ta);
-		return true;
-	}
-
-	// The callee of a call carrying type arguments: a method template takes the
-	// receiver as its first argument, and a template name is replaced by the
-	// instantiated (mangled) one.
-	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
-		if (c.type_args.len == 0) return;
-		val callee = c.callee;
-		if (callee is MemberExpr as mem) {
-			val ft = self.find_method_template(mem.member);
-			if (ft != null) {
-				val mem_obj = mem.object;
-				val cname = self.instantiate_fn(ft, c.type_args);
-				c.callee = self.identifier(cname, node.line, node.col);
-				c.args.insert(0, mem_obj);
-				c.type_args = List<*AstNode>();
-			}
-		}
-
-		if (callee is IdentifierExpr as cid) {
-			val ft = self.find_fn_template(cid.name);
-			if (ft != null) {
-				val cname = self.instantiate_fn(ft, c.type_args);
-				val cid_mut = cid as &IdentifierExpr;
-				cid_mut.name = cname;
-				c.type_args = List<*AstNode>();
-			} else {
-				val st = self.find_struct_template(cid.name);
-				if (st != null) {
-					val cty = self.instantiate_struct(st, c.type_args);
-					val cid_mut = cid as &IdentifierExpr;
-					cid_mut.name = cty.as_struct().name;
-					c.type_args = List<*AstNode>();
-				}
-			}
-		}
-	}
-
-	fn rewrite_expr_generics(var self, node: *AstNode): bool {
-		val cur = node;
-		return when (cur) {
-			is CallExpr as c -> {
-				val c_mut = c as &CallExpr;
-				self.rewrite_call_target(node, c_mut);
-				self.rewrite_generics(c.callee);
-				for (a in c.args) self.rewrite_generics(a);
-				yield true;
-			}
-			is BinaryExpr as b -> {
-				self.rewrite_generics(b.left);
-				self.rewrite_generics(b.right);
-				yield true;
-			}
-			is UnaryExpr as u -> self.rewrite_child(u.operand),
-			is MemberExpr as m -> self.rewrite_child(m.object),
-			is IndexExpr as ix -> {
-				self.rewrite_generics(ix.target);
-				self.rewrite_generics(ix.index);
-				yield true;
-			}
-			is AssignExpr as a -> {
-				self.rewrite_generics(a.target);
-				self.rewrite_generics(a.value);
-				yield true;
-			}
-			is UpdateExpr as u -> self.rewrite_child(u.target),
-			is CastExpr as cst -> {
-				self.rewrite_generics(cst.expr);
-				self.rewrite_generics(cst.target_type);
-				yield true;
-			}
-			is GroupExpr as g -> self.rewrite_child(g.expr),
-			is IfExpr as ie -> {
-				self.rewrite_generics(ie.condition);
-				self.rewrite_generics(ie.then_branch);
-				self.rewrite_generics(ie.else_branch);
-				yield true;
-			}
-			is ArrayLiteralExpr as al -> {
-				for (e in al.elements) self.rewrite_generics(e);
-				yield true;
-			}
-			is WhenExpr as we -> {
-				self.rewrite_generics(we.condition);
-				for (arm in we.arms) {
-					for (pat in arm.patterns) self.rewrite_generics(pat);
-					self.rewrite_generics(arm.body);
-				}
-				yield true;
-			}
-			is InterpExpr as ie -> {
-				for (part in ie.parts) self.rewrite_generics(part.expr);
-				yield true;
-			}
-			is IsExpr as is_e -> {
-				if (is_e.expr != null) self.rewrite_generics(is_e.expr);
-				self.rewrite_generics(is_e.target_type);
-				yield true;
-			}
-			else -> false;
-		};
-	}
-
-	fn rewrite_stmt_generics(var self, node: *AstNode): bool {
-		val cur = node;
-		return when (cur) {
-			is BlockStmt as b -> {
-				for (s in b.statements) self.rewrite_generics(s);
-				yield true;
-			}
-			is ExprStmt as e -> self.rewrite_child(e.expr),
-			is VarDeclStmt as v -> {
-				if (v.type_annotation != null && v.initializer != null) {
-					self.propagate_target_type(v.type_annotation, v.initializer);
-				}
-				self.rewrite_generics(v.type_annotation);
-				self.rewrite_generics(v.initializer);
-				yield true;
-			}
-			is IfStmt as s -> {
-				self.rewrite_generics(s.condition);
-				self.rewrite_generics(s.then_branch);
-				self.rewrite_generics(s.else_branch);
-				yield true;
-			}
-			is WhileStmt as w -> {
-				self.rewrite_generics(w.condition);
-				self.rewrite_generics(w.body);
-				yield true;
-			}
-			is ForStmt as f -> {
-				self.rewrite_generics(f.iterable);
-				self.rewrite_generics(f.range_start);
-				self.rewrite_generics(f.range_end);
-				self.rewrite_generics(f.body);
-				yield true;
-			}
-			is ReturnStmt as r -> {
-				if (r.value != null && self.current_fn_return_type != null) {
-					self.propagate_target_type(self.current_fn_return_type, r.value);
-				}
-				self.rewrite_generics(r.value);
-				yield true;
-			}
-			is YieldStmt as y -> self.rewrite_child(y.value),
-			is DeferStmt as d -> self.rewrite_child(d.body),
-			is WhenStmt as w -> {
-				self.rewrite_generics(w.condition);
-				for (arm in w.arms) {
-					for (pat in arm.patterns) self.rewrite_generics(pat);
-					self.rewrite_generics(arm.body);
-				}
-				yield true;
-			}
-			else -> false;
-		};
-	}
-
-	fn rewrite_decl_generics(var self, node: *AstNode): bool {
-		val cur = node;
-		return when (cur) {
-			is StructDecl as s -> {
-				for (fld in s.fields) {
-					if (fld.type_node != null && fld.default_val != null) {
-						self.propagate_target_type(fld.type_node, fld.default_val);
-					}
-					self.rewrite_generics(fld.type_node);
-					if (fld.default_val != null) self.rewrite_generics(fld.default_val);
-				}
-				yield true;
-			}
-			is FnDecl as f -> {
-				for (p in f.params) {
-					if (p.type_node != null && p.default_val != null) {
-						self.propagate_target_type(p.type_node, p.default_val);
-					}
-					self.rewrite_generics(p.type_node);
-					if (p.default_val != null) self.rewrite_generics(p.default_val);
-				}
-				self.rewrite_generics(f.return_type);
-				val prev_ret = self.current_fn_return_type;
-				self.current_fn_return_type = f.return_type;
-				if (f.body is ExprStmt as es && f.return_type != null) {
-					self.propagate_target_type(f.return_type, es.expr);
-				}
-				self.rewrite_generics(f.body);
-				self.current_fn_return_type = prev_ret;
-				yield true;
-			}
-			is ImplDecl as im -> {
-				for (m in im.methods) {
-					if (m is FnDecl as f && f.type_params.len > 0) continue;
-					self.rewrite_generics(m);
-				}
-				yield true;
-			}
-			is ConstDecl as c -> {
-				if (c.type_node != null && c.value != null) {
-					self.propagate_target_type(c.type_node, c.value);
-				}
-				self.rewrite_generics(c.type_node);
-				self.rewrite_generics(c.value);
-				yield true;
-			}
-			is ExternBlock as ext -> {
-				for (d in ext) self.rewrite_generics(d);
-				yield true;
-			}
-			else -> false;
-		};
 	}
 
 }

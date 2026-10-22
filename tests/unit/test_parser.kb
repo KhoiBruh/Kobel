@@ -34,7 +34,7 @@ use compiler.ast.decl.FnDecl;
 use compiler.ast.node.AstNode;
 
 use compiler.parser.parser.Parser;
-use compiler.parser.expr.PREC_NONE;
+use compiler.parser.expr.Precedence;
 use compiler.parser.types.parse_type;
 use compiler.parser.stmt.parse_statement;
 use compiler.parser.decl.parse_program;
@@ -77,20 +77,20 @@ fn test_expression_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr");
-	val bin_root = expr.to<BinaryExpr>();
+	val bin_root = expr.as_binary_expr();
 	assert_true(bin_root.op == TokenType.PLUS, "Root operator must be '+'");
 
 	val left_node = bin_root.left;
 	assert_true(left_node.kind == NodeKind.EXPR_LITERAL, "Left child must be literal 1");
-	val left_lit = left_node.to<LiteralExpr>();
+	val left_lit = left_node.as_literal_expr();
 	assert_eq_str(left_lit.raw_text, "1", "Left literal text must be 1");
 
 	val right_node = bin_root.right;
 	assert_true(right_node.kind == NodeKind.EXPR_BINARY, "Right child must be binary expr (2 * 3)");
-	val bin_mul = right_node.to<BinaryExpr>();
+	val bin_mul = right_node.as_binary_expr();
 	assert_true(bin_mul.op == TokenType.STAR, "Inner operator must be '*'");
 
 	println("  [PASS] test_expression_parsing");
@@ -106,20 +106,20 @@ fn test_call_and_member_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_CALL, "Top node must be CallExpr");
-	val call_expr = expr.to<CallExpr>();
+	val call_expr = expr.as_call_expr();
 	assert_eq_usz(call_expr.args.len, 2UZ, "Call must have 2 arguments");
 
 	val callee = call_expr.callee;
 	assert_true(callee.kind == NodeKind.EXPR_MEMBER, "Callee must be MemberExpr");
-	val mem_expr = callee.to<MemberExpr>();
+	val mem_expr = callee.as_member_expr();
 	assert_eq_str(mem_expr.member, "move_to", "Member name must be 'move_to'");
 
 	val obj = mem_expr.object;
 	assert_true(obj.kind == NodeKind.EXPR_IDENTIFIER, "Object must be Identifier");
-	val id_expr = obj.to<IdentifierExpr>();
+	val id_expr = obj.as_identifier_expr();
 	assert_eq_str(id_expr.name, "player", "Identifier name must be 'player'");
 
 	println("  [PASS] test_call_and_member_parsing");
@@ -138,7 +138,7 @@ fn test_type_parsing() {
 	val type_node = parser.parse_type();
 
 	assert_true(type_node.kind == NodeKind.TYPE_NAMED, "Parsed type must be NamedType");
-	val named = type_node.to<NamedType>();
+	val named = type_node.as_named_type();
 	assert_eq_str(named.name, "std.collections.List", "Type path must match");
 	assert_eq_usz(named.type_args.len, 1UZ, "Type must have 1 generic argument");
 
@@ -161,7 +161,7 @@ fn test_statement_parsing() {
 	val stmt = parser.parse_statement();
 
 	assert_true(stmt.kind == NodeKind.STMT_VAR_DECL, "Must be VarDeclStmt");
-	val var_decl = stmt.to<VarDeclStmt>();
+	val var_decl = stmt.as_var_decl_stmt();
 	assert_true(!var_decl.is_mut, "VarDecl must be immutable (val)");
 	assert_eq_str(var_decl.name, "total", "VarDecl name must be 'total'");
 	assert_true(var_decl.type_annotation != null, "VarDecl must have type annotation");
@@ -198,25 +198,25 @@ fn test_full_program_parsing() {
 	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
 	assert_true(program_node.kind == NodeKind.PROGRAM, "Root node must be Program");
 
-	val prog = program_node.to<Program>();
+	val prog = program_node.as_program();
 	assert_eq_usz(prog.declarations.len, 5UZ, "Program must contain 5 declarations");
 
 	// Decl 0: ModuleDecl
 	val d0 = prog.declarations[0UZ];
 	assert_true(d0.kind == NodeKind.DECL_MODULE, "Decl 0 must be DECL_MODULE");
-	val m_decl = d0.to<ModuleDecl>();
+	val m_decl = d0.as_module_decl();
 	assert_eq_str(m_decl.full_path, "sample.math", "Module path must match");
 
 	// Decl 1: UseDecl
 	val d1 = prog.declarations[1UZ];
 	assert_true(d1.kind == NodeKind.DECL_USE, "Decl 1 must be DECL_USE");
-	val u_decl = d1.to<UseDecl>();
+	val u_decl = d1.as_use_decl();
 	assert_eq_str(u_decl.full_path, "std.io.println", "Use path must match");
 
 	// Decl 2: StructDecl
 	val d2 = prog.declarations[2UZ];
 	assert_true(d2.kind == NodeKind.DECL_STRUCT, "Decl 2 must be DECL_STRUCT");
-	val s_decl = d2.to<StructDecl>();
+	val s_decl = d2.as_struct_decl();
 	assert_eq_str(s_decl.name, "Vector2D", "Struct name must match");
 	assert_true(s_decl.is_pub, "Struct must be pub");
 	assert_eq_usz(s_decl.fields.len, 2UZ, "Struct must have 2 fields");
@@ -224,7 +224,7 @@ fn test_full_program_parsing() {
 	// Decl 3: FnDecl (add)
 	val d3 = prog.declarations[3UZ];
 	assert_true(d3.kind == NodeKind.DECL_FN, "Decl 3 must be DECL_FN");
-	val fn_add = d3.to<FnDecl>();
+	val fn_add = d3.as_fn_decl();
 	assert_eq_str(fn_add.name, "add", "Function name must be 'add'");
 	assert_true(fn_add.is_pub, "Function must be pub");
 	assert_eq_usz(fn_add.params.len, 2UZ, "Function must have 2 params");
@@ -232,7 +232,7 @@ fn test_full_program_parsing() {
 	// Decl 4: FnDecl (main)
 	val d4 = prog.declarations[4UZ];
 	assert_true(d4.kind == NodeKind.DECL_FN, "Decl 4 must be DECL_FN");
-	val fn_main = d4.to<FnDecl>();
+	val fn_main = d4.as_fn_decl();
 	assert_eq_str(fn_main.name, "main", "Function name must be 'main'");
 	assert_true(!fn_main.is_pub, "Function must not be pub");
 	assert_eq_usz(fn_main.params.len, 0UZ, "Main must have 0 params");
@@ -245,20 +245,20 @@ fn test_adjacent_strings_parsing() {
 	val src1 = "\"hello \" \"world\"";
 	var lexer1 = Lexer(src1);
 	var parser1 = Parser(lexer1.tokenize());
-	val expr1 = parser1.parse_expression(PREC_NONE);
+	val expr1 = parser1.parse_expression(Precedence.NONE);
 
 	assert_true(expr1.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
-	val lit1 = expr1.to<LiteralExpr>();
+	val lit1 = expr1.as_literal_expr();
 	assert_eq_str(lit1.raw_text, "\"hello world\"", "Concatenated literal must be '\"hello world\"'");
 
 	// Test multi-line adjacent strings
 	val src2 = "\"a\" \n \"b\" \n \"c\"";
 	var lexer2 = Lexer(src2);
 	var parser2 = Parser(lexer2.tokenize());
-	val expr2 = parser2.parse_expression(PREC_NONE);
+	val expr2 = parser2.parse_expression(Precedence.NONE);
 
 	assert_true(expr2.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
-	val lit2 = expr2.to<LiteralExpr>();
+	val lit2 = expr2.as_literal_expr();
 	assert_eq_str(lit2.raw_text, "\"abc\"", "Concatenated literal must be '\"abc\"'");
 
 	println("  [PASS] test_adjacent_strings_parsing");
@@ -268,10 +268,10 @@ fn test_multiline_string_parsing() {
 	val src = "\"\"\"\n\tline 1\n\tline 2\n\"\"\"";
 	var lexer = Lexer(src);
 	var parser = Parser(lexer.tokenize());
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_LITERAL, "Must be literal expr");
-	val lit = expr.to<LiteralExpr>();
+	val lit = expr.as_literal_expr();
 	assert_eq_str(lit.raw_text, "\"line 1\\nline 2\"", "Trimmed multiline literal must be '\"line 1\\nline 2\"'");
 
 	println("  [PASS] test_multiline_string_parsing");
@@ -283,27 +283,27 @@ fn test_safe_member_and_elvis_parsing() {
 	val tokens = lexer.tokenize();
 
 	var parser = Parser(tokens);
-	val expr = parser.parse_expression(PREC_NONE);
+	val expr = parser.parse_expression(Precedence.NONE);
 
 	assert_true(expr.kind == NodeKind.EXPR_BINARY, "Root node must be binary expr (elvis)");
-	val elvis_bin = expr.to<BinaryExpr>();
+	val elvis_bin = expr.as_binary_expr();
 	assert_true(elvis_bin.op == TokenType.QUESTION_COLON, "Operator must be '?:'");
 
 	val left = elvis_bin.left;
 	assert_true(left.kind == NodeKind.EXPR_MEMBER, "LHS must be MemberExpr");
-	val name_mem = left.to<MemberExpr>();
+	val name_mem = left.as_member_expr();
 	assert_true(name_mem.is_safe, "name_mem must be safe");
 	assert_eq_str(name_mem.member, "name", "Member must be 'name'");
 
 	val inner_obj = name_mem.object;
 	assert_true(inner_obj.kind == NodeKind.EXPR_MEMBER, "inner_obj must be MemberExpr");
-	val prof_mem = inner_obj.to<MemberExpr>();
+	val prof_mem = inner_obj.as_member_expr();
 	assert_true(prof_mem.is_safe, "prof_mem must be safe");
 	assert_eq_str(prof_mem.member, "profile", "Member must be 'profile'");
 
 	val user_obj = prof_mem.object;
 	assert_true(user_obj.kind == NodeKind.EXPR_IDENTIFIER, "user_obj must be IdentifierExpr");
-	val user_id = user_obj.to<IdentifierExpr>();
+	val user_id = user_obj.as_identifier_expr();
 	assert_eq_str(user_id.name, "user", "Identifier must be 'user'");
 
 	println("  [PASS] test_safe_member_and_elvis_parsing");

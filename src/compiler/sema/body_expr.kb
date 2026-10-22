@@ -1,10 +1,12 @@
 mod compiler.sema.body_expr;
 
 // ============================================================================
-// BodyPass - Expression Type Checking
+// BodyPass - Primaries and Operators
 //
-// Analyzes literals, identifiers, unary/binary operations, member/index access,
-// assignments, compound updates, conditionals (if/when), and string interpolation.
+// Literals, identifiers, the binary operator families (including the elvis
+// form), unary operators, `if` expressions and array literals. Receiver access,
+// assignment and patterns live in `body_access` / `body_pattern`, and string
+// interpolation in `body_interp`.
 // ============================================================================
 
 use std.mem.arena.*;
@@ -58,9 +60,9 @@ impl BodyPass {
 	}
 
 	pub fn check_literal_expr(var self, node: *AstNode): *Type {
-		val lit = node.to<LiteralExpr>();
+		val lit = node.as_literal_expr();
 		return when (lit.literal_kind) {
-			LiteralKind.INT -> int_literal_type(&self.arena, lit.raw_text);
+			LiteralKind.INT -> int_literal_type(self.symtab.prims_of(), lit.raw_text);
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
@@ -76,7 +78,7 @@ impl BodyPass {
 	}
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
-		val id = node.to<IdentifierExpr>() as &IdentifierExpr;
+		val id = node.as_identifier_expr() as &IdentifierExpr;
 
 		// `Self` names the type being implemented. Renaming it to the C
 		// name lets `Self(...)` build a value directly (no `new` factory).
@@ -96,7 +98,7 @@ impl BodyPass {
 	}
 
 	pub fn check_binary_expr(var self, node: *AstNode): *Type {
-		val bin = node.to<BinaryExpr>();
+		val bin = node.as_binary_expr();
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
 
@@ -174,19 +176,11 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `+ - * / %`: `str + str` becomes a runtime concat call, every other operand
-	// pair must be numeric, and the result keeps the left operand's type.
+	// `+ - * / %`: `str + str` is lowered to a runtime concat call, an overloaded
+	// struct operator to the method bound here, every other pair must be numeric.
+	// The result keeps the left operand's type.
 	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) {
-			// Rewrite `str + str` into a runtime concat call so the C
-			// backend does not emit pointer arithmetic.
-			var cat_args = List<*AstNode>();
-			cat_args += bin.left;
-			cat_args += bin.right;
-			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-			self.replace_node(node, cat_call);
-			return self.t_str();
-		}
+		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.t_str();
 		if (lt.is_numeric() && rt.is_numeric()) return lt;
 
 		if (lt.kind == DataType.STRUCT) {
@@ -205,11 +199,7 @@ impl BodyPass {
 				arg_types += rt;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					var new_args = List<*AstNode>();
-					new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
-					new_args += bin.right;
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
+					node.resolved_method = mi as *u8;
 					return mi.fn_type.as_fn().return_type;
 				}
 			}
@@ -219,14 +209,10 @@ impl BodyPass {
 		return lt;
 	}
 
-	// `== !=`: `str` compares by content, everything else by value.
+	// `== !=`: `str` compares by content, structs through an `equals` operator or
+	// a byte compare, everything else by value. All forms are lowered by `lower`.
 	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (lt.kind == DataType.STR && rt.kind == DataType.STR) {
-			// Content comparison instead of C pointer comparison.
-			val wrapped = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
-			self.replace_node(node, wrapped);
-			return self.t_bool();
-		}
+		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.t_bool();
 
 		if (lt.kind == DataType.STRUCT) {
 			self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
@@ -235,20 +221,7 @@ impl BodyPass {
 			arg_types += lt;
 			arg_types += rt;
 			val mi = s_info.find_operator("equals", arg_types);
-			if (mi != null) {
-				var new_args = List<*AstNode>();
-				new_args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
-				new_args += bin.right;
-				var call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				if (bin.op == TokenType.BANG_EQUAL) {
-					call_node = self.unary(TokenType.BANG, call_node, node.line, node.col);
-				}
-				self.replace_node(node, call_node);
-				return self.t_bool();
-			}
-
-			val wrapped = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
-			self.replace_node(node, wrapped);
+			if (mi != null) node.resolved_method = mi as *u8;
 			return self.t_bool();
 		}
 
@@ -279,11 +252,7 @@ impl BodyPass {
 			arg_types += lt;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
-				var new_args = List<*AstNode>();
-				new_args += if (r_is_ptr) bin.right else self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
-				new_args += bin.left;
-				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				self.replace_node(node, call_node);
+				node.resolved_method = mi as *u8;
 				return self.t_bool();
 			}
 		}
@@ -297,8 +266,8 @@ impl BodyPass {
 					args += bin.right;
 					val mem = self.member(bin.left, "in_list", node.line, node.col);
 					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
-					return self.check_expr(node);
+					node.resolved_node = call_node;
+					return self.check_expr(call_node);
 				}
 			}
 		}
@@ -307,12 +276,12 @@ impl BodyPass {
 		args += bin.left;
 		val mem = self.member(bin.right, "contains", node.line, node.col);
 		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, call_node);
-		return self.check_expr(node);
+		node.resolved_node = call_node;
+		return self.check_expr(call_node);
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
-		val un = node.to<UnaryExpr>();
+		val un = node.as_unary_expr();
 		val op_ty = self.check_expr(un.operand);
 
 		if (op_ty.kind == DataType.STRUCT) {
@@ -327,10 +296,7 @@ impl BodyPass {
 				arg_types += op_ty;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					var new_args = List<*AstNode>();
-					new_args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
-					val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
+					node.resolved_method = mi as *u8;
 					return mi.fn_type.as_fn().return_type;
 				}
 			}
@@ -359,477 +325,8 @@ impl BodyPass {
 		};
 	}
 
-	pub fn check_member_expr(var self, node: *AstNode): *Type {
-		val mem = node.to<MemberExpr>() as &MemberExpr;
-
-		// Enum member (`NodeKind.EXPR_LITERAL`) and struct constant
-		// (`Foo.CONST`) both rewrite the node in place, so they resolve
-		// before the receiver type is even checked.
-		val const_ty = self.check_const_member(node, mem);
-		if (const_ty != null) return const_ty;
-
-		var obj_ty = self.check_expr(mem.object);
-
-		// Pointer results that are not plain identifiers cannot be recognized
-		// by the backend's name-based pointer tracking, so dereference them
-		// here: `p.field` becomes `(*p).field`.
-		if (
-			!mem.is_safe &&
-			obj_ty.kind == DataType.POINTER &&
-			mem.object.kind != NodeKind.EXPR_IDENTIFIER
-		) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
-
-		// Automatic pointer unwrapping: p.x when p is *Point or &Point
-		var obj_was_ptr = false;
-		if (obj_ty.kind == DataType.POINTER) {
-			obj_was_ptr = true;
-			obj_ty = obj_ty.as_pointer().pointee;
-		}
-
-		if (mem.is_safe && !obj_was_ptr) {
-			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
-			return self.t_none();
-		}
-
-		// Enum `.value`: identity on the underlying integer. The node is
-		// rewritten to the receiver so the backend emits it unchanged.
-		if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
-			self.replace_node(node, mem.object);
-			return obj_ty.as_enum().underlying;
-		}
-
-		var ret_ty = self.t_none();
-		if (obj_ty.kind == DataType.STR) ret_ty = self.member_on_str(node, mem);
-		else if (obj_ty.kind == DataType.ARRAY) ret_ty = self.member_on_array(node, mem, obj_ty);
-		else if (obj_ty.kind != DataType.STRUCT) {
-			self.report_error(node, "Member access on non-struct type");
-			return self.t_none();
-		} else {
-			ret_ty = self.member_on_struct(node, mem, obj_ty);
-		}
-
-		if (mem.is_safe) {
-			self.ensure(
-				ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR,
-				node,
-				"Safe call operator '?.' requires field to be a pointer or string"
-			);
-			if (ret_ty.kind == DataType.POINTER) {
-				val pt = ret_ty.as_pointer();
-				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
-			}
-		}
-
-		return ret_ty;
-	}
-
-	// Enum member `E.MEMBER` or struct constant `Foo.CONST`, both rewritten in
-	// place into a node the backend emits as-is. Null when the receiver is not an
-	// enum or struct name, so the caller carries on with a normal member access.
-	fn check_const_member(var self, node: *AstNode, mem: &MemberExpr): *Type {
-		val obj = mem.object;
-		if (obj is IdentifierExpr as enum_id) {
-			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant.
-			val ei = self.symtab.find_enum_info(enum_id.name);
-			if (ei != null) {
-				val mi = ei.find_member(mem.member);
-				if (mi == null) {
-					self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
-					return self.t_none();
-				}
-				// Reuse the node as a plain integer literal for the backend.
-				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
-				self.replace_node(node, lit);
-				val carrier = self.arena.alloc<Type>();
-				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, ei as *u8);
-				return carrier;
-			}
-
-			// Struct constant access: Foo.CONST -> rewritten to Foo__CONST identifier
-			val s_sym = self.symtab.lookup(enum_id.name);
-			if (s_sym != null && s_sym.kind == SymbolKind.STRUCT) {
-				val c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}")
-					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
-					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
-				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
-					val id_node = self.identifier(c_sym.c_name, node.line, node.col);
-					self.replace_node(node, id_node);
-					return c_sym.type_ptr;
-				}
-			}
-		}
-		return null;
-	}
-
-	// `str` lowers to a bare `const char*`, so its members cannot go through the
-	// struct field path.
-	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type {
-		if (mem.member == "len" || mem.member == "size") {
-			// Lower to a runtime call: the C backend cannot tell that an
-			// arbitrary expression has type `str`.
-			var len_args = List<*AstNode>();
-			len_args += mem.object;
-			val len_call = self.call(self.identifier("kobel_slen", node.line, node.col), len_args, List<*AstNode>(), node.line, node.col);
-			self.replace_node(node, len_call);
-			return self.t_usz();
-		}
-		if (mem.member == "cap") return self.t_usz();
-		if (mem.member == "c_str") {
-			val char_ty = self.t_char();
-			val char_ptr = self.arena.pointer_type(char_ty, false);
-			return self.arena.fn_type(List<*Type>(), char_ptr);
-		}
-		if (mem.member == "data") {
-			// `.data` is the pointer itself, so the access becomes its receiver.
-			val char_ty = self.t_char();
-			self.replace_node(node, mem.object);
-			return self.arena.pointer_type(char_ty, false);
-		}
-		self.report_error(node, "Member access on non-struct type");
-		return self.t_none();
-	}
-
-	// `[T; N]`: the length is a compile-time constant, and the value already is a
-	// pointer to its first element.
-	fn member_on_array(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
-		val arr = obj_ty.as_array();
-		if (mem.member == "len" || mem.member == "size") {
-			val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
-			self.replace_node(node, lit);
-			return self.t_usz();
-		}
-		if (mem.member == "data") {
-			self.replace_node(node, mem.object);
-			return self.arena.pointer_type(arr.elem, true);
-		}
-		self.report_error(node, "Member access on non-struct type");
-		return self.t_none();
-	}
-
-	fn member_on_struct(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
-		val s_info = obj_ty.as_struct();
-		for (f in s_info.fields) {
-			if (f.name != mem.member) continue;
-			// A non-pub field is only usable where the type is declared.
-			if (!f.is_pub && s_info.module != self.symtab.current_module) {
-				self.report_error(node, "Field '${mem.member}' of '${s_info.name}' is private to module '${s_info.module}'");
-			}
-			return f.type_ptr;
-		}
-		self.report_error(node, "Struct '${s_info.name}' has no member named '${mem.member}'");
-		return self.t_none();
-	}
-
-	pub fn check_index_expr(var self, node: *AstNode): *Type {
-		val idx = node.to<IndexExpr>();
-		val target_ty = self.check_expr(idx.target);
-		val index_ty = self.check_expr(idx.index);
-
-		if (
-			target_ty.kind == DataType.ARRAY ||
-			target_ty.kind == DataType.STR ||
-			(target_ty.kind == DataType.POINTER && index_ty.is_integer())
-		) {
-			self.ensure(index_ty.is_integer(), node, "Index must be integer");
-			return when (target_ty.kind) {
-				DataType.ARRAY -> target_ty.as_array().elem;
-				DataType.STR -> self.t_char();
-				DataType.POINTER -> target_ty.as_pointer().pointee;
-				else -> self.t_none();
-			};
-		}
-
-		val t_is_ptr = target_ty.kind == DataType.POINTER;
-		val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
-		if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
-			val s_info = t_struct_ty.as_struct();
-			var arg_types = List<*Type>();
-			arg_types += t_struct_ty;
-			arg_types += index_ty;
-			val mi = s_info.find_operator("get", arg_types) ?: s_info.find_method_arity("get", 2) ?: s_info.find_method("get");
-
-			if (mi != null) {
-				val fn_info = mi.fn_type.as_fn();
-				val param_ty = fn_info.param_types[1];
-				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
-				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
-
-				var new_args = List<*AstNode>();
-				new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
-				new_args += idx.index;
-
-				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				self.replace_node(node, call_node);
-
-				return fn_info.return_type;
-			}
-		}
-
-		if (target_ty.kind == DataType.POINTER) {
-			self.ensure(index_ty.is_integer(), node, "Index must be integer");
-			return target_ty.as_pointer().pointee;
-		}
-
-		self.report_error(node, "Index access on non-indexable type");
-		return self.t_none();
-	}
-
-	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {
-		val cur = self.unwrap_group(target_node) ?: return;
-
-		when (cur) {
-			is IdentifierExpr -> self.check_ident_assignable(
-				op_node, cur.name, self.symtab.lookup(cur.name), is_update
-			);
-
-			is MemberExpr -> {
-				if (cur.is_safe) self.report_error(op_node, "Cannot assign to safe navigation expression");
-				if (self.is_immutable_self(cur.object)) {
-					self.report_error(op_node,
-						"Cannot mutate field '${cur.member}' "
-						"on immutable receiver 'self' in 'val self' method"
-					);
-				}
-			}
-
-			is IndexExpr -> {
-				if (self.is_immutable_self(cur.target)) {
-					val act = if (is_update) "update" else "mutate";
-					self.report_error(op_node,
-						"Cannot ${act} through index on immutable receiver"
-						" 'self' in 'val self' method"
-					);
-				}
-			}
-
-			// `*p = v` is a write through the pointee; any other unary target
-			// is not assignable.
-			is UnaryExpr -> {
-				if (cur.op != TokenType.STAR) self.report_error(
-					op_node, "Invalid target for ${self.target_word(is_update)}"
-				);
-			}
-
-			else -> self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");
-		}
-	}
-
-	// How an invalid or immutable target is described in an error message.
-	fn target_word(val self, update: bool) => if (update) "increment/decrement operator" else "assignment";
-
-	// Strip the parentheses a target may be wrapped in.
-	pub fn unwrap_group(var self, node: *AstNode): *AstNode {
-		var cur = node;
-		while (cur != null) {
-			if (cur is GroupExpr as g) cur = g.expr;
-			else break;
-		}
-		return cur;
-	}
-
-	// Writing a field or an index through `self` needs a mutating receiver
-	// (`var self`). False when the object is not `self` at all.
-	fn is_immutable_self(var self, obj_node: *AstNode): bool {
-		val obj = self.unwrap_group(obj_node);
-		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
-			val self_sym = self.symtab.lookup("self");
-			return self_sym != null && !self_sym.is_mut;
-		}
-		return false;
-	}
-
-	// Constants, `val` locals, and `val` parameters cannot be assigned to.
-	fn check_ident_assignable(var self, op_node: *AstNode, name: str, sym: *Symbol, is_update: bool) {
-		if (sym == null) return;
-		val act = if (is_update) "update" else "assign to";
-		when (sym.kind) {
-			SymbolKind.CONST -> self.report_error(op_node, "Cannot ${act} constant '${name}'");
-			SymbolKind.VAR -> {
-				if (!sym.is_mut) self.report_error(op_node,
-					"Cannot ${act} immutable variable"
-					" '${name}' declared with 'val'"
-				);
-			}
-			SymbolKind.PARAM -> {
-				if (!sym.is_mut) self.report_error(
-					op_node, "Cannot ${act} immutable parameter '${name}'"
-				);
-			}
-			else -> self.report_error(op_node, "Cannot ${act} '${name}'");
-		}
-	}
-
-	pub fn check_assign_expr(var self, node: *AstNode): *Type {
-		val asgn = node.to<AssignExpr>() as &AssignExpr;
-		val was_stmt = self.is_stmt_level;
-		self.is_stmt_level = false;
-		val target_expr = self.unwrap_group(asgn.target);
-
-		// Index assignment desugaring: container[i] = val -> container.set(i, val)
-		if (target_expr is IndexExpr as idx) {
-			self.check_lvalue_mutability(target_expr, node, false);
-			val lowered = self.lower_index_assign(node, asgn, idx);
-			if (lowered != null) return lowered;
-		}
-
-		val target_ty = self.check_expr(asgn.target);
-		if (target_ty != null && target_ty.is_list()) self.coerce_to_list(asgn.value, target_ty);
-		val prev_stmt = self.is_stmt_level;
-		self.is_stmt_level = was_stmt;
-		val val_ty = self.check_expr(asgn.value);
-		self.is_stmt_level = prev_stmt;
-
-		if (asgn.op != TokenType.EQUAL) {
-			val t_is_ptr = target_ty.kind == DataType.POINTER;
-			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
-			if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
-				val op_name = when (asgn.op) {
-					TokenType.PLUS_EQUAL -> "plus_assign",
-					TokenType.MINUS_EQUAL -> "minus_assign",
-					TokenType.STAR_EQUAL -> "mul_assign",
-					TokenType.SLASH_EQUAL -> "div_assign",
-					TokenType.PERCENT_EQUAL -> "rem_assign",
-					else -> ""
-				};
-				if (!op_name.empty()) {
-					val s_info = t_struct_ty.as_struct();
-					var arg_types = List<*Type>();
-					arg_types += t_struct_ty;
-					arg_types += val_ty;
-					val mi = s_info.find_operator(op_name, arg_types);
-					if (mi != null) {
-						if (!t_is_ptr) self.check_lvalue_mutability(target_expr, node, false);
-						else if (self.is_immutable_self(target_expr)) {
-							self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
-						}
-						var new_args = List<*AstNode>();
-						new_args += if (t_is_ptr) asgn.target else self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
-						new_args += asgn.value;
-						val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-						self.replace_node(node, call_node);
-						return mi.fn_type.as_fn().return_type;
-					}
-				}
-			}
-		}
-
-		self.check_lvalue_mutability(target_expr, node, false);
-
-		// String concatenation desugaring: s += str -> s = kobel_concat(s, str)
-		if (asgn.op == TokenType.PLUS_EQUAL && target_ty.kind == DataType.STR) {
-			var cat_args = List<*AstNode>();
-			cat_args += asgn.target;
-			cat_args += asgn.value;
-			val cat_call = self.call(self.identifier("kobel_concat", node.line, node.col), cat_args, List<*AstNode>(), node.line, node.col);
-			asgn.value = cat_call;
-			asgn.op = TokenType.EQUAL;
-			return target_ty;
-		}
-
-		if (asgn.op != TokenType.EQUAL) {
-			self.ensure(target_ty.is_numeric() && val_ty.is_numeric(), node, "Compound assignment operator requires numeric operands");
-		}
-
-		self.ensure(target_ty.can_assign(val_ty), node, "Type mismatch in assignment");
-		return target_ty;
-	}
-
-	// `container[i] = v` lowers to `container.set(i, v)`, and `container[i] += v`
-	// to `container.set(i, container[i] + v)`. Null when the container type has no
-	// `set` method, so the caller keeps its generic path.
-	fn lower_index_assign(var self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type {
-		val bin_op = when (asgn.op) {
-			TokenType.PLUS_EQUAL -> TokenType.PLUS,
-			TokenType.MINUS_EQUAL -> TokenType.MINUS,
-			TokenType.STAR_EQUAL -> TokenType.STAR,
-			TokenType.SLASH_EQUAL -> TokenType.SLASH,
-			TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
-			else -> TokenType.EQUAL
-		};
-		return self.lower_index_write(node, idx, bin_op, asgn.value, "assignment");
-	}
-
-	// Shared lowering of an indexed write into a `set(i, v)` call. `op` is
-	// `EQUAL` for a plain store, otherwise the arithmetic operator applied to the
-	// current element; a null `rhs` means "one" (for `++`/`--`), typed to match
-	// the element. `what` names the construct in error messages.
-	fn lower_index_write(var self, node: *AstNode, idx: *IndexExpr, op: TokenType, rhs: *AstNode, what: str): *Type {
-		val target_raw_ty = self.check_expr(idx.target);
-		val t_is_ptr = target_raw_ty.kind == DataType.POINTER;
-		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer().pointee else target_raw_ty;
-		if (t_struct_ty == null || t_struct_ty.kind != DataType.STRUCT) return null;
-
-		val idx_ty_raw = self.check_expr(idx.index);
-		if (t_is_ptr && idx_ty_raw.is_integer()) return null;
-
-		val s_info = t_struct_ty.as_struct();
-		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
-
-		var arg_types = List<*Type>();
-		arg_types += t_struct_ty;
-		arg_types += idx_ty_raw;
-		if (val_ty_raw != null) arg_types += val_ty_raw;
-
-		val mi = s_info.find_operator("set", arg_types) ?: s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
-
-		val fn_info = mi.fn_type.as_fn();
-		val idx_param_ty = fn_info.param_types[1];
-		val val_param_ty = fn_info.param_types[2];
-
-		var operand = rhs;
-		if (operand == null) {
-			operand = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-				else self.literal(LiteralKind.INT, "1", node.line, node.col);
-		}
-		var val_expr = operand;
-		if (op != TokenType.EQUAL) {
-			val get_expr = self.index(idx.target, idx.index, node.line, node.col);
-			val_expr = self.binary(op, get_expr, operand, node.line, node.col);
-		}
-
-		if (idx_param_ty != null && idx_param_ty.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
-		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
-
-		if (val_param_ty != null && val_param_ty.is_list()) self.coerce_to_list(val_expr, val_param_ty);
-		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr) else val_ty_raw;
-		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
-
-		var new_args = List<*AstNode>();
-		new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
-		new_args += idx.index;
-		new_args += val_expr;
-
-		val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, call_node);
-		return val_param_ty;
-	}
-
-	pub fn check_update_expr(var self, node: *AstNode): *Type {
-		val u = node.to<UpdateExpr>();
-		val target_expr = self.unwrap_group(u.target);
-
-		self.check_lvalue_mutability(target_expr, node, true);
-
-		// Index desugaring: container[i]++ -> container.set(i, container[i] + 1)
-		if (target_expr is IndexExpr as idx) {
-			val op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
-			val lowered = self.lower_index_write(node, idx, op, null, "update");
-			if (lowered != null) return lowered;
-		}
-
-		val target_ty = self.check_expr(u.target);
-		self.ensure(target_ty.is_numeric(), node, "Increment/decrement operator requires numeric operand");
-		return target_ty;
-	}
-
-	pub fn check_cast_expr(var self, node: *AstNode): *Type {
-		val cst = node.to<CastExpr>();
-		self.check_expr(cst.expr);
-		return self.resolve_type(cst.target_type);
-	}
-
 	pub fn check_if_expr(var self, node: *AstNode): *Type {
-		val if_e = node.to<IfExpr>();
+		val if_e = node.as_if_expr();
 		val cond_ty = self.check_expr(if_e.condition);
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
 		val then_ty = self.check_expr(if_e.then_branch);
@@ -838,225 +335,9 @@ impl BodyPass {
 		return then_ty;
 	}
 
-	pub fn check_when_expr(var self, node: *AstNode): *Type {
-		val we = node.to<WhenExpr>();
-		val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
-
-		self.when_depth++;
-		var result_ty: *Type = null;
-		var has_else = false;
-		for (arm in we.arms) {
-			if (arm.is_else) has_else = true;
-
-			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
-			val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
-			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, we.condition);
-			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut);
-
-			if (result_ty == null) result_ty = body_ty;
-			else self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
-		}
-		self.when_depth--;
-
-		self.ensure(has_else, node, "when expression requires an 'else' arm");
-		if (!has_else || result_ty == null) return self.t_none();
-		return result_ty;
-	}
-
-	// Name a single-`is` arm binds: its alias, else the subject's own name. "" when
-	// the arm binds nothing, which is the case for every multi-pattern arm, every
-	// arm of a `when` without a subject, and any non-`is` pattern.
-	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode): str {
-		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
-			val pat = patterns.first();
-			if (pat is IsExpr as is_e) {
-				if (!is_e.alias.empty()) return is_e.alias;
-				return cond_id.name;
-			}
-		}
-		return "";
-	}
-
-	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
-	// or mutating the subject directly when subject was already mutable).
-	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode): bool {
-		if (cond is IdentifierExpr as cond_id && patterns.len == 1) {
-			val pat = patterns.first();
-			if (pat is IsExpr as is_e) {
-				if (!is_e.alias.empty()) return is_e.is_mut;
-				val subj_sym = self.symtab.lookup(cond_id.name);
-				return subj_sym != null && subj_sym.is_mut;
-			}
-		}
-		return false;
-	}
-
-	// Checks the patterns of one arm and returns the type its binding gets, or null
-	// when the arm binds nothing (then each pattern is an ordinary expression).
-	pub fn resolve_arm_patterns(var self, patterns: List<*AstNode>, cond: *AstNode, cond_ty: *Type): *Type {
-		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
-			val pat = patterns.first();
-			if (pat is IsExpr as var is_e) {
-				if (is_e.expr == null) is_e.expr = cond;
-				return self.check_is_pattern(cond, cond_ty, pat);
-			}
-			return null;
-		}
-
-		for (pat in patterns) {
-			val p_ty = self.check_arm_pattern(pat, cond, cond_ty);
-			if (cond == null && p_ty.kind != DataType.BOOL) {
-				self.report_error(pat, "Boolean when arm condition must be bool");
-			}
-		}
-		return null;
-	}
-
-	// One pattern of a non-binding arm: with a subject, an `is` pattern is a tag
-	// test; without one, the pattern stands for itself and must be a bool.
-	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode, cond_ty: *Type): *Type {
-		if (cond == null) return self.check_expr(pat);
-		if (pat is IsExpr as var is_e) {
-			if (is_e.expr == null) is_e.expr = cond;
-			self.check_is_pattern(cond, cond_ty, pat);
-			return self.t_bool();
-		}
-		return self.check_expr(pat);
-	}
-
-	// An arm that binds a name checks its body inside a scope holding that name.
-	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool): *Type {
-		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body);
-		self.symtab.enter_scope(false);
-		defer self.symtab.exit_scope();
-		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
-		return self.check_when_arm_body(body);
-	}
-
-	pub fn check_when_arm_body(var self, body: *AstNode): *Type {
-		if (body is BlockStmt as blk) {
-			var yield_ty: *Type = null;
-			self.symtab.enter_scope(false);
-			defer self.symtab.exit_scope();
-			for (stmt in blk.statements) {
-				if (stmt is YieldStmt as ys) {
-					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.t_none();
-				} else self.check_statement(stmt);
-			}
-			if (yield_ty == null) {
-				self.report_error(body, "When arm block must yield a value");
-				return self.t_none();
-			}
-			return yield_ty;
-		}
-		return self.check_expr(body);
-	}
-
-	pub fn check_is_pattern(var self, subject: *AstNode, subj_ty: *Type, is_node: *AstNode): *Type {
-		if (is_node == null || is_node.kind != NodeKind.EXPR_IS) return null;
-		val is_e = is_node.to<IsExpr>() as &IsExpr;
-		val target_ty = self.resolve_type(is_e.target_type);
-		if (target_ty.kind != DataType.STRUCT) {
-			self.report_error(is_node, "Target type of 'is' must be a struct");
-			return null;
-		}
-
-		val target_s = target_ty.as_struct();
-		val tag_const_sym = self.find_tag_const(target_s.name);
-		if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
-			self.report_error(is_node,
-				"Cannot smart cast to '${target_s.name}': "
-				"struct '${target_s.name}' must declare a 'const TAG'"
-			);
-			return null;
-		}
-
-		// The subject may be the struct itself or a pointer to it.
-		var base_ty = subj_ty;
-		var is_ptr = false;
-		var subj_is_mut = false;
-		if (base_ty != null && base_ty.kind == DataType.POINTER) {
-			is_ptr = true;
-			subj_is_mut = base_ty.as_pointer().is_mut;
-			base_ty = base_ty.as_pointer().pointee;
-		}
-		if (base_ty == null || base_ty.kind != DataType.STRUCT) {
-			self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
-			return null;
-		}
-
-		val base_s = base_ty.as_struct();
-		val tag_field_name = self.tag_field_name_of(base_s);
-		if (tag_field_name.empty()) {
-			self.report_error(is_node,
-				"Subject struct '${base_s.name}' must have a 'tag', 'TAG', or 'kind' field"
-			);
-			return null;
-		}
-
-		val tag_field_ty = self.field_type_of(base_s, tag_field_name);
-		if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
-			self.report_error(is_node,
-				"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
-			);
-			return null;
-		}
-
-		is_e.tag_field = tag_field_name;
-		is_e.has_data = self.struct_has_field(base_s, "data");
-		is_e.base_c_name = base_s.c_name;
-		is_e.is_ptr = is_ptr;
-		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.is_mut || (is_e.alias.empty() && subj_is_mut));
-		return target_ty;
-	}
-
-	// The tag constant a pattern compares against, under any of the spellings a
-	// tagged struct may use. Null when the struct declares none.
-	fn find_tag_const(var self, struct_name: str): *Symbol {
-		return self.symtab.lookup("${struct_name}__TAG")
-			?: self.symtab.lookup_struct_const(struct_name, "TAG")
-			?: self.symtab.lookup("${struct_name}__KIND")
-			?: self.symtab.lookup_struct_const(struct_name, "KIND");
-	}
-
-	// Name of the field a pattern reads the tag from, or "" when the struct has
-	// none of the accepted spellings.
-	fn tag_field_name_of(var self, base_s: *StructType): str {
-		for (f in base_s.fields) {
-			if (f.name == "tag" || f.name == "TAG" || f.name == "kind" || f.name == "kind_") {
-				return f.name;
-			}
-		}
-		return "";
-	}
-
-	fn field_type_of(var self, base_s: *StructType, name: str): *Type {
-		for (f in base_s.fields) {
-			if (f.name == name) return f.type_ptr;
-		}
-		return null;
-	}
-
-	fn struct_has_field(var self, base_s: *StructType, name: str): bool {
-		for (f in base_s.fields) {
-			if (f.name == name) return true;
-		}
-		return false;
-	}
-
-	pub fn check_is_expr(var self, node: *AstNode): *Type {
-		val is_e = node.to<IsExpr>() as &IsExpr;
-		if (is_e.expr == null) {
-			self.report_error(node, "'is' expression requires a subject");
-			return self.t_bool();
-		}
-		val subj_ty = self.check_expr(is_e.expr);
-		self.check_is_pattern(is_e.expr, subj_ty, node);
-		return self.t_bool();
-	}
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
-		val al = node.to<ArrayLiteralExpr>();
+		val al = node.as_array_literal_expr();
 		if (!al.list_struct_name.empty()) {
 			val sym = self.symtab.lookup(al.list_struct_name);
 			if (sym != null) return sym.type_ptr;
@@ -1075,55 +356,6 @@ impl BodyPass {
 			if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
 		}
 		return self.arena.array_type(elem_ty, al.elements.len);
-	}
-
-	pub fn check_interp_expr(var self, node: *AstNode): *Type {
-		val ie = node.to<InterpExpr>();
-		// Fold the parts into a `kobel_concat` chain; every hole is checked
-		// once and converted to `str` (see interp_piece).
-		var acc: *AstNode = null;
-		for (part in ie.parts) {
-			var piece = part.expr;
-			if (!part.is_literal) {
-				val pty = self.check_expr(piece);
-				piece = self.interp_piece(node, piece, pty) ?: return self.t_str();
-			}
-			if (acc == null) acc = piece;
-			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
-		}
-		acc = acc ?: self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
-
-		self.replace_node(node, acc);
-		return self.t_str();
-	}
-
-	// Converts one interpolation hole to `str`, or reports an error and returns null.
-	pub fn interp_piece(var self, node: *AstNode, expr: *AstNode, ty: *Type): *AstNode {
-		if (ty.kind == DataType.STR) return expr;
-
-		// Everything else goes through the `ToStr` trait; std.traits.to_str (loaded
-		// by the driver) provides the built-in implementations.
-		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
-		if (pmi != null) return self.arena.interp_call(pmi.c_name, expr, node.line, node.col);
-
-		var cur_ty = ty;
-		var is_ptr = false;
-		if (cur_ty.kind == DataType.POINTER) {
-			is_ptr = true;
-			cur_ty = cur_ty.as_pointer().pointee;
-		}
-		if (cur_ty.kind == DataType.STRUCT) {
-			val st_info = cur_ty.as_struct();
-			val mi = st_info.find_method("to_str");
-			if (mi != null) {
-				var arg = expr;
-				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, node.line, node.col);
-				return self.arena.interp_call(mi.c_name, arg, node.line, node.col);
-			}
-		}
-
-		self.report_error(node, "Interpolated value must implement ToStr");
-		return null;
 	}
 
 }

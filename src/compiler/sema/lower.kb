@@ -1,0 +1,495 @@
+mod compiler.sema.lower;
+
+// ============================================================================
+// Lowering pass
+//
+// Runs after `check_program`, when every checked expression already carries its
+// resolved type. It rewrites sugar into forms the C backend can emit directly
+// and **returns replacement nodes** instead of mutating a node's kind in place.
+//
+// The checker leaves decisions on the nodes it checks (`type_ptr`, the bound
+// `resolved_method`, a resolved `resolved_node`); this pass is the only one that
+// installs replacements. Rules: string/array members (`len`/`size`/`data`),
+// `str.slice`, string operators (`+`, `==`, `!=`, `+=`), string interpolation,
+// method and operator calls, unary operators, index access/write, enum `.value`,
+// and the constants the checker resolved (enum members, struct consts, sizes).
+// ============================================================================
+
+use std.mem.arena.*;
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.lexer.token.*;
+
+use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
+use compiler.sema.types.MethodInfo;
+use compiler.sema.desugar_interp.*;
+use compiler.sema.body_pass.*;
+
+impl BodyPass {
+
+	pub fn lower_program(var self, program_node: *AstNode) {
+		val prog = program_node.as_program();
+		for (decl in prog) {
+			when (decl) {
+				is FnDecl as var f -> f.body = self.lower_stmt(f.body);
+				is ImplDecl as var im -> {
+					for (i in 0..<im.methods.len) {
+						val m = im.methods[i];
+						if (m is FnDecl as var mf) mf.body = self.lower_stmt(mf.body);
+					}
+				}
+				is ConstDecl as var c -> c.value = self.lower_expr(c.value);
+				else -> {}
+			}
+		}
+	}
+
+	// ============================================================================
+	// Statements
+	// ============================================================================
+
+	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
+		if (node == null) return null;
+		// `for` (and the continue step-injection) are built by the checker and
+		// installed here, so a statement node keeps its kind while being checked.
+		if (node.resolved_node != null) return self.lower_stmt(node.resolved_node);
+		when (node) {
+			is BlockStmt as var blk -> {
+				for (i in 0..<blk.statements.len) blk.statements[i] = self.lower_stmt(blk.statements[i]);
+			}
+			is ExprStmt as var es -> es.expr = self.lower_expr(es.expr);
+			is VarDeclStmt as var vd -> vd.initializer = self.lower_expr(vd.initializer);
+			is IfStmt as var ifs -> {
+				ifs.condition = self.lower_expr(ifs.condition);
+				ifs.then_branch = self.lower_stmt(ifs.then_branch);
+				ifs.else_branch = self.lower_stmt(ifs.else_branch);
+			}
+			is WhileStmt as var wh -> {
+				wh.condition = self.lower_expr(wh.condition);
+				wh.body = self.lower_stmt(wh.body);
+			}
+			is ForStmt as var fr -> {
+				fr.iterable = self.lower_expr(fr.iterable);
+				fr.range_start = self.lower_expr(fr.range_start);
+				fr.range_end = self.lower_expr(fr.range_end);
+				fr.body = self.lower_stmt(fr.body);
+			}
+			is ReturnStmt as var ret -> ret.value = self.lower_expr(ret.value);
+			is WhenStmt as var ws -> {
+				ws.condition = self.lower_expr(ws.condition);
+				for (i in 0..<ws.arms.len) {
+					var arm = ws.arms[i];
+					arm.body = self.lower_stmt(arm.body);
+					for (k in 0..<arm.patterns.len) arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					ws.arms[i] = arm;
+				}
+			}
+			is YieldStmt as var ys -> ys.value = self.lower_expr(ys.value);
+			is DeferStmt as var ds -> ds.body = self.lower_stmt(ds.body);
+			else -> {}
+		}
+		return node;
+	}
+
+	// ============================================================================
+	// Expressions
+	// ============================================================================
+
+	pub fn lower_expr(var self, node: *AstNode): *AstNode {
+		if (node == null) return null;
+		// A node the checker already resolved (constant leaf, or a call it checked
+		// without installing): lower that instead, then carry this node's type.
+		if (node.resolved_node != null) return self.lowered(node, self.lower_expr(node.resolved_node));
+		var out = node;
+		when (node) {
+			is BinaryExpr as var b -> {
+				b.left = self.lower_expr(b.left);
+				b.right = self.lower_expr(b.right);
+				out = self.lower_binary(node, b);
+			}
+			is UnaryExpr as var u -> {
+				u.operand = self.lower_expr(u.operand);
+				out = self.lower_unary(node, u);
+			}
+			is CallExpr as var c -> {
+				c.callee = self.lower_expr(c.callee);
+				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
+				if (node.resolved_method != null) out = self.lower_bound_call(node, c);
+				else out = self.lower_call(node, c);
+			}
+			is MemberExpr as var m -> {
+				m.object = self.lower_expr(m.object);
+				out = self.lower_member(node, m);
+			}
+			is IndexExpr as var ix -> {
+				ix.target = self.lower_expr(ix.target);
+				ix.index = self.lower_expr(ix.index);
+				out = self.lower_index(node, ix);
+			}
+			is AssignExpr as var asg -> {
+				asg.target = self.lower_expr(asg.target);
+				asg.value = self.lower_expr(asg.value);
+				out = self.lower_assign(node, asg);
+			}
+			is UpdateExpr as var up -> up.target = self.lower_expr(up.target);
+			is CastExpr as var cst -> cst.expr = self.lower_expr(cst.expr);
+			is GroupExpr as var g -> g.expr = self.lower_expr(g.expr);
+			is ArrayLiteralExpr as var al -> {
+				for (i in 0..<al.elements.len) al.elements[i] = self.lower_expr(al.elements[i]);
+			}
+			is IfExpr as var ie -> {
+				ie.condition = self.lower_expr(ie.condition);
+				ie.then_branch = self.lower_expr(ie.then_branch);
+				ie.else_branch = self.lower_expr(ie.else_branch);
+			}
+			is WhenExpr as var we -> {
+				we.condition = self.lower_expr(we.condition);
+				for (i in 0..<we.arms.len) {
+					var arm = we.arms[i];
+					arm.body = self.lower_arm_body(arm.body);
+					for (k in 0..<arm.patterns.len) arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					we.arms[i] = arm;
+				}
+			}
+			is InterpExpr as var ip -> {
+				for (i in 0..<ip.parts.len) {
+					var part = ip.parts[i];
+					part.expr = self.lower_expr(part.expr);
+					ip.parts[i] = part;
+				}
+				out = self.lower_interp(node, ip);
+			}
+			is IsExpr as var ise -> ise.expr = self.lower_expr(ise.expr);
+			is StructCtorExpr as var sc -> {
+				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
+			}
+			is EnumCtorExpr as var ec -> {
+				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
+			}
+			else -> {}
+		}
+		return out;
+	}
+
+	// ============================================================================
+	// Rewrite rules
+	// ============================================================================
+
+	// A `when` arm body is either an expression or a block of statements (the
+	// block form yields a value), so pick the right walker for it.
+	fn lower_arm_body(var self, body: *AstNode): *AstNode {
+		if (body != null && body.kind == NodeKind.STMT_BLOCK) return self.lower_stmt(body);
+		return self.lower_expr(body);
+	}
+
+	// A replacement keeps the value's type, which the checker already stored on
+	// the original node; the backend reads it from the node it now sees.
+	fn lowered(var self, original: *AstNode, replacement: *AstNode): *AstNode {
+		replacement.type_ptr = original.type_ptr;
+		return replacement;
+	}
+
+	// `a + b` on strings -> `kobel_concat(a, b)`; `a == b` / `a != b` on strings
+	// -> `kobel_streq(a, b)`, negated for `!=`; a bound struct operator -> its
+	// method; struct equality without an `equals` method -> `kobel_memeq`.
+	// Operand types were validated by the checker; this only spells the call.
+	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+		// `a ?: return b` keeps a whole statement on the right, so it needs the
+		// statement walker rather than the expression one.
+		if (bin.op == TokenType.QUESTION_COLON) {
+			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
+			return node;
+		}
+		if (bin.op == TokenType.PLUS && self.is_str_expr(bin.left)) {
+			val cat = self.arena.interp_concat(bin.left, bin.right, node.line, node.col);
+			return self.lowered(node, cat);
+		}
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			if (self.is_str_expr(bin.left) && self.is_str_expr(bin.right)) {
+				val eq = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
+				return self.lowered(node, eq);
+			}
+		}
+
+		// `element in container` with a `contains` operator: the container is the
+		// receiver, so the call is `c_name(container, element)`.
+		if (bin.op == TokenType.KW_IN && node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			val right_ty = self.type_of(bin.right);
+			val r_is_ptr = right_ty != null && right_ty.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (r_is_ptr) args += bin.right;
+			else args += self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+			args += bin.left;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			return self.lowered(node, call);
+		}
+
+		// An overloaded operator the checker picked: `c_name(&left, right)`.
+		if (node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			var args = List<*AstNode>();
+			args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+			args += bin.right;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			if (bin.op == TokenType.BANG_EQUAL) {
+				return self.lowered(node, self.unary(TokenType.BANG, call, node.line, node.col));
+			}
+			return self.lowered(node, call);
+		}
+
+		// Struct equality without an `equals` method: byte compare by size.
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			val lt = self.type_of(bin.left);
+			if (lt != null && lt.kind == DataType.STRUCT) {
+				val eq = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
+				return self.lowered(node, eq);
+			}
+		}
+		return node;
+	}
+
+	// Two assignment lowerings: an overloaded compound operator becomes the bound
+	// method call, and `s += str` keeps the assignment but wraps the right side in
+	// `kobel_concat(s, str)`.
+	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr): *AstNode {
+		if (node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			val target_ty = self.type_of(asgn.target);
+			val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (t_is_ptr) args += asgn.target;
+			else args += self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+			args += asgn.value;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			return self.lowered(node, call);
+		}
+
+		if (asgn.op != TokenType.PLUS_EQUAL) return node;
+		if (!self.is_str_expr(asgn.target)) return node;
+		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
+		cat.type_ptr = node.type_ptr;
+		asgn.value = cat;
+		asgn.op = TokenType.EQUAL;
+		return node;
+	}
+
+	// `"a${x}b"` -> a chain of `kobel_concat` calls, with every hole converted by
+	// the `ToStr` implementation for its type. The checker already rejected holes
+	// without one, so a failed lookup here leaves the expression untouched.
+	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
+		var acc: *AstNode = null;
+		for (i in 0..<ie.parts.len) {
+			val part = ie.parts[i];
+			var piece = part.expr;
+			if (!part.is_literal) {
+				val conv = self.to_str_expr(piece, node.line, node.col);
+				if (conv != null) piece = conv;
+			}
+			if (acc == null) acc = piece;
+			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
+		}
+		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		return self.lowered(node, acc);
+	}
+
+	// The `str` conversion of one value: identity for `str`, otherwise a call to
+	// the primitive or struct `to_str` method (`&value` when it is a value).
+	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode {
+		val ty = self.type_of(expr);
+		if (ty == null) return null;
+		if (ty.kind == DataType.STR) return expr;
+
+		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
+		if (pmi != null) return self.arena.interp_call(pmi.c_name, expr, line, col);
+
+		var cur_ty = ty;
+		var is_ptr = false;
+		if (cur_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			cur_ty = cur_ty.as_pointer().pointee;
+		}
+		if (cur_ty.kind == DataType.STRUCT) {
+			val mi = cur_ty.as_struct().find_method("to_str");
+			if (mi != null) {
+				var arg = expr;
+				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, line, col);
+				return self.arena.interp_call(mi.c_name, arg, line, col);
+			}
+		}
+		return null;
+	}
+
+	// `s.len`/`s.size` -> `kobel_slen(s)`; `s.data` -> `s`; `arr.len`/`arr.size`
+	// -> a compile-time literal; `arr.data` -> `arr`. The receiver's own type is
+	// enough to decide, so no symbol table is needed here.
+	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
+		val obj = mem.object;
+		if (obj == null) return node;
+
+		// Enum `.value` is identity on the underlying integer.
+		val obj_ty = self.type_of(obj);
+		if (obj_ty != null && obj_ty.is_enum() && mem.member == "value") return self.lowered(node, obj);
+
+		if (self.is_str_expr(obj)) {
+			if (mem.member == "len" || mem.member == "size") {
+				var args = List<*AstNode>();
+				args += obj;
+				val call = self.call(self.identifier("kobel_slen", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+				return self.lowered(node, call);
+			}
+			if (mem.member == "data") return self.lowered(node, obj);
+		}
+
+		if (self.is_array_expr(obj)) {
+			if (mem.member == "len" || mem.member == "size") {
+				val arr = self.type_of(obj).as_array();
+				val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
+				return self.lowered(node, lit);
+			}
+			if (mem.member == "data") return self.lowered(node, obj);
+		}
+
+		return node;
+	}
+
+	// A bound unary operator: `-x` -> `c_name(&x)`.
+	fn lower_unary(var self, node: *AstNode, un: &UnaryExpr): *AstNode {
+		if (node.resolved_method == null) return node;
+		val mi = node.resolved_method as *MethodInfo;
+		var args = List<*AstNode>();
+		args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
+		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, call);
+	}
+
+	// A bound index access: `list[i]` -> `c_name(&list, i)` (`c_name(list, i)`
+	// when the container is already a pointer).
+	fn lower_index(var self, node: *AstNode, idx: &IndexExpr): *AstNode {
+		if (node.resolved_method == null) return node;
+		val mi = node.resolved_method as *MethodInfo;
+		val target_ty = self.type_of(idx.target);
+		val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+		var args = List<*AstNode>();
+		if (t_is_ptr) args += idx.target;
+		else args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		args += idx.index;
+		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, call);
+	}
+
+	// A method call the checker bound: `recv.m(args)` -> `c_name(recv, args)`.
+	// A struct receiver is passed by reference (`&recv`, or the pointer itself);
+	// a primitive receiver by value (`recv`, or `*recv` when it is a pointer).
+	// `?.` keeps its null guard, wrapping the call in `recv != NULL ? ... : NULL`.
+	fn lower_bound_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee;
+		if (callee == null) return node;
+
+		// A struct constructor (`Type(args)` resolved to its `new`): a plain call,
+		// no receiver to pass.
+		if (callee.kind == NodeKind.EXPR_IDENTIFIER) {
+			val new_mi = node.resolved_method as *MethodInfo;
+			var ctor_args = List<*AstNode>();
+			for (arg in call.args) ctor_args += arg;
+			val ctor_call = self.call(
+				self.identifier(new_mi.c_name, node.line, node.col),
+				ctor_args, List<*AstNode>(), node.line, node.col
+			);
+			return self.lowered(node, ctor_call);
+		}
+
+		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
+		val mem = callee.as_member_expr() as &MemberExpr;
+		val mi = node.resolved_method as *MethodInfo;
+		val recv = mem.object;
+
+		val recv_ty = self.type_of(recv);
+		val obj_is_ptr = recv_ty != null && recv_ty.kind == DataType.POINTER;
+		var inner_ty = recv_ty;
+		if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
+		val by_ref = inner_ty != null && inner_ty.kind == DataType.STRUCT;
+
+		var new_args = List<*AstNode>();
+		if (by_ref == obj_is_ptr) new_args += recv;
+		else {
+			var op = TokenType.STAR;
+			if (by_ref) op = TokenType.AMPERSAND;
+			new_args += self.unary(op, recv, node.line, node.col);
+		}
+		for (arg in call.args) new_args += arg;
+
+		val direct = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		if (!mem.is_safe) return self.lowered(node, direct);
+
+		val null_lit = self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
+		val cond = self.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
+		val maybe = self.if_expr(cond, direct, null_lit, node.line, node.col);
+		return self.lowered(node, maybe);
+	}
+
+	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`. Omitted bounds default to 0 and
+	// `kobel_slen(s)`, which is the contract `check_slice_call` validated.
+	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee;
+		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
+		val mem = callee.as_member_expr() as &MemberExpr;
+		if (mem.member != "slice") return node;
+		if (!self.is_str_expr(mem.object)) return node;
+
+		var args = List<*AstNode>();
+		args += mem.object;
+		if (!call.args.empty()) args += call.args.first();
+		else args += self.literal(LiteralKind.INT, "0", node.line, node.col);
+		if (call.args.len >= 2) args += call.args[1];
+		else {
+			var largs = List<*AstNode>();
+			largs += mem.object;
+			args += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
+		}
+
+		val slice_call = self.call(self.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, slice_call);
+	}
+
+	// ============================================================================
+	// Type predicates over the checked annotations
+	// ============================================================================
+
+	// The semantic type sema attached while checking. Groups are transparent:
+	// `check_expr` recurses into them without annotating the group itself.
+	fn type_of(var self, node: *AstNode): *Type {
+		var cur = node;
+		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
+		if (cur == null) return null;
+		return cur.type_ptr as *Type;
+	}
+
+	fn is_str_expr(var self, node: *AstNode): bool {
+		val t = self.type_of(node);
+		return t != null && t.kind == DataType.STR;
+	}
+
+	// True for the statement nodes that can sit in an expression position (the
+	// right side of `?:` is allowed to be `return`/`yield`/`break`/`continue`/block).
+	fn is_stmt_node(var self, node: *AstNode): bool {
+		if (node == null) return false;
+		return node.kind == NodeKind.STMT_RETURN ||
+			node.kind == NodeKind.STMT_BREAK ||
+			node.kind == NodeKind.STMT_CONTINUE ||
+			node.kind == NodeKind.STMT_YIELD ||
+			node.kind == NodeKind.STMT_BLOCK;
+	}
+
+	fn is_array_expr(var self, node: *AstNode): bool {
+		val t = self.type_of(node);
+		return t != null && t.kind == DataType.ARRAY;
+	}
+
+}

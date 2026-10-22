@@ -14,6 +14,9 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
 use compiler.codegen.c_codegen.*;
+use compiler.codegen.c_expr.*;
+use compiler.codegen.c_stmt.*;
+use compiler.codegen.c_type.*;
 use compiler.codegen.c_runtime.*;
 
 // ============================================================================
@@ -36,17 +39,31 @@ impl CCodeGen {
 
 		// 2. First collect struct names, function names and return types
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is StructDecl as s -> {
-					self.register_struct(s.name);
-					sb += "typedef struct ${s.name} ${s.name};\n";
+					// A forward declaration and its definition are two AST nodes for
+					// one C type, so emit the typedef only once.
+					if (!self.is_struct_name(s.name)) {
+						self.register_struct(s.name);
+						sb += "typedef struct ${s.name} ${s.name};\n";
+					}
 				}
 				is EnumDecl as e -> {
-					// Enums lower to their underlying integer type; member access becomes
-					// an integer literal during semantic analysis.
-					val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
-					sb += "typedef ${under} ${e.name};\n";
+					if (self.enum_has_payload(e)) {
+						// A payload enum is a struct: tag + union of variant payloads.
+						sb += "typedef struct ${e.name} ${e.name};\n";
+						for (i in 0..<e.members.len) {
+							val m = e.members[i];
+							sb += "typedef struct ${e.name}__${m.name} ${e.name}__${m.name};\n";
+							sb += "#define ${e.name}__${m.name}__TAG ${i}\n";
+						}
+					} else {
+						// Enums lower to their underlying integer type; member access becomes
+						// an integer literal during semantic analysis.
+						val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
+						sb += "typedef ${under} ${e.name};\n";
+					}
 				}
 				is ConstDecl as c -> {
 					// Module-level constants become preprocessor macros.
@@ -54,44 +71,21 @@ impl CCodeGen {
 				}
 			}
 		}
-		sb += "\n";
+		sb += "\n\n";
 
-		// 2b. Register function return types (arrow bodies are inferred). Done after
-		// all struct names are known so inference can resolve struct constructors.
-		for (decl2 in prog) {
-			if (decl2.is_template()) continue;
-			when (decl2) {
-				is FnDecl as f -> {
-					self.register_fn(f.name, self.fn_ret_c_type(f));
-				}
-				is ImplDecl as im -> {
-					for (mnode in im.methods) {
-						if (mnode is FnDecl as f && f.type_params.len == 0) {
-							self.register_fn(f.name, self.fn_ret_c_type(f));
-						}
-					}
-				}
-				is ExternBlock as ext -> {
-					for (e_decl in ext) {
-						if (e_decl is FnDecl as f) {
-							self.register_fn(f.name, self.fn_ret_c_type(f));
-						}
-					}
-				}
-			}
-		}
-		sb += "\n";
-
-		// 3. Struct Definitions
+		// 3. Struct definitions (and the struct shape of a payload enum)
 		for (decl in prog) {
-			if (!decl.is_template() && decl is StructDecl as s) {
+			if (decl_is_template(decl)) continue;
+			if (decl is StructDecl as s) {
 				sb += self.gen_struct_decl(s);
+			} else if (decl is EnumDecl as e) {
+				sb += self.gen_payload_enum(e);
 			}
 		}
 
 		// 3b. List constructors (emitted after all struct types are fully defined)
 		for (decl_list in prog) {
-			if (!decl_list.is_template() && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
+			if (!decl_is_template(decl_list) && decl_list is StructDecl as s && s.name.starts_with("std__collections__list__List")) {
 				sb += "static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {\n"
 					"    size_t elem_size = sizeof(*(((${s.name}*)0)->data));\n"
 					"    size_t cap = (n < 4) ? 4 : n;\n"
@@ -108,7 +102,7 @@ impl CCodeGen {
 
 		// 4. Function Prototypes
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is FnDecl -> sb += self.gen_fn_decl(decl, true, "");
 				is ImplDecl as im -> {
@@ -124,7 +118,7 @@ impl CCodeGen {
 
 		// 5. Function Implementations
 		for (decl in prog) {
-			if (decl.is_template()) continue;
+			if (decl_is_template(decl)) continue;
 			when (decl) {
 				is FnDecl -> sb += self.gen_fn_decl(decl, false, "");
 				is ImplDecl as im -> {
@@ -143,6 +137,9 @@ impl CCodeGen {
 }
 
 	pub fn gen_struct_decl(var self, s: *StructDecl): str {
+		// The definition carries the fields; a forward declaration only
+		// contributes the typedef emitted in the first pass.
+		if (s.is_forward) return "";
 		self.register_struct(s.name);
 
 		var res = "struct ${s.name} {\n";
@@ -152,6 +149,29 @@ impl CCodeGen {
 		}
 		res = "${res}};\n";
 		return "${res}\n";
+	}
+
+	// A payload enum is emitted as a tag plus a union of one payload struct per
+	// variant, so a pattern binding can point straight at the active payload.
+	pub fn gen_payload_enum(var self, e: *EnumDecl): str {
+		if (!self.enum_has_payload(e)) return "";
+
+		var res = "";
+		for (m in e.members) {
+			res = "${res}struct ${e.name}__${m.name} {\n";
+			if (m.payload.empty()) res = "${res}    char __empty;\n";
+			for (f in m.payload) {
+				res = "${res}    ${c_type_from_ast(f.type_node)} ${f.name};\n";
+			}
+			res = "${res}};\n";
+		}
+
+		res = "${res}struct ${e.name} {\n    int32_t tag;\n    union {\n";
+		for (m in e.members) {
+			res = "${res}        struct ${e.name}__${m.name} ${m.name};\n";
+		}
+		res = "${res}    } u;\n};\n\n";
+		return res;
 	}
 
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
@@ -180,26 +200,10 @@ impl CCodeGen {
 
 		self.current_fn_ret_type = ret_ty;
 
-		self.pointer_vars.clear();
-		self.str_vars.clear();
 		self.defer_nodes.clear();
 		self.scope_starts.clear();
 		self.scope_jumped.clear();
 		self.loop_defer_depths.clear();
-		for (p in f.params) {
-			val p_tn = p.type_node;
-			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {
-				self.pointer_vars += p.name;
-			} else if (p_tn != null) {
-				when (p_tn) {
-					is PointerType -> self.pointer_vars += p.name;
-					is NullableType -> self.pointer_vars += p.name;
-					is NamedType as named -> {
-						if (named.name == "str") self.str_vars += p.name;
-					}
-				}
-			}
-		}
 
 		var res = "${proto} {\n";
 		self.indent_level = 1;
@@ -265,7 +269,10 @@ impl CCodeGen {
 	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
 		if (f.return_type != null) return c_type_from_ast(f.return_type);
 		val f_body = f.body;
-		if (f_body is ExprStmt as es) return self.infer_type_from_expr(es.expr);
+		if (f_body is ExprStmt as es) {
+			val ty = self.c_type_of(es.expr);
+			if (!ty.empty()) return ty;
+		}
 		return "void";
 	}
 

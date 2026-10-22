@@ -4,7 +4,7 @@ use std.collections.list.*;
 
 use compiler.lexer.token.*;
 
-use compiler.ast.node.AstNode;
+use compiler.ast.node.*;
 use compiler.ast.builder.*;
 
 use compiler.parser.parser.*;

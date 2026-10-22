@@ -1,0 +1,110 @@
+mod compiler.codegen.c_type;
+
+// ============================================================================
+// Type Mapping (Kobel -> C99 Standard Types)
+//
+// Two entry points: `c_type_from_ast` for the syntactic type nodes that stay in
+// declarations (`type_annotation`, `FnDecl.return_type`, cast targets), and
+// `c_type_from_type` for the resolved `*Type` sema attaches to expressions.
+// ============================================================================
+
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+
+use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
+
+pub fn c_type_from_ast(node: *AstNode): str {
+	if (node == null) return "void";
+
+	return when (node) {
+		is NamedType as named -> {
+			val name = named.name;
+
+			yield when (name) {
+				"none" -> "void";
+				"bool" -> "bool";
+				"char" -> "char";
+				"i8" -> "int8_t";
+				"i16" -> "int16_t";
+				"i32" -> "int32_t";
+				"i64" -> "int64_t";
+				"isz" -> "intptr_t";
+				"u8" -> "uint8_t";
+				"u16" -> "uint16_t";
+				"u32" -> "uint32_t";
+				"u64" -> "uint64_t";
+				"usz" -> "size_t";
+				"f32" -> "float";
+				"f64" -> "double";
+				"str" -> "const char*";
+				else -> name;
+			};
+		}
+
+		is PointerType as ptr -> {
+			val sub = c_type_from_ast(ptr.pointee);
+			if (ptr.is_mut) return sub + "*";
+
+			val pointee = ptr.pointee;
+			if (pointee is NamedType as named) {
+				// `str` and `*char` stay const so string literals and `.c_str()`
+				// results can be passed. Other read-only pointers are emitted as
+				// plain pointers: the language does not enforce const-correctness
+				// and the compiler's own source writes through `*T`.
+				if (named.name == "str") yield "${sub}*";
+				if (named.name == "char") yield "const ${sub}*";
+			}
+
+			yield "${sub}*";
+		}
+
+		is ArrayType as arr -> {
+			val sub = c_type_from_ast(arr.element_type);
+			yield "${sub}*";
+		}
+
+		is NullableType as null_t -> c_type_from_ast(null_t.inner);
+
+		else -> "void*";
+	};
+}
+
+// C spelling of a resolved type: the same mapping as above, driven by the
+// semantic model instead of a type node. Used for expressions, whose resolved
+// type sema stores directly, and for inferred declarations.
+pub fn c_type_from_type(ty: *Type): str {
+	if (ty == null) return "void";
+	// An enum is its carrier integer, but C knows the enum's typedef name.
+	if (ty.is_enum()) return ty.as_enum().c_name;
+
+	return when (ty.kind) {
+		DataType.NONE -> "void";
+		DataType.BOOL -> "bool";
+		DataType.CHAR -> "char";
+		DataType.I8 -> "int8_t";
+		DataType.I16 -> "int16_t";
+		DataType.I32 -> "int32_t";
+		DataType.I64 -> "int64_t";
+		DataType.ISZ -> "intptr_t";
+		DataType.U8 -> "uint8_t";
+		DataType.U16 -> "uint16_t";
+		DataType.U32 -> "uint32_t";
+		DataType.U64 -> "uint64_t";
+		DataType.USZ -> "size_t";
+		DataType.F32 -> "float";
+		DataType.F64 -> "double";
+		DataType.STR -> "const char*";
+
+		DataType.POINTER -> {
+			val ptr = ty.as_pointer();
+			val sub = c_type_from_type(ptr.pointee);
+			if (!ptr.is_mut && ptr.pointee.kind == DataType.CHAR) yield "const ${sub}*";
+			yield "${sub}*";
+		}
+
+		DataType.ARRAY -> "${c_type_from_type(ty.as_array().elem)}*";
+		DataType.STRUCT -> ty.as_struct().c_name;
+		else -> "void";
+	};
+}

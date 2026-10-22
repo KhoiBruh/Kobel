@@ -20,6 +20,7 @@ use compiler.sema.monomorphize.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
+use compiler.sema.types.PrimTypes;
 use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.type_bool;
@@ -64,10 +65,10 @@ pub fn alloc_primitive(var arena: &Arena, base: Type): *Type => arena.primitive_
 fn overloaded_names(im: &ImplDecl): List<str> {
 	var names = List<str>();
 	for (a in 0..<im.methods.len) {
-		val na = im.methods[a].to<FnDecl>().name;
+		val na = im.methods[a].as_fn_decl().name;
 		if (na in names) continue;
 		for (b in (a + 1)..<im.methods.len) {
-			if (im.methods[b].to<FnDecl>().name == na) {
+			if (im.methods[b].as_fn_decl().name == na) {
 				names += na;
 				break;
 			}
@@ -93,24 +94,24 @@ fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str 
 
 // The built-in type named `name`, or null when `name` is not a primitive.
 // Primitives are not registered as symbols, so this name table is also how
-// `impl <primitive>` blocks are recognized.
-pub fn resolve_primitive_name(var arena: &Arena, name: str): *Type => when (name) {
-	"none" -> alloc_primitive(arena, type_none());
-	"bool" -> alloc_primitive(arena, type_bool());
-	"char" -> alloc_primitive(arena, type_char());
-	"i8" -> alloc_primitive(arena, type_i8());
-	"i16" -> alloc_primitive(arena, type_i16());
-	"i32" -> alloc_primitive(arena, type_i32());
-	"i64" -> alloc_primitive(arena, type_i64());
-	"isz" -> alloc_primitive(arena, type_isz());
-	"u8" -> alloc_primitive(arena, type_u8());
-	"u16" -> alloc_primitive(arena, type_u16());
-	"u32" -> alloc_primitive(arena, type_u32());
-	"u64" -> alloc_primitive(arena, type_u64());
-	"usz" -> alloc_primitive(arena, type_usz());
-	"f32" -> alloc_primitive(arena, type_f32());
-	"f64" -> alloc_primitive(arena, type_f64());
-	"str" -> alloc_primitive(arena, type_str());
+// `impl <primitive>` blocks are recognized. Returns the canonical instance.
+pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type => when (name) {
+	"none" -> prims.get(DataType.NONE);
+	"bool" -> prims.get(DataType.BOOL);
+	"char" -> prims.get(DataType.CHAR);
+	"i8" -> prims.get(DataType.I8);
+	"i16" -> prims.get(DataType.I16);
+	"i32" -> prims.get(DataType.I32);
+	"i64" -> prims.get(DataType.I64);
+	"isz" -> prims.get(DataType.ISZ);
+	"u8" -> prims.get(DataType.U8);
+	"u16" -> prims.get(DataType.U16);
+	"u32" -> prims.get(DataType.U32);
+	"u64" -> prims.get(DataType.U64);
+	"usz" -> prims.get(DataType.USZ);
+	"f32" -> prims.get(DataType.F32);
+	"f64" -> prims.get(DataType.F64);
+	"str" -> prims.get(DataType.STR);
 	else -> null;
 };
 
@@ -139,22 +140,22 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	out += m;
 }
 
-pub fn int_literal_type(var arena: &Arena, raw: str): *Type {
+pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
 	// The suffix sets the width. It is read through `num_suffix` so that a hex
 	// digit is never mistaken for one: `0xBB` is the i32 187, not `0xB` as an i8.
 	val sfx = raw.num_suffix();
-	if (sfx == "UB") return alloc_primitive(arena, type_u8());
-	if (sfx == "US") return alloc_primitive(arena, type_u16());
-	if (sfx == "UL") return alloc_primitive(arena, type_u64());
-	if (sfx == "UZ") return alloc_primitive(arena, type_usz());
+	if (sfx == "UB") return prims.get(DataType.U8);
+	if (sfx == "US") return prims.get(DataType.U16);
+	if (sfx == "UL") return prims.get(DataType.U64);
+	if (sfx == "UZ") return prims.get(DataType.USZ);
 
-	if (sfx == "U") return alloc_primitive(arena, type_u32());
-	if (sfx == "L") return alloc_primitive(arena, type_i64());
-	if (sfx == "S") return alloc_primitive(arena, type_i16());
-	if (sfx == "Z") return alloc_primitive(arena, type_isz());
-	if (sfx == "B") return alloc_primitive(arena, type_i8());
+	if (sfx == "U") return prims.get(DataType.U32);
+	if (sfx == "L") return prims.get(DataType.I64);
+	if (sfx == "S") return prims.get(DataType.I16);
+	if (sfx == "Z") return prims.get(DataType.ISZ);
+	if (sfx == "B") return prims.get(DataType.I8);
 
-	return alloc_primitive(arena, type_i32());
+	return prims.get(DataType.I32);
 }
 
 pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
@@ -180,13 +181,14 @@ impl DeclPass {
 
 	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>());
 
-	// Primitive type shorthands (fresh arena allocation per call).
-	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
-	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
-	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
-	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
-	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
-	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
+// Primitive type shorthands: the canonical instance from the symbol table, so
+// `i32` is one pointer for the whole compilation.
+	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
+	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
+	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
+	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
+	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
+	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
 
 	// Switches the module context (both the pass and its symbol table) and
 	// returns the previous module so the caller can restore it.
@@ -205,115 +207,115 @@ impl DeclPass {
 	}
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<NamedType>(NamedType.TAG, NamedType(name, type_args), line, col);
+		=> self.arena.alloc_node(NamedType.TAG, NodeData.NamedType(self.arena.alloc_val<NamedType>(NamedType(name, type_args))), line, col);
 
 	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<PointerType>(PointerType.TAG, PointerType(is_mut, pointee), line, col);
+		=> self.arena.alloc_node(PointerType.TAG, NodeData.PointerType(self.arena.alloc_val<PointerType>(PointerType(is_mut, pointee))), line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
-		=> self.arena.make<ArrayType>(ArrayType.TAG, ArrayType(elem, size), line, col);
+		=> self.arena.alloc_node(ArrayType.TAG, NodeData.ArrayType(self.arena.alloc_val<ArrayType>(ArrayType(elem, size))), line, col);
 
 	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<NullableType>(NullableType.TAG, NullableType(inner), line, col);
+		=> self.arena.alloc_node(NullableType.TAG, NodeData.NullableType(self.arena.alloc_val<NullableType>(NullableType(inner))), line, col);
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lk, raw), line, col);
+		=> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lk, raw))), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(name), line, col);
+		=> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(name))), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(left, op, right), line, col);
+		=> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(left, op, right))), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(op, operand), line, col);
+		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(op, operand))), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(callee, args, type_args), line, col);
+		=> self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(callee, args, type_args))), line, col);
 
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
+		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member))), line, col);
 
 	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member, true), line, col);
+		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member, true))), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
+		=> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(target, index))), line, col);
 
 	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<AssignExpr>(AssignExpr.TAG, AssignExpr(target, op, value), line, col);
+		=> self.arena.alloc_node(AssignExpr.TAG, NodeData.AssignExpr(self.arena.alloc_val<AssignExpr>(AssignExpr(target, op, value))), line, col);
 
 	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UpdateExpr>(UpdateExpr.TAG, UpdateExpr(op, target), line, col);
+		=> self.arena.alloc_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.arena.alloc_val<UpdateExpr>(UpdateExpr(op, target))), line, col);
 
 	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<CastExpr>(CastExpr.TAG, CastExpr(expr, target_type), line, col);
+		=> self.arena.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.arena.alloc_val<CastExpr>(CastExpr(expr, target_type))), line, col);
 
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<GroupExpr>(GroupExpr.TAG, GroupExpr(expr), line, col);
+		=> self.arena.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.arena.alloc_val<GroupExpr>(GroupExpr(expr))), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IfExpr>(IfExpr.TAG, IfExpr(condition, then_branch, else_branch), line, col);
+		=> self.arena.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.arena.alloc_val<IfExpr>(IfExpr(condition, then_branch, else_branch))), line, col);
 
 	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ArrayLiteralExpr>(ArrayLiteralExpr.TAG, ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
+		=> self.arena.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.arena.alloc_val<ArrayLiteralExpr>(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
 
 	pub fn when_expr(var self, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhenExpr>(WhenExpr.TAG, WhenExpr(condition, arms), line, col);
+		=> self.arena.alloc_node(WhenExpr.TAG, NodeData.WhenExpr(self.arena.alloc_val<WhenExpr>(WhenExpr(condition, arms))), line, col);
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
-		=> self.arena.make<InterpExpr>(InterpExpr.TAG, InterpExpr(parts), line, col);
+		=> self.arena.alloc_node(InterpExpr.TAG, NodeData.InterpExpr(self.arena.alloc_val<InterpExpr>(InterpExpr(parts))), line, col);
 
 	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IsExpr>(IsExpr.TAG, IsExpr(expr, target_type), line, col);
+		=> self.arena.alloc_node(IsExpr.TAG, NodeData.IsExpr(self.arena.alloc_val<IsExpr>(IsExpr(expr, target_type))), line, col);
 
 	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<BlockStmt>(BlockStmt.TAG, BlockStmt(statements), line, col);
+		=> self.arena.alloc_node(BlockStmt.TAG, NodeData.BlockStmt(self.arena.alloc_val<BlockStmt>(BlockStmt(statements))), line, col);
 
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ExprStmt>(ExprStmt.TAG, ExprStmt(expr), line, col);
+		=> self.arena.alloc_node(ExprStmt.TAG, NodeData.ExprStmt(self.arena.alloc_val<ExprStmt>(ExprStmt(expr))), line, col);
 
 	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<VarDeclStmt>(VarDeclStmt.TAG, VarDeclStmt(is_mut, name, type_annotation, initializer), line, col);
+		=> self.arena.alloc_node(VarDeclStmt.TAG, NodeData.VarDeclStmt(self.arena.alloc_val<VarDeclStmt>(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
 
 	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IfStmt>(IfStmt.TAG, IfStmt(condition, then_branch, else_branch), line, col);
+		=> self.arena.alloc_node(IfStmt.TAG, NodeData.IfStmt(self.arena.alloc_val<IfStmt>(IfStmt(condition, then_branch, else_branch))), line, col);
 
 	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhileStmt>(WhileStmt.TAG, WhileStmt(condition, body), line, col);
+		=> self.arena.alloc_node(WhileStmt.TAG, NodeData.WhileStmt(self.arena.alloc_val<WhileStmt>(WhileStmt(condition, body))), line, col);
 
 	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ForStmt>(ForStmt.TAG, ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body), line, col);
+		=> self.arena.alloc_node(ForStmt.TAG, NodeData.ForStmt(self.arena.alloc_val<ForStmt>(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
 
 	pub fn return_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<ReturnStmt>(ReturnStmt.TAG, ReturnStmt(value), line, col);
+		=> self.arena.alloc_node(ReturnStmt.TAG, NodeData.ReturnStmt(self.arena.alloc_val<ReturnStmt>(ReturnStmt(value))), line, col);
 
 	pub fn break_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.make<BreakStmt>(BreakStmt.TAG, BreakStmt(0), line, col);
+		=> self.arena.alloc_node(BreakStmt.TAG, NodeData.BreakStmt(self.arena.alloc_val<BreakStmt>(BreakStmt(0))), line, col);
 
 	pub fn continue_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.make<ContinueStmt>(ContinueStmt.TAG, ContinueStmt(0), line, col);
+		=> self.arena.alloc_node(ContinueStmt.TAG, NodeData.ContinueStmt(self.arena.alloc_val<ContinueStmt>(ContinueStmt(0))), line, col);
 
 	pub fn when_stmt(var self, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
-		=> self.arena.make<WhenStmt>(WhenStmt.TAG, WhenStmt(condition, arms), line, col);
+		=> self.arena.alloc_node(WhenStmt.TAG, NodeData.WhenStmt(self.arena.alloc_val<WhenStmt>(WhenStmt(condition, arms))), line, col);
 
 	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<YieldStmt>(YieldStmt.TAG, YieldStmt(value), line, col);
+		=> self.arena.alloc_node(YieldStmt.TAG, NodeData.YieldStmt(self.arena.alloc_val<YieldStmt>(YieldStmt(value))), line, col);
 
 	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<DeferStmt>(DeferStmt.TAG, DeferStmt(body), line, col);
+		=> self.arena.alloc_node(DeferStmt.TAG, NodeData.DeferStmt(self.arena.alloc_val<DeferStmt>(DeferStmt(body))), line, col);
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<ModuleDecl>(ModuleDecl.TAG, ModuleDecl(path, full_path), line, col);
+		=> self.arena.alloc_node(ModuleDecl.TAG, NodeData.ModuleDecl(self.arena.alloc_val<ModuleDecl>(ModuleDecl(path, full_path))), line, col);
 
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz, is_op: bool = false): *AstNode
-		=> self.arena.make<FnDecl>(FnDecl.TAG, FnDecl(name, type_params, params, return_type, body, is_pub, is_op), line, col);
+		=> self.arena.alloc_node(FnDecl.TAG, NodeData.FnDecl(self.arena.alloc_val<FnDecl>(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<AstStructField>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.make<StructDecl>(StructDecl.TAG, StructDecl(name, type_params, fields, is_pub), line, col);
+		=> self.arena.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.arena.alloc_val<StructDecl>(StructDecl(name, type_params, fields, is_pub))), line, col);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<ImplDecl>(ImplDecl.TAG, ImplDecl(struct_name, type_params, trait_name, methods), line, col);
+		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods))), line, col);
 
 	pub fn c_name_for(self, name: str): str {
 		if (self.is_extern || name == "main") return name;
@@ -341,7 +343,7 @@ impl DeclPass {
 					yield self.current_self_type;
 				}
 
-				val prim = resolve_primitive_name(&self.arena, name);
+				val prim = resolve_primitive_name(self.symtab.prims_of(), name);
 				if (prim != null) yield prim;
 
 				// Generic struct instantiation: List<i32> -> concrete struct.
@@ -402,13 +404,13 @@ impl DeclPass {
 	}
 
 	pub fn collect_impl(var self, node: *AstNode) {
-		val im = node.to<ImplDecl>() as &ImplDecl;
+		val im = node.as_impl_decl() as &ImplDecl;
 
 		// Generic impls (e.g. `impl List<T>`) are lowered by monomorphization; skip here.
 		if (im.type_params.len > 0) return;
 
 		// `impl <primitive> { ... }`: the methods extend a built-in type.
-		val prim = resolve_primitive_name(&self.arena, im.struct_name);
+		val prim = resolve_primitive_name(self.symtab.prims_of(), im.struct_name);
 		if (prim != null) {
 			self.collect_prim_impl(node, im, prim);
 			return;
@@ -439,7 +441,7 @@ impl DeclPass {
 		for (m in st_info.methods) used_names += m.c_name;
 
 		for (m_node in im.methods) {
-			val f = m_node.to<FnDecl>() as &FnDecl;
+			val f = m_node.as_fn_decl() as &FnDecl;
 			if (f.type_params.len > 0) continue;
 
 			if (f.name == "new") {
@@ -523,7 +525,7 @@ impl DeclPass {
 			used_names += m_c_name;
 
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op);
 			st_info.methods += mi;
 
 			// Uniquify the AST name so the backend emits the mangled method name.
@@ -540,7 +542,7 @@ impl DeclPass {
 			if (expr is LiteralExpr as lit) {
 				when (lit.literal_kind) {
 					LiteralKind.INT -> {
-						val p_type = int_literal_type(&self.arena, lit.raw_text);
+						val p_type = int_literal_type(self.symtab.prims_of(), lit.raw_text);
 						f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
 						return p_type;
 					}
@@ -631,7 +633,7 @@ impl DeclPass {
 		var used_names = List<str>();
 
 		for (m_node in im.methods) {
-			val f = m_node.to<FnDecl>() as &FnDecl;
+			val f = m_node.as_fn_decl() as &FnDecl;
 			if (f.type_params.len > 0) continue;
 			var param_types = List<*Type>();
 
@@ -668,10 +670,8 @@ impl DeclPass {
 			}
 
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node as *u8, self.current_module, f.is_op);
-			val pm = self.arena.alloc<PrimMethod>();
-			*pm = PrimMethod(prim.kind, mi);
-			self.symtab.register_prim_method(pm);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op);
+			self.symtab.register_prim_method(prim, mi);
 
 			// Uniquify the AST name so the backend emits the mangled method name.
 			f.name = m_c_name;
@@ -726,7 +726,7 @@ impl DeclPass {
 		for (tm in effective) {
 			var have = false;
 			for (m in im.methods) {
-				val f = m.to<FnDecl>();
+				val f = m.as_fn_decl();
 				if (f.name == tm.name && f.params.len == tm.arity) have = true;
 			}
 			if (have) continue;

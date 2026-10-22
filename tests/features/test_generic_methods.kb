@@ -1,0 +1,47 @@
+mod test.generic_methods;
+
+// Generic methods are resolved where the receiver's type is known: two structs
+// may declare the same generic method name, a value receiver works, and a
+// generic method may call another one.
+
+use std.mem.arena.Arena;
+
+struct A { pub v: i32 }
+struct B { pub v: i32 }
+
+impl A {
+	pub fn pick<T>(val self): i32 => self.v + 1;
+}
+
+impl B {
+	pub fn pick<T>(val self): i32 => self.v + 2;
+}
+
+struct Box<T> { pub v: T }
+
+impl Box<T> {
+	pub fn get(val self) => self.v;
+	pub fn get_twice(val self) => self.get() + self.get();
+}
+
+fn main(): i32 {
+	val a = A(10);
+	val b = B(20);
+	if (a.pick<i32>() != 11) return 1;
+	if (b.pick<i32>() != 22) return 2;
+
+	val boxed = Box<i32>(7);
+	if (boxed.get_twice() != 14) return 3;
+
+	var arena = Arena(1024UZ);
+	defer arena.delete();
+	val p = arena.alloc<i32>();
+	*p = 9;
+	if (*p != 9) return 4;
+
+	// `alloc_val` is a generic method whose body calls another generic method.
+	val q = arena.alloc_val<i32>(5);
+	if (*q != 5) return 5;
+
+	return 0;
+}

@@ -26,13 +26,53 @@ use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_expr.*;
 
+// One arrow-bodied function whose return type is still unknown, together with
+// the context its body has to be checked in (defining module and `Self` type).
+struct ArrowCandidate {
+	pub node: *AstNode,
+	pub fn_type: *Type,
+	pub self_ty: *Type,
+	pub module: str
+}
+
 impl BodyPass {
 
 	pub fn check_fn(var self, fn_node: *AstNode) {
-		val f = fn_node.to<FnDecl>();
+		val f = fn_node.as_fn_decl();
 		val sym = self.symtab.lookup(f.name) ?: return;
 		if (sym.type_ptr.kind != DataType.FN) return;
+
+		// An instantiated clone remembers its template's module, so its body is
+		// checked with the same names in scope as the template.
+		val saved_mod = self.symtab.current_module;
+		if (!f.module.empty()) self.symtab.set_current_module(f.module);
+
+		// An instantiated method is an ordinary free function whose first parameter
+		// is the receiver; restore `Self` for its body from that parameter's type.
+		var self_ty: *Type = null;
+		val fn_info = sym.type_ptr.as_fn();
+		if (
+			f.params.len > 0 &&
+			f.params[0].name == "self" &&
+			fn_info.param_types.len > 0
+		) {
+			val p0 = fn_info.param_types[0];
+			if (p0 != null && p0.kind == DataType.POINTER && p0.as_pointer().pointee.kind == DataType.STRUCT) {
+				self_ty = p0.as_pointer().pointee;
+			}
+		}
+
+		if (self_ty == null) {
+			self.check_fn_body(fn_node, sym.type_ptr);
+			self.symtab.set_current_module(saved_mod);
+			return;
+		}
+
+		val saved_self = self.current_self_type;
+		self.current_self_type = self_ty;
 		self.check_fn_body(fn_node, sym.type_ptr);
+		self.current_self_type = saved_self;
+		self.symtab.set_current_module(saved_mod);
 	}
 
 	// Shared body checker: works for free functions and impl methods. `fn_type`
@@ -41,7 +81,7 @@ impl BodyPass {
 		if (fn_node in self.checked_fns) return;
 		self.checked_fns += fn_node;
 
-		val f = fn_node.to<FnDecl>() as &FnDecl;
+		val f = fn_node.as_fn_decl() as &FnDecl;
 
 		val fn_info = fn_type.as_fn();
 		self.current_fn_return_type = fn_info.return_type;
@@ -90,12 +130,12 @@ impl BodyPass {
 	}
 
 	pub fn check_impl(var self, node: *AstNode) {
-		val im = node.to<ImplDecl>();
+		val im = node.as_impl_decl();
 
 		// A primitive impl has no struct name; find its methods by mangled name.
 		if (im.struct_name.empty()) {
 			for (m_node in im.methods) {
-				val f = m_node.to<FnDecl>();
+				val f = m_node.as_fn_decl();
 				if (f.type_params.len > 0) continue;
 				val mi = self.symtab.find_prim_method_c(f.name);
 				if (mi != null) self.check_fn_body(m_node, mi.fn_type);
@@ -110,7 +150,7 @@ impl BodyPass {
 		// Make `Self` resolve to this struct inside every method body.
 		self.current_self_type = st_sym.type_ptr;
 		for (m_node in im.methods) {
-			val f = m_node.to<FnDecl>();
+			val f = m_node.as_fn_decl();
 			if (f.type_params.len > 0) continue;
 			val mi = st_info.find_method_c(f.name);
 			if (mi != null) self.check_fn_body(m_node, mi.fn_type);
@@ -126,13 +166,26 @@ impl BodyPass {
 			var decl_p = DeclPass();
 			decl_p.collect_program(program_node);
 
-			// Inherit SymbolTable and merge errors from DeclPass
+			// Inherit SymbolTable and merge errors from DeclPass, and keep the
+			// pass itself so `resolve_type` can reuse its resolver.
 			self.symtab = decl_p.symtab;
+			self.symtab.prims = decl_p.symtab.prims_of();
+			self.decl = decl_p;
+			self.has_decl = true;
 			for (msg in decl_p.errors) self.errors += msg;
 		}
 
+		// Instances created from here on (arrow inference and body checking) still
+		// have to be checked and emitted; the declaration pass merged its own
+		// before this point.
+		val inst_mark = self.symtab.gen.instances.len;
+
+		// Step 1.5: resolve the return type of every arrow-bodied function first,
+		// so no call site has to check a callee's body on demand.
+		self.infer_arrow_returns(program_node);
+
 		// Step 2: Analyze each function body of each module (program already merged)
-		val prog = program_node.to<Program>();
+		val prog = program_node.as_program();
 		for (decl in prog) {
 			when (decl) {
 				is ModuleDecl as m -> self.symtab.set_current_module(m.full_path);
@@ -143,6 +196,168 @@ impl BodyPass {
 				}
 			}
 		}
+
+		// Step 3: instances created while checking bodies (generic methods) still
+		// need their bodies checked and their declarations emitted.
+		self.flush_instances(program_node, inst_mark);
+	}
+
+	// Checks and emits the instances produced after the declaration pass merged
+	// its own. They are placed before the original declarations, so a struct
+	// instance is defined before the functions that use it.
+	pub fn flush_instances(var self, program_node: *AstNode, from: usz) {
+		val prog = program_node.as_program() as &Program;
+		var added = List<*AstNode>();
+		var i = from;
+		while (i + 1 < self.symtab.gen.instances.len) {
+			val marker = self.symtab.gen.instances[i];
+			val decl = self.symtab.gen.instances[i + 1];
+			i += 2;
+
+			val m = marker.as_module_decl();
+			self.symtab.set_current_module(m.full_path);
+			if (decl.kind == NodeKind.DECL_FN) self.check_fn(decl);
+			else if (decl.kind == NodeKind.DECL_IMPL) self.check_impl(decl);
+
+			added += marker;
+			added += decl;
+		}
+		if (added.empty()) return;
+
+		var combined = List<*AstNode>();
+		for (d in added) combined += d;
+		for (d in prog.declarations) combined += d;
+		prog.declarations = combined;
+	}
+
+	// ============================================================================
+	// Arrow Return-Type Inference
+	// ============================================================================
+
+	// Collects every arrow-bodied function (`fn f() => expr`) whose return type is
+	// still unknown and resolves it, retrying when an attempt calls another
+	// unresolved arrow function. This replaces the old on-demand "check the
+	// callee body from the call site" behaviour: by the time bodies are checked,
+	// every arrow function has a return type, so checking is a single pass.
+	pub fn infer_arrow_returns(var self, program_node: *AstNode) {
+		val prog = program_node.as_program();
+		val saved_mod = self.symtab.current_module;
+		self.inferring = true;
+		var pending = List<*ArrowCandidate>();
+
+		for (decl in prog) {
+			if (decl.kind == NodeKind.DECL_MODULE) {
+				val m = decl.as_module_decl();
+				self.symtab.set_current_module(m.full_path);
+				continue;
+			}
+			val cur_mod = self.symtab.current_module;
+
+			if (decl.kind == NodeKind.DECL_FN) {
+				val f = decl.as_fn_decl();
+				if (f.type_params.len > 0) continue;
+				if (!self.arrow_pending(decl)) continue;
+				val sym = self.symtab.lookup(f.name) ?: continue;
+				pending += self.arrow_candidate(decl, sym.type_ptr, null, cur_mod);
+			} else if (decl.kind == NodeKind.DECL_IMPL) {
+				val im = decl.as_impl_decl();
+				if (im.type_params.len > 0) continue;
+				if (im.struct_name.empty()) {
+					for (m_node in im.methods) {
+						if (!self.arrow_pending(m_node)) continue;
+						val mf = m_node.as_fn_decl();
+						val mi = self.symtab.find_prim_method_c(mf.name) ?: continue;
+						val self_ty = mi.fn_type.as_fn().param_types[0];
+						pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, cur_mod);
+					}
+				} else {
+					val st_sym = self.symtab.lookup(im.struct_name) ?: continue;
+					if (st_sym.type_ptr.kind != DataType.STRUCT) continue;
+					val st_info = st_sym.type_ptr.as_struct();
+					for (m_node in im.methods) {
+						if (!self.arrow_pending(m_node)) continue;
+						val mf = m_node.as_fn_decl();
+						val mi = st_info.find_method_c(mf.name) ?: continue;
+						pending += self.arrow_candidate(m_node, mi.fn_type, st_sym.type_ptr, cur_mod);
+					}
+				}
+			}
+		}
+		self.symtab.set_current_module(saved_mod);
+
+		var progress = true;
+		while (progress && !pending.empty()) {
+			progress = false;
+			var next = List<*ArrowCandidate>();
+			for (c in pending) {
+				if (self.try_infer_arrow(c)) progress = true;
+				else next += c;
+			}
+			pending = next;
+		}
+
+		for (c in pending) {
+			self.report_error(c.node,
+				"Cannot infer the return type of '${c.node.as_fn_decl().name}'; "
+				"annotate it with an explicit type"
+			);
+		}
+		self.inferring = false;
+	}
+
+	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type, module: str): *ArrowCandidate {
+		val c = self.arena.alloc<ArrowCandidate>();
+		*c = ArrowCandidate(node, fn_type, self_ty, module);
+		return c;
+	}
+
+	// One attempt: check the arrow body in the candidate's context. Returns false
+	// (and rolls back its diagnostics) when the body depends on an arrow function
+	// that is still unresolved, so the caller retries on a later round.
+	fn try_infer_arrow(var self, c: *ArrowCandidate): bool {
+		val f = c.node.as_fn_decl() as &FnDecl;
+		if (f.return_type != null) return true;
+		if (c.fn_type == null) return true;
+		val fn_info = c.fn_type.as_fn();
+
+		val err_mark = self.errors.len;
+		val saved_blocked = self.infer_blocked;
+		val saved_self = self.current_self_type;
+		val saved_ret = self.current_fn_return_type;
+
+		self.infer_blocked = false;
+		self.current_self_type = c.self_ty;
+		self.current_fn_return_type = fn_info.return_type;
+		val prev_mod = self.enter_module(c.module);
+
+		self.symtab.enter_scope(true);
+		for (i in 0..<f.params.len) {
+			val p = f.params[i];
+			val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.t_none();
+			self.symtab.define(Symbol(
+				p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false,
+				c.node.line, c.node.col, null
+			));
+		}
+		val body_ty = self.check_expr(f.body.as_expr_stmt().expr);
+		self.symtab.exit_scope();
+
+		self.current_self_type = saved_self;
+		self.current_fn_return_type = saved_ret;
+		self.leave_module(prev_mod);
+
+		if (self.infer_blocked) {
+			self.infer_blocked = saved_blocked;
+			while (self.errors.len > err_mark) self.errors.pop();
+			return false;
+		}
+		self.infer_blocked = saved_blocked;
+
+		val fn_mut = c.fn_type.as_fn_mut();
+		fn_mut.return_type = body_ty;
+		f.return_type = self.arena.ast_type_from_type(body_ty);
+		self.checked_fns += c.node;
+		return true;
 	}
 
 }

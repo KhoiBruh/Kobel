@@ -3,8 +3,8 @@ mod compiler.ast.decl;
 use std.collections.list.List;
 use std.traits.iterable.Iterable;
 
-use compiler.ast.node.AstNode;
-use compiler.ast.node.NodeKind;
+use compiler.ast.node.*;
+
 
 pub struct ModuleDecl {
 	pub const TAG = NodeKind.DECL_MODULE;
@@ -42,7 +42,10 @@ pub struct FnDecl {
 	pub return_type: *AstNode,
 	pub body: *AstNode,
 	pub is_pub: bool,
-	pub is_op: bool = false
+	pub is_op: bool = false,
+	// Set on instantiated clones (monomorphization): the module the template was
+	// declared in, so its body is checked with the right names in scope.
+	pub module: str = ""
 }
 
 pub struct StructField {
@@ -57,7 +60,10 @@ pub struct StructDecl {
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub fields: List<StructField>,
-	pub is_pub: bool
+	pub is_pub: bool,
+	// `struct A;` — declares the name without a body. The definition (`struct A
+	// { ... }`) is merged into the same type during declaration collection.
+	pub is_forward: bool = false
 }
 
 pub struct TraitDecl {
@@ -77,11 +83,20 @@ pub struct ImplDecl {
 	pub methods: List<*AstNode>
 }
 
+// One named field of an enum variant's payload: `Circle(radius: f64)`.
+pub struct EnumField {
+	pub name: str,
+	pub type_node: *AstNode
+}
+
 pub struct EnumMember {
 	pub name: str,
 	pub value: *AstNode,
 	pub line: usz,
-	pub col: usz
+	pub col: usz,
+	// Empty for a plain (integer) enum member; non-empty when the member carries
+	// data, which makes the whole declaration a payload enum.
+	pub payload: List<EnumField> = List()
 }
 
 pub struct EnumDecl {
@@ -129,3 +144,13 @@ impl Iterable for Program {
 	pub fn count(val self) => self.declarations.len;
 	pub fn at(val self, i: usz) => self.declarations[i];
 }
+
+// Whether a declaration carries generic parameters (`struct S<T>`, `fn f<T>`,
+// `impl S<T>`). Lives here, next to the payload structs, so it reads their real
+// fields instead of type-punning the node payload.
+pub fn decl_is_template(node: *AstNode): bool => when (node.kind) {
+	NodeKind.DECL_STRUCT -> node.as_struct_decl().type_params.len > 0;
+	NodeKind.DECL_FN -> node.as_fn_decl().type_params.len > 0;
+	NodeKind.DECL_IMPL -> node.as_impl_decl().type_params.len > 0;
+	else -> false;
+};

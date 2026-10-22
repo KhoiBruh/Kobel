@@ -26,8 +26,12 @@ use compiler.lexer.token.*;
 use compiler.sema.types.*;
 use compiler.sema.symbol.*;
 use compiler.sema.decl_pass.*;
+use compiler.sema.desugar_interp.*;
 use compiler.sema.body_stmt.*;
 use compiler.sema.body_expr.*;
+use compiler.sema.body_access.*;
+use compiler.sema.body_pattern.*;
+use compiler.sema.body_interp.*;
 use compiler.sema.body_call.*;
 use compiler.sema.body_program.*;
 
@@ -48,7 +52,19 @@ pub struct BodyPass {
 	pub when_depth: usz = 0,
 	pub checked_fns: List<*AstNode> = List(),
 	pub is_stmt_level: bool = false,
-	pub defer_depth: usz = 0
+	pub defer_depth: usz = 0,
+	// Declaration pass whose type resolver and instance tables this pass reuses,
+	// so checking a body never builds a second DeclPass (see `resolve_type`).
+	// Held by value: `has_decl` says whether it was populated.
+	pub decl: DeclPass = DeclPass(),
+	pub has_decl: bool = false,
+	// Set while inferring arrow-function return types: the current attempt called
+	// a function whose return type is not known yet, so the attempt is rolled
+	// back and retried after that function is resolved.
+	pub infer_blocked: bool = false,
+	// True for the duration of that inference pass, so a call to an unresolved
+	// arrow function blocks the attempt instead of checking the callee eagerly.
+	pub inferring: bool = false
 }
 
 impl BodyPass {
@@ -66,91 +82,76 @@ impl BodyPass {
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 	}
 
+	// Standard construction: reuse the declaration pass of the same compilation
+	// for type resolution and generic instantiation.
+	pub fn new(symtab: SymbolTable, decl: DeclPass): Self {
+		var arena = Arena();
+		val none_ty = alloc_primitive(&arena, type_none());
+		var bp = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+		bp.decl = decl;
+		bp.has_decl = true;
+		bp.symtab.prims = decl.symtab.prims_of();
+		return bp;
+	}
+
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(lk, raw), line, col);
+		=> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lk, raw))), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr(name), line, col);
+		=> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(name))), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(left, op, right), line, col);
+		=> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(left, op, right))), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<UnaryExpr>(UnaryExpr.TAG, UnaryExpr(op, operand), line, col);
+		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(op, operand))), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(callee, args, type_args), line, col);
+		=> self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(callee, args, type_args))), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IndexExpr>(IndexExpr.TAG, IndexExpr(target, index), line, col);
+		=> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(target, index))), line, col);
 
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
+		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member))), line, col);
 
 	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member, true), line, col);
+		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member, true))), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.make<IfExpr>(IfExpr.TAG, IfExpr(condition, then_branch, else_branch), line, col);
+		=> self.arena.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.arena.alloc_val<IfExpr>(IfExpr(condition, then_branch, else_branch))), line, col);
 
 	pub fn clone_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node) {
-			is LiteralExpr as lit -> self.arena.make<LiteralExpr>(
-				LiteralExpr.TAG, LiteralExpr(lit.literal_kind, lit.raw_text),
-				node.line, node.col
-			);
+			is LiteralExpr as lit -> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lit.literal_kind, lit.raw_text))), node.line, node.col);
 
-			is IdentifierExpr as id -> self.arena.make<IdentifierExpr>(
-				IdentifierExpr.TAG, IdentifierExpr(id.name),
-				node.line, node.col
-			);
+			is IdentifierExpr as id -> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(id.name))), node.line, node.col);
 
-			is BinaryExpr as b -> self.arena.make<BinaryExpr>(
-				BinaryExpr.TAG, BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)),
-				node.line, node.col
-			);
+			is BinaryExpr as b -> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)))), node.line, node.col);
 
-			is UnaryExpr as u -> self.arena.make<UnaryExpr>(
-				UnaryExpr.TAG, UnaryExpr(u.op, self.clone_expr(u.operand)),
-				node.line, node.col
-			);
+			is UnaryExpr as u -> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(u.op, self.clone_expr(u.operand)))), node.line, node.col);
 
 			is CallExpr as c -> {
 				var args = List<*AstNode>();
 				for (a in c.args) args += self.clone_expr(a);
 				var targs = List<*AstNode>();
 				for (ta in c.type_args) targs += ta;
-				yield self.arena.make<CallExpr>(CallExpr.TAG, CallExpr(self.clone_expr(c.callee), args, targs), node.line, node.col);
+				yield self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(self.clone_expr(c.callee), args, targs))), node.line, node.col);
 			}
-			is MemberExpr as m -> self.arena.make<MemberExpr>(
-				MemberExpr.TAG, MemberExpr(self.clone_expr(m.object), m.member, m.is_safe),
-				node.line, node.col
-			);
+			is MemberExpr as m -> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(self.clone_expr(m.object), m.member, m.is_safe))), node.line, node.col);
 
-			is IndexExpr as ix -> self.arena.make<IndexExpr>(
-				IndexExpr.TAG, IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)),
-				node.line, node.col
-			);
+			is IndexExpr as ix -> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)))), node.line, node.col);
 
-			is GroupExpr as g -> self.arena.make<GroupExpr>(
-				GroupExpr.TAG, GroupExpr(self.clone_expr(g.expr)),
-				node.line, node.col
-			);
+			is GroupExpr as g -> self.arena.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.arena.alloc_val<GroupExpr>(GroupExpr(self.clone_expr(g.expr)))), node.line, node.col);
 
 			is ArrayLiteralExpr as al -> {
 				var els = List<*AstNode>();
 				for (e in al.elements) els += self.clone_expr(e);
-				yield self.arena.make<ArrayLiteralExpr>(
-					ArrayLiteralExpr.TAG, ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node),
-					node.line, node.col
-				);
+				yield self.arena.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.arena.alloc_val<ArrayLiteralExpr>(ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node))), node.line, node.col);
 			}
 
-			is CastExpr as cst -> self.arena.make<CastExpr>(
-				CastExpr.TAG, CastExpr(self.clone_expr(cst.expr), cst.target_type),
-				node.line, node.col
-			);
+			is CastExpr as cst -> self.arena.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.arena.alloc_val<CastExpr>(CastExpr(self.clone_expr(cst.expr), cst.target_type))), node.line, node.col);
 			else -> node;
 		};
 	}
@@ -159,22 +160,14 @@ impl BodyPass {
 	// Shorthands
 	// ============================================================================
 
-	// Primitive result types. Each call allocates a fresh `Type` in the arena,
-	// exactly like `self.t_prim(type_xxx())` did.
-	pub fn t_none(var self): *Type => alloc_primitive(&self.arena, type_none());
-	pub fn t_bool(var self): *Type => alloc_primitive(&self.arena, type_bool());
-	pub fn t_char(var self): *Type => alloc_primitive(&self.arena, type_char());
-	pub fn t_str(var self): *Type => alloc_primitive(&self.arena, type_str());
-	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
-	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
-
-	// Rewrites `node` in place so it becomes `with` (the parent keeps pointing
-	// at the same node, which is how sema lowers sugar for the backend).
-	pub fn replace_node(var self, node: *AstNode, with: *AstNode) {
-		val n = node as &AstNode;
-		n.kind = with.kind;
-		n.data = with.data;
-	}
+	// Primitive result types: the canonical instance from the symbol table, so
+	// two `str` annotations are the same pointer.
+	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
+	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
+	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
+	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
+	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
+	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
 
 	// Reports `msg` at `node` unless `cond` holds.
 	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
@@ -211,15 +204,71 @@ impl BodyPass {
 	}
 
 	pub fn resolve_type(var self, node: *AstNode): *Type {
+		if (self.has_decl) {
+			// Reuse the declaration pass: same symbol table, arena and instance
+			// tables, so an instantiation made while checking a body stays
+			// coherent with the ones made while collecting declarations. The
+			// table is threaded through by value, so hand the current one over
+			// and take back whatever the resolver added.
+			self.decl.symtab = self.symtab;
+			self.decl.current_module = self.symtab.current_module;
+			self.decl.current_self_type = self.current_self_type;
+			self.decl.errors = self.errors;
+			val ty = self.decl.resolve_ast_type(node);
+			self.symtab = self.decl.symtab;
+			self.errors = self.decl.errors;
+			return ty;
+		}
+
+		// Standalone use (tests): resolve through a throwaway pass.
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);
-
 		val ty = decl_p.resolve_ast_type(node);
 		self.arena = decl_p.arena;
 		self.errors = decl_p.errors;
 		return ty;
+	}
+
+	// Finds a method template for a receiver whose type the body pass knows, so
+	// two structs can declare generic methods with the same name.
+	pub fn find_method_template_for(var self, name: str, self_type: str): *GenTemplate {
+		if (self.has_decl) return self.decl.find_method_template(name, self_type);
+
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, self.current_self_type
+		);
+		val tmpl = decl_p.find_method_template(name, self_type);
+		self.arena = decl_p.arena;
+		self.errors = decl_p.errors;
+		return tmpl;
+	}
+
+	// Instantiates a generic method with the receiver type in scope, reusing the
+	// declaration pass so its instance tables stay coherent with this pass.
+	pub fn instantiate_method(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>, obj_ty: *Type): str {
+		if (self.has_decl) {
+			self.decl.symtab = self.symtab;
+			self.decl.current_module = self.symtab.current_module;
+			self.decl.current_self_type = obj_ty;
+			self.decl.errors = self.errors;
+			val cname = self.decl.instantiate_fn(tmpl, arg_asts);
+			self.symtab = self.decl.symtab;
+			self.errors = self.decl.errors;
+			return cname;
+		}
+
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, obj_ty
+		);
+		val cname = decl_p.instantiate_fn(tmpl, arg_asts);
+		self.arena = decl_p.arena;
+		self.symtab = decl_p.symtab;
+		self.errors = decl_p.errors;
+		return cname;
 	}
 
 	// ============================================================================
@@ -235,25 +284,49 @@ impl BodyPass {
 			node.kind != NodeKind.EXPR_ASSIGN
 		) self.is_stmt_level = false;
 
-		return when (node.kind) {
-			NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
-			NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
-			NodeKind.EXPR_BINARY -> self.check_binary_expr(node);
-			NodeKind.EXPR_UNARY -> self.check_unary_expr(node);
-			NodeKind.EXPR_CALL -> self.check_call_expr(node);
-			NodeKind.EXPR_MEMBER -> self.check_member_expr(node);
-			NodeKind.EXPR_INDEX -> self.check_index_expr(node);
-			NodeKind.EXPR_ASSIGN -> self.check_assign_expr(node);
-			NodeKind.EXPR_UPDATE -> self.check_update_expr(node);
-			NodeKind.EXPR_CAST -> self.check_cast_expr(node);
-			NodeKind.EXPR_IF -> self.check_if_expr(node);
-			NodeKind.EXPR_WHEN -> self.check_when_expr(node);
-			NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
-			NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
-			NodeKind.EXPR_IS -> self.check_is_expr(node);
-			else -> self.t_none();
-		};
+		val ty = self.check_expr_node(node);
+		self.annotate_type(node, ty);
+		return ty;
 	}
+
+	// Records the resolved type on the expression. Every lowering keeps the
+	// value's type, so annotating after the check describes the node codegen
+	// will actually see. One channel: the compiler's `*Type` (codegen maps it to
+	// C, later sema passes read struct fields and sizes from it).
+	fn annotate_type(var self, node: *AstNode, ty: *Type) {
+		if (node == null || ty == null) return;
+		node.type_ptr = ty as *u8;
+	}
+
+	// True for an arrow-bodied function (`fn f() => expr`) whose return type is
+	// still unknown. A call to one of these during inference blocks the attempt.
+	fn arrow_pending(val self, ast: *AstNode): bool {
+		if (ast == null) return false;
+		if (ast.kind != NodeKind.DECL_FN) return false;
+		val f = ast.as_fn_decl();
+		if (f.return_type != null) return false;
+		if (f.body == null) return false;
+		return f.body.kind == NodeKind.STMT_EXPR;
+	}
+
+	fn check_expr_node(var self, node: *AstNode): *Type => when (node.kind) {
+		NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
+		NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
+		NodeKind.EXPR_BINARY -> self.check_binary_expr(node);
+		NodeKind.EXPR_UNARY -> self.check_unary_expr(node);
+		NodeKind.EXPR_CALL -> self.check_call_expr(node);
+		NodeKind.EXPR_MEMBER -> self.check_member_expr(node);
+		NodeKind.EXPR_INDEX -> self.check_index_expr(node);
+		NodeKind.EXPR_ASSIGN -> self.check_assign_expr(node);
+		NodeKind.EXPR_UPDATE -> self.check_update_expr(node);
+		NodeKind.EXPR_CAST -> self.check_cast_expr(node);
+		NodeKind.EXPR_IF -> self.check_if_expr(node);
+		NodeKind.EXPR_WHEN -> self.check_when_expr(node);
+		NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
+		NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
+		NodeKind.EXPR_IS -> self.check_is_expr(node);
+		else -> self.t_none();
+	};
 
 	// ============================================================================
 	// Top-level Statement Dispatcher

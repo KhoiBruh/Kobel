@@ -11,6 +11,7 @@ use compiler.sema.decl_pass.*;
 use compiler.sema.decl_collect.*;
 use compiler.sema.body_pass.*;
 use compiler.sema.body_program.*;
+use compiler.sema.lower.*;
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_program.*;
 use compiler.loader.loader.*;
@@ -21,6 +22,21 @@ use compiler.loader.loader.*;
 
 pub fn print_error_list(errors: List<str>) {
 	for (msg in errors) println("  [ERROR] ${msg}");
+}
+
+// Command line that turns `c_path` into `exe_path` with the given backend.
+// `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
+// Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
+pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
+	var cmd = if (
+		cc == "clang" ||
+		cc == "gcc"
+	) "${cc} -O2 -o \"${exe_path}\" \"${c_path}\""
+	// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
+	else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\"";
+
+	if (quiet) cmd = "${cmd} >nul";
+	return cmd;
 }
 
 pub struct CompileOptions {
@@ -74,13 +90,17 @@ impl CompileOptions {
 		}
 
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
-		val body_p = BodyPass(decl_p.symtab);
+		val body_p = BodyPass(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
 		if (!body_p.errors.empty()) {
 			println("Semantic Type Errors in ${input_path}:");
 			print_error_list(body_p.errors);
 			return 1;
 		}
+
+		// Sugar that needs no further checking is lowered in a separate pass, so
+		// the checker never rewrites a node's kind in place.
+		body_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");
 		val codegen = CCodeGen();
@@ -121,14 +141,7 @@ impl CompileOptions {
 			exec("move /y \"${out_path.to_win_path()}\" \"${old_bin.to_win_path()}\" >nul 2>nul");
 		}
 
-		var compile_cmd = if (
-			self.c_compiler == "clang" ||
-			self.c_compiler == "gcc"
-		) "${self.c_compiler} -O2 -o \"${out_path}\" \"${c_tmp_path}\""
-		// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
-		else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${out_path}\" /Fo:\"${obj_tmp_path.to_win_path()}\" \"${c_tmp_path}\"";
-
-		if (self.quiet) compile_cmd = "${compile_cmd} >nul";
+		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
 
 		val exit_code = exec(compile_cmd);
 		if (exit_code != 0) {
