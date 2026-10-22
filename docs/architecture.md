@@ -514,6 +514,15 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
 phải **thêm năng lực đó vào compiler hiện tại trước**, nếu không bản viết lại sẽ lặp lại đúng kiểu code cũ.
 
+**Nợ kỹ thuật lộ ra khi P‑1 (generic method).** `find_method_template` chọn template theo **tên**, không
+theo kiểu receiver, nên hai generic method cùng tên ở hai module tranh nhau theo thứ tự nạp module. Gặp
+thật khi `Type` còn `to<T>` song song với `AstNode.to<T>`: chỉ cần `sema.types` import `ast.node` là
+`Type.to<...>` bị trỏ nhầm sang bản của `AstNode`. Đã xử lý bằng cách bỏ `Type.to<T>`, thay bằng accessor
+`as_pointer/as_array/as_struct/as_struct_mut/as_fn/as_fn_mut/as_enum` (`20a9341`) — nhờ đó
+`Symbol.ast_node`, `MethodInfo.ast_node`, `StructField.default_val` được định kiểu `*AstNode`.
+Cách sửa gốc vẫn là **hoãn instantiate generic method sang BodyPass** (nơi biết kiểu receiver), rồi thay
+node qua `resolved_node` — cùng cơ chế của `StructCtorExpr`; việc đó nằm trong hạng mục generic method.
+
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
 Heuristic còn lại sau P1/P2 (mục tiêu P3): `tag_field_name_of` (nhận tag theo tên
