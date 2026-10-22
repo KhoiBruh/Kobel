@@ -34,7 +34,7 @@ use compiler.sema.body_pass.*;
 impl BodyPass {
 
 	pub fn lower_program(var self, program_node: *AstNode) {
-		val prog = program_node.to<Program>();
+		val prog = program_node.as_program();
 		for (decl in prog) {
 			when (decl) {
 				is FnDecl as var f -> f.body = self.lower_stmt(f.body);
@@ -406,7 +406,7 @@ impl BodyPass {
 		}
 
 		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
-		val mem = callee.to<MemberExpr>() as &MemberExpr;
+		val mem = callee.as_member_expr() as &MemberExpr;
 		val mi = node.resolved_method as *MethodInfo;
 		val recv = mem.object;
 
@@ -439,7 +439,7 @@ impl BodyPass {
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee;
 		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
-		val mem = callee.to<MemberExpr>() as &MemberExpr;
+		val mem = callee.as_member_expr() as &MemberExpr;
 		if (mem.member != "slice") return node;
 		if (!self.is_str_expr(mem.object)) return node;
 
@@ -466,7 +466,7 @@ impl BodyPass {
 	// `check_expr` recurses into them without annotating the group itself.
 	fn type_of(var self, node: *AstNode): *Type {
 		var cur = node;
-		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.to<GroupExpr>().expr;
+		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
 		if (cur == null) return null;
 		return cur.type_ptr as *Type;
 	}

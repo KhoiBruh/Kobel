@@ -60,11 +60,110 @@ pub enum NodeKind {
 	EXPR_ENUM_CTOR
 }
 
+// Every node payload is declared here as an opaque type, so the payload enum
+// below can name it; the definitions live in ast.types / ast.expr / ast.stmt /
+// ast.decl, which import this module. Cross-module forward declarations keep
+// that a DAG instead of a cycle.
+pub struct NamedType;
+pub struct PointerType;
+pub struct ArrayType;
+pub struct NullableType;
+pub struct LiteralExpr;
+pub struct IdentifierExpr;
+pub struct BinaryExpr;
+pub struct UnaryExpr;
+pub struct CallExpr;
+pub struct MemberExpr;
+pub struct IndexExpr;
+pub struct AssignExpr;
+pub struct UpdateExpr;
+pub struct CastExpr;
+pub struct GroupExpr;
+pub struct ArrayLiteralExpr;
+pub struct IfExpr;
+pub struct WhenExpr;
+pub struct InterpExpr;
+pub struct IsExpr;
+pub struct StructCtorExpr;
+pub struct EnumCtorExpr;
+pub struct BlockStmt;
+pub struct ExprStmt;
+pub struct VarDeclStmt;
+pub struct IfStmt;
+pub struct WhileStmt;
+pub struct ForStmt;
+pub struct ReturnStmt;
+pub struct BreakStmt;
+pub struct ContinueStmt;
+pub struct WhenStmt;
+pub struct YieldStmt;
+pub struct DeferStmt;
+pub struct ModuleDecl;
+pub struct UseDecl;
+pub struct FnDecl;
+pub struct StructDecl;
+pub struct TraitDecl;
+pub struct ImplDecl;
+pub struct EnumDecl;
+pub struct ConstDecl;
+pub struct ExternBlock;
+pub struct Program;
+
+// The payload of an `AstNode`: one variant per node shape, checked by the
+// type system instead of reinterpreted through a `*u8`.
+pub enum NodeData {
+	NONE,
+	NamedType(inner: *NamedType),
+	PointerType(inner: *PointerType),
+	ArrayType(inner: *ArrayType),
+	NullableType(inner: *NullableType),
+	LiteralExpr(inner: *LiteralExpr),
+	IdentifierExpr(inner: *IdentifierExpr),
+	BinaryExpr(inner: *BinaryExpr),
+	UnaryExpr(inner: *UnaryExpr),
+	CallExpr(inner: *CallExpr),
+	MemberExpr(inner: *MemberExpr),
+	IndexExpr(inner: *IndexExpr),
+	AssignExpr(inner: *AssignExpr),
+	UpdateExpr(inner: *UpdateExpr),
+	CastExpr(inner: *CastExpr),
+	GroupExpr(inner: *GroupExpr),
+	ArrayLiteralExpr(inner: *ArrayLiteralExpr),
+	IfExpr(inner: *IfExpr),
+	WhenExpr(inner: *WhenExpr),
+	InterpExpr(inner: *InterpExpr),
+	IsExpr(inner: *IsExpr),
+	StructCtorExpr(inner: *StructCtorExpr),
+	EnumCtorExpr(inner: *EnumCtorExpr),
+	BlockStmt(inner: *BlockStmt),
+	ExprStmt(inner: *ExprStmt),
+	VarDeclStmt(inner: *VarDeclStmt),
+	IfStmt(inner: *IfStmt),
+	WhileStmt(inner: *WhileStmt),
+	ForStmt(inner: *ForStmt),
+	ReturnStmt(inner: *ReturnStmt),
+	BreakStmt(inner: *BreakStmt),
+	ContinueStmt(inner: *ContinueStmt),
+	WhenStmt(inner: *WhenStmt),
+	YieldStmt(inner: *YieldStmt),
+	DeferStmt(inner: *DeferStmt),
+	ModuleDecl(inner: *ModuleDecl),
+	UseDecl(inner: *UseDecl),
+	FnDecl(inner: *FnDecl),
+	StructDecl(inner: *StructDecl),
+	TraitDecl(inner: *TraitDecl),
+	ImplDecl(inner: *ImplDecl),
+	EnumDecl(inner: *EnumDecl),
+	ConstDecl(inner: *ConstDecl),
+	ExternBlock(inner: *ExternBlock),
+	Program(inner: *Program),
+}
+
 pub struct AstNode {
 	pub kind: NodeKind,
 	pub line: usz,
 	pub col: usz,
-	pub data: *u8,
+	pub data: NodeData,
 	// Resolved semantic type of an expression (the compiler's `*Type`, kept
 	// untyped so `ast` stays a leaf). Sema fills it; codegen and `lower` read it.
 	// Null on declarations and on nodes that desugaring synthesises.
@@ -80,14 +179,362 @@ pub struct AstNode {
 }
 
 impl AstNode {
-	pub fn to<T>(val self) => self.data as *T;
+	pub fn as_named_type(val self): *NamedType {
+		val data = self.data;
+		return when (data) {
+			is NodeData.NamedType as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_pointer_type(val self): *PointerType {
+		val data = self.data;
+		return when (data) {
+			is NodeData.PointerType as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_array_type(val self): *ArrayType {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ArrayType as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_nullable_type(val self): *NullableType {
+		val data = self.data;
+		return when (data) {
+			is NodeData.NullableType as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_literal_expr(val self): *LiteralExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.LiteralExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_identifier_expr(val self): *IdentifierExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.IdentifierExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_binary_expr(val self): *BinaryExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.BinaryExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_unary_expr(val self): *UnaryExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.UnaryExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_call_expr(val self): *CallExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.CallExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_member_expr(val self): *MemberExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.MemberExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_index_expr(val self): *IndexExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.IndexExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_assign_expr(val self): *AssignExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.AssignExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_update_expr(val self): *UpdateExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.UpdateExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_cast_expr(val self): *CastExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.CastExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_group_expr(val self): *GroupExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.GroupExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_array_literal_expr(val self): *ArrayLiteralExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ArrayLiteralExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_if_expr(val self): *IfExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.IfExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_when_expr(val self): *WhenExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.WhenExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_interp_expr(val self): *InterpExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.InterpExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_is_expr(val self): *IsExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.IsExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_struct_ctor_expr(val self): *StructCtorExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.StructCtorExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_enum_ctor_expr(val self): *EnumCtorExpr {
+		val data = self.data;
+		return when (data) {
+			is NodeData.EnumCtorExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_block_stmt(val self): *BlockStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.BlockStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_expr_stmt(val self): *ExprStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ExprStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_var_decl_stmt(val self): *VarDeclStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.VarDeclStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_if_stmt(val self): *IfStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.IfStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_while_stmt(val self): *WhileStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.WhileStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_for_stmt(val self): *ForStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ForStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_return_stmt(val self): *ReturnStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ReturnStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_break_stmt(val self): *BreakStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.BreakStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_continue_stmt(val self): *ContinueStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ContinueStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_when_stmt(val self): *WhenStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.WhenStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_yield_stmt(val self): *YieldStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.YieldStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_defer_stmt(val self): *DeferStmt {
+		val data = self.data;
+		return when (data) {
+			is NodeData.DeferStmt as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_module_decl(val self): *ModuleDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ModuleDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_use_decl(val self): *UseDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.UseDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_fn_decl(val self): *FnDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.FnDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_struct_decl(val self): *StructDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.StructDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_trait_decl(val self): *TraitDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.TraitDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_impl_decl(val self): *ImplDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ImplDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_enum_decl(val self): *EnumDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.EnumDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_const_decl(val self): *ConstDecl {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ConstDecl as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_extern_block(val self): *ExternBlock {
+		val data = self.data;
+		return when (data) {
+			is NodeData.ExternBlock as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_program(val self): *Program {
+		val data = self.data;
+		return when (data) {
+			is NodeData.Program as d -> d.inner,
+			else -> null
+		};
+	}
+
 }
 
 impl Arena {
-	pub fn alloc_node<T>(var self, kind: NodeKind, data: T, line: usz, col: usz): *AstNode {
-		val data_ptr = self.alloc_val<T>(data);
-		return self.alloc_val<AstNode>(AstNode(kind, line, col, data_ptr as *u8));
+	pub fn alloc_node(var self, kind: NodeKind, data: NodeData, line: usz, col: usz): *AstNode {
+		return self.alloc_val<AstNode>(AstNode(kind, line, col, data));
 	}
-
-	pub fn make<T>(var self, kind: NodeKind, data: T, line: usz, col: usz) => self.alloc_node<T>(kind, data, line, col);
 }

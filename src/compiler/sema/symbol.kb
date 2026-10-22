@@ -10,7 +10,7 @@ use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.PrimTypes;
-use compiler.ast.node.AstNode;
+use compiler.ast.node.*;
 // ============================================================================
 // SymbolKind Enumeration
 // ============================================================================

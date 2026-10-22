@@ -31,7 +31,7 @@ impl BodyPass {
 	// The `kobel_concat` chain is built by the `lower` pass; checking a hole means
 	// checking its expression and requiring a `ToStr` conversion.
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {
-		val ie = node.to<InterpExpr>();
+		val ie = node.as_interp_expr();
 		for (part in ie.parts) {
 			if (part.is_literal) continue;
 			val pty = self.check_expr(part.expr);

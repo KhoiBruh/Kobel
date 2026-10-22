@@ -288,9 +288,9 @@ impl CCodeGen {
 	// because every subject is a plain path (`p`, `obj.field`); upgrade by
 	// hoisting `void* __subj = ...;` in statement position if a call ever
 	// becomes a subject.
-	pub fn gen_tag_test(var self, subject: str, is_ptr: bool, tag_field: str, target_name: str): str {
-		if (!is_ptr) return "${subject}.${tag_field} == ${target_name}__TAG";
-		return "${subject} != NULL && ${subject}->${tag_field} == ${target_name}__TAG";
+	pub fn gen_tag_test(var self, subject: str, is_ptr: bool, tag_field: str, tag_const: str): str {
+		if (!is_ptr) return "${subject}.${tag_field} == ${tag_const}";
+		return "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}";
 	}
 
 	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
@@ -299,11 +299,13 @@ impl CCodeGen {
 		var tag_field = is_e.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
 		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
-		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name);
+		val tag_const = if (is_e.tag_const.empty()) "${target_name}__TAG" else is_e.tag_const;
+		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, tag_const);
 		if (!is_e.alias.empty()) {
 			val cast_val = if (is_e.is_ptr) {
 				if (!is_e.payload_path.empty()) {
-					"(${target_name}*)(&(${obj_str})->${is_e.payload_path})"
+					if (is_e.payload_ptr) "${obj_str}->${is_e.payload_path}"
+					else "(${target_name}*)(&(${obj_str})->${is_e.payload_path})"
 				} else if (is_e.has_data && !is_e.base_c_name.empty()) {
 					"(${target_name}*)(((${is_e.base_c_name}*)${obj_str})->data)"
 				} else {
@@ -311,7 +313,8 @@ impl CCodeGen {
 				}
 			} else {
 				if (!is_e.payload_path.empty()) {
-					"(${target_name}*)(&(${obj_str}).${is_e.payload_path})"
+					if (is_e.payload_ptr) "${obj_str}.${is_e.payload_path}"
+					else "(${target_name}*)(&(${obj_str}).${is_e.payload_path})"
 				} else {
 					"(${target_name}*)&${obj_str}"
 				}
@@ -335,7 +338,8 @@ impl CCodeGen {
 				val target_name = c_type_from_ast(is_e.target_type);
 				var tag_field = is_e.tag_field;
 				if (tag_field.empty()) tag_field = "tag";
-				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, target_name);
+				val tag_const = if (is_e.tag_const.empty()) "${target_name}__TAG" else is_e.tag_const;
+				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, tag_const);
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == LiteralKind.STRING) {
 					test = "strcmp(${cond}, ${self.gen_expr(p)}) == 0";

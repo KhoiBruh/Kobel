@@ -29,7 +29,7 @@ use compiler.sema.desugar_interp.*;
 impl BodyPass {
 
 	pub fn check_member_expr(var self, node: *AstNode): *Type {
-		val mem = node.to<MemberExpr>() as &MemberExpr;
+		val mem = node.as_member_expr() as &MemberExpr;
 
 		// Enum member (`NodeKind.EXPR_LITERAL`) and struct constant
 		// (`Foo.CONST`) both rewrite the node in place, so they resolve
@@ -190,7 +190,7 @@ impl BodyPass {
 	}
 
 	pub fn check_index_expr(var self, node: *AstNode): *Type {
-		val idx = node.to<IndexExpr>();
+		val idx = node.as_index_expr();
 		val target_ty = self.check_expr(idx.target);
 		val index_ty = self.check_expr(idx.index);
 
@@ -323,7 +323,7 @@ impl BodyPass {
 	}
 
 	pub fn check_assign_expr(var self, node: *AstNode): *Type {
-		val asgn = node.to<AssignExpr>() as &AssignExpr;
+		val asgn = node.as_assign_expr() as &AssignExpr;
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
 		val target_expr = self.unwrap_group(asgn.target);
@@ -456,7 +456,7 @@ impl BodyPass {
 	}
 
 	pub fn check_update_expr(var self, node: *AstNode): *Type {
-		val u = node.to<UpdateExpr>();
+		val u = node.as_update_expr();
 		val target_expr = self.unwrap_group(u.target);
 
 		self.check_lvalue_mutability(target_expr, node, true);
@@ -474,7 +474,7 @@ impl BodyPass {
 	}
 
 	pub fn check_cast_expr(var self, node: *AstNode): *Type {
-		val cst = node.to<CastExpr>();
+		val cst = node.as_cast_expr();
 		self.check_expr(cst.expr);
 		return self.resolve_type(cst.target_type);
 	}

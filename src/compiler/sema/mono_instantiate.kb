@@ -94,7 +94,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
-		val s = node.to<StructDecl>() as &StructDecl;
+		val s = node.as_struct_decl() as &StructDecl;
 		val s_type = self.arena.struct_type(final_name, List<StructField>());
 		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node)));
 		s.name = final_name;
@@ -113,7 +113,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str) {
-		val f = node.to<FnDecl>() as &FnDecl;
+		val f = node.as_fn_decl() as &FnDecl;
 		var param_types = List<*Type>();
 		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
 		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();

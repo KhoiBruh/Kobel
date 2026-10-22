@@ -77,9 +77,9 @@ impl GenTemplate {
 	// The declared generic parameters of a template (empty for an impl template,
 	// whose parameters live on the struct it belongs to).
 	pub fn params(val self) => when (self.node.kind) {
-		NodeKind.DECL_STRUCT -> self.node.to<StructDecl>().type_params,
-		NodeKind.DECL_FN -> self.node.to<FnDecl>().type_params,
-		NodeKind.DECL_IMPL -> self.node.to<ImplDecl>().type_params,
+		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params,
+		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params,
+		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params,
 		else -> List<GenericParam>()
 	};
 }
@@ -229,11 +229,11 @@ impl DeclPass {
 		return when (node.kind) {
 			NodeKind.TYPE_NAMED -> {
 				self.resolve_ast_type(node);
-				yield node.to<NamedType>().name;
+				yield node.as_named_type().name;
 			}
-			NodeKind.TYPE_POINTER -> "ptr_${self.ast_type_token(node.to<PointerType>().pointee)}";
+			NodeKind.TYPE_POINTER -> "ptr_${self.ast_type_token(node.as_pointer_type().pointee)}";
 			NodeKind.TYPE_ARRAY -> {
-				val a = node.to<ArrayType>();
+				val a = node.as_array_type();
 				yield "arr${a.size}_${self.ast_type_token(a.element_type)}";
 			}
 			else -> "x";
@@ -246,11 +246,11 @@ impl DeclPass {
 		return when (node.kind) {
 			NodeKind.TYPE_POINTER -> 8;
 			NodeKind.TYPE_ARRAY -> {
-				val a = node.to<ArrayType>();
+				val a = node.as_array_type();
 				yield a.size * self.ast_type_size(a.element_type);
 			}
 			NodeKind.TYPE_NAMED -> {
-				val name = node.to<NamedType>().name;
+				val name = node.as_named_type().name;
 				if (name == "str") yield 8;
 				if (name == "i8" || name == "u8" || name == "bool" || name == "char") yield 1;
 				if (name == "i16" || name == "u16") yield 2;
@@ -276,7 +276,7 @@ impl DeclPass {
 
 			val arg = arg_asts[i];
 			if (arg.kind != NodeKind.TYPE_NAMED) continue;
-			val aname = arg.to<NamedType>().name;
+			val aname = arg.as_named_type().name;
 			val asym = self.symtab.lookup(aname) ?: continue;
 			if (asym.type_ptr.kind != DataType.STRUCT) continue;
 

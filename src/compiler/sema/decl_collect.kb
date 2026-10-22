@@ -33,7 +33,7 @@ fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMetho
 impl DeclPass {
 
 	pub fn collect_module(var self, node: *AstNode) {
-		val m = node.to<ModuleDecl>();
+		val m = node.as_module_decl();
 		self.current_module = m.full_path;
 		self.symtab.set_current_module(m.full_path);
 	}
@@ -42,7 +42,7 @@ impl DeclPass {
 // the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
 // `use a.b.c.*;` -> wildcard import of the whole module a.b.c
 	pub fn collect_use(var self, node: *AstNode) {
-		val u = node.to<UseDecl>();
+		val u = node.as_use_decl();
 
 		if (u.is_wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
@@ -72,7 +72,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_struct(var self, node: *AstNode) {
-		val s = node.to<StructDecl>() as &StructDecl;
+		val s = node.as_struct_decl() as &StructDecl;
 		// Generic structs are registered as templates and instantiated on use.
 		if (s.type_params.len > 0) return;
 
@@ -102,6 +102,7 @@ impl DeclPass {
 			// Definition of a forward-declared struct: complete the same type.
 			val fwd_type = existing.type_ptr;
 			fwd_type.as_struct_mut().is_defined = true;
+			val def_name = s.name;
 			s.name = fwd_type.as_struct().c_name;
 			var fwd_private = false;
 			for (f in s.fields) {
@@ -111,6 +112,13 @@ impl DeclPass {
 			}
 			fwd_type.as_struct_mut().has_private = fwd_private;
 			fwd_type.layout_struct();
+
+			// The definition lives in a different module than the forward
+			// declaration, so that module needs its own handle on the type.
+			self.symtab.define_global(Symbol(
+				def_name, fwd_type.as_struct().c_name, SymbolKind.STRUCT, fwd_type,
+				false, s.is_pub, node.line, node.col, node
+			));
 			return;
 		}
 
@@ -138,7 +146,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_fn(var self, node: *AstNode) {
-		val f = node.to<FnDecl>() as &FnDecl;
+		val f = node.as_fn_decl() as &FnDecl;
 		// Generic functions are registered as templates and instantiated on use.
 		if (f.type_params.len > 0) return;
 		var param_types = List<*Type>();
@@ -163,7 +171,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_enum(var self, node: *AstNode) {
-		val e = node.to<EnumDecl>() as &EnumDecl;
+		val e = node.as_enum_decl() as &EnumDecl;
 		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type)
 		else self.t_prim(type_i32());
 
@@ -250,7 +258,7 @@ impl DeclPass {
 				Symbol(v_name, v_c, SymbolKind.STRUCT, v_ty, false, e.is_pub, m.line, m.col, node)
 			);
 			self.symtab.define_global(
-				Symbol("${v_name}__TAG", v_c, SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
+				Symbol("${v_name}__TAG", "${v_c}__TAG", SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
 			);
 
 			val mi = self.arena.alloc<EnumMemberInfo>();
@@ -284,7 +292,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_const(var self, node: *AstNode) {
-		val c = node.to<ConstDecl>() as &ConstDecl;
+		val c = node.as_const_decl() as &ConstDecl;
 		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node)
 		else self.t_prim(type_i32());
 	
@@ -298,7 +306,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_extern_block(var self, node: *AstNode) {
-		val ext = node.to<ExternBlock>();
+		val ext = node.as_extern_block();
 		val prev_is_extern = self.is_extern;
 		self.is_extern = true;
 		for (d in ext) self.collect_declaration(d);
@@ -310,7 +318,7 @@ impl DeclPass {
 	// resolved lazily; only the method names and whether each one has a body are
 	// kept here.
 	pub fn collect_trait(var self, node: *AstNode) {
-		val t = node.to<TraitDecl>();
+		val t = node.as_trait_decl();
 		if (self.symtab.find_trait(t.name) != null) {
 			self.report_error(node, "Duplicate trait declaration '${t.name}'");
 			return;
@@ -318,7 +326,7 @@ impl DeclPass {
 	
 		var methods = List<*TraitMethod>();
 		for (m in t.methods) {
-			val f = m.to<FnDecl>();
+			val f = m.as_fn_decl();
 			if (trait_method_in(methods, f.name, f.params.len) != null) {
 				self.report_error(m,
 					"Duplicate method '${f.name}' with ${f.params.len} "
@@ -352,7 +360,7 @@ impl DeclPass {
 	}
 
 	pub fn collect_program(var self, program_node: *AstNode) {
-		val prog = program_node.to<Program>();
+		val prog = program_node.as_program();
 	
 		// Pass 0: register generic templates so any use can instantiate them.
 		// Module markers are processed here too, so each template records its module.
@@ -403,7 +411,7 @@ impl DeclPass {
 			var combined = List<*AstNode>();
 			for (pn in self.symtab.gen.instances) combined += pn;
 			for (d in prog) combined += d;
-			val p_info = program_node.to<Program>() as &Program;
+			val p_info = program_node.as_program() as &Program;
 			p_info.declarations = combined;
 		}
 	}

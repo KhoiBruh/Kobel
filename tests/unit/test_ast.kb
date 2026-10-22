@@ -4,6 +4,7 @@ use std.io.print;
 use std.io.println;
 
 use compiler.ast.node.NodeKind;
+use compiler.ast.node.NodeData;
 use compiler.ast.node.AstNode;
 
 use compiler.ast.types.NamedType;
@@ -51,15 +52,15 @@ fn parse_i32(s: str): i32 {
 fn eval_expr(node: *AstNode): i32 {
 	when (node.kind) {
 		NodeKind.EXPR_LITERAL -> {
-			val lit = node.to<LiteralExpr>();
+			val lit = node.as_literal_expr();
 			return parse_i32(lit.raw_text);
 		}
 		NodeKind.EXPR_GROUP -> {
-			val grp = node.to<GroupExpr>();
+			val grp = node.as_group_expr();
 			return eval_expr(grp.expr);
 		}
 		NodeKind.EXPR_BINARY -> {
-			val bin = node.to<BinaryExpr>();
+			val bin = node.as_binary_expr();
 			val l = eval_expr(bin.left);
 			val r = eval_expr(bin.right);
 			when (bin.op) {
@@ -90,15 +91,15 @@ fn test_expression_tree(): bool {
 
 	if (mul_expr.kind != NodeKind.EXPR_BINARY) return false;
 
-	val bin = mul_expr.to<BinaryExpr>();
+	val bin = mul_expr.as_binary_expr();
 	if (bin.op != TokenType.STAR) return false;
 	if (bin.right.kind != NodeKind.EXPR_LITERAL) return false;
 
-	val r_lit = bin.right.to<LiteralExpr>();
+	val r_lit = bin.right.as_literal_expr();
 	if (r_lit.raw_text != "3") return false;
 
 	if (bin.left.kind != NodeKind.EXPR_GROUP) return false;
-	val grp = bin.left.to<GroupExpr>();
+	val grp = bin.left.as_group_expr();
 	if (grp.expr.kind != NodeKind.EXPR_BINARY) return false;
 
 	// Evaluate tree
@@ -118,7 +119,7 @@ fn test_statement_nodes(): bool {
 	val var_stmt = arena.var_decl(true, "count", ty_i32, lit42, 1UZ, 1UZ);
 
 	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
-	val vd = var_stmt.to<VarDeclStmt>();
+	val vd = var_stmt.as_var_decl_stmt();
 	if (!vd.is_mut || vd.name != "count") return false;
 	if (vd.type_annotation.kind != NodeKind.TYPE_NAMED) return false;
 	if (vd.initializer.kind != NodeKind.EXPR_LITERAL) return false;
@@ -133,7 +134,7 @@ fn test_statement_nodes(): bool {
 	stmts += ret_stmt;
 	val block = arena.block_stmt(stmts, 2UZ, 1UZ);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
-	val blk = block.to<BlockStmt>();
+	val blk = block.as_block_stmt();
 	if (blk.statements.len != 1UZ) return false;
 
 	// if (count > 0) { return count; }
@@ -142,7 +143,7 @@ fn test_statement_nodes(): bool {
 	val if_stmt = arena.if_stmt(cond, block, null, 3UZ, 1UZ);
 
 	if (if_stmt.kind != NodeKind.STMT_IF) return false;
-	val ifs = if_stmt.to<IfStmt>();
+	val ifs = if_stmt.as_if_stmt();
 	if (ifs.condition.kind != NodeKind.EXPR_BINARY) return false;
 	if (ifs.then_branch.kind != NodeKind.STMT_BLOCK) return false;
 
@@ -180,7 +181,7 @@ fn test_declaration_nodes(): bool {
 	);
 
 	if (fn_node.kind != NodeKind.DECL_FN) return false;
-	val fn_d = fn_node.to<FnDecl>();
+	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "add") return false;
 	if (!fn_d.is_pub) return false;
 	if (fn_d.params.len != 2UZ) return false;
@@ -199,7 +200,7 @@ fn test_program_iterable(): bool {
 	decls += d1;
 	decls += d2;
 	val prog_node = arena.program(decls, 1UZ, 1UZ);
-	val prog = prog_node.to<Program>();
+	val prog = prog_node.as_program();
 
 	var count: usz = 0;
 	for (d in prog) {
@@ -222,43 +223,43 @@ fn test_arena_ast_methods(): bool {
 	defer arena.delete();
 
 	val lit_node = arena.literal(LiteralKind.INT, "123", 1UZ, 1UZ);
-	val lit = lit_node.to<LiteralExpr>();
+	val lit = lit_node.as_literal_expr();
 	if (lit.raw_text != "123") return false;
-	val lit_to = lit_node.to<LiteralExpr>();
+	val lit_to = lit_node.as_literal_expr();
 	if (lit_to.raw_text != "123") return false;
 
 	val id_node = arena.identifier("x", 1UZ, 5UZ);
-	val id = id_node.to<IdentifierExpr>();
+	val id = id_node.as_identifier_expr();
 	if (id.name != "x") return false;
-	val id_to = id_node.to<IdentifierExpr>();
+	val id_to = id_node.as_identifier_expr();
 	if (id_to.name != "x") return false;
 
 	val bin_node = arena.binary(TokenType.PLUS, lit_node, id_node, 1UZ, 3UZ);
-	val bin = bin_node.to<BinaryExpr>();
+	val bin = bin_node.as_binary_expr();
 	if (bin.op != TokenType.PLUS) return false;
-	if (bin.left.to<LiteralExpr>().raw_text != "123") return false;
-	if (bin.right.to<IdentifierExpr>().name != "x") return false;
+	if (bin.left.as_literal_expr().raw_text != "123") return false;
+	if (bin.right.as_identifier_expr().name != "x") return false;
 
 	val fn_node = arena.fn_decl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, 2UZ, 1UZ);
-	val fn_d = fn_node.to<FnDecl>();
+	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "test_fn") return false;
 	if (!fn_d.is_pub) return false;
 
-	// Test arena.make<T>()
-	val m_lit = arena.make<LiteralExpr>(LiteralExpr.TAG, LiteralExpr(LiteralKind.INT, "456"), 3UZ, 1UZ);
+	// Test arena.alloc_node + a typed NodeData payload
+	val m_lit = arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(arena.alloc_val<LiteralExpr>(LiteralExpr(LiteralKind.INT, "456"))), 3UZ, 1UZ);
 	if (m_lit.kind != NodeKind.EXPR_LITERAL) return false;
-	if (m_lit.to<LiteralExpr>().raw_text != "456") return false;
+	if (m_lit.as_literal_expr().raw_text != "456") return false;
 
-	val m_id = arena.make<IdentifierExpr>(IdentifierExpr.TAG, IdentifierExpr("y"), 3UZ, 5UZ);
+	val m_id = arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(arena.alloc_val<IdentifierExpr>(IdentifierExpr("y"))), 3UZ, 5UZ);
 	if (m_id.kind != NodeKind.EXPR_IDENTIFIER) return false;
-	if (m_id.to<IdentifierExpr>().name != "y") return false;
+	if (m_id.as_identifier_expr().name != "y") return false;
 
-	val m_bin = arena.make<BinaryExpr>(BinaryExpr.TAG, BinaryExpr(m_lit, TokenType.STAR, m_id), 3UZ, 3UZ);
+	val m_bin = arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(arena.alloc_val<BinaryExpr>(BinaryExpr(m_lit, TokenType.STAR, m_id))), 3UZ, 3UZ);
 	if (m_bin.kind != NodeKind.EXPR_BINARY) return false;
-	val bin_d = m_bin.to<BinaryExpr>();
+	val bin_d = m_bin.as_binary_expr();
 	if (bin_d.op != TokenType.STAR) return false;
-	if (bin_d.left.to<LiteralExpr>().raw_text != "456") return false;
-	if (bin_d.right.to<IdentifierExpr>().name != "y") return false;
+	if (bin_d.left.as_literal_expr().raw_text != "456") return false;
+	if (bin_d.right.as_identifier_expr().name != "y") return false;
 
 	return true;
 }

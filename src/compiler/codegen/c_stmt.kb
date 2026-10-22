@@ -569,7 +569,7 @@ impl CCodeGen {
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
 			if (!is_e.alias.empty()) return is_e.alias;
-			if (cond.kind == NodeKind.EXPR_IDENTIFIER) return cond.to<IdentifierExpr>().name;
+			if (cond.kind == NodeKind.EXPR_IDENTIFIER) return cond.as_identifier_expr().name;
 		}
 		return "";
 	}
@@ -587,7 +587,7 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(ws.condition);
 					if (ws.condition.kind == NodeKind.EXPR_IDENTIFIER) {
-						subj_expr = ws.condition.to<IdentifierExpr>().name;
+						subj_expr = ws.condition.as_identifier_expr().name;
 					}
 					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
 				}
@@ -618,6 +618,7 @@ impl CCodeGen {
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
 				if (!is_e.payload_path.empty()) {
+					if (is_e.payload_ptr) return "${target_name}* ${bound_name} = (${var_name})->${is_e.payload_path};";
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&(${var_name})->${is_e.payload_path});";
 				}
@@ -629,6 +630,7 @@ impl CCodeGen {
 				}
 			} else {
 				if (!is_e.payload_path.empty()) {
+					if (is_e.payload_ptr) return "${target_name}* ${bound_name} = (${var_name}).${is_e.payload_path};";
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&(${var_name}).${is_e.payload_path});";
 				}
@@ -637,9 +639,11 @@ impl CCodeGen {
 		} else {
 			if (!is_e.payload_path.empty()) {
 				val src = if (is_ptr) var_name else "&${var_name}";
+				val bound = if (is_e.payload_ptr)
+					"((${is_e.base_c_name}*)__orig_${var_name})->${is_e.payload_path}"
+					else "(&((${is_e.base_c_name}*)__orig_${var_name})->${is_e.payload_path})";
 				return "void* __orig_${var_name} = (void*)${src};"
-						"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)"
-						"(&((${is_e.base_c_name}*)__orig_${var_name})->${is_e.payload_path});";
+						"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)(${bound});";
 			}
 			if (is_ptr) {
 				if (is_e.has_data && !is_e.base_c_name.empty()) {
@@ -685,7 +689,7 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition);
 					if (we.condition.kind == NodeKind.EXPR_IDENTIFIER) {
-						subj_expr = we.condition.to<IdentifierExpr>().name;
+						subj_expr = we.condition.as_identifier_expr().name;
 					}
 					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
 				}

@@ -60,7 +60,7 @@ impl BodyPass {
 	}
 
 	pub fn check_literal_expr(var self, node: *AstNode): *Type {
-		val lit = node.to<LiteralExpr>();
+		val lit = node.as_literal_expr();
 		return when (lit.literal_kind) {
 			LiteralKind.INT -> int_literal_type(self.symtab.prims_of(), lit.raw_text);
 			LiteralKind.FLOAT -> {
@@ -78,7 +78,7 @@ impl BodyPass {
 	}
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
-		val id = node.to<IdentifierExpr>() as &IdentifierExpr;
+		val id = node.as_identifier_expr() as &IdentifierExpr;
 
 		// `Self` names the type being implemented. Renaming it to the C
 		// name lets `Self(...)` build a value directly (no `new` factory).
@@ -98,7 +98,7 @@ impl BodyPass {
 	}
 
 	pub fn check_binary_expr(var self, node: *AstNode): *Type {
-		val bin = node.to<BinaryExpr>();
+		val bin = node.as_binary_expr();
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
 
@@ -281,7 +281,7 @@ impl BodyPass {
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
-		val un = node.to<UnaryExpr>();
+		val un = node.as_unary_expr();
 		val op_ty = self.check_expr(un.operand);
 
 		if (op_ty.kind == DataType.STRUCT) {
@@ -326,7 +326,7 @@ impl BodyPass {
 	}
 
 	pub fn check_if_expr(var self, node: *AstNode): *Type {
-		val if_e = node.to<IfExpr>();
+		val if_e = node.as_if_expr();
 		val cond_ty = self.check_expr(if_e.condition);
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
 		val then_ty = self.check_expr(if_e.then_branch);
@@ -337,7 +337,7 @@ impl BodyPass {
 
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
-		val al = node.to<ArrayLiteralExpr>();
+		val al = node.as_array_literal_expr();
 		if (!al.list_struct_name.empty()) {
 			val sym = self.symtab.lookup(al.list_struct_name);
 			if (sym != null) return sym.type_ptr;

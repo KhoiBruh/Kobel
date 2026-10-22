@@ -2,8 +2,8 @@ mod compiler.ast.expr;
 
 use std.collections.list.List;
 
-use compiler.ast.node.AstNode;
-use compiler.ast.node.NodeKind;
+use compiler.ast.node.*;
+
 use compiler.lexer.token.TokenType;
 
 pub enum LiteralKind {
@@ -134,8 +134,15 @@ pub struct IsExpr {
 	pub is_ptr: bool = false,
 	pub is_mut: bool = false,
 	// Field path of an inline payload inside the subject, for a payload-enum
-	// variant pattern (`is Shape.Circle` reads `subject.u.Circle`).
-	pub payload_path: str = ""
+	// variant pattern (`is Shape.Circle` reads `subject.u.Circle`) and for an
+	// AstNode pattern (`data.u.LiteralExpr`).
+	pub payload_path: str = "",
+	// True when the payload member is a pointer field (AstNode's `data.u.X`),
+	// false when it is an inline variant struct to take the address of.
+	pub payload_ptr: bool = false,
+	// C name of the tag constant this pattern compares against (filled by sema,
+	// since a forward-declared payload struct's TAG lives in another module).
+	pub tag_const: str = ""
 }
 
 // A struct value built from its fields: `Point(1, 2)` when the type has no

@@ -4,7 +4,7 @@ use std.collections.list.*;
 use std.mem.arena.Arena;
 use std.traits.to_str.*;
 
-use compiler.ast.node.AstNode;
+use compiler.ast.node.*;
 
 use util.strutil.*;
 

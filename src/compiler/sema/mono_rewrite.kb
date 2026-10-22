@@ -108,13 +108,13 @@ impl DeclPass {
 	// argument list rewritten element by element.
 	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
 		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node),
-		NodeKind.TYPE_POINTER -> self.rewrite_child(node.to<PointerType>().pointee),
-		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.to<ArrayType>().element_type),
+		NodeKind.TYPE_POINTER -> self.rewrite_child(node.as_pointer_type().pointee),
+		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.as_array_type().element_type),
 		else -> false
 	};
 
 	fn rewrite_named_type(var self, node: *AstNode): bool {
-		val nt = node.to<NamedType>() as &NamedType;
+		val nt = node.as_named_type() as &NamedType;
 		if (nt.type_args.len > 0) {
 			val tmpl = self.find_struct_template(nt.name);
 			if (tmpl != null) {

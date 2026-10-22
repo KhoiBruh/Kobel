@@ -3,8 +3,8 @@ mod compiler.ast.decl;
 use std.collections.list.List;
 use std.traits.iterable.Iterable;
 
-use compiler.ast.node.AstNode;
-use compiler.ast.node.NodeKind;
+use compiler.ast.node.*;
+
 
 pub struct ModuleDecl {
 	pub const TAG = NodeKind.DECL_MODULE;
@@ -149,8 +149,8 @@ impl Iterable for Program {
 // `impl S<T>`). Lives here, next to the payload structs, so it reads their real
 // fields instead of type-punning the node payload.
 pub fn decl_is_template(node: *AstNode): bool => when (node.kind) {
-	NodeKind.DECL_STRUCT -> node.to<StructDecl>().type_params.len > 0;
-	NodeKind.DECL_FN -> node.to<FnDecl>().type_params.len > 0;
-	NodeKind.DECL_IMPL -> node.to<ImplDecl>().type_params.len > 0;
+	NodeKind.DECL_STRUCT -> node.as_struct_decl().type_params.len > 0;
+	NodeKind.DECL_FN -> node.as_fn_decl().type_params.len > 0;
+	NodeKind.DECL_IMPL -> node.as_impl_decl().type_params.len > 0;
 	else -> false;
 };

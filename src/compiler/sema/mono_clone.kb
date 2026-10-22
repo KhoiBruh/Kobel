@@ -171,7 +171,7 @@ impl DeclPass {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
 				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
 				if (!is_e.alias.empty()) {
-					val res_e = res_is.to<IsExpr>();
+					val res_e = res_is.as_is_expr();
 					res_e.alias = is_e.alias;
 					res_e.is_mut = is_e.is_mut;
 				}
@@ -189,7 +189,7 @@ impl DeclPass {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
 		if (special != null) return special;
 
-		val c = node.to<CallExpr>();
+		val c = node.as_call_expr();
 		val args = self.clone_expr_list(c.args, subst);
 		return self.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
 	}
@@ -198,11 +198,11 @@ impl DeclPass {
 	// time, so the call becomes an integer literal. Null when the call is not a
 	// `T.size()` on a type parameter.
 	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val c = node.to<CallExpr>();
+		val c = node.as_call_expr();
 		if (c.callee.kind != NodeKind.EXPR_MEMBER) return null;
-		val m = c.callee.to<MemberExpr>();
+		val m = c.callee.as_member_expr();
 		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
-		val sa = subst?.lookup(m.object.to<IdentifierExpr>().name) ?: return null;
+		val sa = subst?.lookup(m.object.as_identifier_expr().name) ?: return null;
 		return self.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
 	}
 
@@ -211,7 +211,7 @@ impl DeclPass {
 	// `Struct<X>(...)`). Null when no template matches, which sends the caller down
 	// its generic clone path.
 	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst): *AstNode {
-		val c = node.to<CallExpr>();
+		val c = node.as_call_expr();
 		if (c.type_args.len == 0) return null;
 
 		val callee = c.callee;
@@ -282,7 +282,7 @@ impl DeclPass {
 	// A `when` arm's patterns are expressions; its body is a block when written as
 	// `{ ... }`, otherwise a single expression.
 	fn clone_when_arms(var self, node: *AstNode, subst: *GenSubst): List<WhenArm> {
-		val we = node.to<WhenExpr>();
+		val we = node.as_when_expr();
 		var arms = List<WhenArm>();
 		for (arm in we.arms) {
 			val pats = self.clone_expr_list(arm.patterns, subst);
@@ -296,7 +296,7 @@ impl DeclPass {
 	}
 
 	fn clone_interp_parts(var self, node: *AstNode, subst: *GenSubst): List<InterpPart> {
-		val ie = node.to<InterpExpr>();
+		val ie = node.as_interp_expr();
 		var parts = List<InterpPart>();
 		for (part in ie.parts) {
 			parts += InterpPart(self.clone_expr(part.expr, subst), part.is_literal);
@@ -383,7 +383,7 @@ impl DeclPass {
 	}
 
 	pub fn clone_fn(var self, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
-		val f = node.to<FnDecl>();
+		val f = node.as_fn_decl();
 		var params = List<Param>();
 		for (p in f.params) {
 			val pt = if (p.type_node != null) self.clone_type(p.type_node, subst) else null;
@@ -401,13 +401,13 @@ impl DeclPass {
 		);
 		// Remember where the template was declared: the clone's body is checked
 		// later, in another module's context, and needs these names in scope.
-		val clone_f = clone.to<FnDecl>() as &FnDecl;
+		val clone_f = clone.as_fn_decl() as &FnDecl;
 		clone_f.module = self.current_module;
 		return clone;
 	}
 
 	pub fn clone_struct(var self, node: *AstNode, subst: *GenSubst, new_name: str): *AstNode {
-		val s = node.to<StructDecl>();
+		val s = node.as_struct_decl();
 		var fields = List<AstStructField>();
 		for (f in s.fields) {
 			val dflt = if (f.default_val != null) self.clone_expr(f.default_val, subst) else null;
@@ -417,10 +417,10 @@ impl DeclPass {
 	}
 
 	pub fn clone_impl(var self, node: *AstNode, subst: *GenSubst, new_struct_name: str): *AstNode {
-		val im = node.to<ImplDecl>();
+		val im = node.as_impl_decl();
 		var methods = List<*AstNode>();
 		for (m in im.methods) {
-			val mf = m.to<FnDecl>();
+			val mf = m.as_fn_decl();
 			// Keep the source method name: collect_impl mangles it against the
 			// concrete struct name and registers it for method lookup.
 			methods += self.clone_fn(m, subst, mf.name);

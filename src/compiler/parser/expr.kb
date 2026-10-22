@@ -6,7 +6,7 @@ use util.strutil.*;
 use compiler.lexer.token.*;
 use compiler.lexer.lexer.*;
 
-use compiler.ast.node.AstNode;
+use compiler.ast.node.*;
 use compiler.ast.expr.*;
 use compiler.ast.builder.*;
 
@@ -283,7 +283,7 @@ impl Parser {
 				}
 				val is_node = self.is_expr(null, target_type, line, col);
 				if (!alias.empty()) {
-					val is_expr = is_node.to<IsExpr>();
+					val is_expr = is_node.as_is_expr();
 					is_expr.alias = alias;
 					is_expr.is_mut = is_mut;
 				}
@@ -463,7 +463,7 @@ impl Parser {
 				}
 				val is_node = self.is_expr(left, target_type, line, col);
 				if (!alias.empty()) {
-					val is_expr = is_node.to<IsExpr>();
+					val is_expr = is_node.as_is_expr();
 					is_expr.alias = alias;
 					is_expr.is_mut = is_mut;
 				}

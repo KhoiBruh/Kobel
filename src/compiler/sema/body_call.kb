@@ -29,7 +29,7 @@ use compiler.sema.body_expr.*;
 impl BodyPass {
 
 	pub fn check_call_expr(var self, node: *AstNode): *Type {
-		val call = node.to<CallExpr>() as &CallExpr;
+		val call = node.as_call_expr() as &CallExpr;
 
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 		val callee = call.callee;
@@ -296,7 +296,7 @@ impl BodyPass {
 	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
 		val obj = mem.object;
 		if (obj.kind != NodeKind.EXPR_IDENTIFIER) return null;
-		val enum_id = obj.to<IdentifierExpr>();
+		val enum_id = obj.as_identifier_expr();
 		val ei = self.symtab.find_enum_info(enum_id.name);
 		if (ei == null || !ei.is_payload) return null;
 
