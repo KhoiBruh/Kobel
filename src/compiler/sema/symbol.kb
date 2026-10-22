@@ -119,7 +119,10 @@ pub struct GenTemplate {
 	pub name: str,
 	pub module: str,
 	pub node: *AstNode,
-	pub is_method: bool
+	pub is_method: bool,
+	// For a method template, the source name of the impl's target type. Method
+	// lookup matches on it, so `A.pick<T>` and `B.pick<T>` stay distinct.
+	pub self_type: str = ""
 }
 
 // A method declared inside a `trait` block. `has_default` is true when the

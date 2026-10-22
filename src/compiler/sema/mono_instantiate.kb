@@ -72,7 +72,12 @@ impl DeclPass {
 	pub fn instantiate_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
 		self.check_bounds(tmpl, arg_asts);
 
-		val base = tmpl.module.mangle_symbol(tmpl.name);
+		// A method's mangled name includes its receiver type, so `A.pick<T>` and
+		// `B.pick<T>` (same module) do not collide.
+		var base = tmpl.module.mangle_symbol(tmpl.name);
+		if (tmpl.is_method && !tmpl.self_type.empty()) {
+			base = "${tmpl.module.mangle_symbol(tmpl.self_type)}_${tmpl.name}";
+		}
 		val cname = "${base}_${self.type_token_list(arg_asts)}";
 
 		if (self.find_inst(cname) != null) return cname;

@@ -61,7 +61,10 @@ pub struct BodyPass {
 	// Set while inferring arrow-function return types: the current attempt called
 	// a function whose return type is not known yet, so the attempt is rolled
 	// back and retried after that function is resolved.
-	pub infer_blocked: bool = false
+	pub infer_blocked: bool = false,
+	// True for the duration of that inference pass, so a call to an unresolved
+	// arrow function blocks the attempt instead of checking the callee eagerly.
+	pub inferring: bool = false
 }
 
 impl BodyPass {
@@ -253,6 +256,46 @@ impl BodyPass {
 		self.arena = decl_p.arena;
 		self.errors = decl_p.errors;
 		return ty;
+	}
+
+	// Finds a method template for a receiver whose type the body pass knows, so
+	// two structs can declare generic methods with the same name.
+	pub fn find_method_template_for(var self, name: str, self_type: str): *GenTemplate {
+		if (self.has_decl) return self.decl.find_method_template(name, self_type);
+
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, self.current_self_type
+		);
+		val tmpl = decl_p.find_method_template(name, self_type);
+		self.arena = decl_p.arena;
+		self.errors = decl_p.errors;
+		return tmpl;
+	}
+
+	// Instantiates a generic method with the receiver type in scope, reusing the
+	// declaration pass so its instance tables stay coherent with this pass.
+	pub fn instantiate_method(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>, obj_ty: *Type): str {
+		if (self.has_decl) {
+			self.decl.symtab = self.symtab;
+			self.decl.current_module = self.symtab.current_module;
+			self.decl.current_self_type = obj_ty;
+			self.decl.errors = self.errors;
+			val cname = self.decl.instantiate_fn(tmpl, arg_asts);
+			self.symtab = self.decl.symtab;
+			self.errors = self.decl.errors;
+			return cname;
+		}
+
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, obj_ty
+		);
+		val cname = decl_p.instantiate_fn(tmpl, arg_asts);
+		self.arena = decl_p.arena;
+		self.symtab = decl_p.symtab;
+		self.errors = decl_p.errors;
+		return cname;
 	}
 
 	// ============================================================================

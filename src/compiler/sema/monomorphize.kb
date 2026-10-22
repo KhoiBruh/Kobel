@@ -112,7 +112,7 @@ impl DeclPass {
 									f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
 							}
-							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true);
+							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true, im.struct_name);
 						}
 					}
 				}
@@ -121,9 +121,11 @@ impl DeclPass {
 		}
 	}
 
-	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool): *GenTemplate {
+	// self_type is the impl's target type for a method template ("" otherwise),
+	// which lets a method be looked up by its receiver instead of by name alone.
+	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenTemplate {
 		val t = self.arena.alloc<GenTemplate>();
-		*t = GenTemplate(name, self.current_module, node, is_method);
+		*t = GenTemplate(name, self.current_module, node, is_method, self_type);
 		return t;
 	}
 
@@ -144,36 +146,44 @@ impl DeclPass {
 		if (kind == TemplateKind.STRUCT) self.symtab.gen.struct_templates
 		else self.symtab.gen.fn_templates;
 
+	// A method template also has to agree on the receiver type: two structs may
+	// declare a generic method with the same name.
+	fn template_fits(val self, kind: TemplateKind, t: *GenTemplate, name: str, self_type: str): bool {
+		if (!template_matches(kind, t, name)) return false;
+		if (self_type.empty()) return true;
+		return t.self_type == self_type;
+	}
+
 	// Visible from the current module: own module first, then imports (a wildcard
 	// import, or an alias that matches `name`), then any module.
-	fn find_template(val self, kind: TemplateKind, name: str): *GenTemplate {
+	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenTemplate {
 		val list = self.templates_of(kind);
 		for (t in list) {
-			if (template_matches(kind, t, name) && t.module == self.current_module) return t;
+			if (self.template_fits(kind, t, name, self_type) && t.module == self.current_module) return t;
 		}
 		val b = self.symtab.explicit_imports["${self.current_module}::${name}"];
 		if (b != null) {
 			for (t in list) {
-				if (template_matches(kind, t, b.symbol_name) && t.module == b.module_name) return t;
+				if (self.template_fits(kind, t, b.symbol_name, self_type) && t.module == b.module_name) return t;
 			}
 		}
 		for (i in 0..<self.symtab.wildcard_owners.len) {
 			if (self.symtab.wildcard_owners[i] == self.current_module) {
 				val wmod = self.symtab.wildcard_modules[i];
 				for (t in list) {
-					if (template_matches(kind, t, name) && t.module == wmod) return t;
+					if (self.template_fits(kind, t, name, self_type) && t.module == wmod) return t;
 				}
 			}
 		}
 		for (t in list) {
-			if (template_matches(kind, t, name)) return t;
+			if (self.template_fits(kind, t, name, self_type)) return t;
 		}
 		return null;
 	}
 
 	pub fn find_fn_template(val self, name: str) => self.find_template(TemplateKind.FN, name);
 
-	pub fn find_method_template(val self, name: str) => self.find_template(TemplateKind.METHOD, name);
+	pub fn find_method_template(val self, name: str, self_type: str = "") => self.find_template(TemplateKind.METHOD, name, self_type);
 
 	pub fn find_struct_template(val self, name: str) => self.find_template(TemplateKind.STRUCT, name);
 

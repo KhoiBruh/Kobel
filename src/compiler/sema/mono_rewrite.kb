@@ -128,22 +128,13 @@ impl DeclPass {
 		return true;
 	}
 
-	// The callee of a call carrying type arguments: a method template takes the
-	// receiver as its first argument, and a template name is replaced by the
-	// instantiated (mangled) one.
+	// The callee of a call carrying type arguments: a free-function template is
+	// replaced by its instantiated name, and `Struct<X>(...)` by the instantiated
+	// struct's name. A *method* template is deliberately left alone: choosing one
+	// needs the receiver's type, which only the body pass knows.
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
 		if (c.type_args.len == 0) return;
 		val callee = c.callee;
-		if (callee is MemberExpr as mem) {
-			val ft = self.find_method_template(mem.member);
-			if (ft != null) {
-				val mem_obj = mem.object;
-				val cname = self.instantiate_fn(ft, c.type_args);
-				c.callee = self.identifier(cname, node.line, node.col);
-				c.args.insert(0, mem_obj);
-				c.type_args = List<*AstNode>();
-			}
-		}
 
 		if (callee is IdentifierExpr as cid) {
 			val ft = self.find_fn_template(cid.name);

@@ -42,7 +42,10 @@ pub struct FnDecl {
 	pub return_type: *AstNode,
 	pub body: *AstNode,
 	pub is_pub: bool,
-	pub is_op: bool = false
+	pub is_op: bool = false,
+	// Set on instantiated clones (monomorphization): the module the template was
+	// declared in, so its body is checked with the right names in scope.
+	pub module: str = ""
 }
 
 pub struct StructField {

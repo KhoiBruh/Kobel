@@ -41,7 +41,38 @@ impl BodyPass {
 		val f = fn_node.to<FnDecl>();
 		val sym = self.symtab.lookup(f.name) ?: return;
 		if (sym.type_ptr.kind != DataType.FN) return;
+
+		// An instantiated clone remembers its template's module, so its body is
+		// checked with the same names in scope as the template.
+		val saved_mod = self.symtab.current_module;
+		if (!f.module.empty()) self.symtab.set_current_module(f.module);
+
+		// An instantiated method is an ordinary free function whose first parameter
+		// is the receiver; restore `Self` for its body from that parameter's type.
+		var self_ty: *Type = null;
+		val fn_info = sym.type_ptr.as_fn();
+		if (
+			f.params.len > 0 &&
+			f.params[0].name == "self" &&
+			fn_info.param_types.len > 0
+		) {
+			val p0 = fn_info.param_types[0];
+			if (p0 != null && p0.kind == DataType.POINTER && p0.as_pointer().pointee.kind == DataType.STRUCT) {
+				self_ty = p0.as_pointer().pointee;
+			}
+		}
+
+		if (self_ty == null) {
+			self.check_fn_body(fn_node, sym.type_ptr);
+			self.symtab.set_current_module(saved_mod);
+			return;
+		}
+
+		val saved_self = self.current_self_type;
+		self.current_self_type = self_ty;
 		self.check_fn_body(fn_node, sym.type_ptr);
+		self.current_self_type = saved_self;
+		self.symtab.set_current_module(saved_mod);
 	}
 
 	// Shared body checker: works for free functions and impl methods. `fn_type`
@@ -144,6 +175,11 @@ impl BodyPass {
 			for (msg in decl_p.errors) self.errors += msg;
 		}
 
+		// Instances created from here on (arrow inference and body checking) still
+		// have to be checked and emitted; the declaration pass merged its own
+		// before this point.
+		val inst_mark = self.symtab.gen.instances.len;
+
 		// Step 1.5: resolve the return type of every arrow-bodied function first,
 		// so no call site has to check a callee's body on demand.
 		self.infer_arrow_returns(program_node);
@@ -160,6 +196,38 @@ impl BodyPass {
 				}
 			}
 		}
+
+		// Step 3: instances created while checking bodies (generic methods) still
+		// need their bodies checked and their declarations emitted.
+		self.flush_instances(program_node, inst_mark);
+	}
+
+	// Checks and emits the instances produced after the declaration pass merged
+	// its own. They are placed before the original declarations, so a struct
+	// instance is defined before the functions that use it.
+	pub fn flush_instances(var self, program_node: *AstNode, from: usz) {
+		val prog = program_node.to<Program>() as &Program;
+		var added = List<*AstNode>();
+		var i = from;
+		while (i + 1 < self.symtab.gen.instances.len) {
+			val marker = self.symtab.gen.instances[i];
+			val decl = self.symtab.gen.instances[i + 1];
+			i += 2;
+
+			val m = marker.to<ModuleDecl>();
+			self.symtab.set_current_module(m.full_path);
+			if (decl.kind == NodeKind.DECL_FN) self.check_fn(decl);
+			else if (decl.kind == NodeKind.DECL_IMPL) self.check_impl(decl);
+
+			added += marker;
+			added += decl;
+		}
+		if (added.empty()) return;
+
+		var combined = List<*AstNode>();
+		for (d in added) combined += d;
+		for (d in prog.declarations) combined += d;
+		prog.declarations = combined;
 	}
 
 	// ============================================================================
@@ -174,6 +242,7 @@ impl BodyPass {
 	pub fn infer_arrow_returns(var self, program_node: *AstNode) {
 		val prog = program_node.to<Program>();
 		val saved_mod = self.symtab.current_module;
+		self.inferring = true;
 		var pending = List<*ArrowCandidate>();
 
 		for (decl in prog) {
@@ -229,10 +298,11 @@ impl BodyPass {
 
 		for (c in pending) {
 			self.report_error(c.node,
-				"Cannot infer the return type of this arrow function; "
+				"Cannot infer the return type of '${c.node.to<FnDecl>().name}'; "
 				"annotate it with an explicit type"
 			);
 		}
+		self.inferring = false;
 	}
 
 	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type, module: str): *ArrowCandidate {

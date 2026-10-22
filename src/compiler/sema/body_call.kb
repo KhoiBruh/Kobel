@@ -173,6 +173,13 @@ impl BodyPass {
 		}
 		val argc = call.args.len + 1;
 
+		// `x.m<T>(...)`: a generic method is instantiated here, where the receiver
+		// type is known, and the call becomes a plain free-function call.
+		if (call.type_args.len > 0) {
+			val g_ty = self.check_generic_method_call(node, mem, call, obj_ty, obj_is_ptr);
+			if (g_ty != null) return g_ty;
+		}
+
 		if (obj_ty.kind == DataType.STRUCT) {
 			val s_info = obj_ty.as_struct();
 			// Pick the overload whose arity matches; fall back to a name
@@ -207,16 +214,89 @@ impl BodyPass {
 		return null;
 	}
 
+	// `x.m<T>(...)` where `m` is a generic method. The template is chosen by
+	// receiver type (not by name alone), instantiated with T, and the call is
+	// checked as the resulting free function with the receiver as first argument.
+	// `lower` emits the replacement node registered in `resolved_node`.
+	fn check_generic_method_call(
+		var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr,
+		obj_ty: *Type, obj_is_ptr: bool
+	): *Type {
+		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct().name
+			else primitive_type_name(obj_ty);
+		if (recv_name.empty()) return null;
+
+		val tmpl = self.find_method_template_for(mem.member, recv_name);
+		if (tmpl == null) return null;
+
+		val cname = self.instantiate_method(tmpl, call.type_args, obj_ty);
+		val sym = self.symtab.lookup(cname);
+		if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
+
+		// The clone's return type comes from its body, so that body must be checked
+		// before its signature is read.
+		self.ensure_callee_ready(sym);
+		val fn_info = sym.type_ptr.as_fn();
+
+		// Struct methods take `&receiver` unless the receiver is already a pointer;
+		// primitive methods take the receiver by value.
+		var args = List<*AstNode>();
+		if (obj_ty.kind == DataType.STRUCT && !obj_is_ptr) {
+			args += self.unary(TokenType.AMPERSAND, mem.object, node.line, node.col);
+		} else {
+			args += mem.object;
+		}
+		for (a in call.args) args += a;
+
+		val new_call = self.call(
+			self.identifier(cname, node.line, node.col),
+			args, List<*AstNode>(), node.line, node.col
+		);
+
+		if (args.len != fn_info.param_types.len) {
+			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+		} else {
+			// Argument 0 is the receiver, already checked above.
+			for (i in 1..<args.len) {
+				val param_ty = fn_info.param_types[i];
+				val arg_n = args[i];
+				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val arg_ty = self.check_expr(arg_n);
+				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
+			}
+		}
+
+		node.resolved_node = new_call;
+		return fn_info.return_type;
+	}
+
+	// A clone's return type comes from checking its body, so a call to a clone
+	// whose type is still unknown triggers that check first. During arrow
+	// inference the attempt is rolled back instead (see infer_arrow_returns).
+	fn ensure_callee_ready(var self, sym: *Symbol) {
+		if (sym == null) return;
+		if (!self.arrow_pending(sym.ast_node)) return;
+
+		// Checking another body must not leak its return type into ours.
+		val saved_ret = self.current_fn_return_type;
+		self.check_fn(sym.ast_node);
+		self.current_fn_return_type = saved_ret;
+
+		// Still unknown: the callee depends on something unresolved (a cycle), so
+		// the current arrow-inference attempt has to be retried later.
+		if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
+	}
+
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {
-		val fn_info = callee_ty.as_fn();
 		val callee = call.callee;
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
 			if (sym != null) {
 				self.append_defaults(sym.ast_node, call.args.len, call);
-				if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
+				self.ensure_callee_ready(sym);
 			}
 		}
+		val fn_info = callee_ty.as_fn();
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
 		else {
 			for (i in 0..<call.args.len) {
@@ -263,7 +343,10 @@ impl BodyPass {
 					val arg_ty = self.check_expr(arg_n);
 					self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
 				}
-				call.callee = self.identifier(nm.c_name, node.line, node.col);
+				// The chosen `new` is recorded, not spliced into the callee: `lower`
+				// emits `c_name(args)`. This keeps checking idempotent (a retried
+				// check sees the same struct constructor, not a mangled identifier).
+				node.resolved_method = nm as *u8;
 				return n_info.return_type;
 			}
 		}

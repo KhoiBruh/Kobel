@@ -387,7 +387,22 @@ impl BodyPass {
 	// `?.` keeps its null guard, wrapping the call in `recv != NULL ? ... : NULL`.
 	fn lower_bound_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee;
-		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
+		if (callee == null) return node;
+
+		// A struct constructor (`Type(args)` resolved to its `new`): a plain call,
+		// no receiver to pass.
+		if (callee.kind == NodeKind.EXPR_IDENTIFIER) {
+			val new_mi = node.resolved_method as *MethodInfo;
+			var ctor_args = List<*AstNode>();
+			for (arg in call.args) ctor_args += arg;
+			val ctor_call = self.call(
+				self.identifier(new_mi.c_name, node.line, node.col),
+				ctor_args, List<*AstNode>(), node.line, node.col
+			);
+			return self.lowered(node, ctor_call);
+		}
+
+		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
 		val mem = callee.to<MemberExpr>() as &MemberExpr;
 		val mi = node.resolved_method as *MethodInfo;
 		val recv = mem.object;
