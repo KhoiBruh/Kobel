@@ -54,33 +54,7 @@ impl CCodeGen {
 				}
 			}
 		}
-		sb += "\n";
-
-		// 2b. Register function return types (arrow bodies are inferred). Done after
-		// all struct names are known so inference can resolve struct constructors.
-		for (decl2 in prog) {
-			if (decl2.is_template()) continue;
-			when (decl2) {
-				is FnDecl as f -> {
-					self.register_fn(f.name, self.fn_ret_c_type(f));
-				}
-				is ImplDecl as im -> {
-					for (mnode in im.methods) {
-						if (mnode is FnDecl as f && f.type_params.len == 0) {
-							self.register_fn(f.name, self.fn_ret_c_type(f));
-						}
-					}
-				}
-				is ExternBlock as ext -> {
-					for (e_decl in ext) {
-						if (e_decl is FnDecl as f) {
-							self.register_fn(f.name, self.fn_ret_c_type(f));
-						}
-					}
-				}
-			}
-		}
-		sb += "\n";
+		sb += "\n\n";
 
 		// 3. Struct Definitions
 		for (decl in prog) {
@@ -180,26 +154,10 @@ impl CCodeGen {
 
 		self.current_fn_ret_type = ret_ty;
 
-		self.pointer_vars.clear();
-		self.str_vars.clear();
 		self.defer_nodes.clear();
 		self.scope_starts.clear();
 		self.scope_jumped.clear();
 		self.loop_defer_depths.clear();
-		for (p in f.params) {
-			val p_tn = p.type_node;
-			if (!self_c_type.empty() && p.name == "self" && p_tn == null) {
-				self.pointer_vars += p.name;
-			} else if (p_tn != null) {
-				when (p_tn) {
-					is PointerType -> self.pointer_vars += p.name;
-					is NullableType -> self.pointer_vars += p.name;
-					is NamedType as named -> {
-						if (named.name == "str") self.str_vars += p.name;
-					}
-				}
-			}
-		}
 
 		var res = "${proto} {\n";
 		self.indent_level = 1;

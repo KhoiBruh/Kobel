@@ -2,7 +2,6 @@ mod compiler.codegen.c_codegen;
 
 use std.str.*;
 use std.collections.list.*;
-use std.collections.hash_map.*;
 use std.collections.hash_set.*;
 
 use compiler.lexer.token.*;
@@ -27,9 +26,6 @@ pub struct CCodeGen {
 	pub indent_level: usz = 0,
 	pub struct_names: List<str> = List<str>(),
 	pub struct_map: HashSet = HashSet(),
-	pub pointer_vars: HashSet = HashSet(),
-	pub str_vars: HashSet = HashSet(),
-	pub fn_ret_types: HashMap<str> = HashMap<str>(),
 	pub errors: List<str> = List<str>(),
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
@@ -51,9 +47,6 @@ impl CCodeGen {
 		0,
 		List<str>(),
 		HashSet(),
-		HashSet(),
-		HashSet(),
-		HashMap<str>(),
 		List<str>(),
 		"",
 		"",
@@ -115,21 +108,11 @@ impl CCodeGen {
 		return res;
 	}
 
-	pub fn is_pointer_var(val self, name: str) => name in self.pointer_vars;
-
-	pub fn is_str_var(val self, name: str) => name in self.str_vars;
-
 	pub fn is_struct_name(val self, name: str): bool => name in self.struct_map;
 
 	pub fn register_struct(var self, name: str) {
 		self.struct_names += name;
 		self.struct_map += name;
-	}
-
-	pub fn lookup_fn_ret_type(val self, name: str): str => self.fn_ret_types.get_or(name, "");
-
-	pub fn register_fn(var self, name: str, ret_type: str) {
-		self.fn_ret_types[name] = ret_type;
 	}
 
 }
@@ -596,6 +579,15 @@ impl CCodeGen {
 		return ty;
 	}
 
+	// True when the value is a pointer: a smart cast over a pointer casts the
+	// value itself, while a struct value has to be addressed.
+	fn is_pointer_value(val self, node: *AstNode): bool {
+		if (node == null) return false;
+		val ann = node.resolved_type;
+		if (ann == null) return false;
+		return ann.kind == NodeKind.TYPE_POINTER || ann.kind == NodeKind.TYPE_NULLABLE;
+	}
+
 }
 
 // ============================================================================
@@ -697,40 +689,21 @@ impl CCodeGen {
 	fn gen_var_decl_stmt(var self, vd: *VarDeclStmt): str {
 		val ind = get_indent(self.indent_level);
 		var ty_str = "int32_t";
-		var is_ptr = false;
 
 		var elem_hint = "";
 		val t_ann = vd.type_annotation;
 		if (t_ann != null) {
 			ty_str = c_type_from_ast(t_ann);
-			if (
-				t_ann.kind == NodeKind.TYPE_POINTER ||
-				t_ann.kind == NodeKind.TYPE_NULLABLE
-			) is_ptr = true;
 
 			// `[T; N]` is emitted as a pointer, and its literal needs the
 			// element type spelled out.
 			if (t_ann is ArrayType as arr_ast) {
-				is_ptr = true;
 				elem_hint = c_type_from_ast(arr_ast.element_type);
 			}
 		} else if (vd.initializer != null) {
 			val init_e = vd.initializer;
 			ty_str = self.c_type_or(init_e, "int32_t");
-			if (init_e is CastExpr as cst) {
-				val cst_ty = cst.target_type;
-				if (
-					cst_ty != null && (
-						cst_ty.kind == NodeKind.TYPE_POINTER ||
-						cst_ty.kind == NodeKind.TYPE_NULLABLE
-					)
-				) is_ptr = true;
-			}
-			if (ty_str.ends_with("*")) is_ptr = true;
 		}
-
-		if (is_ptr) self.pointer_vars += vd.name;
-		if (ty_str == "const char*") self.str_vars += vd.name;
 
 		var init_e = vd.initializer;
 		while (init_e != null) {
@@ -847,7 +820,6 @@ impl CCodeGen {
 		if (cur is IsExpr as is_e && !is_e.alias.empty()) {
 			val target_name = c_type_from_ast(is_e.target_type);
 			val decl = "${target_name}* ${is_e.alias} = NULL;";
-			self.pointer_vars += is_e.alias;
 			res += ConditionAlias(is_e.alias, target_name, decl);
 		}
 
@@ -896,7 +868,7 @@ impl CCodeGen {
 
 		var cast_decl = "";
 		if (cond is IsExpr as is_e && is_e.alias.empty() && is_e.expr is IdentifierExpr as id) {
-			cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+			cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, id.name, self.indent_level + 1);
 		}
 
 		val ind = get_indent(self.indent_level);
@@ -933,7 +905,7 @@ impl CCodeGen {
 
 				var elif_cast = "";
 				if (elif_cond is IsExpr as elif_is_e && elif_is_e.alias.empty() && elif_is_e.expr is IdentifierExpr as id) {
-					elif_cast = self.gen_smart_cast_decl(elif_is_e, id.name, self.indent_level + 1);
+					elif_cast = self.gen_smart_cast_decl(elif_is_e, elif_is_e.expr, id.name, self.indent_level + 1);
 				}
 
 				res = "${res}${if_ind}} else if ${self.gen_cond(elif.condition)} {\n";
@@ -1167,7 +1139,7 @@ impl CCodeGen {
 				if (arm.patterns.len == 1) {
 					val pat = arm.patterns.first();
 					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+						cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, id.name, self.indent_level + 1);
 					}
 				}
 			}
@@ -1189,14 +1161,13 @@ impl CCodeGen {
 		if (!first) res += ind + "}\n";
 		return res;
 	}
-	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, var_name: str, ind_level: usz): str {
+	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
 		val target_name = c_type_from_ast(is_e.target_type);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
-		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_var(var_name);
+		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_value(subject);
 		val next_ind = get_indent(ind_level);
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
-				self.pointer_vars += bound_name;
 				if (is_e.has_data && !is_e.base_c_name.empty()) {
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(((${is_e.base_c_name}*)${var_name})->data);";
@@ -1204,7 +1175,6 @@ impl CCodeGen {
 					return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 				}
 			} else {
-				self.pointer_vars += bound_name;
 				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 			}
 		} else {
@@ -1251,7 +1221,7 @@ impl CCodeGen {
 				if (arm.patterns.len == 1) {
 					val pat = arm.patterns.first();
 					if (pat is IsExpr as is_e) {
-						cast_decl = self.gen_smart_cast_decl(is_e, id.name, self.indent_level + 1);
+						cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, id.name, self.indent_level + 1);
 					}
 				}
 			}
