@@ -161,8 +161,11 @@ pub struct GenericReg {
 	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub inst_syms: List<*Symbol> = List<*Symbol>(),
 	pub inst_map: HashMap<*Symbol> = HashMap<*Symbol>(),
-	pub inst_names: List<str> = List<str>(),
-	pub pending: List<*AstNode> = List<*AstNode>()
+	// Declarations produced by instantiation, as `module marker, decl` pairs in
+	// creation order (a dependency always precedes the instance that needs it).
+	// The same list is the rewrite worklist: each instance still gets a fixpoint
+	// pass so generic uses inside it are instantiated too.
+	pub instances: List<*AstNode> = List<*AstNode>()
 }
 
 impl GenericReg {

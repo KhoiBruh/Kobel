@@ -290,8 +290,28 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		self.symtab.gen.pending += self.module_decl(module.split_dots(), module, node.line, node.col);
-		self.symtab.gen.pending += node;
+		val marker = self.module_decl(module.split_dots(), module, node.line, node.col);
+		// One pair per instance: it is both the declaration to emit and the entry to
+		// rewrite (the clone's own generic uses still have to be resolved).
+		self.symtab.gen.instances += marker;
+		self.symtab.gen.instances += node;
+	}
+
+	// Drains the instance worklist. Rewriting an instance can discover further
+	// generic uses and queue more instances, so this runs to a fixpoint; each
+	// entry is rewritten with its template's module in scope.
+	pub fn drain_instances(var self) {
+		var i = 0;
+		while (i + 1 < self.symtab.gen.instances.len) {
+			val marker = self.symtab.gen.instances[i];
+			val decl = self.symtab.gen.instances[i + 1];
+			i += 2;
+			if (marker is ModuleDecl as m) {
+				self.current_module = m.full_path;
+				self.symtab.set_current_module(m.full_path);
+			}
+			self.rewrite_generics(decl);
+		}
 	}
 
 	pub fn instantiate_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
@@ -302,8 +322,6 @@ impl DeclPass {
 
 		val existing = self.find_inst(cname);
 		if (existing != null) return existing.type_ptr;
-
-		self.symtab.gen.inst_names += cname;
 
 		val prev_mod = self.enter_module(tmpl.module);
 
@@ -338,8 +356,6 @@ impl DeclPass {
 		val cname = "${base}_${self.type_token_list(arg_asts)}";
 
 		if (self.find_inst(cname) != null) return cname;
-
-		self.symtab.gen.inst_names += cname;
 
 		val prev_mod = self.enter_module(tmpl.module);
 

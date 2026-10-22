@@ -266,12 +266,18 @@ impl DeclPass {
 			}
 		}
 	
-		// Pass 3: place the monomorphized declarations first. Their struct
+		// Pass 3: drain the instance worklist. Each instance was cloned with type
+		// arguments substituted syntactically, so its own generic uses are still
+		// unresolved; rewriting it here (to a fixpoint) instantiates them in the
+		// same declaration pass instead of leaving it to body checking.
+		self.drain_instances();
+
+		// Pass 4: place the monomorphized declarations first. Their struct
 		// definitions must precede the structs that embed them (e.g. a field of
 		// type List<T>), and each carries its own module marker.
-		if (self.symtab.gen.pending.len > 0) {
+		if (self.symtab.gen.instances.len > 0) {
 			var combined = List<*AstNode>();
-			for (pn in self.symtab.gen.pending) combined += pn;
+			for (pn in self.symtab.gen.instances) combined += pn;
 			for (d in prog) combined += d;
 			val p_info = program_node.to<Program>() as &Program;
 			p_info.declarations = combined;
