@@ -1,0 +1,360 @@
+mod compiler.codegen.c_expr;
+
+// ============================================================================
+// Expression Code Generation
+//
+// Expression emission: literals, operators, calls, member/index access,
+// assignments, array literals, `when`/`is` tests and the tag helpers.
+// ============================================================================
+
+use std.str.*;
+use std.collections.list.*;
+use std.collections.hash_set.*;
+
+use compiler.lexer.token.*;
+use compiler.ast.builder.*;
+use compiler.ast.node.*;
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
+use compiler.sema.types.Type;
+use compiler.sema.types.DataType;
+use compiler.codegen.c_type.*;
+
+use compiler.codegen.c_codegen.*;
+
+// ============================================================================
+// Expression Code Generation
+// ============================================================================
+
+pub fn expr_needs_parens_for_member(node: *AstNode): bool {
+	return when (node) {
+		is IdentifierExpr,
+		is MemberExpr,
+		is CallExpr,
+		is IndexExpr,
+		is GroupExpr -> false;
+		else -> true;
+	};
+}
+
+impl CCodeGen {
+
+	pub fn gen_expr(var self, node: *AstNode): str {
+		if (node == null) return "";
+
+		return when (node) {
+			is LiteralExpr -> self.gen_literal_expr(node);
+
+			is IdentifierExpr -> node.name;
+
+			is GroupExpr -> {
+				val inner = self.gen_expr(node.expr);
+				val ne = node.expr;
+				if (ne is BinaryExpr || ne is GroupExpr) yield inner;
+				yield "(${inner})";
+			}
+
+			is BinaryExpr -> self.gen_binary_expr(node);
+
+			is UnaryExpr -> self.gen_unary_expr(node);
+
+			is ArrayLiteralExpr -> self.gen_array_literal_expr(node);
+
+			is CallExpr -> self.gen_call_expr(node);
+
+			is MemberExpr -> self.gen_member_expr(node);
+
+			is IndexExpr -> "${self.gen_expr(node.target)}[${self.gen_expr(node.index)}]";
+
+			is AssignExpr -> self.gen_assign_expr(node);
+
+			is UpdateExpr -> {
+				val op_str = if (node.op == TokenType.PLUS_PLUS) "++" else "--";
+				yield "${self.gen_expr(node.target)}${op_str}";
+			}
+
+			is CastExpr -> {
+				val ty = c_type_from_ast(node.target_type);
+				yield "(${ty})${self.gen_expr(node.expr)}";
+			}
+
+			is IfExpr -> {
+				val cond = self.gen_expr(node.condition);
+				val th = self.gen_expr(node.then_branch);
+				val el = self.gen_expr(node.else_branch);
+				yield "(${cond} ? ${th} : ${el})";
+			}
+
+			is WhenExpr -> self.gen_when_expr(node);
+
+			is IsExpr -> self.gen_is_expr(node);
+
+			else -> "";
+		};
+	}
+
+	// Literals lower to their C spelling (ints/floats normalised, strings/chars keep quoting).
+	fn gen_literal_expr(var self, lit: *LiteralExpr): str {
+		return when (lit.literal_kind) {
+			LiteralKind.INT -> c_format_int_literal(lit.raw_text);
+			LiteralKind.FLOAT -> c_format_float_literal(lit.raw_text);
+			LiteralKind.BOOL -> lit.raw_text;
+			LiteralKind.STRING -> {
+				if (
+					lit.raw_text.len >= 2 &&
+					lit.raw_text[0] == '"'
+				) yield lit.raw_text;
+
+				yield "\"${lit.raw_text}\"";
+			}
+			LiteralKind.CHAR -> {
+				if (
+					lit.raw_text.len >= 2 &&
+					lit.raw_text[0] == '\''
+				) yield lit.raw_text;
+
+				yield "'${lit.raw_text}'";
+			}
+			LiteralKind.NULL_VAL -> "NULL";
+			else -> lit.raw_text;
+		};
+	}
+
+	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
+	fn gen_binary_expr(var self, bin: *BinaryExpr): str {
+		if (bin.op == TokenType.QUESTION_COLON) {
+			val l = self.gen_expr(bin.left);
+			val r = self.gen_expr(bin.right);
+			return "(${l} != NULL ? ${l} : ${r})";
+		}
+
+		val l = self.gen_expr(bin.left);
+		val r = self.gen_expr(bin.right);
+		val op_str = when (bin.op) {
+			TokenType.MINUS -> "-";
+			TokenType.STAR -> "*";
+			TokenType.SLASH -> "/";
+			TokenType.PERCENT -> "%";
+			TokenType.EQUAL_EQUAL -> "==";
+			TokenType.BANG_EQUAL -> "!=";
+			TokenType.LESS -> "<";
+			TokenType.LESS_EQUAL -> "<=";
+			TokenType.GREATER -> ">";
+			TokenType.GREATER_EQUAL -> ">=";
+			TokenType.AND_AND -> "&&";
+			TokenType.OR_OR -> "||";
+			else -> "+";
+		};
+
+		return "(${l} ${op_str} ${r})";
+	}
+
+	// Unary operators lower to a C prefix operator (- guards a negative operand).
+	fn gen_unary_expr(var self, un: *UnaryExpr): str {
+		val opnd = self.gen_expr(un.operand);
+
+		return when (un.op) {
+			TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}",
+			TokenType.BANG -> "!${opnd}",
+			TokenType.STAR -> "*${opnd}",
+			TokenType.AMPERSAND -> "&${opnd}",
+			else -> opnd;
+		};
+	}
+
+	// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
+	// to a pointer, which is how this backend represents an array value.
+	fn gen_array_literal_expr(var self, al: *ArrayLiteralExpr): str {
+		val elem_c = when {
+			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node);
+
+			!self.array_elem_hint.empty() -> self.array_elem_hint;
+
+			!al.elements.empty() -> self.c_type_or(al.elements.first(), "int32_t");
+
+			else -> "int32_t";
+		};
+
+		var elems_str = List<str>();
+		for (el in al.elements) elems_str += self.gen_expr(el);
+		val joined_elems = ", ".join(elems_str);
+		val arr_res = "(${elem_c}[]){${joined_elems}}";
+
+		if (!al.list_struct_name.empty()) {
+			return if (al.elements.empty()) "${al.list_struct_name}_from_array(NULL, 0)"
+			else "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
+		}
+
+		return arr_res;
+	}
+
+	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
+	fn gen_call_expr(var self, call: *CallExpr): str {
+		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> s
+		val callee = call.callee;
+		if (callee is MemberExpr as mem) {
+			if (mem.member == "size") {
+				val obj_name = self.gen_expr(mem.object);
+				val c_type = when (obj_name) {
+					"str" -> "const char*",
+					"usz", "isz" -> "size_t",
+					else -> obj_name
+				};
+				return "sizeof(${c_type})";
+			}
+			if (mem.member == "c_str") return self.gen_expr(mem.object);
+		}
+
+		val callee_str = self.gen_expr(call.callee);
+
+		// Check whether this calls a struct constructor: Point(1, 2) -> (Point){ 1, 2 }
+		var is_struct = false;
+		if (callee is IdentifierExpr as id) is_struct = self.is_struct_name(id.name);
+
+		var args_str = List<str>();
+		for (arg in call.args) args_str += self.gen_expr(arg);
+		val joined_args = ", ".join(args_str);
+
+		if (is_struct) return "(${callee_str}){ ${joined_args} }";
+
+		// Ordinary C function call: func(arg1, arg2)
+		return "${callee_str}(${joined_args})";
+	}
+
+	// Member access lowers to ./->. `str`/array `len` and `data` were already
+	// rewritten by the lower pass, so this only sees real fields.
+	fn gen_member_expr(var self, mem: *MemberExpr): str {
+		val obj_node = mem.object;
+		val obj = self.gen_expr(obj_node);
+		// A member access on a pointer value needs `->`; the receiver of a
+		// non-identifier pointer is dereferenced by sema instead.
+		var is_ptr = false;
+		if (obj_node.kind == NodeKind.EXPR_IDENTIFIER) is_ptr = self.c_type_of(obj_node).ends_with("*");
+		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
+		if (mem.is_safe) return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+		if (is_ptr) return "${obj_str}->${mem.member}";
+		return "${obj_str}.${mem.member}";
+	}
+
+	// Assignments lower to the matching C compound-assignment operator.
+	fn gen_assign_expr(var self, asgn: *AssignExpr): str {
+		val op_str = when (asgn.op) {
+			TokenType.PLUS_EQUAL -> "+=",
+			TokenType.MINUS_EQUAL -> "-=",
+			TokenType.STAR_EQUAL -> "*=",
+			TokenType.SLASH_EQUAL -> "/=",
+			TokenType.PERCENT_EQUAL -> "%=",
+			else -> "="
+		};
+		return "${self.gen_expr(asgn.target)} ${op_str} ${self.gen_expr(asgn.value)}";
+	}
+
+	// when expressions lower to nested C ternaries, evaluated from the last arm back.
+	fn gen_when_expr(var self, we: *WhenExpr): str {
+		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
+		var res = "0";
+		var i = we.arms.len;
+		while (i > 0) {
+			i--;
+			val arm = we.arms[i];
+			res = if (arm.is_else) self.gen_expr(arm.body)
+			else "(${self.gen_when_test(cond, arm.patterns)} ? ${self.gen_expr(arm.body)} : ${res})";
+		}
+		return res;
+	}
+
+	// Tag test of a smart cast. A pointer subject is compared against NULL
+	// first: reading the tag would dereference it, and a null subject matches no
+	// struct pattern, so the caller takes its `else` path.
+	//
+	// ponytail: the subject is re-evaluated for the NULL test. Safe today
+	// because every subject is a plain path (`p`, `obj.field`); upgrade by
+	// hoisting `void* __subj = ...;` in statement position if a call ever
+	// becomes a subject.
+	pub fn gen_tag_test(var self, subject: str, is_ptr: bool, tag_field: str, target_name: str): str {
+		if (!is_ptr) return "${subject}.${tag_field} == ${target_name}__TAG";
+		return "${subject} != NULL && ${subject}->${tag_field} == ${target_name}__TAG";
+	}
+
+	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
+		val obj = self.gen_expr(is_e.expr);
+		val target_name = c_type_from_ast(is_e.target_type);
+		var tag_field = is_e.tag_field;
+		if (tag_field.empty()) tag_field = "tag";
+		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
+		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name);
+		if (!is_e.alias.empty()) {
+			val cast_val = if (is_e.is_ptr) {
+				if (is_e.has_data && !is_e.base_c_name.empty()) {
+					"(${target_name}*)(((${is_e.base_c_name}*)${obj_str})->data)"
+				} else {
+					"(${target_name}*)${obj_str}"
+				}
+			} else {
+				"(${target_name}*)&${obj_str}"
+			};
+			return "(${tag_test} && (${is_e.alias} = ${cast_val}, 1))";
+		}
+		return "(${tag_test})";
+	}
+
+	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
+	// For the boolean form (`cond` empty) each pattern is itself the test.
+	// String patterns compare with strcmp since `str` lowers to `const char*`.
+	pub fn gen_when_test(var self, cond: str, patterns: List<*AstNode>): str {
+		var res = "";
+		for (i in 0..<patterns.len) {
+			val p = patterns[i];
+			var test = "";
+			if (cond.empty()) {
+				test = self.gen_expr(p);
+			} else if (p is IsExpr as is_e) {
+				val target_name = c_type_from_ast(is_e.target_type);
+				var tag_field = is_e.tag_field;
+				if (tag_field.empty()) tag_field = "tag";
+				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, target_name);
+			} else if (p is LiteralExpr as lit) {
+				if (lit.literal_kind == LiteralKind.STRING) {
+					test = "strcmp(${cond}, ${self.gen_expr(p)}) == 0";
+				} else {
+					test = "${cond} == ${self.gen_expr(p)}";
+				}
+			} else {
+				test = "${cond} == ${self.gen_expr(p)}";
+			}
+			res = if (i == 0) test else "${res} || ${test}";
+		}
+		if (res.empty()) res = "1";
+		return res;
+	}
+
+	// C type of an expression: sema resolved it and stored the result on the
+	// node, so the backend never re-derives a type from syntax or from variable
+	// names. Empty for nodes that desugaring synthesised and were never checked.
+	pub fn c_type_of(val self, expr: *AstNode): str {
+		if (expr == null) return "";
+		val ty = expr.type_ptr as *Type;
+		if (ty == null) return "";
+		return c_type_from_type(ty);
+	}
+
+	// Same, with a fallback for synthesised nodes.
+	pub fn c_type_or(val self, expr: *AstNode, fallback: str): str {
+		val ty = self.c_type_of(expr);
+		if (ty.empty()) return fallback;
+		return ty;
+	}
+
+	// True when the value is a pointer: a smart cast over a pointer casts the
+	// value itself, while a struct value has to be addressed.
+	fn is_pointer_value(val self, node: *AstNode): bool {
+		if (node == null) return false;
+		val ty = node.type_ptr as *Type;
+		if (ty == null) return false;
+		return ty.kind == DataType.POINTER;
+	}
+
+}
