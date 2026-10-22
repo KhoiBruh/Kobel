@@ -37,6 +37,10 @@ impl BodyPass {
 			if (mem.member == "size") return self.lower_size_query(node, mem);
 			if (mem.member == "slice") return self.check_slice_call(node, mem, call);
 
+			// `Shape.Circle(1.5)`: a payload-enum variant.
+			val enum_ty = self.check_enum_ctor_call(node, mem, call);
+			if (enum_ty != null) return enum_ty;
+
 			// Instance method call or primitive method call
 			val m_ty = self.check_method_call(node, mem, call);
 			if (m_ty != null) return m_ty;
@@ -285,6 +289,53 @@ impl BodyPass {
 		// Still unknown: the callee depends on something unresolved (a cycle), so
 		// the current arrow-inference attempt has to be retried later.
 		if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
+	}
+
+	// `Enum.Variant(args)`: a payload-enum value. Null when the callee's receiver
+	// is not a payload enum, which sends the call down the ordinary method path.
+	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+		val obj = mem.object;
+		if (obj.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		val enum_id = obj.to<IdentifierExpr>();
+		val ei = self.symtab.find_enum_info(enum_id.name);
+		if (ei == null || !ei.is_payload) return null;
+
+		val e_sym = self.symtab.lookup(ei.name);
+		if (e_sym == null) return null;
+
+		val mi = ei.find_member(mem.member);
+		if (mi == null) {
+			self.report_error(node, "Enum '${enum_id.name}' has no variant '${mem.member}'");
+			return self.t_none();
+		}
+
+		var field_types = List<*Type>();
+		if (mi.payload_ty != null) {
+			val payload_fields = mi.payload_ty.as_struct().fields;
+			for (f in payload_fields) field_types += f.type_ptr;
+		}
+
+		if (call.args.len != field_types.len) {
+			self.report_error(node,
+				"Argument count mismatch in variant '${enum_id.name}.${mem.member}'"
+			);
+		} else {
+			for (i in 0..<call.args.len) {
+				val f_ty = field_types[i];
+				val arg_n = call.args[i];
+				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
+				val arg_ty = self.check_expr(arg_n);
+				self.ensure(f_ty.can_assign(arg_ty), node,
+					"Field type mismatch in variant '${enum_id.name}.${mem.member}'"
+				);
+			}
+		}
+
+		val payload_path = if (field_types.empty()) "" else mi.payload_path;
+		node.resolved_node = self.arena.enum_ctor(
+			ei.c_name, ei.tag_field, mi.value, payload_path, call.args, node.line, node.col
+		);
+		return e_sym.type_ptr;
 	}
 
 	pub fn check_fn_call(var self, node: *AstNode, callee_ty: *Type, call: &CallExpr): *Type {

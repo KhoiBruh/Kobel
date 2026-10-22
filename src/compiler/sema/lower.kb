@@ -169,6 +169,9 @@ impl BodyPass {
 			is StructCtorExpr as var sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
 			}
+			is EnumCtorExpr as var ec -> {
+				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
+			}
 			else -> {}
 		}
 		return out;

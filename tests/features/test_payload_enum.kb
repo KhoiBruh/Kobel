@@ -1,0 +1,66 @@
+mod test.payload_enum;
+
+// Payload enums: variants carry named data, construction sets a tag plus the
+// variant's payload, and `is Enum.Variant as x` binds the payload for the arm
+// (by pointer, whether the subject is a value or a pointer).
+
+enum Shape {
+	Circle(radius: f64),
+	Rect(width: f64, height: f64),
+	Empty
+}
+
+fn area(s: Shape): f64 {
+	return when (s) {
+		is Shape.Circle as c -> 3.0 * c.radius * c.radius,
+		is Shape.Rect as r -> r.width * r.height,
+		is Shape.Empty -> 0.0,
+		else -> 0.0
+	};
+}
+
+fn radius_of(p: *Shape): f64 {
+	return when (p) {
+		is Shape.Circle as c -> c.radius,
+		else -> 0.0
+	};
+}
+
+// A `when` statement: the arm rebinds the subject to the variant payload.
+fn kind_of(s: Shape): i32 {
+	var k = 0;
+	when (s) {
+		is Shape.Circle -> {
+			k = 1;
+		}
+		is Shape.Rect -> {
+			k = 2;
+		}
+		else -> {
+			k = 9;
+		}
+	}
+	return k;
+}
+
+fn main(): i32 {
+	val c = Shape.Circle(2.0);
+	val r = Shape.Rect(3.0, 4.0);
+	val e = Shape.Empty;
+
+	if (area(c) != 12.0) return 1;
+	if (area(r) != 12.0) return 2;
+	if (area(e) != 0.0) return 3;
+	if (c.tag != 0) return 4;
+	if (r.tag != 1) return 5;
+	if (e.tag != 2) return 6;
+
+	if (radius_of(&c) != 2.0) return 7;
+	if (radius_of(&r) != 0.0) return 8;
+
+	if (kind_of(c) != 1) return 9;
+	if (kind_of(r) != 2) return 10;
+	if (kind_of(e) != 9) return 11;
+
+	return 0;
+}

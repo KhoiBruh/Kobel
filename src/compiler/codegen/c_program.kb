@@ -50,10 +50,20 @@ impl CCodeGen {
 					}
 				}
 				is EnumDecl as e -> {
-					// Enums lower to their underlying integer type; member access becomes
-					// an integer literal during semantic analysis.
-					val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
-					sb += "typedef ${under} ${e.name};\n";
+					if (self.enum_has_payload(e)) {
+						// A payload enum is a struct: tag + union of variant payloads.
+						sb += "typedef struct ${e.name} ${e.name};\n";
+						for (i in 0..<e.members.len) {
+							val m = e.members[i];
+							sb += "typedef struct ${e.name}__${m.name} ${e.name}__${m.name};\n";
+							sb += "#define ${e.name}__${m.name}__TAG ${i}\n";
+						}
+					} else {
+						// Enums lower to their underlying integer type; member access becomes
+						// an integer literal during semantic analysis.
+						val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
+						sb += "typedef ${under} ${e.name};\n";
+					}
 				}
 				is ConstDecl as c -> {
 					// Module-level constants become preprocessor macros.
@@ -63,10 +73,13 @@ impl CCodeGen {
 		}
 		sb += "\n\n";
 
-		// 3. Struct Definitions
+		// 3. Struct definitions (and the struct shape of a payload enum)
 		for (decl in prog) {
-			if (!decl_is_template(decl) && decl is StructDecl as s) {
+			if (decl_is_template(decl)) continue;
+			if (decl is StructDecl as s) {
 				sb += self.gen_struct_decl(s);
+			} else if (decl is EnumDecl as e) {
+				sb += self.gen_payload_enum(e);
 			}
 		}
 
@@ -136,6 +149,29 @@ impl CCodeGen {
 		}
 		res = "${res}};\n";
 		return "${res}\n";
+	}
+
+	// A payload enum is emitted as a tag plus a union of one payload struct per
+	// variant, so a pattern binding can point straight at the active payload.
+	pub fn gen_payload_enum(var self, e: *EnumDecl): str {
+		if (!self.enum_has_payload(e)) return "";
+
+		var res = "";
+		for (m in e.members) {
+			res = "${res}struct ${e.name}__${m.name} {\n";
+			if (m.payload.empty()) res = "${res}    char __empty;\n";
+			for (f in m.payload) {
+				res = "${res}    ${c_type_from_ast(f.type_node)} ${f.name};\n";
+			}
+			res = "${res}};\n";
+		}
+
+		res = "${res}struct ${e.name} {\n    int32_t tag;\n    union {\n";
+		for (m in e.members) {
+			res = "${res}        struct ${e.name}__${m.name} ${m.name};\n";
+		}
+		res = "${res}    } u;\n};\n\n";
+		return res;
 	}
 
 	// `self_c_type` is the C name of the enclosing struct when generating an impl

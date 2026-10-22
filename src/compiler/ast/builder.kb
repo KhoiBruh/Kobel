@@ -58,6 +58,10 @@ impl Arena {
 	pub fn struct_ctor(var self, c_name: str, args: List<*AstNode>, line: usz, col: usz)
 		=> self.make<StructCtorExpr>(StructCtorExpr.TAG, StructCtorExpr(c_name, args), line, col);
 
+	// A payload-enum value (`Shape.Circle(...)`), created by sema.
+	pub fn enum_ctor(var self, c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>, line: usz, col: usz)
+		=> self.make<EnumCtorExpr>(EnumCtorExpr.TAG, EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args), line, col);
+
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
 		=> self.make<MemberExpr>(MemberExpr.TAG, MemberExpr(obj, member), line, col);
 

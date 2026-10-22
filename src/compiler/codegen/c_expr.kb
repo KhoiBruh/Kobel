@@ -100,6 +100,18 @@ impl CCodeGen {
 				yield "(${node.c_name}){ ${joined} }";
 			}
 
+			// A payload-enum value: tag plus the variant's union member.
+			is EnumCtorExpr -> {
+				if (node.payload_path.empty()) {
+					yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
+				}
+				var ctor_args = List<str>();
+				for (a in node.args) ctor_args += self.gen_expr(a);
+				val joined = ", ".join(ctor_args);
+				yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value}, "
+					".${node.payload_path} = { ${joined} } }";
+			}
+
 			else -> "";
 		};
 	}
@@ -290,13 +302,19 @@ impl CCodeGen {
 		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, target_name);
 		if (!is_e.alias.empty()) {
 			val cast_val = if (is_e.is_ptr) {
-				if (is_e.has_data && !is_e.base_c_name.empty()) {
+				if (!is_e.payload_path.empty()) {
+					"(${target_name}*)(&(${obj_str})->${is_e.payload_path})"
+				} else if (is_e.has_data && !is_e.base_c_name.empty()) {
 					"(${target_name}*)(((${is_e.base_c_name}*)${obj_str})->data)"
 				} else {
 					"(${target_name}*)${obj_str}"
 				}
 			} else {
-				"(${target_name}*)&${obj_str}"
+				if (!is_e.payload_path.empty()) {
+					"(${target_name}*)(&(${obj_str}).${is_e.payload_path})"
+				} else {
+					"(${target_name}*)&${obj_str}"
+				}
 			};
 			return "(${tag_test} && (${is_e.alias} = ${cast_val}, 1))";
 		}

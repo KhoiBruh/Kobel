@@ -371,9 +371,27 @@ impl Parser {
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected enum member name");
-			val m_val = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
-			else null;
-			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col);
+
+			// `Variant(field: Type, ...)` makes this a payload enum.
+			var payload = List<EnumField>();
+			if (self.match_token(TokenType.OPEN_PAREN)) {
+				while (!self.check(TokenType.CLOSE_PAREN) && !self.is_end()) {
+					val f_tok = self.consume(TokenType.IDENTIFIER, "Expected field name in enum variant");
+					self.consume(TokenType.COLON, "Expected ':' after field name");
+					payload += EnumField(f_tok.text, self.parse_type());
+					if (!self.match_token(TokenType.COMMA)) break;
+				}
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after enum variant fields");
+			}
+
+			var m_val: *AstNode = null;
+			if (self.match_token(TokenType.EQUAL)) {
+				if (!payload.empty()) {
+					self.error(m_tok, "A payload enum variant cannot have an explicit value");
+				}
+				m_val = self.parse_expression(Precedence.NONE);
+			}
+			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col, payload);
 
 			self.match_token(TokenType.COMMA);
 		}

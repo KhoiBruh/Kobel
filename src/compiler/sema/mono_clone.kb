@@ -111,6 +111,7 @@ impl DeclPass {
 					self.safe_member(self.clone_expr(m.object, subst), m.member, node.line, node.col)
 				else
 					self.member(self.clone_expr(m.object, subst), m.member, node.line, node.col);
+
 			is IndexExpr as ix -> self.index(
 				self.clone_expr(ix.target, subst),
 				self.clone_expr(ix.index, subst),
@@ -428,6 +429,5 @@ impl DeclPass {
 		// be checked against the trait and pick up its default methods.
 		return self.impl_decl(new_struct_name, List<GenericParam>(), im.trait_name, methods, node.line, node.col);
 	}
-
 
 }

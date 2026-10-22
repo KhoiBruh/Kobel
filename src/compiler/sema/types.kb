@@ -103,16 +103,29 @@ pub struct FnType {
 // A single enum member with its resolved integer value.
 pub struct EnumMemberInfo {
 	pub name: str,
-	pub value: i64
+	pub value: i64,
+	// Payload struct of the variant (null for a plain integer member). Its fields
+	// are the declared ones, so a pattern binding uses ordinary field access.
+	pub payload_ty: *Type = null,
+	// Field path of the payload inside the enum struct (`u.Circle`); empty when
+	// the variant carries no data.
+	pub payload_path: str = ""
 }
 
-// Payload registered for every `enum` declaration. The enum symbol's type is
-// its underlying integer type, so `EnumInfo` carries the member values.
+// Payload registered for every `enum` declaration.
+//
+// An integer enum lowers to its underlying type, so the symbol's `Type` is an
+// integer carrier holding this info. A payload enum's symbol has a *struct*
+// type instead (tag + union of variant payloads); `is_payload` tells the two
+// apart, and `members` then resolve to variant payload structs.
 pub struct EnumInfo {
 	pub name: str,
 	pub c_name: str,
 	pub underlying: *Type,
-	pub members: List<*EnumMemberInfo>
+	pub members: List<*EnumMemberInfo>,
+	pub is_payload: bool = false,
+	// Name of the tag field inside the generated struct.
+	pub tag_field: str = "tag"
 }
 
 impl EnumInfo {

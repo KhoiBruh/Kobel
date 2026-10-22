@@ -54,7 +54,10 @@ pub enum NodeKind {
 	EXPR_IS,
 	// A struct value built from its fields, e.g. `Point(1, 2)` -> `(Point){1, 2}`.
 	// Never produced by the parser: sema creates it when construction is resolved.
-	EXPR_STRUCT_CTOR
+	EXPR_STRUCT_CTOR,
+	// A payload-enum value: `Shape.Circle(1.5)` -> `(Shape){ .tag = 0, ... }`.
+	// Also created by sema, never by the parser.
+	EXPR_ENUM_CTOR
 }
 
 pub struct AstNode {

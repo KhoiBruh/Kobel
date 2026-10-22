@@ -196,6 +196,24 @@ impl BodyPass {
 		is_e.has_data = self.struct_has_field(base_s, "data");
 		is_e.base_c_name = base_s.c_name;
 		is_e.is_ptr = is_ptr;
+
+		// A payload-enum variant stores its data inline (`subject.u.Variant`), and
+		// the pattern's binding points there.
+		val enum_info = self.symtab.find_enum_info(base_s.name);
+		if (enum_info != null && enum_info.is_payload) {
+			for (m in enum_info.members) {
+				if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
+					is_e.payload_path = m.payload_path;
+				}
+			}
+		}
+
+		// The binding of an inline payload is a pointer to the variant struct, even
+		// when the subject itself is a value: the backend takes its address.
+		if (!is_e.payload_path.empty()) {
+			return self.arena.pointer_type(target_ty, is_e.is_mut || (is_ptr && subj_is_mut));
+		}
+
 		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.is_mut || (is_e.alias.empty() && subj_is_mut));
 		return target_ty;
 	}

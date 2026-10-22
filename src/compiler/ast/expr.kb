@@ -132,7 +132,10 @@ pub struct IsExpr {
 	pub has_data: bool = false,
 	pub base_c_name: str = "",
 	pub is_ptr: bool = false,
-	pub is_mut: bool = false
+	pub is_mut: bool = false,
+	// Field path of an inline payload inside the subject, for a payload-enum
+	// variant pattern (`is Shape.Circle` reads `subject.u.Circle`).
+	pub payload_path: str = ""
 }
 
 // A struct value built from its fields: `Point(1, 2)` when the type has no
@@ -141,5 +144,17 @@ pub struct IsExpr {
 pub struct StructCtorExpr {
 	pub const TAG = NodeKind.EXPR_STRUCT_CTOR;
 	pub c_name: str,
+	pub args: List<*AstNode> = List()
+}
+
+// A payload-enum value built by the checker: `Shape.Circle(1.5)` becomes a C
+// compound literal that sets the tag and the variant's union member.
+pub struct EnumCtorExpr {
+	pub const TAG = NodeKind.EXPR_ENUM_CTOR;
+	pub c_name: str,
+	pub tag_field: str,
+	pub tag_value: i64,
+	// Union member path of the variant's payload ("" for a tag-only variant).
+	pub payload_path: str = "",
 	pub args: List<*AstNode> = List()
 }

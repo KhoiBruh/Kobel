@@ -83,11 +83,20 @@ pub struct ImplDecl {
 	pub methods: List<*AstNode>
 }
 
+// One named field of an enum variant's payload: `Circle(radius: f64)`.
+pub struct EnumField {
+	pub name: str,
+	pub type_node: *AstNode
+}
+
 pub struct EnumMember {
 	pub name: str,
 	pub value: *AstNode,
 	pub line: usz,
-	pub col: usz
+	pub col: usz,
+	// Empty for a plain (integer) enum member; non-empty when the member carries
+	// data, which makes the whole declaration a payload enum.
+	pub payload: List<EnumField> = List()
 }
 
 pub struct EnumDecl {

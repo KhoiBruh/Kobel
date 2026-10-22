@@ -167,6 +167,15 @@ impl DeclPass {
 		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type)
 		else self.t_prim(type_i32());
 
+		var is_payload = false;
+		for (m in e.members) {
+			if (!m.payload.empty()) is_payload = true;
+		}
+		if (is_payload) {
+			self.collect_payload_enum(node, e, under_type);
+			return;
+		}
+
 		// Resolve member values: implicit members continue from the previous value.
 		var members = List<*EnumMemberInfo>();
 		var next_val: i64 = 0;
@@ -198,6 +207,79 @@ impl DeclPass {
 
 		self.symtab.register_enum_info(info);
 
+		e.name = c_name;
+	}
+
+	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
+	// payload structs. Each variant gets its own struct type named `Enum.Variant`
+	// (so an `is` pattern can name it) and an `Enum.Variant__TAG` constant symbol.
+	fn collect_payload_enum(var self, node: *AstNode, e: &EnumDecl, under_type: *Type) {
+		if (e.underlying_type != null) {
+			self.report_error(node, "A payload enum cannot declare an underlying type");
+		}
+
+		val c_name = self.c_name_for(e.name);
+		val tag_ty = self.t_prim(type_i32());
+		val enum_ty = self.arena.struct_type(e.name, List<StructField>());
+		enum_ty.as_struct_mut().c_name = c_name;
+		enum_ty.as_struct_mut().module = self.current_module;
+		enum_ty.as_struct_mut().fields += StructField("tag", tag_ty, 0, true, null);
+
+		var members = List<*EnumMemberInfo>();
+		var max_payload: usz = 1;
+		var max_align: usz = tag_ty.align;
+		var idx: i64 = 0;
+
+		for (m in e.members) {
+			val v_name = "${e.name}.${m.name}";
+			val v_c = "${c_name}__${m.name}";
+			val v_ty = self.arena.struct_type(v_name, List<StructField>());
+			v_ty.as_struct_mut().c_name = v_c;
+			v_ty.as_struct_mut().module = self.current_module;
+			for (f in m.payload) {
+				val f_ty = self.resolve_ast_type(f.type_node);
+				v_ty.as_struct_mut().fields += StructField(f.name, f_ty, 0, true, null);
+			}
+			v_ty.layout_struct();
+			if (v_ty.size == 0UZ) {
+				v_ty.size = 1UZ;
+				v_ty.align = 1UZ;
+			}
+
+			self.symtab.define_global(
+				Symbol(v_name, v_c, SymbolKind.STRUCT, v_ty, false, e.is_pub, m.line, m.col, node)
+			);
+			self.symtab.define_global(
+				Symbol("${v_name}__TAG", v_c, SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
+			);
+
+			val mi = self.arena.alloc<EnumMemberInfo>();
+			*mi = EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}");
+			members += mi;
+
+			if (v_ty.size > max_payload) max_payload = v_ty.size;
+			if (v_ty.align > max_align) max_align = v_ty.align;
+			idx = idx + 1;
+		}
+
+		// Layout: tag, padded up to the union's alignment, then the largest payload.
+		var body_off = tag_ty.size;
+		val rem = tag_ty.size % max_align;
+		if (rem != 0UZ) body_off = tag_ty.size + (max_align - rem);
+		var pay = max_payload;
+		val prem = pay % max_align;
+		if (prem != 0UZ) pay = pay + (max_align - prem);
+		enum_ty.align = max_align;
+		enum_ty.size = body_off + pay;
+
+		val info = self.arena.alloc<EnumInfo>();
+		*info = EnumInfo(e.name, c_name, under_type, members, true, "tag");
+		self.symtab.register_enum_info(info);
+
+		val ok = self.symtab.define_global(
+			Symbol(e.name, c_name, SymbolKind.STRUCT, enum_ty, false, e.is_pub, node.line, node.col, node)
+		);
+		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
 		e.name = c_name;
 	}
 
