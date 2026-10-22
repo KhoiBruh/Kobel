@@ -371,13 +371,13 @@ impl DeclPass {
 	pub fn collect_struct_as(var self, node: *AstNode, final_name: str, module: str) {
 		val s = node.to<StructDecl>() as &StructDecl;
 		val s_type = self.arena.struct_type(final_name, List<StructField>());
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node as *u8)));
+		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.STRUCT, s_type, false, s.is_pub, node.line, node.col, node)));
 		s.name = final_name;
 
 		var has_private = false;
 		for (f in s.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val as *u8);
+			s_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val);
 			if (!f.is_pub) has_private = true;
 		}
 		val st_info = s_type.as_struct_mut();
@@ -394,7 +394,7 @@ impl DeclPass {
 		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node as *u8)));
+		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
 		f.name = final_name;
 	}
 

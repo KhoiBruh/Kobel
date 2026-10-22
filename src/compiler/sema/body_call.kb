@@ -117,7 +117,7 @@ impl BodyPass {
 		if (found != null) return found;
 		for (m in cands) {
 			if (m.name != name || m.ast_node == null) continue;
-			val ast_n = (m.ast_node as *AstNode) ?: continue;
+			val ast_n = m.ast_node ?: continue;
 			if (!self.append_defaults(ast_n, argc, call)) continue;
 			return m;
 		}
@@ -143,7 +143,7 @@ impl BodyPass {
 			}
 		}
 
-		if (self.arrow_pending(mi.ast_node as *AstNode)) self.infer_blocked = true;
+		if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
 
 		var ret_ty = fn_info.return_type;
 		if (mem.is_safe) {
@@ -213,8 +213,8 @@ impl BodyPass {
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
 			if (sym != null) {
-				self.append_defaults(sym.ast_node as *AstNode, call.args.len, call);
-				if (self.arrow_pending(sym.ast_node as *AstNode)) self.infer_blocked = true;
+				self.append_defaults(sym.ast_node, call.args.len, call);
+				if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
 			}
 		}
 		if (call.args.len != fn_info.param_types.len) self.report_error(node, "Argument count mismatch in function call");
@@ -291,7 +291,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args += self.clone_expr(s_info.fields[i].default_val as *AstNode);
+					call.args += self.clone_expr(s_info.fields[i].default_val);
 				}
 			}
 		}

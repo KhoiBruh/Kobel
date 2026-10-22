@@ -4,6 +4,8 @@ use std.collections.list.*;
 use std.mem.arena.Arena;
 use std.traits.to_str.*;
 
+use compiler.ast.node.AstNode;
+
 use util.strutil.*;
 
 pub enum DataType {
@@ -52,7 +54,7 @@ pub struct StructField {
 	pub type_ptr: *Type,
 	pub offset: usz,
 	pub is_pub: bool,
-	pub default_val: *u8 = null
+	pub default_val: *AstNode = null
 }
 
 // A method collected from an `impl` block.
@@ -62,7 +64,7 @@ pub struct MethodInfo {
 	pub name: str,
 	pub c_name: str,
 	pub fn_type: *Type,
-	pub ast_node: *u8,
+	pub ast_node: *AstNode,
 	pub module: str,
 	pub is_op: bool = false
 }
@@ -361,17 +363,18 @@ impl Arena {
 }
 
 // ============================================================================
+// Downcasts to the payload variant. These are plain casts on data rather than
+// a generic 	o<T> helper: a generic method named 	o would share that name
+// with AstNode.to<T>, and template lookup is by name, so the two would shadow
+// each other depending on module load order.
 impl Type {
-	pub fn to<T>(val self) => self.data as *T;
-	pub fn to_mut<T>(val self) => self.data as &T;
-
-	pub fn as_pointer(val self) => self.to<PointerType>();
-	pub fn as_array(val self) => self.to<ArrayType>();
-	pub fn as_struct(val self) => self.to<StructType>();
-	pub fn as_struct_mut(val self) => self.to_mut<StructType>();
-	pub fn as_fn(val self) => self.to<FnType>();
-	pub fn as_fn_mut(val self) => self.to_mut<FnType>();
-	pub fn as_enum(val self) => self.to<EnumInfo>();
+	pub fn as_pointer(val self) => self.data as *PointerType;
+	pub fn as_array(val self) => self.data as *ArrayType;
+	pub fn as_struct(val self) => self.data as *StructType;
+	pub fn as_struct_mut(val self) => self.data as &StructType;
+	pub fn as_fn(val self) => self.data as *FnType;
+	pub fn as_fn_mut(val self) => self.data as &FnType;
+	pub fn as_enum(val self) => self.data as *EnumInfo;
 
 	pub fn alloc_pointer(val self, var arena: &Arena, is_mut: bool) => arena.pointer_type(self as *Type, is_mut);
 	pub fn alloc_nullable_pointer(val self, var arena: &Arena, is_mut: bool) => arena.nullable_pointer_type(self as *Type, is_mut);
