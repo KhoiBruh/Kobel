@@ -5,7 +5,7 @@ instance là `(template, type arguments)` và được kiểm/emit mà không ph
 
 Tài liệu này ghi trạng thái hiện tại, lý do phần còn lại khó, và các bước tiếp theo.
 
-## 1. Hiện trạng (sau bước 1, `31b2a02`)
+## 1. Hiện trạng (sau bước 2, `753fe07`)
 
 Đã parameter hoá **struct**:
 
@@ -18,6 +18,14 @@ Tài liệu này ghi trạng thái hiện tại, lý do phần còn lại khó, 
   type đã giải (view này không bị kiểm lại).
 - Thân struct được emit theo **thứ tự phụ thuộc by-value** (struct/enum payload), nên instance có thể
   nhúng struct khai báo sau nó.
+
+**Instance có identity theo kiểu** (bước 2, `753fe07`):
+
+- `GenericReg.records` giữ `InstanceRecord { kind, template, args: List<*Type>, c_name, decl }`.
+- `find_instance(template, args)` so bằng `Type.equals`; tra record **trước**, tên C chỉ để emit.
+- Sửa kèm bug tiềm ẩn: `Type.equals` so struct theo **source name**, nên hai struct cùng tên ở hai module
+  bị coi là bằng nhau (typed lookup trả nhầm instance `List<StructField>` của module khác). Nay struct so
+  theo `c_name` đã mangle.
 
 Vẫn còn clone với **function/method**: `instantiate_fn` → `clone_fn` → `clone_stmt/clone_expr` sao chép
 thân hàm và thay type arg bằng AST mới. Đó là phần "instance graph" còn lại.
@@ -77,8 +85,8 @@ Hai lựa chọn:
 | Bước | Nội dung | Ghi chú |
 |---|---|---|
 | 1 | Struct instantiation theo type | **xong** (`31b2a02`) |
-| 2 | `Instance` record + `instances_by_key` + call/struct/impl dùng key theo `*Type` | thay `inst_map` theo tên |
-| 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | bước lớn nhất |
+| 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
+| 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | bước lớn nhất, chưa làm |
 | 4 | Bỏ `clone_fn/clone_expr/clone_stmt`; `drain_instances` chỉ rewrite view/signature | xoá `mono_clone` |
 | 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | sau khi hết clone |
 
