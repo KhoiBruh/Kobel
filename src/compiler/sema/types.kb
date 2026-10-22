@@ -20,14 +20,18 @@ pub enum DataType {
 	FN
 }
 
+// Declared before `Type` (which points at it) and defined after `MethodInfo`
+// (which it lists). Forward declarations exist exactly for this shape.
+struct PrimMethods;
+
 pub struct Type {
 	pub kind: DataType,
 	pub size: usz,
 	pub align: usz,
 	pub data: *u8,
-	// Methods of a built-in type (`impl i32 { ... }`), stored through a
-	// `PrimMethods` payload because `Type` is declared before `MethodInfo`.
-	pub methods: *u8 = null
+	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
+	// type and for primitives built by `type_primitive`, which are not canonical.
+	pub methods: *PrimMethods = null
 }
 
 pub struct PointerType {
@@ -273,7 +277,7 @@ fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
 	var t = arena.primitive_type(type_primitive(kind));
 	val pm = arena.alloc<PrimMethods>();
 	*pm = PrimMethods();
-	t.methods = pm as *u8;
+	t.methods = pm;
 	return t;
 }
 
@@ -377,15 +381,14 @@ impl Type {
 	// `PrimTypes`, so `i32` accumulates exactly one method list.
 	pub fn add_method(var self, mi: *MethodInfo) {
 		if (self.methods == null) return;
-		val pm = self.methods as &PrimMethods;
-		pm.list += mi;
+		self.methods.list += mi;
 	}
 
 	// The method list, empty when this type has no payload (a non-canonical
 	// primitive built by `type_primitive`, a pointer, an array, ...).
 	pub fn method_list(val self): List<*MethodInfo> {
 		if (self.methods == null) return List<*MethodInfo>();
-		return (self.methods as *PrimMethods).list;
+		return self.methods.list;
 	}
 
 	pub fn method_named(val self, name: str): *MethodInfo {
