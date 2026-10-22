@@ -169,14 +169,6 @@ impl BodyPass {
 	pub fn t_usz(var self): *Type => alloc_primitive(&self.arena, type_usz());
 	pub fn t_prim(var self, base: Type): *Type => alloc_primitive(&self.arena, base);
 
-	// Rewrites `node` in place so it becomes `with` (the parent keeps pointing
-	// at the same node, which is how sema lowers sugar for the backend).
-	pub fn replace_node(var self, node: *AstNode, with: *AstNode) {
-		val n = node as &AstNode;
-		n.kind = with.kind;
-		n.data = with.data;
-	}
-
 	// Reports `msg` at `node` unless `cond` holds.
 	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
 		if (!cond) self.report_error(node, msg);

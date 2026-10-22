@@ -250,11 +250,7 @@ impl BodyPass {
 			arg_types += lt;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
-				var new_args = List<*AstNode>();
-				new_args += if (r_is_ptr) bin.right else self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
-				new_args += bin.left;
-				val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-				self.replace_node(node, call_node);
+				node.resolved_method = mi as *u8;
 				return self.t_bool();
 			}
 		}
@@ -268,8 +264,8 @@ impl BodyPass {
 					args += bin.right;
 					val mem = self.member(bin.left, "in_list", node.line, node.col);
 					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-					self.replace_node(node, call_node);
-					return self.check_expr(node);
+					node.resolved_node = call_node;
+					return self.check_expr(call_node);
 				}
 			}
 		}
@@ -278,8 +274,8 @@ impl BodyPass {
 		args += bin.left;
 		val mem = self.member(bin.right, "contains", node.line, node.col);
 		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, call_node);
-		return self.check_expr(node);
+		node.resolved_node = call_node;
+		return self.check_expr(call_node);
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode): *Type {
@@ -731,7 +727,7 @@ impl BodyPass {
 		new_args += val_expr;
 
 		val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-		self.replace_node(node, call_node);
+		node.resolved_node = call_node;
 		return val_param_ty;
 	}
 

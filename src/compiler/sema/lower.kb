@@ -98,9 +98,9 @@ impl BodyPass {
 
 	pub fn lower_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
-		// A constant the checker already resolved to a leaf (enum member, struct
-		// const, primitive size): use it as-is.
-		if (node.resolved_node != null) return self.lowered(node, node.resolved_node);
+		// A node the checker already resolved (constant leaf, or a call it checked
+		// without installing): lower that instead, then carry this node's type.
+		if (node.resolved_node != null) return self.lowered(node, self.lower_expr(node.resolved_node));
 		var out = node;
 		when (node) {
 			is BinaryExpr as var b -> {
@@ -205,6 +205,20 @@ impl BodyPass {
 				val eq = self.arena.make_str_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, node.line, node.col);
 				return self.lowered(node, eq);
 			}
+		}
+
+		// `element in container` with a `contains` operator: the container is the
+		// receiver, so the call is `c_name(container, element)`.
+		if (bin.op == TokenType.KW_IN && node.resolved_method != null) {
+			val mi = node.resolved_method as *MethodInfo;
+			val right_ty = self.type_of(bin.right);
+			val r_is_ptr = right_ty != null && right_ty.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (r_is_ptr) args += bin.right;
+			else args += self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+			args += bin.left;
+			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			return self.lowered(node, call);
 		}
 
 		// An overloaded operator the checker picked: `c_name(&left, right)`.
