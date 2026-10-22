@@ -61,7 +61,7 @@ v1 chỉ có **4 bước**, in ra dưới dạng `[n/4]`:
 |---|---|---|
 | 1 | `load_program(loader, input_path, src)` | `loader` nạp entry + mọi `use` (đệ quy), mỗi module: lex → parse → AST |
 | 2 | `collect_program(decl_collect, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphize (core nằm ở `decl_pass`) |
-| 3 | `check_program(body_program, prog)` rồi `lower_program(lower, prog)` | kiểm tra thân hàm, gắn kiểu cho biến nội bộ (core ở `body_pass`); sau đó một pass **lower** riêng hạ cấp các dạng đường (xem §6.2) |
+| 3 | `check_program(body_program, prog)` rồi `lower_program(lower, prog)` | kiểm tra thân hàm, gắn kiểu cho biến nội bộ (core ở `body_pass`), **instantiate generic method** khi đã biết kiểu receiver rồi flush instance mới; sau đó một pass **lower** riêng hạ cấp các dạng đường (xem §6.2) |
 | 4 | `gen_program(c_program, prog)` | sinh C99 rồi `write_file`; nếu không `-emit-c` thì gọi C compiler + chạy (core nằm ở `c_codegen`) |
 
 **Module search roots** (giống v0): thư mục file entry → các root `-I` → `lib` → `src`.
@@ -337,6 +337,12 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
     generic use nào clone bỏ sót cũng được instantiate trước khi kiểm thân hàm. Cuối cùng danh sách
     được **đặt trước** `program.declarations` để struct instance đứng trước struct dùng nó.
   - Chỉ hỗ trợ **type argument tường minh**; không suy luận type arg.
+  - **Generic method** (`x.m<T>(...)`) phân giải ở **body pass**, nơi biết kiểu receiver: template
+    ghi `self_type` (kiểu impl) nên hai struct cùng module có thể trùng tên method generic; instance
+    được đặt tên kèm kiểu receiver (`Arena_alloc_i32`). Clone tạo sau pass khai báo được **flush** ở
+    cuối body pass (kiểm thân + phát khai báo trước decl gốc), và clone nhớ module + `Self` của
+    template. `lower` chỉ phát node thay thế qua `resolved_node`; constructor `new` được ghi vào
+    `resolved_method` để kiểm lại một node là idempotent.
   - Một kiểu generic có thể có **nhiều `impl`** (impl inherent + impl trait); khi instantiate, **mọi**
     template cùng tên đều được nhân bản (`instantiate_struct` duyệt hết `impl_templates`), và
     `clone_impl` **giữ `trait_name`** nên hợp đồng trait được kiểm cả trên bản monomorphized.
@@ -512,20 +518,19 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
 | **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **một nửa** (`bddb880`): instance worklist + rewrite fixpoint, một danh sách `instances` duy nhất, thay `pending`/`work`/`inst_names`; test generic lồng nhau (`test_generics.kb`). Phần "instance graph thay clone" cần **IR có tham số hoá** (thay type arg ở codegen) — ngôn ngữ hiện chưa biểu diễn được, nên dừng ở đây |
-| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`) đã có (`fe850db`) và đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`), kèm test `test_forward.kb`. Còn: payload enum (sum type), generic method/associated type, import vòng |
+| **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **đang làm**: forward declaration (`struct A;`, `fe850db`) đã dùng để bỏ `*u8` ở `Type.methods` (`4d28738`), test `test_forward.kb`; **generic method** phân giải ở body pass theo kiểu receiver (`121a335`), test `test_generic_methods.kb`. Còn: payload enum (sum type), import vòng, associated type |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
 `Node`/`Type` bằng sum type an toàn hay chẻ module theo khái niệm (thay vì theo SCC vì cấm import vòng),
 phải **thêm năng lực đó vào compiler hiện tại trước**, nếu không bản viết lại sẽ lặp lại đúng kiểu code cũ.
 
-**Nợ kỹ thuật lộ ra khi P‑1 (generic method).** `find_method_template` chọn template theo **tên**, không
-theo kiểu receiver, nên hai generic method cùng tên ở hai module tranh nhau theo thứ tự nạp module. Gặp
-thật khi `Type` còn `to<T>` song song với `AstNode.to<T>`: chỉ cần `sema.types` import `ast.node` là
-`Type.to<...>` bị trỏ nhầm sang bản của `AstNode`. Đã xử lý bằng cách bỏ `Type.to<T>`, thay bằng accessor
-`as_pointer/as_array/as_struct/as_struct_mut/as_fn/as_fn_mut/as_enum` (`20a9341`) — nhờ đó
-`Symbol.ast_node`, `MethodInfo.ast_node`, `StructField.default_val` được định kiểu `*AstNode`.
-Cách sửa gốc vẫn là **hoãn instantiate generic method sang BodyPass** (nơi biết kiểu receiver), rồi thay
-node qua `resolved_node` — cùng cơ chế của `StructCtorExpr`; việc đó nằm trong hạng mục generic method.
+**Nợ kỹ thuật lộ ra khi P‑1 (generic method) — đã trả.** `find_method_template` từng chọn template theo
+**tên**, không theo kiểu receiver, nên hai generic method cùng tên tranh nhau theo thứ tự nạp module
+(gặp thật: `Type.to<T>` bị trỏ nhầm sang `AstNode.to<T>` khi `sema.types` import `ast.node`). Trước mắt
+`Type` chuyển sang accessor `as_pointer/as_array/as_struct/as_struct_mut/as_fn/as_fn_mut/as_enum`
+(`20a9341`) để `Symbol.ast_node`, `MethodInfo.ast_node`, `StructField.default_val` định kiểu được
+`*AstNode`; gốc được sửa ở `121a335`: template ghi `self_type`, lookup khớp theo kiểu receiver, và
+generic method được instantiate trong body pass rồi thay node qua `resolved_node`.
 
 **Definition of done của P1 (đã đạt):** `infer_type_from_expr`, `pointer_vars`, `str_vars`,
 `lookup_fn_ret_type` = 0 call site; 16 snapshot chương trình không đổi byte nào khi thay đổi cơ chế.
