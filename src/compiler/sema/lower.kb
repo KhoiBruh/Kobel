@@ -28,6 +28,7 @@ use compiler.lexer.token.*;
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
+use compiler.sema.symbol.InstanceRecord;
 use compiler.sema.desugar_interp.*;
 use compiler.sema.body_pass.*;
 
@@ -37,11 +38,22 @@ impl BodyPass {
 		val prog = program_node.as_program();
 		for (decl in prog) {
 			when (decl) {
-				is FnDecl as var f -> f.body = self.lower_stmt(f.body);
+				is FnDecl as var f -> {
+					// Templates are never lowered: instance bodies share their AST.
+					if (f.type_params.len > 0) continue;
+					val rec = decl.instance as *InstanceRecord;
+					if (rec != null) f.body = self.lower_stmt(self.decl.materialize_body(rec));
+					else f.body = self.lower_stmt(f.body);
+				}
 				is ImplDecl as var im -> {
 					for (i in 0..<im.methods.len) {
 						val m = im.methods[i];
-						if (m is FnDecl as var mf) mf.body = self.lower_stmt(mf.body);
+						if (m is FnDecl as var mf) {
+							if (mf.type_params.len > 0) continue;
+							val rec = m.instance as *InstanceRecord;
+							if (rec != null) mf.body = self.lower_stmt(self.decl.materialize_body(rec));
+							else mf.body = self.lower_stmt(mf.body);
+						}
 					}
 				}
 				is ConstDecl as var c -> c.value = self.lower_expr(c.value);

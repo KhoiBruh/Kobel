@@ -62,7 +62,10 @@ pub struct DeclPass {
 	// parameterised part of instantiation - the template AST is never rewritten.
 	pub subst_names: List<str> = List<str>(),
 	pub subst_types: List<*Type> = List<*Type>(),
-	pub current_fn_return_type: *AstNode = null
+	pub current_fn_return_type: *AstNode = null,
+	// While materializing a function instance (see mono_clone), the instance
+	// whose annotation side table drives the clone. Null otherwise.
+	pub mat_rec: *InstanceRecord = null
 }
 
 pub fn alloc_primitive(var arena: &Arena, base: Type): *Type => arena.primitive_type(base);
@@ -343,15 +346,24 @@ impl DeclPass {
 				val name = named.name;
 
 				// Inside an instantiation a type parameter resolves to its argument.
-				// The node is left untouched: template AST nodes are shared.
+				// The node is left untouched: template AST nodes are shared. The
+				// *last* match wins: nested instantiations may stack the same
+				// parameter name, and the innermost binding is authoritative.
+				var subst_res: *Type = null;
 				for (i in 0..<self.subst_names.len) {
-					if (self.subst_names[i] == name) yield self.subst_types[i];
+					if (self.subst_names[i] == name) subst_res = self.subst_types[i];
 				}
+				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
-					val sinfo = self.current_self_type.as_struct();
-					if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
-					else named.name = sinfo.name;
+					// Inside an instance the type node is shared with other
+					// instances, so never rename it: each instance must resolve
+					// `Self` against its own type when its body is checked.
+					if (self.subst_names.empty()) {
+						val sinfo = self.current_self_type.as_struct();
+						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
+						else named.name = sinfo.name;
+					}
 					yield self.current_self_type;
 				}
 
@@ -376,7 +388,7 @@ impl DeclPass {
 						);
 						yield self.t_none();
 					}
-					named.name = self.ast_type_name_of(bound);
+					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound);
 					yield bound;
 				}
 
@@ -561,7 +573,10 @@ impl DeclPass {
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
 			else self.infer_decl_return_type(f) ?: self.t_none();
 
-			val fn_type = self.arena.fn_type(param_types, ret_type);
+			// A function-instance method view owns its own FnType (built at view
+			// creation), so two instances never mutate a shared signature object.
+			val rec_sig = if (m_node.instance != null) (m_node.instance as *InstanceRecord).sig else null;
+			val fn_type = if (rec_sig != null) rec_sig else self.arena.fn_type(param_types, ret_type);
 
 			// Two methods with the same name and arity still need distinct names.
 			val m_c_name = method_c_name(

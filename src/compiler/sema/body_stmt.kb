@@ -43,10 +43,22 @@ impl BodyPass {
 
 		if (vd.type_annotation != null) {
 			var_ty = self.resolve_type(vd.type_annotation);
+			if (self.current_rec != null) self.set_ann_ty(vd.type_annotation, var_ty);
 			if (vd.initializer != null) {
 				has_init = true;
-				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(vd.initializer, var_ty);
-				val init_ty = self.check_expr_stmt(vd.initializer);
+				// Inside a shared template body, `val l: List<T> = List()` cannot
+				// rewrite the shared call; record the rewritten initializer per
+				// instance and check that one instead.
+				var init_expr = vd.initializer;
+				if (self.current_rec != null) {
+					val init_ov = self.propagate_instance_init(vd.initializer, var_ty);
+					if (init_ov != null) {
+						self.set_ann_init_override(node, init_ov);
+						init_expr = init_ov;
+					}
+				}
+				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(init_expr, var_ty);
+				val init_ty = self.check_expr_stmt(init_expr);
 				self.ensure(var_ty.can_assign(init_ty), node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
 		} else {
@@ -59,9 +71,13 @@ impl BodyPass {
 		}
 
 		// Give an inferred local an explicit type node so the C backend does
-		// not have to re-infer it (it cannot see struct field types).
-		if (vd.type_annotation == null && has_init)
-			vd.type_annotation = self.arena.ast_type_from_type(var_ty);
+		// not have to re-infer it (it cannot see struct field types). Inside an
+		// instance the declaration node is shared, so the synthesized type is
+		// recorded per instance and applied during materialization.
+		if (vd.type_annotation == null && has_init) {
+			if (self.current_rec != null) self.set_ann_var_ty(node, var_ty);
+			else vd.type_annotation = self.arena.ast_type_from_type(var_ty);
+		}
 
 		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col, null));
 		self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
@@ -205,8 +221,8 @@ impl BodyPass {
 
 		// `desugar_for` builds the replacement block without installing it: check
 		// that block directly and let `lower` put it in place of the `for`.
-		val block = self.arena.desugar_for(node, fs, use_iter_trait);
-		node.resolved_node = block;
+		val block = self.arena.desugar_for(node, fs, use_iter_trait, self);
+		self.set_resolved(node, block);
 		self.check_statement(block);
 	}
 
@@ -271,6 +287,35 @@ impl BodyPass {
 
 		else -> null;
 	};
+
+	// For `val l: List<T> = List()` inside a shared template body: rewrites the
+	// container constructor call to the instance's concrete C name, without
+	// touching the shared call node. Null when the initializer is not such a
+	// call, so the caller keeps checking the original expression.
+	fn propagate_instance_init(var self, init_node: *AstNode, var_ty: *Type): *AstNode {
+		if (var_ty == null || var_ty.kind != DataType.STRUCT) return null;
+		var cur = init_node;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		if (cur == null) return null;
+		if (!(cur is CallExpr)) return null;
+		val call = cur.as_call_expr();
+		if (!call.type_args.empty()) return null;
+		val callee = call.callee;
+		if (!(callee is IdentifierExpr)) return null;
+		val cid = callee.as_identifier_expr();
+		val tmpl = self.find_struct_template_for(cid.name);
+		if (tmpl == null) return null;
+		val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
+		val s = var_ty.as_struct();
+		if (!s.c_name.starts_with(prefix)) return null;
+		return self.call(
+			self.identifier(s.c_name, init_node.line, init_node.col),
+			call.args, List<*AstNode>(), init_node.line, init_node.col
+		);
+	}
 
 	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
 	// iterates through the trait (`count()` / `at(i)`) instead of the built-in

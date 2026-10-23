@@ -37,7 +37,8 @@ impl BodyPass {
 		val const_ty = self.check_const_member(node, mem);
 		if (const_ty != null) return const_ty;
 
-		var obj_ty = self.check_expr(mem.object);
+		var obj_expr = mem.object;
+		var obj_ty = self.check_expr(obj_expr);
 
 		// Pointer results that are not plain identifiers cannot be recognized
 		// by the backend's name-based pointer tracking, so dereference them
@@ -45,8 +46,14 @@ impl BodyPass {
 		if (
 			!mem.is_safe &&
 			obj_ty.kind == DataType.POINTER &&
-			mem.object.kind != NodeKind.EXPR_IDENTIFIER
-		) mem.object = self.unary(TokenType.STAR, mem.object, node.line, node.col);
+			obj_expr.kind != NodeKind.EXPR_IDENTIFIER
+		) {
+			val deref = self.unary(TokenType.STAR, obj_expr, node.line, node.col);
+			if (self.current_rec != null) self.set_ann_obj(node, deref);
+			else mem.object = deref;
+			obj_expr = deref;
+			obj_ty = self.check_expr(obj_expr);
+		}
 
 		// Automatic pointer unwrapping: p.x when p is *Point or &Point
 		var obj_was_ptr = false;
@@ -116,16 +123,16 @@ impl BodyPass {
 						);
 						return self.t_none();
 					}
-					node.resolved_node = self.arena.enum_ctor(
+					self.set_resolved(node, self.arena.enum_ctor(
 						ei.c_name, ei.tag_field, mi.value, "",
 						List<*AstNode>(), node.line, node.col
-					);
+					));
 					return e_sym.type_ptr;
 				}
 
 				// Reuse the node as a plain integer literal for the backend.
 				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
-				node.resolved_node = lit;
+				self.set_resolved(node, lit);
 				val carrier = self.arena.alloc<Type>();
 				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei));
 				return carrier;
@@ -138,7 +145,7 @@ impl BodyPass {
 					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
 					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
 				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
-					node.resolved_node = self.identifier(c_sym.c_name, node.line, node.col);
+					self.set_resolved(node, self.identifier(c_sym.c_name, node.line, node.col));
 					return c_sym.type_ptr;
 				}
 			}
@@ -223,7 +230,7 @@ impl BodyPass {
 				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
-				node.resolved_method = mi as *u8;
+				self.set_method(node, mi);
 				return fn_info.return_type;
 			}
 		}
@@ -365,7 +372,7 @@ impl BodyPass {
 						else if (self.is_immutable_self(target_expr)) {
 							self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
 						}
-						node.resolved_method = mi as *u8;
+						self.set_method(node, mi);
 						return mi.fn_type.as_fn().return_type;
 					}
 				}
@@ -451,7 +458,7 @@ impl BodyPass {
 		new_args += val_expr;
 
 		val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
-		node.resolved_node = call_node;
+		self.set_resolved(node, call_node);
 		return val_param_ty;
 	}
 
@@ -476,7 +483,11 @@ impl BodyPass {
 	pub fn check_cast_expr(var self, node: *AstNode): *Type {
 		val cst = node.as_cast_expr();
 		self.check_expr(cst.expr);
-		return self.resolve_type(cst.target_type);
+		val ty = self.resolve_type(cst.target_type);
+		// The target type node is shared between instances; keep the resolved
+		// type per instance so materialization can spell the concrete C type.
+		if (self.current_rec != null) self.set_ann_ty(cst.target_type, ty);
+		return ty;
 	}
 
 }

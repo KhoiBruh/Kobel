@@ -35,6 +35,26 @@ impl BodyPass {
 		when (node) {
 			is ArrayLiteralExpr as var al -> {
 				val s = list_ty.as_struct();
+				if (self.current_rec != null) {
+					// The literal node is shared with other instances; record the
+					// per-instance container/element info instead of mutating it.
+					val e = self.ann_entry(node);
+					e.list_name = s.c_name;
+					e.has_list_name = true;
+					if (s.fields.empty()) return;
+					val f0e = s.fields.first();
+					if (f0e.type_ptr.kind != DataType.POINTER) return;
+					val elem_tye = f0e.type_ptr.as_pointer().pointee;
+					e.elem_node = self.arena.ast_type_from_type(elem_tye);
+					e.has_elem_node = true;
+					for (el in al.elements) {
+						if (elem_tye != null && elem_tye.is_list()) self.coerce_to_list(el, elem_tye);
+						val el_ty = self.check_expr(el);
+						if (!elem_tye.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
+					}
+					return;
+				}
+
 				al.list_struct_name = s.c_name;
 
 				if (s.fields.empty()) return;
@@ -82,8 +102,10 @@ impl BodyPass {
 
 		// `Self` names the type being implemented. Renaming it to the C
 		// name lets `Self(...)` build a value directly (no `new` factory).
+		// Inside an instance the identifier node is shared, so keep the source
+		// name: per-instance decisions are routed through the side table.
 		if (id.name == "Self" && self.current_self_type != null) {
-			id.name = self.current_self_type.as_struct().c_name;
+			if (self.current_rec == null) id.name = self.current_self_type.as_struct().c_name;
 			return self.current_self_type;
 		}
 
@@ -199,7 +221,7 @@ impl BodyPass {
 				arg_types += rt;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					node.resolved_method = mi as *u8;
+					self.set_method(node, mi);
 					return mi.fn_type.as_fn().return_type;
 				}
 			}
@@ -221,7 +243,7 @@ impl BodyPass {
 			arg_types += lt;
 			arg_types += rt;
 			val mi = s_info.find_operator("equals", arg_types);
-			if (mi != null) node.resolved_method = mi as *u8;
+			if (mi != null) self.set_method(node, mi);
 			return self.t_bool();
 		}
 
@@ -252,7 +274,7 @@ impl BodyPass {
 			arg_types += lt;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
-				node.resolved_method = mi as *u8;
+				self.set_method(node, mi);
 				return self.t_bool();
 			}
 		}
@@ -266,7 +288,7 @@ impl BodyPass {
 					args += bin.right;
 					val mem = self.member(bin.left, "in_list", node.line, node.col);
 					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-					node.resolved_node = call_node;
+					self.set_resolved(node, call_node);
 					return self.check_expr(call_node);
 				}
 			}
@@ -276,7 +298,7 @@ impl BodyPass {
 		args += bin.left;
 		val mem = self.member(bin.right, "contains", node.line, node.col);
 		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
-		node.resolved_node = call_node;
+		self.set_resolved(node, call_node);
 		return self.check_expr(call_node);
 	}
 
@@ -296,7 +318,7 @@ impl BodyPass {
 				arg_types += op_ty;
 				val mi = s_info.find_operator(op_name, arg_types);
 				if (mi != null) {
-					node.resolved_method = mi as *u8;
+					self.set_method(node, mi);
 					return mi.fn_type.as_fn().return_type;
 				}
 			}

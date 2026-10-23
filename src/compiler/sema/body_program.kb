@@ -62,16 +62,28 @@ impl BodyPass {
 			}
 		}
 
-		if (self_ty == null) {
-			self.check_fn_body(fn_node, sym.type_ptr);
-			self.symtab.set_current_module(saved_mod);
-			return;
+		// An instance body is the template's shared AST: decisions go to the
+		// instance's side table and type parameters resolve against its arguments.
+		val saved_rec = self.current_rec;
+		val rec = fn_node.instance as *InstanceRecord;
+		if (rec != null) {
+			self.current_rec = rec;
+			self.push_instance_env(rec);
 		}
 
-		val saved_self = self.current_self_type;
-		self.current_self_type = self_ty;
-		self.check_fn_body(fn_node, sym.type_ptr);
-		self.current_self_type = saved_self;
+		if (self_ty == null) {
+			self.check_fn_body(fn_node, sym.type_ptr);
+		} else {
+			val saved_self = self.current_self_type;
+			self.current_self_type = self_ty;
+			self.check_fn_body(fn_node, sym.type_ptr);
+			self.current_self_type = saved_self;
+		}
+
+		if (rec != null) {
+			self.pop_instance_env();
+			self.current_rec = saved_rec;
+		}
 		self.symtab.set_current_module(saved_mod);
 	}
 
@@ -85,6 +97,20 @@ impl BodyPass {
 
 		val fn_info = fn_type.as_fn();
 		self.current_fn_return_type = fn_info.return_type;
+
+		// A non-instance body must not inherit a leaked type-parameter env from
+		// an earlier instantiation (it would suppress `Self` renames and corrupt
+		// associated-type annotations). Save and restore around the body.
+		var saved_names = List<str>();
+		var saved_types = List<*Type>();
+		var had_env = false;
+		if (self.has_decl && self.current_rec == null && !self.decl.subst_names.empty()) {
+			saved_names = self.decl.subst_names;
+			saved_types = self.decl.subst_types;
+			had_env = true;
+			self.decl.subst_names = List<str>();
+			self.decl.subst_types = List<*Type>();
+		}
 
 		self.symtab.enter_scope(true);
 		defer self.symtab.exit_scope();
@@ -127,6 +153,11 @@ impl BodyPass {
 			}
 			else -> {}
 		}
+
+		if (had_env) {
+			self.decl.subst_names = saved_names;
+			self.decl.subst_types = saved_types;
+		}
 	}
 
 	pub fn check_impl(var self, node: *AstNode) {
@@ -153,7 +184,19 @@ impl BodyPass {
 			val f = m_node.as_fn_decl();
 			if (f.type_params.len > 0) continue;
 			val mi = st_info.find_method_c(f.name);
-			if (mi != null) self.check_fn_body(m_node, mi.fn_type);
+			if (mi == null) continue;
+			val saved_rec = self.current_rec;
+			val rec = m_node.instance as *InstanceRecord;
+			if (rec != null) {
+				self.current_rec = rec;
+				self.push_instance_env(rec);
+			}
+
+			self.check_fn_body(m_node, mi.fn_type);
+			if (rec != null) {
+				self.pop_instance_env();
+				self.current_rec = saved_rec;
+			}
 		}
 		self.current_self_type = null;
 	}
@@ -339,7 +382,17 @@ impl BodyPass {
 				c.node.line, c.node.col, null
 			));
 		}
+		val saved_rec = self.current_rec;
+		val rec = c.node.instance as *InstanceRecord;
+		if (rec != null) {
+			self.current_rec = rec;
+			self.push_instance_env(rec);
+		}
 		val body_ty = self.check_expr(f.body.as_expr_stmt().expr);
+		if (rec != null) {
+			self.pop_instance_env();
+			self.current_rec = saved_rec;
+		}
 		self.symtab.exit_scope();
 
 		self.current_self_type = saved_self;

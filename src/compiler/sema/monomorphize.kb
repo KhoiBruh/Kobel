@@ -309,7 +309,10 @@ impl DeclPass {
 
 	// Drains the instance worklist. Rewriting an instance can discover further
 	// generic uses and queue more instances, so this runs to a fixpoint; each
-	// entry is rewritten with its template's module in scope.
+	// entry is rewritten with its template's module in scope. Function/method
+	// instances are *views* whose bodies are the template's shared AST, so they
+	// are never rewritten here: their generic uses are resolved while checking
+	// (see `BodyPass` instance annotations and the env-based type resolver).
 	pub fn drain_instances(var self) {
 		var i = 0;
 		while (i + 1 < self.symtab.gen.instances.len) {
@@ -320,6 +323,7 @@ impl DeclPass {
 				self.current_module = m.full_path;
 				self.symtab.set_current_module(m.full_path);
 			}
+			if (decl is FnDecl || decl is ImplDecl) continue;
 			self.rewrite_generics(decl);
 		}
 	}

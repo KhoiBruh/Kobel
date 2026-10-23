@@ -144,6 +144,18 @@ pub struct IsExpr {
 	pub tag_const: str = ""
 }
 
+// `T.size()` where `T` is a type parameter of the generic function being
+// instantiated. Sema creates this node in place of the call, and the backend
+// emits the C size of the current instance's type argument as an integer literal.
+pub struct SizeOfParam {
+	pub const TAG = NodeKind.EXPR_SIZE_OF_PARAM;
+	// Index into the current instance's resolved type-argument list.
+	pub param_index: usz,
+	// The C size (bytes) of that argument, as decimal text (`4UZ`), so the
+	// backend emits the constant without any type lookup at emit time.
+	pub size_text: str
+}
+
 // A struct value built from its fields: `Point(1, 2)` when the type has no
 // matching `new` (or `Self(...)`, which always builds raw). Sema creates this
 // node so the backend never has to guess a constructor from the callee's name.

@@ -64,7 +64,18 @@ pub struct BodyPass {
 	pub infer_blocked: bool = false,
 	// True for the duration of that inference pass, so a call to an unresolved
 	// arrow function blocks the attempt instead of checking the callee eagerly.
-	pub inferring: bool = false
+	pub inferring: bool = false,
+	// Function/method instance whose body is being checked (or lowered). Its
+	// bodies are the template's shared AST, so every per-instance decision
+	// (types, bound methods, replacements) goes into `InstanceRecord.ann`
+	// instead of onto the shared nodes. Null for ordinary declarations.
+	pub current_rec: *InstanceRecord = null,
+	// While checking an instance body, the decl pass's type-parameter env is
+	// *replaced* by the instance's own (names->concrete types) so nested
+	// instance checks cannot shadow an outer type parameter of the same name.
+	pub env_saved_names: List<str> = List(),
+	pub env_saved_types: List<*Type> = List(),
+	pub has_env_saved: bool = false
 }
 
 impl BodyPass {
@@ -292,10 +303,111 @@ impl BodyPass {
 	// Records the resolved type on the expression. Every lowering keeps the
 	// value's type, so annotating after the check describes the node codegen
 	// will actually see. One channel: the compiler's `*Type` (codegen maps it to
-	// C, later sema passes read struct fields and sizes from it).
+	// C, later sema passes read struct fields and sizes from it). Inside an
+	// instance the node is shared with other instances, so the annotation goes
+	// into the instance's side table instead.
 	fn annotate_type(var self, node: *AstNode, ty: *Type) {
 		if (node == null || ty == null) return;
+		if (self.current_rec != null) {
+			self.ann_entry(node).ty = ty;
+			return;
+		}
 		node.type_ptr = ty as *u8;
+	}
+
+	// --- instance annotation plumbing ---------------------------------------
+	// The checker writes these decisions per instance; materialization copies
+	// them onto the instance's own tree (see monomorphize / mono_clone).
+
+	pub fn set_resolved(var self, node: *AstNode, r: *AstNode) {
+		if (self.current_rec != null) self.ann_entry(node).resolved = r;
+		else node.resolved_node = r;
+	}
+
+	pub fn set_method(var self, node: *AstNode, mi: *MethodInfo) {
+		if (self.current_rec != null) self.ann_entry(node).method = mi as *u8;
+		else node.resolved_method = mi as *u8;
+	}
+
+	pub fn set_ann_ty(var self, node: *AstNode, ty: *Type) {
+		if (self.current_rec == null) return;
+		self.ann_entry(node).ty = ty;
+	}
+
+	pub fn set_ann_var_ty(var self, node: *AstNode, ty: *Type) {
+		if (self.current_rec == null) return;
+		self.ann_entry(node).var_ty = ty;
+	}
+
+	pub fn set_ann_obj(var self, node: *AstNode, obj: *AstNode) {
+		if (self.current_rec == null) return;
+		self.ann_entry(node).obj_replace = obj;
+	}
+
+	pub fn set_ann_init_override(var self, node: *AstNode, r: *AstNode) {
+		if (self.current_rec == null) return;
+		self.ann_entry(node).init_override = r;
+	}
+
+	pub fn ann_entry(var self, node: *AstNode): *AnnEntry {
+		val rec = self.current_rec;
+		val ex = rec.find_ann(node);
+		if (ex != null) return ex;
+		val e = self.arena.alloc_val<AnnEntry>(AnnEntry(node));
+		rec.ann += e;
+		return e;
+	}
+
+	// Binds the current instance's type parameters for `resolve_type` (the decl
+	// pass's resolver). Always paired with `pop_instance_env`.
+	pub fn push_instance_env(var self, rec: *InstanceRecord) {
+		if (!self.has_decl) return;
+		self.env_saved_names = self.decl.subst_names;
+		self.env_saved_types = self.decl.subst_types;
+		self.has_env_saved = true;
+		self.decl.subst_names = rec.template.param_names();
+		self.decl.subst_types = rec.args;
+	}
+
+	pub fn pop_instance_env(var self) {
+		if (!self.has_decl) return;
+		if (!self.has_env_saved) return;
+		self.decl.subst_names = self.env_saved_names;
+		self.decl.subst_types = self.env_saved_types;
+		self.has_env_saved = false;
+	}
+
+	// Index of a type parameter name in the current instance's env (-1 when it
+	// is not a type parameter).
+	fn type_param_index(var self, name: str): i64 {
+		if (!self.has_decl) return -1;
+		for (i in 0..<self.decl.subst_names.len) {
+			if (self.decl.subst_names[i] == name) return i as i64;
+		}
+		return -1;
+	}
+
+	fn type_c_size_num(var self, ty: *Type): usz {
+		if (ty == null) return 8;
+		return when (ty.kind) {
+			DataType.NONE -> 0;
+			DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
+			DataType.I16, DataType.U16 -> 2;
+			DataType.I32, DataType.U32, DataType.F32 -> 4;
+			DataType.I64, DataType.U64, DataType.ISZ, DataType.USZ, DataType.F64, DataType.STR -> 8;
+			DataType.POINTER -> 8;
+			DataType.ARRAY -> ty.as_array().length * self.type_c_size_num(ty.as_array().elem);
+			DataType.STRUCT -> ty.size;
+			else -> 8;
+		};
+	}
+
+	// C size (bytes) of a resolved type, as decimal literal text. Mirrors the
+	// old clone-time `ast_type_size` fold so generated C stays identical (no
+	// suffix: `c_format_int_literal` renders it exactly like the old literal).
+	fn type_c_size_text(var self, ty: *Type): str {
+		val n = self.type_c_size_num(ty);
+		return "${n}";
 	}
 
 	// True for an arrow-bodied function (`fn f() => expr`) whose return type is

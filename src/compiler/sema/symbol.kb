@@ -131,15 +131,55 @@ pub enum InstanceKind {
 	FUNCTION
 }
 
+// One per-node annotation for a function/method instance whose body shares the
+// template's AST. The checker writes its decisions here instead of on the
+// shared node; materialization copies them onto the instance's own tree.
+pub struct AnnEntry {
+	pub node: *AstNode,
+	pub ty: *Type = null,
+	pub method: *u8 = null,
+	pub resolved: *AstNode = null,
+	// The checker would otherwise mutate the shared node in place; these fields
+	// record the per-instance values instead:
+	// - a coerced List literal's container C name and element type node,
+	pub list_name: str = "",
+	pub has_list_name: bool = false,
+	pub elem_node: *AstNode = null,
+	pub has_elem_node: bool = false,
+	// - a pointer receiver rewritten to `(*p)` before member access,
+	pub obj_replace: *AstNode = null,
+	// - an inferred local's synthesized type annotation,
+	pub var_ty: *Type = null,
+	// - a constructor initializer that received propagated type arguments.
+	pub init_override: *AstNode = null
+}
+
 // One monomorphized instance: the template it came from, the resolved type
 // arguments and the declaration that carries it (a struct view or a function
-// clone). Identity is `(template, args)`, not the mangled name.
+// view whose body is the template's shared AST). Identity is `(template, args)`,
+// not the mangled name.
 pub struct InstanceRecord {
 	pub kind: InstanceKind,
 	pub template: *GenTemplate,
 	pub args: List<*Type>,
 	pub c_name: str,
-	pub decl: *AstNode
+	pub decl: *AstNode,
+	// Function-instance side table: per-node annotations keyed by template-body
+	// node. Empty for struct instances.
+	pub ann: List<*AnnEntry> = List(),
+	// The instance's own `FnType` (function instances only). Built once at view
+	// creation and shared by the method registry and body checking, so two
+	// instances never mutate a shared FnType.
+	pub sig: *Type = null
+}
+
+impl InstanceRecord {
+	pub fn find_ann(val self, node: *AstNode): *AnnEntry {
+		for (e in self.ann) {
+			if (e.node == node) return e;
+		}
+		return null;
+	}
 }
 
 // A method declared inside a `trait` block. `has_default` is true when the

@@ -86,7 +86,7 @@ Hai lựa chọn:
 |---|---|---|
 | 1 | Struct instantiation theo type | **xong** (`31b2a02`) |
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
-| 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | bước lớn nhất, **chưa xong** — xem §5 (ghi chú lần thử) |
+| 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
 | 4 | Bỏ `clone_fn/clone_expr/clone_stmt`; `drain_instances` chỉ rewrite view/signature | xoá `mono_clone` |
 | 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | sau khi hết clone |
 
@@ -97,12 +97,13 @@ Hai lựa chọn:
 - Nếu không đủ thời gian, dừng ở bước 2: dù vẫn clone function, bookkeeping instance đã sạch và dedupe
   theo type thật (không theo token chuỗi).
 
-## 5. Ghi chú lần thử bước 3 (2026-10, chưa hợp nhất)
+## 5. Ghi chú bước 3 (2026-10, đã hợp nhất)
 
-Đã thử triển khai theo "phương án A" (§3.3) nhưng phải revert để giữ cổng xanh; nội dung dưới đây ghi
-lại những gì đã làm và những trục trặc tìm được, để lần sau đi đúng hướng.
+Bước 3 đã được triển khai theo "phương án A" (§3.3) và hợp nhất (cùng bản golden C cập nhật). Nội dung
+dưới đây ghi lại thiết kế cuối cùng và các trục trặc đã tìm ra trong quá trình làm, để việc bảo trì sau này
+biết đường dây.
 
-**Đã cài lên nhánh feature/instance-records rồi revert (không commit):**
+**Thiết kế cuối cùng (đã commit):**
 
 - `InstanceRecord.ann: List<*AnnEntry>` — side table theo node (key = con trỏ node, tìm tuyến tính).
 - `AstNode.instance: *u8` — link decl view → record.
@@ -140,15 +141,22 @@ cùng tên giữa các instance không; (c) cân nhắc đưa `fn_type` của me
 (thay vì để `collect_impl` dựng lại) để tránh mọi đường alias; (d) thử `materialize_body` sớm hơn (ngay sau
 check từng instance) thay vì tách hẳn sang lower.
 
-**Lần thử thứ hai (cùng ngày, cũng revert):** đã cài `InstanceRecord.sig: *Type` — mỗi method view có
-một `FnType` riêng tạo lúc view creation, `collect_impl` dùng sig đó làm `MethodInfo.fn_type` (không dựng
-lại), và `check_impl`/`infer_arrow_returns` dùng chính sig này. Kết quả trace **`CHK`** cho
-`List_i32_add`: `p0=*mut List_i32, p1=i32, arg0=i32, same=Y` — tức signature per-instance đã đúng và khớp.
-Dù vậy các lỗi vẫn y hệt ở đúng ba chỗ trong `lib/std/collections/list.kb` (`extend`/`clone`/`swap`:
-`self += data`, `res += self.data[i]`, hoán đổi phần tử) với thông điệp "Compound assignment operator requires
-numeric operands" — nghĩa là `find_operator("plus_assign"/...)` không tìm thấy method trên struct instance dù
-`collect_impl` đã đăng ký. Hướng điều tra tiếp theo nên bắt đầu từ đây: in nội dung `s_info.methods` (tên +
-`c_name` + `is_op`) ngay tại `check_assign_expr` khi receiver là instance struct, để xem method có biến mất
-sau `collect_impl`/`flush_instances` hay receiver type của `self` trong các hàm này bị lệch khỏi struct
-instance (vd vẫn là template `List` chưa instantiate). Đây là dấu hiệu hẹp và lặp lại được, dễ khoanh vùng
-hơn các lỗi tràn lan của lần thử đầu.
+**Ba gốc rễ tìm được (và cách xử lý):**
+
+1. *Env chồng gây shadowing.* Lúc body của instance A check lồng instance B, `subst_names/subst_types`
+   trên cùng `DeclPass` chồng lên; lookup tên trùng (vd `T`) trả mapping của lớp NGOÀI. Sửa: khi vào
+   instance, env được **thay thế** (save/restore nguyên list) — `BodyPass.push_instance_env/pop_instance_env`.
+2. *Type node bị rename vĩnh viễn trên AST dùng chung.* `resolve_ast_type` và `check_ident_expr` từng đổi
+   tên node `Self`/`Self.Item` sang C name của instance ĐẦU TIÊN; mọi instance sau nhìn thấy tên đã đổi nên
+   giải sai. Sửa: trong môi trường instance (env đang bật / `current_rec != null`) KHÔNG rename node — kiểu
+   đã giải vẫn được trả về, còn materialization thay annotation bằng `ast_type_from_type`.
+3. *Container type-param dùng "match đầu tiên".* Khi vài mục cùng tên tồn tại trên stack env (tàn dư của
+   instantiation lồng), lookup phải dùng **mục cuối** (innermost) chứ không phải mục đầu.
+4. *Trùng tên token.* `find_instance`/tên C của function instance phải dùng token chuẩn từ **type đã giải**
+   (struct/enum dùng `c_name` mangle, pointer/array đệ quy), nếu không cùng instance được đặt hai tên khác
+   nhau và phát sinh bản sao.
+
+**Kết quả cổng sau khi hoàn tất:** build từ seed OK; `test` 23/23 PASS; `snap --update` rồi `snap`
+24/24 khớp; `fixpoint` cho `stage1.c == stage2.c` byte-identical (≈2.21MB). Phần C sinh ra đổi so với bản
+gốc (tên instance dùng token chuẩn từ type đã giải; `T.size()` qua node `SizeOfParam` nhưng vẫn in literal
+y hệt cũ) — nên golden được cập nhật cùng commit mã nguồn, đúng quy trình §8.1 của architecture.md.

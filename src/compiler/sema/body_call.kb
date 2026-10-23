@@ -54,6 +54,42 @@ impl BodyPass {
 			callee_is_self = (id.name == "Self");
 		}
 
+		// Explicit type arguments on a callee identifier (`f<X>(...)`,
+		// `List<T>(...)`) inside a shared template body: the declaration pass
+		// rewrites such calls outside templates; here they are resolved per
+		// instance, without mutating the shared call node.
+		if (!call.type_args.empty() && callee is IdentifierExpr as cid) {
+			val ft = self.find_fn_template_for(cid.name);
+			if (ft != null) {
+				val cname = self.instantiate_template_fn(ft, call.type_args);
+				val sym = self.symtab.lookup(cname);
+				if (sym != null && sym.type_ptr.kind == DataType.FN) {
+					self.ensure_callee_ready(sym);
+					val new_call = self.call(
+						self.identifier(cname, node.line, node.col),
+						call.args, List<*AstNode>(), node.line, node.col
+					);
+					val new_cc = new_call.as_call_expr() as &CallExpr;
+					self.set_resolved(node, new_call);
+					return self.check_fn_call(new_call, sym.type_ptr, new_cc);
+				}
+			}
+			val st = self.find_struct_template_for(cid.name);
+			if (st != null) {
+				val cty = self.instantiate_template_struct(st, call.type_args);
+				if (cty.kind == DataType.STRUCT) {
+					val cname = cty.as_struct().name;
+					val new_call = self.call(
+						self.identifier(cname, node.line, node.col),
+						call.args, List<*AstNode>(), node.line, node.col
+					);
+					val new_cc = new_call.as_call_expr() as &CallExpr;
+					self.set_resolved(node, new_call);
+					return self.check_struct_ctor(new_call, cty, new_cc, false);
+				}
+			}
+		}
+
 		val callee_ty = self.check_expr(call.callee);
 
 		// 1. Function call
@@ -66,15 +102,26 @@ impl BodyPass {
 		return self.t_none();
 	}
 
-	// `T.size()`. A primitive type name has no C type of its own (`str`, `bool`,
-	// ...), so resolve it to its C size literal; otherwise mangle the name so the
-	// backend emits `sizeof(<c_name>)`.
+	// `T.size()`. A type parameter of the enclosing instance becomes a
+	// `SizeOfParam` node that the backend lowers against the instance's concrete
+	// argument. A primitive type name has no C type of its own (`str`, `bool`,
+	// ...), so it resolves to its C size literal; otherwise the name is mangled
+	// so the backend emits `sizeof(<c_name>)`.
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as var id) {
+			val idx = self.type_param_index(id.name);
+			if (idx >= 0) {
+				val arg_ty = if (self.has_decl && (idx as usz) < self.decl.subst_types.len)
+					self.decl.subst_types[idx as usz] else null;
+				val size_text = self.type_c_size_text(arg_ty);
+				self.set_resolved(node, self.arena.size_of_param(idx as usz, size_text, node.line, node.col));
+				return self.t_usz();
+			}
+
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
-				node.resolved_node = self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col);
+				self.set_resolved(node, self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col));
 				return self.t_usz();
 			}
 
@@ -158,7 +205,7 @@ impl BodyPass {
 			}
 		}
 
-		node.resolved_method = mi as *u8;
+		self.set_method(node, mi);
 		return ret_ty;
 	}
 
@@ -230,7 +277,11 @@ impl BodyPass {
 			else primitive_type_name(obj_ty);
 		if (recv_name.empty()) return null;
 
-		val tmpl = self.find_method_template_for(mem.member, recv_name);
+		var tmpl = self.find_method_template_for(mem.member, recv_name);
+		// Inside a shared generic body the receiver is the *instance* type, whose
+		// name differs from the template's source name; fall back to a name-only
+		// match (the pre-121a335 behavior for cloned bodies).
+		if (tmpl == null) tmpl = self.find_method_template_for(mem.member, "");
 		if (tmpl == null) return null;
 
 		val cname = self.instantiate_method(tmpl, call.type_args, obj_ty);
@@ -270,8 +321,58 @@ impl BodyPass {
 			}
 		}
 
-		node.resolved_node = new_call;
+		self.set_resolved(node, new_call);
 		return fn_info.return_type;
+	}
+
+	// Template lookups and instantiation through the shared declaration pass, so
+	// the instance tables stay coherent with this pass (same pattern as
+	// `find_method_template_for` / `instantiate_method`).
+
+	fn find_fn_template_for(var self, name: str): *GenTemplate {
+		if (self.has_decl) return self.decl.find_fn_template(name);
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, self.current_self_type
+		);
+		val tmpl = decl_p.find_fn_template(name);
+		self.arena = decl_p.arena;
+		self.errors = decl_p.errors;
+		return tmpl;
+	}
+
+	fn find_struct_template_for(var self, name: str): *GenTemplate {
+		if (self.has_decl) return self.decl.find_struct_template(name);
+		var decl_p = DeclPass(
+			self.symtab, self.arena, self.symtab.current_module,
+			self.errors, false, self.current_self_type
+		);
+		val tmpl = decl_p.find_struct_template(name);
+		self.arena = decl_p.arena;
+		self.errors = decl_p.errors;
+		return tmpl;
+	}
+
+	fn instantiate_template_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
+		self.decl.symtab = self.symtab;
+		self.decl.current_module = self.symtab.current_module;
+		self.decl.current_self_type = self.current_self_type;
+		self.decl.errors = self.errors;
+		val cname = self.decl.instantiate_fn(tmpl, arg_asts);
+		self.symtab = self.decl.symtab;
+		self.errors = self.decl.errors;
+		return cname;
+	}
+
+	fn instantiate_template_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
+		self.decl.symtab = self.symtab;
+		self.decl.current_module = self.symtab.current_module;
+		self.decl.current_self_type = self.current_self_type;
+		self.decl.errors = self.errors;
+		val ty = self.decl.instantiate_struct(tmpl, arg_asts);
+		self.symtab = self.decl.symtab;
+		self.errors = self.decl.errors;
+		return ty;
 	}
 
 	// A clone's return type comes from checking its body, so a call to a clone
@@ -332,9 +433,9 @@ impl BodyPass {
 		}
 
 		val payload_path = if (field_types.empty()) "" else mi.payload_path;
-		node.resolved_node = self.arena.enum_ctor(
+		self.set_resolved(node, self.arena.enum_ctor(
 			ei.c_name, ei.tag_field, mi.value, payload_path, call.args, node.line, node.col
-		);
+		));
 		return e_sym.type_ptr;
 	}
 
@@ -397,7 +498,7 @@ impl BodyPass {
 				// The chosen `new` is recorded, not spliced into the callee: `lower`
 				// emits `c_name(args)`. This keeps checking idempotent (a retried
 				// check sees the same struct constructor, not a mangled identifier).
-				node.resolved_method = nm as *u8;
+				self.set_method(node, nm);
 				return n_info.return_type;
 			}
 		}
@@ -443,7 +544,7 @@ impl BodyPass {
 
 		// Field construction becomes an explicit struct-literal node, so the backend
 		// no longer recognises a constructor by the callee's name.
-		node.resolved_node = self.arena.struct_ctor(s_info.c_name, call.args, node.line, node.col);
+		self.set_resolved(node, self.arena.struct_ctor(s_info.c_name, call.args, node.line, node.col));
 		return callee_ty;
 	}
 

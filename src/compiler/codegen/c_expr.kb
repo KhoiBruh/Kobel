@@ -112,6 +112,11 @@ impl CCodeGen {
 					".${node.payload_path} = { ${joined} } }";
 			}
 
+			// `T.size()`: the checker folded the concrete argument's C size into
+			// the node; emit it as an integer constant (same spelling as the
+			// literal path, so generated C stays byte-identical).
+			is SizeOfParam as sop -> c_format_int_literal(sop.size_text);
+
 			else -> "";
 		};
 	}

@@ -57,7 +57,11 @@ pub enum NodeKind {
 	EXPR_STRUCT_CTOR,
 	// A payload-enum value: `Shape.Circle(1.5)` -> `(Shape){ .tag = 0, ... }`.
 	// Also created by sema, never by the parser.
-	EXPR_ENUM_CTOR
+	EXPR_ENUM_CTOR,
+	// `T.size()` inside a generic function body: sema resolves the type-parameter
+	// index against the current instance, and the backend lowers it to the C size
+	// of that instance's concrete type argument. Never produced by the parser.
+	EXPR_SIZE_OF_PARAM
 }
 
 // Every node payload is declared here as an opaque type, so the payload enum
@@ -86,6 +90,7 @@ pub struct InterpExpr;
 pub struct IsExpr;
 pub struct StructCtorExpr;
 pub struct EnumCtorExpr;
+pub struct SizeOfParam;
 pub struct BlockStmt;
 pub struct ExprStmt;
 pub struct VarDeclStmt;
@@ -135,6 +140,7 @@ pub enum NodeData {
 	IsExpr(inner: *IsExpr),
 	StructCtorExpr(inner: *StructCtorExpr),
 	EnumCtorExpr(inner: *EnumCtorExpr),
+	SizeOfParam(inner: *SizeOfParam),
 	BlockStmt(inner: *BlockStmt),
 	ExprStmt(inner: *ExprStmt),
 	VarDeclStmt(inner: *VarDeclStmt),
@@ -175,7 +181,11 @@ pub struct AstNode {
 	// A leaf the checker resolved directly: an enum member becomes an integer
 	// literal, a struct constant becomes its mangled identifier. `lower` uses it
 	// as the node's replacement.
-	pub resolved_node: *AstNode = null
+	pub resolved_node: *AstNode = null,
+	// For a function/method *instance* (a generic function whose body shares the
+	// template's AST), the `InstanceRecord` that carries this declaration's
+	// per-instance annotations. Null for ordinary declarations and templates.
+	pub instance: *u8 = null
 }
 
 impl AstNode {
@@ -351,6 +361,14 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.EnumCtorExpr as d -> d.inner,
+			else -> null
+		};
+	}
+
+	pub fn as_size_of_param(val self): *SizeOfParam {
+		val data = self.data;
+		return when (data) {
+			is NodeData.SizeOfParam as d -> d.inner,
 			else -> null
 		};
 	}

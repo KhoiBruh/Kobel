@@ -59,6 +59,10 @@ impl Arena {
 	pub fn enum_ctor(var self, c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>, line: usz, col: usz)
 		=> self.alloc_node(EnumCtorExpr.TAG, NodeData.EnumCtorExpr(self.alloc_val<EnumCtorExpr>(EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args))), line, col);
 
+	// `T.size()` in generic code, created by sema; the backend lowers it.
+	pub fn size_of_param(var self, param_index: usz, size_text: str, line: usz, col: usz)
+		=> self.alloc_node(SizeOfParam.TAG, NodeData.SizeOfParam(self.alloc_val<SizeOfParam>(SizeOfParam(param_index, size_text))), line, col);
+
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
 		=> self.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.alloc_val<MemberExpr>(MemberExpr(obj, member))), line, col);
 
