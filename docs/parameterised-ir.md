@@ -139,3 +139,16 @@ xem iview có trong `prog` và được infer không; (b) kiểm tra `find_inst`
 cùng tên giữa các instance không; (c) cân nhắc đưa `fn_type` của method view vào chính `InstanceRecord`
 (thay vì để `collect_impl` dựng lại) để tránh mọi đường alias; (d) thử `materialize_body` sớm hơn (ngay sau
 check từng instance) thay vì tách hẳn sang lower.
+
+**Lần thử thứ hai (cùng ngày, cũng revert):** đã cài `InstanceRecord.sig: *Type` — mỗi method view có
+một `FnType` riêng tạo lúc view creation, `collect_impl` dùng sig đó làm `MethodInfo.fn_type` (không dựng
+lại), và `check_impl`/`infer_arrow_returns` dùng chính sig này. Kết quả trace **`CHK`** cho
+`List_i32_add`: `p0=*mut List_i32, p1=i32, arg0=i32, same=Y` — tức signature per-instance đã đúng và khớp.
+Dù vậy các lỗi vẫn y hệt ở đúng ba chỗ trong `lib/std/collections/list.kb` (`extend`/`clone`/`swap`:
+`self += data`, `res += self.data[i]`, hoán đổi phần tử) với thông điệp "Compound assignment operator requires
+numeric operands" — nghĩa là `find_operator("plus_assign"/...)` không tìm thấy method trên struct instance dù
+`collect_impl` đã đăng ký. Hướng điều tra tiếp theo nên bắt đầu từ đây: in nội dung `s_info.methods` (tên +
+`c_name` + `is_op`) ngay tại `check_assign_expr` khi receiver là instance struct, để xem method có biến mất
+sau `collect_impl`/`flush_instances` hay receiver type của `self` trong các hàm này bị lệch khỏi struct
+instance (vd vẫn là template `List` chưa instantiate). Đây là dấu hiệu hẹp và lặp lại được, dễ khoanh vùng
+hơn các lỗi tràn lan của lần thử đầu.
