@@ -88,7 +88,7 @@ Hai lựa chọn:
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
 | 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
 | 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono_clone`/`monomorphize` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
-| 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | **một phần** (`…` bước 5): `flush_instances` (batch method-instance) không còn prepend — được append ở cuối program, vẫn đúng vì creation order = dependency order + prototype/struct-sort của codegen. Batch decl-pass (struct/function instance) **vẫn prepend** vì phát hiện order-sensitivity tiềm ẩn của sema: append batch này làm hỏng check src/main.kb (lỗi `when is` subject untyped, `params()` arm-type mismatch) — ghi chú §5 |
+| 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | **xong** (`…` bước 5): cả `flush_instances` (batch sinh trong body check) lẫn batch decl-pass đều **append** sau program theo creation order; gỡ order-sensitivity của sema bằng worklist inference nở dần + `infer_blocked` ở mọi kênh call đọc return type của arrow method (xem §5, "Ghi chú bước 5") |
 
 ## 4. Rủi ro
 
@@ -186,3 +186,39 @@ giải trong lúc env/self chưa đúng (vd `List<Comment>` được instantiate
 param, hoặc `current_self_type`/`current_module` lệch). Mốc điều tra tiếp theo: in args[0]/field[0] ngay
 trong `instantiate_struct` cho template `List` khi first=Comment/Symbol tại thời điểm instantiate (xem có đang
 nằm trong env/self nào không), và truy vết nơi gọi `instantiate_template_struct` đầu tiên cho cặp đó.
+
+**Điều tra vòng 3 — hoàn tất bước 5 (2026-10).** Giả thuyết "env/self lệch" ở vòng 2 **sai**: trace có
+instrument cho thấy `List<Comment>.get` và `Scope.at` **được** suy luận đúng (`fmt__comments__Comment`,
+`*compiler__sema__symbol__Symbol`) — nhưng **muộn hơn** chỗ đọc kết quả. Cơ chế thật gồm hai phần:
+
+1. **Worklist inference không nở.** `infer_arrow_returns` chỉ gom candidate từ `prog` **một lần**. Instance
+   generic sinh **lazily trong lúc inference/body check** (vd `List<Comment>` xuất hiện khi check
+   `CommentTable.peek`, hoặc `List<*Symbol>` khi check `Scope.at`) không có mặt trong danh sách pending,
+   nên arrow method của nó (`new`, `get`, `at`…) không bao giờ được suy luận. Prepend che lỗi này vì mọi
+   instance của decl-pass được suy luận **trước** khi bất kỳ body nào chạy.
+2. **Ba kênh call đọc return type của arrow method mà không báo "pending".** `bind_method_call` và
+   `ensure_callee_ready` đã set `infer_blocked`; còn **struct ctor** (`check_struct_ctor`, nhánh gọi
+   `new`) và **index** (`check_index_expr`, nhánh operator `get`) thì không. Kết quả `none` bị **cache**
+   vào call site (và vào node dùng chung), rồi lây thành chuỗi lỗi type. Khi prepend còn, các instance
+   decl-pass đã có type trước nên lỗi không lộ.
+
+Sửa:
+- `infer_arrow_returns` chạy theo vòng và **nở worklist**: `collect_instance_arrow_candidates` quét tiếp
+  `gen.instances` (pairs `module marker, decl`) từ cursor, thêm arrow method của instance mới sinh vào
+  pending (`seen` chống trùng vì instance đã merge vào `prog` được quét hai lần). Vòng lặp dừng khi hết
+  pending **và** hết instance mới, hoặc không còn tiến triển.
+- `check_struct_ctor` (nhánh `new`) và `check_index_expr` (nhánh `get`) set `infer_blocked` khi
+  `arrow_pending(callee)` — đủ để attempt hiện tại bị rollback và retry ở vòng sau.
+- Batch decl-pass ở `collect_program` pass 4 **append** (`prog.declarations` rồi mới tới instance), giống
+  `flush_instances`; comment "prepend do order-sensitivity" đã xoá.
+
+Kết quả cổng: build từ seed OK; self-host OK; `test` 23/23; `snap --update` rồi `snap` 24/24;
+`fixpoint` byte-identical (2 211 475 byte). C sinh ra chỉ **đổi thứ tự khai báo** (đối chiếu multiset dòng
+của `test_sema_symbol.kb` trước/sau: trùng hoàn toàn) — `tests/golden/` được cập nhật cùng commit.
+`dist/bootstrap.c` cũng được regenerate; kiểm tra thêm: seed dựng từ file đó phát C **trùng hash** với
+compiler v1 và với chính `dist/bootstrap.c` (SHA-256 `393a193c…`), tức seed không còn lệch so với nguồn.
+
+Ghi chú: hướng "rename identifier trong `check_ident_expr` chưa qua side table" nêu ở vòng 2 vẫn là nợ
+kỹ thuật **riêng** (không phải nguyên nhân của order-sensitivity): node identifier của template dùng
+chung vẫn bị đổi sang c_name ngay trên AST khi instance đầu tiên được check. Nó chưa gây lỗi observable
+(fixpoint xanh) nhưng nên đưa vào side table (`AnnEntry`) khi có dịp.
