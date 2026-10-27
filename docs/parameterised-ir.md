@@ -22,7 +22,7 @@ Tài liệu này ghi trạng thái hiện tại, lý do phần còn lại khó, 
 **Instance có identity theo kiểu** (bước 2, `753fe07`):
 
 - `GenericReg.records` giữ `InstanceRecord { kind, template, args: List<*Type>, c_name, decl }`.
-- `find_instance(template, args)` so bằng `Type.equals`; tra record **trước**, tên C chỉ để emit.
+- `find_instance_record(template, args)` so bằng `Type.equals`; tra record **trước**, tên C chỉ để emit.
 - Sửa kèm bug tiềm ẩn: `Type.equals` so struct theo **source name**, nên hai struct cùng tên ở hai module
   bị coi là bằng nhau (typed lookup trả nhầm instance `List<StructField>` của module khác). Nay struct so
   theo `c_name` đã mangle.
@@ -136,7 +136,7 @@ biết đường dây.
    build/test/snap/fixpoint xanh.
 
 **Gợi ý cho lần sau:** (a) in trace tại `collect_program` pass 4 + `infer_arrow_returns` + `flush_instances`
-xem iview có trong `prog` và được infer không; (b) kiểm tra `find_inst`/`inst_map` có bị ghi đè symbol
+xem iview có trong `prog` và được infer không; (b) kiểm tra `find_instance_symbol`/`inst_map` có bị ghi đè symbol
 cùng tên giữa các instance không; (c) cân nhắc đưa `fn_type` của method view vào chính `InstanceRecord`
 (thay vì để `collect_impl` dựng lại) để tránh mọi đường alias; (d) thử `materialize_body` sớm hơn (ngay sau
 check từng instance) thay vì tách hẳn sang lower.
@@ -152,7 +152,7 @@ check từng instance) thay vì tách hẳn sang lower.
    đã giải vẫn được trả về, còn materialization thay annotation bằng `ast_type_from_type`.
 3. *Container type-param dùng "match đầu tiên".* Khi vài mục cùng tên tồn tại trên stack env (tàn dư của
    instantiation lồng), lookup phải dùng **mục cuối** (innermost) chứ không phải mục đầu.
-4. *Trùng tên token.* `find_instance`/tên C của function instance phải dùng token chuẩn từ **type đã giải**
+4. *Trùng tên token.* `find_instance_record`/tên C của function instance phải dùng token chuẩn từ **type đã giải**
    (struct/enum dùng `c_name` mangle, pointer/array đệ quy), nếu không cùng instance được đặt hai tên khác
    nhau và phát sinh bản sao.
 

@@ -361,7 +361,7 @@ Thứ tự pass codegen: header + helper → `typedef` + gom `struct_names` → 
     hoạch parameterised IR).
   - **Identity instance theo kiểu** (`753fe07`): `GenericReg.records` giữ
     `InstanceRecord { kind, template, args: List<*Type>, c_name, decl }`; instantiate tra
-    `find_instance(template, args)` (so `Type.equals`) trước khi dùng tên C. `Type.equals` so struct
+    `find_instance_record(template, args)` (so `Type.equals`) trước khi dùng tên C. `Type.equals` so struct
     theo `c_name` đã mangle, nên hai struct cùng tên khác module không còn bị coi là một.
   - Tên C = `<mangle(template)>_<token(type arg)>`, token lấy từ **tên C đã mangle** của type arg
     (struct/enum dùng `c_name`, tránh trùng tên giữa các module).
@@ -452,6 +452,28 @@ template. Thứ tự các `impl` trong tệp **không** còn quan trọng.
 Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
 có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
+### 6.7 Quy ước mã nguồn (đợt dọn sema 2026-10)
+
+Các quy ước dưới đây giữ cho bốn cổng §8.1 xanh và giữ code dễ đọc; chúng đã được áp cho `src/compiler/sema`.
+
+- **Ngôn ngữ**: comment trong code **tiếng Anh**; tài liệu trong `docs/` **tiếng Việt**.
+- **Header module**: `mod` → banner `// ====` nêu mục đích 2–4 dòng, module *sở hữu* dữ liệu gì và
+  pass nào gọi nó (xem `decl_pass`, `symbol`, `types`).
+- **Một cửa cho quyết định per-instance**: `annotate_type`, `set_resolved`, `set_method`,
+  `set_ident_name` (và các `set_ann_*`) ghi vào side table `InstanceRecord.ann` khi `current_rec != null`;
+  không gán thẳng vào `AstNode`. `mono_clone` (materialization) áp side table lên bản sao của instance.
+- **Instance scope** chỉ qua `BodyPass.push_instance` / `pop_instance`; env tham số kiểu nằm trong
+  `push_instance_env` / `pop_instance_env`.
+- **Không định nghĩa lại factory AST trong pass**: dùng `impl Arena` ở `ast/builder.kb`
+  (`self.arena.literal(...)`, `self.arena.fn_decl(...)`, …). Kiểu nguyên thuỷ lấy từ `PrimTypes`
+  (`self.symtab.prims_of()`), không thêm shorthand `t_*` trùng lặp.
+- **Tên tra cứu theo khoá**: `find_instance_record` (template + `List<*Type>`) vs `find_instance_symbol`
+  (tên C đã mangle); `copy_expr` (copy nông cho default/initializer) vs `clone_expr` (clone có substitution
+  + side table, dùng khi materialize).
+- **Mỗi commit dọn dẹp phải giữ C sinh ra byte-identical** với golden hiện có. Nếu C đổi là chủ đích thì
+  cập nhật `tests/golden/` **cùng commit** và ghi rõ lý do (§8.1).
+- Chạy `scripts/check.ps1` trước khi commit: build → test → snap → fixpoint.
+
 ---
 
 ## 7. Hợp đồng bootstrap & fixpoint
@@ -486,12 +508,13 @@ Ngoài ra còn một mức mạnh hơn: `kobel_v2.exe` == `kobel_v3.exe` về h�
 | Build seed (từ C) | `scripts/build_seed.bat` → `build/seed/kobel_seed.exe` (biên dịch `dist/bootstrap.c`) |
 | Build compiler | `build/kobel.exe build` (tự động theo `kobel.toml`, xuất `build/kobel.exe`) |
 | Run project | `build/kobel.exe run [args...]` (tự động kiểm tra thay đổi mã nguồn trước khi chạy) |
-| Test suite | `build/kobel.exe test [filter]` (chạy 17 bài kiểm tra chuẩn hóa với bộ lọc linh hoạt) |
+| Test suite | `build/kobel.exe test [filter]` (tự khám phá `tests/**/test_*.kb`, hiện 23 bài; lọc theo chuỗi con của đường dẫn) |
 | C snapshot | `build/kobel.exe snap` (so C sinh ra với `tests/golden/`); `snap --update` để chấp nhận thay đổi |
 | Fixpoint | `build/kobel.exe fixpoint` (build thế hệ 2 từ C của chính nó rồi so byte) |
 | Regenerate seed | `build/kobel.exe src/main.kb -emit-c dist/bootstrap.c` |
+| All gates | `powershell -File scripts/check.ps1` (build → test → snap → fixpoint; `-Update` chấp nhận C mới) |
 
-**Cổng kiểm tra trước khi commit** (cả ba phải xanh): `kobel build` → `kobel test` → `kobel snap` →
+**Cổng kiểm tra trước khi commit** (cả bốn phải xanh): `kobel build` → `kobel test` → `kobel snap` →
 `kobel fixpoint`. `snap` là cổng bắt thay đổi ngữ nghĩa mà test hành vi bỏ sót; `fixpoint` là cổng bắt
 thay đổi làm mất tính self-host. Khi `snap` báo lệch, phải khẳng định thay đổi là chủ đích rồi mới
 `snap --update` và commit `tests/golden/` **cùng** commit mã nguồn.
