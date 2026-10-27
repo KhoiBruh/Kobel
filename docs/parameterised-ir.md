@@ -161,13 +161,18 @@ check từng instance) thay vì tách hẳn sang lower.
 gốc (tên instance dùng token chuẩn từ type đã giải; `T.size()` qua node `SizeOfParam` nhưng vẫn in literal
 y hệt cũ) — nên golden được cập nhật cùng commit mã nguồn, đúng quy trình §8.1 của architecture.md.
 
-**Ghi chú bước 5 (2026-10, một phần).** Đã bỏ prepend cho batch `flush_instances` (method-instance sinh
+**Ghi chú bước 5 (2026-10, một phần + điều tra).** Đã bỏ prepend cho batch `flush_instances` (method-instance sinh
 trong body check): các instance này được **append** sau program và vẫn đúng vì creation order là dependency
 order và codegen có prototype + struct-sort. Ngược lại, thử append batch decl-pass (`collect_program` pass 4)
-cho thấy sema đang có order-sensitivity: compile src/main.kb (self-host) hỏng với lỗi `Subject of 'is' must
-be a struct...` trong lsp.analysis và `When arm type does not match previous arms` trong monomorphize.params —
-các lỗi này chỉ xuất hiện khi instance bị xếp sau module nguồn, không xuất hiện khi prepend. Chưa truy ra
-gốc trong khung thời gian này; batch decl-pass tạm thời vẫn prepend (comment trong mã ghi rõ lý do). Gợi ý
-điều tra: mọi chỗ còn đọc/ghi `AstNode` trực tiếp trong lúc check instance (vd rename identifier sang c_name
-trong `check_ident_expr` không qua side table; `resolve_ast_type` rename `Self`/`Self.Item` đã được chặn cho
-instance nhưng các rename khác thì chưa).
+cho thấy sema đang có order-sensitivity: compile src/main.kb (self-host) hỏng. Quá trình điều tra (trace
+`IST`/`CTOR`) cho thấy cơ chế chính: **lazy instantiation trong lúc check**. Khi instance generic chỉ được
+instantiate muộn (lúc đang check body, kể cả trong `infer_arrow_returns`), view của nó chưa nằm trong danh
+sách pending của arrow-inference, nên `new` dạng arrow `=> Self(...)` chưa được suy luận return type → mọi
+chỗ dựng `List<X>()` trả về `none`, gây loạt lỗi dây chuyền. Ba phương án đã thử: (a) flag `infer_blocked`
+khi gặp callee pending (chưa đủ vì ở step 2 không có vòng retry); (b) eager check callee (`ensure_callee_ready_node`)
+kèm re-scan pending sau mỗi vòng inference (bước tiến lớn: hết lỗi monomorphize/decl_pass/desugar_for, nhưng
+vẫn còn lỗi dây chuyền khác tại fmt.comments/symbol/decl_collect — dấu hiệu còn root khác, có thể là
+annotation chồng trên node dùng chung khi eager check chen ngang check chính thức); (c) giữ prepend cho batch
+decl-pass. Chốt hiện tại: (c) — prepend được giữ, kèm comment trong mã; hướng tiếp theo nên điều tra triệt để
+mọi chỗ còn đọc/ghi `AstNode` trực tiếp khi đang check instance (vd rename identifier sang c_name trong
+`check_ident_expr` chưa qua side table) trước khi thử lại append.
