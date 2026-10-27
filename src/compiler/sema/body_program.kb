@@ -246,8 +246,10 @@ impl BodyPass {
 	}
 
 	// Checks and emits the instances produced after the declaration pass merged
-	// its own. They are placed before the original declarations, so a struct
-	// instance is defined before the functions that use it.
+	// its own. They are appended after the original declarations, in creation
+	// order (step 5 / instance graph): the worklist instantiates dependencies
+	// first, codegen sorts struct bodies by by-value dependency, and prototypes
+	// cover cross-references, so no prepend is needed.
 	pub fn flush_instances(var self, program_node: *AstNode, from: usz) {
 		val prog = program_node.as_program() as &Program;
 		var added = List<*AstNode>();
@@ -268,8 +270,8 @@ impl BodyPass {
 		if (added.empty()) return;
 
 		var combined = List<*AstNode>();
-		for (d in added) combined += d;
 		for (d in prog.declarations) combined += d;
+		for (d in added) combined += d;
 		prog.declarations = combined;
 	}
 

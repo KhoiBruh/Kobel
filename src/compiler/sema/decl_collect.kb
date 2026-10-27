@@ -469,9 +469,22 @@ impl DeclPass {
 		// same declaration pass instead of leaving it to body checking.
 		self.drain_instances();
 
-		// Pass 4: place the monomorphized declarations first. Their struct
-		// definitions must precede the structs that embed them (e.g. a field of
-		// type List<T>), and each carries its own module marker.
+		// Pass 4: append the monomorphized declarations after the source program,
+		// in creation order (step 5 / instance graph). No prepend is needed:
+		// - the worklist instantiates a dependency before the instance that needs
+		//   it, so creation order already is a topological order;
+		// - struct bodies are emitted in by-value dependency order by codegen,
+		//   and every function gets a prototype before its definition, so no C
+		//   ordering constraint remains;
+		// - each instance carries its own module marker, so module context is
+		//   still correct wherever the pair lands.
+		// Pass 4: keep the monomorphized declarations first, in creation order
+		// (the worklist instantiates a dependency before the instance that needs
+		// it, so creation order is the instance-graph order). Step 5 removed
+		// the prepend for the *flush* batch (see body_program.flush_instances);
+		// the decl-pass batch still prepends because sema currently has a latent
+		// order-sensitivity (appending it breaks checking the self-hosted
+		// compiler — see docs/parameterised-ir.md §5, step 5 note).
 		if (self.symtab.gen.instances.len > 0) {
 			var combined = List<*AstNode>();
 			for (pn in self.symtab.gen.instances) combined += pn;

@@ -88,7 +88,7 @@ Hai lựa chọn:
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
 | 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
 | 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono_clone`/`monomorphize` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
-| 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | sau khi hết clone |
+| 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | **một phần** (`…` bước 5): `flush_instances` (batch method-instance) không còn prepend — được append ở cuối program, vẫn đúng vì creation order = dependency order + prototype/struct-sort của codegen. Batch decl-pass (struct/function instance) **vẫn prepend** vì phát hiện order-sensitivity tiềm ẩn của sema: append batch này làm hỏng check src/main.kb (lỗi `when is` subject untyped, `params()` arm-type mismatch) — ghi chú §5 |
 
 ## 4. Rủi ro
 
@@ -160,3 +160,14 @@ check từng instance) thay vì tách hẳn sang lower.
 24/24 khớp; `fixpoint` cho `stage1.c == stage2.c` byte-identical (≈2.21MB). Phần C sinh ra đổi so với bản
 gốc (tên instance dùng token chuẩn từ type đã giải; `T.size()` qua node `SizeOfParam` nhưng vẫn in literal
 y hệt cũ) — nên golden được cập nhật cùng commit mã nguồn, đúng quy trình §8.1 của architecture.md.
+
+**Ghi chú bước 5 (2026-10, một phần).** Đã bỏ prepend cho batch `flush_instances` (method-instance sinh
+trong body check): các instance này được **append** sau program và vẫn đúng vì creation order là dependency
+order và codegen có prototype + struct-sort. Ngược lại, thử append batch decl-pass (`collect_program` pass 4)
+cho thấy sema đang có order-sensitivity: compile src/main.kb (self-host) hỏng với lỗi `Subject of 'is' must
+be a struct...` trong lsp.analysis và `When arm type does not match previous arms` trong monomorphize.params —
+các lỗi này chỉ xuất hiện khi instance bị xếp sau module nguồn, không xuất hiện khi prepend. Chưa truy ra
+gốc trong khung thời gian này; batch decl-pass tạm thời vẫn prepend (comment trong mã ghi rõ lý do). Gợi ý
+điều tra: mọi chỗ còn đọc/ghi `AstNode` trực tiếp trong lúc check instance (vd rename identifier sang c_name
+trong `check_ident_expr` không qua side table; `resolve_ast_type` rename `Self`/`Self.Item` đã được chặn cho
+instance nhưng các rename khác thì chưa).
