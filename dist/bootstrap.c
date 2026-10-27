@@ -885,6 +885,8 @@ struct compiler__sema__symbol__AnnEntry {
     compiler__ast__node__AstNode* obj_replace;
     compiler__sema__types__Type* var_ty;
     compiler__ast__node__AstNode* init_override;
+    const char* ident_name;
+    bool has_ident_name;
 };
 
 struct compiler__sema__symbol__TraitMethod {
@@ -2589,6 +2591,7 @@ void compiler__sema__body_pass__BodyPass_set_ann_ty(compiler__sema__body_pass__B
 void compiler__sema__body_pass__BodyPass_set_ann_var_ty(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* ty);
 void compiler__sema__body_pass__BodyPass_set_ann_obj(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__AstNode* obj);
 void compiler__sema__body_pass__BodyPass_set_ann_init_override(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__AstNode* r);
+void compiler__sema__body_pass__BodyPass_set_ident_name(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* name);
 compiler__sema__symbol__AnnEntry* compiler__sema__body_pass__BodyPass_ann_entry(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_push_instance_env(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* rec);
 void compiler__sema__body_pass__BodyPass_pop_instance_env(compiler__sema__body_pass__BodyPass* self);
@@ -10285,7 +10288,7 @@ compiler__ast__node__AstNode* compiler__sema__decl_pass__DeclPass_clone_expr(com
         out = compiler__sema__decl_pass__DeclPass_literal(self, l->literal_kind, l->raw_text, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__IdentifierExpr__TAG) {
         compiler__ast__node__IdentifierExpr* id = (target)->data.u.IdentifierExpr.inner;
-        out = compiler__sema__decl_pass__DeclPass_identifier(self, id->name, node->line, node->col);
+        out = compiler__sema__decl_pass__DeclPass_identifier(self, (((e != NULL) && e->has_ident_name) ? e->ident_name : id->name), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__BinaryExpr__TAG) {
         compiler__ast__node__BinaryExpr* b = (target)->data.u.BinaryExpr.inner;
         out = compiler__sema__decl_pass__DeclPass_binary(self, b->op, compiler__sema__decl_pass__DeclPass_clone_expr(self, b->left, subst), compiler__sema__decl_pass__DeclPass_clone_expr(self, b->right, subst), node->line, node->col);
@@ -11982,7 +11985,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_check_ident_exp
         return compiler__sema__body_pass__BodyPass_t_none(self);
     }
     if (!str_empty(sym->c_name) && !kobel_streq(sym->c_name, id->name)) {
-        id->name = sym->c_name;
+        compiler__sema__body_pass__BodyPass_set_ident_name(self, node, sym->c_name);
     }
     return sym->type_ptr;
 }
@@ -13467,7 +13470,7 @@ compiler__sema__types__Type* compiler__sema__body_pass__BodyPass_lower_size_quer
             }
             compiler__sema__symbol__Symbol* tsym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
             if ((tsym != NULL) && !kobel_streq(tsym->c_name, id->name)) {
-                id->name = tsym->c_name;
+                compiler__sema__body_pass__BodyPass_set_ident_name(self, obj, tsym->c_name);
             }
         }
     }
@@ -15053,13 +15056,24 @@ void compiler__sema__body_pass__BodyPass_set_ann_init_override(compiler__sema__b
     (*compiler__sema__body_pass__BodyPass_ann_entry(self, node)).init_override = r;
 }
 
+void compiler__sema__body_pass__BodyPass_set_ident_name(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, const char* name) {
+    if (self->current_rec != NULL) {
+        compiler__sema__symbol__AnnEntry* e = compiler__sema__body_pass__BodyPass_ann_entry(self, node);
+        e->ident_name = name;
+        e->has_ident_name = true;
+        return;
+    }
+    compiler__ast__node__IdentifierExpr* id = (compiler__ast__node__IdentifierExpr*)compiler__ast__node__AstNode_as_identifier_expr(node);
+    id->name = name;
+}
+
 compiler__sema__symbol__AnnEntry* compiler__sema__body_pass__BodyPass_ann_entry(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__sema__symbol__InstanceRecord* rec = self->current_rec;
     compiler__sema__symbol__AnnEntry* ex = compiler__sema__symbol__InstanceRecord_find_ann(rec, node);
     if (ex != NULL) {
         return ex;
     }
-    compiler__sema__symbol__AnnEntry* e = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__AnnEntry(&self->arena, (compiler__sema__symbol__AnnEntry){ node, NULL, NULL, NULL, "", false, NULL, false, NULL, NULL, NULL });
+    compiler__sema__symbol__AnnEntry* e = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__AnnEntry(&self->arena, (compiler__sema__symbol__AnnEntry){ node, NULL, NULL, NULL, "", false, NULL, false, NULL, NULL, NULL, "", false });
     std__collections__list__List_ptr_compiler__sema__symbol__AnnEntry_plus_assign(&rec->ann, e);
     return e;
 }
@@ -39974,6 +39988,6 @@ compiler__sema__symbol__ModuleScope* std__mem__arena__Arena_alloc_compiler__sema
 }
 
 compiler__sema__symbol__AnnEntry* std__mem__arena__Arena_alloc_compiler__sema__symbol__AnnEntry(std__mem__arena__Arena* self) {
-    return (compiler__sema__symbol__AnnEntry*)std__mem__arena__Arena_alloc_bytes(self, 96, 8);
+    return (compiler__sema__symbol__AnnEntry*)std__mem__arena__Arena_alloc_bytes(self, 120, 8);
 }
 
