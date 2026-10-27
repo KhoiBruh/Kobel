@@ -478,17 +478,10 @@ impl DeclPass {
 		//   ordering constraint remains;
 		// - each instance carries its own module marker, so module context is
 		//   still correct wherever the pair lands.
-		// Pass 4: keep the monomorphized declarations first, in creation order
-		// (the worklist instantiates a dependency before the instance that needs
-		// it, so creation order is the instance-graph order). Step 5 removed
-		// the prepend for the *flush* batch (see body_program.flush_instances);
-		// the decl-pass batch still prepends because sema currently has a latent
-		// order-sensitivity (appending it breaks checking the self-hosted
-		// compiler — see docs/parameterised-ir.md §5, step 5 note).
 		if (self.symtab.gen.instances.len > 0) {
 			var combined = List<*AstNode>();
+			for (d in prog.declarations) combined += d;
 			for (pn in self.symtab.gen.instances) combined += pn;
-			for (d in prog) combined += d;
 			val p_info = program_node.as_program() as &Program;
 			p_info.declarations = combined;
 		}

@@ -76,7 +76,7 @@ impl BodyPass {
 		if (obj_ty.kind == DataType.STR) ret_ty = self.member_on_str(node, mem);
 		else if (obj_ty.kind == DataType.ARRAY) ret_ty = self.member_on_array(node, mem, obj_ty);
 		else if (obj_ty.kind != DataType.STRUCT) {
-			self.report_error(node, "Member access on non-struct type");
+			self.report_error(node, "Member access on non-struct type '${mem.member}' of ${self.type_display(obj_ty)}");
 			return self.t_none();
 		} else {
 			ret_ty = self.member_on_struct(node, mem, obj_ty);
@@ -230,6 +230,10 @@ impl BodyPass {
 				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
+				// `get` may be an arrow method whose return type is still pending
+				// (a generic container is often instantiated lazily): make the
+				// inference pass retry instead of caching `none`.
+				if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
 				self.set_method(node, mi);
 				return fn_info.return_type;
 			}

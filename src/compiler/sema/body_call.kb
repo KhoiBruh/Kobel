@@ -499,6 +499,10 @@ impl BodyPass {
 				// emits `c_name(args)`. This keeps checking idempotent (a retried
 				// check sees the same struct constructor, not a mangled identifier).
 				self.set_method(node, nm);
+				// The `new` factory's return type may still be pending arrow
+				// inference (generic instances are often instantiated lazily). Signal
+				// the inference pass to retry instead of caching a `none` result.
+				if (self.arrow_pending(nm.ast_node)) self.infer_blocked = true;
 				return n_info.return_type;
 			}
 		}
@@ -538,7 +542,7 @@ impl BodyPass {
 				val arg_n = call.args[i];
 				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
 				val arg_ty = self.check_expr(arg_n);
-				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor");
+				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor: '${s_info.c_name}.${s_info.fields[i].name}' expects ${self.type_display(f_ty)} got ${self.type_display(arg_ty)}");
 			}
 		}
 

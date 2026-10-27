@@ -105,6 +105,16 @@ impl BodyPass {
 		return bp;
 	}
 
+	// Short readable name of a type, for diagnostics.
+	pub fn type_display(val self, ty: *Type): str {
+		if (ty == null) return "null";
+		if (ty.kind == DataType.STRUCT) return ty.as_struct().c_name;
+		if (ty.kind == DataType.POINTER) return "*${self.type_display(ty.as_pointer().pointee)}";
+		if (ty.kind == DataType.ARRAY) return "[${self.type_display(ty.as_array().elem)}]";
+		if (ty.is_enum()) return ty.as_enum().c_name;
+		return primitive_type_name(ty);
+	}
+
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lk, raw))), line, col);
 
