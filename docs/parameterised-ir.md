@@ -176,3 +176,13 @@ annotation chồng trên node dùng chung khi eager check chen ngang check chín
 decl-pass. Chốt hiện tại: (c) — prepend được giữ, kèm comment trong mã; hướng tiếp theo nên điều tra triệt để
 mọi chỗ còn đọc/ghi `AstNode` trực tiếp khi đang check instance (vd rename identifier sang c_name trong
 `check_ident_expr` chưa qua side table) trước khi thử lại append.
+
+**Điều tra vòng 2 (cùng ngày):** lặp lại thí nghiệm append với (a)+(b). Kết quả: lỗi giảm còn đúng hai
+họ (fmt.comments `peek()`: `List<Comment>` element trả `none`; symbol.kb `lookup_current/lookup`: iterating
+`List<*Symbol>` element trả `none`) kèm cascade. Đã thử thêm trace `UNKT` (resolve_ast_type thất bại) —
+**không có** dòng nào được ghi: tức mọi tên kiểu vẫn resolve thành công, chứng tỏ `none` KHÔNG đến từ
+lookup thất bại mà từ **env substitution trả `t_none()`** hoặc từ việc field type của struct instance được
+giải trong lúc env/self chưa đúng (vd `List<Comment>` được instantiate khi `subst` đang bật và tên trùng
+param, hoặc `current_self_type`/`current_module` lệch). Mốc điều tra tiếp theo: in args[0]/field[0] ngay
+trong `instantiate_struct` cho template `List` khi first=Comment/Symbol tại thời điểm instantiate (xem có đang
+nằm trong env/self nào không), và truy vết nơi gọi `instantiate_template_struct` đầu tiên cho cặp đó.
