@@ -142,37 +142,41 @@ impl BodyPass {
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.arena.alloc_val<IfExpr>(IfExpr(condition, then_branch, else_branch))), line, col);
 
-	pub fn clone_expr(var self, node: *AstNode): *AstNode {
+	// Shallow copy of a value expression, used when a default argument or a field
+	// initializer is spliced into a call site. This is *not* the substitution
+	// clone of the declaration pass (DeclPass.clone_expr), which resolves type
+	// parameters and applies per-instance annotations while emitting an instance.
+	pub fn copy_expr(var self, node: *AstNode): *AstNode {
 		if (node == null) return null;
 		return when (node) {
 			is LiteralExpr as lit -> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lit.literal_kind, lit.raw_text))), node.line, node.col);
 
 			is IdentifierExpr as id -> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(id.name))), node.line, node.col);
 
-			is BinaryExpr as b -> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(self.clone_expr(b.left), b.op, self.clone_expr(b.right)))), node.line, node.col);
+			is BinaryExpr as b -> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(self.copy_expr(b.left), b.op, self.copy_expr(b.right)))), node.line, node.col);
 
-			is UnaryExpr as u -> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(u.op, self.clone_expr(u.operand)))), node.line, node.col);
+			is UnaryExpr as u -> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(u.op, self.copy_expr(u.operand)))), node.line, node.col);
 
 			is CallExpr as c -> {
 				var args = List<*AstNode>();
-				for (a in c.args) args += self.clone_expr(a);
+				for (a in c.args) args += self.copy_expr(a);
 				var targs = List<*AstNode>();
 				for (ta in c.type_args) targs += ta;
-				yield self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(self.clone_expr(c.callee), args, targs))), node.line, node.col);
+				yield self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(self.copy_expr(c.callee), args, targs))), node.line, node.col);
 			}
-			is MemberExpr as m -> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(self.clone_expr(m.object), m.member, m.is_safe))), node.line, node.col);
+			is MemberExpr as m -> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(self.copy_expr(m.object), m.member, m.is_safe))), node.line, node.col);
 
-			is IndexExpr as ix -> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(self.clone_expr(ix.target), self.clone_expr(ix.index)))), node.line, node.col);
+			is IndexExpr as ix -> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(self.copy_expr(ix.target), self.copy_expr(ix.index)))), node.line, node.col);
 
-			is GroupExpr as g -> self.arena.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.arena.alloc_val<GroupExpr>(GroupExpr(self.clone_expr(g.expr)))), node.line, node.col);
+			is GroupExpr as g -> self.arena.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.arena.alloc_val<GroupExpr>(GroupExpr(self.copy_expr(g.expr)))), node.line, node.col);
 
 			is ArrayLiteralExpr as al -> {
 				var els = List<*AstNode>();
-				for (e in al.elements) els += self.clone_expr(e);
+				for (e in al.elements) els += self.copy_expr(e);
 				yield self.arena.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.arena.alloc_val<ArrayLiteralExpr>(ArrayLiteralExpr(els, al.list_struct_name, al.elem_type_node))), node.line, node.col);
 			}
 
-			is CastExpr as cst -> self.arena.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.arena.alloc_val<CastExpr>(CastExpr(self.clone_expr(cst.expr), cst.target_type))), node.line, node.col);
+			is CastExpr as cst -> self.arena.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.arena.alloc_val<CastExpr>(CastExpr(self.copy_expr(cst.expr), cst.target_type))), node.line, node.col);
 			else -> node;
 		};
 	}

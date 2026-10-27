@@ -224,7 +224,8 @@ pub struct GenericReg {
 	pub struct_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub fn_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
-	pub inst_syms: List<*Symbol> = List<*Symbol>(),
+	// Symbols of instantiated declarations, keyed by their mangled C name. This
+	// is the *name* index; identity lives in `records` (template + resolved args).
 	pub inst_map: HashMap<*Symbol> = HashMap<*Symbol>(),
 	// Typed instance records: the identity used by monomorphization is
 	// (template, resolved type arguments), not the mangled C name.
@@ -238,39 +239,17 @@ pub struct GenericReg {
 
 impl GenericReg {
 	pub fn add_inst(var self, sym: *Symbol) {
-		self.inst_syms += sym;
 		self.inst_map[sym.name] = sym;
 	}
 
-	pub fn find_struct(val self, name: str): *GenTemplate {
-		for (t in self.struct_templates) {
-			if (t.name == name) return t;
-		}
-		return null;
-	}
-
-	pub fn find_fn(val self, name: str): *GenTemplate {
-		for (t in self.fn_templates) {
-			if (t.name == name) return t;
-		}
-		return null;
-	}
-
-	pub fn find_impl(val self, name: str): *GenTemplate {
-		for (t in self.impl_templates) {
-			if (t.name == name) return t;
-		}
-		return null;
-	}
-
-	pub fn find_inst(val self, name: str): *Symbol => self.inst_map.get_or(name, null);
+	pub fn find_instance_symbol(val self, name: str): *Symbol => self.inst_map.get_or(name, null);
 
 	pub fn add_record(var self, rec: *InstanceRecord) {
 		self.records += rec;
 	}
 
 	// Typed lookup: same template and equal argument types.
-	pub fn find_instance(val self, tmpl: *GenTemplate, args: List<*Type>, kind: InstanceKind): *InstanceRecord {
+	pub fn find_instance_record(val self, tmpl: *GenTemplate, args: List<*Type>, kind: InstanceKind): *InstanceRecord {
 		for (r in self.records) {
 			if (r.template != tmpl || r.kind != kind) continue;
 			if (r.args.len != args.len) continue;
@@ -450,7 +429,7 @@ impl SymbolTable {
 		}
 
 		// 5. Instantiated generic symbols (or fallback to mangled C name)
-		return self.gen.find_inst(name) ?: self.lookup_c_name(name);
+		return self.gen.find_instance_symbol(name) ?: self.lookup_c_name(name);
 	}
 
 	pub fn define(var self, sym: Symbol): bool {
@@ -553,3 +532,4 @@ impl SymbolTable {
 		return null;
 	}
 }
+

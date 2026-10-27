@@ -139,7 +139,7 @@ impl DeclPass {
 		return false;
 	}
 
-	pub fn find_inst(val self, name: str) => self.symtab.gen.find_inst(name);
+	pub fn find_instance_symbol(val self, name: str) => self.symtab.gen.find_instance_symbol(name);
 
 	// Which table a `TemplateKind` is looked up in.
 	fn templates_of(val self, kind: TemplateKind) =>
@@ -302,3 +302,4 @@ impl DeclPass {
 	}
 
 }
+

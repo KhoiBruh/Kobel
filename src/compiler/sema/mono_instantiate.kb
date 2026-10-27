@@ -47,16 +47,16 @@ impl DeclPass {
 		for (a in arg_asts) args += self.resolve_ast_type(a);
 
 		// Identity is (template, resolved arguments), not the mangled name.
-		val known = self.symtab.gen.find_instance(tmpl, args, InstanceKind.STRUCT);
+		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.STRUCT);
 		if (known != null) {
-			val known_sym = self.find_inst(known.c_name);
+			val known_sym = self.find_instance_symbol(known.c_name);
 			if (known_sym != null) return known_sym.type_ptr;
 		}
 
 		val base = tmpl.module.mangle_symbol(tmpl.name);
 		val cname = "${base}_${self.type_token_list_of(args)}";
 
-		val existing = self.find_inst(cname);
+		val existing = self.find_instance_symbol(cname);
 		if (existing != null) return existing.type_ptr;
 
 		val decl = tmpl.node.as_struct_decl();
@@ -140,7 +140,7 @@ impl DeclPass {
 
 		self.leave_module(prev_mod);
 
-		val sym = self.find_inst(cname) ?: return self.t_none();
+		val sym = self.find_instance_symbol(cname) ?: return self.t_none();
 		return sym.type_ptr;
 	}
 
@@ -225,7 +225,7 @@ impl DeclPass {
 		val st = self.find_struct_template(tmpl.self_type);
 		if (st != null) {
 			val cname = "${st.module.mangle_symbol(st.name)}_${self.type_token_list_of(args)}";
-			val sym = self.find_inst(cname);
+			val sym = self.find_instance_symbol(cname);
 			if (sym != null) return sym.type_ptr;
 			return null;
 		}
@@ -294,7 +294,7 @@ impl DeclPass {
 
 		var args = List<*Type>();
 		for (a in arg_asts) args += self.resolve_ast_type(a);
-		val known = self.symtab.gen.find_instance(tmpl, args, InstanceKind.FUNCTION);
+		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.FUNCTION);
 		if (known != null) return known.c_name;
 
 		// A method's mangled name includes its receiver type, so `A.pick<T>` and
@@ -305,7 +305,7 @@ impl DeclPass {
 		}
 		val cname = "${base}_${self.type_token_list_of(args)}";
 
-		if (self.find_inst(cname) != null) return cname;
+		if (self.find_instance_symbol(cname) != null) return cname;
 
 		val prev_mod = self.enter_module(tmpl.module);
 
@@ -336,3 +336,4 @@ impl DeclPass {
 	}
 
 }
+

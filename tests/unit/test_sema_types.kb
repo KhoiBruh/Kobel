@@ -114,10 +114,6 @@ fn test_pointer_and_array_types() {
 	assert_true(!ptr_const.as_pointer().is_mut, "ptr_const must not be mutable");
 	assert_true(ptr_mut.as_pointer().is_mut, "ptr_mut.as_pointer() must be mutable");
 
-	// Test UFCS alloc_pointer
-	val ptr_ufcs = t_i32.alloc_pointer(&arena, true);
-	assert_true(ptr_ufcs.as_pointer().is_mut, "ptr_ufcs.as_pointer() must be mutable");
-
 	// Test nullable pointer
 	val ptr_null = arena.nullable_pointer_type(&t_i32, false);
 	assert_true(ptr_null.as_pointer().is_nullable, "ptr_null must be nullable");
@@ -128,10 +124,6 @@ fn test_pointer_and_array_types() {
 	assert_eq_usz(arr.align, 4UZ, "Array [i32; 10] align must be 4");
 	assert_eq_usz(arr.as_array().length, 10UZ, "Array length must be 10");
 	assert_eq_usz(arr.as_array().length, 10UZ, "arr.as_array() length must be 10");
-
-	// Test UFCS alloc_array
-	val arr_ufcs = t_i32.alloc_array(&arena, 5UZ);
-	assert_eq_usz(arr_ufcs.as_array().length, 5UZ, "arr_ufcs.as_array() length must be 5");
 
 	// Test fn_type
 	var params = List<*Type>();

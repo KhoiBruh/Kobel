@@ -154,7 +154,7 @@ impl BodyPass {
 				if (f.params[i].default_val == null) return false;
 			}
 			for (i in argc..<f.params.len) {
-				call.args += self.clone_expr(f.params[i].default_val);
+				call.args += self.copy_expr(f.params[i].default_val);
 			}
 			return true;
 		}
@@ -530,7 +530,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args += self.clone_expr(s_info.fields[i].default_val);
+					call.args += self.copy_expr(s_info.fields[i].default_val);
 				}
 			}
 		}

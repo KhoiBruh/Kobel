@@ -251,8 +251,6 @@ impl StructType {
 // Primitive Types Constructors
 // ============================================================================
 
-pub fn make_primitive(kind: DataType, size: usz, align: usz) => Type(kind, size, align, TypePayload.NONE);
-
 pub fn type_primitive(kind: DataType): Type {
 	val size: usz = when (kind) {
 		DataType.NONE -> 0;
@@ -463,9 +461,6 @@ impl Type {
 		};
 	}
 
-	pub fn alloc_pointer(val self, var arena: &Arena, is_mut: bool) => arena.pointer_type(self as *Type, is_mut);
-	pub fn alloc_nullable_pointer(val self, var arena: &Arena, is_mut: bool) => arena.nullable_pointer_type(self as *Type, is_mut);
-	pub fn alloc_array(val self, var arena: &Arena, length: usz) => arena.array_type(self as *Type, length);
 
 	// Methods of a built-in type. Called through the canonical instance from
 	// `PrimTypes`, so `i32` accumulates exactly one method list.
@@ -524,7 +519,6 @@ impl Type {
 		else -> false;
 	};
 
-	pub fn is_char(val self) => self.kind == DataType.CHAR;
 
 	pub fn is_enum(val self): bool => when (self.data) {
 		is TypePayload.Enum -> true;
