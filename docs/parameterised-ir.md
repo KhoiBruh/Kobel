@@ -218,7 +218,24 @@ của `test_sema_symbol.kb` trước/sau: trùng hoàn toàn) — `tests/golden/
 `dist/bootstrap.c` cũng được regenerate; kiểm tra thêm: seed dựng từ file đó phát C **trùng hash** với
 compiler v1 và với chính `dist/bootstrap.c` (SHA-256 `393a193c…`), tức seed không còn lệch so với nguồn.
 
-Ghi chú: hướng "rename identifier trong `check_ident_expr` chưa qua side table" nêu ở vòng 2 vẫn là nợ
-kỹ thuật **riêng** (không phải nguyên nhân của order-sensitivity): node identifier của template dùng
-chung vẫn bị đổi sang c_name ngay trên AST khi instance đầu tiên được check. Nó chưa gây lỗi observable
-(fixpoint xanh) nhưng nên đưa vào side table (`AnnEntry`) khi có dịp.
+Ghi chú: hướng "rename identifier trong `check_ident_expr` chưa qua side table" nêu ở vòng 2 **không** phải
+nguyên nhân của order-sensitivity, và đã được trả nốt (xem mục dưới).
+
+**Trả nốt nợ "identifier rename trên AST dùng chung" (2026-10).** `check_ident_expr` (và nhánh
+`T.size()` trong `lower_size_query`) từng gán thẳng `IdentifierExpr.name = <c_name>` — kể cả khi node
+nằm trong thân template dùng chung cho mọi instance; instance đầu tiên check sẽ đổi tên node mà mọi
+instance sau nhìn thấy. Nay tên đã resolve đi qua side table:
+
+- `AnnEntry.ident_name` / `has_ident_name` ghi tên C của **instance hiện tại**;
+  `BodyPass.set_ident_name` là cửa duy nhất (rec != null → side table, ngược lại → sửa node như cũ).
+- `mono_clone.clone_expr` (materialization) áp `ident_name` lên bản sao của instance, nên AST template
+  giữ nguyên tên nguồn; I1 (AST bất biến sau parse) đúng cho cả identifier.
+- Call site duy nhất còn lại của việc sửa tên là `check_ident_expr`/`lower_size_query` khi **không** ở
+  trong instance (khai báo thường), đúng phạm vi được phép.
+
+Kiểm chứng: fix này **không đổi C sinh ra** — đối chiếu byte-for-byte 23 test giữa compiler trước/sau:
+18/23 trùng tuyệt đối; 5/23 còn lại là các test *nhúng mã nguồn compiler* (codegen/sema_body/sema_decl/
+sema_symbol/loader_cycles) nên C khác đúng ở các dòng thuộc mã mới (`AnnEntry.ident_name`,
+`set_ident_name`, nhánh `clone_expr`) và 2 dòng khai báo field mới. Cổng: `test` 23/23, `snap` 24/24
+(golden cập nhật cùng commit), `fixpoint` byte-identical (2 212 400 byte); `dist/bootstrap.c` regenerate,
+seed dựng từ đó phát C trùng SHA-256 với v1 (`ad3eb4be…`).
