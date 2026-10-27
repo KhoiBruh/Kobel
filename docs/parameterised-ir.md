@@ -87,7 +87,7 @@ Hai lựa chọn:
 | 1 | Struct instantiation theo type | **xong** (`31b2a02`) |
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
 | 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
-| 4 | Bỏ `clone_fn/clone_expr/clone_stmt`; `drain_instances` chỉ rewrite view/signature | xoá `mono_clone` |
+| 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono_clone`/`monomorphize` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
 | 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | sau khi hết clone |
 
 ## 4. Rủi ro

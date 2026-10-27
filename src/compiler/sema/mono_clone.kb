@@ -1,11 +1,18 @@
 mod compiler.sema.mono_clone;
 
 // ============================================================================
-// AST Cloning for Monomorphization
+// AST Cloning — hai vai trò còn lại
 //
-// Cloning an AST with type-parameter substitution. Cloning is also where
-// nested generic uses inside an instance are resolved (see clone_type /
-// clone_call_expr).
+// 1. `materialize_body`: bản "emission copy" của một function/method instance.
+//    Check đã chạy trên AST template dùng chung và ghi quyết định vào
+//    `InstanceRecord.ann`; trước khi lower/emit, hàm này clone thân template và
+//    gán annotation per-node lên bản sao (thay vì sửa AST chung).
+// 2. `clone_fn` (và bộ clone_type/clone_expr/clone_stmt bên dưới): vẫn được
+//    `apply_trait` dùng để nhân bản default method của trait — độc lập với
+//    monomorphization.
+//
+// Không còn clone nào ở thời điểm *instantiate*: instantiate_fn/instantiate_struct
+// chỉ tạo view + side table (xem mono_instantiate.kb).
 // ============================================================================
 
 use std.mem.arena.*;
@@ -493,29 +500,6 @@ impl DeclPass {
 		val body = self.clone_stmt(f.body, null);
 		self.mat_rec = saved;
 		return body;
-	}
-
-	pub fn clone_impl(var self, node: *AstNode, subst: *GenSubst, new_struct_name: str): *AstNode {
-		val im = node.as_impl_decl();
-		var methods = List<*AstNode>();
-		for (m in im.methods) {
-			val mf = m.as_fn_decl();
-			// Keep the source method name: collect_impl mangles it against the
-			// concrete struct name and registers it for method lookup.
-			methods += self.clone_fn(m, subst, mf.name);
-		}
-		// Keep the trait name: a monomorphized `impl Trait for List<T>` must still
-		// be checked against the trait and pick up its default methods. Associated
-		// type bindings are cloned with the type arguments substituted.
-		var bindings = List<AssocBinding>();
-		for (b in im.assoc_bindings) {
-			bindings += AssocBinding(b.name, self.clone_type(b.type_node, subst));
-		}
-		return self.impl_decl(
-			new_struct_name, List<GenericParam>(),
-			im.trait_name, methods,
-			node.line, node.col, bindings
-		);
 	}
 
 }

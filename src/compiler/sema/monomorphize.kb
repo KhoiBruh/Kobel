@@ -213,34 +213,7 @@ impl DeclPass {
 		else -> "x";
 	};
 
-	pub fn type_token_list(val self, args: List<*AstNode>): str {
-		var res = "";
-		for (i in 0..<args.len) {
-			res = if (i > 0) "${res}_${self.ast_type_token(args[i])}"
-			else self.ast_type_token(args[i]);
-		}
-		return res;
-	}
-
-	// Name token for a type argument, based on the mangled C name so that
-	// same-named structs from different modules never share an instantiation.
-	pub fn ast_type_token(var self, node: *AstNode): str {
-		if (node == null) return "x";
-		return when (node.kind) {
-			NodeKind.TYPE_NAMED -> {
-				self.resolve_ast_type(node);
-				yield node.as_named_type().name;
-			}
-			NodeKind.TYPE_POINTER -> "ptr_${self.ast_type_token(node.as_pointer_type().pointee)}";
-			NodeKind.TYPE_ARRAY -> {
-				val a = node.as_array_type();
-				yield "arr${a.size}_${self.ast_type_token(a.element_type)}";
-			}
-			else -> "x";
-		};
-	}
-
-	// C-level size of a type node (used to lower `T.size()`).
+	// C-level size of a type node (used to lower `T.size()` during materialization).
 	pub fn ast_type_size(var self, node: *AstNode): usz {
 		if (node == null) return 8;
 		return when (node.kind) {
