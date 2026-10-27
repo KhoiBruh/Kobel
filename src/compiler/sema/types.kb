@@ -1,5 +1,14 @@
 mod compiler.sema.types;
 
+// ============================================================================
+// Type model
+//
+// `Type` plus its payload enum (Pointer/Array/Struct/Fn/Enum), struct layout,
+// function and method types, enum info, and the canonical primitive singletons
+// (`PrimTypes`). Equality is structural; structs compare their mangled C name so
+// same-named types in different modules stay distinct.
+// ============================================================================
+
 use std.collections.list.*;
 use std.mem.arena.Arena;
 use std.traits.to_str.*;

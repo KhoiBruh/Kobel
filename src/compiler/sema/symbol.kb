@@ -1,5 +1,19 @@
 mod compiler.sema.symbol;
 
+// ============================================================================
+// Symbol table and semantic registries
+//
+// Scopes and module scopes, `Symbol` and `SymbolKind`, import bindings, and the
+// data that outlives the body pass:
+// - `InstanceRecord` + `AnnEntry`: one monomorphized instance and its per-node
+//   annotations (instance bodies share the template AST, so decisions live here);
+// - `GenericReg`: template lists, mangled-name index (`inst_map`), typed instance
+//   records and the instance declaration worklist;
+// - `TraitInfo` / `TraitMethod`: static trait contracts.
+// Lookup order: local scopes, current module, explicit imports, wildcard
+// imports, then instantiated symbols by mangled C name.
+// ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 use std.collections.hash_map.*;

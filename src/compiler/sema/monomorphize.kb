@@ -1,5 +1,17 @@
 mod compiler.sema.monomorphize;
 
+// ============================================================================
+// Monomorphization - template registry and substitutions
+//
+// `GenTemplate` records a generic declaration (struct/fn/impl, the module that
+// owns it and, for methods, the receiver source name); `GenSubst` maps template
+// parameter names to AST type nodes while cloning.
+//
+// The typed instance registry lives on `GenericReg` in `symbol.kb`; the
+// instantiate/rewrite/clone steps live in `mono_instantiate`, `mono_rewrite`
+// and `mono_clone`.
+// ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 
@@ -106,9 +118,9 @@ impl DeclPass {
 								val p = f.params[i];
 								if (p.name == "self" && p.type_node == null) {
 									val prim = resolve_primitive_name(self.symtab.prims_of(), im.struct_name);
-									val named = self.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
+									val named = self.arena.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
-										else self.pointer_type(p.is_mut, named, m.line, m.col);
+										else self.arena.pointer_type(p.is_mut, named, m.line, m.col);
 									f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
 								}
 							}
@@ -273,7 +285,7 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		val marker = self.module_decl(module.split_dots(), module, node.line, node.col);
+		val marker = self.arena.module_decl(module.split_dots(), module, node.line, node.col);
 		// One pair per instance: it is both the declaration to emit and the entry to
 		// rewrite (the clone's own generic uses still have to be resolved).
 		self.symtab.gen.instances += marker;
@@ -302,4 +314,3 @@ impl DeclPass {
 	}
 
 }
-

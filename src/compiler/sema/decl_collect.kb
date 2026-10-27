@@ -1,5 +1,14 @@
 mod compiler.sema.decl_collect;
 
+// ============================================================================
+// DeclPass - declaration collection driver
+//
+// Walks the merged program in ordered passes: register templates and module
+// imports, forward-declare struct shells, collect ordinary declarations and
+// impls, rewrite generic uses, drain the instance worklist, then merge the
+// monomorphized declarations after the source program (instance graph order).
+// ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 

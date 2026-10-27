@@ -1,5 +1,13 @@
 mod compiler.sema.desugar_for;
 
+// ============================================================================
+// Body checker helper - `for` desugaring
+//
+// Rewrites `for (x in seq)` (Iterable vs `.len`/`.data`) and the three range
+// forms into a block + `while`, keeping `continue` semantics (step injection)
+// and unsigned-safe counters. Called from `body_stmt` while checking.
+// ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 

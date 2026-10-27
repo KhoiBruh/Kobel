@@ -17,6 +17,7 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.builder.*;
 
 use compiler.lexer.token.*;
 
@@ -65,8 +66,8 @@ impl BodyPass {
 				val sym = self.symtab.lookup(cname);
 				if (sym != null && sym.type_ptr.kind == DataType.FN) {
 					self.ensure_callee_ready(sym);
-					val new_call = self.call(
-						self.identifier(cname, node.line, node.col),
+					val new_call = self.arena.call(
+						self.arena.identifier(cname, node.line, node.col),
 						call.args, List<*AstNode>(), node.line, node.col
 					);
 					val new_cc = new_call.as_call_expr() as &CallExpr;
@@ -79,8 +80,8 @@ impl BodyPass {
 				val cty = self.instantiate_template_struct(st, call.type_args);
 				if (cty.kind == DataType.STRUCT) {
 					val cname = cty.as_struct().name;
-					val new_call = self.call(
-						self.identifier(cname, node.line, node.col),
+					val new_call = self.arena.call(
+						self.arena.identifier(cname, node.line, node.col),
 						call.args, List<*AstNode>(), node.line, node.col
 					);
 					val new_cc = new_call.as_call_expr() as &CallExpr;
@@ -121,7 +122,7 @@ impl BodyPass {
 
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
-				self.set_resolved(node, self.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col));
+				self.set_resolved(node, self.arena.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col));
 				return self.t_usz();
 			}
 
@@ -297,14 +298,14 @@ impl BodyPass {
 		// primitive methods take the receiver by value.
 		var args = List<*AstNode>();
 		if (obj_ty.kind == DataType.STRUCT && !obj_is_ptr) {
-			args += self.unary(TokenType.AMPERSAND, mem.object, node.line, node.col);
+			args += self.arena.unary(TokenType.AMPERSAND, mem.object, node.line, node.col);
 		} else {
 			args += mem.object;
 		}
 		for (a in call.args) args += a;
 
-		val new_call = self.call(
-			self.identifier(cname, node.line, node.col),
+		val new_call = self.arena.call(
+			self.arena.identifier(cname, node.line, node.col),
 			args, List<*AstNode>(), node.line, node.col
 		);
 
@@ -460,7 +461,7 @@ impl BodyPass {
 					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
 						val p_pointee = param_ty.as_pointer().pointee;
 						if (p_pointee.equals(arg_ty)) {
-							call.args[i] = self.unary(TokenType.AMPERSAND, arg_n, arg_n.line, arg_n.col);
+							call.args[i] = self.arena.unary(TokenType.AMPERSAND, arg_n, arg_n.line, arg_n.col);
 							continue;
 						}
 					}

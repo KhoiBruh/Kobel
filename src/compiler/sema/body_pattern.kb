@@ -17,6 +17,7 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.builder.*;
 
 use compiler.lexer.token.*;
 

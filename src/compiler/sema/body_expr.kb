@@ -19,6 +19,7 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.builder.*;
 
 use compiler.lexer.token.*;
 
@@ -288,8 +289,8 @@ impl BodyPass {
 				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
 					var args = List<*AstNode>();
 					args += bin.right;
-					val mem = self.member(bin.left, "in_list", node.line, node.col);
-					val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
+					val mem = self.arena.member(bin.left, "in_list", node.line, node.col);
+					val call_node = self.arena.call(mem, args, List<*AstNode>(), node.line, node.col);
 					self.set_resolved(node, call_node);
 					return self.check_expr(call_node);
 				}
@@ -298,8 +299,8 @@ impl BodyPass {
 
 		var args = List<*AstNode>();
 		args += bin.left;
-		val mem = self.member(bin.right, "contains", node.line, node.col);
-		val call_node = self.call(mem, args, List<*AstNode>(), node.line, node.col);
+		val mem = self.arena.member(bin.right, "contains", node.line, node.col);
+		val call_node = self.arena.call(mem, args, List<*AstNode>(), node.line, node.col);
 		self.set_resolved(node, call_node);
 		return self.check_expr(call_node);
 	}

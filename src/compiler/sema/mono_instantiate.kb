@@ -122,7 +122,7 @@ impl DeclPass {
 			self.pop_subst(mark);
 			self.current_self_type = null;
 
-			val iview = self.impl_decl(
+			val iview = self.arena.impl_decl(
 				cname, List<GenericParam>(),
 				im.trait_name, methods,
 				impl_tmpl.node.line, impl_tmpl.node.col, bindings
@@ -175,7 +175,7 @@ impl DeclPass {
 
 		self.pop_subst(mark);
 
-		val view = self.fn_decl(
+		val view = self.arena.fn_decl(
 			cname, List<GenericParam>(),
 			params, rt,
 			t.body,
@@ -241,7 +241,7 @@ impl DeclPass {
 		for (f in fields) {
 			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.is_pub, f.default_val);
 		}
-		return self.struct_decl(name, List<GenericParam>(), ast_fields, is_pub, line, col);
+		return self.arena.struct_decl(name, List<GenericParam>(), ast_fields, is_pub, line, col);
 	}
 
 	// Binds type-parameter names to argument types for `resolve_ast_type`.
@@ -336,4 +336,3 @@ impl DeclPass {
 	}
 
 }
-

@@ -1,18 +1,19 @@
 mod compiler.sema.mono_clone;
 
 // ============================================================================
-// AST Cloning — hai vai trò còn lại
+// AST cloning - the two remaining roles
 //
-// 1. `materialize_body`: bản "emission copy" của một function/method instance.
-//    Check đã chạy trên AST template dùng chung và ghi quyết định vào
-//    `InstanceRecord.ann`; trước khi lower/emit, hàm này clone thân template và
-//    gán annotation per-node lên bản sao (thay vì sửa AST chung).
-// 2. `clone_fn` (và bộ clone_type/clone_expr/clone_stmt bên dưới): vẫn được
-//    `apply_trait` dùng để nhân bản default method của trait — độc lập với
+// 1. `materialize_body`: the "emission copy" of a function/method instance. The
+//    checker ran on the template's shared AST and recorded its decisions in
+//    `InstanceRecord.ann`; before lowering/emitting, this clones the template
+//    body and stamps the per-node annotations onto the copy instead of editing
+//    the shared AST.
+// 2. `clone_fn` (and the clone_type/clone_expr/clone_stmt family below): still
+//    used by `apply_trait` to copy a trait's default method - independent of
 //    monomorphization.
 //
-// Không còn clone nào ở thời điểm *instantiate*: instantiate_fn/instantiate_struct
-// chỉ tạo view + side table (xem mono_instantiate.kb).
+// No cloning happens at *instantiate* time: instantiate_fn/instantiate_struct
+// only build a view + side table (see mono_instantiate.kb).
 // ============================================================================
 
 use std.mem.arena.*;
@@ -71,32 +72,32 @@ impl DeclPass {
 						var args = List<*AstNode>();
 						for (ta in nt.type_args) args += self.clone_type(ta, subst);
 						val cty = self.instantiate_struct(tmpl, args);
-						yield self.named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
+						yield self.arena.named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
 					}
 				}
 
 				var targs = List<*AstNode>();
 				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
-				yield self.named_type(nt.name, targs, node.line, node.col);
+				yield self.arena.named_type(nt.name, targs, node.line, node.col);
 			}
 
-			is PointerType as pt -> self.pointer_type(
+			is PointerType as pt -> self.arena.pointer_type(
 				pt.is_mut,
 				self.clone_type(pt.pointee, subst),
 				node.line, node.col
 			);
 
-			is ArrayType as at -> self.array_type(
+			is ArrayType as at -> self.arena.array_type(
 				self.clone_type(at.element_type, subst),
 				at.size, node.line, node.col
 			);
 
-			is NullableType as nt -> self.nullable_type(
+			is NullableType as nt -> self.arena.nullable_type(
 				self.clone_type(nt.inner, subst),
 				node.line, node.col
 			);
 
-			else -> self.named_type("none", List<*AstNode>(), node.line, node.col);
+			else -> self.arena.named_type("none", List<*AstNode>(), node.line, node.col);
 		};
 	}
 
@@ -118,12 +119,12 @@ impl DeclPass {
 
 		val target = node;
 		var out = when (target) {
-			is LiteralExpr as l -> self.literal(
+			is LiteralExpr as l -> self.arena.literal(
 				l.literal_kind, l.raw_text,
 				node.line, node.col
 			);
 
-			is IdentifierExpr as id -> self.identifier(
+			is IdentifierExpr as id -> self.arena.identifier(
 				// An identifier the checker resolved to a mangled C name (imports,
 				// symbols from another module) carries that name in the instance's
 				// side table; the shared template node keeps its source name.
@@ -131,14 +132,14 @@ impl DeclPass {
 				node.line, node.col
 			);
 
-			is BinaryExpr as b -> self.binary(
+			is BinaryExpr as b -> self.arena.binary(
 				b.op,
 				self.clone_expr(b.left, subst),
 				self.clone_expr(b.right, subst),
 				node.line, node.col
 			);
 
-			is UnaryExpr as u -> self.unary(
+			is UnaryExpr as u -> self.arena.unary(
 				u.op, self.clone_expr(u.operand, subst),
 				node.line, node.col
 			);
@@ -149,43 +150,43 @@ impl DeclPass {
 				val obj_src = if (e != null && e.obj_replace != null) e.obj_replace else m.object;
 				val cloned_obj = self.clone_expr(obj_src, subst);
 				val res = if (m.is_safe)
-					self.safe_member(cloned_obj, m.member, node.line, node.col)
+					self.arena.safe_member(cloned_obj, m.member, node.line, node.col)
 				else
-					self.member(cloned_obj, m.member, node.line, node.col);
+					self.arena.member(cloned_obj, m.member, node.line, node.col);
 				yield res;
 			}
 
-			is IndexExpr as ix -> self.index(
+			is IndexExpr as ix -> self.arena.index(
 				self.clone_expr(ix.target, subst),
 				self.clone_expr(ix.index, subst),
 				node.line, node.col
 			);
 
-			is AssignExpr as a -> self.compound_assign(
+			is AssignExpr as a -> self.arena.compound_assign(
 				a.op,
 				self.clone_expr(a.target, subst),
 				self.clone_expr(a.value, subst),
 				node.line, node.col
 			);
 
-			is UpdateExpr as u -> self.update(
+			is UpdateExpr as u -> self.arena.update(
 				u.op,
 				self.clone_expr(u.target, subst),
 				node.line, node.col
 			);
 
-			is CastExpr as cst -> self.cast(
+			is CastExpr as cst -> self.arena.cast(
 				self.clone_expr(cst.expr, subst),
 				self.clone_type(cst.target_type, subst),
 				node.line, node.col
 			);
 
-			is GroupExpr as g -> self.group(
+			is GroupExpr as g -> self.arena.group(
 				self.clone_expr(g.expr, subst),
 				node.line, node.col
 			);
 
-			is IfExpr as ie -> self.if_expr(
+			is IfExpr as ie -> self.arena.if_expr(
 				self.clone_expr(ie.condition, subst),
 				self.clone_expr(ie.then_branch, subst),
 				self.clone_expr(ie.else_branch, subst),
@@ -199,27 +200,27 @@ impl DeclPass {
 					if (e.has_list_name) lname = e.list_name;
 					if (e.has_elem_node) enode = self.clone_type(e.elem_node, subst);
 				}
-				yield self.list_literal(
+				yield self.arena.list_literal(
 					self.clone_expr_list(al.elements, subst),
 					lname, enode,
 					node.line, node.col
 				);
 			}
 
-			is WhenExpr as we -> self.when_expr(
+			is WhenExpr as we -> self.arena.when_expr(
 				self.clone_expr(we.condition, subst),
 				self.clone_when_arms(node, subst),
 				node.line, node.col
 			);
 
-			is InterpExpr -> self.interp(
+			is InterpExpr -> self.arena.interp(
 				self.clone_interp_parts(node, subst),
 				node.line, node.col
 			);
 
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr, subst) else null;
-				val res_is = self.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
+				val res_is = self.arena.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
 				if (!is_e.alias.empty()) {
 					val res_e = res_is.as_is_expr();
 					res_e.alias = is_e.alias;
@@ -245,7 +246,7 @@ impl DeclPass {
 				node.line, node.col
 			);
 
-			else -> self.identifier("<unsupported-expr>", node.line, node.col);
+			else -> self.arena.identifier("<unsupported-expr>", node.line, node.col);
 		};
 
 		// Carry this instance's decisions onto the fresh node.
@@ -265,7 +266,7 @@ impl DeclPass {
 
 		val c = node.as_call_expr();
 		val args = self.clone_expr_list(c.args, subst);
-		return self.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
+		return self.arena.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
 	}
 
 	// `T.size()` in generic code: the substituted type's C size is known at compile
@@ -277,7 +278,7 @@ impl DeclPass {
 		val m = c.callee.as_member_expr();
 		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
 		val sa = subst?.lookup(m.object.as_identifier_expr().name) ?: return null;
-		return self.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
+		return self.arena.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
 	}
 
 	// A call with explicit type arguments instantiates the matching template and is
@@ -297,22 +298,22 @@ impl DeclPass {
 			new_args += mem_obj;
 			for (a in c.args) new_args += self.clone_expr(a, subst);
 			val cname = self.instantiate_fn(ft, targs);
-			val call_node = self.call(
-				self.identifier(cname, node.line, node.col),
+			val call_node = self.arena.call(
+				self.arena.identifier(cname, node.line, node.col),
 				new_args, List<*AstNode>(),
 				node.line, node.col
 			);
 
 			if (mem.is_safe) {
-				val cond = self.binary(
+				val cond = self.arena.binary(
 					TokenType.BANG_EQUAL, mem_obj,
-					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+					self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
 					node.line, node.col
 				);
 
-				return self.if_expr(
+				return self.arena.if_expr(
 					cond, call_node,
-					self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+					self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
 					node.line, node.col
 				);
 			}
@@ -326,8 +327,8 @@ impl DeclPass {
 				val cname = self.instantiate_fn(ft, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(
-					self.identifier(cname, node.line, node.col),
+				return self.arena.call(
+					self.arena.identifier(cname, node.line, node.col),
 					cargs, List<*AstNode>(), node.line, node.col
 				);
 			}
@@ -338,8 +339,8 @@ impl DeclPass {
 				val cty = self.instantiate_struct(st, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.call(
-					self.identifier(cty.as_struct().name, node.line, node.col),
+				return self.arena.call(
+					self.arena.identifier(cty.as_struct().name, node.line, node.col),
 					cargs, List<*AstNode>(), node.line, node.col
 				);
 			}
@@ -397,10 +398,10 @@ impl DeclPass {
 			is BlockStmt as b -> {
 				var ss = List<*AstNode>();
 				for (s in b.statements) ss += self.clone_stmt(s, subst);
-				yield self.block_stmt(ss, node.line, node.col);
+				yield self.arena.block_stmt(ss, node.line, node.col);
 			}
 
-			is ExprStmt as e -> self.expr_stmt(
+			is ExprStmt as e -> self.arena.expr_stmt(
 				self.clone_expr(e.expr, subst),
 				node.line, node.col
 			);
@@ -412,10 +413,10 @@ impl DeclPass {
 				if (se != null && se.init_override != null) init_src = se.init_override;
 				val init = self.clone_expr(init_src, subst);
 				if (ta != null && init != null) self.propagate_target_type(ta, init);
-				yield self.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
+				yield self.arena.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
 			}
 
-			is IfStmt as s -> self.if_stmt(
+			is IfStmt as s -> self.arena.if_stmt(
 				self.clone_expr(s.condition, subst),
 				self.clone_stmt(s.then_branch, subst),
 				self.clone_stmt(s.else_branch, subst),
@@ -423,13 +424,13 @@ impl DeclPass {
 			);
 
 
-			is WhileStmt as w -> self.while_stmt(
+			is WhileStmt as w -> self.arena.while_stmt(
 				self.clone_expr(w.condition, subst),
 				self.clone_stmt(w.body, subst),
 				node.line, node.col
 			);
 
-			is ForStmt as f -> self.for_stmt(
+			is ForStmt as f -> self.arena.for_stmt(
 				f.var_name, f.is_range, f.is_open, f.is_half_open,
 				self.clone_expr(f.iterable, subst),
 				self.clone_expr(f.range_start, subst),
@@ -438,19 +439,19 @@ impl DeclPass {
 				node.line, node.col
 			);
 
-			is ReturnStmt as r -> self.return_stmt(
+			is ReturnStmt as r -> self.arena.return_stmt(
 				self.clone_expr(r.value, subst),
 				node.line, node.col
 			);
 
-			is YieldStmt as y -> self.yield_stmt(
+			is YieldStmt as y -> self.arena.yield_stmt(
 				self.clone_expr(y.value, subst),
 				node.line, node.col
 			);
 
-			is BreakStmt -> self.break_stmt(node.line, node.col);
+			is BreakStmt -> self.arena.break_stmt(node.line, node.col);
 
-			is ContinueStmt -> self.continue_stmt(node.line, node.col);
+			is ContinueStmt -> self.arena.continue_stmt(node.line, node.col);
 
 			is WhenStmt as w -> {
 				var arms = List<WhenStmtArm>();
@@ -459,10 +460,10 @@ impl DeclPass {
 					for (pat in arm.patterns) pats += self.clone_expr(pat, subst);
 					arms += WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
 				}
-				yield self.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
+				yield self.arena.when_stmt(self.clone_expr(w.condition, subst), arms, node.line, node.col);
 			}
 
-			is DeferStmt as d -> self.defer_stmt(
+			is DeferStmt as d -> self.arena.defer_stmt(
 				self.clone_stmt(d.body, subst),
 				node.line, node.col
 			);
@@ -480,7 +481,7 @@ impl DeclPass {
 			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
 		}
 		val rt = if (f.return_type != null) self.clone_type(f.return_type, subst) else null;
-		val clone = self.fn_decl(
+		val clone = self.arena.fn_decl(
 			new_name,
 			List<GenericParam>(),
 			params, rt,

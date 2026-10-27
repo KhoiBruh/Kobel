@@ -1,5 +1,18 @@
 mod compiler.sema.decl_pass;
 
+// ============================================================================
+// DeclPass - type resolution and declaration semantics
+//
+// The declaration pass core. Resolves AST type nodes to `*Type` (with the
+// type-parameter substitution stack `subst_names/subst_types`), instantiates
+// generic structs/functions/methods, applies `impl Trait for T` contracts, and
+// holds the symbol table it shares with the body pass.
+//
+// The ordered collection driver is `decl_collect`; monomorphization is split
+// across `monomorphize` (registry) and the `mono_*` modules (instantiate,
+// rewrite, clone).
+// ============================================================================
+
 use std.str.*;
 use std.mem.arena.*;
 use std.collections.list.*;
@@ -214,117 +227,6 @@ impl DeclPass {
 		self.current_module = prev;
 		self.symtab.set_current_module(prev);
 	}
-
-	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(NamedType.TAG, NodeData.NamedType(self.arena.alloc_val<NamedType>(NamedType(name, type_args))), line, col);
-
-	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(PointerType.TAG, NodeData.PointerType(self.arena.alloc_val<PointerType>(PointerType(is_mut, pointee))), line, col);
-
-	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ArrayType.TAG, NodeData.ArrayType(self.arena.alloc_val<ArrayType>(ArrayType(elem, size))), line, col);
-
-	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(NullableType.TAG, NodeData.NullableType(self.arena.alloc_val<NullableType>(NullableType(inner))), line, col);
-
-	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lk, raw))), line, col);
-
-	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(name))), line, col);
-
-	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(left, op, right))), line, col);
-
-	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(op, operand))), line, col);
-
-	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(callee, args, type_args))), line, col);
-
-	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member))), line, col);
-
-	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member, true))), line, col);
-
-	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(target, index))), line, col);
-
-	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(AssignExpr.TAG, NodeData.AssignExpr(self.arena.alloc_val<AssignExpr>(AssignExpr(target, op, value))), line, col);
-
-	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.arena.alloc_val<UpdateExpr>(UpdateExpr(op, target))), line, col);
-
-	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.arena.alloc_val<CastExpr>(CastExpr(expr, target_type))), line, col);
-
-	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.arena.alloc_val<GroupExpr>(GroupExpr(expr))), line, col);
-
-	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.arena.alloc_val<IfExpr>(IfExpr(condition, then_branch, else_branch))), line, col);
-
-	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.arena.alloc_val<ArrayLiteralExpr>(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
-
-	pub fn when_expr(var self, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(WhenExpr.TAG, NodeData.WhenExpr(self.arena.alloc_val<WhenExpr>(WhenExpr(condition, arms))), line, col);
-
-	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(InterpExpr.TAG, NodeData.InterpExpr(self.arena.alloc_val<InterpExpr>(InterpExpr(parts))), line, col);
-
-	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IsExpr.TAG, NodeData.IsExpr(self.arena.alloc_val<IsExpr>(IsExpr(expr, target_type))), line, col);
-
-	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(BlockStmt.TAG, NodeData.BlockStmt(self.arena.alloc_val<BlockStmt>(BlockStmt(statements))), line, col);
-
-	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ExprStmt.TAG, NodeData.ExprStmt(self.arena.alloc_val<ExprStmt>(ExprStmt(expr))), line, col);
-
-	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(VarDeclStmt.TAG, NodeData.VarDeclStmt(self.arena.alloc_val<VarDeclStmt>(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
-
-	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IfStmt.TAG, NodeData.IfStmt(self.arena.alloc_val<IfStmt>(IfStmt(condition, then_branch, else_branch))), line, col);
-
-	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(WhileStmt.TAG, NodeData.WhileStmt(self.arena.alloc_val<WhileStmt>(WhileStmt(condition, body))), line, col);
-
-	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ForStmt.TAG, NodeData.ForStmt(self.arena.alloc_val<ForStmt>(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
-
-	pub fn return_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ReturnStmt.TAG, NodeData.ReturnStmt(self.arena.alloc_val<ReturnStmt>(ReturnStmt(value))), line, col);
-
-	pub fn break_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(BreakStmt.TAG, NodeData.BreakStmt(self.arena.alloc_val<BreakStmt>(BreakStmt(0))), line, col);
-
-	pub fn continue_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ContinueStmt.TAG, NodeData.ContinueStmt(self.arena.alloc_val<ContinueStmt>(ContinueStmt(0))), line, col);
-
-	pub fn when_stmt(var self, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(WhenStmt.TAG, NodeData.WhenStmt(self.arena.alloc_val<WhenStmt>(WhenStmt(condition, arms))), line, col);
-
-	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(YieldStmt.TAG, NodeData.YieldStmt(self.arena.alloc_val<YieldStmt>(YieldStmt(value))), line, col);
-
-	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(DeferStmt.TAG, NodeData.DeferStmt(self.arena.alloc_val<DeferStmt>(DeferStmt(body))), line, col);
-
-	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(ModuleDecl.TAG, NodeData.ModuleDecl(self.arena.alloc_val<ModuleDecl>(ModuleDecl(path, full_path))), line, col);
-
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz, is_op: bool = false): *AstNode
-		=> self.arena.alloc_node(FnDecl.TAG, NodeData.FnDecl(self.arena.alloc_val<FnDecl>(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
-
-	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<AstStructField>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.arena.alloc_val<StructDecl>(StructDecl(name, type_params, fields, is_pub))), line, col);
-
-	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List()): *AstNode
-		=> self.arena.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.arena.alloc_val<ImplDecl>(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
 	pub fn c_name_for(self, name: str): str {
 		if (self.is_extern || name == "main") return name;
@@ -615,29 +517,29 @@ impl DeclPass {
 				when (lit.literal_kind) {
 					LiteralKind.INT -> {
 						val p_type = int_literal_type(self.symtab.prims_of(), lit.raw_text);
-						f.return_type = self.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type(primitive_type_name(p_type), List<*AstNode>(), f.body.line, f.body.col);
 						return p_type;
 					}
 					LiteralKind.FLOAT -> {
 						val raw = lit.raw_text;
 						val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 						if (is_f32) {
-							f.return_type = self.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
+							f.return_type = self.arena.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
 							return self.t_prim(type_f32());
 						}
-						f.return_type = self.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
 						return self.t_prim(type_f64());
 					}
 					LiteralKind.BOOL -> {
-						f.return_type = self.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
 						return self.t_bool();
 					}
 					LiteralKind.STRING -> {
-						f.return_type = self.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
 						return self.t_str();
 					}
 					LiteralKind.CHAR -> {
-						f.return_type = self.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
 						return self.t_char();
 					}
 					else -> {}
@@ -649,7 +551,7 @@ impl DeclPass {
 				if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
 					val ei = sym.type_ptr.as_enum();
 					if (ei.find_member(mem.member) != null) {
-						f.return_type = self.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
+						f.return_type = self.arena.named_type(ei.c_name, List<*AstNode>(), f.body.line, f.body.col);
 						return sym.type_ptr;
 					}
 				}
@@ -676,7 +578,7 @@ impl DeclPass {
 						if (fld.name == mem.member) {
 							val tname = primitive_type_name(fld.type_ptr);
 							if (tname != "none") {
-								f.return_type = self.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
+								f.return_type = self.arena.named_type(tname, List<*AstNode>(), f.body.line, f.body.col);
 								return fld.type_ptr;
 							}
 						}
@@ -715,7 +617,7 @@ impl DeclPass {
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver by value: spell its type so the backend emits `i32 self`.
 					pt = prim;
-					val rt = self.named_type(prim_name, List<*AstNode>(), node.line, node.col);
+					val rt = self.arena.named_type(prim_name, List<*AstNode>(), node.line, node.col);
 					f.params[i] = Param(p.name, rt, p.is_mut, p.has_val, p.default_val);
 				} else {
 					pt = self.resolve_ast_type(p.type_node);

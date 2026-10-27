@@ -115,33 +115,6 @@ impl BodyPass {
 		return primitive_type_name(ty);
 	}
 
-	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.arena.alloc_val<LiteralExpr>(LiteralExpr(lk, raw))), line, col);
-
-	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.arena.alloc_val<IdentifierExpr>(IdentifierExpr(name))), line, col);
-
-	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val<BinaryExpr>(BinaryExpr(left, op, right))), line, col);
-
-	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val<UnaryExpr>(UnaryExpr(op, operand))), line, col);
-
-	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val<CallExpr>(CallExpr(callee, args, type_args))), line, col);
-
-	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.arena.alloc_val<IndexExpr>(IndexExpr(target, index))), line, col);
-
-	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member))), line, col);
-
-	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.arena.alloc_val<MemberExpr>(MemberExpr(obj, member, true))), line, col);
-
-	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.arena.alloc_val<IfExpr>(IfExpr(condition, then_branch, else_branch))), line, col);
-
 	// Shallow copy of a value expression, used when a default argument or a field
 	// initializer is spliced into a call site. This is *not* the substitution
 	// clone of the declaration pass (DeclPass.clone_expr), which resolves type

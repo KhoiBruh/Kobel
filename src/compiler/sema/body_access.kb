@@ -17,6 +17,7 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.builder.*;
 
 use compiler.lexer.token.*;
 
@@ -48,7 +49,7 @@ impl BodyPass {
 			obj_ty.kind == DataType.POINTER &&
 			obj_expr.kind != NodeKind.EXPR_IDENTIFIER
 		) {
-			val deref = self.unary(TokenType.STAR, obj_expr, node.line, node.col);
+			val deref = self.arena.unary(TokenType.STAR, obj_expr, node.line, node.col);
 			if (self.current_rec != null) self.set_ann_obj(node, deref);
 			else mem.object = deref;
 			obj_expr = deref;
@@ -131,7 +132,7 @@ impl BodyPass {
 				}
 
 				// Reuse the node as a plain integer literal for the backend.
-				val lit = self.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
+				val lit = self.arena.literal(LiteralKind.INT, "${mi.value}", node.line, node.col);
 				self.set_resolved(node, lit);
 				val carrier = self.arena.alloc<Type>();
 				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei));
@@ -145,7 +146,7 @@ impl BodyPass {
 					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
 					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
 				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
-					self.set_resolved(node, self.identifier(c_sym.c_name, node.line, node.col));
+					self.set_resolved(node, self.arena.identifier(c_sym.c_name, node.line, node.col));
 					return c_sym.type_ptr;
 				}
 			}
@@ -440,13 +441,13 @@ impl BodyPass {
 
 		var operand = rhs;
 		if (operand == null) {
-			operand = if (val_param_ty.is_float()) self.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-				else self.literal(LiteralKind.INT, "1", node.line, node.col);
+			operand = if (val_param_ty.is_float()) self.arena.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
+				else self.arena.literal(LiteralKind.INT, "1", node.line, node.col);
 		}
 		var val_expr = operand;
 		if (op != TokenType.EQUAL) {
-			val get_expr = self.index(idx.target, idx.index, node.line, node.col);
-			val_expr = self.binary(op, get_expr, operand, node.line, node.col);
+			val get_expr = self.arena.index(idx.target, idx.index, node.line, node.col);
+			val_expr = self.arena.binary(op, get_expr, operand, node.line, node.col);
 		}
 
 		if (idx_param_ty != null && idx_param_ty.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
@@ -457,11 +458,11 @@ impl BodyPass {
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();
-		new_args += if (t_is_ptr) idx.target else self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		new_args += if (t_is_ptr) idx.target else self.arena.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
 		new_args += idx.index;
 		new_args += val_expr;
 
-		val call_node = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		val call_node = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 		self.set_resolved(node, call_node);
 		return val_param_ty;
 	}

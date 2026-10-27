@@ -1,5 +1,14 @@
 mod compiler.sema.desugar_interp;
 
+// ============================================================================
+// Body checker helper - interpolation and value helpers
+//
+// Lowers string interpolation into `kobel_concat` chains (holes go through
+// `ToStr`), and builds the AST/type helpers the checker reuses:
+// `ast_type_from_type` (resolved type -> annotation node), `make_str_eq` and
+// `make_mem_eq` (equality calls emitted for `str` and struct values).
+// ============================================================================
+
 use std.mem.arena.Arena;
 use std.collections.list.List;
 

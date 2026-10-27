@@ -22,6 +22,7 @@ use compiler.ast.node.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
+use compiler.ast.builder.*;
 
 use compiler.lexer.token.*;
 
@@ -237,9 +238,9 @@ impl BodyPass {
 			val r_is_ptr = right_ty != null && right_ty.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (r_is_ptr) args += bin.right;
-			else args += self.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+			else args += self.arena.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
 			args += bin.left;
-			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 			return self.lowered(node, call);
 		}
 
@@ -247,11 +248,11 @@ impl BodyPass {
 		if (node.resolved_method != null) {
 			val mi = node.resolved_method as *MethodInfo;
 			var args = List<*AstNode>();
-			args += self.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+			args += self.arena.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
 			args += bin.right;
-			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 			if (bin.op == TokenType.BANG_EQUAL) {
-				return self.lowered(node, self.unary(TokenType.BANG, call, node.line, node.col));
+				return self.lowered(node, self.arena.unary(TokenType.BANG, call, node.line, node.col));
 			}
 			return self.lowered(node, call);
 		}
@@ -277,9 +278,9 @@ impl BodyPass {
 			val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (t_is_ptr) args += asgn.target;
-			else args += self.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+			else args += self.arena.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
 			args += asgn.value;
-			val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 			return self.lowered(node, call);
 		}
 
@@ -307,7 +308,7 @@ impl BodyPass {
 			if (acc == null) acc = piece;
 			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
 		}
-		if (acc == null) acc = self.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		if (acc == null) acc = self.arena.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 		return self.lowered(node, acc);
 	}
 
@@ -331,7 +332,7 @@ impl BodyPass {
 			val mi = cur_ty.as_struct().find_method("to_str");
 			if (mi != null) {
 				var arg = expr;
-				if (!is_ptr) arg = self.unary(TokenType.AMPERSAND, expr, line, col);
+				if (!is_ptr) arg = self.arena.unary(TokenType.AMPERSAND, expr, line, col);
 				return self.arena.interp_call(mi.c_name, arg, line, col);
 			}
 		}
@@ -353,7 +354,7 @@ impl BodyPass {
 			if (mem.member == "len" || mem.member == "size") {
 				var args = List<*AstNode>();
 				args += obj;
-				val call = self.call(self.identifier("kobel_slen", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+				val call = self.arena.call(self.arena.identifier("kobel_slen", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 				return self.lowered(node, call);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -362,7 +363,7 @@ impl BodyPass {
 		if (self.is_array_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
 				val arr = self.type_of(obj).as_array();
-				val lit = self.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
+				val lit = self.arena.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
 				return self.lowered(node, lit);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -376,8 +377,8 @@ impl BodyPass {
 		if (node.resolved_method == null) return node;
 		val mi = node.resolved_method as *MethodInfo;
 		var args = List<*AstNode>();
-		args += self.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
-		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		args += self.arena.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
+		val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 		return self.lowered(node, call);
 	}
 
@@ -390,9 +391,9 @@ impl BodyPass {
 		val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
 		var args = List<*AstNode>();
 		if (t_is_ptr) args += idx.target;
-		else args += self.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		else args += self.arena.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
 		args += idx.index;
-		val call = self.call(self.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 		return self.lowered(node, call);
 	}
 
@@ -410,8 +411,8 @@ impl BodyPass {
 			val new_mi = node.resolved_method as *MethodInfo;
 			var ctor_args = List<*AstNode>();
 			for (arg in call.args) ctor_args += arg;
-			val ctor_call = self.call(
-				self.identifier(new_mi.c_name, node.line, node.col),
+			val ctor_call = self.arena.call(
+				self.arena.identifier(new_mi.c_name, node.line, node.col),
 				ctor_args, List<*AstNode>(), node.line, node.col
 			);
 			return self.lowered(node, ctor_call);
@@ -433,16 +434,16 @@ impl BodyPass {
 		else {
 			var op = TokenType.STAR;
 			if (by_ref) op = TokenType.AMPERSAND;
-			new_args += self.unary(op, recv, node.line, node.col);
+			new_args += self.arena.unary(op, recv, node.line, node.col);
 		}
 		for (arg in call.args) new_args += arg;
 
-		val direct = self.call(self.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		val direct = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 		if (!mem.is_safe) return self.lowered(node, direct);
 
-		val null_lit = self.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
-		val cond = self.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
-		val maybe = self.if_expr(cond, direct, null_lit, node.line, node.col);
+		val null_lit = self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
+		val cond = self.arena.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
+		val maybe = self.arena.if_expr(cond, direct, null_lit, node.line, node.col);
 		return self.lowered(node, maybe);
 	}
 
@@ -458,15 +459,15 @@ impl BodyPass {
 		var args = List<*AstNode>();
 		args += mem.object;
 		if (!call.args.empty()) args += call.args.first();
-		else args += self.literal(LiteralKind.INT, "0", node.line, node.col);
+		else args += self.arena.literal(LiteralKind.INT, "0", node.line, node.col);
 		if (call.args.len >= 2) args += call.args[1];
 		else {
 			var largs = List<*AstNode>();
 			largs += mem.object;
-			args += self.call(self.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
+			args += self.arena.call(self.arena.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
 		}
 
-		val slice_call = self.call(self.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		val slice_call = self.arena.call(self.arena.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 		return self.lowered(node, slice_call);
 	}
 
