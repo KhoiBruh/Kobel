@@ -380,6 +380,24 @@ impl BodyPass {
 		self.has_env_saved = false;
 	}
 
+	// Marks `rec` as the instance whose body is being checked: its type arguments
+	// replace the declaration pass's env and per-node decisions go to its side
+	// table. Returns the previously active record for `pop_instance`. A null
+	// record is a no-op, so ordinary declarations can call this unconditionally.
+	pub fn push_instance(var self, rec: *InstanceRecord): *InstanceRecord {
+		val saved = self.current_rec;
+		if (rec == null) return saved;
+		self.current_rec = rec;
+		self.push_instance_env(rec);
+		return saved;
+	}
+
+	pub fn pop_instance(var self, saved: *InstanceRecord, rec: *InstanceRecord) {
+		if (rec == null) return;
+		self.pop_instance_env();
+		self.current_rec = saved;
+	}
+
 	// Index of a type parameter name in the current instance's env (-1 when it
 	// is not a type parameter).
 	fn type_param_index(var self, name: str): i64 {

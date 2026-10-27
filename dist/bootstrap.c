@@ -2508,6 +2508,8 @@ void compiler__sema__body_pass__BodyPass_flush_instances(compiler__sema__body_pa
 void compiler__sema__body_pass__BodyPass_infer_arrow_returns(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* program_node);
 size_t compiler__sema__body_pass__BodyPass_collect_instance_arrow_candidates(compiler__sema__body_pass__BodyPass* self, std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate* pending, std__collections__list__List_ptr_compiler__ast__node__AstNode* seen, size_t from);
 compiler__sema__body_program__ArrowCandidate* compiler__sema__body_pass__BodyPass_arrow_candidate(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* fn_type, compiler__sema__types__Type* self_ty, const char* module);
+void compiler__sema__body_pass__BodyPass_add_fn_arrow_candidate(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* decl, const char* module, std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate* pending, std__collections__list__List_ptr_compiler__ast__node__AstNode* seen);
+void compiler__sema__body_pass__BodyPass_add_impl_arrow_candidates(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__ImplDecl* im, const char* module, std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate* pending, std__collections__list__List_ptr_compiler__ast__node__AstNode* seen);
 bool compiler__sema__body_pass__BodyPass_try_infer_arrow(compiler__sema__body_pass__BodyPass* self, compiler__sema__body_program__ArrowCandidate* c);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass_new_0(void);
 compiler__sema__body_pass__BodyPass compiler__sema__body_pass__BodyPass_new_1(compiler__sema__symbol__SymbolTable symtab);
@@ -2540,6 +2542,8 @@ void compiler__sema__body_pass__BodyPass_set_ident_name(compiler__sema__body_pas
 compiler__sema__symbol__AnnEntry* compiler__sema__body_pass__BodyPass_ann_entry(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body_pass__BodyPass_push_instance_env(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* rec);
 void compiler__sema__body_pass__BodyPass_pop_instance_env(compiler__sema__body_pass__BodyPass* self);
+compiler__sema__symbol__InstanceRecord* compiler__sema__body_pass__BodyPass_push_instance(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* rec);
+void compiler__sema__body_pass__BodyPass_pop_instance(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* saved, compiler__sema__symbol__InstanceRecord* rec);
 int64_t compiler__sema__body_pass__BodyPass_type_param_index(compiler__sema__body_pass__BodyPass* self, const char* name);
 size_t compiler__sema__body_pass__BodyPass_type_c_size_num(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__Type* ty);
 const char* compiler__sema__body_pass__BodyPass_type_c_size_text(compiler__sema__body_pass__BodyPass* self, compiler__sema__types__Type* ty);
@@ -13888,12 +13892,8 @@ void compiler__sema__body_pass__BodyPass_check_fn(compiler__sema__body_pass__Bod
             self_ty = (*compiler__sema__types__Type_as_pointer(p0)).pointee;
         }
     }
-    compiler__sema__symbol__InstanceRecord* saved_rec = self->current_rec;
     compiler__sema__symbol__InstanceRecord* rec = (compiler__sema__symbol__InstanceRecord*)fn_node->instance;
-    if (rec != NULL) {
-        self->current_rec = rec;
-        compiler__sema__body_pass__BodyPass_push_instance_env(self, rec);
-    }
+    compiler__sema__symbol__InstanceRecord* saved_rec = compiler__sema__body_pass__BodyPass_push_instance(self, rec);
     if (self_ty == NULL) {
         compiler__sema__body_pass__BodyPass_check_fn_body(self, fn_node, sym->type_ptr);
     } else {
@@ -13902,10 +13902,7 @@ void compiler__sema__body_pass__BodyPass_check_fn(compiler__sema__body_pass__Bod
         compiler__sema__body_pass__BodyPass_check_fn_body(self, fn_node, sym->type_ptr);
         self->current_self_type = saved_self;
     }
-    if (rec != NULL) {
-        compiler__sema__body_pass__BodyPass_pop_instance_env(self);
-        self->current_rec = saved_rec;
-    }
+    compiler__sema__body_pass__BodyPass_pop_instance(self, saved_rec, rec);
     compiler__sema__symbol__SymbolTable_set_current_module(&self->symtab, saved_mod);
 }
 
@@ -14039,17 +14036,10 @@ void compiler__sema__body_pass__BodyPass_check_impl(compiler__sema__body_pass__B
                 __for_i = (__for_i + 1);
                 continue;
             }
-            compiler__sema__symbol__InstanceRecord* saved_rec = self->current_rec;
             compiler__sema__symbol__InstanceRecord* rec = (compiler__sema__symbol__InstanceRecord*)m_node->instance;
-            if (rec != NULL) {
-                self->current_rec = rec;
-                compiler__sema__body_pass__BodyPass_push_instance_env(self, rec);
-            }
+            compiler__sema__symbol__InstanceRecord* saved_rec = compiler__sema__body_pass__BodyPass_push_instance(self, rec);
             compiler__sema__body_pass__BodyPass_check_fn_body(self, m_node, mi->fn_type);
-            if (rec != NULL) {
-                compiler__sema__body_pass__BodyPass_pop_instance_env(self);
-                self->current_rec = saved_rec;
-            }
+            compiler__sema__body_pass__BodyPass_pop_instance(self, saved_rec, rec);
             __for_i = (__for_i + 1);
         }
     }
@@ -14167,90 +14157,9 @@ void compiler__sema__body_pass__BodyPass_infer_arrow_returns(compiler__sema__bod
             }
             const char* cur_mod = self->symtab.current_module;
             if (decl->kind == 33) {
-                compiler__ast__node__FnDecl* f = compiler__ast__node__AstNode_as_fn_decl(decl);
-                if (f->type_params.len > 0) {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
-                if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, decl)) {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
-                compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, f->name);
-                if (sym == NULL) {
-                    {
-                        __for_i = (__for_i + 1);
-                        continue;
-                    }
-                }
-                std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&seen, decl);
-                std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(&pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, decl, sym->type_ptr, NULL, cur_mod));
+                compiler__sema__body_pass__BodyPass_add_fn_arrow_candidate(self, decl, cur_mod, &pending, &seen);
             } else if (decl->kind == 36) {
-                compiler__ast__node__ImplDecl* im = compiler__ast__node__AstNode_as_impl_decl(decl);
-                if (im->type_params.len > 0) {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
-                if (str_empty(im->struct_name)) {
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                        size_t __for_i = ((size_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
-                            if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, m_node)) {
-                                __for_i = (__for_i + 1);
-                                continue;
-                            }
-                            compiler__ast__node__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m_node);
-                            compiler__sema__types__MethodInfo* mi = compiler__sema__symbol__SymbolTable_find_prim_method_c(&self->symtab, mf->name);
-                            if (mi == NULL) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                    continue;
-                                }
-                            }
-                            compiler__sema__types__Type* self_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&(*compiler__sema__types__Type_as_fn(mi->fn_type)).param_types, 0);
-                            std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&seen, m_node);
-                            std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(&pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, m_node, mi->fn_type, self_ty, cur_mod));
-                            __for_i = (__for_i + 1);
-                        }
-                    }
-                } else {
-                    compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, im->struct_name);
-                    if (st_sym == NULL) {
-                        {
-                            __for_i = (__for_i + 1);
-                            continue;
-                        }
-                    }
-                    if ((*st_sym->type_ptr).kind != 18) {
-                        __for_i = (__for_i + 1);
-                        continue;
-                    }
-                    compiler__sema__types__StructType* st_info = compiler__sema__types__Type_as_struct(st_sym->type_ptr);
-                    {
-                        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
-                        size_t __for_i = ((size_t)0ULL);
-                        while (__for_i < __for_n) {
-                            compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
-                            if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, m_node)) {
-                                __for_i = (__for_i + 1);
-                                continue;
-                            }
-                            compiler__ast__node__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m_node);
-                            compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_c(st_info, mf->name);
-                            if (mi == NULL) {
-                                {
-                                    __for_i = (__for_i + 1);
-                                    continue;
-                                }
-                            }
-                            std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&seen, m_node);
-                            std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(&pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, m_node, mi->fn_type, st_sym->type_ptr, cur_mod));
-                            __for_i = (__for_i + 1);
-                        }
-                    }
-                }
+                compiler__sema__body_pass__BodyPass_add_impl_arrow_candidates(self, compiler__ast__node__AstNode_as_impl_decl(decl), cur_mod, &pending, &seen);
             }
             __for_i = (__for_i + 1);
         }
@@ -14306,42 +14215,45 @@ size_t compiler__sema__body_pass__BodyPass_collect_instance_arrow_candidates(com
         compiler__ast__node__ModuleDecl* m = compiler__ast__node__AstNode_as_module_decl(marker);
         compiler__sema__symbol__SymbolTable_set_current_module(&self->symtab, m->full_path);
         if (decl->kind == 33) {
-            compiler__ast__node__FnDecl* f = compiler__ast__node__AstNode_as_fn_decl(decl);
-            if (f->type_params.len > 0) {
-                continue;
-            }
-            if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, decl)) {
-                continue;
-            }
-            if (std__collections__list__List_ptr_compiler__ast__node__AstNode_contains(seen, decl)) {
-                continue;
-            }
-            compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, f->name);
-            if (sym == NULL) {
-                continue;
-            }
-            std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(seen, decl);
-            std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, decl, sym->type_ptr, NULL, m->full_path));
-            continue;
+            compiler__sema__body_pass__BodyPass_add_fn_arrow_candidate(self, decl, m->full_path, pending, seen);
+        } else if (decl->kind == 36) {
+            compiler__sema__body_pass__BodyPass_add_impl_arrow_candidates(self, compiler__ast__node__AstNode_as_impl_decl(decl), m->full_path, pending, seen);
         }
-        if (decl->kind != 36) {
-            continue;
-        }
-        compiler__ast__node__ImplDecl* im = compiler__ast__node__AstNode_as_impl_decl(decl);
-        if (im->type_params.len > 0) {
-            continue;
-        }
-        if (str_empty(im->struct_name)) {
-            continue;
-        }
-        compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, im->struct_name);
-        if (st_sym == NULL) {
-            continue;
-        }
-        if ((*st_sym->type_ptr).kind != 18) {
-            continue;
-        }
-        compiler__sema__types__StructType* st_info = compiler__sema__types__Type_as_struct(st_sym->type_ptr);
+    }
+    compiler__sema__symbol__SymbolTable_set_current_module(&self->symtab, saved_mod);
+    return i;
+}
+
+compiler__sema__body_program__ArrowCandidate* compiler__sema__body_pass__BodyPass_arrow_candidate(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* fn_type, compiler__sema__types__Type* self_ty, const char* module) {
+    compiler__sema__body_program__ArrowCandidate* c = std__mem__arena__Arena_alloc_compiler__sema__body_program__ArrowCandidate(&self->arena);
+    *c = (compiler__sema__body_program__ArrowCandidate){ node, fn_type, self_ty, module };
+    return c;
+}
+
+void compiler__sema__body_pass__BodyPass_add_fn_arrow_candidate(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* decl, const char* module, std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate* pending, std__collections__list__List_ptr_compiler__ast__node__AstNode* seen) {
+    compiler__ast__node__FnDecl* f = compiler__ast__node__AstNode_as_fn_decl(decl);
+    if (f->type_params.len > 0) {
+        return;
+    }
+    if (std__collections__list__List_ptr_compiler__ast__node__AstNode_contains(seen, decl)) {
+        return;
+    }
+    if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, decl)) {
+        return;
+    }
+    compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, f->name);
+    if (sym == NULL) {
+        return;
+    }
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(seen, decl);
+    std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, decl, sym->type_ptr, NULL, module));
+}
+
+void compiler__sema__body_pass__BodyPass_add_impl_arrow_candidates(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__ImplDecl* im, const char* module, std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate* pending, std__collections__list__List_ptr_compiler__ast__node__AstNode* seen) {
+    if (im->type_params.len > 0) {
+        return;
+    }
+    if (str_empty(im->struct_name)) {
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
             size_t __for_i = ((size_t)0ULL);
@@ -14356,27 +14268,55 @@ size_t compiler__sema__body_pass__BodyPass_collect_instance_arrow_candidates(com
                     continue;
                 }
                 compiler__ast__node__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m_node);
-                compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_c(st_info, mf->name);
+                compiler__sema__types__MethodInfo* mi = compiler__sema__symbol__SymbolTable_find_prim_method_c(&self->symtab, mf->name);
                 if (mi == NULL) {
                     {
                         __for_i = (__for_i + 1);
                         continue;
                     }
                 }
+                compiler__sema__types__Type* self_ty = std__collections__list__List_ptr_compiler__sema__types__Type_get(&(*compiler__sema__types__Type_as_fn(mi->fn_type)).param_types, 0);
                 std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(seen, m_node);
-                std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, m_node, mi->fn_type, st_sym->type_ptr, m->full_path));
+                std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, m_node, mi->fn_type, self_ty, module));
                 __for_i = (__for_i + 1);
             }
         }
+        return;
     }
-    compiler__sema__symbol__SymbolTable_set_current_module(&self->symtab, saved_mod);
-    return i;
-}
-
-compiler__sema__body_program__ArrowCandidate* compiler__sema__body_pass__BodyPass_arrow_candidate(compiler__sema__body_pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* fn_type, compiler__sema__types__Type* self_ty, const char* module) {
-    compiler__sema__body_program__ArrowCandidate* c = std__mem__arena__Arena_alloc_compiler__sema__body_program__ArrowCandidate(&self->arena);
-    *c = (compiler__sema__body_program__ArrowCandidate){ node, fn_type, self_ty, module };
-    return c;
+    compiler__sema__symbol__Symbol* st_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, im->struct_name);
+    if (st_sym == NULL) {
+        return;
+    }
+    if ((*st_sym->type_ptr).kind != 18) {
+        return;
+    }
+    compiler__sema__types__StructType* st_info = compiler__sema__types__Type_as_struct(st_sym->type_ptr);
+    {
+        size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&im->methods);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* m_node = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&im->methods, __for_i);
+            if (std__collections__list__List_ptr_compiler__ast__node__AstNode_contains(seen, m_node)) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            if (!compiler__sema__body_pass__BodyPass_arrow_pending(self, m_node)) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            compiler__ast__node__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m_node);
+            compiler__sema__types__MethodInfo* mi = compiler__sema__types__StructType_find_method_c(st_info, mf->name);
+            if (mi == NULL) {
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(seen, m_node);
+            std__collections__list__List_ptr_compiler__sema__body_program__ArrowCandidate_plus_assign(pending, compiler__sema__body_pass__BodyPass_arrow_candidate(self, m_node, mi->fn_type, st_sym->type_ptr, module));
+            __for_i = (__for_i + 1);
+        }
+    }
 }
 
 bool compiler__sema__body_pass__BodyPass_try_infer_arrow(compiler__sema__body_pass__BodyPass* self, compiler__sema__body_program__ArrowCandidate* c) {
@@ -14427,17 +14367,10 @@ bool compiler__sema__body_pass__BodyPass_try_infer_arrow(compiler__sema__body_pa
             }
         }
     }
-    compiler__sema__symbol__InstanceRecord* saved_rec = self->current_rec;
     compiler__sema__symbol__InstanceRecord* rec = (compiler__sema__symbol__InstanceRecord*)(*c->node).instance;
-    if (rec != NULL) {
-        self->current_rec = rec;
-        compiler__sema__body_pass__BodyPass_push_instance_env(self, rec);
-    }
+    compiler__sema__symbol__InstanceRecord* saved_rec = compiler__sema__body_pass__BodyPass_push_instance(self, rec);
     compiler__sema__types__Type* body_ty = compiler__sema__body_pass__BodyPass_check_expr(self, (*compiler__ast__node__AstNode_as_expr_stmt(f->body)).expr);
-    if (rec != NULL) {
-        compiler__sema__body_pass__BodyPass_pop_instance_env(self);
-        self->current_rec = saved_rec;
-    }
+    compiler__sema__body_pass__BodyPass_pop_instance(self, saved_rec, rec);
     compiler__sema__symbol__SymbolTable_exit_scope(&self->symtab);
     self->current_self_type = saved_self;
     self->current_fn_return_type = saved_ret;
@@ -14794,6 +14727,24 @@ void compiler__sema__body_pass__BodyPass_pop_instance_env(compiler__sema__body_p
     self->decl.subst_names = self->env_saved_names;
     self->decl.subst_types = self->env_saved_types;
     self->has_env_saved = false;
+}
+
+compiler__sema__symbol__InstanceRecord* compiler__sema__body_pass__BodyPass_push_instance(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* rec) {
+    compiler__sema__symbol__InstanceRecord* saved = self->current_rec;
+    if (rec == NULL) {
+        return saved;
+    }
+    self->current_rec = rec;
+    compiler__sema__body_pass__BodyPass_push_instance_env(self, rec);
+    return saved;
+}
+
+void compiler__sema__body_pass__BodyPass_pop_instance(compiler__sema__body_pass__BodyPass* self, compiler__sema__symbol__InstanceRecord* saved, compiler__sema__symbol__InstanceRecord* rec) {
+    if (rec == NULL) {
+        return;
+    }
+    compiler__sema__body_pass__BodyPass_pop_instance_env(self);
+    self->current_rec = saved;
 }
 
 int64_t compiler__sema__body_pass__BodyPass_type_param_index(compiler__sema__body_pass__BodyPass* self, const char* name) {
