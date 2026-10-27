@@ -127,7 +127,7 @@ impl BodyPass {
 
 			val tsym = self.symtab.lookup(id.name);
 			if (tsym != null && tsym.c_name != id.name) {
-				id.name = tsym.c_name;
+				self.set_ident_name(obj, tsym.c_name);
 			}
 		}
 		return self.t_usz();

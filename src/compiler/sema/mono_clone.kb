@@ -123,7 +123,13 @@ impl DeclPass {
 				node.line, node.col
 			);
 
-			is IdentifierExpr as id -> self.identifier(id.name, node.line, node.col);
+			is IdentifierExpr as id -> self.identifier(
+				// An identifier the checker resolved to a mangled C name (imports,
+				// symbols from another module) carries that name in the instance's
+				// side table; the shared template node keeps its source name.
+				if (e != null && e.has_ident_name) e.ident_name else id.name,
+				node.line, node.col
+			);
 
 			is BinaryExpr as b -> self.binary(
 				b.op,

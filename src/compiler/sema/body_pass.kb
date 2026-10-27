@@ -359,6 +359,22 @@ impl BodyPass {
 		self.ann_entry(node).init_override = r;
 	}
 
+	// Renames an identifier to the symbol's mangled C name. When the node belongs
+	// to a template body shared by every instance, the name is recorded in the
+	// instance's side table instead; materialization applies it to the instance's
+	// own copy (see `mono_clone.clone_expr`). This keeps the template AST intact,
+	// so two instances can never observe each other's rename.
+	pub fn set_ident_name(var self, node: *AstNode, name: str) {
+		if (self.current_rec != null) {
+			val e = self.ann_entry(node);
+			e.ident_name = name;
+			e.has_ident_name = true;
+			return;
+		}
+		val id = node.as_identifier_expr() as &IdentifierExpr;
+		id.name = name;
+	}
+
 	pub fn ann_entry(var self, node: *AstNode): *AnnEntry {
 		val rec = self.current_rec;
 		val ex = rec.find_ann(node);

@@ -114,8 +114,10 @@ impl BodyPass {
 			self.report_error(node, "Undeclared identifier '${id.name}'");
 			return self.t_none();
 		}
-		// Switch to the mangled C name (import alias, symbol from another module)
-		if (!sym.c_name.empty() && sym.c_name != id.name) id.name = sym.c_name;
+		// Switch to the mangled C name (import alias, symbol from another module).
+		// Inside an instance the node is shared with the template, so the name goes
+		// into the instance's side table instead of onto the AST.
+		if (!sym.c_name.empty() && sym.c_name != id.name) self.set_ident_name(node, sym.c_name);
 		return sym.type_ptr;
 	}
 

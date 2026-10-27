@@ -150,8 +150,11 @@ pub struct AnnEntry {
 	pub obj_replace: *AstNode = null,
 	// - an inferred local's synthesized type annotation,
 	pub var_ty: *Type = null,
-	// - a constructor initializer that received propagated type arguments.
-	pub init_override: *AstNode = null
+	// - a constructor initializer that received propagated type arguments,
+	pub init_override: *AstNode = null,
+	// - an identifier renamed to the symbol's mangled C name.
+	pub ident_name: str = "",
+	pub has_ident_name: bool = false
 }
 
 // One monomorphized instance: the template it came from, the resolved type
