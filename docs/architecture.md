@@ -60,8 +60,8 @@ v1 chỉ có **4 bước**, in ra dưới dạng `[n/4]`:
 | Bước | Gọi | Việc |
 |---|---|---|
 | 1 | `load_program(loader, input_path, src)` | `loader` nạp entry + mọi `use` (đệ quy), mỗi module: lex → parse → AST |
-| 2 | `collect_program(decl_collect, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphize (core nằm ở `decl_pass`) |
-| 3 | `check_program(body_program, prog)` rồi `lower_program(lower, prog)` | kiểm tra thân hàm, gắn kiểu cho biến nội bộ (core ở `body_pass`), **instantiate generic method** khi đã biết kiểu receiver rồi flush instance mới; sau đó một pass **lower** riêng hạ cấp các dạng đường (xem §6.2) |
+| 2 | `collect_program(decl.collect, prog)` | thu thập khai báo, đăng ký **template** generic, giải kiểu, **instantiate** generic, monomorphization (core nằm ở `decl.pass`) |
+| 3 | `check_program(body.program, prog)` rồi `lower_program(lower, prog)` | kiểm tra thân hàm, gắn kiểu cho biến nội bộ (core ở `body.pass`), **instantiate generic method** khi đã biết kiểu receiver rồi flush instance mới; sau đó một pass **lower** riêng hạ cấp các dạng đường (xem §6.2) |
 | 4 | `gen_program(c_program, prog)` | sinh C99 rồi `write_file`; nếu không `-emit-c` thì gọi C compiler + chạy (core nằm ở `c_codegen`) |
 
 **Module search roots** (giống v0): thư mục file entry → các root `-I` → `lib` → `src`.
@@ -90,23 +90,25 @@ compiler.ast.{types,expr,stmt,decl}   ← node, lexer.token, std.list
 compiler.lexer.lexer       ← lexer.token, std.ascii, std.list
 compiler.ast.builder       ← ast.*, lexer.token, std.list, std.arena
 compiler.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
-compiler.sema.types        ← std.list, std.arena
-compiler.sema.symbol       ← sema.types, ast.node, std.list, std.arena
-compiler.sema.decl_pass    ← ast.*, ast.builder, sema.{types,symbol}, strutil, std   (core)
-compiler.sema.monomorphize ← sema.{types,symbol,decl_pass}, ast.*, std   (template tables, substitution, worklist)
-compiler.sema.mono_instantiate ← monomorphize (instantiate_*, collect_*_as)
-compiler.sema.mono_clone   ← monomorphize (clone_* : AST + type-parameter substitution)
-compiler.sema.mono_rewrite ← monomorphize (rewrite_generics: calls, type nodes, T.size())
-compiler.sema.decl_collect ← sema.{decl_pass,monomorphize,mono_*}, ast.*, ast.builder, sema.{types,symbol}, strutil, std
-compiler.sema.body_pass    ← ast.*, ast.builder, sema.{types,symbol,decl_pass,desugar_*}, lexer.token, std  (core + dispatcher)
-compiler.sema.body_expr    ← body_pass, primaries & operator families
-compiler.sema.body_access  ← body_pass, member/index, lvalue, assignment, indexed write
-compiler.sema.body_pattern ← body_pass, when/is patterns
-compiler.sema.body_interp  ← body_pass, interpolation holes
-compiler.sema.body_call    ← body_pass, body_expr (call resolution, ctors)
-compiler.sema.body_stmt    ← body_pass, desugar_for (statements, `for` driver)
-compiler.sema.body_program ← body_pass, decl_{pass,collect} (function/program drivers)
-compiler.sema.lower        ← body_pass, ast.*, sema.{types,desugar_interp}   (rewrites sugar for C)
+compiler.sema.types            ← std.list, std.arena
+compiler.sema.symbol           ← sema.types, ast.node, std.list, std.arena
+compiler.sema.decl.pass        ← ast.*, ast.builder, sema.{types,symbol,mono.template,desugar.interp}, strutil, std   (core)
+compiler.sema.mono.template    ← sema.{types,symbol,decl.pass}, ast.*, std   (template tables, substitution, worklist)
+compiler.sema.mono.instantiate ← decl.pass, mono.template (instantiate_*, collect_*_as)
+compiler.sema.mono.clone       ← decl.pass, mono.template (clone_*: AST + type-parameter substitution)
+compiler.sema.mono.rewrite     ← decl.pass, mono.template (rewrite_generics: calls, type nodes, T.size())
+compiler.sema.decl.collect     ← sema.{decl.pass,mono.*}, ast.*, ast.builder, sema.{types,symbol}, strutil, std
+compiler.sema.body.pass        ← ast.*, ast.builder, sema.{types,symbol,decl.pass,desugar.interp}, lexer.token, std   (core + dispatcher)
+compiler.sema.body.expr        ← body.pass, decl.pass, desugar.interp   (primaries & operator families)
+compiler.sema.body.access      ← body.pass, decl.pass, desugar.interp   (member/index, lvalue, assignment, indexed write)
+compiler.sema.body.pattern     ← body.pass, decl.pass, desugar.interp   (when/is patterns)
+compiler.sema.body.interp      ← body.pass, decl.pass, desugar.interp   (interpolation holes)
+compiler.sema.body.call        ← body.pass, body.expr, decl.pass   (call resolution, ctors)
+compiler.sema.body.stmt        ← body.pass, body.expr, decl.pass, desugar.loop   (statements, `for` driver)
+compiler.sema.body.program     ← body.pass, decl.{pass,collect}   (function/program drivers)
+compiler.sema.desugar.interp   ← sema.types   (interpolation lowering + shared AST/equality helpers)
+compiler.sema.desugar.loop     ← body.pass   (for desugaring; Arena helpers)
+compiler.sema.lower            ← body.pass, ast.*, sema.{types,symbol,desugar.interp}   (rewrites sugar for C)
 compiler.codegen.c_type    ← ast.types, sema.types
 compiler.codegen.c_codegen ← ast.*, sema.types, c_type (state, literals, type helpers)
 compiler.codegen.c_expr    ← c_codegen, c_type (expression emission)
@@ -114,19 +116,29 @@ compiler.codegen.c_stmt    ← c_codegen, c_type (statement emission)
 compiler.codegen.c_program ← codegen.{c_codegen,c_expr,c_stmt,c_type}, ast.*, lexer.token, std.list
 util.strutil               ← std.list   (chuỗi/số dùng chung: str_*, usz_to_str, cstr_to_str)
 compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, util.strutil, std
-main                        ← sema.{decl_pass,decl_collect,body_pass,body_program}, codegen.{c_codegen,c_program}, loader, util.strutil, std
+main                        ← sema.{decl.pass,decl.collect,body.pass,body.program}, codegen.{c_codegen,c_program}, loader, util.strutil, std
 ```
 
 Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`/`codegen` phụ thuộc `ast` nhưng
 **không** phụ thuộc lẫn nhau; `main` là nơi duy nhất ráp mọi thứ.
 
-**Vì sao mỗi pass tách đúng 2 file.** Mỗi pass lớn (`decl_pass`, `body_pass`, `c_codegen`) trước đây là
+**Bố cục sema (đợt gom nhóm 2026-10).** Sema nhóm theo tiền tố cũ: `sema/body/{access,call,expr,interp,pass,pattern,program,stmt}.kb`
+(module `compiler.sema.body.*`), `sema/decl/{pass,collect}.kb`, `sema/mono/{template,instantiate,rewrite,clone}.kb`,
+`sema/desugar/{loop,interp}.kb`; các module đơn lẻ `types`, `symbol`, `lower` nằm phẳng trong `sema/`.
+`monomorphize` đổi thành `mono.template` (bảng template + worklist instance). Tên module đi vào C đã mangle
+(`compiler__sema__body__pass__…`), nên golden của các test *nhúng mã nguồn compiler* được cập nhật cùng commit;
+C sinh ra cho chương trình người dùng không đổi.
+
+**Vì sao mỗi pass tách đúng 2 file.** Mỗi pass lớn (`decl.pass`, `body.pass`, `c_codegen`) trước đây là
 một **SCC**: các hàm gọi đệ quy lẫn nhau qua lại (ví dụ `resolve_ast_type` ⟷ `instantiate_struct`, hay
-`check_expr` ⟷ `check_statement`). Ngôn ngữ **cấm import vòng** (loader xếp module theo post-order, một
-cạnh ngược sẽ khiến symbol của module kia chưa được nạp), nên không thể chẻ SCC theo chức năng
+`check_expr` ⟷ `check_statement`). Khi đó ngôn ngữ **cấm import vòng** (loader xếp module theo post-order,
+một cạnh ngược sẽ khiến symbol của module kia chưa được nạp), nên không thể chẻ SCC theo chức năng
 (collect/resolve/monomorph) một cách tuỳ ý. Cách chẻ đã dùng: **giữ `struct` + toàn bộ phần core/monomorph
 ở module gốc, đưa các hàm *entry* (chỉ được gọi, không gọi ngược vào core) sang module mới**. Nhờ vậy đồ
-thị vẫn một chiều: `decl_collect → decl_pass`, `body_program → body_pass`, `c_program → c_codegen`.
+thị vẫn một chiều: `decl.collect → decl.pass`, `body.program → body.pass`, `c_program → c_codegen`.
+Từ P‑1 loader đã chấp nhận import vòng (§3.5) nên ràng buộc này không còn tuyệt đối; đồ thị một chiều
+được giữ như **quy ước** để thứ tự pass rõ ràng, và là tiền đề cho Đợt 2 khi tách `symbol`/`types` theo
+khái niệm.
 
 ### 3.4 Đơn vị dữ liệu trung tâm
 
@@ -253,7 +265,7 @@ typedef struct do `StructDecl.emit_typedef` quyết định (không còn tập t
 Bất biến đi kèm (đã có test C snapshot bảo vệ, §8.1): **thay đổi sema/codegen không được đổi C sinh ra
 cho corpus test**, trừ khi đó là chủ đích và golden được cập nhật trong cùng commit.
 
-### 6.2 Desugar trong sema (body_pass + lower)
+### 6.2 Desugar trong sema (body.pass + lower)
 
 Từ P2, sema tách làm hai việc: `check_*` **chỉ** quyết định kiểu và báo lỗi; `sema/lower.kb` **viết lại**
 cây sau khi mọi thân hàm đã được kiểm. Bảng dưới ghi nơi hạ cấp từng dạng; cột "Lower" là các dạng đã
@@ -283,7 +295,7 @@ chuyển sang pass riêng, phần còn lại vẫn hạ ngay trong `check_*` (`r
 thì đi qua trait (`count()`/`at(i)`, phần tử lấy kiểu từ `at`; các container danh sách định nghĩa của
 compiler như `Program`, `ExternBlock`, `Scope`, `ModuleScope` đều đã `impl Iterable`); ngược lại dùng
 `.len`/`.data` dựng sẵn (cho `str`, `[T; N]`, và struct nào có đúng hai field đó). `STMT_FOR` **không**
-đi tới codegen: `body_pass` hạ nó thành block + `while` ngay khi kiểm tra, nên backend C không cần biết
+đi tới codegen: `body.pass` hạ nó thành block + `while` ngay khi kiểm tra, nên backend C không cần biết
 gì về `for`. Bốn ghi chú ngữ nghĩa của pha 1:
 
 - **Chỉ nhận lvalue** làm đối tượng duyệt (`x in self.items` được, `x in f()` không): thân vòng
@@ -396,10 +408,10 @@ giữ nguyên: kiểu nguyên thuỷ + `.value` (integer literal). Phía C: phá
 Trait trong Kobel là **dispatch tĩnh kiểu Rust** — không có vtable/`dyn`; mọi lời gọi method đều
 phân giải về method của struct ngay ở sema.
 
-- **Gom trait** (Pass 0, `decl_collect.collect_trait`): mọi `trait` vào `SymbolTable.traits` dưới dạng
+- **Gom trait** (Pass 0, `decl.collect.collect_trait`): mọi `trait` vào `SymbolTable.traits` dưới dạng
   `TraitInfo { name, bases, methods, impls }`; mỗi `TraitMethod` chỉ giữ **tên** và **có thân hay
   không**. Kiểu chữ ký để phân giải muộn, nên không phụ thuộc thứ tự khai báo.
-- **`impl Trait for Struct`** (`decl_pass.apply_trait`): đối chiếu hợp đồng —
+- **`impl Trait for Struct`** (`decl.pass.apply_trait`): đối chiếu hợp đồng —
   - Gộp method của trait **và toàn bộ base** (`trait_effective`): base duyệt trước để trait dẫn xuất
     ghi đè; danh sách `seen` chặn chu trình `trait A : B` / `trait B : A`.
   - Method **không có thân** là bắt buộc: impl thiếu ⇒ lỗi `does not implement required trait method`.
@@ -407,11 +419,11 @@ phân giải về method của struct ngay ở sema.
     backend phát nó y hệt method viết tay (không cần biết gì về trait).
 - **Kế thừa**: `impl Derived for X` cũng đăng ký `X` vào `impls` của mọi base trait
   (`trait_record_impl`), nên bound `<T: Base>` được thoả khi `X: Derived` và `Derived : Base`.
-- **Bound `<T: Trait>`** (`decl_pass.check_bounds`): kiểm ngay lúc **instantiate** generic
+- **Bound `<T: Trait>`** (`decl.pass.check_bounds`): kiểm ngay lúc **instantiate** generic
   (`instantiate_fn` / `instantiate_struct`). Chỉ báo lỗi khi type arg là **struct đã biết** mà chưa có
   `impl` tương ứng; type arg không phải struct (số, con trỏ, `str`…) được bỏ qua để tránh dương tính giả.
 - Sau `collect_impl`, method trait trở thành method bình thường của struct ⇒ `self.m()`/`obj.m()` do
-  `body_pass` hạ như mọi method khác (`Struct_m(&obj, …)`); codegen không biết trait là gì.
+  `body.pass` hạ như mọi method khác (`Struct_m(&obj, …)`); codegen không biết trait là gì.
 
 **Associated type** (`type Item;` / `type Item = T;`). `TraitInfo.assoc_types` giữ danh sách tên trait
 khai báo; `ImplDecl.assoc_bindings` giữ binding của impl. `register_assoc_bindings` (gọi ở đầu
@@ -431,7 +443,7 @@ chứ không còn bảng phụ:
 - `collect_impl` nhận ra tên kiểu qua `resolve_primitive_name` (trả instance chuẩn) và gọi
   `collect_prim_impl`: điền kiểu tường minh cho tham số `self` (để backend truyền **theo giá trị**,
   vd `int32_t self`) rồi `prim.add_method(mi)`, tên C = `<prim>_<method>` (`i32_to_str`).
-- `body_pass` tra `find_prim_method(kind, name)` (helper mỏng trên `SymbolTable`, đọc instance chuẩn)
+- `body.pass` tra `find_prim_method(kind, name)` (helper mỏng trên `SymbolTable`, đọc instance chuẩn)
   khi receiver là kiểu nguyên thuỷ ⇒ hạ `x.m(args)` thành `<prim>_m(x, args)` (receiver theo giá trị,
   tự `*` nếu receiver là con trỏ).
 - `check_impl` nhận diện impl nguyên thuỷ qua `struct_name == ""` và kiểm body bằng `find_prim_method_c`.
@@ -458,10 +470,10 @@ Các quy ước dưới đây giữ cho bốn cổng §8.1 xanh và giữ code d
 
 - **Ngôn ngữ**: comment trong code **tiếng Anh**; tài liệu trong `docs/` **tiếng Việt**.
 - **Header module**: `mod` → banner `// ====` nêu mục đích 2–4 dòng, module *sở hữu* dữ liệu gì và
-  pass nào gọi nó (xem `decl_pass`, `symbol`, `types`).
+  pass nào gọi nó (xem `decl.pass`, `symbol`, `types`).
 - **Một cửa cho quyết định per-instance**: `annotate_type`, `set_resolved`, `set_method`,
   `set_ident_name` (và các `set_ann_*`) ghi vào side table `InstanceRecord.ann` khi `current_rec != null`;
-  không gán thẳng vào `AstNode`. `mono_clone` (materialization) áp side table lên bản sao của instance.
+  không gán thẳng vào `AstNode`. `mono.clone` (materialization) áp side table lên bản sao của instance.
 - **Instance scope** chỉ qua `BodyPass.push_instance` / `pop_instance`; env tham số kiểu nằm trong
   `push_instance_env` / `pop_instance_env`.
 - **Không định nghĩa lại factory AST trong pass**: dùng `impl Arena` ở `ast/builder.kb`
@@ -566,7 +578,7 @@ và v1).
 | 0 | dọn rác: gitignore `/build/`, xoá `kobel_v*.exe`/`out.c`/`*.tmp.obj`/`tmp_diag.bat`, `git mv dac-ta-ngon-ngu.md docs/spec.md` | thấp |
 | 1 | `git mv` theo §9.1 (giữ lịch sử) + cập nhật path trong CMake, `.bat`, loader roots | thấp–vừa |
 | 2 | gộp build vào `tools/bootstrap.ps1` (`build\|self\|fixpoint\|test\|clean`) + `tools/msvc.ps1`; test tự khám phá | thấp |
-| 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl_pass`→`+decl_collect`, `body_pass`→`+body_program`, `c_codegen`→`+c_program`. Phần core/monomorph giữ nguyên ở module gốc vì là SCC. `runtime.c.inc`: chưa tách (prelude C vẫn trong `c_program`) | vừa |
+| 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl.pass`→`+decl.collect`, `body.pass`→`+body.program`, `c_codegen`→`+c_program`. Phần core/monomorph giữ nguyên ở module gốc vì là SCC. `runtime.c.inc`: chưa tách (prelude C vẫn trong `c_program`) | vừa |
 | 4 | **bỏ v0/LLVM**: commit `dist/bootstrap.c`, seed = C compiler | vừa (nhưng xoá ~12 700 LOC) |
 
 Sau mỗi pha: build v1 → tự biên dịch → `test` + `snap` + `fixpoint` (xem §8.1).
@@ -595,7 +607,7 @@ Mục tiêu không phải "chia lại file" mà là đạt ba bất biến:
 | **P1** | `AstNode.resolved_type` + codegen đọc kiểu thay vì đoán; xoá `infer_type_from_expr`, `pointer_vars`, `str_vars`, map return-type theo tên | **xong** (`f2c0043`, `16a864a`) |
 | **P2** | Tách `check` (thuần, không sửa AST) khỏi `lower` (sinh node mới); xoá `replace_node`; bỏ hack `check_arrow_method_body` | **xong** (`415fc4e`, `d68221f`, `c6588f8`): `replace_node` và mọi phép gán `kind`/`data` đã bị xoá; `for` đi qua `resolved_node`; `check_arrow_method_body` đã bị xoá, thay bằng pass `infer_arrow_returns` (fixpoint trên đồ thị gọi, rollback chẩn đoán khi bị chặn). Ba kênh `type_ptr`, `resolved_method`, `resolved_node` là nơi duy nhất codegen/lower đọc quyết định của check |
 | **P3** | `TypeStore` chuẩn hoá (primitive singleton, intern, struct id) + một `TypeResolver` dùng chung cho `DeclPass`/`BodyPass`; bỏ `DummyTemplateDecl` (type-punning) | **xong** (`4afe848`, `de7b2eb`, `41ee0a9`, `b6cb3a3`, `5200a18`): primitive canonical (`PrimTypes`), `DummyTemplateDecl` xoá, `BodyPass` dùng lại `DeclPass` (gỡ vi phạm I3), một kênh kiểu duy nhất `*Type` + `c_type_from_type`, method của primitive nằm trên `Type` (payload `PrimMethods`). Chưa làm: intern pointer/array/struct (không cần cho tính đúng hiện tại) |
-| **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **xong** (`bddb880`, `31b2a02`, `753fe07`, + bước 3-5): instance worklist + rewrite fixpoint; **struct instantiation parameter hoá theo type** (không clone AST template, view chỉ để emit C), thân struct/enum emit theo thứ tự phụ thuộc by-value; **identity instance theo `(template, args: List<*Type>)`** (`InstanceRecord`), tên C chỉ để emit, kèm fix `Type.equals` theo `c_name`; **function/method instance dùng chung AST template + side table per-node** (`InstanceRecord.ann`, `AstNode.instance`, `SizeOfParam` hạ ở codegen); **không còn clone lúc instantiate** (`drain_instances` chỉ rewrite view/struct; `mono_clone` chỉ giữ `materialize_body` = emission copy + `clone_fn` cho default method trait); **bước 5 — instance graph**: cả batch decl-pass lẫn `flush_instances` đều **append** sau program theo creation order, **không còn prepend**; order-sensitivity của sema được gỡ bằng cách cho worklist arrow-inference **nở dần** theo instance sinh muộn và ba kênh call (`new`, method, index-`get`) báo `infer_blocked` khi callee còn pending; **nốt nợ cuối** — identifier rename cũng đi qua side table (`AnnEntry.ident_name`, `BodyPass.set_ident_name`, áp lúc materialize) nên AST template bất biến thật sự (I1) — xem `docs/parameterised-ir.md` §5 |
+| **P4** | Monomorphize thành worklist/instance graph thay vì clone AST rồi chèn đầu `declarations` | **xong** (`bddb880`, `31b2a02`, `753fe07`, + bước 3-5): instance worklist + rewrite fixpoint; **struct instantiation parameter hoá theo type** (không clone AST template, view chỉ để emit C), thân struct/enum emit theo thứ tự phụ thuộc by-value; **identity instance theo `(template, args: List<*Type>)`** (`InstanceRecord`), tên C chỉ để emit, kèm fix `Type.equals` theo `c_name`; **function/method instance dùng chung AST template + side table per-node** (`InstanceRecord.ann`, `AstNode.instance`, `SizeOfParam` hạ ở codegen); **không còn clone lúc instantiate** (`drain_instances` chỉ rewrite view/struct; `mono.clone` chỉ giữ `materialize_body` = emission copy + `clone_fn` cho default method trait); **bước 5 — instance graph**: cả batch decl-pass lẫn `flush_instances` đều **append** sau program theo creation order, **không còn prepend**; order-sensitivity của sema được gỡ bằng cách cho worklist arrow-inference **nở dần** theo instance sinh muộn và ba kênh call (`new`, method, index-`get`) báo `infer_blocked` khi callee còn pending; **nốt nợ cuối** — identifier rename cũng đi qua side table (`AnnEntry.ident_name`, `BodyPass.set_ident_name`, áp lúc materialize) nên AST template bất biến thật sự (I1) — xem `docs/parameterised-ir.md` §5 |
 | **P‑1** | Năng lực ngôn ngữ cần cho kiến trúc: payload enum (sum type), generic method/associated type, cho phép import vòng hoặc forward declaration | **xong**: forward declaration (`fe850db`, dùng cho `Type.methods` `4d28738`); **generic method** ở body pass (`121a335`); **payload enum** (`8801e08`); **payload enum cho `Type.data`** (`6de4052`) và **`AstNode.data`** (`fa01876`); **import vòng** (`00c1b8c`, test `test_loader_cycles.kb`, §3.5); **associated type** (`31bd32c`, test `test_associated_types.kb`, §6.6) |
 
 **Vì sao P‑1 phải làm trước P2/P3.** Vì self-host, compiler hiện tại phải hiểu nguồn mới. Muốn viết
@@ -694,7 +706,7 @@ kiểm lời gọi (re-entrancy cũ).
   [T; N]`; `for` xử lý mảng bằng đường `.len`/`.data` dựng sẵn (xem §6.2). Muốn "list-like" dùng chung
   trong code generic thì cần thêm associated type (hoặc generic method) cho trait — hiện chưa có.
 - **`.size()` trên tên kiểu nguyên thuỷ** (`str.size()`, `bool.size()`) được sema **fold thành literal
-  theo kích thước C** (`prim_c_size` trong `body_pass`), vì backend không có kiểu C tên `str`/`bool`.
+  theo kích thước C** (`prim_c_size` trong `body.pass`), vì backend không có kiểu C tên `str`/`bool`.
   `str` tính là con trỏ (8 byte), khớp `ast_type_size` dùng cho đường generic.
 - Cảnh báo C khi build ở `/Wall`: còn `C5045` (Spectre note), `C4820` (padding) — mang tính thông tin.
 - Hai bản cài đặt sema (v0 và v1) song song ⇒ nguy cơ lệch hành vi; giảm dần bằng cách đóng băng seed.

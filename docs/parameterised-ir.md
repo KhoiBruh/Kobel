@@ -87,7 +87,7 @@ Hai lựa chọn:
 | 1 | Struct instantiation theo type | **xong** (`31b2a02`) |
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
 | 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
-| 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono_clone`/`monomorphize` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
+| 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono.clone`/`mono.template` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
 | 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | **xong** (`…` bước 5): cả `flush_instances` (batch sinh trong body check) lẫn batch decl-pass đều **append** sau program theo creation order; gỡ order-sensitivity của sema bằng worklist inference nở dần + `infer_blocked` ở mọi kênh call đọc return type của arrow method (xem §5, "Ghi chú bước 5") |
 
 ## 4. Rủi ro
@@ -113,7 +113,7 @@ biết đường dây.
 - `BodyPass`: `current_rec` + `ann_entry/set_resolved/set_method/annotate_type` route vào side table khi
   đang check instance; env type-param lúc check instance **thay thế** (không xếp chồng) `decl.subst_*`.
 - `lower_program`: template không được lower; với fn/impl view thì materialize qua
-  `mono_clone.materialize_body` (clone body có gán annotation từ side table) rồi lower trên cây riêng.
+  `mono.clone.materialize_body` (clone body có gán annotation từ side table) rồi lower trên cây riêng.
 - `check_call_expr`: gọi generic tường minh (`f<X>(...)`, `List<T>(...)`) trong template resolve ngay lúc
   check; `T.size()` hạ thành `SizeOfParam` (cỡ C tính từ type arg, giữ nguyên text literal như cũ).
 
@@ -170,8 +170,8 @@ instantiate muộn (lúc đang check body, kể cả trong `infer_arrow_returns`
 sách pending của arrow-inference, nên `new` dạng arrow `=> Self(...)` chưa được suy luận return type → mọi
 chỗ dựng `List<X>()` trả về `none`, gây loạt lỗi dây chuyền. Ba phương án đã thử: (a) flag `infer_blocked`
 khi gặp callee pending (chưa đủ vì ở step 2 không có vòng retry); (b) eager check callee (`ensure_callee_ready_node`)
-kèm re-scan pending sau mỗi vòng inference (bước tiến lớn: hết lỗi monomorphize/decl_pass/desugar_for, nhưng
-vẫn còn lỗi dây chuyền khác tại fmt.comments/symbol/decl_collect — dấu hiệu còn root khác, có thể là
+kèm re-scan pending sau mỗi vòng inference (bước tiến lớn: hết lỗi mono.template/decl.pass/desugar.loop, nhưng
+vẫn còn lỗi dây chuyền khác tại fmt.comments/symbol/decl.collect — dấu hiệu còn root khác, có thể là
 annotation chồng trên node dùng chung khi eager check chen ngang check chính thức); (c) giữ prepend cho batch
 decl-pass. Chốt hiện tại: (c) — prepend được giữ, kèm comment trong mã; hướng tiếp theo nên điều tra triệt để
 mọi chỗ còn đọc/ghi `AstNode` trực tiếp khi đang check instance (vd rename identifier sang c_name trong
@@ -228,7 +228,7 @@ instance sau nhìn thấy. Nay tên đã resolve đi qua side table:
 
 - `AnnEntry.ident_name` / `has_ident_name` ghi tên C của **instance hiện tại**;
   `BodyPass.set_ident_name` là cửa duy nhất (rec != null → side table, ngược lại → sửa node như cũ).
-- `mono_clone.clone_expr` (materialization) áp `ident_name` lên bản sao của instance, nên AST template
+- `mono.clone.clone_expr` (materialization) áp `ident_name` lên bản sao của instance, nên AST template
   giữ nguyên tên nguồn; I1 (AST bất biến sau parse) đúng cho cả identifier.
 - Call site duy nhất còn lại của việc sửa tên là `check_ident_expr`/`lower_size_query` khi **không** ở
   trong instance (khai báo thường), đúng phạm vi được phép.
