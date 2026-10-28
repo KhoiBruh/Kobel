@@ -1,4 +1,4 @@
-mod compiler.sema.body_stmt;
+mod compiler.sema.body.stmt;
 
 // ============================================================================
 // BodyPass - Statement Type Checking
@@ -6,6 +6,7 @@ mod compiler.sema.body_stmt;
 // Analyzes statement nodes (blocks, variables, loops, conditionals, returns).
 // Handles lowering for `for` loops through `Iterable`.
 // ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 
@@ -22,11 +23,11 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
 use compiler.sema.symbol.*;
-use compiler.sema.decl_pass.*;
-use compiler.sema.desugar_for.*;
-use compiler.sema.desugar_interp.*;
-use compiler.sema.body_pass.*;
-use compiler.sema.body_expr.*;
+use compiler.sema.decl.pass.*;
+use compiler.sema.desugar.loop.*;
+use compiler.sema.desugar.interp.*;
+use compiler.sema.body.pass.*;
+use compiler.sema.body.expr.*;
 
 impl BodyPass {
 
@@ -220,7 +221,7 @@ impl BodyPass {
 		var use_iter_trait = false;
 		if (!fs.is_range) use_iter_trait = self.struct_implements_iterable(self.for_iterable_type(fs.iterable));
 
-		// `desugar_for` builds the replacement block without installing it: check
+		// `desugar.loop` builds the replacement block without installing it: check
 		// that block directly and let `lower` put it in place of the `for`.
 		val block = self.arena.desugar_for(node, fs, use_iter_trait, self);
 		self.set_resolved(node, block);

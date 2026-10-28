@@ -1,15 +1,16 @@
-mod compiler.sema.body_pass;
+mod compiler.sema.body.pass;
 
 // ============================================================================
 // BodyPass - Type Checker & Body Analyzer Core Dispatcher
 //
 // Coordinates statement and expression checking across AST nodes.
 // Specific node checks are factored into:
-// - `body_stmt.kb`: statement analysis (blocks, declarations, loops, returns)
-// - `body_expr.kb`: expression analysis (operators, accessors, assignments)
-// - `body_call.kb`: call resolution, methods, and constructors
-// - `body_program.kb`: module, function, and impl declaration drivers
+// - `body/stmt.kb`: statement analysis (blocks, declarations, loops, returns)
+// - `body/expr.kb`: expression analysis (operators, accessors, assignments)
+// - `body/call.kb`: call resolution, methods, and constructors
+// - `body/program.kb`: module, function, and impl declaration drivers
 // ============================================================================
+
 use std.mem.arena.*;
 use std.collections.list.*;
 
@@ -25,15 +26,15 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
 use compiler.sema.symbol.*;
-use compiler.sema.decl_pass.*;
-use compiler.sema.desugar_interp.*;
-use compiler.sema.body_stmt.*;
-use compiler.sema.body_expr.*;
-use compiler.sema.body_access.*;
-use compiler.sema.body_pattern.*;
-use compiler.sema.body_interp.*;
-use compiler.sema.body_call.*;
-use compiler.sema.body_program.*;
+use compiler.sema.decl.pass.*;
+use compiler.sema.desugar.interp.*;
+use compiler.sema.body.stmt.*;
+use compiler.sema.body.expr.*;
+use compiler.sema.body.access.*;
+use compiler.sema.body.pattern.*;
+use compiler.sema.body.interp.*;
+use compiler.sema.body.call.*;
+use compiler.sema.body.program.*;
 
 // ============================================================================
 // BodyPass Struct Definition
@@ -304,7 +305,7 @@ impl BodyPass {
 
 	// --- instance annotation plumbing ---------------------------------------
 	// The checker writes these decisions per instance; materialization copies
-	// them onto the instance's own tree (see monomorphize / mono_clone).
+	// them onto the instance's own tree (see mono.template / mono.clone).
 
 	pub fn set_resolved(var self, node: *AstNode, r: *AstNode) {
 		if (self.current_rec != null) self.ann_entry(node).resolved = r;
@@ -339,7 +340,7 @@ impl BodyPass {
 	// Renames an identifier to the symbol's mangled C name. When the node belongs
 	// to a template body shared by every instance, the name is recorded in the
 	// instance's side table instead; materialization applies it to the instance's
-	// own copy (see `mono_clone.clone_expr`). This keeps the template AST intact,
+	// own copy (see `mono.clone.clone_expr`). This keeps the template AST intact,
 	// so two instances can never observe each other's rename.
 	pub fn set_ident_name(var self, node: *AstNode, name: str) {
 		if (self.current_rec != null) {

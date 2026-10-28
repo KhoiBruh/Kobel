@@ -11,8 +11,8 @@ use compiler.sema.types.DataType;
 
 use compiler.sema.symbol.SymbolKind;
 
-use compiler.sema.decl_pass.DeclPass;
-use compiler.sema.decl_collect.*;
+use compiler.sema.decl.pass.DeclPass;
+use compiler.sema.decl.collect.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

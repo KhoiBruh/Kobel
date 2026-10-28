@@ -7,10 +7,10 @@ use std.collections.list.*;
 use util.strutil.*;
 
 use compiler.ast.node.*;
-use compiler.sema.decl_pass.*;
-use compiler.sema.decl_collect.*;
-use compiler.sema.body_pass.*;
-use compiler.sema.body_program.*;
+use compiler.sema.decl.pass.*;
+use compiler.sema.decl.collect.*;
+use compiler.sema.body.pass.*;
+use compiler.sema.body.program.*;
 use compiler.sema.lower.*;
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_program.*;

@@ -11,8 +11,8 @@ use std.io.println;
 use std.io.write_file;
 
 use compiler.loader.loader.ModuleLoader;
-use compiler.sema.decl_pass.DeclPass;
-use compiler.sema.decl_collect.*;
+use compiler.sema.decl.pass.DeclPass;
+use compiler.sema.decl.collect.*;
 use compiler.sema.types.DataType;
 use compiler.ast.node.*;
 

@@ -1,11 +1,11 @@
-mod compiler.sema.desugar_for;
+mod compiler.sema.desugar.loop;
 
 // ============================================================================
 // Body checker helper - `for` desugaring
 //
 // Rewrites `for (x in seq)` (Iterable vs `.len`/`.data`) and the three range
 // forms into a block + `while`, keeping `continue` semantics (step injection)
-// and unsigned-safe counters. Called from `body_stmt` while checking.
+// and unsigned-safe counters. Called from `body.stmt` while checking.
 // ============================================================================
 
 use std.mem.arena.*;
@@ -17,7 +17,7 @@ use compiler.ast.expr.*;
 use compiler.ast.types.*;
 use compiler.ast.builder.*;
 use compiler.lexer.token.*;
-use compiler.sema.body_pass.BodyPass;
+use compiler.sema.body.pass.BodyPass;
 
 // ============================================================================
 // For-loop AST Lowering (Desugaring)

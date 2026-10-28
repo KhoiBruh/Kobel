@@ -1,4 +1,4 @@
-mod compiler.sema.mono_instantiate;
+mod compiler.sema.mono.instantiate;
 
 // ============================================================================
 // Generic Instantiation
@@ -29,9 +29,9 @@ use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.MethodInfo;
 
-use compiler.sema.decl_pass.*;
+use compiler.sema.decl.pass.*;
 use compiler.ast.decl.StructField as AstStructField;
-use compiler.sema.monomorphize.*;
+use compiler.sema.mono.template.*;
 
 impl DeclPass {
 

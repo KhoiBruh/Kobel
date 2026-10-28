@@ -1,4 +1,4 @@
-mod compiler.sema.decl_collect;
+mod compiler.sema.decl.collect;
 
 // ============================================================================
 // DeclPass - declaration collection driver
@@ -25,11 +25,11 @@ use compiler.ast.builder.*;
 use compiler.sema.types.*;
 use compiler.sema.types.StructField;
 use compiler.sema.symbol.*;
-use compiler.sema.decl_pass.*;
-use compiler.sema.monomorphize.*;
-use compiler.sema.mono_instantiate.*;
-use compiler.sema.mono_clone.*;
-use compiler.sema.mono_rewrite.*;
+use compiler.sema.decl.pass.*;
+use compiler.sema.mono.template.*;
+use compiler.sema.mono.instantiate.*;
+use compiler.sema.mono.clone.*;
+use compiler.sema.mono.rewrite.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {

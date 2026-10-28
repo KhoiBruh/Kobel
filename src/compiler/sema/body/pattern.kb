@@ -1,4 +1,4 @@
-mod compiler.sema.body_pattern;
+mod compiler.sema.body.pattern;
 
 // ============================================================================
 // BodyPass - When Expressions and Patterns
@@ -23,9 +23,9 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.*;
 use compiler.sema.symbol.*;
-use compiler.sema.decl_pass.*;
-use compiler.sema.body_pass.*;
-use compiler.sema.desugar_interp.*;
+use compiler.sema.decl.pass.*;
+use compiler.sema.body.pass.*;
+use compiler.sema.desugar.interp.*;
 
 impl BodyPass {
 

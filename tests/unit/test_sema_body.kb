@@ -7,11 +7,11 @@ use compiler.lexer.lexer.Lexer;
 use compiler.parser.parser.Parser;
 use compiler.parser.decl.parse_program;
 
-use compiler.sema.body_pass.BodyPass;
-use compiler.sema.body_stmt.*;
-use compiler.sema.body_expr.*;
-use compiler.sema.body_call.*;
-use compiler.sema.body_program.*;
+use compiler.sema.body.pass.BodyPass;
+use compiler.sema.body.stmt.*;
+use compiler.sema.body.expr.*;
+use compiler.sema.body.call.*;
+use compiler.sema.body.program.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

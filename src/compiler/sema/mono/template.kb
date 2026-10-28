@@ -1,4 +1,4 @@
-mod compiler.sema.monomorphize;
+mod compiler.sema.mono.template;
 
 // ============================================================================
 // Monomorphization - template registry and substitutions
@@ -8,8 +8,8 @@ mod compiler.sema.monomorphize;
 // parameter names to AST type nodes while cloning.
 //
 // The typed instance registry lives on `GenericReg` in `symbol.kb`; the
-// instantiate/rewrite/clone steps live in `mono_instantiate`, `mono_rewrite`
-// and `mono_clone`.
+// instantiate/rewrite/clone steps live in `mono.instantiate`, `mono.rewrite`
+// and `mono.clone`.
 // ============================================================================
 
 use std.mem.arena.*;
@@ -33,7 +33,7 @@ use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.MethodInfo;
 
-use compiler.sema.decl_pass.*;
+use compiler.sema.decl.pass.*;
 use compiler.ast.decl.StructField as AstStructField;
 // ============================================================================
 // Generic Templates & Monomorphization

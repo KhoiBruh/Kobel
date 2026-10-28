@@ -1,4 +1,4 @@
-mod compiler.sema.decl_pass;
+mod compiler.sema.decl.pass;
 
 // ============================================================================
 // DeclPass - type resolution and declaration semantics
@@ -8,8 +8,8 @@ mod compiler.sema.decl_pass;
 // generic structs/functions/methods, applies `impl Trait for T` contracts, and
 // holds the symbol table it shares with the body pass.
 //
-// The ordered collection driver is `decl_collect`; monomorphization is split
-// across `monomorphize` (registry) and the `mono_*` modules (instantiate,
+// The ordered collection driver is `decl.collect`; monomorphization is split
+// across `mono.template` (registry) and the `mono.*` modules (instantiate,
 // rewrite, clone).
 // ============================================================================
 
@@ -29,8 +29,8 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 use compiler.ast.builder.*;
 use compiler.sema.symbol.*;
-use compiler.sema.monomorphize.*;
-use compiler.sema.desugar_interp.*;
+use compiler.sema.mono.template.*;
+use compiler.sema.desugar.interp.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
@@ -76,7 +76,7 @@ pub struct DeclPass {
 	pub subst_names: List<str> = List<str>(),
 	pub subst_types: List<*Type> = List<*Type>(),
 	pub current_fn_return_type: *AstNode = null,
-	// While materializing a function instance (see mono_clone), the instance
+	// While materializing a function instance (see mono.clone), the instance
 	// whose annotation side table drives the clone. Null otherwise.
 	pub mat_rec: *InstanceRecord = null
 }

@@ -1,4 +1,4 @@
-mod compiler.sema.mono_clone;
+mod compiler.sema.mono.clone;
 
 // ============================================================================
 // AST cloning - the two remaining roles
@@ -13,7 +13,7 @@ mod compiler.sema.mono_clone;
 //    monomorphization.
 //
 // No cloning happens at *instantiate* time: instantiate_fn/instantiate_struct
-// only build a view + side table (see mono_instantiate.kb).
+// only build a view + side table (see mono/instantiate.kb).
 // ============================================================================
 
 use std.mem.arena.*;
@@ -37,9 +37,9 @@ use compiler.sema.types.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.MethodInfo;
 
-use compiler.sema.decl_pass.*;
+use compiler.sema.decl.pass.*;
 use compiler.ast.decl.StructField as AstStructField;
-use compiler.sema.monomorphize.*;
+use compiler.sema.mono.template.*;
 
 impl DeclPass {
 

@@ -30,8 +30,8 @@ use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.symbol.InstanceRecord;
-use compiler.sema.desugar_interp.*;
-use compiler.sema.body_pass.*;
+use compiler.sema.desugar.interp.*;
+use compiler.sema.body.pass.*;
 
 impl BodyPass {
 
