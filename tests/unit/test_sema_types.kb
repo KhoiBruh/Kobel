@@ -9,8 +9,8 @@ use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
 use compiler.sema.types.PointerType;
 use compiler.sema.types.ArrayType;
-use compiler.sema.types.StructField;
-use compiler.sema.types.StructType;
+use compiler.sema.structs.StructField;
+use compiler.sema.structs.StructType;
 use compiler.sema.types.FnType;
 
 use compiler.sema.types.type_none;

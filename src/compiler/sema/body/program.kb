@@ -29,6 +29,8 @@ use compiler.sema.body.expr.*;
 
 use compiler.sema.instance.*;
 
+use compiler.sema.type_ast.*;
+
 // One arrow-bodied function whose return type is still unknown, together with
 // the context its body has to be checked in (defining module and `Self` type).
 struct ArrowCandidate {

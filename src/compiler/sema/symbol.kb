@@ -23,9 +23,9 @@ use std.traits.iterable.Iterable;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
-use compiler.sema.types.MethodInfo;
-use compiler.sema.types.EnumInfo;
-use compiler.sema.types.PrimTypes;
+use compiler.sema.methods.MethodInfo;
+use compiler.sema.enums.EnumInfo;
+use compiler.sema.prims.PrimTypes;
 use compiler.ast.node.*;
 
 use compiler.sema.template.*;

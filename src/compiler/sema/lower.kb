@@ -28,7 +28,7 @@ use compiler.lexer.token.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
-use compiler.sema.types.MethodInfo;
+use compiler.sema.methods.MethodInfo;
 use compiler.sema.instance.InstanceRecord;
 use compiler.sema.desugar.interp.*;
 use compiler.sema.body.pass.*;
@@ -505,4 +505,36 @@ impl BodyPass {
 		return t != null && t.kind == DataType.ARRAY;
 	}
 
+}
+
+// ============================================================================
+// Equality helpers used by `lower`
+//
+// `str` compares through `kobel_streq`; a struct with no user equality compares
+// its bytes through `kobel_memeq`. Both are built here because only lowering
+// knows which C helper a source operator became.
+// ============================================================================
+
+impl Arena {
+
+	// Builds `kobel_streq(a, b)`, optionally negated, for str equality.
+	pub fn make_str_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode {
+		var eargs = List<*AstNode>();
+		eargs += left;
+		eargs += right;
+		val eq_call = self.call(self.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
+		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
+		return eq_call;
+	}
+
+	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated, for default struct equality.
+	pub fn make_mem_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, size: usz, line: usz, col: usz): *AstNode {
+		var eargs = List<*AstNode>();
+		eargs += self.unary(TokenType.AMPERSAND, left, line, col);
+		eargs += self.unary(TokenType.AMPERSAND, right, line, col);
+		eargs += self.literal(LiteralKind.INT, "${size}UZ", line, col);
+		val eq_call = self.call(self.identifier("kobel_memeq", line, col), eargs, List<*AstNode>(), line, col);
+		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
+		return eq_call;
+	}
 }

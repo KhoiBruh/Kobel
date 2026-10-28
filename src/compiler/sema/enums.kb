@@ -1,0 +1,50 @@
+mod compiler.sema.enums;
+
+// ============================================================================
+// Enum descriptors
+//
+// `EnumInfo` is the payload registered for every `enum`: the underlying integer
+// for a plain enum, or `is_payload = true` with member payload types for a sum
+// type. `EnumMemberInfo` keeps one member name/value and its payload struct.
+// ============================================================================
+
+use std.collections.list.*;
+
+use compiler.sema.types.*;
+
+// A single enum member with its resolved integer value.
+pub struct EnumMemberInfo {
+	pub name: str,
+	pub value: i64,
+	// Payload struct of the variant (null for a plain integer member). Its fields
+	// are the declared ones, so a pattern binding uses ordinary field access.
+	pub payload_ty: *Type = null,
+	// Field path of the payload inside the enum struct (`u.Circle`); empty when
+	// the variant carries no data.
+	pub payload_path: str = ""
+}
+
+// Payload registered for every `enum` declaration.
+//
+// An integer enum lowers to its underlying type, so the symbol's `Type` is an
+// integer carrier holding this info. A payload enum's symbol has a *struct*
+// type instead (tag + union of variant payloads); `is_payload` tells the two
+// apart, and `members` then resolve to variant payload structs.
+pub struct EnumInfo {
+	pub name: str,
+	pub c_name: str,
+	pub underlying: *Type,
+	pub members: List<*EnumMemberInfo>,
+	pub is_payload: bool = false,
+	// Name of the tag field inside the generated struct.
+	pub tag_field: str = "tag"
+}
+
+impl EnumInfo {
+	pub fn find_member(self, name: str): *EnumMemberInfo {
+		for (m in self.members) {
+			if (m.name == name) return m;
+		}
+		return null;
+	}
+}

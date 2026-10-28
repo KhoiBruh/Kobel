@@ -29,6 +29,10 @@ use compiler.sema.body.expr.*;
 
 use compiler.sema.template.*;
 
+use compiler.sema.methods.*;
+
+use compiler.sema.prims.*;
+
 impl BodyPass {
 
 	pub fn check_call_expr(var self, node: *AstNode): *Type {

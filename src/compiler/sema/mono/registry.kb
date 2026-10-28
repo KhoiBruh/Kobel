@@ -28,13 +28,15 @@ use compiler.sema.symbol.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
-use compiler.sema.types.StructField;
+use compiler.sema.structs.StructField;
 use compiler.sema.types.type_none;
-use compiler.sema.types.MethodInfo;
+use compiler.sema.methods.MethodInfo;
 
 use compiler.sema.decl.pass.*;
 
 use compiler.sema.template.*;
+
+use compiler.sema.prims.*;
 
 use compiler.ast.decl.StructField as AstStructField;
 

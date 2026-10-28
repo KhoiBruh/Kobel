@@ -1,12 +1,11 @@
 mod compiler.sema.desugar.interp;
 
 // ============================================================================
-// Body checker helper - interpolation and value helpers
+// Body checker helper - string interpolation
 //
-// Lowers string interpolation into `kobel_concat` chains (holes go through
-// `ToStr`), and builds the AST/type helpers the checker reuses:
-// `ast_type_from_type` (resolved type -> annotation node), `make_str_eq` and
-// `make_mem_eq` (equality calls emitted for `str` and struct values).
+// Lowers string interpolation into `kobel_concat` chains: each hole is checked
+// against `ToStr` and the concat tree is built on the arena. Type annotations
+// live in `sema.type_ast`, equality helpers in `sema.lower`.
 // ============================================================================
 
 use std.mem.arena.Arena;
@@ -44,67 +43,4 @@ impl Arena {
 		return self.call(self.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
 	}
 
-	// Builds an AST type node for a resolved semantic type, so locals can carry an
-	// explicit annotation the C backend understands.
-	pub fn ast_type_from_type(var self, ty: *Type): *AstNode {
-		if (ty.is_enum()) return self.named_type(ty.as_enum().c_name, List<*AstNode>(), 0, 0);
-
-		return when (ty.kind) {
-			DataType.POINTER -> {
-				val pt = ty.as_pointer();
-				val base_ptr = self.pointer_type(pt.is_mut, self.ast_type_from_type(pt.pointee), 0, 0);
-				if (pt.is_nullable) yield self.nullable_type(base_ptr, 0, 0);
-				yield base_ptr;
-			}
-			DataType.ARRAY -> {
-				val at = ty.as_array();
-				yield self.array_type(self.ast_type_from_type(at.elem), at.length, 0, 0);
-			}
-			DataType.STRUCT -> {
-				val st_info = ty.as_struct();
-				var st_name = st_info.name;
-				if (st_info.c_name.len > 0) st_name = st_info.c_name;
-				yield self.named_type(st_name, List<*AstNode>(), 0, 0);
-			}
-			DataType.NONE -> self.named_type("none", List<*AstNode>(), 0, 0);
-			DataType.STR -> self.named_type("str", List<*AstNode>(), 0, 0);
-			DataType.BOOL -> self.named_type("bool", List<*AstNode>(), 0, 0);
-			DataType.CHAR -> self.named_type("char", List<*AstNode>(), 0, 0);
-			DataType.I8 -> self.named_type("i8", List<*AstNode>(), 0, 0);
-			DataType.I16 -> self.named_type("i16", List<*AstNode>(), 0, 0);
-			DataType.I32 -> self.named_type("i32", List<*AstNode>(), 0, 0);
-			DataType.I64 -> self.named_type("i64", List<*AstNode>(), 0, 0);
-			DataType.ISZ -> self.named_type("isz", List<*AstNode>(), 0, 0);
-			DataType.U8 -> self.named_type("u8", List<*AstNode>(), 0, 0);
-			DataType.U16 -> self.named_type("u16", List<*AstNode>(), 0, 0);
-			DataType.U32 -> self.named_type("u32", List<*AstNode>(), 0, 0);
-			DataType.U64 -> self.named_type("u64", List<*AstNode>(), 0, 0);
-			DataType.USZ -> self.named_type("usz", List<*AstNode>(), 0, 0);
-			DataType.F32 -> self.named_type("f32", List<*AstNode>(), 0, 0);
-			DataType.F64 -> self.named_type("f64", List<*AstNode>(), 0, 0);
-			else -> null;
-		};
-	}
-
-	// Builds `kobel_streq(a, b)`, optionally negated, for str equality.
-	pub fn make_str_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode {
-		var eargs = List<*AstNode>();
-		eargs += left;
-		eargs += right;
-		val eq_call = self.call(self.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
-		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
-		return eq_call;
-	}
-
-	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated, for default struct equality.
-	pub fn make_mem_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, size: usz, line: usz, col: usz): *AstNode {
-		var eargs = List<*AstNode>();
-		eargs += self.unary(TokenType.AMPERSAND, left, line, col);
-		eargs += self.unary(TokenType.AMPERSAND, right, line, col);
-		eargs += self.literal(LiteralKind.INT, "${size}UZ", line, col);
-		val eq_call = self.call(self.identifier("kobel_memeq", line, col), eargs, List<*AstNode>(), line, col);
-		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
-		return eq_call;
-	}
 }
-

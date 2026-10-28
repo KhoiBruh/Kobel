@@ -1,0 +1,140 @@
+mod compiler.sema.prims;
+
+// ============================================================================
+// Canonical primitive types
+//
+// One `*Type` per primitive kind for the whole compilation, so `i32` is the
+// same pointer everywhere and methods registered by `impl i32` live on that one
+// instance. `PrimTypes` is created once per `SymbolTable`.
+// ============================================================================
+
+use std.collections.list.*;
+use std.mem.arena.*;
+
+use util.strutil.*;
+
+use compiler.sema.types.*;
+use compiler.sema.methods.*;
+
+// ============================================================================
+// Canonical Primitive Types
+// ============================================================================
+
+// One `*Type` per primitive kind for the whole compilation. Previously every
+// `t_str()` allocated a fresh `Type`, so two `str` annotations were different
+// pointers and methods could not hang off the type itself; now `i32` is one
+// pointer everywhere and identity checks are meaningful.
+pub struct PrimTypes {
+	pub types: List<*Type>
+}
+
+// A canonical primitive with an empty `PrimMethods` payload attached, so
+// `impl i32 { ... }` can append to it later.
+fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
+	var t = arena.primitive_type(type_primitive(kind));
+	val pm = arena.alloc<PrimMethods>();
+	*pm = PrimMethods();
+	t.methods = pm;
+	return t;
+}
+
+impl PrimTypes {
+	pub fn new(var arena: &Arena): Self {
+		var types = List<*Type>();
+		types += prim_with_methods(arena, DataType.NONE);
+		types += prim_with_methods(arena, DataType.BOOL);
+		types += prim_with_methods(arena, DataType.CHAR);
+		types += prim_with_methods(arena, DataType.I8);
+		types += prim_with_methods(arena, DataType.I16);
+		types += prim_with_methods(arena, DataType.I32);
+		types += prim_with_methods(arena, DataType.I64);
+		types += prim_with_methods(arena, DataType.ISZ);
+		types += prim_with_methods(arena, DataType.U8);
+		types += prim_with_methods(arena, DataType.U16);
+		types += prim_with_methods(arena, DataType.U32);
+		types += prim_with_methods(arena, DataType.U64);
+		types += prim_with_methods(arena, DataType.USZ);
+		types += prim_with_methods(arena, DataType.F32);
+		types += prim_with_methods(arena, DataType.F64);
+		types += prim_with_methods(arena, DataType.STR);
+		return Self(types);
+	}
+
+	// The canonical type for a primitive kind; null when `kind` is not one of the
+	// kinds registered above (pointer, array, struct, fn).
+	pub fn get(val self, kind: DataType): *Type {
+		for (t in self.types) if (t.kind == kind) return t;
+		return null;
+	}
+}
+
+// The built-in type named `name`, or null when `name` is not a primitive.
+// Primitives are not registered as symbols, so this name table is also how
+// `impl <primitive>` blocks are recognized. Returns the canonical instance.
+pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type => when (name) {
+	"none" -> prims.get(DataType.NONE);
+	"bool" -> prims.get(DataType.BOOL);
+	"char" -> prims.get(DataType.CHAR);
+	"i8" -> prims.get(DataType.I8);
+	"i16" -> prims.get(DataType.I16);
+	"i32" -> prims.get(DataType.I32);
+	"i64" -> prims.get(DataType.I64);
+	"isz" -> prims.get(DataType.ISZ);
+	"u8" -> prims.get(DataType.U8);
+	"u16" -> prims.get(DataType.U16);
+	"u32" -> prims.get(DataType.U32);
+	"u64" -> prims.get(DataType.U64);
+	"usz" -> prims.get(DataType.USZ);
+	"f32" -> prims.get(DataType.F32);
+	"f64" -> prims.get(DataType.F64);
+	"str" -> prims.get(DataType.STR);
+	else -> null;
+};
+
+pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
+	// The suffix sets the width. It is read through `num_suffix` so that a hex
+	// digit is never mistaken for one: `0xBB` is the i32 187, not `0xB` as an i8.
+	val sfx = raw.num_suffix();
+	if (sfx == "UB") return prims.get(DataType.U8);
+	if (sfx == "US") return prims.get(DataType.U16);
+	if (sfx == "UL") return prims.get(DataType.U64);
+	if (sfx == "UZ") return prims.get(DataType.USZ);
+
+	if (sfx == "U") return prims.get(DataType.U32);
+	if (sfx == "L") return prims.get(DataType.I64);
+	if (sfx == "S") return prims.get(DataType.I16);
+	if (sfx == "Z") return prims.get(DataType.ISZ);
+	if (sfx == "B") return prims.get(DataType.I8);
+
+	return prims.get(DataType.I32);
+}
+
+pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
+	DataType.BOOL -> "bool",
+	DataType.CHAR -> "char",
+	DataType.I8 -> "i8",
+	DataType.I16 -> "i16",
+	DataType.I32 -> "i32",
+	DataType.I64 -> "i64",
+	DataType.ISZ -> "isz",
+	DataType.U8 -> "u8",
+	DataType.U16 -> "u16",
+	DataType.U32 -> "u32",
+	DataType.U64 -> "u64",
+	DataType.USZ -> "usz",
+	DataType.F32 -> "f32",
+	DataType.F64 -> "f64",
+	DataType.STR -> "str",
+	else -> "none"
+};
+
+// C size (in bytes) of a primitive type name, or 0 when `name` is not one.
+// Mirrors `ast_type_size`: `str` is a C pointer, not the 16-byte slice value,
+// so an array of `str` has pointer stride.
+pub fn prim_c_size(name: str): usz => when (name) {
+	"bool", "char", "i8", "u8" -> 1;
+	"i16", "u16" -> 2;
+	"i32", "u32", "f32" -> 4;
+	"i64", "u64", "isz", "usz", "f64", "str" -> 8;
+	else -> 0;
+};

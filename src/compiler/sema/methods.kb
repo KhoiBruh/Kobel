@@ -1,0 +1,35 @@
+mod compiler.sema.methods;
+
+// ============================================================================
+// Method descriptors
+//
+// A `MethodInfo` is one method collected from an `impl` block (instance methods
+// keep the receiver in `fn_type.param_types[0]`). `PrimMethods` is the payload
+// attached to a canonical primitive `Type`, so built-in types can accumulate
+// methods (`impl i32 { ... }`).
+// ============================================================================
+
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+
+use compiler.sema.types.Type;
+
+// A method collected from an `impl` block.
+// For instance methods `fn_type.param_types[0]` is the receiver
+// (`*Struct` for `val self`, `*mut Struct` for `var self`).
+pub struct MethodInfo {
+	pub name: str,
+	pub c_name: str,
+	pub fn_type: *Type,
+	pub ast_node: *AstNode,
+	pub module: str,
+	pub is_op: bool = false
+}
+
+// Methods of a built-in type. Kept as a payload because `Type` must be declared
+// before `MethodInfo` (no forward declarations), while the method list needs
+// `MethodInfo`. `Type.methods` points here for the canonical primitive types.
+pub struct PrimMethods {
+	pub list: List<*MethodInfo> = List()
+}

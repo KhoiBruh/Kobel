@@ -1,0 +1,144 @@
+mod compiler.sema.structs;
+
+// ============================================================================
+// Struct layout
+//
+// `StructField` is one declared field; `StructType` is a struct payload
+// (fields, methods, owning module, visibility, forward-declared or not). Layout
+// is computed on demand by `layout_struct` after fields are added.
+// ============================================================================
+
+use std.collections.list.*;
+use std.mem.arena.*;
+
+use compiler.ast.node.*;
+
+use compiler.sema.types.*;
+use compiler.sema.methods.*;
+
+pub struct StructField {
+	pub name: str,
+	pub type_ptr: *Type,
+	pub offset: usz,
+	pub is_pub: bool,
+	pub default_val: *AstNode = null
+}
+
+pub struct StructType {
+	pub const TAG = DataType.STRUCT;
+	pub name: str,
+	// Mangled C name; equal to `name` for monomorphized instances.
+	pub c_name: str,
+	pub fields: List<StructField>,
+	pub methods: List<*MethodInfo>,
+	// Module that declared the type, so field visibility is enforced across
+	// module boundaries.
+	pub module: str,
+	// True when some field is not `pub`: another module may not build the
+	// struct from its fields and must go through a `new` constructor.
+	pub has_private: bool,
+	// False for a type that is only forward-declared so far (`struct A;`). Such a
+	// type may be pointed to, but not embedded by value until it is defined.
+	pub is_defined: bool = true
+}
+
+impl StructType {
+
+	pub fn find_method(val self, name: str): *MethodInfo {
+		for (m in self.methods) {
+			if (!m.is_op && m.name == name) return m;
+		}
+		for (m in self.methods) {
+			if (m.name == name) return m;
+		}
+		return null;
+	}
+
+	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo {
+		for (m in self.methods) {
+			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+		}
+		for (m in self.methods) {
+			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+		}
+		return null;
+	}
+
+	pub fn count_method_arity(val self, name: str, argc: usz): usz {
+		var n: usz = 0;
+		for (m in self.methods) {
+			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) n++;
+		}
+		return n;
+	}
+
+	pub fn find_method_c(val self, c_name: str): *MethodInfo {
+		for (m in self.methods) {
+			if (m.c_name == c_name) return m;
+		}
+		return null;
+	}
+
+	pub fn find_operator(val self, op_name: str, arg_types: List<*Type>): *MethodInfo {
+		var exact_match: *MethodInfo = null;
+		var assignable_match: *MethodInfo = null;
+
+		for (m in self.methods) {
+			if (!m.is_op || m.name != op_name) continue;
+			val fn_t = m.fn_type.as_fn();
+			if (fn_t.param_types.len != arg_types.len) continue;
+
+			var all_exact = true;
+			var all_assignable = true;
+			for (i in 1..<arg_types.len) {
+				val param_t = fn_t.param_types[i];
+				val arg_t = arg_types[i];
+				if (param_t == null || arg_t == null) {
+					all_exact = false;
+					all_assignable = false;
+					break;
+				}
+				if (!param_t.can_assign(arg_t)) {
+					all_assignable = false;
+					all_exact = false;
+					break;
+				}
+				if (param_t.kind != arg_t.kind) {
+					all_exact = false;
+				}
+			}
+
+			if (all_exact) return m;
+			if (all_assignable && assignable_match == null) {
+				assignable_match = m;
+			}
+		}
+		return assignable_match;
+	}
+}
+
+impl Arena {
+	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
+		var max_align: usz = 1;
+		var current_offset: usz = 0;
+
+		for (i in 0..<fields.len) {
+			var f = fields[i];
+			val f_align = f.type_ptr.align;
+			if (f_align > max_align) max_align = f_align;
+
+			val rem = current_offset % f_align;
+			if (rem != 0) current_offset += (f_align - rem);
+
+			f.offset = current_offset;
+			fields[i] = f;
+			current_offset += f.type_ptr.size;
+		}
+
+		val total_rem = current_offset % max_align;
+		if (total_rem != 0) current_offset += (max_align - total_rem);
+
+		val struct_info = self.alloc_val<StructType>(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		return self.type_payload(StructType.TAG, current_offset, max_align, TypePayload.Struct(struct_info));
+	}
+}

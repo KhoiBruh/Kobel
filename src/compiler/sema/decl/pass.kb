@@ -34,8 +34,8 @@ use compiler.sema.desugar.interp.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
-use compiler.sema.types.PrimTypes;
-use compiler.sema.types.StructField;
+use compiler.sema.prims.PrimTypes;
+use compiler.sema.structs.StructField;
 use compiler.sema.types.type_none;
 use compiler.sema.types.type_bool;
 use compiler.sema.types.type_char;
@@ -52,11 +52,13 @@ use compiler.sema.types.type_usz;
 use compiler.sema.types.type_f32;
 use compiler.sema.types.type_f64;
 use compiler.sema.types.type_str;
-use compiler.sema.types.MethodInfo;
-use compiler.sema.types.EnumInfo;
-use compiler.sema.types.EnumMemberInfo;
+use compiler.sema.methods.MethodInfo;
+use compiler.sema.enums.EnumInfo;
+use compiler.sema.enums.EnumMemberInfo;
 
 use compiler.sema.instance.*;
+use compiler.sema.prims.*;
+use compiler.sema.type_ast.*;
 use compiler.sema.traits.*;
 
 use compiler.ast.decl.StructField as AstStructField;
@@ -117,29 +119,6 @@ fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str 
 	return name;
 }
 
-// The built-in type named `name`, or null when `name` is not a primitive.
-// Primitives are not registered as symbols, so this name table is also how
-// `impl <primitive>` blocks are recognized. Returns the canonical instance.
-pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type => when (name) {
-	"none" -> prims.get(DataType.NONE);
-	"bool" -> prims.get(DataType.BOOL);
-	"char" -> prims.get(DataType.CHAR);
-	"i8" -> prims.get(DataType.I8);
-	"i16" -> prims.get(DataType.I16);
-	"i32" -> prims.get(DataType.I32);
-	"i64" -> prims.get(DataType.I64);
-	"isz" -> prims.get(DataType.ISZ);
-	"u8" -> prims.get(DataType.U8);
-	"u16" -> prims.get(DataType.U16);
-	"u32" -> prims.get(DataType.U32);
-	"u64" -> prims.get(DataType.U64);
-	"usz" -> prims.get(DataType.USZ);
-	"f32" -> prims.get(DataType.F32);
-	"f64" -> prims.get(DataType.F64);
-	"str" -> prims.get(DataType.STR);
-	else -> null;
-};
-
 pub fn parse_decimal_i64(s: str): i64 {
 	var v = 0L;
 	for (c in s) {
@@ -164,43 +143,6 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 	}
 	out += m;
 }
-
-pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
-	// The suffix sets the width. It is read through `num_suffix` so that a hex
-	// digit is never mistaken for one: `0xBB` is the i32 187, not `0xB` as an i8.
-	val sfx = raw.num_suffix();
-	if (sfx == "UB") return prims.get(DataType.U8);
-	if (sfx == "US") return prims.get(DataType.U16);
-	if (sfx == "UL") return prims.get(DataType.U64);
-	if (sfx == "UZ") return prims.get(DataType.USZ);
-
-	if (sfx == "U") return prims.get(DataType.U32);
-	if (sfx == "L") return prims.get(DataType.I64);
-	if (sfx == "S") return prims.get(DataType.I16);
-	if (sfx == "Z") return prims.get(DataType.ISZ);
-	if (sfx == "B") return prims.get(DataType.I8);
-
-	return prims.get(DataType.I32);
-}
-
-pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
-	DataType.BOOL -> "bool",
-	DataType.CHAR -> "char",
-	DataType.I8 -> "i8",
-	DataType.I16 -> "i16",
-	DataType.I32 -> "i32",
-	DataType.I64 -> "i64",
-	DataType.ISZ -> "isz",
-	DataType.U8 -> "u8",
-	DataType.U16 -> "u16",
-	DataType.U32 -> "u32",
-	DataType.U64 -> "u64",
-	DataType.USZ -> "usz",
-	DataType.F32 -> "f32",
-	DataType.F64 -> "f64",
-	DataType.STR -> "str",
-	else -> "none"
-};
 
 impl DeclPass {
 

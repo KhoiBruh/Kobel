@@ -29,6 +29,8 @@ use compiler.sema.desugar.interp.*;
 use compiler.sema.body.pass.*;
 use compiler.sema.body.expr.*;
 
+use compiler.sema.type_ast.*;
+
 impl BodyPass {
 
 	pub fn check_block_stmt(var self, node: *AstNode) {
