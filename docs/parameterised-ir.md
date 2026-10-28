@@ -87,7 +87,7 @@ Hai lựa chọn:
 | 1 | Struct instantiation theo type | **xong** (`31b2a02`) |
 | 2 | `InstanceRecord` + tra theo `(template, args: List<*Type>)`; tên C chỉ để emit | **xong** (`753fe07`, kèm fix `Type.equals` theo c_name) |
 | 3 | Thân hàm dùng chung AST + side table annotation; `T.size()` thành node `SizeOfParam` hạ ở codegen | **xong** (`…` bước 3): view-based function/method instantiation, per-node side table, `SizeOfParam` hạ ở codegen; fixpoint byte-identical (xem §5) |
-| 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono.clone`/`mono.template` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
+| 4 | Bỏ clone lúc instantiate; `drain_instances` chỉ rewrite view/signature; dọn `mono.clone`/`mono.registry` chết | **xong** (`…` bước 4): xoá `clone_impl`, `type_token_list`, `ast_type_token` (dead); `materialize_body` giữ vai trò **emission copy** (clone thân template + gán annotation từ side table) — không còn clone nào ở thời điểm instantiate |
 | 5 | Instance graph: thứ tự emit theo phụ thuộc call (không cần prepend) | **xong** (`…` bước 5): cả `flush_instances` (batch sinh trong body check) lẫn batch decl-pass đều **append** sau program theo creation order; gỡ order-sensitivity của sema bằng worklist inference nở dần + `infer_blocked` ở mọi kênh call đọc return type của arrow method (xem §5, "Ghi chú bước 5") |
 
 ## 4. Rủi ro
@@ -170,7 +170,7 @@ instantiate muộn (lúc đang check body, kể cả trong `infer_arrow_returns`
 sách pending của arrow-inference, nên `new` dạng arrow `=> Self(...)` chưa được suy luận return type → mọi
 chỗ dựng `List<X>()` trả về `none`, gây loạt lỗi dây chuyền. Ba phương án đã thử: (a) flag `infer_blocked`
 khi gặp callee pending (chưa đủ vì ở step 2 không có vòng retry); (b) eager check callee (`ensure_callee_ready_node`)
-kèm re-scan pending sau mỗi vòng inference (bước tiến lớn: hết lỗi mono.template/decl.pass/desugar.loop, nhưng
+kèm re-scan pending sau mỗi vòng inference (bước tiến lớn: hết lỗi mono.registry/decl.pass/desugar.loop, nhưng
 vẫn còn lỗi dây chuyền khác tại fmt.comments/symbol/decl.collect — dấu hiệu còn root khác, có thể là
 annotation chồng trên node dùng chung khi eager check chen ngang check chính thức); (c) giữ prepend cho batch
 decl-pass. Chốt hiện tại: (c) — prepend được giữ, kèm comment trong mã; hướng tiếp theo nên điều tra triệt để
