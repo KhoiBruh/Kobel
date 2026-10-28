@@ -57,7 +57,7 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 | `Symbol` / `Scope` / `ModuleScope` | `sema/symbol.kb` | `DeclPass` (collect), `BodyPass` chỉ đọc + mở/đóng scope |
 | `GenTemplate` | `sema/template.kb` | `decl.collect` đăng ký (pass 0) |
 | `GenericReg` | `sema/symbol.kb` | template tables, `inst_map` (tên C → `Symbol`), `records` (identity theo kiểu), `instances` (worklist) |
-| `InstanceRecord` / `AnnEntry` | `sema/instance.kb` | `mono.instantiate` tạo record; `BodyPass` ghi annotation per-instance |
+| `InstanceRecord` / `AnnEntry` | `sema/instance.kb` | `mono.instantiate` tạo record; `BodyPass` ghi annotation per-instance vào `ann_map` (`PtrMap<*AnnEntry>`, tra O(1)) |
 | `TraitInfo` / `TraitMethod` | `sema/traits.kb` | `decl.collect` gom, `decl.pass.apply_trait` đối chiếu |
 
 `SymbolTable` là điểm truy cập duy nhất: `symtab.gen` (registry), `symtab.traits`, `symtab.assoc_types`,
@@ -66,7 +66,7 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 ## 4. Kênh quyết định (chỉ có bốn cửa)
 
 Khi `BodyPass.current_rec == null` (khai báo thường) quyết định ghi thẳng lên node; khi đang kiểm một
-instance (`current_rec != null`) quyết định đi vào `InstanceRecord.ann` để materialization áp lên bản sao.
+instance (`current_rec != null`) quyết định đi vào `InstanceRecord.ann_map` để materialization áp lên bản sao.
 
 | Cửa | Ghi gì | Ai đọc |
 |---|---|---|
@@ -130,7 +130,8 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 
 ## 8. Nợ kỹ thuật đã biết
 
-- `InstanceRecord.ann` được tra **tuyến tính** theo con trỏ node (`find_ann`). Muốn O(1) cần map khoá bằng
-  con trỏ; `HashMap` hiện chỉ nhận khoá `str`, nên chỉ nên làm khi profiling cho thấy đây là điểm nóng.
+- `HashMap` khoá `str` và `PtrMap` khoá con trỏ là hai bản cùng thuật toán; nếu sau này cần khoá theo kiểu
+  khác (số nguyên, struct) thì nên gộp thành `HashMap<K, V>` (generic 2 tham số đã chạy được, xem
+  `test_generics`) — khi đó cần một cách băm/so sánh khoá theo K.
 - `BodyPass` vẫn giữ sáu shorthand `t_none/t_bool/t_char/t_str/t_usz/t_prim` trùng với `DeclPass`; có thể
   gộp về method trên `PrimTypes` khi có dịp (đổi 76 call site, C phải giữ nguyên).
