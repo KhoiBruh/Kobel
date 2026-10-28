@@ -100,7 +100,8 @@ compiler.sema.prims            ← sema.{types,methods}, strutil   (PrimTypes + 
 compiler.sema.type_ast         ← sema.types, ast.*   (ast_type_from_type: kiểu đã giải -> annotation)
 compiler.sema.instance         ← sema.{template,types}, ast.node   (InstanceRecord/AnnEntry)
 compiler.sema.symbol           ← sema.{types,methods,structs,enums,prims,instance,template,traits}, ast.node, std.{list,arena,hash_map}   (SymbolTable/GenericReg)
-compiler.sema.decl.pass        ← ast.*, ast.builder, sema.{types,methods,structs,enums,prims,instance,traits,symbol,type_ast,desugar.interp}, mono.registry, strutil, std   (core)
+compiler.sema.decl.type        ← ast.*, ast.builder, sema.{types,symbol,prims,mono.registry,decl.pass}   (resolve_ast_type, impl-only cycle với decl.pass)
+compiler.sema.decl.pass        ← ast.*, ast.builder, sema.{types,methods,structs,enums,prims,instance,traits,symbol,type_ast,decl.type,desugar.interp}, mono.registry, strutil, std   (core)
 compiler.sema.mono.registry    ← sema.{types,methods,structs,prims,instance,decl.pass,symbol,template}, ast.*, std   (template tables + instance worklist)
 compiler.sema.mono.instantiate ← decl.pass, mono.registry, sema.{symbol,template,instance,methods,structs,type_ast,types} (instantiate_*, collect_*_as)
 compiler.sema.mono.clone       ← decl.pass, mono.registry, sema.{symbol,template,instance,methods,structs,type_ast,types} (clone_*: AST + substitution)
@@ -131,7 +132,7 @@ Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`
 **không** phụ thuộc lẫn nhau; `main` là nơi duy nhất ráp mọi thứ.
 
 **Bố cục sema.** Sema nhóm theo tiền tố cũ: `sema/body/{access,call,expr,interp,pass,pattern,program,stmt}.kb`
-(module `compiler.sema.body.*`), `sema/decl/{pass,collect}.kb`, `sema/mono/{registry,instantiate,rewrite,clone}.kb`,
+(module `compiler.sema.body.*`), `sema/decl/{pass,collect,type}.kb`, `sema/mono/{registry,instantiate,rewrite,clone}.kb`,
 `sema/desugar/{loop,interp}.kb`. Sema còn tách theo **khái niệm dữ liệu**: `sema/types.kb` (DataType/Type/
 payload pointer-array-fn), `sema/methods.kb` (`MethodInfo`/`PrimMethods`), `sema/structs.kb`
 (`StructField`/`StructType` + layout), `sema/enums.kb` (`EnumInfo`/`EnumMemberInfo`), `sema/prims.kb`

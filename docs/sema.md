@@ -22,7 +22,7 @@ Thứ tự gọi nằm ở `src/compiler/driver/pipeline.kb`.
 ```
 sema/
 ├─ body/     access  call  expr  interp  pass  pattern  program  stmt
-├─ decl/     pass (core)  collect (driver)
+├─ decl/     pass (core)  collect (driver)  type (resolve_ast_type)
 ├─ mono/     registry (template tables + worklist)  instantiate  rewrite  clone
 ├─ desugar/  loop (for)  interp (chuỗi)
 ├─ types.kb      DataType / Type / TypePayload / payload pointer-array-fn
@@ -49,7 +49,7 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 | Dữ liệu | Nơi định nghĩa | Ai ghi |
 |---|---|---|
 | AST node | `ast/*` | loader/parser tạo; sema **không đổi `kind`/`data`** (I1) |
-| `*Type` + payload | `sema/types.kb` (payload struct ở `methods/structs/enums`) | `DeclPass` (giải kiểu) qua `impl Arena` constructors |
+| `*Type` + payload | `sema/types.kb` (payload struct ở `methods/structs/enums`) | `DeclPass` (giải kiểu) qua `impl Arena` constructors; annotation AST → `*Type` ở `sema/decl/type.kb` |
 | `PrimTypes` (16 instance chuẩn) | `sema/prims.kb` | `SymbolTable` tạo một lần; `impl <primitive>` thêm method vào `Type.methods` |
 | `MethodInfo` / `PrimMethods` | `sema/methods.kb` | `collect_impl` (decl.pass) |
 | `StructField` / `StructType` | `sema/structs.kb` | `decl.pass` (field/type), `layout_struct` tính offset/size |
