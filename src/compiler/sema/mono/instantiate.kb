@@ -37,6 +37,8 @@ use compiler.sema.instance.*;
 
 use compiler.sema.type_ast.*;
 
+use compiler.sema.decl.type.*;
+
 impl DeclPass {
 
 	// Instantiation is parameterised by *types*: the template's field types are

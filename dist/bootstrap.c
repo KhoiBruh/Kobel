@@ -2341,6 +2341,8 @@ void compiler__sema__decl__pass__DeclPass_drain_instances(compiler__sema__decl__
 compiler__ast__node__AstNode* std__mem__arena__Arena_interp_call(std__mem__arena__Arena* self, const char* name, compiler__ast__node__AstNode* arg, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_interp_concat(std__mem__arena__Arena* self, compiler__ast__node__AstNode* a, compiler__ast__node__AstNode* b_node, size_t line, size_t col);
 compiler__ast__node__AstNode* std__mem__arena__Arena_ast_type_from_type(std__mem__arena__Arena* self, compiler__sema__types__Type* ty);
+compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node);
+const char* compiler__sema__decl__pass__DeclPass_ast_type_name_of(compiler__sema__decl__pass__DeclPass* self, compiler__sema__types__Type* ty);
 compiler__sema__types__Type* compiler__sema__decl__pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base);
 std__collections__list__List_str compiler__sema__decl__pass__overloaded_names(compiler__ast__node__ImplDecl* im);
 const char* compiler__sema__decl__pass__method_c_name(const char* base, size_t argc, bool overloaded, std__collections__list__List_str taken);
@@ -2357,10 +2359,8 @@ const char* compiler__sema__decl__pass__DeclPass_enter_module(compiler__sema__de
 void compiler__sema__decl__pass__DeclPass_leave_module(compiler__sema__decl__pass__DeclPass* self, const char* prev);
 const char* compiler__sema__decl__pass__DeclPass_c_name_for(compiler__sema__decl__pass__DeclPass* self, const char* name);
 void compiler__sema__decl__pass__DeclPass_report_error(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node, const char* msg);
-compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node);
 int64_t compiler__sema__decl__pass__DeclPass_enum_const_i64(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* expr);
 void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node);
-const char* compiler__sema__decl__pass__DeclPass_ast_type_name_of(compiler__sema__decl__pass__DeclPass* self, compiler__sema__types__Type* ty);
 compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_return_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__FnDecl* f);
 void compiler__sema__decl__pass__DeclPass_collect_prim_impl(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__ImplDecl* im, compiler__sema__types__Type* prim);
 void compiler__sema__decl__pass__DeclPass_trait_record_impl(compiler__sema__decl__pass__DeclPass* self, compiler__sema__traits__TraitInfo* t, const char* struct_name);
@@ -8723,6 +8723,141 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_ast_type_from_type(std__mem
     }
 }
 
+compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node) {
+    if (node == NULL) {
+        return compiler__sema__decl__pass__DeclPass_t_none(self);
+    }
+    if (node != NULL && node->kind == compiler__ast__types__NamedType__TAG) {
+        compiler__ast__node__NamedType* named = (node)->data.u.NamedType.inner;
+        const char* name = named->name;
+        compiler__sema__types__Type* subst_res = NULL;
+        {
+            size_t __for_e = self->subst_names.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (kobel_streq(std__collections__list__List_str_get(&self->subst_names, i), name)) {
+                    subst_res = std__collections__list__List_ptr_compiler__sema__types__Type_get(&self->subst_types, i);
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        if (subst_res != NULL) {
+            return subst_res;
+        }
+        if (kobel_streq(name, "Self") && (self->current_self_type != NULL)) {
+            if (std__collections__list__List_str_empty(&self->subst_names)) {
+                compiler__sema__structs__StructType* sinfo = compiler__sema__types__Type_as_struct(self->current_self_type);
+                if (!str_empty(sinfo->c_name)) {
+                    named->name = sinfo->c_name;
+                } else {
+                    named->name = sinfo->name;
+                }
+            }
+            return self->current_self_type;
+        }
+        if (str_starts_with(name, "Self.")) {
+            const char* assoc = kobel_slice(name, 5, kobel_slen(name));
+            if ((self->current_self_type == NULL) || ((*self->current_self_type).kind != 18)) {
+                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Associated type '", name), "' used outside of an impl"));
+                return compiler__sema__decl__pass__DeclPass_t_none(self);
+            }
+            const char* self_name = (*compiler__sema__types__Type_as_struct(self->current_self_type)).name;
+            compiler__sema__types__Type* bound = compiler__sema__symbol__SymbolTable_find_assoc_type(&self->symtab, self_name, assoc);
+            if (bound == NULL) {
+                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Trait associated type '", assoc), "' is not bound for '"), self_name), "'"));
+                return compiler__sema__decl__pass__DeclPass_t_none(self);
+            }
+            if ((bound->kind == 16) || (bound->kind == 17)) {
+                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Associated type '", assoc), "' must be a named type (struct, enum or primitive)"));
+                return compiler__sema__decl__pass__DeclPass_t_none(self);
+            }
+            if (std__collections__list__List_str_empty(&self->subst_names)) {
+                named->name = compiler__sema__decl__pass__DeclPass_ast_type_name_of(self, bound);
+            }
+            return bound;
+        }
+        compiler__sema__types__Type* prim = compiler__sema__prims__resolve_primitive_name(compiler__sema__symbol__SymbolTable_prims_of(&self->symtab), name);
+        if (prim != NULL) {
+            return prim;
+        }
+        if (named->type_args.len > 0) {
+            compiler__sema__template__GenTemplate* tmpl = compiler__sema__decl__pass__DeclPass_find_struct_template(self, name);
+            if (tmpl != NULL) {
+                compiler__sema__types__Type* cty = compiler__sema__decl__pass__DeclPass_instantiate_struct(self, tmpl, named->type_args);
+                if (std__collections__list__List_str_empty(&self->subst_names)) {
+                    named->name = (*compiler__sema__types__Type_as_struct(cty)).name;
+                    named->type_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
+                }
+                return cty;
+            }
+        }
+        compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, name);
+        if (sym != NULL) {
+            if (!kobel_streq(sym->c_name, name)) {
+                named->name = sym->c_name;
+            }
+            return sym->type_ptr;
+        }
+        compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Unknown type '", name), "'"));
+        return compiler__sema__decl__pass__DeclPass_t_none(self);
+    } else if (node != NULL && node->kind == compiler__ast__types__PointerType__TAG) {
+        compiler__ast__node__PointerType* ptr_ast = (node)->data.u.PointerType.inner;
+        compiler__sema__types__Type* pointee = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, ptr_ast->pointee);
+        return std__mem__arena__Arena_pointer_type_3_2(&self->arena, pointee, ptr_ast->is_mut);
+    } else if (node != NULL && node->kind == compiler__ast__types__ArrayType__TAG) {
+        compiler__ast__node__ArrayType* arr_ast = (node)->data.u.ArrayType.inner;
+        compiler__sema__types__Type* elem = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, arr_ast->element_type);
+        return std__mem__arena__Arena_array_type_3_2(&self->arena, elem, arr_ast->size);
+    } else if (node != NULL && node->kind == compiler__ast__types__NullableType__TAG) {
+        compiler__ast__node__NullableType* null_ast = (node)->data.u.NullableType.inner;
+        compiler__sema__types__Type* inner_ty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, null_ast->inner);
+        compiler__sema__types__Type* res_ty = inner_ty;
+        if (inner_ty->kind == 16) {
+            compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(inner_ty);
+            res_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+        } else {
+            compiler__sema__decl__pass__DeclPass_report_error(self, node, "Nullable modifier '?' is only supported on pointer types");
+        }
+        return res_ty;
+    } else {
+        return compiler__sema__decl__pass__DeclPass_t_none(self);
+    }
+}
+
+const char* compiler__sema__decl__pass__DeclPass_ast_type_name_of(compiler__sema__decl__pass__DeclPass* self, compiler__sema__types__Type* ty) {
+    if (ty->kind == 18) {
+        compiler__sema__structs__StructType* s_info = compiler__sema__types__Type_as_struct(ty);
+        if (!str_empty(s_info->c_name)) {
+            return s_info->c_name;
+        }
+        return s_info->name;
+    }
+    if (compiler__sema__types__Type_is_enum(ty)) {
+        return (*compiler__sema__types__Type_as_enum(ty)).c_name;
+    }
+    return compiler__sema__prims__primitive_type_name(ty);
+}
+
 compiler__sema__types__Type* compiler__sema__decl__pass__alloc_primitive(std__mem__arena__Arena* arena, compiler__sema__types__Type base) {
     return std__mem__arena__Arena_primitive_type(arena, base);
 }
@@ -8934,127 +9069,6 @@ void compiler__sema__decl__pass__DeclPass_report_error(compiler__sema__decl__pas
     }
 }
 
-compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node) {
-    if (node == NULL) {
-        return compiler__sema__decl__pass__DeclPass_t_none(self);
-    }
-    if (node != NULL && node->kind == compiler__ast__types__NamedType__TAG) {
-        compiler__ast__node__NamedType* named = (node)->data.u.NamedType.inner;
-        const char* name = named->name;
-        compiler__sema__types__Type* subst_res = NULL;
-        {
-            size_t __for_e = self->subst_names.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if (kobel_streq(std__collections__list__List_str_get(&self->subst_names, i), name)) {
-                    subst_res = std__collections__list__List_ptr_compiler__sema__types__Type_get(&self->subst_types, i);
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        if (subst_res != NULL) {
-            return subst_res;
-        }
-        if (kobel_streq(name, "Self") && (self->current_self_type != NULL)) {
-            if (std__collections__list__List_str_empty(&self->subst_names)) {
-                compiler__sema__structs__StructType* sinfo = compiler__sema__types__Type_as_struct(self->current_self_type);
-                if (!str_empty(sinfo->c_name)) {
-                    named->name = sinfo->c_name;
-                } else {
-                    named->name = sinfo->name;
-                }
-            }
-            return self->current_self_type;
-        }
-        if (str_starts_with(name, "Self.")) {
-            const char* assoc = kobel_slice(name, 5, kobel_slen(name));
-            if ((self->current_self_type == NULL) || ((*self->current_self_type).kind != 18)) {
-                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Associated type '", name), "' used outside of an impl"));
-                return compiler__sema__decl__pass__DeclPass_t_none(self);
-            }
-            const char* self_name = (*compiler__sema__types__Type_as_struct(self->current_self_type)).name;
-            compiler__sema__types__Type* bound = compiler__sema__symbol__SymbolTable_find_assoc_type(&self->symtab, self_name, assoc);
-            if (bound == NULL) {
-                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Trait associated type '", assoc), "' is not bound for '"), self_name), "'"));
-                return compiler__sema__decl__pass__DeclPass_t_none(self);
-            }
-            if ((bound->kind == 16) || (bound->kind == 17)) {
-                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Associated type '", assoc), "' must be a named type (struct, enum or primitive)"));
-                return compiler__sema__decl__pass__DeclPass_t_none(self);
-            }
-            if (std__collections__list__List_str_empty(&self->subst_names)) {
-                named->name = compiler__sema__decl__pass__DeclPass_ast_type_name_of(self, bound);
-            }
-            return bound;
-        }
-        compiler__sema__types__Type* prim = compiler__sema__prims__resolve_primitive_name(compiler__sema__symbol__SymbolTable_prims_of(&self->symtab), name);
-        if (prim != NULL) {
-            return prim;
-        }
-        if (named->type_args.len > 0) {
-            compiler__sema__template__GenTemplate* tmpl = compiler__sema__decl__pass__DeclPass_find_struct_template(self, name);
-            if (tmpl != NULL) {
-                compiler__sema__types__Type* cty = compiler__sema__decl__pass__DeclPass_instantiate_struct(self, tmpl, named->type_args);
-                if (std__collections__list__List_str_empty(&self->subst_names)) {
-                    named->name = (*compiler__sema__types__Type_as_struct(cty)).name;
-                    named->type_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
-                }
-                return cty;
-            }
-        }
-        compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, name);
-        if (sym != NULL) {
-            if (!kobel_streq(sym->c_name, name)) {
-                named->name = sym->c_name;
-            }
-            return sym->type_ptr;
-        }
-        compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Unknown type '", name), "'"));
-        return compiler__sema__decl__pass__DeclPass_t_none(self);
-    } else if (node != NULL && node->kind == compiler__ast__types__PointerType__TAG) {
-        compiler__ast__node__PointerType* ptr_ast = (node)->data.u.PointerType.inner;
-        compiler__sema__types__Type* pointee = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, ptr_ast->pointee);
-        return std__mem__arena__Arena_pointer_type_3_2(&self->arena, pointee, ptr_ast->is_mut);
-    } else if (node != NULL && node->kind == compiler__ast__types__ArrayType__TAG) {
-        compiler__ast__node__ArrayType* arr_ast = (node)->data.u.ArrayType.inner;
-        compiler__sema__types__Type* elem = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, arr_ast->element_type);
-        return std__mem__arena__Arena_array_type_3_2(&self->arena, elem, arr_ast->size);
-    } else if (node != NULL && node->kind == compiler__ast__types__NullableType__TAG) {
-        compiler__ast__node__NullableType* null_ast = (node)->data.u.NullableType.inner;
-        compiler__sema__types__Type* inner_ty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, null_ast->inner);
-        compiler__sema__types__Type* res_ty = inner_ty;
-        if (inner_ty->kind == 16) {
-            compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(inner_ty);
-            res_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
-        } else {
-            compiler__sema__decl__pass__DeclPass_report_error(self, node, "Nullable modifier '?' is only supported on pointer types");
-        }
-        return res_ty;
-    } else {
-        return compiler__sema__decl__pass__DeclPass_t_none(self);
-    }
-}
-
 int64_t compiler__sema__decl__pass__DeclPass_enum_const_i64(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* expr) {
     {
         compiler__ast__node__LiteralExpr* lit = NULL;
@@ -9194,20 +9208,6 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
         }
     }
     self->current_self_type = NULL;
-}
-
-const char* compiler__sema__decl__pass__DeclPass_ast_type_name_of(compiler__sema__decl__pass__DeclPass* self, compiler__sema__types__Type* ty) {
-    if (ty->kind == 18) {
-        compiler__sema__structs__StructType* s_info = compiler__sema__types__Type_as_struct(ty);
-        if (!str_empty(s_info->c_name)) {
-            return s_info->c_name;
-        }
-        return s_info->name;
-    }
-    if (compiler__sema__types__Type_is_enum(ty)) {
-        return (*compiler__sema__types__Type_as_enum(ty)).c_name;
-    }
-    return compiler__sema__prims__primitive_type_name(ty);
 }
 
 compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_return_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__FnDecl* f) {

@@ -43,6 +43,8 @@ use compiler.sema.methods.*;
 
 use compiler.sema.prims.*;
 
+use compiler.sema.decl.type.*;
+
 // ============================================================================
 // BodyPass Struct Definition
 // ============================================================================

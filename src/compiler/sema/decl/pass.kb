@@ -61,6 +61,8 @@ use compiler.sema.prims.*;
 use compiler.sema.type_ast.*;
 use compiler.sema.traits.*;
 
+use compiler.sema.decl.type.*;
+
 use compiler.ast.decl.StructField as AstStructField;
 
 // ============================================================================
@@ -183,112 +185,6 @@ impl DeclPass {
 		if (self.current_module.len > 0) {
 			self.errors += "${self.current_module}: ${loc}${msg}";
 		} else self.errors += loc + msg;
-	}
-
-	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
-		if (node == null) return self.t_none();
-
-		return when (node) {
-			is NamedType as var named -> {
-				val name = named.name;
-
-				// Inside an instantiation a type parameter resolves to its argument.
-				// The node is left untouched: template AST nodes are shared. The
-				// *last* match wins: nested instantiations may stack the same
-				// parameter name, and the innermost binding is authoritative.
-				var subst_res: *Type = null;
-				for (i in 0..<self.subst_names.len) {
-					if (self.subst_names[i] == name) subst_res = self.subst_types[i];
-				}
-				if (subst_res != null) yield subst_res;
-
-				if (name == "Self" && self.current_self_type != null) {
-					// Inside an instance the type node is shared with other
-					// instances, so never rename it: each instance must resolve
-					// `Self` against its own type when its body is checked.
-					if (self.subst_names.empty()) {
-						val sinfo = self.current_self_type.as_struct();
-						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
-						else named.name = sinfo.name;
-					}
-					yield self.current_self_type;
-				}
-
-				// `Self.Item`: a trait associated type bound by the enclosing impl.
-				if (name.starts_with("Self.")) {
-					val assoc = name.slice(5, name.len);
-					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
-						self.report_error(node, "Associated type '${name}' used outside of an impl");
-						yield self.t_none();
-					}
-					val self_name = self.current_self_type.as_struct().name;
-					val bound = self.symtab.find_assoc_type(self_name, assoc);
-					if (bound == null) {
-						self.report_error(node,
-							"Trait associated type '${assoc}' is not bound for '${self_name}'"
-						);
-						yield self.t_none();
-					}
-					if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
-						self.report_error(node,
-							"Associated type '${assoc}' must be a named type (struct, enum or primitive)"
-						);
-						yield self.t_none();
-					}
-					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound);
-					yield bound;
-				}
-
-				val prim = resolve_primitive_name(self.symtab.prims_of(), name);
-				if (prim != null) yield prim;
-
-				// Generic struct instantiation: List<i32> -> concrete struct.
-				if (named.type_args.len > 0) {
-					val tmpl = self.find_struct_template(name);
-					if (tmpl != null) {
-						val cty = self.instantiate_struct(tmpl, named.type_args);
-						// A template's annotation is shared with every instance, so it is
-						// only rewritten when it belongs to a concrete declaration.
-						if (self.subst_names.empty()) {
-							named.name = cty.as_struct().name;
-							named.type_args = List<*AstNode>();
-						}
-						yield cty;
-					}
-				}
-
-				// Look up a user-defined type (Struct / Enum)
-				val sym = self.symtab.lookup(name);
-				if (sym != null) {
-					// Switch to the mangled C name (if any) so the backend emits the right name
-					if (sym.c_name != name) named.name = sym.c_name;
-					yield sym.type_ptr;
-				}
-
-				self.report_error(node, "Unknown type '${name}'");
-				yield self.t_none();
-			}
-			is PointerType as ptr_ast -> {
-				val pointee = self.resolve_ast_type(ptr_ast.pointee);
-				yield self.arena.pointer_type(pointee, ptr_ast.is_mut);
-			}
-			is ArrayType as arr_ast -> {
-				val elem = self.resolve_ast_type(arr_ast.element_type);
-				yield self.arena.array_type(elem, arr_ast.size);
-			}
-			is NullableType as null_ast -> {
-				val inner_ty = self.resolve_ast_type(null_ast.inner);
-				var res_ty = inner_ty;
-				if (inner_ty.kind == DataType.POINTER) {
-					val pt = inner_ty.as_pointer();
-					res_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
-				} else {
-					self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
-				}
-				yield res_ty;
-			}
-			else -> self.t_none();
-		};
 	}
 
 // Evaluates a constant enum member value (integer literal, optionally negated).
@@ -440,18 +336,6 @@ impl DeclPass {
 		}
 
 		self.current_self_type = null;
-	}
-
-	// The AST-level name for a resolved type, for nodes whose annotation has to be
-	// rewritten (an associated type binding must become a concrete C name).
-	fn ast_type_name_of(val self, ty: *Type): str {
-		if (ty.kind == DataType.STRUCT) {
-			val s_info = ty.as_struct();
-			if (!s_info.c_name.empty()) return s_info.c_name;
-			return s_info.name;
-		}
-		if (ty.is_enum()) return ty.as_enum().c_name;
-		return primitive_type_name(ty);
 	}
 
 	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
