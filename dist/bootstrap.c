@@ -323,7 +323,9 @@ typedef struct std__collections__list__List_ptr_compiler__sema__methods__MethodI
 typedef struct std__collections__list__List_compiler__sema__structs__StructField std__collections__list__List_compiler__sema__structs__StructField;
 typedef struct std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo;
 typedef struct std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__List_ptr_compiler__sema__types__Type;
+typedef struct std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8;
 typedef struct std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__list__List_ptr_compiler__sema__instance__AnnEntry;
+typedef struct std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry;
 typedef struct std__collections__list__List_ptr_compiler__sema__traits__TraitMethod std__collections__list__List_ptr_compiler__sema__traits__TraitMethod;
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__list__List_ptr_compiler__sema__symbol__Symbol;
 typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol;
@@ -1077,8 +1079,22 @@ struct std__collections__list__List_ptr_compiler__sema__types__Type {
     size_t cap;
 };
 
+struct std__collections__list__List_ptr_u8 {
+    uint8_t** data;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__list__List_ptr_compiler__sema__instance__AnnEntry {
     compiler__sema__instance__AnnEntry** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry {
+    uint8_t** keys;
+    compiler__sema__instance__AnnEntry** values;
+    bool* occupied;
     size_t len;
     size_t cap;
 };
@@ -1437,7 +1453,7 @@ struct compiler__sema__instance__InstanceRecord {
     std__collections__list__List_ptr_compiler__sema__types__Type args;
     const char* c_name;
     compiler__ast__node__AstNode* decl;
-    std__collections__list__List_ptr_compiler__sema__instance__AnnEntry ann;
+    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry ann_map;
     compiler__sema__types__Type* sig;
 };
 
@@ -1774,6 +1790,18 @@ static inline std__collections__list__List_ptr_compiler__sema__types__Type std__
     void* data = malloc(cap * elem_size);
     if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
     std__collections__list__List_ptr_compiler__sema__types__Type l;
+    l.data = data;
+    l.len = n;
+    l.cap = cap;
+    return l;
+}
+
+static inline std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_from_array(const void* src, size_t n) {
+    size_t elem_size = sizeof(*(((std__collections__list__List_ptr_u8*)0)->data));
+    size_t cap = (n < 4) ? 4 : n;
+    void* data = malloc(cap * elem_size);
+    if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+    std__collections__list__List_ptr_u8 l;
     l.data = data;
     l.len = n;
     l.cap = cap;
@@ -3357,6 +3385,34 @@ bool std__collections__list__List_ptr_compiler__sema__types__Type_contains(std__
 bool std__collections__list__List_ptr_compiler__sema__types__Type_remove(std__collections__list__List_ptr_compiler__sema__types__Type* self, compiler__sema__types__Type* value);
 size_t std__collections__list__List_ptr_compiler__sema__types__Type_remove_all(std__collections__list__List_ptr_compiler__sema__types__Type* self, compiler__sema__types__Type* value);
 void std__collections__list__List_ptr_compiler__sema__types__Type_delete(std__collections__list__List_ptr_compiler__sema__types__Type* self);
+size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap);
+uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index);
+uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self);
+bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
+void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value);
+uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other);
+size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap);
+uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index);
+void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b);
+void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count);
+intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
+intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
+bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value);
+bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value);
+size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self);
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_count(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self);
 compiler__sema__instance__AnnEntry* std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_at(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(size_t cap);
@@ -3385,6 +3441,22 @@ bool std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_contain
 bool std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, compiler__sema__instance__AnnEntry* value);
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_remove_all(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, compiler__sema__instance__AnnEntry* value);
 void std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap);
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value);
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* default_val);
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_count(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_values(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_count(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self);
 compiler__sema__traits__TraitMethod* std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_at(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__traits__TraitMethod std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_new(size_t cap);
@@ -4088,6 +4160,8 @@ compiler__sema__enums__EnumMemberInfo** std__mem__alloc__alloc_array_ptr_compile
 void std__mem__alloc__release_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr);
 compiler__sema__types__Type** std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr);
+uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count);
+void std__mem__alloc__release_ptr_u8(uint8_t** ptr);
 compiler__sema__instance__AnnEntry** std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr);
 compiler__sema__traits__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__traits__TraitMethod(size_t count);
@@ -4159,6 +4233,7 @@ compiler__sema__methods__MethodInfo** std__mem__alloc__resize_ptr_compiler__sema
 compiler__sema__structs__StructField* std__mem__alloc__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count);
 compiler__sema__enums__EnumMemberInfo** std__mem__alloc__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count);
 compiler__sema__types__Type** std__mem__alloc__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count);
+uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count);
 compiler__sema__instance__AnnEntry** std__mem__alloc__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count);
 compiler__sema__traits__TraitMethod** std__mem__alloc__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count);
 compiler__sema__symbol__Symbol** std__mem__alloc__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count);
@@ -7710,18 +7785,7 @@ bool compiler__sema__template__is_template_decl(compiler__ast__node__AstNode* no
 }
 
 compiler__sema__instance__AnnEntry* compiler__sema__instance__InstanceRecord_find_ann(compiler__sema__instance__InstanceRecord* self, compiler__ast__node__AstNode* node) {
-    {
-        size_t __for_n = std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_count(&self->ann);
-        size_t __for_i = ((size_t)0ULL);
-        while (__for_i < __for_n) {
-            compiler__sema__instance__AnnEntry* e = std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_at(&self->ann, __for_i);
-            if (e->node == node) {
-                return e;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    return NULL;
+    return std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(&self->ann_map, (uint8_t*)node, NULL);
 }
 
 compiler__sema__traits__TraitMethod* compiler__sema__traits__TraitInfo_find_method(compiler__sema__traits__TraitInfo* self, const char* name) {
@@ -9622,7 +9686,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
                     compiler__ast__node__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m);
                     compiler__ast__node__AstNode* mview = compiler__sema__decl__pass__DeclPass_make_fn_view(self, m, impl_tmpl, args, arg_asts, mf->name);
                     compiler__sema__instance__InstanceRecord* mrec = std__mem__arena__Arena_alloc_compiler__sema__instance__InstanceRecord(&self->arena);
-                    *mrec = (compiler__sema__instance__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(4), NULL };
+                    *mrec = (compiler__sema__instance__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(8), NULL };
                     mrec->sig = compiler__sema__decl__pass__DeclPass_make_fn_sig(self, m, impl_tmpl, args, s_type);
                     mview->instance = (uint8_t*)mrec;
                     std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&methods, mview);
@@ -9652,7 +9716,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
     compiler__ast__node__AstNode* view = compiler__sema__decl__pass__DeclPass_struct_decl_view(self, cname, fields, decl->is_pub, (*tmpl->node).line, (*tmpl->node).col);
     compiler__sema__decl__pass__DeclPass_queue_decl(self, tmpl->module, view);
     compiler__sema__instance__InstanceRecord* rec = std__mem__arena__Arena_alloc_compiler__sema__instance__InstanceRecord(&self->arena);
-    *rec = (compiler__sema__instance__InstanceRecord){ 0, tmpl, args, cname, view, std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(4), NULL };
+    *rec = (compiler__sema__instance__InstanceRecord){ 0, tmpl, args, cname, view, std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(8), NULL };
     compiler__sema__symbol__GenericReg_add_record(&self->symtab.gen, rec);
     compiler__sema__decl__pass__DeclPass_leave_module(self, prev_mod);
     compiler__sema__symbol__Symbol* sym = compiler__sema__decl__pass__DeclPass_find_instance_symbol(self, cname);
@@ -9896,7 +9960,7 @@ const char* compiler__sema__decl__pass__DeclPass_instantiate_fn(compiler__sema__
     compiler__sema__decl__pass__DeclPass_collect_fn_as(self, view, cname, sig);
     compiler__sema__decl__pass__DeclPass_queue_decl(self, tmpl->module, view);
     compiler__sema__instance__InstanceRecord* rec = std__mem__arena__Arena_alloc_compiler__sema__instance__InstanceRecord(&self->arena);
-    *rec = (compiler__sema__instance__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(4), NULL };
+    *rec = (compiler__sema__instance__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(8), NULL };
     rec->sig = sig;
     view->instance = (uint8_t*)rec;
     compiler__sema__symbol__GenericReg_add_record(&self->symtab.gen, rec);
@@ -14618,7 +14682,7 @@ compiler__sema__instance__AnnEntry* compiler__sema__body__pass__BodyPass_ann_ent
         return ex;
     }
     compiler__sema__instance__AnnEntry* e = std__mem__arena__Arena_alloc_val_compiler__sema__instance__AnnEntry(&self->arena, (compiler__sema__instance__AnnEntry){ node, NULL, NULL, NULL, "", false, NULL, false, NULL, NULL, NULL, "", false });
-    std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_plus_assign(&rec->ann, e);
+    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(&rec->ann_map, (uint8_t*)node, e);
     return e;
 }
 
@@ -29506,6 +29570,341 @@ void std__collections__list__List_ptr_compiler__sema__types__Type_delete(std__co
     std__mem__alloc__release_ptr_compiler__sema__types__Type(self->data);
 }
 
+size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self) {
+    return self->len;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap) {
+    return (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+}
+
+uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index) {
+    return self->data[index];
+}
+
+uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self) {
+    return self->data[0];
+}
+
+uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self) {
+    return (self->len == 0);
+}
+
+uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+    return self->data[index] = value;
+}
+
+void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    std__collections__list__List_ptr_u8_add(self, value);
+}
+
+void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    if (self->len == self->cap) {
+        std__collections__list__List_ptr_u8_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other) {
+    {
+        size_t __for_n = std__collections__list__List_ptr_u8_count(&other);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            uint8_t* data = std__collections__list__List_ptr_u8_at(&other, __for_i);
+            std__collections__list__List_ptr_u8_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self) {
+    return self->len = 0;
+}
+
+void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index) {
+    uint8_t* item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+    if (self->len == self->cap) {
+        std__collections__list__List_ptr_u8_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    return ((self->len == 0) ? value : std__collections__list__List_ptr_u8_pop(self));
+}
+
+void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b) {
+    uint8_t* tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        uint8_t* tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count) {
+    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (self->data[i] == value) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    return (std__collections__list__List_ptr_u8_index_of(self, value) != -1);
+}
+
+bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    intptr_t idx = std__collections__list__List_ptr_u8_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__list__List_ptr_u8_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self) {
+    std__mem__alloc__release_ptr_u8(self->data);
+}
+
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_count(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self) {
     return self->len;
 }
@@ -29839,6 +30238,342 @@ size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_remov
 
 void std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self) {
     std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(self->data);
+}
+
+std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    uint8_t** keys = std__mem__alloc__alloc_array_ptr_u8(cap);
+    compiler__sema__instance__AnnEntry** values = std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(cap);
+    bool* occ = std__mem__alloc__alloc_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry){ keys, values, occ, 0, cap };
+}
+
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    return ((((size_t)key) / 8) * 2654435761);
+}
+
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(self);
+    }
+    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    while (self->occupied[idx]) {
+        if (self->keys[idx] == key) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
+    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(self, key, value);
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    return (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(self, key) != NULL);
+}
+
+compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    while (self->occupied[idx]) {
+        if (self->keys[idx] == key) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* default_val) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return default_val;
+    }
+    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    while (self->occupied[idx]) {
+        if (self->keys[idx] == key) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return default_val;
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    while (self->occupied[idx]) {
+        if (self->keys[idx] == key) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, self->keys[j]) % self->cap);
+                if (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(self, k, i) < std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    if (self->cap > 0) {
+        {
+            size_t __for_e = self->cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                self->occupied[i] = false;
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_count(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    return self->len;
+}
+
+std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__list__List_ptr_u8 res = std__collections__list__List_ptr_u8_new(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_ptr_u8_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_values(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__list__List_ptr_compiler__sema__instance__AnnEntry res = std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    size_t old_cap = self->cap;
+    uint8_t** old_keys = self->keys;
+    compiler__sema__instance__AnnEntry** old_vals = self->values;
+    bool* old_occ = self->occupied;
+    int32_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    uint8_t** keys = std__mem__alloc__alloc_array_ptr_u8(new_cap);
+    compiler__sema__instance__AnnEntry** values = std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(new_cap);
+    bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
+    {
+        int32_t __for_e = new_cap;
+        int32_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            int32_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->keys = keys;
+    self->values = values;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+    self->len = 0;
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(self, old_keys[i], old_vals[i]);
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__mem__alloc__release_ptr_u8(old_keys);
+        std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(old_vals);
+        std__mem__alloc__release_bool(old_occ);
+    }
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    if (self->cap > 0) {
+        std__mem__alloc__release_ptr_u8(self->keys);
+        std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(self->values);
+        std__mem__alloc__release_bool(self->occupied);
+    }
 }
 
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_count(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self) {
@@ -38980,6 +39715,14 @@ void std__mem__alloc__release_ptr_compiler__sema__types__Type(compiler__sema__ty
     free((uint8_t*)ptr);
 }
 
+uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count) {
+    return (uint8_t**)malloc((count * 8));
+}
+
+void std__mem__alloc__release_ptr_u8(uint8_t** ptr) {
+    free((uint8_t*)ptr);
+}
+
 compiler__sema__instance__AnnEntry** std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(size_t count) {
     return (compiler__sema__instance__AnnEntry**)malloc((count * 8));
 }
@@ -39187,7 +39930,7 @@ compiler__sema__methods__MethodInfo* std__mem__arena__Arena_alloc_compiler__sema
 }
 
 compiler__sema__instance__InstanceRecord* std__mem__arena__Arena_alloc_compiler__sema__instance__InstanceRecord(std__mem__arena__Arena* self) {
-    return (compiler__sema__instance__InstanceRecord*)std__mem__arena__Arena_alloc_bytes(self, 96, 8);
+    return (compiler__sema__instance__InstanceRecord*)std__mem__arena__Arena_alloc_bytes(self, 112, 8);
 }
 
 compiler__sema__enums__EnumMemberInfo* std__mem__arena__Arena_alloc_compiler__sema__enums__EnumMemberInfo(std__mem__arena__Arena* self) {
@@ -39278,6 +40021,10 @@ compiler__sema__enums__EnumMemberInfo** std__mem__alloc__resize_ptr_compiler__se
 
 compiler__sema__types__Type** std__mem__alloc__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count) {
     return (compiler__sema__types__Type**)realloc((uint8_t*)ptr, (count * 8));
+}
+
+uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count) {
+    return (uint8_t**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 compiler__sema__instance__AnnEntry** std__mem__alloc__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count) {

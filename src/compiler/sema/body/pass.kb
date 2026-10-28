@@ -13,6 +13,7 @@ mod compiler.sema.body.pass;
 
 use std.mem.arena.*;
 use std.collections.list.*;
+use std.collections.ptr_map.*;
 
 use util.strutil.*;
 
@@ -336,7 +337,7 @@ impl BodyPass {
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
 		val e = self.arena.alloc_val<AnnEntry>(AnnEntry(node));
-		rec.ann += e;
+		rec.ann_map.put(node as *u8, e);
 		return e;
 	}
 

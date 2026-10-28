@@ -11,6 +11,7 @@ mod compiler.sema.instance;
 // ============================================================================
 
 use std.collections.list.*;
+use std.collections.ptr_map.*;
 
 use compiler.ast.node.*;
 
@@ -60,8 +61,9 @@ pub struct InstanceRecord {
 	pub c_name: str,
 	pub decl: *AstNode,
 	// Function-instance side table: per-node annotations keyed by template-body
-	// node. Empty for struct instances.
-	pub ann: List<*AnnEntry> = List(),
+	// node. Empty for struct instances. A pointer-keyed map, so `find_ann` is
+	// O(1); the checker touches every node of a body several times.
+	pub ann_map: PtrMap<*AnnEntry> = PtrMap(),
 	// The instance's own `FnType` (function instances only). Built once at view
 	// creation and shared by the method registry and body checking, so two
 	// instances never mutate a shared FnType.
@@ -69,10 +71,5 @@ pub struct InstanceRecord {
 }
 
 impl InstanceRecord {
-	pub fn find_ann(val self, node: *AstNode): *AnnEntry {
-		for (e in self.ann) {
-			if (e.node == node) return e;
-		}
-		return null;
-	}
+	pub fn find_ann(val self, node: *AstNode): *AnnEntry => self.ann_map.get_or(node as *u8, null);
 }
