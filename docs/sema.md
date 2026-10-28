@@ -24,14 +24,22 @@ sema/
 ├─ body/     access  call  expr  interp  pass  pattern  program  stmt
 ├─ decl/     pass (core)  collect (driver)
 ├─ mono/     registry (template tables + worklist)  instantiate  rewrite  clone
-├─ desugar/  loop  interp
+├─ desugar/  loop (for)  interp (chuỗi)
+├─ types.kb      DataType / Type / TypePayload / payload pointer-array-fn
+├─ methods.kb    MethodInfo / PrimMethods
+├─ structs.kb    StructField / StructType (+ layout)
+├─ enums.kb      EnumInfo / EnumMemberInfo
+├─ prims.kb      PrimTypes + bảng tên & C-size nguyên thuỷ (+ literal suffix)
+├─ type_ast.kb   ast_type_from_type (kiểu đã giải -> annotation AST)
 ├─ template.kb   GenTemplate / GenSubst / TemplateKind        (lá)
 ├─ instance.kb   InstanceKind / AnnEntry / InstanceRecord
 ├─ traits.kb     TraitInfo / TraitMethod                      (lá)
 ├─ symbol.kb     Symbol / Scope / ModuleScope / GenericReg / SymbolTable
-├─ types.kb      Type model (payload enum, layout, MethodInfo, PrimTypes)
 └─ lower.kb      hạ sugar cho backend
 ```
+
+`types` ↔ `methods`/`structs`/`enums` là **vòng pointer-only** (mọi field bắc cầu là `*T` hoặc `List<*T>`),
+nên forward declaration ở `types.kb` là đủ; không có phụ thuộc by-value nào đi ngược vòng.
 
 Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compiler.sema.body.pass`). Segment phải là
 `IDENTIFIER` nên không dùng được `for`, `trait`… (`desugar/loop.kb`, `traits.kb`).
@@ -41,7 +49,11 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 | Dữ liệu | Nơi định nghĩa | Ai ghi |
 |---|---|---|
 | AST node | `ast/*` | loader/parser tạo; sema **không đổi `kind`/`data`** (I1) |
-| `*Type` | `sema/types.kb` | `DeclPass` (giải kiểu), `PrimTypes` giữ instance chuẩn cho 16 kiểu nguyên thuỷ |
+| `*Type` + payload | `sema/types.kb` (payload struct ở `methods/structs/enums`) | `DeclPass` (giải kiểu) qua `impl Arena` constructors |
+| `PrimTypes` (16 instance chuẩn) | `sema/prims.kb` | `SymbolTable` tạo một lần; `impl <primitive>` thêm method vào `Type.methods` |
+| `MethodInfo` / `PrimMethods` | `sema/methods.kb` | `collect_impl` (decl.pass) |
+| `StructField` / `StructType` | `sema/structs.kb` | `decl.pass` (field/type), `layout_struct` tính offset/size |
+| `EnumInfo` / `EnumMemberInfo` | `sema/enums.kb` | `decl.pass` (enum) |
 | `Symbol` / `Scope` / `ModuleScope` | `sema/symbol.kb` | `DeclPass` (collect), `BodyPass` chỉ đọc + mở/đóng scope |
 | `GenTemplate` | `sema/template.kb` | `decl.collect` đăng ký (pass 0) |
 | `GenericReg` | `sema/symbol.kb` | template tables, `inst_map` (tên C → `Symbol`), `records` (identity theo kiểu), `instances` (worklist) |

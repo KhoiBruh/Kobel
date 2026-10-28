@@ -90,28 +90,33 @@ compiler.ast.{types,expr,stmt,decl}   ← node, lexer.token, std.list
 compiler.lexer.lexer       ← lexer.token, std.ascii, std.list
 compiler.ast.builder       ← ast.*, lexer.token, std.list, std.arena
 compiler.parser.*          ← lexer.token, ast.*, ast.builder, std.list, std.arena
-compiler.sema.types            ← std.list, std.arena   (lá)
 compiler.sema.traits           ← ast.node, std.list   (lá: trait contracts)
 compiler.sema.template         ← ast.{node,decl}, std.list   (lá: GenTemplate/GenSubst/TemplateKind)
+compiler.sema.types            ← std.list/arena; payload structs từ methods/structs/enums (vòng pointer-only)   (core type model)
+compiler.sema.methods          ← sema.types, ast.node   (MethodInfo/PrimMethods)
+compiler.sema.structs          ← sema.{types,methods}, ast.node   (StructField/StructType + layout)
+compiler.sema.enums            ← sema.types   (EnumInfo/EnumMemberInfo)
+compiler.sema.prims            ← sema.{types,methods}, strutil   (PrimTypes + bảng tên/C-size nguyên thuỷ)
+compiler.sema.type_ast         ← sema.types, ast.*   (ast_type_from_type: kiểu đã giải -> annotation)
 compiler.sema.instance         ← sema.{template,types}, ast.node   (InstanceRecord/AnnEntry)
-compiler.sema.symbol           ← sema.{types,instance,template,traits}, ast.node, std.{list,arena,hash_map}   (SymbolTable/GenericReg)
-compiler.sema.decl.pass        ← ast.*, ast.builder, sema.{types,symbol,template,instance,traits,desugar.interp}, strutil, std   (core)
-compiler.sema.mono.registry    ← sema.{types,symbol,template,instance,decl.pass}, ast.*, std   (template tables + instance worklist)
-compiler.sema.mono.instantiate ← decl.pass, mono.registry, sema.{symbol,template,instance,types} (instantiate_*, collect_*_as)
-compiler.sema.mono.clone       ← decl.pass, mono.registry, sema.{symbol,template,instance,types} (clone_*: AST + substitution)
-compiler.sema.mono.rewrite     ← decl.pass, mono.registry, sema.{symbol,types} (rewrite_generics: calls, type nodes, T.size())
-compiler.sema.decl.collect     ← sema.{decl.pass,mono.*,symbol,template,traits,types}, ast.*, ast.builder, strutil, std
-compiler.sema.body.pass        ← ast.*, ast.builder, sema.{types,symbol,template,instance,decl.pass,desugar.interp}, lexer.token, std   (core + dispatcher)
-compiler.sema.body.expr        ← body.pass, decl.pass, desugar.interp, sema.{symbol,types}   (primaries & operator families)
+compiler.sema.symbol           ← sema.{types,methods,structs,enums,prims,instance,template,traits}, ast.node, std.{list,arena,hash_map}   (SymbolTable/GenericReg)
+compiler.sema.decl.pass        ← ast.*, ast.builder, sema.{types,methods,structs,enums,prims,instance,traits,symbol,type_ast,desugar.interp}, mono.registry, strutil, std   (core)
+compiler.sema.mono.registry    ← sema.{types,methods,structs,prims,instance,decl.pass,symbol,template}, ast.*, std   (template tables + instance worklist)
+compiler.sema.mono.instantiate ← decl.pass, mono.registry, sema.{symbol,template,instance,methods,structs,type_ast,types} (instantiate_*, collect_*_as)
+compiler.sema.mono.clone       ← decl.pass, mono.registry, sema.{symbol,template,instance,methods,structs,type_ast,types} (clone_*: AST + substitution)
+compiler.sema.mono.rewrite     ← decl.pass, mono.registry, sema.{symbol,methods,structs,types} (rewrite_generics: calls, type nodes, T.size())
+compiler.sema.decl.collect     ← sema.{decl.pass,mono.*,symbol,template,traits,types,structs,enums}, ast.*, ast.builder, strutil, std
+compiler.sema.body.pass        ← ast.*, ast.builder, sema.{types,methods,prims,instance,symbol,decl.pass,desugar.interp,body.*}, lexer.token, std   (core + dispatcher)
+compiler.sema.body.expr        ← body.pass, decl.pass, desugar.interp, sema.{symbol,types,prims,type_ast}   (primaries & operator families)
 compiler.sema.body.access      ← body.pass, decl.pass, desugar.interp, sema.{symbol,types}   (member/index, lvalue, assignment, indexed write)
-compiler.sema.body.pattern     ← body.pass, decl.pass, desugar.interp, sema.{symbol,types}   (when/is patterns)
+compiler.sema.body.pattern     ← body.pass, decl.pass, desugar.interp, sema.{symbol,structs,types}   (when/is patterns)
 compiler.sema.body.interp      ← body.pass, decl.pass, desugar.interp, sema.{symbol,types}   (interpolation holes)
-compiler.sema.body.call        ← body.pass, body.expr, decl.pass, sema.{symbol,template,types}   (call resolution, ctors)
-compiler.sema.body.stmt        ← body.pass, body.expr, decl.pass, desugar.loop, sema.{symbol,types}   (statements, `for` driver)
-compiler.sema.body.program     ← body.pass, decl.{pass,collect}, sema.{symbol,instance,types}   (function/program drivers)
-compiler.sema.desugar.interp   ← sema.types   (interpolation lowering + shared AST/equality helpers)
+compiler.sema.body.call        ← body.pass, body.expr, decl.pass, sema.{symbol,template,types,methods,prims}   (call resolution, ctors)
+compiler.sema.body.stmt        ← body.pass, body.expr, decl.pass, desugar.loop, sema.{symbol,types,type_ast}   (statements, `for` driver)
+compiler.sema.body.program     ← body.pass, decl.{pass,collect}, sema.{symbol,instance,types,type_ast}   (function/program drivers)
+compiler.sema.desugar.interp   ← sema.types   (interpolation lowering)
 compiler.sema.desugar.loop     ← body.pass   (for desugaring; Arena helpers)
-compiler.sema.lower            ← body.pass, ast.*, sema.{types,instance,desugar.interp}   (rewrites sugar for C)
+compiler.sema.lower            ← body.pass, ast.*, sema.{types,methods,instance,desugar.interp}   (rewrites sugar for C)
 compiler.codegen.c_type    ← ast.types, sema.types
 compiler.codegen.c_codegen ← ast.*, sema.types, c_type (state, literals, type helpers)
 compiler.codegen.c_expr    ← c_codegen, c_type (expression emission)
@@ -127,10 +132,16 @@ Quy tắc: **`stdlib` là lá**; `ast`/`lexer` chỉ phụ thuộc `std`; `sema`
 
 **Bố cục sema.** Sema nhóm theo tiền tố cũ: `sema/body/{access,call,expr,interp,pass,pattern,program,stmt}.kb`
 (module `compiler.sema.body.*`), `sema/decl/{pass,collect}.kb`, `sema/mono/{registry,instantiate,rewrite,clone}.kb`,
-`sema/desugar/{loop,interp}.kb`. Sema còn tách theo **khái niệm dữ liệu**: `sema/template.kb`
+`sema/desugar/{loop,interp}.kb`. Sema còn tách theo **khái niệm dữ liệu**: `sema/types.kb` (DataType/Type/
+payload pointer-array-fn), `sema/methods.kb` (`MethodInfo`/`PrimMethods`), `sema/structs.kb`
+(`StructField`/`StructType` + layout), `sema/enums.kb` (`EnumInfo`/`EnumMemberInfo`), `sema/prims.kb`
+(`PrimTypes` + bảng tên/C-size nguyên thuỷ), `sema/type_ast.kb` (`ast_type_from_type`), `sema/template.kb`
 (`GenTemplate`/`GenSubst`/`TemplateKind`), `sema/instance.kb` (`InstanceKind`/`AnnEntry`/`InstanceRecord`),
 `sema/traits.kb` (`TraitInfo`/`TraitMethod`), `sema/symbol.kb` (Symbol/Scope/Module/`GenericReg`/`SymbolTable`),
-`sema/types.kb` (type model), `sema/lower.kb`. Bản đồ chi tiết: [`sema.md`](sema.md).
+`sema/lower.kb`. Bản đồ chi tiết: [`sema.md`](sema.md).
+
+`types` ↔ `methods`/`structs`/`enums` là **vòng pointer-only**: mọi field bắc cầu là `*T` hoặc `List<*T>`, nên
+pass 0.5 forward-declare struct xong là layout tính được; không có phụ thuộc by-value nào đi ngược vòng.
 
 Tên module đi vào C đã mangle (`compiler__sema__body__pass__…`), nên golden của các test *nhúng mã nguồn
 compiler* được cập nhật cùng commit; C sinh ra cho chương trình người dùng không đổi.
