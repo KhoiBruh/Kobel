@@ -14,7 +14,13 @@ if %errorlevel% neq 0 (
     )
 )
 
+if not exist "build" mkdir "build"
 if not exist "build\seed" mkdir "build\seed"
+
+:: Pin cl's temporary directory: a shell whose TMP points at a deleted or read-only
+:: folder makes the link step fail with D8018. Keep build debris inside build\.
+set "TMP=%CD%\build\seed"
+set "TEMP=%CD%\build\seed"
 
 echo [BUILDING] Compiling dist\bootstrap.c to build\seed\kobel_seed.exe ...
 cl /nologo /O2 /Fe:build\seed\kobel_seed.exe /Fo:build\seed\bootstrap.obj "dist\bootstrap.c"

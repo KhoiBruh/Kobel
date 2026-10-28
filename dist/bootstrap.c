@@ -2830,6 +2830,8 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_progra
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
 const char* compiler__driver__pipeline__c_compile_cmd(const char* c_path, const char* exe_path, const char* obj_path, const char* cc, bool quiet);
+const char* compiler__driver__pipeline__backend_temp_dir(const char* exe_path);
+bool compiler__driver__pipeline__win_is_absolute(const char* path);
 int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pipeline__CompileOptions* self);
 const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path);
 int32_t compiler__driver__commands__cmd_build(const char* manifest_path);
@@ -20661,10 +20663,34 @@ void compiler__driver__pipeline__print_error_list(std__collections__list__List_s
 
 const char* compiler__driver__pipeline__c_compile_cmd(const char* c_path, const char* exe_path, const char* obj_path, const char* cc, bool quiet) {
     const char* cmd = ((kobel_streq(cc, "clang") || kobel_streq(cc, "gcc")) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(cc, " -O2 -o \""), exe_path), "\" \""), c_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"", exe_path), "\" /Fo:\""), str_to_win_path(obj_path)), "\" \""), c_path), "\""));
+    if (!kobel_streq(cc, "clang") && !kobel_streq(cc, "gcc")) {
+        cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("set \"TMP=", compiler__driver__pipeline__backend_temp_dir(exe_path)), "\" & set \"TEMP="), compiler__driver__pipeline__backend_temp_dir(exe_path)), "\" & "), cmd);
+    }
     if (quiet) {
         cmd = kobel_concat(cmd, " >nul");
     }
     return cmd;
+}
+
+const char* compiler__driver__pipeline__backend_temp_dir(const char* exe_path) {
+    const char* dir = str_dir_of(exe_path);
+    if (str_empty(dir)) {
+        return "%CD%";
+    }
+    if (compiler__driver__pipeline__win_is_absolute(dir)) {
+        return str_to_win_path(dir);
+    }
+    return kobel_concat("%CD%\\", str_to_win_path(dir));
+}
+
+bool compiler__driver__pipeline__win_is_absolute(const char* path) {
+    if ((kobel_slen(path) >= 2) && (path[1] == ':')) {
+        return true;
+    }
+    if (str_starts_with(path, "\\\\") || str_starts_with(path, "//")) {
+        return true;
+    }
+    return false;
 }
 
 int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pipeline__CompileOptions* self) {
@@ -20762,6 +20788,13 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
         }
         std__io__println("Error: Backend C compiler failed with error code 1");
         return exit_code;
+    }
+    if (!std__io__file_exists(out_path)) {
+        if (std__io__file_exists(old_bin)) {
+            std__sys__exec(kobel_concat(kobel_concat(kobel_concat(kobel_concat("move /y \"", str_to_win_path(old_bin)), "\" \""), str_to_win_path(out_path)), "\" >nul 2>nul"));
+        }
+        std__io__println(kobel_concat("Error: Backend C compiler returned 0 but produced no executable: ", out_path));
+        return 1;
     }
     const char* base_obj = kobel_concat(str_base_name(out_path), ".tmp.obj");
     const char* del_cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("del /f /q \"", str_to_win_path(c_tmp_path)), "\" \""), str_to_win_path(obj_tmp_path)), "\" \""), base_obj), "\" \""), str_to_win_path(old_bin)), "\" >nul 2>nul");

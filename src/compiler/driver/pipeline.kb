@@ -35,8 +35,29 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 	// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
 	else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\"";
 
+	// cl creates its own temporary files (notably the linker response file) in
+	// TMP/TEMP. A shell whose TMP points at a deleted or read-only directory makes
+	// the link step fail with D8018, so pin both to the output directory: it is
+	// writable (we just wrote the C file there) and keeps build debris inside build/.
+	if (cc != "clang" && cc != "gcc") cmd = "set \"TMP=${backend_temp_dir(exe_path)}\" & set \"TEMP=${backend_temp_dir(exe_path)}\" & ${cmd}";
+
 	if (quiet) cmd = "${cmd} >nul";
 	return cmd;
+}
+
+// Temporary directory for the backend compiler: the output's directory, made
+// absolute because cl.exe resolves a relative TMP against its own cwd.
+fn backend_temp_dir(exe_path: str): str {
+	val dir = exe_path.dir_of();
+	if (dir.empty()) return "%CD%";
+	if (win_is_absolute(dir)) return dir.to_win_path();
+	return "%CD%\\${dir.to_win_path()}";
+}
+
+fn win_is_absolute(path: str): bool {
+	if (path.len >= 2 && path[1] == ':') return true;
+	if (path.starts_with("\\\\") || path.starts_with("//")) return true;
+	return false;
 }
 
 pub struct CompileOptions {
@@ -150,6 +171,17 @@ impl CompileOptions {
 				exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
 			println("Error: Backend C compiler failed with error code 1");
 			return exit_code;
+		}
+
+		// Exit code zero is not proof of success: a shell quirk (or a backend that
+		// silently skipped the link step) can return 0 without writing the binary.
+		// Without this check the build would report success while the previous
+		// executable sits moved aside as `<out>.old`.
+		if (!file_exists(out_path)) {
+			if (file_exists(old_bin))
+				exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
+			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
+			return 1;
 		}
 
 		// Clean up temporary C, object, and old binary files
