@@ -1,0 +1,47 @@
+mod compiler.sema.traits;
+
+// ============================================================================
+// Static trait contracts
+//
+// `TraitInfo` is one collected `trait` declaration (name, base traits, methods,
+// impls, associated-type names); `TraitMethod` keeps only the name, arity and
+// whether a default body exists, so signatures resolve lazily.
+// ============================================================================
+
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+
+// A method declared inside a `trait` block. `has_default` is true when the
+// trait provides a body (so the implementing type may leave it out).
+pub struct TraitMethod {
+	pub name: str,
+	// Parameter count (receiver included): two methods may share a name when
+	// they differ here, which is how overloaded trait methods are told apart.
+	pub arity: usz,
+	pub has_default: bool,
+	pub node: *AstNode
+}
+
+// A collected `trait` declaration: its name, direct base traits (`trait A : B`)
+// and its methods. Kept as raw AST so signature resolution stays lazy.
+pub struct TraitInfo {
+	pub name: str,
+	pub bases: List<str>,
+	pub methods: List<*TraitMethod>,
+	// Source names of the structs with an `impl Trait for Struct` block.
+	pub impls: List<str>,
+	// `type Item;` names the impl must bind.
+	pub assoc_types: List<str> = List()
+}
+
+impl TraitInfo {
+	pub fn find_method(self, name: str): *TraitMethod {
+		for (m in self.methods) {
+			if (m.name == name) return m;
+		}
+		return null;
+	}
+
+	pub fn has_impl(self, struct_name: str) => struct_name in self.impls;
+}

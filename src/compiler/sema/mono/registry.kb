@@ -1,15 +1,13 @@
-mod compiler.sema.mono.template;
+mod compiler.sema.mono.registry;
 
 // ============================================================================
-// Monomorphization - template registry and substitutions
+// Monomorphization - template registry and instance worklist
 //
-// `GenTemplate` records a generic declaration (struct/fn/impl, the module that
-// owns it and, for methods, the receiver source name); `GenSubst` maps template
-// parameter names to AST type nodes while cloning.
-//
-// The typed instance registry lives on `GenericReg` in `symbol.kb`; the
-// instantiate/rewrite/clone steps live in `mono.instantiate`, `mono.rewrite`
-// and `mono.clone`.
+// Template lookup over the struct/fn/method tables, and the instantiation
+// worklist: `queue_decl` appends `module marker, decl` pairs in creation order
+// and `drain_instances` rewrites them until no generic use is left. The data
+// types live in `sema.template` / `sema.instance`; the instantiate/rewrite/clone
+// steps live in `mono.instantiate`, `mono.rewrite` and `mono.clone`.
 // ============================================================================
 
 use std.mem.arena.*;
@@ -25,6 +23,7 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 use compiler.ast.builder.*;
+
 use compiler.sema.symbol.*;
 
 use compiler.sema.types.DataType;
@@ -34,19 +33,10 @@ use compiler.sema.types.type_none;
 use compiler.sema.types.MethodInfo;
 
 use compiler.sema.decl.pass.*;
-use compiler.ast.decl.StructField as AstStructField;
-// ============================================================================
-// Generic Templates & Monomorphization
-// ============================================================================
 
-// Which template table a lookup scans: `fn_templates` holds free functions and
-// `impl` methods alike (told apart by `GenTemplate.is_method`), while struct
-// templates live in their own table.
-pub enum TemplateKind {
-	FN,
-	METHOD,
-	STRUCT
-}
+use compiler.sema.template.*;
+
+use compiler.ast.decl.StructField as AstStructField;
 
 // A template is a candidate when its name matches and its table kind agrees:
 // `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`
@@ -56,45 +46,6 @@ fn template_matches(kind: TemplateKind, t: *GenTemplate, name: str): bool => whe
 	TemplateKind.METHOD -> t.is_method && t.name == name;
 	else -> t.name == name;
 };
-
-// Substitution context while cloning a template: type parameter -> type node.
-pub struct GenSubst {
-	pub names: List<str>,
-	pub args: List<*AstNode>
-}
-
-impl GenSubst {
-	pub fn lookup(val self, name: str): *AstNode {
-		val idx = self.names.index_of(name);
-		if (idx >= 0) return self.args[idx as usz];
-		return null;
-	}
-}
-
-pub fn is_template_decl(node: *AstNode) => decl_is_template(node);
-
-impl GenTemplate {
-	pub fn param_names(val self): List<str> {
-		var names = List<str>();
-		val node = self.node;
-		when (node) {
-			is StructDecl -> for (tp in node.type_params) names += tp.name;
-			is FnDecl -> for (p in node.type_params) names += p.name;
-			is ImplDecl -> for (p in node.type_params) names += p.name;
-			else -> {}
-		}
-		return names;
-	}
-
-	// The declared generic parameters of a template (empty for an impl template,
-	// whose parameters live on the struct it belongs to).
-	pub fn params(val self) => when (self.node.kind) {
-		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params,
-		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params,
-		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params,
-		else -> List<GenericParam>()
-	};
-}
 
 impl DeclPass {
 

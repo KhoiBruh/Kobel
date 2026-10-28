@@ -9,7 +9,7 @@ mod compiler.sema.decl.pass;
 // holds the symbol table it shares with the body pass.
 //
 // The ordered collection driver is `decl.collect`; monomorphization is split
-// across `mono.template` (registry) and the `mono.*` modules (instantiate,
+// across `mono.registry` (registry) and the `mono.*` modules (instantiate,
 // rewrite, clone).
 // ============================================================================
 
@@ -29,7 +29,7 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 use compiler.ast.builder.*;
 use compiler.sema.symbol.*;
-use compiler.sema.mono.template.*;
+use compiler.sema.mono.registry.*;
 use compiler.sema.desugar.interp.*;
 
 use compiler.sema.types.DataType;
@@ -55,6 +55,9 @@ use compiler.sema.types.type_str;
 use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.EnumMemberInfo;
+
+use compiler.sema.instance.*;
+use compiler.sema.traits.*;
 
 use compiler.ast.decl.StructField as AstStructField;
 

@@ -31,7 +31,7 @@ use compiler.sema.types.MethodInfo;
 
 use compiler.sema.decl.pass.*;
 use compiler.ast.decl.StructField as AstStructField;
-use compiler.sema.mono.template.*;
+use compiler.sema.mono.registry.*;
 
 impl DeclPass {
 

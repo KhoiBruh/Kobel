@@ -26,10 +26,13 @@ use compiler.sema.types.*;
 use compiler.sema.types.StructField;
 use compiler.sema.symbol.*;
 use compiler.sema.decl.pass.*;
-use compiler.sema.mono.template.*;
+use compiler.sema.mono.registry.*;
 use compiler.sema.mono.instantiate.*;
 use compiler.sema.mono.clone.*;
 use compiler.sema.mono.rewrite.*;
+
+use compiler.sema.template.*;
+use compiler.sema.traits.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {

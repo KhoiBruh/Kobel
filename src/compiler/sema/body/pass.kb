@@ -36,6 +36,9 @@ use compiler.sema.body.interp.*;
 use compiler.sema.body.call.*;
 use compiler.sema.body.program.*;
 
+use compiler.sema.template.*;
+use compiler.sema.instance.*;
+
 // ============================================================================
 // BodyPass Struct Definition
 // ============================================================================

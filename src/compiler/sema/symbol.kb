@@ -1,17 +1,19 @@
 mod compiler.sema.symbol;
 
 // ============================================================================
-// Symbol table and semantic registries
+// Symbol table and instantiation registry
 //
 // Scopes and module scopes, `Symbol` and `SymbolKind`, import bindings, and the
-// data that outlives the body pass:
-// - `InstanceRecord` + `AnnEntry`: one monomorphized instance and its per-node
-//   annotations (instance bodies share the template AST, so decisions live here);
-// - `GenericReg`: template lists, mangled-name index (`inst_map`), typed instance
-//   records and the instance declaration worklist;
-// - `TraitInfo` / `TraitMethod`: static trait contracts.
+// state that outlives the body pass:
+// - `GenericReg`: template tables, mangled-name index (`inst_map`), typed
+//   instance records and the instance declaration worklist;
+// - `SymbolTable`: scopes + modules + imports + enum registry + traits +
+//   associated-type bindings + the primitive singletons.
 // Lookup order: local scopes, current module, explicit imports, wildcard
 // imports, then instantiated symbols by mangled C name.
+//
+// The record types live next door: `sema.template` (GenTemplate/GenSubst),
+// `sema.instance` (InstanceRecord/AnnEntry) and `sema.traits` (TraitInfo).
 // ============================================================================
 
 use std.mem.arena.*;
@@ -25,6 +27,11 @@ use compiler.sema.types.MethodInfo;
 use compiler.sema.types.EnumInfo;
 use compiler.sema.types.PrimTypes;
 use compiler.ast.node.*;
+
+use compiler.sema.template.*;
+use compiler.sema.instance.*;
+use compiler.sema.traits.*;
+
 // ============================================================================
 // SymbolKind Enumeration
 // ============================================================================
@@ -126,111 +133,6 @@ impl ModuleScope {
 impl Iterable for ModuleScope {
 	pub fn count(val self) => self.symbols.len;
 	pub fn at(val self, i: usz) => self.symbols[i];
-}
-
-// A generic declaration kept as a template until instantiated.
-pub struct GenTemplate {
-	pub name: str,
-	pub module: str,
-	pub node: *AstNode,
-	pub is_method: bool,
-	// For a method template, the source name of the impl's target type. Method
-	// lookup matches on it, so `A.pick<T>` and `B.pick<T>` stay distinct.
-	pub self_type: str = ""
-}
-
-// What kind of declaration an instance was produced from.
-pub enum InstanceKind {
-	STRUCT,
-	FUNCTION
-}
-
-// One per-node annotation for a function/method instance whose body shares the
-// template's AST. The checker writes its decisions here instead of on the
-// shared node; materialization copies them onto the instance's own tree.
-pub struct AnnEntry {
-	pub node: *AstNode,
-	pub ty: *Type = null,
-	pub method: *u8 = null,
-	pub resolved: *AstNode = null,
-	// The checker would otherwise mutate the shared node in place; these fields
-	// record the per-instance values instead:
-	// - a coerced List literal's container C name and element type node,
-	pub list_name: str = "",
-	pub has_list_name: bool = false,
-	pub elem_node: *AstNode = null,
-	pub has_elem_node: bool = false,
-	// - a pointer receiver rewritten to `(*p)` before member access,
-	pub obj_replace: *AstNode = null,
-	// - an inferred local's synthesized type annotation,
-	pub var_ty: *Type = null,
-	// - a constructor initializer that received propagated type arguments,
-	pub init_override: *AstNode = null,
-	// - an identifier renamed to the symbol's mangled C name.
-	pub ident_name: str = "",
-	pub has_ident_name: bool = false
-}
-
-// One monomorphized instance: the template it came from, the resolved type
-// arguments and the declaration that carries it (a struct view or a function
-// view whose body is the template's shared AST). Identity is `(template, args)`,
-// not the mangled name.
-pub struct InstanceRecord {
-	pub kind: InstanceKind,
-	pub template: *GenTemplate,
-	pub args: List<*Type>,
-	pub c_name: str,
-	pub decl: *AstNode,
-	// Function-instance side table: per-node annotations keyed by template-body
-	// node. Empty for struct instances.
-	pub ann: List<*AnnEntry> = List(),
-	// The instance's own `FnType` (function instances only). Built once at view
-	// creation and shared by the method registry and body checking, so two
-	// instances never mutate a shared FnType.
-	pub sig: *Type = null
-}
-
-impl InstanceRecord {
-	pub fn find_ann(val self, node: *AstNode): *AnnEntry {
-		for (e in self.ann) {
-			if (e.node == node) return e;
-		}
-		return null;
-	}
-}
-
-// A method declared inside a `trait` block. `has_default` is true when the
-// trait provides a body (so the implementing type may leave it out).
-pub struct TraitMethod {
-	pub name: str,
-	// Parameter count (receiver included): two methods may share a name when
-	// they differ here, which is how overloaded trait methods are told apart.
-	pub arity: usz,
-	pub has_default: bool,
-	pub node: *AstNode
-}
-
-// A collected `trait` declaration: its name, direct base traits (`trait A : B`)
-// and its methods. Kept as raw AST so signature resolution stays lazy.
-pub struct TraitInfo {
-	pub name: str,
-	pub bases: List<str>,
-	pub methods: List<*TraitMethod>,
-	// Source names of the structs with an `impl Trait for Struct` block.
-	pub impls: List<str>,
-	// `type Item;` names the impl must bind.
-	pub assoc_types: List<str> = List()
-}
-
-impl TraitInfo {
-	pub fn find_method(self, name: str): *TraitMethod {
-		for (m in self.methods) {
-			if (m.name == name) return m;
-		}
-		return null;
-	}
-
-	pub fn has_impl(self, struct_name: str) => struct_name in self.impls;
 }
 
 // Monomorphization state, shared through the (single) SymbolTable.
@@ -546,4 +448,3 @@ impl SymbolTable {
 		return null;
 	}
 }
-

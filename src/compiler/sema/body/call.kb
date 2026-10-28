@@ -27,6 +27,8 @@ use compiler.sema.decl.pass.*;
 use compiler.sema.body.pass.*;
 use compiler.sema.body.expr.*;
 
+use compiler.sema.template.*;
+
 impl BodyPass {
 
 	pub fn check_call_expr(var self, node: *AstNode): *Type {

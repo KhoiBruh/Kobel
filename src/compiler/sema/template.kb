@@ -1,0 +1,74 @@
+mod compiler.sema.template;
+
+// ============================================================================
+// Template data model
+//
+// A `GenTemplate` is a generic declaration kept until instantiated: name, the
+// module that owns it, the AST node and, for methods, the receiver source name.
+// `GenSubst` maps type-parameter names to AST type nodes while cloning;
+// `TemplateKind` says which registry table a lookup scans.
+// ============================================================================
+
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+use compiler.ast.decl.*;
+
+// Which template table a lookup scans: `fn_templates` holds free functions and
+// `impl` methods alike (told apart by `GenTemplate.is_method`), while struct
+// templates live in their own table.
+pub enum TemplateKind {
+	FN,
+	METHOD,
+	STRUCT
+}
+
+// A generic declaration kept as a template until instantiated.
+pub struct GenTemplate {
+	pub name: str,
+	pub module: str,
+	pub node: *AstNode,
+	pub is_method: bool,
+	// For a method template, the source name of the impl's target type. Method
+	// lookup matches on it, so `A.pick<T>` and `B.pick<T>` stay distinct.
+	pub self_type: str = ""
+}
+
+impl GenTemplate {
+	pub fn param_names(val self): List<str> {
+		var names = List<str>();
+		val node = self.node;
+		when (node) {
+			is StructDecl -> for (tp in node.type_params) names += tp.name;
+			is FnDecl -> for (p in node.type_params) names += p.name;
+			is ImplDecl -> for (p in node.type_params) names += p.name;
+			else -> {}
+		}
+		return names;
+	}
+
+	// The declared generic parameters of a template (empty for an impl template,
+	// whose parameters live on the struct it belongs to).
+	pub fn params(val self) => when (self.node.kind) {
+		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params,
+		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params,
+		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params,
+		else -> List<GenericParam>()
+	};
+}
+
+// Substitution context while cloning a template: type parameter -> type node.
+pub struct GenSubst {
+	pub names: List<str>,
+	pub args: List<*AstNode>
+}
+
+impl GenSubst {
+	pub fn lookup(val self, name: str): *AstNode {
+		val idx = self.names.index_of(name);
+		if (idx >= 0) return self.args[idx as usz];
+		return null;
+	}
+}
+
+pub fn is_template_decl(node: *AstNode) => decl_is_template(node);

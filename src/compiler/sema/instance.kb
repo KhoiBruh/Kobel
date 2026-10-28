@@ -1,0 +1,78 @@
+mod compiler.sema.instance;
+
+// ============================================================================
+// Monomorphized instances and their per-node annotations
+//
+// An `InstanceRecord` is one monomorphized declaration (struct or function).
+// Its identity is (template, resolved args); the body is the template's shared
+// AST, so every decision the checker makes for this instance is stored in an
+// `AnnEntry` instead of on the node. `mono.clone.materialize_body` later stamps
+// those annotations onto the instance's own copy.
+// ============================================================================
+
+use std.collections.list.*;
+
+use compiler.ast.node.*;
+
+use compiler.sema.types.Type;
+use compiler.sema.template.*;
+
+// What kind of declaration an instance was produced from.
+pub enum InstanceKind {
+	STRUCT,
+	FUNCTION
+}
+
+// One per-node annotation for a function/method instance whose body shares the
+// template's AST. The checker writes its decisions here instead of on the
+// shared node; materialization copies them onto the instance's own tree.
+pub struct AnnEntry {
+	pub node: *AstNode,
+	pub ty: *Type = null,
+	pub method: *u8 = null,
+	pub resolved: *AstNode = null,
+	// The checker would otherwise mutate the shared node in place; these fields
+	// record the per-instance values instead:
+	// - a coerced List literal's container C name and element type node,
+	pub list_name: str = "",
+	pub has_list_name: bool = false,
+	pub elem_node: *AstNode = null,
+	pub has_elem_node: bool = false,
+	// - a pointer receiver rewritten to `(*p)` before member access,
+	pub obj_replace: *AstNode = null,
+	// - an inferred local's synthesized type annotation,
+	pub var_ty: *Type = null,
+	// - a constructor initializer that received propagated type arguments,
+	pub init_override: *AstNode = null,
+	// - an identifier renamed to the symbol's mangled C name.
+	pub ident_name: str = "",
+	pub has_ident_name: bool = false
+}
+
+// One monomorphized instance: the template it came from, the resolved type
+// arguments and the declaration that carries it (a struct view or a function
+// view whose body is the template's shared AST). Identity is `(template, args)`,
+// not the mangled name.
+pub struct InstanceRecord {
+	pub kind: InstanceKind,
+	pub template: *GenTemplate,
+	pub args: List<*Type>,
+	pub c_name: str,
+	pub decl: *AstNode,
+	// Function-instance side table: per-node annotations keyed by template-body
+	// node. Empty for struct instances.
+	pub ann: List<*AnnEntry> = List(),
+	// The instance's own `FnType` (function instances only). Built once at view
+	// creation and shared by the method registry and body checking, so two
+	// instances never mutate a shared FnType.
+	pub sig: *Type = null
+}
+
+impl InstanceRecord {
+	pub fn find_ann(val self, node: *AstNode): *AnnEntry {
+		for (e in self.ann) {
+			if (e.node == node) return e;
+		}
+		return null;
+	}
+}
