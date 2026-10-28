@@ -498,8 +498,8 @@ Các quy ước dưới đây giữ cho bốn cổng §8.1 xanh và giữ code d
   (`self.arena.literal(...)`, `self.arena.fn_decl(...)`, …). Kiểu nguyên thuỷ lấy từ `PrimTypes`
   (`self.symtab.prims_of()`), không thêm shorthand `t_*` trùng lặp.
 - **Tên tra cứu theo khoá**: `find_instance_record` (template + `List<*Type>`) vs `find_instance_symbol`
-  (tên C đã mangle); `copy_expr` (copy nông cho default/initializer) vs `clone_expr` (clone có substitution
-  + side table, dùng khi materialize).
+  (tên C đã mangle). **Chỉ còn một bản clone**: `DeclPass.clone_expr` (substitution + side table, dùng khi
+  materialize). `BodyPass.copy_expr` chỉ là delegate gọi nó với substitution rỗng, cho default arg/initializer.
 - **Mỗi commit dọn dẹp phải giữ C sinh ra byte-identical** với golden hiện có. Nếu C đổi là chủ đích thì
   cập nhật `tests/golden/` **cùng commit** và ghi rõ lý do (§8.1).
 - Chạy `scripts/check.ps1` trước khi commit: build → test → snap → fixpoint.

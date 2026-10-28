@@ -127,3 +127,10 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 5. `lower.kb`: sinh dạng C phát được nếu cú pháp không đi thẳng tới backend.
 6. `docs/architecture.md` §6.2 (bảng hạ cấp) + `docs/sema.md` nếu thêm kênh quyết định.
 7. Test: `tests/features/` cho hành vi, `snap` cho C; chạy `scripts/check.ps1`.
+
+## 8. Nợ kỹ thuật đã biết
+
+- `InstanceRecord.ann` được tra **tuyến tính** theo con trỏ node (`find_ann`). Muốn O(1) cần map khoá bằng
+  con trỏ; `HashMap` hiện chỉ nhận khoá `str`, nên chỉ nên làm khi profiling cho thấy đây là điểm nóng.
+- `BodyPass` vẫn giữ sáu shorthand `t_none/t_bool/t_char/t_str/t_usz/t_prim` trùng với `DeclPass`; có thể
+  gộp về method trên `PrimTypes` khi có dịp (đổi 76 call site, C phải giữ nguyên).
