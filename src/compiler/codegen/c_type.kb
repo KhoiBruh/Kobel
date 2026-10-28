@@ -18,8 +18,8 @@ pub fn c_type_from_ast(node: *AstNode): str {
 	if (node == null) return "void";
 
 	return when (node) {
-		is NamedType as named -> {
-			val name = named.name;
+		is NamedType -> {
+			val name = node.name;
 
 			yield when (name) {
 				"none" -> "void";
@@ -42,29 +42,26 @@ pub fn c_type_from_ast(node: *AstNode): str {
 			};
 		}
 
-		is PointerType as ptr -> {
-			val sub = c_type_from_ast(ptr.pointee);
-			if (ptr.is_mut) return sub + "*";
+		is PointerType -> {
+			val sub = c_type_from_ast(node.pointee);
+			if (node.is_mut) return sub + "*";
 
-			val pointee = ptr.pointee;
-			if (pointee is NamedType as named) {
+			val pointee = node.pointee;
+			if (pointee is NamedType) {
 				// `str` and `*char` stay const so string literals and `.c_str()`
 				// results can be passed. Other read-only pointers are emitted as
 				// plain pointers: the language does not enforce const-correctness
 				// and the compiler's own source writes through `*T`.
-				if (named.name == "str") yield "${sub}*";
-				if (named.name == "char") yield "const ${sub}*";
+				if (pointee.name == "str") yield "${sub}*";
+				if (pointee.name == "char") yield "const ${sub}*";
 			}
 
 			yield "${sub}*";
 		}
 
-		is ArrayType as arr -> {
-			val sub = c_type_from_ast(arr.element_type);
-			yield "${sub}*";
-		}
+		is ArrayType -> "${c_type_from_ast(node.element_type)}*";
 
-		is NullableType as null_t -> c_type_from_ast(null_t.inner);
+		is NullableType -> c_type_from_ast(node.inner);
 
 		else -> "void*";
 	};

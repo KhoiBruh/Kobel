@@ -29,16 +29,14 @@ use compiler.codegen.c_codegen.*;
 // Expression Code Generation
 // ============================================================================
 
-pub fn expr_needs_parens_for_member(node: *AstNode): bool {
-	return when (node) {
-		is IdentifierExpr,
-		is MemberExpr,
-		is CallExpr,
-		is IndexExpr,
-		is GroupExpr -> false;
-		else -> true;
-	};
-}
+pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
+	is IdentifierExpr,
+	is MemberExpr,
+	is CallExpr,
+	is IndexExpr,
+	is GroupExpr -> false;
+	else -> true;
+};
 
 impl CCodeGen {
 
@@ -102,9 +100,7 @@ impl CCodeGen {
 
 			// A payload-enum value: tag plus the variant's union member.
 			is EnumCtorExpr -> {
-				if (node.payload_path.empty()) {
-					yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
-				}
+				if (node.payload_path.empty()) yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
 				var ctor_args = List<str>();
 				for (a in node.args) ctor_args += self.gen_expr(a);
 				val joined = ", ".join(ctor_args);
@@ -115,7 +111,7 @@ impl CCodeGen {
 			// `T.size()`: the checker folded the concrete argument's C size into
 			// the node; emit it as an integer constant (same spelling as the
 			// literal path, so generated C stays byte-identical).
-			is SizeOfParam as sop -> c_format_int_literal(sop.size_text);
+			is SizeOfParam -> c_format_int_literal(node.size_text);
 
 			else -> "";
 		};
@@ -293,10 +289,10 @@ impl CCodeGen {
 	// because every subject is a plain path (`p`, `obj.field`); upgrade by
 	// hoisting `void* __subj = ...;` in statement position if a call ever
 	// becomes a subject.
-	pub fn gen_tag_test(var self, subject: str, is_ptr: bool, tag_field: str, tag_const: str): str {
-		if (!is_ptr) return "${subject}.${tag_field} == ${tag_const}";
-		return "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}";
-	}
+	pub fn gen_tag_test(
+		var self, subject: str, is_ptr: bool, tag_field: str, tag_const: str
+	): str => if (is_ptr) "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}"
+		else "${subject}.${tag_field} == ${tag_const}";
 
 	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
 		val obj = self.gen_expr(is_e.expr);

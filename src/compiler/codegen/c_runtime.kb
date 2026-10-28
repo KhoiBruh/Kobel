@@ -15,31 +15,31 @@ const C_PRELUDE: str = """
 
 	/* str.slice(start, end) helper */
 	static const char* kobel_slice(const char* s, size_t start, size_t end) {
-	    size_t n = (end > start) ? (end - start) : 0;
-	    char* r = (char*)malloc(n + 1);
-	    for (size_t i = 0; i < n; i++) r[i] = s[start + i];
-	    r[n] = 0;
-	    return r;
+		size_t n = (end > start) ? (end - start) : 0;
+		char* r = (char*)malloc(n + 1);
+		for (size_t i = 0; i < n; i++) r[i] = s[start + i];
+		r[n] = 0;
+		return r;
 	}
 	/* str + str helper */
 	static const char* kobel_concat(const char* a, const char* b) {
-	    size_t la = strlen(a), lb = strlen(b);
-	    char* r = (char*)malloc(la + lb + 1);
-	    memcpy(r, a, la);
-	    memcpy(r + la, b, lb + 1);
-	    return r;
+		size_t la = strlen(a), lb = strlen(b);
+		char* r = (char*)malloc(la + lb + 1);
+		memcpy(r, a, la);
+		memcpy(r + la, b, lb + 1);
+		return r;
 	}
 	/* str == str helper */
 	static int kobel_streq(const char* a, const char* b) {
-	    return strcmp(a, b) == 0;
+		return strcmp(a, b) == 0;
 	}
 	/* struct == struct fallback helper */
 	static int kobel_memeq(const void* a, const void* b, size_t n) {
-	    return memcmp(a, b, n) == 0;
+		return memcmp(a, b, n) == 0;
 	}
 	/* str length helper */
 	static size_t kobel_slen(const char* s) {
-	    return strlen(s);
+		return strlen(s);
 	}
 
 """;

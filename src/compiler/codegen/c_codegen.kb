@@ -29,7 +29,7 @@ pub struct ConditionAlias {
 pub struct CCodeGen {
 	pub indent_level: usz = 0,
 
-	pub errors: List<str> = List<str>(),
+	pub errors: List<str> = List(),
 	// C element type for the array literal being emitted, when the surrounding
 	// declaration already knows it (`val a: [T; N] = [...]`).
 	pub array_elem_hint: str = "",
@@ -38,37 +38,20 @@ pub struct CCodeGen {
 	pub current_fn_ret_type: str = "",
 	pub yield_exit_label: str = "",
 	pub when_label_counter: usz = 0,
-	pub defer_nodes: List<*AstNode> = List<*AstNode>(),
-	pub scope_starts: List<usz> = List<usz>(),
-	pub scope_jumped: List<bool> = List<bool>(),
-	pub loop_defer_depths: List<usz> = List<usz>()
+	pub defer_nodes: List<*AstNode> = List(),
+	pub scope_starts: List<usz> = List(),
+	pub scope_jumped: List<bool> = List(),
+	pub loop_defer_depths: List<usz> = List()
 }
 
 impl CCodeGen {
-
-	pub fn new(): Self => Self(
-		0,
-		List<str>(),
-		"",
-		"",
-		false,
-		"",
-		"",
-		0,
-		List<*AstNode>(),
-		List<usz>(),
-		List<bool>(),
-		List<usz>()
-	);
 
 	pub fn enter_defer_scope(var self) {
 		self.scope_starts += self.defer_nodes.len;
 		self.scope_jumped += false;
 	}
 
-	pub fn add_defer(var self, stmt: *AstNode) {
-		self.defer_nodes += stmt;
-	}
+	pub fn add_defer(var self, stmt: *AstNode) => self.defer_nodes += stmt;
 
 	pub fn mark_current_scope_jumped(var self) {
 		if (!self.scope_jumped.empty()) {
@@ -95,7 +78,7 @@ impl CCodeGen {
 		return res;
 	}
 
-	pub fn has_active_defers(val self): bool => !self.defer_nodes.empty();
+	pub fn has_active_defers(val self) => !self.defer_nodes.empty();
 
 	pub fn gen_defers_unwind(var self, target_depth: usz): str {
 		var res = "";
@@ -109,19 +92,16 @@ impl CCodeGen {
 		return res;
 	}
 
-
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.
 	pub fn enum_has_payload(val self, e: *EnumDecl): bool {
-		for (m in e.members) {
-			if (!m.payload.empty()) return true;
-		}
+		for (m in e.members) if (!m.payload.empty()) return true;
 		return false;
 	}
 
 }
 
-pub fn get_indent(level: usz): str => "    ".repeat(level);
+pub fn get_indent(level: usz) => "    ".repeat(level);
 
 pub fn c_format_int_literal(raw: str): str {
 	// The suffix is stripped through `num_suffix` so a hex digit is never taken for
@@ -183,4 +163,3 @@ pub fn c_format_float_literal(raw: str): str {
 		else -> "${text}.0"
 	};
 }
-
