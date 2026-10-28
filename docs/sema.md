@@ -50,7 +50,7 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 |---|---|---|
 | AST node | `ast/*` | loader/parser tạo; sema **không đổi `kind`/`data`** (I1) |
 | `*Type` + payload | `sema/types.kb` (payload struct ở `methods/structs/enums`) | `DeclPass` (giải kiểu) qua `impl Arena` constructors; annotation AST → `*Type` ở `sema/decl/type.kb` |
-| `PrimTypes` (16 instance chuẩn) | `sema/prims.kb` | `SymbolTable` tạo một lần; `impl <primitive>` thêm method vào `Type.methods` |
+| `PrimTypes` (16 instance chuẩn) | `sema/prims.kb` | `SymbolTable` tạo một lần; shorthand `t_*`; `impl <primitive>` thêm method vào `Type.methods` |
 | `MethodInfo` / `PrimMethods` | `sema/methods.kb` | `collect_impl` (decl.pass) |
 | `StructField` / `StructType` | `sema/structs.kb` | `decl.pass` (field/type), `layout_struct` tính offset/size |
 | `EnumInfo` / `EnumMemberInfo` | `sema/enums.kb` | `decl.pass` (enum) |
@@ -133,5 +133,3 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 - `HashMap` khoá `str` và `PtrMap` khoá con trỏ là hai bản cùng thuật toán; nếu sau này cần khoá theo kiểu
   khác (số nguyên, struct) thì nên gộp thành `HashMap<K, V>` (generic 2 tham số đã chạy được, xem
   `test_generics`) — khi đó cần một cách băm/so sánh khoá theo K.
-- `BodyPass` vẫn giữ sáu shorthand `t_none/t_bool/t_char/t_str/t_usz/t_prim` trùng với `DeclPass`; có thể
-  gộp về method trên `PrimTypes` khi có dịp (đổi 76 call site, C phải giữ nguyên).

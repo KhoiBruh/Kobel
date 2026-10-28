@@ -66,6 +66,16 @@ impl PrimTypes {
 		for (t in self.types) if (t.kind == kind) return t;
 		return null;
 	}
+
+	pub fn t_none(val self): *Type => self.get(DataType.NONE);
+	pub fn t_bool(val self): *Type => self.get(DataType.BOOL);
+	pub fn t_char(val self): *Type => self.get(DataType.CHAR);
+	pub fn t_str(val self): *Type => self.get(DataType.STR);
+	pub fn t_usz(val self): *Type => self.get(DataType.USZ);
+	pub fn t_i32(val self): *Type => self.get(DataType.I32);
+	pub fn t_f32(val self): *Type => self.get(DataType.F32);
+	pub fn t_f64(val self): *Type => self.get(DataType.F64);
+	pub fn t_prim(val self, base: Type): *Type => self.get(base.kind);
 }
 
 // The built-in type named `name`, or null when `name` is not a primitive.

@@ -424,7 +424,7 @@ impl BodyPass {
 		self.symtab.enter_scope(true);
 		for (i in 0..<f.params.len) {
 			val p = f.params[i];
-			val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.t_none();
+			val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.prims().t_none();
 			self.symtab.define(Symbol(
 				p.name, p.name, SymbolKind.PARAM, p_ty, p.is_mut, false,
 				c.node.line, c.node.col, null

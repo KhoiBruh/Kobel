@@ -106,7 +106,7 @@ impl BodyPass {
 		if (callee_ty.kind == DataType.STRUCT) return self.check_struct_ctor(node, callee_ty, call, callee_is_self);
 
 		self.report_error(node, "Callee is not a function or struct");
-		return self.t_none();
+		return self.prims().t_none();
 	}
 
 	// `T.size()`. A type parameter of the enclosing instance becomes a
@@ -123,13 +123,13 @@ impl BodyPass {
 					self.decl.subst_types[idx as usz] else null;
 				val size_text = self.type_c_size_text(arg_ty);
 				self.set_resolved(node, self.arena.size_of_param(idx as usz, size_text, node.line, node.col));
-				return self.t_usz();
+				return self.prims().t_usz();
 			}
 
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
 				self.set_resolved(node, self.arena.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col));
-				return self.t_usz();
+				return self.prims().t_usz();
 			}
 
 			val tsym = self.symtab.lookup(id.name);
@@ -137,7 +137,7 @@ impl BodyPass {
 				self.set_ident_name(obj, tsym.c_name);
 			}
 		}
-		return self.t_usz();
+		return self.prims().t_usz();
 	}
 
 	// `s.slice(a, b)` is validated here; the `lower` pass rewrites it into
@@ -149,7 +149,7 @@ impl BodyPass {
 			val at = self.check_expr(arg);
 			self.ensure(at.is_integer(), node, "slice() bounds must be integers");
 		}
-		return self.t_str();
+		return self.prims().t_str();
 	}
 
 	// A method may be called with fewer arguments than it declares when the
@@ -227,7 +227,7 @@ impl BodyPass {
 		}
 		if (mem.is_safe && !obj_is_ptr) {
 			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 		val argc = call.args.len + 1;
 
@@ -266,7 +266,7 @@ impl BodyPass {
 
 		if (obj_ty.kind == DataType.STRUCT) {
 			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 
 		return null;
@@ -414,7 +414,7 @@ impl BodyPass {
 		val mi = ei.find_member(mem.member);
 		if (mi == null) {
 			self.report_error(node, "Enum '${enum_id.name}' has no variant '${mem.member}'");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 
 		var field_types = List<*Type>();

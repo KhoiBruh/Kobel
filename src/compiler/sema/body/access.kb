@@ -65,7 +65,7 @@ impl BodyPass {
 
 		if (mem.is_safe && !obj_was_ptr) {
 			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 
 		// Enum `.value`: identity on the underlying integer; `lower` drops it.
@@ -73,12 +73,12 @@ impl BodyPass {
 			return obj_ty.as_enum().underlying;
 		}
 
-		var ret_ty = self.t_none();
+		var ret_ty = self.prims().t_none();
 		if (obj_ty.kind == DataType.STR) ret_ty = self.member_on_str(node, mem);
 		else if (obj_ty.kind == DataType.ARRAY) ret_ty = self.member_on_array(node, mem, obj_ty);
 		else if (obj_ty.kind != DataType.STRUCT) {
 			self.report_error(node, "Member access on non-struct type '${mem.member}' of ${self.type_display(obj_ty)}");
-			return self.t_none();
+			return self.prims().t_none();
 		} else {
 			ret_ty = self.member_on_struct(node, mem, obj_ty);
 		}
@@ -111,18 +111,18 @@ impl BodyPass {
 				val mi = ei.find_member(mem.member);
 				if (mi == null) {
 					self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
-					return self.t_none();
+					return self.prims().t_none();
 				}
 
 				if (ei.is_payload) {
 					val e_sym = self.symtab.lookup(ei.name);
-					if (e_sym == null) return self.t_none();
+					if (e_sym == null) return self.prims().t_none();
 					if (mi.payload_ty != null && !mi.payload_ty.as_struct().fields.empty()) {
 						self.report_error(node,
 							"Variant '${enum_id.name}.${mem.member}' carries data; "
 							"construct it with '${enum_id.name}.${mem.member}(...)'"
 						);
-						return self.t_none();
+						return self.prims().t_none();
 					}
 					self.set_resolved(node, self.arena.enum_ctor(
 						ei.c_name, ei.tag_field, mi.value, "",
@@ -158,29 +158,29 @@ impl BodyPass {
 	// struct field path. This only decides the type: the `lower` pass rewrites
 	// `.len`/`.data` into what the backend can emit.
 	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type {
-		if (mem.member == "len" || mem.member == "size") return self.t_usz();
-		if (mem.member == "cap") return self.t_usz();
+		if (mem.member == "len" || mem.member == "size") return self.prims().t_usz();
+		if (mem.member == "cap") return self.prims().t_usz();
 		if (mem.member == "c_str") {
-			val char_ty = self.t_char();
+			val char_ty = self.prims().t_char();
 			val char_ptr = self.arena.pointer_type(char_ty, false);
 			return self.arena.fn_type(List<*Type>(), char_ptr);
 		}
 		if (mem.member == "data") {
-			val char_ty = self.t_char();
+			val char_ty = self.prims().t_char();
 			return self.arena.pointer_type(char_ty, false);
 		}
 		self.report_error(node, "Member access on non-struct type");
-		return self.t_none();
+		return self.prims().t_none();
 	}
 
 	// `[T; N]`: the length is a compile-time constant, and the value already is a
 	// pointer to its first element. Lowering of both members happens in `lower`.
 	fn member_on_array(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
 		val arr = obj_ty.as_array();
-		if (mem.member == "len" || mem.member == "size") return self.t_usz();
+		if (mem.member == "len" || mem.member == "size") return self.prims().t_usz();
 		if (mem.member == "data") return self.arena.pointer_type(arr.elem, true);
 		self.report_error(node, "Member access on non-struct type");
-		return self.t_none();
+		return self.prims().t_none();
 	}
 
 	fn member_on_struct(var self, node: *AstNode, mem: &MemberExpr, obj_ty: *Type): *Type {
@@ -194,7 +194,7 @@ impl BodyPass {
 			return f.type_ptr;
 		}
 		self.report_error(node, "Struct '${s_info.name}' has no member named '${mem.member}'");
-		return self.t_none();
+		return self.prims().t_none();
 	}
 
 	pub fn check_index_expr(var self, node: *AstNode): *Type {
@@ -210,9 +210,9 @@ impl BodyPass {
 			self.ensure(index_ty.is_integer(), node, "Index must be integer");
 			return when (target_ty.kind) {
 				DataType.ARRAY -> target_ty.as_array().elem;
-				DataType.STR -> self.t_char();
+				DataType.STR -> self.prims().t_char();
 				DataType.POINTER -> target_ty.as_pointer().pointee;
-				else -> self.t_none();
+				else -> self.prims().t_none();
 			};
 		}
 
@@ -246,7 +246,7 @@ impl BodyPass {
 		}
 
 		self.report_error(node, "Index access on non-indexable type");
-		return self.t_none();
+		return self.prims().t_none();
 	}
 
 	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {

@@ -88,8 +88,6 @@ pub struct DeclPass {
 	pub mat_rec: *InstanceRecord = null
 }
 
-pub fn alloc_primitive(var arena: &Arena, base: Type): *Type => arena.primitive_type(base);
-
 // Source names carried by more than one method of an impl, i.e. overloads.
 fn overloaded_names(im: &ImplDecl): List<str> {
 	var names = List<str>();
@@ -150,14 +148,7 @@ impl DeclPass {
 
 	pub fn new() => Self(SymbolTable(), Arena(), "", List<str>());
 
-// Primitive type shorthands: the canonical instance from the symbol table, so
-// `i32` is one pointer for the whole compilation.
-	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
-	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
-	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
-	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
-	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
-	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
+	pub fn prims(val self): *PrimTypes => self.symtab.prims_of();
 
 	// Switches the module context (both the pass and its symbol table) and
 	// returns the previous module so the caller can restore it.
@@ -314,7 +305,7 @@ impl DeclPass {
 			}
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
-			else self.infer_decl_return_type(f) ?: self.t_none();
+			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 			// A function-instance method view owns its own FnType (built at view
 			// creation), so two instances never mutate a shared signature object.
@@ -354,22 +345,22 @@ impl DeclPass {
 						val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 						if (is_f32) {
 							f.return_type = self.arena.named_type("f32", List<*AstNode>(), f.body.line, f.body.col);
-							return self.t_prim(type_f32());
+							return self.prims().t_prim(type_f32());
 						}
 						f.return_type = self.arena.named_type("f64", List<*AstNode>(), f.body.line, f.body.col);
-						return self.t_prim(type_f64());
+						return self.prims().t_prim(type_f64());
 					}
 					LiteralKind.BOOL -> {
 						f.return_type = self.arena.named_type("bool", List<*AstNode>(), f.body.line, f.body.col);
-						return self.t_bool();
+						return self.prims().t_bool();
 					}
 					LiteralKind.STRING -> {
 						f.return_type = self.arena.named_type("str", List<*AstNode>(), f.body.line, f.body.col);
-						return self.t_str();
+						return self.prims().t_str();
 					}
 					LiteralKind.CHAR -> {
 						f.return_type = self.arena.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
-						return self.t_char();
+						return self.prims().t_char();
 					}
 					else -> {}
 				}
@@ -455,7 +446,7 @@ impl DeclPass {
 			}
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
-			else self.infer_decl_return_type(f) ?: self.t_none();
+			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 

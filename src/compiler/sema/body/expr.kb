@@ -90,14 +90,14 @@ impl BodyPass {
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
-				if (is_f32) yield self.t_prim(type_f32());
-				yield self.t_prim(type_f64());
+				if (is_f32) yield self.prims().t_prim(type_f32());
+				yield self.prims().t_prim(type_f64());
 			}
-			LiteralKind.BOOL -> self.t_bool();
-			LiteralKind.STRING -> self.t_str();
-			LiteralKind.CHAR -> self.t_char();
-			LiteralKind.NULL_VAL -> self.arena.pointer_type(self.t_none(), false);
-			else -> self.t_none();
+			LiteralKind.BOOL -> self.prims().t_bool();
+			LiteralKind.STRING -> self.prims().t_str();
+			LiteralKind.CHAR -> self.prims().t_char();
+			LiteralKind.NULL_VAL -> self.arena.pointer_type(self.prims().t_none(), false);
+			else -> self.prims().t_none();
 		};
 	}
 
@@ -116,7 +116,7 @@ impl BodyPass {
 		val sym = self.symtab.lookup(id.name);
 		if (sym == null) {
 			self.report_error(node, "Undeclared identifier '${id.name}'");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 		// Switch to the mangled C name (import alias, symbol from another module).
 		// Inside an instance the node is shared with the template, so the name goes
@@ -208,7 +208,7 @@ impl BodyPass {
 	// struct operator to the method bound here, every other pair must be numeric.
 	// The result keeps the left operand's type.
 	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.t_str();
+		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.prims().t_str();
 		if (lt.is_numeric() && rt.is_numeric()) return lt;
 
 		if (lt.kind == DataType.STRUCT) {
@@ -240,7 +240,7 @@ impl BodyPass {
 	// `== !=`: `str` compares by content, structs through an `equals` operator or
 	// a byte compare, everything else by value. All forms are lowered by `lower`.
 	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
-		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.t_bool();
+		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.prims().t_bool();
 
 		if (lt.kind == DataType.STRUCT) {
 			self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
@@ -250,11 +250,11 @@ impl BodyPass {
 			arg_types += rt;
 			val mi = s_info.find_operator("equals", arg_types);
 			if (mi != null) self.set_method(node, mi);
-			return self.t_bool();
+			return self.prims().t_bool();
 		}
 
 		self.ensure(lt.can_assign(rt) || rt.can_assign(lt), node, "Cannot compare different types");
-		return self.t_bool();
+		return self.prims().t_bool();
 	}
 
 	// `< <= > >=`: numbers and chars only.
@@ -262,12 +262,12 @@ impl BodyPass {
 		val is_num_comp = lt.is_numeric() && rt.is_numeric();
 		val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
 		self.ensure(is_num_comp || is_char_comp, node, "Comparison requires numeric or char operands");
-		return self.t_bool();
+		return self.prims().t_bool();
 	}
 
 	fn check_logic_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
 		self.ensure(lt.kind == DataType.BOOL && rt.kind == DataType.BOOL, node, "Logical operators require bool operands");
-		return self.t_bool();
+		return self.prims().t_bool();
 	}
 
 	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
@@ -281,7 +281,7 @@ impl BodyPass {
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
 				self.set_method(node, mi);
-				return self.t_bool();
+				return self.prims().t_bool();
 			}
 		}
 
@@ -337,7 +337,7 @@ impl BodyPass {
 			}
 			TokenType.BANG -> {
 				self.ensure(op_ty.kind == DataType.BOOL, node, "Logical NOT requires bool operand");
-				yield self.t_bool();
+				yield self.prims().t_bool();
 			}
 			TokenType.STAR -> {
 				// Pointer dereference (*ptr)
@@ -375,7 +375,7 @@ impl BodyPass {
 		// has nothing to infer from (use an annotated `[T; 0]` variable).
 		if (al.elements.empty()) {
 			self.report_error(node, "Cannot infer the element type of an empty array literal");
-			return self.t_none();
+			return self.prims().t_none();
 		}
 
 		val elem_ty = self.check_expr(al.elements.first());

@@ -95,13 +95,13 @@ impl BodyPass {
 	pub fn new(): Self {
 		var arena = Arena();
 		var decl_p = DeclPass();
-		val none_ty = alloc_primitive(&arena, type_none());
+		val none_ty = decl_p.symtab.prims_of().t_none();
 		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
 	}
 
 	pub fn new(symtab: SymbolTable): Self {
 		var arena = Arena();
-		val none_ty = alloc_primitive(&arena, type_none());
+		val none_ty = symtab.prims_of().t_none();
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 	}
 
@@ -109,7 +109,7 @@ impl BodyPass {
 	// for type resolution and generic instantiation.
 	pub fn new(symtab: SymbolTable, decl: DeclPass): Self {
 		var arena = Arena();
-		val none_ty = alloc_primitive(&arena, type_none());
+		val none_ty = symtab.prims_of().t_none();
 		var bp = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 		bp.decl = decl;
 		bp.has_decl = true;
@@ -140,12 +140,7 @@ impl BodyPass {
 
 	// Primitive result types: the canonical instance from the symbol table, so
 	// two `str` annotations are the same pointer.
-	pub fn t_none(var self): *Type => self.symtab.prims_of().get(DataType.NONE);
-	pub fn t_bool(var self): *Type => self.symtab.prims_of().get(DataType.BOOL);
-	pub fn t_char(var self): *Type => self.symtab.prims_of().get(DataType.CHAR);
-	pub fn t_str(var self): *Type => self.symtab.prims_of().get(DataType.STR);
-	pub fn t_usz(var self): *Type => self.symtab.prims_of().get(DataType.USZ);
-	pub fn t_prim(var self, base: Type): *Type => self.symtab.prims_of().get(base.kind) ?: alloc_primitive(&self.arena, base);
+	pub fn prims(val self): *PrimTypes => self.symtab.prims_of();
 
 	// Reports `msg` at `node` unless `cond` holds.
 	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
@@ -254,7 +249,7 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn check_expr(var self, node: *AstNode): *Type {
-		if (node == null) return self.t_none();
+		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr);
 
 		if (
@@ -438,7 +433,7 @@ impl BodyPass {
 		NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
 		NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
 		NodeKind.EXPR_IS -> self.check_is_expr(node);
-		else -> self.t_none();
+		else -> self.prims().t_none();
 	};
 
 	// ============================================================================

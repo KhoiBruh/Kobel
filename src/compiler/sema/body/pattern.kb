@@ -52,7 +52,7 @@ impl BodyPass {
 		self.when_depth--;
 
 		self.ensure(has_else, node, "when expression requires an 'else' arm");
-		if (!has_else || result_ty == null) return self.t_none();
+		if (!has_else || result_ty == null) return self.prims().t_none();
 		return result_ty;
 	}
 
@@ -114,7 +114,7 @@ impl BodyPass {
 		if (pat is IsExpr as var is_e) {
 			if (is_e.expr == null) is_e.expr = cond;
 			self.check_is_pattern(cond, cond_ty, pat);
-			return self.t_bool();
+			return self.prims().t_bool();
 		}
 		return self.check_expr(pat);
 	}
@@ -135,12 +135,12 @@ impl BodyPass {
 			defer self.symtab.exit_scope();
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
-					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.t_none();
+					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.prims().t_none();
 				} else self.check_statement(stmt);
 			}
 			if (yield_ty == null) {
 				self.report_error(body, "When arm block must yield a value");
-				return self.t_none();
+				return self.prims().t_none();
 			}
 			return yield_ty;
 		}
@@ -263,11 +263,11 @@ impl BodyPass {
 		val is_e = node.as_is_expr() as &IsExpr;
 		if (is_e.expr == null) {
 			self.report_error(node, "'is' expression requires a subject");
-			return self.t_bool();
+			return self.prims().t_bool();
 		}
 		val subj_ty = self.check_expr(is_e.expr);
 		self.check_is_pattern(is_e.expr, subj_ty, node);
-		return self.t_bool();
+		return self.prims().t_bool();
 	}
 
 }

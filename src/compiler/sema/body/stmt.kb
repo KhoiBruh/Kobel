@@ -42,7 +42,7 @@ impl BodyPass {
 
 	pub fn check_var_decl_stmt(var self, node: *AstNode) {
 		val vd = node.as_var_decl_stmt() as &VarDeclStmt;
-		var var_ty = self.t_none();
+		var var_ty = self.prims().t_none();
 		var has_init = false;
 
 		if (vd.type_annotation != null) {

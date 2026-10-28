@@ -27,7 +27,7 @@ use compiler.sema.decl.pass.*;
 
 impl DeclPass {
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
-		if (node == null) return self.t_none();
+		if (node == null) return self.prims().t_none();
 
 		return when (node) {
 			is NamedType as var named -> {
@@ -60,7 +60,7 @@ impl DeclPass {
 					val assoc = name.slice(5, name.len);
 					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
 						self.report_error(node, "Associated type '${name}' used outside of an impl");
-						yield self.t_none();
+						yield self.prims().t_none();
 					}
 					val self_name = self.current_self_type.as_struct().name;
 					val bound = self.symtab.find_assoc_type(self_name, assoc);
@@ -68,13 +68,13 @@ impl DeclPass {
 						self.report_error(node,
 							"Trait associated type '${assoc}' is not bound for '${self_name}'"
 						);
-						yield self.t_none();
+						yield self.prims().t_none();
 					}
 					if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
 						self.report_error(node,
 							"Associated type '${assoc}' must be a named type (struct, enum or primitive)"
 						);
-						yield self.t_none();
+						yield self.prims().t_none();
 					}
 					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound);
 					yield bound;
@@ -107,7 +107,7 @@ impl DeclPass {
 				}
 
 				self.report_error(node, "Unknown type '${name}'");
-				yield self.t_none();
+				yield self.prims().t_none();
 			}
 			is PointerType as ptr_ast -> {
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
@@ -128,7 +128,7 @@ impl DeclPass {
 				}
 				yield res_ty;
 			}
-			else -> self.t_none();
+			else -> self.prims().t_none();
 		};
 	}
 

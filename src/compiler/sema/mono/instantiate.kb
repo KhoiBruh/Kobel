@@ -146,7 +146,7 @@ impl DeclPass {
 
 		self.leave_module(prev_mod);
 
-		val sym = self.find_instance_symbol(cname) ?: return self.t_none();
+		val sym = self.find_instance_symbol(cname) ?: return self.prims().t_none();
 		return sym.type_ptr;
 	}
 
@@ -205,17 +205,17 @@ impl DeclPass {
 		for (p in t.params) {
 			if (p.name == "self" && p.type_node == null) {
 				if (receiver != null) param_types += self.arena.pointer_type(receiver, p.is_mut);
-				else param_types += self.t_none();
+				else param_types += self.prims().t_none();
 				continue;
 			}
 			if (p.type_node == null) {
-				param_types += self.t_none();
+				param_types += self.prims().t_none();
 				continue;
 			}
 			param_types += self.resolve_ast_type(p.type_node);
 		}
 
-		var ret_type = self.t_none();
+		var ret_type = self.prims().t_none();
 		if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type);
 
 		self.pop_subst(mark);
@@ -255,7 +255,7 @@ impl DeclPass {
 		for (i in 0..<names.len) {
 			self.subst_names += names[i];
 			if (i < args.len) self.subst_types += args[i];
-			else self.subst_types += self.t_none();
+			else self.subst_types += self.prims().t_none();
 		}
 	}
 
@@ -334,7 +334,7 @@ impl DeclPass {
 		val f = node.as_fn_decl() as &FnDecl;
 		var param_types = List<*Type>();
 		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.t_none();
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.prims().t_none();
 
 		val fn_type = if (sig != null) sig else self.arena.fn_type(param_types, ret_type);
 		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));

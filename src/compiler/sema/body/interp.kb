@@ -37,7 +37,7 @@ impl BodyPass {
 			val pty = self.check_expr(part.expr);
 			self.ensure_to_str(part.expr, pty);
 		}
-		return self.t_str();
+		return self.prims().t_str();
 	}
 
 	// A hole is fine when it is `str` or some `to_str` implementation applies;
