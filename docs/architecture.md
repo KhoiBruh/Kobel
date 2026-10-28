@@ -122,7 +122,8 @@ compiler.codegen.c_type    ← ast.types, sema.types
 compiler.codegen.c_codegen ← ast.*, sema.types, c_type (state, literals, type helpers)
 compiler.codegen.c_expr    ← c_codegen, c_type (expression emission)
 compiler.codegen.c_stmt    ← c_codegen, c_type (statement emission)
-compiler.codegen.c_program ← codegen.{c_codegen,c_expr,c_stmt,c_type}, ast.*, lexer.token, std.list
+compiler.codegen.c_runtime (lá: const C_PRELUDE)
+compiler.codegen.c_program ← codegen.{c_codegen,c_expr,c_stmt,c_type,c_runtime}, ast.*, lexer.token, std.list
 util.strutil               ← std.list   (chuỗi/số dùng chung: str_*, usz_to_str, cstr_to_str)
 compiler.loader.loader     ← lexer.lexer, parser.parser, parser.decl, ast.*, util.strutil, std
 main                        ← sema.{decl.pass,decl.collect,body.pass,body.program}, codegen.{c_codegen,c_program}, loader, util.strutil, std
@@ -335,10 +336,10 @@ vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sốn
 
 ### 6.3 Runtime helper trong C sinh ra
 
-Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_slen`. **Không còn
+Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_memeq`, `kobel_slen`. **Không còn
 helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi qua trait `ToStr` viết thuần Kobel ở
-`std/traits/to_str.kb`. Tất cả nhúng dưới dạng chuỗi trong `c_program.kb`; dự kiến tách ra
-`codegen/runtime.c.inc`.
+`std/traits/to_str.kb`. Prelude C đã được tách thành module độc lập `compiler.codegen.c_runtime`
+(`src/compiler/codegen/c_runtime.kb`, chứa hằng chuỗi `C_PRELUDE`).
 
 ### 6.4 Hạ tầng C
 
@@ -575,7 +576,7 @@ kobel/
 │  ├─ self/              ← src/bootstrap  (compiler thật)
 │  │  ├─ main.kb
 │  │  ├─ lexer/ parser/ ast/ sema/ codegen/ driver/ support/
-│  │  └─ codegen/runtime.c.inc
+│  │  └─ codegen/c_runtime.kb  (prelude C)
 │  └─ seed/              ← src/ + CMakeLists.txt + test/*.cpp (v0, đóng băng)
 ├─ stdlib/               ← lib/std
 │  ├─ {io,sys,ascii}.kb  collections/ mem/
@@ -597,7 +598,7 @@ và v1).
 | 0 | dọn rác: gitignore `/build/`, xoá `kobel_v*.exe`/`out.c`/`*.tmp.obj`/`tmp_diag.bat`, `git mv dac-ta-ngon-ngu.md docs/spec.md` | thấp |
 | 1 | `git mv` theo §9.1 (giữ lịch sử) + cập nhật path trong CMake, `.bat`, loader roots | thấp–vừa |
 | 2 | gộp build vào `tools/bootstrap.ps1` (`build\|self\|fixpoint\|test\|clean`) + `tools/msvc.ps1`; test tự khám phá | thấp |
-| 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl.pass`→`+decl.collect`, `body.pass`→`+body.program`, `c_codegen`→`+c_program`. Phần core/monomorph giữ nguyên ở module gốc vì là SCC. `runtime.c.inc`: chưa tách (prelude C vẫn trong `c_program`) | vừa |
+| 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl.pass`→`+decl.collect`, `body.pass`→`+body.program`, `c_codegen`→`+c_program`, `c_runtime` tách riêng prelude C (`const C_PRELUDE`). Phần core/monomorph giữ nguyên ở module gốc vì là SCC. | vừa |
 | 4 | **bỏ v0/LLVM**: commit `dist/bootstrap.c`, seed = C compiler | vừa (nhưng xoá ~12 700 LOC) |
 
 Sau mỗi pha: build v1 → tự biên dịch → `test` + `snap` + `fixpoint` (xem §8.1).
