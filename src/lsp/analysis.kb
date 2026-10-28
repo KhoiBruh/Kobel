@@ -718,4 +718,3 @@ pub fn format_document(text: str): *JsonValue {
 
 	return edits;
 }
-

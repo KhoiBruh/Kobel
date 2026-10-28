@@ -18,6 +18,29 @@ pub struct Document {
 	pub version: i64 = 0
 }
 
+// ============================================================================
+// In-Memory Document Store
+// ============================================================================
+
+pub struct DocumentStore {
+	pub doc_map: HashMap<Document> = HashMap<Document>()
+}
+
+impl DocumentStore {
+
+	pub fn set(var self, uri: str, text: str, version: i64) {
+		val p = uri_to_path(uri);
+		self.doc_map[uri] = Document(uri, p, text, version);
+	}
+
+	pub fn remove(var self, uri: str) => self.doc_map.remove(uri);
+
+	pub op get(val self, uri: str) => self.doc_map.get_or(uri, Document());
+
+	pub op contains(val self, uri: str) => uri in self.doc_map;
+
+}
+
 pub fn uri_to_path(uri: str): str {
 	var s = uri;
 	s = if (s.len >= 8 && s.slice(0, 8) == "file:///") s.slice(8, s.len)
@@ -49,31 +72,4 @@ pub fn uri_to_path(uri: str): str {
 	}
 
 	return sb.to_str();
-}
-
-// ============================================================================
-// In-Memory Document Store
-// ============================================================================
-
-pub struct DocumentStore {
-	pub doc_map: HashMap<Document> = HashMap<Document>()
-}
-
-impl DocumentStore {
-
-	pub op get(val self, uri: str): Document => self.doc_map.get_or(uri, Document());
-
-	pub op contains(val self, uri: str): bool => uri in self.doc_map;
-
-	pub fn has(self, uri: str): bool => uri in self.doc_map;
-
-	pub fn set(var self, uri: str, text: str, version: i64) {
-		val p = uri_to_path(uri);
-		self.doc_map[uri] = Document(uri, p, text, version);
-	}
-
-	pub fn remove(var self, uri: str) {
-		self.doc_map.remove(uri);
-	}
-
 }

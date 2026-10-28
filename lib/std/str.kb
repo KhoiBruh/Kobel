@@ -76,6 +76,7 @@ impl str {
 	pub fn join(val self, list: List<str>): str {
 		if (list.len == 0) return "";
 		if (list.len == 1) return list.data[0];
+
 		var total = 0;
 		for (i in 0..<list.len) total += list.data[i].len;
 		total += self.len * (list.len - 1);
@@ -98,8 +99,6 @@ impl str {
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
 	}
-
-	pub fn in_list(val self, list: List<str>): bool => self in list;
 
 	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
 	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
@@ -163,7 +162,7 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn contains(val self, sub: str): bool {
+	pub op contains(val self, sub: str): bool {
 		if (sub.len == 0) return true;
 		if (self.len < sub.len) return false;
 
