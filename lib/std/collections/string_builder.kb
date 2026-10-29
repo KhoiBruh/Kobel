@@ -61,7 +61,7 @@ impl StringBuilder {
 		}
 	}
 
-	pub fn append_i32(var self, n: i32) => self.append_i64(n as i64);
+	pub fn append_i32(var self, n: i32) => self.append_i64(n);
 
 	pub fn append_bool(var self, b: bool) => if (b) self += "true" else self += "false";
 

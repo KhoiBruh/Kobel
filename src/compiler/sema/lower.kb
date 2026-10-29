@@ -363,7 +363,7 @@ impl BodyPass {
 		if (self.is_array_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
 				val arr = self.type_of(obj).as_array();
-				val lit = self.arena.literal(LiteralKind.INT, "${arr.length}UZ", node.line, node.col);
+				val lit = self.arena.literal(LiteralKind.INT, "${arr.length}", node.line, node.col);
 				return self.lowered(node, lit);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -532,7 +532,7 @@ impl Arena {
 		var eargs = List<*AstNode>();
 		eargs += self.unary(TokenType.AMPERSAND, left, line, col);
 		eargs += self.unary(TokenType.AMPERSAND, right, line, col);
-		eargs += self.literal(LiteralKind.INT, "${size}UZ", line, col);
+		eargs += self.literal(LiteralKind.INT, "${size}", line, col);
 		val eq_call = self.call(self.identifier("kobel_memeq", line, col), eargs, List<*AstNode>(), line, col);
 		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
 		return eq_call;

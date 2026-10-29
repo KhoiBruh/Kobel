@@ -4726,9 +4726,9 @@ const char* std__traits__to_str__fmt_u64(uint64_t n0) {
 
 const char* std__traits__to_str__fmt_i64(int64_t v) {
     if (v < 0) {
-        return kobel_concat("-", std__traits__to_str__fmt_u64((uint64_t)(0 - v)));
+        return kobel_concat("-", std__traits__to_str__fmt_u64((0 - v)));
     }
-    return std__traits__to_str__fmt_u64((uint64_t)v);
+    return std__traits__to_str__fmt_u64(v);
 }
 
 const char* std__traits__to_str__fmt_char(char c) {
@@ -4866,15 +4866,15 @@ const char* str_to_str(const char* self) {
 }
 
 const char* i8_to_str(int8_t self) {
-    return std__traits__to_str__fmt_i64((int64_t)self);
+    return std__traits__to_str__fmt_i64(self);
 }
 
 const char* i16_to_str(int16_t self) {
-    return std__traits__to_str__fmt_i64((int64_t)self);
+    return std__traits__to_str__fmt_i64(self);
 }
 
 const char* i32_to_str(int32_t self) {
-    return std__traits__to_str__fmt_i64((int64_t)self);
+    return std__traits__to_str__fmt_i64(self);
 }
 
 const char* i64_to_str(int64_t self) {
@@ -4882,19 +4882,19 @@ const char* i64_to_str(int64_t self) {
 }
 
 const char* isz_to_str(intptr_t self) {
-    return std__traits__to_str__fmt_i64((int64_t)self);
+    return std__traits__to_str__fmt_i64(self);
 }
 
 const char* u8_to_str(uint8_t self) {
-    return std__traits__to_str__fmt_u64((uint64_t)self);
+    return std__traits__to_str__fmt_u64(self);
 }
 
 const char* u16_to_str(uint16_t self) {
-    return std__traits__to_str__fmt_u64((uint64_t)self);
+    return std__traits__to_str__fmt_u64(self);
 }
 
 const char* u32_to_str(uint32_t self) {
-    return std__traits__to_str__fmt_u64((uint64_t)self);
+    return std__traits__to_str__fmt_u64(self);
 }
 
 const char* u64_to_str(uint64_t self) {
@@ -4902,11 +4902,11 @@ const char* u64_to_str(uint64_t self) {
 }
 
 const char* usz_to_str(size_t self) {
-    return std__traits__to_str__fmt_u64((uint64_t)self);
+    return std__traits__to_str__fmt_u64(self);
 }
 
 const char* f32_to_str(float self) {
-    return std__traits__to_str__fmt_f64((double)self);
+    return std__traits__to_str__fmt_f64(self);
 }
 
 const char* f64_to_str(double self) {
@@ -4964,39 +4964,39 @@ size_t str_hash(const char* self) {
 }
 
 size_t i8_hash(int8_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t i16_hash(int16_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t i32_hash(int32_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t i64_hash(int64_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t isz_hash(intptr_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t u8_hash(uint8_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t u16_hash(uint16_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t u32_hash(uint32_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t u64_hash(uint64_t self) {
-    return std__traits__hash__hash_int((size_t)self);
+    return std__traits__hash__hash_int(self);
 }
 
 size_t usz_hash(size_t self) {
@@ -13437,7 +13437,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_size_que
             }
             size_t csize = compiler__sema__prims__prim_c_size(id->name);
             if (csize > 0) {
-                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__arena__Arena_literal(&self->arena, 0, kobel_concat(usz_to_str(csize), "UZ"), node->line, node->col));
+                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__arena__Arena_literal(&self->arena, 0, usz_to_str(csize), node->line, node->col));
                 return compiler__sema__prims__PrimTypes_t_usz(compiler__sema__body__pass__BodyPass_prims(self));
             }
             compiler__sema__symbol__Symbol* tsym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
@@ -15718,7 +15718,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_member(
     if (compiler__sema__body__pass__BodyPass_is_array_expr(self, obj)) {
         if (kobel_streq(mem->member, "len") || kobel_streq(mem->member, "size")) {
             compiler__sema__types__ArrayType* arr = compiler__sema__types__Type_as_array(compiler__sema__body__pass__BodyPass_type_of(self, obj));
-            compiler__ast__node__AstNode* lit = std__mem__arena__Arena_literal(&self->arena, 0, kobel_concat(usz_to_str(arr->length), "UZ"), node->line, node->col);
+            compiler__ast__node__AstNode* lit = std__mem__arena__Arena_literal(&self->arena, 0, usz_to_str(arr->length), node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, lit);
         }
         if (kobel_streq(mem->member, "data")) {
@@ -15892,7 +15892,7 @@ compiler__ast__node__AstNode* std__mem__arena__Arena_make_mem_eq(std__mem__arena
     std__collections__list__List_ptr_compiler__ast__node__AstNode eargs = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__arena__Arena_unary(self, 19, left, line, col));
     std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__arena__Arena_unary(self, 19, right, line, col));
-    std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__arena__Arena_literal(self, 0, kobel_concat(usz_to_str(size), "UZ"), line, col));
+    std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__arena__Arena_literal(self, 0, usz_to_str(size), line, col));
     compiler__ast__node__AstNode* eq_call = std__mem__arena__Arena_call(self, std__mem__arena__Arena_identifier(self, "kobel_memeq", line, col), eargs, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
     if (is_neq) {
         return std__mem__arena__Arena_unary(self, 4, eq_call, line, col);
@@ -16181,7 +16181,7 @@ void std__collections__string_builder__StringBuilder_append_i64(std__collections
 }
 
 void std__collections__string_builder__StringBuilder_append_i32(std__collections__string_builder__StringBuilder* self, int32_t n) {
-    std__collections__string_builder__StringBuilder_append_i64(self, (int64_t)n);
+    std__collections__string_builder__StringBuilder_append_i64(self, n);
 }
 
 void std__collections__string_builder__StringBuilder_append_bool(std__collections__string_builder__StringBuilder* self, bool b) {
@@ -18271,7 +18271,7 @@ compiler__lexer__token__TokenType compiler__lexer__lexer__lookup_keyword(const c
 compiler__lexer__lexer__Lexer compiler__lexer__lexer__Lexer_new(const char* src) {
     const char* s = src;
     if (kobel_slen(s) >= 3) {
-        if (((((uint8_t)s[0]) == ((uint8_t)239)) && (((uint8_t)s[1]) == ((uint8_t)187))) && (((uint8_t)s[2]) == ((uint8_t)191))) {
+        if (((((uint8_t)s[0]) == 239) && (((uint8_t)s[1]) == 187)) && (((uint8_t)s[2]) == 191)) {
             s = kobel_slice(s, 3, kobel_slen(s));
         }
     }
@@ -25616,7 +25616,7 @@ intptr_t std__collections__list__List_compiler__ast__expr__WhenArm_index_of(std_
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 return i;
             }
             if (__for_up) {
@@ -25642,7 +25642,7 @@ intptr_t std__collections__list__List_compiler__ast__expr__WhenArm_last_index_of
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 56)) {
             return i;
         }
         if (i == 0) {
@@ -25682,7 +25682,7 @@ size_t std__collections__list__List_compiler__ast__expr__WhenArm_remove_all(std_
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -25951,7 +25951,7 @@ intptr_t std__collections__list__List_compiler__ast__expr__InterpPart_index_of(s
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)16ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 16)) {
                 return i;
             }
             if (__for_up) {
@@ -25977,7 +25977,7 @@ intptr_t std__collections__list__List_compiler__ast__expr__InterpPart_last_index
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)16ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 16)) {
             return i;
         }
         if (i == 0) {
@@ -26017,7 +26017,7 @@ size_t std__collections__list__List_compiler__ast__expr__InterpPart_remove_all(s
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)16ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 16)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -26286,7 +26286,7 @@ intptr_t std__collections__list__List_compiler__ast__stmt__WhenStmtArm_index_of(
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 return i;
             }
             if (__for_up) {
@@ -26312,7 +26312,7 @@ intptr_t std__collections__list__List_compiler__ast__stmt__WhenStmtArm_last_inde
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 56)) {
             return i;
         }
         if (i == 0) {
@@ -26352,7 +26352,7 @@ size_t std__collections__list__List_compiler__ast__stmt__WhenStmtArm_remove_all(
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -26621,7 +26621,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__GenericParam_index_of
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -26647,7 +26647,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__GenericParam_last_ind
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -26687,7 +26687,7 @@ size_t std__collections__list__List_compiler__ast__decl__GenericParam_remove_all
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -26956,7 +26956,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__Param_index_of(std__c
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -26982,7 +26982,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__Param_last_index_of(s
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -27022,7 +27022,7 @@ size_t std__collections__list__List_compiler__ast__decl__Param_remove_all(std__c
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -27291,7 +27291,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__StructField_index_of(
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -27317,7 +27317,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__StructField_last_inde
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -27357,7 +27357,7 @@ size_t std__collections__list__List_compiler__ast__decl__StructField_remove_all(
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -27626,7 +27626,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__AssocBinding_index_of
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 24)) {
                 return i;
             }
             if (__for_up) {
@@ -27652,7 +27652,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__AssocBinding_last_ind
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 24)) {
             return i;
         }
         if (i == 0) {
@@ -27692,7 +27692,7 @@ size_t std__collections__list__List_compiler__ast__decl__AssocBinding_remove_all
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 24)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -27961,7 +27961,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__EnumField_index_of(st
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 24)) {
                 return i;
             }
             if (__for_up) {
@@ -27987,7 +27987,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__EnumField_last_index_
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 24)) {
             return i;
         }
         if (i == 0) {
@@ -28027,7 +28027,7 @@ size_t std__collections__list__List_compiler__ast__decl__EnumField_remove_all(st
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)24ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 24)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -28296,7 +28296,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__EnumMember_index_of(s
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)64ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 64)) {
                 return i;
             }
             if (__for_up) {
@@ -28322,7 +28322,7 @@ intptr_t std__collections__list__List_compiler__ast__decl__EnumMember_last_index
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)64ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 64)) {
             return i;
         }
         if (i == 0) {
@@ -28362,7 +28362,7 @@ size_t std__collections__list__List_compiler__ast__decl__EnumMember_remove_all(s
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)64ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 64)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -28966,7 +28966,7 @@ intptr_t std__collections__list__List_compiler__sema__structs__StructField_index
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 return i;
             }
             if (__for_up) {
@@ -28992,7 +28992,7 @@ intptr_t std__collections__list__List_compiler__sema__structs__StructField_last_
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 48)) {
             return i;
         }
         if (i == 0) {
@@ -29032,7 +29032,7 @@ size_t std__collections__list__List_compiler__sema__structs__StructField_remove_
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -33381,7 +33381,7 @@ intptr_t std__collections__list__List_compiler__sema__symbol__ImportBinding_inde
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)72ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 72)) {
                 return i;
             }
             if (__for_up) {
@@ -33407,7 +33407,7 @@ intptr_t std__collections__list__List_compiler__sema__symbol__ImportBinding_last
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)72ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 72)) {
             return i;
         }
         if (i == 0) {
@@ -33447,7 +33447,7 @@ size_t std__collections__list__List_compiler__sema__symbol__ImportBinding_remove
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)72ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 72)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -36141,7 +36141,7 @@ intptr_t std__collections__list__List_compiler__lexer__token__Token_index_of(std
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -36167,7 +36167,7 @@ intptr_t std__collections__list__List_compiler__lexer__token__Token_last_index_o
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -36207,7 +36207,7 @@ size_t std__collections__list__List_compiler__lexer__token__Token_remove_all(std
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -36476,7 +36476,7 @@ intptr_t std__collections__list__List_compiler__loader__loader__LoadedModule_ind
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -36502,7 +36502,7 @@ intptr_t std__collections__list__List_compiler__loader__loader__LoadedModule_las
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -36542,7 +36542,7 @@ size_t std__collections__list__List_compiler__loader__loader__LoadedModule_remov
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -36811,7 +36811,7 @@ intptr_t std__collections__list__List_fmt__comments__Comment_index_of(std__colle
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 return i;
             }
             if (__for_up) {
@@ -36837,7 +36837,7 @@ intptr_t std__collections__list__List_fmt__comments__Comment_last_index_of(std__
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
             return i;
         }
         if (i == 0) {
@@ -36877,7 +36877,7 @@ size_t std__collections__list__List_fmt__comments__Comment_remove_all(std__colle
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)40ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 40)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -37481,7 +37481,7 @@ intptr_t std__collections__list__List_lsp__document__Document_index_of(std__coll
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 return i;
             }
             if (__for_up) {
@@ -37507,7 +37507,7 @@ intptr_t std__collections__list__List_lsp__document__Document_last_index_of(std_
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 56)) {
             return i;
         }
         if (i == 0) {
@@ -37547,7 +37547,7 @@ size_t std__collections__list__List_lsp__document__Document_remove_all(std__coll
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -38171,7 +38171,7 @@ intptr_t std__collections__list__List_lsp__analysis__LspDiagnostic_index_of(std_
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 return i;
             }
             if (__for_up) {
@@ -38197,7 +38197,7 @@ intptr_t std__collections__list__List_lsp__analysis__LspDiagnostic_last_index_of
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 56)) {
             return i;
         }
         if (i == 0) {
@@ -38237,7 +38237,7 @@ size_t std__collections__list__List_lsp__analysis__LspDiagnostic_remove_all(std_
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)56ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 56)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -38841,7 +38841,7 @@ intptr_t std__collections__list__List_compiler__codegen__c_codegen__ConditionAli
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 return i;
             }
             if (__for_up) {
@@ -38867,7 +38867,7 @@ intptr_t std__collections__list__List_compiler__codegen__c_codegen__ConditionAli
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+        if (kobel_memeq(&self->data[i], &value, 48)) {
             return i;
         }
         if (i == 0) {
@@ -38907,7 +38907,7 @@ size_t std__collections__list__List_compiler__codegen__c_codegen__ConditionAlias
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, ((size_t)48ULL))) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 removed++;
             } else {
                 if (write != i) {

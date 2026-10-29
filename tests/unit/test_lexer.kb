@@ -213,10 +213,10 @@ fn test_line_col_tracking(): bool {
 // bytes are built here so the test file itself stays plain ASCII.
 fn test_bom_prefix(): bool {
 	val buf = alloc_array<u8>(4);
-	buf[0] = 239 as u8;
-	buf[1] = 187 as u8;
-	buf[2] = 191 as u8;
-	buf[3] = 0 as u8;
+	buf[0] = 239;
+	buf[1] = 187;
+	buf[2] = 191;
+	buf[3] = 0;
 	val code = str_from_bytes(buf, 3) + "val x = 1;";
 
 	var lex: Lexer = Lexer(code);

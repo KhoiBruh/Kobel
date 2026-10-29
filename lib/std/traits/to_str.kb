@@ -45,8 +45,8 @@ fn fmt_u64(n0: u64): str {
 }
 
 fn fmt_i64(v: i64): str {
-	if (v < 0) return "-" + fmt_u64((0 - v) as u64);
-	return fmt_u64(v as u64);
+	if (v < 0) return "-" + fmt_u64(0 - v);
+	return fmt_u64(v);
 }
 
 fn fmt_char(c: char): str {
@@ -132,15 +132,15 @@ impl ToStr for str {
 }
 
 impl ToStr for i8 {
-	fn to_str(val self) => fmt_i64(self as i64);
+	fn to_str(val self) => fmt_i64(self);
 }
 
 impl ToStr for i16 {
-	fn to_str(val self) => fmt_i64(self as i64);
+	fn to_str(val self) => fmt_i64(self);
 }
 
 impl ToStr for i32 {
-	fn to_str(val self) => fmt_i64(self as i64);
+	fn to_str(val self) => fmt_i64(self);
 }
 
 impl ToStr for i64 {
@@ -148,19 +148,19 @@ impl ToStr for i64 {
 }
 
 impl ToStr for isz {
-	fn to_str(val self) => fmt_i64(self as i64);
+	fn to_str(val self) => fmt_i64(self);
 }
 
 impl ToStr for u8 {
-	fn to_str(val self) => fmt_u64(self as u64);
+	fn to_str(val self) => fmt_u64(self);
 }
 
 impl ToStr for u16 {
-	fn to_str(val self) => fmt_u64(self as u64);
+	fn to_str(val self) => fmt_u64(self);
 }
 
 impl ToStr for u32 {
-	fn to_str(val self) => fmt_u64(self as u64);
+	fn to_str(val self) => fmt_u64(self);
 }
 
 impl ToStr for u64 {
@@ -168,11 +168,11 @@ impl ToStr for u64 {
 }
 
 impl ToStr for usz {
-	fn to_str(val self) => fmt_u64(self as u64);
+	fn to_str(val self) => fmt_u64(self);
 }
 
 impl ToStr for f32 {
-	fn to_str(val self) => fmt_f64(self as f64);
+	fn to_str(val self) => fmt_f64(self);
 }
 
 impl ToStr for f64 {

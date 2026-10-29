@@ -36,39 +36,39 @@ impl Hash for str {
 }
 
 impl Hash for i8 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for i16 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for i32 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for i64 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for isz {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for u8 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for u16 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for u32 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for u64 {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self);
 }
 
 impl Hash for usz {

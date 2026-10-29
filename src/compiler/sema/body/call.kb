@@ -128,7 +128,7 @@ impl BodyPass {
 
 			val csize = prim_c_size(id.name);
 			if (csize > 0) {
-				self.set_resolved(node, self.arena.literal(LiteralKind.INT, "${csize}UZ", node.line, node.col));
+				self.set_resolved(node, self.arena.literal(LiteralKind.INT, "${csize}", node.line, node.col));
 				return self.prims().t_usz();
 			}
 
