@@ -6,7 +6,7 @@ use std.collections.hash_map.HashMap;
 use util.strutil.*;
 
 pub struct Toml {
-	pub entries: HashMap<str> = HashMap()
+	pub entries: HashMap<str, str> = HashMap()
 }
 
 impl Toml {

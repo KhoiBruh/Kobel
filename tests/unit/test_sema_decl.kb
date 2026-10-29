@@ -134,8 +134,48 @@ fn test_duplicate_declarations() {
 	println("  [PASS] test_duplicate_declarations");
 }
 
+// ============================================================================
+// Test 3: Generic Trait Bounds Checking
+// ============================================================================
+
+fn test_generic_bounds_checking() {
+	val src = """
+		trait MyBound {
+		    fn op(val self): i32;
+		}
+		struct Valid {
+		    pub v: i32
+		}
+		impl MyBound for Valid {
+		    fn op(val self): i32 => self.v;
+		}
+		struct Invalid {
+		    pub v: i32
+		}
+		fn call_bound<T: MyBound>(val x: T): i32 => x.op();
+		fn test(): i32 {
+		    val a = call_bound<Valid>(Valid(1));
+		    val b = call_bound<Invalid>(Invalid(2));
+		    val c = call_bound<i32>(42);
+		    return a;
+		}
+	""";
+
+	var lexer = Lexer(src);
+	val tokens = lexer.tokenize();
+	var parser = Parser(tokens);
+	val prog = parser.parse_program();
+
+	var decl_p = DeclPass();
+	decl_p.collect_program(prog);
+
+	assert_true(decl_p.errors.len >= 2UZ, "Instantiating with Invalid struct and i32 must fail bounds check");
+	println("  [PASS] test_generic_bounds_checking");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic DeclPass tests...");
+	test_generic_bounds_checking();
 	test_collect_program();
 	test_duplicate_declarations();
 	println("[ALL PASSED] Bootstrap Semantic DeclPass passed all tests successfully!");

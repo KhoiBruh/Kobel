@@ -114,7 +114,7 @@ pub struct ImportBinding {
 pub struct ModuleScope {
 	pub name: str,
 	pub symbols: List<*Symbol> = List(),
-	pub sym_map: HashMap<*Symbol> = HashMap()
+	pub sym_map: HashMap<str, *Symbol> = HashMap()
 }
 
 impl ModuleScope {
@@ -142,7 +142,7 @@ pub struct GenericReg {
 	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
 	// Symbols of instantiated declarations, keyed by their mangled C name. This
 	// is the *name* index; identity lives in `records` (template + resolved args).
-	pub inst_map: HashMap<*Symbol> = HashMap<*Symbol>(),
+	pub inst_map: HashMap<str, *Symbol> = HashMap<str, *Symbol>(),
 	// Typed instance records: the identity used by monomorphization is
 	// (template, resolved type arguments), not the mangled C name.
 	pub records: List<*InstanceRecord> = List<*InstanceRecord>(),
@@ -194,23 +194,23 @@ pub struct SymbolTable {
 	// (e.g. `sc.symbols += ...`) will not be visible on the next access.
 	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope> = List(),
-	pub module_map: HashMap<*ModuleScope> = HashMap(),
+	pub module_map: HashMap<str, *ModuleScope> = HashMap(),
 	pub imports: List<ImportBinding> = List(),
 	// Enum member tables, keyed by source name / mangled C name.
 	pub enums: List<*EnumInfo> = List(),
-	pub enum_map: HashMap<*EnumInfo> = HashMap(),
+	pub enum_map: HashMap<str, *EnumInfo> = HashMap(),
 	// Collected `trait` declarations, by source name.
 	pub traits: List<*TraitInfo> = List(),
-	pub trait_map: HashMap<*TraitInfo> = HashMap(),
+	pub trait_map: HashMap<str, *TraitInfo> = HashMap(),
 	// Methods extending the built-in (primitive) types live on the canonical
 	// `Type` of each kind (see `PrimTypes`); these helpers are the read side.
-	pub c_name_map: HashMap<*Symbol> = HashMap(),
-	pub struct_const_map: HashMap<*Symbol> = HashMap(),
-	pub explicit_imports: HashMap<ImportBinding> = HashMap(),
+	pub c_name_map: HashMap<str, *Symbol> = HashMap(),
+	pub struct_const_map: HashMap<str, *Symbol> = HashMap(),
+	pub explicit_imports: HashMap<str, ImportBinding> = HashMap(),
 	pub wildcard_owners: List<str> = List(),
 	pub wildcard_modules: List<str> = List(),
 	// Trait associated-type bindings: "<struct>.<assoc>" -> concrete type.
-	pub assoc_types: HashMap<*Type> = HashMap(),
+	pub assoc_types: HashMap<str, *Type> = HashMap(),
 	pub gen: GenericReg = GenericReg(),
 	// Canonical primitive types, built on first use from this table's arena.
 	pub prims: *PrimTypes = null

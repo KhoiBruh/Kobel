@@ -24,6 +24,10 @@ impl ToStr for Point2D {
 	fn to_str(val self): str => "Point(${self.x}, ${self.y})";
 }
 
+impl Hash for Point2D {
+	fn hash(val self): usz => (self.x as usz * 31UZ) + (self.y as usz);
+}
+
 struct CustomIndexBox {
 	pub a: i32,
 	pub b: i32
@@ -130,7 +134,7 @@ fn test_interpolation_and_formatting(): bool {
 }
 
 fn test_hash_map(): bool {
-	var map: HashMap<i32> = HashMap<i32>();
+	var map: HashMap<str, i32> = HashMap<str, i32>();
 	defer map.delete();
 	if (!map.empty()) return false;
 
@@ -185,6 +189,53 @@ fn test_hash_map(): bool {
 		defer vs.delete();
 		if (vs.len != 30UZ) return false;
 	}
+
+	return true;
+}
+
+fn test_generic_hash_map(): bool {
+	// 1. Integer keys
+	var int_map = HashMap<i32, str>();
+	defer int_map.delete();
+
+	int_map[1] = "one";
+	int_map[2] = "two";
+	int_map[42] = "answer";
+
+	if (int_map.len != 3UZ) return false;
+	if (!(1 in int_map) || !(42 in int_map) || (99 in int_map)) return false;
+	val ans = int_map[42];
+	if (ans == null || *ans != "answer") return false;
+	if (int_map.get_or(1, "") != "one") return false;
+	if (int_map.get_or(99, "none") != "none") return false;
+
+	if (!int_map.remove(2)) return false;
+	if (int_map.len != 2UZ || (2 in int_map)) return false;
+
+	// 2. Custom struct keys
+	var pt_map = HashMap<Point2D, i32>();
+	defer pt_map.delete();
+
+	val p1 = Point2D(10, 20);
+	val p2 = Point2D(30, 40);
+	val p3 = Point2D(10, 20);
+
+	pt_map[p1] = 100;
+	pt_map[p2] = 200;
+
+	if (pt_map.len != 2UZ) return false;
+	if (!(p3 in pt_map)) return false;
+	val v = pt_map[p3];
+	if (v == null || *v != 100) return false;
+
+	pt_map[p3] = 999;
+	if (pt_map.len != 2UZ) return false;
+	val v2 = pt_map[p1];
+	if (v2 == null || *v2 != 999) return false;
+
+	if (!pt_map.remove(p1)) return false;
+	if (pt_map.len != 1UZ) return false;
+	if (p1 in pt_map) return false;
 
 	return true;
 }
@@ -273,6 +324,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_hash_map");
+
+	if (!test_generic_hash_map()) {
+		println("  [FAIL] test_generic_hash_map");
+		return 1;
+	}
+	println("  [PASS] test_generic_hash_map");
 
 	if (!test_interpolation_and_formatting()) {
 		println("  [FAIL] test_interpolation_and_formatting");

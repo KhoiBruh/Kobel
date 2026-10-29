@@ -25,6 +25,7 @@ use compiler.sema.symbol.*;
 use compiler.sema.decl.pass.*;
 use compiler.sema.body.pass.*;
 use compiler.sema.desugar.interp.*;
+use compiler.sema.prims.*;
 
 impl BodyPass {
 
@@ -40,15 +41,27 @@ impl BodyPass {
 		return self.prims().t_str();
 	}
 
-	// A hole is fine when it is `str` or some `to_str` implementation applies;
+	// A hole is fine when it is `str` or implements the `ToStr` trait;
 	// `lower` picks that implementation while rewriting.
 	fn ensure_to_str(var self, node: *AstNode, ty: *Type) {
-		if (ty.kind == DataType.STR) return;
-		if (self.symtab.find_prim_method(ty.kind, "to_str") != null) return;
+		if (ty == null || ty.kind == DataType.STR) return;
 
-		var cur_ty = ty;
-		if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
-		if (cur_ty.kind == DataType.STRUCT && cur_ty.as_struct().find_method("to_str") != null) return;
+		val trait_to_str = self.symtab.find_trait("ToStr");
+		if (trait_to_str != null) {
+			var cur_ty = ty;
+			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
+
+			var tname = "";
+			if (cur_ty.kind == DataType.STRUCT) {
+				tname = cur_ty.as_struct().name;
+			} else {
+				val prim = primitive_type_name(cur_ty);
+				if (prim != "none") tname = prim;
+				else tname = cur_ty.to_str();
+			}
+
+			if (trait_to_str.has_impl(tname)) return;
+		}
 
 		self.report_error(node, "Interpolated value must implement ToStr");
 	}

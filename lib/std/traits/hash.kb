@@ -1,0 +1,76 @@
+mod std.traits.hash;
+
+// ============================================================================
+// std.traits.hash - the `Hash` trait
+//
+// `Hash` is the trait behind hashed collections (`HashMap`, `HashSet`). It comes
+// with implementations for the built-in value types; user structs may implement
+// it too (import this module and write `impl Hash for MyStruct`).
+// ============================================================================
+
+pub trait Hash {
+	fn hash(val self): usz;
+}
+
+fn hash_int(n: usz): usz => (n / 8) * 2654435761;
+
+fn hash_str(s: str): usz {
+	var h: usz = 5381;
+	for (i in 0..<s.len) {
+		val c = s[i] as usz;
+		h = h * 33 + c;
+	}
+	return h;
+}
+
+impl Hash for bool {
+	fn hash(val self): usz => if (self) 1 else 0;
+}
+
+impl Hash for char {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for str {
+	fn hash(val self): usz => hash_str(self);
+}
+
+impl Hash for i8 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for i16 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for i32 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for i64 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for isz {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for u8 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for u16 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for u32 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for u64 {
+	fn hash(val self): usz => hash_int(self as usz);
+}
+
+impl Hash for usz {
+	fn hash(val self): usz => hash_int(self);
+}

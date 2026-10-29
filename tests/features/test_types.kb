@@ -7,6 +7,7 @@ use std.collections.list.*;
 use std.collections.hash_map.*;
 use std.collections.string_builder.*;
 use std.mem.arena.*;
+use std.traits.to_str.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -110,12 +111,16 @@ fn total<T: Measurable>(val item: T): i32 => item.measure();
 
 fn score<T: Summarizable>(val item: T): i32 => item.summary();
 
+fn stringify<T: ToStr>(val item: T): str => item.to_str();
+
 fn test_bounds(var t: &Tally) {
 	val p = Person("Ada");
 	check_str(announce<Person>(p), "Hello Ada", "bound on the trait itself", t);
 	val b = Box(3, 7);
 	check_i(total<Box>(b), 21, "bound on a base trait", t);
 	check_i(score<Box>(b), 42, "bound satisfied through inheritance", t);
+	check_str(stringify<i32>(123), "123", "generic bound ToStr on primitive i32", t);
+	check_str(stringify<bool>(true), "true", "generic bound ToStr on primitive bool", t);
 }
 
 // --- 5. two structs implementing one trait ---------------------------------
@@ -292,10 +297,10 @@ fn test_std_ctors(var t: &Tally) {
 	}
 
 	{
-		var m = HashMap<i32>();
+		var m = HashMap<str, i32>();
 		defer m.delete();
 		m["k"] = 5;
-		check_i(m.get_or("k", 0), 5, "HashMap<i32>() ctor", t);
+		check_i(m.get_or("k", 0), 5, "HashMap<str, i32>() ctor", t);
 	}
 
 	{

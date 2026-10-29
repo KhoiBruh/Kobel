@@ -87,7 +87,7 @@ fn test_collections(): bool {
 	}
 
 	// 2. HashMap
-	var map: HashMap<i32> = HashMap<i32>();
+	var map: HashMap<str, i32> = HashMap<str, i32>();
 	defer map.delete();
 	if (!map.empty() || map.count() != 0UZ) return false;
 

@@ -452,6 +452,22 @@ impl DeclPass {
 			}
 		}
 
+		// Pass 0.6: record trait implementations early so generic bound checks
+		// can succeed during signature collection (struct fields, function parameters).
+		for (d_impl in prog) {
+			when (d_impl.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d_impl);
+				NodeKind.DECL_IMPL -> {
+					val im = d_impl.as_impl_decl();
+					if (im.type_params.len == 0 && !im.trait_name.empty()) {
+						val t = self.symtab.find_trait(im.trait_name);
+						if (t != null) self.trait_record_impl(t, im.struct_name);
+					}
+				}
+				else -> {}
+			}
+		}
+
 		// Pass 1a: collect ordinary declarations (templates, impls and imports - the
 		// imports were already registered in pass 0.4 - are deferred).
 		for (d1 in prog) {

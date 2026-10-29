@@ -1,181 +1,64 @@
 mod std.collections.ptr_map;
 
-use std.mem.alloc.*;
 use std.collections.list.List;
+use std.collections.hash_map.HashMap;
 
-// A hash map keyed by a raw pointer.
+// A pointer-keyed map implemented over generic `HashMap<usz, V>`.
 //
-// `HashMap` keys on `str`, which cannot express "this node" without formatting an
-// address or scanning a list. Compiler passes often need exactly that (a per-node
-// side table), so this is the same open-addressing table with pointer keys:
-// hashing mixes the address, equality is pointer identity, and removal keeps the
-// probing sequence contiguous (Robin Hood backward shift), like `HashMap`.
-//
-// Keys are `*u8`; callers cast their typed pointer (`node as *u8`). Null is a
-// legal key, though a null key usually means a caller bug.
+// Callers can pass raw or typed pointers (`node as *u8`) as keys.
+// Address hashing and pointer equality are handled via the underlying integer map.
 pub struct PtrMap<V> {
-	keys: &*u8,
-	values: &V,
-	occupied: &bool,
-	pub len: usz = 0,
-	cap: usz = 0
+	inner: HashMap<usz, V>,
+	pub len: usz = 0
 }
 
 impl PtrMap<V> {
-	pub fn new(init_cap: usz = 8): Self<V> {
-		var cap = init_cap;
-		if (cap < 8) cap = 8;
-		val keys = alloc_array<*u8>(cap);
-		val values = alloc_array<V>(cap);
-		val occ = alloc_array<bool>(cap);
-
-		for (i in 0..<cap) occ[i] = false;
-		return Self(keys, values, occ, 0, cap);
-	}
-
-	// Multiplicative mix of the (8-byte aligned) address. The language has no
-	// shift/xor operators, so this is the cheapest spreading available; the odd
-	// constant is Knuth's, and `cap` is a power of two.
-	fn hash_ptr(val self, key: *u8): usz => ((key as usz) / 8) * 2654435761;
-
-	fn dist(val self, from: usz, to: usz): usz {
-		if (to >= from) return to - from;
-		return self.cap + to - from;
-	}
+	pub fn new(init_cap: usz = 8): Self<V> => Self(HashMap<usz, V>(init_cap), 0UZ);
 
 	pub fn put(var self, key: *u8, value: V) {
-		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
-
-		var idx = self.hash_ptr(key) % self.cap;
-		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
-				self.values[idx] = value;
-				return;
-			}
-			idx = (idx + 1) % self.cap;
-		}
-
-		self.keys[idx] = key;
-		self.values[idx] = value;
-		self.occupied[idx] = true;
-		self.len++;
+		self.inner.put(key as usz, value);
+		self.len = self.inner.len;
 	}
 
-	pub op set(var self, key: *u8, value: V) => self.put(key, value);
+	pub fn contains(val self, key: *u8): bool => self.inner.contains(key as usz);
 
-	pub op contains(val self, key: *u8): bool => self.get(key) != null;
-
-	pub op get(val self, key: *u8): *V {
-		if (self.len == 0 || self.cap == 0) return null;
-		var idx = self.hash_ptr(key) % self.cap;
-
-		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return &self.values[idx];
-			idx = (idx + 1) % self.cap;
-		}
-		return null;
-	}
-
-	pub fn get_or(val self, key: *u8, default_val: V): V {
-		if (self.len == 0 || self.cap == 0) return default_val;
-		var idx = self.hash_ptr(key) % self.cap;
-
-		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return self.values[idx];
-			idx = (idx + 1) % self.cap;
-		}
-		return default_val;
-	}
+	pub fn get_or(val self, key: *u8, default_val: V): V => self.inner.get_or(key as usz, default_val);
 
 	pub fn remove(var self, key: *u8): bool {
-		if (self.len == 0 || self.cap == 0) return false;
-
-		var idx = self.hash_ptr(key) % self.cap;
-		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
-				var i = idx;
-				var j = (idx + 1) % self.cap;
-				while (self.occupied[j]) {
-					val k = self.hash_ptr(self.keys[j]) % self.cap;
-					if (self.dist(k, i) < self.dist(k, j)) {
-						self.keys[i] = self.keys[j];
-						self.values[i] = self.values[j];
-						i = j;
-					}
-					j = (j + 1) % self.cap;
-				}
-				self.occupied[i] = false;
-				self.len--;
-				return true;
-			}
-			idx = (idx + 1) % self.cap;
-		}
-		return false;
+		val ok = self.inner.remove(key as usz);
+		self.len = self.inner.len;
+		return ok;
 	}
 
 	pub fn clear(var self) {
-		if (self.cap > 0) {
-			for (i in 0..<self.cap) self.occupied[i] = false;
-		}
-		self.len = 0;
+		self.inner.clear();
+		self.len = 0UZ;
 	}
 
-	pub fn empty(val self) => self.len == 0;
+	pub fn empty(val self): bool => self.len == 0UZ;
 
-	pub fn count(val self) => self.len;
+	pub fn count(val self): usz => self.len;
 
 	pub fn keys(val self): List<*u8> {
 		var res = List<*u8>();
-		if (self.cap == 0) return res;
-		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res += self.keys[i];
+		val u_keys = self.inner.keys();
+		for (i in 0..<u_keys.len) {
+			res += u_keys[i] as *u8;
 		}
 		return res;
 	}
 
-	pub fn values(val self): List<V> {
-		var res = List<V>();
-		if (self.cap == 0) return res;
-		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res += self.values[i];
-		}
-		return res;
-	}
+	pub fn values(val self): List<V> => self.inner.values();
 
-	fn grow(var self) {
-		val old_cap = self.cap;
-		val old_keys = self.keys;
-		val old_vals = self.values;
-		val old_occ = self.occupied;
+	pub fn delete(self): none => self.inner.delete();
 
-		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
-		val keys = alloc_array<*u8>(new_cap);
-		val values = alloc_array<V>(new_cap);
-		val new_occ = alloc_array<bool>(new_cap);
+	// ========================================================================
+	// Overloaded Operators (placed at the end, after regular functions)
+	// ========================================================================
 
-		for (j in 0..<new_cap) new_occ[j] = false;
+	pub op get(val self, key: *u8): *V => self.inner.get(key as usz);
 
-		self.keys = keys;
-		self.values = values;
-		self.occupied = new_occ;
-		self.cap = new_cap;
-		self.len = 0;
+	pub op set(var self, key: *u8, value: V) => self.put(key, value);
 
-		if (old_cap > 0) {
-			for (i in 0..<old_cap) {
-				if (old_occ[i]) self.put(old_keys[i], old_vals[i]);
-			}
-			release<*u8>(old_keys);
-			release<V>(old_vals);
-			release<bool>(old_occ);
-		}
-	}
-
-	pub fn delete(self): none {
-		if (self.cap > 0) {
-			release<*u8>(self.keys);
-			release<V>(self.values);
-			release<bool>(self.occupied);
-		}
-	}
+	pub op contains(val self, key: *u8): bool => self.contains(key);
 }

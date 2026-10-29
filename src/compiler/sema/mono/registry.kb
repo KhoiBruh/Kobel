@@ -12,6 +12,7 @@ mod compiler.sema.mono.registry;
 
 use std.mem.arena.*;
 use std.collections.list.*;
+use std.traits.to_str.*;
 
 use util.strutil.*;
 
@@ -213,10 +214,20 @@ impl DeclPass {
 			if (gp.bounds.empty() || i >= arg_asts.len) continue;
 
 			val arg = arg_asts[i];
-			if (arg.kind != NodeKind.TYPE_NAMED) continue;
-			val aname = arg.as_named_type().name;
-			val asym = self.symtab.lookup(aname) ?: continue;
-			if (asym.type_ptr.kind != DataType.STRUCT) continue;
+			val ty = self.resolve_ast_type(arg);
+			if (ty == null || ty.kind == DataType.NONE) continue;
+
+			var cur_ty = ty;
+			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
+
+			var aname = "";
+			if (cur_ty.kind == DataType.STRUCT) {
+				aname = cur_ty.as_struct().name;
+			} else {
+				val prim = primitive_type_name(cur_ty);
+				if (prim != "none") aname = prim;
+				else aname = cur_ty.to_str();
+			}
 
 			for (b in gp.bounds) {
 				val bt = self.symtab.find_trait(b);

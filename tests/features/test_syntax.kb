@@ -585,7 +585,7 @@ fn test_in_operator(): bool {
 	if ("baz" in list) return false;
 
 	// 3. in HashMap
-	var map = HashMap<i32>();
+	var map = HashMap<str, i32>();
 	defer map.delete();
 	map["k1"] = 10;
 	if ("k1" !in map) return false;

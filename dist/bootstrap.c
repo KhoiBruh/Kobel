@@ -308,7 +308,7 @@ typedef struct lsp__document__DocumentStore lsp__document__DocumentStore;
 typedef struct lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic;
 typedef struct lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult;
 typedef struct std__collections__list__List_str std__collections__list__List_str;
-typedef struct std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str;
+typedef struct std__collections__hash_map__HashMap_str_str std__collections__hash_map__HashMap_str_str;
 typedef struct std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode;
 typedef struct std__collections__list__List_compiler__ast__expr__WhenArm std__collections__list__List_compiler__ast__expr__WhenArm;
 typedef struct std__collections__list__List_compiler__ast__expr__InterpPart std__collections__list__List_compiler__ast__expr__InterpPart;
@@ -323,31 +323,32 @@ typedef struct std__collections__list__List_ptr_compiler__sema__methods__MethodI
 typedef struct std__collections__list__List_compiler__sema__structs__StructField std__collections__list__List_compiler__sema__structs__StructField;
 typedef struct std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo;
 typedef struct std__collections__list__List_ptr_compiler__sema__types__Type std__collections__list__List_ptr_compiler__sema__types__Type;
-typedef struct std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8;
+typedef struct std__collections__list__List_usz std__collections__list__List_usz;
 typedef struct std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__list__List_ptr_compiler__sema__instance__AnnEntry;
+typedef struct std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry;
+typedef struct std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8;
 typedef struct std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry;
 typedef struct std__collections__list__List_ptr_compiler__sema__traits__TraitMethod std__collections__list__List_ptr_compiler__sema__traits__TraitMethod;
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__list__List_ptr_compiler__sema__symbol__Symbol;
-typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol;
+typedef struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol;
 typedef struct std__collections__list__List_ptr_compiler__sema__template__GenTemplate std__collections__list__List_ptr_compiler__sema__template__GenTemplate;
 typedef struct std__collections__list__List_ptr_compiler__sema__instance__InstanceRecord std__collections__list__List_ptr_compiler__sema__instance__InstanceRecord;
 typedef struct std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope;
-typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope;
+typedef struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope;
 typedef struct std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding;
 typedef struct std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collections__list__List_ptr_compiler__sema__enums__EnumInfo;
-typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo;
+typedef struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo;
 typedef struct std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__list__List_ptr_compiler__sema__traits__TraitInfo;
-typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo;
-typedef struct std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding;
-typedef struct std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type;
-typedef struct std__collections__list__List_usz std__collections__list__List_usz;
+typedef struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo;
+typedef struct std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding;
+typedef struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type;
 typedef struct std__collections__list__List_bool std__collections__list__List_bool;
 typedef struct std__collections__list__List_compiler__lexer__token__Token std__collections__list__List_compiler__lexer__token__Token;
 typedef struct std__collections__list__List_compiler__loader__loader__LoadedModule std__collections__list__List_compiler__loader__loader__LoadedModule;
 typedef struct std__collections__list__List_fmt__comments__Comment std__collections__list__List_fmt__comments__Comment;
 typedef struct std__collections__list__List_ptr_lsp__json__JsonValue std__collections__list__List_ptr_lsp__json__JsonValue;
 typedef struct std__collections__list__List_lsp__document__Document std__collections__list__List_lsp__document__Document;
-typedef struct std__collections__hash_map__HashMap_lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document;
+typedef struct std__collections__hash_map__HashMap_str_lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document;
 typedef struct std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic;
 typedef struct std__collections__list__List_ptr_compiler__sema__body__program__ArrowCandidate std__collections__list__List_ptr_compiler__sema__body__program__ArrowCandidate;
 typedef struct std__collections__list__List_compiler__codegen__c_codegen__ConditionAlias std__collections__list__List_compiler__codegen__c_codegen__ConditionAlias;
@@ -987,7 +988,7 @@ struct std__collections__list__List_str {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_str {
+struct std__collections__hash_map__HashMap_str_str {
     const char** keys;
     const char** values;
     bool* occupied;
@@ -1079,8 +1080,8 @@ struct std__collections__list__List_ptr_compiler__sema__types__Type {
     size_t cap;
 };
 
-struct std__collections__list__List_ptr_u8 {
-    uint8_t** data;
+struct std__collections__list__List_usz {
+    size_t* data;
     size_t len;
     size_t cap;
 };
@@ -1091,12 +1092,23 @@ struct std__collections__list__List_ptr_compiler__sema__instance__AnnEntry {
     size_t cap;
 };
 
-struct std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry {
-    uint8_t** keys;
+struct std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry {
+    size_t* keys;
     compiler__sema__instance__AnnEntry** values;
     bool* occupied;
     size_t len;
     size_t cap;
+};
+
+struct std__collections__list__List_ptr_u8 {
+    uint8_t** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry {
+    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry inner;
+    size_t len;
 };
 
 struct std__collections__list__List_ptr_compiler__sema__traits__TraitMethod {
@@ -1111,7 +1123,7 @@ struct std__collections__list__List_ptr_compiler__sema__symbol__Symbol {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol {
+struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol {
     const char** keys;
     compiler__sema__symbol__Symbol** values;
     bool* occupied;
@@ -1137,7 +1149,7 @@ struct std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope {
+struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope {
     const char** keys;
     compiler__sema__symbol__ModuleScope** values;
     bool* occupied;
@@ -1157,7 +1169,7 @@ struct std__collections__list__List_ptr_compiler__sema__enums__EnumInfo {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo {
+struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo {
     const char** keys;
     compiler__sema__enums__EnumInfo** values;
     bool* occupied;
@@ -1171,7 +1183,7 @@ struct std__collections__list__List_ptr_compiler__sema__traits__TraitInfo {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo {
+struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo {
     const char** keys;
     compiler__sema__traits__TraitInfo** values;
     bool* occupied;
@@ -1179,7 +1191,7 @@ struct std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding {
+struct std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding {
     const char** keys;
     compiler__sema__symbol__ImportBinding* values;
     bool* occupied;
@@ -1187,16 +1199,10 @@ struct std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type {
+struct std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type {
     const char** keys;
     compiler__sema__types__Type** values;
     bool* occupied;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__list__List_usz {
-    size_t* data;
     size_t len;
     size_t cap;
 };
@@ -1237,7 +1243,7 @@ struct std__collections__list__List_lsp__document__Document {
     size_t cap;
 };
 
-struct std__collections__hash_map__HashMap_lsp__document__Document {
+struct std__collections__hash_map__HashMap_str_lsp__document__Document {
     const char** keys;
     lsp__document__Document* values;
     bool* occupied;
@@ -1264,7 +1270,7 @@ struct std__collections__list__List_compiler__codegen__c_codegen__ConditionAlias
 };
 
 struct config__toml__Toml {
-    std__collections__hash_map__HashMap_str entries;
+    std__collections__hash_map__HashMap_str_str entries;
 };
 
 struct compiler__ast__node__NamedType {
@@ -1474,14 +1480,14 @@ struct compiler__sema__symbol__Scope {
 struct compiler__sema__symbol__ModuleScope {
     const char* name;
     std__collections__list__List_ptr_compiler__sema__symbol__Symbol symbols;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol sym_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol sym_map;
 };
 
 struct compiler__sema__symbol__GenericReg {
     std__collections__list__List_ptr_compiler__sema__template__GenTemplate struct_templates;
     std__collections__list__List_ptr_compiler__sema__template__GenTemplate fn_templates;
     std__collections__list__List_ptr_compiler__sema__template__GenTemplate impl_templates;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol inst_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol inst_map;
     std__collections__list__List_ptr_compiler__sema__instance__InstanceRecord records;
     std__collections__list__List_ptr_compiler__ast__node__AstNode instances;
 };
@@ -1491,18 +1497,18 @@ struct compiler__sema__symbol__SymbolTable {
     std__mem__arena__Arena arena;
     const char* current_module;
     std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope modules;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope module_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope module_map;
     std__collections__list__List_compiler__sema__symbol__ImportBinding imports;
     std__collections__list__List_ptr_compiler__sema__enums__EnumInfo enums;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo enum_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo enum_map;
     std__collections__list__List_ptr_compiler__sema__traits__TraitInfo traits;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo trait_map;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol c_name_map;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol struct_const_map;
-    std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding explicit_imports;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo trait_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol c_name_map;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol struct_const_map;
+    std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding explicit_imports;
     std__collections__list__List_str wildcard_owners;
     std__collections__list__List_str wildcard_modules;
-    std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type assoc_types;
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type assoc_types;
     compiler__sema__symbol__GenericReg gen;
     compiler__sema__prims__PrimTypes* prims;
 };
@@ -1606,7 +1612,7 @@ struct lsp__json__JsonValue {
 };
 
 struct lsp__document__DocumentStore {
-    std__collections__hash_map__HashMap_lsp__document__Document doc_map;
+    std__collections__hash_map__HashMap_str_lsp__document__Document doc_map;
 };
 
 struct lsp__analysis__AnalysisResult {
@@ -1766,12 +1772,12 @@ static inline std__collections__list__List_str std__collections__list__List_str_
 	l.len = n;
 	l.cap = cap;
 	return l;
-}static inline std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__list__List_ptr_u8*)0)->data));
+}static inline std__collections__list__List_usz std__collections__list__List_usz_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__list__List_usz*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__list__List_ptr_u8 l;
+	std__collections__list__List_usz l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -1782,6 +1788,16 @@ static inline std__collections__list__List_str std__collections__list__List_str_
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__list__List_ptr_compiler__sema__instance__AnnEntry l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__list__List_ptr_u8*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__list__List_ptr_u8 l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -1862,16 +1878,6 @@ static inline std__collections__list__List_str std__collections__list__List_str_
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__list__List_ptr_compiler__sema__traits__TraitInfo l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__list__List_usz std__collections__list__List_usz_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__list__List_usz*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__list__List_usz l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -1974,7 +1980,6 @@ const char* str_strip_suffix(const char* self, size_t n);
 const char* str_strip_char(const char* self, char c);
 const char* str_replace_char(const char* self, char from, char to);
 const char* str_join(const char* self, std__collections__list__List_str list);
-bool str_in_list(const char* self, std__collections__list__List_str list);
 const char* str_suffix_tail(const char* self);
 const char* str_num_suffix(const char* self);
 const char* str_repeat(const char* self, size_t n);
@@ -2001,6 +2006,21 @@ const char* u64_to_str(uint64_t self);
 const char* usz_to_str(size_t self);
 const char* f32_to_str(float self);
 const char* f64_to_str(double self);
+size_t std__traits__hash__hash_int(size_t n);
+size_t std__traits__hash__hash_str(const char* s);
+size_t bool_hash(bool self);
+size_t char_hash(char self);
+size_t str_hash(const char* self);
+size_t i8_hash(int8_t self);
+size_t i16_hash(int16_t self);
+size_t i32_hash(int32_t self);
+size_t i64_hash(int64_t self);
+size_t isz_hash(intptr_t self);
+size_t u8_hash(uint8_t self);
+size_t u16_hash(uint16_t self);
+size_t u32_hash(uint32_t self);
+size_t u64_hash(uint64_t self);
+size_t usz_hash(size_t self);
 void std__io__print(const char* s);
 int32_t std__io__println(const char* s);
 const char* std__io__read_file(const char* path);
@@ -2845,12 +2865,11 @@ void lsp__protocol__send_response(lsp__json__JsonValue* id, lsp__json__JsonValue
 void lsp__protocol__send_error(lsp__json__JsonValue* id, int64_t code, const char* message);
 void lsp__protocol__send_notification(const char* method, lsp__json__JsonValue* params);
 const char* lsp__protocol__read_message(void);
-const char* lsp__document__uri_to_path(const char* uri);
+void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version);
+bool lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri);
 lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri);
 bool lsp__document__DocumentStore_contains(lsp__document__DocumentStore* self, const char* uri);
-bool lsp__document__DocumentStore_has(lsp__document__DocumentStore* self, const char* uri);
-void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version);
-void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri);
+const char* lsp__document__uri_to_path(const char* uri);
 lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic_new(const char* err_str, const char* source);
 lsp__json__JsonValue* lsp__analysis__LspDiagnostic_to_json(lsp__analysis__LspDiagnostic* self);
 bool lsp__analysis__match_doc_prefix(const char* prefix, const char* doc_mod, const char* doc_path);
@@ -2906,22 +2925,23 @@ bool std__collections__list__List_str_contains(std__collections__list__List_str*
 bool std__collections__list__List_str_remove(std__collections__list__List_str* self, const char* value);
 size_t std__collections__list__List_str_remove_all(std__collections__list__List_str* self, const char* value);
 void std__collections__list__List_str_delete(std__collections__list__List_str* self);
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key);
-size_t std__collections__hash_map__HashMap_str_dist(std__collections__hash_map__HashMap_str* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
-void std__collections__hash_map__HashMap_str_set(std__collections__hash_map__HashMap_str* self, const char* key, const char* value);
-bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key);
-const char** std__collections__hash_map__HashMap_str_get(std__collections__hash_map__HashMap_str* self, const char* key);
-const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val);
-bool std__collections__hash_map__HashMap_str_remove(std__collections__hash_map__HashMap_str* self, const char* key);
-void std__collections__hash_map__HashMap_str_clear(std__collections__hash_map__HashMap_str* self);
-bool std__collections__hash_map__HashMap_str_empty(std__collections__hash_map__HashMap_str* self);
-size_t std__collections__hash_map__HashMap_str_count(std__collections__hash_map__HashMap_str* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_str_keys(std__collections__hash_map__HashMap_str* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_str_values(std__collections__hash_map__HashMap_str* self);
-void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self);
-void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self);
+std__collections__hash_map__HashMap_str_str std__collections__hash_map__HashMap_str_str_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_str_hash_key(std__collections__hash_map__HashMap_str_str* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_str_dist(std__collections__hash_map__HashMap_str_str* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_str_put(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* value);
+bool std__collections__hash_map__HashMap_str_str_contains_2(std__collections__hash_map__HashMap_str_str* self, const char* key);
+const char* std__collections__hash_map__HashMap_str_str_get_or(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* default_val);
+bool std__collections__hash_map__HashMap_str_str_remove(std__collections__hash_map__HashMap_str_str* self, const char* key);
+void std__collections__hash_map__HashMap_str_str_clear(std__collections__hash_map__HashMap_str_str* self);
+bool std__collections__hash_map__HashMap_str_str_empty(std__collections__hash_map__HashMap_str_str* self);
+size_t std__collections__hash_map__HashMap_str_str_count(std__collections__hash_map__HashMap_str_str* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_str_keys(std__collections__hash_map__HashMap_str_str* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_str_values(std__collections__hash_map__HashMap_str_str* self);
+void std__collections__hash_map__HashMap_str_str_grow(std__collections__hash_map__HashMap_str_str* self);
+void std__collections__hash_map__HashMap_str_str_delete(std__collections__hash_map__HashMap_str_str* self);
+const char** std__collections__hash_map__HashMap_str_str_get(std__collections__hash_map__HashMap_str_str* self, const char* key);
+void std__collections__hash_map__HashMap_str_str_set(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* value);
+bool std__collections__hash_map__HashMap_str_str_contains_2_2(std__collections__hash_map__HashMap_str_str* self, const char* key);
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self);
 compiler__ast__node__AstNode* std__collections__list__List_ptr_compiler__ast__node__AstNode_at(std__collections__list__List_ptr_compiler__ast__node__AstNode* self, size_t i);
 std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode_new(size_t cap);
@@ -3314,34 +3334,34 @@ bool std__collections__list__List_ptr_compiler__sema__types__Type_contains(std__
 bool std__collections__list__List_ptr_compiler__sema__types__Type_remove(std__collections__list__List_ptr_compiler__sema__types__Type* self, compiler__sema__types__Type* value);
 size_t std__collections__list__List_ptr_compiler__sema__types__Type_remove_all(std__collections__list__List_ptr_compiler__sema__types__Type* self, compiler__sema__types__Type* value);
 void std__collections__list__List_ptr_compiler__sema__types__Type_delete(std__collections__list__List_ptr_compiler__sema__types__Type* self);
-size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self);
-uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i);
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap);
-uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index);
-uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self);
-uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self);
-bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self);
-uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
-void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value);
-void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value);
-uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self);
-void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other);
-size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self);
-void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self);
-void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap);
-uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index);
-void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self);
-uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value);
-void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b);
-void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self);
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count);
-intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
-intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
-bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value);
-bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value);
-size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value);
-void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self);
+size_t std__collections__list__List_usz_count(std__collections__list__List_usz* self);
+size_t std__collections__list__List_usz_at(std__collections__list__List_usz* self, size_t i);
+std__collections__list__List_usz std__collections__list__List_usz_new(size_t cap);
+size_t std__collections__list__List_usz_get(std__collections__list__List_usz* self, size_t index);
+size_t std__collections__list__List_usz_first(std__collections__list__List_usz* self);
+size_t std__collections__list__List_usz_last(std__collections__list__List_usz* self);
+bool std__collections__list__List_usz_empty(std__collections__list__List_usz* self);
+size_t std__collections__list__List_usz_set(std__collections__list__List_usz* self, size_t index, size_t value);
+void std__collections__list__List_usz_plus_assign(std__collections__list__List_usz* self, size_t value);
+void std__collections__list__List_usz_add(std__collections__list__List_usz* self, size_t value);
+size_t std__collections__list__List_usz_pop(std__collections__list__List_usz* self);
+void std__collections__list__List_usz_extend(std__collections__list__List_usz* self, std__collections__list__List_usz other);
+size_t std__collections__list__List_usz_clear(std__collections__list__List_usz* self);
+void std__collections__list__List_usz_grow(std__collections__list__List_usz* self);
+void std__collections__list__List_usz_reserve(std__collections__list__List_usz* self, size_t min_cap);
+size_t std__collections__list__List_usz_remove_at(std__collections__list__List_usz* self, size_t index);
+void std__collections__list__List_usz_insert(std__collections__list__List_usz* self, size_t index, size_t value);
+std__collections__list__List_usz std__collections__list__List_usz_clone(std__collections__list__List_usz* self);
+size_t std__collections__list__List_usz_pop_or(std__collections__list__List_usz* self, size_t value);
+void std__collections__list__List_usz_swap(std__collections__list__List_usz* self, size_t a, size_t b);
+void std__collections__list__List_usz_reverse(std__collections__list__List_usz* self);
+std__collections__list__List_usz std__collections__list__List_usz_sub(std__collections__list__List_usz* self, size_t start, size_t count);
+intptr_t std__collections__list__List_usz_index_of(std__collections__list__List_usz* self, size_t value);
+intptr_t std__collections__list__List_usz_last_index_of(std__collections__list__List_usz* self, size_t value);
+bool std__collections__list__List_usz_contains(std__collections__list__List_usz* self, size_t value);
+bool std__collections__list__List_usz_remove(std__collections__list__List_usz* self, size_t value);
+size_t std__collections__list__List_usz_remove_all(std__collections__list__List_usz* self, size_t value);
+void std__collections__list__List_usz_delete(std__collections__list__List_usz* self);
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_count(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self);
 compiler__sema__instance__AnnEntry* std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_at(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(size_t cap);
@@ -3370,13 +3390,54 @@ bool std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_contain
 bool std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, compiler__sema__instance__AnnEntry* value);
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_remove_all(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self, compiler__sema__instance__AnnEntry* value);
 void std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key);
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_put(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* value);
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key);
+compiler__sema__instance__AnnEntry* std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* default_val);
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key);
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_count(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__list__List_usz std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_values(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self);
+compiler__sema__instance__AnnEntry** std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key);
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* value);
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2_2(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key);
+size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap);
+uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index);
+uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self);
+bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
+void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value);
+uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other);
+size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self);
+void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap);
+uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index);
+void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self);
+uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b);
+void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self);
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count);
+intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
+intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value);
+bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value);
+bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value);
+size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value);
+void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self);
 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap);
-size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
-size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to);
 void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value);
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value);
-bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
-compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains_2(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
 compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* default_val);
 bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
 void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
@@ -3384,8 +3445,10 @@ bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_em
 size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_count(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
 std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
 std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_values(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
 void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self);
+compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value);
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains_2_2(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key);
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_count(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self);
 compiler__sema__traits__TraitMethod* std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_at(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__traits__TraitMethod std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_new(size_t cap);
@@ -3442,22 +3505,23 @@ bool std__collections__list__List_ptr_compiler__sema__symbol__Symbol_contains(st
 bool std__collections__list__List_ptr_compiler__sema__symbol__Symbol_remove(std__collections__list__List_ptr_compiler__sema__symbol__Symbol* self, compiler__sema__symbol__Symbol* value);
 size_t std__collections__list__List_ptr_compiler__sema__symbol__Symbol_remove_all(std__collections__list__List_ptr_compiler__sema__symbol__Symbol* self, compiler__sema__symbol__Symbol* value);
 void std__collections__list__List_ptr_compiler__sema__symbol__Symbol_delete(std__collections__list__List_ptr_compiler__sema__symbol__Symbol* self);
-std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_put(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key);
-compiler__sema__symbol__Symbol** std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key);
-compiler__sema__symbol__Symbol* std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* default_val);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_count(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_values(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self);
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key);
+compiler__sema__symbol__Symbol* std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* default_val);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self);
+compiler__sema__symbol__Symbol** std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key);
 size_t std__collections__list__List_ptr_compiler__sema__template__GenTemplate_count(std__collections__list__List_ptr_compiler__sema__template__GenTemplate* self);
 compiler__sema__template__GenTemplate* std__collections__list__List_ptr_compiler__sema__template__GenTemplate_at(std__collections__list__List_ptr_compiler__sema__template__GenTemplate* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__template__GenTemplate std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(size_t cap);
@@ -3542,22 +3606,23 @@ bool std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_contai
 bool std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_remove(std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope* self, compiler__sema__symbol__ModuleScope* value);
 size_t std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_remove_all(std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope* self, compiler__sema__symbol__ModuleScope* value);
 void std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope* self);
-std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_put(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_set(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
-compiler__sema__symbol__ModuleScope** std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_get(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
-compiler__sema__symbol__ModuleScope* std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* default_val);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_count(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_values(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self);
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
+compiler__sema__symbol__ModuleScope* std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* default_val);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self);
+compiler__sema__symbol__ModuleScope** std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key);
 size_t std__collections__list__List_compiler__sema__symbol__ImportBinding_count(std__collections__list__List_compiler__sema__symbol__ImportBinding* self);
 compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding_at(std__collections__list__List_compiler__sema__symbol__ImportBinding* self, size_t i);
 std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__list__List_compiler__sema__symbol__ImportBinding_new(size_t cap);
@@ -3614,22 +3679,23 @@ bool std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_contains(s
 bool std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_remove(std__collections__list__List_ptr_compiler__sema__enums__EnumInfo* self, compiler__sema__enums__EnumInfo* value);
 size_t std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_remove_all(std__collections__list__List_ptr_compiler__sema__enums__EnumInfo* self, compiler__sema__enums__EnumInfo* value);
 void std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__list__List_ptr_compiler__sema__enums__EnumInfo* self);
-std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_put(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_set(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
-compiler__sema__enums__EnumInfo** std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_get(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
-compiler__sema__enums__EnumInfo* std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* default_val);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_count(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_values(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self);
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
+compiler__sema__enums__EnumInfo* std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* default_val);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self);
+compiler__sema__enums__EnumInfo** std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key);
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_count(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self);
 compiler__sema__traits__TraitInfo* std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_at(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self, size_t i);
 std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_new(size_t cap);
@@ -3658,82 +3724,57 @@ bool std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_contains
 bool std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_remove(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self, compiler__sema__traits__TraitInfo* value);
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_remove_all(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self, compiler__sema__traits__TraitInfo* value);
 void std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self);
-std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_put(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_set(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
-compiler__sema__traits__TraitInfo** std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_get(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
-compiler__sema__traits__TraitInfo* std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* default_val);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_count(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_values(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self);
-std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_contains(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
-compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
-compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val);
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key);
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self);
-std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_put(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_set(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key);
-compiler__sema__types__Type** std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_get(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key);
-compiler__sema__types__Type* std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* default_val);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_count(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-std__collections__list__List_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_values(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self);
-size_t std__collections__list__List_usz_count(std__collections__list__List_usz* self);
-size_t std__collections__list__List_usz_at(std__collections__list__List_usz* self, size_t i);
-std__collections__list__List_usz std__collections__list__List_usz_new(size_t cap);
-size_t std__collections__list__List_usz_get(std__collections__list__List_usz* self, size_t index);
-size_t std__collections__list__List_usz_first(std__collections__list__List_usz* self);
-size_t std__collections__list__List_usz_last(std__collections__list__List_usz* self);
-bool std__collections__list__List_usz_empty(std__collections__list__List_usz* self);
-size_t std__collections__list__List_usz_set(std__collections__list__List_usz* self, size_t index, size_t value);
-void std__collections__list__List_usz_plus_assign(std__collections__list__List_usz* self, size_t value);
-void std__collections__list__List_usz_add(std__collections__list__List_usz* self, size_t value);
-size_t std__collections__list__List_usz_pop(std__collections__list__List_usz* self);
-void std__collections__list__List_usz_extend(std__collections__list__List_usz* self, std__collections__list__List_usz other);
-size_t std__collections__list__List_usz_clear(std__collections__list__List_usz* self);
-void std__collections__list__List_usz_grow(std__collections__list__List_usz* self);
-void std__collections__list__List_usz_reserve(std__collections__list__List_usz* self, size_t min_cap);
-size_t std__collections__list__List_usz_remove_at(std__collections__list__List_usz* self, size_t index);
-void std__collections__list__List_usz_insert(std__collections__list__List_usz* self, size_t index, size_t value);
-std__collections__list__List_usz std__collections__list__List_usz_clone(std__collections__list__List_usz* self);
-size_t std__collections__list__List_usz_pop_or(std__collections__list__List_usz* self, size_t value);
-void std__collections__list__List_usz_swap(std__collections__list__List_usz* self, size_t a, size_t b);
-void std__collections__list__List_usz_reverse(std__collections__list__List_usz* self);
-std__collections__list__List_usz std__collections__list__List_usz_sub(std__collections__list__List_usz* self, size_t start, size_t count);
-intptr_t std__collections__list__List_usz_index_of(std__collections__list__List_usz* self, size_t value);
-intptr_t std__collections__list__List_usz_last_index_of(std__collections__list__List_usz* self, size_t value);
-bool std__collections__list__List_usz_contains(std__collections__list__List_usz* self, size_t value);
-bool std__collections__list__List_usz_remove(std__collections__list__List_usz* self, size_t value);
-size_t std__collections__list__List_usz_remove_all(std__collections__list__List_usz* self, size_t value);
-void std__collections__list__List_usz_delete(std__collections__list__List_usz* self);
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
+compiler__sema__traits__TraitInfo* std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* default_val);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self);
+compiler__sema__traits__TraitInfo** std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key);
+std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_contains_2(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key);
+compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val);
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key);
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self);
+compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key);
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value);
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_contains_2_2(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key);
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key);
+compiler__sema__types__Type* std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* default_val);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+std__collections__list__List_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self);
+compiler__sema__types__Type** std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key);
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key);
 size_t std__collections__list__List_bool_count(std__collections__list__List_bool* self);
 bool std__collections__list__List_bool_at(std__collections__list__List_bool* self, size_t i);
 std__collections__list__List_bool std__collections__list__List_bool_new(size_t cap);
@@ -3902,22 +3943,23 @@ bool std__collections__list__List_lsp__document__Document_contains(std__collecti
 bool std__collections__list__List_lsp__document__Document_remove(std__collections__list__List_lsp__document__Document* self, lsp__document__Document value);
 size_t std__collections__list__List_lsp__document__Document_remove_all(std__collections__list__List_lsp__document__Document* self, lsp__document__Document value);
 void std__collections__list__List_lsp__document__Document_delete(std__collections__list__List_lsp__document__Document* self);
-std__collections__hash_map__HashMap_lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_new(size_t init_cap);
-size_t std__collections__hash_map__HashMap_lsp__document__Document_hash_key(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key);
-size_t std__collections__hash_map__HashMap_lsp__document__Document_dist(std__collections__hash_map__HashMap_lsp__document__Document* self, size_t from, size_t to);
-void std__collections__hash_map__HashMap_lsp__document__Document_put(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document value);
-void std__collections__hash_map__HashMap_lsp__document__Document_set(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document value);
-bool std__collections__hash_map__HashMap_lsp__document__Document_contains(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key);
-lsp__document__Document* std__collections__hash_map__HashMap_lsp__document__Document_get(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key);
-lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_get_or(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document default_val);
-bool std__collections__hash_map__HashMap_lsp__document__Document_remove(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key);
-void std__collections__hash_map__HashMap_lsp__document__Document_clear(std__collections__hash_map__HashMap_lsp__document__Document* self);
-bool std__collections__hash_map__HashMap_lsp__document__Document_empty(std__collections__hash_map__HashMap_lsp__document__Document* self);
-size_t std__collections__hash_map__HashMap_lsp__document__Document_count(std__collections__hash_map__HashMap_lsp__document__Document* self);
-std__collections__list__List_str std__collections__hash_map__HashMap_lsp__document__Document_keys(std__collections__hash_map__HashMap_lsp__document__Document* self);
-std__collections__list__List_lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_values(std__collections__hash_map__HashMap_lsp__document__Document* self);
-void std__collections__hash_map__HashMap_lsp__document__Document_grow(std__collections__hash_map__HashMap_lsp__document__Document* self);
-void std__collections__hash_map__HashMap_lsp__document__Document_delete(std__collections__hash_map__HashMap_lsp__document__Document* self);
+std__collections__hash_map__HashMap_str_lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_new(size_t init_cap);
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key);
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_dist(std__collections__hash_map__HashMap_str_lsp__document__Document* self, size_t from, size_t to);
+void std__collections__hash_map__HashMap_str_lsp__document__Document_put(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document value);
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key);
+lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_get_or(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document default_val);
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_remove(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key);
+void std__collections__hash_map__HashMap_str_lsp__document__Document_clear(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_empty(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_count(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+std__collections__list__List_str std__collections__hash_map__HashMap_str_lsp__document__Document_keys(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+std__collections__list__List_lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_values(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+void std__collections__hash_map__HashMap_str_lsp__document__Document_grow(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+void std__collections__hash_map__HashMap_str_lsp__document__Document_delete(std__collections__hash_map__HashMap_str_lsp__document__Document* self);
+lsp__document__Document* std__collections__hash_map__HashMap_str_lsp__document__Document_get(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key);
+void std__collections__hash_map__HashMap_str_lsp__document__Document_set(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document value);
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2_2(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key);
 size_t std__collections__list__List_lsp__analysis__LspDiagnostic_count(std__collections__list__List_lsp__analysis__LspDiagnostic* self);
 lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_at(std__collections__list__List_lsp__analysis__LspDiagnostic* self, size_t i);
 std__collections__list__List_lsp__analysis__LspDiagnostic std__collections__list__List_lsp__analysis__LspDiagnostic_new(size_t cap);
@@ -4089,10 +4131,12 @@ compiler__sema__enums__EnumMemberInfo** std__mem__alloc__alloc_array_ptr_compile
 void std__mem__alloc__release_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr);
 compiler__sema__types__Type** std__mem__alloc__alloc_array_ptr_compiler__sema__types__Type(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr);
-uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count);
-void std__mem__alloc__release_ptr_u8(uint8_t** ptr);
+size_t* std__mem__alloc__alloc_array_usz(size_t count);
+void std__mem__alloc__release_usz(size_t* ptr);
 compiler__sema__instance__AnnEntry** std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr);
+uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count);
+void std__mem__alloc__release_ptr_u8(uint8_t** ptr);
 compiler__sema__traits__TraitMethod** std__mem__alloc__alloc_array_ptr_compiler__sema__traits__TraitMethod(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr);
 compiler__sema__symbol__Symbol** std__mem__alloc__alloc_array_ptr_compiler__sema__symbol__Symbol(size_t count);
@@ -4109,8 +4153,6 @@ compiler__sema__enums__EnumInfo** std__mem__alloc__alloc_array_ptr_compiler__sem
 void std__mem__alloc__release_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr);
 compiler__sema__traits__TraitInfo** std__mem__alloc__alloc_array_ptr_compiler__sema__traits__TraitInfo(size_t count);
 void std__mem__alloc__release_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr);
-size_t* std__mem__alloc__alloc_array_usz(size_t count);
-void std__mem__alloc__release_usz(size_t* ptr);
 compiler__lexer__token__Token* std__mem__alloc__alloc_array_compiler__lexer__token__Token(size_t count);
 void std__mem__alloc__release_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr);
 compiler__loader__loader__LoadedModule* std__mem__alloc__alloc_array_compiler__loader__loader__LoadedModule(size_t count);
@@ -4162,8 +4204,9 @@ compiler__sema__methods__MethodInfo** std__mem__alloc__resize_ptr_compiler__sema
 compiler__sema__structs__StructField* std__mem__alloc__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count);
 compiler__sema__enums__EnumMemberInfo** std__mem__alloc__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count);
 compiler__sema__types__Type** std__mem__alloc__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count);
-uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count);
+size_t* std__mem__alloc__resize_usz(size_t* ptr, size_t count);
 compiler__sema__instance__AnnEntry** std__mem__alloc__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count);
+uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count);
 compiler__sema__traits__TraitMethod** std__mem__alloc__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count);
 compiler__sema__symbol__Symbol** std__mem__alloc__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count);
 compiler__sema__template__GenTemplate** std__mem__alloc__resize_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr, size_t count);
@@ -4172,7 +4215,6 @@ compiler__sema__symbol__ModuleScope** std__mem__alloc__resize_ptr_compiler__sema
 compiler__sema__symbol__ImportBinding* std__mem__alloc__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count);
 compiler__sema__enums__EnumInfo** std__mem__alloc__resize_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr, size_t count);
 compiler__sema__traits__TraitInfo** std__mem__alloc__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count);
-size_t* std__mem__alloc__resize_usz(size_t* ptr, size_t count);
 bool* std__mem__alloc__resize_bool(bool* ptr, size_t count);
 compiler__lexer__token__Token* std__mem__alloc__resize_compiler__lexer__token__Token(compiler__lexer__token__Token* ptr, size_t count);
 compiler__loader__loader__LoadedModule* std__mem__alloc__resize_compiler__loader__loader__LoadedModule(compiler__loader__loader__LoadedModule* ptr, size_t count);
@@ -4444,10 +4486,6 @@ const char* str_join(const char* self, std__collections__list__List_str list) {
     }
     buf[w] = 0;
     return std__str__str_from_bytes(buf, w);
-}
-
-bool str_in_list(const char* self, std__collections__list__List_str list) {
-    return std__collections__list__List_str_contains(&list, self);
 }
 
 const char* str_suffix_tail(const char* self) {
@@ -4938,6 +4976,96 @@ const char* f32_to_str(float self) {
 
 const char* f64_to_str(double self) {
     return std__traits__to_str__fmt_f64(self);
+}
+
+size_t std__traits__hash__hash_int(size_t n) {
+    return ((n / 8) * 2654435761);
+}
+
+size_t std__traits__hash__hash_str(const char* s) {
+    size_t h = 5381;
+    {
+        size_t __for_e = kobel_slen(s);
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            size_t c = (size_t)s[i];
+            h = ((h * 33) + c);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return h;
+}
+
+size_t bool_hash(bool self) {
+    return (self ? 1 : 0);
+}
+
+size_t char_hash(char self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t str_hash(const char* self) {
+    return std__traits__hash__hash_str(self);
+}
+
+size_t i8_hash(int8_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t i16_hash(int16_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t i32_hash(int32_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t i64_hash(int64_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t isz_hash(intptr_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t u8_hash(uint8_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t u16_hash(uint16_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t u32_hash(uint32_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t u64_hash(uint64_t self) {
+    return std__traits__hash__hash_int((size_t)self);
+}
+
+size_t usz_hash(size_t self) {
+    return std__traits__hash__hash_int(self);
 }
 
 void std__io__print(const char* s) {
@@ -5656,7 +5784,7 @@ const char* util__strutil__str_join_dots(std__collections__list__List_str parts,
 }
 
 config__toml__Toml config__toml__Toml_new(const char* content) {
-    config__toml__Toml self = (config__toml__Toml){ std__collections__hash_map__HashMap_str_new(16) };
+    config__toml__Toml self = (config__toml__Toml){ std__collections__hash_map__HashMap_str_str_new(16) };
     std__collections__list__List_str lines = str_split_lines(content);
     const char* current_section = "";
     {
@@ -5682,7 +5810,7 @@ config__toml__Toml config__toml__Toml_new(const char* content) {
                 const char* val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), kobel_slen(trimmed)));
                 const char* val_clean = ((((kobel_slen(val_raw) >= 2) && (str_starts_with(val_raw, "\"") && str_ends_with(val_raw, "\""))) || (str_starts_with(val_raw, "'") && str_ends_with(val_raw, "'"))) ? kobel_slice(val_raw, 1, (kobel_slen(val_raw) - 1)) : val_raw);
                 const char* full_key = (!str_empty(current_section) ? kobel_concat(kobel_concat(current_section, "."), key_raw) : key_raw);
-                std__collections__hash_map__HashMap_str_set(&self.entries, full_key, val_clean);
+                std__collections__hash_map__HashMap_str_str_set(&self.entries, full_key, val_clean);
             }
             __for_i = (__for_i + 1);
         }
@@ -5691,19 +5819,19 @@ config__toml__Toml config__toml__Toml_new(const char* content) {
 }
 
 const char* config__toml__Toml_get_3(config__toml__Toml* self, const char* key, const char* default_val) {
-    return std__collections__hash_map__HashMap_str_get_or(&self->entries, key, default_val);
+    return std__collections__hash_map__HashMap_str_str_get_or(&self->entries, key, default_val);
 }
 
 const char* config__toml__Toml_get_2(config__toml__Toml* self, const char* key) {
-    return std__collections__hash_map__HashMap_str_get_or(&self->entries, key, "");
+    return std__collections__hash_map__HashMap_str_str_get_or(&self->entries, key, "");
 }
 
 void config__toml__Toml_set(config__toml__Toml* self, const char* key, const char* value) {
-    std__collections__hash_map__HashMap_str_set(&self->entries, key, value);
+    std__collections__hash_map__HashMap_str_str_set(&self->entries, key, value);
 }
 
 bool config__toml__Toml_contains(config__toml__Toml* self, const char* key) {
-    return std__collections__hash_map__HashMap_str_contains(&self->entries, key);
+    return std__collections__hash_map__HashMap_str_str_contains_2_2(&self->entries, key);
 }
 
 config__project__ProjectConfig config__project__ProjectConfig_new(const char* manifest_path) {
@@ -7808,7 +7936,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_at(compiler__sema_
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_lookup(compiler__sema__symbol__ModuleScope* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(&self->sym_map, name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(&self->sym_map, name, NULL);
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_get(compiler__sema__symbol__ModuleScope* self, const char* name) {
@@ -7816,12 +7944,12 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_get(compiler
 }
 
 bool compiler__sema__symbol__ModuleScope_contains(compiler__sema__symbol__ModuleScope* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_contains(&self->sym_map, name);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2_2(&self->sym_map, name);
 }
 
 void compiler__sema__symbol__ModuleScope_plus_assign(compiler__sema__symbol__ModuleScope* self, compiler__sema__symbol__Symbol* sym) {
     std__collections__list__List_ptr_compiler__sema__symbol__Symbol_plus_assign(&self->symbols, sym);
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->sym_map, sym->name, sym);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->sym_map, sym->name, sym);
 }
 
 size_t compiler__sema__symbol__ModuleScope_count(compiler__sema__symbol__ModuleScope* self) {
@@ -7833,11 +7961,11 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_at(compiler_
 }
 
 void compiler__sema__symbol__GenericReg_add_inst(compiler__sema__symbol__GenericReg* self, compiler__sema__symbol__Symbol* sym) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->inst_map, sym->name, sym);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->inst_map, sym->name, sym);
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__GenericReg_find_instance_symbol(compiler__sema__symbol__GenericReg* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(&self->inst_map, name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(&self->inst_map, name, NULL);
 }
 
 void compiler__sema__symbol__GenericReg_add_record(compiler__sema__symbol__GenericReg* self, compiler__sema__instance__InstanceRecord* rec) {
@@ -7905,7 +8033,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__are
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void) {
     std__mem__arena__Arena arena = std__mem__arena__Arena_new(65536);
     compiler__sema__symbol__Scope* root_scope = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__Scope(&arena, (compiler__sema__symbol__Scope){ NULL, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), false });
-    compiler__sema__symbol__SymbolTable st = (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_new(16), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_new(16), std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_new(16), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(16), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_new(16), (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__list__List_ptr_compiler__sema__instance__InstanceRecord_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) }, NULL };
+    compiler__sema__symbol__SymbolTable st = (compiler__sema__symbol__SymbolTable){ root_scope, arena, "", std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_new(16), std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_new(16), std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_new(16), std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_new(16), std__collections__list__List_str_new(4), std__collections__list__List_str_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_new(16), (compiler__sema__symbol__GenericReg){ std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__list__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__list__List_ptr_compiler__sema__instance__InstanceRecord_new(4), std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4) }, NULL };
     st.prims = std__mem__arena__Arena_alloc_compiler__sema__prims__PrimTypes(&arena);
     *st.prims = compiler__sema__prims__PrimTypes_new(&arena);
     return st;
@@ -7962,23 +8090,23 @@ compiler__sema__methods__MethodInfo* compiler__sema__symbol__SymbolTable_find_pr
 
 void compiler__sema__symbol__SymbolTable_register_trait(compiler__sema__symbol__SymbolTable* self, compiler__sema__traits__TraitInfo* info) {
     std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_plus_assign(&self->traits, info);
-    std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_set(&self->trait_map, info->name, info);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(&self->trait_map, info->name, info);
 }
 
 compiler__sema__traits__TraitInfo* compiler__sema__symbol__SymbolTable_find_trait(compiler__sema__symbol__SymbolTable* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_get_or(&self->trait_map, name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get_or(&self->trait_map, name, NULL);
 }
 
 void compiler__sema__symbol__SymbolTable_register_enum_info(compiler__sema__symbol__SymbolTable* self, compiler__sema__enums__EnumInfo* info) {
     std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_plus_assign(&self->enums, info);
-    std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_set(&self->enum_map, info->name, info);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(&self->enum_map, info->name, info);
     if (!str_empty(info->c_name) && !kobel_streq(info->c_name, info->name)) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_set(&self->enum_map, info->c_name, info);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(&self->enum_map, info->c_name, info);
     }
 }
 
 compiler__sema__enums__EnumInfo* compiler__sema__symbol__SymbolTable_find_enum_info(compiler__sema__symbol__SymbolTable* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_get_or(&self->enum_map, name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get_or(&self->enum_map, name, NULL);
 }
 
 compiler__sema__symbol__Scope* compiler__sema__symbol__SymbolTable_enter_scope(compiler__sema__symbol__SymbolTable* self, bool is_fn_boundary) {
@@ -8040,7 +8168,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup(compi
     if (own != NULL) {
         return own;
     }
-    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
+    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
     if (b != NULL) {
         compiler__sema__symbol__Symbol* found = compiler__sema__symbol__SymbolTable_lookup_in_module(self, b->module_name, b->symbol_name);
         if (found != NULL) {
@@ -8103,11 +8231,11 @@ const char* compiler__sema__symbol__SymbolTable_set_current_module(compiler__sem
 }
 
 compiler__sema__symbol__ModuleScope* compiler__sema__symbol__SymbolTable_find_module(compiler__sema__symbol__SymbolTable* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_get_or(&self->module_map, name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get_or(&self->module_map, name, NULL);
 }
 
 bool compiler__sema__symbol__SymbolTable_module_exists(compiler__sema__symbol__SymbolTable* self, const char* name) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_contains(&self->module_map, name);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2_2(&self->module_map, name);
 }
 
 bool compiler__sema__symbol__SymbolTable_has_wildcard(compiler__sema__symbol__SymbolTable* self, const char* owner, const char* module_name) {
@@ -8145,11 +8273,11 @@ bool compiler__sema__symbol__SymbolTable_has_wildcard(compiler__sema__symbol__Sy
 }
 
 void compiler__sema__symbol__SymbolTable_set_assoc_type(compiler__sema__symbol__SymbolTable* self, const char* struct_name, const char* assoc, compiler__sema__types__Type* ty) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_set(&self->assoc_types, kobel_concat(kobel_concat(struct_name, "."), assoc), ty);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_set(&self->assoc_types, kobel_concat(kobel_concat(struct_name, "."), assoc), ty);
 }
 
 compiler__sema__types__Type* compiler__sema__symbol__SymbolTable_find_assoc_type(compiler__sema__symbol__SymbolTable* self, const char* struct_name, const char* assoc) {
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_get_or(&self->assoc_types, kobel_concat(kobel_concat(struct_name, "."), assoc), NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_get_or(&self->assoc_types, kobel_concat(kobel_concat(struct_name, "."), assoc), NULL);
 }
 
 bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol__SymbolTable* self, const char* module_name, compiler__sema__symbol__Symbol sym) {
@@ -8161,23 +8289,23 @@ bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol
         compiler__sema__symbol__Symbol* sym_ptr = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
         compiler__sema__symbol__ModuleScope_plus_assign(sc, sym_ptr);
         if (!str_empty(sym.c_name) && !kobel_streq(sym.c_name, sym.name)) {
-            std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr);
+            std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr);
         }
         if (sym.kind == 1) {
-            std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr);
+            std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr);
         }
         return true;
     }
-    compiler__sema__symbol__ModuleScope* fresh = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__ModuleScope(&self->arena, (compiler__sema__symbol__ModuleScope){ module_name, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(16) });
+    compiler__sema__symbol__ModuleScope* fresh = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__ModuleScope(&self->arena, (compiler__sema__symbol__ModuleScope){ module_name, std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16) });
     compiler__sema__symbol__Symbol* sym_ptr2 = std__mem__arena__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
     compiler__sema__symbol__ModuleScope_plus_assign(fresh, sym_ptr2);
     std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_plus_assign(&self->modules, fresh);
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_set(&self->module_map, module_name, fresh);
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(&self->module_map, module_name, fresh);
     if (!str_empty(sym.c_name) && !kobel_streq(sym.c_name, sym.name)) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr2);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr2);
     }
     if (sym.kind == 1) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr2);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->struct_const_map, sym.name, sym_ptr2);
     }
     return true;
 }
@@ -8193,7 +8321,7 @@ void compiler__sema__symbol__SymbolTable_add_import(compiler__sema__symbol__Symb
         std__collections__list__List_str_plus_assign(&self->wildcard_owners, self->current_module);
         std__collections__list__List_str_plus_assign(&self->wildcard_modules, module_name);
     } else {
-        std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name), binding);
+        std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_set(&self->explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name), binding);
     }
 }
 
@@ -8209,12 +8337,12 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_nam
     if (kobel_slen(c_name) == 0) {
         return NULL;
     }
-    return std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(&self->c_name_map, c_name, NULL);
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(&self->c_name_map, c_name, NULL);
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struct_const(compiler__sema__symbol__SymbolTable* self, const char* struct_name, const char* member_name) {
     const char* direct = kobel_concat(kobel_concat(struct_name, "__"), member_name);
-    compiler__sema__symbol__Symbol* s = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(&self->struct_const_map, direct, NULL);
+    compiler__sema__symbol__Symbol* s = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(&self->struct_const_map, direct, NULL);
     if (s != NULL) {
         return s;
     }
@@ -8371,7 +8499,7 @@ compiler__sema__template__GenTemplate* compiler__sema__decl__pass__DeclPass_find
             __for_i = (__for_i + 1);
         }
     }
-    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
+    compiler__sema__symbol__ImportBinding* b = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), name));
     if (b != NULL) {
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__sema__template__GenTemplate_count(&list);
@@ -8565,7 +8693,8 @@ void compiler__sema__decl__pass__DeclPass_check_bounds(compiler__sema__decl__pas
                 continue;
             }
             compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_get(&arg_asts, i);
-            if (arg->kind != 0) {
+            compiler__sema__types__Type* ty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, arg);
+            if ((ty == NULL) || (ty->kind == 0)) {
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -8580,39 +8709,20 @@ void compiler__sema__decl__pass__DeclPass_check_bounds(compiler__sema__decl__pas
                 }
                 continue;
             }
-            const char* aname = (*compiler__ast__node__AstNode_as_named_type(arg)).name;
-            compiler__sema__symbol__Symbol* asym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, aname);
-            if (asym == NULL) {
-                {
-                    if (__for_up) {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    } else {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                    if (__for_go) {
-                        if (__for_up) {
-                            __for_i = (__for_i + 1);
-                        } else {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                    continue;
-                }
+            compiler__sema__types__Type* cur_ty = ty;
+            if (cur_ty->kind == 16) {
+                cur_ty = (*compiler__sema__types__Type_as_pointer(cur_ty)).pointee;
             }
-            if ((*asym->type_ptr).kind != 18) {
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
+            const char* aname = "";
+            if (cur_ty->kind == 18) {
+                aname = (*compiler__sema__types__Type_as_struct(cur_ty)).name;
+            } else {
+                const char* prim = compiler__sema__prims__primitive_type_name(cur_ty);
+                if (!kobel_streq(prim, "none")) {
+                    aname = prim;
                 } else {
-                    __for_go = ((__for_i - 1) > __for_e);
+                    aname = compiler__sema__types__Type_to_str(cur_ty);
                 }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-                continue;
             }
             {
                 size_t __for_n = std__collections__list__List_str_count(&gp.bounds);
@@ -10877,7 +10987,7 @@ void compiler__sema__decl__pass__DeclPass_collect_use(compiler__sema__decl__pass
     if (!str_empty(u->alias)) {
         local_name = u->alias;
     }
-    if (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name)) != NULL) {
+    if (std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get(&self->symtab.explicit_imports, kobel_concat(kobel_concat(self->current_module, "::"), local_name)) != NULL) {
         return;
     }
     compiler__sema__symbol__SymbolTable_add_import(&self->symtab, mod_name, u->symbol_name, local_name, false);
@@ -11271,6 +11381,26 @@ void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__
                     compiler__sema__symbol__Symbol* existing_half = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, s_half->name);
                     if (existing_half == NULL) {
                         compiler__sema__decl__pass__DeclPass_declare_struct_shell(self, d_half, s_half);
+                    }
+                }
+            } else {
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = compiler__ast__node__Program_count(prog);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            compiler__ast__node__AstNode* d_impl = compiler__ast__node__Program_at(prog, __for_i);
+            if (d_impl->kind == 31) {
+                compiler__sema__decl__pass__DeclPass_collect_module(self, d_impl);
+            } else if (d_impl->kind == 36) {
+                compiler__ast__node__ImplDecl* im = compiler__ast__node__AstNode_as_impl_decl(d_impl);
+                if ((im->type_params.len == 0) && !str_empty(im->trait_name)) {
+                    compiler__sema__traits__TraitInfo* t = compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, im->trait_name);
+                    if (t != NULL) {
+                        compiler__sema__decl__pass__DeclPass_trait_record_impl(self, t, im->struct_name);
                     }
                 }
             } else {
@@ -13085,18 +13215,29 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_interp_e
 }
 
 void compiler__sema__body__pass__BodyPass_ensure_to_str(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* ty) {
-    if (ty->kind == 15) {
+    if ((ty == NULL) || (ty->kind == 15)) {
         return;
     }
-    if (compiler__sema__symbol__SymbolTable_find_prim_method(&self->symtab, ty->kind, "to_str") != NULL) {
-        return;
-    }
-    compiler__sema__types__Type* cur_ty = ty;
-    if (cur_ty->kind == 16) {
-        cur_ty = (*compiler__sema__types__Type_as_pointer(cur_ty)).pointee;
-    }
-    if ((cur_ty->kind == 18) && (compiler__sema__structs__StructType_find_method(compiler__sema__types__Type_as_struct(cur_ty), "to_str") != NULL)) {
-        return;
+    compiler__sema__traits__TraitInfo* trait_to_str = compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, "ToStr");
+    if (trait_to_str != NULL) {
+        compiler__sema__types__Type* cur_ty = ty;
+        if (cur_ty->kind == 16) {
+            cur_ty = (*compiler__sema__types__Type_as_pointer(cur_ty)).pointee;
+        }
+        const char* tname = "";
+        if (cur_ty->kind == 18) {
+            tname = (*compiler__sema__types__Type_as_struct(cur_ty)).name;
+        } else {
+            const char* prim = compiler__sema__prims__primitive_type_name(cur_ty);
+            if (!kobel_streq(prim, "none")) {
+                tname = prim;
+            } else {
+                tname = compiler__sema__types__Type_to_str(cur_ty);
+            }
+        }
+        if (compiler__sema__traits__TraitInfo_has_impl(trait_to_str, tname)) {
+            return;
+        }
     }
     compiler__sema__body__pass__BodyPass_report_error(self, node, "Interpolated value must implement ToStr");
 }
@@ -20605,6 +20746,9 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
     if (compiler__loader__loader__ModuleLoader_find_module(&loader, "std.fmt").found) {
         compiler__loader__loader__ModuleLoader_ensure_module(&loader, "std.fmt", 0, 0, "");
     }
+    if (compiler__loader__loader__ModuleLoader_find_module(&loader, "std.traits.hash").found) {
+        compiler__loader__loader__ModuleLoader_ensure_module(&loader, "std.traits.hash", 0, 0, "");
+    }
     compiler__ast__node__AstNode* prog = compiler__loader__loader__ModuleLoader_load_program(&loader, input_path, src);
     if (!std__collections__list__List_str_empty(&loader.errors)) {
         std__io__println(kobel_concat(kobel_concat("Module Errors in ", input_path), ":"));
@@ -23197,6 +23341,23 @@ const char* lsp__protocol__read_message(void) {
     return std__str__str_from_bytes(buf, content_length);
 }
 
+void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version) {
+    const char* p = lsp__document__uri_to_path(uri);
+    std__collections__hash_map__HashMap_str_lsp__document__Document_set(&self->doc_map, uri, (lsp__document__Document){ uri, p, text, version });
+}
+
+bool lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri) {
+    return std__collections__hash_map__HashMap_str_lsp__document__Document_remove(&self->doc_map, uri);
+}
+
+lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri) {
+    return std__collections__hash_map__HashMap_str_lsp__document__Document_get_or(&self->doc_map, uri, (lsp__document__Document){ "", "", "", 0 });
+}
+
+bool lsp__document__DocumentStore_contains(lsp__document__DocumentStore* self, const char* uri) {
+    return std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2_2(&self->doc_map, uri);
+}
+
 const char* lsp__document__uri_to_path(const char* uri) {
     const char* s = uri;
     s = (((kobel_slen(s) >= 8) && kobel_streq(kobel_slice(s, 0, 8), "file:///")) ? kobel_slice(s, 8, kobel_slen(s)) : (((kobel_slen(s) >= 7) && kobel_streq(kobel_slice(s, 0, 7), "file://")) ? kobel_slice(s, 7, kobel_slen(s)) : s));
@@ -23230,27 +23391,6 @@ const char* lsp__document__uri_to_path(const char* uri) {
         std__collections__string_builder__StringBuilder_delete(&sb);
         return __ret_tmp;
     }
-}
-
-lsp__document__Document lsp__document__DocumentStore_get(lsp__document__DocumentStore* self, const char* uri) {
-    return std__collections__hash_map__HashMap_lsp__document__Document_get_or(&self->doc_map, uri, (lsp__document__Document){ "", "", "", 0 });
-}
-
-bool lsp__document__DocumentStore_contains(lsp__document__DocumentStore* self, const char* uri) {
-    return std__collections__hash_map__HashMap_lsp__document__Document_contains(&self->doc_map, uri);
-}
-
-bool lsp__document__DocumentStore_has(lsp__document__DocumentStore* self, const char* uri) {
-    return std__collections__hash_map__HashMap_lsp__document__Document_contains(&self->doc_map, uri);
-}
-
-void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, const char* uri, const char* text, int64_t version) {
-    const char* p = lsp__document__uri_to_path(uri);
-    std__collections__hash_map__HashMap_lsp__document__Document_set(&self->doc_map, uri, (lsp__document__Document){ uri, p, text, version });
-}
-
-void lsp__document__DocumentStore_remove(lsp__document__DocumentStore* self, const char* uri) {
-    std__collections__hash_map__HashMap_lsp__document__Document_remove(&self->doc_map, uri);
 }
 
 lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic_new(const char* err_str, const char* source) {
@@ -23795,7 +23935,7 @@ void lsp__server__publish_doc_diagnostics(const char* uri, const char* text, con
 
 int32_t lsp__server__run_server(void) {
     lsp__protocol__init_stdio();
-    lsp__document__DocumentStore docs = (lsp__document__DocumentStore){ std__collections__hash_map__HashMap_lsp__document__Document_new(16) };
+    lsp__document__DocumentStore docs = (lsp__document__DocumentStore){ std__collections__hash_map__HashMap_str_lsp__document__Document_new(16) };
     bool is_shutdown = false;
     const char* workspace_root = "";
     while (true) {
@@ -24430,7 +24570,7 @@ void std__collections__list__List_str_delete(std__collections__list__List_str* s
     std__mem__alloc__release_str(self->data);
 }
 
-std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_str std__collections__hash_map__HashMap_str_str_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -24466,55 +24606,25 @@ std__collections__hash_map__HashMap_str std__collections__hash_map__HashMap_str_
             }
         }
     }
-    return (std__collections__hash_map__HashMap_str){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_str){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_str_hash_key(std__collections__hash_map__HashMap_str* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_str_hash_key(std__collections__hash_map__HashMap_str_str* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_str_dist(std__collections__hash_map__HashMap_str* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_str_dist(std__collections__hash_map__HashMap_str_str* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
+void std__collections__hash_map__HashMap_str_str_put(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_str_grow(self);
+        std__collections__hash_map__HashMap_str_str_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -24529,15 +24639,11 @@ void std__collections__hash_map__HashMap_str_put(std__collections__hash_map__Has
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_str_set(std__collections__hash_map__HashMap_str* self, const char* key, const char* value) {
-    std__collections__hash_map__HashMap_str_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map__HashMap_str* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_str_contains_2(std__collections__hash_map__HashMap_str_str* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -24548,26 +24654,11 @@ bool std__collections__hash_map__HashMap_str_contains(std__collections__hash_map
     return false;
 }
 
-const char** std__collections__hash_map__HashMap_str_get(std__collections__hash_map__HashMap_str* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-const char* std__collections__hash_map__HashMap_str_get_or(std__collections__hash_map__HashMap_str* self, const char* key, const char* default_val) {
+const char* std__collections__hash_map__HashMap_str_str_get_or(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -24578,19 +24669,19 @@ const char* std__collections__hash_map__HashMap_str_get_or(std__collections__has
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_str_remove(std__collections__hash_map__HashMap_str* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_str_remove(std__collections__hash_map__HashMap_str_str* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_str_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_str_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_str_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_str_dist(self, k, i) < std__collections__hash_map__HashMap_str_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_str_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_str_dist(self, k, i) < std__collections__hash_map__HashMap_str_str_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -24606,7 +24697,7 @@ bool std__collections__hash_map__HashMap_str_remove(std__collections__hash_map__
     return false;
 }
 
-void std__collections__hash_map__HashMap_str_clear(std__collections__hash_map__HashMap_str* self) {
+void std__collections__hash_map__HashMap_str_str_clear(std__collections__hash_map__HashMap_str_str* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -24640,15 +24731,15 @@ void std__collections__hash_map__HashMap_str_clear(std__collections__hash_map__H
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_str_empty(std__collections__hash_map__HashMap_str* self) {
+bool std__collections__hash_map__HashMap_str_str_empty(std__collections__hash_map__HashMap_str_str* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_str_count(std__collections__hash_map__HashMap_str* self) {
+size_t std__collections__hash_map__HashMap_str_str_count(std__collections__hash_map__HashMap_str_str* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_str_keys(std__collections__hash_map__HashMap_str* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_str_keys(std__collections__hash_map__HashMap_str_str* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -24686,7 +24777,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_str_keys(st
     return res;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_str_values(std__collections__hash_map__HashMap_str* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_str_values(std__collections__hash_map__HashMap_str_str* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -24724,7 +24815,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_str_values(
     return res;
 }
 
-void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__HashMap_str* self) {
+void std__collections__hash_map__HashMap_str_str_grow(std__collections__hash_map__HashMap_str_str* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     const char** old_vals = self->values;
@@ -24781,7 +24872,7 @@ void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__Ha
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_str_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_str_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -24803,12 +24894,35 @@ void std__collections__hash_map__HashMap_str_grow(std__collections__hash_map__Ha
     }
 }
 
-void std__collections__hash_map__HashMap_str_delete(std__collections__hash_map__HashMap_str* self) {
+void std__collections__hash_map__HashMap_str_str_delete(std__collections__hash_map__HashMap_str_str* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_str(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+const char** std__collections__hash_map__HashMap_str_str_get(std__collections__hash_map__HashMap_str_str* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_str_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_str_set(std__collections__hash_map__HashMap_str_str* self, const char* key, const char* value) {
+    std__collections__hash_map__HashMap_str_str_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_str_contains_2_2(std__collections__hash_map__HashMap_str_str* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_str_contains_2(self, key);
 }
 
 size_t std__collections__list__List_ptr_compiler__ast__node__AstNode_count(std__collections__list__List_ptr_compiler__ast__node__AstNode* self) {
@@ -29501,90 +29615,90 @@ void std__collections__list__List_ptr_compiler__sema__types__Type_delete(std__co
     std__mem__alloc__release_ptr_compiler__sema__types__Type(self->data);
 }
 
-size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self) {
+size_t std__collections__list__List_usz_count(std__collections__list__List_usz* self) {
     return self->len;
 }
 
-uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i) {
+size_t std__collections__list__List_usz_at(std__collections__list__List_usz* self, size_t i) {
     return self->data[i];
 }
 
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap) {
-    return (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+std__collections__list__List_usz std__collections__list__List_usz_new(size_t cap) {
+    return (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(cap), 0, cap };
 }
 
-uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index) {
+size_t std__collections__list__List_usz_get(std__collections__list__List_usz* self, size_t index) {
     return self->data[index];
 }
 
-uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self) {
+size_t std__collections__list__List_usz_first(std__collections__list__List_usz* self) {
     return self->data[0];
 }
 
-uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self) {
+size_t std__collections__list__List_usz_last(std__collections__list__List_usz* self) {
     return self->data[(self->len - 1)];
 }
 
-bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self) {
+bool std__collections__list__List_usz_empty(std__collections__list__List_usz* self) {
     return (self->len == 0);
 }
 
-uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+size_t std__collections__list__List_usz_set(std__collections__list__List_usz* self, size_t index, size_t value) {
     return self->data[index] = value;
 }
 
-void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value) {
-    std__collections__list__List_ptr_u8_add(self, value);
+void std__collections__list__List_usz_plus_assign(std__collections__list__List_usz* self, size_t value) {
+    std__collections__list__List_usz_add(self, value);
 }
 
-void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+void std__collections__list__List_usz_add(std__collections__list__List_usz* self, size_t value) {
     if (self->len == self->cap) {
-        std__collections__list__List_ptr_u8_grow(self);
+        std__collections__list__List_usz_grow(self);
     }
     self->data[self->len] = value;
     self->len++;
 }
 
-uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self) {
+size_t std__collections__list__List_usz_pop(std__collections__list__List_usz* self) {
     self->len--;
     return self->data[self->len];
 }
 
-void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other) {
+void std__collections__list__List_usz_extend(std__collections__list__List_usz* self, std__collections__list__List_usz other) {
     {
-        size_t __for_n = std__collections__list__List_ptr_u8_count(&other);
+        size_t __for_n = std__collections__list__List_usz_count(&other);
         size_t __for_i = ((size_t)0ULL);
         while (__for_i < __for_n) {
-            uint8_t* data = std__collections__list__List_ptr_u8_at(&other, __for_i);
-            std__collections__list__List_ptr_u8_plus_assign(self, data);
+            size_t data = std__collections__list__List_usz_at(&other, __for_i);
+            std__collections__list__List_usz_plus_assign(self, data);
             __for_i = (__for_i + 1);
         }
     }
 }
 
-size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self) {
+size_t std__collections__list__List_usz_clear(std__collections__list__List_usz* self) {
     return self->len = 0;
 }
 
-void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self) {
+void std__collections__list__List_usz_grow(std__collections__list__List_usz* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+    self->data = std__mem__alloc__resize_usz(self->data, new_cap);
     self->cap = new_cap;
 }
 
-void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap) {
+void std__collections__list__List_usz_reserve(std__collections__list__List_usz* self, size_t min_cap) {
     if (min_cap > self->cap) {
         size_t new_cap = self->cap;
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+        self->data = std__mem__alloc__resize_usz(self->data, new_cap);
         self->cap = new_cap;
     }
 }
 
-uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index) {
-    uint8_t* item = self->data[index];
+size_t std__collections__list__List_usz_remove_at(std__collections__list__List_usz* self, size_t index) {
+    size_t item = self->data[index];
     {
         size_t __for_e = (self->len - 1);
         size_t __for_i = __for_e;
@@ -29617,9 +29731,9 @@ uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__L
     return item;
 }
 
-void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+void std__collections__list__List_usz_insert(std__collections__list__List_usz* self, size_t index, size_t value) {
     if (self->len == self->cap) {
-        std__collections__list__List_ptr_u8_grow(self);
+        std__collections__list__List_usz_grow(self);
     }
     size_t i = self->len;
     while (i > index) {
@@ -29630,9 +29744,9 @@ void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr
     self->len++;
 }
 
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self) {
+std__collections__list__List_usz std__collections__list__List_usz_clone(std__collections__list__List_usz* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+    std__collections__list__List_usz res = (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -29646,7 +29760,7 @@ std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(st
         }
         while (__for_go) {
             size_t i = __for_i;
-            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            std__collections__list__List_usz_plus_assign(&res, self->data[i]);
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -29664,24 +29778,24 @@ std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(st
     return res;
 }
 
-uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value) {
-    return ((self->len == 0) ? value : std__collections__list__List_ptr_u8_pop(self));
+size_t std__collections__list__List_usz_pop_or(std__collections__list__List_usz* self, size_t value) {
+    return ((self->len == 0) ? value : std__collections__list__List_usz_pop(self));
 }
 
-void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b) {
-    uint8_t* tmp = self->data[a];
+void std__collections__list__List_usz_swap(std__collections__list__List_usz* self, size_t a, size_t b) {
+    size_t tmp = self->data[a];
     self->data[a] = self->data[b];
     self->data[b] = tmp;
 }
 
-void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self) {
+void std__collections__list__List_usz_reverse(std__collections__list__List_usz* self) {
     if (self->len <= 1) {
         return;
     }
     int32_t left = 0;
     size_t right = (self->len - 1);
     while (left < right) {
-        uint8_t* tmp = self->data[left];
+        size_t tmp = self->data[left];
         self->data[left] = self->data[right];
         self->data[right] = tmp;
         left++;
@@ -29689,8 +29803,8 @@ void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_pt
     }
 }
 
-std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count) {
-    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(count), 0, count };
+std__collections__list__List_usz std__collections__list__List_usz_sub(std__collections__list__List_usz* self, size_t start, size_t count) {
+    std__collections__list__List_usz res = (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -29708,7 +29822,7 @@ std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std_
         }
         while (__for_go) {
             size_t i = __for_i;
-            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            std__collections__list__List_usz_plus_assign(&res, self->data[i]);
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -29726,7 +29840,7 @@ std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std_
     return res;
 }
 
-intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+intptr_t std__collections__list__List_usz_index_of(std__collections__list__List_usz* self, size_t value) {
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -29760,7 +29874,7 @@ intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__Li
     return -1;
 }
 
-intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+intptr_t std__collections__list__List_usz_last_index_of(std__collections__list__List_usz* self, size_t value) {
     if (self->len == 0) {
         return -1;
     }
@@ -29777,20 +29891,20 @@ intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__lis
     return -1;
 }
 
-bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value) {
-    return (std__collections__list__List_ptr_u8_index_of(self, value) != -1);
+bool std__collections__list__List_usz_contains(std__collections__list__List_usz* self, size_t value) {
+    return (std__collections__list__List_usz_index_of(self, value) != -1);
 }
 
-bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value) {
-    intptr_t idx = std__collections__list__List_ptr_u8_index_of(self, value);
+bool std__collections__list__List_usz_remove(std__collections__list__List_usz* self, size_t value) {
+    intptr_t idx = std__collections__list__List_usz_index_of(self, value);
     if (idx < 0) {
         return false;
     }
-    std__collections__list__List_ptr_u8_remove_at(self, (size_t)idx);
+    std__collections__list__List_usz_remove_at(self, (size_t)idx);
     return true;
 }
 
-size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+size_t std__collections__list__List_usz_remove_all(std__collections__list__List_usz* self, size_t value) {
     int32_t write = 0;
     int32_t removed = 0;
     {
@@ -29832,8 +29946,8 @@ size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__Li
     return removed;
 }
 
-void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self) {
-    std__mem__alloc__release_ptr_u8(self->data);
+void std__collections__list__List_usz_delete(std__collections__list__List_usz* self) {
+    std__mem__alloc__release_usz(self->data);
 }
 
 size_t std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_count(std__collections__list__List_ptr_compiler__sema__instance__AnnEntry* self) {
@@ -30171,12 +30285,12 @@ void std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_delete(
     std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(self->data);
 }
 
-std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap) {
+std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
     }
-    uint8_t** keys = std__mem__alloc__alloc_array_ptr_u8(cap);
+    size_t* keys = std__mem__alloc__alloc_array_usz(cap);
     compiler__sema__instance__AnnEntry** values = std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(cap);
     bool* occ = std__mem__alloc__alloc_array_bool(cap);
     {
@@ -30207,25 +30321,26 @@ std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__co
             }
         }
     }
-    return (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
-    return ((((size_t)key) / 8) * 2654435761);
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key) {
+    return usz_hash(key);
 }
 
-size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_put(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(self);
+        std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(self);
     }
-    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    size_t h = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, key);
+    size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (self->keys[idx] == key) {
             self->values[idx] = value;
@@ -30239,33 +30354,27 @@ void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_pu
     self->len++;
 }
 
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
-    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(self, key, value);
-}
-
-bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
-    return (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(self, key) != NULL);
-}
-
-compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key) {
     if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
+        return false;
     }
-    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    size_t h = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, key);
+    size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (self->keys[idx] == key) {
-            return &self->values[idx];
+            return true;
         }
         idx = ((idx + 1) % self->cap);
     }
-    return NULL;
+    return false;
 }
 
-compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* default_val) {
+compiler__sema__instance__AnnEntry* std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    size_t h = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, key);
+    size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (self->keys[idx] == key) {
             return self->values[idx];
@@ -30275,18 +30384,19 @@ compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compil
     return default_val;
 }
 
-bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t idx = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, key) % self->cap);
+    size_t h = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, key);
+    size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (self->keys[idx] == key) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_hash_ptr(self, self->keys[j]) % self->cap);
-                if (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(self, k, i) < std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(self, k, i) < std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -30302,7 +30412,7 @@ bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_re
     return false;
 }
 
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -30336,16 +30446,16 @@ void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_cl
     self->len = 0;
 }
 
-bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_count(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+size_t std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_count(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     return self->len;
 }
 
-std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
-    std__collections__list__List_ptr_u8 res = std__collections__list__List_ptr_u8_new(4);
+std__collections__list__List_usz std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__list__List_usz res = std__collections__list__List_usz_new(4);
     if (self->cap == 0) {
         return res;
     }
@@ -30363,7 +30473,7 @@ std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compil
         while (__for_go) {
             size_t i = __for_i;
             if (self->occupied[i]) {
-                std__collections__list__List_ptr_u8_plus_assign(&res, self->keys[i]);
+                std__collections__list__List_usz_plus_assign(&res, self->keys[i]);
             }
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
@@ -30382,7 +30492,7 @@ std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compil
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_values(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_values(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     std__collections__list__List_ptr_compiler__sema__instance__AnnEntry res = std__collections__list__List_ptr_compiler__sema__instance__AnnEntry_new(4);
     if (self->cap == 0) {
         return res;
@@ -30420,13 +30530,13 @@ std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collect
     return res;
 }
 
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     size_t old_cap = self->cap;
-    uint8_t** old_keys = self->keys;
+    size_t* old_keys = self->keys;
     compiler__sema__instance__AnnEntry** old_vals = self->values;
     bool* old_occ = self->occupied;
     int32_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    uint8_t** keys = std__mem__alloc__alloc_array_ptr_u8(new_cap);
+    size_t* keys = std__mem__alloc__alloc_array_usz(new_cap);
     compiler__sema__instance__AnnEntry** values = std__mem__alloc__alloc_array_ptr_compiler__sema__instance__AnnEntry(new_cap);
     bool* new_occ = std__mem__alloc__alloc_array_bool(new_cap);
     {
@@ -30477,7 +30587,7 @@ void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_gr
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -30493,18 +30603,466 @@ void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_gr
                 }
             }
         }
-        std__mem__alloc__release_ptr_u8(old_keys);
+        std__mem__alloc__release_usz(old_keys);
         std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(old_vals);
         std__mem__alloc__release_bool(old_occ);
     }
 }
 
-void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     if (self->cap > 0) {
-        std__mem__alloc__release_ptr_u8(self->keys);
+        std__mem__alloc__release_usz(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+compiler__sema__instance__AnnEntry** std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (self->keys[idx] == key) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key, compiler__sema__instance__AnnEntry* value) {
+    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2_2(std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t key) {
+    return std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2(self, key);
+}
+
+size_t std__collections__list__List_ptr_u8_count(std__collections__list__List_ptr_u8* self) {
+    return self->len;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_at(std__collections__list__List_ptr_u8* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_new(size_t cap) {
+    return (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+}
+
+uint8_t* std__collections__list__List_ptr_u8_get(std__collections__list__List_ptr_u8* self, size_t index) {
+    return self->data[index];
+}
+
+uint8_t* std__collections__list__List_ptr_u8_first(std__collections__list__List_ptr_u8* self) {
+    return self->data[0];
+}
+
+uint8_t* std__collections__list__List_ptr_u8_last(std__collections__list__List_ptr_u8* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__list__List_ptr_u8_empty(std__collections__list__List_ptr_u8* self) {
+    return (self->len == 0);
+}
+
+uint8_t* std__collections__list__List_ptr_u8_set(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+    return self->data[index] = value;
+}
+
+void std__collections__list__List_ptr_u8_plus_assign(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    std__collections__list__List_ptr_u8_add(self, value);
+}
+
+void std__collections__list__List_ptr_u8_add(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    if (self->len == self->cap) {
+        std__collections__list__List_ptr_u8_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_pop(std__collections__list__List_ptr_u8* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__list__List_ptr_u8_extend(std__collections__list__List_ptr_u8* self, std__collections__list__List_ptr_u8 other) {
+    {
+        size_t __for_n = std__collections__list__List_ptr_u8_count(&other);
+        size_t __for_i = ((size_t)0ULL);
+        while (__for_i < __for_n) {
+            uint8_t* data = std__collections__list__List_ptr_u8_at(&other, __for_i);
+            std__collections__list__List_ptr_u8_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__list__List_ptr_u8_clear(std__collections__list__List_ptr_u8* self) {
+    return self->len = 0;
+}
+
+void std__collections__list__List_ptr_u8_grow(std__collections__list__List_ptr_u8* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__list__List_ptr_u8_reserve(std__collections__list__List_ptr_u8* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__mem__alloc__resize_ptr_u8(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+uint8_t* std__collections__list__List_ptr_u8_remove_at(std__collections__list__List_ptr_u8* self, size_t index) {
+    uint8_t* item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__list__List_ptr_u8_insert(std__collections__list__List_ptr_u8* self, size_t index, uint8_t* value) {
+    if (self->len == self->cap) {
+        std__collections__list__List_ptr_u8_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_clone(std__collections__list__List_ptr_u8* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+uint8_t* std__collections__list__List_ptr_u8_pop_or(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    return ((self->len == 0) ? value : std__collections__list__List_ptr_u8_pop(self));
+}
+
+void std__collections__list__List_ptr_u8_swap(std__collections__list__List_ptr_u8* self, size_t a, size_t b) {
+    uint8_t* tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__list__List_ptr_u8_reverse(std__collections__list__List_ptr_u8* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        uint8_t* tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__list__List_ptr_u8 std__collections__list__List_ptr_u8_sub(std__collections__list__List_ptr_u8* self, size_t start, size_t count) {
+    std__collections__list__List_ptr_u8 res = (std__collections__list__List_ptr_u8){ std__mem__alloc__alloc_array_ptr_u8(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__list__List_ptr_u8_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__list__List_ptr_u8_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__list__List_ptr_u8_last_index_of(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (self->data[i] == value) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__list__List_ptr_u8_contains(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    return (std__collections__list__List_ptr_u8_index_of(self, value) != -1);
+}
+
+bool std__collections__list__List_ptr_u8_remove(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    intptr_t idx = std__collections__list__List_ptr_u8_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__list__List_ptr_u8_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__list__List_ptr_u8_remove_all(std__collections__list__List_ptr_u8* self, uint8_t* value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__list__List_ptr_u8_delete(std__collections__list__List_ptr_u8* self) {
+    std__mem__alloc__release_ptr_u8(self->data);
+}
+
+std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_new(size_t init_cap) {
+    return (std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry){ std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(init_cap), ((size_t)0ULL) };
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
+    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_put(&self->inner, (size_t)key, value);
+    self->len = self->inner.len;
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains_2(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    return std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contains_2(&self->inner, (size_t)key);
+}
+
+compiler__sema__instance__AnnEntry* std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get_or(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* default_val) {
+    return std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get_or(&self->inner, (size_t)key, default_val);
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_remove(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    bool ok = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_remove(&self->inner, (size_t)key);
+    self->len = self->inner.len;
+    return ok;
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_clear(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_clear(&self->inner);
+    self->len = ((size_t)0ULL);
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_empty(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    return (self->len == ((size_t)0ULL));
+}
+
+size_t std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_count(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    return self->len;
+}
+
+std__collections__list__List_ptr_u8 std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_keys(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__list__List_ptr_u8 res = std__collections__list__List_ptr_u8_new(4);
+    std__collections__list__List_usz u_keys = std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_keys(&self->inner);
+    {
+        size_t __for_e = u_keys.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__list__List_ptr_u8_plus_assign(&res, (uint8_t*)std__collections__list__List_usz_get(&u_keys, i));
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__list__List_ptr_compiler__sema__instance__AnnEntry std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_values(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    return std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_values(&self->inner);
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self) {
+    std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_delete(&self->inner);
+}
+
+compiler__sema__instance__AnnEntry** std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_get(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    return std__collections__hash_map__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_get(&self->inner, (size_t)key);
+}
+
+void std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_set(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key, compiler__sema__instance__AnnEntry* value) {
+    std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_put(self, key, value);
+}
+
+bool std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains_2_2(std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry* self, uint8_t* key) {
+    return std__collections__ptr_map__PtrMap_ptr_compiler__sema__instance__AnnEntry_contains_2(self, key);
 }
 
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitMethod_count(std__collections__list__List_ptr_compiler__sema__traits__TraitMethod* self) {
@@ -31177,7 +31735,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__Symbol_delete(std_
     std__mem__alloc__release_ptr_compiler__sema__symbol__Symbol(self->data);
 }
 
-std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -31213,55 +31771,25 @@ std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol std__coll
             }
         }
     }
-    return (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_put(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_grow(self);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -31276,15 +31804,11 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_put(
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -31295,26 +31819,11 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_cont
     return false;
 }
 
-compiler__sema__symbol__Symbol** std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__symbol__Symbol* std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* default_val) {
+compiler__sema__symbol__Symbol* std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -31325,19 +31834,19 @@ compiler__sema__symbol__Symbol* std__collections__hash_map__HashMap_ptr_compiler
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_dist(self, k, i) < std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(self, k, i) < std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -31353,7 +31862,7 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_remo
     return false;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -31387,15 +31896,15 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_clea
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_count(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -31433,7 +31942,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compile
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_values(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     std__collections__list__List_ptr_compiler__sema__symbol__Symbol res = std__collections__list__List_ptr_compiler__sema__symbol__Symbol_new(4);
     if (self->cap == 0) {
         return res;
@@ -31471,7 +31980,7 @@ std__collections__list__List_ptr_compiler__sema__symbol__Symbol std__collections
     return res;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__symbol__Symbol** old_vals = self->values;
@@ -31528,7 +32037,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_grow
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -31550,12 +32059,35 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_grow
     }
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__Symbol* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__symbol__Symbol(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+compiler__sema__symbol__Symbol** std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key, compiler__sema__symbol__Symbol* value) {
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains_2(self, key);
 }
 
 size_t std__collections__list__List_ptr_compiler__sema__template__GenTemplate_count(std__collections__list__List_ptr_compiler__sema__template__GenTemplate* self) {
@@ -32563,7 +33095,7 @@ void std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_delete
     std__mem__alloc__release_ptr_compiler__sema__symbol__ModuleScope(self->data);
 }
 
-std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -32599,55 +33131,25 @@ std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope std_
             }
         }
     }
-    return (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_put(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_grow(self);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -32662,15 +33164,11 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_set(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -32681,26 +33179,11 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
     return false;
 }
 
-compiler__sema__symbol__ModuleScope** std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_get(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__symbol__ModuleScope* std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* default_val) {
+compiler__sema__symbol__ModuleScope* std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -32711,19 +33194,19 @@ compiler__sema__symbol__ModuleScope* std__collections__hash_map__HashMap_ptr_com
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, i) < std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, i) < std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -32739,7 +33222,7 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
     return false;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -32773,15 +33256,15 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_count(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -32819,7 +33302,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compile
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_values(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope res = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_new(4);
     if (self->cap == 0) {
         return res;
@@ -32857,7 +33340,7 @@ std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope std__collec
     return res;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__symbol__ModuleScope** old_vals = self->values;
@@ -32914,7 +33397,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -32936,12 +33419,35 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope
     }
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__symbol__ModuleScope* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__symbol__ModuleScope(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+compiler__sema__symbol__ModuleScope** std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key, compiler__sema__symbol__ModuleScope* value) {
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_contains_2(self, key);
 }
 
 size_t std__collections__list__List_compiler__sema__symbol__ImportBinding_count(std__collections__list__List_compiler__sema__symbol__ImportBinding* self) {
@@ -33614,7 +34120,7 @@ void std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_delete(std
     std__mem__alloc__release_ptr_compiler__sema__enums__EnumInfo(self->data);
 }
 
-std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -33650,55 +34156,25 @@ std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo std__col
             }
         }
     }
-    return (std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_put(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_grow(self);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -33713,15 +34189,11 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_put
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_set(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -33732,26 +34204,11 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_con
     return false;
 }
 
-compiler__sema__enums__EnumInfo** std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_get(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__enums__EnumInfo* std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* default_val) {
+compiler__sema__enums__EnumInfo* std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -33762,19 +34219,19 @@ compiler__sema__enums__EnumInfo* std__collections__hash_map__HashMap_ptr_compile
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_dist(self, k, i) < std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(self, k, i) < std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -33790,7 +34247,7 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_rem
     return false;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -33824,15 +34281,15 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_cle
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_count(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -33870,7 +34327,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compile
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_values(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     std__collections__list__List_ptr_compiler__sema__enums__EnumInfo res = std__collections__list__List_ptr_compiler__sema__enums__EnumInfo_new(4);
     if (self->cap == 0) {
         return res;
@@ -33908,7 +34365,7 @@ std__collections__list__List_ptr_compiler__sema__enums__EnumInfo std__collection
     return res;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__enums__EnumInfo** old_vals = self->values;
@@ -33965,7 +34422,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_gro
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -33987,12 +34444,35 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_gro
     }
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__enums__EnumInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__enums__EnumInfo(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+compiler__sema__enums__EnumInfo** std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key, compiler__sema__enums__EnumInfo* value) {
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains_2(self, key);
 }
 
 size_t std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_count(std__collections__list__List_ptr_compiler__sema__traits__TraitInfo* self) {
@@ -34330,7 +34810,7 @@ void std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_delete(s
     std__mem__alloc__release_ptr_compiler__sema__traits__TraitInfo(self->data);
 }
 
-std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -34366,55 +34846,25 @@ std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo std__c
             }
         }
     }
-    return (std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_put(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_grow(self);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34429,15 +34879,11 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_p
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_set(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34448,26 +34894,11 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_c
     return false;
 }
 
-compiler__sema__traits__TraitInfo** std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_get(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__traits__TraitInfo* std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* default_val) {
+compiler__sema__traits__TraitInfo* std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34478,19 +34909,19 @@ compiler__sema__traits__TraitInfo* std__collections__hash_map__HashMap_ptr_compi
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_dist(self, k, i) < std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(self, k, i) < std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -34506,7 +34937,7 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_r
     return false;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -34540,15 +34971,15 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_c
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_count(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -34586,7 +35017,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compile
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_values(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     std__collections__list__List_ptr_compiler__sema__traits__TraitInfo res = std__collections__list__List_ptr_compiler__sema__traits__TraitInfo_new(4);
     if (self->cap == 0) {
         return res;
@@ -34624,7 +35055,7 @@ std__collections__list__List_ptr_compiler__sema__traits__TraitInfo std__collecti
     return res;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__traits__TraitInfo** old_vals = self->values;
@@ -34681,7 +35112,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_g
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -34703,7 +35134,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_g
     }
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__traits__TraitInfo(self->values);
@@ -34711,7 +35142,30 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__traits__TraitInfo_d
     }
 }
 
-std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_new(size_t init_cap) {
+compiler__sema__traits__TraitInfo** std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key, compiler__sema__traits__TraitInfo* value) {
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contains_2(self, key);
+}
+
+std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -34747,55 +35201,25 @@ std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding std__c
             }
         }
     }
-    return (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_dist(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_put(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(self);
+        std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34810,15 +35234,11 @@ void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_p
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
-    std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_contains(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_contains_2(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34829,26 +35249,11 @@ bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_c
     return false;
 }
 
-compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val) {
+compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get_or(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -34859,19 +35264,19 @@ compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compil
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_remove(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(self, k, i) < std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_dist(self, k, i) < std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -34887,7 +35292,7 @@ bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_r
     return false;
 }
 
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_clear(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -34921,15 +35326,15 @@ void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_c
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_empty(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+size_t std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_count(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_keys(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -34967,7 +35372,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_compiler__s
     return res;
 }
 
-std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+std__collections__list__List_compiler__sema__symbol__ImportBinding std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_values(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     std__collections__list__List_compiler__sema__symbol__ImportBinding res = std__collections__list__List_compiler__sema__symbol__ImportBinding_new(4);
     if (self->cap == 0) {
         return res;
@@ -35005,7 +35410,7 @@ std__collections__list__List_compiler__sema__symbol__ImportBinding std__collecti
     return res;
 }
 
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_grow(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__symbol__ImportBinding* old_vals = self->values;
@@ -35062,7 +35467,7 @@ void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_g
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -35084,7 +35489,7 @@ void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_g
     }
 }
 
-void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding* self) {
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_delete(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_compiler__sema__symbol__ImportBinding(self->values);
@@ -35092,7 +35497,30 @@ void std__collections__hash_map__HashMap_compiler__sema__symbol__ImportBinding_d
     }
 }
 
-std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_new(size_t init_cap) {
+compiler__sema__symbol__ImportBinding* std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_get(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_set(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key, compiler__sema__symbol__ImportBinding value) {
+    std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_contains_2_2(std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_compiler__sema__symbol__ImportBinding_contains_2(self, key);
+}
+
+std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -35128,55 +35556,25 @@ std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type std__collect
             }
         }
     }
-    return (std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_dist(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_dist(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_put(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_put(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_grow(self);
+        std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -35191,15 +35589,11 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_put(std
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_set(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value) {
-    std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_contains(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_contains_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -35210,26 +35604,11 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_contain
     return false;
 }
 
-compiler__sema__types__Type** std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_get(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-compiler__sema__types__Type* std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_get_or(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* default_val) {
+compiler__sema__types__Type* std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_get_or(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -35240,19 +35619,19 @@ compiler__sema__types__Type* std__collections__hash_map__HashMap_ptr_compiler__s
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_remove(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_remove(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_dist(self, k, i) < std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_dist(self, k, i) < std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -35268,7 +35647,7 @@ bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_remove(
     return false;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_clear(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_clear(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -35302,15 +35681,15 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_clear(s
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_empty(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_empty(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_count(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+size_t std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_count(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_keys(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_keys(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -35348,7 +35727,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_ptr_compile
     return res;
 }
 
-std__collections__list__List_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_values(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+std__collections__list__List_ptr_compiler__sema__types__Type std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_values(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     std__collections__list__List_ptr_compiler__sema__types__Type res = std__collections__list__List_ptr_compiler__sema__types__Type_new(4);
     if (self->cap == 0) {
         return res;
@@ -35386,7 +35765,7 @@ std__collections__list__List_ptr_compiler__sema__types__Type std__collections__h
     return res;
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_grow(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_grow(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     compiler__sema__types__Type** old_vals = self->values;
@@ -35443,7 +35822,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_grow(st
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -35465,7 +35844,7 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_grow(st
     }
 }
 
-void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_delete(std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type* self) {
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_delete(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_ptr_compiler__sema__types__Type(self->values);
@@ -35473,339 +35852,27 @@ void std__collections__hash_map__HashMap_ptr_compiler__sema__types__Type_delete(
     }
 }
 
-size_t std__collections__list__List_usz_count(std__collections__list__List_usz* self) {
-    return self->len;
-}
-
-size_t std__collections__list__List_usz_at(std__collections__list__List_usz* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__list__List_usz std__collections__list__List_usz_new(size_t cap) {
-    return (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(cap), 0, cap };
-}
-
-size_t std__collections__list__List_usz_get(std__collections__list__List_usz* self, size_t index) {
-    return self->data[index];
-}
-
-size_t std__collections__list__List_usz_first(std__collections__list__List_usz* self) {
-    return self->data[0];
-}
-
-size_t std__collections__list__List_usz_last(std__collections__list__List_usz* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__list__List_usz_empty(std__collections__list__List_usz* self) {
-    return (self->len == 0);
-}
-
-size_t std__collections__list__List_usz_set(std__collections__list__List_usz* self, size_t index, size_t value) {
-    return self->data[index] = value;
-}
-
-void std__collections__list__List_usz_plus_assign(std__collections__list__List_usz* self, size_t value) {
-    std__collections__list__List_usz_add(self, value);
-}
-
-void std__collections__list__List_usz_add(std__collections__list__List_usz* self, size_t value) {
-    if (self->len == self->cap) {
-        std__collections__list__List_usz_grow(self);
+compiler__sema__types__Type** std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_get(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
     }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-size_t std__collections__list__List_usz_pop(std__collections__list__List_usz* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__list__List_usz_extend(std__collections__list__List_usz* self, std__collections__list__List_usz other) {
-    {
-        size_t __for_n = std__collections__list__List_usz_count(&other);
-        size_t __for_i = ((size_t)0ULL);
-        while (__for_i < __for_n) {
-            size_t data = std__collections__list__List_usz_at(&other, __for_i);
-            std__collections__list__List_usz_plus_assign(self, data);
-            __for_i = (__for_i + 1);
+    size_t h = std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
         }
+        idx = ((idx + 1) % self->cap);
     }
+    return NULL;
 }
 
-size_t std__collections__list__List_usz_clear(std__collections__list__List_usz* self) {
-    return self->len = 0;
+void std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_set(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key, compiler__sema__types__Type* value) {
+    std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_put(self, key, value);
 }
 
-void std__collections__list__List_usz_grow(std__collections__list__List_usz* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__mem__alloc__resize_usz(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__list__List_usz_reserve(std__collections__list__List_usz* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__mem__alloc__resize_usz(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-size_t std__collections__list__List_usz_remove_at(std__collections__list__List_usz* self, size_t index) {
-    size_t item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__list__List_usz_insert(std__collections__list__List_usz* self, size_t index, size_t value) {
-    if (self->len == self->cap) {
-        std__collections__list__List_usz_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__list__List_usz std__collections__list__List_usz_clone(std__collections__list__List_usz* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__list__List_usz res = (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__list__List_usz_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-size_t std__collections__list__List_usz_pop_or(std__collections__list__List_usz* self, size_t value) {
-    return ((self->len == 0) ? value : std__collections__list__List_usz_pop(self));
-}
-
-void std__collections__list__List_usz_swap(std__collections__list__List_usz* self, size_t a, size_t b) {
-    size_t tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__list__List_usz_reverse(std__collections__list__List_usz* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        size_t tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__list__List_usz std__collections__list__List_usz_sub(std__collections__list__List_usz* self, size_t start, size_t count) {
-    std__collections__list__List_usz res = (std__collections__list__List_usz){ std__mem__alloc__alloc_array_usz(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__list__List_usz_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__list__List_usz_index_of(std__collections__list__List_usz* self, size_t value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (self->data[i] == value) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__list__List_usz_last_index_of(std__collections__list__List_usz* self, size_t value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (self->data[i] == value) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__list__List_usz_contains(std__collections__list__List_usz* self, size_t value) {
-    return (std__collections__list__List_usz_index_of(self, value) != -1);
-}
-
-bool std__collections__list__List_usz_remove(std__collections__list__List_usz* self, size_t value) {
-    intptr_t idx = std__collections__list__List_usz_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__list__List_usz_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__list__List_usz_remove_all(std__collections__list__List_usz* self, size_t value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (self->data[i] == value) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__list__List_usz_delete(std__collections__list__List_usz* self) {
-    std__mem__alloc__release_usz(self->data);
+bool std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_contains_2_2(std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_ptr_compiler__sema__types__Type_contains_2(self, key);
 }
 
 size_t std__collections__list__List_bool_count(std__collections__list__List_bool* self) {
@@ -37818,7 +37885,7 @@ void std__collections__list__List_lsp__document__Document_delete(std__collection
     std__mem__alloc__release_lsp__document__Document(self->data);
 }
 
-std__collections__hash_map__HashMap_lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_new(size_t init_cap) {
+std__collections__hash_map__HashMap_str_lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_new(size_t init_cap) {
     size_t cap = init_cap;
     if (cap < 8) {
         cap = 8;
@@ -37854,55 +37921,25 @@ std__collections__hash_map__HashMap_lsp__document__Document std__collections__ha
             }
         }
     }
-    return (std__collections__hash_map__HashMap_lsp__document__Document){ keys, values, occ, 0, cap };
+    return (std__collections__hash_map__HashMap_str_lsp__document__Document){ keys, values, occ, 0, cap };
 }
 
-size_t std__collections__hash_map__HashMap_lsp__document__Document_hash_key(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key) {
-    size_t h = 5381;
-    {
-        size_t __for_e = kobel_slen(key);
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            size_t c = (size_t)key[i];
-            h = ((h * 33) + c);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return h;
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key) {
+    return str_hash(key);
 }
 
-size_t std__collections__hash_map__HashMap_lsp__document__Document_dist(std__collections__hash_map__HashMap_lsp__document__Document* self, size_t from, size_t to) {
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_dist(std__collections__hash_map__HashMap_str_lsp__document__Document* self, size_t from, size_t to) {
     if (to >= from) {
         return (to - from);
     }
     return ((self->cap + to) - from);
 }
 
-void std__collections__hash_map__HashMap_lsp__document__Document_put(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document value) {
+void std__collections__hash_map__HashMap_str_lsp__document__Document_put(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document value) {
     if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__hash_map__HashMap_lsp__document__Document_grow(self);
+        std__collections__hash_map__HashMap_str_lsp__document__Document_grow(self);
     }
-    size_t h = std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -37917,15 +37954,11 @@ void std__collections__hash_map__HashMap_lsp__document__Document_put(std__collec
     self->len++;
 }
 
-void std__collections__hash_map__HashMap_lsp__document__Document_set(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document value) {
-    std__collections__hash_map__HashMap_lsp__document__Document_put(self, key, value);
-}
-
-bool std__collections__hash_map__HashMap_lsp__document__Document_contains(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -37936,26 +37969,11 @@ bool std__collections__hash_map__HashMap_lsp__document__Document_contains(std__c
     return false;
 }
 
-lsp__document__Document* std__collections__hash_map__HashMap_lsp__document__Document_get(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return NULL;
-    }
-    size_t h = std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
-            return &self->values[idx];
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return NULL;
-}
-
-lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_get_or(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key, lsp__document__Document default_val) {
+lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_get_or(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document default_val) {
     if ((self->len == 0) || (self->cap == 0)) {
         return default_val;
     }
-    size_t h = std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
@@ -37966,19 +37984,19 @@ lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Docum
     return default_val;
 }
 
-bool std__collections__hash_map__HashMap_lsp__document__Document_remove(std__collections__hash_map__HashMap_lsp__document__Document* self, const char* key) {
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_remove(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key) {
     if ((self->len == 0) || (self->cap == 0)) {
         return false;
     }
-    size_t h = std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, key);
+    size_t h = std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
         if (kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (std__collections__hash_map__HashMap_lsp__document__Document_hash_key(self, self->keys[j]) % self->cap);
-                if (std__collections__hash_map__HashMap_lsp__document__Document_dist(self, k, i) < std__collections__hash_map__HashMap_lsp__document__Document_dist(self, k, j)) {
+                size_t k = (std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, self->keys[j]) % self->cap);
+                if (std__collections__hash_map__HashMap_str_lsp__document__Document_dist(self, k, i) < std__collections__hash_map__HashMap_str_lsp__document__Document_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
                     i = j;
@@ -37994,7 +38012,7 @@ bool std__collections__hash_map__HashMap_lsp__document__Document_remove(std__col
     return false;
 }
 
-void std__collections__hash_map__HashMap_lsp__document__Document_clear(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+void std__collections__hash_map__HashMap_str_lsp__document__Document_clear(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     if (self->cap > 0) {
         {
             size_t __for_e = self->cap;
@@ -38028,15 +38046,15 @@ void std__collections__hash_map__HashMap_lsp__document__Document_clear(std__coll
     self->len = 0;
 }
 
-bool std__collections__hash_map__HashMap_lsp__document__Document_empty(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_empty(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     return (self->len == 0);
 }
 
-size_t std__collections__hash_map__HashMap_lsp__document__Document_count(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+size_t std__collections__hash_map__HashMap_str_lsp__document__Document_count(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     return self->len;
 }
 
-std__collections__list__List_str std__collections__hash_map__HashMap_lsp__document__Document_keys(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+std__collections__list__List_str std__collections__hash_map__HashMap_str_lsp__document__Document_keys(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     std__collections__list__List_str res = std__collections__list__List_str_new(4);
     if (self->cap == 0) {
         return res;
@@ -38074,7 +38092,7 @@ std__collections__list__List_str std__collections__hash_map__HashMap_lsp__docume
     return res;
 }
 
-std__collections__list__List_lsp__document__Document std__collections__hash_map__HashMap_lsp__document__Document_values(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+std__collections__list__List_lsp__document__Document std__collections__hash_map__HashMap_str_lsp__document__Document_values(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     std__collections__list__List_lsp__document__Document res = std__collections__list__List_lsp__document__Document_new(4);
     if (self->cap == 0) {
         return res;
@@ -38112,7 +38130,7 @@ std__collections__list__List_lsp__document__Document std__collections__hash_map_
     return res;
 }
 
-void std__collections__hash_map__HashMap_lsp__document__Document_grow(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+void std__collections__hash_map__HashMap_str_lsp__document__Document_grow(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     size_t old_cap = self->cap;
     const char** old_keys = self->keys;
     lsp__document__Document* old_vals = self->values;
@@ -38169,7 +38187,7 @@ void std__collections__hash_map__HashMap_lsp__document__Document_grow(std__colle
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__hash_map__HashMap_lsp__document__Document_set(self, old_keys[i], old_vals[i]);
+                    std__collections__hash_map__HashMap_str_lsp__document__Document_put(self, old_keys[i], old_vals[i]);
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -38191,12 +38209,35 @@ void std__collections__hash_map__HashMap_lsp__document__Document_grow(std__colle
     }
 }
 
-void std__collections__hash_map__HashMap_lsp__document__Document_delete(std__collections__hash_map__HashMap_lsp__document__Document* self) {
+void std__collections__hash_map__HashMap_str_lsp__document__Document_delete(std__collections__hash_map__HashMap_str_lsp__document__Document* self) {
     if (self->cap > 0) {
         std__mem__alloc__release_str(self->keys);
         std__mem__alloc__release_lsp__document__Document(self->values);
         std__mem__alloc__release_bool(self->occupied);
     }
+}
+
+lsp__document__Document* std__collections__hash_map__HashMap_str_lsp__document__Document_get(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = std__collections__hash_map__HashMap_str_lsp__document__Document_hash_key(self, key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if (kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+void std__collections__hash_map__HashMap_str_lsp__document__Document_set(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key, lsp__document__Document value) {
+    std__collections__hash_map__HashMap_str_lsp__document__Document_put(self, key, value);
+}
+
+bool std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2_2(std__collections__hash_map__HashMap_str_lsp__document__Document* self, const char* key) {
+    return std__collections__hash_map__HashMap_str_lsp__document__Document_contains_2(self, key);
 }
 
 size_t std__collections__list__List_lsp__analysis__LspDiagnostic_count(std__collections__list__List_lsp__analysis__LspDiagnostic* self) {
@@ -39646,11 +39687,11 @@ void std__mem__alloc__release_ptr_compiler__sema__types__Type(compiler__sema__ty
     free((uint8_t*)ptr);
 }
 
-uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count) {
-    return (uint8_t**)malloc((count * 8));
+size_t* std__mem__alloc__alloc_array_usz(size_t count) {
+    return (size_t*)malloc((count * 8));
 }
 
-void std__mem__alloc__release_ptr_u8(uint8_t** ptr) {
+void std__mem__alloc__release_usz(size_t* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -39659,6 +39700,14 @@ compiler__sema__instance__AnnEntry** std__mem__alloc__alloc_array_ptr_compiler__
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr) {
+    free((uint8_t*)ptr);
+}
+
+uint8_t** std__mem__alloc__alloc_array_ptr_u8(size_t count) {
+    return (uint8_t**)malloc((count * 8));
+}
+
+void std__mem__alloc__release_ptr_u8(uint8_t** ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -39723,14 +39772,6 @@ compiler__sema__traits__TraitInfo** std__mem__alloc__alloc_array_ptr_compiler__s
 }
 
 void std__mem__alloc__release_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr) {
-    free((uint8_t*)ptr);
-}
-
-size_t* std__mem__alloc__alloc_array_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
-}
-
-void std__mem__alloc__release_usz(size_t* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -39861,7 +39902,7 @@ compiler__sema__methods__MethodInfo* std__mem__arena__Arena_alloc_compiler__sema
 }
 
 compiler__sema__instance__InstanceRecord* std__mem__arena__Arena_alloc_compiler__sema__instance__InstanceRecord(std__mem__arena__Arena* self) {
-    return (compiler__sema__instance__InstanceRecord*)std__mem__arena__Arena_alloc_bytes(self, 112, 8);
+    return (compiler__sema__instance__InstanceRecord*)std__mem__arena__Arena_alloc_bytes(self, 120, 8);
 }
 
 compiler__sema__enums__EnumMemberInfo* std__mem__arena__Arena_alloc_compiler__sema__enums__EnumMemberInfo(std__mem__arena__Arena* self) {
@@ -39954,12 +39995,16 @@ compiler__sema__types__Type** std__mem__alloc__resize_ptr_compiler__sema__types_
     return (compiler__sema__types__Type**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count) {
-    return (uint8_t**)realloc((uint8_t*)ptr, (count * 8));
+size_t* std__mem__alloc__resize_usz(size_t* ptr, size_t count) {
+    return (size_t*)realloc((uint8_t*)ptr, (count * 8));
 }
 
 compiler__sema__instance__AnnEntry** std__mem__alloc__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count) {
     return (compiler__sema__instance__AnnEntry**)realloc((uint8_t*)ptr, (count * 8));
+}
+
+uint8_t** std__mem__alloc__resize_ptr_u8(uint8_t** ptr, size_t count) {
+    return (uint8_t**)realloc((uint8_t*)ptr, (count * 8));
 }
 
 compiler__sema__traits__TraitMethod** std__mem__alloc__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count) {
@@ -39992,10 +40037,6 @@ compiler__sema__enums__EnumInfo** std__mem__alloc__resize_ptr_compiler__sema__en
 
 compiler__sema__traits__TraitInfo** std__mem__alloc__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count) {
     return (compiler__sema__traits__TraitInfo**)realloc((uint8_t*)ptr, (count * 8));
-}
-
-size_t* std__mem__alloc__resize_usz(size_t* ptr, size_t count) {
-    return (size_t*)realloc((uint8_t*)ptr, (count * 8));
 }
 
 bool* std__mem__alloc__resize_bool(bool* ptr, size_t count) {

@@ -88,6 +88,7 @@ impl CompileOptions {
 		// it whenever it is available so the primitive methods exist even when the
 		// input does not import the formatting module.
 		if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
+		if (loader.find_module("std.traits.hash").found) loader.ensure_module("std.traits.hash");
 
 		val prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {

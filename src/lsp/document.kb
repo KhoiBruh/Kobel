@@ -23,7 +23,7 @@ pub struct Document {
 // ============================================================================
 
 pub struct DocumentStore {
-	pub doc_map: HashMap<Document> = HashMap<Document>()
+	pub doc_map: HashMap<str, Document> = HashMap<str, Document>()
 }
 
 impl DocumentStore {

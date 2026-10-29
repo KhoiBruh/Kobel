@@ -396,8 +396,46 @@ fn test_defer_restrictions() {
 	println("  [PASS] test_defer_restrictions");
 }
 
+fn test_interpolation_requires_to_str() {
+	val src1 = """
+		struct NoString {
+		    pub x: i32
+		}
+		fn test(): str {
+		    val ns = NoString(1);
+		    return "\${ns}";
+		}
+	""";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	var bp1 = BodyPass();
+	bp1.check_program(p1.parse_program());
+	assert_true(bp1.errors.len >= 1UZ, "Interpolation of struct without ToStr must be rejected");
+
+	val src2 = """
+		struct AdHoc {
+		    pub x: i32
+		}
+		impl AdHoc {
+		    fn to_str(val self): str => "adhoc";
+		}
+		fn test(): str {
+		    val a = AdHoc(1);
+		    return "\${a}";
+		}
+	""";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	var bp2 = BodyPass();
+	bp2.check_program(p2.parse_program());
+	assert_true(bp2.errors.len >= 1UZ, "Interpolation with ad-hoc to_str without ToStr trait must be rejected");
+
+	println("  [PASS] test_interpolation_requires_to_str");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
+	test_interpolation_requires_to_str();
 	test_valid_program();
 	test_undeclared_identifier();
 	test_type_mismatch();
