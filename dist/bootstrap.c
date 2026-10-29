@@ -795,6 +795,8 @@ struct compiler__sema__enums__EnumMemberInfo {
     int64_t value;
     compiler__sema__types__Type* payload_ty;
     const char* payload_path;
+    const char* raw_text;
+    compiler__ast__expr__LiteralKind lit_kind;
 };
 
 struct compiler__sema__types__TypePayload__NONE {
@@ -7475,6 +7477,16 @@ bool compiler__sema__types__Type_equals_2(compiler__sema__types__Type* self, com
     if (self->kind != b->kind) {
         return false;
     }
+    if (compiler__sema__types__Type_is_enum(self) || compiler__sema__types__Type_is_enum(b)) {
+        if (!compiler__sema__types__Type_is_enum(self) || !compiler__sema__types__Type_is_enum(b)) {
+            return false;
+        }
+        compiler__sema__enums__EnumInfo* ea = compiler__sema__types__Type_as_enum(self);
+        compiler__sema__enums__EnumInfo* eb = compiler__sema__types__Type_as_enum(b);
+        const char* n_a = (str_empty(ea->c_name) ? ea->name : ea->c_name);
+        const char* n_b = (str_empty(eb->c_name) ? eb->name : eb->c_name);
+        return kobel_streq(n_a, n_b);
+    }
     if (self->kind == 16) {
         compiler__sema__types__PointerType* p_a = compiler__sema__types__Type_as_pointer(self);
         compiler__sema__types__PointerType* p_b = compiler__sema__types__Type_as_pointer(b);
@@ -7541,6 +7553,16 @@ bool compiler__sema__types__Type_equals_2_2(compiler__sema__types__Type* self, c
 bool compiler__sema__types__Type_can_assign(compiler__sema__types__Type* self, compiler__sema__types__Type* source) {
     if (compiler__sema__types__Type_equals_2(self, source)) {
         return true;
+    }
+    if (compiler__sema__types__Type_is_enum(self) && !(*compiler__sema__types__Type_as_enum(self)).is_payload) {
+        if (!compiler__sema__types__Type_is_enum(source) && compiler__sema__types__Type_can_assign((*compiler__sema__types__Type_as_enum(self)).underlying, source)) {
+            return true;
+        }
+    }
+    if (compiler__sema__types__Type_is_enum(source) && !(*compiler__sema__types__Type_as_enum(source)).is_payload) {
+        if (!compiler__sema__types__Type_is_enum(self) && compiler__sema__types__Type_can_assign(self, (*compiler__sema__types__Type_as_enum(source)).underlying)) {
+            return true;
+        }
     }
     if (compiler__sema__types__Type_is_integer(self) && compiler__sema__types__Type_is_integer(source)) {
         return true;
@@ -11060,21 +11082,99 @@ void compiler__sema__decl__pass__DeclPass_collect_enum(compiler__sema__decl__pas
         compiler__sema__decl__pass__DeclPass_collect_payload_enum(self, node, e, under_type);
         return;
     }
+    bool is_int = compiler__sema__types__Type_is_integer(under_type);
+    bool is_str = (under_type->kind == 15);
+    bool is_char = (under_type->kind == 2);
+    bool is_float = compiler__sema__types__Type_is_float(under_type);
+    bool is_bool = (under_type->kind == 1);
+    if ((((!is_int && !is_str) && !is_char) && !is_float) && !is_bool) {
+        compiler__sema__decl__pass__DeclPass_report_error(self, node, "Enum underlying type must be a primitive type (integer, float, char, str, or bool)");
+    }
     std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo members = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_new(4);
-    int64_t next_val = 0;
+    int64_t next_int_val = 0;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__decl__EnumMember_count(&e->members);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__decl__EnumMember m = std__collections__list__List_compiler__ast__decl__EnumMember_at(&e->members, __for_i);
-            int64_t v = next_val;
-            if (m.value != NULL) {
-                v = compiler__sema__decl__pass__DeclPass_enum_const_i64(self, m.value);
+            int64_t v = 0;
+            const char* raw_text = "";
+            compiler__ast__expr__LiteralKind lit_kind = 0;
+            if (is_int) {
+                v = next_int_val;
+                if (m.value != NULL) {
+                    v = compiler__sema__decl__pass__DeclPass_enum_const_i64(self, m.value);
+                }
+                raw_text = i64_to_str(v);
+                lit_kind = 0;
+                next_int_val = (v + 1);
+            } else if (is_str) {
+                lit_kind = 4;
+                if (m.value != NULL) {
+                    {
+                        compiler__ast__node__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 4)) {
+                            raw_text = lit->raw_text;
+                        } else {
+                            compiler__sema__decl__pass__DeclPass_report_error(self, m.value, "Enum member value for 'str' enum must be a string literal");
+                            raw_text = kobel_concat(kobel_concat("\"", m.name), "\"");
+                        }
+                    }
+                } else {
+                    raw_text = kobel_concat(kobel_concat("\"", m.name), "\"");
+                }
+            } else if (is_char) {
+                lit_kind = 3;
+                if (m.value != NULL) {
+                    {
+                        compiler__ast__node__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 3)) {
+                            raw_text = lit->raw_text;
+                        } else {
+                            compiler__sema__decl__pass__DeclPass_report_error(self, m.value, "Enum member value for 'char' enum must be a character literal");
+                            raw_text = "'?'";
+                        }
+                    }
+                } else {
+                    compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Enum member '", m.name), "' of 'char' enum requires an explicit character literal"));
+                    raw_text = "'?'";
+                }
+            } else if (is_float) {
+                lit_kind = 1;
+                if (m.value != NULL) {
+                    {
+                        compiler__ast__node__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && ((lit->literal_kind == 1) || (lit->literal_kind == 0))) {
+                            raw_text = lit->raw_text;
+                        } else {
+                            compiler__sema__decl__pass__DeclPass_report_error(self, m.value, "Enum member value for float enum must be a number literal");
+                            raw_text = "0.0";
+                        }
+                    }
+                } else {
+                    compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Enum member '", m.name), "' of float enum requires an explicit float literal"));
+                    raw_text = "0.0";
+                }
+            } else if (is_bool) {
+                lit_kind = 2;
+                if (m.value != NULL) {
+                    {
+                        compiler__ast__node__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 2)) {
+                            raw_text = lit->raw_text;
+                        } else {
+                            compiler__sema__decl__pass__DeclPass_report_error(self, m.value, "Enum member value for 'bool' enum must be a bool literal");
+                            raw_text = "false";
+                        }
+                    }
+                } else {
+                    compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat(kobel_concat("Enum member '", m.name), "' of 'bool' enum requires an explicit bool literal"));
+                    raw_text = "false";
+                }
             }
             compiler__sema__enums__EnumMemberInfo* mi = std__mem__arena__Arena_alloc_compiler__sema__enums__EnumMemberInfo(&self->arena);
-            *mi = (compiler__sema__enums__EnumMemberInfo){ m.name, v, NULL, "" };
+            *mi = (compiler__sema__enums__EnumMemberInfo){ m.name, v, NULL, "", raw_text, lit_kind };
             std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_plus_assign(&members, mi);
-            next_val = (v + 1);
             __for_i = (__for_i + 1);
         }
     }
@@ -11133,7 +11233,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
             compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ v_name, v_c, 4, v_ty, false, e->is_pub, m.line, m.col, node });
             compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ kobel_concat(v_name, "__TAG"), kobel_concat(v_c, "__TAG"), 1, tag_ty, false, false, m.line, m.col, NULL });
             compiler__sema__enums__EnumMemberInfo* mi = std__mem__arena__Arena_alloc_compiler__sema__enums__EnumMemberInfo(&self->arena);
-            *mi = (compiler__sema__enums__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat("u.", m.name) };
+            *mi = (compiler__sema__enums__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat("u.", m.name), "", 0 };
             std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_plus_assign(&members, mi);
             if (v_ty->size > max_payload) {
                 max_payload = v_ty->size;
@@ -12556,7 +12656,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_const_me
                     compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__arena__Arena_enum_ctor(&self->arena, ei->c_name, ei->tag_field, mi->value, "", std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col));
                     return e_sym->type_ptr;
                 }
-                compiler__ast__node__AstNode* lit = std__mem__arena__Arena_literal(&self->arena, 0, i64_to_str(mi->value), node->line, node->col);
+                compiler__ast__node__AstNode* lit = std__mem__arena__Arena_literal(&self->arena, mi->lit_kind, mi->raw_text, node->line, node->col);
                 compiler__sema__body__pass__BodyPass_set_resolved(self, node, lit);
                 compiler__sema__types__Type* carrier = std__mem__arena__Arena_alloc_compiler__sema__types__Type(&self->arena);
                 *carrier = (compiler__sema__types__Type){ (*ei->underlying).kind, (*ei->underlying).size, (*ei->underlying).align, (compiler__sema__types__TypePayload){ .tag = 5, .u.Enum = { ei } }, NULL };
@@ -39490,7 +39590,7 @@ compiler__sema__instance__InstanceRecord* std__mem__arena__Arena_alloc_compiler_
 }
 
 compiler__sema__enums__EnumMemberInfo* std__mem__arena__Arena_alloc_compiler__sema__enums__EnumMemberInfo(std__mem__arena__Arena* self) {
-    return (compiler__sema__enums__EnumMemberInfo*)std__mem__arena__Arena_alloc_bytes(self, 48, 8);
+    return (compiler__sema__enums__EnumMemberInfo*)std__mem__arena__Arena_alloc_bytes(self, 72, 8);
 }
 
 compiler__sema__enums__EnumInfo* std__mem__arena__Arena_alloc_compiler__sema__enums__EnumInfo(std__mem__arena__Arena* self) {

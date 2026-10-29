@@ -10,6 +10,7 @@ mod compiler.sema.enums;
 
 use std.collections.list.*;
 
+use compiler.ast.expr.LiteralKind;
 use compiler.sema.types.*;
 
 // A single enum member with its resolved integer value.
@@ -21,7 +22,9 @@ pub struct EnumMemberInfo {
 	pub payload_ty: *Type = null,
 	// Field path of the payload inside the enum struct (`u.Circle`); empty when
 	// the variant carries no data.
-	pub payload_path: str = ""
+	pub payload_path: str = "",
+	pub raw_text: str = "",
+	pub lit_kind: LiteralKind = LiteralKind.INT
 }
 
 // Payload registered for every `enum` declaration.

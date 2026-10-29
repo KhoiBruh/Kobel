@@ -333,6 +333,15 @@ impl Type {
 		if (self == b) return true;
 		if (self.kind != b.kind) return false;
 
+		if (self.is_enum() || b.is_enum()) {
+			if (!self.is_enum() || !b.is_enum()) return false;
+			val ea = self.as_enum();
+			val eb = b.as_enum();
+			val n_a = if (ea.c_name.empty()) ea.name else ea.c_name;
+			val n_b = if (eb.c_name.empty()) eb.name else eb.c_name;
+			return n_a == n_b;
+		}
+
 		return when (self.kind) {
 			DataType.POINTER -> {
 				val p_a = self.as_pointer();
@@ -374,6 +383,15 @@ impl Type {
 
 	pub fn can_assign(val self, source: *Type): bool {
 		if (self.equals(source)) return true;
+
+		// Enum raw-value coercion: an enum with an underlying primitive can coerce
+		// to and from that primitive type.
+		if (self.is_enum() && !self.as_enum().is_payload) {
+			if (!source.is_enum() && self.as_enum().underlying.can_assign(source)) return true;
+		}
+		if (source.is_enum() && !source.as_enum().is_payload) {
+			if (!self.is_enum() && self.can_assign(source.as_enum().underlying)) return true;
+		}
 
 		// 1. Allow assignment between integer types (integer coercion / literal assignment)
 		if (self.is_integer() && source.is_integer()) return true;

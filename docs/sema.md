@@ -132,5 +132,6 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 
 - Đã gộp `PtrMap` và `HashMap` thành `HashMap<K: Hash, V>` dùng chung trait `Hash`. Đã loại bỏ hoàn toàn `PtrMap`.
 - **Untyped Numeric Literals & Contextual Inference**: Số nguyên và số thực không mang hậu tố (`1`, `0`, `42`) được coi là đa hình theo ngữ cảnh (`expected: *Type` truyền qua `check_expr`). Tự động suy luận kiểu phù hợp với ngữ cảnh mong đợi (khai báo biến có type annotation, gán giá trị, truyền đối số hàm/phương thức/constructor, toán tử số học hai chiều, chỉ mục `list[0]`). Mặc định fallback là `i32` hoặc `f64` khi không có ràng buộc. Codebase đã được dọn sạch các hậu tố `UZ`, `0L`,... thừa. Cú pháp hậu tố tường minh vẫn được hỗ trợ để tương thích ngược.
+- **Raw-Value Enum**: Enum không payload hỗ trợ các kiểu nguyên thuỷ `str`, `char`, `bool`, `f32`, `f64`, bên cạnh các kiểu số nguyên `i8..i64`, `u8..u64`, `usz`. Hỗ trợ gán giá trị literal tường minh (hoặc tự động dùng tên variant làm chuỗi cho `str`). Hỗ trợ thuộc tính `.value` (zero-cost), ép kiểu hai chiều qua `as`, và tự động tương thích (coercion) giữa Enum và underlying primitive type trong gán và truyền tham số.
 
 

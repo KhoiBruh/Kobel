@@ -394,6 +394,50 @@ fn test_numeric_literals(var t: &Tally) {
 	check_i(if (f_cmp == 1) 1 else 0, 1, "f64 == untyped 1", t);
 }
 
+// --- 16. raw-value enums (str, char, float) ---------------------------------
+enum HttpMethod: str {
+	GET,
+	POST = "POST",
+	CUSTOM = "custom"
+}
+
+enum AsciiCode: char {
+	TAB = '\t',
+	AT = '@'
+}
+
+enum RatioNum: f64 {
+	HALF = 0.5,
+	ONE = 1.0
+}
+
+fn takes_raw_str(s: str): str => s;
+
+fn test_raw_value_enums(var t: &Tally) {
+	val g = HttpMethod.GET;
+	val p = HttpMethod.POST;
+	val c = HttpMethod.CUSTOM;
+
+	check_str(g.value, "GET", "HttpMethod.GET.value auto name", t);
+	check_str(p.value, "POST", "HttpMethod.POST.value explicit", t);
+	check_str(c.value, "custom", "HttpMethod.CUSTOM.value", t);
+
+	// Coercion / Cast
+	val s: str = g;
+	check_str(s, "GET", "HttpMethod -> str assignment", t);
+	check_str(p as str, "POST", "HttpMethod as str", t);
+	check_str(takes_raw_str(c), "custom", "HttpMethod passed to str param", t);
+
+	// Comparison
+	check_i(if (g == "GET") 1 else 0, 1, "HttpMethod == str", t);
+	check_i(if (AsciiCode.AT == '@') 1 else 0, 1, "AsciiCode == char", t);
+	check_str("${g}", "GET", "HttpMethod in string interpolation", t);
+
+	val r = RatioNum.HALF;
+	check_str("${r.value}", "0.5", "RatioNum.HALF.value", t);
+	check_str("${r as f64}", "0.5", "RatioNum as f64", t);
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Traits, OOP & Types ===");
 
@@ -414,6 +458,7 @@ fn main(): i32 {
 	test_std_ctors(&t);
 	test_generic_target_typing(&t);
 	test_numeric_literals(&t);
+	test_raw_value_enums(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

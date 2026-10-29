@@ -218,18 +218,85 @@ impl DeclPass {
 			return;
 		}
 
-		// Resolve member values: implicit members continue from the previous value.
+		val is_int = under_type.is_integer();
+		val is_str = under_type.kind == DataType.STR;
+		val is_char = under_type.kind == DataType.CHAR;
+		val is_float = under_type.is_float();
+		val is_bool = under_type.kind == DataType.BOOL;
+
+		if (!is_int && !is_str && !is_char && !is_float && !is_bool) {
+			self.report_error(node, "Enum underlying type must be a primitive type (integer, float, char, str, or bool)");
+		}
+
 		var members = List<*EnumMemberInfo>();
-		var next_val: i64 = 0;
+		var next_int_val: i64 = 0;
 		for (m in e.members) {
-			var v: i64 = next_val;
-			if (m.value != null) v = self.enum_const_i64(m.value);
+			var v: i64 = 0;
+			var raw_text = "";
+			var lit_kind = LiteralKind.INT;
+
+			if (is_int) {
+				v = next_int_val;
+				if (m.value != null) v = self.enum_const_i64(m.value);
+				raw_text = "${v}";
+				lit_kind = LiteralKind.INT;
+				next_int_val = v + 1;
+			} else if (is_str) {
+				lit_kind = LiteralKind.STRING;
+				if (m.value != null) {
+					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.STRING) {
+						raw_text = lit.raw_text;
+					} else {
+						self.report_error(m.value, "Enum member value for 'str' enum must be a string literal");
+						raw_text = "\"${m.name}\"";
+					}
+				} else {
+					raw_text = "\"${m.name}\"";
+				}
+			} else if (is_char) {
+				lit_kind = LiteralKind.CHAR;
+				if (m.value != null) {
+					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.CHAR) {
+						raw_text = lit.raw_text;
+					} else {
+						self.report_error(m.value, "Enum member value for 'char' enum must be a character literal");
+						raw_text = "'?'";
+					}
+				} else {
+					self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
+					raw_text = "'?'";
+				}
+			} else if (is_float) {
+				lit_kind = LiteralKind.FLOAT;
+				if (m.value != null) {
+					if (m.value is LiteralExpr as lit && (lit.literal_kind == LiteralKind.FLOAT || lit.literal_kind == LiteralKind.INT)) {
+						raw_text = lit.raw_text;
+					} else {
+						self.report_error(m.value, "Enum member value for float enum must be a number literal");
+						raw_text = "0.0";
+					}
+				} else {
+					self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
+					raw_text = "0.0";
+				}
+			} else if (is_bool) {
+				lit_kind = LiteralKind.BOOL;
+				if (m.value != null) {
+					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
+						raw_text = lit.raw_text;
+					} else {
+						self.report_error(m.value, "Enum member value for 'bool' enum must be a bool literal");
+						raw_text = "false";
+					}
+				} else {
+					self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
+					raw_text = "false";
+				}
+			}
 
 			val mi = self.arena.alloc<EnumMemberInfo>();
-			*mi = EnumMemberInfo(m.name, v);
+			*mi = EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind);
 			members += mi;
-
-			next_val = v + 1;
 		}
 
 		val c_name = self.c_name_for(e.name);
@@ -296,7 +363,7 @@ impl DeclPass {
 			);
 
 			val mi = self.arena.alloc<EnumMemberInfo>();
-			*mi = EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}");
+			*mi = EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}", "", LiteralKind.INT);
 			members += mi;
 
 			if (v_ty.size > max_payload) max_payload = v_ty.size;
