@@ -491,11 +491,18 @@ impl BodyPass {
 
 	pub fn check_cast_expr(var self, node: *AstNode): *Type {
 		val cst = node.as_cast_expr();
-		self.check_expr(cst.expr);
+		val src_ty = self.check_expr(cst.expr);
 		val ty = self.resolve_type(cst.target_type);
 		// The target type node is shared between instances; keep the resolved
 		// type per instance so materialization can spell the concrete C type.
 		if (self.current_rec != null) self.set_ann_ty(cst.target_type, ty);
+		if (src_ty != null && src_ty.is_enum()) {
+			self.report_error(node, "Cannot cast enum '${src_ty.as_enum().name}' with 'as'. Use '.value' to access its underlying value");
+		}
+		if (ty != null && ty.is_enum()) {
+			self.report_error(node, "Cannot cast to enum type '${ty.as_enum().name}' with 'as'. Use constructor '${ty.as_enum().name}(value)' instead");
+		}
+
 		return ty;
 	}
 

@@ -411,6 +411,11 @@ enum RatioNum: f64 {
 	ONE = 1.0
 }
 
+enum HttpStatus: i32 {
+	OK = 200,
+	NOT_FOUND = 404
+}
+
 fn takes_raw_str(s: str): str => s;
 
 fn test_raw_value_enums(var t: &Tally) {
@@ -425,7 +430,10 @@ fn test_raw_value_enums(var t: &Tally) {
 	// Coercion / Cast
 	val s: str = g;
 	check_str(s, "GET", "HttpMethod -> str assignment", t);
-	check_str(p as str, "POST", "HttpMethod as str", t);
+	val m_ctor = HttpMethod("POST");
+	check_str(m_ctor.value, "POST", "HttpMethod constructor", t);
+	val a_ctor = AsciiCode('@');
+	check_i(if (a_ctor.value == '@') 1 else 0, 1, "AsciiCode constructor", t);
 	check_str(takes_raw_str(c), "custom", "HttpMethod passed to str param", t);
 
 	// Comparison
@@ -435,7 +443,11 @@ fn test_raw_value_enums(var t: &Tally) {
 
 	val r = RatioNum.HALF;
 	check_str("${r.value}", "0.5", "RatioNum.HALF.value", t);
-	check_str("${r as f64}", "0.5", "RatioNum as f64", t);
+	val r_ctor = RatioNum(0.5);
+	check_str("${r_ctor.value}", "0.5", "RatioNum constructor", t);
+
+	val st = HttpStatus(200);
+	check_i(st.value, 200, "HttpStatus constructor", t);
 }
 
 fn main(): i32 {

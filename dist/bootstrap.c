@@ -2445,6 +2445,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_is_expr(
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_interp_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body__pass__BodyPass_ensure_to_str(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* ty);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
+compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_enum_value_ctor(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* enum_ty, compiler__ast__node__CallExpr* call);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_size_query(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__MemberExpr* mem);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_slice_call(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__MemberExpr* mem, compiler__ast__node__CallExpr* call);
 bool compiler__sema__body__pass__BodyPass_append_defaults(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, size_t argc, compiler__ast__node__CallExpr* call);
@@ -13002,10 +13003,16 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_update_e
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__node__CastExpr* cst = compiler__ast__node__AstNode_as_cast_expr(node);
-    compiler__sema__body__pass__BodyPass_check_expr(self, cst->expr, NULL);
+    compiler__sema__types__Type* src_ty = compiler__sema__body__pass__BodyPass_check_expr(self, cst->expr, NULL);
     compiler__sema__types__Type* ty = compiler__sema__body__pass__BodyPass_resolve_type(self, cst->target_type);
     if (self->current_rec != NULL) {
         compiler__sema__body__pass__BodyPass_set_ann_ty(self, cst->target_type, ty);
+    }
+    if ((src_ty != NULL) && compiler__sema__types__Type_is_enum(src_ty)) {
+        compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Cannot cast enum '", (*compiler__sema__types__Type_as_enum(src_ty)).name), "' with 'as'. Use '.value' to access its underlying value"));
+    }
+    if ((ty != NULL) && compiler__sema__types__Type_is_enum(ty)) {
+        compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot cast to enum type '", (*compiler__sema__types__Type_as_enum(ty)).name), "' with 'as'. Use constructor '"), (*compiler__sema__types__Type_as_enum(ty)).name), "(value)' instead"));
     }
     return ty;
 }
@@ -13419,8 +13426,27 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
     if (callee_ty->kind == 18) {
         return compiler__sema__body__pass__BodyPass_check_struct_ctor(self, node, callee_ty, call, callee_is_self);
     }
-    compiler__sema__body__pass__BodyPass_report_error(self, node, "Callee is not a function or struct");
+    if (compiler__sema__types__Type_is_enum(callee_ty) && !(*compiler__sema__types__Type_as_enum(callee_ty)).is_payload) {
+        return compiler__sema__body__pass__BodyPass_check_enum_value_ctor(self, node, callee_ty, call);
+    }
+    compiler__sema__body__pass__BodyPass_report_error(self, node, "Callee is not a function, struct, or enum");
     return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
+}
+
+compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_enum_value_ctor(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* enum_ty, compiler__ast__node__CallExpr* call) {
+    compiler__sema__enums__EnumInfo* info = compiler__sema__types__Type_as_enum(enum_ty);
+    if (call->args.len != 1) {
+        compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat("Enum constructor '", info->name), "' requires exactly 1 argument"));
+        return enum_ty;
+    }
+    compiler__sema__types__Type* under = info->underlying;
+    compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_get(&call->args, 0);
+    compiler__sema__types__Type* arg_ty = compiler__sema__body__pass__BodyPass_check_expr(self, arg, under);
+    if (!compiler__sema__types__Type_can_assign(under, arg_ty)) {
+        compiler__sema__body__pass__BodyPass_report_error(self, arg, kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot initialize enum '", info->name), "' with value of type '"), compiler__sema__body__pass__BodyPass_type_display(self, arg_ty)), "' (expected '"), compiler__sema__body__pass__BodyPass_type_display(self, under)), "')"));
+    }
+    compiler__sema__body__pass__BodyPass_set_resolved(self, node, arg);
+    return enum_ty;
 }
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_size_query(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__MemberExpr* mem) {

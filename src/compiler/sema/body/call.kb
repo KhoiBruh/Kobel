@@ -105,7 +105,12 @@ impl BodyPass {
 		// 2. Struct construction: Point(1, 2)
 		if (callee_ty.kind == DataType.STRUCT) return self.check_struct_ctor(node, callee_ty, call, callee_is_self);
 
-		self.report_error(node, "Callee is not a function or struct");
+		// 3. Enum construction: HttpMethod("GET"), Status(200)
+		if (callee_ty.is_enum() && !callee_ty.as_enum().is_payload) {
+			return self.check_enum_value_ctor(node, callee_ty, call);
+		}
+
+		self.report_error(node, "Callee is not a function, struct, or enum");
 		return self.prims().t_none();
 	}
 
@@ -114,6 +119,28 @@ impl BodyPass {
 	// argument. A primitive type name has no C type of its own (`str`, `bool`,
 	// ...), so it resolves to its C size literal; otherwise the name is mangled
 	// so the backend emits `sizeof(<c_name>)`.
+	fn check_enum_value_ctor(var self, node: *AstNode, enum_ty: *Type, call: &CallExpr): *Type {
+		val info = enum_ty.as_enum();
+		if (call.args.len != 1) {
+			self.report_error(node, "Enum constructor '${info.name}' requires exactly 1 argument");
+			return enum_ty;
+		}
+
+		val under = info.underlying;
+		val arg = call.args[0];
+		val arg_ty = self.check_expr(arg, under);
+
+		if (!under.can_assign(arg_ty)) {
+			self.report_error(
+				arg,
+				"Cannot initialize enum '${info.name}' with value of type '${self.type_display(arg_ty)}' (expected '${self.type_display(under)}')"
+			);
+		}
+
+		self.set_resolved(node, arg);
+		return enum_ty;
+	}
+
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as var id) {
