@@ -294,107 +294,107 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 		fn <name>(<params>): <type>
 		```
 		Declares a function.
-	""",
+	""";
 	"val" -> """
 		```kobel
 		val <name> = <expr>
 		```
 		Declares an immutable local binding.
-	""",
+	""";
 	"var" -> """
 		```kobel
 		var <name> = <expr>
 		```
 		Declares a mutable variable.
-	""",
+	""";
 	"const" -> """
 		```kobel
 		const <name>: <type> = <expr>
 		```
 		Declares a compile-time constant.
-	""",
+	""";
 	"struct" -> """
 		```kobel
 		struct <name> { <fields> }
 		```
 		Declares a record/struct data type.
-	""",
+	""";
 	"enum" -> """
 		```kobel
 		enum <name> { <members> }
 		```
 		Declares an enumeration.
-	""",
+	""";
 	"trait" -> """
 		```kobel
 		trait <name> { <methods> }
 		```
 		Declares an interface/trait contract.
-	""",
+	""";
 	"impl" -> """
 		```kobel
 		impl <type> { <methods> }
 		```
 		Implements methods or traits for a type.
-	""",
+	""";
 	"when" -> """
 		```kobel
 		when (<expr>) { <pattern> -> <expr> }
 		```
 		Pattern matching expression or statement.
-	""",
+	""";
 	"if" -> """
 		```kobel
 		if (<cond>) <then> else <else>
 		```
 		Conditional branching.
-	""",
+	""";
 	"while" -> """
 		```kobel
 		while (<cond>) { <body> }
 		```
 		While loop.
-	""",
+	""";
 	"for" -> """
 		```kobel
 		for (<item> in <seq>) { <body> }
 		```
 		Iteration loop.
-	""",
+	""";
 	"return" -> """
 		```kobel
 		return <expr>;
 		```
 		Returns from function.
-	""",
-	"pub" -> "Visibility modifier: makes declaration accessible outside current module.",
+	""";
+	"pub" -> "Visibility modifier: makes declaration accessible outside current module.";
 	"use" -> """
 		```kobel
 		use <module>.*;
 		```
 		Imports symbols from another module.
-	""",
+	""";
 	"mod" -> """
 		```kobel
 		mod <module.path>;
 		```
 		Declares current module namespace.
-	""",
+	""";
 	"extern" -> """
 		```kobel
 		extern "libc" { ... }
 		```
 		Declares external C ABI foreign functions.
-	""",
+	""";
 	"defer" -> """
 		```kobel
 		defer <stmt>;
 		defer { <body> }
 		```
 		Defers execution of a statement or block until the surrounding scope exits.
-	""",
-	"as" -> "Type casting operator: `expr as Type`.",
-	else -> ""
+	""";
+	"as" -> "Type casting operator: `expr as Type`.";
+	else -> "";
 };
 
 // ============================================================================
@@ -624,12 +624,12 @@ impl AnalysisResult {
 			for (mod_scope in self.symtab.modules) {
 				for (sym in mod_scope.symbols) {
 					val k: i64 = when (sym.kind) {
-						SymbolKind.FN -> Completion.FUNCTION.value,
-						SymbolKind.STRUCT -> Completion.STRUCT.value,
-						SymbolKind.ENUM -> Completion.ENUM.value,
-						SymbolKind.VAR -> Completion.VARIABLE.value,
-						SymbolKind.CONST -> Completion.CONSTANT.value,
-						else -> Completion.VARIABLE.value
+						SymbolKind.FN -> Completion.FUNCTION.value;
+						SymbolKind.STRUCT -> Completion.STRUCT.value;
+						SymbolKind.ENUM -> Completion.ENUM.value;
+						SymbolKind.VAR -> Completion.VARIABLE.value;
+						SymbolKind.CONST -> Completion.CONSTANT.value;
+						else -> Completion.VARIABLE.value;
 					};
 					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
 				}

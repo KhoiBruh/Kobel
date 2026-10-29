@@ -12,10 +12,10 @@ enum Shape {
 
 fn area(s: Shape): f64 {
 	return when (s) {
-		is Shape.Circle as c -> 3.0 * c.radius * c.radius,
-		is Shape.Rect as r -> r.width * r.height,
-		is Shape.Empty -> 0.0,
-		else -> 0.0
+		is Shape.Circle as c -> 3.0 * c.radius * c.radius;
+		is Shape.Rect as r -> r.width * r.height;
+		is Shape.Empty -> 0.0;
+		else -> 0.0;
 	};
 }
 
@@ -24,15 +24,15 @@ struct Holder { pub shape: Shape }
 
 fn holder_area(h: Holder): f64 {
 	return when (h.shape) {
-		is Shape.Circle as c -> 3.0 * c.radius * c.radius,
-		else -> 0.0
+		is Shape.Circle as c -> 3.0 * c.radius * c.radius;
+		else -> 0.0;
 	};
 }
 
 fn radius_of(p: *Shape): f64 {
 	return when (p) {
-		is Shape.Circle as c -> c.radius,
-		else -> 0.0
+		is Shape.Circle as c -> c.radius;
+		else -> 0.0;
 	};
 }
 

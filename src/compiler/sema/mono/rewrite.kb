@@ -107,10 +107,10 @@ impl DeclPass {
 	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
 	// argument list rewritten element by element.
 	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
-		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node),
-		NodeKind.TYPE_POINTER -> self.rewrite_child(node.as_pointer_type().pointee),
-		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.as_array_type().element_type),
-		else -> false
+		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node);
+		NodeKind.TYPE_POINTER -> self.rewrite_child(node.as_pointer_type().pointee);
+		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.as_array_type().element_type);
+		else -> false;
 	};
 
 	fn rewrite_named_type(var self, node: *AstNode): bool {
@@ -170,8 +170,8 @@ impl DeclPass {
 				self.rewrite_generics(b.right);
 				yield true;
 			}
-			is UnaryExpr as u -> self.rewrite_child(u.operand),
-			is MemberExpr as m -> self.rewrite_child(m.object),
+			is UnaryExpr as u -> self.rewrite_child(u.operand);
+			is MemberExpr as m -> self.rewrite_child(m.object);
 			is IndexExpr as ix -> {
 				self.rewrite_generics(ix.target);
 				self.rewrite_generics(ix.index);
@@ -182,13 +182,13 @@ impl DeclPass {
 				self.rewrite_generics(a.value);
 				yield true;
 			}
-			is UpdateExpr as u -> self.rewrite_child(u.target),
+			is UpdateExpr as u -> self.rewrite_child(u.target);
 			is CastExpr as cst -> {
 				self.rewrite_generics(cst.expr);
 				self.rewrite_generics(cst.target_type);
 				yield true;
 			}
-			is GroupExpr as g -> self.rewrite_child(g.expr),
+			is GroupExpr as g -> self.rewrite_child(g.expr);
 			is IfExpr as ie -> {
 				self.rewrite_generics(ie.condition);
 				self.rewrite_generics(ie.then_branch);
@@ -227,7 +227,7 @@ impl DeclPass {
 				for (s in b.statements) self.rewrite_generics(s);
 				yield true;
 			}
-			is ExprStmt as e -> self.rewrite_child(e.expr),
+			is ExprStmt as e -> self.rewrite_child(e.expr);
 			is VarDeclStmt as v -> {
 				if (v.type_annotation != null && v.initializer != null) {
 					self.propagate_target_type(v.type_annotation, v.initializer);
@@ -261,8 +261,8 @@ impl DeclPass {
 				self.rewrite_generics(r.value);
 				yield true;
 			}
-			is YieldStmt as y -> self.rewrite_child(y.value),
-			is DeferStmt as d -> self.rewrite_child(d.body),
+			is YieldStmt as y -> self.rewrite_child(y.value);
+			is DeferStmt as d -> self.rewrite_child(d.body);
 			is WhenStmt as w -> {
 				self.rewrite_generics(w.condition);
 				for (arm in w.arms) {

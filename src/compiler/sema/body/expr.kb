@@ -262,12 +262,12 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 
 		if (lt.kind == DataType.STRUCT) {
 			val op_name = when (bin.op) {
-				TokenType.PLUS -> "plus",
-				TokenType.MINUS -> "minus",
-				TokenType.STAR -> "mul",
-				TokenType.SLASH -> "div",
-				TokenType.PERCENT -> "rem",
-				else -> ""
+				TokenType.PLUS -> "plus";
+				TokenType.MINUS -> "minus";
+				TokenType.STAR -> "mul";
+				TokenType.SLASH -> "div";
+				TokenType.PERCENT -> "rem";
+				else -> "";
 			};
 			if (!op_name.empty()) {
 				val s_info = lt.as_struct();
@@ -363,9 +363,9 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 
 		if (op_ty.kind == DataType.STRUCT) {
 			val op_name = when (un.op) {
-				TokenType.MINUS -> "negate",
-				TokenType.BANG -> "not",
-				else -> ""
+				TokenType.MINUS -> "negate";
+				TokenType.BANG -> "not";
+				else -> "";
 			};
 			if (!op_name.empty()) {
 				val s_info = op_ty.as_struct();

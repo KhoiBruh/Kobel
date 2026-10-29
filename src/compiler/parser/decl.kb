@@ -28,8 +28,8 @@ impl Parser {
 		"get", "set",
 		"equals", "compare",
 		"negate", "not",
-		"contains" -> true,
-		else -> false
+		"contains" -> true;
+		else -> false;
 	};
 
 	pub fn parse_generic_params(var self): List<GenericParam> {

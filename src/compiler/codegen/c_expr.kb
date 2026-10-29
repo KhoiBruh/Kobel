@@ -178,10 +178,10 @@ impl CCodeGen {
 		val opnd = self.gen_expr(un.operand);
 
 		return when (un.op) {
-			TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}",
-			TokenType.BANG -> "!${opnd}",
-			TokenType.STAR -> "*${opnd}",
-			TokenType.AMPERSAND -> "&${opnd}",
+			TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}";
+			TokenType.BANG -> "!${opnd}";
+			TokenType.STAR -> "*${opnd}";
+			TokenType.AMPERSAND -> "&${opnd}";
 			else -> opnd;
 		};
 	}
@@ -220,9 +220,9 @@ impl CCodeGen {
 			if (mem.member == "size") {
 				val obj_name = self.gen_expr(mem.object);
 				val c_type = when (obj_name) {
-					"str" -> "const char*",
-					"usz", "isz" -> "size_t",
-					else -> obj_name
+					"str" -> "const char*";
+					"usz", "isz" -> "size_t";
+					else -> obj_name;
 				};
 				return "sizeof(${c_type})";
 			}
@@ -257,12 +257,12 @@ impl CCodeGen {
 	// Assignments lower to the matching C compound-assignment operator.
 	fn gen_assign_expr(var self, asgn: *AssignExpr): str {
 		val op_str = when (asgn.op) {
-			TokenType.PLUS_EQUAL -> "+=",
-			TokenType.MINUS_EQUAL -> "-=",
-			TokenType.STAR_EQUAL -> "*=",
-			TokenType.SLASH_EQUAL -> "/=",
-			TokenType.PERCENT_EQUAL -> "%=",
-			else -> "="
+			TokenType.PLUS_EQUAL -> "+=";
+			TokenType.MINUS_EQUAL -> "-=";
+			TokenType.STAR_EQUAL -> "*=";
+			TokenType.SLASH_EQUAL -> "/=";
+			TokenType.PERCENT_EQUAL -> "%=";
+			else -> "=";
 		};
 		return "${self.gen_expr(asgn.target)} ${op_str} ${self.gen_expr(asgn.value)}";
 	}

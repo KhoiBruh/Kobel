@@ -50,10 +50,10 @@ impl GenTemplate {
 	// The declared generic parameters of a template (empty for an impl template,
 	// whose parameters live on the struct it belongs to).
 	pub fn params(val self) => when (self.node.kind) {
-		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params,
-		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params,
-		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params,
-		else -> List<GenericParam>()
+		NodeKind.DECL_STRUCT -> self.node.as_struct_decl().type_params;
+		NodeKind.DECL_FN -> self.node.as_fn_decl().type_params;
+		NodeKind.DECL_IMPL -> self.node.as_impl_decl().type_params;
+		else -> List<GenericParam>();
 	};
 }
 

@@ -19561,10 +19561,17 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_prefix(comp
                 }
             }
             compiler__parser__parser__Parser_consume(self, 28, "Expected '->' after when arm pattern");
-            compiler__ast__node__AstNode* body = (compiler__parser__parser__Parser_check(self, 17) ? compiler__parser__parser__Parser_parse_arm_block(self) : compiler__parser__parser__Parser_parse_expression(self, 0));
+            bool is_block = compiler__parser__parser__Parser_check(self, 17);
+            compiler__ast__node__AstNode* body = (is_block ? compiler__parser__parser__Parser_parse_arm_block(self) : compiler__parser__parser__Parser_parse_expression(self, 0));
             std__collections__list__List_compiler__ast__expr__WhenArm_plus_assign(&arms, (compiler__ast__expr__WhenArm){ patterns, is_else, body, arm_line, arm_col });
-            compiler__parser__parser__Parser_match_token(self, 2);
-            compiler__parser__parser__Parser_match_token(self, 0);
+            if (compiler__parser__parser__Parser_check(self, 2)) {
+                compiler__parser__parser__Parser_error(self, compiler__parser__parser__Parser_peek(self), "Expected ';' after when arm, not ',' (commas are only allowed for grouping conditions before '->')");
+                compiler__parser__parser__Parser_advance(self);
+            } else if (is_block) {
+                compiler__parser__parser__Parser_match_token(self, 0);
+            } else {
+                compiler__parser__parser__Parser_consume(self, 0, "Expected ';' after when arm");
+            }
         }
         compiler__parser__parser__Parser_consume(self, 18, "Expected '}' after when arms");
         return compiler__parser__parser__Parser_when_expr(self, condition, arms, line, col);
@@ -20129,7 +20136,10 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_when_stmt(c
         compiler__parser__parser__Parser_consume(self, 28, "Expected '->' after when arm pattern");
         compiler__ast__node__AstNode* body = compiler__parser__parser__Parser_parse_statement(self);
         std__collections__list__List_compiler__ast__stmt__WhenStmtArm_plus_assign(&arms, (compiler__ast__stmt__WhenStmtArm){ patterns, is_else, body, arm_line, arm_col });
-        compiler__parser__parser__Parser_match_token(self, 2);
+        if (compiler__parser__parser__Parser_check(self, 2)) {
+            compiler__parser__parser__Parser_error(self, compiler__parser__parser__Parser_peek(self), "Expected ';' after when arm, not ',' (commas are only allowed for grouping conditions before '->')");
+            compiler__parser__parser__Parser_advance(self);
+        }
         compiler__parser__parser__Parser_match_token(self, 0);
     }
     compiler__parser__parser__Parser_consume(self, 18, "Expected '}' after when statement arms");
@@ -22022,9 +22032,11 @@ void fmt__formatter__Formatter_format_expr(fmt__formatter__Formatter* self, comp
                     }
                     fmt__buffer__FormatBuffer_plus_assign_2(&self->buf, " -> ");
                 }
-                fmt__formatter__Formatter_format_expr(self, arm.body);
-                if ((i + 1) < we->arms.len) {
-                    fmt__buffer__FormatBuffer_plus_assign_2(&self->buf, ",");
+                if ((arm.body != NULL && arm.body->kind == compiler__ast__stmt__BlockStmt__TAG)) {
+                    fmt__formatter__Formatter_format_stmt(self, arm.body);
+                } else {
+                    fmt__formatter__Formatter_format_expr(self, arm.body);
+                    fmt__buffer__FormatBuffer_plus_assign_2(&self->buf, ";");
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);

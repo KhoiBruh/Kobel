@@ -122,7 +122,7 @@ pub fn c_format_int_literal(raw: str): str {
 		"UL" -> "${body}ULL";
 		"UB" -> "((uint8_t)${body})";
 		"US" -> "((uint16_t)${body})";
-		else -> body
+		else -> body;
 	};
 }
 
@@ -139,7 +139,7 @@ pub fn c_int_literal_c_type(raw: str) => when (raw.num_suffix()) {
 	"UL" -> "uint64_t";
 	"US" -> "uint16_t";
 	"UB" -> "uint8_t";
-	else -> "int32_t"
+	else -> "int32_t";
 };
 
 pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else "double";
@@ -160,6 +160,6 @@ pub fn c_format_float_literal(raw: str): str {
 	return when {
 		text.ends_with("F") -> "${text.slice(0, len - 1)}.0f";
 		text.ends_with("D") -> "${text.slice(0, len - 1)}.0";
-		else -> "${text}.0"
+		else -> "${text}.0";
 	};
 }

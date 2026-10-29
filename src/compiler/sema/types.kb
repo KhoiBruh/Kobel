@@ -183,56 +183,56 @@ impl Type {
 	pub fn as_pointer(val self): *PointerType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Pointer as p -> p.inner,
-			else -> null
+			is TypePayload.Pointer as p -> p.inner;
+			else -> null;
 		};
 	}
 
 	pub fn as_array(val self): *ArrayType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Array as p -> p.inner,
-			else -> null
+			is TypePayload.Array as p -> p.inner;
+			else -> null;
 		};
 	}
 
 	pub fn as_struct(val self): *StructType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Struct as p -> p.inner,
-			else -> null
+			is TypePayload.Struct as p -> p.inner;
+			else -> null;
 		};
 	}
 
 	pub fn as_struct_mut(val self): &StructType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Struct as p -> p.inner as &StructType,
-			else -> null
+			is TypePayload.Struct as p -> p.inner as &StructType;
+			else -> null;
 		};
 	}
 
 	pub fn as_fn(val self): *FnType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Fn as p -> p.inner,
-			else -> null
+			is TypePayload.Fn as p -> p.inner;
+			else -> null;
 		};
 	}
 
 	pub fn as_fn_mut(val self): &FnType {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Fn as p -> p.inner as &FnType,
-			else -> null
+			is TypePayload.Fn as p -> p.inner as &FnType;
+			else -> null;
 		};
 	}
 
 	pub fn as_enum(val self): *EnumInfo {
 		val data = self.data;
 		return when (data) {
-			is TypePayload.Enum as p -> p.inner,
-			else -> null
+			is TypePayload.Enum as p -> p.inner;
+			else -> null;
 		};
 	}
 

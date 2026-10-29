@@ -120,22 +120,22 @@ pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
 }
 
 pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
-	DataType.BOOL -> "bool",
-	DataType.CHAR -> "char",
-	DataType.I8 -> "i8",
-	DataType.I16 -> "i16",
-	DataType.I32 -> "i32",
-	DataType.I64 -> "i64",
-	DataType.ISZ -> "isz",
-	DataType.U8 -> "u8",
-	DataType.U16 -> "u16",
-	DataType.U32 -> "u32",
-	DataType.U64 -> "u64",
-	DataType.USZ -> "usz",
-	DataType.F32 -> "f32",
-	DataType.F64 -> "f64",
-	DataType.STR -> "str",
-	else -> "none"
+	DataType.BOOL -> "bool";
+	DataType.CHAR -> "char";
+	DataType.I8 -> "i8";
+	DataType.I16 -> "i16";
+	DataType.I32 -> "i32";
+	DataType.I64 -> "i64";
+	DataType.ISZ -> "isz";
+	DataType.U8 -> "u8";
+	DataType.U16 -> "u16";
+	DataType.U32 -> "u32";
+	DataType.U64 -> "u64";
+	DataType.USZ -> "usz";
+	DataType.F32 -> "f32";
+	DataType.F64 -> "f64";
+	DataType.STR -> "str";
+	else -> "none";
 };
 
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.

@@ -360,12 +360,12 @@ impl BodyPass {
 			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
 			if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
 				val op_name = when (asgn.op) {
-					TokenType.PLUS_EQUAL -> "plus_assign",
-					TokenType.MINUS_EQUAL -> "minus_assign",
-					TokenType.STAR_EQUAL -> "mul_assign",
-					TokenType.SLASH_EQUAL -> "div_assign",
-					TokenType.PERCENT_EQUAL -> "rem_assign",
-					else -> ""
+					TokenType.PLUS_EQUAL -> "plus_assign";
+					TokenType.MINUS_EQUAL -> "minus_assign";
+					TokenType.STAR_EQUAL -> "mul_assign";
+					TokenType.SLASH_EQUAL -> "div_assign";
+					TokenType.PERCENT_EQUAL -> "rem_assign";
+					else -> "";
 				};
 				if (!op_name.empty()) {
 					val s_info = t_struct_ty.as_struct();
@@ -403,12 +403,12 @@ impl BodyPass {
 	// `set` method, so the caller keeps its generic path.
 	fn lower_index_assign(var self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type {
 		val bin_op = when (asgn.op) {
-			TokenType.PLUS_EQUAL -> TokenType.PLUS,
-			TokenType.MINUS_EQUAL -> TokenType.MINUS,
-			TokenType.STAR_EQUAL -> TokenType.STAR,
-			TokenType.SLASH_EQUAL -> TokenType.SLASH,
-			TokenType.PERCENT_EQUAL -> TokenType.PERCENT,
-			else -> TokenType.EQUAL
+			TokenType.PLUS_EQUAL -> TokenType.PLUS;
+			TokenType.MINUS_EQUAL -> TokenType.MINUS;
+			TokenType.STAR_EQUAL -> TokenType.STAR;
+			TokenType.SLASH_EQUAL -> TokenType.SLASH;
+			TokenType.PERCENT_EQUAL -> TokenType.PERCENT;
+			else -> TokenType.EQUAL;
 		};
 		return self.lower_index_write(node, idx, bin_op, asgn.value, "assignment");
 	}

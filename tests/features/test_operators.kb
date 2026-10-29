@@ -76,10 +76,10 @@ impl IntBuffer {
 	pub fn new(a: i32, b: i32, c: i32) => Self(a, b, c);
 
 	pub op get(val self, idx: usz): i32 => when (idx) {
-		0 -> self.a,
-		1 -> self.b,
-		2 -> self.c,
-		else -> 0
+		0 -> self.a;
+		1 -> self.b;
+		2 -> self.c;
+		else -> 0;
 	};
 
 	pub op set(var self, idx: usz, val_in: i32) {

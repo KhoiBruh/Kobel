@@ -371,7 +371,7 @@ fn test_null_safety(): bool {
 			val unwrapped = p ?: yield 404;
 			yield *unwrapped;
 		}
-		else -> 0
+		else -> 0;
 	};
 	if (when_test1 != 404) return false;
 
@@ -381,7 +381,7 @@ fn test_null_safety(): bool {
 			val unwrapped = p ?: yield 404;
 			yield *unwrapped;
 		}
-		else -> 0
+		else -> 0;
 	};
 	if (when_test2 != 10) return false;
 

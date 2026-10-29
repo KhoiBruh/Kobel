@@ -21,34 +21,34 @@ use compiler.parser.decl.*;
 // ============================================================================
 
 pub fn op_to_str(op: TokenType): str => when (op) {
-	TokenType.PLUS -> "+",
-	TokenType.MINUS -> "-",
-	TokenType.STAR -> "*",
-	TokenType.SLASH -> "/",
-	TokenType.PERCENT -> "%",
-	TokenType.EQUAL_EQUAL -> "==",
-	TokenType.BANG_EQUAL -> "!=",
-	TokenType.LESS -> "<",
-	TokenType.LESS_EQUAL -> "<=",
-	TokenType.GREATER -> ">",
-	TokenType.GREATER_EQUAL -> ">=",
-	TokenType.AND_AND -> "&&",
-	TokenType.OR_OR -> "||",
-	TokenType.EQUAL -> "=",
-	TokenType.PLUS_EQUAL -> "+=",
-	TokenType.MINUS_EQUAL -> "-=",
-	TokenType.STAR_EQUAL -> "*=",
-	TokenType.SLASH_EQUAL -> "/=",
-	TokenType.PERCENT_EQUAL -> "%=",
-	TokenType.QUESTION_COLON -> "?:",
-	TokenType.QUESTION_DOT -> "?.",
-	TokenType.DOT_DOT -> "..",
-	TokenType.BANG -> "!",
-	TokenType.PLUS_PLUS -> "++",
-	TokenType.MINUS_MINUS -> "--",
-	TokenType.AMPERSAND -> "&",
-	TokenType.QUESTION -> "?",
-	else -> ""
+	TokenType.PLUS -> "+";
+	TokenType.MINUS -> "-";
+	TokenType.STAR -> "*";
+	TokenType.SLASH -> "/";
+	TokenType.PERCENT -> "%";
+	TokenType.EQUAL_EQUAL -> "==";
+	TokenType.BANG_EQUAL -> "!=";
+	TokenType.LESS -> "<";
+	TokenType.LESS_EQUAL -> "<=";
+	TokenType.GREATER -> ">";
+	TokenType.GREATER_EQUAL -> ">=";
+	TokenType.AND_AND -> "&&";
+	TokenType.OR_OR -> "||";
+	TokenType.EQUAL -> "=";
+	TokenType.PLUS_EQUAL -> "+=";
+	TokenType.MINUS_EQUAL -> "-=";
+	TokenType.STAR_EQUAL -> "*=";
+	TokenType.SLASH_EQUAL -> "/=";
+	TokenType.PERCENT_EQUAL -> "%=";
+	TokenType.QUESTION_COLON -> "?:";
+	TokenType.QUESTION_DOT -> "?.";
+	TokenType.DOT_DOT -> "..";
+	TokenType.BANG -> "!";
+	TokenType.PLUS_PLUS -> "++";
+	TokenType.MINUS_MINUS -> "--";
+	TokenType.AMPERSAND -> "&";
+	TokenType.QUESTION -> "?";
+	else -> "";
 };
 
 // ============================================================================
@@ -211,8 +211,12 @@ impl Formatter {
 						}
 						self.buf += " -> ";
 					}
-					self.format_expr(arm.body);
-					if (i + 1 < we.arms.len) self.buf += ",";
+					if (arm.body is BlockStmt) {
+						self.format_stmt(arm.body);
+					} else {
+						self.format_expr(arm.body);
+						self.buf += ";";
+					}
 				}
 				self.buf.dedent();
 				self.buf.newline();
