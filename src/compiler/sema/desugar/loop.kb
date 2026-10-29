@@ -107,7 +107,6 @@ impl Arena {
 				if (bp != null) bp.set_resolved(node, block);
 				else node.resolved_node = block;
 			}
-			else -> {}
 		}
 	}
 

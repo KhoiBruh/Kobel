@@ -79,7 +79,6 @@ impl BodyPass {
 			}
 			is GroupExpr -> self.coerce_to_list(node.expr, list_ty);
 			is WhenExpr -> for (arm in node.arms) self.coerce_to_list(arm.body, list_ty);
-			else -> {}
 		}
 	}
 

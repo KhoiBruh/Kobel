@@ -479,7 +479,6 @@ impl BodyPass {
 					self.report_error(node, "Break or continue statement outside of loop");
 			}
 			NodeKind.STMT_WHEN -> self.check_when_stmt(node);
-			else -> {}
 		}
 	}
 

@@ -382,7 +382,6 @@ impl Parser {
 				val right = self.parse_expression(Precedence.NONE);
 				return self.compound_assign(op_tok.type, left, right, line, col);
 			}
-			else -> {}
 		}
 
 		return when {

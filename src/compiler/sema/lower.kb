@@ -58,7 +58,6 @@ impl BodyPass {
 					}
 				}
 				is ConstDecl as var c -> c.value = self.lower_expr(c.value);
-				else -> {}
 			}
 		}
 	}
@@ -105,7 +104,6 @@ impl BodyPass {
 			}
 			is YieldStmt as var ys -> ys.value = self.lower_expr(ys.value);
 			is DeferStmt as var ds -> ds.body = self.lower_stmt(ds.body);
-			else -> {}
 		}
 		return node;
 	}
@@ -185,7 +183,6 @@ impl BodyPass {
 			is EnumCtorExpr as var ec -> {
 				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
 			}
-			else -> {}
 		}
 		return out;
 	}

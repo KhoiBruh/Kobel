@@ -87,7 +87,6 @@ impl IntBuffer {
 			0 -> self.a = val_in;
 			1 -> self.b = val_in;
 			2 -> self.c = val_in;
-			else -> {}
 		}
 	}
 

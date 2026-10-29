@@ -42,7 +42,6 @@ impl GenTemplate {
 			is StructDecl -> for (tp in node.type_params) names += tp.name;
 			is FnDecl -> for (p in node.type_params) names += p.name;
 			is ImplDecl -> for (p in node.type_params) names += p.name;
-			else -> {}
 		}
 		return names;
 	}

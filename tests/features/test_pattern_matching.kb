@@ -151,7 +151,6 @@ fn mutate_when_var(node: *Node) {
 			lit.value = 100;
 			add_ten(lit);
 		}
-		else -> {}
 	}
 }
 
@@ -161,7 +160,6 @@ fn mutate_when_ref(node: *Node) {
 			lit.value = 200;
 			add_ten(lit);
 		}
-		else -> {}
 	}
 }
 

@@ -255,7 +255,6 @@ impl Parser {
 				}
 				TokenType.SEMI_COLON, TokenType.OPEN_BRACE,
 				TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;
-				else -> {}
 			}
 		}
 

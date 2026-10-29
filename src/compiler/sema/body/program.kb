@@ -149,7 +149,6 @@ impl BodyPass {
 					self.report_error(fn_node, "Expression body type does not match function return type");
 				}
 			}
-			else -> {}
 		}
 
 		if (had_env) {

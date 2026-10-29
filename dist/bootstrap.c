@@ -7818,7 +7818,6 @@ std__collections__list__List_str compiler__sema__template__GenTemplate_param_nam
             std__collections__list__List_str_plus_assign(&names, p.name);
             __for_i = (__for_i + 1);
         }
-    } else {
     }
     return names;
 }
@@ -8394,7 +8393,6 @@ void compiler__sema__decl__pass__DeclPass_register_template(compiler__sema__decl
                 }
             }
         }
-    } else {
     }
 }
 
@@ -9249,7 +9247,6 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
                         if (f->params.len != 1) {
                             compiler__sema__decl__pass__DeclPass_report_error(self, m_node, kobel_concat(kobel_concat("Unary operator '", f->name), "' cannot take parameters besides 'self'"));
                         }
-                    } else {
                     }
                 }
             }
@@ -9314,7 +9311,6 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_ret
                     } else if (lit->literal_kind == 3) {
                         f->return_type = std__mem__arena__Arena_named_type(&self->arena, "char", std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), (*f->body).line, (*f->body).col);
                         return compiler__sema__prims__PrimTypes_t_char(compiler__sema__decl__pass__DeclPass_prims(self));
-                    } else {
                     }
                 }
             }
@@ -10527,7 +10523,6 @@ void compiler__sema__decl__pass__DeclPass_propagate_target_type(compiler__sema__
                         __for_i = (__for_i + 1);
                     }
                 }
-            } else {
             }
         }
     }
@@ -11370,7 +11365,6 @@ void compiler__sema__decl__pass__DeclPass_collect_declaration(compiler__sema__de
     } else if (node->kind == 35) {
     } else if (node->kind == 39) {
         compiler__sema__decl__pass__DeclPass_collect_extern_block(self, node);
-    } else {
     }
 }
 
@@ -11403,7 +11397,6 @@ void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__
                 if (u_wild->is_wildcard) {
                     compiler__sema__decl__pass__DeclPass_collect_use(self, d_use);
                 }
-            } else {
             }
             __for_i = (__for_i + 1);
         }
@@ -11423,7 +11416,6 @@ void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__
                         compiler__sema__decl__pass__DeclPass_declare_struct_shell(self, d_half, s_half);
                     }
                 }
-            } else {
             }
             __for_i = (__for_i + 1);
         }
@@ -11443,7 +11435,6 @@ void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__
                         compiler__sema__decl__pass__DeclPass_trait_record_impl(self, t, im->struct_name);
                     }
                 }
-            } else {
             }
             __for_i = (__for_i + 1);
         }
@@ -11468,7 +11459,6 @@ void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__
                 compiler__sema__decl__pass__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 36) {
                 compiler__sema__decl__pass__DeclPass_collect_impl(self, d1);
-            } else {
             }
             __for_i = (__for_i + 1);
         }
@@ -11624,7 +11614,6 @@ void std__mem__arena__Arena_for_inject_step(std__mem__arena__Arena* self, compil
         } else {
             node->resolved_node = block;
         }
-    } else {
     }
 }
 
@@ -11831,7 +11820,6 @@ void compiler__sema__body__pass__BodyPass_coerce_to_list(compiler__sema__body__p
             compiler__sema__body__pass__BodyPass_coerce_to_list(self, arm.body, list_ty);
             __for_i = (__for_i + 1);
         }
-    } else {
     }
 }
 
@@ -14247,7 +14235,6 @@ void compiler__sema__body__pass__BodyPass_check_fn_body(compiler__sema__body__pa
         } else if (!compiler__sema__types__Type_can_assign(self->current_fn_return_type, body_ty)) {
             compiler__sema__body__pass__BodyPass_report_error(self, fn_node, "Expression body type does not match function return type");
         }
-    } else {
     }
     if (had_env) {
         self->decl.subst_names = saved_names;
@@ -15058,7 +15045,6 @@ void compiler__sema__body__pass__BodyPass_check_statement(compiler__sema__body__
         }
     } else if (node->kind == 23) {
         compiler__sema__body__pass__BodyPass_check_when_stmt(self, node);
-    } else {
     }
 }
 
@@ -15140,7 +15126,6 @@ void compiler__sema__body__pass__BodyPass_lower_program(compiler__sema__body__pa
             } else if (decl != NULL && decl->kind == compiler__ast__decl__ConstDecl__TAG) {
                 compiler__ast__node__ConstDecl* c = (decl)->data.u.ConstDecl.inner;
                 c->value = compiler__sema__body__pass__BodyPass_lower_expr(self, c->value);
-            } else {
             }
             __for_i = (__for_i + 1);
         }
@@ -15275,7 +15260,6 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_stmt(co
     } else if (node != NULL && node->kind == compiler__ast__stmt__DeferStmt__TAG) {
         compiler__ast__node__DeferStmt* ds = (node)->data.u.DeferStmt.inner;
         ds->body = compiler__sema__body__pass__BodyPass_lower_stmt(self, ds->body);
-    } else {
     }
     return node;
 }
@@ -15548,7 +15532,6 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_expr(co
                 }
             }
         }
-    } else {
     }
     return out;
 }
@@ -19146,7 +19129,6 @@ bool compiler__parser__parser__Parser_is_generic_args_ahead(compiler__parser__pa
                 }
             } else if (tok.type == 0 || tok.type == 17 || tok.type == 18 || tok.type == 71) {
                 return false;
-            } else {
             }
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
@@ -19595,7 +19577,6 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
         compiler__lexer__token__Token op_tok = compiler__parser__parser__Parser_advance(self);
         compiler__ast__node__AstNode* right = compiler__parser__parser__Parser_parse_expression(self, 0);
         return compiler__parser__parser__Parser_compound_assign(self, op_tok.type, left, right, line, col);
-    } else {
     }
     if (compiler__parser__parser__Parser_match_token(self, 37)) {
         compiler__ast__node__AstNode* right;
@@ -22758,7 +22739,6 @@ void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, c
             }
         }
         fmt__comments__CommentTable_emit_remaining(&self->comments, &self->buf);
-    } else {
     }
 }
 
@@ -24025,7 +24005,6 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
                 compiler__ast__node__ConstDecl* decl = (compiler__ast__node__ConstDecl*)(((compiler__ast__node__AstNode*)__orig_decl)->data.u.ConstDecl.inner);
                 sym_name = decl->name;
                 sym_kind = 14;
-            } else {
             }
             if (kobel_slen(sym_name) > 0) {
                 lsp__json__JsonValue* item = lsp__json__json_obj();

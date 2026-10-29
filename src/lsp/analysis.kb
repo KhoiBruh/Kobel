@@ -682,7 +682,6 @@ pub fn document_symbols(source: str): *JsonValue {
 				sym_name = decl.name;
 				sym_kind = DocSymbol.CONSTANT;
 			}
-			else -> {}
 		}
 
 		if (sym_name.len > 0) {

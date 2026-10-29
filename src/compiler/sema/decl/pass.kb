@@ -286,7 +286,6 @@ impl DeclPass {
 								self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
 							}
 						}
-						else -> {}
 					}
 				}
 			}
@@ -362,7 +361,6 @@ impl DeclPass {
 						f.return_type = self.arena.named_type("char", List<*AstNode>(), f.body.line, f.body.col);
 						return self.prims().t_char();
 					}
-					else -> {}
 				}
 			}
 

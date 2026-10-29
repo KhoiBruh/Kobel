@@ -468,7 +468,6 @@ impl DeclPass {
 			NodeKind.DECL_IMPL -> self.collect_impl(node);
 			NodeKind.DECL_TRAIT -> {} // already recorded in Pass 0
 			NodeKind.DECL_EXTERN_BLOCK -> self.collect_extern_block(node);
-			else -> {}
 		}
 	}
 
@@ -496,7 +495,6 @@ impl DeclPass {
 					val u_wild = d_use.as_use_decl();
 					if (u_wild.is_wildcard) self.collect_use(d_use);
 				}
-				else -> {}
 			}
 		}
 
@@ -515,7 +513,6 @@ impl DeclPass {
 						if (existing_half == null) self.declare_struct_shell(d_half, s_half);
 					}
 				}
-				else -> {}
 			}
 		}
 
@@ -531,7 +528,6 @@ impl DeclPass {
 						if (t != null) self.trait_record_impl(t, im.struct_name);
 					}
 				}
-				else -> {}
 			}
 		}
 
@@ -546,7 +542,6 @@ impl DeclPass {
 			when (d1.kind) {
 				NodeKind.DECL_MODULE -> self.collect_module(d1);
 				NodeKind.DECL_IMPL -> self.collect_impl(d1);
-				else -> {}
 			}
 		}
 	

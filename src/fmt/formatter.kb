@@ -675,7 +675,6 @@ impl Formatter {
 
 				self.comments.emit_remaining(&self.buf);
 			}
-			else -> {}
 		}
 	}
 
