@@ -31,6 +31,30 @@ use lsp.document.*;
 // LSP Diagnostic Model
 // ============================================================================
 
+pub enum DocSymbol: i64 {
+	NONE = 0,
+	FILE = 1,
+	MODULE = 2,
+	CLASS = 5,
+	METHOD = 6,
+	ENUM = 10,
+	INTERFACE = 11,
+	FUNCTION = 12,
+	VARIABLE = 13,
+	CONSTANT = 14,
+	STRUCT = 23
+}
+
+pub enum Completion: i64 {
+	FUNCTION = 3,
+	VARIABLE = 6,
+	TYPE = 7,
+	ENUM = 13,
+	KEYWORD = 14,
+	CONSTANT = 21,
+	STRUCT = 22
+}
+
 pub struct LspDiagnostic {
 	pub line: usz,
 	pub col: usz,
@@ -600,12 +624,12 @@ impl AnalysisResult {
 			for (mod_scope in self.symtab.modules) {
 				for (sym in mod_scope.symbols) {
 					val k: i64 = when (sym.kind) {
-						SymbolKind.FN -> 3, // Function
-						SymbolKind.STRUCT -> 22, // Struct
-						SymbolKind.ENUM -> 13, // Enum
-						SymbolKind.VAR -> 6, // Variable
-						SymbolKind.CONST -> 21, // Constant
-						else -> 6
+						SymbolKind.FN -> Completion.FUNCTION.value,
+						SymbolKind.STRUCT -> Completion.STRUCT.value,
+						SymbolKind.ENUM -> Completion.ENUM.value,
+						SymbolKind.VAR -> Completion.VARIABLE.value,
+						SymbolKind.CONST -> Completion.CONSTANT.value,
+						else -> Completion.VARIABLE.value
 					};
 					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
 				}
@@ -631,32 +655,32 @@ pub fn document_symbols(source: str): *JsonValue {
 	val prog = prog_node.as_program();
 	for (decl in prog) {
 		var sym_name = "";
-		var sym_kind: i64 = 0; // LSP SymbolKind
+		var sym_kind = DocSymbol.NONE;
 
 		when (decl) {
 			is FnDecl -> {
 				sym_name = decl.name;
-				sym_kind = 12; // Function
+				sym_kind = DocSymbol.FUNCTION;
 			}
 			is StructDecl -> {
 				sym_name = decl.name;
-				sym_kind = 23; // Struct
+				sym_kind = DocSymbol.STRUCT;
 			}
 			is EnumDecl -> {
 				sym_name = decl.name;
-				sym_kind = 10; // Enum
+				sym_kind = DocSymbol.ENUM;
 			}
 			is TraitDecl -> {
 				sym_name = decl.name;
-				sym_kind = 11; // Interface
+				sym_kind = DocSymbol.INTERFACE;
 			}
 			is ImplDecl -> {
 				sym_name = "impl ${decl.struct_name}";
-				sym_kind = 5; // Class
+				sym_kind = DocSymbol.CLASS;
 			}
 			is ConstDecl -> {
 				sym_name = decl.name;
-				sym_kind = 14; // Constant
+				sym_kind = DocSymbol.CONSTANT;
 			}
 			else -> {}
 		}
@@ -664,7 +688,7 @@ pub fn document_symbols(source: str): *JsonValue {
 		if (sym_name.len > 0) {
 			val item = json_obj();
 			item["name"] = json_str(sym_name);
-			item["kind"] = json_num(sym_kind);
+			item["kind"] = json_num(sym_kind.value);
 
 			val l0 = if (decl.line > 0) decl.line - 1 else 0;
 			val c0 = if (decl.col > 0) decl.col - 1 else 0;

@@ -15,6 +15,22 @@ use lsp.analysis.*;
 // Diagnostics Publisher Helper
 // ============================================================================
 
+pub enum Method: str {
+	INITIALIZE = "initialize",
+	INITIALIZED = "initialized",
+	SHUTDOWN = "shutdown",
+	EXIT = "exit",
+	DID_OPEN = "textDocument/didOpen",
+	DID_CHANGE = "textDocument/didChange",
+	DID_CLOSE = "textDocument/didClose",
+	HOVER = "textDocument/hover",
+	DEFINITION = "textDocument/definition",
+	FORMATTING = "textDocument/formatting",
+	DOCUMENT_SYMBOL = "textDocument/documentSymbol",
+	COMPLETION = "textDocument/completion",
+	PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
+}
+
 fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	val p = uri_to_path(uri);
 	val analysis = AnalysisResult(p, text, workspace_root);
@@ -25,7 +41,7 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	val notif_params = json_obj();
 	notif_params["uri"] = json_str(uri);
 	notif_params["diagnostics"] = diags_arr;
-	send_notification("textDocument/publishDiagnostics", notif_params);
+	send_notification(Method.PUBLISH_DIAGNOSTICS.value, notif_params);
 }
 
 // ============================================================================
@@ -51,7 +67,7 @@ pub fn run_server(): i32 {
 		val params = msg.get_obj("params");
 
 		when (method) {
-			"initialize" -> {
+			Method.INITIALIZE.value -> {
 				val root_uri = params.get_str("rootUri", "");
 				if (!root_uri.empty()) {
 					workspace_root = uri_to_path(root_uri);
@@ -98,21 +114,21 @@ pub fn run_server(): i32 {
 				send_response(id, res);
 			}
 
-			"initialized" -> {
+			Method.INITIALIZED.value -> {
 				// Notification from client confirming initialization
 			}
 
-			"shutdown" -> {
+			Method.SHUTDOWN.value -> {
 				is_shutdown = true;
 				send_response(id, json_null());
 			}
 
-			"exit" -> {
+			Method.EXIT.value -> {
 				if (is_shutdown) sys_exit(0);
 				else sys_exit(1);
 			}
 
-			"textDocument/didOpen" -> {
+			Method.DID_OPEN.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val text = text_doc.get_str("text", "");
@@ -122,7 +138,7 @@ pub fn run_server(): i32 {
 				publish_doc_diagnostics(uri, text, workspace_root);
 			}
 
-			"textDocument/didChange" -> {
+			Method.DID_CHANGE.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val version = text_doc.get_num("version", 0);
@@ -134,7 +150,7 @@ pub fn run_server(): i32 {
 				}
 			}
 
-			"textDocument/didClose" -> {
+			Method.DID_CLOSE.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				docs.remove(uri);
@@ -143,10 +159,10 @@ pub fn run_server(): i32 {
 				val p = json_obj();
 				p["uri"] = json_str(uri);
 				p["diagnostics"] = json_arr();
-				send_notification("textDocument/publishDiagnostics", p);
+				send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
 			}
 
-			"textDocument/hover" -> {
+			Method.HOVER.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val pos = params.get_obj("position");
@@ -163,7 +179,7 @@ pub fn run_server(): i32 {
 				}
 			}
 
-			"textDocument/definition" -> {
+			Method.DEFINITION.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val pos = params.get_obj("position");
@@ -180,7 +196,7 @@ pub fn run_server(): i32 {
 				}
 			}
 
-			"textDocument/formatting" -> {
+			Method.FORMATTING.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs[uri];
@@ -192,7 +208,7 @@ pub fn run_server(): i32 {
 				}
 			}
 
-			"textDocument/documentSymbol" -> {
+			Method.DOCUMENT_SYMBOL.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs[uri];
@@ -204,7 +220,7 @@ pub fn run_server(): i32 {
 				}
 			}
 
-			"textDocument/completion" -> {
+			Method.COMPLETION.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs[uri];

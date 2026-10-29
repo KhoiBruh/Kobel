@@ -305,8 +305,11 @@ typedef struct lsp__json__JsonValue lsp__json__JsonValue;
 typedef struct lsp__json__JsonParser lsp__json__JsonParser;
 typedef struct lsp__document__Document lsp__document__Document;
 typedef struct lsp__document__DocumentStore lsp__document__DocumentStore;
+typedef int64_t lsp__analysis__DocSymbol;
+typedef int64_t lsp__analysis__Completion;
 typedef struct lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic;
 typedef struct lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult;
+typedef const char* lsp__server__Method;
 typedef struct std__collections__list__List_str std__collections__list__List_str;
 typedef struct std__collections__hash_map__HashMap_str_str std__collections__hash_map__HashMap_str_str;
 typedef struct std__collections__list__List_ptr_compiler__ast__node__AstNode std__collections__list__List_ptr_compiler__ast__node__AstNode;
@@ -23979,7 +23982,7 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(const char* source) {
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* decl = compiler__ast__node__Program_at(prog, __for_i);
             const char* sym_name = "";
-            int64_t sym_kind = 0;
+            lsp__analysis__DocSymbol sym_kind = 0;
             if (decl != NULL && decl->kind == compiler__ast__decl__FnDecl__TAG) {
                 void* __orig_decl = (void*)decl;
                 compiler__ast__node__FnDecl* decl = (compiler__ast__node__FnDecl*)(((compiler__ast__node__AstNode*)__orig_decl)->data.u.FnDecl.inner);
