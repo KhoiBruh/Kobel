@@ -57,7 +57,7 @@ Quy ước: module path = đường dẫn tệp (`sema/body/pass.kb` → `compil
 | `Symbol` / `Scope` / `ModuleScope` | `sema/symbol.kb` | `DeclPass` (collect), `BodyPass` chỉ đọc + mở/đóng scope |
 | `GenTemplate` | `sema/template.kb` | `decl.collect` đăng ký (pass 0) |
 | `GenericReg` | `sema/symbol.kb` | template tables, `inst_map` (tên C → `Symbol`), `records` (identity theo kiểu), `instances` (worklist) |
-| `InstanceRecord` / `AnnEntry` | `sema/instance.kb` | `mono.instantiate` tạo record; `BodyPass` ghi annotation per-instance vào `ann_map` (`PtrMap<*AnnEntry>`, tra O(1)) |
+| `InstanceRecord` / `AnnEntry` | `sema/instance.kb` | `mono.instantiate` tạo record; `BodyPass` ghi annotation per-instance vào `ann_map` (`HashMap<usz, *AnnEntry>`, tra O(1)) |
 | `TraitInfo` / `TraitMethod` | `sema/traits.kb` | `decl.collect` gom, `decl.pass.apply_trait` đối chiếu |
 
 `SymbolTable` là điểm truy cập duy nhất: `symtab.gen` (registry), `symtab.traits`, `symtab.assoc_types`,
@@ -130,6 +130,6 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 
 ## 8. Nợ kỹ thuật đã biết
 
-- `HashMap` khoá `str` và `PtrMap` khoá con trỏ là hai bản cùng thuật toán; nếu sau này cần khoá theo kiểu
-  khác (số nguyên, struct) thì nên gộp thành `HashMap<K, V>` (generic 2 tham số đã chạy được, xem
-  `test_generics`) — khi đó cần một cách băm/so sánh khoá theo K.
+- Đã gộp `PtrMap` và `HashMap` thành `HashMap<K: Hash, V>` dùng chung trait `Hash`. Đã loại bỏ hoàn toàn `PtrMap`.
+
+

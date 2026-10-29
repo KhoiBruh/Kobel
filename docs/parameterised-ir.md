@@ -105,7 +105,7 @@ biết đường dây.
 
 **Thiết kế cuối cùng (đã commit):**
 
-- `InstanceRecord.ann_map: PtrMap<*AnnEntry>` — side table theo node (khoá = con trỏ node, tra O(1)); bản ghi chú bước 3 dùng `List` tìm tuyến tính, đã thay ở đợt dọn sema 2026-10.
+- `InstanceRecord.ann_map: HashMap<usz, *AnnEntry>` — side table theo node (khoá = con trỏ node as usz, tra O(1)); bản ghi chú bước 3 dùng `List` tìm tuyến tính, đã thay ở đợt dọn sema 2026-10.
 - `AstNode.instance: *u8` — link decl view → record.
 - Node mới `EXPR_SIZE_OF_PARAM` (`SizeOfParam { param_index, size_text }`) + builder + codegen nhận.
 - `instantiate_fn`/impl-loop của `instantiate_struct` tạo **view** `FnDecl`/`ImplDecl` (signature đã

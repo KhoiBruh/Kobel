@@ -225,8 +225,8 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `traits/iterable.kb` | trait `Iterable { fn count(val self): usz; fn at(val self, i: usz) }` — kiểu impl nó thì `for (x in seq)` dùng `count()`/`at(i)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
 | `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (constructor inherent); impl `Iterable` nên `for (x in list)` chạy |
-| `collections/hash_map.kb` | `HashMap<V>` — field riêng tư, dựng bằng `HashMap<V>()` (constructor inherent); khoá `str` |
-| `collections/ptr_map.kb` | `PtrMap<V>` — cùng thuật toán (open addressing + Robin Hood), khoá là con trỏ (`*u8`); dùng cho side table theo node, `find_ann` O(1) |
+| `collections/hash_map.kb` | `HashMap<K: Hash, V>` (generic) — hỗ trợ khoá tuỳ chỉnh (`K: Hash`), dựng bằng `HashMap<K, V>()` |
+
 | `collections/string_builder.kb` | `StringBuilder` — dựng bằng `StringBuilder()` (constructor inherent); impl `Iterable` nên `for (c in sb)` duyệt từng ký tự |
 | `mem/alloc.kb` | **facade cấp phát** (chưa kiểm soát): typed `alloc<T>/alloc_array<T>/resize<T>/release<T>` gọi libc trực tiếp |
 | `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng facade `std.mem.alloc` |
@@ -492,7 +492,7 @@ Các quy ước dưới đây giữ cho bốn cổng §8.1 xanh và giữ code d
 - **Header module**: `mod` → banner `// ====` nêu mục đích 2–4 dòng, module *sở hữu* dữ liệu gì và
   pass nào gọi nó (xem `decl.pass`, `symbol`, `types`).
 - **Một cửa cho quyết định per-instance**: `annotate_type`, `set_resolved`, `set_method`,
-  `set_ident_name` (và các `set_ann_*`) ghi vào side table `InstanceRecord.ann_map` (`PtrMap<*AnnEntry>`) khi `current_rec != null`;
+  `set_ident_name` (và các `set_ann_*`) ghi vào side table `InstanceRecord.ann_map` (`HashMap<usz, *AnnEntry>`) khi `current_rec != null`;
   không gán thẳng vào `AstNode`. `mono.clone` (materialization) áp side table lên bản sao của instance.
 - **Instance scope** chỉ qua `BodyPass.push_instance` / `pop_instance`; env tham số kiểu nằm trong
   `push_instance_env` / `pop_instance_env`.
