@@ -42,7 +42,7 @@ fn test_global_scope() {
 	var symtab = SymbolTable();
 	var ty_i32 = type_i32();
 
-	val ok = symtab.define(Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	val ok = symtab.define(Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1, 1));
 	assert_true(ok, "Must successfully define global_var");
 
 	val sym = symtab.lookup("global_var");
@@ -58,19 +58,19 @@ fn test_global_scope() {
 	// Test iterating over current_scope (Scope implements Iterable)
 	var scope_sym_count: usz = 0;
 	for (s in symtab.current_scope) {
-		scope_sym_count = scope_sym_count + 1UZ;
+		scope_sym_count = scope_sym_count + 1;
 	}
-	assert_true(scope_sym_count == 1UZ, "Scope must be iterable via for loop");
+	assert_true(scope_sym_count == 1, "Scope must be iterable via for loop");
 
 	// Test iterating over ModuleScope (ModuleScope implements Iterable)
 	var ms = ModuleScope("my_mod");
-	val sym_m = Symbol("m_sym", "m_sym", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ);
+	val sym_m = Symbol("m_sym", "m_sym", SymbolKind.VAR, &ty_i32, false, true, 1, 1);
 	ms += &sym_m;
 	var ms_count: usz = 0;
 	for (s in ms) {
-		ms_count = ms_count + 1UZ;
+		ms_count = ms_count + 1;
 	}
-	assert_true(ms_count == 1UZ, "ModuleScope must be iterable via for loop");
+	assert_true(ms_count == 1, "ModuleScope must be iterable via for loop");
 
 	println("  [PASS] test_global_scope");
 }
@@ -84,15 +84,15 @@ fn test_duplicate_definition() {
 	var ty_i32 = type_i32();
 	var ty_bool = type_bool();
 
-	val ok1 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1UZ, 1UZ));
+	val ok1 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1, 1));
 	assert_true(ok1, "First definition of 'count' must succeed");
 
 	// Try to redefine 'count' in the current scope
-	val ok2 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2UZ, 1UZ));
+	val ok2 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_bool, false, false, 2, 1));
 	assert_true(!ok2, "Redefinition of 'count' in the same scope must fail");
 
 	// Defining a different name must succeed
-	val ok3 = symtab.define(Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3UZ, 1UZ));
+	val ok3 = symtab.define(Symbol("total", "total", SymbolKind.VAR, &ty_i32, false, false, 3, 1));
 	assert_true(ok3, "Definition of new variable 'total' must succeed");
 
 	println("  [PASS] test_duplicate_definition");
@@ -108,7 +108,7 @@ fn test_scoping_and_shadowing() {
 	var ty_str = type_str();
 
 	// Scope 0 (Global): x: i32
-	symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1UZ, 1UZ));
+	symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1, 1));
 
 	// Enter Scope 1 (Local Block)
 	symtab.enter_scope(false);
@@ -123,7 +123,7 @@ fn test_scoping_and_shadowing() {
 	assert_true(cur_x1 == null, "Scope 1 does not yet define its own 'x'");
 
 	// Shadowing: declare 'x: str' in Scope 1
-	val shadow_ok = symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2UZ, 1UZ));
+	val shadow_ok = symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_str, false, false, 2, 1));
 	assert_true(shadow_ok, "Shadowing definition of 'x' in child scope must succeed");
 
 	// Now looking up 'x' must yield 'x: str'
@@ -179,7 +179,7 @@ fn test_symbol_table_oop() {
 	var ty_i32 = type_i32();
 
 	// Test OOP define and lookup on SymbolTable
-	val ok = symtab.define(Symbol("oop_var", "oop_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ));
+	val ok = symtab.define(Symbol("oop_var", "oop_var", SymbolKind.VAR, &ty_i32, false, true, 1, 1));
 	assert_true(ok, "symtab.define must succeed");
 
 	val s = symtab.lookup("oop_var");
@@ -194,7 +194,7 @@ fn test_symbol_table_oop() {
 
 	// Test ModuleScope OOP lookup & operators
 	var ms = ModuleScope("test_mod");
-	val m_sym = Symbol("ms_var", "ms_var", SymbolKind.VAR, &ty_i32, false, true, 1UZ, 1UZ);
+	val m_sym = Symbol("ms_var", "ms_var", SymbolKind.VAR, &ty_i32, false, true, 1, 1);
 	ms += &m_sym;
 	val found_ms = ms["ms_var"];
 	assert_true(found_ms != null, "ms['ms_var'] must find ms_var");

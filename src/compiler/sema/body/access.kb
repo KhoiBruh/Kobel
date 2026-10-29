@@ -229,6 +229,7 @@ impl BodyPass {
 				val fn_info = mi.fn_type.as_fn();
 				val param_ty = fn_info.param_types[1];
 				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
+				if (self.is_untyped_literal(idx.index)) self.check_expr(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
 				// `get` may be an arrow method whose return type is still pending
@@ -351,7 +352,7 @@ impl BodyPass {
 		if (target_ty != null && target_ty.is_list()) self.coerce_to_list(asgn.value, target_ty);
 		val prev_stmt = self.is_stmt_level;
 		self.is_stmt_level = was_stmt;
-		val val_ty = self.check_expr(asgn.value);
+		val val_ty = self.check_expr(asgn.value, target_ty);
 		self.is_stmt_level = prev_stmt;
 
 		if (asgn.op != TokenType.EQUAL) {
@@ -451,10 +452,13 @@ impl BodyPass {
 		}
 
 		if (idx_param_ty != null && idx_param_ty.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
+		if (self.is_untyped_literal(idx.index)) self.check_expr(idx.index, idx_param_ty);
 		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
 
 		if (val_param_ty != null && val_param_ty.is_list()) self.coerce_to_list(val_expr, val_param_ty);
-		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr) else val_ty_raw;
+		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr, val_param_ty)
+			else if (rhs != null && self.is_untyped_literal(rhs)) self.check_expr(rhs, val_param_ty)
+			else val_ty_raw;
 		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();

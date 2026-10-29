@@ -90,7 +90,7 @@ fn test_range_bound_type(var t: &Tally, n: usz) {
 		val same: &usz = &i;
 		total = total + i;
 	}
-	check(total == 15UZ, "0..5(usz) sum must be 15", t);
+	check(total == 15, "0..5(usz) sum must be 15", t);
 }
 
 // -- iterables ----------------------------------------------------------------
@@ -112,9 +112,9 @@ fn test_iter_list(var t: &Tally) {
 	check(sum == 60, "list iteration sum must be 60", t);
 
 	// The list is borrowed, not moved: it must stay usable after the loop.
-	check(nums.len == 3UZ, "list must keep its length after the loop", t);
+	check(nums.len == 3, "list must keep its length after the loop", t);
 	nums += 40;
-	check(nums.len == 4UZ, "list must still be appendable after the loop", t);
+	check(nums.len == 4, "list must still be appendable after the loop", t);
 }
 
 fn test_iter_str(var t: &Tally) {
@@ -263,7 +263,7 @@ fn test_range_half_open_index(var t: &Tally) {
 // form `0..len-1` would wrap and loop forever on an unsigned bound).
 fn test_range_half_open_empty(var t: &Tally, n: usz) {
 	var count: i32 = 0;
-	for (i in 0UZ..<n) {
+	for (i in 0..<n) {
 		val same: &usz = &i;
 		count = count + 1;
 	}
@@ -318,7 +318,7 @@ struct Vec2 {
 
 fn test_array_literal(var t: &Tally) {
 	val a: [i32; 3] = [1, 2, 3];
-	check(a.len == 3UZ, "array literal: .len is the element count", t);
+	check(a.len == 3, "array literal: .len is the element count", t);
 	check(a[0] == 1 && a[2] == 3, "array literal: indexed access", t);
 
 	var sum: i32 = 0;
@@ -326,7 +326,7 @@ fn test_array_literal(var t: &Tally) {
 	check(sum == 6, "for over a fixed-size array", t);
 
 	val words: [str; 2] = ["ab", "cde"];
-	check(words[1].len == 3UZ, "array of str elements", t);
+	check(words[1].len == 3, "array of str elements", t);
 
 	val pts: [Vec2; 2] = [Vec2(1, 2), Vec2(3, 4)];
 	var total: i32 = 0;
@@ -334,7 +334,7 @@ fn test_array_literal(var t: &Tally) {
 	check(total == 10, "for over an array of structs", t);
 
 	val inferred = [7, 8];
-	check(inferred.len == 2UZ && inferred[1] == 8, "array literal without annotation", t);
+	check(inferred.len == 2 && inferred[1] == 8, "array literal without annotation", t);
 }
 
 // -- Iterable: std containers and non-scalar elements ------------------------
@@ -485,8 +485,8 @@ fn main(): i32 {
 	test_range_open(&t);
 	test_range_half_open(&t);
 	test_range_half_open_index(&t);
-	test_range_half_open_empty(&t, 0UZ);
-	test_range_bound_type(&t, 5UZ);
+	test_range_half_open_empty(&t, 0);
+	test_range_bound_type(&t, 5);
 	test_iter_list(&t);
 	test_iter_str(&t);
 	test_iter_member(&t);

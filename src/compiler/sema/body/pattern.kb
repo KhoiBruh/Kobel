@@ -31,12 +31,12 @@ use compiler.sema.structs.*;
 
 impl BodyPass {
 
-	pub fn check_when_expr(var self, node: *AstNode): *Type {
+	pub fn check_when_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val we = node.as_when_expr();
 		val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
 
-		self.when_depth++;
-		var result_ty: *Type = null;
+	self.when_depth++;
+		var result_ty: *Type = expected;
 		var has_else = false;
 		for (arm in we.arms) {
 			if (arm.is_else) has_else = true;
@@ -44,7 +44,7 @@ impl BodyPass {
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
 			val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
 			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, we.condition);
-			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut);
+			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut, result_ty);
 
 			if (result_ty == null) result_ty = body_ty;
 			else self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
@@ -120,22 +120,22 @@ impl BodyPass {
 	}
 
 	// An arm that binds a name checks its body inside a scope holding that name.
-	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool): *Type {
-		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body);
+	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool, expected: *Type = null): *Type {
+		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body, expected);
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
 		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
-		return self.check_when_arm_body(body);
+		return self.check_when_arm_body(body, expected);
 	}
 
-	pub fn check_when_arm_body(var self, body: *AstNode): *Type {
+	pub fn check_when_arm_body(var self, body: *AstNode, expected: *Type = null): *Type {
 		if (body is BlockStmt as blk) {
 			var yield_ty: *Type = null;
 			self.symtab.enter_scope(false);
 			defer self.symtab.exit_scope();
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
-					yield_ty = if (ys.value != null) self.check_expr(ys.value) else self.prims().t_none();
+					yield_ty = if (ys.value != null) self.check_expr(ys.value, expected) else self.prims().t_none();
 				} else self.check_statement(stmt);
 			}
 			if (yield_ty == null) {
@@ -144,7 +144,7 @@ impl BodyPass {
 			}
 			return yield_ty;
 		}
-		return self.check_expr(body);
+		return self.check_expr(body, expected);
 	}
 
 	pub fn check_is_pattern(var self, subject: *AstNode, subj_ty: *Type, is_node: *AstNode): *Type {

@@ -131,5 +131,6 @@ literal), `obj_replace` (`(*p)` trước member access), `var_ty` (annotation su
 ## 8. Nợ kỹ thuật đã biết
 
 - Đã gộp `PtrMap` và `HashMap` thành `HashMap<K: Hash, V>` dùng chung trait `Hash`. Đã loại bỏ hoàn toàn `PtrMap`.
+- **Untyped Numeric Literals & Contextual Inference**: Số nguyên và số thực không mang hậu tố (`1`, `0`, `42`) được coi là đa hình theo ngữ cảnh (`expected: *Type` truyền qua `check_expr`). Tự động suy luận kiểu phù hợp với ngữ cảnh mong đợi (khai báo biến có type annotation, gán giá trị, truyền đối số hàm/phương thức/constructor, toán tử số học hai chiều, chỉ mục `list[0]`). Mặc định fallback là `i32` hoặc `f64` khi không có ràng buộc. Codebase đã được dọn sạch các hậu tố `UZ`, `0L`,... thừa. Cú pháp hậu tố tường minh vẫn được hỗ trợ để tương thích ngược.
 
 

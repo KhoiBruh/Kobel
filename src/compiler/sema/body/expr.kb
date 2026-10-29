@@ -53,7 +53,7 @@ impl BodyPass {
 					e.has_elem_node = true;
 					for (el in al.elements) {
 						if (elem_tye != null && elem_tye.is_list()) self.coerce_to_list(el, elem_tye);
-						val el_ty = self.check_expr(el);
+						val el_ty = self.check_expr(el, elem_tye);
 						if (!elem_tye.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
 					}
 					return;
@@ -69,7 +69,7 @@ impl BodyPass {
 
 				for (el in al.elements) {
 					if (elem_ty != null && elem_ty.is_list()) self.coerce_to_list(el, elem_ty);
-					val el_ty = self.check_expr(el);
+					val el_ty = self.check_expr(el, elem_ty);
 					if (!elem_ty.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
 				}
 			}
@@ -83,14 +83,46 @@ impl BodyPass {
 		}
 	}
 
-	pub fn check_literal_expr(var self, node: *AstNode): *Type {
+pub fn is_untyped_literal(val self, node: *AstNode): bool {
+	if (node == null) return false;
+	if (node is LiteralExpr as lit) {
+		if (lit.literal_kind == LiteralKind.INT) {
+			return lit.raw_text.num_suffix().empty();
+		}
+		if (lit.literal_kind == LiteralKind.FLOAT) {
+			val raw = lit.raw_text;
+			return !raw.ends_with("f") && !raw.ends_with("F");
+		}
+	}
+	if (node is GroupExpr as g) return self.is_untyped_literal(g.expr);
+	if (node is UnaryExpr as un) {
+		if (un.op == TokenType.MINUS || un.op == TokenType.PLUS) {
+			return self.is_untyped_literal(un.operand);
+		}
+	}
+	return false;
+}
+
+	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val lit = node.as_literal_expr();
 		return when (lit.literal_kind) {
-			LiteralKind.INT -> int_literal_type(self.symtab.prims_of(), lit.raw_text);
+			LiteralKind.INT -> {
+				val sfx = lit.raw_text.num_suffix();
+				if (!sfx.empty()) {
+					yield int_literal_type(self.symtab.prims_of(), lit.raw_text);
+				}
+				if (expected != null && (expected.is_integer() || expected.is_float())) {
+					yield expected;
+				}
+				yield self.prims().get(DataType.I32);
+			}
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 				if (is_f32) yield self.prims().t_prim(type_f32());
+				if (expected != null && expected.is_float()) {
+					yield expected;
+				}
 				yield self.prims().t_prim(type_f64());
 			}
 			LiteralKind.BOOL -> self.prims().t_bool();
@@ -125,7 +157,7 @@ impl BodyPass {
 		return sym.type_ptr;
 	}
 
-	pub fn check_binary_expr(var self, node: *AstNode): *Type {
+	pub fn check_binary_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val bin = node.as_binary_expr();
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
@@ -134,8 +166,15 @@ impl BodyPass {
 		// right side is evaluated at all.
 		if (bin.op == TokenType.QUESTION_COLON) return self.check_elvis_expr(node, bin, was_stmt);
 
-		val lt = self.check_expr(bin.left);
-		val rt = self.check_expr(bin.right);
+		val num_expected = if (expected != null && expected.is_numeric()) expected else null;
+
+		var lt_num = self.check_expr(bin.left, num_expected);
+		var lt = lt_num;
+		var rt = self.check_expr(bin.right, if (lt.is_numeric()) lt else num_expected);
+
+		if (self.is_untyped_literal(bin.left) && rt.is_numeric() && !lt.equals(rt)) {
+			lt = self.check_expr(bin.left, rt);
+		}
 
 		// One rule per operator group; each returns the result type.
 		return when (bin.op) {
@@ -159,7 +198,9 @@ impl BodyPass {
 	// (`x ?: return y`) is allowed at statement level, where the statement itself
 	// supplies the value.
 	fn check_elvis_expr(var self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
-		val lt = self.check_expr(bin.left);
+		val num_expected: *Type = null;
+		var lt_num = self.check_expr(bin.left, num_expected);
+		var lt = lt_num;
 		self.ensure(
 			lt.kind == DataType.POINTER || lt.kind == DataType.STR,
 			bin.left,
@@ -209,7 +250,15 @@ impl BodyPass {
 	// The result keeps the left operand's type.
 	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.prims().t_str();
-		if (lt.is_numeric() && rt.is_numeric()) return lt;
+		if (lt.is_numeric() && rt.is_numeric()) {
+			if (lt.is_float() && !rt.is_float()) return lt;
+			if (!lt.is_float() && rt.is_float()) return rt;
+			if (lt.size > rt.size) return lt;
+			if (rt.size > lt.size) return rt;
+			if (lt.is_unsigned_integer() && rt.is_signed_integer()) return lt;
+			if (lt.is_signed_integer() && rt.is_unsigned_integer()) return rt;
+			return lt;
+		}
 
 		if (lt.kind == DataType.STRUCT) {
 			val op_name = when (bin.op) {
@@ -308,9 +357,9 @@ impl BodyPass {
 		return self.check_expr(call_node);
 	}
 
-	pub fn check_unary_expr(var self, node: *AstNode): *Type {
+	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val un = node.as_unary_expr();
-		val op_ty = self.check_expr(un.operand);
+		val op_ty = self.check_expr(un.operand, expected);
 
 		if (op_ty.kind == DataType.STRUCT) {
 			val op_name = when (un.op) {
@@ -353,12 +402,15 @@ impl BodyPass {
 		};
 	}
 
-	pub fn check_if_expr(var self, node: *AstNode): *Type {
+	pub fn check_if_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val if_e = node.as_if_expr();
 		val cond_ty = self.check_expr(if_e.condition);
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
-		val then_ty = self.check_expr(if_e.then_branch);
-		val else_ty = self.check_expr(if_e.else_branch);
+		var then_ty = self.check_expr(if_e.then_branch, expected);
+		val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);
+		if (self.is_untyped_literal(if_e.then_branch) && else_ty.is_numeric() && !then_ty.equals(else_ty)) {
+			then_ty = self.check_expr(if_e.then_branch, else_ty);
+		}
 		self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
 		return then_ty;
 	}
@@ -380,7 +432,7 @@ impl BodyPass {
 
 		val elem_ty = self.check_expr(al.elements.first());
 		for (i in 1..<al.elements.len) {
-			val t = self.check_expr(al.elements[i]);
+			val t = self.check_expr(al.elements[i], elem_ty);
 			if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
 		}
 		return self.arena.array_type(elem_ty, al.elements.len);

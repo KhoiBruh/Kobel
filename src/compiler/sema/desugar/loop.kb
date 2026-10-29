@@ -141,7 +141,7 @@ impl Arena {
 		pre += self.var_decl(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
 		// var __for_i: usz = 0;
 		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
-			self.for_num("0UZ", line, col), line, col);
+			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
@@ -171,7 +171,7 @@ impl Arena {
 			self.member(fs.iterable, "len", line, col), line, col);
 		// var __for_i: usz = 0;
 		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
-			self.for_num("0UZ", line, col), line, col);
+			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.data[__for_i];
 		head += self.var_decl(false, fs.var_name, null,

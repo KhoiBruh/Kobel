@@ -269,7 +269,7 @@ fn test_list_ctor(var t: &Tally) {
 	}
 
 	{
-		var ys = List<i32>(16UZ);
+		var ys = List<i32>(16);
 		defer ys.delete();
 		check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
 	}
@@ -282,7 +282,7 @@ fn test_list_ctor(var t: &Tally) {
 
 fn test_std_ctors(var t: &Tally) {
 	{
-		var a = Arena(4096UZ);
+		var a = Arena(4096);
 		defer a.delete();
 		val p = a.alloc<i32>();
 		*p = 7;
@@ -340,6 +340,10 @@ fn test_generic_target_typing(var t: &Tally) {
 	check_i(res.len as i32, 0, "res from make_numbers_target", t);
 }
 
+fn take_untyped_f64(x: f64): f64 => x + 1.0;
+fn take_untyped_usz(x: usz): usz => x + 1;
+fn take_untyped_i8(x: i8): i8 => x + 1;
+
 // --- 15. numeric literal suffixes -------------------------------------------
 // A trailing hex digit must not be read as a type suffix: `0xBB` is 187 (i32),
 // not `0xB` as an i8, and `0xBF` / `0xEF` / `0xAD` are integers, not floats.
@@ -366,6 +370,28 @@ fn test_numeric_literals(var t: &Tally) {
 	val hex_suffix = 0xFF_UL;
 	check_i(hex_suffix as i32, 255, "hex 0xFF_UL", t);
 	check_str("${1_000.5}", "1000.5", "float 1_000.5", t);
+
+	// Untyped numeric literal contextual inference
+	val u_val: usz = 0;
+	check_i(u_val as i32, 0, "untyped 0 into usz", t);
+	val f_val: f64 = 1;
+	check_str("${f_val}", "1", "untyped 1 into f64", t);
+	val i8_val: i8 = 42;
+	check_i(i8_val as i32, 42, "untyped 42 into i8", t);
+
+	check_str("${take_untyped_f64(5)}", "6", "untyped 5 to f64 param", t);
+	check_i(take_untyped_usz(100) as i32, 101, "untyped 100 to usz param", t);
+	check_i(take_untyped_i8(7) as i32, 8, "untyped 7 to i8 param", t);
+
+	var num_list = List<usz>();
+	num_list += 10;
+	num_list += 20;
+	check_i(num_list[0] as i32, 10, "num_list[0] index", t);
+	check_i((num_list.len + 5) as i32, 7, "num_list.len + 5", t);
+	check_i((5 + num_list.len) as i32, 7, "5 + num_list.len", t);
+
+	val f_cmp = 1.0;
+	check_i(if (f_cmp == 1) 1 else 0, 1, "f64 == untyped 1", t);
 }
 
 fn main(): i32 {

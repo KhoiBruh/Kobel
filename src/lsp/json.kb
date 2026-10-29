@@ -254,13 +254,13 @@ impl JsonParser {
 	}
 
 	pub fn parse_number(var self): i64 {
-		var sign = 1L;
+		var sign: i64 = 1;
 		if (self.peek() == '-') {
 			sign = -1;
 			self.advance();
 		}
 
-		var val_num = 0L;
+		var val_num: i64 = 0;
 		while (!self.is_end() && self.peek().is_digit()) {
 			val c = self.advance();
 			val d = (c as i32) - 48;

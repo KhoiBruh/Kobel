@@ -62,7 +62,7 @@ impl BodyPass {
 					}
 				}
 				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(init_expr, var_ty);
-				val init_ty = self.check_expr_stmt(init_expr);
+				val init_ty = self.check_expr_stmt(init_expr, var_ty);
 				self.ensure(var_ty.can_assign(init_ty), node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
 		} else {
@@ -231,7 +231,7 @@ impl BodyPass {
 	}
 
 	pub fn check_return_stmt(var self, node: *AstNode) {
-		if (self.defer_depth > 0UZ)
+		if (self.defer_depth > 0)
 			self.report_error(node, "Return statement is not allowed inside defer");
 		val ret = node.as_return_stmt();
 		if (ret.value != null) {
@@ -240,7 +240,7 @@ impl BodyPass {
 				self.current_fn_return_type.is_list()
 			) self.coerce_to_list(ret.value, self.current_fn_return_type);
 
-			val val_ty = self.check_expr(ret.value);
+			val val_ty = self.check_expr(ret.value, self.current_fn_return_type);
 			self.ensure(self.current_fn_return_type.can_assign(val_ty), node, "Return value type does not match function return type");
 		} else {
 			self.ensure(self.current_fn_return_type.kind == DataType.NONE, node, "Non-none function must return a value");

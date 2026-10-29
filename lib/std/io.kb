@@ -25,14 +25,14 @@ pub fn println(s: str) => puts(s.c_str());
 pub fn read_file(path: str): str {
 	val f = fopen(path.c_str(), "rb") ?: return "";
 
-	fseek(f, 0L, 2);
+	fseek(f, 0, 2);
 	val size_i64 = ftell(f);
-	if (size_i64 <= 0L) {
+	if (size_i64 <= 0) {
 		fclose(f);
 		return "";
 	}
 
-	fseek(f, 0L, 0);
+	fseek(f, 0, 0);
 	val sz = size_i64 as usz;
 	val buf = alloc_array<u8>(sz + 1);
 	if (buf == null) {

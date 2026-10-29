@@ -452,14 +452,14 @@ impl CCodeGen {
 			self.indent_level++;
 			val inner_ind = get_indent(self.indent_level);
 			res = "${res}${inner_ind}${ret_ty} __ret_tmp = ${self.gen_expr(ret_val)};\n";
-			res = res + self.gen_defers_unwind(0UZ);
+			res = res + self.gen_defers_unwind(0);
 			res = "${res}${inner_ind}return __ret_tmp;\n";
 			self.indent_level--;
 			res = "${res}${ind}}\n";
 			return res;
 		}
 
-		return self.gen_defers_unwind(0UZ) + ind + "return;\n";
+		return self.gen_defers_unwind(0) + ind + "return;\n";
 	}
 
 	fn gen_expr_stmt(var self, es: *ExprStmt): str {

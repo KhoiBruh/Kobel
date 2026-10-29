@@ -158,10 +158,10 @@ impl BodyPass {
 	}
 
 	// Evaluates an expression with statement-level context (allowing statement-only constructs like jump Elvis)
-	pub fn check_expr_stmt(var self, expr: *AstNode): *Type {
+	pub fn check_expr_stmt(var self, expr: *AstNode, expected: *Type = null): *Type {
 		val prev = self.is_stmt_level;
 		self.is_stmt_level = true;
-		val ty = self.check_expr(expr);
+		val ty = self.check_expr(expr, expected);
 		self.is_stmt_level = prev;
 		return ty;
 	}
@@ -248,16 +248,16 @@ impl BodyPass {
 	// Top-level Expression Dispatcher
 	// ============================================================================
 
-	pub fn check_expr(var self, node: *AstNode): *Type {
+	pub fn check_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		if (node == null) return self.prims().t_none();
-		if (node is GroupExpr as g) return self.check_expr(g.expr);
+		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
 		if (
 			node.kind != NodeKind.EXPR_BINARY &&
 			node.kind != NodeKind.EXPR_ASSIGN
 		) self.is_stmt_level = false;
 
-		val ty = self.check_expr_node(node);
+		val ty = self.check_expr_node(node, expected);
 		self.annotate_type(node, ty);
 		return ty;
 	}
@@ -417,19 +417,19 @@ impl BodyPass {
 		return f.body.kind == NodeKind.STMT_EXPR;
 	}
 
-	fn check_expr_node(var self, node: *AstNode): *Type => when (node.kind) {
-		NodeKind.EXPR_LITERAL -> self.check_literal_expr(node);
+	fn check_expr_node(var self, node: *AstNode, expected: *Type = null): *Type => when (node.kind) {
+		NodeKind.EXPR_LITERAL -> self.check_literal_expr(node, expected);
 		NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
-		NodeKind.EXPR_BINARY -> self.check_binary_expr(node);
-		NodeKind.EXPR_UNARY -> self.check_unary_expr(node);
+		NodeKind.EXPR_BINARY -> self.check_binary_expr(node, expected);
+		NodeKind.EXPR_UNARY -> self.check_unary_expr(node, expected);
 		NodeKind.EXPR_CALL -> self.check_call_expr(node);
 		NodeKind.EXPR_MEMBER -> self.check_member_expr(node);
 		NodeKind.EXPR_INDEX -> self.check_index_expr(node);
 		NodeKind.EXPR_ASSIGN -> self.check_assign_expr(node);
 		NodeKind.EXPR_UPDATE -> self.check_update_expr(node);
 		NodeKind.EXPR_CAST -> self.check_cast_expr(node);
-		NodeKind.EXPR_IF -> self.check_if_expr(node);
-		NodeKind.EXPR_WHEN -> self.check_when_expr(node);
+		NodeKind.EXPR_IF -> self.check_if_expr(node, expected);
+		NodeKind.EXPR_WHEN -> self.check_when_expr(node, expected);
 		NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
 		NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
 		NodeKind.EXPR_IS -> self.check_is_expr(node);
@@ -448,7 +448,7 @@ impl BodyPass {
 			return;
 		}
 		if (node is DeferStmt as ds) {
-			if (self.defer_depth > 0UZ)
+			if (self.defer_depth > 0)
 				self.report_error(node, "Nested defer statement is not allowed inside defer");
 			self.defer_depth++;
 			self.check_statement(ds.body);
@@ -456,7 +456,7 @@ impl BodyPass {
 			return;
 		}
 		if (node is YieldStmt as ys) {
-			if (self.defer_depth > 0UZ)
+			if (self.defer_depth > 0)
 				self.report_error(node, "Yield statement is not allowed inside defer");
 			if (self.when_depth == 0)
 				self.report_error(node, "Yield statement outside of when expression");
@@ -473,7 +473,7 @@ impl BodyPass {
 			NodeKind.STMT_FOR -> self.check_for_stmt(node);
 			NodeKind.STMT_RETURN -> self.check_return_stmt(node);
 			NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
-				if (self.defer_depth > 0UZ)
+				if (self.defer_depth > 0)
 					self.report_error(node, "Break or continue statement is not allowed inside defer");
 				if (self.loop_depth == 0)
 					self.report_error(node, "Break or continue statement outside of loop");

@@ -33,7 +33,7 @@ fn main(): i32 {
 	val boxed = Box<i32>(7);
 	if (boxed.get_twice() != 14) return 3;
 
-	var arena = Arena(1024UZ);
+	var arena = Arena(1024);
 	defer arena.delete();
 	val p = arena.alloc<i32>();
 	*p = 9;

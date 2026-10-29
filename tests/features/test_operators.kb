@@ -76,17 +76,17 @@ impl IntBuffer {
 	pub fn new(a: i32, b: i32, c: i32) => Self(a, b, c);
 
 	pub op get(val self, idx: usz): i32 => when (idx) {
-		0UZ -> self.a,
-		1UZ -> self.b,
-		2UZ -> self.c,
+		0 -> self.a,
+		1 -> self.b,
+		2 -> self.c,
 		else -> 0
 	};
 
 	pub op set(var self, idx: usz, val_in: i32) {
 		when (idx) {
-			0UZ -> self.a = val_in;
-			1UZ -> self.b = val_in;
-			2UZ -> self.c = val_in;
+			0 -> self.a = val_in;
+			1 -> self.b = val_in;
+			2 -> self.c = val_in;
 			else -> {}
 		}
 	}
@@ -146,19 +146,19 @@ fn test_buffer_index_ops() {
 	var buf = IntBuffer(10, 20, 30);
 
 	// Test op get
-	assert_eq_i32(buf[0UZ], 10, "buf[0]");
-	assert_eq_i32(buf[1UZ], 20, "buf[1]");
-	assert_eq_i32(buf[2UZ], 30, "buf[2]");
+	assert_eq_i32(buf[0], 10, "buf[0]");
+	assert_eq_i32(buf[1], 20, "buf[1]");
+	assert_eq_i32(buf[2], 30, "buf[2]");
 
 	// Test op set
-	buf[1UZ] = 99;
-	assert_eq_i32(buf[1UZ], 99, "buf[1] after set");
+	buf[1] = 99;
+	assert_eq_i32(buf[1], 99, "buf[1] after set");
 
 	// Test op plus_assign
 	buf += 5;
-	assert_eq_i32(buf[0UZ], 15, "buf[0] after +=");
-	assert_eq_i32(buf[1UZ], 104, "buf[1] after +=");
-	assert_eq_i32(buf[2UZ], 35, "buf[2] after +=");
+	assert_eq_i32(buf[0], 15, "buf[0] after +=");
+	assert_eq_i32(buf[1], 104, "buf[1] after +=");
+	assert_eq_i32(buf[2], 35, "buf[2] after +=");
 }
 
 fn test_list_ops() {
@@ -173,13 +173,13 @@ fn test_list_ops() {
 	assert_eq_i32(list.len as i32, 3, "List length after +=");
 
 	// Test op get ([])
-	assert_eq_i32(list[0UZ], 100, "list[0]");
-	assert_eq_i32(list[1UZ], 200, "list[1]");
-	assert_eq_i32(list[2UZ], 300, "list[2]");
+	assert_eq_i32(list[0], 100, "list[0]");
+	assert_eq_i32(list[1], 200, "list[1]");
+	assert_eq_i32(list[2], 300, "list[2]");
 
 	// Test op set ([] =)
-	list[1UZ] = 777;
-	assert_eq_i32(list[1UZ], 777, "list[1] after [] =");
+	list[1] = 777;
+	assert_eq_i32(list[1], 777, "list[1] after [] =");
 }
 
 fn test_hash_map_ops() {
@@ -242,23 +242,23 @@ fn test_string_builder_ops() {
 	sb += ' ';
 	sb += "World";
 	sb += '!';
-	sb += 42L;
+	sb += 42;
 
 	assert_true(sb.to_str() == "Hello World!42", "sb.to_str() == 'Hello World!42'");
 
 	// Test op get: sb[i]
-	assert_true(sb[0UZ] == 'H', "sb[0] == 'H'");
-	assert_true(sb[6UZ] == 'W', "sb[6] == 'W'");
+	assert_true(sb[0] == 'H', "sb[0] == 'H'");
+	assert_true(sb[6] == 'W', "sb[6] == 'W'");
 
 	// Test op set: sb[i] = 'h'
-	sb[0UZ] = 'h';
-	assert_true(sb[0UZ] == 'h', "sb[0] after set == 'h'");
+	sb[0] = 'h';
+	assert_true(sb[0] == 'h', "sb[0] after set == 'h'");
 }
 
 fn append_via_ptr(sb: &StringBuilder, list: &List<i32>, set: &HashSet, map: &HashMap<str, i32>) {
 	sb += "ptr";
 	sb += '_';
-	sb += 99UZ;
+	sb += 99;
 	list += 42;
 	set += "ptr_key";
 	map["ptr_k"] = 123;
@@ -278,7 +278,7 @@ fn test_pointer_receiver_ops() {
 
 	assert_true(sb.to_str() == "ptr_99", "pointer receiver sb += worked");
 	assert_eq_i32(list.len as i32, 1, "pointer receiver list += len");
-	assert_eq_i32(list[0UZ], 42, "pointer receiver list[0]");
+	assert_eq_i32(list[0], 42, "pointer receiver list[0]");
 	assert_true(42 in &list, "42 in &list");
 	assert_true("ptr_key" in &set, "'ptr_key' in &set");
 	assert_true("ptr_k" in &map, "'ptr_k' in &map");

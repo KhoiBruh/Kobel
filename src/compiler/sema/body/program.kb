@@ -225,7 +225,9 @@ impl BodyPass {
 				is FnDecl as f -> self.check_fn(decl);
 				is ImplDecl as im -> self.check_impl(decl);
 				is ConstDecl as c -> {
-					if (c.value != null) self.check_expr(c.value);
+					var c_expected: *Type = null;
+					if (c.type_node != null) c_expected = self.resolve_type(c.type_node);
+					if (c.value != null) self.check_expr(c.value, c_expected);
 				}
 			}
 		}

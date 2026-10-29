@@ -202,7 +202,7 @@ impl str {
 	}
 
 	pub fn hash_stamp(val self): str {
-		var h = 5381UL;
+		var h: u64 = 5381;
 		for (c in self) {
 			h = ((h * 33) + (c as u64)) % 1000000007;
 		}

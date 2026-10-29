@@ -380,6 +380,7 @@ impl Type {
 
 		// 2. Allow assignment between float types
 		if (self.is_float() && source.is_float()) return true;
+		if (self.is_float() && source.is_integer()) return true;
 
 		// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
 		if (self.kind == DataType.POINTER && source.kind == DataType.STR) {

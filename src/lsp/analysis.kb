@@ -631,7 +631,7 @@ pub fn document_symbols(source: str): *JsonValue {
 	val prog = prog_node.as_program();
 	for (decl in prog) {
 		var sym_name = "";
-		var sym_kind = 0L; // LSP SymbolKind
+		var sym_kind: i64 = 0; // LSP SymbolKind
 
 		when (decl) {
 			is FnDecl -> {

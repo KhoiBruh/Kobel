@@ -110,7 +110,7 @@ fn test_call_and_member_parsing() {
 
 	assert_true(expr.kind == NodeKind.EXPR_CALL, "Top node must be CallExpr");
 	val call_expr = expr.as_call_expr();
-	assert_eq_usz(call_expr.args.len, 2UZ, "Call must have 2 arguments");
+	assert_eq_usz(call_expr.args.len, 2, "Call must have 2 arguments");
 
 	val callee = call_expr.callee;
 	assert_true(callee.kind == NodeKind.EXPR_MEMBER, "Callee must be MemberExpr");
@@ -140,9 +140,9 @@ fn test_type_parsing() {
 	assert_true(type_node.kind == NodeKind.TYPE_NAMED, "Parsed type must be NamedType");
 	val named = type_node.as_named_type();
 	assert_eq_str(named.name, "std.collections.List", "Type path must match");
-	assert_eq_usz(named.type_args.len, 1UZ, "Type must have 1 generic argument");
+	assert_eq_usz(named.type_args.len, 1, "Type must have 1 generic argument");
 
-	val arg0 = named.type_args[0UZ];
+	val arg0 = named.type_args[0];
 	assert_true(arg0.kind == NodeKind.TYPE_POINTER, "Generic argument must be PointerType");
 
 	println("  [PASS] test_type_parsing");
@@ -195,47 +195,47 @@ fn test_full_program_parsing() {
 	var parser = Parser(tokens);
 	val program_node = parser.parse_program();
 
-	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
+	assert_eq_usz(parser.errors.len, 0, "Parser must have 0 syntax errors");
 	assert_true(program_node.kind == NodeKind.PROGRAM, "Root node must be Program");
 
 	val prog = program_node.as_program();
-	assert_eq_usz(prog.declarations.len, 5UZ, "Program must contain 5 declarations");
+	assert_eq_usz(prog.declarations.len, 5, "Program must contain 5 declarations");
 
 	// Decl 0: ModuleDecl
-	val d0 = prog.declarations[0UZ];
+	val d0 = prog.declarations[0];
 	assert_true(d0.kind == NodeKind.DECL_MODULE, "Decl 0 must be DECL_MODULE");
 	val m_decl = d0.as_module_decl();
 	assert_eq_str(m_decl.full_path, "sample.math", "Module path must match");
 
 	// Decl 1: UseDecl
-	val d1 = prog.declarations[1UZ];
+	val d1 = prog.declarations[1];
 	assert_true(d1.kind == NodeKind.DECL_USE, "Decl 1 must be DECL_USE");
 	val u_decl = d1.as_use_decl();
 	assert_eq_str(u_decl.full_path, "std.io.println", "Use path must match");
 
 	// Decl 2: StructDecl
-	val d2 = prog.declarations[2UZ];
+	val d2 = prog.declarations[2];
 	assert_true(d2.kind == NodeKind.DECL_STRUCT, "Decl 2 must be DECL_STRUCT");
 	val s_decl = d2.as_struct_decl();
 	assert_eq_str(s_decl.name, "Vector2D", "Struct name must match");
 	assert_true(s_decl.is_pub, "Struct must be pub");
-	assert_eq_usz(s_decl.fields.len, 2UZ, "Struct must have 2 fields");
+	assert_eq_usz(s_decl.fields.len, 2, "Struct must have 2 fields");
 
 	// Decl 3: FnDecl (add)
-	val d3 = prog.declarations[3UZ];
+	val d3 = prog.declarations[3];
 	assert_true(d3.kind == NodeKind.DECL_FN, "Decl 3 must be DECL_FN");
 	val fn_add = d3.as_fn_decl();
 	assert_eq_str(fn_add.name, "add", "Function name must be 'add'");
 	assert_true(fn_add.is_pub, "Function must be pub");
-	assert_eq_usz(fn_add.params.len, 2UZ, "Function must have 2 params");
+	assert_eq_usz(fn_add.params.len, 2, "Function must have 2 params");
 
 	// Decl 4: FnDecl (main)
-	val d4 = prog.declarations[4UZ];
+	val d4 = prog.declarations[4];
 	assert_true(d4.kind == NodeKind.DECL_FN, "Decl 4 must be DECL_FN");
 	val fn_main = d4.as_fn_decl();
 	assert_eq_str(fn_main.name, "main", "Function name must be 'main'");
 	assert_true(!fn_main.is_pub, "Function must not be pub");
-	assert_eq_usz(fn_main.params.len, 0UZ, "Main must have 0 params");
+	assert_eq_usz(fn_main.params.len, 0, "Main must have 0 params");
 
 	println("  [PASS] test_full_program_parsing");
 }

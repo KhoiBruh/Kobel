@@ -283,9 +283,9 @@ impl DeclPass {
 				v_ty.as_struct_mut().fields += StructField(f.name, f_ty, 0, true, null);
 			}
 			v_ty.layout_struct();
-			if (v_ty.size == 0UZ) {
-				v_ty.size = 1UZ;
-				v_ty.align = 1UZ;
+			if (v_ty.size == 0) {
+				v_ty.size = 1;
+				v_ty.align = 1;
 			}
 
 			self.symtab.define_global(
@@ -307,10 +307,10 @@ impl DeclPass {
 		// Layout: tag, padded up to the union's alignment, then the largest payload.
 		var body_off = tag_ty.size;
 		val rem = tag_ty.size % max_align;
-		if (rem != 0UZ) body_off = tag_ty.size + (max_align - rem);
+		if (rem != 0) body_off = tag_ty.size + (max_align - rem);
 		var pay = max_payload;
 		val prem = pay % max_align;
-		if (prem != 0UZ) pay = pay + (max_align - prem);
+		if (prem != 0) pay = pay + (max_align - prem);
 		enum_ty.align = max_align;
 		enum_ty.size = body_off + pay;
 

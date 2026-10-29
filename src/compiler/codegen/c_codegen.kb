@@ -83,7 +83,7 @@ impl CCodeGen {
 	pub fn gen_defers_unwind(var self, target_depth: usz): str {
 		var res = "";
 		if (self.defer_nodes.empty()) return res;
-		val min_idx = if (target_depth < self.scope_starts.len) self.scope_starts[target_depth] else 0UZ;
+		val min_idx = if (target_depth < self.scope_starts.len) self.scope_starts[target_depth] else 0;
 		var i = self.defer_nodes.len;
 		while (i > min_idx) {
 			i--;

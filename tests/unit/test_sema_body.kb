@@ -60,7 +60,7 @@ fn test_valid_program() {
 	var bp = BodyPass();
 	bp.check_program(prog);
 
-	assert_eq_usz(bp.errors.len, 0UZ, "Valid program must have 0 semantic errors");
+	assert_eq_usz(bp.errors.len, 0, "Valid program must have 0 semantic errors");
 	println("  [PASS] test_valid_program");
 }
 
@@ -84,7 +84,7 @@ fn test_undeclared_identifier() {
 	var bp = BodyPass();
 	bp.check_program(prog);
 
-	assert_true(bp.errors.len >= 1UZ, "Must catch undeclared identifier error");
+	assert_true(bp.errors.len >= 1, "Must catch undeclared identifier error");
 	println("  [PASS] test_undeclared_identifier");
 }
 
@@ -108,7 +108,7 @@ fn test_type_mismatch() {
 	var bp = BodyPass();
 	bp.check_program(prog);
 
-	assert_true(bp.errors.len >= 1UZ, "Must catch type mismatch error");
+	assert_true(bp.errors.len >= 1, "Must catch type mismatch error");
 	println("  [PASS] test_type_mismatch");
 }
 
@@ -134,7 +134,7 @@ fn test_condition_not_bool() {
 	var bp = BodyPass();
 	bp.check_program(prog);
 
-	assert_true(bp.errors.len >= 1UZ, "Must catch non-bool condition error");
+	assert_true(bp.errors.len >= 1, "Must catch non-bool condition error");
 	println("  [PASS] test_condition_not_bool");
 }
 
@@ -158,7 +158,7 @@ fn test_return_type_mismatch() {
 	var bp = BodyPass();
 	bp.check_program(prog);
 
-	assert_true(bp.errors.len >= 1UZ, "Must catch return type mismatch error");
+	assert_true(bp.errors.len >= 1, "Must catch return type mismatch error");
 	println("  [PASS] test_return_type_mismatch");
 }
 
@@ -178,7 +178,7 @@ fn test_val_immutability() {
 	var p1 = Parser(l1.tokenize());
 	var bp1 = BodyPass();
 	bp1.check_program(p1.parse_program());
-	assert_true(bp1.errors.len >= 1UZ, "Must catch assignment to val variable");
+	assert_true(bp1.errors.len >= 1, "Must catch assignment to val variable");
 
 	// 6b: Compound assignment to val variable
 	val src2 = """
@@ -191,7 +191,7 @@ fn test_val_immutability() {
 	var p2 = Parser(l2.tokenize());
 	var bp2 = BodyPass();
 	bp2.check_program(p2.parse_program());
-	assert_true(bp2.errors.len >= 1UZ, "Must catch compound assignment to val variable");
+	assert_true(bp2.errors.len >= 1, "Must catch compound assignment to val variable");
 
 	// 6c: Update (increment) on val variable
 	val src3 = """
@@ -204,7 +204,7 @@ fn test_val_immutability() {
 	var p3 = Parser(l3.tokenize());
 	var bp3 = BodyPass();
 	bp3.check_program(p3.parse_program());
-	assert_true(bp3.errors.len >= 1UZ, "Must catch update on val variable");
+	assert_true(bp3.errors.len >= 1, "Must catch update on val variable");
 
 	// 6d: Reassigning immutable parameter
 	val src4 = """
@@ -216,7 +216,7 @@ fn test_val_immutability() {
 	var p4 = Parser(l4.tokenize());
 	var bp4 = BodyPass();
 	bp4.check_program(p4.parse_program());
-	assert_true(bp4.errors.len >= 1UZ, "Must catch assignment to immutable parameter");
+	assert_true(bp4.errors.len >= 1, "Must catch assignment to immutable parameter");
 
 	// 6e: Mutating field on val self receiver
 	val src5 = """
@@ -231,7 +231,7 @@ fn test_val_immutability() {
 	var p5 = Parser(l5.tokenize());
 	var bp5 = BodyPass();
 	bp5.check_program(p5.parse_program());
-	assert_true(bp5.errors.len >= 1UZ, "Must catch field mutation on val self");
+	assert_true(bp5.errors.len >= 1, "Must catch field mutation on val self");
 
 	// 6f: Mutations on var are allowed without errors
 	val src6 = """
@@ -252,7 +252,7 @@ fn test_val_immutability() {
 	var p6 = Parser(l6.tokenize());
 	var bp6 = BodyPass();
 	bp6.check_program(p6.parse_program());
-	assert_eq_usz(bp6.errors.len, 0UZ, "Mutations on var must produce 0 errors");
+	assert_eq_usz(bp6.errors.len, 0, "Mutations on var must produce 0 errors");
 
 	println("  [PASS] test_val_immutability");
 }
@@ -269,7 +269,7 @@ fn test_elvis_jump_restriction() {
 	var p1 = Parser(l1.tokenize());
 	var bp1 = BodyPass();
 	bp1.check_program(p1.parse_program());
-	assert_eq_usz(bp1.errors.len, 0UZ, "Elvis with return in variable declaration must be allowed");
+	assert_eq_usz(bp1.errors.len, 0, "Elvis with return in variable declaration must be allowed");
 
 	// 2. Allowed in assignment: x = p ?: return;
 	val src2 = """
@@ -282,7 +282,7 @@ fn test_elvis_jump_restriction() {
 	var p2 = Parser(l2.tokenize());
 	var bp2 = BodyPass();
 	bp2.check_program(p2.parse_program());
-	assert_eq_usz(bp2.errors.len, 0UZ, "Elvis with return in assignment must be allowed");
+	assert_eq_usz(bp2.errors.len, 0, "Elvis with return in assignment must be allowed");
 
 	// 3. Allowed in statement expression: p ?: return;
 	val src3 = """
@@ -295,7 +295,7 @@ fn test_elvis_jump_restriction() {
 	var p3 = Parser(l3.tokenize());
 	var bp3 = BodyPass();
 	bp3.check_program(p3.parse_program());
-	assert_eq_usz(bp3.errors.len, 0UZ, "Elvis with return in statement expression must be allowed");
+	assert_eq_usz(bp3.errors.len, 0, "Elvis with return in statement expression must be allowed");
 
 	// 4. Disallowed in call argument: foo(p ?: return)
 	val src4 = """
@@ -308,7 +308,7 @@ fn test_elvis_jump_restriction() {
 	var p4 = Parser(l4.tokenize());
 	var bp4 = BodyPass();
 	bp4.check_program(p4.parse_program());
-	assert_true(bp4.errors.len >= 1UZ, "Elvis with return in call argument must be rejected");
+	assert_true(bp4.errors.len >= 1, "Elvis with return in call argument must be rejected");
 
 	// 5. Disallowed in binary expression: 1 + (p ?: return)
 	val src5 = """
@@ -321,7 +321,7 @@ fn test_elvis_jump_restriction() {
 	var p5 = Parser(l5.tokenize());
 	var bp5 = BodyPass();
 	bp5.check_program(p5.parse_program());
-	assert_true(bp5.errors.len >= 1UZ, "Elvis with return in binary sub-expression must be rejected");
+	assert_true(bp5.errors.len >= 1, "Elvis with return in binary sub-expression must be rejected");
 
 	// 6. Disallowed in condition: if (p ?: return)
 	val src6 = """
@@ -333,7 +333,7 @@ fn test_elvis_jump_restriction() {
 	var p6 = Parser(l6.tokenize());
 	var bp6 = BodyPass();
 	bp6.check_program(p6.parse_program());
-	assert_true(bp6.errors.len >= 1UZ, "Elvis with return in if condition must be rejected");
+	assert_true(bp6.errors.len >= 1, "Elvis with return in if condition must be rejected");
 
 	println("  [PASS] test_elvis_jump_restriction");
 }
@@ -349,7 +349,7 @@ fn test_defer_restrictions() {
 	var p1 = Parser(l1.tokenize());
 	var bp1 = BodyPass();
 	bp1.check_program(p1.parse_program());
-	assert_true(bp1.errors.len >= 1UZ, "Return inside defer must be rejected");
+	assert_true(bp1.errors.len >= 1, "Return inside defer must be rejected");
 
 	// 2. Disallow break inside defer
 	val src2 = """
@@ -363,7 +363,7 @@ fn test_defer_restrictions() {
 	var p2 = Parser(l2.tokenize());
 	var bp2 = BodyPass();
 	bp2.check_program(p2.parse_program());
-	assert_true(bp2.errors.len >= 1UZ, "Break inside defer must be rejected");
+	assert_true(bp2.errors.len >= 1, "Break inside defer must be rejected");
 
 	// 3. Disallow continue inside defer
 	val src3 = """
@@ -377,7 +377,7 @@ fn test_defer_restrictions() {
 	var p3 = Parser(l3.tokenize());
 	var bp3 = BodyPass();
 	bp3.check_program(p3.parse_program());
-	assert_true(bp3.errors.len >= 1UZ, "Continue inside defer must be rejected");
+	assert_true(bp3.errors.len >= 1, "Continue inside defer must be rejected");
 
 	// 4. Disallow nested defer inside defer
 	val src4 = """
@@ -391,7 +391,7 @@ fn test_defer_restrictions() {
 	var p4 = Parser(l4.tokenize());
 	var bp4 = BodyPass();
 	bp4.check_program(p4.parse_program());
-	assert_true(bp4.errors.len >= 1UZ, "Nested defer inside defer must be rejected");
+	assert_true(bp4.errors.len >= 1, "Nested defer inside defer must be rejected");
 
 	println("  [PASS] test_defer_restrictions");
 }
@@ -410,7 +410,7 @@ fn test_interpolation_requires_to_str() {
 	var p1 = Parser(l1.tokenize());
 	var bp1 = BodyPass();
 	bp1.check_program(p1.parse_program());
-	assert_true(bp1.errors.len >= 1UZ, "Interpolation of struct without ToStr must be rejected");
+	assert_true(bp1.errors.len >= 1, "Interpolation of struct without ToStr must be rejected");
 
 	val src2 = """
 		struct AdHoc {
@@ -428,7 +428,7 @@ fn test_interpolation_requires_to_str() {
 	var p2 = Parser(l2.tokenize());
 	var bp2 = BodyPass();
 	bp2.check_program(p2.parse_program());
-	assert_true(bp2.errors.len >= 1UZ, "Interpolation with ad-hoc to_str without ToStr trait must be rejected");
+	assert_true(bp2.errors.len >= 1, "Interpolation with ad-hoc to_str without ToStr trait must be rejected");
 
 	println("  [PASS] test_interpolation_requires_to_str");
 }

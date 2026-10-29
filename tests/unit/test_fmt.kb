@@ -32,7 +32,7 @@ fn test_basic_formatting() {
 	println("--- Formatted Output 1 ---");
 	println(formatted);
 
-	assert_true(formatted.len > 0UZ, "Formatted output must not be empty");
+	assert_true(formatted.len > 0, "Formatted output must not be empty");
 	println("  [PASS] test_basic_formatting");
 }
 
@@ -48,7 +48,7 @@ fn test_knr_and_smart_tabs() {
 	println("--- Formatted Output 2 ---");
 	println(formatted);
 
-	assert_true(formatted.len > 0UZ, "Formatted output must not be empty");
+	assert_true(formatted.len > 0, "Formatted output must not be empty");
 	println("  [PASS] test_knr_and_smart_tabs");
 }
 
@@ -64,7 +64,7 @@ fn test_comments() {
 	println("--- Formatted Output 3 ---");
 	println(formatted);
 
-	assert_true(formatted.len > 0UZ, "Formatted output must not be empty");
+	assert_true(formatted.len > 0, "Formatted output must not be empty");
 	println("  [PASS] test_comments");
 }
 

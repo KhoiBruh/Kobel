@@ -63,35 +63,35 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 
 fn test_primitive_types() {
 	var t_i32 = type_i32();
-	assert_eq_usz(t_i32.size, 4UZ, "i32 size must be 4");
-	assert_eq_usz(t_i32.align, 4UZ, "i32 align must be 4");
+	assert_eq_usz(t_i32.size, 4, "i32 size must be 4");
+	assert_eq_usz(t_i32.align, 4, "i32 align must be 4");
 	assert_true(t_i32.is_integer(), "i32 must be integer");
 	assert_true(t_i32.is_signed_integer(), "i32 must be signed integer");
 	assert_true(!t_i32.is_unsigned_integer(), "i32 must not be unsigned");
 	assert_true(t_i32.is_numeric(), "i32 must be numeric");
 
 	var t_u64 = type_u64();
-	assert_eq_usz(t_u64.size, 8UZ, "u64 size must be 8");
-	assert_eq_usz(t_u64.align, 8UZ, "u64 align must be 8");
+	assert_eq_usz(t_u64.size, 8, "u64 size must be 8");
+	assert_eq_usz(t_u64.align, 8, "u64 align must be 8");
 	assert_true(t_u64.is_unsigned_integer(), "u64 must be unsigned integer");
 	assert_true(!t_u64.is_signed_integer(), "u64 must not be signed");
 
 	var t_f64 = type_f64();
-	assert_eq_usz(t_f64.size, 8UZ, "f64 size must be 8");
+	assert_eq_usz(t_f64.size, 8, "f64 size must be 8");
 	assert_true(t_f64.is_float(), "f64 must be float");
 	assert_true(!t_f64.is_integer(), "f64 must not be integer");
 
 	var t_bool = type_bool();
-	assert_eq_usz(t_bool.size, 1UZ, "bool size must be 1");
+	assert_eq_usz(t_bool.size, 1, "bool size must be 1");
 	assert_true(!t_bool.is_numeric(), "bool must not be numeric");
 
 	// Test type_primitive helper directly
 	var t_prim_i16 = type_primitive(DataType.I16);
-	assert_eq_usz(t_prim_i16.size, 2UZ, "type_primitive(DataType.I16) size must be 2");
-	assert_eq_usz(t_prim_i16.align, 2UZ, "type_primitive(DataType.I16) align must be 2");
+	assert_eq_usz(t_prim_i16.size, 2, "type_primitive(DataType.I16) size must be 2");
+	assert_eq_usz(t_prim_i16.align, 2, "type_primitive(DataType.I16) align must be 2");
 	var t_prim_str = type_primitive(DataType.STR);
-	assert_eq_usz(t_prim_str.size, 16UZ, "type_primitive(DataType.STR) size must be 16");
-	assert_eq_usz(t_prim_str.align, 8UZ, "type_primitive(DataType.STR) align must be 8");
+	assert_eq_usz(t_prim_str.size, 16, "type_primitive(DataType.STR) size must be 16");
+	assert_eq_usz(t_prim_str.align, 8, "type_primitive(DataType.STR) align must be 8");
 
 	println("  [PASS] test_primitive_types");
 }
@@ -101,15 +101,15 @@ fn test_primitive_types() {
 // ============================================================================
 
 fn test_pointer_and_array_types() {
-	var arena = Arena(16384UZ);
+	var arena = Arena(16384);
 	defer arena.delete();
 
 	var t_i32 = type_i32();
 	val ptr_mut = arena.pointer_type(&t_i32, true);
 	val ptr_const = arena.pointer_type(&t_i32, false);
 
-	assert_eq_usz(ptr_mut.size, 8UZ, "Pointer size must be 8 on x64");
-	assert_eq_usz(ptr_mut.align, 8UZ, "Pointer align must be 8 on x64");
+	assert_eq_usz(ptr_mut.size, 8, "Pointer size must be 8 on x64");
+	assert_eq_usz(ptr_mut.align, 8, "Pointer align must be 8 on x64");
 	assert_true(ptr_mut.as_pointer().is_mut, "ptr_mut must be mutable");
 	assert_true(!ptr_const.as_pointer().is_mut, "ptr_const must not be mutable");
 	assert_true(ptr_mut.as_pointer().is_mut, "ptr_mut.as_pointer() must be mutable");
@@ -119,25 +119,25 @@ fn test_pointer_and_array_types() {
 	assert_true(ptr_null.as_pointer().is_nullable, "ptr_null must be nullable");
 
 	// Array [i32; 10]
-	val arr = arena.array_type(&t_i32, 10UZ);
-	assert_eq_usz(arr.size, 40UZ, "Array [i32; 10] size must be 40");
-	assert_eq_usz(arr.align, 4UZ, "Array [i32; 10] align must be 4");
-	assert_eq_usz(arr.as_array().length, 10UZ, "Array length must be 10");
-	assert_eq_usz(arr.as_array().length, 10UZ, "arr.as_array() length must be 10");
+	val arr = arena.array_type(&t_i32, 10);
+	assert_eq_usz(arr.size, 40, "Array [i32; 10] size must be 40");
+	assert_eq_usz(arr.align, 4, "Array [i32; 10] align must be 4");
+	assert_eq_usz(arr.as_array().length, 10, "Array length must be 10");
+	assert_eq_usz(arr.as_array().length, 10, "arr.as_array() length must be 10");
 
 	// Test fn_type
 	var params = List<*Type>();
 	params += &t_i32;
 	val fn_ty = arena.fn_type(params, &t_i32);
-	assert_eq_usz(fn_ty.as_fn().param_types.len, 1UZ, "fn_ty param count must be 1");
+	assert_eq_usz(fn_ty.as_fn().param_types.len, 1, "fn_ty param count must be 1");
 
 	// Payloads are read back through the typed accessors; a wrong-kind accessor
 	// yields null instead of reinterpreting another payload.
 	val payload_ptr = arena.pointer_type(&t_i32, false);
 	assert_true(payload_ptr.as_pointer() != null, "pointer payload must be present");
 	assert_true(payload_ptr.as_struct() == null, "a pointer type has no struct payload");
-	val payload_arr = arena.array_type(&t_i32, 7UZ);
-	assert_eq_usz(payload_arr.as_array().length, 7UZ, "array payload length must be 7");
+	val payload_arr = arena.array_type(&t_i32, 7);
+	assert_eq_usz(payload_arr.as_array().length, 7, "array payload length must be 7");
 
 	println("  [PASS] test_pointer_and_array_types");
 }
@@ -147,7 +147,7 @@ fn test_pointer_and_array_types() {
 // ============================================================================
 
 fn test_struct_layout() {
-	var arena = Arena(16384UZ);
+	var arena = Arena(16384);
 	defer arena.delete();
 
 	// struct Sample { a: u8, b: i32, c: i64 }
@@ -160,24 +160,24 @@ fn test_struct_layout() {
 	var t_i64 = type_i64();
 
 	var fields = List<StructField>();
-	fields += StructField("a", &t_u8, 0UZ, true, null);
-	fields += StructField("b", &t_i32, 0UZ, true, null);
-	fields += StructField("c", &t_i64, 0UZ, true, null);
+	fields += StructField("a", &t_u8, 0, true, null);
+	fields += StructField("b", &t_i32, 0, true, null);
+	fields += StructField("c", &t_i64, 0, true, null);
 
 	val s_ty = arena.struct_type("Sample", fields);
 
-	assert_eq_usz(s_ty.align, 8UZ, "Struct max align must be 8");
-	assert_eq_usz(s_ty.size, 16UZ, "Struct size with padding must be 16");
+	assert_eq_usz(s_ty.align, 8, "Struct max align must be 8");
+	assert_eq_usz(s_ty.size, 16, "Struct size with padding must be 16");
 
 	val s_info = s_ty.as_struct();
 	assert_eq_str(s_info.name, "Sample", "Struct name must match");
 	assert_eq_str(s_ty.as_struct().name, "Sample", "s_ty.as_struct() name must match");
-	assert_eq_usz(s_ty.as_struct_mut().fields.len, 3UZ, "s_ty.as_struct_mut() fields len must be 3");
-	assert_eq_usz(s_info.fields.len, 3UZ, "Field count must be 3");
+	assert_eq_usz(s_ty.as_struct_mut().fields.len, 3, "s_ty.as_struct_mut() fields len must be 3");
+	assert_eq_usz(s_info.fields.len, 3, "Field count must be 3");
 
-	assert_eq_usz(s_info.fields[0UZ].offset, 0UZ, "Field a offset must be 0");
-	assert_eq_usz(s_info.fields[1UZ].offset, 4UZ, "Field b offset must be 4 (after 3B padding)");
-	assert_eq_usz(s_info.fields[2UZ].offset, 8UZ, "Field c offset must be 8");
+	assert_eq_usz(s_info.fields[0].offset, 0, "Field a offset must be 0");
+	assert_eq_usz(s_info.fields[1].offset, 4, "Field b offset must be 4 (after 3B padding)");
+	assert_eq_usz(s_info.fields[2].offset, 8, "Field c offset must be 8");
 
 	println("  [PASS] test_struct_layout");
 }
@@ -187,7 +187,7 @@ fn test_struct_layout() {
 // ============================================================================
 
 fn test_type_equality_and_assignability() {
-	var arena = Arena(16384UZ);
+	var arena = Arena(16384);
 	defer arena.delete();
 
 	var t_i32_1 = type_i32();

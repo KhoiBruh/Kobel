@@ -33,13 +33,13 @@ fn test_ascii(): bool {
 }
 
 fn test_arena(): bool {
-	var arena: Arena = Arena(1024UZ);
+	var arena: Arena = Arena(1024);
 	defer arena.delete();
-	val p1: &u8 = arena.alloc_bytes(64UZ, 8UZ);
-	val p2: &u8 = arena.alloc_bytes(128UZ, 8UZ);
+	val p1: &u8 = arena.alloc_bytes(64, 8);
+	val p2: &u8 = arena.alloc_bytes(128, 8);
 	if (p1 == null || p2 == null) return false;
 	arena.reset();
-	val p3: &u8 = arena.alloc_bytes(32UZ, 8UZ);
+	val p3: &u8 = arena.alloc_bytes(32, 8);
 	if (p3 == null) return false;
 	return true;
 }
@@ -51,25 +51,25 @@ fn test_collections(): bool {
 	list += 10;
 	list += 20;
 	list += 30;
-	if (list.len != 3UZ) return false;
-	if (list[1UZ] != 20) return false;
+	if (list.len != 3) return false;
+	if (list[1] != 20) return false;
 	// test insert
-	list.insert(1UZ, 15); // [10, 15, 20, 30]
-	if (list.len != 4UZ || list[1UZ] != 15 || list[2UZ] != 20) return false;
+	list.insert(1, 15); // [10, 15, 20, 30]
+	if (list.len != 4 || list[1] != 15 || list[2] != 20) return false;
 
 	// test remove_at
-	val rem: i32 = list.remove_at(1UZ); // [10, 20, 30]
-	if (rem != 15 || list.len != 3UZ || list[1UZ] != 20) return false;
+	val rem: i32 = list.remove_at(1); // [10, 20, 30]
+	if (rem != 15 || list.len != 3 || list[1] != 20) return false;
 
 	// test clone
 	{
 		var cloned = list.clone();
 		defer cloned.delete();
-		if (cloned.len != 3UZ || cloned[2UZ] != 30) return false;
+		if (cloned.len != 3 || cloned[2] != 30) return false;
 	}
 
 	val pop_val: i32 = list.pop();
-	if (pop_val != 30 || list.len != 2UZ) return false;
+	if (pop_val != 30 || list.len != 2) return false;
 
 	// test extend, in/contains, index_of, remove, reverse, pop_or
 	{
@@ -78,24 +78,24 @@ fn test_collections(): bool {
 		ext_list += 40;
 		ext_list += 50;
 		list.extend(ext_list); // [10, 20, 40, 50]
-		if (list.len != 4UZ || !(40 in list) || list.contains(99)) return false;
+		if (list.len != 4 || !(40 in list) || list.contains(99)) return false;
 		if (list.index_of(40) != 2 || list.index_of(99) != -1) return false;
-		if (!list.remove(40) || (40 in list) || list.len != 3UZ) return false;
+		if (!list.remove(40) || (40 in list) || list.len != 3) return false;
 		list.reverse(); // [50, 20, 10]
-		if (list[0UZ] != 50 || list[2UZ] != 10) return false;
+		if (list[0] != 50 || list[2] != 10) return false;
 		if (list.pop_or(0) != 10) return false;
 	}
 
 	// 2. HashMap
 	var map: HashMap<str, i32> = HashMap<str, i32>();
 	defer map.delete();
-	if (!map.empty() || map.count() != 0UZ) return false;
+	if (!map.empty() || map.count() != 0) return false;
 
 	map["first"] = 100;
 	map["second"] = 200; // tests map[k] = v (set)
 	map["third"] = 300;
 
-	if (map.empty() || map.len != 3UZ || map.count() != 3UZ) return false;
+	if (map.empty() || map.len != 3 || map.count() != 3) return false;
 	if (!("second" in map) || !("first" in map) || !("third" in map)) return false;
 	if ("not_found" in map) return false;
 
@@ -112,7 +112,7 @@ fn test_collections(): bool {
 
 	// test overwrite via indexing
 	map["first"] = 101;
-	if (map.len != 3UZ) return false;
+	if (map.len != 3) return false;
 	val p_first_upd = map["first"];
 	if (p_first_upd == null || *p_first_upd != 101) return false;
 
@@ -120,25 +120,25 @@ fn test_collections(): bool {
 	{
 		val all_keys = map.keys();
 		defer all_keys.delete();
-		if (all_keys.len != 3UZ) return false;
+		if (all_keys.len != 3) return false;
 	}
 
 	{
 		val all_vals = map.values();
 		defer all_vals.delete();
-		if (all_vals.len != 3UZ) return false;
+		if (all_vals.len != 3) return false;
 	}
 
 	// test remove
 	if (!map.remove("second")) return false;
 	if ("second" in map) return false;
-	if (map.len != 2UZ) return false;
+	if (map.len != 2) return false;
 	if (map.remove("second")) return false; // already removed
 	if (map.remove("nonexistent")) return false;
 
 	// test clear
 	map.clear();
-	if (!map.empty() || map.len != 0UZ) return false;
+	if (!map.empty() || map.len != 0) return false;
 	if ("first" in map || "third" in map) return false;
 
 	// 3. StringBuilder
@@ -164,35 +164,35 @@ fn test_collections(): bool {
 	{
 		var sb2: StringBuilder = StringBuilder();
 		defer sb2.delete();
-		sb2.append_repeat(' ', 3UZ);
+		sb2.append_repeat(' ', 3);
 		sb2 += "x";
 		sb2.append_escaped("a\"b\\c\nd");
 		if (sb2.to_str() != "   xa\\\"b\\\\c\\nd") return false;
 		sb2.clear();
-		sb2.append_repeat('x', 100UZ);
-		if (sb2.len != 100UZ || sb2.last_char() != 'x') return false;
+		sb2.append_repeat('x', 100);
+		if (sb2.len != 100 || sb2.last_char() != 'x') return false;
 	}
 
 	// 5. HashSet
 	{
 		var set: HashSet = HashSet();
 		defer set.delete();
-		if (!set.empty() || set.count() != 0UZ) return false;
+		if (!set.empty() || set.count() != 0) return false;
 		if (!set.add("apple")) return false;
 		if (!set.add("banana")) return false;
 		if (set.add("apple")) return false;
-		if (set.len != 2UZ || !("apple" in set) || !("banana" in set)) return false;
+		if (set.len != 2 || !("apple" in set) || !("banana" in set)) return false;
 		if ("orange" in set) return false;
 		{
 			val set_list = set.to_list();
 			defer set_list.delete();
-			if (set_list.len != 2UZ) return false;
+			if (set_list.len != 2) return false;
 		}
 		if (!set.remove("apple")) return false;
 		if ("apple" in set) return false;
-		if (set.len != 1UZ) return false;
+		if (set.len != 1) return false;
 		set.clear();
-		if (!set.empty() || set.len != 0UZ) return false;
+		if (!set.empty() || set.len != 0) return false;
 	}
 
 	// 6. str.replace_char & str.join
@@ -250,12 +250,12 @@ fn test_str(): bool {
 	if (s.index_of("Kobel") != 7) return false;
 	if (s.index_of("Missing") != -1) return false;
 
-	if (s.strip_suffix(7UZ) != "Hello, Kobel") return false;
+	if (s.strip_suffix(7) != "Hello, Kobel") return false;
 
-	if ("ab".repeat(3UZ) != "ababab") return false;
-	if ("ab".repeat(0UZ) != "") return false;
-	if (s.repeat(1UZ) != s) return false;
-	if ("".repeat(4UZ) != "") return false;
+	if ("ab".repeat(3) != "ababab") return false;
+	if ("ab".repeat(0) != "") return false;
+	if (s.repeat(1) != s) return false;
+	if ("".repeat(4) != "") return false;
 
 	return true;
 }

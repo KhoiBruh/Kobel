@@ -57,18 +57,18 @@ fn test_end_to_end_codegen() {
 	// 2. Parser
 	var parser = Parser(tokens);
 	val prog = parser.parse_program();
-	assert_eq_usz(parser.errors.len, 0UZ, "Parser must have 0 syntax errors");
+	assert_eq_usz(parser.errors.len, 0, "Parser must have 0 syntax errors");
 
 	// 3. Semantic Analysis (DeclPass + BodyPass)
 	var bp = BodyPass();
 	bp.check_program(prog);
-	assert_eq_usz(bp.errors.len, 0UZ, "Semantic analysis must have 0 errors");
+	assert_eq_usz(bp.errors.len, 0, "Semantic analysis must have 0 errors");
 
 	// 4. Code Generation (C Backend)
 	var codegen = CCodeGen();
 	val c_code = codegen.gen_program(prog);
 
-	assert_true(c_code.len > 100UZ, "Generated C code must not be empty");
+	assert_true(c_code.len > 100, "Generated C code must not be empty");
 
 	// Write the C code to a file so it can be compiled natively
 	val ok_write = write_file("build/sample_pipeline_output.c", c_code);
