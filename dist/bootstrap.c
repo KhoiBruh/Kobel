@@ -2434,6 +2434,8 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_index_wr
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_update_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_when_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* expected);
+bool compiler__sema__body__pass__BodyPass_check_when_exhaustiveness(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__WhenExpr* we, compiler__sema__types__Type* cond_ty);
+const char* compiler__sema__body__pass__BodyPass_match_enum_variant(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* pat, compiler__sema__enums__EnumInfo* enum_info);
 const char* compiler__sema__body__pass__BodyPass_arm_smart_cast_sym(compiler__sema__body__pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond);
 bool compiler__sema__body__pass__BodyPass_arm_smart_cast_is_mut(compiler__sema__body__pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_resolve_arm_patterns(compiler__sema__body__pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond, compiler__sema__types__Type* cond_ty);
@@ -7654,10 +7656,8 @@ const char* compiler__sema__types__Type_to_str(compiler__sema__types__Type* self
     } else if (self->kind == 18) {
         compiler__sema__structs__StructType* s = compiler__sema__types__Type_as_struct(self);
         return s->name;
-    } else if (self->kind == 19) {
-        return "fn(...)";
     } else {
-        return "unknown";
+        return "fn(...)";
     }
 }
 
@@ -11883,10 +11883,8 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_literal_
         return compiler__sema__prims__PrimTypes_t_str(compiler__sema__body__pass__BodyPass_prims(self));
     } else if (lit->literal_kind == 3) {
         return compiler__sema__prims__PrimTypes_t_char(compiler__sema__body__pass__BodyPass_prims(self));
-    } else if (lit->literal_kind == 5) {
-        return std__mem__arena__Arena_pointer_type_3_2(&self->arena, compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self)), false);
     } else {
-        return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
+        return std__mem__arena__Arena_pointer_type_3_2(&self->arena, compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self)), false);
     }
 }
 
@@ -13035,11 +13033,168 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_when_exp
         }
     }
     self->when_depth--;
-    compiler__sema__body__pass__BodyPass_ensure(self, has_else, node, "when expression requires an 'else' arm");
-    if (!has_else || (result_ty == NULL)) {
+    bool is_exhaustive = compiler__sema__body__pass__BodyPass_check_when_exhaustiveness(self, node, we, cond_ty);
+    if (has_else && is_exhaustive) {
+        compiler__sema__body__pass__BodyPass_report_error(self, node, "Redundant 'else' arm: all cases are already covered");
+    }
+    if (!has_else && !is_exhaustive) {
+        compiler__sema__body__pass__BodyPass_report_error(self, node, "'when' expression is not exhaustive and requires an 'else' arm");
+    }
+    if (result_ty == NULL) {
         return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
     }
     return result_ty;
+}
+
+bool compiler__sema__body__pass__BodyPass_check_when_exhaustiveness(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__node__WhenExpr* we, compiler__sema__types__Type* cond_ty) {
+    if (cond_ty == NULL) {
+        return false;
+    }
+    compiler__sema__types__Type* base_ty = cond_ty;
+    if (base_ty->kind == 16) {
+        base_ty = (*compiler__sema__types__Type_as_pointer(base_ty)).pointee;
+    }
+    if (base_ty->kind == 1) {
+        bool has_true = false;
+        bool has_false = false;
+        {
+            size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
+            size_t __for_i = 0;
+            while (__for_i < __for_n) {
+                compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+                if (arm.is_else) {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+                {
+                    size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
+                        {
+                            compiler__ast__node__LiteralExpr* lit = NULL;
+                            compiler__ast__node__IdentifierExpr* id = NULL;
+                            if ((pat != NULL && pat->kind == compiler__ast__expr__LiteralExpr__TAG && (lit = pat->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 2)) {
+                                if (kobel_streq(lit->raw_text, "true")) {
+                                    has_true = true;
+                                }
+                                if (kobel_streq(lit->raw_text, "false")) {
+                                    has_false = true;
+                                }
+                            } else if ((pat != NULL && pat->kind == compiler__ast__expr__IdentifierExpr__TAG && (id = pat->data.u.IdentifierExpr.inner, 1))) {
+                                if (kobel_streq(id->name, "true")) {
+                                    has_true = true;
+                                }
+                                if (kobel_streq(id->name, "false")) {
+                                    has_false = true;
+                                }
+                            }
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+        return (has_true && has_false);
+    }
+    compiler__sema__enums__EnumInfo* enum_info = NULL;
+    if (compiler__sema__types__Type_is_enum(base_ty)) {
+        enum_info = compiler__sema__types__Type_as_enum(base_ty);
+    } else if (base_ty->kind == 18) {
+        enum_info = compiler__sema__symbol__SymbolTable_find_enum_info(&self->symtab, (*compiler__sema__types__Type_as_struct(base_ty)).name);
+    }
+    if ((enum_info == NULL) || std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_empty(&enum_info->members)) {
+        return false;
+    }
+    std__collections__list__List_str covered = std__collections__list__List_str_new(4);
+    {
+        size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+            if (arm.is_else) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            {
+                size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&arm.patterns);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__node__AstNode* pat = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&arm.patterns, __for_i);
+                    const char* vname = compiler__sema__body__pass__BodyPass_match_enum_variant(self, pat, enum_info);
+                    if (!str_empty(vname)) {
+                        bool already = false;
+                        {
+                            size_t __for_n = std__collections__list__List_str_count(&covered);
+                            size_t __for_i = 0;
+                            while (__for_i < __for_n) {
+                                const char* c = std__collections__list__List_str_at(&covered, __for_i);
+                                if (kobel_streq(c, vname)) {
+                                    already = true;
+                                }
+                                __for_i = (__for_i + 1);
+                            }
+                        }
+                        if (!already) {
+                            std__collections__list__List_str_plus_assign(&covered, vname);
+                        }
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return (covered.len == enum_info->members.len);
+}
+
+const char* compiler__sema__body__pass__BodyPass_match_enum_variant(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* pat, compiler__sema__enums__EnumInfo* enum_info) {
+    {
+        compiler__ast__node__MemberExpr* mem = NULL;
+        compiler__ast__node__IsExpr* is_e = NULL;
+        compiler__ast__node__IdentifierExpr* id = NULL;
+        if ((pat != NULL && pat->kind == compiler__ast__expr__MemberExpr__TAG && (mem = pat->data.u.MemberExpr.inner, 1))) {
+            bool target_matches = true;
+            {
+                compiler__ast__node__IdentifierExpr* tid = NULL;
+                if ((mem->object != NULL && mem->object->kind == compiler__ast__expr__IdentifierExpr__TAG && (tid = mem->object->data.u.IdentifierExpr.inner, 1))) {
+                    target_matches = (kobel_streq(tid->name, enum_info->name) || kobel_streq(tid->name, enum_info->c_name));
+                }
+            }
+            if (target_matches) {
+                compiler__sema__enums__EnumMemberInfo* m = compiler__sema__enums__EnumInfo_find_member(enum_info, mem->member);
+                if (m != NULL) {
+                    return m->name;
+                }
+            }
+        } else if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG && (is_e = pat->data.u.IsExpr.inner, 1))) {
+            if (is_e->target_type != NULL) {
+                compiler__sema__types__Type* target_ty = compiler__sema__body__pass__BodyPass_resolve_type(self, is_e->target_type);
+                if ((target_ty != NULL) && (target_ty->kind == 18)) {
+                    compiler__sema__structs__StructType* target_s = compiler__sema__types__Type_as_struct(target_ty);
+                    {
+                        size_t __for_n = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_count(&enum_info->members);
+                        size_t __for_i = 0;
+                        while (__for_i < __for_n) {
+                            compiler__sema__enums__EnumMemberInfo* m = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_at(&enum_info->members, __for_i);
+                            const char* full_vname = kobel_concat(kobel_concat(enum_info->name, "."), m->name);
+                            if (kobel_streq(target_s->name, full_vname) || kobel_streq(target_s->name, m->name)) {
+                                return m->name;
+                            }
+                            __for_i = (__for_i + 1);
+                        }
+                    }
+                }
+            }
+        } else if ((pat != NULL && pat->kind == compiler__ast__expr__IdentifierExpr__TAG && (id = pat->data.u.IdentifierExpr.inner, 1))) {
+            compiler__sema__enums__EnumMemberInfo* m = compiler__sema__enums__EnumInfo_find_member(enum_info, id->name);
+            if (m != NULL) {
+                return m->name;
+            }
+        }
+    }
+    return "";
 }
 
 const char* compiler__sema__body__pass__BodyPass_arm_smart_cast_sym(compiler__sema__body__pass__BodyPass* self, std__collections__list__List_ptr_compiler__ast__node__AstNode patterns, compiler__ast__node__AstNode* cond) {
@@ -16526,10 +16681,8 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_literal_expr(compiler__co
             return lit->raw_text;
         }
         return kobel_concat(kobel_concat("'", lit->raw_text), "'");
-    } else if (lit->literal_kind == 5) {
-        return "NULL";
     } else {
-        return lit->raw_text;
+        return "NULL";
     }
 }
 
@@ -16623,9 +16776,28 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_assign_expr(compiler__cod
 }
 
 const char* compiler__codegen__c_codegen__CCodeGen_gen_when_expr(compiler__codegen__c_codegen__CCodeGen* self, compiler__ast__node__WhenExpr* we) {
+    if (std__collections__list__List_compiler__ast__expr__WhenArm_empty(&we->arms)) {
+        return "0";
+    }
     const char* cond = ((we->condition != NULL) ? compiler__codegen__c_codegen__CCodeGen_gen_expr(self, we->condition) : "");
+    bool has_else = false;
+    {
+        size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+            if (arm.is_else) {
+                has_else = true;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
     const char* res = "0";
     size_t i = we->arms.len;
+    if (!has_else) {
+        i--;
+        res = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, std__collections__list__List_compiler__ast__expr__WhenArm_get(&we->arms, i).body);
+    }
     while (i > 0) {
         i--;
         compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_get(&we->arms, i);
@@ -17624,11 +17796,25 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
     self->yield_exit_label = (is_ret ? "" : kobel_concat("__when_end_", usz_to_str(when_id)));
     self->yield_target = target_name;
     self->is_yield_return = is_ret;
+    bool has_else = false;
     {
         size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+            if (arm.is_else) {
+                has_else = true;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    size_t arm_idx = 0;
+    {
+        size_t __for_n = std__collections__list__List_compiler__ast__expr__WhenArm_count(&we->arms);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__expr__WhenArm arm = std__collections__list__List_compiler__ast__expr__WhenArm_at(&we->arms, __for_i);
+            bool is_last = (arm_idx == (we->arms.len - 1));
             const char* cast_decl = "";
             const char* bound = compiler__codegen__c_codegen__CCodeGen_when_arm_binding(self, arm.patterns, we->condition);
             if (!str_empty(bound)) {
@@ -17646,6 +17832,8 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
             }
             if (arm.is_else) {
                 res = kobel_concat(res, (first ? kobel_concat(ind, "{\n") : kobel_concat(ind, "} else {\n")));
+            } else if ((!has_else && is_last) && !first) {
+                res = kobel_concat(res, kobel_concat(ind, "} else {\n"));
             } else {
                 const char* test = compiler__codegen__c_codegen__CCodeGen_gen_when_test(self, cond, arm.patterns);
                 res = kobel_concat(res, (first ? kobel_concat(kobel_concat(kobel_concat(ind, "if ("), test), ") {\n") : kobel_concat(kobel_concat(kobel_concat(ind, "} else if ("), test), ") {\n")));
@@ -17674,6 +17862,7 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_when_with_target(compiler
             }
             self->indent_level--;
             first = false;
+            arm_idx++;
             __for_i = (__for_i + 1);
         }
     }

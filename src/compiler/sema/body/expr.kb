@@ -128,7 +128,6 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 			LiteralKind.STRING -> self.prims().t_str();
 			LiteralKind.CHAR -> self.prims().t_char();
 			LiteralKind.NULL_VAL -> self.arena.pointer_type(self.prims().t_none(), false);
-			else -> self.prims().t_none();
 		};
 	}
 

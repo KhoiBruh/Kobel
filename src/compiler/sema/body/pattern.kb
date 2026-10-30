@@ -28,6 +28,7 @@ use compiler.sema.body.pass.*;
 use compiler.sema.desugar.interp.*;
 
 use compiler.sema.structs.*;
+use compiler.sema.enums.*;
 
 impl BodyPass {
 
@@ -35,7 +36,7 @@ impl BodyPass {
 		val we = node.as_when_expr();
 		val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
 
-	self.when_depth++;
+		self.when_depth++;
 		var result_ty: *Type = expected;
 		var has_else = false;
 		for (arm in we.arms) {
@@ -51,9 +52,99 @@ impl BodyPass {
 		}
 		self.when_depth--;
 
-		self.ensure(has_else, node, "when expression requires an 'else' arm");
-		if (!has_else || result_ty == null) return self.prims().t_none();
+		val is_exhaustive = self.check_when_exhaustiveness(node, we, cond_ty);
+		if (has_else && is_exhaustive) {
+			self.report_error(node, "Redundant 'else' arm: all cases are already covered");
+		}
+		if (!has_else && !is_exhaustive) {
+			self.report_error(node, "'when' expression is not exhaustive and requires an 'else' arm");
+		}
+
+		if (result_ty == null) return self.prims().t_none();
 		return result_ty;
+	}
+
+	fn check_when_exhaustiveness(var self, node: *AstNode, we: *WhenExpr, cond_ty: *Type): bool {
+		if (cond_ty == null) return false;
+
+		var base_ty = cond_ty;
+		if (base_ty.kind == DataType.POINTER) {
+			base_ty = base_ty.as_pointer().pointee;
+		}
+
+		if (base_ty.kind == DataType.BOOL) {
+			var has_true = false;
+			var has_false = false;
+			for (arm in we.arms) {
+				if (arm.is_else) continue;
+				for (pat in arm.patterns) {
+					if (pat is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
+						if (lit.raw_text == "true") has_true = true;
+						if (lit.raw_text == "false") has_false = true;
+					} else if (pat is IdentifierExpr as id) {
+						if (id.name == "true") has_true = true;
+						if (id.name == "false") has_false = true;
+					}
+				}
+			}
+			return has_true && has_false;
+		}
+
+		var enum_info: *EnumInfo = null;
+		if (base_ty.is_enum()) {
+			enum_info = base_ty.as_enum();
+		} else if (base_ty.kind == DataType.STRUCT) {
+			enum_info = self.symtab.find_enum_info(base_ty.as_struct().name);
+		}
+
+		if (enum_info == null || enum_info.members.empty()) return false;
+
+		var covered = List<str>();
+		for (arm in we.arms) {
+			if (arm.is_else) continue;
+			for (pat in arm.patterns) {
+				val vname = self.match_enum_variant(pat, enum_info);
+				if (!vname.empty()) {
+					var already = false;
+					for (c in covered) {
+						if (c == vname) already = true;
+					}
+					if (!already) covered += vname;
+				}
+			}
+		}
+
+		return covered.len == enum_info.members.len;
+	}
+
+	fn match_enum_variant(var self, pat: *AstNode, enum_info: *EnumInfo): str {
+		if (pat is MemberExpr as mem) {
+			var target_matches = true;
+			if (mem.object is IdentifierExpr as tid) {
+				target_matches = (tid.name == enum_info.name || tid.name == enum_info.c_name);
+			}
+			if (target_matches) {
+				val m = enum_info.find_member(mem.member);
+				if (m != null) return m.name;
+			}
+		} else if (pat is IsExpr as is_e) {
+			if (is_e.target_type != null) {
+				val target_ty = self.resolve_type(is_e.target_type);
+				if (target_ty != null && target_ty.kind == DataType.STRUCT) {
+					val target_s = target_ty.as_struct();
+					for (m in enum_info.members) {
+						val full_vname = "${enum_info.name}.${m.name}";
+						if (target_s.name == full_vname || target_s.name == m.name) {
+							return m.name;
+						}
+					}
+				}
+			}
+		} else if (pat is IdentifierExpr as id) {
+			val m = enum_info.find_member(id.name);
+			if (m != null) return m.name;
+		}
+		return "";
 	}
 
 	// Name a single-`is` arm binds: its alias, else the subject's own name. "" when

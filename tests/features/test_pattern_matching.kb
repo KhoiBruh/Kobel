@@ -177,6 +177,23 @@ fn mutate_if_ref(node: *Node) {
 	}
 }
 
+enum ExhaustiveColor { RED, GREEN, BLUE }
+
+fn color_score(c: ExhaustiveColor): i32 {
+	return when (c) {
+		ExhaustiveColor.RED -> 10;
+		ExhaustiveColor.GREEN -> 20;
+		ExhaustiveColor.BLUE -> 30;
+	};
+}
+
+fn bool_score(b: bool): i32 {
+	return when (b) {
+		true -> 100;
+		false -> 200;
+	};
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Pattern Matching & Smart Cast ===");
 
@@ -322,6 +339,16 @@ fn main(): i32 {
 	println("compound: c1=${c1}, c2=${c2}, c3=${c3}, c4=${c4}");
 	if (c1 != 11 || c2 != 50 || c3 != 35 || c4 != -1) {
 		println("FAIL: eval_compound_condition");
+		return 1;
+	}
+
+	// Test Case 8: Exhaustive when on enum & bool without 'else'
+	if (color_score(ExhaustiveColor.RED) != 10 || color_score(ExhaustiveColor.BLUE) != 30) {
+		println("FAIL: exhaustive enum when");
+		return 1;
+	}
+	if (bool_score(true) != 100 || bool_score(false) != 200) {
+		println("FAIL: exhaustive bool when");
 		return 1;
 	}
 

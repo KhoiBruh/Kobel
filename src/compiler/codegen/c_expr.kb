@@ -140,7 +140,6 @@ impl CCodeGen {
 				yield "'${lit.raw_text}'";
 			}
 			LiteralKind.NULL_VAL -> "NULL";
-			else -> lit.raw_text;
 		};
 	}
 
@@ -269,9 +268,19 @@ impl CCodeGen {
 
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
 	fn gen_when_expr(var self, we: *WhenExpr): str {
+		if (we.arms.empty()) return "0";
 		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
+		var has_else = false;
+		for (arm in we.arms) {
+			if (arm.is_else) has_else = true;
+		}
+
 		var res = "0";
 		var i = we.arms.len;
+		if (!has_else) {
+			i--;
+			res = self.gen_expr(we.arms[i].body);
+		}
 		while (i > 0) {
 			i--;
 			val arm = we.arms[i];

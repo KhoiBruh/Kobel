@@ -481,7 +481,6 @@ impl ToStr for Type {
 			yield s.name;
 		}
 		DataType.FN -> "fn(...)";
-		else -> "unknown";
 	};
 
 }

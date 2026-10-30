@@ -15,7 +15,6 @@ fn area(s: Shape): f64 {
 		is Shape.Circle as c -> 3.0 * c.radius * c.radius;
 		is Shape.Rect as r -> r.width * r.height;
 		is Shape.Empty -> 0.0;
-		else -> 0.0;
 	};
 }
 

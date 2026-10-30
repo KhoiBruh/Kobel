@@ -688,7 +688,14 @@ impl CCodeGen {
 		self.yield_target = target_name;
 		self.is_yield_return = is_ret;
 
+		var has_else = false;
 		for (arm in we.arms) {
+			if (arm.is_else) has_else = true;
+		}
+
+		var arm_idx: usz = 0;
+		for (arm in we.arms) {
+			val is_last = (arm_idx == we.arms.len - 1);
 			var cast_decl = "";
 			val bound = self.when_arm_binding(arm.patterns, we.condition);
 			if (!bound.empty()) {
@@ -702,6 +709,8 @@ impl CCodeGen {
 
 			if (arm.is_else) {
 				res += if (first) ind + "{\n" else ind + "} else {\n";
+			} else if (!has_else && is_last && !first) {
+				res += ind + "} else {\n";
 			} else {
 				val test = self.gen_when_test(cond, arm.patterns);
 				res += if (first) ind + "if (" + test + ") {\n"
@@ -721,6 +730,7 @@ impl CCodeGen {
 			}
 			self.indent_level--;
 			first = false;
+			arm_idx++;
 		}
 		if (!first) res += ind + "}\n";
 		if (!is_ret) res = "${res}${ind}${self.yield_exit_label}:;\n";
