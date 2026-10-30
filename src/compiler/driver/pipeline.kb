@@ -1,7 +1,7 @@
 mod compiler.driver.pipeline;
 
 use std.io.*;
-use std.sys.exec;
+use std.sys.*;
 use std.collections.list.*;
 
 use util.strutil.*;
@@ -29,12 +29,57 @@ pub fn is_msvc_compiler(cc: str): bool {
 	return base == "cl" || base == "cl.exe";
 }
 
+// Resolves the configured compiler for the current host OS: on Linux/POSIX,
+// `cc = "cl"` in `kobel.toml` automatically falls back to `cc`.
+pub fn resolve_host_cc(cc: str): str {
+	if (!is_windows() && is_msvc_compiler(cc)) return "cc";
+	return cc;
+}
+
+pub fn ensure_dir(path: str) {
+	if (path.empty() || file_exists(path)) return;
+	if (is_windows()) {
+		exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
+	} else {
+		exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
+	}
+}
+
+pub fn remove_file(path: str) {
+	if (is_windows()) {
+		exec("del /f /q \"${path.to_win_path()}\" >nul 2>nul");
+	} else {
+		exec("rm -f \"${path.to_posix_path()}\" >/dev/null 2>&1");
+	}
+}
+
+pub fn move_file(src: str, dst: str) {
+	if (is_windows()) {
+		exec("move /y \"${src.to_win_path()}\" \"${dst.to_win_path()}\" >nul 2>nul");
+	} else {
+		exec("mv -f \"${src.to_posix_path()}\" \"${dst.to_posix_path()}\" >/dev/null 2>&1");
+	}
+}
+
 // Command line that turns `c_path` into `exe_path` with the given backend.
 // `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
 // Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
 pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
-	val is_path_with_spaces = ("/" in cc || "\\" in cc) && (" " in cc) && !cc.starts_with("\"");
-	val cc_bin = if (is_path_with_spaces) "\"${cc}\"" else cc;
+	val host_cc = resolve_host_cc(cc);
+	val is_path_with_spaces = ("/" in host_cc || "\\" in host_cc) && (" " in host_cc) && !host_cc.starts_with("\"");
+	val cc_bin = if (is_path_with_spaces) "\"${host_cc}\"" else host_cc;
+
+	if (!is_windows()) {
+		val posix_exe = exe_path.to_posix_path();
+		val posix_c = c_path.to_posix_path();
+
+		val exe_arg = if (" " in posix_exe) "\"${posix_exe}\"" else posix_exe;
+		val c_arg = if (" " in posix_c) "\"${posix_c}\"" else posix_c;
+
+		var cmd = "TMPDIR=\"build\" ${cc_bin} -O2 -o ${exe_arg} ${c_arg}";
+		if (quiet) cmd = "${cmd} >/dev/null 2>&1";
+		return cmd;
+	}
 
 	val win_exe = exe_path.to_win_path();
 	val win_obj = obj_path.to_win_path();
@@ -44,10 +89,15 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
 	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
 
-	var cmd = if (is_msvc_compiler(cc)) {
-		"${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}"
+	val tmp_setup = "set \"TMP=build\" && set \"TEMP=build\"";
+	val vcvars_setup = "(where cl >nul 2>nul || for /f \"usebackq delims=\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul)";
+	val cl_invoke = "${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}";
+
+	var cmd = if (is_msvc_compiler(host_cc)) {
+		if (host_cc == "cl" || host_cc == "cl.exe") "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
+		else "${tmp_setup} && ${cl_invoke}"
 	} else {
-		"${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
+		"${tmp_setup} && ${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
 	};
 
 	if (quiet) cmd = "${cmd} >nul 2>nul";
@@ -138,24 +188,27 @@ impl CompileOptions {
 		if (out_path.empty()) out_path = "${input_path.strip_kb()}.exe";
 
 		val out_dir = out_path.dir_of();
-		if (!out_dir.empty() && !file_exists(out_dir)) exec("cmd /c mkdir \"${out_dir.to_win_path()}\" >nul 2>nul");
+		ensure_dir(out_dir);
+		ensure_dir("build");
 
-		val c_tmp_path = "${out_path}.tmp.c";
-		val obj_tmp_path = "${out_path}.tmp.obj";
+		val base_name = out_path.base_name();
+		val c_tmp_path = "build/${base_name}.tmp.c";
+		val obj_tmp_path = "build/${base_name}.tmp.obj";
 		val write_ok = write_file(c_tmp_path, c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_path}");
 			return 1;
 		}
 
-		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
+		val host_cc = resolve_host_cc(self.c_compiler);
+		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${host_cc})...");
 
 		// If the output binary already exists, move it aside to avoid Windows LNK1104
 		// file locking issues (especially during self-hosting builds).
 		val old_bin = "${out_path}.old";
 		if (file_exists(out_path)) {
-			exec("del /f /q \"${old_bin.to_win_path()}\" >nul 2>nul");
-			exec("move /y \"${out_path.to_win_path()}\" \"${old_bin.to_win_path()}\" >nul 2>nul");
+			remove_file(old_bin);
+			move_file(out_path, old_bin);
 		}
 
 		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
@@ -164,7 +217,7 @@ impl CompileOptions {
 		if (exit_code != 0) {
 			// Restore previous binary if compilation failed
 			if (file_exists(old_bin) && !file_exists(out_path))
-				exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
+				move_file(old_bin, out_path);
 			println("Error: Backend C compiler failed with exit code ${exit_code}: cmd was '${compile_cmd}'");
 			return exit_code;
 		}
@@ -175,15 +228,15 @@ impl CompileOptions {
 		// executable sits moved aside as `<out>.old`.
 		if (!file_exists(out_path)) {
 			if (file_exists(old_bin))
-				exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
+				move_file(old_bin, out_path);
 			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
 			return 1;
 		}
 
 		// Clean up temporary C, object, and old binary files
-		val base_obj = "${out_path.base_name()}.tmp.obj";
-		val del_cmd = "del /f /q \"${c_tmp_path.to_win_path()}\" \"${obj_tmp_path.to_win_path()}\" \"${base_obj}\" \"${old_bin.to_win_path()}\" >nul 2>nul";
-		exec(del_cmd);
+		remove_file(c_tmp_path);
+		remove_file(obj_tmp_path);
+		remove_file(old_bin);
 
 		if (!self.quiet) println("[SUCCESS] Executable created: ${out_path}");
 		return 0;

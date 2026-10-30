@@ -3,8 +3,11 @@ mod std.sys;
 extern "libc" {
 	fn exit(code: i32);
 	fn system(cmd: *char): i32;
+	fn getenv(name: *char): *char;
 }
 
 pub fn sys_exit(code: i32) => exit(code);
 
 pub fn exec(cmd: str) => system(cmd.c_str());
+
+pub fn is_windows(): bool => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;

@@ -1,7 +1,7 @@
 mod compiler.driver.commands;
 
 use std.io.*;
-use std.sys.exec;
+use std.sys.*;
 use std.collections.list.*;
 
 use util.strutil.*;
@@ -16,19 +16,21 @@ use compiler.driver.pipeline.*;
 
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	var stamp_seed = read_file(manifest_path);
-	val stamp_dir = cfg.output.dir_of();
-	val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
-	if (!file_exists(build_dir)) exec("cmd /c mkdir \"${build_dir.to_win_path()}\" >nul 2>nul");
+	ensure_dir("build");
 
-	val tmp_file = "${build_dir}/.kobel_src_files.tmp";
+	val tmp_file = "build/.kobel_src_files.tmp";
 	val entry_dir = cfg.entry.dir_of();
 	val root_dir = if (!entry_dir.empty()) entry_dir else "src";
-	val find_cmd = "cmd /c dir /b /s \"${root_dir.to_win_path()}\\*.kb\" > \"${tmp_file.to_win_path()}\" 2>nul";
+	val find_cmd = if (is_windows()) {
+		"cmd /c dir /b /s \"${root_dir.to_win_path()}\\*.kb\" > \"${tmp_file.to_win_path()}\" 2>nul"
+	} else {
+		"find \"${root_dir.to_posix_path()}\" -type f -name \"*.kb\" > \"${tmp_file.to_posix_path()}\" 2>/dev/null"
+	};
 	exec(find_cmd);
 
 	if (file_exists(tmp_file)) {
 		val file_list = read_file(tmp_file);
-		exec("del /f /q \"${tmp_file.to_win_path()}\" >nul 2>nul");
+		remove_file(tmp_file);
 		val lines = file_list.split_lines();
 		for (line in lines) {
 			val fpath = line.trim();
@@ -58,9 +60,8 @@ pub fn cmd_build(manifest_path: str): i32 {
 
 	val exit_code = opts.compile();
 	if (exit_code == 0) {
-		val stamp_dir = cfg.output.dir_of();
-		val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
-		val stamp_file = "${build_dir}/.kobel_stamp";
+		ensure_dir("build");
+		val stamp_file = "build/.kobel_stamp";
 		val stamp = compute_project_stamp(cfg, manifest_path);
 		write_file(stamp_file, stamp);
 		println("[SUCCESS] Build complete: ${cfg.output}");
@@ -75,9 +76,8 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	}
 
 	val cfg = ProjectConfig(manifest_path);
-	val stamp_dir = cfg.output.dir_of();
-	val build_dir = if (!stamp_dir.empty()) stamp_dir else "build";
-	val stamp_file = "${build_dir}/.kobel_stamp";
+	ensure_dir("build");
+	val stamp_file = "build/.kobel_stamp";
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
 	var needs_build = when {
@@ -107,13 +107,20 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		}
 	} else println("No changes detected. Running '${cfg.output}'...");
 
-	// Prepare run command safely without trigger Windows cmd /c quote stripping
-	var out_bin = cfg.output.to_win_path();
-	if (
-		!out_bin.starts_with(".") &&
-		!out_bin.starts_with("\\") &&
-		out_bin.index_of(":") < 0
-	) out_bin = ".\\${out_bin}";
+	// Prepare run command safely without triggering Windows cmd /c quote stripping
+	var out_bin = if (is_windows()) cfg.output.to_win_path() else cfg.output.to_posix_path();
+	if (is_windows()) {
+		if (
+			!out_bin.starts_with(".") &&
+			!out_bin.starts_with("\\") &&
+			out_bin.index_of(":") < 0
+		) out_bin = ".\\${out_bin}";
+	} else {
+		if (
+			!out_bin.starts_with(".") &&
+			!out_bin.starts_with("/")
+		) out_bin = "./${out_bin}";
+	}
 
 	var run_cmd = if (" " in out_bin) "\"${out_bin}\"" else out_bin;
 	for (arg in extra_args) {
@@ -126,14 +133,18 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 
 pub fn discover_test_files(test_dir: str): List<str> {
 	var list = List<str>();
-	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
+	ensure_dir("build");
 	val tmp_list_file = "build/.kobel_test_list.tmp";
-	val find_cmd = "cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul";
+	val find_cmd = if (is_windows()) {
+		"cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul"
+	} else {
+		"find \"${test_dir.to_posix_path()}\" -type f -name \"test_*.kb\" > \"${tmp_list_file}\" 2>/dev/null"
+	};
 	exec(find_cmd);
 
 	if (file_exists(tmp_list_file)) {
 		val content = read_file(tmp_list_file);
-		exec("del /f /q \"${tmp_list_file}\" >nul 2>nul");
+		remove_file(tmp_list_file);
 		val lines = content.split_lines();
 		val search_token = "/${test_dir}/";
 		for (line in lines) {
@@ -174,7 +185,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	var fail_count = 0;
 	var failed_names = List<str>();
 
-	if (!file_exists("build")) exec("cmd /c mkdir build >nul 2>nul");
+	ensure_dir("build");
 
 	for (tpath in active_tests) {
 		print("[*] ${tpath} ... ");
@@ -195,13 +206,19 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 			continue;
 		}
 
-		val win_bin = test_bin.to_win_path();
-		val run_cmd = if (" " in win_bin) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
+		var run_cmd = "";
+		if (is_windows()) {
+			val win_bin = test_bin.to_win_path();
+			run_cmd = if (" " in win_bin) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
+		} else {
+			var posix_bin = test_bin.to_posix_path();
+			if (!posix_bin.starts_with(".") && !posix_bin.starts_with("/")) posix_bin = "./${posix_bin}";
+			run_cmd = if (" " in posix_bin) "\"${posix_bin}\" >/dev/null 2>&1" else "${posix_bin} >/dev/null 2>&1";
+		}
 		val test_res = exec(run_cmd);
 
 		// Clean up the temporary test binary
-		val del_cmd = "del /f /q \"${win_bin}\" >nul 2>nul";
-		exec(del_cmd);
+		remove_file(test_bin);
 
 		if (test_res == 0) {
 			println("PASS");
@@ -261,10 +278,6 @@ pub fn snap_name(path: str): str {
 		else out += "${c}";
 	}
 	return out;
-}
-
-fn ensure_dir(path: str) {
-	if (!file_exists(path)) exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
 }
 
 pub fn cmd_snap(manifest_path: str, update: bool): i32 {
@@ -359,7 +372,10 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	}
 
 	println("[3/3] Re-emitting C with the second-generation compiler...");
-	var run_exe = stage2_exe.to_win_path();
+	var run_exe = if (is_windows()) stage2_exe.to_win_path() else stage2_exe.to_posix_path();
+	if (!is_windows() && !run_exe.starts_with(".") && !run_exe.starts_with("/")) {
+		run_exe = "./${run_exe}";
+	}
 	if (" " in run_exe) run_exe = "\"${run_exe}\"";
 	val exit_code = exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
 	if (exit_code != 0) {
