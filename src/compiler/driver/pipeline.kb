@@ -15,13 +15,14 @@ use compiler.sema.lower.*;
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_program.*;
 use compiler.loader.loader.*;
+use compiler.driver.diagnostics.*;
 
 // ============================================================================
 // Compiler Driver Pipeline
 // ============================================================================
 
 pub fn print_error_list(errors: List<str>) {
-	for (msg in errors) println("  [ERROR] ${msg}");
+	print_diagnostics(errors, "");
 }
 
 pub fn is_msvc_compiler(cc: str): bool {
@@ -136,8 +137,7 @@ impl CompileOptions {
 
 		val loaded_prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {
-			println("Module Errors in ${input_path}:");
-			print_error_list(loader.errors);
+			print_diagnostics(loader.errors, input_path, &loader);
 			return 1;
 		}
 		if (loaded_prog == null) {
@@ -151,8 +151,7 @@ impl CompileOptions {
 		val decl_p = DeclPass();
 		decl_p.collect_program(prog);
 		if (!decl_p.errors.empty()) {
-			println("Semantic Declaration Errors in ${input_path}:");
-			print_error_list(decl_p.errors);
+			print_diagnostics(decl_p.errors, input_path, &loader);
 			return 1;
 		}
 
@@ -160,8 +159,7 @@ impl CompileOptions {
 		val body_p = BodyPass(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
 		if (!body_p.errors.empty()) {
-			println("Semantic Type Errors in ${input_path}:");
-			print_error_list(body_p.errors);
+			print_diagnostics(body_p.errors, input_path, &loader);
 			return 1;
 		}
 

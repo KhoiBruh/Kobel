@@ -298,6 +298,7 @@ typedef int32_t compiler__parser__expr__Precedence;
 typedef struct compiler__loader__loader__LoadedModule compiler__loader__loader__LoadedModule;
 typedef struct compiler__loader__loader__ModuleFile compiler__loader__loader__ModuleFile;
 typedef struct compiler__loader__loader__ModuleLoader compiler__loader__loader__ModuleLoader;
+typedef struct compiler__driver__diagnostics__Diagnostic compiler__driver__diagnostics__Diagnostic;
 typedef struct compiler__driver__pipeline__CompileOptions compiler__driver__pipeline__CompileOptions;
 typedef struct fmt__options__FormatOptions fmt__options__FormatOptions;
 typedef struct fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer;
@@ -951,6 +952,13 @@ struct compiler__loader__loader__ModuleFile {
     bool found;
     const char* path;
     const char* source;
+};
+
+struct compiler__driver__diagnostics__Diagnostic {
+    const char* file_path;
+    size_t line;
+    size_t col;
+    const char* message;
 };
 
 struct fmt__options__FormatOptions {
@@ -2784,6 +2792,10 @@ void compiler__loader__loader__ModuleLoader_ensure_module(compiler__loader__load
 void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node, const char* parent_mod);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
+compiler__driver__diagnostics__Diagnostic compiler__driver__diagnostics__parse_diagnostic(const char* raw, const char* default_file, compiler__loader__loader__ModuleLoader* loader);
+const char* compiler__driver__diagnostics__resolve_file_path(const char* target, const char* default_file, compiler__loader__loader__ModuleLoader* loader);
+const char* compiler__driver__diagnostics__render_diagnostic(compiler__driver__diagnostics__Diagnostic diag);
+void compiler__driver__diagnostics__print_diagnostics(std__collections__list__List_str errors, const char* default_file, compiler__loader__loader__ModuleLoader* loader);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
 bool compiler__driver__pipeline__is_msvc_compiler(const char* cc);
 const char* compiler__driver__pipeline__resolve_host_cc(const char* cc);
@@ -21650,16 +21662,250 @@ compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merge
     return compiler__loader__loader__ModuleLoader_program(self, decls, 0, 0);
 }
 
-void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors) {
+compiler__driver__diagnostics__Diagnostic compiler__driver__diagnostics__parse_diagnostic(const char* raw, const char* default_file, compiler__loader__loader__ModuleLoader* loader) {
+    const char* line_kw = "Line ";
+    intptr_t line_pos = str_index_of(raw, line_kw);
+    if (line_pos >= 0) {
+        const char* prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : "");
+        const char* target = (str_ends_with(prefix, ":") ? str_trim(kobel_slice(prefix, 0, (kobel_slen(prefix) - 1))) : prefix);
+        if (str_empty(target)) {
+            target = default_file;
+        }
+        size_t l_idx = (((size_t)line_pos) + kobel_slen(line_kw));
+        size_t line_num = 0;
+        while ((l_idx < kobel_slen(raw)) && char_is_digit(raw[l_idx])) {
+            line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw[l_idx])) - 48));
+            l_idx++;
+        }
+        while ((l_idx < kobel_slen(raw)) && ((raw[l_idx] == ' ') || (raw[l_idx] == ','))) {
+            l_idx++;
+        }
+        size_t col_num = 0;
+        const char* col_kw = "Column ";
+        const char* rest = kobel_slice(raw, l_idx, kobel_slen(raw));
+        intptr_t c_pos = str_index_of(rest, col_kw);
+        if (c_pos >= 0) {
+            l_idx = ((l_idx + ((size_t)c_pos)) + kobel_slen(col_kw));
+            while ((l_idx < kobel_slen(raw)) && char_is_digit(raw[l_idx])) {
+                col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw[l_idx])) - 48));
+                l_idx++;
+            }
+        }
+        while ((l_idx < kobel_slen(raw)) && ((raw[l_idx] == ':') || (raw[l_idx] == ' '))) {
+            l_idx++;
+        }
+        const char* msg = str_trim(kobel_slice(raw, l_idx, kobel_slen(raw)));
+        const char* file_path = compiler__driver__diagnostics__resolve_file_path(target, default_file, loader);
+        return (compiler__driver__diagnostics__Diagnostic){ file_path, line_num, col_num, msg };
+    }
+    intptr_t colon_pos = str_index_of(raw, ":");
+    if (colon_pos >= 0) {
+        size_t c_idx = (size_t)colon_pos;
+        const char* target = str_trim(kobel_slice(raw, 0, c_idx));
+        const char* msg = str_trim(kobel_slice(raw, (c_idx + 1), kobel_slen(raw)));
+        const char* file_path = compiler__driver__diagnostics__resolve_file_path(target, default_file, loader);
+        return (compiler__driver__diagnostics__Diagnostic){ file_path, 0, 0, msg };
+    }
+    return (compiler__driver__diagnostics__Diagnostic){ default_file, 0, 0, raw };
+}
+
+const char* compiler__driver__diagnostics__resolve_file_path(const char* target, const char* default_file, compiler__loader__loader__ModuleLoader* loader) {
+    if (str_empty(target)) {
+        return default_file;
+    }
+    if ((str_ends_with(target, ".kb") || str_contains(target, "/")) || str_contains(target, "\\")) {
+        return str_to_posix_path(target);
+    }
+    if (loader != NULL) {
+        {
+            size_t __for_n = std__collections__list__List_compiler__loader__loader__LoadedModule_count(&loader->modules);
+            size_t __for_i = 0;
+            while (__for_i < __for_n) {
+                compiler__loader__loader__LoadedModule m = std__collections__list__List_compiler__loader__loader__LoadedModule_at(&loader->modules, __for_i);
+                if (kobel_streq(m.name, target) && !str_empty(m.path)) {
+                    return str_to_posix_path(m.path);
+                }
+                __for_i = (__for_i + 1);
+            }
+        }
+    }
+    const char* rel = kobel_concat(str_module_to_rel(target), ".kb");
+    if (std__io__file_exists(kobel_concat("src/", rel))) {
+        return kobel_concat("src/", rel);
+    }
+    if (std__io__file_exists(kobel_concat("lib/", rel))) {
+        return kobel_concat("lib/", rel);
+    }
+    if (std__io__file_exists(rel)) {
+        return rel;
+    }
+    return target;
+}
+
+const char* compiler__driver__diagnostics__render_diagnostic(compiler__driver__diagnostics__Diagnostic diag) {
+    const char* c_red = "\x1b[1;31m";
+    const char* c_blue = "\x1b[1;34m";
+    const char* c_bold = "\x1b[1m";
+    const char* c_reset = "\x1b[0m";
+    const char* out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(c_red, "error"), c_reset), c_bold), ": "), diag.message), c_reset), "\n");
+    if (!str_empty(diag.file_path)) {
+        if (diag.line > 0) {
+            out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(out, "  "), c_blue), "-->"), c_reset), " "), diag.file_path), ":"), usz_to_str(diag.line)), ":"), usz_to_str(diag.col)), "\n");
+        } else {
+            out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(out, "  "), c_blue), "-->"), c_reset), " "), diag.file_path), "\n");
+        }
+    }
+    if (((diag.line > 0) && !str_empty(diag.file_path)) && std__io__file_exists(diag.file_path)) {
+        const char* content = std__io__read_file(diag.file_path);
+        if (!str_empty(content)) {
+            std__collections__list__List_str lines = str_split_lines(content);
+            if ((diag.line >= 1) && (diag.line <= lines.len)) {
+                const char* raw_line = std__collections__list__List_str_get(&lines, (diag.line - 1));
+                const char* line_str = usz_to_str(diag.line);
+                size_t gutter_w = ((kobel_slen(line_str) < 2) ? 2 : kobel_slen(line_str));
+                const char* gutter_pad = "";
+                if (gutter_w > kobel_slen(line_str)) {
+                    {
+                        size_t __for_e = (gutter_w - kobel_slen(line_str));
+                        size_t __for_i = __for_e;
+                        __for_i = 0;
+                        bool __for_up = (__for_i <= __for_e);
+                        bool __for_go = false;
+                        if (__for_up) {
+                            __for_go = (__for_i < __for_e);
+                        } else {
+                            __for_go = (__for_i > __for_e);
+                        }
+                        while (__for_go) {
+                            size_t i = __for_i;
+                            gutter_pad = kobel_concat(gutter_pad, " ");
+                            if (__for_up) {
+                                __for_go = ((__for_i + 1) < __for_e);
+                            } else {
+                                __for_go = ((__for_i - 1) > __for_e);
+                            }
+                            if (__for_go) {
+                                if (__for_up) {
+                                    __for_i = (__for_i + 1);
+                                } else {
+                                    __for_i = (__for_i - 1);
+                                }
+                            }
+                        }
+                    }
+                }
+                const char* line_gutter = kobel_concat(gutter_pad, line_str);
+                const char* empty_gutter = "";
+                {
+                    size_t __for_e = gutter_w;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        __for_go = (__for_i < __for_e);
+                    } else {
+                        __for_go = (__for_i > __for_e);
+                    }
+                    while (__for_go) {
+                        size_t i = __for_i;
+                        empty_gutter = kobel_concat(empty_gutter, " ");
+                        if (__for_up) {
+                            __for_go = ((__for_i + 1) < __for_e);
+                        } else {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                __for_i = (__for_i + 1);
+                            } else {
+                                __for_i = (__for_i - 1);
+                            }
+                        }
+                    }
+                }
+                const char* caret_spaces = "";
+                size_t limit = ((diag.col > 1) ? (diag.col - 1) : 0);
+                {
+                    size_t __for_e = limit;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        __for_go = (__for_i < __for_e);
+                    } else {
+                        __for_go = (__for_i > __for_e);
+                    }
+                    while (__for_go) {
+                        size_t i = __for_i;
+                        if ((i < kobel_slen(raw_line)) && (raw_line[i] == '\t')) {
+                            caret_spaces = kobel_concat(caret_spaces, "\t");
+                        } else {
+                            caret_spaces = kobel_concat(caret_spaces, " ");
+                        }
+                        if (__for_up) {
+                            __for_go = ((__for_i + 1) < __for_e);
+                        } else {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                __for_i = (__for_i + 1);
+                            } else {
+                                __for_i = (__for_i - 1);
+                            }
+                        }
+                    }
+                }
+                out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(out, " "), empty_gutter), " "), c_blue), "|"), c_reset), "\n");
+                out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(out, " "), c_blue), line_gutter), " |"), c_reset), " "), raw_line), "\n");
+                out = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(out, " "), empty_gutter), " "), c_blue), "|"), c_reset), " "), caret_spaces), c_red), "^"), c_reset), "\n");
+            }
+        }
+    }
+    return out;
+}
+
+void compiler__driver__diagnostics__print_diagnostics(std__collections__list__List_str errors, const char* default_file, compiler__loader__loader__ModuleLoader* loader) {
+    std__collections__list__List_str seen = std__collections__list__List_str_new(4);
+    int32_t printed_count = 0;
     {
         size_t __for_n = std__collections__list__List_str_count(&errors);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            const char* msg = std__collections__list__List_str_at(&errors, __for_i);
-            std__io__println(kobel_concat("  [ERROR] ", msg));
+            const char* err = std__collections__list__List_str_at(&errors, __for_i);
+            compiler__driver__diagnostics__Diagnostic diag = compiler__driver__diagnostics__parse_diagnostic(err, default_file, loader);
+            const char* key = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(diag.file_path, ":"), usz_to_str(diag.line)), ":"), usz_to_str(diag.col)), ":"), diag.message);
+            bool already_seen = false;
+            {
+                size_t __for_n = std__collections__list__List_str_count(&seen);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    const char* s = std__collections__list__List_str_at(&seen, __for_i);
+                    if (kobel_streq(s, key)) {
+                        already_seen = true;
+                        break;
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+            if (already_seen) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            std__collections__list__List_str_plus_assign(&seen, key);
+            std__io__print(compiler__driver__diagnostics__render_diagnostic(diag));
+            std__io__println("");
+            printed_count++;
             __for_i = (__for_i + 1);
         }
     }
+    std__io__println(kobel_concat(kobel_concat(kobel_concat(kobel_concat("\x1b[1;31merror\x1b[0m: could not compile '", default_file), "' due to "), i32_to_str(printed_count)), " previous error(s)"));
+}
+
+void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors) {
+    compiler__driver__diagnostics__print_diagnostics(errors, "", NULL);
 }
 
 bool compiler__driver__pipeline__is_msvc_compiler(const char* cc) {
@@ -21751,8 +21997,7 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
     }
     compiler__ast__node__AstNode* loaded_prog = compiler__loader__loader__ModuleLoader_load_program(&loader, input_path, src);
     if (!std__collections__list__List_str_empty(&loader.errors)) {
-        std__io__println(kobel_concat(kobel_concat("Module Errors in ", input_path), ":"));
-        compiler__driver__pipeline__print_error_list(loader.errors);
+        compiler__driver__diagnostics__print_diagnostics(loader.errors, input_path, &loader);
         return 1;
     }
     if (loaded_prog == NULL) {
@@ -21769,8 +22014,7 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
     compiler__sema__decl__pass__DeclPass decl_p = compiler__sema__decl__pass__DeclPass_new();
     compiler__sema__decl__pass__DeclPass_collect_program(&decl_p, prog);
     if (!std__collections__list__List_str_empty(&decl_p.errors)) {
-        std__io__println(kobel_concat(kobel_concat("Semantic Declaration Errors in ", input_path), ":"));
-        compiler__driver__pipeline__print_error_list(decl_p.errors);
+        compiler__driver__diagnostics__print_diagnostics(decl_p.errors, input_path, &loader);
         return 1;
     }
     if (!self->quiet) {
@@ -21779,8 +22023,7 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
     compiler__sema__body__pass__BodyPass body_p = compiler__sema__body__pass__BodyPass_new_2(decl_p.symtab, decl_p);
     compiler__sema__body__pass__BodyPass_check_program(&body_p, prog);
     if (!std__collections__list__List_str_empty(&body_p.errors)) {
-        std__io__println(kobel_concat(kobel_concat("Semantic Type Errors in ", input_path), ":"));
-        compiler__driver__pipeline__print_error_list(body_p.errors);
+        compiler__driver__diagnostics__print_diagnostics(body_p.errors, input_path, &loader);
         return 1;
     }
     compiler__sema__body__pass__BodyPass_lower_program(&body_p, prog);
