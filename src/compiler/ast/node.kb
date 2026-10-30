@@ -2,6 +2,11 @@
 
 use std.mem.arena.Arena;
 
+use compiler.ast.types.*;
+use compiler.ast.expr.*;
+use compiler.ast.stmt.*;
+use compiler.ast.decl.*;
+
 pub enum NodeKind {
 	// Syntactic Types
 	TYPE_NAMED,
@@ -63,56 +68,6 @@ pub enum NodeKind {
 	// of that instance's concrete type argument. Never produced by the parser.
 	EXPR_SIZE_OF_PARAM
 }
-
-// Every node payload is declared here as an opaque type, so the payload enum
-// below can name it; the definitions live in ast.types / ast.expr / ast.stmt /
-// ast.decl, which import this module. Cross-module forward declarations keep
-// that a DAG instead of a cycle.
-pub struct NamedType;
-pub struct PointerType;
-pub struct ArrayType;
-pub struct NullableType;
-pub struct LiteralExpr;
-pub struct IdentifierExpr;
-pub struct BinaryExpr;
-pub struct UnaryExpr;
-pub struct CallExpr;
-pub struct MemberExpr;
-pub struct IndexExpr;
-pub struct AssignExpr;
-pub struct UpdateExpr;
-pub struct CastExpr;
-pub struct GroupExpr;
-pub struct ArrayLiteralExpr;
-pub struct IfExpr;
-pub struct WhenExpr;
-pub struct InterpExpr;
-pub struct IsExpr;
-pub struct StructCtorExpr;
-pub struct EnumCtorExpr;
-pub struct SizeOfParam;
-pub struct BlockStmt;
-pub struct ExprStmt;
-pub struct VarDeclStmt;
-pub struct IfStmt;
-pub struct WhileStmt;
-pub struct ForStmt;
-pub struct ReturnStmt;
-pub struct BreakStmt;
-pub struct ContinueStmt;
-pub struct WhenStmt;
-pub struct YieldStmt;
-pub struct DeferStmt;
-pub struct ModuleDecl;
-pub struct UseDecl;
-pub struct FnDecl;
-pub struct StructDecl;
-pub struct TraitDecl;
-pub struct ImplDecl;
-pub struct EnumDecl;
-pub struct ConstDecl;
-pub struct ExternBlock;
-pub struct Program;
 
 // The payload of an `AstNode`: one variant per node shape, checked by the
 // type system instead of reinterpreted through a `*u8`.

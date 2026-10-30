@@ -34,33 +34,6 @@ pub enum DataType {
 	FN
 }
 
-// The pointer/array/fn payload structs are defined below, after `TypePayload`;
-// the forward declarations let the enum name them first.
-struct PointerType;
-struct ArrayType;
-struct FnType;
-
-// What a `Type` carries besides kind/size/align. `None` covers primitives, and
-// a payload enum keeps the variant (and its accessors) checked.
-pub enum TypePayload {
-	NONE,
-	Pointer(inner: *PointerType),
-	Array(inner: *ArrayType),
-	Struct(inner: *StructType),
-	Fn(inner: *FnType),
-	Enum(inner: *EnumInfo)
-}
-
-pub struct Type {
-	pub kind: DataType,
-	pub size: usz,
-	pub align: usz,
-	pub data: TypePayload,
-	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
-	// type and for primitives built by `type_primitive`, which are not canonical.
-	pub methods: *PrimMethods? = null
-}
-
 pub struct PointerType {
 	pub const TAG = DataType.POINTER;
 	pub pointee: *Type,
@@ -93,6 +66,27 @@ impl ArrayType {
 impl FnType {
 	pub fn type_size(val self) => 8;
 	pub fn type_align(val self) => 8;
+}
+
+// What a `Type` carries besides kind/size/align. `None` covers primitives, and
+// a payload enum keeps the variant (and its accessors) checked.
+pub enum TypePayload {
+	NONE,
+	Pointer(inner: *PointerType),
+	Array(inner: *ArrayType),
+	Struct(inner: *StructType),
+	Fn(inner: *FnType),
+	Enum(inner: *EnumInfo)
+}
+
+pub struct Type {
+	pub kind: DataType,
+	pub size: usz,
+	pub align: usz,
+	pub data: TypePayload,
+	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
+	// type and for primitives built by `type_primitive`, which are not canonical.
+	pub methods: *PrimMethods? = null
 }
 
 // ============================================================================
