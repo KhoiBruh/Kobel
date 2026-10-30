@@ -332,7 +332,7 @@ impl BodyPass {
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
 		val e = self.arena.alloc_val<AnnEntry>(AnnEntry(node));
-		rec.ann_map[node as usz] = e;
+		rec.ann_map[node.addr()] = e;
 		return e;
 	}
 

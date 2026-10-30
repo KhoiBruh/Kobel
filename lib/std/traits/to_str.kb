@@ -51,7 +51,7 @@ fn fmt_i64(v: i64): str {
 
 fn fmt_char(c: char): str {
 	val buf = alloc_array<u8>(2);
-	buf[0] = c as u8;
+	buf[0] = c.code();
 	buf[1] = 0;
 	return str_from_bytes(buf, 1);
 }
@@ -63,7 +63,7 @@ fn fmt_zeros(n: usz): str {
 	if (n == 0) return "";
 	val buf = alloc_array<u8>(n + 1);
 	for (i in 0..<n) {
-		buf[i] = '0' as u8;
+		buf[i] = '0'.code();
 	}
 	buf[n] = 0;
 	return str_from_bytes(buf, n);

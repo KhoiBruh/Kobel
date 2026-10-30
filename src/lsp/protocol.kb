@@ -78,7 +78,7 @@ pub fn read_message(): str {
 			val ch = getchar();
 			if (ch < 0) return ""; // EOF
 			has_any = true;
-			val c = ch as char;
+			val c = char(ch);
 			if (c == '\n') break;
 			if (c != '\r') header_line += c;
 		}
@@ -105,7 +105,7 @@ pub fn read_message(): str {
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
 					if (c.is_digit()) {
-						n = n * 10 + ((c as i32) - 48);
+						n = n * 10 + (c.code() - 48);
 					}
 				}
 				content_length = n;

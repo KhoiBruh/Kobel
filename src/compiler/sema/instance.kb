@@ -71,5 +71,5 @@ pub struct InstanceRecord {
 }
 
 impl InstanceRecord {
-	pub fn find_ann(val self, node: *AstNode): *AnnEntry => self.ann_map.get_or(node as usz, null);
+	pub fn find_ann(val self, node: *AstNode): *AnnEntry => self.ann_map.get_or(node.addr(), null);
 }

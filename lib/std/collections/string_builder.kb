@@ -22,14 +22,14 @@ impl StringBuilder {
 
 	pub fn append_char(var self, c: char) {
 		if (self.len + 2 >= self.cap) self.grow(self.len + 2);
-		self.buf[self.len] = c as u8;
+		self.buf[self.len] = c.code();
 		self.len++;
 	}
 
 	pub fn append_str(var self, s: str) {
 		val s_len = s.len;
 		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
-		for (i in 0..<s_len) self.buf[self.len + i] = s[i] as u8;
+		for (i in 0..<s_len) self.buf[self.len + i] = s[i].code();
 		self.len += s_len;
 	}
 
@@ -56,7 +56,7 @@ impl StringBuilder {
 		var rest = v;
 		while (place > 0) {
 			val digit = rest / place;
-			self += ((digit as i32) + 48) as char;
+			self += char(digit + 48);
 			rest -= digit * place;
 			place /= 10;
 		}
@@ -74,7 +74,7 @@ impl StringBuilder {
 	// `n` copies of `c` (indentation, padding) in one pass.
 	pub fn append_repeat(var self, c: char, n: usz) {
 		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
-		val b = c as u8;
+		val b = c.code();
 		for (i in 0..<n) self.buf[self.len + i] = b;
 		self.len += n;
 	}
@@ -98,7 +98,7 @@ impl StringBuilder {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn last_char(val self) => if (self.len == 0) '\0' else self.buf[self.len - 1] as char;
+	pub fn last_char(val self) => if (self.len == 0) '\0' else char(self.buf[self.len - 1]);
 
 	pub fn clear(var self) => self.len = 0;
 
@@ -124,9 +124,9 @@ impl StringBuilder {
 
 	pub op plus_assign(var self, b: bool) => self.append_bool(b);
 
-	pub op get(val self, i: usz) => self.buf[i] as char;
+	pub op get(val self, i: usz) => char(self.buf[i]);
 
-	pub op set(var self, i: usz, c: char) => self.buf[i] = c as u8;
+	pub op set(var self, i: usz, c: char) => self.buf[i] = c.code();
 
 }
 
@@ -134,7 +134,7 @@ impl StringBuilder {
 impl Iterable for StringBuilder {
 	pub fn count(val self) => self.len;
 
-	pub fn at(val self, i: usz) => self.buf[i] as char;
+	pub fn at(val self, i: usz) => char(self.buf[i]);
 }
 
 impl ToStr for StringBuilder {

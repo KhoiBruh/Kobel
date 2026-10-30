@@ -15,16 +15,16 @@ impl char {
 
 	pub fn to_lower(val self): char {
 		if (self >= 'A' && self <= 'Z') {
-			val offset = (self as i32) + 32;
-			return offset as char;
+			val offset = self.code() + 32;
+			return char(offset);
 		}
 		return self;
 	}
 
 	pub fn to_upper(val self): char {
 		if (self >= 'a' && self <= 'z') {
-			val offset = (self as i32) - 32;
-			return offset as char;
+			val offset = self.code() - 32;
+			return char(offset);
 		}
 		return self;
 	}

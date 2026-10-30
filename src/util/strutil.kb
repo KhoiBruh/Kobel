@@ -32,8 +32,8 @@ impl str {
 		val buf = alloc_array<u8>(stem.len + 1);
 		for (i in 0..<stem.len) {
 			val c = stem[i];
-			if (str_is_sep(c)) buf[i] = '.' as u8;
-			else buf[i] = c as u8;
+			if (str_is_sep(c)) buf[i] = '.'.code();
+			else buf[i] = c.code();
 		}
 		buf[stem.len] = 0;
 		return str_from_bytes(buf, stem.len);
@@ -102,27 +102,27 @@ impl str {
 		for (c in self) {
 			when (c) {
 				'.' -> {
-					buf[w] = '_' as u8;
-					buf[w + 1] = '_' as u8;
+					buf[w] = '_'.code();
+					buf[w + 1] = '_'.code();
 					w += 2;
 				}
 				'_', '-' -> {
 					// keep '_' as is, map '-' to '_' to stay a valid C identifier
-					buf[w] = '_' as u8;
+					buf[w] = '_'.code();
 					w++;
 				}
 				else -> {
-					buf[w] = c as u8;
+					buf[w] = c.code();
 					w++;
 				}
 			}
 		}
 
-		buf[w] = '_' as u8;
-		buf[w + 1] = '_' as u8;
+		buf[w] = '_'.code();
+		buf[w + 1] = '_'.code();
 		w += 2;
 		for (c in name) {
-			buf[w] = c as u8;
+			buf[w] = c.code();
 			w++;
 		}
 
@@ -138,9 +138,9 @@ impl str {
 		for (i in 0..<self.len) {
 			val c = self[i];
 			buf[i] = when {
-				c == from -> to as u8;
-				fold_case && c >= 'A' && c <= 'Z' -> ((c as i32) + 32) as u8;
-				else -> c as u8;
+				c == from -> to.code();
+				fold_case && c >= 'A' && c <= 'Z' -> c.code() + 32;
+				else -> c.code();
 			};
 		}
 
@@ -204,7 +204,7 @@ impl str {
 	pub fn hash_stamp(val self): str {
 		var h: u64 = 5381;
 		for (c in self) {
-			h = ((h * 33) + (c as u64)) % 1000000007;
+			h = ((h * 33) + c.code()) % 1000000007;
 		}
 		return "${h}_${self.len}";
 	}
@@ -348,11 +348,11 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {
-			buf[w] = c as u8;
+			buf[w] = c.code();
 			w++;
 		}
 		if (i + 1 < count) {
-			buf[w] = '.' as u8;
+			buf[w] = '.'.code();
 			w++;
 		}
 	}

@@ -502,6 +502,18 @@ impl BodyPass {
 		if (ty != null && ty.is_enum()) {
 			self.report_error(node, "Cannot cast to enum type '${ty.as_enum().name}' with 'as'. Use constructor '${ty.as_enum().name}(value)' instead");
 		}
+		if (src_ty != null && src_ty.kind == DataType.POINTER && ty != null && ty.is_integer()) {
+			self.report_error(node, "Cannot cast pointer to integer with 'as'. Use '.addr()' instead");
+		}
+		if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.POINTER) {
+			self.report_error(node, "Cannot cast integer to pointer with 'as'");
+		}
+		if (src_ty != null && src_ty.kind == DataType.CHAR && ty != null && ty.is_integer()) {
+			self.report_error(node, "Cannot cast 'char' with 'as'. Use '.code()' instead");
+		}
+		if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.CHAR) {
+			self.report_error(node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
+		}
 
 		return ty;
 	}

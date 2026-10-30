@@ -33,8 +33,7 @@ impl Arena {
 			aligned_used = 0;
 		}
 
-		val addr = (blk.data as usz) + aligned_used;
-		val ptr = addr as &u8;
+		val ptr = &blk.data[aligned_used];
 		blk.used = aligned_used + size;
 		return ptr;
 	}

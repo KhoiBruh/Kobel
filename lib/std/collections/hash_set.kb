@@ -27,7 +27,7 @@ impl HashSet {
 	fn hash_key(val self, key: str): usz {
 		var h: usz = 5381;
 		for (i in 0..<key.len) {
-			val c = key[i] as usz;
+			val c = key[i].code();
 			h = h * 33 + c;
 		}
 		return h;

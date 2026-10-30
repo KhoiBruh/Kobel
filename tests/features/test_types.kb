@@ -450,6 +450,29 @@ fn test_raw_value_enums(var t: &Tally) {
 	check_i(st.value, 200, "HttpStatus constructor", t);
 }
 
+// --- 17. cast standardization (ptr.addr, char.code, char constructor) --------
+fn test_cast_standardization(var t: &Tally) {
+	val ch = 'A';
+	val code = ch.code();
+	check_i(code, 65, "char.code() returns 65", t);
+
+	val zero = '0';
+	check_i(zero.code(), 48, "'0'.code() returns 48", t);
+
+	val b = char(66);
+	check_i(if (b == 'B') 1 else 0, 1, "char(66) == 'B'", t);
+	check_i(char(b.code()).code(), 66, "char roundtrip", t);
+
+	var x: i32 = 42;
+	val p = &x;
+	val addr = p.addr();
+	check_i(if (addr > 0) 1 else 0, 1, "ptr.addr() > 0", t);
+
+	val null_p: *i32 = null;
+	val null_addr = null_p.addr();
+	check_i(if (null_addr == 0) 1 else 0, 1, "null.addr() == 0", t);
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Traits, OOP & Types ===");
 
@@ -471,6 +494,7 @@ fn main(): i32 {
 	test_generic_target_typing(&t);
 	test_numeric_literals(&t);
 	test_raw_value_enums(&t);
+	test_cast_standardization(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

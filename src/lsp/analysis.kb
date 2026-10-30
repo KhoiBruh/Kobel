@@ -85,7 +85,7 @@ impl LspDiagnostic {
 			var n: usz = 0;
 			var idx = line_idx;
 			while (idx < err_str.len && err_str[idx].is_digit()) {
-				n = n * 10 + ((err_str[idx] as i32) - 48);
+				n = n * 10 + (err_str[idx].code() - 48);
 				idx++;
 			}
 			if (n > 0) line = n;
@@ -105,7 +105,7 @@ impl LspDiagnostic {
 				var cn: usz = 0;
 				var c_idx = col_idx;
 				while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
-					cn = cn * 10 + ((err_str[c_idx] as i32) - 48);
+					cn = cn * 10 + (err_str[c_idx].code() - 48);
 					c_idx++;
 				}
 				if (cn > 0) col = cn;

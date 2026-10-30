@@ -263,7 +263,7 @@ impl JsonParser {
 		var val_num: i64 = 0;
 		while (!self.is_end() && self.peek().is_digit()) {
 			val c = self.advance();
-			val d = (c as i32) - 48;
+			val d = c.code() - 48;
 			val_num = val_num * 10 + d;
 		}
 

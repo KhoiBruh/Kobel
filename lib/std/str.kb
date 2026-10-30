@@ -53,7 +53,7 @@ impl str {
 		for (i in 0..<self.len) {
 			val ch = self[i];
 			if (ch != c) {
-				buf[w] = ch as u8;
+				buf[w] = ch.code();
 				w++;
 			}
 		}
@@ -66,8 +66,8 @@ impl str {
 		val buf = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
-			if (c == from) buf[i] = to as u8;
-			else buf[i] = c as u8;
+			if (c == from) buf[i] = to.code();
+			else buf[i] = c.code();
 		}
 		buf[self.len] = 0;
 		return str_from_bytes(buf, self.len);
@@ -86,12 +86,12 @@ impl str {
 		for (i in 0..<list.len) {
 			val item = list.data[i];
 			for (c in item) {
-				buf[w] = c as u8;
+				buf[w] = c.code();
 				w++;
 			}
 			if (i + 1 < list.len) {
 				for (c in self) {
-					buf[w] = c as u8;
+					buf[w] = c.code();
 					w++;
 				}
 			}
@@ -154,7 +154,7 @@ impl str {
 
 		for (k in 0..<n) {
 			for (i in 0..<self.len) {
-				buf[w] = self[i] as u8;
+				buf[w] = self[i].code();
 				w++;
 			}
 		}

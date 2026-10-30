@@ -123,7 +123,7 @@ pub fn parse_decimal_i64(s: str): i64 {
 	var v: i64 = 0;
 	for (c in s) {
 		if (c >= '0' && c <= '9') {
-			v = v * 10 + ((c as i32) - 48);
+			v = v * 10 + (c.code() - 48);
 		} else if (c != '_') {
 			break;
 		}

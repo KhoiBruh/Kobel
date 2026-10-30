@@ -56,9 +56,9 @@ impl Lexer {
 			// `EF BB BF`, the UTF-8 BOM (spelled in decimal because a hex literal
 			// ending in B/D/F is not usable yet, see the literal-suffix bug).
 			if (
-				(s[0] as u8) == 239 &&
-				(s[1] as u8) == 187 &&
-				(s[2] as u8) == 191
+				s[0].code() == 239 &&
+				s[1].code() == 187 &&
+				s[2].code() == 191
 			) s = s.slice(3, s.len);
 		}
 		return Self(s, 0, 1, 1);

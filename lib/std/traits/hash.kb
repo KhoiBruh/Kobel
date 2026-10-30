@@ -17,7 +17,7 @@ fn hash_int(n: usz): usz => (n / 8) * 2654435761;
 fn hash_str(s: str): usz {
 	var h: usz = 5381;
 	for (i in 0..<s.len) {
-		val c = s[i] as usz;
+		val c = s[i].code();
 		h = h * 33 + c;
 	}
 	return h;
@@ -28,7 +28,7 @@ impl Hash for bool {
 }
 
 impl Hash for char {
-	fn hash(val self): usz => hash_int(self as usz);
+	fn hash(val self): usz => hash_int(self.code());
 }
 
 impl Hash for str {

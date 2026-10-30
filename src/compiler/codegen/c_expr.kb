@@ -226,6 +226,19 @@ impl CCodeGen {
 				return "sizeof(${c_type})";
 			}
 			if (mem.member == "c_str") return self.gen_expr(mem.object);
+			if (mem.member == "addr" && self.is_pointer_value(mem.object)) {
+				val obj_str = self.gen_expr(mem.object);
+				if (mem.is_safe) return "(${obj_str} != NULL ? (uintptr_t)(${obj_str}) : 0)";
+				return "((uintptr_t)(${obj_str}))";
+			}
+			if (mem.member == "code" && self.is_char_value(mem.object)) {
+				val obj_str = self.gen_expr(mem.object);
+				return "((int32_t)(uint8_t)(${obj_str}))";
+			}
+		}
+
+		if (callee is IdentifierExpr as id && id.name == "char" && call.args.len == 1) {
+			return "((char)(${self.gen_expr(call.args[0])}))";
 		}
 
 		val callee_str = self.gen_expr(call.callee);
@@ -387,6 +400,13 @@ impl CCodeGen {
 		val ty = node.type_ptr as *Type;
 		if (ty == null) return false;
 		return ty.kind == DataType.POINTER;
+	}
+
+	fn is_char_value(val self, node: *AstNode): bool {
+		if (node == null) return false;
+		val ty = node.type_ptr as *Type;
+		if (ty == null) return false;
+		return ty.kind == DataType.CHAR;
 	}
 
 }

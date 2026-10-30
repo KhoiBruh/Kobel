@@ -38,6 +38,11 @@ impl BodyPass {
 	pub fn check_call_expr(var self, node: *AstNode): *Type {
 		val call = node.as_call_expr() as &CallExpr;
 
+		// Primitive char constructor: char(code)
+		if (call.callee is IdentifierExpr as id && id.name == "char") {
+			return self.check_char_ctor(node, self.prims().t_char(), call);
+		}
+
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
@@ -139,6 +144,23 @@ impl BodyPass {
 
 		self.set_resolved(node, arg);
 		return enum_ty;
+	}
+
+	fn check_char_ctor(var self, node: *AstNode, char_ty: *Type, call: &CallExpr): *Type {
+		if (call.args.len != 1) {
+			self.report_error(node, "Constructor 'char' requires exactly 1 argument");
+			return char_ty;
+		}
+		val arg = call.args[0];
+		val arg_ty = self.check_expr(arg, self.prims().t_i32());
+		if (!arg_ty.is_integer()) {
+			self.report_error(
+				arg,
+				"Cannot initialize 'char' with value of type '${self.type_display(arg_ty)}' (expected integer)"
+			);
+		}
+		call.callee.type_ptr = char_ty;
+		return char_ty;
 	}
 
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {
@@ -252,6 +274,21 @@ impl BodyPass {
 			obj_is_ptr = true;
 			obj_ty = obj_ty.as_pointer().pointee;
 		}
+
+		if (obj_is_ptr && mem.member == "addr") {
+			if (call.args.len != 0) {
+				self.report_error(node, "Method 'addr' takes no arguments");
+			}
+			return self.prims().t_usz();
+		}
+
+		if (obj_raw_ty.kind == DataType.CHAR && mem.member == "code") {
+			if (call.args.len != 0) {
+				self.report_error(node, "Method 'code' takes no arguments");
+			}
+			return self.prims().t_i32();
+		}
+
 		if (mem.is_safe && !obj_is_ptr) {
 			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
 			return self.prims().t_none();
