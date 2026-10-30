@@ -54,11 +54,11 @@ use compiler.sema.mono.clone.*;
 pub struct BodyPass {
 	pub symtab: SymbolTable,
 	pub arena: Arena,
-	pub current_fn_return_type: *Type,
+	pub current_fn_return_type: *Type? = null,
 	pub loop_depth: usz,
 	pub errors: List<str>,
 	// Type being implemented, so `Self` resolves inside an `impl` body.
-	pub current_self_type: *Type,
+	pub current_self_type: *Type? = null,
 	// true when SymbolTable is preloaded from outside (multiple modules)
 	pub has_symtab: bool,
 	pub when_depth: usz = 0,
@@ -82,7 +82,7 @@ pub struct BodyPass {
 	// bodies are the template's shared AST, so every per-instance decision
 	// (types, bound methods, replacements) goes into `InstanceRecord.ann`
 	// instead of onto the shared nodes. Null for ordinary declarations.
-	pub current_rec: *InstanceRecord = null,
+	pub current_rec: *InstanceRecord? = null,
 	// While checking an instance body, the decl pass's type-parameter env is
 	// *replaced* by the instance's own (names->concrete types) so nested
 	// instance checks cannot shadow an outer type parameter of the same name.
@@ -159,7 +159,7 @@ impl BodyPass {
 	}
 
 	// Evaluates an expression with statement-level context (allowing statement-only constructs like jump Elvis)
-	pub fn check_expr_stmt(var self, expr: *AstNode, expected: *Type = null): *Type {
+	pub fn check_expr_stmt(var self, expr: *AstNode, expected: *Type? = null): *Type {
 		val prev = self.is_stmt_level;
 		self.is_stmt_level = true;
 		val ty = self.check_expr(expr, expected);
@@ -207,7 +207,7 @@ impl BodyPass {
 
 	// Finds a method template for a receiver whose type the body pass knows, so
 	// two structs can declare generic methods with the same name.
-	pub fn find_method_template_for(var self, name: str, self_type: str): *GenTemplate {
+	pub fn find_method_template_for(var self, name: str, self_type: str): *GenTemplate? {
 		if (self.has_decl) return self.decl.find_method_template(name, self_type);
 
 		var decl_p = DeclPass(
@@ -249,7 +249,7 @@ impl BodyPass {
 	// Top-level Expression Dispatcher
 	// ============================================================================
 
-	pub fn check_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
@@ -360,15 +360,15 @@ impl BodyPass {
 	// replace the declaration pass's env and per-node decisions go to its side
 	// table. Returns the previously active record for `pop_instance`. A null
 	// record is a no-op, so ordinary declarations can call this unconditionally.
-	pub fn push_instance(var self, rec: *InstanceRecord): *InstanceRecord {
+	pub fn push_instance(var self, rec: *InstanceRecord?): *InstanceRecord? {
 		val saved = self.current_rec;
 		if (rec == null) return saved;
 		self.current_rec = rec;
-		self.push_instance_env(rec);
+		self.push_instance_env(rec!);
 		return saved;
 	}
 
-	pub fn pop_instance(var self, saved: *InstanceRecord, rec: *InstanceRecord) {
+	pub fn pop_instance(var self, saved: *InstanceRecord?, rec: *InstanceRecord?) {
 		if (rec == null) return;
 		self.pop_instance_env();
 		self.current_rec = saved;
@@ -402,8 +402,9 @@ impl BodyPass {
 	// C size (bytes) of a resolved type, as decimal literal text. Mirrors the
 	// old clone-time `ast_type_size` fold so generated C stays identical (no
 	// suffix: `c_format_int_literal` renders it exactly like the old literal).
-	fn type_c_size_text(var self, ty: *Type): str {
-		val n = self.type_c_size_num(ty);
+	fn type_c_size_text(var self, ty: *Type?): str {
+		if (ty == null) return "0";
+		val n = self.type_c_size_num(ty!);
 		return "${n}";
 	}
 
@@ -418,7 +419,7 @@ impl BodyPass {
 		return f.body.kind == NodeKind.STMT_EXPR;
 	}
 
-	fn check_expr_node(var self, node: *AstNode, expected: *Type = null): *Type => when (node.kind) {
+	fn check_expr_node(var self, node: *AstNode, expected: *Type? = null): *Type => when (node.kind) {
 		NodeKind.EXPR_LITERAL -> self.check_literal_expr(node, expected);
 		NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
 		NodeKind.EXPR_BINARY -> self.check_binary_expr(node, expected);
@@ -465,7 +466,7 @@ impl BodyPass {
 				if (self.when_depth == 0)
 					self.report_error(node, "Yield statement outside of when expression");
 
-				if (ys.value != null) self.check_expr(ys.value);
+				if (ys.value != null) self.check_expr(ys.value!);
 				return;
 			}
 		}

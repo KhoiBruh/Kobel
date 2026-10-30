@@ -172,7 +172,7 @@ impl Formatter {
 				self.buf += op_to_str(u.op);
 			}
 			is CastExpr as cst -> {
-				self.format_expr(cst.expr);
+				if (cst.expr != null) self.format_expr(cst.expr!);
 				self.buf += " as ";
 				self.format_type(cst.target_type);
 			}
@@ -200,9 +200,13 @@ impl Formatter {
 				}
 			}
 			is WhenExpr as we -> {
-				self.buf += "when (";
-				self.format_expr(we.condition);
-				self.buf += ") {";
+				if (we.condition != null) {
+					self.buf += "when (";
+					self.format_expr(we.condition!);
+					self.buf += ") {";
+				} else {
+					self.buf += "when {";
+				}
 				self.buf.indent();
 				for (i in 0..<we.arms.len) {
 					self.buf.newline();
@@ -240,7 +244,7 @@ impl Formatter {
 					} else {
 						self.buf += '$';
 						self.buf += '{';
-						self.format_expr(expr);
+						if (expr != null) self.format_expr(expr);
 						self.buf += "}";
 					}
 				}
@@ -280,11 +284,11 @@ impl Formatter {
 				self.buf += v.name;
 				if (v.type_annotation != null) {
 					self.buf += ": ";
-					self.format_type(v.type_annotation);
+					self.format_type(v.type_annotation!);
 				}
 				if (v.initializer != null) {
 					self.buf += " = ";
-					self.format_expr(v.initializer);
+					self.format_expr(v.initializer!);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -314,11 +318,11 @@ impl Formatter {
 					if (
 						s.else_branch.kind == NodeKind.STMT_IF ||
 						s.else_branch.kind == NodeKind.STMT_BLOCK
-					) self.format_stmt(s.else_branch);
+					) self.format_stmt(s.else_branch!);
 					else {
 						self.buf.indent();
 						self.buf.newline();
-						self.format_stmt(s.else_branch);
+						self.format_stmt(s.else_branch!);
 						self.buf.dedent();
 					}
 				}
@@ -341,13 +345,13 @@ impl Formatter {
 				self.buf += f.var_name;
 				self.buf += " in ";
 				if (f.is_range) {
-					self.format_expr(f.range_start);
+					self.format_expr(f.range_start!);
 					if (f.is_open) self.buf += ">..<";
 					else if (f.is_half_open) self.buf += "..<";
 					else self.buf += "..";
-					self.format_expr(f.range_end);
+					self.format_expr(f.range_end!);
 				} else {
-					self.format_expr(f.iterable);
+					self.format_expr(f.iterable!);
 				}
 
 				self.buf += ") ";
@@ -364,7 +368,7 @@ impl Formatter {
 				self.buf += "return";
 				if (r.value != null) {
 					self.buf.space();
-					self.format_expr(r.value);
+					self.format_expr(r.value!);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -373,7 +377,7 @@ impl Formatter {
 				self.buf += "yield";
 				if (y.value != null) {
 					self.buf.space();
-					self.format_expr(y.value);
+					self.format_expr(y.value!);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -391,9 +395,13 @@ impl Formatter {
 				self.format_stmt(d.body);
 			}
 			is WhenStmt as ws -> {
-				self.buf += "when (";
-				self.format_expr(ws.condition);
-				self.buf += ") {";
+				if (ws.condition != null) {
+					self.buf += "when (";
+					self.format_expr(ws.condition!);
+					self.buf += ") {";
+				} else {
+					self.buf += "when {";
+				}
 				self.buf.indent();
 				for (arm in ws.arms) {
 					self.buf.newline();
@@ -480,7 +488,7 @@ impl Formatter {
 						self.format_type(f.type_node);
 						if (f.default_val != null) {
 							self.buf += " = ";
-							self.format_expr(f.default_val);
+							self.format_expr(f.default_val!);
 						}
 						if (i + 1 < s.fields.len) self.buf += ",";
 					}
@@ -506,18 +514,18 @@ impl Formatter {
 					self.buf += p.name;
 					if (p.type_node != null) {
 						self.buf += ": ";
-						self.format_type(p.type_node);
+						self.format_type(p.type_node!);
 					}
 					if (p.default_val != null) {
 						self.buf += " = ";
-						self.format_expr(p.default_val);
+						self.format_expr(p.default_val!);
 					}
 				}
 				self.buf += ")";
 
 				if (f.return_type != null) {
 					self.buf += ": ";
-					self.format_type(f.return_type);
+					self.format_type(f.return_type!);
 				}
 
 				if (f.body != null) {
@@ -525,7 +533,7 @@ impl Formatter {
 					when (body) {
 						is BlockStmt -> {
 							self.buf += " ";
-							self.format_stmt(f.body);
+							self.format_stmt(f.body!);
 						}
 						is ExprStmt as es -> {
 							self.buf += " => ";
@@ -534,7 +542,7 @@ impl Formatter {
 						}
 						else -> {
 							self.buf += " ";
-							self.format_stmt(f.body);
+							self.format_stmt(f.body!);
 						}
 					}
 				} else self.buf += ";";
@@ -599,7 +607,7 @@ impl Formatter {
 				self.buf += en.name;
 				if (en.underlying_type != null) {
 					self.buf += ": ";
-					self.format_type(en.underlying_type);
+					self.format_type(en.underlying_type!);
 				}
 				self.buf += " {";
 
@@ -611,7 +619,7 @@ impl Formatter {
 						self.buf += mem.name;
 						if (mem.value != null) {
 							self.buf += " = ";
-							self.format_expr(mem.value);
+							self.format_expr(mem.value!);
 						}
 						if (i + 1 < en.members.len) self.buf += ",";
 					}
@@ -627,10 +635,10 @@ impl Formatter {
 				self.buf += c.name;
 				if (c.type_node != null) {
 					self.buf += ": ";
-					self.format_type(c.type_node);
+					self.format_type(c.type_node!);
 				}
 				self.buf += " = ";
-				self.format_expr(c.value);
+				if (c.value != null) self.format_expr(c.value!);
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}

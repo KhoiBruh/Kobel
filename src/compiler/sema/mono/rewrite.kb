@@ -37,7 +37,7 @@ impl DeclPass {
 
 	// Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
 	// to a call expression initializer without type arguments (e.g. `List()`).
-	pub fn propagate_target_type(var self, target_type_node: *AstNode, init_node: *AstNode) {
+	pub fn propagate_target_type(var self, target_type_node: *AstNode?, init_node: *AstNode?) {
 		if (target_type_node == null || init_node == null) return;
 		if (target_type_node is NamedType as nt) {
 			var cur = init_node;
@@ -89,16 +89,16 @@ impl DeclPass {
 	// Generic-use rewriting over non-template declarations
 	// ----------------------------------------------------------------------------
 
-	pub fn rewrite_generics(var self, node: *AstNode) {
+	pub fn rewrite_generics(var self, node: *AstNode?) {
 		if (node == null) return;
-		if (self.rewrite_type_generics(node)) return;
-		if (self.rewrite_expr_generics(node)) return;
-		if (self.rewrite_stmt_generics(node)) return;
-		self.rewrite_decl_generics(node);
+		if (self.rewrite_type_generics(node!)) return;
+		if (self.rewrite_expr_generics(node!)) return;
+		if (self.rewrite_stmt_generics(node!)) return;
+		self.rewrite_decl_generics(node!);
 	}
 
 	// Rewrite a child node and report the parent as handled.
-	fn rewrite_child(var self, child: *AstNode): bool {
+	fn rewrite_child(var self, child: *AstNode?): bool {
 		self.rewrite_generics(child);
 		return true;
 	}

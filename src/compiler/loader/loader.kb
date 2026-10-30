@@ -34,7 +34,7 @@ use compiler.parser.decl.parse_program;
 pub struct LoadedModule {
 	pub name: str,
 	pub path: str,
-	pub program: *AstNode
+	pub program: *AstNode? = null
 }
 
 pub struct ModuleFile {
@@ -110,7 +110,7 @@ impl ModuleLoader {
 	// Parsing
 	// ============================================================================
 
-	pub fn parse_source(var self, path: str, source: str): *AstNode {
+	pub fn parse_source(var self, path: str, source: str): *AstNode? {
 		var lexer = Lexer(source);
 		val tokens = lexer.tokenize();
 
@@ -200,7 +200,7 @@ impl ModuleLoader {
 	// Entry Point
 	// ============================================================================
 
-	pub fn load_program(var self, entry_path: str, entry_source: str): *AstNode {
+	pub fn load_program(var self, entry_path: str, entry_source: str): *AstNode? {
 		val prog = self.parse_source(entry_path, entry_source) ?: return null;
 
 		var entry_name = prog.as_program().declared_module_name();

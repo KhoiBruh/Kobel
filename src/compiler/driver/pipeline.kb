@@ -35,10 +35,19 @@ pub fn is_msvc_compiler(cc: str): bool {
 pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
 	val is_path_with_spaces = ("/" in cc || "\\" in cc) && (" " in cc) && !cc.starts_with("\"");
 	val cc_bin = if (is_path_with_spaces) "\"${cc}\"" else cc;
+
+	val win_exe = exe_path.to_win_path();
+	val win_obj = obj_path.to_win_path();
+	val win_c = c_path.to_win_path();
+
+	val exe_arg = if (" " in win_exe) "\"${win_exe}\"" else win_exe;
+	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
+	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
+
 	var cmd = if (is_msvc_compiler(cc)) {
-		"${cc_bin} /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\""
+		"${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}"
 	} else {
-		"${cc_bin} -O2 -o \"${exe_path}\" \"${c_path}\""
+		"${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
 	};
 
 	if (quiet) cmd = "${cmd} >nul 2>nul";
@@ -75,16 +84,17 @@ impl CompileOptions {
 		if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
 		if (loader.find_module("std.traits.hash").found) loader.ensure_module("std.traits.hash");
 
-		val prog = loader.load_program(input_path, src);
+		val loaded_prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {
 			println("Module Errors in ${input_path}:");
 			print_error_list(loader.errors);
 			return 1;
 		}
-		if (prog == null) {
+		if (loaded_prog == null) {
 			println("Error: Could not parse source file: ${input_path}");
 			return 1;
 		}
+		val prog = loaded_prog!;
 		if (!self.quiet) println("  ${loader.count()} module(s) loaded");
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");

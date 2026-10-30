@@ -19,7 +19,7 @@ pub struct EnumMemberInfo {
 	pub value: i64,
 	// Payload struct of the variant (null for a plain integer member). Its fields
 	// are the declared ones, so a pattern binding uses ordinary field access.
-	pub payload_ty: *Type = null,
+	pub payload_ty: *Type? = null,
 	// Field path of the payload inside the enum struct (`u.Circle`); empty when
 	// the variant carries no data.
 	pub payload_path: str = "",
@@ -44,7 +44,7 @@ pub struct EnumInfo {
 }
 
 impl EnumInfo {
-	pub fn find_member(self, name: str): *EnumMemberInfo {
+	pub fn find_member(self, name: str): *EnumMemberInfo? {
 		for (m in self.members) {
 			if (m.name == name) return m;
 		}

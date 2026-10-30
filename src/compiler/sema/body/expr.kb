@@ -106,12 +106,12 @@ impl BodyPass {
 		return false;
 	}
 
-	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val lit = node.as_literal_expr();
 		return when (lit.literal_kind) {
 			LiteralKind.INT -> {
 				val sfx = lit.raw_text.num_suffix();
-				if (!sfx.empty()) yield int_literal_type(self.symtab.prims, lit.raw_text);
+				if (!sfx.empty()) yield int_literal_type(self.symtab.prims!, lit.raw_text);
 				if (
 					expected != null && (
 						expected.is_integer() ||
@@ -132,7 +132,7 @@ impl BodyPass {
 			LiteralKind.BOOL -> self.prims().t_bool();
 			LiteralKind.STRING -> self.prims().t_str();
 			LiteralKind.CHAR -> self.prims().t_char();
-			LiteralKind.NULL_VAL -> self.arena.pointer_type(self.prims().t_none(), false);
+			LiteralKind.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
 		};
 	}
 
@@ -144,8 +144,9 @@ impl BodyPass {
 		// Inside an instance the identifier node is shared, so keep the source
 		// name: per-instance decisions are routed through the side table.
 		if (id.name == "Self" && self.current_self_type != null) {
-			if (self.current_rec == null) id.name = self.current_self_type.as_struct().c_name;
-			return self.current_self_type;
+			val cur_self = self.current_self_type!;
+			if (self.current_rec == null) id.name = cur_self.as_struct().c_name;
+			return cur_self;
 		}
 
 		val sym = self.symtab.lookup(id.name);
@@ -160,7 +161,7 @@ impl BodyPass {
 		return sym.type_ptr;
 	}
 
-	pub fn check_binary_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_binary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val bin = node.as_binary_expr();
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
@@ -173,7 +174,9 @@ impl BodyPass {
 
 		var lt_num = self.check_expr(bin.left, num_expected);
 		var lt = lt_num;
-		var rt = self.check_expr(bin.right, if (lt.is_numeric()) lt else num_expected);
+		var r_expected: *Type? = num_expected;
+		if (lt.is_numeric()) r_expected = lt;
+		var rt = self.check_expr(bin.right, r_expected);
 
 		if (
 			self.is_untyped_literal(bin.left) &&
@@ -204,7 +207,7 @@ impl BodyPass {
 	// (`x ?: return y`) is allowed at statement level, where the statement itself
 	// supplies the value.
 	fn check_elvis_expr(var self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
-		val num_expected: *Type = null;
+		val num_expected: *Type? = null;
 		var lt_num = self.check_expr(bin.left, num_expected);
 		var lt = lt_num;
 		self.ensure(
@@ -219,7 +222,7 @@ impl BodyPass {
 			bin.right.kind == NodeKind.STMT_YIELD ||
 			bin.right.kind == NodeKind.STMT_BLOCK;
 
-		var rt: *Type = null;
+		var rt: *Type? = null;
 		if (is_jump) {
 			self.ensure(
 				was_stmt,
@@ -236,7 +239,7 @@ impl BodyPass {
 			self.is_stmt_level = false;
 			val lt_is_null_lit = lt.kind == DataType.POINTER && lt.as_pointer().pointee.kind == DataType.NONE;
 			self.ensure(
-				lt.can_assign(rt) || lt_is_null_lit || (rt != null && rt.can_assign(lt)),
+				lt.can_assign(rt!) || lt_is_null_lit || rt!.can_assign(lt),
 				bin.right,
 				"Right-hand side of Elvis operator '?:' has incompatible type"
 			);
@@ -371,7 +374,7 @@ impl BodyPass {
 		return self.check_expr(call_node);
 	}
 
-	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val un = node.as_unary_expr();
 		val op_ty = self.check_expr(un.operand, expected);
 
@@ -427,7 +430,7 @@ impl BodyPass {
 		};
 	}
 
-	pub fn check_if_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_if_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val if_e = node.as_if_expr();
 		val cond_ty = self.check_expr(if_e.condition);
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
@@ -439,6 +442,19 @@ impl BodyPass {
 			else_ty.is_numeric() &&
 			!then_ty.equals(else_ty)
 		) then_ty = self.check_expr(if_e.then_branch, else_ty);
+
+		if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
+			val t_ptr = then_ty.as_pointer();
+			val e_ptr = else_ty.as_pointer();
+			if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.is_nullable) {
+				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.is_mut);
+			} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.is_nullable) {
+				then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.is_mut);
+			} else if (t_ptr.is_nullable != e_ptr.is_nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
+				val is_mut = t_ptr.is_mut || e_ptr.is_mut;
+				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, is_mut);
+			}
+		}
 
 		self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
 		return then_ty;

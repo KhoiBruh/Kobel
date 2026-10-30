@@ -101,7 +101,7 @@ impl BodyPass {
 	// Enum member `E.MEMBER` or struct constant `Foo.CONST`, both rewritten in
 	// place into a node the backend emits as-is. Null when the receiver is not an
 	// enum or struct name, so the caller carries on with a normal member access.
-	fn check_const_member(var self, node: *AstNode, mem: &MemberExpr): *Type {
+	fn check_const_member(var self, node: *AstNode, mem: &MemberExpr): *Type? {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant,
@@ -315,7 +315,7 @@ impl BodyPass {
 	}
 
 	// Constants, `val` locals, and `val` parameters cannot be assigned to.
-	fn check_ident_assignable(var self, op_node: *AstNode, name: str, sym: *Symbol, is_update: bool) {
+	fn check_ident_assignable(var self, op_node: *AstNode, name: str, sym: *Symbol?, is_update: bool) {
 		if (sym == null) return;
 		val act = if (is_update) "update" else "assign to";
 		when (sym.kind) {
@@ -348,7 +348,15 @@ impl BodyPass {
 			if (lowered != null) return lowered;
 		}
 
-		val target_ty = self.check_expr(asgn.target);
+		var target_ty = self.check_expr(asgn.target);
+		var sym_to_update: *Symbol? = null;
+		if (target_expr is IdentifierExpr as id) {
+			val sym = self.symtab.lookup(id.name);
+			if (sym != null && sym.orig_type != null) {
+				target_ty = sym.orig_type!;
+				sym_to_update = sym;
+			}
+		}
 		if (target_ty != null && target_ty.is_list()) self.coerce_to_list(asgn.value, target_ty);
 		val prev_stmt = self.is_stmt_level;
 		self.is_stmt_level = was_stmt;
@@ -395,13 +403,16 @@ impl BodyPass {
 		}
 
 		self.ensure(target_ty.can_assign(val_ty), node, "Type mismatch in assignment");
+		if (sym_to_update != null) {
+			sym_to_update.type_ptr = val_ty;
+		}
 		return target_ty;
 	}
 
 	// `container[i] = v` lowers to `container.set(i, v)`, and `container[i] += v`
 	// to `container.set(i, container[i] + v)`. Null when the container type has no
 	// `set` method, so the caller keeps its generic path.
-	fn lower_index_assign(var self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type {
+	fn lower_index_assign(var self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type? {
 		val bin_op = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> TokenType.PLUS;
 			TokenType.MINUS_EQUAL -> TokenType.MINUS;
@@ -417,7 +428,7 @@ impl BodyPass {
 	// `EQUAL` for a plain store, otherwise the arithmetic operator applied to the
 	// current element; a null `rhs` means "one" (for `++`/`--`), typed to match
 	// the element. `what` names the construct in error messages.
-	fn lower_index_write(var self, node: *AstNode, idx: *IndexExpr, op: TokenType, rhs: *AstNode, what: str): *Type {
+	fn lower_index_write(var self, node: *AstNode, idx: *IndexExpr, op: TokenType, rhs: *AstNode?, what: str): *Type? {
 		val target_raw_ty = self.check_expr(idx.target);
 		val t_is_ptr = target_raw_ty.kind == DataType.POINTER;
 		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer().pointee else target_raw_ty;
@@ -427,7 +438,7 @@ impl BodyPass {
 		if (t_is_ptr && idx_ty_raw.is_integer()) return null;
 
 		val s_info = t_struct_ty.as_struct();
-		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
+		val val_ty_raw = if (rhs != null) self.check_expr(rhs!) else null;
 
 		var arg_types = List<*Type>();
 		arg_types += t_struct_ty;
@@ -440,12 +451,11 @@ impl BodyPass {
 		val idx_param_ty = fn_info.param_types[1];
 		val val_param_ty = fn_info.param_types[2];
 
-		var operand = rhs;
-		if (operand == null) {
-			operand = if (val_param_ty.is_float()) self.arena.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
-				else self.arena.literal(LiteralKind.INT, "1", node.line, node.col);
-		}
-		var val_expr = operand;
+		var operand: *AstNode = if (rhs != null) rhs!
+			else if (val_param_ty.is_float()) self.arena.literal(LiteralKind.FLOAT, "1.0", node.line, node.col)
+			else self.arena.literal(LiteralKind.INT, "1", node.line, node.col);
+
+		var val_expr: *AstNode = operand;
 		if (op != TokenType.EQUAL) {
 			val get_expr = self.arena.index(idx.target, idx.index, node.line, node.col);
 			val_expr = self.arena.binary(op, get_expr, operand, node.line, node.col);
@@ -457,9 +467,9 @@ impl BodyPass {
 
 		if (val_param_ty != null && val_param_ty.is_list()) self.coerce_to_list(val_expr, val_param_ty);
 		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr, val_param_ty)
-			else if (rhs != null && self.is_untyped_literal(rhs)) self.check_expr(rhs, val_param_ty)
+			else if (rhs != null && self.is_untyped_literal(rhs!)) self.check_expr(rhs!, val_param_ty)
 			else val_ty_raw;
-		self.ensure(val_param_ty.can_assign(val_ty), node, "Value type mismatch in index ${what}");
+		self.ensure(val_ty == null || val_param_ty.can_assign(val_ty!), node, "Value type mismatch in index ${what}");
 
 		var new_args = List<*AstNode>();
 		new_args += if (t_is_ptr) idx.target else self.arena.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
@@ -491,7 +501,7 @@ impl BodyPass {
 
 	pub fn check_cast_expr(var self, node: *AstNode): *Type {
 		val cst = node.as_cast_expr();
-		val src_ty = self.check_expr(cst.expr);
+		val src_ty = if (cst.expr != null) self.check_expr(cst.expr!) else self.prims().t_none();
 		val ty = self.resolve_type(cst.target_type);
 		// The target type node is shared between instances; keep the resolved
 		// type per instance so materialization can spell the concrete C type.

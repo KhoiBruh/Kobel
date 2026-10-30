@@ -61,7 +61,7 @@ impl Arena {
 			DataType.USZ -> self.named_type("usz", List<*AstNode>(), 0, 0);
 			DataType.F32 -> self.named_type("f32", List<*AstNode>(), 0, 0);
 			DataType.F64 -> self.named_type("f64", List<*AstNode>(), 0, 0);
-			else -> null;
+			else -> self.named_type("none", List<*AstNode>(), 0, 0);
 		};
 	}
 }

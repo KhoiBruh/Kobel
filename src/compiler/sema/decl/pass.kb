@@ -76,16 +76,16 @@ pub struct DeclPass {
 	pub errors: List<str>,
 	// Currently collecting declarations inside the `extern "libc" { ... }` block
 	pub is_extern: bool = false,
-	pub current_self_type: *Type = null,
+	pub current_self_type: *Type? = null,
 	// Type-parameter substitution while instantiating a generic struct: a type
 	// parameter name resolves to the corresponding argument *Type. This is the
 	// parameterised part of instantiation - the template AST is never rewritten.
 	pub subst_names: List<str> = List<str>(),
 	pub subst_types: List<*Type> = List<*Type>(),
-	pub current_fn_return_type: *AstNode = null,
+	pub current_fn_return_type: *AstNode? = null,
 	// While materializing a function instance (see mono.clone), the instance
 	// whose annotation side table drives the clone. Null otherwise.
-	pub mat_rec: *InstanceRecord = null
+	pub mat_rec: *InstanceRecord? = null
 }
 
 // Source names carried by more than one method of an impl, i.e. overloads.
@@ -197,7 +197,7 @@ impl DeclPass {
 		if (im.type_params.len > 0) return;
 
 		// `impl <primitive> { ... }`: the methods extend a built-in type.
-		val prim = resolve_primitive_name(self.symtab.prims, im.struct_name);
+		val prim = resolve_primitive_name(self.symtab.prims!, im.struct_name);
 		if (prim != null) {
 			self.collect_prim_impl(node, im, prim);
 			return;
@@ -293,23 +293,25 @@ impl DeclPass {
 			var param_types = List<*Type>();
 
 			for (p in f.params) {
-				var pt: *Type = null;
+				var pt: *Type = self.prims().t_none();
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
 					pt = self.arena.pointer_type(st_type, p.is_mut);
+				} else if (p.type_node != null) {
+					pt = self.resolve_ast_type(p.type_node!);
 				} else {
-					pt = self.resolve_ast_type(p.type_node);
+					pt = self.prims().t_none();
 				}
 				param_types += pt;
 			}
 
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
 			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 			// A function-instance method view owns its own FnType (built at view
 			// creation), so two instances never mutate a shared signature object.
 			val rec_sig = if (m_node.instance != null) (m_node.instance as *InstanceRecord).sig else null;
-			val fn_type = if (rec_sig != null) rec_sig else self.arena.fn_type(param_types, ret_type);
+			val fn_type = if (rec_sig != null) rec_sig! else self.arena.fn_type(param_types, ret_type);
 
 			// Two methods with the same name and arity still need distinct names.
 			val m_c_name = method_c_name(
@@ -328,12 +330,12 @@ impl DeclPass {
 		self.current_self_type = null;
 	}
 
-	pub fn infer_const_type(var self, expr: *AstNode): *Type {
+	pub fn infer_const_type(var self, expr: *AstNode?): *Type? {
 		if (expr == null) return null;
 		if (expr is LiteralExpr as lit) {
 			when (lit.literal_kind) {
 				LiteralKind.INT -> {
-					return int_literal_type(self.symtab.prims, lit.raw_text);
+					return int_literal_type(self.symtab.prims!, lit.raw_text);
 				}
 				LiteralKind.FLOAT -> {
 					val raw = lit.raw_text;
@@ -384,7 +386,7 @@ impl DeclPass {
 		return null;
 	}
 
-	fn infer_expr_type_quick(var self, f: &FnDecl, expr: *AstNode): *Type {
+	fn infer_expr_type_quick(var self, f: &FnDecl, expr: *AstNode): *Type? {
 		if (expr == null) return null;
 		val const_ty = self.infer_const_type(expr);
 		if (const_ty != null) return const_ty;
@@ -393,7 +395,7 @@ impl DeclPass {
 			if (u.target is IdentifierExpr as id) {
 				for (p in f.params) {
 					if (p.name == id.name && p.type_node != null) {
-						return self.resolve_ast_type(p.type_node);
+						return self.resolve_ast_type(p.type_node!);
 					}
 				}
 			}
@@ -421,10 +423,10 @@ impl DeclPass {
 		return null;
 	}
 
-	fn collect_return_exprs(val self, stmt: *AstNode, out_returns: &List<*AstNode>) {
+	fn collect_return_exprs(val self, stmt: *AstNode?, var out_returns: &List<*AstNode>) {
 		if (stmt == null) return;
 		if (stmt is ReturnStmt as ret) {
-			out_returns += if (ret.value != null) ret.value else null;
+			if (ret.value != null) out_returns.add(ret.value!);
 			return;
 		}
 		if (stmt is BlockStmt as b) {
@@ -433,7 +435,7 @@ impl DeclPass {
 		}
 		if (stmt is IfStmt as ifs) {
 			self.collect_return_exprs(ifs.then_branch, out_returns);
-			if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch, out_returns);
+			if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch!, out_returns);
 			return;
 		}
 		if (stmt is WhenStmt as ws) {
@@ -442,7 +444,7 @@ impl DeclPass {
 		}
 	}
 
-	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type {
+	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type? {
 		if (f.body == null) return null;
 
 		if (f.body is ExprStmt as es && es.expr != null) {
@@ -456,21 +458,21 @@ impl DeclPass {
 
 		if (f.body is BlockStmt as blk) {
 			var rets = List<*AstNode>();
-			self.collect_return_exprs(f.body, &rets);
+			if (f.body != null) self.collect_return_exprs(f.body!, &rets);
 			if (rets.empty()) {
 				f.return_type = self.arena.named_type("none", List<*AstNode>(), f.body.line, f.body.col);
 				return self.prims().t_none();
 			}
-			var first_ty: *Type = null;
+			var first_ty: *Type? = null;
 			for (ret_expr in rets) {
 				val ty = if (ret_expr != null) self.infer_expr_type_quick(f, ret_expr) else self.prims().t_none();
 				if (ty == null) return null;
 				if (first_ty == null) {
 					first_ty = ty;
-				} else if (!first_ty.equals(ty)) {
-					if (first_ty.is_integer() && ty.is_integer() && ty.size > first_ty.size) {
+				} else if (!first_ty.equals(ty!)) {
+					if (first_ty.is_integer() && ty!.is_integer() && ty!.size > first_ty.size) {
 						first_ty = ty;
-					} else if (!first_ty.can_assign(ty)) {
+					} else if (!first_ty.can_assign(ty!)) {
 						return null;
 					}
 				}
@@ -507,19 +509,21 @@ impl DeclPass {
 
 			for (i in 0..<f.params.len) {
 				val p = f.params[i];
-				var pt: *Type = null;
+				var pt: *Type = self.prims().t_none();
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver by value: spell its type so the backend emits `i32 self`.
 					pt = prim;
 					val rt = self.arena.named_type(prim_name, List<*AstNode>(), node.line, node.col);
 					f.params[i] = Param(p.name, rt, p.is_mut, p.has_val, p.default_val);
+				} else if (p.type_node != null) {
+					pt = self.resolve_ast_type(p.type_node!);
 				} else {
-					pt = self.resolve_ast_type(p.type_node);
+					pt = self.prims().t_none();
 				}
 				param_types += pt;
 			}
 
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
 			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 			val fn_type = self.arena.fn_type(param_types, ret_type);
@@ -550,7 +554,7 @@ impl DeclPass {
 // `t` inherits: implementing a trait means implementing its base traits too, so
 // a `<T: Base>` bound is satisfied by an `impl Derived for T` when
 // `Derived : Base`. The already-recorded test also breaks a cyclic base chain.
-	pub fn trait_record_impl(var self, t: *TraitInfo, struct_name: str) {
+	pub fn trait_record_impl(var self, t: *TraitInfo?, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
 		t.impls += struct_name;
@@ -561,7 +565,7 @@ impl DeclPass {
 // visited first, so a method declared in a derived trait replaces a same-named
 // inherited one. `seen` stops a cycle in a mis-declared `trait A : B` /
 // `trait B : A` chain.
-	pub fn trait_effective(var self, t: *TraitInfo, out: &List<*TraitMethod>, seen: &HashSet) {
+	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet) {
 		if (t == null) return;
 		if (t.name in seen) return;
 		seen += t.name;
@@ -580,7 +584,7 @@ impl DeclPass {
 	// `Self.Item` can be resolved during declaration collection and later while
 	// checking method bodies.
 	fn register_assoc_bindings(var self, node: *AstNode, im: &ImplDecl, st_type: *Type, struct_name: str) {
-		var trait_info: *TraitInfo = null;
+		var trait_info: *TraitInfo? = null;
 		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
 		if (trait_info == null) {
 			if (!im.assoc_bindings.empty()) {

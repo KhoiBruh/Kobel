@@ -29,22 +29,22 @@ pub enum InstanceKind {
 // shared node; materialization copies them onto the instance's own tree.
 pub struct AnnEntry {
 	pub node: *AstNode,
-	pub ty: *Type = null,
-	pub method: *u8 = null,
-	pub resolved: *AstNode = null,
+	pub ty: *Type? = null,
+	pub method: *u8? = null,
+	pub resolved: *AstNode? = null,
 	// The checker would otherwise mutate the shared node in place; these fields
 	// record the per-instance values instead:
 	// - a coerced List literal's container C name and element type node,
 	pub list_name: str = "",
 	pub has_list_name: bool = false,
-	pub elem_node: *AstNode = null,
+	pub elem_node: *AstNode? = null,
 	pub has_elem_node: bool = false,
 	// - a pointer receiver rewritten to `(*p)` before member access,
-	pub obj_replace: *AstNode = null,
+	pub obj_replace: *AstNode? = null,
 	// - an inferred local's synthesized type annotation,
-	pub var_ty: *Type = null,
+	pub var_ty: *Type? = null,
 	// - a constructor initializer that received propagated type arguments,
-	pub init_override: *AstNode = null,
+	pub init_override: *AstNode? = null,
 	// - an identifier renamed to the symbol's mangled C name.
 	pub ident_name: str = "",
 	pub has_ident_name: bool = false
@@ -67,9 +67,13 @@ pub struct InstanceRecord {
 	// The instance's own `FnType` (function instances only). Built once at view
 	// creation and shared by the method registry and body checking, so two
 	// instances never mutate a shared FnType.
-	pub sig: *Type = null
+	pub sig: *Type? = null
 }
 
 impl InstanceRecord {
-	pub fn find_ann(val self, node: *AstNode): *AnnEntry => self.ann_map.get_or(node.addr(), null);
+	pub fn find_ann(val self, node: *AstNode): *AnnEntry? {
+		val p = self.ann_map.get(node.addr());
+		if (p != null) return *p;
+		return null;
+	}
 }

@@ -46,8 +46,8 @@ impl BodyPass {
 		var has_init = false;
 
 		if (vd.type_annotation != null) {
-			var_ty = self.resolve_type(vd.type_annotation);
-			if (self.current_rec != null) self.set_ann_ty(vd.type_annotation, var_ty);
+			var_ty = self.resolve_type(vd.type_annotation!);
+			if (self.current_rec != null) self.set_ann_ty(vd.type_annotation!, var_ty);
 			if (vd.initializer != null) {
 				has_init = true;
 				// Inside a shared template body, `val l: List<T> = List()` cannot
@@ -55,20 +55,20 @@ impl BodyPass {
 				// instance and check that one instead.
 				var init_expr = vd.initializer;
 				if (self.current_rec != null) {
-					val init_ov = self.propagate_instance_init(vd.initializer, var_ty);
+					val init_ov = self.propagate_instance_init(vd.initializer!, var_ty);
 					if (init_ov != null) {
 						self.set_ann_init_override(node, init_ov);
 						init_expr = init_ov;
 					}
 				}
-				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(init_expr, var_ty);
-				val init_ty = self.check_expr_stmt(init_expr, var_ty);
+				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(init_expr!, var_ty);
+				val init_ty = self.check_expr_stmt(init_expr!, var_ty);
 				self.ensure(var_ty.can_assign(init_ty), node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
 		} else {
 			if (vd.initializer != null) {
 				has_init = true;
-				var_ty = self.check_expr_stmt(vd.initializer);
+				var_ty = self.check_expr_stmt(vd.initializer!);
 			} else {
 				self.report_error(node, "Variable '${vd.name}' without type must have initializer");
 			}
@@ -129,7 +129,8 @@ impl BodyPass {
 		if (!ptr_ty.is_nullable) return;
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
-		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0));
+		val orig_ty = if (sym.orig_type != null) sym.orig_type else sym.type_ptr;
+		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0, null, orig_ty));
 	}
 
 	pub fn check_if_stmt(var self, node: *AstNode) {
@@ -148,7 +149,7 @@ impl BodyPass {
 
 			val unwrapped_c = self.unwrap_group(c);
 			if (unwrapped_c is IsExpr as is_e) {
-				val subj_ty = self.check_expr(is_e.expr);
+				val subj_ty = if (is_e.expr != null) self.check_expr(is_e.expr!) else self.prims().t_none();
 				val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, unwrapped_c);
 				if (cast_ty != null) {
 					if (!is_e.alias.empty()) {
@@ -184,7 +185,7 @@ impl BodyPass {
 				else_null_guard = true;
 			}
 
-			self.check_statement(if_s.else_branch);
+			self.check_statement(if_s.else_branch!);
 
 			if (else_null_guard) {
 				self.symtab.exit_scope();
@@ -238,13 +239,13 @@ impl BodyPass {
 			if (
 				self.current_fn_return_type != null &&
 				self.current_fn_return_type.is_list()
-			) self.coerce_to_list(ret.value, self.current_fn_return_type);
+			) self.coerce_to_list(ret.value!, self.current_fn_return_type!);
 
 			if (self.inferring_fn_return && (self.current_fn_return_type == null || self.current_fn_return_type.kind == DataType.NONE)) {
-				val val_ty = self.check_expr(ret.value);
+				val val_ty = self.check_expr(ret.value!);
 				self.current_fn_return_type = val_ty;
 			} else {
-				val val_ty = self.check_expr(ret.value, self.current_fn_return_type);
+				val val_ty = self.check_expr(ret.value!, self.current_fn_return_type);
 				self.ensure(self.current_fn_return_type.can_assign(val_ty), node, "Return value type does not match function return type");
 			}
 		} else {
@@ -254,7 +255,7 @@ impl BodyPass {
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
 		val ws = node.as_when_stmt();
-		val cond_ty = if (ws.condition != null) self.check_expr(ws.condition) else null;
+		val cond_ty = if (ws.condition != null) self.check_expr(ws.condition!) else null;
 
 		for (arm in ws.arms) {
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, ws.condition, cond_ty);
@@ -273,35 +274,32 @@ impl BodyPass {
 	// Best-effort static type of a `for` iterable (a variable or a field chain).
 	// Reports nothing and rewrites nothing, so it is safe to call before the loop
 	// is lowered and re-checked.
-	fn for_iterable_type(var self, node: *AstNode): *Type => when (node) {
-		is GroupExpr as g -> self.for_iterable_type(g.expr);
-
-		is IdentifierExpr as id -> {
-			val sym = self.symtab.lookup(id.name) ?: yield null;
-			yield sym.type_ptr;
+	fn for_iterable_type(var self, node: *AstNode?): *Type? {
+		if (node == null) return null;
+		val target = node!;
+		if (target is GroupExpr as g) return self.for_iterable_type(g.expr);
+		if (target is IdentifierExpr as id) {
+			val sym = self.symtab.lookup(id.name) ?: return null;
+			return sym.type_ptr;
 		}
-
-		is MemberExpr as mem -> {
-			var obj = self.for_iterable_type(mem.object) ?: yield null;
-
+		if (target is MemberExpr as mem) {
+			var obj = self.for_iterable_type(mem.object) ?: return null;
 			if (obj.kind == DataType.POINTER) obj = obj.as_pointer().pointee;
-			if (obj.kind != DataType.STRUCT) yield null;
-
+			if (obj.kind != DataType.STRUCT) return null;
 			val s_mem = obj.as_struct();
 			for (f in s_mem.fields) {
-				if (f.name == mem.member) yield f.type_ptr;
+				if (f.name == mem.member) return f.type_ptr;
 			}
-			yield null;
+			return null;
 		}
-
-		else -> null;
-	};
+		return null;
+	}
 
 	// For `val l: List<T> = List()` inside a shared template body: rewrites the
 	// container constructor call to the instance's concrete C name, without
 	// touching the shared call node. Null when the initializer is not such a
 	// call, so the caller keeps checking the original expression.
-	fn propagate_instance_init(var self, init_node: *AstNode, var_ty: *Type): *AstNode {
+	fn propagate_instance_init(var self, init_node: *AstNode, var_ty: *Type): *AstNode? {
 		if (var_ty == null || var_ty.kind != DataType.STRUCT) return null;
 		var cur = init_node;
 		while (cur != null) {
@@ -329,7 +327,7 @@ impl BodyPass {
 	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
 	// iterates through the trait (`count()` / `at(i)`) instead of the built-in
 	// `.len` / `.data`, so containment no longer has to look like a flat array.
-	fn struct_implements_iterable(self, ty: *Type): bool {
+	fn struct_implements_iterable(self, ty: *Type?): bool {
 		var cur = ty;
 		if (cur != null && cur.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
 		if (cur == null || cur.kind != DataType.STRUCT) return false;

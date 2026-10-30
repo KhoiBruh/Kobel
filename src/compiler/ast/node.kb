@@ -1,4 +1,4 @@
-mod compiler.ast.node;
+﻿mod compiler.ast.node;
 
 use std.mem.arena.Arena;
 
@@ -173,19 +173,19 @@ pub struct AstNode {
 	// Resolved semantic type of an expression (the compiler's `*Type`, kept
 	// untyped so `ast` stays a leaf). Sema fills it; codegen and `lower` read it.
 	// Null on declarations and on nodes that desugaring synthesises.
-	pub type_ptr: *u8 = null,
+	pub type_ptr: *u8? = null,
 	// Method or operator the checker picked for this node (`*MethodInfo`, again
 	// untyped). `lower` needs it to spell the C call without repeating the
 	// overload/trait resolution the checker already did.
-	pub resolved_method: *u8 = null,
+	pub resolved_method: *u8? = null,
 	// A leaf the checker resolved directly: an enum member becomes an integer
 	// literal, a struct constant becomes its mangled identifier. `lower` uses it
 	// as the node's replacement.
-	pub resolved_node: *AstNode = null,
+	pub resolved_node: *AstNode? = null,
 	// For a function/method *instance* (a generic function whose body shares the
 	// template's AST), the `InstanceRecord` that carries this declaration's
 	// per-instance annotations. Null for ordinary declarations and templates.
-	pub instance: *u8 = null
+	pub instance: *u8? = null
 }
 
 impl AstNode {
@@ -193,7 +193,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.NamedType as d -> d.inner;
-			else -> null;
+			else -> null as *NamedType;
 		};
 	}
 
@@ -201,7 +201,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.PointerType as d -> d.inner;
-			else -> null;
+			else -> null as *PointerType;
 		};
 	}
 
@@ -209,7 +209,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ArrayType as d -> d.inner;
-			else -> null;
+			else -> null as *ArrayType;
 		};
 	}
 
@@ -217,7 +217,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.NullableType as d -> d.inner;
-			else -> null;
+			else -> null as *NullableType;
 		};
 	}
 
@@ -225,7 +225,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.LiteralExpr as d -> d.inner;
-			else -> null;
+			else -> null as *LiteralExpr;
 		};
 	}
 
@@ -233,7 +233,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.IdentifierExpr as d -> d.inner;
-			else -> null;
+			else -> null as *IdentifierExpr;
 		};
 	}
 
@@ -241,7 +241,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.BinaryExpr as d -> d.inner;
-			else -> null;
+			else -> null as *BinaryExpr;
 		};
 	}
 
@@ -249,7 +249,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.UnaryExpr as d -> d.inner;
-			else -> null;
+			else -> null as *UnaryExpr;
 		};
 	}
 
@@ -257,7 +257,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.CallExpr as d -> d.inner;
-			else -> null;
+			else -> null as *CallExpr;
 		};
 	}
 
@@ -265,7 +265,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.MemberExpr as d -> d.inner;
-			else -> null;
+			else -> null as *MemberExpr;
 		};
 	}
 
@@ -273,7 +273,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.IndexExpr as d -> d.inner;
-			else -> null;
+			else -> null as *IndexExpr;
 		};
 	}
 
@@ -281,7 +281,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.AssignExpr as d -> d.inner;
-			else -> null;
+			else -> null as *AssignExpr;
 		};
 	}
 
@@ -289,7 +289,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.UpdateExpr as d -> d.inner;
-			else -> null;
+			else -> null as *UpdateExpr;
 		};
 	}
 
@@ -297,7 +297,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.CastExpr as d -> d.inner;
-			else -> null;
+			else -> null as *CastExpr;
 		};
 	}
 
@@ -305,7 +305,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.GroupExpr as d -> d.inner;
-			else -> null;
+			else -> null as *GroupExpr;
 		};
 	}
 
@@ -313,7 +313,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ArrayLiteralExpr as d -> d.inner;
-			else -> null;
+			else -> null as *ArrayLiteralExpr;
 		};
 	}
 
@@ -321,7 +321,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.IfExpr as d -> d.inner;
-			else -> null;
+			else -> null as *IfExpr;
 		};
 	}
 
@@ -329,7 +329,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.WhenExpr as d -> d.inner;
-			else -> null;
+			else -> null as *WhenExpr;
 		};
 	}
 
@@ -337,7 +337,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.InterpExpr as d -> d.inner;
-			else -> null;
+			else -> null as *InterpExpr;
 		};
 	}
 
@@ -345,7 +345,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.IsExpr as d -> d.inner;
-			else -> null;
+			else -> null as *IsExpr;
 		};
 	}
 
@@ -353,7 +353,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.StructCtorExpr as d -> d.inner;
-			else -> null;
+			else -> null as *StructCtorExpr;
 		};
 	}
 
@@ -361,7 +361,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.EnumCtorExpr as d -> d.inner;
-			else -> null;
+			else -> null as *EnumCtorExpr;
 		};
 	}
 
@@ -369,7 +369,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.SizeOfParam as d -> d.inner;
-			else -> null;
+			else -> null as *SizeOfParam;
 		};
 	}
 
@@ -377,7 +377,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.BlockStmt as d -> d.inner;
-			else -> null;
+			else -> null as *BlockStmt;
 		};
 	}
 
@@ -385,7 +385,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ExprStmt as d -> d.inner;
-			else -> null;
+			else -> null as *ExprStmt;
 		};
 	}
 
@@ -393,7 +393,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.VarDeclStmt as d -> d.inner;
-			else -> null;
+			else -> null as *VarDeclStmt;
 		};
 	}
 
@@ -401,7 +401,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.IfStmt as d -> d.inner;
-			else -> null;
+			else -> null as *IfStmt;
 		};
 	}
 
@@ -409,7 +409,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.WhileStmt as d -> d.inner;
-			else -> null;
+			else -> null as *WhileStmt;
 		};
 	}
 
@@ -417,7 +417,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ForStmt as d -> d.inner;
-			else -> null;
+			else -> null as *ForStmt;
 		};
 	}
 
@@ -425,7 +425,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ReturnStmt as d -> d.inner;
-			else -> null;
+			else -> null as *ReturnStmt;
 		};
 	}
 
@@ -433,7 +433,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.BreakStmt as d -> d.inner;
-			else -> null;
+			else -> null as *BreakStmt;
 		};
 	}
 
@@ -441,7 +441,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ContinueStmt as d -> d.inner;
-			else -> null;
+			else -> null as *ContinueStmt;
 		};
 	}
 
@@ -449,7 +449,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.WhenStmt as d -> d.inner;
-			else -> null;
+			else -> null as *WhenStmt;
 		};
 	}
 
@@ -457,7 +457,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.YieldStmt as d -> d.inner;
-			else -> null;
+			else -> null as *YieldStmt;
 		};
 	}
 
@@ -465,7 +465,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.DeferStmt as d -> d.inner;
-			else -> null;
+			else -> null as *DeferStmt;
 		};
 	}
 
@@ -473,7 +473,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ModuleDecl as d -> d.inner;
-			else -> null;
+			else -> null as *ModuleDecl;
 		};
 	}
 
@@ -481,7 +481,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.UseDecl as d -> d.inner;
-			else -> null;
+			else -> null as *UseDecl;
 		};
 	}
 
@@ -489,7 +489,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.FnDecl as d -> d.inner;
-			else -> null;
+			else -> null as *FnDecl;
 		};
 	}
 
@@ -497,7 +497,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.StructDecl as d -> d.inner;
-			else -> null;
+			else -> null as *StructDecl;
 		};
 	}
 
@@ -505,7 +505,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.TraitDecl as d -> d.inner;
-			else -> null;
+			else -> null as *TraitDecl;
 		};
 	}
 
@@ -513,7 +513,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ImplDecl as d -> d.inner;
-			else -> null;
+			else -> null as *ImplDecl;
 		};
 	}
 
@@ -521,7 +521,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.EnumDecl as d -> d.inner;
-			else -> null;
+			else -> null as *EnumDecl;
 		};
 	}
 
@@ -529,7 +529,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ConstDecl as d -> d.inner;
-			else -> null;
+			else -> null as *ConstDecl;
 		};
 	}
 
@@ -537,7 +537,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.ExternBlock as d -> d.inner;
-			else -> null;
+			else -> null as *ExternBlock;
 		};
 	}
 
@@ -545,7 +545,7 @@ impl AstNode {
 		val data = self.data;
 		return when (data) {
 			is NodeData.Program as d -> d.inner;
-			else -> null;
+			else -> null as *Program;
 		};
 	}
 

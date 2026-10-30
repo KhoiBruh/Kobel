@@ -37,7 +37,7 @@ impl DeclPass {
 				// The node is left untouched: template AST nodes are shared. The
 				// *last* match wins: nested instantiations may stack the same
 				// parameter name, and the innermost binding is authoritative.
-				var subst_res: *Type = null;
+				var subst_res: *Type? = null;
 				for (i in 0..<self.subst_names.len) {
 					if (self.subst_names[i] == name) subst_res = self.subst_types[i];
 				}
@@ -76,11 +76,11 @@ impl DeclPass {
 						);
 						yield self.prims().t_none();
 					}
-					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound);
+					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound!);
 					yield bound;
 				}
 
-				val prim = resolve_primitive_name(self.symtab.prims, name);
+				val prim = resolve_primitive_name(self.symtab.prims!, name);
 				if (prim != null) yield prim;
 
 				// Generic struct instantiation: List<i32> -> concrete struct.

@@ -337,8 +337,8 @@ fn test_null_safety(): bool {
 	c.count = 0;
 
 	// 6. String Elvis
-	val p_null_char: *char = null;
-	val s_null: str = p_null_char;
+	val p_null_char: *char? = null;
+	val s_null: str = p_null_char as str;
 	val s1: str = s_null ?: "fallback";
 	if (s1 != "fallback") return false;
 

@@ -32,7 +32,7 @@ fn main(): i32 {
 	}
 
 	var dp = DeclPass();
-	dp.collect_program(prog);
+	dp.collect_program(prog!);
 	if (!dp.errors.empty()) {
 		println("ASSERTION FAILED: cyclic modules must collect without errors");
 		return 2;

@@ -59,13 +59,14 @@ impl CCodeGen {
 						} else {
 							// Enums lower to their underlying integer type; member access becomes
 							// an integer literal during semantic analysis.
-							val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type) else "int32_t";
+							val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type!) else "int32_t";
 							sb += "typedef ${under} ${e.name};\n";
 						}
 					}
 					is ConstDecl as c -> {
 						// Module-level constants become preprocessor macros.
-						sb += "#define ${c.name} ${self.gen_expr(c.value)}\n";
+						val c_val_str = if (c.value != null) self.gen_expr(c.value!) else "0";
+						sb += "#define ${c.name} ${c_val_str}\n";
 					}
 				}
 			}
@@ -263,7 +264,7 @@ impl CCodeGen {
 			for (i in 0..<f.params.len) {
 				if (i > 0) proto = "${proto}, ";
 				val p = f.params[i];
-				var p_ty = c_type_from_ast(p.type_node);
+				var p_ty = if (p.type_node != null) c_type_from_ast(p.type_node!) else "void*";
 
 				if (
 					!self_c_type.empty() &&
@@ -289,7 +290,7 @@ impl CCodeGen {
 		self.indent_level = 1;
 
 		when (f_body) {
-			is BlockStmt as blk -> res = "${res}${self.gen_block_body(f_body)}";
+			is BlockStmt as blk -> res = "${res}${self.gen_block_body(f_body!)}";
 			is ExprStmt as es -> {
 				val es_e = es.expr;
 				var is_special = false;
@@ -348,7 +349,7 @@ impl CCodeGen {
 // C return type of a function: explicit annotation, else inferred from an
 // arrow body (used by both the prototype and the definition).
 	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
-		if (f.return_type != null) return c_type_from_ast(f.return_type);
+		if (f.return_type != null) return c_type_from_ast(f.return_type!);
 
 		val f_body = f.body;
 		if (f_body is ExprStmt) {

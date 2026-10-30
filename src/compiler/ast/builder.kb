@@ -81,7 +81,7 @@ impl Arena {
 	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.alloc_val(UpdateExpr(op, target))), line, col);
 
-	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz)
+	pub fn cast(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0)
 		=> self.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.alloc_val(CastExpr(expr, target_type))), line, col);
 
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz)
@@ -90,19 +90,19 @@ impl Arena {
 	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz)
 		=> self.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.alloc_val(ArrayLiteralExpr(elements, "", null))), line, col);
 
-	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz)
+	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode? = null, line: usz = 0, col: usz = 0)
 		=> self.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.alloc_val(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.alloc_val(IfExpr(condition, then_branch, else_branch))), line, col);
 
-	pub fn when_expr(var self, condition: *AstNode, arms: List<WhenArm>, line: usz, col: usz)
+	pub fn when_expr(var self, condition: *AstNode?, arms: List<WhenArm>, line: usz, col: usz)
 		=> self.alloc_node(WhenExpr.TAG, NodeData.WhenExpr(self.alloc_val(WhenExpr(condition, arms))), line, col);
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz)
 		=> self.alloc_node(InterpExpr.TAG, NodeData.InterpExpr(self.alloc_val(InterpExpr(parts))), line, col);
 
-	pub fn is_expr(var self, expr: *AstNode, target_type: *AstNode, line: usz, col: usz)
+	pub fn is_expr(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0)
 		=> self.alloc_node(IsExpr.TAG, NodeData.IsExpr(self.alloc_val(IsExpr(expr, target_type))), line, col);
 
 	// ------------------------------------------------------------------------
@@ -115,19 +115,19 @@ impl Arena {
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(ExprStmt.TAG, NodeData.ExprStmt(self.alloc_val(ExprStmt(expr))), line, col);
 
-	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode, initializer: *AstNode, line: usz, col: usz)
+	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz)
 		=> self.alloc_node(VarDeclStmt.TAG, NodeData.VarDeclStmt(self.alloc_val(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
 
-	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz)
+	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?, line: usz, col: usz)
 		=> self.alloc_node(IfStmt.TAG, NodeData.IfStmt(self.alloc_val(IfStmt(condition, then_branch, else_branch))), line, col);
 
 	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(WhileStmt.TAG, NodeData.WhileStmt(self.alloc_val(WhileStmt(condition, body))), line, col);
 
-	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode, range_start: *AstNode, range_end: *AstNode, body: *AstNode, line: usz, col: usz)
+	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode?, range_start: *AstNode?, range_end: *AstNode?, body: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(ForStmt.TAG, NodeData.ForStmt(self.alloc_val(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
 
-	pub fn return_stmt(var self, value: *AstNode, line: usz, col: usz)
+	pub fn return_stmt(var self, value: *AstNode?, line: usz, col: usz)
 		=> self.alloc_node(ReturnStmt.TAG, NodeData.ReturnStmt(self.alloc_val(ReturnStmt(value))), line, col);
 
 	pub fn break_stmt(var self, line: usz, col: usz)
@@ -136,10 +136,10 @@ impl Arena {
 	pub fn continue_stmt(var self, line: usz, col: usz)
 		=> self.alloc_node(ContinueStmt.TAG, NodeData.ContinueStmt(self.alloc_val(ContinueStmt(0))), line, col);
 
-	pub fn when_stmt(var self, condition: *AstNode, arms: List<WhenStmtArm>, line: usz, col: usz)
+	pub fn when_stmt(var self, condition: *AstNode?, arms: List<WhenStmtArm>, line: usz, col: usz)
 		=> self.alloc_node(WhenStmt.TAG, NodeData.WhenStmt(self.alloc_val(WhenStmt(condition, arms))), line, col);
 
-	pub fn yield_stmt(var self, value: *AstNode, line: usz, col: usz)
+	pub fn yield_stmt(var self, value: *AstNode?, line: usz, col: usz)
 		=> self.alloc_node(YieldStmt.TAG, NodeData.YieldStmt(self.alloc_val(YieldStmt(value))), line, col);
 
 	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz)
@@ -155,7 +155,7 @@ impl Arena {
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz)
 		=> self.alloc_node(UseDecl.TAG, NodeData.UseDecl(self.alloc_val(UseDecl(path, full_path, symbol_name, alias, is_wildcard))), line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode, body: *AstNode, is_pub: bool, line: usz, col: usz, is_op: bool = false)
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false)
 		=> self.alloc_node(FnDecl.TAG, NodeData.FnDecl(self.alloc_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
@@ -167,10 +167,10 @@ impl Arena {
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List())
 		=> self.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.alloc_val(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
-	pub fn enum_decl(var self, name: str, underlying_type: *AstNode, members: List<EnumMember>, is_pub: bool, line: usz, col: usz)
+	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), is_pub: bool = false, line: usz = 0, col: usz = 0)
 		=> self.alloc_node(EnumDecl.TAG, NodeData.EnumDecl(self.alloc_val(EnumDecl(name, underlying_type, members, is_pub))), line, col);
 
-	pub fn const_decl(var self, name: str, type_node: *AstNode, value: *AstNode, is_pub: bool, line: usz, col: usz)
+	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0)
 		=> self.alloc_node(ConstDecl.TAG, NodeData.ConstDecl(self.alloc_val(ConstDecl(name, type_node, value, is_pub))), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz)

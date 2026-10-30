@@ -133,7 +133,7 @@ impl CCodeGen {
 			if (t_ann is ArrayType) elem_hint = c_type_from_ast(t_ann.element_type);
 		} else if (vd.initializer != null) {
 			val init_e = vd.initializer;
-			ty_str = self.c_type_or(init_e, "int32_t");
+			ty_str = self.c_type_or(init_e!, "int32_t");
 		}
 
 		var init_e = vd.initializer;
@@ -151,13 +151,13 @@ impl CCodeGen {
 		if (
 			init_e is BinaryExpr as bin &&
 			bin.op == TokenType.QUESTION_COLON
-		) return self.gen_var_elvis_init(vd, init_e, ind, ty_str);
+		) return self.gen_var_elvis_init(vd, init_e!, ind, ty_str);
 
 		var res = "${ind}${ty_str} ${vd.name}";
 		if (vd.initializer != null) {
 			val saved_hint = self.array_elem_hint;
 			self.array_elem_hint = elem_hint;
-			res = "${res} = ${self.gen_expr(vd.initializer)}";
+			res = "${res} = ${self.gen_expr(vd.initializer!)}";
 			self.array_elem_hint = saved_hint;
 		}
 
@@ -306,7 +306,7 @@ impl CCodeGen {
 			is_e.alias.empty() &&
 			is_e.expr is IdentifierExpr as id
 		) cast_decl = self.gen_smart_cast_decl(
-			is_e, is_e.expr, id.name,
+			is_e, is_e.expr!, id.name,
 			self.indent_level + 1
 		);
 
@@ -346,7 +346,7 @@ impl CCodeGen {
 					elif_is_e.alias.empty() &&
 					elif_is_e.expr is IdentifierExpr as id
 				) elif_cast = self.gen_smart_cast_decl(
-					elif_is_e, elif_is_e.expr, id.name,
+					elif_is_e, elif_is_e.expr!, id.name,
 					self.indent_level + 1
 				);
 
@@ -565,24 +565,24 @@ impl CCodeGen {
 	fn gen_yield_stmt(var self, ys: *YieldStmt): str {
 		val ind = get_indent(self.indent_level);
 		if (self.is_yield_return) {
-			if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value)};\n";
+			if (ys.value != null) return "${ind}return ${self.gen_expr(ys.value!)};\n";
 			return "${ind}return;\n";
 		}
 		if (!self.yield_target.empty()) {
-			val val_str = if (ys.value != null) self.gen_expr(ys.value) else "";
+			val val_str = if (ys.value != null) self.gen_expr(ys.value!) else "";
 			var res = if (!val_str.empty()) "${ind}${self.yield_target} = ${val_str};\n" else "";
 			if (!self.yield_exit_label.empty()) {
 				res = "${res}${ind}goto ${self.yield_exit_label};\n";
 			}
 			return res;
 		}
-		if (ys.value != null) return "${ind}${self.gen_expr(ys.value)};\n";
+		if (ys.value != null) return "${ind}${self.gen_expr(ys.value!)};\n";
 		return "";
 	}
 
 	// Name an arm binds: its alias, or the subject's own name for a plain
 	// identifier subject. Empty when the arm binds nothing.
-	fn when_arm_binding(val self, patterns: List<*AstNode>, cond: *AstNode): str {
+	fn when_arm_binding(val self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -593,7 +593,7 @@ impl CCodeGen {
 	}
 
 	fn gen_when_stmt(var self, ws: *WhenStmt): str {
-		val cond = if (ws.condition != null) self.gen_expr(ws.condition) else "";
+		val cond = if (ws.condition != null) self.gen_expr(ws.condition!) else "";
 		val ind = get_indent(self.indent_level);
 		var res = "";
 		var first = true;
@@ -603,9 +603,9 @@ impl CCodeGen {
 			if (!bound.empty()) {
 				val pat_node = arm.patterns.first();
 				if (pat_node is IsExpr as is_e) {
-					var subj_expr = self.gen_expr(ws.condition);
-					if (ws.condition.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = ws.condition.as_identifier_expr().name;
-					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
+					var subj_expr = self.gen_expr(ws.condition!);
+					if (ws.condition!.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = ws.condition!.as_identifier_expr().name;
+					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
 
@@ -671,7 +671,7 @@ impl CCodeGen {
 	}
 
 	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool): str {
-		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
+		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		val ind = get_indent(self.indent_level);
 		var res = "";
 		var first = true;
@@ -701,9 +701,9 @@ impl CCodeGen {
 			if (!bound.empty()) {
 				val pat_node = arm.patterns.first();
 				if (pat_node is IsExpr as is_e) {
-					var subj_expr = self.gen_expr(we.condition);
-					if (we.condition.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = we.condition.as_identifier_expr().name;
-					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr, subj_expr, self.indent_level + 1);
+					var subj_expr = self.gen_expr(we.condition!);
+					if (we.condition!.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = we.condition!.as_identifier_expr().name;
+					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
 

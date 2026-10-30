@@ -40,7 +40,7 @@ use compiler.sema.decl.type.*;
 use compiler.sema.type_ast.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
-fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {
+fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod? {
 	for (m in list) {
 		if (m.name == name && m.arity == arity) return m;
 	}
@@ -187,11 +187,11 @@ impl DeclPass {
 		var param_types = List<*Type>();
 
 		for (p in f.params) {
-			val p_type = self.resolve_ast_type(p.type_node);
+			val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
 			param_types += p_type;
 		}
 
-		var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
+		var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
 		else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type);
@@ -207,7 +207,7 @@ impl DeclPass {
 
 	pub fn collect_enum(var self, node: *AstNode) {
 		val e = node.as_enum_decl() as &EnumDecl;
-		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type)
+		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
 		else self.prims().t_prim(type_i32());
 
 		var is_payload = false;
@@ -238,7 +238,7 @@ impl DeclPass {
 
 			if (is_int) {
 				v = next_int_val;
-				if (m.value != null) v = self.enum_const_i64(m.value);
+				if (m.value != null) v = self.enum_const_i64(m.value!);
 				raw_text = "${v}";
 				lit_kind = LiteralKind.INT;
 				next_int_val = v + 1;
@@ -248,7 +248,7 @@ impl DeclPass {
 					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.STRING) {
 						raw_text = lit.raw_text;
 					} else {
-						self.report_error(m.value, "Enum member value for 'str' enum must be a string literal");
+						self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
 						raw_text = "\"${m.name}\"";
 					}
 				} else {
@@ -260,7 +260,7 @@ impl DeclPass {
 					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.CHAR) {
 						raw_text = lit.raw_text;
 					} else {
-						self.report_error(m.value, "Enum member value for 'char' enum must be a character literal");
+						self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
 						raw_text = "'?'";
 					}
 				} else {
@@ -273,7 +273,7 @@ impl DeclPass {
 					if (m.value is LiteralExpr as lit && (lit.literal_kind == LiteralKind.FLOAT || lit.literal_kind == LiteralKind.INT)) {
 						raw_text = lit.raw_text;
 					} else {
-						self.report_error(m.value, "Enum member value for float enum must be a number literal");
+						self.report_error(m.value!, "Enum member value for float enum must be a number literal");
 						raw_text = "0.0";
 					}
 				} else {
@@ -286,7 +286,7 @@ impl DeclPass {
 					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
 						raw_text = lit.raw_text;
 					} else {
-						self.report_error(m.value, "Enum member value for 'bool' enum must be a bool literal");
+						self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
 						raw_text = "false";
 					}
 				} else {
@@ -395,7 +395,7 @@ impl DeclPass {
 
 	pub fn collect_const(var self, node: *AstNode) {
 		val c = node.as_const_decl() as &ConstDecl;
-		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node)
+		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
 		else self.infer_const_type(c.value) ?: self.prims().t_prim(type_i32());
 		if (c.type_node == null) c.type_node = self.arena.ast_type_from_type(c_type);
 	

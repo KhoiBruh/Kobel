@@ -468,7 +468,7 @@ fn test_cast_standardization(var t: &Tally) {
 	val addr = p.addr();
 	check_i(if (addr > 0) 1 else 0, 1, "ptr.addr() > 0", t);
 
-	val null_p: *i32 = null;
+	val null_p: *i32? = null;
 	val null_addr = null_p.addr();
 	check_i(if (null_addr == 0) 1 else 0, 1, "null.addr() == 0", t);
 }

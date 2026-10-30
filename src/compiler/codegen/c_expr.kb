@@ -40,7 +40,7 @@ pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
 
 impl CCodeGen {
 
-	pub fn gen_expr(var self, node: *AstNode): str {
+	pub fn gen_expr(var self, node: *AstNode?): str {
 		if (node == null) return "";
 
 		return when (node) {
@@ -190,7 +190,7 @@ impl CCodeGen {
 	// to a pointer, which is how this backend represents an array value.
 	fn gen_array_literal_expr(var self, al: *ArrayLiteralExpr): str {
 		val elem_c = when {
-			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node);
+			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node!);
 
 			!self.array_elem_hint.empty() -> self.array_elem_hint;
 
@@ -283,7 +283,7 @@ impl CCodeGen {
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
 	fn gen_when_expr(var self, we: *WhenExpr): str {
 		if (we.arms.empty()) return "0";
-		val cond = if (we.condition != null) self.gen_expr(we.condition) else "";
+		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		var has_else = false;
 		for (arm in we.arms) {
 			if (arm.is_else) has_else = true;
@@ -318,11 +318,11 @@ impl CCodeGen {
 		else "${subject}.${tag_field} == ${tag_const}";
 
 	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
-		val obj = self.gen_expr(is_e.expr);
+		val obj = if (is_e.expr != null) self.gen_expr(is_e.expr!) else "";
 		val target_name = c_type_from_ast(is_e.target_type);
 		var tag_field = is_e.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
-		val obj_str = if (expr_needs_parens_for_member(is_e.expr)) "(${obj})" else obj;
+		val obj_str = if (is_e.expr != null && expr_needs_parens_for_member(is_e.expr!)) "(${obj})" else obj;
 		val tag_const = if (is_e.tag_const.empty()) "${target_name}__TAG" else is_e.tag_const;
 		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, tag_const);
 		if (!is_e.alias.empty()) {

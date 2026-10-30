@@ -32,12 +32,12 @@ use compiler.sema.enums.*;
 
 impl BodyPass {
 
-	pub fn check_when_expr(var self, node: *AstNode, expected: *Type = null): *Type {
+	pub fn check_when_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val we = node.as_when_expr();
-		val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
+		val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
 
 		self.when_depth++;
-		var result_ty: *Type = expected;
+		var result_ty: *Type? = expected;
 		var has_else = false;
 		for (arm in we.arms) {
 			if (arm.is_else) has_else = true;
@@ -47,8 +47,23 @@ impl BodyPass {
 			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, we.condition);
 			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut, result_ty);
 
-			if (result_ty == null) result_ty = body_ty;
-			else self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
+			if (result_ty == null) {
+				result_ty = body_ty;
+			} else {
+				if (result_ty.kind == DataType.POINTER && body_ty.kind == DataType.POINTER) {
+					val r_ptr = result_ty.as_pointer();
+					val b_ptr = body_ty.as_pointer();
+					if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.is_nullable) {
+						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.is_mut);
+					} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.is_nullable) {
+						result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.is_mut);
+					} else if (r_ptr.is_nullable != b_ptr.is_nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
+						val is_mut = r_ptr.is_mut || b_ptr.is_mut;
+						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, is_mut);
+					}
+				}
+				self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
+			}
 		}
 		self.when_depth--;
 
@@ -61,10 +76,10 @@ impl BodyPass {
 		}
 
 		if (result_ty == null) return self.prims().t_none();
-		return result_ty;
+		return result_ty!;
 	}
 
-	fn check_when_exhaustiveness(var self, node: *AstNode, we: *WhenExpr, cond_ty: *Type): bool {
+	fn check_when_exhaustiveness(var self, node: *AstNode, we: *WhenExpr, cond_ty: *Type?): bool {
 		if (cond_ty == null) return false;
 
 		var base_ty = cond_ty;
@@ -90,7 +105,7 @@ impl BodyPass {
 			return has_true && has_false;
 		}
 
-		var enum_info: *EnumInfo = null;
+		var enum_info: *EnumInfo? = null;
 		if (base_ty.is_enum()) {
 			enum_info = base_ty.as_enum();
 		} else if (base_ty.kind == DataType.STRUCT) {
@@ -103,7 +118,7 @@ impl BodyPass {
 		for (arm in we.arms) {
 			if (arm.is_else) continue;
 			for (pat in arm.patterns) {
-				val vname = self.match_enum_variant(pat, enum_info);
+				val vname = self.match_enum_variant(pat, enum_info!);
 				if (!vname.empty()) {
 					var already = false;
 					for (c in covered) {
@@ -150,7 +165,7 @@ impl BodyPass {
 	// Name a single-`is` arm binds: its alias, else the subject's own name. "" when
 	// the arm binds nothing, which is the case for every multi-pattern arm, every
 	// arm of a `when` without a subject, and any non-`is` pattern.
-	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode): str {
+	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -164,7 +179,7 @@ impl BodyPass {
 
 	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
 	// or mutating the subject directly when subject was already mutable).
-	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode): bool {
+	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode?): bool {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -179,7 +194,7 @@ impl BodyPass {
 
 	// Checks the patterns of one arm and returns the type its binding gets, or null
 	// when the arm binds nothing (then each pattern is an ordinary expression).
-	pub fn resolve_arm_patterns(var self, patterns: List<*AstNode>, cond: *AstNode, cond_ty: *Type): *Type {
+	pub fn resolve_arm_patterns(var self, patterns: List<*AstNode>, cond: *AstNode?, cond_ty: *Type?): *Type? {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
 			val pat = patterns.first();
 			if (pat is IsExpr as var is_e) {
@@ -200,7 +215,7 @@ impl BodyPass {
 
 	// One pattern of a non-binding arm: with a subject, an `is` pattern is a tag
 	// test; without one, the pattern stands for itself and must be a bool.
-	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode, cond_ty: *Type): *Type {
+	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode?, cond_ty: *Type?): *Type {
 		if (cond == null) return self.check_expr(pat);
 		if (pat is IsExpr as var is_e) {
 			if (is_e.expr == null) is_e.expr = cond;
@@ -211,34 +226,34 @@ impl BodyPass {
 	}
 
 	// An arm that binds a name checks its body inside a scope holding that name.
-	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type, is_mut: bool, expected: *Type = null): *Type {
+	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type?, is_mut: bool, expected: *Type? = null): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body, expected);
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
-		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
+		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, is_mut, false, 0, 0));
 		return self.check_when_arm_body(body, expected);
 	}
 
-	pub fn check_when_arm_body(var self, body: *AstNode, expected: *Type = null): *Type {
+	pub fn check_when_arm_body(var self, body: *AstNode, expected: *Type? = null): *Type {
 		if (body is BlockStmt as blk) {
-			var yield_ty: *Type = null;
+			var yield_ty: *Type? = null;
 			self.symtab.enter_scope(false);
 			defer self.symtab.exit_scope();
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
-					yield_ty = if (ys.value != null) self.check_expr(ys.value, expected) else self.prims().t_none();
+					yield_ty = if (ys.value != null) self.check_expr(ys.value!, expected) else self.prims().t_none();
 				} else self.check_statement(stmt);
 			}
 			if (yield_ty == null) {
 				self.report_error(body, "When arm block must yield a value");
 				return self.prims().t_none();
 			}
-			return yield_ty;
+			return yield_ty!;
 		}
 		return self.check_expr(body, expected);
 	}
 
-	pub fn check_is_pattern(var self, subject: *AstNode, subj_ty: *Type, is_node: *AstNode): *Type {
+	pub fn check_is_pattern(var self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
 		if (is_node == null || is_node.kind != NodeKind.EXPR_IS) return null;
 		val is_e = is_node.as_is_expr() as &IsExpr;
 		val target_ty = self.resolve_type(is_e.target_type);
@@ -343,7 +358,7 @@ impl BodyPass {
 		return base_s.fields[0].name;
 	}
 
-	fn field_type_of(var self, base_s: *StructType, name: str): *Type {
+	fn field_type_of(var self, base_s: *StructType, name: str): *Type? {
 		for (f in base_s.fields) {
 			if (f.name == name) return f.type_ptr;
 		}
@@ -356,7 +371,7 @@ impl BodyPass {
 			self.report_error(node, "'is' expression requires a subject");
 			return self.prims().t_bool();
 		}
-		val subj_ty = self.check_expr(is_e.expr);
+		val subj_ty = self.check_expr(is_e.expr!);
 		self.check_is_pattern(is_e.expr, subj_ty, node);
 		return self.prims().t_bool();
 	}

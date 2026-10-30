@@ -71,7 +71,7 @@ impl DeclPass {
 							for (i in 0..<f.params.len) {
 								val p = f.params[i];
 								if (p.name == "self" && p.type_node == null) {
-									val prim = resolve_primitive_name(self.symtab.prims, im.struct_name);
+									val prim = resolve_primitive_name(self.symtab.prims!, im.struct_name);
 									val named = self.arena.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
 										else self.arena.pointer_type(p.is_mut, named, m.line, m.col);
@@ -121,7 +121,7 @@ impl DeclPass {
 
 	// Visible from the current module: own module first, then imports (a wildcard
 	// import, or an alias that matches `name`), then any module.
-	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenTemplate {
+	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenTemplate? {
 		val list = self.templates_of(kind);
 		for (t in list) {
 			if (self.template_fits(kind, t, name, self_type) && t.module == self.current_module) return t;
@@ -146,11 +146,11 @@ impl DeclPass {
 		return null;
 	}
 
-	pub fn find_fn_template(val self, name: str) => self.find_template(TemplateKind.FN, name);
+	pub fn find_fn_template(val self, name: str): *GenTemplate? => self.find_template(TemplateKind.FN, name);
 
-	pub fn find_method_template(val self, name: str, self_type: str = "") => self.find_template(TemplateKind.METHOD, name, self_type);
+	pub fn find_method_template(val self, name: str, self_type: str = ""): *GenTemplate? => self.find_template(TemplateKind.METHOD, name, self_type);
 
-	pub fn find_struct_template(val self, name: str) => self.find_template(TemplateKind.STRUCT, name);
+	pub fn find_struct_template(val self, name: str): *GenTemplate? => self.find_template(TemplateKind.STRUCT, name);
 
 	pub fn type_token(val self, ty: *Type): str => when (ty.kind) {
 		DataType.NONE -> "none";

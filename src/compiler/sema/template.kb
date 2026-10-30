@@ -63,7 +63,7 @@ pub struct GenSubst {
 }
 
 impl GenSubst {
-	pub fn lookup(val self, name: str): *AstNode {
+	pub fn lookup(val self, name: str): *AstNode? {
 		val idx = self.names.index_of(name);
 		if (idx >= 0) return self.args[idx as usz];
 		return null;

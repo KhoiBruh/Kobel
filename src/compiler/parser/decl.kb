@@ -400,7 +400,7 @@ impl Parser {
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after enum variant fields");
 			}
 
-			var m_val: *AstNode = null;
+			var m_val: *AstNode? = null;
 			if (self.match_token(TokenType.EQUAL)) {
 				if (!payload.empty()) {
 					self.error(m_tok, "A payload enum variant cannot have an explicit value");
@@ -483,14 +483,15 @@ impl Parser {
 		var declarations = List<*AstNode>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			declarations += self.parse_declaration();
+			val decl = self.parse_declaration();
+			if (decl != null) declarations.add(decl);
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after extern declarations");
 		return self.extern_block(abi, declarations, kw.line, kw.col);
 	}
 
-	pub fn parse_declaration(var self): *AstNode {
+	pub fn parse_declaration(var self): *AstNode? {
 		var is_pub = false;
 		if (self.match_token(TokenType.KW_PUB)) is_pub = true;
 
@@ -522,7 +523,10 @@ impl Parser {
 	pub fn parse_program(var self): *AstNode {
 		var declarations = List<*AstNode>();
 
-		while (!self.is_end()) declarations += self.parse_declaration();
+		while (!self.is_end()) {
+			val decl = self.parse_declaration();
+			if (decl != null) declarations.add(decl);
+		}
 		declarations.extend(self.struct_consts);
 
 		return self.program(declarations, 1, 1);

@@ -307,7 +307,7 @@ impl Parser {
 			// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
 			TokenType.KW_WHEN -> {
 				// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
-				var condition: *AstNode = null;
+				var condition: *AstNode? = null;
 				if (self.match_token(TokenType.OPEN_PAREN)) {
 					condition = self.parse_expression(Precedence.NONE);
 					self.consume(TokenType.CLOSE_PAREN, "Expected ')' after when condition");
@@ -613,9 +613,9 @@ impl Parser {
 				var is_range = false;
 				var is_open = false;
 				var is_half_open = false;
-				var iterable: *AstNode = null;
-				var range_start: *AstNode = null;
-				var range_end: *AstNode = null;
+				var iterable: *AstNode? = null;
+				var range_start: *AstNode? = null;
+				var range_end: *AstNode? = null;
 
 				when {
 					self.match_token(TokenType.DOT_DOT) -> {

@@ -44,7 +44,7 @@ impl BodyPass {
 					if (f.type_params.len > 0) continue;
 					val rec = decl.instance as *InstanceRecord;
 					if (rec != null) f.body = self.lower_stmt(self.decl.materialize_body(rec));
-					else f.body = self.lower_stmt(f.body);
+					else if (f.body != null) f.body = self.lower_stmt(f.body!);
 				}
 				is ImplDecl as var im -> {
 					for (i in 0..<im.methods.len) {
@@ -53,11 +53,11 @@ impl BodyPass {
 							if (mf.type_params.len > 0) continue;
 							val rec = m.instance as *InstanceRecord;
 							if (rec != null) mf.body = self.lower_stmt(self.decl.materialize_body(rec));
-							else mf.body = self.lower_stmt(mf.body);
+							else if (mf.body != null) mf.body = self.lower_stmt(mf.body!);
 						}
 					}
 				}
-				is ConstDecl as var c -> c.value = self.lower_expr(c.value);
+				is ConstDecl as var c -> if (c.value != null) c.value = self.lower_expr(c.value!);
 			}
 		}
 	}
@@ -67,34 +67,34 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
-		if (node == null) return null;
+		if (node == null) return null as *AstNode;
 		// `for` (and the continue step-injection) are built by the checker and
 		// installed here, so a statement node keeps its kind while being checked.
-		if (node.resolved_node != null) return self.lower_stmt(node.resolved_node);
+		if (node.resolved_node != null) return self.lower_stmt(node.resolved_node!);
 		when (node) {
 			is BlockStmt as var blk -> {
 				for (i in 0..<blk.statements.len) blk.statements[i] = self.lower_stmt(blk.statements[i]);
 			}
 			is ExprStmt as var es -> es.expr = self.lower_expr(es.expr);
-			is VarDeclStmt as var vd -> vd.initializer = self.lower_expr(vd.initializer);
+			is VarDeclStmt as var vd -> if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer!);
 			is IfStmt as var ifs -> {
 				ifs.condition = self.lower_expr(ifs.condition);
 				ifs.then_branch = self.lower_stmt(ifs.then_branch);
-				ifs.else_branch = self.lower_stmt(ifs.else_branch);
+				if (ifs.else_branch != null) ifs.else_branch = self.lower_stmt(ifs.else_branch!);
 			}
 			is WhileStmt as var wh -> {
 				wh.condition = self.lower_expr(wh.condition);
 				wh.body = self.lower_stmt(wh.body);
 			}
 			is ForStmt as var fr -> {
-				fr.iterable = self.lower_expr(fr.iterable);
-				fr.range_start = self.lower_expr(fr.range_start);
-				fr.range_end = self.lower_expr(fr.range_end);
+				if (fr.iterable != null) fr.iterable = self.lower_expr(fr.iterable!);
+				if (fr.range_start != null) fr.range_start = self.lower_expr(fr.range_start!);
+				if (fr.range_end != null) fr.range_end = self.lower_expr(fr.range_end!);
 				fr.body = self.lower_stmt(fr.body);
 			}
-			is ReturnStmt as var ret -> ret.value = self.lower_expr(ret.value);
+			is ReturnStmt as var ret -> if (ret.value != null) ret.value = self.lower_expr(ret.value!);
 			is WhenStmt as var ws -> {
-				ws.condition = self.lower_expr(ws.condition);
+				if (ws.condition != null) ws.condition = self.lower_expr(ws.condition!);
 				for (i in 0..<ws.arms.len) {
 					var arm = ws.arms[i];
 					arm.body = self.lower_stmt(arm.body);
@@ -102,7 +102,7 @@ impl BodyPass {
 					ws.arms[i] = arm;
 				}
 			}
-			is YieldStmt as var ys -> ys.value = self.lower_expr(ys.value);
+			is YieldStmt as var ys -> if (ys.value != null) ys.value = self.lower_expr(ys.value!);
 			is DeferStmt as var ds -> ds.body = self.lower_stmt(ds.body);
 		}
 		return node;
@@ -113,10 +113,10 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn lower_expr(var self, node: *AstNode): *AstNode {
-		if (node == null) return null;
+		if (node == null) return null as *AstNode;
 		// A node the checker already resolved (constant leaf, or a call it checked
 		// without installing): lower that instead, then carry this node's type.
-		if (node.resolved_node != null) return self.lowered(node, self.lower_expr(node.resolved_node));
+		if (node.resolved_node != null) return self.lowered(node, self.lower_expr(node.resolved_node!));
 		var out = node;
 		when (node) {
 			is BinaryExpr as var b -> {
@@ -149,7 +149,7 @@ impl BodyPass {
 				out = self.lower_assign(node, asg);
 			}
 			is UpdateExpr as var up -> up.target = self.lower_expr(up.target);
-			is CastExpr as var cst -> cst.expr = self.lower_expr(cst.expr);
+			is CastExpr as var cst -> if (cst.expr != null) cst.expr = self.lower_expr(cst.expr!);
 			is GroupExpr as var g -> g.expr = self.lower_expr(g.expr);
 			is ArrayLiteralExpr as var al -> {
 				for (i in 0..<al.elements.len) al.elements[i] = self.lower_expr(al.elements[i]);
@@ -160,7 +160,7 @@ impl BodyPass {
 				ie.else_branch = self.lower_expr(ie.else_branch);
 			}
 			is WhenExpr as var we -> {
-				we.condition = self.lower_expr(we.condition);
+				if (we.condition != null) we.condition = self.lower_expr(we.condition!);
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
 					arm.body = self.lower_arm_body(arm.body);
@@ -171,12 +171,12 @@ impl BodyPass {
 			is InterpExpr as var ip -> {
 				for (i in 0..<ip.parts.len) {
 					var part = ip.parts[i];
-					part.expr = self.lower_expr(part.expr);
+					if (part.expr != null) part.expr = self.lower_expr(part.expr!);
 					ip.parts[i] = part;
 				}
 				out = self.lower_interp(node, ip);
 			}
-			is IsExpr as var ise -> ise.expr = self.lower_expr(ise.expr);
+			is IsExpr as var ise -> if (ise.expr != null) ise.expr = self.lower_expr(ise.expr!);
 			is StructCtorExpr as var sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
 			}
@@ -294,24 +294,24 @@ impl BodyPass {
 	// the `ToStr` implementation for its type. The checker already rejected holes
 	// without one, so a failed lookup here leaves the expression untouched.
 	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
-		var acc: *AstNode = null;
+		var acc: *AstNode? = null;
 		for (i in 0..<ie.parts.len) {
 			val part = ie.parts[i];
 			var piece = part.expr;
-			if (!part.is_literal) {
+			if (!part.is_literal && piece != null) {
 				val conv = self.to_str_expr(piece, node.line, node.col);
 				if (conv != null) piece = conv;
 			}
 			if (acc == null) acc = piece;
-			else acc = self.arena.interp_concat(acc, piece, node.line, node.col);
+			else if (piece != null) acc = self.arena.interp_concat(acc, piece, node.line, node.col);
 		}
 		if (acc == null) acc = self.arena.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
-		return self.lowered(node, acc);
+		return self.lowered(node, acc!);
 	}
 
 	// The `str` conversion of one value: identity for `str`, otherwise a call to
 	// the primitive or struct `to_str` method (`&value` when it is a value).
-	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode {
+	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode? {
 		val ty = self.type_of(expr);
 		if (ty == null) return null;
 		if (ty.kind == DataType.STR) return expr;
@@ -474,7 +474,7 @@ impl BodyPass {
 
 	// The semantic type sema attached while checking. Groups are transparent:
 	// `check_expr` recurses into them without annotating the group itself.
-	fn type_of(var self, node: *AstNode): *Type {
+	fn type_of(var self, node: *AstNode): *Type? {
 		var cur = node;
 		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
 		if (cur == null) return null;

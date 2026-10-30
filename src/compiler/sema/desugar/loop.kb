@@ -25,12 +25,16 @@ use compiler.sema.body.pass.BodyPass;
 
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
-pub fn for_is_lvalue(node: *AstNode): bool => when (node) {
-	is MemberExpr -> if (node.is_safe) false else for_is_lvalue(node.object);
-	is GroupExpr -> for_is_lvalue(node.expr);
-	is IdentifierExpr -> true;
-	else -> false;
-};
+pub fn for_is_lvalue(node: *AstNode?): bool {
+	if (node == null) return false;
+	val target = node!;
+	return when (target) {
+		is MemberExpr -> if (target.is_safe) false else for_is_lvalue(target.object);
+		is GroupExpr -> for_is_lvalue(target.expr);
+		is IdentifierExpr -> true;
+		else -> false;
+	};
+}
 
 impl Arena {
 	pub fn for_usz_type(var self, line: usz, col: usz) =>
@@ -86,7 +90,7 @@ impl Arena {
 	// alone: their `continue` targets the inner loop. When `bp` is set (an
 	// instance body is being checked), the replacement is recorded per instance
 	// instead of on the shared continue node.
-	pub fn for_inject_step(var self, node: *AstNode, step: &List<*AstNode>, bp: *BodyPass = null) {
+	pub fn for_inject_step(var self, node: *AstNode?, step: &List<*AstNode>, bp: *BodyPass? = null) {
 		if (node == null) return;
 
 		val target = node;
@@ -104,13 +108,13 @@ impl Arena {
 				for (s in step) stmts += s;
 				stmts += self.continue_stmt(node.line, node.col);
 				val block = self.block_stmt(stmts, node.line, node.col);
-				if (bp != null) bp.set_resolved(node, block);
+				if (bp != null) bp.set_resolved(node!, block);
 				else node.resolved_node = block;
 			}
 		}
 	}
 
-	fn for_inject_step_expr(var self, expr: *AstNode, step: &List<*AstNode>, bp: *BodyPass = null) {
+	fn for_inject_step_expr(var self, expr: *AstNode?, step: &List<*AstNode>, bp: *BodyPass? = null) {
 		if (expr == null) return;
 		var cur = expr;
 		while (cur != null) {
@@ -136,7 +140,7 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.count();
-		val count_call = self.call(self.member(fs.iterable, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
+		val count_call = self.call(self.member(fs.iterable!, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
 		pre += self.var_decl(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
 		// var __for_i: usz = 0;
 		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
@@ -145,7 +149,7 @@ impl Arena {
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
 		at_args += self.for_id("__for_i", line, col);
-		val at_call = self.call(self.member(fs.iterable, "at", line, col), at_args, List<*AstNode>(), line, col);
+		val at_call = self.call(self.member(fs.iterable!, "at", line, col), at_args, List<*AstNode>(), line, col);
 		head += self.var_decl(false, fs.var_name, null, at_call, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
@@ -167,14 +171,14 @@ impl Arena {
 	): *AstNode {
 		// val __for_n: usz = <iterable>.len;
 		pre += self.var_decl(false, "__for_n", self.for_usz_type(line, col),
-			self.member(fs.iterable, "len", line, col), line, col);
+			self.member(fs.iterable!, "len", line, col), line, col);
 		// var __for_i: usz = 0;
 		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
 			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.data[__for_i];
 		head += self.var_decl(false, fs.var_name, null,
-			self.index(self.member(fs.iterable, "data", line, col), self.for_id("__for_i", line, col), line, col),
+			self.index(self.member(fs.iterable!, "data", line, col), self.for_id("__for_i", line, col), line, col),
 			line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
@@ -198,7 +202,7 @@ impl Arena {
 		pre += self.var_decl(false, "__for_e", null, fs.range_end, line, col);
 		// var __for_i = __for_e;  then __for_i = <start>;
 		pre += self.var_decl(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
-		pre += self.expr_stmt(self.assign(self.for_id("__for_i", line, col), fs.range_start, line, col), line, col);
+		pre += self.expr_stmt(self.assign(self.for_id("__for_i", line, col), fs.range_start!, line, col), line, col);
 		// val __for_up = __for_i <= __for_e;
 		pre += self.var_decl(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col);
 

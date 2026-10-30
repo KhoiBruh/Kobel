@@ -36,7 +36,7 @@ use compiler.sema.type_ast.*;
 struct ArrowCandidate {
 	pub node: *AstNode,
 	pub fn_type: *Type,
-	pub self_ty: *Type,
+	pub self_ty: *Type? = null,
 	pub module: str
 }
 
@@ -54,7 +54,7 @@ impl BodyPass {
 
 		// An instantiated method is an ordinary free function whose first parameter
 		// is the receiver; restore `Self` for its body from that parameter's type.
-		var self_ty: *Type = null;
+		var self_ty: *Type? = null;
 		val fn_info = sym.type_ptr.as_fn();
 		if (
 			f.params.len > 0 &&
@@ -133,9 +133,10 @@ impl BodyPass {
 					self.check_statement(stmt);
 				}
 				if (f.return_type == null && self.current_fn_return_type != null) {
+					val cur_ret = self.current_fn_return_type!;
 					val fn_info_mut = fn_type.as_fn_mut();
-					fn_info_mut.return_type = self.current_fn_return_type;
-					f.return_type = self.arena.ast_type_from_type(self.current_fn_return_type);
+					fn_info_mut.return_type = cur_ret;
+					f.return_type = self.arena.ast_type_from_type(cur_ret);
 				}
 			}
 			is ExprStmt as es -> {
@@ -145,7 +146,7 @@ impl BodyPass {
 						self.current_fn_return_type != null &&
 						self.current_fn_return_type.is_list()
 					)
-				) self.coerce_to_list(es.expr, self.current_fn_return_type);
+				) self.coerce_to_list(es.expr, self.current_fn_return_type!);
 
 				val body_ty = self.check_expr(es.expr);
 				if (f.return_type == null) {
@@ -235,9 +236,9 @@ impl BodyPass {
 				is FnDecl as f -> self.check_fn(decl);
 				is ImplDecl as im -> self.check_impl(decl);
 				is ConstDecl as c -> {
-					var c_expected: *Type = null;
-					if (c.type_node != null) c_expected = self.resolve_type(c.type_node);
-					if (c.value != null) self.check_expr(c.value, c_expected);
+					var c_expected: *Type? = null;
+					if (c.type_node != null) c_expected = self.resolve_type(c.type_node!);
+					if (c.value != null) self.check_expr(c.value!, c_expected);
 				}
 			}
 		}
@@ -364,7 +365,7 @@ impl BodyPass {
 		return i;
 	}
 
-	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type, module: str): *ArrowCandidate {
+	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type? = null, module: str): *ArrowCandidate {
 		val c = self.arena.alloc<ArrowCandidate>();
 		*c = ArrowCandidate(node, fn_type, self_ty, module);
 		return c;

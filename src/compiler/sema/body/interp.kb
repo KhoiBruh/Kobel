@@ -35,8 +35,8 @@ impl BodyPass {
 		val ie = node.as_interp_expr();
 		for (part in ie.parts) {
 			if (part.is_literal) continue;
-			val pty = self.check_expr(part.expr);
-			self.ensure_to_str(part.expr, pty);
+			val pty = self.check_expr(part.expr!);
+			self.ensure_to_str(part.expr!, pty);
 		}
 		return self.prims().t_str();
 	}

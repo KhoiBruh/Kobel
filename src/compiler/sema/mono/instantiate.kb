@@ -162,20 +162,20 @@ impl DeclPass {
 
 		var params = List<Param>();
 		for (p in t.params) {
-			var pt: *AstNode = null;
+			var pt: *AstNode? = null;
 			if (p.type_node != null) {
-				val ty = self.resolve_ast_type(p.type_node);
+				val ty = self.resolve_ast_type(p.type_node!);
 				pt = self.arena.ast_type_from_type(ty);
 			}
 			val dflt = if (p.default_val != null)
-				self.clone_expr(p.default_val, self.alloc_subst(tmpl.param_names(), arg_asts))
+				self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
 				else null;
 			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
 		}
 
-		var rt: *AstNode = null;
+		var rt: *AstNode? = null;
 		if (t.return_type != null) {
-			val rty = self.resolve_ast_type(t.return_type);
+			val rty = self.resolve_ast_type(t.return_type!);
 			rt = self.arena.ast_type_from_type(rty);
 		}
 
@@ -196,7 +196,7 @@ impl DeclPass {
 	// body checking share one object that no other instance can alias. `receiver`
 	// is the concrete struct type for the untyped `self` parameter (null for
 	// free functions).
-	fn make_fn_sig(var self, fn_node: *AstNode, tmpl: *GenTemplate, args: List<*Type>, receiver: *Type): *Type {
+	fn make_fn_sig(var self, fn_node: *AstNode, tmpl: *GenTemplate, args: List<*Type>, receiver: *Type?): *Type {
 		val t = fn_node.as_fn_decl();
 		val mark = self.subst_names.len;
 		self.push_subst(tmpl.param_names(), args);
@@ -212,11 +212,11 @@ impl DeclPass {
 				param_types += self.prims().t_none();
 				continue;
 			}
-			param_types += self.resolve_ast_type(p.type_node);
+			param_types += self.resolve_ast_type(p.type_node!);
 		}
 
 		var ret_type = self.prims().t_none();
-		if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type);
+		if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type!);
 
 		self.pop_subst(mark);
 
@@ -226,7 +226,7 @@ impl DeclPass {
 	// The concrete receiver type of a method template: for a generic struct the
 	// instance symbol created by `instantiate_struct`; for a non-generic struct
 	// the struct itself. Null for free functions.
-	fn instance_receiver_type(var self, tmpl: *GenTemplate, args: List<*Type>): *Type {
+	fn instance_receiver_type(var self, tmpl: *GenTemplate, args: List<*Type>): *Type? {
 		if (!tmpl.is_method || tmpl.self_type.empty()) return null;
 		val st = self.find_struct_template(tmpl.self_type);
 		if (st != null) {
@@ -330,13 +330,13 @@ impl DeclPass {
 		return cname;
 	}
 
-	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type = null) {
+	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type? = null) {
 		val f = node.as_fn_decl() as &FnDecl;
 		var param_types = List<*Type>();
-		for (p in f.params) param_types += self.resolve_ast_type(p.type_node);
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type) else self.prims().t_none();
+		for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
 
-		val fn_type = if (sig != null) sig else self.arena.fn_type(param_types, ret_type);
+		val fn_type = if (sig != null) sig! else self.arena.fn_type(param_types, ret_type);
 		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
 		f.name = final_name;
 	}

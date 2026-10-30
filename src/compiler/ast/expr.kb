@@ -75,7 +75,7 @@ pub struct UpdateExpr {
 
 pub struct CastExpr {
 	pub const TAG = NodeKind.EXPR_CAST;
-	pub expr: *AstNode,
+	pub expr: *AstNode? = null,
 	pub target_type: *AstNode
 }
 
@@ -88,7 +88,7 @@ pub struct ArrayLiteralExpr {
 	pub const TAG = NodeKind.EXPR_ARRAY_LITERAL;
 	pub elements: List<*AstNode>,
 	pub list_struct_name: str = "",
-	pub elem_type_node: *AstNode = null
+	pub elem_type_node: *AstNode? = null
 }
 
 pub struct IfExpr {
@@ -108,14 +108,14 @@ pub struct WhenArm {
 
 pub struct WhenExpr {
 	pub const TAG = NodeKind.EXPR_WHEN;
-	pub condition: *AstNode,
+	pub condition: *AstNode? = null,
 	pub arms: List<WhenArm>
 }
 
 // One piece of an interpolated string: either a literal chunk (`is_literal`,
 // in which case `expr` is a STRING literal) or a `${...}` hole expression.
 pub struct InterpPart {
-	pub expr: *AstNode,
+	pub expr: *AstNode? = null,
 	pub is_literal: bool
 }
 
@@ -126,7 +126,7 @@ pub struct InterpExpr {
 
 pub struct IsExpr {
 	pub const TAG = NodeKind.EXPR_IS;
-	pub expr: *AstNode,
+	pub expr: *AstNode? = null,
 	pub target_type: *AstNode,
 	pub alias: str = "",
 	pub tag_field: str = "",

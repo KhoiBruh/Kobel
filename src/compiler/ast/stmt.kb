@@ -18,15 +18,15 @@ pub struct VarDeclStmt {
 	pub const TAG = NodeKind.STMT_VAR_DECL;
 	pub is_mut: bool,
 	pub name: str,
-	pub type_annotation: *AstNode,
-	pub initializer: *AstNode
+	pub type_annotation: *AstNode? = null,
+	pub initializer: *AstNode? = null
 }
 
 pub struct IfStmt {
 	pub const TAG = NodeKind.STMT_IF;
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
-	pub else_branch: *AstNode
+	pub else_branch: *AstNode? = null
 }
 
 pub struct WhileStmt {
@@ -46,15 +46,15 @@ pub struct ForStmt {
 	pub is_range: bool,
 	pub is_open: bool,
 	pub is_half_open: bool,
-	pub iterable: *AstNode,
-	pub range_start: *AstNode,
-	pub range_end: *AstNode,
+	pub iterable: *AstNode? = null,
+	pub range_start: *AstNode? = null,
+	pub range_end: *AstNode? = null,
 	pub body: *AstNode
 }
 
 pub struct ReturnStmt {
 	pub const TAG = NodeKind.STMT_RETURN;
-	pub value: *AstNode
+	pub value: *AstNode? = null
 }
 
 pub struct BreakStmt {
@@ -77,13 +77,13 @@ pub struct WhenStmtArm {
 
 pub struct WhenStmt {
 	pub const TAG = NodeKind.STMT_WHEN;
-	pub condition: *AstNode,
+	pub condition: *AstNode? = null,
 	pub arms: List<WhenStmtArm>
 }
 
 pub struct YieldStmt {
 	pub const TAG = NodeKind.STMT_YIELD;
-	pub value: *AstNode
+	pub value: *AstNode? = null
 }
 
 pub struct DeferStmt {

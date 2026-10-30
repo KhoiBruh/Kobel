@@ -7,11 +7,11 @@ struct ArenaBlock {
 	data: &u8,
 	size: usz,
 	used: usz,
-	next: *ArenaBlock
+	next: *ArenaBlock? = null
 }
 
 pub struct Arena {
-	current: *ArenaBlock,
+	current: *ArenaBlock? = null,
 	block_size: usz
 }
 

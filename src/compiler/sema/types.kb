@@ -58,7 +58,7 @@ pub struct Type {
 	pub data: TypePayload,
 	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
 	// type and for primitives built by `type_primitive`, which are not canonical.
-	pub methods: *PrimMethods = null
+	pub methods: *PrimMethods? = null
 }
 
 pub struct PointerType {
@@ -184,7 +184,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Pointer as p -> p.inner;
-			else -> null;
+			else -> null as *PointerType;
 		};
 	}
 
@@ -192,7 +192,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Array as p -> p.inner;
-			else -> null;
+			else -> null as *ArrayType;
 		};
 	}
 
@@ -200,7 +200,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner;
-			else -> null;
+			else -> null as *StructType;
 		};
 	}
 
@@ -208,7 +208,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner as &StructType;
-			else -> null;
+			else -> (null as *StructType) as &StructType;
 		};
 	}
 
@@ -216,7 +216,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Fn as p -> p.inner;
-			else -> null;
+			else -> null as *FnType;
 		};
 	}
 
@@ -224,7 +224,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Fn as p -> p.inner as &FnType;
-			else -> null;
+			else -> (null as *FnType) as &FnType;
 		};
 	}
 
@@ -232,7 +232,7 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Enum as p -> p.inner;
-			else -> null;
+			else -> null as *EnumInfo;
 		};
 	}
 
@@ -250,13 +250,13 @@ impl Type {
 		return self.methods.list;
 	}
 
-	pub fn method_named(val self, name: str): *MethodInfo {
+	pub fn method_named(val self, name: str): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn method_arity(val self, name: str, argc: usz): *MethodInfo {
+	pub fn method_arity(val self, name: str, argc: usz): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) {
 			if (
@@ -267,7 +267,7 @@ impl Type {
 		return null;
 	}
 
-	pub fn method_by_c_name(val self, c_name: str): *MethodInfo {
+	pub fn method_by_c_name(val self, c_name: str): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) if (m.c_name == c_name) return m;
 		return null;
@@ -435,11 +435,15 @@ impl Type {
 				t_ptr.pointee.equals(s_ptr.pointee)
 			) return true;
 
-			// Allow none pointer (or u8 pointer / null pointer) to be compatible with other pointers
+			// Allow none pointer (null pointer) to be compatible only with nullable pointers
+			if (s_ptr.pointee.kind == DataType.NONE) {
+				return t_ptr.is_nullable;
+			}
+
+			// Allow raw byte pointer compatibility
 			if (
 				t_ptr.pointee.kind == DataType.U8 ||
-				t_ptr.pointee.kind == DataType.NONE ||
-				s_ptr.pointee.kind == DataType.NONE
+				t_ptr.pointee.kind == DataType.NONE
 			) return true;
 		}
 

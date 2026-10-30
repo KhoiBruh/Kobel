@@ -36,7 +36,7 @@ pub struct TraitInfo {
 }
 
 impl TraitInfo {
-	pub fn find_method(self, name: str): *TraitMethod {
+	pub fn find_method(self, name: str): *TraitMethod? {
 		for (m in self.methods) {
 			if (m.name == name) return m;
 		}

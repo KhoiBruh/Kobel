@@ -64,7 +64,7 @@ impl PrimTypes {
 	// kinds registered above (pointer, array, struct, fn).
 	pub fn get(val self, kind: DataType): *Type {
 		for (t in self.types) if (t.kind == kind) return t;
-		return null;
+		return self.types[0];
 	}
 
 	pub fn t_none(val self): *Type => self.get(DataType.NONE);
@@ -81,7 +81,7 @@ impl PrimTypes {
 // The built-in type named `name`, or null when `name` is not a primitive.
 // Primitives are not registered as symbols, so this name table is also how
 // `impl <primitive>` blocks are recognized. Returns the canonical instance.
-pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type => when (name) {
+pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type? => when (name) {
 	"none" -> prims.get(DataType.NONE);
 	"bool" -> prims.get(DataType.BOOL);
 	"char" -> prims.get(DataType.CHAR);

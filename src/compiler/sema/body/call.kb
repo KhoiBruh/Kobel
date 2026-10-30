@@ -259,7 +259,7 @@ impl BodyPass {
 				if (f.params[i].default_val == null) return false;
 			}
 			for (i in argc..<f.params.len) {
-				call.args += self.copy_expr(f.params[i].default_val);
+				call.args += self.copy_expr(f.params[i].default_val!);
 			}
 			return true;
 		}
@@ -269,7 +269,7 @@ impl BodyPass {
 	// Overload resolution is by arity, so an exact match wins; otherwise the
 	// first candidate whose missing tail is all-default does. `found` is the
 	// exact-arity result, already resolved by the caller.
-	fn method_with_defaults(var self, name: str, argc: usz, cands: List<*MethodInfo>, call: &CallExpr, found: *MethodInfo): *MethodInfo {
+	fn method_with_defaults(var self, name: str, argc: usz, cands: List<*MethodInfo>, call: &CallExpr, found: *MethodInfo?): *MethodInfo? {
 		if (found != null) return found;
 		for (m in cands) {
 			if (m.name != name || m.ast_node == null) continue;
@@ -314,7 +314,7 @@ impl BodyPass {
 		return ret_ty;
 	}
 
-	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {
 		// Instance method call: obj.m(args) -> Struct_m(self, args)
 		val obj_raw_ty = self.check_expr(mem.object);
 		var obj_ty = obj_raw_ty;
@@ -397,7 +397,7 @@ impl BodyPass {
 	fn check_generic_method_call(
 		var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr,
 		obj_ty: *Type, obj_is_ptr: bool
-	): *Type {
+	): *Type? {
 		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct().name
 			else primitive_type_name(obj_ty);
 		if (recv_name.empty()) return null;
@@ -415,7 +415,7 @@ impl BodyPass {
 			if (targs.empty()) return null;
 		}
 
-		val cname = self.instantiate_method(tmpl, targs, obj_ty);
+		val cname = self.instantiate_method(tmpl!, targs, obj_ty);
 		val sym = self.symtab.lookup(cname);
 		if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
 
@@ -460,7 +460,7 @@ impl BodyPass {
 	// the instance tables stay coherent with this pass (same pattern as
 	// `find_method_template_for` / `instantiate_method`).
 
-	fn find_fn_template_for(var self, name: str): *GenTemplate {
+	fn find_fn_template_for(var self, name: str): *GenTemplate? {
 		if (self.has_decl) return self.decl.find_fn_template(name);
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -472,7 +472,7 @@ impl BodyPass {
 		return tmpl;
 	}
 
-	fn find_struct_template_for(var self, name: str): *GenTemplate {
+	fn find_struct_template_for(var self, name: str): *GenTemplate? {
 		if (self.has_decl) return self.decl.find_struct_template(name);
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -509,23 +509,25 @@ impl BodyPass {
 	// A clone's return type comes from checking its body, so a call to a clone
 	// whose type is still unknown triggers that check first. During arrow
 	// inference the attempt is rolled back instead (see infer_arrow_returns).
-	fn ensure_callee_ready(var self, sym: *Symbol) {
+	fn ensure_callee_ready(var self, sym: *Symbol?) {
 		if (sym == null) return;
-		if (!self.arrow_pending(sym.ast_node)) return;
+		if (sym == null || sym.ast_node == null) return;
+		val ast = sym.ast_node!;
+		if (!self.arrow_pending(ast)) return;
 
 		// Checking another body must not leak its return type into ours.
 		val saved_ret = self.current_fn_return_type;
-		self.check_fn(sym.ast_node);
+		self.check_fn(ast);
 		self.current_fn_return_type = saved_ret;
 
 		// Still unknown: the callee depends on something unresolved (a cycle), so
 		// the current arrow-inference attempt has to be retried later.
-		if (self.arrow_pending(sym.ast_node)) self.infer_blocked = true;
+		if (self.arrow_pending(ast)) self.infer_blocked = true;
 	}
 
 	// `Enum.Variant(args)`: a payload-enum value. Null when the callee's receiver
 	// is not a payload enum, which sends the call down the ordinary method path.
-	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type {
+	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {
 		val obj = mem.object;
 		if (obj.kind != NodeKind.EXPR_IDENTIFIER) return null;
 		val enum_id = obj.as_identifier_expr();
@@ -575,7 +577,7 @@ impl BodyPass {
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
 			if (sym != null) {
-				self.append_defaults(sym.ast_node, call.args.len, call);
+				if (sym.ast_node != null) self.append_defaults(sym.ast_node!, call.args.len, call);
 				self.ensure_callee_ready(sym);
 			}
 		}
@@ -661,7 +663,7 @@ impl BodyPass {
 			}
 			if (all_default) {
 				for (i in call.args.len..<s_info.fields.len) {
-					call.args += self.copy_expr(s_info.fields[i].default_val);
+					call.args += self.copy_expr(s_info.fields[i].default_val!);
 				}
 			}
 		}
@@ -694,7 +696,7 @@ fn infer_type_args_for_fn(
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
-		for (k in 0..<num_tparams) inferred += null;
+		for (k in 0..<num_tparams) inferred.add(self.prims().t_none());
 
 		val params = fn_decl.params;
 		for (i in 0..<call_args.len) {
@@ -706,11 +708,11 @@ fn infer_type_args_for_fn(
 			val arg_ty = self.check_expr(call_args[i]);
 			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
 
-			self.match_type_param(p.type_node, arg_ty, type_params, inferred.data);
+			self.match_type_param(p.type_node!, arg_ty, type_params, inferred.data);
 		}
 
 		for (k in 0..<num_tparams) {
-			if (inferred[k] == null) return List<*AstNode>();
+			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
 		}
 
 		var result = List<*AstNode>();
@@ -730,14 +732,13 @@ fn infer_type_args_for_fn(
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
-		for (k in 0..<num_tparams) inferred += null;
+		for (k in 0..<num_tparams) inferred.add(self.prims().t_none());
 
 		val fields = decl.fields;
 		for (i in 0..<call_args.len) {
 			if (i >= fields.len) break;
 			val f = fields[i];
-			if (f.type_node == null) continue;
-
+			
 			val arg_ty = self.check_expr(call_args[i]);
 			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
 
@@ -745,7 +746,7 @@ fn infer_type_args_for_fn(
 		}
 
 		for (k in 0..<num_tparams) {
-			if (inferred[k] == null) return List<*AstNode>();
+			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
 		}
 
 		var result = List<*AstNode>();
@@ -769,7 +770,7 @@ fn infer_type_args_for_fn(
 				if (nt.type_args.empty()) {
 					for (k in 0..<type_params.len) {
 						if (type_params[k].name == nt.name) {
-							if (inferred[k] == null) {
+							if (inferred[k].kind == DataType.NONE) {
 								inferred[k] = arg_ty;
 							} else if (!inferred[k].equals(arg_ty)) {
 								if (inferred[k].is_integer() && arg_ty.is_integer() && arg_ty.size > inferred[k].size) {

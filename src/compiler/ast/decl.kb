@@ -22,10 +22,10 @@ pub struct UseDecl {
 
 pub struct Param {
 	pub name: str,
-	pub type_node: *AstNode,
+	pub type_node: *AstNode? = null,
 	pub is_mut: bool,
 	pub has_val: bool,
-	pub default_val: *AstNode = null
+	pub default_val: *AstNode? = null
 }
 
 pub struct GenericParam {
@@ -38,8 +38,8 @@ pub struct FnDecl {
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub params: List<Param>,
-	pub return_type: *AstNode,
-	pub body: *AstNode,
+	pub return_type: *AstNode? = null,
+	pub body: *AstNode? = null,
 	pub is_pub: bool,
 	pub is_op: bool = false,
 	// Set on instantiated clones (monomorphization): the module the template was
@@ -51,7 +51,7 @@ pub struct StructField {
 	pub name: str,
 	pub type_node: *AstNode,
 	pub is_pub: bool,
-	pub default_val: *AstNode = null
+	pub default_val: *AstNode? = null
 }
 
 pub struct StructDecl {
@@ -102,7 +102,7 @@ pub struct EnumField {
 
 pub struct EnumMember {
 	pub name: str,
-	pub value: *AstNode,
+	pub value: *AstNode? = null,
 	pub line: usz,
 	pub col: usz,
 	// Empty for a plain (integer) enum member; non-empty when the member carries
@@ -113,7 +113,7 @@ pub struct EnumMember {
 pub struct EnumDecl {
 	pub const TAG = NodeKind.DECL_ENUM;
 	pub name: str,
-	pub underlying_type: *AstNode,
+	pub underlying_type: *AstNode? = null,
 	pub members: List<EnumMember>,
 	pub is_pub: bool
 }
@@ -121,8 +121,8 @@ pub struct EnumDecl {
 pub struct ConstDecl {
 	pub const TAG = NodeKind.DECL_CONST;
 	pub name: str,
-	pub type_node: *AstNode,
-	pub value: *AstNode,
+	pub type_node: *AstNode? = null,
+	pub value: *AstNode? = null,
 	pub is_pub: bool
 }
 
