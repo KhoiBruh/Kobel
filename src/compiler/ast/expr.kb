@@ -76,7 +76,14 @@ pub struct UpdateExpr {
 pub struct CastExpr {
 	pub const TAG = NodeKind.EXPR_CAST;
 	pub expr: *AstNode? = null,
-	pub target_type: *AstNode
+	pub target_type: *AstNode,
+	pub is_safe: bool = false,
+	pub tag_field: str = "",
+	pub base_c_name: str = "",
+	pub is_ptr: bool = false,
+	pub payload_path: str = "",
+	pub payload_ptr: bool = false,
+	pub tag_const: str = ""
 }
 
 pub struct GroupExpr {

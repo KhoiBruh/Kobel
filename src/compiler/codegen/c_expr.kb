@@ -74,10 +74,7 @@ impl CCodeGen {
 				yield "${self.gen_expr(node.target)}${op_str}";
 			}
 
-			is CastExpr -> {
-				val ty = c_type_from_ast(node.target_type);
-				yield "(${ty})${self.gen_expr(node.expr)}";
-			}
+			is CastExpr as cst -> self.gen_cast_expr(cst);
 
 			is IfExpr -> {
 				val cond = self.gen_expr(node.condition);
@@ -316,6 +313,39 @@ impl CCodeGen {
 		var self, subject: str, is_ptr: bool, tag_field: str, tag_const: str
 	): str => if (is_ptr) "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}"
 		else "${subject}.${tag_field} == ${tag_const}";
+
+	pub fn gen_cast_expr(var self, cst: *CastExpr): str {
+		if (!cst.is_safe) {
+			val ty = c_type_from_ast(cst.target_type);
+			return "(${ty})${self.gen_expr(cst.expr)}";
+		}
+
+		val obj = if (cst.expr != null) self.gen_expr(cst.expr!) else "";
+		val target_name = c_type_from_ast(cst.target_type);
+		val target_ptr_type = if (target_name.ends_with("*")) target_name else "${target_name}*";
+		val obj_str = if (cst.expr != null && expr_needs_parens_for_member(cst.expr!)) "(${obj})" else obj;
+		var tag_field = cst.tag_field;
+		if (tag_field.empty()) tag_field = "tag";
+		val tag_const = cst.tag_const;
+		val tag_test = if (!tag_const.empty()) self.gen_tag_test(obj_str, cst.is_ptr, tag_field, tag_const)
+			else if (cst.is_ptr) "${obj_str} != NULL" else "1";
+		val cast_val = if (cst.is_ptr) {
+			if (!cst.payload_path.empty()) {
+				if (cst.payload_ptr) "${obj_str}->${cst.payload_path}"
+				else "(${target_ptr_type})(&(${obj_str})->${cst.payload_path})"
+			} else {
+				"(${target_ptr_type})${obj_str}"
+			}
+		} else {
+			if (!cst.payload_path.empty()) {
+				if (cst.payload_ptr) "${obj_str}.${cst.payload_path}"
+				else "(${target_ptr_type})(&(${obj_str}).${cst.payload_path})"
+			} else {
+				"(${target_ptr_type})&${obj_str}"
+			}
+		};
+		return "((${tag_test}) ? ${cast_val} : NULL)";
+	}
 
 	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
 		val obj = if (is_e.expr != null) self.gen_expr(is_e.expr!) else "";

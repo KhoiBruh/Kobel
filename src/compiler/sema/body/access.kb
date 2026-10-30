@@ -506,26 +506,91 @@ impl BodyPass {
 		// The target type node is shared between instances; keep the resolved
 		// type per instance so materialization can spell the concrete C type.
 		if (self.current_rec != null) self.set_ann_ty(cst.target_type, ty);
-		if (src_ty != null && src_ty.is_enum()) {
-			self.report_error(node, "Cannot cast enum '${src_ty.as_enum().name}' with 'as'. Use '.value' to access its underlying value");
-		}
-		if (ty != null && ty.is_enum()) {
-			self.report_error(node, "Cannot cast to enum type '${ty.as_enum().name}' with 'as'. Use constructor '${ty.as_enum().name}(value)' instead");
-		}
-		if (src_ty != null && src_ty.kind == DataType.POINTER && ty != null && ty.is_integer()) {
-			self.report_error(node, "Cannot cast pointer to integer with 'as'. Use '.addr()' instead");
-		}
-		if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.POINTER) {
-			self.report_error(node, "Cannot cast integer to pointer with 'as'");
-		}
-		if (src_ty != null && src_ty.kind == DataType.CHAR && ty != null && ty.is_integer()) {
-			self.report_error(node, "Cannot cast 'char' with 'as'. Use '.code()' instead");
-		}
-		if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.CHAR) {
-			self.report_error(node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
+
+		if (!cst.is_safe) {
+			if (src_ty != null && src_ty.is_enum()) {
+				self.report_error(node, "Cannot cast enum '${src_ty.as_enum().name}' with 'as'. Use '.value' to access its underlying value");
+			}
+			if (ty != null && ty.is_enum()) {
+				self.report_error(node, "Cannot cast to enum type '${ty.as_enum().name}' with 'as'. Use constructor '${ty.as_enum().name}(value)' instead");
+			}
+			if (src_ty != null && src_ty.kind == DataType.POINTER && ty != null && ty.is_integer()) {
+				self.report_error(node, "Cannot cast pointer to integer with 'as'. Use '.addr()' instead");
+			}
+			if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.POINTER) {
+				self.report_error(node, "Cannot cast integer to pointer with 'as'");
+			}
+			if (src_ty != null && src_ty.kind == DataType.CHAR && ty != null && ty.is_integer()) {
+				self.report_error(node, "Cannot cast 'char' with 'as'. Use '.code()' instead");
+			}
+			if (src_ty != null && src_ty.is_integer() && ty != null && ty.kind == DataType.CHAR) {
+				self.report_error(node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
+			}
+			return ty;
 		}
 
-		return ty;
+		// Safe cast: expr as? Target
+		var target_struct_ty = ty;
+		if (target_struct_ty != null && target_struct_ty.kind == DataType.POINTER) {
+			target_struct_ty = target_struct_ty.as_pointer().pointee;
+		}
+
+		var base_ty = src_ty;
+		var is_ptr = false;
+		if (base_ty != null && base_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			base_ty = base_ty.as_pointer().pointee;
+		}
+
+		cst.is_ptr = is_ptr;
+
+		if (target_struct_ty != null && target_struct_ty.kind == DataType.STRUCT) {
+			val target_s = target_struct_ty.as_struct();
+			val tag_const_sym = self.find_tag_const(target_s.name);
+			if (tag_const_sym != null) cst.tag_const = tag_const_sym.c_name;
+
+			if (base_ty != null && base_ty.kind == DataType.STRUCT) {
+				val base_s = base_ty.as_struct();
+				cst.tag_field = self.tag_field_name_of(base_s);
+				cst.base_c_name = base_s.c_name;
+
+				// Case 1: AstNode has field `data: NodeData` which is a payload enum
+				val data_ty = self.field_type_of(base_s, "data");
+				if (data_ty != null && data_ty.kind == DataType.STRUCT) {
+					val data_enum = self.symtab.find_enum_info(data_ty.as_struct().name);
+					if (data_enum != null && data_enum.is_payload) {
+						val m = data_enum.find_member(target_s.name);
+						if (m != null) {
+							cst.payload_path = "data.${m.payload_path}.inner";
+							cst.payload_ptr = true;
+							cst.tag_field = "data.tag";
+							cst.tag_const = "${data_enum.c_name}__${m.name}__TAG";
+						} else if (tag_const_sym != null) {
+							cst.payload_path = "data.u.${target_s.name}.inner";
+							cst.payload_ptr = true;
+							cst.tag_const = tag_const_sym.c_name;
+						}
+					}
+				}
+
+				// Case 2: Subject itself is a payload enum
+				val enum_info = self.symtab.find_enum_info(base_s.name);
+				if (enum_info != null && enum_info.is_payload) {
+					for (m in enum_info.members) {
+						if (m.payload_ty != null && (m.payload_ty.equals(target_struct_ty) || (m.payload_ty.kind == DataType.POINTER && m.payload_ty.as_pointer().pointee.equals(target_struct_ty)))) {
+							cst.payload_path = m.payload_path;
+							cst.payload_ptr = (m.payload_ty.kind == DataType.POINTER);
+							cst.tag_field = "tag";
+							cst.tag_const = "${enum_info.c_name}__${m.name}__TAG";
+						}
+					}
+				}
+			}
+
+			return self.arena.nullable_pointer_type(target_struct_ty, false);
+		}
+
+		return self.arena.nullable_pointer_type(if (target_struct_ty != null) target_struct_ty else self.prims().t_none(), false);
 	}
 
 }

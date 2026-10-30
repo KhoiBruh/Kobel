@@ -451,10 +451,11 @@ impl Parser {
 				yield self.index(left, index, line, col);
 			}
 
-			// 4. Type Cast: left as Type
+			// 4. Type Cast: left as Type or left as? Type
 			self.match_token(TokenType.KW_AS) -> {
+				val is_safe = self.match_token(TokenType.QUESTION);
 				val target_type = self.parse_type();
-				yield self.cast(left, target_type, line, col);
+				yield self.cast(left, target_type, is_safe, line, col);
 			}
 
 			// Type Test: left is Type [as [var|val|&] alias]

@@ -43,6 +43,9 @@ fn eval_when_expr(node: *Node): i32 {
 	};
 }
 
+fn cast_to_literal(node: *Node?): *Literal? => node as? Literal;
+fn cast_to_binary(node: *Node?): *Binary? => node as? Binary;
+
 // Case 2: Tagged union with Enum TAG and 'kind' field
 enum ExprKind {
 	NUM,
@@ -351,6 +354,30 @@ fn main(): i32 {
 		println("FAIL: exhaustive bool when");
 		return 1;
 	}
+
+	// Test Case 9: Safe cast operator 'as?'
+	val safe_lit = cast_to_literal(&lit1 as *Node);
+	val safe_not_lit = cast_to_literal(&bin as *Node);
+	val safe_bin = cast_to_binary(&bin as *Node);
+	val safe_null = cast_to_literal(null_node);
+
+	if (safe_lit == null || safe_lit.value != 10) {
+		println("FAIL: safe cast literal match");
+		return 1;
+	}
+	if (safe_not_lit != null) {
+		println("FAIL: safe cast mismatch should be null");
+		return 1;
+	}
+	if (safe_bin == null || safe_bin.tag != 2) {
+		println("FAIL: safe cast binary match");
+		return 1;
+	}
+	if (safe_null != null) {
+		println("FAIL: safe cast null should be null");
+		return 1;
+	}
+	println("safe cast as?: OK");
 
 	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");
 	return 0;

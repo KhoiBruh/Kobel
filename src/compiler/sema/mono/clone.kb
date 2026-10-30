@@ -180,11 +180,22 @@ impl DeclPass {
 				node.line, node.col
 			);
 
-			is CastExpr as cst -> self.arena.cast(
-				if (cst.expr != null) self.clone_expr(cst.expr!, subst) else null,
-				self.clone_type(cst.target_type, subst),
-				node.line, node.col
-			);
+			is CastExpr as cst -> {
+				val cloned_cst = self.arena.cast(
+					if (cst.expr != null) self.clone_expr(cst.expr!, subst) else null,
+					self.clone_type(cst.target_type, subst),
+					cst.is_safe,
+					node.line, node.col
+				);
+				val cloned_cast = cloned_cst.as_cast_expr();
+				cloned_cast.tag_field = cst.tag_field;
+				cloned_cast.base_c_name = cst.base_c_name;
+				cloned_cast.is_ptr = cst.is_ptr;
+				cloned_cast.payload_path = cst.payload_path;
+				cloned_cast.payload_ptr = cst.payload_ptr;
+				cloned_cast.tag_const = cst.tag_const;
+				yield cloned_cst;
+			}
 
 			is GroupExpr as g -> self.arena.group(
 				self.clone_expr(g.expr, subst),

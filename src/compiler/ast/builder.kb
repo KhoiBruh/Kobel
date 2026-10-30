@@ -81,8 +81,8 @@ impl Arena {
 	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.alloc_val(UpdateExpr(op, target))), line, col);
 
-	pub fn cast(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.alloc_val(CastExpr(expr, target_type))), line, col);
+	pub fn cast(var self, expr: *AstNode? = null, target_type: *AstNode, is_safe: bool = false, line: usz = 0, col: usz = 0)
+		=> self.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.alloc_val(CastExpr(expr, target_type, is_safe))), line, col);
 
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.alloc_val(GroupExpr(expr))), line, col);

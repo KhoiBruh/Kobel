@@ -165,7 +165,7 @@ impl CompileOptions {
 			// Restore previous binary if compilation failed
 			if (file_exists(old_bin) && !file_exists(out_path))
 				exec("move /y \"${old_bin.to_win_path()}\" \"${out_path.to_win_path()}\" >nul 2>nul");
-			println("Error: Backend C compiler failed with error code 1");
+			println("Error: Backend C compiler failed with exit code ${exit_code}: cmd was '${compile_cmd}'");
 			return exit_code;
 		}
 

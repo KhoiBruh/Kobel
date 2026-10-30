@@ -173,7 +173,7 @@ impl Formatter {
 			}
 			is CastExpr as cst -> {
 				if (cst.expr != null) self.format_expr(cst.expr!);
-				self.buf += " as ";
+				if (cst.is_safe) { self.buf += " as? "; } else { self.buf += " as "; }
 				self.format_type(cst.target_type);
 			}
 			is GroupExpr as g -> {
