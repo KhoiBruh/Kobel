@@ -13,6 +13,7 @@ pub struct HashSet {
 }
 
 impl HashSet {
+
 	pub fn new(init_cap: usz = 16): Self {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
@@ -52,20 +53,6 @@ impl HashSet {
 		self.occupied[idx] = true;
 		self.len++;
 		return true;
-	}
-
-	pub op plus_assign(var self, key: str) => self.add(key);
-
-	pub op contains(val self, key: str): bool {
-		if (self.len == 0 || self.cap == 0) return false;
-		val h = self.hash_key(key);
-		var idx = h % self.cap;
-
-		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return true;
-			idx = (idx + 1) % self.cap;
-		}
-		return false;
 	}
 
 	pub fn remove(var self, key: str): bool {
@@ -144,6 +131,21 @@ impl HashSet {
 			release<bool>(self.occupied);
 		}
 	}
+
+	pub op plus_assign(var self, key: str) => self.add(key);
+
+	pub op contains(val self, key: str): bool {
+		if (self.len == 0 || self.cap == 0) return false;
+		val h = self.hash_key(key);
+		var idx = h % self.cap;
+
+		while (self.occupied[idx]) {
+			if (self.keys[idx] == key) return true;
+			idx = (idx + 1) % self.cap;
+		}
+		return false;
+	}
+
 }
 
 // `for (key in set)` walks the set keys.
