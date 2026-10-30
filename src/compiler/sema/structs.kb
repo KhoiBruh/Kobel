@@ -45,37 +45,40 @@ pub struct StructType {
 impl StructType {
 
 	pub fn find_method(val self, name: str): *MethodInfo {
-		for (m in self.methods) {
-			if (!m.is_op && m.name == name) return m;
-		}
-		for (m in self.methods) {
-			if (m.name == name) return m;
-		}
+		for (m in self.methods) if (!m.is_op && m.name == name) return m;
+		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}
 
 	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo {
 		for (m in self.methods) {
-			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+			if (
+				!m.is_op && m.name == name &&
+				m.fn_type.as_fn().param_types.len == argc
+			) return m;
 		}
 		for (m in self.methods) {
-			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+			if (
+				m.name == name &&
+				m.fn_type.as_fn().param_types.len == argc
+			) return m;
 		}
 		return null;
 	}
 
 	pub fn count_method_arity(val self, name: str, argc: usz): usz {
-		var n: usz = 0;
+		var n = 0;
 		for (m in self.methods) {
-			if (!m.is_op && m.name == name && m.fn_type.as_fn().param_types.len == argc) n++;
+			if (
+				!m.is_op && m.name == name &&
+				m.fn_type.as_fn().param_types.len == argc
+			) n++;
 		}
 		return n;
 	}
 
 	pub fn find_method_c(val self, c_name: str): *MethodInfo {
-		for (m in self.methods) {
-			if (m.c_name == c_name) return m;
-		}
+		for (m in self.methods) if (m.c_name == c_name) return m;
 		return null;
 	}
 
@@ -98,29 +101,32 @@ impl StructType {
 					all_assignable = false;
 					break;
 				}
+
 				if (!param_t.can_assign(arg_t)) {
 					all_assignable = false;
 					all_exact = false;
 					break;
 				}
-				if (param_t.kind != arg_t.kind) {
-					all_exact = false;
-				}
+
+				if (param_t.kind != arg_t.kind) all_exact = false;
 			}
 
 			if (all_exact) return m;
-			if (all_assignable && assignable_match == null) {
-				assignable_match = m;
-			}
+			if (
+				all_assignable &&
+				assignable_match == null
+			) assignable_match = m;
 		}
 		return assignable_match;
 	}
+
 }
 
 impl Arena {
+
 	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
-		var max_align: usz = 1;
-		var current_offset: usz = 0;
+		var max_align = 1;
+		var current_offset = 0;
 
 		for (i in 0..<fields.len) {
 			var f = fields[i];
@@ -138,7 +144,8 @@ impl Arena {
 		val total_rem = current_offset % max_align;
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
-		val struct_info = self.alloc_val<StructType>(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		val struct_info = self.alloc_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
 		return self.type_payload(StructType.TAG, current_offset, max_align, TypePayload.Struct(struct_info));
 	}
+
 }

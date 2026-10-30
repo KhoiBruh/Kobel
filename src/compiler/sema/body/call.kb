@@ -208,7 +208,7 @@ impl BodyPass {
 				"Cannot initialize 'char' with value of type '${self.type_display(arg_ty)}' (expected integer)"
 			);
 		}
-		call.callee.type_ptr = char_ty;
+		self.annotate_type(call.callee, char_ty);
 		return char_ty;
 	}
 

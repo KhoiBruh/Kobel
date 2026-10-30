@@ -34,8 +34,6 @@ pub enum DataType {
 	FN
 }
 
-
-
 // The pointer/array/fn payload structs are defined below, after `TypePayload`;
 // the forward declarations let the enum name them first.
 struct PointerType;
@@ -83,18 +81,18 @@ pub struct FnType {
 }
 
 impl PointerType {
-	pub fn type_size(val self): usz => 8;
-	pub fn type_align(val self): usz => 8;
+	pub fn type_size(val self) => 8;
+	pub fn type_align(val self) => 8;
 }
 
 impl ArrayType {
-	pub fn type_size(val self): usz => self.elem.size * self.length;
-	pub fn type_align(val self): usz => self.elem.align;
+	pub fn type_size(val self) => self.elem.size * self.length;
+	pub fn type_align(val self) => self.elem.align;
 }
 
 impl FnType {
-	pub fn type_size(val self): usz => 8;
-	pub fn type_align(val self): usz => 8;
+	pub fn type_size(val self) => 8;
+	pub fn type_align(val self) => 8;
 }
 
 // ============================================================================
@@ -102,7 +100,7 @@ impl FnType {
 // ============================================================================
 
 pub fn type_primitive(kind: DataType): Type {
-	val size: usz = when (kind) {
+	val size = when (kind) {
 		DataType.NONE -> 0;
 		DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
 		DataType.I16, DataType.U16 -> 2;
@@ -111,7 +109,7 @@ pub fn type_primitive(kind: DataType): Type {
 		DataType.STR -> 16;
 		else -> 8;
 	};
-	val align: usz = when (kind) {
+	val align = when (kind) {
 		DataType.NONE, DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
 		DataType.I16, DataType.U16 -> 2;
 		DataType.I32, DataType.U32, DataType.F32 -> 4;
@@ -147,29 +145,31 @@ pub fn type_str() => type_primitive(DataType.STR);
 // ============================================================================
 
 impl Arena {
-	pub fn type_payload(var self, kind: DataType, size: usz, align: usz, data: TypePayload): *Type {
-		return self.alloc_val<Type>(Type(kind, size, align, data));
-	}
 
-	pub fn primitive_type(var self, base: Type) => self.alloc_val<Type>(base);
+	pub fn type_payload(
+		var self, kind: DataType, size: usz,
+		align: usz, data: TypePayload
+	) => self.alloc_val(Type(kind, size, align, data));
+
+	pub fn primitive_type(var self, base: Type) => self.alloc_val(base);
 
 	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.alloc_val<PointerType>(PointerType(pointee, is_mut, false));
+		val inner = self.alloc_val(PointerType(pointee, is_mut, false));
 		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
 	}
 
 	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.alloc_val<PointerType>(PointerType(pointee, is_mut, true));
+		val inner = self.alloc_val(PointerType(pointee, is_mut, true));
 		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
 	}
 
 	pub fn array_type(var self, elem: *Type, length: usz): *Type {
-		val inner = self.alloc_val<ArrayType>(ArrayType(elem, length));
+		val inner = self.alloc_val(ArrayType(elem, length));
 		return self.type_payload(ArrayType.TAG, elem.size * length, elem.align, TypePayload.Array(inner));
 	}
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type {
-		val inner = self.alloc_val<FnType>(FnType(param_types, return_type));
+		val inner = self.alloc_val(FnType(param_types, return_type));
 		return self.type_payload(FnType.TAG, 8, 8, TypePayload.Fn(inner));
 	}
 
@@ -246,31 +246,30 @@ impl Type {
 	// The method list, empty when this type has no payload (a non-canonical
 	// primitive built by `type_primitive`, a pointer, an array, ...).
 	pub fn method_list(val self): List<*MethodInfo> {
-		if (self.methods == null) return List<*MethodInfo>();
+		if (self.methods == null) return List();
 		return self.methods.list;
 	}
 
 	pub fn method_named(val self, name: str): *MethodInfo {
 		val list = self.method_list();
-		for (m in list) {
-			if (m.name == name) return m;
-		}
+		for (m in list) if (m.name == name) return m;
 		return null;
 	}
 
 	pub fn method_arity(val self, name: str, argc: usz): *MethodInfo {
 		val list = self.method_list();
 		for (m in list) {
-			if (m.name == name && m.fn_type.as_fn().param_types.len == argc) return m;
+			if (
+				m.name == name &&
+				m.fn_type.as_fn().param_types.len == argc
+			) return m;
 		}
 		return null;
 	}
 
 	pub fn method_by_c_name(val self, c_name: str): *MethodInfo {
 		val list = self.method_list();
-		for (m in list) {
-			if (m.c_name == c_name) return m;
-		}
+		for (m in list) if (m.c_name == c_name) return m;
 		return null;
 	}
 
@@ -310,8 +309,9 @@ impl Type {
 
 	pub fn layout_struct(var self) {
 		val st = self.as_struct_mut();
-		var max_align: usz = 1;
-		var off: usz = 0;
+		var max_align = 1;
+		var off = 0;
+
 		for (i in 0..<st.fields.len) {
 			val f = st.fields[i];
 			val fa = f.type_ptr.align;
@@ -322,6 +322,7 @@ impl Type {
 			st.fields[i] = f;
 			off += f.type_ptr.size;
 		}
+
 		val tr = off % max_align;
 		if (tr != 0) off += (max_align - tr);
 

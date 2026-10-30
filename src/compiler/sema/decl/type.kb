@@ -80,7 +80,7 @@ impl DeclPass {
 					yield bound;
 				}
 
-				val prim = resolve_primitive_name(self.symtab.prims_of(), name);
+				val prim = resolve_primitive_name(self.symtab.prims, name);
 				if (prim != null) yield prim;
 
 				// Generic struct instantiation: List<i32> -> concrete struct.

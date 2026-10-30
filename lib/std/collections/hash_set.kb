@@ -24,15 +24,6 @@ impl HashSet {
 		return Self(keys, occ, 0, cap);
 	}
 
-	fn hash_key(val self, key: str): usz {
-		var h: usz = 5381;
-		for (i in 0..<key.len) {
-			val c = key[i].code();
-			h = h * 33 + c;
-		}
-		return h;
-	}
-
 	fn dist(val self, from: usz, to: usz): usz {
 		if (to >= from) return to - from;
 		return self.cap + to - from;
@@ -41,7 +32,7 @@ impl HashSet {
 	pub fn add(var self, key: str): bool {
 		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
 
-		val h = self.hash_key(key);
+		val h = key.hash();
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
@@ -58,7 +49,7 @@ impl HashSet {
 	pub fn remove(var self, key: str): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 
-		val h = self.hash_key(key);
+		val h = key.hash();
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
@@ -66,7 +57,7 @@ impl HashSet {
 				var i = idx;
 				var j = (idx + 1) % self.cap;
 				while (self.occupied[j]) {
-					val k = self.hash_key(self.keys[j]) % self.cap;
+					val k = self.keys[j].hash() % self.cap;
 					if (self.dist(k, j) > self.dist(k, i)) {
 						self.keys[i] = self.keys[j];
 						i = j;
@@ -120,15 +111,15 @@ impl HashSet {
 			for (i in 0..<old_cap) {
 				if (old_occ[i]) self += old_keys[i];
 			}
-			release<str>(old_keys);
-			release<bool>(old_occ);
+			release(old_keys);
+			release(old_occ);
 		}
 	}
 
 	pub fn delete(self) {
 		if (self.cap > 0) {
-			release<str>(self.keys);
-			release<bool>(self.occupied);
+			release(self.keys);
+			release(self.occupied);
 		}
 	}
 
@@ -136,13 +127,14 @@ impl HashSet {
 
 	pub op contains(val self, key: str): bool {
 		if (self.len == 0 || self.cap == 0) return false;
-		val h = self.hash_key(key);
+		val h = key.hash();
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
 			if (self.keys[idx] == key) return true;
 			idx = (idx + 1) % self.cap;
 		}
+
 		return false;
 	}
 
@@ -150,16 +142,19 @@ impl HashSet {
 
 // `for (key in set)` walks the set keys.
 impl Iterable for HashSet {
+
 	pub fn count(val self) => self.len;
 
 	pub fn at(val self, i: usz): str {
-		var seen: usz = 0;
+		var seen = 0;
 		for (idx in 0..<self.cap) {
 			if (self.occupied[idx]) {
 				if (seen == i) return self.keys[idx];
 				seen++;
 			}
 		}
+
 		return "";
 	}
+
 }

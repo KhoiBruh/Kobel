@@ -4,7 +4,6 @@ use std.collections.list.List;
 
 use compiler.ast.node.*;
 
-
 pub struct BlockStmt {
 	pub const TAG = NodeKind.STMT_BLOCK;
 	pub statements: List<*AstNode>

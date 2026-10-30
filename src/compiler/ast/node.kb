@@ -552,7 +552,8 @@ impl AstNode {
 }
 
 impl Arena {
-	pub fn alloc_node(var self, kind: NodeKind, data: NodeData, line: usz, col: usz): *AstNode {
-		return self.alloc_val<AstNode>(AstNode(kind, line, col, data));
-	}
+	pub fn alloc_node(
+		var self, kind: NodeKind, data: NodeData,
+		line: usz, col: usz
+	) => self.alloc_val(AstNode(kind, line, col, data));
 }

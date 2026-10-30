@@ -201,7 +201,7 @@ impl BodyPass {
 			// Inherit SymbolTable and merge errors from DeclPass, and keep the
 			// pass itself so `resolve_type` can reuse its resolver.
 			self.symtab = decl_p.symtab;
-			self.symtab.prims = decl_p.symtab.prims_of();
+			self.symtab.prims = decl_p.symtab.prims;
 			self.decl = decl_p;
 			self.has_decl = true;
 			for (msg in decl_p.errors) self.errors += msg;

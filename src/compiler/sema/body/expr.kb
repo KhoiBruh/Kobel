@@ -36,6 +36,7 @@ impl BodyPass {
 
 	pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
 		if (node == null || list_ty == null) return;
+
 		when (node) {
 			is ArrayLiteralExpr as var al -> {
 				val s = list_ty.as_struct();
@@ -82,37 +83,41 @@ impl BodyPass {
 		}
 	}
 
-pub fn is_untyped_literal(val self, node: *AstNode): bool {
-	if (node == null) return false;
-	if (node is LiteralExpr as lit) {
-		if (lit.literal_kind == LiteralKind.INT) {
-			return lit.raw_text.num_suffix().empty();
+	pub fn is_untyped_literal(val self, node: *AstNode): bool {
+		if (node == null) return false;
+
+		if (node is LiteralExpr as lit) {
+			if (lit.literal_kind == LiteralKind.INT) return lit.raw_text.num_suffix().empty();
+			if (lit.literal_kind == LiteralKind.FLOAT) {
+				val raw = lit.raw_text;
+				return !raw.ends_with("f") && !raw.ends_with("F");
+			}
 		}
-		if (lit.literal_kind == LiteralKind.FLOAT) {
-			val raw = lit.raw_text;
-			return !raw.ends_with("f") && !raw.ends_with("F");
-		}
+
+		if (node is GroupExpr as g) return self.is_untyped_literal(g.expr);
+
+		if (
+			node is UnaryExpr as un && (
+				un.op == TokenType.MINUS ||
+				un.op == TokenType.PLUS
+			)
+		) return self.is_untyped_literal(un.operand);
+
+		return false;
 	}
-	if (node is GroupExpr as g) return self.is_untyped_literal(g.expr);
-	if (node is UnaryExpr as un) {
-		if (un.op == TokenType.MINUS || un.op == TokenType.PLUS) {
-			return self.is_untyped_literal(un.operand);
-		}
-	}
-	return false;
-}
 
 	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type = null): *Type {
 		val lit = node.as_literal_expr();
 		return when (lit.literal_kind) {
 			LiteralKind.INT -> {
 				val sfx = lit.raw_text.num_suffix();
-				if (!sfx.empty()) {
-					yield int_literal_type(self.symtab.prims_of(), lit.raw_text);
-				}
-				if (expected != null && (expected.is_integer() || expected.is_float())) {
-					yield expected;
-				}
+				if (!sfx.empty()) yield int_literal_type(self.symtab.prims, lit.raw_text);
+				if (
+					expected != null && (
+						expected.is_integer() ||
+						expected.is_float()
+					)
+				) yield expected;
 				yield self.prims().get(DataType.I32);
 			}
 			LiteralKind.FLOAT -> {
@@ -170,9 +175,11 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 		var lt = lt_num;
 		var rt = self.check_expr(bin.right, if (lt.is_numeric()) lt else num_expected);
 
-		if (self.is_untyped_literal(bin.left) && rt.is_numeric() && !lt.equals(rt)) {
-			lt = self.check_expr(bin.left, rt);
-		}
+		if (
+			self.is_untyped_literal(bin.left) &&
+			rt.is_numeric() &&
+			!lt.equals(rt)
+		) lt = self.check_expr(bin.left, rt);
 
 		// One rule per operator group; each returns the result type.
 		return when (bin.op) {
@@ -187,6 +194,7 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 			TokenType.AND_AND, TokenType.OR_OR -> self.check_logic_op(node, lt, rt);
 
 			TokenType.KW_IN -> self.check_in_op(node, bin, lt, rt);
+
 			else -> lt;
 		};
 	}
@@ -334,9 +342,17 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 
 		if (rt.is_list()) {
 			val s = rt.as_struct();
-			if (s.fields.len > 0 && s.fields[0].type_ptr != null && s.fields[0].type_ptr.kind == DataType.POINTER) {
+			if (
+				s.fields.len > 0 &&
+				s.fields[0].type_ptr != null &&
+				s.fields[0].type_ptr.kind == DataType.POINTER
+			) {
 				val elem_t = s.fields[0].type_ptr.as_pointer().pointee;
-				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
+				if (
+					elem_t != null &&
+					elem_t.kind == DataType.STR &&
+					lt.kind == DataType.STR
+				) {
 					var args = List<*AstNode>();
 					args += bin.right;
 					val mem = self.arena.member(bin.left, "in_list", node.line, node.col);
@@ -406,9 +422,13 @@ pub fn is_untyped_literal(val self, node: *AstNode): bool {
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
 		var then_ty = self.check_expr(if_e.then_branch, expected);
 		val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);
-		if (self.is_untyped_literal(if_e.then_branch) && else_ty.is_numeric() && !then_ty.equals(else_ty)) {
-			then_ty = self.check_expr(if_e.then_branch, else_ty);
-		}
+
+		if (
+			self.is_untyped_literal(if_e.then_branch) &&
+			else_ty.is_numeric() &&
+			!then_ty.equals(else_ty)
+		) then_ty = self.check_expr(if_e.then_branch, else_ty);
+
 		self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
 		return then_ty;
 	}

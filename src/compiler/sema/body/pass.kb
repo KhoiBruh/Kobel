@@ -95,13 +95,13 @@ impl BodyPass {
 	pub fn new(): Self {
 		var arena = Arena();
 		var decl_p = DeclPass();
-		val none_ty = decl_p.symtab.prims_of().t_none();
+		val none_ty = decl_p.symtab.prims.t_none();
 		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
 	}
 
 	pub fn new(symtab: SymbolTable): Self {
 		var arena = Arena();
-		val none_ty = symtab.prims_of().t_none();
+		val none_ty = symtab.prims.t_none();
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 	}
 
@@ -109,11 +109,11 @@ impl BodyPass {
 	// for type resolution and generic instantiation.
 	pub fn new(symtab: SymbolTable, decl: DeclPass): Self {
 		var arena = Arena();
-		val none_ty = symtab.prims_of().t_none();
+		val none_ty = symtab.prims.t_none();
 		var bp = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 		bp.decl = decl;
 		bp.has_decl = true;
-		bp.symtab.prims = decl.symtab.prims_of();
+		bp.symtab.prims = decl.symtab.prims;
 		return bp;
 	}
 
@@ -132,7 +132,7 @@ impl BodyPass {
 	// implementation for the whole sema: the declaration pass substitution clone
 	// with an empty substitution. Template bodies are never reachable from here
 	// (a default value always belongs to the declaration being checked).
-	pub fn copy_expr(var self, node: *AstNode): *AstNode => self.decl.clone_expr(node, null);
+	pub fn copy_expr(var self, node: *AstNode) => self.decl.clone_expr(node, null);
 
 	// ============================================================================
 	// Shorthands
@@ -140,7 +140,7 @@ impl BodyPass {
 
 	// Primitive result types: the canonical instance from the symbol table, so
 	// two `str` annotations are the same pointer.
-	pub fn prims(val self): *PrimTypes => self.symtab.prims_of();
+	pub fn prims(val self) => self.symtab.prims;
 
 	// Reports `msg` at `node` unless `cond` holds.
 	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
@@ -331,7 +331,7 @@ impl BodyPass {
 		val rec = self.current_rec;
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
-		val e = self.arena.alloc_val<AnnEntry>(AnnEntry(node));
+		val e = self.arena.alloc_val(AnnEntry(node));
 		rec.ann_map[node.addr()] = e;
 		return e;
 	}
@@ -443,26 +443,30 @@ impl BodyPass {
 	pub fn check_statement(var self, node: *AstNode) {
 		if (node == null) return;
 
-		if (node is ExprStmt as es) {
-			self.check_expr_stmt(es.expr);
-			return;
-		}
-		if (node is DeferStmt as ds) {
-			if (self.defer_depth > 0)
-				self.report_error(node, "Nested defer statement is not allowed inside defer");
-			self.defer_depth++;
-			self.check_statement(ds.body);
-			self.defer_depth--;
-			return;
-		}
-		if (node is YieldStmt as ys) {
-			if (self.defer_depth > 0)
-				self.report_error(node, "Yield statement is not allowed inside defer");
-			if (self.when_depth == 0)
-				self.report_error(node, "Yield statement outside of when expression");
+		when (node) {
+			is ExprStmt as es -> {
+				self.check_expr_stmt(es.expr);
+				return;
+			}
 
-			if (ys.value != null) self.check_expr(ys.value);
-			return;
+			node is DeferStmt as ds -> {
+				if (self.defer_depth > 0)
+					self.report_error(node, "Nested defer statement is not allowed inside defer");
+				self.defer_depth++;
+				self.check_statement(ds.body);
+				self.defer_depth--;
+				return;
+			}
+
+			is YieldStmt as ys -> {
+				if (self.defer_depth > 0)
+					self.report_error(node, "Yield statement is not allowed inside defer");
+				if (self.when_depth == 0)
+					self.report_error(node, "Yield statement outside of when expression");
+
+				if (ys.value != null) self.check_expr(ys.value);
+				return;
+			}
 		}
 
 		when (node.kind) {

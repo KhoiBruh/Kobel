@@ -66,8 +66,8 @@ impl Arena {
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;
 			val next_blk = blk.next;
-			release<u8>(blk.data);
-			release<ArenaBlock>(curr as *ArenaBlock);
+			release(blk.data);
+			release(curr);
 			curr = next_blk;
 		}
 		self.current = null;

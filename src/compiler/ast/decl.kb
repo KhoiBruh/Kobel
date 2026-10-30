@@ -5,7 +5,6 @@ use std.traits.iterable.Iterable;
 
 use compiler.ast.node.*;
 
-
 pub struct ModuleDecl {
 	pub const TAG = NodeKind.DECL_MODULE;
 	pub path: List<str>,
@@ -140,9 +139,7 @@ pub struct Program {
 
 impl Program {
 	pub fn declared_module_name(val self): str {
-		for (decl in self.declarations) {
-			if (decl is ModuleDecl as m) return m.full_path;
-		}
+		for (decl in self.declarations) if (decl is ModuleDecl) return decl.full_path;
 		return "";
 	}
 }
@@ -160,7 +157,7 @@ impl Iterable for Program {
 // Whether a declaration carries generic parameters (`struct S<T>`, `fn f<T>`,
 // `impl S<T>`). Lives here, next to the payload structs, so it reads their real
 // fields instead of type-punning the node payload.
-pub fn decl_is_template(node: *AstNode): bool => when (node.kind) {
+pub fn decl_is_template(node: *AstNode) => when (node.kind) {
 	NodeKind.DECL_STRUCT -> node.as_struct_decl().type_params.len > 0;
 	NodeKind.DECL_FN -> node.as_fn_decl().type_params.len > 0;
 	NodeKind.DECL_IMPL -> node.as_impl_decl().type_params.len > 0;

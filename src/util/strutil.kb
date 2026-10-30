@@ -98,7 +98,7 @@ impl str {
 		val total = self.len * 2 + 2 + name.len;
 		val buf = alloc_array<u8>(total + 1);
 
-		var w = 0;
+		var w: usz = 0;
 		for (c in self) {
 			when (c) {
 				'.' -> {
@@ -339,12 +339,12 @@ pub fn multiline_escape_for_c(text: str): str {
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total = 0;
+	var total: usz = 0;
 	for (i in 0..<count) total += parts[i].len;
 	if (count > 1) total += (count - 1);
 
 	val buf = alloc_array<u8>(total + 1);
-	var w = 0;
+	var w: usz = 0;
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {

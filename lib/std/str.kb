@@ -21,7 +21,7 @@ struct StrRaw {
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
 	val r = alloc<StrRaw>();
-	defer release<StrRaw>(r);
+	defer release(r);
 	r.data = buf as *char;
 	r.len = len;
 	r.cap = len + 1;
@@ -103,11 +103,11 @@ impl str {
 	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
 	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
 	fn suffix_tail(val self): str {
+		if (self.len == 0) return "";
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
 			if (two == "UZ" || two == "UL" || two == "UB" || two == "US") return two;
 		}
-		if (self.len == 0) return "";
 		val last = self.slice(self.len - 1, self.len);
 		if (
 			last == "U" || last == "L" || last == "S" || last == "B" ||
@@ -194,7 +194,7 @@ impl str {
 					break;
 				}
 			}
-			if (match) return i as isz;
+			if (match) return i;
 		}
 
 		return -1;

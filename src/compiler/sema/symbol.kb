@@ -137,20 +137,20 @@ impl Iterable for ModuleScope {
 
 // Monomorphization state, shared through the (single) SymbolTable.
 pub struct GenericReg {
-	pub struct_templates: List<*GenTemplate> = List<*GenTemplate>(),
-	pub fn_templates: List<*GenTemplate> = List<*GenTemplate>(),
-	pub impl_templates: List<*GenTemplate> = List<*GenTemplate>(),
+	pub struct_templates: List<*GenTemplate> = List(),
+	pub fn_templates: List<*GenTemplate> = List(),
+	pub impl_templates: List<*GenTemplate> = List(),
 	// Symbols of instantiated declarations, keyed by their mangled C name. This
 	// is the *name* index; identity lives in `records` (template + resolved args).
-	pub inst_map: HashMap<str, *Symbol> = HashMap<str, *Symbol>(),
+	pub inst_map: HashMap<str, *Symbol> = HashMap(),
 	// Typed instance records: the identity used by monomorphization is
 	// (template, resolved type arguments), not the mangled C name.
-	pub records: List<*InstanceRecord> = List<*InstanceRecord>(),
+	pub records: List<*InstanceRecord> = List(),
 	// Declarations produced by instantiation, as `module marker, decl` pairs in
 	// creation order (a dependency always precedes the instance that needs it).
 	// The same list is the rewrite worklist: each instance still gets a fixpoint
 	// pass so generic uses inside it are instantiated too.
-	pub instances: List<*AstNode> = List<*AstNode>()
+	pub instances: List<*AstNode> = List()
 }
 
 impl GenericReg {
@@ -186,7 +186,7 @@ impl GenericReg {
 	}
 }
 
-pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym);
+pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val(sym);
 
 // ============================================================================
 // Symbol Table
@@ -224,9 +224,10 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
+
 	pub fn new(): Self {
 		val arena = Arena();
-		val root_scope = arena.alloc_val<Scope>(Scope());
+		val root_scope = arena.alloc_val(Scope());
 		var st = Self(root_scope, arena);
 		// Build the canonical primitives eagerly so every copy of this table
 		// shares the same type instances.
@@ -234,8 +235,6 @@ impl SymbolTable {
 		*st.prims = PrimTypes(&arena);
 		return st;
 	}
-
-	pub fn prims_of(val self): *PrimTypes => self.prims;
 
 	// Register a method of a built-in type on its canonical instance.
 	pub fn register_prim_method(var self, prim: *Type, mi: *MethodInfo) {
@@ -262,7 +261,7 @@ impl SymbolTable {
 	// resolution walks this list like it walks `StructType.methods`).
 	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
 		val t = self.prims.get(kind);
-		if (t == null) return List<*MethodInfo>();
+		if (t == null) return List();
 		return t.method_list();
 	}
 
@@ -280,7 +279,7 @@ impl SymbolTable {
 		self.trait_map[info.name] = info;
 	}
 
-	pub fn find_trait(val self, name: str): *TraitInfo => self.trait_map.get_or(name, null);
+	pub fn find_trait(val self, name: str) => self.trait_map.get_or(name, null);
 
 	pub fn register_enum_info(var self, info: *EnumInfo) {
 		self.enums += info;
@@ -290,10 +289,10 @@ impl SymbolTable {
 		}
 	}
 
-	pub fn find_enum_info(val self, name: str): *EnumInfo => self.enum_map.get_or(name, null);
+	pub fn find_enum_info(val self, name: str) => self.enum_map.get_or(name, null);
 
 	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
-		val new_sc = self.arena.alloc_val<Scope>(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
+		val new_sc = self.arena.alloc_val(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
 		self.current_scope = new_sc;
 		return new_sc;
 	}
@@ -315,9 +314,7 @@ impl SymbolTable {
 
 	pub fn lookup_current(var self, name: str): *Symbol {
 		val scope = self.current_scope;
-		for (sym in scope) {
-			if (sym.name == name) return sym;
-		}
+		for (sym in scope) if (sym.name == name) return sym;
 		return null;
 	}
 
@@ -326,9 +323,7 @@ impl SymbolTable {
 	pub fn lookup(var self, name: str): *Symbol {
 		var curr = self.current_scope;
 		while (curr != null) {
-			for (sym in curr) {
-				if (sym.name == name) return sym;
-			}
+			for (sym in curr) if (sym.name == name) return sym;
 			curr = curr.parent;
 		}
 
@@ -360,7 +355,7 @@ impl SymbolTable {
 		val existing = self.lookup_current(sym.name);
 		if (existing != null) return false;
 
-		val sym_ptr = self.arena.alloc_val<Symbol>(sym);
+		val sym_ptr = self.arena.alloc_val(sym);
 
 		self.current_scope += sym_ptr;
 		return true;
@@ -368,14 +363,17 @@ impl SymbolTable {
 
 	pub fn set_current_module(var self, name: str) => self.current_module = name;
 
-	pub fn find_module(val self, name: str): *ModuleScope => self.module_map.get_or(name, null);
+	pub fn find_module(val self, name: str) => self.module_map.get_or(name, null);
 
 	pub fn module_exists(val self, name: str) => name in self.module_map;
 
 	// True when `owner` already wildcard-imports `module_name`.
 	pub fn has_wildcard(val self, owner: str, module_name: str): bool {
 		for (i in 0..<self.wildcard_owners.len) {
-			if (self.wildcard_owners[i] == owner && self.wildcard_modules[i] == module_name) return true;
+			if (
+				self.wildcard_owners[i] == owner &&
+				self.wildcard_modules[i] == module_name
+			) return true;
 		}
 		return false;
 	}
@@ -393,29 +391,30 @@ impl SymbolTable {
 		val sc = self.find_module(module_name);
 		if (sc != null) {
 			if (sym.name in sc) return false;
-			val sym_ptr = self.arena.alloc_val<Symbol>(sym);
+			val sym_ptr = self.arena.alloc_val(sym);
 			sc += sym_ptr;
-			if (!sym.c_name.empty() && sym.c_name != sym.name) {
-				self.c_name_map[sym.c_name] = sym_ptr;
-			}
-			if (sym.kind == SymbolKind.CONST) {
-				self.struct_const_map[sym.name] = sym_ptr;
-			}
+
+			if (
+				!sym.c_name.empty() &&
+				sym.c_name != sym.name
+			) self.c_name_map[sym.c_name] = sym_ptr;
+
+			if (sym.kind == SymbolKind.CONST) self.struct_const_map[sym.name] = sym_ptr;
+
 			return true;
 		}
 
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
-		val fresh = self.arena.alloc_val<ModuleScope>(ModuleScope(module_name));
-		val sym_ptr2 = self.arena.alloc_val<Symbol>(sym);
+		val fresh = self.arena.alloc_val(ModuleScope(module_name));
+		val sym_ptr2 = self.arena.alloc_val(sym);
 		fresh += sym_ptr2;
 		self.modules += fresh;
 		self.module_map[module_name] = fresh;
-		if (!sym.c_name.empty() && sym.c_name != sym.name) {
-			self.c_name_map[sym.c_name] = sym_ptr2;
-		}
-		if (sym.kind == SymbolKind.CONST) {
-			self.struct_const_map[sym.name] = sym_ptr2;
-		}
+		if (
+			!sym.c_name.empty() &&
+			sym.c_name != sym.name
+		) self.c_name_map[sym.c_name] = sym_ptr2;
+		if (sym.kind == SymbolKind.CONST) self.struct_const_map[sym.name] = sym_ptr2;
 		return true;
 	}
 
@@ -454,4 +453,5 @@ impl SymbolTable {
 		}
 		return null;
 	}
+
 }

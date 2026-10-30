@@ -12,6 +12,10 @@ const C_PRELUDE: str = """
 	#include <stdio.h>
 	#include <stdlib.h>
 	#include <string.h>
+	#ifdef _WIN32
+	#include <io.h>
+	#include <fcntl.h>
+	#endif
 
 	/* str.slice(start, end) helper */
 	static const char* kobel_slice(const char* s, size_t start, size_t end) {

@@ -125,17 +125,17 @@ impl HashMap<K: Hash, V> {
 			for (i in 0..<old_cap) {
 				if (old_occ[i]) self.set(old_keys[i], old_vals[i]);
 			}
-			release<K>(old_keys);
-			release<V>(old_vals);
-			release<bool>(old_occ);
+			release(old_keys);
+			release(old_vals);
+			release(old_occ);
 		}
 	}
 
 	pub fn delete(self) {
 		if (self.cap > 0) {
-			release<K>(self.keys);
-			release<V>(self.values);
-			release<bool>(self.occupied);
+			release(self.keys);
+			release(self.values);
+			release(self.occupied);
 		}
 	}
 
