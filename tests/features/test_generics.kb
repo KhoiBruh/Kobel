@@ -37,5 +37,16 @@ fn main(): i32 {
 	if (first.len != 1) return 5;
 	if (first[0] != 7) return 6;
 
+	// Generic call type inference
+	val inferred_n = twice(41);
+	if (inferred_n != 41) return 7;
+
+	val inferred_s = id("generic");
+	if (inferred_s != "generic") return 8;
+
+	val inferred_inner = wrap(99);
+	if (inferred_inner.len != 1) return 9;
+	if (inferred_inner[0] != 99) return 10;
+
 	return 0;
 }

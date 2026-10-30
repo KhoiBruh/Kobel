@@ -32,6 +32,7 @@ use compiler.sema.template.*;
 use compiler.sema.methods.*;
 
 use compiler.sema.prims.*;
+use compiler.sema.type_ast.*;
 
 impl BodyPass {
 
@@ -98,6 +99,54 @@ impl BodyPass {
 					val new_cc = new_call.as_call_expr() as &CallExpr;
 					self.set_resolved(node, new_call);
 					return self.check_struct_ctor(new_call, cty, new_cc, false);
+				}
+			}
+		}
+
+		if (call.type_args.empty() && callee is IdentifierExpr as cid) {
+			val local_sym = self.symtab.lookup(cid.name);
+			val is_local_var = local_sym != null && (
+				local_sym.kind == SymbolKind.VAR ||
+				local_sym.kind == SymbolKind.PARAM
+			);
+			if (!is_local_var && (local_sym == null || (local_sym.kind != SymbolKind.FN && local_sym.kind != SymbolKind.STRUCT))) {
+				val ft = self.find_fn_template_for(cid.name);
+				if (ft != null && ft.node.kind == NodeKind.DECL_FN) {
+					val inferred_targs = self.infer_type_args_for_fn(ft.node.as_fn_decl(), call.args, false);
+					if (!inferred_targs.empty()) {
+						val cname = self.instantiate_template_fn(ft, inferred_targs);
+						val sym = self.symtab.lookup(cname);
+						if (sym != null && sym.type_ptr.kind == DataType.FN) {
+							self.ensure_callee_ready(sym);
+							val new_call = self.arena.call(
+								self.arena.identifier(cname, node.line, node.col),
+								call.args, List<*AstNode>(), node.line, node.col
+							);
+							val new_cc = new_call.as_call_expr() as &CallExpr;
+							self.set_resolved(node, new_call);
+							return self.check_fn_call(new_call, sym.type_ptr, new_cc);
+						}
+					} else {
+						self.report_error(node, "Cannot infer type arguments for generic function '${cid.name}'; provide them explicitly");
+						return self.prims().t_none();
+					}
+				}
+				val st = self.find_struct_template_for(cid.name);
+				if (st != null && st.node.kind == NodeKind.DECL_STRUCT) {
+					val inferred_targs = self.infer_type_args_for_struct(st.node.as_struct_decl(), call.args);
+					if (!inferred_targs.empty()) {
+						val cty = self.instantiate_template_struct(st, inferred_targs);
+						if (cty.kind == DataType.STRUCT) {
+							val cname = cty.as_struct().name;
+							val new_call = self.arena.call(
+								self.arena.identifier(cname, node.line, node.col),
+								call.args, List<*AstNode>(), node.line, node.col
+							);
+							val new_cc = new_call.as_call_expr() as &CallExpr;
+							self.set_resolved(node, new_call);
+							return self.check_struct_ctor(new_call, cty, new_cc, false);
+						}
+					}
 				}
 			}
 		}
@@ -329,9 +378,14 @@ impl BodyPass {
 		if (pmi != null) return self.bind_method_call(node, mem, call, pmi, obj_ty);
 
 		if (obj_ty.kind == DataType.STRUCT) {
+			val g_ty = self.check_generic_method_call(node, mem, call, obj_ty, obj_is_ptr);
+			if (g_ty != null) return g_ty;
 			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
 			return self.prims().t_none();
 		}
+
+		val g_prim_ty = self.check_generic_method_call(node, mem, call, obj_ty, obj_is_ptr);
+		if (g_prim_ty != null) return g_prim_ty;
 
 		return null;
 	}
@@ -355,7 +409,13 @@ impl BodyPass {
 		if (tmpl == null) tmpl = self.find_method_template_for(mem.member, "");
 		if (tmpl == null) return null;
 
-		val cname = self.instantiate_method(tmpl, call.type_args, obj_ty);
+		var targs = call.type_args;
+		if (targs.empty() && tmpl.node.kind == NodeKind.DECL_FN) {
+			targs = self.infer_type_args_for_fn(tmpl.node.as_fn_decl(), call.args, true);
+			if (targs.empty()) return null;
+		}
+
+		val cname = self.instantiate_method(tmpl, targs, obj_ty);
 		val sym = self.symtab.lookup(cname);
 		if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
 
@@ -623,4 +683,133 @@ impl BodyPass {
 		return callee_ty;
 	}
 
+fn infer_type_args_for_fn(
+		var self,
+		fn_decl: *FnDecl,
+		call_args: List<*AstNode>,
+		is_method: bool
+	): List<*AstNode> {
+		val type_params = fn_decl.type_params;
+		if (type_params.empty()) return List<*AstNode>();
+
+		val num_tparams = type_params.len;
+		var inferred = List<*Type>();
+		for (k in 0..<num_tparams) inferred += null;
+
+		val params = fn_decl.params;
+		for (i in 0..<call_args.len) {
+			val param_idx = if (is_method) i + 1 else i;
+			if (param_idx >= params.len) break;
+			val p = params[param_idx];
+			if (p.type_node == null) continue;
+
+			val arg_ty = self.check_expr(call_args[i]);
+			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
+
+			self.match_type_param(p.type_node, arg_ty, type_params, inferred.data);
+		}
+
+		for (k in 0..<num_tparams) {
+			if (inferred[k] == null) return List<*AstNode>();
+		}
+
+		var result = List<*AstNode>();
+		for (k in 0..<num_tparams) {
+			result += self.arena.ast_type_from_type(inferred[k]);
+		}
+		return result;
+	}
+
+	fn infer_type_args_for_struct(
+		var self,
+		decl: *StructDecl,
+		call_args: List<*AstNode>
+	): List<*AstNode> {
+		val type_params = decl.type_params;
+		if (type_params.empty()) return List<*AstNode>();
+
+		val num_tparams = type_params.len;
+		var inferred = List<*Type>();
+		for (k in 0..<num_tparams) inferred += null;
+
+		val fields = decl.fields;
+		for (i in 0..<call_args.len) {
+			if (i >= fields.len) break;
+			val f = fields[i];
+			if (f.type_node == null) continue;
+
+			val arg_ty = self.check_expr(call_args[i]);
+			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
+
+			self.match_type_param(f.type_node, arg_ty, type_params, inferred.data);
+		}
+
+		for (k in 0..<num_tparams) {
+			if (inferred[k] == null) return List<*AstNode>();
+		}
+
+		var result = List<*AstNode>();
+		for (k in 0..<num_tparams) {
+			result += self.arena.ast_type_from_type(inferred[k]);
+		}
+		return result;
+	}
+
+	fn match_type_param(
+		var self,
+		param_ty_node: *AstNode,
+		arg_ty: *Type,
+		type_params: List<GenericParam>,
+		inferred: &*Type
+	) {
+		if (param_ty_node == null || arg_ty == null) return;
+
+		when (param_ty_node) {
+			is NamedType as nt -> {
+				if (nt.type_args.empty()) {
+					for (k in 0..<type_params.len) {
+						if (type_params[k].name == nt.name) {
+							if (inferred[k] == null) {
+								inferred[k] = arg_ty;
+							} else if (!inferred[k].equals(arg_ty)) {
+								if (inferred[k].is_integer() && arg_ty.is_integer() && arg_ty.size > inferred[k].size) {
+									inferred[k] = arg_ty;
+								}
+							}
+							return;
+						}
+					}
+				} else {
+					if (arg_ty.kind == DataType.STRUCT) {
+						val st = arg_ty.as_struct();
+						val rec = self.symtab.gen.find_record_by_cname(st.c_name);
+						if (rec != null && rec.args.len == nt.type_args.len) {
+							for (j in 0..<nt.type_args.len) {
+								self.match_type_param(nt.type_args[j], rec.args[j], type_params, inferred);
+							}
+						}
+					} else if (nt.name == "List" && nt.type_args.len == 1 && arg_ty.kind == DataType.ARRAY) {
+						self.match_type_param(nt.type_args[0], arg_ty.as_array().elem, type_params, inferred);
+					}
+				}
+			}
+			is PointerType as pt -> {
+				if (arg_ty.kind == DataType.POINTER) {
+					self.match_type_param(pt.pointee, arg_ty.as_pointer().pointee, type_params, inferred);
+				} else {
+					self.match_type_param(pt.pointee, arg_ty, type_params, inferred);
+				}
+			}
+			is NullableType as nult -> {
+				if (arg_ty.kind == DataType.POINTER) {
+					self.match_type_param(nult.inner, arg_ty, type_params, inferred);
+				}
+			}
+			is ArrayType as at -> {
+				if (arg_ty.kind == DataType.ARRAY) {
+					self.match_type_param(at.element_type, arg_ty.as_array().elem, type_params, inferred);
+				}
+			}
+		}
+	}
 }

@@ -43,5 +43,12 @@ fn main(): i32 {
 	val q = arena.alloc_val<i32>(5);
 	if (*q != 5) return 5;
 
+	// alloc_val with inferred generic type argument
+	val q_inferred = arena.alloc_val(42);
+	if (*q_inferred != 42) return 6;
+
+	val q_str = arena.alloc_val("hello");
+	if (*q_str != "hello") return 7;
+
 	return 0;
 }

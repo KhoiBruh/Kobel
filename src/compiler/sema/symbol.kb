@@ -177,6 +177,13 @@ impl GenericReg {
 		}
 		return null;
 	}
+
+	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord {
+		for (r in self.records) {
+			if (r.c_name == cname) return r;
+		}
+		return null;
+	}
 }
 
 pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val<Symbol>(sym);
