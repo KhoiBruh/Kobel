@@ -473,6 +473,71 @@ fn test_cast_standardization(var t: &Tally) {
 	check_i(if (null_addr == 0) 1 else 0, 1, "null.addr() == 0", t);
 }
 
+// --- 18. return type & const type inference (with string interpolation) --------
+const INFER_STR_CONST = "hello_prelude";
+const INFER_INT_CONST = 9876;
+const INFER_FLOAT_CONST = 2.718;
+const INFER_BOOL_CONST = true;
+const INFER_INTERP_CONST = "const_${123}";
+
+fn infer_greet_block(name: str) {
+	return "Hello ${name}!";
+}
+
+fn infer_greet_arrow(name: str) => "Hi ${name}!";
+
+fn infer_compute_num(x: i32) {
+	val a = x * 3;
+	return a + 5;
+}
+
+fn infer_is_pos(x: i32) {
+	if (x > 0) return true;
+	return false;
+}
+
+fn infer_callee_name() {
+	return "Kobel";
+}
+
+fn infer_interp_hole_call() {
+	return "Welcome to ${infer_callee_name()}!";
+}
+
+fn test_return_and_const_inference(var t: &Tally) {
+	val s: str = INFER_STR_CONST;
+	check_str(s, "hello_prelude", "untyped str const", t);
+
+	val n: i32 = INFER_INT_CONST;
+	check_i(n, 9876, "untyped int const", t);
+
+	val f: f64 = INFER_FLOAT_CONST;
+	check_str("${f}", "2.718", "untyped float const", t);
+
+	val b: bool = INFER_BOOL_CONST;
+	check_i(if (b) 1 else 0, 1, "untyped bool const", t);
+
+	val si: str = INFER_INTERP_CONST;
+	check_str(si, "const_123", "untyped interp const", t);
+
+	val g: str = infer_greet_block("World");
+	check_str(g, "Hello World!", "block return string interp", t);
+
+	val a: str = infer_greet_arrow("Kobel");
+	check_str(a, "Hi Kobel!", "arrow return string interp", t);
+
+	val calc: i32 = infer_compute_num(10);
+	check_i(calc, 35, "block return computed int", t);
+
+	val pos: bool = infer_is_pos(10);
+	check_i(if (pos) 1 else 0, 1, "block return bool true", t);
+	val neg: bool = infer_is_pos(-5);
+	check_i(if (!neg) 1 else 0, 1, "block return bool false", t);
+
+	val hole: str = infer_interp_hole_call();
+	check_str(hole, "Welcome to Kobel!", "interp hole calling unannotated fn", t);
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Traits, OOP & Types ===");
 
@@ -495,6 +560,7 @@ fn main(): i32 {
 	test_numeric_literals(&t);
 	test_raw_value_enums(&t);
 	test_cast_standardization(&t);
+	test_return_and_const_inference(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");

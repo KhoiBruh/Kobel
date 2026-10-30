@@ -240,8 +240,13 @@ impl BodyPass {
 				self.current_fn_return_type.is_list()
 			) self.coerce_to_list(ret.value, self.current_fn_return_type);
 
-			val val_ty = self.check_expr(ret.value, self.current_fn_return_type);
-			self.ensure(self.current_fn_return_type.can_assign(val_ty), node, "Return value type does not match function return type");
+			if (self.inferring_fn_return && (self.current_fn_return_type == null || self.current_fn_return_type.kind == DataType.NONE)) {
+				val val_ty = self.check_expr(ret.value);
+				self.current_fn_return_type = val_ty;
+			} else {
+				val val_ty = self.check_expr(ret.value, self.current_fn_return_type);
+				self.ensure(self.current_fn_return_type.can_assign(val_ty), node, "Return value type does not match function return type");
+			}
 		} else {
 			self.ensure(self.current_fn_return_type.kind == DataType.NONE, node, "Non-none function must return a value");
 		}

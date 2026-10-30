@@ -94,7 +94,10 @@ impl BodyPass {
 		val f = fn_node.as_fn_decl() as &FnDecl;
 
 		val fn_info = fn_type.as_fn();
+		val saved_ret = self.current_fn_return_type;
+		val saved_inferring = self.inferring_fn_return;
 		self.current_fn_return_type = fn_info.return_type;
+		self.inferring_fn_return = (f.return_type == null);
 
 		// A non-instance body must not inherit a leaked type-parameter env from
 		// an earlier instantiation (it would suppress `Self` renames and corrupt
@@ -129,6 +132,11 @@ impl BodyPass {
 				for (stmt in blk.statements) {
 					self.check_statement(stmt);
 				}
+				if (f.return_type == null && self.current_fn_return_type != null) {
+					val fn_info_mut = fn_type.as_fn_mut();
+					fn_info_mut.return_type = self.current_fn_return_type;
+					f.return_type = self.arena.ast_type_from_type(self.current_fn_return_type);
+				}
 			}
 			is ExprStmt as es -> {
 				// Expression body: => expr;
@@ -155,6 +163,9 @@ impl BodyPass {
 			self.decl.subst_names = saved_names;
 			self.decl.subst_types = saved_types;
 		}
+
+		self.current_fn_return_type = saved_ret;
+		self.inferring_fn_return = saved_inferring;
 	}
 
 	pub fn check_impl(var self, node: *AstNode) {

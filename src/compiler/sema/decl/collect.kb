@@ -37,6 +37,7 @@ use compiler.sema.traits.*;
 use compiler.sema.enums.*;
 
 use compiler.sema.decl.type.*;
+use compiler.sema.type_ast.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod {
@@ -395,7 +396,8 @@ impl DeclPass {
 	pub fn collect_const(var self, node: *AstNode) {
 		val c = node.as_const_decl() as &ConstDecl;
 		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node)
-		else self.prims().t_prim(type_i32());
+		else self.infer_const_type(c.value) ?: self.prims().t_prim(type_i32());
+		if (c.type_node == null) c.type_node = self.arena.ast_type_from_type(c_type);
 	
 		val c_name = self.c_name_for(c.name);
 		val ok = self.symtab.define_global(

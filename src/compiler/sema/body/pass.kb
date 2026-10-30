@@ -77,6 +77,7 @@ pub struct BodyPass {
 	// True for the duration of that inference pass, so a call to an unresolved
 	// arrow function blocks the attempt instead of checking the callee eagerly.
 	pub inferring: bool = false,
+	pub inferring_fn_return: bool = false,
 	// Function/method instance whose body is being checked (or lowered). Its
 	// bodies are the template's shared AST, so every per-instance decision
 	// (types, bound methods, replacements) goes into `InstanceRecord.ann`
