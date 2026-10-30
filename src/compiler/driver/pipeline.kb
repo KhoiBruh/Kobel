@@ -24,40 +24,25 @@ pub fn print_error_list(errors: List<str>) {
 	for (msg in errors) println("  [ERROR] ${msg}");
 }
 
+pub fn is_msvc_compiler(cc: str): bool {
+	val base = cc.base_name();
+	return base == "cl" || base == "cl.exe";
+}
+
 // Command line that turns `c_path` into `exe_path` with the given backend.
 // `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
 // Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
 pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
-	var cmd = if (
-		cc == "clang" ||
-		cc == "gcc"
-	) "${cc} -O2 -o \"${exe_path}\" \"${c_path}\""
-	// MSVC cl.exe: dynamically query Visual Studio installation path via vswhere if cl is not in PATH
-	else "where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\"";
+	val is_path_with_spaces = ("/" in cc || "\\" in cc) && (" " in cc) && !cc.starts_with("\"");
+	val cc_bin = if (is_path_with_spaces) "\"${cc}\"" else cc;
+	var cmd = if (is_msvc_compiler(cc)) {
+		"${cc_bin} /nologo /O2 /Fe:\"${exe_path}\" /Fo:\"${obj_path.to_win_path()}\" \"${c_path}\""
+	} else {
+		"${cc_bin} -O2 -o \"${exe_path}\" \"${c_path}\""
+	};
 
-	// cl creates its own temporary files (notably the linker response file) in
-	// TMP/TEMP. A shell whose TMP points at a deleted or read-only directory makes
-	// the link step fail with D8018, so pin both to the output directory: it is
-	// writable (we just wrote the C file there) and keeps build debris inside build/.
-	if (cc != "clang" && cc != "gcc") cmd = "set \"TMP=${backend_temp_dir(exe_path)}\" & set \"TEMP=${backend_temp_dir(exe_path)}\" & ${cmd}";
-
-	if (quiet) cmd = "${cmd} >nul";
+	if (quiet) cmd = "${cmd} >nul 2>nul";
 	return cmd;
-}
-
-// Temporary directory for the backend compiler: the output's directory, made
-// absolute because cl.exe resolves a relative TMP against its own cwd.
-fn backend_temp_dir(exe_path: str): str {
-	val dir = exe_path.dir_of();
-	if (dir.empty()) return "%CD%";
-	if (win_is_absolute(dir)) return dir.to_win_path();
-	return "%CD%\\${dir.to_win_path()}";
-}
-
-fn win_is_absolute(path: str): bool {
-	if (path.len >= 2 && path[1] == ':') return true;
-	if (path.starts_with("\\\\") || path.starts_with("//")) return true;
-	return false;
 }
 
 pub struct CompileOptions {

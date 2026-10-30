@@ -133,6 +133,10 @@ fn run_compiler(argc: i32, argv: &*char): i32 {
 					opts.only_emit_c = true;
 				}
 			}
+			"-cc" -> {
+				i++;
+				if (i < argc) opts.c_compiler = cstr_to_str(argv[i]);
+			}
 			else -> {
 				if (!arg.empty() && !arg.starts_with("-")) {
 					opts.input_path = arg;

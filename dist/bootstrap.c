@@ -2774,9 +2774,8 @@ void compiler__loader__loader__ModuleLoader_process_uses(compiler__loader__loade
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_load_program(compiler__loader__loader__ModuleLoader* self, const char* entry_path, const char* entry_source);
 compiler__ast__node__AstNode* compiler__loader__loader__ModuleLoader_build_merged_program(compiler__loader__loader__ModuleLoader* self);
 void compiler__driver__pipeline__print_error_list(std__collections__list__List_str errors);
+bool compiler__driver__pipeline__is_msvc_compiler(const char* cc);
 const char* compiler__driver__pipeline__c_compile_cmd(const char* c_path, const char* exe_path, const char* obj_path, const char* cc, bool quiet);
-const char* compiler__driver__pipeline__backend_temp_dir(const char* exe_path);
-bool compiler__driver__pipeline__win_is_absolute(const char* path);
 int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pipeline__CompileOptions* self);
 const char* compiler__driver__commands__compute_project_stamp(config__project__ProjectConfig cfg, const char* manifest_path);
 int32_t compiler__driver__commands__cmd_build(const char* manifest_path);
@@ -21681,36 +21680,19 @@ void compiler__driver__pipeline__print_error_list(std__collections__list__List_s
     }
 }
 
+bool compiler__driver__pipeline__is_msvc_compiler(const char* cc) {
+    const char* base = str_base_name(cc);
+    return (kobel_streq(base, "cl") || kobel_streq(base, "cl.exe"));
+}
+
 const char* compiler__driver__pipeline__c_compile_cmd(const char* c_path, const char* exe_path, const char* obj_path, const char* cc, bool quiet) {
-    const char* cmd = ((kobel_streq(cc, "clang") || kobel_streq(cc, "gcc")) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(cc, " -O2 -o \""), exe_path), "\" \""), c_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("where cl >nul 2>nul || (for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath`) do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) & cl.exe /nologo /O2 /Fe:\"", exe_path), "\" /Fo:\""), str_to_win_path(obj_path)), "\" \""), c_path), "\""));
-    if (!kobel_streq(cc, "clang") && !kobel_streq(cc, "gcc")) {
-        cmd = kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("set \"TMP=", compiler__driver__pipeline__backend_temp_dir(exe_path)), "\" & set \"TEMP="), compiler__driver__pipeline__backend_temp_dir(exe_path)), "\" & "), cmd);
-    }
+    bool is_path_with_spaces = (((str_contains(cc, "/") || str_contains(cc, "\\")) && (str_contains(cc, " "))) && !str_starts_with(cc, "\""));
+    const char* cc_bin = (is_path_with_spaces ? kobel_concat(kobel_concat("\"", cc), "\"") : cc);
+    const char* cmd = (compiler__driver__pipeline__is_msvc_compiler(cc) ? kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(cc_bin, " /nologo /O2 /Fe:\""), exe_path), "\" /Fo:\""), str_to_win_path(obj_path)), "\" \""), c_path), "\"") : kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(cc_bin, " -O2 -o \""), exe_path), "\" \""), c_path), "\""));
     if (quiet) {
-        cmd = kobel_concat(cmd, " >nul");
+        cmd = kobel_concat(cmd, " >nul 2>nul");
     }
     return cmd;
-}
-
-const char* compiler__driver__pipeline__backend_temp_dir(const char* exe_path) {
-    const char* dir = str_dir_of(exe_path);
-    if (str_empty(dir)) {
-        return "%CD%";
-    }
-    if (compiler__driver__pipeline__win_is_absolute(dir)) {
-        return str_to_win_path(dir);
-    }
-    return kobel_concat("%CD%\\", str_to_win_path(dir));
-}
-
-bool compiler__driver__pipeline__win_is_absolute(const char* path) {
-    if ((kobel_slen(path) >= 2) && (path[1] == ':')) {
-        return true;
-    }
-    if (str_starts_with(path, "\\\\") || str_starts_with(path, "//")) {
-        return true;
-    }
-    return false;
 }
 
 int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pipeline__CompileOptions* self) {
@@ -25182,6 +25164,11 @@ int32_t main__run_compiler(int32_t argc, const char** argv) {
             if (i < argc) {
                 opts.emit_c_path = util__strutil__cstr_to_str(argv[i]);
                 opts.only_emit_c = true;
+            }
+        } else if (strcmp(arg, "-cc") == 0) {
+            i++;
+            if (i < argc) {
+                opts.c_compiler = util__strutil__cstr_to_str(argv[i]);
             }
         } else {
             if (!str_empty(arg) && !str_starts_with(arg, "-")) {
