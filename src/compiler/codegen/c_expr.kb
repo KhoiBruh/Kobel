@@ -175,6 +175,7 @@ impl CCodeGen {
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
 	fn gen_unary_expr(var self, un: *UnaryExpr): str {
 		val opnd = self.gen_expr(un.operand);
+		if (un.is_postfix && un.op == TokenType.BANG) return opnd;
 
 		return when (un.op) {
 			TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}";

@@ -561,6 +561,7 @@ fn main(): i32 {
 	test_raw_value_enums(&t);
 	test_cast_standardization(&t);
 	test_return_and_const_inference(&t);
+	test_force_unwrap(&t);
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");
@@ -569,4 +570,11 @@ fn main(): i32 {
 
 	println("=== ALL TRAITS, OOP & TYPE TESTS PASSED! ===");
 	return 0;
+}// 19. Force Unwrap Operator (!)
+fn test_force_unwrap(var t: &Tally) {
+	val maybe_ptr: *char? = "hello";
+	val forced_ptr: *char = maybe_ptr!;
+	check_i(if (forced_ptr[0] == 'h') 1 else 0, 1, "Force unwrap pointer success", t);
 }
+
+

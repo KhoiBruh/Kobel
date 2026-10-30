@@ -36,7 +36,8 @@ pub struct BinaryExpr {
 pub struct UnaryExpr {
 	pub const TAG = NodeKind.EXPR_UNARY;
 	pub op: TokenType,
-	pub operand: *AstNode
+	pub operand: *AstNode,
+	pub is_postfix: bool = false
 }
 
 pub struct CallExpr {

@@ -43,8 +43,8 @@ impl Parser {
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.arena.alloc_val(BinaryExpr(left, op, right))), line, col);
 
-	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val(UnaryExpr(op, operand))), line, col);
+	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz, is_postfix: bool = false): *AstNode
+		=> self.arena.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.arena.alloc_val(UnaryExpr(op, operand, is_postfix))), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.arena.alloc_val(CallExpr(callee, args, type_args))), line, col);

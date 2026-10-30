@@ -375,6 +375,17 @@ impl BodyPass {
 		val un = node.as_unary_expr();
 		val op_ty = self.check_expr(un.operand, expected);
 
+		if (un.is_postfix && un.op == TokenType.BANG) {
+			if (op_ty.kind == DataType.POINTER) {
+				val pt = op_ty.as_pointer();
+				if (pt.is_nullable) {
+					return self.arena.pointer_type(pt.pointee, pt.is_mut);
+				}
+			}
+			self.report_error(node, "Force unwrap operator '!' requires a nullable pointer");
+			return op_ty;
+		}
+
 		if (op_ty.kind == DataType.STRUCT) {
 			val op_name = when (un.op) {
 				TokenType.MINUS -> "negate";

@@ -197,7 +197,7 @@ impl Parser {
 		TokenType.KW_IN -> Precedence.COMPARISON;
 		TokenType.BANG -> {
 			if (self.peek_at(1).type == TokenType.KW_IN) yield Precedence.COMPARISON;
-			yield Precedence.NONE;
+			yield Precedence.CALL;
 		}
 		TokenType.LESS -> {
 			if (self.is_generic_args_ahead()) yield Precedence.CALL;
@@ -371,6 +371,13 @@ impl Parser {
 			TokenType.MINUS_MINUS -> {
 				self.advance();
 				return self.update(TokenType.MINUS_MINUS, left, line, col);
+			}
+			// Postfix force unwrap: left!
+			TokenType.BANG -> {
+				if (self.peek_at(1).type != TokenType.KW_IN) {
+					self.advance();
+					return self.unary(TokenType.BANG, left, line, col, true);
+				}
 			}
 			// 2. Assignment: left = right, left += right, ... (right-associative)
 			TokenType.EQUAL, TokenType.PLUS_EQUAL,

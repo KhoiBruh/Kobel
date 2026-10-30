@@ -123,8 +123,13 @@ impl Formatter {
 				self.format_expr(b.right);
 			}
 			is UnaryExpr as u -> {
-				self.buf += op_to_str(u.op);
-				self.format_expr(u.operand);
+				if (u.is_postfix) {
+					self.format_expr(u.operand);
+					self.buf += op_to_str(u.op);
+				} else {
+					self.buf += op_to_str(u.op);
+					self.format_expr(u.operand);
+				}
 			}
 			is CallExpr as c -> {
 				self.format_expr(c.callee);

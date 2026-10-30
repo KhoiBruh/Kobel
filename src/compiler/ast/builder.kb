@@ -45,8 +45,8 @@ impl Arena {
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz)
 		=> self.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.alloc_val(BinaryExpr(left, op, right))), line, col);
 
-	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.alloc_val(UnaryExpr(op, operand))), line, col);
+	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz, is_postfix: bool = false)
+		=> self.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.alloc_val(UnaryExpr(op, operand, is_postfix))), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz)
 		=> self.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.alloc_val(CallExpr(callee, args, type_args))), line, col);

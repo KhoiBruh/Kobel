@@ -146,7 +146,7 @@ impl DeclPass {
 
 			is UnaryExpr as u -> self.arena.unary(
 				u.op, self.clone_expr(u.operand, subst),
-				node.line, node.col
+				node.line, node.col, u.is_postfix
 			);
 
 			is CallExpr -> self.clone_call_expr(node, subst);
