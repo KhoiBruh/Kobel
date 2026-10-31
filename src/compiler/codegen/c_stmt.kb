@@ -173,7 +173,7 @@ impl CCodeGen {
 		val unwrapped_init = unwrap_group_expr(init_e);
 		if (unwrapped_init != null && unwrapped_init is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
-			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
 				val is_jump = unwrapped_r != null && (
 					unwrapped_r.kind == NodeKind.STMT_RETURN ||
@@ -541,7 +541,7 @@ impl CCodeGen {
 		val unwrapped_val = unwrap_group_expr(asg_val);
 		if (unwrapped_val != null && unwrapped_val is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
-			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
 				val is_jump = unwrapped_r != null && (
 					unwrapped_r.kind == NodeKind.STMT_RETURN ||
@@ -612,7 +612,7 @@ impl CCodeGen {
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
 	fn gen_elvis_jump_stmt(var self, bin: *BinaryExpr, ind: str): str {
 		val unwrapped_l = unwrap_group_expr(bin.left);
-		if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+		if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
 			val obj_s = self.gen_expr(mem.object);
 			val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 			var res = "${ind}if (${obj_wrap} == NULL) {\n";

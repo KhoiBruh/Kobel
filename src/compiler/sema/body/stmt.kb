@@ -114,9 +114,10 @@ impl BodyPass {
 	fn promote_to_non_null(var self, var_name: str) {
 		if (var_name.empty()) return;
 
-		val sym = self.symtab.lookup(var_name);
-		if (sym?.type_ptr?.kind != DataType.POINTER) return;
-		val ptr_ty = sym.type_ptr.as_pointer();
+		val sym = self.symtab.lookup(var_name) ?: return;
+		val type_ptr = sym.type_ptr ?: return;
+		if (type_ptr.kind != DataType.POINTER) return;
+		val ptr_ty = type_ptr.as_pointer();
 		if (!ptr_ty.is_nullable) return;
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
@@ -152,7 +153,18 @@ impl BodyPass {
 		if (cur == null) return;
 
 		if (cur is BinaryExpr as bin) {
-			if (bin.op != TokenType.OR_OR && bin.op != TokenType.BANG_EQUAL) {
+			val has_null = self.is_null_literal(bin.left) || self.is_null_literal(bin.right);
+			if (bin.op == TokenType.BANG_EQUAL) {
+				if (true) {
+					self.extract_safe_receivers(bin.left);
+					self.extract_safe_receivers(bin.right);
+				}
+			} else if (bin.op == TokenType.EQUAL_EQUAL) {
+				if (!has_null) {
+					self.extract_safe_receivers(bin.left);
+					self.extract_safe_receivers(bin.right);
+				}
+			} else if (bin.op != TokenType.OR_OR) {
 				self.extract_safe_receivers(bin.left);
 				self.extract_safe_receivers(bin.right);
 			}

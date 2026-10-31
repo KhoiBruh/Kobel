@@ -407,22 +407,16 @@ impl DeclPass {
 
 	fn collect_return_exprs(val self, stmt: *AstNode?, var out_returns: &List<*AstNode>) {
 		if (stmt == null) return;
-		if (stmt is ReturnStmt as ret) {
-			if (ret.value != null) out_returns.add(ret.value!);
-			return;
-		}
-		if (stmt is BlockStmt as b) {
-			for (s in b.statements) self.collect_return_exprs(s, out_returns);
-			return;
-		}
-		if (stmt is IfStmt as ifs) {
-			self.collect_return_exprs(ifs.then_branch, out_returns);
-			if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch!, out_returns);
-			return;
-		}
-		if (stmt is WhenStmt as ws) {
-			for (arm in ws.arms) self.collect_return_exprs(arm.body, out_returns);
-			return;
+
+		when (stmt) {
+			is ReturnStmt as ret -> if (ret.value != null) out_returns.add(ret.value!);
+			is BlockStmt as b -> for (s in b.statements) self.collect_return_exprs(s, out_returns);
+			is WhenStmt as ws -> for (arm in ws.arms) self.collect_return_exprs(arm.body, out_returns);
+			is IfStmt as ifs -> {
+				self.collect_return_exprs(ifs.then_branch, out_returns);
+				if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch!, out_returns);
+				return;
+			}
 		}
 	}
 
@@ -455,11 +449,12 @@ impl DeclPass {
 				if (first_ty == null) {
 					first_ty = ty;
 				} else if (!first_ty.equals(ty!)) {
-					if (first_ty.is_integer() && ty!.is_integer() && ty!.size > first_ty.size) {
-						first_ty = ty;
-					} else if (!first_ty.can_assign(ty!)) {
-						return null;
-					}
+					if (
+						first_ty.is_integer() &&
+						ty!.is_integer() &&
+						ty!.size > first_ty.size
+					) first_ty = ty;
+					else if (!first_ty.can_assign(ty!)) return null;
 				}
 			}
 			if (first_ty != null) {

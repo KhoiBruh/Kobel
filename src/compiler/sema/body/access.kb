@@ -157,21 +157,26 @@ impl BodyPass {
 	// `str` lowers to a bare `const char*`, so its members cannot go through the
 	// struct field path. This only decides the type: the `lower` pass rewrites
 	// `.len`/`.data` into what the backend can emit.
-	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type {
-		if (mem.member == "len" || mem.member == "size") return self.prims().t_usz();
-		if (mem.member == "cap") return self.prims().t_usz();
-		if (mem.member == "c_str") {
+	fn member_on_str(var self, node: *AstNode, mem: &MemberExpr): *Type => when (mem.member) {
+		"len", "size" -> self.prims().t_usz();
+		"cap" -> self.prims().t_usz();
+
+		"c_str" -> {
 			val char_ty = self.prims().t_char();
 			val char_ptr = self.arena.pointer_type(char_ty, false);
-			return self.arena.fn_type(List<*Type>(), char_ptr);
+			yield self.arena.fn_type(List<*Type>(), char_ptr);
 		}
-		if (mem.member == "data") {
+
+		"data" -> {
 			val char_ty = self.prims().t_char();
-			return self.arena.pointer_type(char_ty, false);
+			yield self.arena.pointer_type(char_ty, false);
 		}
-		self.report_error(node, "Member access on non-struct type");
-		return self.prims().t_none();
-	}
+
+		else -> {
+			self.report_error(node, "Member access on non-struct type");
+			yield self.prims().t_none();
+		}
+	};
 
 	// `[T; N]`: the length is a compile-time constant, and the value already is a
 	// pointer to its first element. Lowering of both members happens in `lower`.

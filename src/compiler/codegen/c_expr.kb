@@ -157,8 +157,7 @@ impl CCodeGen {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
-				val r_ty = bin.right.type_ptr as *Type;
-				if (r_ty?.kind == DataType.POINTER) {
+				if (self.is_pointer_value(unwrapped_l) || self.is_pointer_value(bin.right)) {
 					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member} != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
 				}
 				return "(${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s})";
@@ -190,11 +189,17 @@ impl CCodeGen {
 				else -> "==";
 			};
 
+			val l_is_null = (unwrapped_l as? LiteralExpr)?.literal_kind == LiteralKind.NULL_VAL;
+			val r_is_null = (unwrapped_r as? LiteralExpr)?.literal_kind == LiteralKind.NULL_VAL;
+
 			if (l_is_safe && !r_is_safe) {
 				val mem = unwrapped_l!.as_member_expr();
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
+				if (bin.op == TokenType.EQUAL_EQUAL && r_is_null) {
+					return "(${obj_wrap} == NULL || ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
+				}
 				return "(${obj_wrap} != NULL && ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
 			}
 			if (r_is_safe && !l_is_safe) {
@@ -202,6 +207,9 @@ impl CCodeGen {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val l_s = self.gen_expr(bin.left);
+				if (bin.op == TokenType.EQUAL_EQUAL && l_is_null) {
+					return "(${obj_wrap} == NULL || ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
+				}
 				return "(${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
 			}
 			if (l_is_safe && r_is_safe) {
