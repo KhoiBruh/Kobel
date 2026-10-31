@@ -340,8 +340,7 @@ impl BodyPass {
 	// -> a compile-time literal; `arr.data` -> `arr`. The receiver's own type is
 	// enough to decide, so no symbol table is needed here.
 	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
-		val obj = mem.object;
-		if (obj == null) return node;
+		val obj = mem.object ?: return node;
 
 		// Enum `.value` is identity on the underlying integer.
 		val obj_ty = self.type_of(obj);
@@ -462,8 +461,8 @@ impl BodyPass {
 	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`. Omitted bounds default to 0 and
 	// `kobel_slen(s)`, which is the contract `check_slice_call` validated.
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
-		val callee = call.callee;
-		if (callee == null || callee.kind != NodeKind.EXPR_MEMBER) return node;
+		val callee = call.callee ?: return node;
+		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
 		val mem = callee.as_member_expr() as &MemberExpr;
 		if (mem.member != "slice") return node;
 		if (!self.is_str_expr(mem.object)) return node;

@@ -9030,8 +9030,9 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
                 }
             }
             compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self))));
-            compiler__sema__types__Type* rec_sig = ((m_node->instance != NULL) ? (*((compiler__sema__instance__InstanceRecord*)m_node->instance)).sig : NULL);
-            compiler__sema__types__Type* fn_type = ((rec_sig != NULL) ? rec_sig : std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type));
+            compiler__sema__types__Type* rec_sig = (((compiler__sema__instance__InstanceRecord*)m_node->instance) != NULL ? ((compiler__sema__instance__InstanceRecord*)m_node->instance)->sig : NULL);
+            compiler__sema__types__Type* fn_type = rec_sig;
+            if (fn_type == NULL) fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
             const char* m_c_name = compiler__sema__decl__pass__method_c_name(kobel_concat(kobel_concat(st_c_name, "_"), f->name), param_types.len, std__collections__list__List_str_contains(&overloaded, f->name), used_names);
             std__collections__list__List_str_plus_assign(&used_names, m_c_name);
             compiler__sema__methods__MethodInfo* mi = std__mem__arena__Arena_alloc_compiler__sema__methods__MethodInfo(&self->arena);
@@ -9890,7 +9891,8 @@ void compiler__sema__decl__pass__DeclPass_collect_fn_as(compiler__sema__decl__pa
         }
     }
     compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self)));
-    compiler__sema__types__Type* fn_type = ((sig != NULL) ? sig : std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type));
+    compiler__sema__types__Type* fn_type = sig;
+    if (fn_type == NULL) fn_type = std__mem__arena__Arena_fn_type(&self->arena, param_types, ret_type);
     compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__box_symbol(&self->arena, (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, f->is_pub, node->line, node->col, node, NULL }));
     f->name = final_name;
 }
@@ -12264,7 +12266,8 @@ void compiler__sema__body__pass__BodyPass_promote_to_non_null(compiler__sema__bo
         return;
     }
     compiler__sema__types__Type* non_null_ty = std__mem__arena__Arena_pointer_type_3_2(&self->arena, ptr_ty->pointee, ptr_ty->is_mut);
-    compiler__sema__types__Type* orig_ty = ((sym->orig_type != NULL) ? sym->orig_type : sym->type_ptr);
+    compiler__sema__types__Type* orig_ty = sym->orig_type;
+    if (orig_ty == NULL) orig_ty = sym->type_ptr;
     compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->is_mut, sym->is_pub, 0, 0, NULL, orig_ty });
 }
 
@@ -12385,7 +12388,7 @@ void compiler__sema__body__pass__BodyPass_check_if_stmt(compiler__sema__body__pa
                                 compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, is_e->is_mut, false, 0, 0, NULL, NULL });
                             } else if ((is_e->expr != NULL && is_e->expr->kind == compiler__ast__expr__IdentifierExpr__TAG && (id = is_e->expr->data.u.IdentifierExpr.inner, 1))) {
                                 compiler__sema__symbol__Symbol* subj_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
-                                bool is_mut = ((subj_sym != NULL) ? subj_sym->is_mut : false);
+                                bool is_mut = (subj_sym != NULL ? subj_sym->is_mut : false);
                                 std__collections__list__List_str_plus_assign(&no_alias_syms, id->name);
                                 std__collections__list__List_ptr_compiler__sema__types__Type_plus_assign(&no_alias_tys, cast_ty);
                                 std__collections__list__List_bool_plus_assign(&no_alias_muts, is_mut);
@@ -13166,7 +13169,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_exp
         }
         return std__mem__arena__Arena_nullable_pointer_type(&self->arena, target_struct_ty, false);
     }
-    return std__mem__arena__Arena_nullable_pointer_type(&self->arena, ((target_struct_ty != NULL) ? target_struct_ty : compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self))), false);
+    return std__mem__arena__Arena_nullable_pointer_type(&self->arena, (target_struct_ty != NULL ? target_struct_ty : compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self))), false);
 }
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_when_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* expected) {
@@ -16706,7 +16709,10 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
 
 compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_call(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__CallExpr* call) {
     compiler__ast__node__AstNode* callee = call->callee;
-    if ((callee == NULL) || (callee->kind != 9)) {
+    if (callee == NULL) {
+        return node;
+    }
+    if (callee->kind != 9) {
         return node;
     }
     compiler__ast__expr__MemberExpr* mem = (compiler__ast__expr__MemberExpr*)compiler__ast__node__AstNode_as_member_expr(callee);

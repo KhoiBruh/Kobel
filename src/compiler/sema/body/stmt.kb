@@ -121,7 +121,7 @@ impl BodyPass {
 		if (!ptr_ty.is_nullable) return;
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
-		val orig_ty = if (sym.orig_type != null) sym.orig_type else sym.type_ptr;
+		val orig_ty = sym.orig_type ?: sym.type_ptr;
 		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0, null, orig_ty));
 	}
 
@@ -210,7 +210,7 @@ impl BodyPass {
 						self.symtab.define(Symbol(is_e.alias, is_e.alias, SymbolKind.VAR, cast_ty, is_e.is_mut, false, 0, 0));
 					} else if (is_e.expr is IdentifierExpr as id) {
 						val subj_sym = self.symtab.lookup(id.name);
-						val is_mut = if (subj_sym != null) subj_sym.is_mut else false;
+						val is_mut = subj_sym?.is_mut ?: false;
 						no_alias_syms += id.name;
 						no_alias_tys += cast_ty;
 						no_alias_muts += is_mut;
