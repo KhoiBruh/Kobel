@@ -447,7 +447,15 @@ impl BodyPass {
 			return self.lowered(node, maybe);
 		}
 
-		val maybe = self.arena.if_expr(cond, direct, null_lit, node.line, node.col);
+		val fallback = if (call_ty != null && (call_ty.is_integer() || call_ty.is_enum() || call_ty.kind == DataType.CHAR)) {
+			self.arena.literal(LiteralKind.INT, "0", node.line, node.col)
+		} else if (call_ty != null && (call_ty.kind == DataType.F32 || call_ty.kind == DataType.F64)) {
+			self.arena.literal(LiteralKind.FLOAT, "0.0", node.line, node.col)
+		} else {
+			null_lit
+		};
+
+		val maybe = self.arena.if_expr(cond, direct, fallback, node.line, node.col);
 		return self.lowered(node, maybe);
 	}
 

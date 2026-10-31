@@ -2433,7 +2433,10 @@ void compiler__sema__body__pass__BodyPass_check_block_stmt(compiler__sema__body_
 void compiler__sema__body__pass__BodyPass_check_var_decl_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 std__collections__list__List_ptr_compiler__ast__node__AstNode compiler__sema__body__pass__BodyPass_collect_and_conditions(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* expr);
 bool compiler__sema__body__pass__BodyPass_is_null_literal(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
+void compiler__sema__body__pass__BodyPass_promote_to_non_null(compiler__sema__body__pass__BodyPass* self, const char* var_name);
 void compiler__sema__body__pass__BodyPass_check_null_guard(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right);
+void compiler__sema__body__pass__BodyPass_promote_expr_receiver(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* obj);
+void compiler__sema__body__pass__BodyPass_extract_safe_receivers(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* expr);
 void compiler__sema__body__pass__BodyPass_check_if_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body__pass__BodyPass_check_while_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__body__pass__BodyPass_check_for_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
@@ -9075,7 +9078,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_const_ty
         compiler__ast__expr__IdentifierExpr* id = NULL;
         if ((expr != NULL && expr->kind == compiler__ast__expr__MemberExpr__TAG && (mem = expr->data.u.MemberExpr.inner, 1)) && (mem->object != NULL && mem->object->kind == compiler__ast__expr__IdentifierExpr__TAG && (id = mem->object->data.u.IdentifierExpr.inner, 1))) {
             compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
-            if ((((sym != NULL) && (sym->kind == 5)) && (sym->type_ptr != NULL)) && compiler__sema__types__Type_is_enum(sym->type_ptr)) {
+            if (((sym != NULL ? sym->kind : 0) == 5) && (((sym != NULL ? sym->type_ptr : NULL) != NULL) && compiler__sema__types__Type_is_enum((sym != NULL ? sym->type_ptr : NULL)))) {
                 compiler__sema__enums__EnumInfo* ei = compiler__sema__types__Type_as_enum(sym->type_ptr);
                 if (compiler__sema__enums__EnumInfo_find_member(ei, mem->member) != NULL) {
                     return sym->type_ptr;
@@ -12208,19 +12211,7 @@ bool compiler__sema__body__pass__BodyPass_is_null_literal(compiler__sema__body__
     return false;
 }
 
-void compiler__sema__body__pass__BodyPass_check_null_guard(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right) {
-    compiler__ast__node__AstNode* l = compiler__sema__body__pass__BodyPass_unwrap_group(self, left);
-    compiler__ast__node__AstNode* r = compiler__sema__body__pass__BodyPass_unwrap_group(self, right);
-    const char* var_name = "";
-    {
-        compiler__ast__expr__IdentifierExpr* l_id = NULL;
-        compiler__ast__expr__IdentifierExpr* r_id = NULL;
-        if (compiler__sema__body__pass__BodyPass_is_null_literal(self, r) && (l != NULL && l->kind == compiler__ast__expr__IdentifierExpr__TAG && (l_id = l->data.u.IdentifierExpr.inner, 1))) {
-            var_name = l_id->name;
-        } else if (compiler__sema__body__pass__BodyPass_is_null_literal(self, l) && (r != NULL && r->kind == compiler__ast__expr__IdentifierExpr__TAG && (r_id = r->data.u.IdentifierExpr.inner, 1))) {
-            var_name = r_id->name;
-        }
-    }
+void compiler__sema__body__pass__BodyPass_promote_to_non_null(compiler__sema__body__pass__BodyPass* self, const char* var_name) {
     if (str_empty(var_name)) {
         return;
     }
@@ -12238,6 +12229,93 @@ void compiler__sema__body__pass__BodyPass_check_null_guard(compiler__sema__body_
     compiler__sema__types__Type* non_null_ty = std__mem__arena__Arena_pointer_type_3_2(&self->arena, ptr_ty->pointee, ptr_ty->is_mut);
     compiler__sema__types__Type* orig_ty = ((sym->orig_type != NULL) ? sym->orig_type : sym->type_ptr);
     compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->is_mut, sym->is_pub, 0, 0, NULL, orig_ty });
+}
+
+void compiler__sema__body__pass__BodyPass_check_null_guard(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right) {
+    compiler__ast__node__AstNode* l = compiler__sema__body__pass__BodyPass_unwrap_group(self, left);
+    compiler__ast__node__AstNode* r = compiler__sema__body__pass__BodyPass_unwrap_group(self, right);
+    const char* var_name = "";
+    {
+        compiler__ast__expr__IdentifierExpr* l_id = NULL;
+        compiler__ast__expr__IdentifierExpr* r_id = NULL;
+        if (compiler__sema__body__pass__BodyPass_is_null_literal(self, r) && (l != NULL && l->kind == compiler__ast__expr__IdentifierExpr__TAG && (l_id = l->data.u.IdentifierExpr.inner, 1))) {
+            var_name = l_id->name;
+        } else if (compiler__sema__body__pass__BodyPass_is_null_literal(self, l) && (r != NULL && r->kind == compiler__ast__expr__IdentifierExpr__TAG && (r_id = r->data.u.IdentifierExpr.inner, 1))) {
+            var_name = r_id->name;
+        }
+    }
+    if (!str_empty(var_name)) {
+        compiler__sema__body__pass__BodyPass_promote_to_non_null(self, var_name);
+    }
+}
+
+void compiler__sema__body__pass__BodyPass_promote_expr_receiver(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* obj) {
+    if (obj == NULL) {
+        return;
+    }
+    compiler__ast__node__AstNode* un = compiler__sema__body__pass__BodyPass_unwrap_group(self, obj);
+    {
+        compiler__ast__expr__IdentifierExpr* id = NULL;
+        if ((un != NULL && un->kind == compiler__ast__expr__IdentifierExpr__TAG && (id = un->data.u.IdentifierExpr.inner, 1))) {
+            compiler__sema__body__pass__BodyPass_promote_to_non_null(self, id->name);
+        }
+    }
+}
+
+void compiler__sema__body__pass__BodyPass_extract_safe_receivers(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* expr) {
+    if (expr == NULL) {
+        return;
+    }
+    compiler__ast__node__AstNode* cur = compiler__sema__body__pass__BodyPass_unwrap_group(self, expr);
+    if (cur == NULL) {
+        return;
+    }
+    {
+        compiler__ast__expr__BinaryExpr* bin = NULL;
+        if ((cur != NULL && cur->kind == compiler__ast__expr__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1))) {
+            if ((bin->op != 26) && (bin->op != 22)) {
+                compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, bin->left);
+                compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, bin->right);
+            }
+            return;
+        }
+    }
+    {
+        compiler__ast__expr__CallExpr* call = NULL;
+        if ((cur != NULL && cur->kind == compiler__ast__expr__CallExpr__TAG && (call = cur->data.u.CallExpr.inner, 1))) {
+            {
+                compiler__ast__expr__MemberExpr* mem = NULL;
+                if ((call->callee != NULL && call->callee->kind == compiler__ast__expr__MemberExpr__TAG && (mem = call->callee->data.u.MemberExpr.inner, 1))) {
+                    if (mem->is_safe) {
+                        compiler__sema__body__pass__BodyPass_promote_expr_receiver(self, mem->object);
+                    }
+                    compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, mem->object);
+                } else {
+                    compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, call->callee);
+                }
+            }
+            {
+                size_t __for_n = std__collections__list__List_ptr_compiler__ast__node__AstNode_count(&call->args);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__node__AstNode* arg = std__collections__list__List_ptr_compiler__ast__node__AstNode_at(&call->args, __for_i);
+                    compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, arg);
+                    __for_i = (__for_i + 1);
+                }
+            }
+            return;
+        }
+    }
+    {
+        compiler__ast__expr__MemberExpr* mem = NULL;
+        if ((cur != NULL && cur->kind == compiler__ast__expr__MemberExpr__TAG && (mem = cur->data.u.MemberExpr.inner, 1))) {
+            if (mem->is_safe) {
+                compiler__sema__body__pass__BodyPass_promote_expr_receiver(self, mem->object);
+            }
+            compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, mem->object);
+            return;
+        }
+    }
 }
 
 void compiler__sema__body__pass__BodyPass_check_if_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -12282,6 +12360,7 @@ void compiler__sema__body__pass__BodyPass_check_if_stmt(compiler__sema__body__pa
                     compiler__sema__body__pass__BodyPass_check_null_guard(self, bin->left, bin->right);
                 }
             }
+            compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, unwrapped_c);
             __for_i = (__for_i + 1);
         }
     }
@@ -12352,6 +12431,7 @@ void compiler__sema__body__pass__BodyPass_check_while_stmt(compiler__sema__body_
                     compiler__sema__body__pass__BodyPass_check_null_guard(self, bin->left, bin->right);
                 }
             }
+            compiler__sema__body__pass__BodyPass_extract_safe_receivers(self, unwrapped_c);
             __for_i = (__for_i + 1);
         }
     }
@@ -12568,7 +12648,6 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_member_e
         ret_ty = compiler__sema__body__pass__BodyPass_member_on_struct(self, node, mem, obj_ty);
     }
     if (mem->is_safe) {
-        compiler__sema__body__pass__BodyPass_ensure(self, (((ret_ty->kind == 16) || (ret_ty->kind == 15)) || (ret_ty->kind == 1)), node, "Safe call operator '?.' requires field to be a pointer, string, or bool");
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
             ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
@@ -13893,7 +13972,6 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_bind_method_ca
     }
     compiler__sema__types__Type* ret_ty = fn_info->return_type;
     if (mem->is_safe) {
-        compiler__sema__body__pass__BodyPass_ensure(self, (((ret_ty->kind == 16) || (ret_ty->kind == 15)) || (ret_ty->kind == 1)), node, "Safe method call '?.' requires return type to be a pointer, string, or bool");
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
             ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
@@ -16574,7 +16652,8 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
         compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_binary(&self->arena, 25, cond, direct, node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
     }
-    compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_if_expr(&self->arena, cond, direct, null_lit, node->line, node->col);
+    compiler__ast__node__AstNode* fallback = (((call_ty != NULL) && ((compiler__sema__types__Type_is_integer(call_ty) || compiler__sema__types__Type_is_enum(call_ty)) || (call_ty->kind == 2))) ? std__mem__arena__Arena_literal(&self->arena, 0, "0", node->line, node->col) : (((call_ty != NULL) && ((call_ty->kind == 13) || (call_ty->kind == 14))) ? std__mem__arena__Arena_literal(&self->arena, 1, "0.0", node->line, node->col) : null_lit));
+    compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_if_expr(&self->arena, cond, direct, fallback, node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
 }
 
@@ -17385,8 +17464,18 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__sema__structs__StructField f = std__collections__list__List_compiler__sema__structs__StructField_at(&st->fields, __for_i);
-                        if (kobel_streq(f.name, mem->member) && ((*f.type_ptr).kind == 1)) {
-                            return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL && "), obj_str), "->"), mem->member), ")");
+                        if (kobel_streq(f.name, mem->member)) {
+                            compiler__sema__types__DataType fk = (*f.type_ptr).kind;
+                            if (fk == 1) {
+                                return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL && "), obj_str), "->"), mem->member), ")");
+                            }
+                            if ((compiler__sema__types__Type_is_integer(f.type_ptr) || compiler__sema__types__Type_is_enum(f.type_ptr)) || (fk == 2)) {
+                                return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL ? "), obj_str), "->"), mem->member), " : 0)");
+                            }
+                            if ((fk == 13) || (fk == 14)) {
+                                return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL ? "), obj_str), "->"), mem->member), " : 0.0)");
+                            }
+                            return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL ? "), obj_str), "->"), mem->member), " : NULL)");
                         }
                         __for_i = (__for_i + 1);
                     }

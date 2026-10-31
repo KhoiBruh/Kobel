@@ -1,13 +1,25 @@
 mod test.safe_nav;
 
+enum ItemKind {
+	FIRST,
+	SECOND,
+	THIRD
+}
+
 struct Inner {
 	pub is_active: bool,
+	pub kind: ItemKind,
+	pub count: i32,
 	pub name: str
 }
 
 impl Inner {
 	pub fn check_ok(val self): bool {
 		return self.is_active;
+	}
+
+	pub fn get_kind(val self): ItemKind {
+		return self.kind;
 	}
 }
 
@@ -19,8 +31,12 @@ struct Outer {
 	pub middle: *Middle? = null
 }
 
+fn takes_non_null(item: *Inner): bool {
+	return item.kind == ItemKind.SECOND;
+}
+
 fn main(): i32 {
-	var in1 = Inner(true, "hello");
+	var in1 = Inner(true, ItemKind.SECOND, 42, "hello");
 	var mid1 = Middle(&in1);
 	var out1 = Outer(&mid1);
 
@@ -52,6 +68,29 @@ fn main(): i32 {
 	var out_mid_empty = Outer(&mid_empty);
 	val p_broken: *Outer? = &out_mid_empty;
 	if (p_broken?.middle?.inner?.check_ok()) return 7;
+
+	// 8. Universal safe access on Enum: null pointer returns 0, real returns SECOND
+	if (p_null_in?.kind == ItemKind.SECOND) return 8;
+	if (p_real_in?.kind != ItemKind.SECOND) return 9;
+
+	// 9. Universal safe method call returning Enum
+	if (p_null_in?.get_kind() == ItemKind.SECOND) return 10;
+	if (p_real_in?.get_kind() != ItemKind.SECOND) return 11;
+
+	// 10. Universal safe access on Int
+	if (p_null_in?.count != 0) return 12;
+	if (p_real_in?.count != 42) return 13;
+
+	// 11. Smart cast: p_test is promoted to non-null *Inner inside `if (p_test?.kind == ItemKind.SECOND)`
+	val p_test: *Inner? = &in1;
+	if (p_test?.kind == ItemKind.SECOND) {
+		// p_test is now *Inner, can pass to takes_non_null without `!` or `!!`
+		if (!takes_non_null(p_test)) return 14;
+		val direct_cnt = p_test.count;
+		if (direct_cnt != 42) return 15;
+	} else {
+		return 16;
+	}
 
 	return 0;
 }

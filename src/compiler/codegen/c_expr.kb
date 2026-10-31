@@ -267,8 +267,18 @@ impl CCodeGen {
 				if (inner.kind == DataType.STRUCT) {
 					val st = inner.as_struct();
 					for (f in st.fields) {
-						if (f.name == mem.member && f.type_ptr.kind == DataType.BOOL) {
-							return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+						if (f.name == mem.member) {
+							val fk = f.type_ptr.kind;
+							if (fk == DataType.BOOL) {
+								return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+							}
+							if (f.type_ptr.is_integer() || f.type_ptr.is_enum() || fk == DataType.CHAR) {
+								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
+							}
+							if (fk == DataType.F32 || fk == DataType.F64) {
+								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
+							}
+							return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
 						}
 					}
 				}

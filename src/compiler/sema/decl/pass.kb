@@ -364,7 +364,7 @@ impl DeclPass {
 
 		if (expr is MemberExpr as mem && mem.object is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
-			if (sym != null && sym.kind == SymbolKind.ENUM && sym.type_ptr != null && sym.type_ptr.is_enum()) {
+			if (sym?.kind == SymbolKind.ENUM && sym?.type_ptr?.is_enum()) {
 				val ei = sym.type_ptr.as_enum();
 				if (ei.find_member(mem.member) != null) return sym.type_ptr;
 			}

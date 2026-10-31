@@ -111,15 +111,7 @@ impl BodyPass {
 		return false;
 	}
 
-	fn check_null_guard(var self, left: *AstNode, right: *AstNode) {
-		val l = self.unwrap_group(left);
-		val r = self.unwrap_group(right);
-		var var_name = "";
-		if (self.is_null_literal(r) && l is IdentifierExpr as l_id) {
-			var_name = l_id.name;
-		} else if (self.is_null_literal(l) && r is IdentifierExpr as r_id) {
-			var_name = r_id.name;
-		}
+	fn promote_to_non_null(var self, var_name: str) {
 		if (var_name.empty()) return;
 
 		val sym = self.symtab.lookup(var_name);
@@ -131,6 +123,65 @@ impl BodyPass {
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
 		val orig_ty = if (sym.orig_type != null) sym.orig_type else sym.type_ptr;
 		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0, null, orig_ty));
+	}
+
+	fn check_null_guard(var self, left: *AstNode, right: *AstNode) {
+		val l = self.unwrap_group(left);
+		val r = self.unwrap_group(right);
+		var var_name = "";
+		if (self.is_null_literal(r) && l is IdentifierExpr as l_id) {
+			var_name = l_id.name;
+		} else if (self.is_null_literal(l) && r is IdentifierExpr as r_id) {
+			var_name = r_id.name;
+		}
+		if (!var_name.empty()) {
+			self.promote_to_non_null(var_name);
+		}
+	}
+
+	fn promote_expr_receiver(var self, obj: *AstNode?) {
+		if (obj == null) return;
+		val un = self.unwrap_group(obj!);
+		if (un is IdentifierExpr as id) {
+			self.promote_to_non_null(id.name);
+		}
+	}
+
+	fn extract_safe_receivers(var self, expr: *AstNode?) {
+		if (expr == null) return;
+		val cur = self.unwrap_group(expr!);
+		if (cur == null) return;
+
+		if (cur is BinaryExpr as bin) {
+			if (bin.op != TokenType.OR_OR && bin.op != TokenType.BANG_EQUAL) {
+				self.extract_safe_receivers(bin.left);
+				self.extract_safe_receivers(bin.right);
+			}
+			return;
+		}
+
+		if (cur is CallExpr as call) {
+			if (call.callee is MemberExpr as mem) {
+				if (mem.is_safe) {
+					self.promote_expr_receiver(mem.object);
+				}
+				self.extract_safe_receivers(mem.object);
+			} else {
+				self.extract_safe_receivers(call.callee);
+			}
+			for (arg in call.args) {
+				self.extract_safe_receivers(arg);
+			}
+			return;
+		}
+
+		if (cur is MemberExpr as mem) {
+			if (mem.is_safe) {
+				self.promote_expr_receiver(mem.object);
+			}
+			self.extract_safe_receivers(mem.object);
+			return;
+		}
 	}
 
 	pub fn check_if_stmt(var self, node: *AstNode) {
@@ -167,6 +218,8 @@ impl BodyPass {
 			if (unwrapped_c is BinaryExpr as bin && bin.op == TokenType.BANG_EQUAL) {
 				self.check_null_guard(bin.left, bin.right);
 			}
+
+			self.extract_safe_receivers(unwrapped_c);
 		}
 
 		for (i in 0..<no_alias_syms.len) {
@@ -210,6 +263,8 @@ impl BodyPass {
 			if (unwrapped_c is BinaryExpr as bin && bin.op == TokenType.BANG_EQUAL) {
 				self.check_null_guard(bin.left, bin.right);
 			}
+
+			self.extract_safe_receivers(unwrapped_c);
 		}
 
 		self.check_statement(wh.body);
