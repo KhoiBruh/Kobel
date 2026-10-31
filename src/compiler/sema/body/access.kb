@@ -116,8 +116,7 @@ impl BodyPass {
 				}
 
 				if (ei.is_payload) {
-					val e_sym = self.symtab.lookup(ei.name);
-					if (e_sym == null) return self.prims().t_none();
+					val e_sym = self.symtab.lookup(ei.name) ?: return self.prims().t_none();
 					if (mi.payload_ty != null && !mi.payload_ty.as_struct().fields.empty()) {
 						self.report_error(node,
 							"Variant '${enum_id.name}.${mem.member}' carries data; "
@@ -219,7 +218,7 @@ impl BodyPass {
 
 		val t_is_ptr = target_ty.kind == DataType.POINTER;
 		val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
-		if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
+		if (t_struct_ty?.kind == DataType.STRUCT) {
 			val s_info = t_struct_ty.as_struct();
 			var arg_types = List<*Type>();
 			arg_types += t_struct_ty;
@@ -229,7 +228,7 @@ impl BodyPass {
 			if (mi != null) {
 				val fn_info = mi.fn_type.as_fn();
 				val param_ty = fn_info.param_types[1];
-				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(idx.index, param_ty);
+				if (param_ty?.is_list()) self.coerce_to_list(idx.index, param_ty);
 				if (self.is_untyped_literal(idx.index)) self.check_expr(idx.index, param_ty);
 				self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
@@ -353,12 +352,12 @@ impl BodyPass {
 		var sym_to_update: *Symbol? = null;
 		if (target_expr is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
-			if (sym != null && sym.orig_type != null) {
+			if (sym?.orig_type != null) {
 				target_ty = sym.orig_type!;
 				sym_to_update = sym;
 			}
 		}
-		if (target_ty != null && target_ty.is_list()) self.coerce_to_list(asgn.value, target_ty);
+		if (target_ty?.is_list()) self.coerce_to_list(asgn.value, target_ty);
 		val prev_stmt = self.is_stmt_level;
 		self.is_stmt_level = was_stmt;
 		val val_ty = self.check_expr(asgn.value, target_ty);
@@ -367,7 +366,7 @@ impl BodyPass {
 		if (asgn.op != TokenType.EQUAL) {
 			val t_is_ptr = target_ty.kind == DataType.POINTER;
 			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
-			if (t_struct_ty != null && t_struct_ty.kind == DataType.STRUCT) {
+			if (t_struct_ty?.kind == DataType.STRUCT) {
 				val op_name = when (asgn.op) {
 					TokenType.PLUS_EQUAL -> "plus_assign";
 					TokenType.MINUS_EQUAL -> "minus_assign";
@@ -462,11 +461,11 @@ impl BodyPass {
 			val_expr = self.arena.binary(op, get_expr, operand, node.line, node.col);
 		}
 
-		if (idx_param_ty != null && idx_param_ty.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
+		if (idx_param_ty?.is_list()) self.coerce_to_list(idx.index, idx_param_ty);
 		if (self.is_untyped_literal(idx.index)) self.check_expr(idx.index, idx_param_ty);
 		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
 
-		if (val_param_ty != null && val_param_ty.is_list()) self.coerce_to_list(val_expr, val_param_ty);
+		if (val_param_ty?.is_list()) self.coerce_to_list(val_expr, val_param_ty);
 		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr, val_param_ty)
 			else if (rhs != null && self.is_untyped_literal(rhs!)) self.check_expr(rhs!, val_param_ty)
 			else val_ty_raw;

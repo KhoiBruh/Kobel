@@ -158,7 +158,7 @@ impl CCodeGen {
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
 				val r_ty = bin.right.type_ptr as *Type;
-				if (r_ty != null && r_ty.kind == DataType.POINTER) {
+				if (r_ty?.kind == DataType.POINTER) {
 					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member} != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
 				}
 				return "(${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s})";

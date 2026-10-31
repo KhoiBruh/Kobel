@@ -64,7 +64,7 @@ impl DeclPass {
 		// Inside an instance the checker resolved this type node to a concrete
 		// type; materialize that instead of replaying the substitution.
 		val e = self.mat_ann(node);
-		if (e != null && e.ty != null) return self.arena.ast_type_from_type(e.ty!);
+		if (e?.ty != null) return self.arena.ast_type_from_type(e.ty!);
 		val target = node;
 		return when (target) {
 			is NamedType as nt -> {
@@ -120,7 +120,7 @@ impl DeclPass {
 		// A node the checker already replaced for this instance (an enum member,
 		// a bound call, a desugared `for`, `T.size()`, ...): materialize the
 		// replacement subtree instead of the shared node itself.
-		if (e != null && e.resolved != null) return self.clone_expr(e.resolved!, subst);
+		if (e?.resolved != null) return self.clone_expr(e.resolved!, subst);
 
 		val target = node;
 		var out = when (target) {
@@ -133,7 +133,7 @@ impl DeclPass {
 				// An identifier the checker resolved to a mangled C name (imports,
 				// symbols from another module) carries that name in the instance's
 				// side table; the shared template node keeps its source name.
-				if (e != null && e.has_ident_name) e.ident_name else id.name,
+				if (e?.has_ident_name) e.ident_name else id.name,
 				node.line, node.col
 			);
 
@@ -152,7 +152,7 @@ impl DeclPass {
 			is CallExpr -> self.clone_call_expr(node!, subst);
 
 			is MemberExpr as m -> {
-				val obj_src = if (e != null && e.obj_replace != null) e.obj_replace! else m.object;
+				val obj_src = e?.obj_replace ?: m.object;
 				val cloned_obj = self.clone_expr(obj_src, subst);
 				val res = if (m.is_safe)
 					self.arena.safe_member(cloned_obj, m.member, node.line, node.col)
@@ -407,7 +407,7 @@ impl DeclPass {
 		val se = self.mat_ann(node);
 		// A node the checker already replaced for this instance (a desugared
 		// `for` block, an injected `continue` step block, ...).
-		if (se != null && se.resolved != null) return self.clone_stmt(se.resolved!, subst);
+		if (se?.resolved != null) return self.clone_stmt(se.resolved!, subst);
 
 		val target = node;
 		return when (target) {
@@ -424,9 +424,9 @@ impl DeclPass {
 
 			is VarDeclStmt as v -> {
 				var ta = if (v.type_annotation != null) self.clone_type(v.type_annotation!, subst) else null;
-				if (se != null && se.var_ty != null && ta == null) ta = self.arena.ast_type_from_type(se.var_ty!);
+				if (se?.var_ty != null && ta == null) ta = self.arena.ast_type_from_type(se.var_ty!);
 				var init_src = v.initializer;
-				if (se != null && se.init_override != null) init_src = se.init_override;
+				if (se?.init_override != null) init_src = se.init_override;
 				val init = if (init_src != null) self.clone_expr(init_src!, subst) else null;
 				if (ta != null && init != null) self.propagate_target_type(ta, init);
 				yield self.arena.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);

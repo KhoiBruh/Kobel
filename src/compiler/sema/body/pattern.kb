@@ -344,7 +344,7 @@ impl BodyPass {
 
 	// The tag constant a pattern compares against, under any of the spellings a
 	// tagged struct may use. Null when the struct declares none.
-	fn find_tag_const(var self, struct_name: str): *Symbol {
+	fn find_tag_const(var self, struct_name: str): *Symbol? {
 		return self.symtab.lookup("${struct_name}__TAG")
 			?: self.symtab.lookup_struct_const(struct_name, "TAG")
 			?: self.symtab.lookup("${struct_name}__KIND")

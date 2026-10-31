@@ -332,56 +332,41 @@ impl DeclPass {
 
 	pub fn infer_const_type(var self, expr: *AstNode?): *Type? {
 		if (expr == null) return null;
+
 		if (expr is LiteralExpr as lit) {
-			when (lit.literal_kind) {
-				LiteralKind.INT -> {
-					return int_literal_type(self.symtab.prims!, lit.raw_text);
-				}
+			return when (lit.literal_kind) {
+				LiteralKind.INT -> int_literal_type(self.symtab.prims!, lit.raw_text);
 				LiteralKind.FLOAT -> {
 					val raw = lit.raw_text;
-					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
-					if (is_f32) return self.prims().t_prim(type_f32());
-					return self.prims().t_prim(type_f64());
+					if (
+						raw.ends_with("f") ||
+						raw.ends_with("F")
+					) yield self.prims().t_prim(type_f32());
+					yield self.prims().t_prim(type_f64());
 				}
-				LiteralKind.BOOL -> {
-					return self.prims().t_bool();
-				}
-				LiteralKind.STRING -> {
-					return self.prims().t_str();
-				}
-				LiteralKind.CHAR -> {
-					return self.prims().t_char();
-				}
-				else -> {
-					return null;
-				}
-			}
+				LiteralKind.BOOL -> self.prims().t_bool();
+				LiteralKind.STRING -> self.prims().t_str();
+				LiteralKind.CHAR -> self.prims().t_char();
+				else -> null;
+			};
 		}
 
-		if (expr is InterpExpr) {
-			return self.prims().t_str();
-		}
+		if (expr is InterpExpr) return self.prims().t_str();
 
 		if (expr is MemberExpr as mem && mem.object is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
-			if (sym?.kind == SymbolKind.ENUM && sym?.type_ptr?.is_enum()) {
-				val ei = sym.type_ptr.as_enum();
-				if (ei.find_member(mem.member) != null) return sym.type_ptr;
-			}
+			if (sym?.type_ptr?.as_enum()?.find_member(mem.member) != null) return sym.type_ptr;
 		}
 
 		if (expr is UnaryExpr as un) {
-			if (un.op == TokenType.MINUS || un.op == TokenType.PLUS) {
-				return self.infer_const_type(un.operand);
-			}
-			if (un.op == TokenType.BANG) {
-				return self.prims().t_bool();
-			}
+			if (
+				un.op == TokenType.MINUS ||
+				un.op == TokenType.PLUS
+			) return self.infer_const_type(un.operand);
+			if (un.op == TokenType.BANG) return self.prims().t_bool();
 		}
 
-		if (expr is GroupExpr as g) {
-			return self.infer_const_type(g.expr);
-		}
+		if (expr is GroupExpr as g) return self.infer_const_type(g.expr);
 
 		return null;
 	}
@@ -403,8 +388,7 @@ impl DeclPass {
 				u.target is MemberExpr as mem &&
 				mem.object is IdentifierExpr as obj_id &&
 				obj_id.name == "self" &&
-				self.current_self_type != null &&
-				self.current_self_type.kind == DataType.STRUCT
+				self.current_self_type?.kind == DataType.STRUCT
 			) {
 				val s_info = self.current_self_type.as_struct();
 				for (fld in s_info.fields) {
@@ -416,9 +400,7 @@ impl DeclPass {
 			return null;
 		}
 
-		if (expr is GroupExpr as g) {
-			return self.infer_expr_type_quick(f, g.expr);
-		}
+		if (expr is GroupExpr as g) return self.infer_expr_type_quick(f, g.expr);
 
 		return null;
 	}
@@ -463,9 +445,12 @@ impl DeclPass {
 				f.return_type = self.arena.named_type("none", List<*AstNode>(), f.body.line, f.body.col);
 				return self.prims().t_none();
 			}
+
 			var first_ty: *Type? = null;
 			for (ret_expr in rets) {
-				val ty = if (ret_expr != null) self.infer_expr_type_quick(f, ret_expr) else self.prims().t_none();
+				val ty = if (ret_expr != null) self.infer_expr_type_quick(f, ret_expr)
+						else self.prims().t_none();
+
 				if (ty == null) return null;
 				if (first_ty == null) {
 					first_ty = ty;
@@ -529,7 +514,8 @@ impl DeclPass {
 			val fn_type = self.arena.fn_type(param_types, ret_type);
 
 			val m_c_name = method_c_name(
-				"${prim_name}_${f.name}", param_types.len, f.name in overloaded, used_names
+				"${prim_name}_${f.name}", param_types.len,
+				f.name in overloaded, used_names
 			);
 			used_names += m_c_name;
 

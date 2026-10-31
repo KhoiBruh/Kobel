@@ -115,8 +115,7 @@ impl BodyPass {
 		if (var_name.empty()) return;
 
 		val sym = self.symtab.lookup(var_name);
-		if (sym == null || sym.type_ptr == null) return;
-		if (sym.type_ptr.kind != DataType.POINTER) return;
+		if (sym?.type_ptr?.kind != DataType.POINTER) return;
 		val ptr_ty = sym.type_ptr.as_pointer();
 		if (!ptr_ty.is_nullable) return;
 
@@ -297,10 +296,7 @@ impl BodyPass {
 			self.report_error(node, "Return statement is not allowed inside defer");
 		val ret = node.as_return_stmt();
 		if (ret.value != null) {
-			if (
-				self.current_fn_return_type != null &&
-				self.current_fn_return_type.is_list()
-			) self.coerce_to_list(ret.value!, self.current_fn_return_type!);
+			if (self.current_fn_return_type?.is_list()) self.coerce_to_list(ret.value!, self.current_fn_return_type!);
 
 			if (self.inferring_fn_return && (self.current_fn_return_type == null || self.current_fn_return_type.kind == DataType.NONE)) {
 				val val_ty = self.check_expr(ret.value!);
@@ -367,15 +363,10 @@ impl BodyPass {
 			if (cur is GroupExpr as g) cur = g.expr;
 			else break;
 		}
-		if (cur == null) return null;
-		if (!(cur is CallExpr)) return null;
-		val call = cur.as_call_expr();
+		val call = (cur as? CallExpr) ?: return null;
 		if (!call.type_args.empty()) return null;
-		val callee = call.callee;
-		if (!(callee is IdentifierExpr)) return null;
-		val cid = callee.as_identifier_expr();
-		val tmpl = self.find_struct_template_for(cid.name);
-		if (tmpl == null) return null;
+		val cid = (call.callee as? IdentifierExpr) ?: return null;
+		val tmpl = self.find_struct_template_for(cid.name) ?: return null;
 		val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
 		val s = var_ty.as_struct();
 		if (!s.c_name.starts_with(prefix)) return null;

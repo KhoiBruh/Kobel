@@ -62,7 +62,7 @@ impl BodyPass {
 			fn_info.param_types.len > 0
 		) {
 			val p0 = fn_info.param_types[0];
-			if (p0 != null && p0.kind == DataType.POINTER && p0.as_pointer().pointee.kind == DataType.STRUCT) {
+			if (p0?.kind == DataType.POINTER && p0.as_pointer().pointee?.kind == DataType.STRUCT) {
 				self_ty = p0.as_pointer().pointee;
 			}
 		}
@@ -141,12 +141,7 @@ impl BodyPass {
 			}
 			is ExprStmt as es -> {
 				// Expression body: => expr;
-				if (
-					f.return_type != null && (
-						self.current_fn_return_type != null &&
-						self.current_fn_return_type.is_list()
-					)
-				) self.coerce_to_list(es.expr, self.current_fn_return_type!);
+				if (f.return_type != null && self.current_fn_return_type?.is_list()) self.coerce_to_list(es.expr, self.current_fn_return_type!);
 
 				val body_ty = self.check_expr(es.expr);
 				if (f.return_type == null) {

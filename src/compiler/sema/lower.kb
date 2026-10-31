@@ -384,7 +384,7 @@ impl BodyPass {
 		if (node.resolved_method == null) return node;
 		val mi = node.resolved_method as *MethodInfo;
 		val target_ty = self.type_of(idx.target);
-		val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+		val t_is_ptr = target_ty?.kind == DataType.POINTER;
 		var args = List<*AstNode>();
 		if (t_is_ptr) args += idx.target;
 		else args += self.arena.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
@@ -446,9 +446,9 @@ impl BodyPass {
 			return self.lowered(node, maybe);
 		}
 
-		val fallback = if (call_ty != null && (call_ty.is_integer() || call_ty.is_enum() || call_ty.kind == DataType.CHAR)) {
+		val fallback = if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR) {
 			self.arena.literal(LiteralKind.INT, "0", node.line, node.col)
-		} else if (call_ty != null && (call_ty.kind == DataType.F32 || call_ty.kind == DataType.F64)) {
+		} else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64) {
 			self.arena.literal(LiteralKind.FLOAT, "0.0", node.line, node.col)
 		} else {
 			null_lit

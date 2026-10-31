@@ -53,7 +53,7 @@ impl BodyPass {
 					e.elem_node = self.arena.ast_type_from_type(elem_tye);
 					e.has_elem_node = true;
 					for (el in al.elements) {
-						if (elem_tye != null && elem_tye.is_list()) self.coerce_to_list(el, elem_tye);
+						if (elem_tye?.is_list()) self.coerce_to_list(el, elem_tye);
 						val el_ty = self.check_expr(el, elem_tye);
 						if (!elem_tye.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
 					}
@@ -69,7 +69,7 @@ impl BodyPass {
 				al.elem_type_node = self.arena.ast_type_from_type(elem_ty);
 
 				for (el in al.elements) {
-					if (elem_ty != null && elem_ty.is_list()) self.coerce_to_list(el, elem_ty);
+					if (elem_ty?.is_list()) self.coerce_to_list(el, elem_ty);
 					val el_ty = self.check_expr(el, elem_ty);
 					if (!elem_ty.can_assign(el_ty)) self.report_error(el, "Element type mismatch in List literal");
 				}
@@ -124,7 +124,7 @@ impl BodyPass {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 				if (is_f32) yield self.prims().t_prim(type_f32());
-				if (expected != null && expected.is_float()) {
+				if (expected?.is_float()) {
 					yield expected;
 				}
 				yield self.prims().t_prim(type_f64());
@@ -170,7 +170,7 @@ impl BodyPass {
 		// right side is evaluated at all.
 		if (bin.op == TokenType.QUESTION_COLON) return self.check_elvis_expr(node, bin, was_stmt);
 
-		val num_expected = if (expected != null && expected.is_numeric()) expected else null;
+		val num_expected = if (expected?.is_numeric()) expected else null;
 
 		val is_cmp = bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL ||
 			bin.op == TokenType.LESS || bin.op == TokenType.LESS_EQUAL ||
@@ -272,8 +272,11 @@ impl BodyPass {
 		if (lt.kind == DataType.POINTER) {
 			val pt = lt.as_pointer();
 			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
-			if (pt.is_nullable)
-				return self.arena.pointer_type(pt.pointee, pt.is_mut);
+			if (pt.is_nullable) {
+				if (is_jump || (rt != null && rt.kind == DataType.POINTER && !rt.as_pointer().is_nullable)) {
+					return self.arena.pointer_type(pt.pointee, pt.is_mut);
+				}
+			}
 		}
 		return lt;
 	}
@@ -355,7 +358,7 @@ impl BodyPass {
 	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		val r_is_ptr = rt.kind == DataType.POINTER;
 		val r_struct_ty = if (r_is_ptr) rt.as_pointer().pointee else rt;
-		if (r_struct_ty != null && r_struct_ty.kind == DataType.STRUCT) {
+		if (r_struct_ty?.kind == DataType.STRUCT) {
 			val s_info = r_struct_ty.as_struct();
 			var arg_types = List<*Type>();
 			arg_types += r_struct_ty;
@@ -456,7 +459,10 @@ impl BodyPass {
 
 	pub fn check_if_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		val if_e = node.as_if_expr();
+		val prev_sn = self.in_safe_nav_context;
+		self.in_safe_nav_context = true;
 		val cond_ty = self.check_expr(if_e.condition);
+		self.in_safe_nav_context = prev_sn;
 		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
 		var then_ty = self.check_expr(if_e.then_branch, expected);
 		val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);

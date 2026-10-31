@@ -105,10 +105,7 @@ impl BodyPass {
 
 		if (call.type_args.empty() && callee is IdentifierExpr as cid) {
 			val local_sym = self.symtab.lookup(cid.name);
-			val is_local_var = local_sym != null && (
-				local_sym.kind == SymbolKind.VAR ||
-				local_sym.kind == SymbolKind.PARAM
-			);
+			val is_local_var = local_sym?.kind == SymbolKind.VAR || local_sym?.kind == SymbolKind.PARAM;
 			if (!is_local_var && (local_sym == null || (local_sym.kind != SymbolKind.FN && local_sym.kind != SymbolKind.STRUCT))) {
 				val ft = self.find_fn_template_for(cid.name);
 				if (ft?.node?.kind == NodeKind.DECL_FN) {
@@ -132,7 +129,7 @@ impl BodyPass {
 					}
 				}
 				val st = self.find_struct_template_for(cid.name);
-				if (st != null && st.node.kind == NodeKind.DECL_STRUCT) {
+				if (st?.node?.kind == NodeKind.DECL_STRUCT) {
 					val inferred_targs = self.infer_type_args_for_struct(st.node.as_struct_decl(), call.args);
 					if (!inferred_targs.empty()) {
 						val cty = self.instantiate_template_struct(st, inferred_targs);
@@ -293,7 +290,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i + 1];
 				val arg_n = call.args[i];
-				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
 			}
@@ -451,7 +448,7 @@ impl BodyPass {
 			for (i in 1..<args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = args[i];
-				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
 			}
@@ -515,9 +512,7 @@ impl BodyPass {
 	// whose type is still unknown triggers that check first. During arrow
 	// inference the attempt is rolled back instead (see infer_arrow_returns).
 	fn ensure_callee_ready(var self, sym: *Symbol?) {
-		if (sym == null) return;
-		if (sym == null || sym.ast_node == null) return;
-		val ast = sym.ast_node!;
+		val ast = sym?.ast_node ?: return;
 		if (!self.arrow_pending(ast)) return;
 
 		// Checking another body must not leak its return type into ours.
@@ -539,8 +534,7 @@ impl BodyPass {
 		val ei = self.symtab.find_enum_info(enum_id.name);
 		if (ei == null || !ei.is_payload) return null;
 
-		val e_sym = self.symtab.lookup(ei.name);
-		if (e_sym == null) return null;
+		val e_sym = self.symtab.lookup(ei.name) ?: return null;
 
 		val mi = ei.find_member(mem.member);
 		if (mi == null) {
@@ -562,7 +556,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val f_ty = field_types[i];
 				val arg_n = call.args[i];
-				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
+				if (f_ty?.is_list()) self.coerce_to_list(arg_n, f_ty);
 				val arg_ty = self.check_expr(arg_n, f_ty);
 				self.ensure(f_ty.can_assign(arg_ty), node,
 					"Field type mismatch in variant '${enum_id.name}.${mem.member}'"
@@ -592,7 +586,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = call.args[i];
-				if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				if (!param_ty.can_assign(arg_ty)) {
 					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
@@ -629,7 +623,7 @@ impl BodyPass {
 				for (i in 0..<call.args.len) {
 					val param_ty = n_info.param_types[i];
 					val arg_n = call.args[i];
-					if (param_ty != null && param_ty.is_list()) self.coerce_to_list(arg_n, param_ty);
+					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val arg_ty = self.check_expr(arg_n, param_ty);
 					self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
 				}
@@ -678,7 +672,7 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val f_ty = s_info.fields[i].type_ptr;
 				val arg_n = call.args[i];
-				if (f_ty != null && f_ty.is_list()) self.coerce_to_list(arg_n, f_ty);
+				if (f_ty?.is_list()) self.coerce_to_list(arg_n, f_ty);
 				val arg_ty = self.check_expr(arg_n, f_ty);
 				self.ensure(f_ty.can_assign(arg_ty), node, "Field type mismatch in struct constructor: '${s_info.c_name}.${s_info.fields[i].name}' expects ${self.type_display(f_ty)} got ${self.type_display(arg_ty)}");
 			}

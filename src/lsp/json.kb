@@ -97,11 +97,11 @@ impl JsonValue {
 	}
 
 	pub fn is_null(val self) => self == null || self.kind == JsonKind.JNULL;
-	pub fn is_bool(val self) => self != null && self.kind == JsonKind.JBOOL;
-	pub fn is_num(val self) => self != null && self.kind == JsonKind.JNUM;
-	pub fn is_str(val self) => self != null && self.kind == JsonKind.JSTR;
-	pub fn is_arr(val self) => self != null && self.kind == JsonKind.JARR;
-	pub fn is_obj(val self) => self != null && self.kind == JsonKind.JOBJ;
+	pub fn is_bool(val self) => self?.kind == JsonKind.JBOOL;
+	pub fn is_num(val self) => self?.kind == JsonKind.JNUM;
+	pub fn is_str(val self) => self?.kind == JsonKind.JSTR;
+	pub fn is_arr(val self) => self?.kind == JsonKind.JARR;
+	pub fn is_obj(val self) => self?.kind == JsonKind.JOBJ;
 
 	pub fn add(var self, val_item: *JsonValue) {
 		if (self.kind == JsonKind.JARR) self.arr_val += val_item;
@@ -127,7 +127,7 @@ impl JsonValue {
 		return json_null();
 	}
 
-	pub op contains(val self, key: str): bool => self != null && self.kind == JsonKind.JOBJ && key in self.obj_keys;
+	pub op contains(val self, key: str): bool => self?.kind == JsonKind.JOBJ && key in self.obj_keys;
 
 	pub fn has(val self, key: str): bool => key in self;
 
@@ -162,11 +162,7 @@ impl JsonValue {
 	}
 
 	pub fn at(val self, index: usz): *JsonValue {
-		if (
-			self != null &&
-			self.kind == JsonKind.JARR &&
-			index < self.arr_val.len
-		) return self.arr_val[index];
+		if (self?.kind == JsonKind.JARR && index < self.arr_val.len) return self.arr_val[index];
 		return json_null();
 	}
 
