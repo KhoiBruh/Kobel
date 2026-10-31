@@ -195,7 +195,10 @@ impl BodyPass {
 		var no_alias_muts = List<bool>();
 
 		for (c in conds) {
+			val prev_sn = self.in_safe_nav_context;
+			self.in_safe_nav_context = true;
 			val c_ty = self.check_expr(c);
+			self.in_safe_nav_context = prev_sn;
 			self.ensure(c_ty.kind == DataType.BOOL, c, "If statement condition must be bool");
 
 			val unwrapped_c = self.unwrap_group(c);
@@ -256,7 +259,10 @@ impl BodyPass {
 		defer self.symtab.exit_scope();
 
 		for (c in conds) {
+			val prev_sn = self.in_safe_nav_context;
+			self.in_safe_nav_context = true;
 			val c_ty = self.check_expr(c);
+			self.in_safe_nav_context = prev_sn;
 			self.ensure(c_ty.kind == DataType.BOOL, c, "While statement condition must be bool");
 
 			val unwrapped_c = self.unwrap_group(c);

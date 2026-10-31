@@ -87,6 +87,12 @@ impl BodyPass {
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
 				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+			} else if (ret_ty.kind != DataType.STR) {
+				self.ensure(
+					self.in_safe_nav_context,
+					node,
+					"Safe navigation '?.' on non-pointer field '${mem.member}' requires handling null with '?:' or being used in a condition"
+				);
 			}
 		}
 

@@ -35,6 +35,11 @@ fn takes_non_null(item: *Inner): bool {
 	return item.kind == ItemKind.SECOND;
 }
 
+fn test_elvis_jump_on_null(p: *Inner?): bool {
+	val k = p?.kind ?: return true;
+	return false;
+}
+
 fn main(): i32 {
 	var in1 = Inner(true, ItemKind.SECOND, 42, "hello");
 	var mid1 = Middle(&in1);
@@ -69,19 +74,18 @@ fn main(): i32 {
 	val p_broken: *Outer? = &out_mid_empty;
 	if (p_broken?.middle?.inner?.check_ok()) return 7;
 
-	// 8. Universal safe access on Enum: null pointer returns 0, real returns SECOND
-	if (p_null_in?.kind == ItemKind.SECOND) return 8;
-	if (p_real_in?.kind != ItemKind.SECOND) return 9;
+	// 8. Safe comparison on null pointer in conditions: MUST be false, never match
+	// Even though ItemKind.FIRST == 0, null check fails first!
+	if (p_null_in?.kind == ItemKind.FIRST) return 8;
+	if (p_null_in?.kind != ItemKind.SECOND) return 9; // null is not checked -> false
+	if (p_real_in?.kind != ItemKind.SECOND) return 10;
+	if (p_real_in?.kind == ItemKind.FIRST) return 11;
 
-	// 9. Universal safe method call returning Enum
-	if (p_null_in?.get_kind() == ItemKind.SECOND) return 10;
-	if (p_real_in?.get_kind() != ItemKind.SECOND) return 11;
+	// 9. Relational comparison with safe navigation in condition
+	if (p_null_in?.count < 100) return 12; // null fails first -> false
+	if (!(p_real_in?.count < 100)) return 13;
 
-	// 10. Universal safe access on Int
-	if (p_null_in?.count != 0) return 12;
-	if (p_real_in?.count != 42) return 13;
-
-	// 11. Smart cast: p_test is promoted to non-null *Inner inside `if (p_test?.kind == ItemKind.SECOND)`
+	// 10. Smart cast: p_test is promoted to non-null *Inner inside `if (p_test?.kind == ItemKind.SECOND)`
 	val p_test: *Inner? = &in1;
 	if (p_test?.kind == ItemKind.SECOND) {
 		// p_test is now *Inner, can pass to takes_non_null without `!` or `!!`
@@ -91,6 +95,24 @@ fn main(): i32 {
 	} else {
 		return 16;
 	}
+
+	// 11. Elvis operator with safe navigation on primitive/enum: type?.b ?: fallback
+	val k_fallback = p_null_in?.kind ?: ItemKind.THIRD;
+	if (k_fallback != ItemKind.THIRD) return 17;
+
+	val k_real = p_real_in?.kind ?: ItemKind.THIRD;
+	if (k_real != ItemKind.SECOND) return 18;
+
+	val cnt_fallback = p_null_in?.count ?: 99;
+	if (cnt_fallback != 99) return 19;
+
+	val cnt_real = p_real_in?.count ?: 99;
+	if (cnt_real != 42) return 20;
+
+	// 12. Elvis operator with jump statement on safe navigation
+	if (!test_elvis_jump_on_null(p_null_in)) return 21;
+	val k_no_jump = p_real_in?.kind ?: return 22;
+	if (k_no_jump != ItemKind.SECOND) return 23;
 
 	return 0;
 }

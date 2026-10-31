@@ -22,6 +22,7 @@ use compiler.ast.decl.*;
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
 use compiler.codegen.c_type.*;
+use compiler.codegen.c_expr.*;
 
 use compiler.codegen.c_codegen.*;
 
@@ -169,6 +170,34 @@ impl CCodeGen {
 		var self, vd: *VarDeclStmt, init_e: *AstNode,
 		ind: str, ty_str: str
 	): str {
+		val unwrapped_init = unwrap_group_expr(init_e);
+		if (unwrapped_init != null && unwrapped_init is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
+			val unwrapped_l = unwrap_group_expr(eb.left);
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+				val unwrapped_r = unwrap_group_expr(eb.right);
+				val is_jump = unwrapped_r != null && (
+					unwrapped_r.kind == NodeKind.STMT_RETURN ||
+					unwrapped_r.kind == NodeKind.STMT_BREAK ||
+					unwrapped_r.kind == NodeKind.STMT_CONTINUE ||
+					unwrapped_r.kind == NodeKind.STMT_YIELD ||
+					unwrapped_r.kind == NodeKind.STMT_BLOCK
+				);
+				val obj_s = self.gen_expr(mem.object);
+				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				if (is_jump) {
+					var res = "${ind}if (${obj_wrap} == NULL) {\n";
+					self.indent_level++;
+					res = "${res}${self.gen_statement(unwrapped_r!)}";
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+					res = "${res}${ind}${ty_str} ${vd.name} = ${obj_wrap}->${mem.member};\n";
+					return res;
+				}
+				val r_s = self.gen_expr(eb.right);
+				return "${ind}${ty_str} ${vd.name} = (${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s});\n";
+			}
+		}
+
 		var cur = init_e;
 		var first = true;
 		var res = "";
@@ -509,6 +538,34 @@ impl CCodeGen {
 	// `x = a ?: b ?: c` assigns the first non-NULL value through a chain of NULL checks.
 	fn gen_assign_elvis_stmt(var self, asg: *AssignExpr, asg_val: *AstNode, ind: str): str {
 		val tgt = self.gen_expr(asg.target);
+		val unwrapped_val = unwrap_group_expr(asg_val);
+		if (unwrapped_val != null && unwrapped_val is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
+			val unwrapped_l = unwrap_group_expr(eb.left);
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+				val unwrapped_r = unwrap_group_expr(eb.right);
+				val is_jump = unwrapped_r != null && (
+					unwrapped_r.kind == NodeKind.STMT_RETURN ||
+					unwrapped_r.kind == NodeKind.STMT_BREAK ||
+					unwrapped_r.kind == NodeKind.STMT_CONTINUE ||
+					unwrapped_r.kind == NodeKind.STMT_YIELD ||
+					unwrapped_r.kind == NodeKind.STMT_BLOCK
+				);
+				val obj_s = self.gen_expr(mem.object);
+				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				if (is_jump) {
+					var res = "${ind}if (${obj_wrap} == NULL) {\n";
+					self.indent_level++;
+					res = "${res}${self.gen_statement(unwrapped_r!)}";
+					self.indent_level--;
+					res = "${res}${ind}}\n";
+					res = "${res}${ind}${tgt} = ${obj_wrap}->${mem.member};\n";
+					return res;
+				}
+				val r_s = self.gen_expr(eb.right);
+				return "${ind}${tgt} = (${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s});\n";
+			}
+		}
+
 		var cur = asg_val;
 		var first = true;
 		var res = "";
@@ -554,6 +611,17 @@ impl CCodeGen {
 
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
 	fn gen_elvis_jump_stmt(var self, bin: *BinaryExpr, ind: str): str {
+		val unwrapped_l = unwrap_group_expr(bin.left);
+		if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+			val obj_s = self.gen_expr(mem.object);
+			val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+			var res = "${ind}if (${obj_wrap} == NULL) {\n";
+			self.indent_level++;
+			res = "${res}${self.gen_statement(bin.right)}";
+			self.indent_level--;
+			res = "${res}${ind}}\n";
+			return res;
+		}
 		var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
 		self.indent_level++;
 		res = "${res}${self.gen_statement(bin.right)}";

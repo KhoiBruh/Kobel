@@ -64,6 +64,7 @@ pub struct BodyPass {
 	pub when_depth: usz = 0,
 	pub checked_fns: List<*AstNode> = List(),
 	pub is_stmt_level: bool = false,
+	pub in_safe_nav_context: bool = false,
 	pub defer_depth: usz = 0,
 	// Declaration pass whose type resolver and instance tables this pass reuses,
 	// so checking a body never builds a second DeclPass (see `resolve_type`).

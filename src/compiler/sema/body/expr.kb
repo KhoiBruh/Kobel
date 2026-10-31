@@ -172,11 +172,21 @@ impl BodyPass {
 
 		val num_expected = if (expected != null && expected.is_numeric()) expected else null;
 
+		val is_cmp = bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL ||
+			bin.op == TokenType.LESS || bin.op == TokenType.LESS_EQUAL ||
+			bin.op == TokenType.GREATER || bin.op == TokenType.GREATER_EQUAL ||
+			bin.op == TokenType.AND_AND || bin.op == TokenType.OR_OR;
+
+		val prev_sn = self.in_safe_nav_context;
+		if (is_cmp) self.in_safe_nav_context = true;
+
 		var lt_num = self.check_expr(bin.left, num_expected);
 		var lt = lt_num;
 		var r_expected: *Type? = num_expected;
 		if (lt.is_numeric()) r_expected = lt;
 		var rt = self.check_expr(bin.right, r_expected);
+
+		self.in_safe_nav_context = prev_sn;
 
 		if (
 			self.is_untyped_literal(bin.left) &&
@@ -202,18 +212,28 @@ impl BodyPass {
 		};
 	}
 
-	// `a ?: b`. The left side must be a pointer or `str`, and the right side is
-	// only evaluated when the left is null. A jump statement on the right
-	// (`x ?: return y`) is allowed at statement level, where the statement itself
-	// supplies the value.
+	fn is_safe_nav_expr(var self, expr: *AstNode?): bool {
+		if (expr == null) return false;
+		val cur = self.unwrap_group(expr!);
+		if (cur is MemberExpr as mem) return mem.is_safe;
+		if (cur is CallExpr as call && call.callee is MemberExpr as cmem) return cmem.is_safe;
+		return false;
+	}
+
+	// `a ?: b`. The left side must be a pointer, `str`, or safe navigation `?.`,
+	// and the right side is only evaluated when the left is null.
 	fn check_elvis_expr(var self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
 		val num_expected: *Type? = null;
+		val prev_sn = self.in_safe_nav_context;
+		self.in_safe_nav_context = true;
 		var lt_num = self.check_expr(bin.left, num_expected);
+		self.in_safe_nav_context = prev_sn;
 		var lt = lt_num;
+		val is_safe_nav = self.is_safe_nav_expr(bin.left);
 		self.ensure(
-			lt.kind == DataType.POINTER || lt.kind == DataType.STR,
+			lt.kind == DataType.POINTER || lt.kind == DataType.STR || is_safe_nav,
 			bin.left,
-			"Left-hand side of Elvis operator '?:' must be a pointer or string"
+			"Left-hand side of Elvis operator '?:' must be a pointer, string, or safe navigation '?'"
 		);
 
 		val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
@@ -235,7 +255,7 @@ impl BodyPass {
 			self.check_statement(bin.right);
 		} else {
 			self.is_stmt_level = was_stmt;
-			rt = self.check_expr(bin.right);
+			rt = self.check_expr(bin.right, lt);
 			self.is_stmt_level = false;
 			val lt_is_null_lit = lt.kind == DataType.POINTER && lt.as_pointer().pointee.kind == DataType.NONE;
 			self.ensure(
@@ -243,6 +263,10 @@ impl BodyPass {
 				bin.right,
 				"Right-hand side of Elvis operator '?:' has incompatible type"
 			);
+		}
+
+		if (is_safe_nav && lt.kind != DataType.POINTER && lt.kind != DataType.STR) {
+			return lt;
 		}
 
 		if (lt.kind == DataType.POINTER) {

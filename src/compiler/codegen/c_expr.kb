@@ -29,6 +29,15 @@ use compiler.codegen.c_codegen.*;
 // Expression Code Generation
 // ============================================================================
 
+pub fn unwrap_group_expr(node: *AstNode?): *AstNode? {
+	var cur = node;
+	while (cur != null) {
+		if (cur is GroupExpr as g) cur = g.expr;
+		else break;
+	}
+	return cur;
+}
+
 pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
 	is IdentifierExpr,
 	is MemberExpr,
@@ -143,9 +152,67 @@ impl CCodeGen {
 	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
 	fn gen_binary_expr(var self, bin: *BinaryExpr): str {
 		if (bin.op == TokenType.QUESTION_COLON) {
+			val unwrapped_l = unwrap_group_expr(bin.left);
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+				val obj_s = self.gen_expr(mem.object);
+				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				val r_s = self.gen_expr(bin.right);
+				val r_ty = bin.right.type_ptr as *Type;
+				if (r_ty != null && r_ty.kind == DataType.POINTER) {
+					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member} != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
+				}
+				return "(${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s})";
+			}
 			val l = self.gen_expr(bin.left);
 			val r = self.gen_expr(bin.right);
 			return "(${l} != NULL ? ${l} : ${r})";
+		}
+
+		val is_cmp = bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL ||
+			bin.op == TokenType.LESS || bin.op == TokenType.LESS_EQUAL ||
+			bin.op == TokenType.GREATER || bin.op == TokenType.GREATER_EQUAL;
+		if (is_cmp) {
+			val unwrapped_l = unwrap_group_expr(bin.left);
+			val unwrapped_r = unwrap_group_expr(bin.right);
+
+			var l_is_safe = false;
+			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem_l) l_is_safe = mem_l.is_safe;
+			var r_is_safe = false;
+			if (unwrapped_r != null && unwrapped_r is MemberExpr as mem_r) r_is_safe = mem_r.is_safe;
+
+			val op_str = when (bin.op) {
+				TokenType.EQUAL_EQUAL -> "==";
+				TokenType.BANG_EQUAL -> "!=";
+				TokenType.LESS -> "<";
+				TokenType.LESS_EQUAL -> "<=";
+				TokenType.GREATER -> ">";
+				TokenType.GREATER_EQUAL -> ">=";
+				else -> "==";
+			};
+
+			if (l_is_safe && !r_is_safe) {
+				val mem = unwrapped_l!.as_member_expr();
+				val obj_s = self.gen_expr(mem.object);
+				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				val r_s = self.gen_expr(bin.right);
+				return "(${obj_wrap} != NULL && ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
+			}
+			if (r_is_safe && !l_is_safe) {
+				val mem = unwrapped_r!.as_member_expr();
+				val obj_s = self.gen_expr(mem.object);
+				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				val l_s = self.gen_expr(bin.left);
+				return "(${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
+			}
+			if (l_is_safe && r_is_safe) {
+				val mem_l_val = unwrapped_l!.as_member_expr();
+				val mem_r_val = unwrapped_r!.as_member_expr();
+				val obj_l_s = self.gen_expr(mem_l_val.object);
+				val obj_r_s = self.gen_expr(mem_r_val.object);
+				val obj_l_wrap = if (expr_needs_parens_for_member(mem_l_val.object)) "(${obj_l_s})" else obj_l_s;
+				val obj_r_wrap = if (expr_needs_parens_for_member(mem_r_val.object)) "(${obj_r_s})" else obj_r_s;
+				return "(${obj_l_wrap} != NULL && ${obj_r_wrap} != NULL && ${obj_l_wrap}->${mem_l_val.member} ${op_str} ${obj_r_wrap}->${mem_r_val.member})";
+			}
 		}
 
 		val l = self.gen_expr(bin.left);
