@@ -194,7 +194,7 @@ impl BodyPass {
 	// A `when` arm body is either an expression or a block of statements (the
 	// block form yields a value), so pick the right walker for it.
 	fn lower_arm_body(var self, body: *AstNode): *AstNode {
-		if (body != null && body.kind == NodeKind.STMT_BLOCK) return self.lower_stmt(body);
+		if (body?.kind == NodeKind.STMT_BLOCK) return self.lower_stmt(body);
 		return self.lower_expr(body);
 	}
 
@@ -232,7 +232,7 @@ impl BodyPass {
 		if (bin.op == TokenType.KW_IN && node.resolved_method != null) {
 			val mi = node.resolved_method as *MethodInfo;
 			val right_ty = self.type_of(bin.right);
-			val r_is_ptr = right_ty != null && right_ty.kind == DataType.POINTER;
+			val r_is_ptr = right_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (r_is_ptr) args += bin.right;
 			else args += self.arena.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
@@ -257,7 +257,7 @@ impl BodyPass {
 		// Struct equality without an `equals` method: byte compare by size.
 		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
 			val lt = self.type_of(bin.left);
-			if (lt != null && lt.kind == DataType.STRUCT) {
+			if (lt?.kind == DataType.STRUCT) {
 				val eq = self.arena.make_mem_eq(bin.op == TokenType.BANG_EQUAL, bin.left, bin.right, lt.size, node.line, node.col);
 				return self.lowered(node, eq);
 			}
@@ -272,7 +272,7 @@ impl BodyPass {
 		if (node.resolved_method != null) {
 			val mi = node.resolved_method as *MethodInfo;
 			val target_ty = self.type_of(asgn.target);
-			val t_is_ptr = target_ty != null && target_ty.kind == DataType.POINTER;
+			val t_is_ptr = target_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (t_is_ptr) args += asgn.target;
 			else args += self.arena.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
@@ -345,7 +345,7 @@ impl BodyPass {
 
 		// Enum `.value` is identity on the underlying integer.
 		val obj_ty = self.type_of(obj);
-		if (obj_ty != null && obj_ty.is_enum() && mem.member == "value") return self.lowered(node, obj);
+		if (obj_ty?.is_enum() && mem.member == "value") return self.lowered(node, obj);
 
 		if (self.is_str_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
@@ -421,10 +421,10 @@ impl BodyPass {
 		val recv = mem.object;
 
 		val recv_ty = self.type_of(recv);
-		val obj_is_ptr = recv_ty != null && recv_ty.kind == DataType.POINTER;
+		val obj_is_ptr = recv_ty?.kind == DataType.POINTER;
 		var inner_ty = recv_ty;
 		if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
-		val by_ref = inner_ty != null && inner_ty.kind == DataType.STRUCT;
+		val by_ref = inner_ty?.kind == DataType.STRUCT;
 
 		var new_args = List<*AstNode>();
 		if (by_ref == obj_is_ptr) new_args += recv;
@@ -442,7 +442,7 @@ impl BodyPass {
 		val null_lit = self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
 		val cond = self.arena.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
 
-		if (call_ty != null && call_ty.kind == DataType.BOOL) {
+		if (call_ty?.kind == DataType.BOOL) {
 			val maybe = self.arena.binary(TokenType.AND_AND, cond, direct, node.line, node.col);
 			return self.lowered(node, maybe);
 		}
@@ -491,14 +491,14 @@ impl BodyPass {
 	// `check_expr` recurses into them without annotating the group itself.
 	fn type_of(var self, node: *AstNode): *Type? {
 		var cur = node;
-		while (cur != null && cur.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
+		while (cur?.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
 		if (cur == null) return null;
 		return cur.type_ptr as *Type;
 	}
 
 	fn is_str_expr(var self, node: *AstNode): bool {
 		val t = self.type_of(node);
-		return t != null && t.kind == DataType.STR;
+		return t?.kind == DataType.STR;
 	}
 
 	// True for the statement nodes that can sit in an expression position (the
@@ -514,7 +514,7 @@ impl BodyPass {
 
 	fn is_array_expr(var self, node: *AstNode): bool {
 		val t = self.type_of(node);
-		return t != null && t.kind == DataType.ARRAY;
+		return t?.kind == DataType.ARRAY;
 	}
 
 }

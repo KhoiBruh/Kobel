@@ -76,7 +76,7 @@ impl BodyPass {
 			if (ft != null) {
 				val cname = self.instantiate_template_fn(ft, call.type_args);
 				val sym = self.symtab.lookup(cname);
-				if (sym != null && sym.type_ptr.kind == DataType.FN) {
+				if (sym?.type_ptr?.kind == DataType.FN) {
 					self.ensure_callee_ready(sym);
 					val new_call = self.arena.call(
 						self.arena.identifier(cname, node.line, node.col),
@@ -111,12 +111,12 @@ impl BodyPass {
 			);
 			if (!is_local_var && (local_sym == null || (local_sym.kind != SymbolKind.FN && local_sym.kind != SymbolKind.STRUCT))) {
 				val ft = self.find_fn_template_for(cid.name);
-				if (ft != null && ft.node.kind == NodeKind.DECL_FN) {
+				if (ft?.node?.kind == NodeKind.DECL_FN) {
 					val inferred_targs = self.infer_type_args_for_fn(ft.node.as_fn_decl(), call.args, false);
 					if (!inferred_targs.empty()) {
 						val cname = self.instantiate_template_fn(ft, inferred_targs);
 						val sym = self.symtab.lookup(cname);
-						if (sym != null && sym.type_ptr.kind == DataType.FN) {
+						if (sym?.type_ptr?.kind == DataType.FN) {
 							self.ensure_callee_ready(sym);
 							val new_call = self.arena.call(
 								self.arena.identifier(cname, node.line, node.col),

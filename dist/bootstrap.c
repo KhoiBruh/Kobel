@@ -8074,7 +8074,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struc
         while (__for_i < __for_n) {
             compiler__sema__symbol__ModuleScope* sc = std__collections__list__List_ptr_compiler__sema__symbol__ModuleScope_at(&self->modules, __for_i);
             compiler__sema__symbol__Symbol* sc_s = compiler__sema__symbol__ModuleScope_lookup(sc, direct);
-            if ((sc_s != NULL) && (sc_s->kind == 1)) {
+            if (sc_s != NULL && sc_s->kind == 1) {
                 return sc_s;
             }
             __for_i = (__for_i + 1);
@@ -12636,7 +12636,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_propagate_ins
 
 bool compiler__sema__body__pass__BodyPass_struct_implements_iterable(compiler__sema__body__pass__BodyPass* self, compiler__sema__types__Type* ty) {
     compiler__sema__types__Type* cur = ty;
-    if ((cur != NULL) && (cur->kind == 16)) {
+    if (cur != NULL && cur->kind == 16) {
         cur = (*compiler__sema__types__Type_as_pointer(cur)).pointee;
     }
     if ((cur == NULL) || (cur->kind != 18)) {
@@ -12732,11 +12732,11 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_const_me
                 return carrier;
             }
             compiler__sema__symbol__Symbol* s_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, enum_id->name);
-            if ((s_sym != NULL) && (s_sym->kind == 4)) {
+            if (s_sym != NULL && s_sym->kind == 4) {
                 compiler__sema__symbol__Symbol* c_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, kobel_concat(kobel_concat(enum_id->name, "__"), mem->member));
                 if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, enum_id->name, mem->member);
                 if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, s_sym->name, mem->member);
-                if ((c_sym != NULL) && (c_sym->kind == 1)) {
+                if (c_sym != NULL && c_sym->kind == 1) {
                     compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__arena__Arena_identifier(&self->arena, c_sym->c_name, node->line, node->col));
                     return c_sym->type_ptr;
                 }
@@ -13094,45 +13094,45 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_exp
         if ((ty != NULL) && compiler__sema__types__Type_is_enum(ty)) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat(kobel_concat(kobel_concat(kobel_concat("Cannot cast to enum type '", (*compiler__sema__types__Type_as_enum(ty)).name), "' with 'as'. Use constructor '"), (*compiler__sema__types__Type_as_enum(ty)).name), "(value)' instead"));
         }
-        if ((((src_ty != NULL) && (src_ty->kind == 16)) && (ty != NULL)) && compiler__sema__types__Type_is_integer(ty)) {
+        if ((src_ty != NULL && src_ty->kind == 16) && ((ty != NULL) && compiler__sema__types__Type_is_integer(ty))) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, "Cannot cast pointer to integer with 'as'. Use '.addr()' instead");
         }
-        if ((((src_ty != NULL) && compiler__sema__types__Type_is_integer(src_ty)) && (ty != NULL)) && (ty->kind == 16)) {
+        if (((src_ty != NULL) && compiler__sema__types__Type_is_integer(src_ty)) && (ty != NULL && ty->kind == 16)) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, "Cannot cast integer to pointer with 'as'");
         }
-        if ((((src_ty != NULL) && (src_ty->kind == 2)) && (ty != NULL)) && compiler__sema__types__Type_is_integer(ty)) {
+        if ((src_ty != NULL && src_ty->kind == 2) && ((ty != NULL) && compiler__sema__types__Type_is_integer(ty))) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, "Cannot cast 'char' with 'as'. Use '.code()' instead");
         }
-        if ((((src_ty != NULL) && compiler__sema__types__Type_is_integer(src_ty)) && (ty != NULL)) && (ty->kind == 2)) {
+        if (((src_ty != NULL) && compiler__sema__types__Type_is_integer(src_ty)) && (ty != NULL && ty->kind == 2)) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
         }
         return ty;
     }
     compiler__sema__types__Type* target_struct_ty = ty;
-    if ((target_struct_ty != NULL) && (target_struct_ty->kind == 16)) {
+    if (target_struct_ty != NULL && target_struct_ty->kind == 16) {
         target_struct_ty = (*compiler__sema__types__Type_as_pointer(target_struct_ty)).pointee;
     }
     compiler__sema__types__Type* base_ty = src_ty;
     bool is_ptr = false;
-    if ((base_ty != NULL) && (base_ty->kind == 16)) {
+    if (base_ty != NULL && base_ty->kind == 16) {
         is_ptr = true;
         base_ty = (*compiler__sema__types__Type_as_pointer(base_ty)).pointee;
     }
     cst->is_ptr = is_ptr;
-    if ((target_struct_ty != NULL) && (target_struct_ty->kind == 18)) {
+    if (target_struct_ty != NULL && target_struct_ty->kind == 18) {
         compiler__sema__structs__StructType* target_s = compiler__sema__types__Type_as_struct(target_struct_ty);
         compiler__sema__symbol__Symbol* tag_const_sym = compiler__sema__body__pass__BodyPass_find_tag_const(self, target_s->name);
         if (tag_const_sym != NULL) {
             cst->tag_const = tag_const_sym->c_name;
         }
-        if ((base_ty != NULL) && (base_ty->kind == 18)) {
+        if (base_ty != NULL && base_ty->kind == 18) {
             compiler__sema__structs__StructType* base_s = compiler__sema__types__Type_as_struct(base_ty);
             cst->tag_field = compiler__sema__body__pass__BodyPass_tag_field_name_of(self, base_s);
             cst->base_c_name = base_s->c_name;
             compiler__sema__types__Type* data_ty = compiler__sema__body__pass__BodyPass_field_type_of(self, base_s, "data");
-            if ((data_ty != NULL) && (data_ty->kind == 18)) {
+            if (data_ty != NULL && data_ty->kind == 18) {
                 compiler__sema__enums__EnumInfo* data_enum = compiler__sema__symbol__SymbolTable_find_enum_info(&self->symtab, (*compiler__sema__types__Type_as_struct(data_ty)).name);
-                if ((data_enum != NULL) && data_enum->is_payload) {
+                if ((data_enum != NULL && data_enum->is_payload)) {
                     compiler__sema__enums__EnumMemberInfo* m = compiler__sema__enums__EnumInfo_find_member(data_enum, target_s->name);
                     if (m != NULL) {
                         cst->payload_path = kobel_concat(kobel_concat("data.", m->payload_path), ".inner");
@@ -13147,7 +13147,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_exp
                 }
             }
             compiler__sema__enums__EnumInfo* enum_info = compiler__sema__symbol__SymbolTable_find_enum_info(&self->symtab, base_s->name);
-            if ((enum_info != NULL) && enum_info->is_payload) {
+            if ((enum_info != NULL && enum_info->is_payload)) {
                 {
                     size_t __for_n = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_count(&enum_info->members);
                     size_t __for_i = 0;
@@ -13346,7 +13346,7 @@ const char* compiler__sema__body__pass__BodyPass_match_enum_variant(compiler__se
         } else if ((pat != NULL && pat->kind == compiler__ast__expr__IsExpr__TAG && (is_e = pat->data.u.IsExpr.inner, 1))) {
             if (is_e->target_type != NULL) {
                 compiler__sema__types__Type* target_ty = compiler__sema__body__pass__BodyPass_resolve_type(self, is_e->target_type);
-                if ((target_ty != NULL) && (target_ty->kind == 18)) {
+                if (target_ty != NULL && target_ty->kind == 18) {
                     compiler__sema__structs__StructType* target_s = compiler__sema__types__Type_as_struct(target_ty);
                     {
                         size_t __for_n = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_count(&enum_info->members);
@@ -13535,7 +13535,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_is_patte
     compiler__sema__types__Type* base_ty = subj_ty;
     bool is_ptr = false;
     bool subj_is_mut = false;
-    if ((base_ty != NULL) && (base_ty->kind == 16)) {
+    if (base_ty != NULL && base_ty->kind == 16) {
         is_ptr = true;
         subj_is_mut = (*compiler__sema__types__Type_as_pointer(base_ty)).is_mut;
         base_ty = (*compiler__sema__types__Type_as_pointer(base_ty)).pointee;
@@ -13559,16 +13559,16 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_is_patte
     is_e->base_c_name = base_s->c_name;
     is_e->is_ptr = is_ptr;
     compiler__sema__types__Type* data_ty = compiler__sema__body__pass__BodyPass_field_type_of(self, base_s, "data");
-    if ((data_ty != NULL) && (data_ty->kind == 18)) {
+    if (data_ty != NULL && data_ty->kind == 18) {
         compiler__sema__enums__EnumInfo* data_enum = compiler__sema__symbol__SymbolTable_find_enum_info(&self->symtab, (*compiler__sema__types__Type_as_struct(data_ty)).name);
-        if ((data_enum != NULL) && data_enum->is_payload) {
+        if ((data_enum != NULL && data_enum->is_payload)) {
             is_e->payload_path = kobel_concat(kobel_concat("data.u.", target_s->name), ".inner");
             is_e->payload_ptr = true;
             is_e->tag_const = tag_const_sym->c_name;
         }
     }
     compiler__sema__enums__EnumInfo* enum_info = compiler__sema__symbol__SymbolTable_find_enum_info(&self->symtab, base_s->name);
-    if ((enum_info != NULL) && enum_info->is_payload) {
+    if ((enum_info != NULL && enum_info->is_payload)) {
         {
             size_t __for_n = std__collections__list__List_ptr_compiler__sema__enums__EnumMemberInfo_count(&enum_info->members);
             size_t __for_i = 0;
@@ -13725,7 +13725,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
             if (ft != NULL) {
                 const char* cname = compiler__sema__body__pass__BodyPass_instantiate_template_fn(self, ft, call->type_args);
                 compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cname);
-                if ((sym != NULL) && ((*sym->type_ptr).kind == 19)) {
+                if ((sym != NULL ? sym->type_ptr : NULL) != NULL && (sym != NULL ? sym->type_ptr : NULL)->kind == 19) {
                     compiler__sema__body__pass__BodyPass_ensure_callee_ready(self, sym);
                     compiler__ast__node__AstNode* new_call = std__mem__arena__Arena_call(&self->arena, std__mem__arena__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                     compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
@@ -13753,12 +13753,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
             bool is_local_var = ((local_sym != NULL) && ((local_sym->kind == 0) || (local_sym->kind == 2)));
             if (!is_local_var && ((local_sym == NULL) || ((local_sym->kind != 3) && (local_sym->kind != 4)))) {
                 compiler__sema__template__GenTemplate* ft = compiler__sema__body__pass__BodyPass_find_fn_template_for(self, cid->name);
-                if ((ft != NULL) && ((*ft->node).kind == 33)) {
+                if ((ft != NULL ? ft->node : NULL) != NULL && (ft != NULL ? ft->node : NULL)->kind == 33) {
                     std__collections__list__List_ptr_compiler__ast__node__AstNode inferred_targs = compiler__sema__body__pass__BodyPass_infer_type_args_for_fn(self, compiler__ast__node__AstNode_as_fn_decl(ft->node), call->args, false);
                     if (!std__collections__list__List_ptr_compiler__ast__node__AstNode_empty(&inferred_targs)) {
                         const char* cname = compiler__sema__body__pass__BodyPass_instantiate_template_fn(self, ft, inferred_targs);
                         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cname);
-                        if ((sym != NULL) && ((*sym->type_ptr).kind == 19)) {
+                        if ((sym != NULL ? sym->type_ptr : NULL) != NULL && (sym != NULL ? sym->type_ptr : NULL)->kind == 19) {
                             compiler__sema__body__pass__BodyPass_ensure_callee_ready(self, sym);
                             compiler__ast__node__AstNode* new_call = std__mem__arena__Arena_call(&self->arena, std__mem__arena__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                             compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
@@ -16404,7 +16404,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_expr(co
 }
 
 compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_arm_body(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* body) {
-    if ((body != NULL) && (body->kind == 19)) {
+    if (body != NULL && body->kind == 19) {
         return compiler__sema__body__pass__BodyPass_lower_stmt(self, body);
     }
     return compiler__sema__body__pass__BodyPass_lower_expr(self, body);
@@ -16435,7 +16435,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_binary(
     if ((bin->op == 67) && (node->resolved_method != NULL)) {
         compiler__sema__methods__MethodInfo* mi = (compiler__sema__methods__MethodInfo*)node->resolved_method;
         compiler__sema__types__Type* right_ty = compiler__sema__body__pass__BodyPass_type_of(self, bin->right);
-        bool r_is_ptr = ((right_ty != NULL) && (right_ty->kind == 16));
+        bool r_is_ptr = (right_ty != NULL && right_ty->kind == 16);
         std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         if (r_is_ptr) {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->right);
@@ -16459,7 +16459,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_binary(
     }
     if ((bin->op == 21) || (bin->op == 22)) {
         compiler__sema__types__Type* lt = compiler__sema__body__pass__BodyPass_type_of(self, bin->left);
-        if ((lt != NULL) && (lt->kind == 18)) {
+        if (lt != NULL && lt->kind == 18) {
             compiler__ast__node__AstNode* eq = std__mem__arena__Arena_make_mem_eq(&self->arena, (bin->op == 22), bin->left, bin->right, lt->size, node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, eq);
         }
@@ -16471,7 +16471,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_assign(
     if (node->resolved_method != NULL) {
         compiler__sema__methods__MethodInfo* mi = (compiler__sema__methods__MethodInfo*)node->resolved_method;
         compiler__sema__types__Type* target_ty = compiler__sema__body__pass__BodyPass_type_of(self, asgn->target);
-        bool t_is_ptr = ((target_ty != NULL) && (target_ty->kind == 16));
+        bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
         std__collections__list__List_ptr_compiler__ast__node__AstNode args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
         if (t_is_ptr) {
             std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, asgn->target);
@@ -16663,12 +16663,12 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
     compiler__sema__methods__MethodInfo* mi = (compiler__sema__methods__MethodInfo*)node->resolved_method;
     compiler__ast__node__AstNode* recv = mem->object;
     compiler__sema__types__Type* recv_ty = compiler__sema__body__pass__BodyPass_type_of(self, recv);
-    bool obj_is_ptr = ((recv_ty != NULL) && (recv_ty->kind == 16));
+    bool obj_is_ptr = (recv_ty != NULL && recv_ty->kind == 16);
     compiler__sema__types__Type* inner_ty = recv_ty;
     if (obj_is_ptr) {
         inner_ty = (*compiler__sema__types__Type_as_pointer(recv_ty)).pointee;
     }
-    bool by_ref = ((inner_ty != NULL) && (inner_ty->kind == 18));
+    bool by_ref = (inner_ty != NULL && inner_ty->kind == 18);
     std__collections__list__List_ptr_compiler__ast__node__AstNode new_args = std__collections__list__List_ptr_compiler__ast__node__AstNode_new(4);
     if (by_ref == obj_is_ptr) {
         std__collections__list__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, recv);
@@ -16695,7 +16695,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
     compiler__sema__types__Type* call_ty = compiler__sema__body__pass__BodyPass_type_of(self, node);
     compiler__ast__node__AstNode* null_lit = std__mem__arena__Arena_literal(&self->arena, 5, "null", node->line, node->col);
     compiler__ast__node__AstNode* cond = std__mem__arena__Arena_binary(&self->arena, 22, recv, null_lit, node->line, node->col);
-    if ((call_ty != NULL) && (call_ty->kind == 1)) {
+    if (call_ty != NULL && call_ty->kind == 1) {
         compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_binary(&self->arena, 25, cond, direct, node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
     }
@@ -16736,7 +16736,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_call(co
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_type_of(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__node__AstNode* cur = node;
-    while ((cur != NULL) && (cur->kind == 14)) {
+    while (cur != NULL && cur->kind == 14) {
         cur = (*compiler__ast__node__AstNode_as_group_expr(cur)).expr;
     }
     if (cur == NULL) {
@@ -16747,7 +16747,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_type_of(compil
 
 bool compiler__sema__body__pass__BodyPass_is_str_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__sema__types__Type* t = compiler__sema__body__pass__BodyPass_type_of(self, node);
-    return ((t != NULL) && (t->kind == 15));
+    return (t != NULL && t->kind == 15);
 }
 
 bool compiler__sema__body__pass__BodyPass_is_stmt_node(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -16759,7 +16759,7 @@ bool compiler__sema__body__pass__BodyPass_is_stmt_node(compiler__sema__body__pas
 
 bool compiler__sema__body__pass__BodyPass_is_array_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
     compiler__sema__types__Type* t = compiler__sema__body__pass__BodyPass_type_of(self, node);
-    return ((t != NULL) && (t->kind == 17));
+    return (t != NULL && t->kind == 17);
 }
 
 compiler__ast__node__AstNode* std__mem__arena__Arena_make_str_eq(std__mem__arena__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {

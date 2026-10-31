@@ -477,7 +477,7 @@ impl SymbolTable {
 		if (s != null) return s;
 		for (sc in self.modules) {
 			val sc_s = sc.lookup(direct);
-			if (sc_s != null && sc_s.kind == SymbolKind.CONST) return sc_s;
+			if (sc_s?.kind == SymbolKind.CONST) return sc_s;
 		}
 		return null;
 	}

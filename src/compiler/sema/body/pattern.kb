@@ -145,7 +145,7 @@ impl BodyPass {
 		} else if (pat is IsExpr as is_e) {
 			if (is_e.target_type != null) {
 				val target_ty = self.resolve_type(is_e.target_type);
-				if (target_ty != null && target_ty.kind == DataType.STRUCT) {
+				if (target_ty?.kind == DataType.STRUCT) {
 					val target_s = target_ty.as_struct();
 					for (m in enum_info.members) {
 						val full_vname = "${enum_info.name}.${m.name}";
@@ -276,7 +276,7 @@ impl BodyPass {
 		var base_ty = subj_ty;
 		var is_ptr = false;
 		var subj_is_mut = false;
-		if (base_ty != null && base_ty.kind == DataType.POINTER) {
+		if (base_ty?.kind == DataType.POINTER) {
 			is_ptr = true;
 			subj_is_mut = base_ty.as_pointer().is_mut;
 			base_ty = base_ty.as_pointer().pointee;
@@ -312,9 +312,9 @@ impl BodyPass {
 		// and compare against the payload struct's own TAG constant (which lives
 		// in the module that defines the struct, not where it is forward-declared).
 		val data_ty = self.field_type_of(base_s, "data");
-		if (data_ty != null && data_ty.kind == DataType.STRUCT) {
+		if (data_ty?.kind == DataType.STRUCT) {
 			val data_enum = self.symtab.find_enum_info(data_ty.as_struct().name);
-			if (data_enum != null && data_enum.is_payload) {
+			if (data_enum?.is_payload) {
 				is_e.payload_path = "data.u.${target_s.name}.inner";
 				is_e.payload_ptr = true;
 					is_e.tag_const = tag_const_sym.c_name;
@@ -324,7 +324,7 @@ impl BodyPass {
 		// A payload-enum variant stores its data inline (`subject.u.Variant`), and
 		// the pattern's binding points there.
 		val enum_info = self.symtab.find_enum_info(base_s.name);
-		if (enum_info != null && enum_info.is_payload) {
+		if (enum_info?.is_payload) {
 			for (m in enum_info.members) {
 				if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
 					is_e.payload_path = m.payload_path;

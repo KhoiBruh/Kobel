@@ -61,7 +61,7 @@ impl BodyPass {
 						init_expr = init_ov;
 					}
 				}
-				if (var_ty != null && var_ty.is_list()) self.coerce_to_list(init_expr!, var_ty);
+				if (var_ty?.is_list()) self.coerce_to_list(init_expr!, var_ty);
 				val init_ty = self.check_expr_stmt(init_expr!, var_ty);
 				self.ensure(var_ty.can_assign(init_ty), node, "Type mismatch in variable declaration for '${vd.name}'");
 			}
@@ -390,7 +390,7 @@ impl BodyPass {
 	// `.len` / `.data`, so containment no longer has to look like a flat array.
 	fn struct_implements_iterable(self, ty: *Type?): bool {
 		var cur = ty;
-		if (cur != null && cur.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
+		if (cur?.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
 		if (cur == null || cur.kind != DataType.STRUCT) return false;
 		val t = self.symtab.find_trait("Iterable") ?: return false;
 		return t.has_impl(cur.as_struct().name);
