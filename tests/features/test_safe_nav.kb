@@ -1,0 +1,57 @@
+mod test.safe_nav;
+
+struct Inner {
+	pub is_active: bool,
+	pub name: str
+}
+
+impl Inner {
+	pub fn check_ok(val self): bool {
+		return self.is_active;
+	}
+}
+
+struct Middle {
+	pub inner: *Inner? = null
+}
+
+struct Outer {
+	pub middle: *Middle? = null
+}
+
+fn main(): i32 {
+	var in1 = Inner(true, "hello");
+	var mid1 = Middle(&in1);
+	var out1 = Outer(&mid1);
+
+	var p_null_in: *Inner? = null;
+	var p_null_out: *Outer? = null;
+
+	// 1. Safe method call on null pointer returning bool: must short-circuit to false
+	if (p_null_in?.check_ok()) return 1;
+
+	// 2. Safe method call on non-null pointer returning bool: must evaluate to true
+	val p_real_in: *Inner? = &in1;
+	if (!p_real_in?.check_ok()) return 2;
+
+	// 3. Safe field access on null pointer: must short-circuit to false
+	if (p_null_in?.is_active) return 3;
+
+	// 4. Safe field access on real pointer: must evaluate to true
+	if (!p_real_in?.is_active) return 4;
+
+	// 5. Chained safe method calls: out?.middle?.inner?.check_ok()
+	val p_out: *Outer? = &out1;
+	if (!p_out?.middle?.inner?.check_ok()) return 5;
+
+	// 6. Broken chain at root: must short-circuit to false
+	if (p_null_out?.middle?.inner?.check_ok()) return 6;
+
+	// 7. Broken chain in middle: must short-circuit to false
+	var mid_empty = Middle(null);
+	var out_mid_empty = Outer(&mid_empty);
+	val p_broken: *Outer? = &out_mid_empty;
+	if (p_broken?.middle?.inner?.check_ok()) return 7;
+
+	return 0;
+}

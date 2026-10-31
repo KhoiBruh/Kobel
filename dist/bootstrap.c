@@ -12568,7 +12568,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_member_e
         ret_ty = compiler__sema__body__pass__BodyPass_member_on_struct(self, node, mem, obj_ty);
     }
     if (mem->is_safe) {
-        compiler__sema__body__pass__BodyPass_ensure(self, ((ret_ty->kind == 16) || (ret_ty->kind == 15)), node, "Safe call operator '?.' requires field to be a pointer or string");
+        compiler__sema__body__pass__BodyPass_ensure(self, (((ret_ty->kind == 16) || (ret_ty->kind == 15)) || (ret_ty->kind == 1)), node, "Safe call operator '?.' requires field to be a pointer, string, or bool");
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
             ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
@@ -13893,7 +13893,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_bind_method_ca
     }
     compiler__sema__types__Type* ret_ty = fn_info->return_type;
     if (mem->is_safe) {
-        compiler__sema__body__pass__BodyPass_ensure(self, ((ret_ty->kind == 16) || (ret_ty->kind == 15)), node, "Safe method call '?.' requires return type to be a pointer or string");
+        compiler__sema__body__pass__BodyPass_ensure(self, (((ret_ty->kind == 16) || (ret_ty->kind == 15)) || (ret_ty->kind == 1)), node, "Safe method call '?.' requires return type to be a pointer, string, or bool");
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
             ret_ty = std__mem__arena__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
@@ -16567,8 +16567,13 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
     if (!mem->is_safe) {
         return compiler__sema__body__pass__BodyPass_lowered(self, node, direct);
     }
+    compiler__sema__types__Type* call_ty = compiler__sema__body__pass__BodyPass_type_of(self, node);
     compiler__ast__node__AstNode* null_lit = std__mem__arena__Arena_literal(&self->arena, 5, "null", node->line, node->col);
     compiler__ast__node__AstNode* cond = std__mem__arena__Arena_binary(&self->arena, 22, recv, null_lit, node->line, node->col);
+    if ((call_ty != NULL) && (call_ty->kind == 1)) {
+        compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_binary(&self->arena, 25, cond, direct, node->line, node->col);
+        return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
+    }
     compiler__ast__node__AstNode* maybe = std__mem__arena__Arena_if_expr(&self->arena, cond, direct, null_lit, node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
 }
@@ -17367,6 +17372,27 @@ const char* compiler__codegen__c_codegen__CCodeGen_gen_member_expr(compiler__cod
     }
     const char* obj_str = (compiler__codegen__c_expr__expr_needs_parens_for_member(obj_node) ? kobel_concat(kobel_concat("(", obj), ")") : obj);
     if (mem->is_safe) {
+        compiler__sema__types__Type* obj_ty = (compiler__sema__types__Type*)obj_node->type_ptr;
+        if (obj_ty != NULL) {
+            compiler__sema__types__Type* inner = obj_ty;
+            if (inner->kind == 16) {
+                inner = (*compiler__sema__types__Type_as_pointer(inner)).pointee;
+            }
+            if (inner->kind == 18) {
+                compiler__sema__structs__StructType* st = compiler__sema__types__Type_as_struct(inner);
+                {
+                    size_t __for_n = std__collections__list__List_compiler__sema__structs__StructField_count(&st->fields);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__sema__structs__StructField f = std__collections__list__List_compiler__sema__structs__StructField_at(&st->fields, __for_i);
+                        if (kobel_streq(f.name, mem->member) && ((*f.type_ptr).kind == 1)) {
+                            return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL && "), obj_str), "->"), mem->member), ")");
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+            }
+        }
         return kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat(kobel_concat("(", obj_str), " != NULL ? "), obj_str), "->"), mem->member), " : NULL)");
     }
     if (is_ptr) {

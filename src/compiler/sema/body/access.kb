@@ -85,9 +85,9 @@ impl BodyPass {
 
 		if (mem.is_safe) {
 			self.ensure(
-				ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR,
+				ret_ty.kind == DataType.POINTER || ret_ty.kind == DataType.STR || ret_ty.kind == DataType.BOOL,
 				node,
-				"Safe call operator '?.' requires field to be a pointer or string"
+				"Safe call operator '?.' requires field to be a pointer, string, or bool"
 			);
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();

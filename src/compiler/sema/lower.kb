@@ -438,8 +438,15 @@ impl BodyPass {
 		val direct = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
 		if (!mem.is_safe) return self.lowered(node, direct);
 
+		val call_ty = self.type_of(node);
 		val null_lit = self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
 		val cond = self.arena.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
+
+		if (call_ty != null && call_ty.kind == DataType.BOOL) {
+			val maybe = self.arena.binary(TokenType.AND_AND, cond, direct, node.line, node.col);
+			return self.lowered(node, maybe);
+		}
+
 		val maybe = self.arena.if_expr(cond, direct, null_lit, node.line, node.col);
 		return self.lowered(node, maybe);
 	}

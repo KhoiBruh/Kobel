@@ -259,7 +259,22 @@ impl CCodeGen {
 		var is_ptr = false;
 		if (obj_node.kind == NodeKind.EXPR_IDENTIFIER) is_ptr = self.c_type_of(obj_node).ends_with("*");
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
-		if (mem.is_safe) return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+		if (mem.is_safe) {
+			val obj_ty = obj_node.type_ptr as *Type;
+			if (obj_ty != null) {
+				var inner = obj_ty;
+				if (inner.kind == DataType.POINTER) inner = inner.as_pointer().pointee;
+				if (inner.kind == DataType.STRUCT) {
+					val st = inner.as_struct();
+					for (f in st.fields) {
+						if (f.name == mem.member && f.type_ptr.kind == DataType.BOOL) {
+							return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+						}
+					}
+				}
+			}
+			return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+		}
 		if (is_ptr) return "${obj_str}->${mem.member}";
 		return "${obj_str}.${mem.member}";
 	}
