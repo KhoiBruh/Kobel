@@ -37,4 +37,8 @@ impl char {
 		return self;
 	}
 
+	pub fn to_lower(val self): char => self.lower();
+
+	pub fn to_upper(val self): char => self.upper();
+
 }

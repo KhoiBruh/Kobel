@@ -16,6 +16,7 @@ mod compiler.loader.loader;
 use std.mem.arena.*;
 use std.io.read_file;
 use std.io.file_exists;
+use std.io.list_dir;
 use std.collections.list.*;
 use std.collections.hash_map.*;
 use std.collections.hash_set.*;
@@ -66,6 +67,15 @@ pub fn detect_project_root(start_dir: str): str {
 		count++;
 	}
 	return "";
+}
+
+fn str_less(a: str, b: str): bool {
+	val min_len = if (a.len < b.len) a.len else b.len;
+	for (i in 0..<min_len) {
+		if (a[i] < b[i]) return true;
+		if (a[i] > b[i]) return false;
+	}
+	return a.len < b.len;
 }
 
 impl ModuleLoader {
@@ -129,14 +139,60 @@ impl ModuleLoader {
 	// File Resolution
 	// ============================================================================
 
-	pub fn find_module(var self, module_name: str): ModuleFile {
-		val rel = "${module_name.module_to_rel()}.kb";
+	pub fn find_module_files(var self, module_name: str): List<ModuleFile> {
+		var list = List<ModuleFile>();
+		val rel_file = "${module_name.module_to_rel()}.kb";
+		val rel_dir = module_name.module_to_rel();
+
 		for (root in self.roots) {
-			val candidate = root.join_path(rel);
+			// 1. Single-file module: <root>/<rel>.kb
+			val candidate = root.join_path(rel_file);
 			val src = read_file(candidate);
-			if (!src.empty()) return ModuleFile(true, candidate, src);
+			if (!src.empty()) {
+				list += ModuleFile(true, candidate, src);
+			}
+
+			// 2. Folder-as-package: <root>/<rel>/
+			val dir_path = root.join_path(rel_dir);
+			val entries = list_dir(dir_path);
+			if (!entries.empty()) {
+				var kb_files = List<str>();
+				for (e in entries) {
+					if (e.ends_with(".kb")) kb_files += e;
+				}
+				for (i in 0..<kb_files.len) {
+					for (j in (i + 1)..<kb_files.len) {
+						if (str_less(kb_files[j], kb_files[i])) {
+							val tmp = kb_files[i];
+							kb_files[i] = kb_files[j];
+							kb_files[j] = tmp;
+						}
+					}
+				}
+
+				for (f in kb_files) {
+					val f_path = dir_path.join_path(f);
+					var already = false;
+					for (m in list) {
+						if (m.path == f_path) already = true;
+					}
+					if (!already) {
+						val f_src = read_file(f_path);
+						if (!f_src.empty()) list += ModuleFile(true, f_path, f_src);
+					}
+				}
+			}
+
+			if (!list.empty()) return list;
 		}
-		return ModuleFile(false, "", "");
+
+		return list;
+	}
+
+	pub fn find_module(var self, module_name: str): ModuleFile {
+		val files = self.find_module_files(module_name);
+		if (files.empty()) return ModuleFile(false, "", "");
+		return files[0];
 	}
 
 	pub fn is_known(val self, module_name: str): bool => module_name in self.known;
@@ -144,12 +200,11 @@ impl ModuleLoader {
 	pub fn ensure_module(var self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
 		if (self.is_known(module_name)) return;
 
-		// Mark it first to avoid infinite recursion when imports form a cycle
 		self.known += module_name;
 		self.modules += LoadedModule(module_name, "", null);
 
-		val file = self.find_module(module_name);
-		if (!file.found) {
+		val files = self.find_module_files(module_name);
+		if (files.empty()) {
 			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
 			val msg = if (line > 0) {
 				"${prefix}Line ${line}, Column ${col}: "
@@ -163,23 +218,24 @@ impl ModuleLoader {
 			return;
 		}
 
-		val prog = self.parse_source(file.path, file.source) ?: return;
+		for (file in files) {
+			val prog = self.parse_source(file.path, file.source) ?: continue;
 
-		val declared = prog.as_program().declared_module_name();
-		if (!declared.empty() && declared != module_name) {
-			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-			val msg = if (line > 0) {
-				"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-			} else {
-				"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-			};
-			self.errors += msg;
-			return;
+			val declared = prog.as_program().declared_module_name();
+			if (!declared.empty() && declared != module_name) {
+				val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
+				val msg = if (line > 0) {
+					"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+				} else {
+					"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
+				};
+				self.errors += msg;
+				continue;
+			}
+
+			self.process_uses(prog, module_name);
+			self.ordered += LoadedModule(module_name, file.path, prog);
 		}
-
-		// Load dependencies first, then add this module to the merge order
-		self.process_uses(prog, module_name);
-		self.ordered += LoadedModule(module_name, file.path, prog);
 	}
 
 	pub fn process_uses(var self, program_node: *AstNode, parent_mod: str) {

@@ -2,6 +2,11 @@ mod std.io;
 
 use std.str.str_from_bytes;
 use std.mem.alloc.alloc_array;
+use std.collections.list.List;
+
+extern "C" {
+	fn kobel_list_dir(dir_path: str): str;
+}
 
 extern "libc" {
 	fn puts(s: *char): i32;
@@ -65,4 +70,24 @@ pub fn file_exists(path: str): bool {
 	val f = fopen(path.c_str(), "rb") ?: return false;
 	fclose(f);
 	return true;
+}
+
+
+pub fn list_dir(path: str): List<str> {
+	val raw = kobel_list_dir(path);
+	if (raw.empty()) return List();
+	var res = List<str>();
+	var start: usz = 0;
+	for (i in 0..<raw.len) {
+		if (raw[i] == '\n') {
+			if (i > start) {
+				res += raw.slice(start, i);
+			}
+			start = i + 1;
+		}
+	}
+	if (start < raw.len) {
+		res += raw.slice(start, raw.len);
+	}
+	return res;
 }
