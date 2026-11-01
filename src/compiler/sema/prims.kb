@@ -8,8 +8,8 @@ mod compiler.sema.prims;
 // instance. `PrimTypes` is created once per `SymbolTable`.
 // ============================================================================
 
-use std.collections.list.*;
-use std.mem.arena.*;
+use std.collections.*;
+use std.mem.*;
 
 use util.strutil.*;
 

@@ -1,6 +1,5 @@
-mod std.mem.arena;
+mod std.mem;
 
-use std.mem.alloc.*;
 
 // Internal block of an arena: not exported, and its fields are private.
 struct ArenaBlock {

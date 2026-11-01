@@ -32,8 +32,8 @@ use compiler.ast.builder.*;
 use compiler.ast.decl.Program;
 
 use compiler.lexer.token.TokenType;
-use std.collections.list.List;
-use std.mem.arena.Arena;
+use std.collections.List;
+use std.mem.Arena;
 
 // Simple string-to-int helper for our test evaluator
 fn parse_i32(s: str): i32 {

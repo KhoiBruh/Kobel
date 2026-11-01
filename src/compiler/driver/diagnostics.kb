@@ -1,7 +1,7 @@
 mod compiler.driver.diagnostics;
 
 use std.io.*;
-use std.collections.list.*;
+use std.collections.*;
 
 use util.strutil.*;
 use compiler.loader.loader.ModuleLoader;

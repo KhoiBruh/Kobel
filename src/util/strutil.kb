@@ -1,9 +1,9 @@
 mod util.strutil;
 
 use std.str.*;
-use std.mem.alloc.alloc_array;
-use std.collections.list.List;
-use std.collections.string_builder.StringBuilder;
+use std.mem.alloc_array;
+use std.collections.List;
+use std.collections.StringBuilder;
 
 // ============================================================================
 // String utilities shared by the compiler

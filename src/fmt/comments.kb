@@ -1,6 +1,6 @@
 mod fmt.comments;
 
-use std.collections.list.*;
+use std.collections.*;
 
 use fmt.buffer.*;
 

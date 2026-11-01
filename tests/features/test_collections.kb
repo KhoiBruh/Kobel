@@ -1,8 +1,7 @@
 mod tests.features.test_collections;
 
 use std.io.*;
-use std.collections.list.*;
-use std.collections.hash_map.*;
+use std.collections.*;
 use std.fmt.*;
 
 // ============================================================================

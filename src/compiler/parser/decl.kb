@@ -1,6 +1,6 @@
 mod compiler.parser.decl;
 
-use std.collections.list.*;
+use std.collections.*;
 
 use compiler.lexer.token.*;
 

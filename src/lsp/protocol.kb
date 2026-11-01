@@ -3,8 +3,8 @@ mod lsp.protocol;
 use std.io.*;
 use std.str.*;
 use std.ascii.*;
-use std.mem.alloc.*;
-use std.collections.string_builder.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

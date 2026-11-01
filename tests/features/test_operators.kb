@@ -2,10 +2,10 @@ mod test.test_operators;
 
 use std.io.print;
 use std.io.println;
-use std.collections.list.List;
-use std.collections.hash_map.HashMap;
-use std.collections.hash_set.HashSet;
-use std.collections.string_builder.StringBuilder;
+use std.collections.List;
+use std.collections.HashMap;
+use std.collections.HashSet;
+use std.collections.StringBuilder;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

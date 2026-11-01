@@ -9,8 +9,8 @@ mod compiler.sema.type_ast;
 // involved, only the arena and the type model.
 // ============================================================================
 
-use std.collections.list.*;
-use std.mem.arena.*;
+use std.collections.*;
+use std.mem.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;

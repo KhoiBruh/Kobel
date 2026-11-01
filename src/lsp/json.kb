@@ -2,9 +2,8 @@ mod lsp.json;
 
 use std.io.*;
 use std.ascii.*;
-use std.mem.alloc.*;
-use std.collections.list.*;
-use std.collections.string_builder.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

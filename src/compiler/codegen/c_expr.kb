@@ -8,8 +8,7 @@ mod compiler.codegen.c_expr;
 // ============================================================================
 
 use std.str.*;
-use std.collections.list.*;
-use std.collections.hash_set.*;
+use std.collections.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;

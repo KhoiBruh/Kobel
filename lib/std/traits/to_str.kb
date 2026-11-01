@@ -1,6 +1,6 @@
-mod std.traits.to_str;
+mod std.traits;
 
-use std.mem.alloc.alloc_array;
+use std.mem.*;
 use std.str.str_from_bytes;
 
 // ============================================================================

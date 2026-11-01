@@ -4,7 +4,7 @@ mod test.generic_methods;
 // may declare the same generic method name, a value receiver works, and a
 // generic method may call another one.
 
-use std.mem.arena.Arena;
+use std.mem.Arena;
 
 struct A { pub v: i32 }
 struct B { pub v: i32 }

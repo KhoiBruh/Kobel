@@ -1,9 +1,8 @@
 mod compiler.codegen.c_codegen;
 
 use std.str.*;
-use std.collections.list.*;
-use std.collections.hash_set.*;
-use std.collections.string_builder.StringBuilder;
+use std.collections.*;
+use std.collections.StringBuilder;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;

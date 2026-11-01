@@ -14,9 +14,8 @@ mod compiler.sema.decl.pass;
 // ============================================================================
 
 use std.str.*;
-use std.mem.arena.*;
-use std.collections.list.*;
-use std.collections.hash_set.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

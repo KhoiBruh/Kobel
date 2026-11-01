@@ -9,8 +9,8 @@ mod compiler.sema.body.expr;
 // interpolation in `body.interp`.
 // ============================================================================
 
-use std.mem.arena.*;
-use std.collections.list.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

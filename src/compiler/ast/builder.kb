@@ -1,7 +1,7 @@
 mod compiler.ast.builder;
 
-use std.mem.arena.Arena;
-use std.collections.list.List;
+use std.mem.Arena;
+use std.collections.List;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;

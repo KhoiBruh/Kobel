@@ -1,6 +1,6 @@
 mod compiler.ast.expr;
 
-use std.collections.list.List;
+use std.collections.List;
 
 use compiler.ast.node.*;
 

@@ -13,13 +13,11 @@ mod compiler.loader.loader;
 // (standard library) -> "src" (compiler source).
 // ============================================================================
 
-use std.mem.arena.*;
+use std.mem.*;
 use std.io.read_file;
 use std.io.file_exists;
 use std.io.list_dir;
-use std.collections.list.*;
-use std.collections.hash_map.*;
-use std.collections.hash_set.*;
+use std.collections.*;
 
 use util.strutil.*;
 

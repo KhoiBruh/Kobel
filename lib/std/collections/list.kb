@@ -1,7 +1,7 @@
-mod std.collections.list;
+mod std.collections;
 
-use std.mem.alloc.*;
-use std.traits.iterable.Iterable;
+use std.mem.*;
+use std.traits.*;
 
 /*
 	List<T> - dynamic array, heap-allocated

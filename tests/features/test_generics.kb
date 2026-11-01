@@ -5,7 +5,7 @@ mod test.generics;
 // explicit type arguments, and a nested instantiation. These all exercise the
 // instance worklist in the declaration pass.
 
-use std.collections.list.*;
+use std.collections.*;
 
 fn id<U>(x: U): U {
 	return x;

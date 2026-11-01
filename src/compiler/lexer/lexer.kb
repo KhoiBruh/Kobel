@@ -1,7 +1,7 @@
 mod compiler.lexer.lexer;
 
 use std.ascii.*;
-use std.collections.list.*;
+use std.collections.*;
 
 use compiler.lexer.token.*;
 

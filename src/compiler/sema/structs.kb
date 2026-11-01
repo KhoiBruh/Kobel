@@ -8,8 +8,8 @@ mod compiler.sema.structs;
 // is computed on demand by `layout_struct` after fields are added.
 // ============================================================================
 
-use std.collections.list.*;
-use std.mem.arena.*;
+use std.collections.*;
+use std.mem.*;
 
 use compiler.ast.node.*;
 

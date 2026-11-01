@@ -11,14 +11,14 @@ use std.io.append_file;
 use std.io.read_file;
 use std.io.file_exists;
 
-use std.mem.arena.Arena;
+use std.mem.Arena;
 
-use std.collections.list.List;
+use std.collections.List;
 
-use std.collections.hash_map.HashMap;
-use std.collections.hash_set.HashSet;
+use std.collections.HashMap;
+use std.collections.HashSet;
 
-use std.collections.string_builder.StringBuilder;
+use std.collections.StringBuilder;
 
 fn test_ascii(): bool {
 	if (!'5'.is_digit()) return false;

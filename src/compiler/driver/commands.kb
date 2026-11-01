@@ -2,7 +2,7 @@ mod compiler.driver.commands;
 
 use std.io.*;
 use std.sys.*;
-use std.collections.list.*;
+use std.collections.*;
 
 use util.strutil.*;
 

@@ -1,7 +1,6 @@
 mod compiler.codegen.c_program;
 
-use std.collections.list.*;
-use std.collections.string_builder.*;
+use std.collections.*;
 
 use util.strutil.*;
 

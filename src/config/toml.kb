@@ -1,7 +1,7 @@
 mod config.toml;
 
-use std.collections.list.List;
-use std.collections.hash_map.HashMap;
+use std.collections.List;
+use std.collections.HashMap;
 
 use util.strutil.*;
 

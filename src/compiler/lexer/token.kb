@@ -1,6 +1,6 @@
 mod compiler.lexer.token;
 
-use std.traits.to_str.*;
+use std.traits.*;
 
 pub enum TokenType {
 	// Single syntax

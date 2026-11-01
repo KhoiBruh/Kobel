@@ -8,8 +8,8 @@ mod compiler.sema.desugar.loop;
 // and unsigned-safe counters. Called from `body.stmt` while checking.
 // ============================================================================
 
-use std.mem.arena.*;
-use std.collections.list.*;
+use std.mem.*;
+use std.collections.*;
 
 use compiler.ast.node.*;
 use compiler.ast.stmt.*;

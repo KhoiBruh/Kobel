@@ -1,8 +1,7 @@
-mod std.collections.hash_set;
+mod std.collections;
 
-use std.mem.alloc.*;
-use std.collections.list.List;
-use std.traits.iterable.Iterable;
+use std.mem.*;
+use std.traits.*;
 
 // `len` is the public size accessor; the storage is internal.
 pub struct HashSet {

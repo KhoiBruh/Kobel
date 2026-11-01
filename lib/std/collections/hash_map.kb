@@ -1,8 +1,7 @@
-mod std.collections.hash_map;
+mod std.collections;
 
-use std.mem.alloc.*;
-use std.collections.list.List;
-use std.traits.hash.*;
+use std.mem.*;
+use std.traits.*;
 
 // A hash map with generic key `K: Hash` and value `V`.
 //

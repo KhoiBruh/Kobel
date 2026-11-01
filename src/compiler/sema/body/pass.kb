@@ -11,9 +11,8 @@ mod compiler.sema.body.pass;
 // - `body/program.kb`: module, function, and impl declaration drivers
 // ============================================================================
 
-use std.mem.arena.*;
-use std.collections.list.*;
-use std.collections.hash_map.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

@@ -8,7 +8,7 @@ mod compiler.sema.enums;
 // type. `EnumMemberInfo` keeps one member name/value and its payload struct.
 // ============================================================================
 
-use std.collections.list.*;
+use std.collections.*;
 
 use compiler.ast.expr.LiteralKind;
 use compiler.sema.types.*;

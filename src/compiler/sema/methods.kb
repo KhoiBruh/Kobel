@@ -9,7 +9,7 @@ mod compiler.sema.methods;
 // methods (`impl i32 { ... }`).
 // ============================================================================
 
-use std.collections.list.*;
+use std.collections.*;
 
 use compiler.ast.node.*;
 

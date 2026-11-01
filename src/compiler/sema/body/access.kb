@@ -7,8 +7,8 @@ mod compiler.sema.body.access;
 // compound update, plus the lowering of indexed writes into get/set calls.
 // ============================================================================
 
-use std.mem.arena.*;
-use std.collections.list.*;
+use std.mem.*;
+use std.collections.*;
 
 use util.strutil.*;
 

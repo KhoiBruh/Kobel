@@ -3,11 +3,9 @@ mod tests.features.test_types;
 use std.io.print;
 use std.io.println;
 use testsupport.box.*;
-use std.collections.list.*;
-use std.collections.hash_map.*;
-use std.collections.string_builder.*;
-use std.mem.arena.*;
-use std.traits.to_str.*;
+use std.collections.*;
+use std.mem.*;
+use std.traits.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds

@@ -5,7 +5,7 @@ mod test.loader_cycles;
 // declaration pass fills both structs (struct names are declared before any
 // field type is resolved).
 
-use std.collections.list.*;
+use std.collections.*;
 use std.io.print;
 use std.io.println;
 use std.io.write_file;

@@ -1,7 +1,7 @@
 mod compiler.parser.parser;
 
-use std.mem.arena.*;
-use std.collections.list.*;
+use std.mem.*;
+use std.collections.*;
 
 use compiler.lexer.token.*;
 use compiler.ast.node.*;

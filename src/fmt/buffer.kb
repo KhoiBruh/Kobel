@@ -1,6 +1,6 @@
 mod fmt.buffer;
 
-use std.collections.string_builder.*;
+use std.collections.*;
 
 use fmt.options.*;
 

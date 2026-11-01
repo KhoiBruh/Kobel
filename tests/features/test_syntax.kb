@@ -1,9 +1,9 @@
 mod tests.features.test_syntax;
 
 use std.io.*;
-use std.collections.list.List;
-use std.collections.hash_map.HashMap;
-use std.collections.hash_set.HashSet;
+use std.collections.List;
+use std.collections.HashMap;
+use std.collections.HashSet;
 
 // ============================================================================
 // Feature Suite 1: Core Syntax, Operators, and Control Expressions

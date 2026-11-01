@@ -1,6 +1,6 @@
 mod fmt.formatter;
 
-use std.collections.list.*;
+use std.collections.*;
 
 use fmt.options.*;
 use fmt.buffer.*;

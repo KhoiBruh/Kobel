@@ -8,7 +8,7 @@ mod compiler.sema.traits;
 // whether a default body exists, so signatures resolve lazily.
 // ============================================================================
 
-use std.collections.list.*;
+use std.collections.*;
 
 use compiler.ast.node.*;
 

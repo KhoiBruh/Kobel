@@ -1,4 +1,4 @@
-mod std.traits.hash;
+mod std.traits;
 
 // ============================================================================
 // std.traits.hash - the `Hash` trait

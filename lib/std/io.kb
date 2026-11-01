@@ -1,8 +1,8 @@
 mod std.io;
 
 use std.str.str_from_bytes;
-use std.mem.alloc.alloc_array;
-use std.collections.list.List;
+use std.mem.alloc_array;
+use std.collections.List;
 
 extern "C" {
 	fn kobel_list_dir(dir_path: str): str;

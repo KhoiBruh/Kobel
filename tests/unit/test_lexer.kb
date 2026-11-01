@@ -8,9 +8,9 @@ use compiler.lexer.token.Token;
 
 use compiler.lexer.lexer.Lexer;
 
-use std.collections.list.List;
+use std.collections.List;
 use std.str.str_from_bytes;
-use std.mem.alloc.alloc_array;
+use std.mem.alloc_array;
 
 fn test_keywords(): bool {
 	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for defer";

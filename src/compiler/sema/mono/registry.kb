@@ -10,9 +10,9 @@ mod compiler.sema.mono.registry;
 // steps live in `mono.instantiate`, `mono.rewrite` and `mono.clone`.
 // ============================================================================
 
-use std.mem.arena.*;
-use std.collections.list.*;
-use std.traits.to_str.*;
+use std.mem.*;
+use std.collections.*;
+use std.traits.*;
 
 use util.strutil.*;
 

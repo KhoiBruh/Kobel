@@ -10,8 +10,7 @@ mod compiler.sema.instance;
 // those annotations onto the instance's own copy.
 // ============================================================================
 
-use std.collections.list.*;
-use std.collections.hash_map.*;
+use std.collections.*;
 
 use compiler.ast.node.*;
 

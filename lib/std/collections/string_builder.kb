@@ -1,9 +1,8 @@
-mod std.collections.string_builder;
+mod std.collections;
 
-use std.mem.alloc.*;
-use std.str.str_from_bytes;
-use std.traits.to_str.*;
-use std.traits.iterable.Iterable;
+use std.mem.*;
+use std.str.*;
+use std.traits.*;
 
 // `len` is the public size accessor; the buffer and capacity are internal.
 pub struct StringBuilder {
