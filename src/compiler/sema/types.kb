@@ -296,9 +296,11 @@ impl Type {
 	pub fn is_list(val self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 		val s = self.as_struct();
-		if (s.module != "std.collections.list") return false;
+		if (s.module != "std.collections.list" && s.module != "std.collections") return false;
 		return s.name.starts_with("std__collections__list__List") ||
-			s.c_name.starts_with("std__collections__list__List");
+			s.c_name.starts_with("std__collections__list__List") ||
+			s.name.starts_with("std__collections__List") ||
+			s.c_name.starts_with("std__collections__List");
 	}
 
 	pub fn layout_struct(var self) {

@@ -7623,10 +7623,10 @@ bool compiler__sema__types__Type_is_list(compiler__sema__types__Type* self) {
         return false;
     }
     compiler__sema__structs__StructType* s = compiler__sema__types__Type_as_struct(self);
-    if (!kobel_streq(s->module, KOBEL_STR("std.collections.list"))) {
+    if (!kobel_streq(s->module, KOBEL_STR("std.collections.list")) && !kobel_streq(s->module, KOBEL_STR("std.collections"))) {
         return false;
     }
-    return (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->c_name, KOBEL_STR("std__collections__list__List")));
+    return (((str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->c_name, KOBEL_STR("std__collections__list__List"))) || str_starts_with(s->name, KOBEL_STR("std__collections__List"))) || str_starts_with(s->c_name, KOBEL_STR("std__collections__List")));
 }
 
 void compiler__sema__types__Type_layout_struct(compiler__sema__types__Type* self) {
@@ -19595,7 +19595,7 @@ kobel_str compiler__codegen__c_codegen__CCodeGen_gen_program(compiler__codegen__
                     compiler__ast__node__AstNode* decl_list = compiler__ast__decl__Program_at(prog, __for_i);
                     {
                         compiler__ast__decl__StructDecl* s = NULL;
-                        if ((!compiler__ast__decl__decl_is_template(decl_list) && (decl_list != NULL && decl_list->kind == compiler__ast__decl__StructDecl__TAG && (s = decl_list->data.u.StructDecl.inner, 1))) && str_starts_with(s->name, KOBEL_STR("std__collections__list__List"))) {
+                        if ((!compiler__ast__decl__decl_is_template(decl_list) && (decl_list != NULL && decl_list->kind == compiler__ast__decl__StructDecl__TAG && (s = decl_list->data.u.StructDecl.inner, 1))) && (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->name, KOBEL_STR("std__collections__List")))) {
                             std__collections__string_builder__StringBuilder_plus_assign_2(&sb, kobel_concat5(kobel_concat5(KOBEL_STR("static inline "), s->name, KOBEL_STR(" "), s->name, KOBEL_STR("_from_array(const void* src, size_t n) {\n	size_t elem_size = sizeof(*(((")), s->name, KOBEL_STR("*)0)->data));\n	size_t cap = (n < 4) ? 4 : n;\n	void* data = malloc(cap * elem_size);\n	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n	"), s->name, KOBEL_STR(" l;\n	l.data = data;\n	l.len = n;\n	l.cap = cap;\n	return l;\n}")));
                         }
                     }

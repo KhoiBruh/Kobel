@@ -154,7 +154,7 @@ impl CCodeGen {
 				if (
 					!decl_is_template(decl_list) &&
 					decl_list is StructDecl as s &&
-					s.name.starts_with("std__collections__list__List")
+					(s.name.starts_with("std__collections__list__List") || s.name.starts_with("std__collections__List"))
 				) {
 					sb += """
 						static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {
