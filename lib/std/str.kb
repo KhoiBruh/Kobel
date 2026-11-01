@@ -32,37 +32,29 @@ impl str {
 	pub fn empty(val self) => self.len == 0;
 
 	pub fn starts_with(val self, prefix: str): bool {
-		if (self.len < prefix.len) {
-			return false;
-		}
+		if (self.len < prefix.len) return false;
+
 		for (i in 0..<prefix.len) {
-			if (self[i] != prefix[i]) {
-				return false;
-			}
+			if (self[i] != prefix[i]) return false;
 		}
+
 		return true;
 	}
 
 	pub fn ends_with(val self, suffix: str): bool {
-		if (self.len < suffix.len) {
-			return false;
-		}
+		if (self.len < suffix.len) return false;
+
 		val off = self.len - suffix.len;
 		for (i in 0..<suffix.len) {
-			if (self[off + i] != suffix[i]) {
-				return false;
-			}
+			if (self[off + i] != suffix[i]) return false;
 		}
+
 		return true;
 	}
 
 	pub fn index_of(val self, sub: str): isz {
-		if (sub.len == 0) {
-			return 0;
-		}
-		if (self.len < sub.len) {
-			return -1;
-		}
+		if (sub.empty()) return 0;
+		if (self.len < sub.len) return -1;
 
 		val max_start = self.len - sub.len;
 		for (i in 0..max_start) {
@@ -73,9 +65,8 @@ impl str {
 					break;
 				}
 			}
-			if (matched) {
-				return i;
-			}
+
+			if (matched) return i;
 		}
 
 		return -1;
@@ -87,7 +78,7 @@ impl str {
 	// Copy of `self` with every occurrence of `c` removed (`"1_000".strip_char('_')` -> `"1000"`).
 	pub fn strip_char(val self, c: char): str {
 		val buf = alloc_array<u8>(self.len + 1);
-		var w: usz = 0;
+		var w = 0;
 		for (i in 0..<self.len) {
 			val ch = self[i];
 			if (ch != c) {
@@ -95,34 +86,29 @@ impl str {
 				w++;
 			}
 		}
+
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
 	}
 
 	pub fn replace_char(val self, from: char, to: char): str {
-		if (self.len == 0) {
-			return self;
-		}
+		if (self.empty()) return self;
+
 		val buf = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
-			if (c == from) {
-				buf[i] = to.code();
-			} else {
-				buf[i] = c.code();
-			}
+			buf[i] = if (c == from) to.code() else c.code();
 		}
+
 		buf[self.len] = 0;
 		return str_from_bytes(buf, self.len);
 	}
 
 	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
 	pub fn repeat(val self, n: usz): str {
-		if (n == 0 || self.len == 0) {
-			return "";
-		}
+		if (n == 0 || self.empty()) return "";
 		val buf = alloc_array<u8>(self.len * n + 1);
-		var w: usz = 0;
+		var w = 0;
 
 		for (k in 0..<n) {
 			for (i in 0..<self.len) {
@@ -130,32 +116,28 @@ impl str {
 				w++;
 			}
 		}
+
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
 	}
 
 	pub fn join(val self, list: List<str>): str {
-		if (list.len == 0) {
-			return "";
-		}
-		if (list.len == 1) {
-			return list.data[0];
-		}
+		if (list.empty()) return "";
+		if (list.len == 1) return list.data[0];
 
-		var total: usz = 0;
-		for (i in 0..<list.len) {
-			total += list.data[i].len;
-		}
+		var total = 0;
+		for (i in 0..<list.len) total += list.data[i].len;
 		total += self.len * (list.len - 1);
 
 		val buf = alloc_array<u8>(total + 1);
-		var w: usz = 0;
+		var w = 0;
 		for (i in 0..<list.len) {
 			val item = list.data[i];
 			for (c in item) {
 				buf[w] = c.code();
 				w++;
 			}
+
 			if (i + 1 < list.len) {
 				for (c in self) {
 					buf[w] = c.code();
@@ -163,6 +145,7 @@ impl str {
 				}
 			}
 		}
+
 		buf[w] = 0;
 		return str_from_bytes(buf, w);
 	}
@@ -172,22 +155,23 @@ impl str {
 	 * `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
 	 */
 	fn suffix_tail(val self): str {
-		if (self.len == 0) {
-			return "";
-		}
+		if (self.empty()) return "";
+
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
-			if (two == "UZ" || two == "UL" || two == "UB" || two == "US") {
-				return two;
-			}
+			if (
+				two == "UZ" || two == "UL"
+				|| two == "UB" || two == "US"
+			) return two;
 		}
+
 		val last = self.slice(self.len - 1, self.len);
 		if (
-			last == "U" || last == "L" || last == "S" || last == "B" ||
-			last == "Z" || last == "D" || last == "F"
-		) {
-			return last;
-		}
+			last == "U" || last == "L" || last == "S"
+			|| last == "B" || last == "Z" || last == "D"
+			|| last == "F"
+		) return last;
+
 		return "";
 	}
 
@@ -200,36 +184,33 @@ impl str {
 	 * 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
 	 */
 	pub fn num_suffix(val self): str {
-		if (self.len == 0) {
-			return "";
-		}
+		if (self.empty()) return "";
 
 		var zone = self;
 		var radix = false;
 		if (self.len > 2 && self[0] == '0') {
 			val r = self[1];
-			if (r == 'x' || r == 'X' || r == 'b' || r == 'B' || r == 'o' || r == 'O') {
+			if (
+				r == 'x' || r == 'X'
+				|| r == 'b' || r == 'B'
+				|| r == 'o' || r == 'O'
+			) {
 				radix = true;
 				zone = "";
 				for (i in 2..<self.len) {
-					if (self[i] == '_') {
-						zone = self.slice(i + 1, self.len);
-					}
+					if (self[i] == '_') zone = self.slice(i + 1, self.len);
 				}
 			}
 		}
-		if (zone.len == 0) {
-			return "";
-		}
+
+		if (zone.empty()) return "";
 
 		val tail = zone.suffix_tail();
 		/*
 		 * For a radix literal the whole zone has to be the suffix, or a digit such
 		 * as the second F of `0xFF_FF` would be read as one.
 		 */
-		if (radix && zone.len != tail.len) {
-			return "";
-		}
+		if (radix && zone.len != tail.len) return "";
 		return tail;
 	}
 
@@ -237,6 +218,6 @@ impl str {
 	// Overloaded Operators
 	// ============================================================================
 
-	pub op contains(val self, sub: str): bool => self.index_of(sub) >= 0;
+	pub op contains(val self, sub: str) => self.index_of(sub) >= 0;
 
 }

@@ -12,20 +12,27 @@ const C_PRELUDE = """
 	#include <stdio.h>
 	#include <stdlib.h>
 	#include <string.h>
+
 	#ifdef _WIN32
 	#include <io.h>
 	#include <fcntl.h>
 	#endif
 
-	typedef struct { const char* data; size_t len; } kobel_str;
+	typedef struct {
+		const char* data;
+		size_t len;
+	} kobel_str;
+
 	#define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })
 
 	static inline kobel_str kobel_null_str(void) {
 		return (kobel_str){ NULL, 0 };
 	}
+
 	static inline kobel_str kobel_from_cstr(const char* s) {
 		return s ? (kobel_str){ s, strlen(s) } : (kobel_str){ NULL, 0 };
 	}
+
 	static inline const char* kobel_cstr(kobel_str s) {
 		if (!s.data) return "";
 		if (s.data[s.len] == 0) return s.data;
@@ -34,6 +41,7 @@ const C_PRELUDE = """
 		r[s.len] = 0;
 		return r;
 	}
+
 	/* str.slice(start, end) helper — O(1) zero-allocation view */
 	static inline kobel_str kobel_slice(kobel_str s, size_t start, size_t end) {
 		if (!s.data) return (kobel_str){ NULL, 0 };
@@ -41,9 +49,11 @@ const C_PRELUDE = """
 		if (start > end) start = end;
 		return (kobel_str){ s.data + start, end - start };
 	}
+
 	static inline kobel_str kobel_slice1(kobel_str s, size_t start) {
 		return kobel_slice(s, start, s.len);
 	}
+
 	/* str + str helpers — O(1) length lookup, single allocation */
 	static kobel_str kobel_concat(kobel_str a, kobel_str b) {
 		size_t total = a.len + b.len;
@@ -53,6 +63,7 @@ const C_PRELUDE = """
 		r[total] = 0;
 		return (kobel_str){ r, total };
 	}
+
 	static kobel_str kobel_concat3(kobel_str a, kobel_str b, kobel_str c) {
 		size_t total = a.len + b.len + c.len;
 		char* r = (char*)malloc(total + 1);
@@ -63,6 +74,7 @@ const C_PRELUDE = """
 		r[total] = 0;
 		return (kobel_str){ r, total };
 	}
+
 	static kobel_str kobel_concat4(kobel_str a, kobel_str b, kobel_str c, kobel_str d) {
 		size_t total = a.len + b.len + c.len + d.len;
 		char* r = (char*)malloc(total + 1);
@@ -74,6 +86,7 @@ const C_PRELUDE = """
 		r[total] = 0;
 		return (kobel_str){ r, total };
 	}
+
 	static kobel_str kobel_concat5(kobel_str a, kobel_str b, kobel_str c, kobel_str d, kobel_str e) {
 		size_t total = a.len + b.len + c.len + d.len + e.len;
 		char* r = (char*)malloc(total + 1);
@@ -86,10 +99,12 @@ const C_PRELUDE = """
 		r[total] = 0;
 		return (kobel_str){ r, total };
 	}
+
 	/* str == str helper — fast length check + memcmp */
 	static inline int kobel_streq(kobel_str a, kobel_str b) {
 		return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
 	}
+
 	/* struct == struct fallback helper */
 	static inline int kobel_memeq(const void* a, const void* b, size_t n) {
 		return memcmp(a, b, n) == 0;
