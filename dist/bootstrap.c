@@ -21049,7 +21049,9 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_interp_mult
             compiler__lexer__lexer__Lexer sub_lexer = compiler__lexer__lexer__Lexer_new(src);
             std__collections__list__List_compiler__lexer__token__Token sub_tokens = compiler__lexer__lexer__Lexer_tokenize(&sub_lexer);
             compiler__parser__parser__Parser sub = compiler__parser__parser__Parser_new(sub_tokens);
+            sub.arena = self->arena;
             compiler__ast__node__AstNode* hole = compiler__parser__parser__Parser_parse_expression(&sub, 0);
+            self->arena = sub.arena;
             if (!std__collections__list__List_str_empty(&sub.errors)) {
                 {
                     size_t __for_n = std__collections__list__List_str_count(&sub.errors);
@@ -21115,7 +21117,9 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_interp_stri
             compiler__lexer__lexer__Lexer sub_lexer = compiler__lexer__lexer__Lexer_new(src);
             std__collections__list__List_compiler__lexer__token__Token sub_tokens = compiler__lexer__lexer__Lexer_tokenize(&sub_lexer);
             compiler__parser__parser__Parser sub = compiler__parser__parser__Parser_new(sub_tokens);
+            sub.arena = self->arena;
             compiler__ast__node__AstNode* hole = compiler__parser__parser__Parser_parse_expression(&sub, 0);
+            self->arena = sub.arena;
             if (sub.errors.len > 0) {
                 {
                     size_t __for_n = std__collections__list__List_str_count(&sub.errors);
