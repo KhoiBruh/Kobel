@@ -1,0 +1,66 @@
+mod tests.features.test_math;
+
+use std.math.*;
+use std.io.println;
+
+fn assert(cond: bool, msg: str) {
+	if (!cond) {
+		println("Assertion failed: ${msg}");
+	}
+}
+
+fn main() {
+	println("--- Testing std.math ---");
+
+	// 1. Mathematical constants
+	assert(PI > 3.14159 && PI < 3.14160, "PI value");
+	assert(E > 2.71828 && E < 2.71829, "E value");
+	assert(TAU > 6.28318 && TAU < 6.28319, "TAU value");
+	assert(SQRT2 > 1.41421 && SQRT2 < 1.41422, "SQRT2 value");
+
+	// 2. Generic min, max, clamp
+	val a: i32 = 10;
+	val b: i32 = 25;
+	assert(min(a, b) == 10, "min(10, 25) == 10");
+	assert(max(a, b) == 25, "max(10, 25) == 25");
+	assert(clamp(5, 10, 20) == 10, "clamp(5, 10, 20) == 10");
+	assert(clamp(15, 10, 20) == 15, "clamp(15, 10, 20) == 15");
+	assert(clamp(30, 10, 20) == 20, "clamp(30, 10, 20) == 20");
+
+	// Generic on float
+	val f1: f64 = 1.5;
+	val f2: f64 = 3.8;
+	assert(min(f1, f2) == 1.5, "min(1.5, 3.8) == 1.5");
+	assert(max(f1, f2) == 3.8, "max(1.5, 3.8) == 3.8");
+	assert(clamp(0.5, 1.0, 2.0) == 1.0, "clamp float below");
+	assert(clamp(1.5, 1.0, 2.0) == 1.5, "clamp float inside");
+	assert(clamp(2.5, 1.0, 2.0) == 2.0, "clamp float above");
+
+	// 3. Integer math utilities
+	assert(gcd(48, 18) == 6, "gcd(48, 18) == 6");
+	assert(gcd(101, 10) == 1, "gcd(101, 10) == 1");
+	assert(lcm(12, 18) == 36, "lcm(12, 18) == 36");
+
+	// 4. Power & Roots
+	assert(pow_i64(2, 10) == 1024, "2^10 == 1024");
+	assert(pow_i64(3, 3) == 27, "3^3 == 27");
+	assert(pow_i64(5, 0) == 1, "5^0 == 1");
+
+	val s = sqrt(16.0);
+	assert(s > 3.99999 && s < 4.00001, "sqrt(16.0) == 4.0");
+
+	val s2 = sqrt(2.0);
+	assert(s2 > 1.41421 && s2 < 1.41422, "sqrt(2.0) == SQRT2");
+
+	// 5. Geometry / Trigonometry helpers
+	val h = hypot(3.0, 4.0);
+	assert(h > 4.99999 && h < 5.00001, "hypot(3, 4) == 5.0");
+
+	val rad = deg_to_rad(180.0);
+	assert(rad > 3.14159 && rad < 3.14160, "deg_to_rad(180) == PI");
+
+	val deg = rad_to_deg(PI);
+	assert(deg > 179.999 && deg < 180.001, "rad_to_deg(PI) == 180.0");
+
+	println("[PASS] test_math");
+}

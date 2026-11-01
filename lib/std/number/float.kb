@@ -6,10 +6,6 @@ mod std.number;
  * ============================================================================
  */
 
-pub const PI: f64 = 3.14159265358979323846;
-pub const E: f64 = 2.71828182845904523536;
-pub const TAU: f64 = 6.28318530717958647692;
-
 pub trait Float {
 	fn is_nan(val self): bool;
 	fn is_infinite(val self): bool;
@@ -20,14 +16,14 @@ pub trait Float {
 
 impl Float for f32 {
 	fn is_nan(val self): bool => self != self;
-	fn is_infinite(val self): bool => (self == (1.0 / 0.0) as f32) || (self == (-1.0 / 0.0) as f32);
-	fn is_finite(val self): bool => !self.is_nan() && !self.is_infinite();
+	fn is_infinite(val self): bool => !self.is_nan() && ((self - self) != 0.0 as f32);
+	fn is_finite(val self): bool => !self.is_nan() && ((self - self) == 0.0 as f32);
 }
 
 impl Float for f64 {
 	fn is_nan(val self): bool => self != self;
-	fn is_infinite(val self): bool => (self == 1.0 / 0.0) || (self == -1.0 / 0.0);
-	fn is_finite(val self): bool => !self.is_nan() && !self.is_infinite();
+	fn is_infinite(val self): bool => !self.is_nan() && ((self - self) != 0.0);
+	fn is_finite(val self): bool => !self.is_nan() && ((self - self) == 0.0);
 }
 
 // --- Inherent methods for f32 -----------------------------------------------

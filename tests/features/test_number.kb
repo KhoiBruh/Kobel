@@ -68,15 +68,7 @@ fn main() {
 	val bn: u32 = 10;
 	assert(bn.to_bin() == "0b1010", "10.to_bin() must be 0b1010");
 
-	// 6. Free math functions
-	assert(gcd(48, 18) == 6, "gcd(48, 18) == 6");
-	assert(lcm(12, 18) == 36, "lcm(12, 18) == 36");
-	assert(min_i64(10, 20) == 10, "min_i64");
-	assert(max_i64(10, 20) == 20, "max_i64");
-	assert(clamp_i64(5, 10, 20) == 10, "clamp_i64");
-
-	// 7. Float methods & constants
-	assert(PI > 3.14 && PI < 3.15, "PI value check");
+	// 6. Float methods
 	val fl: f64 = 3.7;
 	assert(fl.floor() == 3.0, "3.7.floor() == 3.0");
 	assert(fl.ceil() == 4.0, "3.7.ceil() == 4.0");
