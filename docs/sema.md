@@ -1,7 +1,7 @@
 # Sema — bản đồ
 
 Trang này là "bản đồ" của tầng ngữ nghĩa (`src/compiler/sema`): pass nào sở hữu dữ liệu gì, quyết định
-được ghi vào đâu, và vòng đời của một instance generic. Đặc tả ngôn ngữ ở [`../dac-ta-ngon-ngu.md`](../dac-ta-ngon-ngu.md);
+được ghi vào đâu, và vòng đời của một instance generic. Đặc tả ngôn ngữ ở [`spec.md`](spec.md);
 kiến trúc tổng thể ở [`architecture.md`](architecture.md) (§3.3, §6.7); kế hoạch/tình trạng monomorphization
 ở [`parameterised-ir.md`](parameterised-ir.md).
 

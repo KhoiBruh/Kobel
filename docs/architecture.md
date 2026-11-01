@@ -3,7 +3,7 @@
 Tài liệu này mô tả kiến trúc **hiện tại** của dự án, các quy ước/bất biến đã hình thành trong
 quá trình self-host, và **bố cục đích** kèm lộ trình tái cấu trúc.
 
-Đặc tả ngôn ngữ nằm ở [`../dac-ta-ngon-ngu.md`](../dac-ta-ngon-ngu.md) (dự kiến chuyển thành `docs/spec.md`).
+Đặc tả ngôn ngữ nằm ở [`spec.md`](spec.md).
 
 ---
 
@@ -472,7 +472,7 @@ chứ không còn bảng phụ:
 được **khai báo trước** (`struct PrimMethods;`, P‑1) và định nghĩa sau `MethodInfo`; `Type.methods` là
 `*PrimMethods`. Trước khi có khai báo trước, chỗ này buộc phải là `*u8` + cast.
 
-Nền tảng này nuôi **trait `ToStr`** (`lib/std/traits/to_str.kb`, gom qua umbrella `lib/std/fmt.kb`).
+Nền tảng này nuôi **trait `ToStr`** (`../lib/std/string/string.kb`, gom qua umbrella `lib/std/fmt.kb`).
 Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.traits.to_str` — để impl
 `ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay không; nhờ vậy nội suy
 `${x}` hạ được thành `x.to_str()`.
@@ -595,7 +595,7 @@ và v1).
 
 | Pha | Việc | Rủi ro |
 |---|---|---|
-| 0 | dọn rác: gitignore `/build/`, xoá `kobel_v*.exe`/`out.c`/`*.tmp.obj`/`tmp_diag.bat`, `git mv dac-ta-ngon-ngu.md docs/spec.md` | thấp |
+| 0 | dọn rác: gitignore `/build/`, xoá `kobel_v*.exe`/`out.c`/`*.tmp.obj`/`tmp_diag.bat` | thấp |
 | 1 | `git mv` theo §9.1 (giữ lịch sử) + cập nhật path trong CMake, `.bat`, loader roots | thấp–vừa |
 | 2 | gộp build vào `tools/bootstrap.ps1` (`build\|self\|fixpoint\|test\|clean`) + `tools/msvc.ps1`; test tự khám phá | thấp |
 | 3 | chẻ file phình — **đã làm** theo ranh giới không-vòng (§3.3): `decl.pass`→`+decl.collect`, `body.pass`→`+body.program`, `c_codegen`→`+c_program`, `c_runtime` tách riêng prelude C (`const C_PRELUDE`). Phần core/monomorph giữ nguyên ở module gốc vì là SCC. | vừa |
