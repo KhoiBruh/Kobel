@@ -189,7 +189,7 @@ impl DeclPass {
 			}
 			NodeKind.TYPE_NAMED -> {
 				val name = node.as_named_type().name;
-				if (name == "str") yield 8;
+				if (name == "str") yield 16;
 				if (name == "i8" || name == "u8" || name == "bool" || name == "char") yield 1;
 				if (name == "i16" || name == "u16") yield 2;
 				if (name == "i32" || name == "u32" || name == "f32") yield 4;

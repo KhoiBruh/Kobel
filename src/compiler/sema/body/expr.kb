@@ -130,7 +130,17 @@ impl BodyPass {
 				yield self.prims().t_prim(type_f64());
 			}
 			LiteralKind.BOOL -> self.prims().t_bool();
-			LiteralKind.STRING -> self.prims().t_str();
+			LiteralKind.STRING -> {
+				val str_ty = self.prims().t_str();
+				if (
+					expected != null &&
+					expected.kind == DataType.POINTER &&
+					expected.can_assign(str_ty)
+				) {
+					yield expected;
+				}
+				yield str_ty;
+			}
 			LiteralKind.CHAR -> self.prims().t_char();
 			LiteralKind.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
 		};

@@ -37,7 +37,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 				"usz" -> "size_t";
 				"f32" -> "float";
 				"f64" -> "double";
-				"str" -> "const char*";
+				"str" -> "kobel_str";
 				else -> name;
 			};
 		}
@@ -91,7 +91,7 @@ pub fn c_type_from_type(ty: *Type): str {
 		DataType.USZ -> "size_t";
 		DataType.F32 -> "float";
 		DataType.F64 -> "double";
-		DataType.STR -> "const char*";
+		DataType.STR -> "kobel_str";
 
 		DataType.POINTER -> {
 			val ptr = ty.as_pointer();

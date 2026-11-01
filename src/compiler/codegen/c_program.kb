@@ -375,6 +375,8 @@ impl CCodeGen {
 						es_candidate is BinaryExpr as bin &&
 						bin.op == TokenType.QUESTION_COLON
 					) {
+						val is_str_ret = ret_ty == "kobel_str" || self.is_str_value(bin.left);
+						val not_null_chk = if (is_str_ret) ".data != NULL" else " != NULL";
 						sb += "    ";
 						sb += ret_ty;
 						sb += " __ret_tmp;\n";
@@ -388,7 +390,9 @@ impl CCodeGen {
 							if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
 								sb += "    __ret_tmp = ";
 								sb += self.gen_expr(b.left);
-								sb += ";\n    if (__ret_tmp != NULL) return __ret_tmp;\n";
+								sb += ";\n    if (__ret_tmp";
+								sb += not_null_chk;
+								sb += ") return __ret_tmp;\n";
 								cur = b.right;
 							} else {
 								sb += "    return ";

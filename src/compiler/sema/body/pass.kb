@@ -392,7 +392,8 @@ impl BodyPass {
 			DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
 			DataType.I16, DataType.U16 -> 2;
 			DataType.I32, DataType.U32, DataType.F32 -> 4;
-			DataType.I64, DataType.U64, DataType.ISZ, DataType.USZ, DataType.F64, DataType.STR -> 8;
+			DataType.I64, DataType.U64, DataType.ISZ, DataType.USZ, DataType.F64 -> 8;
+			DataType.STR -> 16;
 			DataType.POINTER -> 8;
 			DataType.ARRAY -> ty.as_array().length * self.type_c_size_num(ty.as_array().elem);
 			DataType.STRUCT -> ty.size;

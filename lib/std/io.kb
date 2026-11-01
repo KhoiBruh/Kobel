@@ -17,7 +17,9 @@ extern "libc" {
 }
 
 pub fn print(s: str) {
-	for (i in 0..<s.len) putchar(s[i]);
+	for (i in 0..<s.len) {
+		putchar(s[i]);
+	}
 }
 
 pub fn println(s: str) => puts(s.c_str());
@@ -49,14 +51,14 @@ pub fn read_file(path: str): str {
 
 pub fn write_file(path: str, content: str): bool {
 	val f = fopen(path.c_str(), "wb") ?: return false;
-	val written = fwrite(content.c_str(), 1, content.len, f);
+	val written = fwrite(content.data, 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
 
 pub fn append_file(path: str, content: str): bool {
 	val f = fopen(path.c_str(), "ab") ?: return false;
-	val written = fwrite(content.c_str(), 1, content.len, f);
+	val written = fwrite(content.data, 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }

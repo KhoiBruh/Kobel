@@ -339,24 +339,21 @@ impl BodyPass {
 		return null;
 	}
 
-	// `s.len`/`s.size` -> `kobel_slen(s)`; `s.data` -> `s`; `arr.len`/`arr.size`
-	// -> a compile-time literal; `arr.data` -> `arr`. The receiver's own type is
-	// enough to decide, so no symbol table is needed here.
+	// `s.size` -> `s.len` (`s.len` and `s.data` are direct fields of `kobel_str`);
+	// `arr.len`/`arr.size` -> a compile-time literal; `arr.data` -> `arr`.
 	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
 		val obj = mem.object ?: return node;
 
-		// Enum `.value` is identity on the underlying integer.
+		// Enum `.value` is identity on the underlying carrier.
 		val obj_ty = self.type_of(obj);
 		if (obj_ty?.is_enum() && mem.member == "value") return self.lowered(node, obj);
 
 		if (self.is_str_expr(obj)) {
-			if (mem.member == "len" || mem.member == "size") {
-				var args = List<*AstNode>();
-				args += obj;
-				val call = self.arena.call(self.arena.identifier("kobel_slen", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
-				return self.lowered(node, call);
+			if (mem.member == "size") {
+				val len_mem = self.arena.member(obj, "len", node.line, node.col);
+				return self.lowered(node, len_mem);
 			}
-			if (mem.member == "data") return self.lowered(node, obj);
+			return node;
 		}
 
 		if (self.is_array_expr(obj)) {
@@ -449,7 +446,12 @@ impl BodyPass {
 			return self.lowered(node, maybe);
 		}
 
-		val fallback = if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR) {
+		val fallback = if (call_ty?.kind == DataType.STR) {
+			self.arena.call(
+				self.arena.identifier("kobel_null_str", node.line, node.col),
+				List<*AstNode>(), List<*AstNode>(), node.line, node.col
+			)
+		} else if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR) {
 			self.arena.literal(LiteralKind.INT, "0", node.line, node.col)
 		} else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64) {
 			self.arena.literal(LiteralKind.FLOAT, "0.0", node.line, node.col)
@@ -461,8 +463,7 @@ impl BodyPass {
 		return self.lowered(node, maybe);
 	}
 
-	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`. Omitted bounds default to 0 and
-	// `kobel_slen(s)`, which is the contract `check_slice_call` validated.
+	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`; `s.slice(a)` -> `kobel_slice1(s, a)`.
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee ?: return node;
 		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
@@ -474,15 +475,15 @@ impl BodyPass {
 		args += mem.object;
 		if (!call.args.empty()) args += call.args.first();
 		else args += self.arena.literal(LiteralKind.INT, "0", node.line, node.col);
-		if (call.args.len >= 2) args += call.args[1];
-		else {
-			var largs = List<*AstNode>();
-			largs += mem.object;
-			args += self.arena.call(self.arena.identifier("kobel_slen", node.line, node.col), largs, List<*AstNode>(), node.line, node.col);
+
+		if (call.args.len >= 2) {
+			args += call.args[1];
+			val slice_call = self.arena.call(self.arena.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			return self.lowered(node, slice_call);
 		}
 
-		val slice_call = self.arena.call(self.arena.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
-		return self.lowered(node, slice_call);
+		val slice1_call = self.arena.call(self.arena.identifier("kobel_slice1", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		return self.lowered(node, slice1_call);
 	}
 
 	// ============================================================================

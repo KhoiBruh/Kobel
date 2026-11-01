@@ -139,12 +139,12 @@ pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
 };
 
 // C size (in bytes) of a primitive type name, or 0 when `name` is not one.
-// Mirrors `ast_type_size`: `str` is a C pointer, not the 16-byte slice value,
-// so an array of `str` has pointer stride.
+// Mirrors `ast_type_size`: `str` is a 16-byte fat pointer (`kobel_str`).
 pub fn prim_c_size(name: str): usz => when (name) {
 	"bool", "char", "i8", "u8" -> 1;
 	"i16", "u16" -> 2;
 	"i32", "u32", "f32" -> 4;
-	"i64", "u64", "isz", "usz", "f64", "str" -> 8;
+	"i64", "u64", "isz", "usz", "f64" -> 8;
+	"str" -> 16;
 	else -> 0;
 };

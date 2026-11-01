@@ -180,7 +180,13 @@ impl CCodeGen {
 		val unwrapped_init = unwrap_group_expr(init_e);
 		if (unwrapped_init != null && unwrapped_init is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
-			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
+			if (
+				unwrapped_l != null &&
+				unwrapped_l is MemberExpr as mem &&
+				mem.is_safe &&
+				!self.is_pointer_value(unwrapped_l) &&
+				!self.is_str_value(unwrapped_l)
+			) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
 				val is_jump = unwrapped_r != null && (
 					unwrapped_r.kind == NodeKind.STMT_RETURN ||
@@ -219,6 +225,14 @@ impl CCodeGen {
 			}
 		}
 
+		var is_str_var = ty_str == "kobel_str";
+		if (unwrapped_init is BinaryExpr as eb2) {
+			if (self.is_str_value(eb2.left)) {
+				is_str_var = true;
+			}
+		}
+		val null_chk = if (is_str_var) ".data == NULL" else " == NULL";
+
 		var cur = init_e;
 		var first = true;
 		var sb = StringBuilder();
@@ -244,7 +258,8 @@ impl CCodeGen {
 						sb += ind;
 						sb += "if (";
 						sb += vd.name;
-						sb += " == NULL) ";
+						sb += null_chk;
+						sb += ") ";
 						sb += vd.name;
 						sb += " = ";
 						sb += self.gen_expr(b.left);
@@ -255,7 +270,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += vd.name;
-					sb += " == NULL) ";
+					sb += null_chk;
+					sb += ") ";
 					sb += vd.name;
 					sb += " = ";
 					sb += self.gen_expr(cur);
@@ -272,7 +288,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += vd.name;
-					sb += " == NULL) {\n";
+					sb += null_chk;
+					sb += ") {\n";
 					self.indent_level++;
 					sb += self.gen_statement(cur);
 					self.indent_level--;
@@ -282,7 +299,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += vd.name;
-					sb += " == NULL) ";
+					sb += null_chk;
+					sb += ") ";
 					sb += vd.name;
 					sb += " = ";
 					sb += self.gen_expr(cur);
@@ -522,6 +540,8 @@ impl CCodeGen {
 				) {
 					var ret_ty = self.current_fn_ret_type;
 					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(bin.left, "int32_t");
+					val is_str_ret = ret_ty == "kobel_str" || self.is_str_value(bin.left);
+					val not_null_chk = if (is_str_ret) ".data != NULL" else " != NULL";
 					var cur = ret_candidate;
 					var sb = StringBuilder();
 					defer sb.delete();
@@ -545,7 +565,9 @@ impl CCodeGen {
 							sb += self.gen_expr(b.left);
 							sb += ";\n";
 							sb += inner_ind;
-							sb += "if (__ret_tmp != NULL) return __ret_tmp;\n";
+							sb += "if (__ret_tmp";
+							sb += not_null_chk;
+							sb += ") return __ret_tmp;\n";
 							cur = b.right;
 						} else {
 							sb += inner_ind;
@@ -646,7 +668,13 @@ impl CCodeGen {
 		val unwrapped_val = unwrap_group_expr(asg_val);
 		if (unwrapped_val != null && unwrapped_val is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
-			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
+			if (
+				unwrapped_l != null &&
+				unwrapped_l is MemberExpr as mem &&
+				mem.is_safe &&
+				!self.is_pointer_value(unwrapped_l) &&
+				!self.is_str_value(unwrapped_l)
+			) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
 				val is_jump = unwrapped_r != null && (
 					unwrapped_r.kind == NodeKind.STMT_RETURN ||
@@ -683,6 +711,14 @@ impl CCodeGen {
 			}
 		}
 
+		var is_str_tgt = self.is_str_value(asg.target);
+		if (unwrapped_val is BinaryExpr as eb2) {
+			if (self.is_str_value(eb2.left)) {
+				is_str_tgt = true;
+			}
+		}
+		val null_chk = if (is_str_tgt) ".data == NULL" else " == NULL";
+
 		var cur = asg_val;
 		var first = true;
 		var sb = StringBuilder();
@@ -706,7 +742,8 @@ impl CCodeGen {
 						sb += ind;
 						sb += "if (";
 						sb += tgt;
-						sb += " == NULL) ";
+						sb += null_chk;
+						sb += ") ";
 						sb += tgt;
 						sb += " = ";
 						sb += self.gen_expr(b.left);
@@ -717,7 +754,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += tgt;
-					sb += " == NULL) ";
+					sb += null_chk;
+					sb += ") ";
 					sb += tgt;
 					sb += " = ";
 					sb += self.gen_expr(cur);
@@ -734,7 +772,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += tgt;
-					sb += " == NULL) {\n";
+					sb += null_chk;
+					sb += ") {\n";
 					self.indent_level++;
 					sb += self.gen_statement(cur);
 					self.indent_level--;
@@ -744,7 +783,8 @@ impl CCodeGen {
 					sb += ind;
 					sb += "if (";
 					sb += tgt;
-					sb += " == NULL) ";
+					sb += null_chk;
+					sb += ") ";
 					sb += tgt;
 					sb += " = ";
 					sb += self.gen_expr(cur);
@@ -759,7 +799,13 @@ impl CCodeGen {
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
 	fn gen_elvis_jump_stmt(var self, bin: *BinaryExpr, ind: str): str {
 		val unwrapped_l = unwrap_group_expr(bin.left);
-		if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
+		if (
+			unwrapped_l != null &&
+			unwrapped_l is MemberExpr as mem &&
+			mem.is_safe &&
+			!self.is_pointer_value(unwrapped_l) &&
+			!self.is_str_value(unwrapped_l)
+		) {
 			val obj_s = self.gen_expr(mem.object);
 			val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 			self.indent_level++;
@@ -771,6 +817,10 @@ impl CCodeGen {
 		self.indent_level++;
 		val body_s = self.gen_statement(bin.right);
 		self.indent_level--;
+		if (self.is_str_value(bin.left)) {
+			val l_wrap = if (expr_needs_parens_for_member(bin.left)) "(${l_s})" else l_s;
+			return "${ind}if (${l_wrap}.data == NULL) {\n${body_s}${ind}}\n";
+		}
 		return "${ind}if (${l_s} == NULL) {\n${body_s}${ind}}\n";
 	}
 

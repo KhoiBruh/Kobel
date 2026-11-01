@@ -17,60 +17,82 @@ const C_PRELUDE = """
 	#include <fcntl.h>
 	#endif
 
-	/* str.slice(start, end) helper */
-	static const char* kobel_slice(const char* s, size_t start, size_t end) {
-		size_t n = (end > start) ? (end - start) : 0;
-		char* r = (char*)malloc(n + 1);
-		for (size_t i = 0; i < n; i++) r[i] = s[start + i];
-		r[n] = 0;
+	typedef struct { const char* data; size_t len; } kobel_str;
+	#define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })
+
+	static inline kobel_str kobel_null_str(void) {
+		return (kobel_str){ NULL, 0 };
+	}
+	static inline kobel_str kobel_from_cstr(const char* s) {
+		return s ? (kobel_str){ s, strlen(s) } : (kobel_str){ NULL, 0 };
+	}
+	static inline const char* kobel_cstr(kobel_str s) {
+		if (!s.data) return "";
+		if (s.data[s.len] == 0) return s.data;
+		char* r = (char*)malloc(s.len + 1);
+		memcpy(r, s.data, s.len);
+		r[s.len] = 0;
 		return r;
 	}
-	/* str + str helper */
-	static const char* kobel_concat(const char* a, const char* b) {
-		size_t la = strlen(a), lb = strlen(b);
-		char* r = (char*)malloc(la + lb + 1);
-		memcpy(r, a, la);
-		memcpy(r + la, b, lb + 1);
-		return r;
+	/* str.slice(start, end) helper — O(1) zero-allocation view */
+	static inline kobel_str kobel_slice(kobel_str s, size_t start, size_t end) {
+		if (!s.data) return (kobel_str){ NULL, 0 };
+		if (end > s.len) end = s.len;
+		if (start > end) start = end;
+		return (kobel_str){ s.data + start, end - start };
 	}
-	static const char* kobel_concat3(const char* a, const char* b, const char* c) {
-		size_t la = strlen(a), lb = strlen(b), lc = strlen(c);
-		char* r = (char*)malloc(la + lb + lc + 1);
-		memcpy(r, a, la);
-		memcpy(r + la, b, lb);
-		memcpy(r + la + lb, c, lc + 1);
-		return r;
+	static inline kobel_str kobel_slice1(kobel_str s, size_t start) {
+		return kobel_slice(s, start, s.len);
 	}
-	static const char* kobel_concat4(const char* a, const char* b, const char* c, const char* d) {
-		size_t la = strlen(a), lb = strlen(b), lc = strlen(c), ld = strlen(d);
-		char* r = (char*)malloc(la + lb + lc + ld + 1);
-		memcpy(r, a, la);
-		memcpy(r + la, b, lb);
-		memcpy(r + la + lb, c, lc);
-		memcpy(r + la + lb + lc, d, ld + 1);
-		return r;
+	/* str + str helpers — O(1) length lookup, single allocation */
+	static kobel_str kobel_concat(kobel_str a, kobel_str b) {
+		size_t total = a.len + b.len;
+		char* r = (char*)malloc(total + 1);
+		if (a.len > 0) memcpy(r, a.data, a.len);
+		if (b.len > 0) memcpy(r + a.len, b.data, b.len);
+		r[total] = 0;
+		return (kobel_str){ r, total };
 	}
-	static const char* kobel_concat5(const char* a, const char* b, const char* c, const char* d, const char* e) {
-		size_t la = strlen(a), lb = strlen(b), lc = strlen(c), ld = strlen(d), le = strlen(e);
-		char* r = (char*)malloc(la + lb + lc + ld + le + 1);
-		memcpy(r, a, la);
-		memcpy(r + la, b, lb);
-		memcpy(r + la + lb, c, lc);
-		memcpy(r + la + lb + lc, d, ld);
-		memcpy(r + la + lb + lc + ld, e, le + 1);
-		return r;
+	static kobel_str kobel_concat3(kobel_str a, kobel_str b, kobel_str c) {
+		size_t total = a.len + b.len + c.len;
+		char* r = (char*)malloc(total + 1);
+		size_t off = 0;
+		if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
+		if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
+		if (c.len > 0) { memcpy(r + off, c.data, c.len); }
+		r[total] = 0;
+		return (kobel_str){ r, total };
 	}
-	/* str == str helper */
-	static int kobel_streq(const char* a, const char* b) {
-		return strcmp(a, b) == 0;
+	static kobel_str kobel_concat4(kobel_str a, kobel_str b, kobel_str c, kobel_str d) {
+		size_t total = a.len + b.len + c.len + d.len;
+		char* r = (char*)malloc(total + 1);
+		size_t off = 0;
+		if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
+		if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
+		if (c.len > 0) { memcpy(r + off, c.data, c.len); off += c.len; }
+		if (d.len > 0) { memcpy(r + off, d.data, d.len); }
+		r[total] = 0;
+		return (kobel_str){ r, total };
+	}
+	static kobel_str kobel_concat5(kobel_str a, kobel_str b, kobel_str c, kobel_str d, kobel_str e) {
+		size_t total = a.len + b.len + c.len + d.len + e.len;
+		char* r = (char*)malloc(total + 1);
+		size_t off = 0;
+		if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
+		if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
+		if (c.len > 0) { memcpy(r + off, c.data, c.len); off += c.len; }
+		if (d.len > 0) { memcpy(r + off, d.data, d.len); off += d.len; }
+		if (e.len > 0) { memcpy(r + off, e.data, e.len); }
+		r[total] = 0;
+		return (kobel_str){ r, total };
+	}
+	/* str == str helper — fast length check + memcmp */
+	static inline int kobel_streq(kobel_str a, kobel_str b) {
+		return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
 	}
 	/* struct == struct fallback helper */
-	static int kobel_memeq(const void* a, const void* b, size_t n) {
+	static inline int kobel_memeq(const void* a, const void* b, size_t n) {
 		return memcmp(a, b, n) == 0;
-	}
-	/* str length helper */
-	static size_t kobel_slen(const char* s) {
-		return strlen(s);
 	}
 
 """;

@@ -51,9 +51,10 @@ impl CCodeGen {
 
 	pub fn gen_expr(var self, node: *AstNode?): str {
 		if (node == null) return "";
+		val ast_node = node!;
 
 		return when (node) {
-			is LiteralExpr -> self.gen_literal_expr(node);
+			is LiteralExpr -> self.gen_literal_expr(ast_node, node);
 
 			is IdentifierExpr -> node.name;
 
@@ -72,9 +73,17 @@ impl CCodeGen {
 
 			is CallExpr -> self.gen_call_expr(node);
 
-			is MemberExpr -> self.gen_member_expr(node);
+			is MemberExpr -> self.gen_member_expr(ast_node, node);
 
-			is IndexExpr -> "${self.gen_expr(node.target)}[${self.gen_expr(node.index)}]";
+			is IndexExpr -> {
+				val tgt = self.gen_expr(node.target);
+				val idx = self.gen_expr(node.index);
+				if (self.is_str_value(node.target)) {
+					val tgt_wrap = if (expr_needs_parens_for_member(node.target)) "(${tgt})" else tgt;
+					yield "${tgt_wrap}.data[${idx}]";
+				}
+				yield "${tgt}[${idx}]";
+			}
 
 			is AssignExpr -> self.gen_assign_expr(node);
 
@@ -123,19 +132,21 @@ impl CCodeGen {
 		};
 	}
 
-	// Literals lower to their C spelling (ints/floats normalised, strings/chars keep quoting).
-	fn gen_literal_expr(var self, lit: *LiteralExpr): str {
+	// Literals lower to their C spelling (ints/floats normalised, strings wrapped in KOBEL_STR).
+	fn gen_literal_expr(var self, ast_node: *AstNode, lit: *LiteralExpr): str {
 		return when (lit.literal_kind) {
 			LiteralKind.INT -> c_format_int_literal(lit.raw_text);
 			LiteralKind.FLOAT -> c_format_float_literal(lit.raw_text);
 			LiteralKind.BOOL -> lit.raw_text;
 			LiteralKind.STRING -> {
-				if (
-					lit.raw_text.len >= 2 &&
-					lit.raw_text[0] == '"'
-				) yield lit.raw_text;
-
-				yield "\"${lit.raw_text}\"";
+				val lit_ty = ast_node.type_ptr as *Type;
+				val is_ptr_lit = lit_ty != null && lit_ty.kind == DataType.POINTER;
+				val quoted = if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') lit.raw_text
+					else "\"${lit.raw_text}\"";
+				if (is_ptr_lit) {
+					yield quoted;
+				}
+				yield "KOBEL_STR(${quoted})";
 			}
 			LiteralKind.CHAR -> {
 				if (
@@ -157,6 +168,9 @@ impl CCodeGen {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
+				if (self.is_str_value(unwrapped_l) || self.is_str_value(bin.right)) {
+					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member}.data != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
+				}
 				if (self.is_pointer_value(unwrapped_l) || self.is_pointer_value(bin.right)) {
 					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member} != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
 				}
@@ -164,6 +178,10 @@ impl CCodeGen {
 			}
 			val l = self.gen_expr(bin.left);
 			val r = self.gen_expr(bin.right);
+			if (self.is_str_value(bin.left)) {
+				val l_wrap = if (expr_needs_parens_for_member(bin.left)) "(${l})" else l;
+				return "(${l_wrap}.data != NULL ? ${l} : ${r})";
+			}
 			return "(${l} != NULL ? ${l} : ${r})";
 		}
 
@@ -286,19 +304,19 @@ impl CCodeGen {
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
 	fn gen_call_expr(var self, call: *CallExpr): str {
-		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> s
+		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> kobel_cstr(s)
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
 			if (mem.member == "size") {
 				val obj_name = self.gen_expr(mem.object);
 				val c_type = when (obj_name) {
-					"str" -> "const char*";
+					"str" -> "kobel_str";
 					"usz", "isz" -> "size_t";
 					else -> obj_name;
 				};
 				return "sizeof(${c_type})";
 			}
-			if (mem.member == "c_str") return self.gen_expr(mem.object);
+			if (mem.member == "c_str") return "kobel_cstr(${self.gen_expr(mem.object)})";
 			if (mem.member == "addr" && self.is_pointer_value(mem.object)) {
 				val obj_str = self.gen_expr(mem.object);
 				if (mem.is_safe) return "(${obj_str} != NULL ? (uintptr_t)(${obj_str}) : 0)";
@@ -324,9 +342,9 @@ impl CCodeGen {
 		return "${callee_str}(${joined_args})";
 	}
 
-	// Member access lowers to ./->. `str`/array `len` and `data` were already
-	// rewritten by the lower pass, so this only sees real fields.
-	fn gen_member_expr(var self, mem: *MemberExpr): str {
+	// Member access lowers to ./->. `str` is a struct (`kobel_str`), so `.len` and
+	// `.data` emit directly as field accesses.
+	fn gen_member_expr(var self, ast_node: *AstNode, mem: *MemberExpr): str {
 		val obj_node = mem.object;
 		val obj = self.gen_expr(obj_node);
 		// A member access on a pointer value needs `->`; the receiver of a
@@ -335,7 +353,24 @@ impl CCodeGen {
 		if (obj_node.kind == NodeKind.EXPR_IDENTIFIER) is_ptr = self.c_type_of(obj_node).ends_with("*");
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
 		if (mem.is_safe) {
-			val obj_ty = obj_node.type_ptr as *Type;
+			val mem_ty = ast_node.type_ptr as *Type;
+			if (mem_ty != null) {
+				val mk = mem_ty.kind;
+				if (mk == DataType.BOOL) {
+					return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+				}
+				if (mk == DataType.STR) {
+					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str())";
+				}
+				if (mem_ty.is_integer() || mem_ty.is_enum() || mk == DataType.CHAR) {
+					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
+				}
+				if (mk == DataType.F32 || mk == DataType.F64) {
+					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
+				}
+			}
+			val unwrapped_obj = unwrap_group_expr(obj_node);
+			val obj_ty = if (unwrapped_obj != null) unwrapped_obj.type_ptr as *Type else null as *Type;
 			if (obj_ty != null) {
 				var inner = obj_ty;
 				if (inner.kind == DataType.POINTER) inner = inner.as_pointer().pointee;
@@ -346,6 +381,9 @@ impl CCodeGen {
 							val fk = f.type_ptr.kind;
 							if (fk == DataType.BOOL) {
 								return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+							}
+							if (fk == DataType.STR) {
+								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str())";
 							}
 							if (f.type_ptr.is_integer() || f.type_ptr.is_enum() || fk == DataType.CHAR) {
 								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
@@ -417,6 +455,9 @@ impl CCodeGen {
 	pub fn gen_cast_expr(var self, cst: *CastExpr): str {
 		if (!cst.is_safe) {
 			val ty = c_type_from_ast(cst.target_type);
+			if (ty == "kobel_str" && cst.expr != null && self.is_pointer_value(cst.expr!)) {
+				return "kobel_from_cstr((const char*)(${self.gen_expr(cst.expr)}))";
+			}
 			return "(${ty})${self.gen_expr(cst.expr)}";
 		}
 
@@ -478,7 +519,7 @@ impl CCodeGen {
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
 	// For the boolean form (`cond` empty) each pattern is itself the test.
-	// String patterns compare with strcmp since `str` lowers to `const char*`.
+	// String patterns compare with `kobel_streq`.
 	pub fn gen_when_test(var self, cond: str, patterns: List<*AstNode>): str {
 		var res = "";
 		for (i in 0..<patterns.len) {
@@ -494,10 +535,12 @@ impl CCodeGen {
 				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, tag_const);
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == LiteralKind.STRING) {
-					test = "strcmp(${cond}, ${self.gen_expr(p)}) == 0";
+					test = "kobel_streq(${cond}, ${self.gen_expr(p)})";
 				} else {
 					test = "${cond} == ${self.gen_expr(p)}";
 				}
+			} else if (self.is_str_value(p)) {
+				test = "kobel_streq(${cond}, ${self.gen_expr(p)})";
 			} else {
 				test = "${cond} == ${self.gen_expr(p)}";
 			}
@@ -526,11 +569,18 @@ impl CCodeGen {
 
 	// True when the value is a pointer: a smart cast over a pointer casts the
 	// value itself, while a struct value has to be addressed.
-	fn is_pointer_value(val self, node: *AstNode): bool {
+	pub fn is_pointer_value(val self, node: *AstNode): bool {
 		if (node == null) return false;
 		val ty = node.type_ptr as *Type;
 		if (ty == null) return false;
 		return ty.kind == DataType.POINTER;
+	}
+
+	pub fn is_str_value(val self, node: *AstNode): bool {
+		if (node == null) return false;
+		val ty = node.type_ptr as *Type;
+		if (ty == null) return false;
+		return ty.kind == DataType.STR;
 	}
 
 	fn is_char_value(val self, node: *AstNode): bool {

@@ -1,24 +1,28 @@
 mod std.str;
 
-use std.mem.alloc.*;
 use std.collections.list.List;
+use std.mem.alloc.*;
 
-// ============================================================================
-// std.str - low-level `str` construction
-//
-// The shared base for every formatter in std (traits/, etc.): it turns a heap
-// byte buffer into a `str` value without relying on how the backend represents
-// `str`, so a formatter only has to fill a buffer.
-// ============================================================================
+/*
+ * ============================================================================
+ * std.str — core `str` layout and methods
+ *
+ * `str` is a non-owning fat-pointer view (`{ data: *char, len: usz }`, 16 bytes
+ * in C99). String literals, concatenations, and buffer builders all keep an
+ * extra trailing NUL byte at `data[len]` so `.c_str()` is O(1) without copying,
+ * while `.slice(start, end)` produces an O(1) zero-allocation sub-view.
+ * ============================================================================
+ */
 
-// Raw layout of a `str` value (`const char*` in C99).
+// Raw layout of a `str` value (`kobel_str` in C99).
 struct StrRaw {
-	data: *char
+	data: *char,
+	len: usz
 }
 
-// Wraps a heap byte buffer (already NUL terminated) into a `str` value.
+// Wraps a heap byte buffer of `len` bytes into a `str` value without copying.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
-	var r = StrRaw(buf as *char);
+	var r = StrRaw(buf as *char, len);
 	val sp = &r as *str;
 	return *sp;
 }
@@ -28,29 +32,62 @@ impl str {
 	pub fn empty(val self) => self.len == 0;
 
 	pub fn starts_with(val self, prefix: str): bool {
-		if (self.len < prefix.len) return false;
+		if (self.len < prefix.len) {
+			return false;
+		}
 		for (i in 0..<prefix.len) {
-			if (self[i] != prefix[i]) return false;
+			if (self[i] != prefix[i]) {
+				return false;
+			}
 		}
 		return true;
 	}
 
 	pub fn ends_with(val self, suffix: str): bool {
-		if (self.len < suffix.len) return false;
+		if (self.len < suffix.len) {
+			return false;
+		}
 		val off = self.len - suffix.len;
 		for (i in 0..<suffix.len) {
-			if (self[off + i] != suffix[i]) return false;
+			if (self[off + i] != suffix[i]) {
+				return false;
+			}
 		}
 		return true;
+	}
+
+	pub fn index_of(val self, sub: str): isz {
+		if (sub.len == 0) {
+			return 0;
+		}
+		if (self.len < sub.len) {
+			return -1;
+		}
+
+		val max_start = self.len - sub.len;
+		for (i in 0..max_start) {
+			var matched = true;
+			for (j in 0..<sub.len) {
+				if (self[i + j] != sub[j]) {
+					matched = false;
+					break;
+				}
+			}
+			if (matched) {
+				return i;
+			}
+		}
+
+		return -1;
 	}
 
 	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
 		else self.slice(0, self.len - n);
 
-	// `self` without every occurrence of `c`: `1_000` -> `1000`.
+	// Copy of `self` with every occurrence of `c` removed (`"1_000".strip_char('_')` -> `"1000"`).
 	pub fn strip_char(val self, c: char): str {
-		var buf = alloc_array<u8>(self.len + 1);
-		var w = 0;
+		val buf = alloc_array<u8>(self.len + 1);
+		var w: usz = 0;
 		for (i in 0..<self.len) {
 			val ch = self[i];
 			if (ch != c) {
@@ -63,27 +100,56 @@ impl str {
 	}
 
 	pub fn replace_char(val self, from: char, to: char): str {
-		if (self.len == 0) return self;
+		if (self.len == 0) {
+			return self;
+		}
 		val buf = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
-			if (c == from) buf[i] = to.code();
-			else buf[i] = c.code();
+			if (c == from) {
+				buf[i] = to.code();
+			} else {
+				buf[i] = c.code();
+			}
 		}
 		buf[self.len] = 0;
 		return str_from_bytes(buf, self.len);
 	}
 
-	pub fn join(val self, list: List<str>): str {
-		if (list.len == 0) return "";
-		if (list.len == 1) return list.data[0];
+	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
+	pub fn repeat(val self, n: usz): str {
+		if (n == 0 || self.len == 0) {
+			return "";
+		}
+		val buf = alloc_array<u8>(self.len * n + 1);
+		var w: usz = 0;
 
-		var total = 0;
-		for (i in 0..<list.len) total += list.data[i].len;
+		for (k in 0..<n) {
+			for (i in 0..<self.len) {
+				buf[w] = self[i].code();
+				w++;
+			}
+		}
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
+
+	pub fn join(val self, list: List<str>): str {
+		if (list.len == 0) {
+			return "";
+		}
+		if (list.len == 1) {
+			return list.data[0];
+		}
+
+		var total: usz = 0;
+		for (i in 0..<list.len) {
+			total += list.data[i].len;
+		}
 		total += self.len * (list.len - 1);
 
 		val buf = alloc_array<u8>(total + 1);
-		var w = 0;
+		var w: usz = 0;
 		for (i in 0..<list.len) {
 			val item = list.data[i];
 			for (c in item) {
@@ -101,30 +167,42 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	// Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
-	// `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
+	/*
+	 * Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
+	 * `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
+	 */
 	fn suffix_tail(val self): str {
-		if (self.len == 0) return "";
+		if (self.len == 0) {
+			return "";
+		}
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
-			if (two == "UZ" || two == "UL" || two == "UB" || two == "US") return two;
+			if (two == "UZ" || two == "UL" || two == "UB" || two == "US") {
+				return two;
+			}
 		}
 		val last = self.slice(self.len - 1, self.len);
 		if (
 			last == "U" || last == "L" || last == "S" || last == "B" ||
 			last == "Z" || last == "D" || last == "F"
-		) return last;
+		) {
+			return last;
+		}
 		return "";
 	}
 
-	// The type suffix of a numeric literal, or "" when it carries none: `100L` ->
-	// "L", `0xFF_UL` -> "UL", `1.5F` -> "F".
-	//
-	// A radix-prefixed literal (`0x…`, `0b…`, `0o…`) only carries a suffix after
-	// the `_` separator, because B, D and F are digits there: `0xBF` is the number
-	// 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
+	/*
+	 * The type suffix of a numeric literal, or "" when it carries none: `100L` ->
+	 * "L", `0xFF_UL` -> "UL", `1.5F` -> "F".
+	 *
+	 * A radix-prefixed literal (`0x...`, `0b...`, `0o...`) only carries a suffix after
+	 * the `_` separator, because B, D and F are digits there: `0xBF` is the number
+	 * 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
+	 */
 	pub fn num_suffix(val self): str {
-		if (self.len == 0) return "";
+		if (self.len == 0) {
+			return "";
+		}
 
 		var zone = self;
 		var radix = false;
@@ -134,71 +212,31 @@ impl str {
 				radix = true;
 				zone = "";
 				for (i in 2..<self.len) {
-					if (self[i] == '_') zone = self.slice(i + 1, self.len);
+					if (self[i] == '_') {
+						zone = self.slice(i + 1, self.len);
+					}
 				}
 			}
 		}
-		if (zone.len == 0) return "";
+		if (zone.len == 0) {
+			return "";
+		}
 
 		val tail = zone.suffix_tail();
-		// For a radix literal the whole zone has to be the suffix, or a digit such
-		// as the second F of `0xFF_FF` would be read as one.
-		if (radix && zone.len != tail.len) return "";
+		/*
+		 * For a radix literal the whole zone has to be the suffix, or a digit such
+		 * as the second F of `0xFF_FF` would be read as one.
+		 */
+		if (radix && zone.len != tail.len) {
+			return "";
+		}
 		return tail;
 	}
 
-	// `n` copies of `self` in a single allocation ("" for n == 0).
-	pub fn repeat(val self, n: usz): str {
-		if (n == 0 || self.len == 0) return "";
-		val buf = alloc_array<u8>(self.len * n + 1);
-		var w = 0;
+	// ============================================================================
+	// Overloaded Operators
+	// ============================================================================
 
-		for (k in 0..<n) {
-			for (i in 0..<self.len) {
-				buf[w] = self[i].code();
-				w++;
-			}
-		}
-		buf[w] = 0;
-		return str_from_bytes(buf, w);
-	}
-
-	pub op contains(val self, sub: str): bool {
-		if (sub.len == 0) return true;
-		if (self.len < sub.len) return false;
-
-		val max_start = self.len - sub.len;
-		for (i in 0..max_start) {
-			var match = true;
-			for (j in 0..<sub.len) {
-				if (self[i + j] != sub[j]) {
-					match = false;
-					break;
-				}
-			}
-			if (match) return true;
-		}
-
-		return false;
-	}
-
-	pub fn index_of(val self, sub: str): isz {
-		if (sub.len == 0) return 0;
-		if (self.len < sub.len) return -1;
-
-		val max_start = self.len - sub.len;
-		for (i in 0..max_start) {
-			var match = true;
-			for (j in 0..<sub.len) {
-				if (self[i + j] != sub[j]) {
-					match = false;
-					break;
-				}
-			}
-			if (match) return i;
-		}
-
-		return -1;
-	}
+	pub op contains(val self, sub: str): bool => self.index_of(sub) >= 0;
 
 }
