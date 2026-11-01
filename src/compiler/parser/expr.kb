@@ -1,6 +1,7 @@
 mod compiler.parser.expr;
 
 use std.collections.list.*;
+use std.collections.string_builder.StringBuilder;
 use util.strutil.*;
 
 use compiler.lexer.token.*;
@@ -730,7 +731,8 @@ impl Parser {
 		var parts = List<InterpPart>();
 		val end = text.len;
 		var i: usz = 0;
-		var lit = "";
+		var lit = StringBuilder();
+		defer lit.delete();
 		var has_lit = false;
 
 		while (i < end) {
@@ -739,41 +741,42 @@ impl Parser {
 				if (i + 1 < end) {
 					val next_c = text[i + 1];
 					if (next_c == '$') {
-						lit = "${lit}$";
+						lit += '$';
 						has_lit = true;
 						i += 2;
 						continue;
 					}
 					if (next_c == '\\') {
-						lit = "${lit}\\\\";
+						lit += "\\\\";
 						has_lit = true;
 						i += 2;
 						continue;
 					}
 					if (next_c == '"') {
-						lit = "${lit}\\\"";
+						lit += "\\\"";
 						has_lit = true;
 						i += 2;
 						continue;
 					}
-					lit = "${lit}\\${next_c}";
+					lit += '\\';
+					lit += next_c;
 					has_lit = true;
 					i += 2;
 					continue;
 				}
-				lit = "${lit}\\\\";
+				lit += "\\\\";
 				has_lit = true;
 				i++;
 				continue;
 			}
 			if (c == '"') {
-				lit = "${lit}\\\"";
+				lit += "\\\"";
 				has_lit = true;
 				i++;
 				continue;
 			}
 			if (c == '\n') {
-				lit = "${lit}\\n";
+				lit += "\\n";
 				has_lit = true;
 				i++;
 				continue;
@@ -784,8 +787,8 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
-					lit = "";
+					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+					lit.clear();
 					has_lit = false;
 				}
 				val h_start = i + 2;
@@ -809,12 +812,12 @@ impl Parser {
 				i = (h_end as usz) + 1;
 				continue;
 			}
-			lit = "${lit}${text.slice(i, i + 1)}";
+			lit += c;
 			has_lit = true;
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
+		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
 		return self.interp(parts, line, col);
 	}
 
@@ -822,29 +825,36 @@ impl Parser {
 		var parts = List<InterpPart>();
 		val end = text.len - 1;   // index of the closing quote
 		var i: usz = 1;           // skip the opening quote
-		var lit = "";
+		var lit = StringBuilder();
+		defer lit.delete();
 		var has_lit = false;
 
 		while (i < end) {
 			val c = text[i];
 			if (c == '\\') {
 				if (i + 1 < end && text[i + 1] == '\\') {
-					lit = "${lit}\\\\";
+					lit += "\\\\";
 					has_lit = true;
 					i += 2;
 					continue;
 				}
 				// `\$` is a literal '$'; every other escape is kept verbatim.
-				if (i + 1 < end && text[i + 1] == '$') lit = "${lit}$";
-				else lit = "${lit}${text.slice(i, i + 2)}";
+				if (i + 1 < end && text[i + 1] == '$') {
+					lit += '$';
+				} else if (i + 1 < end) {
+					lit += '\\';
+					lit += text[i + 1];
+				} else {
+					lit += '\\';
+				}
 				has_lit = true;
 				i += 2;
 				continue;
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
-					lit = "";
+					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+					lit.clear();
 					has_lit = false;
 				}
 				val h_start = i + 2;
@@ -868,12 +878,12 @@ impl Parser {
 				i = h_end + 1;
 				continue;
 			}
-			lit = "${lit}${text.slice(i, i + 1)}";
+			lit += c;
 			has_lit = true;
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit}\"", line, col), true);
+		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
 		return self.interp(parts, line, col);
 	}
 

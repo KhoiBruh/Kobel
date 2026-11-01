@@ -33,6 +33,33 @@ const C_PRELUDE = """
 		memcpy(r + la, b, lb + 1);
 		return r;
 	}
+	static const char* kobel_concat3(const char* a, const char* b, const char* c) {
+		size_t la = strlen(a), lb = strlen(b), lc = strlen(c);
+		char* r = (char*)malloc(la + lb + lc + 1);
+		memcpy(r, a, la);
+		memcpy(r + la, b, lb);
+		memcpy(r + la + lb, c, lc + 1);
+		return r;
+	}
+	static const char* kobel_concat4(const char* a, const char* b, const char* c, const char* d) {
+		size_t la = strlen(a), lb = strlen(b), lc = strlen(c), ld = strlen(d);
+		char* r = (char*)malloc(la + lb + lc + ld + 1);
+		memcpy(r, a, la);
+		memcpy(r + la, b, lb);
+		memcpy(r + la + lb, c, lc);
+		memcpy(r + la + lb + lc, d, ld + 1);
+		return r;
+	}
+	static const char* kobel_concat5(const char* a, const char* b, const char* c, const char* d, const char* e) {
+		size_t la = strlen(a), lb = strlen(b), lc = strlen(c), ld = strlen(d), le = strlen(e);
+		char* r = (char*)malloc(la + lb + lc + ld + le + 1);
+		memcpy(r, a, la);
+		memcpy(r + la, b, lb);
+		memcpy(r + la + lb, c, lc);
+		memcpy(r + la + lb + lc, d, ld);
+		memcpy(r + la + lb + lc + ld, e, le + 1);
+		return r;
+	}
 	/* str == str helper */
 	static int kobel_streq(const char* a, const char* b) {
 		return strcmp(a, b) == 0;

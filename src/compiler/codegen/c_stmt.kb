@@ -10,6 +10,7 @@ mod compiler.codegen.c_stmt;
 use std.str.*;
 use std.collections.list.*;
 use std.collections.hash_set.*;
+use std.collections.string_builder.StringBuilder;
 
 use compiler.lexer.token.*;
 use compiler.ast.builder.*;
@@ -58,17 +59,19 @@ impl CCodeGen {
 		if (node == null) return "";
 		if (node is BlockStmt as blk) {
 			self.enter_defer_scope();
-			var res = "";
+			var sb = StringBuilder();
+			defer sb.delete();
 			for (s in blk.statements) {
-				res += self.gen_statement(s);
+				sb += self.gen_statement(s);
 			}
-			res += self.exit_defer_scope();
-			return res;
+			sb += self.exit_defer_scope();
+			return sb.to_str();
 		}
 		self.enter_defer_scope();
-		var res = self.gen_statement(node);
-		res += self.exit_defer_scope();
-		return res;
+		val s = self.gen_statement(node);
+		val d = self.exit_defer_scope();
+		if (d.empty()) return s;
+		return "${s}${d}";
 	}
 
 	pub fn gen_statement(var self, node: *AstNode) => when (node) {
@@ -91,33 +94,38 @@ impl CCodeGen {
 
 	fn gen_block_stmt(var self, blk: *BlockStmt): str {
 		val ind = get_indent(self.indent_level);
-		var res = ind + "{\n";
+		var sb = StringBuilder();
+		defer sb.delete();
+		sb += ind;
+		sb += "{\n";
 		self.indent_level++;
 		self.enter_defer_scope();
 		for (stmt in blk.statements) {
-			res += self.gen_statement(stmt);
+			sb += self.gen_statement(stmt);
 		}
-		res += self.exit_defer_scope();
+		sb += self.exit_defer_scope();
 		self.indent_level--;
-		return res + ind + "}\n";
+		sb += ind;
+		sb += "}\n";
+		return sb.to_str();
 	}
 
 	fn gen_break_stmt(var self): str {
 		val ind = get_indent(self.indent_level);
 		self.mark_current_scope_jumped();
-		if (self.loop_defer_depths.empty()) return ind + "break;\n";
+		if (self.loop_defer_depths.empty()) return "${ind}break;\n";
 		val target_depth = self.loop_defer_depths.last();
 		val defers = self.gen_defers_unwind(target_depth);
-		return defers + ind + "break;\n";
+		return "${defers}${ind}break;\n";
 	}
 
 	fn gen_continue_stmt(var self): str {
 		val ind = get_indent(self.indent_level);
 		self.mark_current_scope_jumped();
-		if (self.loop_defer_depths.empty()) return ind + "continue;\n";
+		if (self.loop_defer_depths.empty()) return "${ind}continue;\n";
 		val target_depth = self.loop_defer_depths.last();
 		val defers = self.gen_defers_unwind(target_depth);
-		return defers + ind + "continue;\n";
+		return "${defers}${ind}continue;\n";
 	}
 
 	fn gen_var_decl_stmt(var self, vd: *VarDeclStmt): str {
@@ -144,9 +152,8 @@ impl CCodeGen {
 		}
 
 		if (init_e is WhenExpr as we && we.has_blocks()) {
-			var res = "${ind}${ty_str} ${vd.name};\n";
-			res = "${res}${self.gen_when_with_target(we, vd.name, false)}";
-			return res;
+			val w = self.gen_when_with_target(we, vd.name, false);
+			return "${ind}${ty_str} ${vd.name};\n${w}";
 		}
 
 		if (
@@ -154,15 +161,15 @@ impl CCodeGen {
 			bin.op == TokenType.QUESTION_COLON
 		) return self.gen_var_elvis_init(vd, init_e!, ind, ty_str);
 
-		var res = "${ind}${ty_str} ${vd.name}";
 		if (vd.initializer != null) {
 			val saved_hint = self.array_elem_hint;
 			self.array_elem_hint = elem_hint;
-			res = "${res} = ${self.gen_expr(vd.initializer!)}";
+			val init_s = self.gen_expr(vd.initializer!);
 			self.array_elem_hint = saved_hint;
+			return "${ind}${ty_str} ${vd.name} = ${init_s};\n";
 		}
 
-		return "${res};\n";
+		return "${ind}${ty_str} ${vd.name};\n";
 	}
 
 	// Emit a `a ?: b ?: c` initializer chain as a run of NULL checks.
@@ -185,13 +192,27 @@ impl CCodeGen {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
-					var res = "${ind}if (${obj_wrap} == NULL) {\n";
+					var sb = StringBuilder();
+					defer sb.delete();
+					sb += ind;
+					sb += "if (";
+					sb += obj_wrap;
+					sb += " == NULL) {\n";
 					self.indent_level++;
-					res = "${res}${self.gen_statement(unwrapped_r!)}";
+					sb += self.gen_statement(unwrapped_r!);
 					self.indent_level--;
-					res = "${res}${ind}}\n";
-					res = "${res}${ind}${ty_str} ${vd.name} = ${obj_wrap}->${mem.member};\n";
-					return res;
+					sb += ind;
+					sb += "}\n";
+					sb += ind;
+					sb += ty_str;
+					sb += ' ';
+					sb += vd.name;
+					sb += " = ";
+					sb += obj_wrap;
+					sb += "->";
+					sb += mem.member;
+					sb += ";\n";
+					return sb.to_str();
 				}
 				val r_s = self.gen_expr(eb.right);
 				return "${ind}${ty_str} ${vd.name} = (${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s});\n";
@@ -200,7 +221,8 @@ impl CCodeGen {
 
 		var cur = init_e;
 		var first = true;
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 		while (cur != null) {
 			while (cur != null) {
 				if (cur is GroupExpr as g) cur = g.expr;
@@ -210,14 +232,34 @@ impl CCodeGen {
 			if (cur is BinaryExpr as b) {
 				if (b.op == TokenType.QUESTION_COLON) {
 					if (first) {
-						res = "${ind}${ty_str} ${vd.name} = ${self.gen_expr(b.left)};\n";
+						sb += ind;
+						sb += ty_str;
+						sb += ' ';
+						sb += vd.name;
+						sb += " = ";
+						sb += self.gen_expr(b.left);
+						sb += ";\n";
 						first = false;
 					} else {
-						res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(b.left)};\n";
+						sb += ind;
+						sb += "if (";
+						sb += vd.name;
+						sb += " == NULL) ";
+						sb += vd.name;
+						sb += " = ";
+						sb += self.gen_expr(b.left);
+						sb += ";\n";
 					}
 					cur = b.right;
 				} else {
-					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+					sb += ind;
+					sb += "if (";
+					sb += vd.name;
+					sb += " == NULL) ";
+					sb += vd.name;
+					sb += " = ";
+					sb += self.gen_expr(cur);
+					sb += ";\n";
 					break;
 				}
 			} else {
@@ -227,18 +269,29 @@ impl CCodeGen {
 					cur.kind == NodeKind.STMT_YIELD ||
 					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
-					res = "${res}${ind}if (${vd.name} == NULL) {\n";
+					sb += ind;
+					sb += "if (";
+					sb += vd.name;
+					sb += " == NULL) {\n";
 					self.indent_level++;
-					res = "${res}${self.gen_statement(cur)}";
+					sb += self.gen_statement(cur);
 					self.indent_level--;
-					res = "${res}${ind}}\n";
+					sb += ind;
+					sb += "}\n";
 				} else {
-					res = "${res}${ind}if (${vd.name} == NULL) ${vd.name} = ${self.gen_expr(cur)};\n";
+					sb += ind;
+					sb += "if (";
+					sb += vd.name;
+					sb += " == NULL) ";
+					sb += vd.name;
+					sb += " = ";
+					sb += self.gen_expr(cur);
+					sb += ";\n";
 				}
 				break;
 			}
 		}
-		return res;
+		return sb.to_str();
 	}
 
 	pub fn collect_condition_aliases(var self, expr: *AstNode): List<ConditionAlias> {
@@ -341,21 +394,33 @@ impl CCodeGen {
 
 		val ind = get_indent(self.indent_level);
 		val has_aliases = !aliases.empty();
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 
 		if (has_aliases) {
-			res = "${ind}{\n";
+			sb += ind;
+			sb += "{\n";
 			self.indent_level++;
+			val a_ind = get_indent(self.indent_level);
 			for (a in aliases) {
-				res = "${res}${get_indent(self.indent_level)}${a.decl}\n";
+				sb += a_ind;
+				sb += a.decl;
+				sb += '\n';
 			}
 		}
 
 		val if_ind = get_indent(self.indent_level);
-		res = "${res}${if_ind}if ${self.gen_cond(ifs.condition)} {\n";
+		sb += if_ind;
+		sb += "if ";
+		sb += self.gen_cond(ifs.condition);
+		sb += " {\n";
 		self.indent_level++;
-		if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
-		res = "${res}${self.gen_block_body(ifs.then_branch)}";
+		if (!cast_decl.empty()) {
+			sb += get_indent(self.indent_level);
+			sb += cast_decl;
+			sb += '\n';
+		}
+		sb += self.gen_block_body(ifs.then_branch);
 		self.indent_level--;
 
 		var cur_else = ifs.else_branch;
@@ -379,10 +444,17 @@ impl CCodeGen {
 					self.indent_level + 1
 				);
 
-				res = "${res}${if_ind}} else if ${self.gen_cond(elif.condition)} {\n";
+				sb += if_ind;
+				sb += "} else if ";
+				sb += self.gen_cond(elif.condition);
+				sb += " {\n";
 				self.indent_level++;
-				if (!elif_cast.empty()) res += get_indent(self.indent_level) + elif_cast + "\n";
-				res = "${res}${self.gen_block_body(elif.then_branch)}";
+				if (!elif_cast.empty()) {
+					sb += get_indent(self.indent_level);
+					sb += elif_cast;
+					sb += '\n';
+				}
+				sb += self.gen_block_body(elif.then_branch);
 				self.indent_level--;
 
 				cur_else = elif.else_branch;
@@ -390,31 +462,41 @@ impl CCodeGen {
 		}
 
 		if (cur_else != null) {
-			res = "${res}${if_ind}} else {\n";
+			sb += if_ind;
+			sb += "} else {\n";
 			self.indent_level++;
-			res = "${res}${self.gen_block_body(cur_else)}";
+			sb += self.gen_block_body(cur_else);
 			self.indent_level--;
 		}
 
-		res = "${res}${if_ind}}\n";
+		sb += if_ind;
+		sb += "}\n";
 
 		if (has_aliases) {
 			self.indent_level--;
-			res = "${res}${ind}}\n";
+			sb += ind;
+			sb += "}\n";
 		}
 
-		return res;
+		return sb.to_str();
 	}
 
 	fn gen_while_stmt(var self, wh: *WhileStmt): str {
 		val ind = get_indent(self.indent_level);
-		var res = "${ind}while ${self.gen_cond(wh.condition)} {\n";
+		var sb = StringBuilder();
+		defer sb.delete();
+		sb += ind;
+		sb += "while ";
+		sb += self.gen_cond(wh.condition);
+		sb += " {\n";
 		self.indent_level++;
 		self.loop_defer_depths += self.scope_starts.len;
-		res = "${res}${self.gen_block_body(wh.body)}";
+		sb += self.gen_block_body(wh.body);
 		self.loop_defer_depths.pop();
 		self.indent_level--;
-		return "${res}${ind}}\n";
+		sb += ind;
+		sb += "}\n";
+		return sb.to_str();
 	}
 
 	fn gen_return_stmt(var self, ret: *ReturnStmt): str {
@@ -441,10 +523,15 @@ impl CCodeGen {
 					var ret_ty = self.current_fn_ret_type;
 					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(bin.left, "int32_t");
 					var cur = ret_candidate;
-					var res = "${ind}{\n";
+					var sb = StringBuilder();
+					defer sb.delete();
+					sb += ind;
+					sb += "{\n";
 					self.indent_level++;
 					val inner_ind = get_indent(self.indent_level);
-					res = "${res}${inner_ind}${ret_ty} __ret_tmp;\n";
+					sb += inner_ind;
+					sb += ret_ty;
+					sb += " __ret_tmp;\n";
 					while (cur != null) {
 						while (cur != null) {
 							if (cur is GroupExpr as g) cur = g.expr;
@@ -453,18 +540,26 @@ impl CCodeGen {
 
 						if (cur == null) break;
 						if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
-							res = "${res}${inner_ind}__ret_tmp = ${self.gen_expr(b.left)};\n";
-							res = "${res}${inner_ind}if (__ret_tmp != NULL) return __ret_tmp;\n";
+							sb += inner_ind;
+							sb += "__ret_tmp = ";
+							sb += self.gen_expr(b.left);
+							sb += ";\n";
+							sb += inner_ind;
+							sb += "if (__ret_tmp != NULL) return __ret_tmp;\n";
 							cur = b.right;
 						} else {
-							res = "${res}${inner_ind}return ${self.gen_expr(cur)};\n";
+							sb += inner_ind;
+							sb += "return ";
+							sb += self.gen_expr(cur);
+							sb += ";\n";
 							break;
 						}
 					}
 
 					self.indent_level--;
-					res = "${res}${ind}}\n";
-					return res;
+					sb += ind;
+					sb += "}\n";
+					return sb.to_str();
 				}
 
 				return "${ind}return ${self.gen_expr(ret_val)};\n";
@@ -477,18 +572,28 @@ impl CCodeGen {
 		if (ret_val != null) {
 			var ret_ty = self.current_fn_ret_type;
 			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ret_val, "int32_t");
-			var res = "${ind}{\n";
+			var sb = StringBuilder();
+			defer sb.delete();
+			sb += ind;
+			sb += "{\n";
 			self.indent_level++;
 			val inner_ind = get_indent(self.indent_level);
-			res = "${res}${inner_ind}${ret_ty} __ret_tmp = ${self.gen_expr(ret_val)};\n";
-			res = res + self.gen_defers_unwind(0);
-			res = "${res}${inner_ind}return __ret_tmp;\n";
+			sb += inner_ind;
+			sb += ret_ty;
+			sb += " __ret_tmp = ";
+			sb += self.gen_expr(ret_val);
+			sb += ";\n";
+			sb += self.gen_defers_unwind(0);
+			sb += inner_ind;
+			sb += "return __ret_tmp;\n";
 			self.indent_level--;
-			res = "${res}${ind}}\n";
-			return res;
+			sb += ind;
+			sb += "}\n";
+			return sb.to_str();
 		}
 
-		return self.gen_defers_unwind(0) + ind + "return;\n";
+		val uw = self.gen_defers_unwind(0);
+		return "${uw}${ind}return;\n";
 	}
 
 	fn gen_expr_stmt(var self, es: *ExprStmt): str {
@@ -553,13 +658,25 @@ impl CCodeGen {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
-					var res = "${ind}if (${obj_wrap} == NULL) {\n";
+					var sb = StringBuilder();
+					defer sb.delete();
+					sb += ind;
+					sb += "if (";
+					sb += obj_wrap;
+					sb += " == NULL) {\n";
 					self.indent_level++;
-					res = "${res}${self.gen_statement(unwrapped_r!)}";
+					sb += self.gen_statement(unwrapped_r!);
 					self.indent_level--;
-					res = "${res}${ind}}\n";
-					res = "${res}${ind}${tgt} = ${obj_wrap}->${mem.member};\n";
-					return res;
+					sb += ind;
+					sb += "}\n";
+					sb += ind;
+					sb += tgt;
+					sb += " = ";
+					sb += obj_wrap;
+					sb += "->";
+					sb += mem.member;
+					sb += ";\n";
+					return sb.to_str();
 				}
 				val r_s = self.gen_expr(eb.right);
 				return "${ind}${tgt} = (${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s});\n";
@@ -568,7 +685,8 @@ impl CCodeGen {
 
 		var cur = asg_val;
 		var first = true;
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 		while (cur != null) {
 			while (cur != null) {
 				if (cur is GroupExpr as g) cur = g.expr;
@@ -578,14 +696,32 @@ impl CCodeGen {
 			if (cur is BinaryExpr as b) {
 				if (b.op == TokenType.QUESTION_COLON) {
 					if (first) {
-						res = "${ind}${tgt} = ${self.gen_expr(b.left)};\n";
+						sb += ind;
+						sb += tgt;
+						sb += " = ";
+						sb += self.gen_expr(b.left);
+						sb += ";\n";
 						first = false;
 					} else {
-						res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(b.left)};\n";
+						sb += ind;
+						sb += "if (";
+						sb += tgt;
+						sb += " == NULL) ";
+						sb += tgt;
+						sb += " = ";
+						sb += self.gen_expr(b.left);
+						sb += ";\n";
 					}
 					cur = b.right;
 				} else {
-					res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+					sb += ind;
+					sb += "if (";
+					sb += tgt;
+					sb += " == NULL) ";
+					sb += tgt;
+					sb += " = ";
+					sb += self.gen_expr(cur);
+					sb += ";\n";
 					break;
 				}
 			} else {
@@ -595,18 +731,29 @@ impl CCodeGen {
 					cur.kind == NodeKind.STMT_YIELD ||
 					cur.kind == NodeKind.STMT_BLOCK;
 				if (is_jump) {
-					res = "${res}${ind}if (${tgt} == NULL) {\n";
+					sb += ind;
+					sb += "if (";
+					sb += tgt;
+					sb += " == NULL) {\n";
 					self.indent_level++;
-					res = "${res}${self.gen_statement(cur)}";
+					sb += self.gen_statement(cur);
 					self.indent_level--;
-					res = "${res}${ind}}\n";
+					sb += ind;
+					sb += "}\n";
 				} else {
-					res = "${res}${ind}if (${tgt} == NULL) ${tgt} = ${self.gen_expr(cur)};\n";
+					sb += ind;
+					sb += "if (";
+					sb += tgt;
+					sb += " == NULL) ";
+					sb += tgt;
+					sb += " = ";
+					sb += self.gen_expr(cur);
+					sb += ";\n";
 				}
 				break;
 			}
 		}
-		return res;
+		return sb.to_str();
 	}
 
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
@@ -615,19 +762,16 @@ impl CCodeGen {
 		if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe && !self.is_pointer_value(unwrapped_l)) {
 			val obj_s = self.gen_expr(mem.object);
 			val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
-			var res = "${ind}if (${obj_wrap} == NULL) {\n";
 			self.indent_level++;
-			res = "${res}${self.gen_statement(bin.right)}";
+			val body_s = self.gen_statement(bin.right);
 			self.indent_level--;
-			res = "${res}${ind}}\n";
-			return res;
+			return "${ind}if (${obj_wrap} == NULL) {\n${body_s}${ind}}\n";
 		}
-		var res = "${ind}if (${self.gen_expr(bin.left)} == NULL) {\n";
+		val l_s = self.gen_expr(bin.left);
 		self.indent_level++;
-		res = "${res}${self.gen_statement(bin.right)}";
+		val body_s = self.gen_statement(bin.right);
 		self.indent_level--;
-		res = "${res}${ind}}\n";
-		return res;
+		return "${ind}if (${l_s} == NULL) {\n${body_s}${ind}}\n";
 	}
 
 	fn gen_yield_stmt(var self, ys: *YieldStmt): str {
@@ -663,7 +807,8 @@ impl CCodeGen {
 	fn gen_when_stmt(var self, ws: *WhenStmt): str {
 		val cond = if (ws.condition != null) self.gen_expr(ws.condition!) else "";
 		val ind = get_indent(self.indent_level);
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 		var first = true;
 		for (arm in ws.arms) {
 			var cast_decl = "";
@@ -678,21 +823,30 @@ impl CCodeGen {
 			}
 
 			if (arm.is_else) {
-				if (first) res += ind + "{\n";
-				else res += ind + "} else {\n";
+				sb += ind;
+				sb += if (first) "{\n" else "} else {\n";
 			} else {
 				val test = self.gen_when_test(cond, arm.patterns);
-				if (first) res += ind + "if (" + test + ") {\n";
-				else res += ind + "} else if (" + test + ") {\n";
+				sb += ind;
+				sb += if (first) "if (" else "} else if (";
+				sb += test;
+				sb += ") {\n";
 			}
 			self.indent_level++;
-			if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
-			res += self.gen_block_body(arm.body);
+			if (!cast_decl.empty()) {
+				sb += get_indent(self.indent_level);
+				sb += cast_decl;
+				sb += '\n';
+			}
+			sb += self.gen_block_body(arm.body);
 			self.indent_level--;
 			first = false;
 		}
-		if (!first) res += ind + "}\n";
-		return res;
+		if (!first) {
+			sb += ind;
+			sb += "}\n";
+		}
+		return sb.to_str();
 	}
 
 	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
@@ -741,7 +895,8 @@ impl CCodeGen {
 	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool): str {
 		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		val ind = get_indent(self.indent_level);
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 		var first = true;
 
 		val prev_target = self.yield_target;
@@ -770,43 +925,69 @@ impl CCodeGen {
 				val pat_node = arm.patterns.first();
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition!);
-					if (we.condition!.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = we.condition!.as_identifier_expr().name;
+					if (ws_is_id(we.condition!)) subj_expr = we.condition!.as_identifier_expr().name;
 					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
 
 			if (arm.is_else) {
-				res += if (first) ind + "{\n" else ind + "} else {\n";
+				sb += ind;
+				sb += if (first) "{\n" else "} else {\n";
 			} else if (!has_else && is_last && !first) {
-				res += ind + "} else {\n";
+				sb += ind;
+				sb += "} else {\n";
 			} else {
 				val test = self.gen_when_test(cond, arm.patterns);
-				res += if (first) ind + "if (" + test + ") {\n"
-				else ind + "} else if (" + test + ") {\n";
+				sb += ind;
+				sb += if (first) "if (" else "} else if (";
+				sb += test;
+				sb += ") {\n";
 			}
 			self.indent_level++;
-			if (!cast_decl.empty()) res += get_indent(self.indent_level) + cast_decl + "\n";
+			if (!cast_decl.empty()) {
+				sb += get_indent(self.indent_level);
+				sb += cast_decl;
+				sb += '\n';
+			}
 			val arm_b = arm.body;
 			if (arm_b is BlockStmt as blk) {
 				for (s in blk.statements) {
-					res += self.gen_statement(s);
+					sb += self.gen_statement(s);
 				}
 			} else {
 				val arm_ind = get_indent(self.indent_level);
-				res += if (is_ret) arm_ind + "return " + self.gen_expr(arm_b) + ";\n"
-				else arm_ind + target_name + " = " + self.gen_expr(arm_b) + ";\n";
+				sb += arm_ind;
+				if (is_ret) {
+					sb += "return ";
+					sb += self.gen_expr(arm_b);
+					sb += ";\n";
+				} else {
+					sb += target_name;
+					sb += " = ";
+					sb += self.gen_expr(arm_b);
+					sb += ";\n";
+				}
 			}
 			self.indent_level--;
 			first = false;
 			arm_idx++;
 		}
-		if (!first) res += ind + "}\n";
-		if (!is_ret) res = "${res}${ind}${self.yield_exit_label}:;\n";
+		if (!first) {
+			sb += ind;
+			sb += "}\n";
+		}
+		if (!is_ret) {
+			sb += ind;
+			sb += self.yield_exit_label;
+			sb += ":;\n";
+		}
 
 		self.yield_target = prev_target;
 		self.is_yield_return = prev_is_ret;
 		self.yield_exit_label = prev_exit;
-		return res;
+		return sb.to_str();
 	}
 
 }
+
+fn ws_is_id(node: *AstNode): bool => node.kind == NodeKind.EXPR_IDENTIFIER;

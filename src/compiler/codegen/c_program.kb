@@ -44,29 +44,59 @@ impl CCodeGen {
 						// A forward declaration and its definition are two AST nodes for
 						// one C type; the declaration pass marks which one emits it.
 						if (s.is_forward || s.emit_typedef) {
-							sb += "typedef struct ${s.name} ${s.name};\n";
+							sb += "typedef struct ";
+							sb += s.name;
+							sb += ' ';
+							sb += s.name;
+							sb += ";\n";
 						}
 					}
 					is EnumDecl as e -> {
 						if (self.enum_has_payload(e)) {
 							// A payload enum is a struct: tag + union of variant payloads.
-							sb += "typedef struct ${e.name} ${e.name};\n";
+							sb += "typedef struct ";
+							sb += e.name;
+							sb += ' ';
+							sb += e.name;
+							sb += ";\n";
 							for (i in 0..<e.members.len) {
 								val m = e.members[i];
-								sb += "typedef struct ${e.name}__${m.name} ${e.name}__${m.name};\n";
-								sb += "#define ${e.name}__${m.name}__TAG ${i}\n";
+								sb += "typedef struct ";
+								sb += e.name;
+								sb += "__";
+								sb += m.name;
+								sb += ' ';
+								sb += e.name;
+								sb += "__";
+								sb += m.name;
+								sb += ";\n";
+								sb += "#define ";
+								sb += e.name;
+								sb += "__";
+								sb += m.name;
+								sb += "__TAG ";
+								sb += i;
+								sb += '\n';
 							}
 						} else {
 							// Enums lower to their underlying integer type; member access becomes
 							// an integer literal during semantic analysis.
 							val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type!) else "int32_t";
-							sb += "typedef ${under} ${e.name};\n";
+							sb += "typedef ";
+							sb += under;
+							sb += ' ';
+							sb += e.name;
+							sb += ";\n";
 						}
 					}
 					is ConstDecl as c -> {
 						// Module-level constants become preprocessor macros.
 						val c_val_str = if (c.value != null) self.gen_expr(c.value!) else "0";
-						sb += "#define ${c.name} ${c_val_str}\n";
+						sb += "#define ";
+						sb += c.name;
+						sb += ' ';
+						sb += c_val_str;
+						sb += '\n';
 					}
 				}
 			}
@@ -220,13 +250,21 @@ impl CCodeGen {
 		// contributes the typedef emitted in the first pass.
 		if (s.is_forward) return "";
 
-		var res = "struct ${s.name} {\n";
+		var sb = StringBuilder();
+		defer sb.delete();
+		sb += "struct ";
+		sb += s.name;
+		sb += " {\n";
 		for (f in s.fields) {
 			val ty = c_type_from_ast(f.type_node);
-			res = "${res}    ${ty} ${f.name};\n";
+			sb += "    ";
+			sb += ty;
+			sb += ' ';
+			sb += f.name;
+			sb += ";\n";
 		}
-		res = "${res}};\n";
-		return "${res}\n";
+		sb += "};\n\n";
+		return sb.to_str();
 	}
 
 	// A payload enum is emitted as a tag plus a union of one payload struct per
@@ -234,22 +272,39 @@ impl CCodeGen {
 	pub fn gen_payload_enum(var self, e: *EnumDecl): str {
 		if (!self.enum_has_payload(e)) return "";
 
-		var res = "";
+		var sb = StringBuilder();
+		defer sb.delete();
 		for (m in e.members) {
-			res = "${res}struct ${e.name}__${m.name} {\n";
-			if (m.payload.empty()) res = "${res}    char __empty;\n";
+			sb += "struct ";
+			sb += e.name;
+			sb += "__";
+			sb += m.name;
+			sb += " {\n";
+			if (m.payload.empty()) sb += "    char __empty;\n";
 			for (f in m.payload) {
-				res = "${res}    ${c_type_from_ast(f.type_node)} ${f.name};\n";
+				sb += "    ";
+				sb += c_type_from_ast(f.type_node);
+				sb += ' ';
+				sb += f.name;
+				sb += ";\n";
 			}
-			res = "${res}};\n";
+			sb += "};\n";
 		}
 
-		res = "${res}struct ${e.name} {\n    int32_t tag;\n    union {\n";
+		sb += "struct ";
+		sb += e.name;
+		sb += " {\n    int32_t tag;\n    union {\n";
 		for (m in e.members) {
-			res = "${res}        struct ${e.name}__${m.name} ${m.name};\n";
+			sb += "        struct ";
+			sb += e.name;
+			sb += "__";
+			sb += m.name;
+			sb += ' ';
+			sb += m.name;
+			sb += ";\n";
 		}
-		res = "${res}    } u;\n};\n\n";
-		return res;
+		sb += "    } u;\n};\n\n";
+		return sb.to_str();
 	}
 
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
@@ -257,12 +312,18 @@ impl CCodeGen {
 	pub fn gen_fn_decl(var self, f: *FnDecl, is_proto: bool, self_c_type: str): str {
 		val ret_ty = self.fn_ret_c_type(f);
 		val f_body = f.body;
+		if (!is_proto && f_body == null) return "";
 
-		var proto = "${ret_ty} ${f.name}(";
-		if (f.params.empty()) proto = "${proto}void";
+		var sb = StringBuilder();
+		defer sb.delete();
+		sb += ret_ty;
+		sb += ' ';
+		sb += f.name;
+		sb += '(';
+		if (f.params.empty()) sb += "void";
 		else {
 			for (i in 0..<f.params.len) {
-				if (i > 0) proto = "${proto}, ";
+				if (i > 0) sb += ", ";
 				val p = f.params[i];
 				var p_ty = if (p.type_node != null) c_type_from_ast(p.type_node!) else "void*";
 
@@ -271,13 +332,17 @@ impl CCodeGen {
 					p.name == "self" &&
 					p.type_node == null
 				) p_ty = "${self_c_type}*";
-				proto = "${proto}${p_ty} ${p.name}";
+				sb += p_ty;
+				sb += ' ';
+				sb += p.name;
 			}
 		}
-		proto = "${proto})";
+		sb += ')';
 
-		if (is_proto) return "${proto};\n";
-		if (f_body == null) return "";
+		if (is_proto) {
+			sb += ";\n";
+			return sb.to_str();
+		}
 
 		self.current_fn_ret_type = ret_ty;
 
@@ -286,17 +351,17 @@ impl CCodeGen {
 		self.scope_jumped.clear();
 		self.loop_defer_depths.clear();
 
-		var res = "${proto} {\n";
+		sb += " {\n";
 		self.indent_level = 1;
 
 		when (f_body) {
-			is BlockStmt as blk -> res = "${res}${self.gen_block_body(f_body!)}";
+			is BlockStmt as blk -> sb += self.gen_block_body(f_body!);
 			is ExprStmt as es -> {
 				val es_e = es.expr;
 				var is_special = false;
 				if (ret_ty != "void" && es_e != null) {
 					if (es_e is WhenExpr as we && we.has_blocks()) {
-						res = "${res}${self.gen_when_with_target(we, "", true)}";
+						sb += self.gen_when_with_target(we, "", true);
 						is_special = true;
 					}
 					var es_candidate = es_e;
@@ -310,8 +375,10 @@ impl CCodeGen {
 						es_candidate is BinaryExpr as bin &&
 						bin.op == TokenType.QUESTION_COLON
 					) {
+						sb += "    ";
+						sb += ret_ty;
+						sb += " __ret_tmp;\n";
 						var cur = es_candidate;
-						res = "${res}    ${ret_ty} __ret_tmp;\n";
 						while (cur != null) {
 							while (cur != null) {
 								if (cur is GroupExpr as g) cur = g.expr;
@@ -319,11 +386,14 @@ impl CCodeGen {
 							}
 							if (cur == null) break;
 							if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
-								res = "${res}    __ret_tmp = ${self.gen_expr(b.left)};\n";
-								res = "${res}    if (__ret_tmp != NULL) return __ret_tmp;\n";
+								sb += "    __ret_tmp = ";
+								sb += self.gen_expr(b.left);
+								sb += ";\n    if (__ret_tmp != NULL) return __ret_tmp;\n";
 								cur = b.right;
 							} else {
-								res = "${res}    return ${self.gen_expr(cur)};\n";
+								sb += "    return ";
+								sb += self.gen_expr(cur);
+								sb += ";\n";
 								break;
 							}
 						}
@@ -332,14 +402,22 @@ impl CCodeGen {
 				}
 
 				if (!is_special) {
-					res = if (ret_ty == "void") "${res}    ${self.gen_expr(es.expr)};\n"
-					else "${res}    return ${self.gen_expr(es.expr)};\n";
+					if (ret_ty == "void") {
+						sb += "    ";
+						sb += self.gen_expr(es.expr);
+						sb += ";\n";
+					} else {
+						sb += "    return ";
+						sb += self.gen_expr(es.expr);
+						sb += ";\n";
+					}
 				}
 			}
 		}
 
 		self.indent_level = 0;
-		return "${res}}\n\n";
+		sb += "}\n\n";
+		return sb.to_str();
 	}
 
 // ============================================================================

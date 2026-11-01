@@ -3,6 +3,7 @@ mod util.strutil;
 use std.str.*;
 use std.mem.alloc.alloc_array;
 use std.collections.list.List;
+use std.collections.string_builder.StringBuilder;
 
 // ============================================================================
 // String utilities shared by the compiler
@@ -227,11 +228,12 @@ pub fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz):
 		val line = lines[i];
 		if (str_is_blank(line)) continue;
 
-		var ws = "";
+		var ws_end: usz = 0;
 		for (c in line) {
-			if (c == ' ' || c == '\t') ws = "${ws}${c}";
+			if (c == ' ' || c == '\t') ws_end++;
 			else break;
 		}
+		val ws = line.slice(0, ws_end);
 
 		if (first) {
 			prefix = ws;
@@ -267,7 +269,8 @@ pub fn multiline_trim_indent(raw: str): str {
 
 	val prefix = common_whitespace_prefix(lines, start_idx, end_idx);
 
-	var res = "";
+	var sb = StringBuilder();
+	defer sb.delete();
 	var first = true;
 	for (i in start_idx..<end_idx) {
 		val line = lines[i];
@@ -276,18 +279,21 @@ pub fn multiline_trim_indent(raw: str): str {
 		else line;
 
 		if (first) {
-			res = trimmed_line;
+			sb += trimmed_line;
 			first = false;
 		} else {
-			res = "${res}\n${trimmed_line}";
+			sb += '\n';
+			sb += trimmed_line;
 		}
 	}
 
-	return res;
+	return sb.to_str();
 }
 
 pub fn multiline_escape_for_c(text: str): str {
-	var out = "\"";
+	var out = StringBuilder();
+	defer out.delete();
+	out += '"';
 	var i: usz = 0;
 	while (i < text.len) {
 		val c = text[i];
@@ -295,35 +301,36 @@ pub fn multiline_escape_for_c(text: str): str {
 			if (i + 1 < text.len) {
 				val next_c = text[i + 1];
 				if (next_c == '$') {
-					out = "${out}$";
+					out += '$';
 					i += 2;
 					continue;
 				}
 				if (next_c == '\\') {
-					out = "${out}\\\\";
+					out += "\\\\";
 					i += 2;
 					continue;
 				}
 				if (next_c == '"') {
-					out = "${out}\\\"";
+					out += "\\\"";
 					i += 2;
 					continue;
 				}
-				out = "${out}\\${next_c}";
+				out += '\\';
+				out += next_c;
 				i += 2;
 				continue;
 			}
-			out = "${out}\\\\";
+			out += "\\\\";
 			i++;
 			continue;
 		}
 		if (c == '"') {
-			out = "${out}\\\"";
+			out += "\\\"";
 			i++;
 			continue;
 		}
 		if (c == '\n') {
-			out = "${out}\\n";
+			out += "\\n";
 			i++;
 			continue;
 		}
@@ -331,11 +338,11 @@ pub fn multiline_escape_for_c(text: str): str {
 			i++;
 			continue;
 		}
-		out = "${out}${text.slice(i, i + 1)}";
+		out += c;
 		i++;
 	}
-	out = "${out}\"";
-	return out;
+	out += '"';
+	return out.to_str();
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {

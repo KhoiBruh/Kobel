@@ -294,7 +294,8 @@ impl BodyPass {
 	// the `ToStr` implementation for its type. The checker already rejected holes
 	// without one, so a failed lookup here leaves the expression untouched.
 	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
-		var acc: *AstNode? = null;
+		var pieces = List<*AstNode>();
+		defer pieces.delete();
 		for (i in 0..<ie.parts.len) {
 			val part = ie.parts[i];
 			var piece = part.expr;
@@ -302,9 +303,11 @@ impl BodyPass {
 				val conv = self.to_str_expr(piece, node.line, node.col);
 				if (conv != null) piece = conv;
 			}
-			if (acc == null) acc = piece;
-			else if (piece != null) acc = self.arena.interp_concat(acc, piece, node.line, node.col);
+			if (piece != null) {
+				pieces += piece;
+			}
 		}
+		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);
 		if (acc == null) acc = self.arena.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
 		return self.lowered(node, acc!);
 	}

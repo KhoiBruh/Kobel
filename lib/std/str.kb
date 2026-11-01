@@ -11,21 +11,15 @@ use std.collections.list.List;
 // `str`, so a formatter only has to fill a buffer.
 // ============================================================================
 
-// Raw layout of a `str` value ({ data, len }); the same trick as util.strutil.
+// Raw layout of a `str` value (`const char*` in C99).
 struct StrRaw {
-	data: *char,
-	len: usz,
-	cap: usz
+	data: *char
 }
 
 // Wraps a heap byte buffer (already NUL terminated) into a `str` value.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
-	val r = alloc<StrRaw>();
-	defer release(r);
-	r.data = buf as *char;
-	r.len = len;
-	r.cap = len + 1;
-	val sp: *str = r as *str;
+	var r = StrRaw(buf as *char);
+	val sp = &r as *str;
 	return *sp;
 }
 
@@ -35,12 +29,19 @@ impl str {
 
 	pub fn starts_with(val self, prefix: str): bool {
 		if (self.len < prefix.len) return false;
-		return self.slice(0, prefix.len) == prefix;
+		for (i in 0..<prefix.len) {
+			if (self[i] != prefix[i]) return false;
+		}
+		return true;
 	}
 
 	pub fn ends_with(val self, suffix: str): bool {
 		if (self.len < suffix.len) return false;
-		return self.slice(self.len - suffix.len, self.len) == suffix;
+		val off = self.len - suffix.len;
+		for (i in 0..<suffix.len) {
+			if (self[off + i] != suffix[i]) return false;
+		}
+		return true;
 	}
 
 	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
