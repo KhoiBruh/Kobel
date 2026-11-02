@@ -158,7 +158,9 @@ impl A {
 ```
 
 - Structs declare fields only; methods live in `impl` blocks. Fields support per-field `pub`.
-- Without `new(...)`: construct positionally with every field in order, `A(1, "hello")`. With `new(...)`: construct per its signature. `Self(...)` always refers to the enclosing struct.
+- Methods with a `self` receiver (`val self` / `var self`) are instance methods (`obj.method()`).
+- Methods without a `self` parameter are static methods (`Type.method()`), including `fn new(...)` constructors. Inside `impl`, `Self.method(...)` calls static methods on the enclosing struct.
+- Construction: `A.new(...)` explicitly calls the static constructor `new`. `A(...)` is also supported as a unified constructor: calling `new` if present, or falling back to positional field construction `A(1, "hello")`. `Self(...)` always constructs the enclosing struct directly.
 - Memory layout is always C-compatible (declaration order, natural alignment) — no marker needed, FFI-ready.
 - Any function may use the single-expression body form `=> expr;`.
 

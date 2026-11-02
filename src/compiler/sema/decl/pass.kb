@@ -318,8 +318,9 @@ impl DeclPass {
 			);
 			used_names += m_c_name;
 
+			val is_static = f.params.empty() || f.params[0].name != "self";
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op, is_static);
 			st_info.methods += mi;
 
 			// Uniquify the AST name so the backend emits the mangled method name.
@@ -522,7 +523,7 @@ impl DeclPass {
 			}
 
 			val mi = self.arena.alloc<MethodInfo>();
-			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op);
+			*mi = MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.is_op, false);
 			self.symtab.register_prim_method(prim, mi);
 
 			// Uniquify the AST name so the backend emits the mangled method name.

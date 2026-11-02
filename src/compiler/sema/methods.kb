@@ -24,7 +24,8 @@ pub struct MethodInfo {
 	pub fn_type: *Type,
 	pub ast_node: *AstNode,
 	pub module: str,
-	pub is_op: bool = false
+	pub is_op: bool = false,
+	pub is_static: bool = false
 }
 
 // Methods of a built-in type. Kept as a payload because `Type` must be declared

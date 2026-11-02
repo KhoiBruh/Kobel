@@ -1,0 +1,51 @@
+mod test.static_methods;
+
+struct Point {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Point {
+	pub fn new(x: i32, y: i32): Self => Self(x, y);
+
+	pub fn origin(): Self => Self(0, 0);
+
+	pub fn default_x(y: i32, x: i32 = 42): Self => Self(x, y);
+
+	pub fn add(p1: Point, p2: Point): Point => Point(p1.x + p2.x, p1.y + p2.y);
+
+	pub fn make_zero(): Self => Self.origin();
+
+	pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;
+}
+
+fn main(): i32 {
+	// 1. Explicit static constructor Point.new
+	val p1 = Point.new(3, 4);
+	if (p1.x != 3 || p1.y != 4) return 1;
+
+	// 2. Syntactic sugar constructor Point(args) still dispatches to Point.new
+	val p2 = Point(5, 6);
+	if (p2.x != 5 || p2.y != 6) return 2;
+
+	// 3. Static factory without arguments
+	val p0 = Point.origin();
+	if (p0.x != 0 || p0.y != 0) return 3;
+
+	// 4. Calling static method on Self inside impl
+	val pz = Point.make_zero();
+	if (pz.x != 0 || pz.y != 0) return 4;
+
+	// 5. Static helper function with multiple arguments
+	val p_sum = Point.add(p1, p2);
+	if (p_sum.x != 8 || p_sum.y != 10) return 5;
+
+	// 6. Static method with default parameter
+	val pd = Point.default_x(10);
+	if (pd.x != 42 || pd.y != 10) return 6;
+
+	// 7. Instance method still works
+	if (p1.length_squared() != 25) return 7;
+
+	return 0;
+}

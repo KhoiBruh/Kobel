@@ -30,6 +30,7 @@ use compiler.sema.body.expr.*;
 use compiler.sema.template.*;
 
 use compiler.sema.methods.*;
+use compiler.sema.structs.StructType;
 
 use compiler.sema.prims.*;
 use compiler.sema.type_ast.*;
@@ -53,6 +54,10 @@ impl BodyPass {
 			// `Shape.Circle(1.5)`: a payload-enum variant.
 			val enum_ty = self.check_enum_ctor_call(node, mem, call);
 			if (enum_ty != null) return enum_ty;
+
+			// Static method call: Type.method(args) or Self.method(args)
+			val static_ty = self.check_static_method_call(node, mem, call);
+			if (static_ty != null) return static_ty;
 
 			// Instance method call or primitive method call
 			val m_ty = self.check_method_call(node, mem, call);
@@ -314,6 +319,68 @@ impl BodyPass {
 
 		self.set_method(node, mi);
 		return ret_ty;
+	}
+
+	pub fn check_static_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {
+		var s_info: *StructType? = null;
+
+		if (mem.object is IdentifierExpr as id) {
+			if (id.name == "Self" && self.current_self_type != null) {
+				s_info = self.current_self_type!.as_struct();
+			} else {
+				val sym = self.symtab.lookup(id.name);
+				if (sym?.kind == SymbolKind.STRUCT && sym.type_ptr.kind == DataType.STRUCT) {
+					s_info = sym.type_ptr.as_struct();
+				}
+			}
+		}
+
+		if (s_info == null) return null;
+
+		val st = s_info!;
+		val cand = st.find_method(mem.member);
+		if (cand == null) return null;
+
+		if (mem.is_safe) {
+			self.report_error(node, "Safe call operator '?.' cannot be used on a static method call");
+			return self.prims().t_none();
+		}
+
+		if (!cand.is_static) {
+			self.report_error(
+				node,
+				"Cannot call instance method '${mem.member}' statically without an instance of '${st.name}'"
+			);
+			return self.prims().t_none();
+		}
+
+		if (st.count_method_arity(mem.member, call.args.len) > 1) {
+			self.report_error(
+				node,
+				"Ambiguous call to '${mem.member}': overloading by parameter type is not supported"
+			);
+		}
+
+		val mi = (self.method_with_defaults(
+			mem.member, call.args.len, st.methods, call, st.find_method_arity(mem.member, call.args.len)
+		) ?: cand)!;
+
+		val fn_info = mi.fn_type.as_fn();
+		if (call.args.len != fn_info.param_types.len) {
+			self.report_error(node, "Argument count mismatch in call to '${st.name}.${mem.member}'");
+		} else {
+			for (i in 0..<call.args.len) {
+				val param_ty = fn_info.param_types[i];
+				val arg_n = call.args[i];
+				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val arg_ty = self.check_expr(arg_n, param_ty);
+				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to '${st.name}.${mem.member}'");
+			}
+		}
+
+		self.set_method(node, mi);
+		if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
+		return fn_info.return_type;
 	}
 
 	pub fn check_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {

@@ -417,6 +417,17 @@ impl BodyPass {
 		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
 		val mem = callee.as_member_expr() as &MemberExpr;
 		val mi = node.resolved_method as *MethodInfo;
+
+		if (mi.is_static) {
+			var static_args = List<*AstNode>();
+			for (arg in call.args) static_args += arg;
+			val direct = self.arena.call(
+				self.arena.identifier(mi.c_name, node.line, node.col),
+				static_args, List<*AstNode>(), node.line, node.col
+			);
+			return self.lowered(node, direct);
+		}
+
 		val recv = mem.object;
 
 		val recv_ty = self.type_of(recv);
