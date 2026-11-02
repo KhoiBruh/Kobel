@@ -31,7 +31,7 @@ use compiler.ast.decl.FnDecl;
 use compiler.ast.builder.*;
 use compiler.ast.decl.Program;
 
-use compiler.lexer.token.TokenType;
+use compiler.lexer.TokenType;
 use std.collections.List;
 use std.mem.Arena;
 

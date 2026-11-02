@@ -22,6 +22,10 @@ impl Path {
 
 	pub fn new(raw: str) => Self(raw);
 
+	pub fn str(val self) => self.raw;
+
+	pub fn to_str(val self) => self.raw;
+
 	pub fn c_str(val self) => self.raw.c_str();
 
 	pub fn empty(val self) => self.raw.empty();
@@ -105,15 +109,15 @@ impl Path {
 
 	pub fn join_path(val self, other: Path) => self.join(other.raw);
 
-	pub fn exists(val self) => file_exists(self.raw);
+	pub fn exists(val self) => File.exists(self.raw);
 
-	pub fn read_to_string(val self) => file_read(self.raw);
+	pub fn read_to_string(val self) => File.read(self.raw);
 
-	pub fn write_string(val self, content: str) => file_write(self.raw, content);
+	pub fn write_string(val self, content: str) => File.write(self.raw, content);
 
-	pub fn append_string(val self, content: str) => file_append(self.raw, content);
+	pub fn append_string(val self, content: str) => File.append(self.raw, content);
 
-	pub fn remove(val self) => file_remove(self.raw);
+	pub fn remove(val self) => File.remove(self.raw);
 
 }
 

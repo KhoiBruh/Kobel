@@ -81,9 +81,9 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	}
 
 	val rel = "${target.module_to_rel()}.kb";
-	if (file_exists("src/${rel}")) return "src/${rel}";
-	if (file_exists("lib/${rel}")) return "lib/${rel}";
-	if (file_exists(rel)) return rel;
+	if (File.exists("src/${rel}")) return "src/${rel}";
+	if (File.exists("lib/${rel}")) return "lib/${rel}";
+	if (File.exists(rel)) return rel;
 
 	return target;
 }
@@ -104,8 +104,8 @@ pub fn render_diagnostic(diag: Diagnostic): str {
 		}
 	}
 
-	if (diag.line > 0 && !diag.file_path.empty() && file_exists(diag.file_path)) {
-		val content = file_read(diag.file_path);
+	if (diag.line > 0 && !diag.file_path.empty() && File.exists(diag.file_path)) {
+		val content = File.read(diag.file_path);
 		if (!content.empty()) {
 			val lines = content.split_lines();
 			if (diag.line >= 1 && diag.line <= lines.len) {

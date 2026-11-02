@@ -11,3 +11,5 @@ pub fn sys_exit(code: i32) => exit(code);
 pub fn exec(cmd: str) => system(cmd.c_str());
 
 pub fn is_windows() => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;
+
+pub fn has_env(name: str): bool => getenv(name.c_str()) != null;

@@ -29,83 +29,87 @@ pub struct File {
 	pub handle: *none?
 }
 
-pub fn file_open(path: str, mode: str): File {
-	val f = fopen(path.c_str(), mode.c_str());
-	return File(f);
-}
-
-pub fn file_open_read(path: str) => file_open(path, "rb");
-
-pub fn file_open_write(path: str) => file_open(path, "wb");
-
-pub fn file_open_append(path: str) => file_open(path, "ab");
-
-pub fn file_exists(path: str): bool {
-	val f = fopen(path.c_str(), "rb");
-	if (f == null) return false;
-	fclose(f);
-	return true;
-}
-
-pub fn file_remove(path: str) => remove(path.c_str()) == 0;
-
-pub fn file_read(path: str): str {
-	val f = fopen(path.c_str(), "rb") ?: return "";
-
-	fseek(f, 0, 2);
-	val size_i64 = ftell(f);
-	if (size_i64 <= 0) {
-		fclose(f);
-		return "";
-	}
-
-	fseek(f, 0, 0);
-	val sz = size_i64 as usz;
-	val buf = alloc_array<u8>(sz + 1);
-	if (buf == null) {
-		fclose(f);
-		return "";
-	}
-
-	val read_bytes = fread(buf, 1, sz, f);
-	fclose(f);
-	buf[read_bytes] = 0;
-
-	return str_from_bytes(buf, read_bytes);
-}
-
-pub fn file_write(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "wb") ?: return false;
-	val written = fwrite(content.data, 1, content.len, f);
-	fclose(f);
-	return written == content.len;
-}
-
-pub fn file_append(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "ab") ?: return false;
-	val written = fwrite(content.data, 1, content.len, f);
-	fclose(f);
-	return written == content.len;
-}
-
-pub fn file_list_dir(path: str): List<str> {
-	val raw = kobel_list_dir(path);
-	if (raw.empty()) return List();
-
-	var res = List<str>();
-	var start = 0;
-	for (i in 0..<raw.len) {
-		if (raw[i] == '\n') {
-			if (i > start) res += raw.slice(start, i);
-			start = i + 1;
-		}
-	}
-
-	if (start < raw.len) res += raw.slice(start, raw.len);
-	return res;
-}
-
 impl File {
+
+	pub fn open(path: str, mode: str): File {
+		val f = fopen(path.c_str(), mode.c_str());
+		return File(f);
+	}
+
+	pub fn open_read(path: str) => File.open(path, "rb");
+
+	pub fn open_write(path: str) => File.open(path, "wb");
+
+	pub fn open_append(path: str) => File.open(path, "ab");
+
+	pub fn exists(path: str): bool {
+		val f = fopen(path.c_str(), "rb");
+		if (f == null) return false;
+		fclose(f);
+		return true;
+	}
+
+	pub fn remove(path: str) => remove(path.c_str()) == 0;
+
+	pub fn read(path: str): str {
+		val f = fopen(path.c_str(), "rb") ?: return "";
+
+		fseek(f, 0, 2);
+		val size_i64 = ftell(f);
+		if (size_i64 <= 0) {
+			fclose(f);
+			return "";
+		}
+
+		fseek(f, 0, 0);
+		val sz = size_i64 as usz;
+		val buf = alloc_array<u8>(sz + 1);
+		if (buf == null) {
+			fclose(f);
+			return "";
+		}
+
+		val read_bytes = fread(buf, 1, sz, f);
+		fclose(f);
+		buf[read_bytes] = 0;
+
+		return str_from_bytes(buf, read_bytes);
+	}
+
+	pub fn write(path: str, content: str): bool {
+		val f = fopen(path.c_str(), "wb") ?: return false;
+		val written = fwrite(content.data, 1, content.len, f);
+		fclose(f);
+		return written == content.len;
+	}
+
+	pub fn append(path: str, content: str): bool {
+		val f = fopen(path.c_str(), "ab") ?: return false;
+		val written = fwrite(content.data, 1, content.len, f);
+		fclose(f);
+		return written == content.len;
+	}
+
+	pub fn list_dir(path: str): List<str> {
+		val raw = kobel_list_dir(path);
+		if (raw.empty()) return List();
+
+		var res = List<str>();
+		var start = 0;
+		for (i in 0..<raw.len) {
+			if (raw[i] == '\n') {
+				if (i > start) res += raw.slice(start, i);
+				start = i + 1;
+			}
+		}
+
+		if (start < raw.len) res += raw.slice(start, raw.len);
+		return res;
+	}
+
+	// ------------------------------------------------------------------------
+	// Instance methods on File handle
+	// ------------------------------------------------------------------------
 
 	pub fn is_valid(val self) => self.handle != null;
 
@@ -132,7 +136,7 @@ impl File {
 		return total;
 	}
 
-	pub fn write(val self, content: str): bool {
+	pub fn write_all(val self, content: str): bool {
 		if (self.handle == null) return false;
 		val written = fwrite(content.data, 1, content.len, self.handle);
 		return written == content.len;
@@ -160,3 +164,15 @@ impl File {
 	}
 
 }
+
+// Backward-compatibility aliases
+pub fn file_open(path: str, mode: str) => File.open(path, mode);
+pub fn file_open_read(path: str) => File.open_read(path);
+pub fn file_open_write(path: str) => File.open_write(path);
+pub fn file_open_append(path: str) => File.open_append(path);
+pub fn file_exists(path: str) => File.exists(path);
+pub fn file_remove(path: str) => File.remove(path);
+pub fn file_read(path: str) => File.read(path);
+pub fn file_write(path: str, content: str) => File.write(path, content);
+pub fn file_append(path: str, content: str) => File.append(path, content);
+pub fn file_list_dir(path: str) => File.list_dir(path);

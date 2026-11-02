@@ -338,23 +338,25 @@ impl BodyPass {
 		if (s_info == null) return null;
 
 		val st = s_info!;
-		val cand = st.find_method(mem.member);
-		if (cand == null) return null;
+		val cand = st.find_static_method(mem.member);
+		if (cand == null) {
+			val inst_cand = st.find_method(mem.member);
+			if (inst_cand != null && !inst_cand.is_static) {
+				self.report_error(
+					node,
+					"Cannot call instance method '${mem.member}' statically without an instance of '${st.name}'"
+				);
+				return self.prims().t_none();
+			}
+			return null;
+		}
 
 		if (mem.is_safe) {
 			self.report_error(node, "Safe call operator '?.' cannot be used on a static method call");
 			return self.prims().t_none();
 		}
 
-		if (!cand.is_static) {
-			self.report_error(
-				node,
-				"Cannot call instance method '${mem.member}' statically without an instance of '${st.name}'"
-			);
-			return self.prims().t_none();
-		}
-
-		if (st.count_method_arity(mem.member, call.args.len) > 1) {
+		if (st.count_static_method_arity(mem.member, call.args.len) > 1) {
 			self.report_error(
 				node,
 				"Ambiguous call to '${mem.member}': overloading by parameter type is not supported"
@@ -362,7 +364,7 @@ impl BodyPass {
 		}
 
 		val mi = (self.method_with_defaults(
-			mem.member, call.args.len, st.methods, call, st.find_method_arity(mem.member, call.args.len)
+			mem.member, call.args.len, st.methods, call, st.find_static_method_arity(mem.member, call.args.len)
 		) ?: cand)!;
 
 		val fn_info = mi.fn_type.as_fn();
@@ -677,13 +679,13 @@ impl BodyPass {
 		// overload of matching arity when one exists; building from
 		// fields is only the fallback.
 		if (!callee_is_self) {
-			if (s_info.count_method_arity("new", call.args.len) > 1) self.report_error(
+			if (s_info.count_static_method_arity("new", call.args.len) > 1) self.report_error(
 				node,
 				"Ambiguous call to 'new': "
 				"overloading by parameter type is not supported"
 			);
 			val nm = self.method_with_defaults(
-				"new", call.args.len, s_info.methods, call, s_info.find_method_arity("new", call.args.len)
+				"new", call.args.len, s_info.methods, call, s_info.find_static_method_arity("new", call.args.len)
 			);
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn();

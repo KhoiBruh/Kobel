@@ -1,5 +1,7 @@
 mod test.static_methods;
 
+use std.filesystem.File;
+
 struct Point {
 	pub x: i32,
 	pub y: i32
@@ -46,6 +48,22 @@ fn main(): i32 {
 
 	// 7. Instance method still works
 	if (p1.length_squared() != 25) return 7;
+
+	// 8. Test stdlib File static methods
+	val tmp_test = "build/test_static_file.tmp";
+	if (File.exists(tmp_test)) File.remove(tmp_test);
+
+	val w_ok = File.write(tmp_test, "hello static file");
+	if (!w_ok) return 8;
+
+	if (!File.exists(tmp_test)) return 9;
+
+	val read_str = File.read(tmp_test);
+	if (read_str != "hello static file") return 10;
+
+	val rem_ok = File.remove(tmp_test);
+	if (!rem_ok) return 11;
+	if (File.exists(tmp_test)) return 12;
 
 	return 0;
 }

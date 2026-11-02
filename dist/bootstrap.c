@@ -2230,6 +2230,22 @@ kobel_str f32_to_str(float self);
 kobel_str f64_to_str(double self);
 void std__io__print(kobel_str string);
 int32_t std__io__println(kobel_str s);
+std__filesystem__File std__filesystem__File_open(kobel_str path, kobel_str mode);
+std__filesystem__File std__filesystem__File_open_read(kobel_str path);
+std__filesystem__File std__filesystem__File_open_write(kobel_str path);
+std__filesystem__File std__filesystem__File_open_append(kobel_str path);
+bool std__filesystem__File_exists(kobel_str path);
+bool std__filesystem__File_remove(kobel_str path);
+kobel_str std__filesystem__File_read(kobel_str path);
+bool std__filesystem__File_write(kobel_str path, kobel_str content);
+bool std__filesystem__File_append(kobel_str path, kobel_str content);
+std__collections__List_str std__filesystem__File_list_dir(kobel_str path);
+bool std__filesystem__File_is_valid(std__filesystem__File* self);
+void std__filesystem__File_close(std__filesystem__File* self);
+void std__filesystem__File_flush(std__filesystem__File* self);
+int64_t std__filesystem__File_size(std__filesystem__File* self);
+bool std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content);
+kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
 std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode);
 std__filesystem__File std__filesystem__file_open_read(kobel_str path);
 std__filesystem__File std__filesystem__file_open_write(kobel_str path);
@@ -2240,14 +2256,10 @@ kobel_str std__filesystem__file_read(kobel_str path);
 bool std__filesystem__file_write(kobel_str path, kobel_str content);
 bool std__filesystem__file_append(kobel_str path, kobel_str content);
 std__collections__List_str std__filesystem__file_list_dir(kobel_str path);
-bool std__filesystem__File_is_valid(std__filesystem__File* self);
-void std__filesystem__File_close(std__filesystem__File* self);
-void std__filesystem__File_flush(std__filesystem__File* self);
-int64_t std__filesystem__File_size(std__filesystem__File* self);
-bool std__filesystem__File_write(std__filesystem__File* self, kobel_str content);
-kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
 bool std__filesystem__is_sep(char c);
 std__filesystem__Path std__filesystem__Path_new(kobel_str raw);
+kobel_str std__filesystem__Path_str(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self);
 bool std__filesystem__Path_empty(std__filesystem__Path* self);
 size_t std__filesystem__Path_len(std__filesystem__Path* self);
@@ -2262,7 +2274,7 @@ kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self);
 bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content);
 bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content);
 bool std__filesystem__Path_remove(std__filesystem__Path* self);
-kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_to_str_1_2(std__filesystem__Path* self);
 kobel_str util__strutil__cstr_to_str(const char* s);
 bool util__strutil__str_is_sep(char c);
 kobel_str str_module_to_rel(kobel_str self);
@@ -2296,6 +2308,7 @@ config__project__ProjectConfig config__project__ProjectConfig_new(kobel_str mani
 void std__sys__sys_exit(int32_t code);
 int32_t std__sys__exec(kobel_str cmd);
 bool std__sys__is_windows(void);
+bool std__sys__has_env(kobel_str name);
 kobel_str compiler__driver__compute_project_stamp(config__project__ProjectConfig cfg, kobel_str manifest_path);
 int32_t compiler__driver__cmd_build(kobel_str manifest_path);
 int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__List_str extra_args);
@@ -2558,6 +2571,9 @@ kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str defaul
 kobel_str compiler__driver__render_diagnostic(compiler__driver__Diagnostic diag);
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method(compiler__sema__structs__StructType* self, kobel_str name);
+compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_static_method(compiler__sema__structs__StructType* self, kobel_str name);
+compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_static_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc);
+size_t compiler__sema__structs__StructType_count_static_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc);
 size_t compiler__sema__structs__StructType_count_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method_c(compiler__sema__structs__StructType* self, kobel_str c_name);
@@ -5890,24 +5906,24 @@ int32_t std__io__println(kobel_str s) {
     return puts(kobel_cstr(s));
 }
 
-std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode) {
+std__filesystem__File std__filesystem__File_open(kobel_str path, kobel_str mode) {
     void* f = fopen(kobel_cstr(path), kobel_cstr(mode));
     return (std__filesystem__File){ f };
 }
 
-std__filesystem__File std__filesystem__file_open_read(kobel_str path) {
-    return std__filesystem__file_open(path, KOBEL_STR("rb"));
+std__filesystem__File std__filesystem__File_open_read(kobel_str path) {
+    return std__filesystem__File_open(path, KOBEL_STR("rb"));
 }
 
-std__filesystem__File std__filesystem__file_open_write(kobel_str path) {
-    return std__filesystem__file_open(path, KOBEL_STR("wb"));
+std__filesystem__File std__filesystem__File_open_write(kobel_str path) {
+    return std__filesystem__File_open(path, KOBEL_STR("wb"));
 }
 
-std__filesystem__File std__filesystem__file_open_append(kobel_str path) {
-    return std__filesystem__file_open(path, KOBEL_STR("ab"));
+std__filesystem__File std__filesystem__File_open_append(kobel_str path) {
+    return std__filesystem__File_open(path, KOBEL_STR("ab"));
 }
 
-bool std__filesystem__file_exists(kobel_str path) {
+bool std__filesystem__File_exists(kobel_str path) {
     void* f = fopen(kobel_cstr(path), "rb");
     if (f == NULL) {
         return false;
@@ -5916,11 +5932,11 @@ bool std__filesystem__file_exists(kobel_str path) {
     return true;
 }
 
-bool std__filesystem__file_remove(kobel_str path) {
+bool std__filesystem__File_remove(kobel_str path) {
     return (remove(kobel_cstr(path)) == 0);
 }
 
-kobel_str std__filesystem__file_read(kobel_str path) {
+kobel_str std__filesystem__File_read(kobel_str path) {
     void* f = fopen(kobel_cstr(path), "rb");
     if (f == NULL) {
         return KOBEL_STR("");
@@ -5944,7 +5960,7 @@ kobel_str std__filesystem__file_read(kobel_str path) {
     return std__string__str_from_bytes(buf, read_bytes);
 }
 
-bool std__filesystem__file_write(kobel_str path, kobel_str content) {
+bool std__filesystem__File_write(kobel_str path, kobel_str content) {
     void* f = fopen(kobel_cstr(path), "wb");
     if (f == NULL) {
         return false;
@@ -5954,7 +5970,7 @@ bool std__filesystem__file_write(kobel_str path, kobel_str content) {
     return (written == content.len);
 }
 
-bool std__filesystem__file_append(kobel_str path, kobel_str content) {
+bool std__filesystem__File_append(kobel_str path, kobel_str content) {
     void* f = fopen(kobel_cstr(path), "ab");
     if (f == NULL) {
         return false;
@@ -5964,7 +5980,7 @@ bool std__filesystem__file_append(kobel_str path, kobel_str content) {
     return (written == content.len);
 }
 
-std__collections__List_str std__filesystem__file_list_dir(kobel_str path) {
+std__collections__List_str std__filesystem__File_list_dir(kobel_str path) {
     kobel_str raw = kobel_list_dir(path);
     if (str_empty(raw)) {
         return std__collections__List_str_new(4);
@@ -6038,7 +6054,7 @@ int64_t std__filesystem__File_size(std__filesystem__File* self) {
     return total;
 }
 
-bool std__filesystem__File_write(std__filesystem__File* self, kobel_str content) {
+bool std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content) {
     if (self->handle == NULL) {
         return false;
     }
@@ -6068,12 +6084,60 @@ kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
     return std__string__str_from_bytes(buf, read_bytes);
 }
 
+std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode) {
+    return std__filesystem__File_open(path, mode);
+}
+
+std__filesystem__File std__filesystem__file_open_read(kobel_str path) {
+    return std__filesystem__File_open_read(path);
+}
+
+std__filesystem__File std__filesystem__file_open_write(kobel_str path) {
+    return std__filesystem__File_open_write(path);
+}
+
+std__filesystem__File std__filesystem__file_open_append(kobel_str path) {
+    return std__filesystem__File_open_append(path);
+}
+
+bool std__filesystem__file_exists(kobel_str path) {
+    return std__filesystem__File_exists(path);
+}
+
+bool std__filesystem__file_remove(kobel_str path) {
+    return std__filesystem__File_remove(path);
+}
+
+kobel_str std__filesystem__file_read(kobel_str path) {
+    return std__filesystem__File_read(path);
+}
+
+bool std__filesystem__file_write(kobel_str path, kobel_str content) {
+    return std__filesystem__File_write(path, content);
+}
+
+bool std__filesystem__file_append(kobel_str path, kobel_str content) {
+    return std__filesystem__File_append(path, content);
+}
+
+std__collections__List_str std__filesystem__file_list_dir(kobel_str path) {
+    return std__filesystem__File_list_dir(path);
+}
+
 bool std__filesystem__is_sep(char c) {
     return ((c == '/') || (c == '\\'));
 }
 
 std__filesystem__Path std__filesystem__Path_new(kobel_str raw) {
     return (std__filesystem__Path){ raw };
+}
+
+kobel_str std__filesystem__Path_str(std__filesystem__Path* self) {
+    return self->raw;
+}
+
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self) {
+    return self->raw;
 }
 
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self) {
@@ -6266,26 +6330,26 @@ std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* sel
 }
 
 bool std__filesystem__Path_exists(std__filesystem__Path* self) {
-    return std__filesystem__file_exists(self->raw);
+    return std__filesystem__File_exists(self->raw);
 }
 
 kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self) {
-    return std__filesystem__file_read(self->raw);
+    return std__filesystem__File_read(self->raw);
 }
 
 bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content) {
-    return std__filesystem__file_write(self->raw, content);
+    return std__filesystem__File_write(self->raw, content);
 }
 
 bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content) {
-    return std__filesystem__file_append(self->raw, content);
+    return std__filesystem__File_append(self->raw, content);
 }
 
 bool std__filesystem__Path_remove(std__filesystem__Path* self) {
-    return std__filesystem__file_remove(self->raw);
+    return std__filesystem__File_remove(self->raw);
 }
 
-kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self) {
+kobel_str std__filesystem__Path_to_str_1_2(std__filesystem__Path* self) {
     return self->raw;
 }
 
@@ -6981,10 +7045,10 @@ bool config__toml__Toml_contains(config__toml__Toml* self, kobel_str key) {
 
 config__project__ProjectConfig config__project__ProjectConfig_new(kobel_str manifest_path) {
     config__project__ProjectConfig self = (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") };
-    if (!std__filesystem__file_exists(manifest_path)) {
+    if (!std__filesystem__File_exists(manifest_path)) {
         return self;
     }
-    kobel_str content = std__filesystem__file_read(manifest_path);
+    kobel_str content = std__filesystem__File_read(manifest_path);
     if (str_empty(content)) {
         return self;
     }
@@ -7028,16 +7092,20 @@ bool std__sys__is_windows(void) {
     return ((getenv(kobel_cstr(KOBEL_STR("SystemRoot"))) != NULL) || (getenv(kobel_cstr(KOBEL_STR("WINDIR"))) != NULL));
 }
 
+bool std__sys__has_env(kobel_str name) {
+    return (getenv(kobel_cstr(name)) != NULL);
+}
+
 kobel_str compiler__driver__compute_project_stamp(config__project__ProjectConfig cfg, kobel_str manifest_path) {
-    kobel_str stamp_seed = std__filesystem__file_read(manifest_path);
+    kobel_str stamp_seed = std__filesystem__File_read(manifest_path);
     compiler__driver__ensure_dir(KOBEL_STR("build"));
     kobel_str tmp_file = KOBEL_STR("build/.kobel_src_files.tmp");
     kobel_str entry_dir = str_dir_of(cfg.entry);
     kobel_str root_dir = (!str_empty(entry_dir) ? entry_dir : KOBEL_STR("src"));
     kobel_str find_cmd = (std__sys__is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(root_dir), KOBEL_STR("\\*.kb\" > \""), str_to_win_path(tmp_file), KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(root_dir), KOBEL_STR("\" -type f -name \"*.kb\" > \""), str_to_posix_path(tmp_file), KOBEL_STR("\" 2>/dev/null")));
     std__sys__exec(find_cmd);
-    if (std__filesystem__file_exists(tmp_file)) {
-        kobel_str file_list = std__filesystem__file_read(tmp_file);
+    if (std__filesystem__File_exists(tmp_file)) {
+        kobel_str file_list = std__filesystem__File_read(tmp_file);
         compiler__driver__remove_file(tmp_file);
         std__collections__List_str lines = str_split_lines(file_list);
         {
@@ -7046,21 +7114,21 @@ kobel_str compiler__driver__compute_project_stamp(config__project__ProjectConfig
             while (__for_i < __for_n) {
                 kobel_str line = std__collections__List_str_at(&lines, __for_i);
                 kobel_str fpath = str_trim(line);
-                if (!str_empty(fpath) && std__filesystem__file_exists(fpath)) {
-                    kobel_str content = std__filesystem__file_read(fpath);
+                if (!str_empty(fpath) && std__filesystem__File_exists(fpath)) {
+                    kobel_str content = std__filesystem__File_read(fpath);
                     stamp_seed = kobel_concat3(stamp_seed, KOBEL_STR(":"), str_hash_stamp(content));
                 }
                 __for_i = (__for_i + 1);
             }
         }
     } else {
-        stamp_seed = kobel_concat(stamp_seed, std__filesystem__file_read(cfg.entry));
+        stamp_seed = kobel_concat(stamp_seed, std__filesystem__File_read(cfg.entry));
     }
     return str_hash_stamp(stamp_seed);
 }
 
 int32_t compiler__driver__cmd_build(kobel_str manifest_path) {
-    if (!std__filesystem__file_exists(manifest_path)) {
+    if (!std__filesystem__File_exists(manifest_path)) {
         std__io__println(kobel_concat3(KOBEL_STR("Error: Project manifest '"), manifest_path, KOBEL_STR("' not found.")));
         return 1;
     }
@@ -7075,14 +7143,14 @@ int32_t compiler__driver__cmd_build(kobel_str manifest_path) {
         compiler__driver__ensure_dir(KOBEL_STR("build"));
         kobel_str stamp_file = KOBEL_STR("build/.kobel_stamp");
         kobel_str stamp = compiler__driver__compute_project_stamp(cfg, manifest_path);
-        std__filesystem__file_write(stamp_file, stamp);
+        std__filesystem__File_write(stamp_file, stamp);
         std__io__println(kobel_concat(KOBEL_STR("[SUCCESS] Build complete: "), cfg.output));
     }
     return exit_code;
 }
 
 int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__List_str extra_args) {
-    if (!std__filesystem__file_exists(manifest_path)) {
+    if (!std__filesystem__File_exists(manifest_path)) {
         std__io__println(kobel_concat3(KOBEL_STR("Error: Project manifest '"), manifest_path, KOBEL_STR("' not found.")));
         return 1;
     }
@@ -7091,16 +7159,16 @@ int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__Lis
     kobel_str stamp_file = KOBEL_STR("build/.kobel_stamp");
     kobel_str current_stamp = compiler__driver__compute_project_stamp(cfg, manifest_path);
     bool needs_build;
-    if (!std__filesystem__file_exists(cfg.output)) {
+    if (!std__filesystem__File_exists(cfg.output)) {
         std__io__println(kobel_concat3(KOBEL_STR("Target '"), cfg.output, KOBEL_STR("' not found. Building first...")));
         needs_build = true;
         goto __when_end_1;
-    } else if (!std__filesystem__file_exists(stamp_file)) {
+    } else if (!std__filesystem__File_exists(stamp_file)) {
         std__io__println(KOBEL_STR("No previous build stamp found. Rebuilding..."));
         needs_build = true;
         goto __when_end_1;
     } else {
-        kobel_str saved_stamp = str_trim(std__filesystem__file_read(stamp_file));
+        kobel_str saved_stamp = str_trim(std__filesystem__File_read(stamp_file));
         if (!kobel_streq(saved_stamp, current_stamp)) {
             std__io__println(KOBEL_STR("Source changes detected. Rebuilding..."));
             needs_build = true;
@@ -7148,8 +7216,8 @@ std__collections__List_str compiler__driver__discover_test_files(kobel_str test_
     kobel_str tmp_list_file = KOBEL_STR("build/.kobel_test_list.tmp");
     kobel_str find_cmd = (std__sys__is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(test_dir), KOBEL_STR("\\test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(test_dir), KOBEL_STR("\" -type f -name \"test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>/dev/null")));
     std__sys__exec(find_cmd);
-    if (std__filesystem__file_exists(tmp_list_file)) {
-        kobel_str content = std__filesystem__file_read(tmp_list_file);
+    if (std__filesystem__File_exists(tmp_list_file)) {
+        kobel_str content = std__filesystem__File_read(tmp_list_file);
         compiler__driver__remove_file(tmp_list_file);
         std__collections__List_str lines = str_split_lines(content);
         kobel_str search_token = kobel_concat3(KOBEL_STR("/"), test_dir, KOBEL_STR("/"));
@@ -7175,7 +7243,7 @@ std__collections__List_str compiler__driver__discover_test_files(kobel_str test_
 }
 
 int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
-    config__project__ProjectConfig cfg = (std__filesystem__file_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
+    config__project__ProjectConfig cfg = (std__filesystem__File_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
     std__collections__List_str all_tests = compiler__driver__discover_test_files(cfg.test_dir);
     std__collections__List_str active_tests = std__collections__List_str_new(4);
     {
@@ -7296,7 +7364,7 @@ kobel_str compiler__driver__snap_name(kobel_str path) {
 }
 
 int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update) {
-    config__project__ProjectConfig cfg = (std__filesystem__file_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
+    config__project__ProjectConfig cfg = (std__filesystem__File_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
     kobel_str golden_dir = KOBEL_STR("tests/golden");
     kobel_str tmp_dir = KOBEL_STR("build/snap");
     compiler__driver__ensure_dir(golden_dir);
@@ -7331,17 +7399,17 @@ int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update) {
                     continue;
                 }
             }
-            kobel_str digest = str_hash_stamp(std__filesystem__file_read(c_path));
+            kobel_str digest = str_hash_stamp(std__filesystem__File_read(c_path));
             kobel_str golden_path = kobel_concat4(golden_dir, KOBEL_STR("/"), flat, KOBEL_STR(".txt"));
             if (update) {
-                std__filesystem__file_write(golden_path, kobel_concat(digest, KOBEL_STR("\n")));
+                std__filesystem__File_write(golden_path, kobel_concat(digest, KOBEL_STR("\n")));
                 std__io__println(KOBEL_STR("UPDATED"));
                 {
                     __for_i = (__for_i + 1);
                     continue;
                 }
             }
-            if (!std__filesystem__file_exists(golden_path)) {
+            if (!std__filesystem__File_exists(golden_path)) {
                 std__io__println(KOBEL_STR("FAIL (missing golden; run 'kobel snap --update')"));
                 fail_count++;
                 {
@@ -7349,7 +7417,7 @@ int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update) {
                     continue;
                 }
             }
-            kobel_str expected = str_trim(std__filesystem__file_read(golden_path));
+            kobel_str expected = str_trim(std__filesystem__File_read(golden_path));
             if (kobel_streq(expected, digest)) {
                 std__io__println(KOBEL_STR("PASS"));
             } else {
@@ -7371,7 +7439,7 @@ int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update) {
 }
 
 int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
-    config__project__ProjectConfig cfg = (std__filesystem__file_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
+    config__project__ProjectConfig cfg = (std__filesystem__File_exists(manifest_path) ? config__project__ProjectConfig_new(manifest_path) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
     kobel_str dir = KOBEL_STR("build/fixpoint");
     compiler__driver__ensure_dir(dir);
     kobel_str stage1_c = kobel_concat(dir, KOBEL_STR("/stage1.c"));
@@ -7389,8 +7457,9 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
         return 1;
     }
     std__io__println(KOBEL_STR("[2/3] Building the second-generation compiler..."));
-    std__sys__exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
-    if (!std__filesystem__file_exists(stage2_exe)) {
+    compiler__driver__remove_file(stage2_exe);
+    int32_t compile_res = std__sys__exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+    if ((compile_res != 0) || !std__filesystem__File_exists(stage2_exe)) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Backend compiler did not produce '"), stage2_exe, KOBEL_STR("'.")));
         return 1;
     }
@@ -7407,8 +7476,8 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Second-generation compiler failed (exit "), i32_to_str(exit_code), KOBEL_STR(").")));
         return 1;
     }
-    kobel_str first = std__filesystem__file_read(stage1_c);
-    kobel_str second = std__filesystem__file_read(stage2_c);
+    kobel_str first = std__filesystem__File_read(stage1_c);
+    kobel_str second = std__filesystem__File_read(stage2_c);
     if (kobel_streq(first, second)) {
         std__io__println(kobel_concat3(KOBEL_STR("[SUCCESS] Fixpoint reached: stage1.c == stage2.c ("), usz_to_str(first.len), KOBEL_STR(" bytes).")));
         return 0;
@@ -10292,11 +10361,11 @@ kobel_str compiler__loader__detect_project_root(kobel_str start_dir) {
     size_t count = 0;
     while (!str_empty(curr) && (count < 10)) {
         kobel_str manifest = str_join_path(curr, KOBEL_STR("kobel.toml"));
-        if (std__filesystem__file_exists(manifest)) {
+        if (std__filesystem__File_exists(manifest)) {
             return curr;
         }
         kobel_str test_file = str_join_path(curr, KOBEL_STR("lib/std/io.kb"));
-        if (std__filesystem__file_exists(test_file)) {
+        if (std__filesystem__File_exists(test_file)) {
             return curr;
         }
         kobel_str parent = str_dir_of(curr);
@@ -10406,12 +10475,12 @@ std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoad
         while (__for_i < __for_n) {
             kobel_str root = std__collections__List_str_at(&self->roots, __for_i);
             kobel_str candidate = str_join_path(root, rel_file);
-            kobel_str src = std__filesystem__file_read(candidate);
+            kobel_str src = std__filesystem__File_read(candidate);
             if (!str_empty(src)) {
                 std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, (compiler__loader__ModuleFile){ true, candidate, src });
             }
             kobel_str dir_path = str_join_path(root, rel_dir);
-            std__collections__List_str entries = std__filesystem__file_list_dir(dir_path);
+            std__collections__List_str entries = std__filesystem__File_list_dir(dir_path);
             if (!std__collections__List_str_empty(&entries)) {
                 std__collections__List_str kb_files = std__collections__List_str_new(4);
                 {
@@ -10503,7 +10572,7 @@ std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoad
                             }
                         }
                         if (!already) {
-                            kobel_str f_src = std__filesystem__file_read(f_path);
+                            kobel_str f_src = std__filesystem__File_read(f_path);
                             if (!str_empty(f_src)) {
                                 std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, (compiler__loader__ModuleFile){ true, f_path, f_src });
                             }
@@ -10711,13 +10780,13 @@ kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str defaul
         }
     }
     kobel_str rel = kobel_concat(str_module_to_rel(target), KOBEL_STR(".kb"));
-    if (std__filesystem__file_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
         return kobel_concat(KOBEL_STR("src/"), rel);
     }
-    if (std__filesystem__file_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
         return kobel_concat(KOBEL_STR("lib/"), rel);
     }
-    if (std__filesystem__file_exists(rel)) {
+    if (std__filesystem__File_exists(rel)) {
         return rel;
     }
     return target;
@@ -10736,8 +10805,8 @@ kobel_str compiler__driver__render_diagnostic(compiler__driver__Diagnostic diag)
             out = kobel_concat4(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), diag.file_path, KOBEL_STR("\n"));
         }
     }
-    if (((diag.line > 0) && !str_empty(diag.file_path)) && std__filesystem__file_exists(diag.file_path)) {
-        kobel_str content = std__filesystem__file_read(diag.file_path);
+    if (((diag.line > 0) && !str_empty(diag.file_path)) && std__filesystem__File_exists(diag.file_path)) {
+        kobel_str content = std__filesystem__File_read(diag.file_path);
         if (!str_empty(content)) {
             std__collections__List_str lines = str_split_lines(content);
             if ((diag.line >= 1) && (diag.line <= lines.len)) {
@@ -10911,13 +10980,13 @@ compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_me
     return NULL;
 }
 
-compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc) {
+compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_static_method(compiler__sema__structs__StructType* self, kobel_str name) {
     {
         size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
-            if ((!m->is_op && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+            if ((!m->is_op && m->is_static) && kobel_streq(m->name, name)) {
                 return m;
             }
             __for_i = (__for_i + 1);
@@ -10928,7 +10997,75 @@ compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_me
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
-            if (kobel_streq(m->name, name) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+            if (m->is_static && kobel_streq(m->name, name)) {
+                return m;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return NULL;
+}
+
+compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_static_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc) {
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
+            if (((!m->is_op && m->is_static) && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+                return m;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
+            if ((m->is_static && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+                return m;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return NULL;
+}
+
+size_t compiler__sema__structs__StructType_count_static_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc) {
+    int32_t n = 0;
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
+            if (((!m->is_op && m->is_static) && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+                n++;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return n;
+}
+
+compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc) {
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
+            if (((!m->is_op && !m->is_static) && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+                return m;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__sema__methods__MethodInfo_count(&self->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
+            if ((!m->is_static && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
                 return m;
             }
             __for_i = (__for_i + 1);
@@ -10944,7 +11081,7 @@ size_t compiler__sema__structs__StructType_count_method_arity(compiler__sema__st
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__sema__methods__MethodInfo* m = std__collections__List_ptr_compiler__sema__methods__MethodInfo_at(&self->methods, __for_i);
-            if ((!m->is_op && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
+            if (((!m->is_op && !m->is_static) && kobel_streq(m->name, name)) && ((*compiler__sema__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
                 n++;
             }
             __for_i = (__for_i + 1);
@@ -18363,22 +18500,23 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_static_m
         return NULL;
     }
     compiler__sema__structs__StructType* st = s_info;
-    compiler__sema__methods__MethodInfo* cand = compiler__sema__structs__StructType_find_method(st, mem->member);
+    compiler__sema__methods__MethodInfo* cand = compiler__sema__structs__StructType_find_static_method(st, mem->member);
     if (cand == NULL) {
+        compiler__sema__methods__MethodInfo* inst_cand = compiler__sema__structs__StructType_find_method(st, mem->member);
+        if ((inst_cand != NULL) && !inst_cand->is_static) {
+            compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Cannot call instance method '"), mem->member, KOBEL_STR("' statically without an instance of '"), st->name, KOBEL_STR("'")));
+            return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
+        }
         return NULL;
     }
     if (mem->is_safe) {
         compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Safe call operator '?.' cannot be used on a static method call"));
         return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
     }
-    if (!cand->is_static) {
-        compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Cannot call instance method '"), mem->member, KOBEL_STR("' statically without an instance of '"), st->name, KOBEL_STR("'")));
-        return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
-    }
-    if (compiler__sema__structs__StructType_count_method_arity(st, mem->member, call->args.len) > 1) {
+    if (compiler__sema__structs__StructType_count_static_method_arity(st, mem->member, call->args.len) > 1) {
         compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Ambiguous call to '"), mem->member, KOBEL_STR("': overloading by parameter type is not supported")));
     }
-    compiler__sema__methods__MethodInfo* mi = (compiler__sema__body__pass__BodyPass_method_with_defaults(self, mem->member, call->args.len, st->methods, call, compiler__sema__structs__StructType_find_method_arity(st, mem->member, call->args.len)) != NULL ? compiler__sema__body__pass__BodyPass_method_with_defaults(self, mem->member, call->args.len, st->methods, call, compiler__sema__structs__StructType_find_method_arity(st, mem->member, call->args.len)) : cand);
+    compiler__sema__methods__MethodInfo* mi = (compiler__sema__body__pass__BodyPass_method_with_defaults(self, mem->member, call->args.len, st->methods, call, compiler__sema__structs__StructType_find_static_method_arity(st, mem->member, call->args.len)) != NULL ? compiler__sema__body__pass__BodyPass_method_with_defaults(self, mem->member, call->args.len, st->methods, call, compiler__sema__structs__StructType_find_static_method_arity(st, mem->member, call->args.len)) : cand);
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
     if (call->args.len != fn_info->param_types.len) {
         compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Argument count mismatch in call to '"), st->name, KOBEL_STR("."), mem->member, KOBEL_STR("'")));
@@ -18788,10 +18926,10 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_fn_call(
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_struct_ctor(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* callee_ty, compiler__ast__expr__CallExpr* call, bool callee_is_self) {
     compiler__sema__structs__StructType* s_info = compiler__sema__types__Type_as_struct(callee_ty);
     if (!callee_is_self) {
-        if (compiler__sema__structs__StructType_count_method_arity(s_info, KOBEL_STR("new"), call->args.len) > 1) {
+        if (compiler__sema__structs__StructType_count_static_method_arity(s_info, KOBEL_STR("new"), call->args.len) > 1) {
             compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Ambiguous call to 'new': overloading by parameter type is not supported"));
         }
-        compiler__sema__methods__MethodInfo* nm = compiler__sema__body__pass__BodyPass_method_with_defaults(self, KOBEL_STR("new"), call->args.len, s_info->methods, call, compiler__sema__structs__StructType_find_method_arity(s_info, KOBEL_STR("new"), call->args.len));
+        compiler__sema__methods__MethodInfo* nm = compiler__sema__body__pass__BodyPass_method_with_defaults(self, KOBEL_STR("new"), call->args.len, s_info->methods, call, compiler__sema__structs__StructType_find_static_method_arity(s_info, KOBEL_STR("new"), call->args.len));
         if (nm != NULL) {
             compiler__sema__types__FnType* n_info = compiler__sema__types__Type_as_fn(nm->fn_type);
             {
@@ -23921,7 +24059,7 @@ kobel_str compiler__driver__resolve_host_cc(kobel_str cc) {
 }
 
 void compiler__driver__ensure_dir(kobel_str path) {
-    if (str_empty(path) || std__filesystem__file_exists(path)) {
+    if (str_empty(path) || std__filesystem__File_exists(path)) {
         return;
     }
     if (std__sys__is_windows()) {
@@ -23969,9 +24107,9 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
     kobel_str obj_arg = (str_contains(win_obj, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), win_obj, KOBEL_STR("\"")) : win_obj);
     kobel_str c_arg = (str_contains(win_c, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), win_c, KOBEL_STR("\"")) : win_c);
     kobel_str tmp_setup = KOBEL_STR("set \"TMP=build\" && set \"TEMP=build\"");
-    kobel_str vcvars_setup = KOBEL_STR("(if defined VCINSTALLDIR (cd .) else (for /f \"tokens=*\" %i in ('\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -property installationPath') do @if exist \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%i\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul))");
+    kobel_str vcvars_setup = KOBEL_STR("(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul)");
     kobel_str cl_invoke = kobel_concat3(kobel_concat5(cc_bin, KOBEL_STR(" /nologo /O2 /std:c11 /Fe:"), exe_arg, KOBEL_STR(" /Fo:"), obj_arg), KOBEL_STR(" "), c_arg);
-    kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? ((kobel_streq(host_cc, KOBEL_STR("cl")) || kobel_streq(host_cc, KOBEL_STR("cl.exe"))) ? kobel_concat5(tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(kobel_concat5(tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg), KOBEL_STR(" "), c_arg));
+    kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? ((kobel_streq(host_cc, KOBEL_STR("cl")) || kobel_streq(host_cc, KOBEL_STR("cl.exe"))) ? (std__sys__has_env(KOBEL_STR("VCINSTALLDIR")) ? kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat5(tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(kobel_concat5(tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg), KOBEL_STR(" "), c_arg));
     if (quiet) {
         cmd = kobel_concat(cmd, KOBEL_STR(" >nul 2>nul"));
     }
@@ -23980,7 +24118,7 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
 
 int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOptions* self) {
     kobel_str input_path = self->input_path;
-    kobel_str src = std__filesystem__file_read(input_path);
+    kobel_str src = std__filesystem__File_read(input_path);
     if (str_empty(src)) {
         std__io__println(kobel_concat(KOBEL_STR("Error: Could not read source file or file is empty: "), input_path));
         return 1;
@@ -24036,7 +24174,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
     compiler__codegen__c_codegen__CCodeGen codegen = (compiler__codegen__c_codegen__CCodeGen){ 0, std__collections__List_str_new(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), std__collections__List_usz_new(4), std__collections__List_bool_new(4), std__collections__List_usz_new(4) };
     kobel_str c_code = compiler__codegen__c_codegen__CCodeGen_gen_program(&codegen, prog);
     if (self->only_emit_c) {
-        bool ok = std__filesystem__file_write(self->emit_c_path, c_code);
+        bool ok = std__filesystem__File_write(self->emit_c_path, c_code);
         if (!ok) {
             std__io__println(kobel_concat(KOBEL_STR("Error: Failed to write output file: "), self->emit_c_path));
             return 1;
@@ -24056,7 +24194,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
     kobel_str base_name = str_base_name(out_path);
     kobel_str c_tmp_path = kobel_concat3(KOBEL_STR("build/"), base_name, KOBEL_STR(".tmp.c"));
     kobel_str obj_tmp_path = kobel_concat3(KOBEL_STR("build/"), base_name, KOBEL_STR(".tmp.obj"));
-    bool write_ok = std__filesystem__file_write(c_tmp_path, c_code);
+    bool write_ok = std__filesystem__File_write(c_tmp_path, c_code);
     if (!write_ok) {
         std__io__println(kobel_concat(KOBEL_STR("Error: Failed to write temporary C file: "), c_tmp_path));
         return 1;
@@ -24066,21 +24204,21 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
         std__io__println(kobel_concat3(KOBEL_STR("[BUILDING] Invoking backend compiler ("), host_cc, KOBEL_STR(")...")));
     }
     kobel_str old_bin = kobel_concat(out_path, KOBEL_STR(".old"));
-    if (std__filesystem__file_exists(out_path)) {
+    if (std__filesystem__File_exists(out_path)) {
         compiler__driver__remove_file(old_bin);
         compiler__driver__move_file(out_path, old_bin);
     }
     kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self->c_compiler, self->quiet);
     int32_t exit_code = std__sys__exec(compile_cmd);
     if (exit_code != 0) {
-        if (std__filesystem__file_exists(old_bin) && !std__filesystem__file_exists(out_path)) {
+        if (std__filesystem__File_exists(old_bin) && !std__filesystem__File_exists(out_path)) {
             compiler__driver__move_file(old_bin, out_path);
         }
         std__io__println(kobel_concat5(KOBEL_STR("Error: Backend C compiler failed with exit code "), i32_to_str(exit_code), KOBEL_STR(": cmd was '"), compile_cmd, KOBEL_STR("'")));
         return exit_code;
     }
-    if (!std__filesystem__file_exists(out_path)) {
-        if (std__filesystem__file_exists(old_bin)) {
+    if (!std__filesystem__File_exists(out_path)) {
+        if (std__filesystem__File_exists(old_bin)) {
             compiler__driver__move_file(old_bin, out_path);
         }
         std__io__println(kobel_concat(KOBEL_STR("Error: Backend C compiler returned 0 but produced no executable: "), out_path));
@@ -26998,7 +27136,7 @@ int32_t main__run_fixpoint(void) {
 }
 
 int32_t main__run_emit_c(int32_t argc, const char** argv) {
-    config__project__ProjectConfig cfg = (std__filesystem__file_exists(KOBEL_STR("kobel.toml")) ? config__project__ProjectConfig_new(KOBEL_STR("kobel.toml")) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
+    config__project__ProjectConfig cfg = (std__filesystem__File_exists(KOBEL_STR("kobel.toml")) ? config__project__ProjectConfig_new(KOBEL_STR("kobel.toml")) : (config__project__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
     kobel_str out_path = ((argc >= 3) ? util__strutil__cstr_to_str(argv[2]) : KOBEL_STR("dist/bootstrap.c"));
     compiler__driver__CompileOptions opts = (compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_new(4), false };
     opts.input_path = cfg.entry;
@@ -27037,14 +27175,14 @@ int32_t main__run_fmt(int32_t argc, const char** argv) {
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str fpath = std__collections__List_str_at(&files, __for_i);
-            kobel_str src = std__filesystem__file_read(fpath);
+            kobel_str src = std__filesystem__File_read(fpath);
             if (str_empty(src)) {
                 __for_i = (__for_i + 1);
                 continue;
             }
             kobel_str formatted = fmt__formatter__format_source(src, options);
             if (write_in_place) {
-                bool ok = std__filesystem__file_write(fpath, formatted);
+                bool ok = std__filesystem__File_write(fpath, formatted);
                 if (!ok) {
                     std__io__println(kobel_concat(KOBEL_STR("Error: Failed to write to "), fpath));
                     return 1;

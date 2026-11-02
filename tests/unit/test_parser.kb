@@ -3,9 +3,9 @@ mod test.bootstrap_parser;
 use std.io.print;
 use std.io.println;
 
-use compiler.lexer.lexer.Lexer;
-use compiler.lexer.token.TokenType;
-use compiler.lexer.token.Token;
+use compiler.lexer.Lexer;
+use compiler.lexer.TokenType;
+use compiler.lexer.Token;
 
 use compiler.ast.node.NodeKind;
 use compiler.ast.node.AstNode;

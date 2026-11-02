@@ -27,9 +27,9 @@ impl ProjectConfig {
 
 	pub fn new(manifest_path: str): Self {
 		var self = Self();
-		if (!file_exists(manifest_path)) return self;
+		if (!File.exists(manifest_path)) return self;
 
-		val content = file_read(manifest_path);
+		val content = File.read(manifest_path);
 		if (content.empty()) return self;
 
 		val doc = Toml(content);

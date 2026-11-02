@@ -10,7 +10,7 @@ use std.io.print;
 use std.io.println;
 use std.filesystem.file_write;
 
-use compiler.loader.loader.ModuleLoader;
+use compiler.loader.ModuleLoader;
 use compiler.sema.decl.pass.DeclPass;
 use compiler.sema.decl.collect.*;
 use compiler.sema.types.DataType;

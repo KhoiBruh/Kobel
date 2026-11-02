@@ -14,7 +14,7 @@ use config.project.*;
 // ============================================================================
 
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
-	var stamp_seed = file_read(manifest_path);
+	var stamp_seed = File.read(manifest_path);
 	ensure_dir("build");
 
 	val tmp_file = "build/.kobel_src_files.tmp";
@@ -27,24 +27,24 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	};
 	exec(find_cmd);
 
-	if (file_exists(tmp_file)) {
-		val file_list = file_read(tmp_file);
+	if (File.exists(tmp_file)) {
+		val file_list = File.read(tmp_file);
 		remove_file(tmp_file);
 		val lines = file_list.split_lines();
 		for (line in lines) {
 			val fpath = line.trim();
-			if (!fpath.empty() && file_exists(fpath)) {
-				val content = file_read(fpath);
+			if (!fpath.empty() && File.exists(fpath)) {
+				val content = File.read(fpath);
 				stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
 			}
 		}
-	} else stamp_seed += file_read(cfg.entry);
+	} else stamp_seed += File.read(cfg.entry);
 
 	return stamp_seed.hash_stamp();
 }
 
 pub fn cmd_build(manifest_path: str): i32 {
-	if (!file_exists(manifest_path)) {
+	if (!File.exists(manifest_path)) {
 		println("Error: Project manifest '${manifest_path}' not found.");
 		return 1;
 	}
@@ -62,14 +62,14 @@ pub fn cmd_build(manifest_path: str): i32 {
 		ensure_dir("build");
 		val stamp_file = "build/.kobel_stamp";
 		val stamp = compute_project_stamp(cfg, manifest_path);
-		file_write(stamp_file, stamp);
+		File.write(stamp_file, stamp);
 		println("[SUCCESS] Build complete: ${cfg.output}");
 	}
 	return exit_code;
 }
 
 pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
-	if (!file_exists(manifest_path)) {
+	if (!File.exists(manifest_path)) {
 		println("Error: Project manifest '${manifest_path}' not found.");
 		return 1;
 	}
@@ -80,16 +80,16 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
 	var needs_build = when {
-		!file_exists(cfg.output) -> {
+		!File.exists(cfg.output) -> {
 			println("Target '${cfg.output}' not found. Building first...");
 			yield true;
 		}
-		!file_exists(stamp_file) -> {
+		!File.exists(stamp_file) -> {
 			println("No previous build stamp found. Rebuilding...");
 			yield true;
 		}
 		else -> {
-			val saved_stamp = file_read(stamp_file).trim();
+			val saved_stamp = File.read(stamp_file).trim();
 			if (saved_stamp != current_stamp) {
 				println("Source changes detected. Rebuilding...");
 				yield true;
@@ -141,8 +141,8 @@ pub fn discover_test_files(test_dir: str): List<str> {
 	};
 	exec(find_cmd);
 
-	if (file_exists(tmp_list_file)) {
-		val content = file_read(tmp_list_file);
+	if (File.exists(tmp_list_file)) {
+		val content = File.read(tmp_list_file);
 		remove_file(tmp_list_file);
 		val lines = content.split_lines();
 		val search_token = "/${test_dir}/";
@@ -161,7 +161,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 }
 
 pub fn cmd_test(manifest_path: str, filter: str): i32 {
-	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = if (File.exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
 	val all_tests = discover_test_files(cfg.test_dir);
 	var active_tests = List<str>();
 
@@ -280,7 +280,7 @@ pub fn snap_name(path: str): str {
 }
 
 pub fn cmd_snap(manifest_path: str, update: bool): i32 {
-	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = if (File.exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
 	val golden_dir = "tests/golden";
 	val tmp_dir = "build/snap";
 	ensure_dir(golden_dir);
@@ -309,21 +309,21 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val digest = file_read(c_path).hash_stamp();
+		val digest = File.read(c_path).hash_stamp();
 		val golden_path = "${golden_dir}/${flat}.txt";
 		if (update) {
-			file_write(golden_path, "${digest}\n");
+			File.write(golden_path, "${digest}\n");
 			println("UPDATED");
 			continue;
 		}
 
-		if (!file_exists(golden_path)) {
+		if (!File.exists(golden_path)) {
 			println("FAIL (missing golden; run 'kobel snap --update')");
 			fail_count++;
 			continue;
 		}
 
-		val expected = file_read(golden_path).trim();
+		val expected = File.read(golden_path).trim();
 		if (expected == digest) println("PASS");
 		else {
 			println("FAIL");
@@ -343,7 +343,7 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 }
 
 pub fn cmd_fixpoint(manifest_path: str): i32 {
-	val cfg = if (file_exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = if (File.exists(manifest_path)) ProjectConfig(manifest_path) else ProjectConfig();
 	val dir = "build/fixpoint";
 	ensure_dir(dir);
 
@@ -364,8 +364,9 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	}
 
 	println("[2/3] Building the second-generation compiler...");
-	exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
-	if (!file_exists(stage2_exe)) {
+	remove_file(stage2_exe);
+	val compile_res = exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+	if (compile_res != 0 || !File.exists(stage2_exe)) {
 		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");
 		return 1;
 	}
@@ -382,8 +383,8 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 		return 1;
 	}
 
-	val first = file_read(stage1_c);
-	val second = file_read(stage2_c);
+	val first = File.read(stage1_c);
+	val second = File.read(stage2_c);
 	if (first == second) {
 		println("[SUCCESS] Fixpoint reached: stage1.c == stage2.c (${first.len} bytes).");
 		return 0;

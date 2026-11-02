@@ -14,9 +14,7 @@ mod compiler.loader;
 // ============================================================================
 
 use std.mem.*;
-use std.filesystem.file_read;
-use std.filesystem.file_exists;
-use std.filesystem.file_list_dir;
+use std.filesystem.File;
 use std.collections.*;
 
 use util.strutil.*;
@@ -56,9 +54,9 @@ pub fn detect_project_root(start_dir: str): str {
 	var count: usz = 0;
 	while (!curr.empty() && count < 10) {
 		val manifest = curr.join_path("kobel.toml");
-		if (file_exists(manifest)) return curr;
+		if (File.exists(manifest)) return curr;
 		val test_file = curr.join_path("lib/std/io.kb");
-		if (file_exists(test_file)) return curr;
+		if (File.exists(test_file)) return curr;
 		val parent = curr.dir_of();
 		if (parent == curr || parent.empty()) break;
 		curr = parent;
@@ -145,14 +143,14 @@ impl ModuleLoader {
 		for (root in self.roots) {
 			// 1. Single-file module: <root>/<rel>.kb
 			val candidate = root.join_path(rel_file);
-			val src = file_read(candidate);
+			val src = File.read(candidate);
 			if (!src.empty()) {
 				list += ModuleFile(true, candidate, src);
 			}
 
 			// 2. Folder-as-package: <root>/<rel>/
 			val dir_path = root.join_path(rel_dir);
-			val entries = file_list_dir(dir_path);
+			val entries = File.list_dir(dir_path);
 			if (!entries.empty()) {
 				var kb_files = List<str>();
 				for (e in entries) {
@@ -175,7 +173,7 @@ impl ModuleLoader {
 						if (m.path == f_path) already = true;
 					}
 					if (!already) {
-						val f_src = file_read(f_path);
+						val f_src = File.read(f_path);
 						if (!f_src.empty()) list += ModuleFile(true, f_path, f_src);
 					}
 				}
