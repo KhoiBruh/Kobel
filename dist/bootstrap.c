@@ -2646,6 +2646,7 @@ bool compiler__sema__template__is_template_decl(compiler__ast__node__AstNode* no
 compiler__sema__instance__AnnEntry* compiler__sema__instance__InstanceRecord_find_ann(compiler__sema__instance__InstanceRecord* self, compiler__ast__node__AstNode* node);
 compiler__sema__traits__TraitMethod* compiler__sema__traits__TraitInfo_find_method(compiler__sema__traits__TraitInfo* self, kobel_str name);
 bool compiler__sema__traits__TraitInfo_has_impl(compiler__sema__traits__TraitInfo* self, kobel_str struct_name);
+compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_lookup(compiler__sema__symbol__Scope* self, kobel_str name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_get(compiler__sema__symbol__Scope* self, kobel_str name);
 bool compiler__sema__symbol__Scope_contains(compiler__sema__symbol__Scope* self, kobel_str name);
@@ -2663,7 +2664,6 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__GenericReg_find_instance
 void compiler__sema__symbol__GenericReg_add_record(compiler__sema__symbol__GenericReg* self, compiler__sema__instance__InstanceRecord* rec);
 compiler__sema__instance__InstanceRecord* compiler__sema__symbol__GenericReg_find_instance_record(compiler__sema__symbol__GenericReg* self, compiler__sema__template__GenTemplate* tmpl, std__collections__List_ptr_compiler__sema__types__Type args, compiler__sema__instance__InstanceKind kind);
 compiler__sema__instance__InstanceRecord* compiler__sema__symbol__GenericReg_find_record_by_cname(compiler__sema__symbol__GenericReg* self, kobel_str cname);
-compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym);
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void);
 void compiler__sema__symbol__SymbolTable_register_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__Type* prim, compiler__sema__methods__MethodInfo* mi);
 compiler__sema__methods__MethodInfo* compiler__sema__symbol__SymbolTable_find_prim_method(compiler__sema__symbol__SymbolTable* self, compiler__sema__types__DataType kind, kobel_str name);
@@ -3039,7 +3039,7 @@ fmt__comments__Comment fmt__comments__CommentTable_peek(fmt__comments__CommentTa
 void fmt__comments__CommentTable_emit_before(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t target_line);
 void fmt__comments__CommentTable_emit_trailing_on_line(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf, size_t current_line);
 void fmt__comments__CommentTable_emit_remaining(fmt__comments__CommentTable* self, fmt__buffer__FormatBuffer* buf);
-std__collections__List_fmt__comments__Comment fmt__comments__extract_comments(kobel_str src);
+std__collections__List_fmt__comments__Comment fmt__comments__Comment_extract(kobel_str src);
 kobel_str fmt__formatter__op_to_str(compiler__lexer__TokenType op);
 fmt__formatter__Formatter fmt__formatter__Formatter_new(fmt__options__FormatOptions options, fmt__comments__CommentTable comments);
 kobel_str fmt__formatter__Formatter_to_str(fmt__formatter__Formatter* self);
@@ -3116,8 +3116,8 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(kobel_str path, 
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__AnalysisResult* self, size_t line0, size_t col0);
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis__AnalysisResult* self, kobel_str doc_uri, size_t line0, size_t col0);
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_complete_at(lsp__analysis__AnalysisResult* self);
-lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source);
-lsp__json__JsonValue* lsp__analysis__format_document(kobel_str text);
+lsp__json__JsonValue* lsp__analysis__AnalysisResult_document_symbols(kobel_str source);
+lsp__json__JsonValue* lsp__analysis__AnalysisResult_format_document(kobel_str text);
 void lsp__server__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root);
 int32_t lsp__server__run_server(void);
 void main__print_usage(void);
@@ -4292,7 +4292,6 @@ compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_val_compiler__ast__decl__C
 compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_val_compiler__ast__decl__ExternBlock(std__mem__Arena* self, compiler__ast__decl__ExternBlock value);
 compiler__ast__decl__Program* std__mem__Arena_alloc_val_compiler__ast__decl__Program(std__mem__Arena* self, compiler__ast__decl__Program value);
 compiler__sema__types__Type* std__mem__Arena_alloc_val_compiler__sema__types__Type(std__mem__Arena* self, compiler__sema__types__Type value);
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value);
 void std__mem__release_str(kobel_str* ptr);
 compiler__ast__node__AstNode** std__mem__alloc_array_ptr_compiler__ast__node__AstNode(size_t count);
 void std__mem__release_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr);
@@ -4367,6 +4366,7 @@ compiler__sema__types__PointerType* std__mem__Arena_alloc_val_compiler__sema__ty
 compiler__sema__types__ArrayType* std__mem__Arena_alloc_val_compiler__sema__types__ArrayType(std__mem__Arena* self, compiler__sema__types__ArrayType value);
 compiler__sema__types__FnType* std__mem__Arena_alloc_val_compiler__sema__types__FnType(std__mem__Arena* self, compiler__sema__types__FnType value);
 compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(std__mem__Arena* self);
+compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value);
 compiler__sema__symbol__Scope* std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(std__mem__Arena* self, compiler__sema__symbol__Scope value);
 compiler__sema__prims__PrimTypes* std__mem__Arena_alloc_compiler__sema__prims__PrimTypes(std__mem__Arena* self);
 compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_val_compiler__sema__symbol__ModuleScope(std__mem__Arena* self, compiler__sema__symbol__ModuleScope value);
@@ -4462,11 +4462,11 @@ compiler__ast__decl__EnumDecl* std__mem__Arena_alloc_compiler__ast__decl__EnumDe
 compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_compiler__ast__decl__ConstDecl(std__mem__Arena* self);
 compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_compiler__ast__decl__ExternBlock(std__mem__Arena* self);
 compiler__ast__decl__Program* std__mem__Arena_alloc_compiler__ast__decl__Program(std__mem__Arena* self);
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self);
 compiler__sema__structs__StructType* std__mem__Arena_alloc_compiler__sema__structs__StructType(std__mem__Arena* self);
 compiler__sema__types__PointerType* std__mem__Arena_alloc_compiler__sema__types__PointerType(std__mem__Arena* self);
 compiler__sema__types__ArrayType* std__mem__Arena_alloc_compiler__sema__types__ArrayType(std__mem__Arena* self);
 compiler__sema__types__FnType* std__mem__Arena_alloc_compiler__sema__types__FnType(std__mem__Arena* self);
+compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self);
 compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Scope(std__mem__Arena* self);
 compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__Arena* self);
 compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(std__mem__Arena* self);
@@ -11927,6 +11927,10 @@ bool compiler__sema__traits__TraitInfo_has_impl(compiler__sema__traits__TraitInf
     return std__collections__List_str_contains(&self->impls, struct_name);
 }
 
+compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym) {
+    return std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(arena, sym);
+}
+
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_lookup(compiler__sema__symbol__Scope* self, kobel_str name) {
     {
         size_t __for_n = std__collections__List_ptr_compiler__sema__symbol__Symbol_count(&self->symbols);
@@ -12074,10 +12078,6 @@ compiler__sema__instance__InstanceRecord* compiler__sema__symbol__GenericReg_fin
         }
     }
     return NULL;
-}
-
-compiler__sema__symbol__Symbol* compiler__sema__symbol__box_symbol(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym) {
-    return std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(arena, sym);
 }
 
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void) {
@@ -13914,7 +13914,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
     compiler__sema__types__Type* s_type = std__mem__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(s_type)).c_name = cname;
     (*compiler__sema__types__Type_as_struct_mut(s_type)).module = tmpl->module;
-    compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__box_symbol(&self->arena, (compiler__sema__symbol__Symbol){ cname, cname, 4, s_type, false, decl->is_pub, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL }));
+    compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__Symbol_box(&self->arena, (compiler__sema__symbol__Symbol){ cname, cname, 4, s_type, false, decl->is_pub, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL }));
     size_t mark = self->subst_names.len;
     compiler__sema__decl__pass__DeclPass_push_subst(self, compiler__sema__template__GenTemplate_param_names(tmpl), args);
     bool has_private = false;
@@ -14268,7 +14268,7 @@ void compiler__sema__decl__pass__DeclPass_collect_fn_as(compiler__sema__decl__pa
     compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self)));
     compiler__sema__types__Type* fn_type = sig;
     if (fn_type == NULL) fn_type = std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
-    compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__box_symbol(&self->arena, (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, f->is_pub, node->line, node->col, node, NULL }));
+    compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__Symbol_box(&self->arena, (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, f->is_pub, node->line, node->col, node, NULL }));
     f->name = final_name;
 }
 
@@ -24361,7 +24361,7 @@ void fmt__comments__CommentTable_emit_remaining(fmt__comments__CommentTable* sel
     }
 }
 
-std__collections__List_fmt__comments__Comment fmt__comments__extract_comments(kobel_str src) {
+std__collections__List_fmt__comments__Comment fmt__comments__Comment_extract(kobel_str src) {
     std__collections__List_fmt__comments__Comment comments = std__collections__List_fmt__comments__Comment_new(4);
     int32_t i = 0;
     size_t len = src.len;
@@ -25562,7 +25562,7 @@ void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, c
 }
 
 kobel_str fmt__formatter__format_source(kobel_str src, fmt__options__FormatOptions options) {
-    std__collections__List_fmt__comments__Comment comments = fmt__comments__extract_comments(src);
+    std__collections__List_fmt__comments__Comment comments = fmt__comments__Comment_extract(src);
     fmt__comments__CommentTable comment_table = (fmt__comments__CommentTable){ comments, 0 };
     compiler__lexer__Lexer lex = compiler__lexer__Lexer_new(src);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lex);
@@ -26800,7 +26800,7 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_complete_at(lsp__analysis__A
     return items;
 }
 
-lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source) {
+lsp__json__JsonValue* lsp__analysis__AnalysisResult_document_symbols(kobel_str source) {
     compiler__lexer__Lexer lexer = compiler__lexer__Lexer_new(source);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
@@ -26873,7 +26873,7 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source) {
     return arr;
 }
 
-lsp__json__JsonValue* lsp__analysis__format_document(kobel_str text) {
+lsp__json__JsonValue* lsp__analysis__AnalysisResult_format_document(kobel_str text) {
     fmt__options__FormatOptions options = (fmt__options__FormatOptions){ 4, true, 100, true };
     kobel_str formatted = fmt__formatter__format_source(text, options);
     lsp__json__JsonValue* edits = lsp__json__JsonValue_arr();
@@ -27034,7 +27034,7 @@ int32_t lsp__server__run_server(void) {
             kobel_str uri = lsp__json__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
             lsp__document__Document doc = lsp__document__DocumentStore_get(&docs, uri);
             if (!str_empty(doc.text)) {
-                lsp__json__JsonValue* edits = lsp__analysis__format_document(doc.text);
+                lsp__json__JsonValue* edits = lsp__analysis__AnalysisResult_format_document(doc.text);
                 lsp__protocol__send_response(id, edits);
             } else {
                 lsp__protocol__send_response(id, lsp__json__JsonValue_arr());
@@ -27044,7 +27044,7 @@ int32_t lsp__server__run_server(void) {
             kobel_str uri = lsp__json__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
             lsp__document__Document doc = lsp__document__DocumentStore_get(&docs, uri);
             if (!str_empty(doc.text)) {
-                lsp__json__JsonValue* syms = lsp__analysis__document_symbols(doc.text);
+                lsp__json__JsonValue* syms = lsp__analysis__AnalysisResult_document_symbols(doc.text);
                 lsp__protocol__send_response(id, syms);
             } else {
                 lsp__protocol__send_response(id, lsp__json__JsonValue_arr());
@@ -42350,12 +42350,6 @@ compiler__sema__types__Type* std__mem__Arena_alloc_val_compiler__sema__types__Ty
     return ptr;
 }
 
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value) {
-    compiler__sema__symbol__Symbol* ptr = std__mem__Arena_alloc_compiler__sema__symbol__Symbol(self);
-    *ptr = value;
-    return ptr;
-}
-
 void std__mem__release_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
@@ -42658,6 +42652,12 @@ compiler__sema__types__FnType* std__mem__Arena_alloc_val_compiler__sema__types__
 
 compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(std__mem__Arena* self) {
     return (compiler__sema__methods__PrimMethods*)std__mem__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value) {
+    compiler__sema__symbol__Symbol* ptr = std__mem__Arena_alloc_compiler__sema__symbol__Symbol(self);
+    *ptr = value;
+    return ptr;
 }
 
 compiler__sema__symbol__Scope* std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(std__mem__Arena* self, compiler__sema__symbol__Scope value) {
@@ -43046,10 +43046,6 @@ compiler__ast__decl__Program* std__mem__Arena_alloc_compiler__ast__decl__Program
     return (compiler__ast__decl__Program*)std__mem__Arena_alloc_bytes(self, 24, 8);
 }
 
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self) {
-    return (compiler__sema__symbol__Symbol*)std__mem__Arena_alloc_bytes(self, 88, 8);
-}
-
 compiler__sema__structs__StructType* std__mem__Arena_alloc_compiler__sema__structs__StructType(std__mem__Arena* self) {
     return (compiler__sema__structs__StructType*)std__mem__Arena_alloc_bytes(self, 104, 8);
 }
@@ -43064,6 +43060,10 @@ compiler__sema__types__ArrayType* std__mem__Arena_alloc_compiler__sema__types__A
 
 compiler__sema__types__FnType* std__mem__Arena_alloc_compiler__sema__types__FnType(std__mem__Arena* self) {
     return (compiler__sema__types__FnType*)std__mem__Arena_alloc_bytes(self, 32, 8);
+}
+
+compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self) {
+    return (compiler__sema__symbol__Symbol*)std__mem__Arena_alloc_bytes(self, 88, 8);
 }
 
 compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Scope(std__mem__Arena* self) {

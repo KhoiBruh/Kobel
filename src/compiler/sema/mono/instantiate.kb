@@ -71,7 +71,7 @@ impl DeclPass {
 		s_type.as_struct_mut().c_name = cname;
 		// A monomorphized instance belongs to the module that declared its template.
 		s_type.as_struct_mut().module = tmpl.module;
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(
+		self.symtab.gen.add_inst(Symbol.box(&self.arena, Symbol(
 			cname, cname, SymbolKind.STRUCT, s_type, false, decl.is_pub,
 			tmpl.node.line, tmpl.node.col, tmpl.node
 		)));
@@ -336,7 +336,7 @@ impl DeclPass {
 		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
 
 		val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
-		self.symtab.gen.add_inst(box_symbol(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
+		self.symtab.gen.add_inst(Symbol.box(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
 		f.name = final_name;
 	}
 

@@ -201,7 +201,7 @@ pub fn run_server(): i32 {
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs[uri];
 				if (!doc.text.empty()) {
-					val edits = format_document(doc.text);
+					val edits = AnalysisResult.format_document(doc.text);
 					send_response(id, edits);
 				} else {
 					send_response(id, JsonValue.arr());
@@ -213,7 +213,7 @@ pub fn run_server(): i32 {
 				val uri = text_doc.get_str("uri", "");
 				val doc = docs[uri];
 				if (!doc.text.empty()) {
-					val syms = document_symbols(doc.text);
+					val syms = AnalysisResult.document_symbols(doc.text);
 					send_response(id, syms);
 				} else {
 					send_response(id, JsonValue.arr());

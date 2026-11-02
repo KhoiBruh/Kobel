@@ -646,7 +646,9 @@ impl AnalysisResult {
 // Document Symbol Outline Provider
 // ============================================================================
 
-pub fn document_symbols(source: str): *JsonValue {
+impl AnalysisResult {
+
+	pub fn document_symbols(source: str): *JsonValue {
 	var lexer = Lexer(source);
 	val tokens = lexer.tokenize();
 	var parser = Parser(tokens);
@@ -741,4 +743,6 @@ pub fn format_document(text: str): *JsonValue {
 	edits += edit;
 
 	return edits;
+}
+
 }

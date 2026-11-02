@@ -63,6 +63,10 @@ pub struct Symbol {
 	pub orig_type: *Type? = null
 }
 
+impl Symbol {
+	pub fn box(var arena: &Arena, sym: Symbol): *Symbol => arena.alloc_val(sym);
+}
+
 // ============================================================================
 // Lexical Scope
 // ============================================================================
@@ -193,8 +197,6 @@ impl GenericReg {
 		return null;
 	}
 }
-
-pub fn box_symbol(var arena: &Arena, sym: Symbol) => arena.alloc_val(sym);
 
 // ============================================================================
 // Symbol Table

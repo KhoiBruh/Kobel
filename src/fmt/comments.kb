@@ -64,7 +64,9 @@ impl CommentTable {
 // Extract all comments from raw source code
 // ============================================================================
 
-pub fn extract_comments(src: str): List<Comment> {
+impl Comment {
+
+	pub fn extract(src: str): List<Comment> {
 	var comments = List<Comment>();
 	var i = 0;
 	val len = src.len;
@@ -214,4 +216,6 @@ pub fn extract_comments(src: str): List<Comment> {
 	}
 
 	return comments;
+}
+
 }

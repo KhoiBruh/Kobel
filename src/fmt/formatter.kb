@@ -694,7 +694,7 @@ impl Formatter {
 }
 
 pub fn format_source(src: str, options: FormatOptions): str {
-	val comments = extract_comments(src);
+	val comments = Comment.extract(src);
 	val comment_table = CommentTable(comments);
 
 	val lex = Lexer(src);
