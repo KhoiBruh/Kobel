@@ -77,7 +77,7 @@ Every file starts with `mod`, then `use` imports grouped and ordered: `std.*` â†
 mod compiler.sema.mono.registry;
 
 use std.collections.list.*;
-use std.mem.arena.Arena;
+use std.memory.Arena;
 
 use compiler.ast.node.*;
 // ... wildcard group imports before single-symbol imports ...

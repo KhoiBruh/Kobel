@@ -10,7 +10,7 @@ mod compiler.sema.types;
 // ============================================================================
 
 use std.collections.*;
-use std.mem.Arena;
+use std.memory.Arena;
 use std.traits.*;
 use std.string.*;
 

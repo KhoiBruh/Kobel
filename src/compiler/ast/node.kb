@@ -1,6 +1,6 @@
 ﻿mod compiler.ast.node;
 
-use std.mem.Arena;
+use std.memory.Arena;
 
 use compiler.ast.types.*;
 use compiler.ast.expr.*;

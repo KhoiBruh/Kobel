@@ -1,7 +1,7 @@
 mod std.string;
 
 use std.collections.List;
-use std.mem.*;
+use std.memory.*;
 
 /*
  * ============================================================================
@@ -77,7 +77,7 @@ impl str {
 
 	// Copy of `self` with every occurrence of `c` removed (`"1_000".strip_char('_')` -> `"1000"`).
 	pub fn strip_char(val self, c: char): str {
-		val buf = alloc_array<u8>(self.len + 1);
+		val buf = create_array<u8>(self.len + 1);
 		var w = 0;
 		for (i in 0..<self.len) {
 			val ch = self[i];
@@ -94,7 +94,7 @@ impl str {
 	pub fn replace_char(val self, from: char, to: char): str {
 		if (self.empty()) return self;
 
-		val buf = alloc_array<u8>(self.len + 1);
+		val buf = create_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
 			val c = self[i];
 			buf[i] = if (c == from) to.code() else c.code();
@@ -107,7 +107,7 @@ impl str {
 	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
 	pub fn repeat(val self, n: usz): str {
 		if (n == 0 || self.empty()) return "";
-		val buf = alloc_array<u8>(self.len * n + 1);
+		val buf = create_array<u8>(self.len * n + 1);
 		var w = 0;
 
 		for (k in 0..<n) {
@@ -129,7 +129,7 @@ impl str {
 		for (i in 0..<list.len) total += list.data[i].len;
 		total += self.len * (list.len - 1);
 
-		val buf = alloc_array<u8>(total + 1);
+		val buf = create_array<u8>(total + 1);
 		var w = 0;
 		for (i in 0..<list.len) {
 			val item = list.data[i];

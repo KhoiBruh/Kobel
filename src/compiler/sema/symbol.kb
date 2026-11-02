@@ -16,7 +16,7 @@ mod compiler.sema.symbol;
 // `sema.instance` (InstanceRecord/AnnEntry) and `sema.traits` (TraitInfo).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 use std.traits.Iterable;
 

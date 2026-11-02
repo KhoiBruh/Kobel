@@ -7,7 +7,7 @@ mod compiler.sema.body.call;
 // string slicing, and struct construction (both `new` constructors and field lists).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

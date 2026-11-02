@@ -8,7 +8,7 @@ mod compiler.sema.mono.rewrite;
 // counterparts before any body is checked.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

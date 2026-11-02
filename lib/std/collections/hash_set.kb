@@ -1,6 +1,6 @@
 mod std.collections;
 
-use std.mem.*;
+use std.memory.*;
 use std.traits.*;
 
 // `len` is the public size accessor; the storage is internal.
@@ -16,8 +16,8 @@ impl HashSet {
 	pub fn new(init_cap: usz = 16): Self {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
-		val keys = alloc_array<str>(cap);
-		val occ = alloc_array<bool>(cap);
+		val keys = create_array<str>(cap);
+		val occ = create_array<bool>(cap);
 
 		for (i in 0..<cap) occ[i] = false;
 		return Self(keys, occ, 0, cap);
@@ -96,8 +96,8 @@ impl HashSet {
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
-		val keys = alloc_array<str>(new_cap);
-		val new_occ = alloc_array<bool>(new_cap);
+		val keys = create_array<str>(new_cap);
+		val new_occ = create_array<bool>(new_cap);
 
 		for (j in 0..<new_cap) new_occ[j] = false;
 
@@ -110,15 +110,15 @@ impl HashSet {
 			for (i in 0..<old_cap) {
 				if (old_occ[i]) self += old_keys[i];
 			}
-			release(old_keys);
-			release(old_occ);
+			free(old_keys);
+			free(old_occ);
 		}
 	}
 
 	pub fn delete(self) {
 		if (self.cap > 0) {
-			release(self.keys);
-			release(self.occupied);
+			free(self.keys);
+			free(self.occupied);
 		}
 	}
 

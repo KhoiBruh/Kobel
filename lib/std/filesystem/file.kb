@@ -1,7 +1,7 @@
 mod std.filesystem;
 
 use std.string.str_from_bytes;
-use std.mem.alloc_array;
+use std.memory.*;
 use std.collections.List;
 
 /*
@@ -63,7 +63,7 @@ impl File {
 
 		fseek(f, 0, 0);
 		val sz = size_i64 as usz;
-		val buf = alloc_array<u8>(sz + 1);
+		val buf = create_array<u8>(sz + 1);
 		if (buf == null) {
 			fclose(f);
 			return "";
@@ -155,7 +155,7 @@ impl File {
 		fseek(self.handle, cur, 0);
 
 		val size = end_pos - cur;
-		val buf = alloc_array<u8>(size + 1) ?: return "";
+		val buf = create_array<u8>(size + 1) ?: return "";
 
 		val read_bytes = fread(buf, 1, size, self.handle);
 		buf[read_bytes] = 0;

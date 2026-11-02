@@ -9,7 +9,7 @@ mod compiler.sema.structs;
 // ============================================================================
 
 use std.collections.*;
-use std.mem.*;
+use std.memory.*;
 
 use compiler.ast.node.*;
 

@@ -11,7 +11,7 @@ mod compiler.sema.body.pass;
 // - `body/program.kb`: module, function, and impl declaration drivers
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

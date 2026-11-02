@@ -1,5 +1,10 @@
-mod std.mem;
+mod std.memory;
 
+/*
+ * ============================================================================
+ * std.memory.arena — Arena allocator
+ * ============================================================================
+ */
 
 // Internal block of an arena: not exported, and its fields are private.
 struct ArenaBlock {
@@ -14,11 +19,8 @@ pub struct Arena {
 	block_size: usz
 }
 
-impl Arena {
-
-	pub fn new(block_size: usz = 65536) => Self(null, block_size);
-
-	pub fn alloc_bytes(var self, size: usz, align: usz = 8): &u8 {
+impl Allocator for Arena {
+	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
 		if (self.current == null) self.new_block(size);
 
 		var blk = self.current as &ArenaBlock;
@@ -36,13 +38,18 @@ impl Arena {
 		blk.used = aligned_used + size;
 		return ptr;
 	}
+}
+
+impl Arena {
+
+	pub fn new(block_size: usz = 65536) => Self(null, block_size);
 
 	fn new_block(var self, min_size: usz) {
 		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data = alloc_array<u8>(sz);
-		val blk = alloc<ArenaBlock>();
+		val data = create_array<u8>(sz);
+		val blk = create<ArenaBlock>();
 
 		blk.data = data;
 		blk.size = sz;
@@ -65,18 +72,23 @@ impl Arena {
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;
 			val next_blk = blk.next;
-			release(blk.data);
-			release(curr);
+			free(blk.data);
+			free(curr);
 			curr = next_blk;
 		}
 		self.current = null;
 	}
 
-	pub fn alloc<T>(var self) => self.alloc_bytes(T.size(), 8) as *T;
+	pub fn create<T>(var self) => self.alloc_bytes(T.size(), 8) as *T;
 
-	pub fn alloc_val<T>(var self, value: T): *T {
-		val ptr = self.alloc<T>();
+	pub fn create_val<T>(var self, value: T): *T {
+		val ptr = self.create<T>();
 		ptr.write(value);
 		return ptr;
 	}
+
+	// Compatibility aliases
+	pub fn alloc<T>(var self) => self.create<T>();
+
+	pub fn alloc_val<T>(var self, value: T): *T => self.create_val(value);
 }

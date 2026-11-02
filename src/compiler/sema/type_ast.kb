@@ -10,7 +10,7 @@ mod compiler.sema.type_ast;
 // ============================================================================
 
 use std.collections.*;
-use std.mem.*;
+use std.memory.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;

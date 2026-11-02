@@ -1,6 +1,6 @@
 mod compiler.parser.parser;
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use compiler.lexer.*;

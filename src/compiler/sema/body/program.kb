@@ -7,7 +7,7 @@ mod compiler.sema.body.program;
 // each function / impl method to the core checker in `body.pass`.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use compiler.ast.node.*;

@@ -1,6 +1,6 @@
 mod std.collections;
 
-use std.mem.*;
+use std.memory.*;
 use std.traits.*;
 
 /*
@@ -39,7 +39,7 @@ impl Iterable for List<T> {
 
 impl List<T> {
 
-	pub fn new(cap: usz = 4) => Self(alloc_array<T>(cap), 0, cap);
+	pub fn new(cap: usz = 4) => Self(create_array<T>(cap), 0, cap);
 
 	pub fn first(val self) => self.data[0];
 
@@ -101,7 +101,7 @@ impl List<T> {
 
 	pub fn clone(val self): Self {
 		val cap = if (self.cap > 0) self.cap else 4;
-		var res = Self(alloc_array<T>(cap), 0, cap);
+		var res = Self(create_array<T>(cap), 0, cap);
 		for (i in 0..<self.len) res += self.data[i];
 		return res;
 	}
@@ -128,7 +128,7 @@ impl List<T> {
 	}
 
 	pub fn sub(val self, start: usz, count: usz): Self {
-		var res = Self(alloc_array<T>(count), 0, count);
+		var res = Self(create_array<T>(count), 0, count);
 		if (start >= self.len) return res;
 		val end = if (start + count > self.len) self.len else start + count;
 		for (i in start..<end) res += self.data[i];
@@ -174,7 +174,7 @@ impl List<T> {
 		return removed;
 	}
 
-	pub fn delete(self) => release<T>(self.data);
+	pub fn delete(self) => free<T>(self.data);
 
 	pub op get(val self, index: usz) => self.data[index];
 

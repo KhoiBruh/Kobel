@@ -2,7 +2,7 @@ mod test.bootstrap_sema_types;
 
 use std.io.print;
 use std.io.println;
-use std.mem.Arena;
+use std.memory.Arena;
 use std.collections.List;
 
 use compiler.sema.types.DataType;

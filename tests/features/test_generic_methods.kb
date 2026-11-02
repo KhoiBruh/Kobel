@@ -4,7 +4,7 @@ mod test.generic_methods;
 // may declare the same generic method name, a value receiver works, and a
 // generic method may call another one.
 
-use std.mem.Arena;
+use std.memory.Arena;
 
 struct A { pub v: i32 }
 struct B { pub v: i32 }
@@ -35,12 +35,12 @@ fn main(): i32 {
 
 	var arena = Arena(1024);
 	defer arena.delete();
-	val p = arena.alloc<i32>();
+	val p = arena.create<i32>();
 	p.write(9);
 	if (p.read() != 9) return 4;
 
 	// `alloc_val` is a generic method whose body calls another generic method.
-	val q = arena.alloc_val<i32>(5);
+	val q = arena.create_val<i32>(5);
 	if (q.read() != 5) return 5;
 
 	// alloc_val with inferred generic type argument

@@ -7,7 +7,7 @@ mod compiler.sema.mono.instantiate;
 // symbol, register it and queue the clone for body checking.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

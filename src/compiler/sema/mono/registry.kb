@@ -10,7 +10,7 @@ mod compiler.sema.mono.registry;
 // steps live in `mono.instantiate`, `mono.rewrite` and `mono.clone`.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 use std.traits.*;
 

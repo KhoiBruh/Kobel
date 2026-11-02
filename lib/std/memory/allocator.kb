@@ -1,0 +1,14 @@
+mod std.memory;
+
+/*
+ * ============================================================================
+ * std.memory.allocator — Allocator trait
+ *
+ * Core abstract interface for memory allocators in Kobel.
+ * Any memory allocator implements `alloc_bytes`.
+ * ============================================================================
+ */
+
+pub trait Allocator {
+	fn alloc_bytes(var self, size: usz, align: usz): &u8;
+}

@@ -16,7 +16,7 @@ mod compiler.sema.mono.clone;
 // only build a view + side table (see mono/instantiate.kb).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

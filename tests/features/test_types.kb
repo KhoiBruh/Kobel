@@ -4,7 +4,7 @@ use std.io.print;
 use std.io.println;
 use testsupport.box.*;
 use std.collections.*;
-use std.mem.*;
+use std.memory.*;
 use std.traits.*;
 use std.string.*;
 
@@ -283,11 +283,11 @@ fn test_std_ctors(var t: &Tally) {
 	{
 		var a = Arena(4096);
 		defer a.delete();
-		val p = a.alloc<i32>();
+		val p = a.create<i32>();
 		p.write(7);
-		check_i(p.read(), 7, "Arena(block_size) + a.alloc<T>", t);
+		check_i(p.read(), 7, "Arena(block_size) + a.create<T>", t);
 		val p2 = a.alloc_val<i32>(42);
-		check_i(p2.read(), 42, "a.alloc_val<T>(value)", t);
+		check_i(p2.read(), 42, "a.create_val<T>(value)", t);
 	}
 
 	{

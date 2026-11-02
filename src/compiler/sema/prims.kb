@@ -9,7 +9,7 @@ mod compiler.sema.prims;
 // ============================================================================
 
 use std.collections.*;
-use std.mem.*;
+use std.memory.*;
 
 use util.strutil.*;
 

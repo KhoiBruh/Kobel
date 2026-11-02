@@ -1,6 +1,6 @@
 mod compiler.ast.builder;
 
-use std.mem.Arena;
+use std.memory.Arena;
 use std.collections.List;
 
 use compiler.ast.node.*;

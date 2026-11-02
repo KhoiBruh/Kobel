@@ -1,0 +1,64 @@
+mod std.memory;
+
+/*
+ * ============================================================================
+ * std.memory.heap — Heap allocator (libc malloc/realloc/free)
+ * ============================================================================
+ */
+
+extern "libc" {
+	fn malloc(size: usz): &u8;
+	fn realloc(ptr: &u8, size: usz): &u8;
+	fn free(ptr: &u8): none;
+}
+
+pub struct Heap;
+
+impl Allocator for Heap {
+	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 => malloc(size);
+}
+
+impl Heap {
+	pub fn create<T>(val self) => malloc(T.size()) as &T;
+
+	pub fn create_val<T>(val self, value: T): &T {
+		val ptr = self.create<T>();
+		ptr.write(value);
+		return ptr;
+	}
+
+	pub fn create_array<T>(val self, count: usz) => malloc(count * T.size()) as &T;
+
+	pub fn resize<T>(val self, ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
+
+	pub fn free<T>(val self, ptr: *T) => free(ptr as &u8);
+}
+
+// ----------------------------------------------------------------------------
+// Typed plane - auto-cast through generics.
+// ----------------------------------------------------------------------------
+
+// One uninitialized `T` on the heap.
+pub fn create<T>() => malloc(T.size()) as &T;
+
+// One initialized `T` on the heap with the given value.
+pub fn create_val<T>(value: T): &T {
+	val ptr = create<T>();
+	ptr.write(value);
+	return ptr;
+}
+
+// `count` uninitialized `T`s on the heap (contiguous).
+pub fn create_array<T>(count: usz) => malloc(count * T.size()) as &T;
+
+// Grow/shrink `ptr` to hold `count` elements of `T`.
+pub fn resize<T>(ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
+
+// Free a block obtained from create/create_array/resize.
+pub fn free<T>(ptr: *T) => free(ptr as &u8);
+
+// Compatibility aliases
+pub fn alloc<T>() => create<T>();
+pub fn alloc_val<T>(value: T): &T => create_val(value);
+pub fn alloc_array<T>(count: usz) => create_array<T>(count);
+pub fn release<T>(ptr: *T) => free(ptr);

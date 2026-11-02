@@ -13,7 +13,7 @@ mod compiler.loader;
 // (standard library) -> "src" (compiler source).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.filesystem.File;
 use std.collections.*;
 

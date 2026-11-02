@@ -7,7 +7,7 @@ mod compiler.sema.body.stmt;
 // Handles lowering for `for` loops through `Iterable`.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

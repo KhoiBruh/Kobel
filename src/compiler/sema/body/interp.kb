@@ -7,7 +7,7 @@ mod compiler.sema.body.interp;
 // The concat chain itself is built by the `lower` pass.
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

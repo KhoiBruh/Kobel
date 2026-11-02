@@ -168,8 +168,9 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 	return (kobel_str){ buf, len };
 #endif
 }
-typedef struct std__mem__ArenaBlock std__mem__ArenaBlock;
-typedef struct std__mem__Arena std__mem__Arena;
+typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
+typedef struct std__memory__Arena std__memory__Arena;
+typedef struct std__memory__Heap std__memory__Heap;
 typedef struct std__collections__HashSet std__collections__HashSet;
 typedef struct std__collections__StringBuilder std__collections__StringBuilder;
 typedef struct std__string__StrRaw std__string__StrRaw;
@@ -493,15 +494,15 @@ typedef struct std__collections__List_ptr_compiler__sema__body__program__ArrowCa
 typedef struct std__collections__List_compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias;
 
 
-struct std__mem__ArenaBlock {
+struct std__memory__ArenaBlock {
     uint8_t* data;
     size_t size;
     size_t used;
-    std__mem__ArenaBlock* next;
+    std__memory__ArenaBlock* next;
 };
 
-struct std__mem__Arena {
-    std__mem__ArenaBlock* current;
+struct std__memory__Arena {
+    std__memory__ArenaBlock* current;
     size_t block_size;
 };
 
@@ -1579,7 +1580,7 @@ struct compiler__ast__decl__Program {
 struct compiler__parser__parser__Parser {
     std__collections__List_compiler__lexer__Token tokens;
     size_t current;
-    std__mem__Arena arena;
+    std__memory__Arena arena;
     std__collections__List_str errors;
     std__collections__List_ptr_compiler__ast__node__AstNode struct_consts;
 };
@@ -1589,7 +1590,7 @@ struct compiler__loader__ModuleLoader {
     std__collections__List_compiler__loader__LoadedModule modules;
     std__collections__List_compiler__loader__LoadedModule ordered;
     std__collections__List_str errors;
-    std__mem__Arena arena;
+    std__memory__Arena arena;
     std__collections__HashSet known;
 };
 
@@ -1671,7 +1672,7 @@ struct compiler__sema__symbol__GenericReg {
 
 struct compiler__sema__symbol__SymbolTable {
     compiler__sema__symbol__Scope* current_scope;
-    std__mem__Arena arena;
+    std__memory__Arena arena;
     kobel_str current_module;
     std__collections__List_ptr_compiler__sema__symbol__ModuleScope modules;
     std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope module_map;
@@ -1692,7 +1693,7 @@ struct compiler__sema__symbol__SymbolTable {
 
 struct compiler__sema__decl__pass__DeclPass {
     compiler__sema__symbol__SymbolTable symtab;
-    std__mem__Arena arena;
+    std__memory__Arena arena;
     kobel_str current_module;
     std__collections__List_str errors;
     bool is_extern;
@@ -1705,7 +1706,7 @@ struct compiler__sema__decl__pass__DeclPass {
 
 struct compiler__sema__body__pass__BodyPass {
     compiler__sema__symbol__SymbolTable symtab;
-    std__mem__Arena arena;
+    std__memory__Arena arena;
     compiler__sema__types__Type* current_fn_return_type;
     size_t loop_depth;
     std__collections__List_str errors;
@@ -2149,11 +2150,12 @@ size_t u16_hash(uint16_t self);
 size_t u32_hash(uint32_t self);
 size_t u64_hash(uint64_t self);
 size_t usz_hash(size_t self);
-std__mem__Arena std__mem__Arena_new(size_t block_size);
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align);
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size);
-void std__mem__Arena_reset(std__mem__Arena* self);
-void std__mem__Arena_delete(std__mem__Arena* self);
+uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, size_t align);
+std__memory__Arena std__memory__Arena_new(size_t block_size);
+void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size);
+void std__memory__Arena_reset(std__memory__Arena* self);
+void std__memory__Arena_delete(std__memory__Arena* self);
+uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align);
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap);
 size_t std__collections__HashSet_dist(std__collections__HashSet* self, size_t from, size_t to);
 bool std__collections__HashSet_add(std__collections__HashSet* self, kobel_str key);
@@ -2392,55 +2394,55 @@ compiler__ast__decl__EnumDecl* compiler__ast__node__AstNode_as_enum_decl(compile
 compiler__ast__decl__ConstDecl* compiler__ast__node__AstNode_as_const_decl(compiler__ast__node__AstNode* self);
 compiler__ast__decl__ExternBlock* compiler__ast__node__AstNode_as_extern_block(compiler__ast__node__AstNode* self);
 compiler__ast__decl__Program* compiler__ast__node__AstNode_as_program(compiler__ast__node__AstNode* self);
-compiler__ast__node__AstNode* std__mem__Arena_alloc_node(std__mem__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_named_type(std__mem__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_pointer_type(std__mem__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_array_type(std__mem__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_nullable_type(std__mem__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_literal(std__mem__Arena* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_identifier(std__mem__Arena* self, kobel_str name, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_binary(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_unary(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix);
-compiler__ast__node__AstNode* std__mem__Arena_call(std__mem__Arena* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_struct_ctor(std__mem__Arena* self, kobel_str c_name, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_enum_ctor(std__mem__Arena* self, kobel_str c_name, kobel_str tag_field, int64_t tag_value, kobel_str payload_path, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_size_of_param(std__mem__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_member(std__mem__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_safe_member(std__mem__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_index(std__mem__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_assign(std__mem__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_compound_assign(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_update(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_cast(std__mem__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, bool is_safe, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_group(std__mem__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_array_literal(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_list_literal(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_if_expr(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_when_expr(std__mem__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_interp(std__mem__Arena* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_is_expr(std__mem__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_block_stmt(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_expr_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_var_decl(std__mem__Arena* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_if_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_while_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_stmt(std__mem__Arena* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_return_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_break_stmt(std__mem__Arena* self, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_continue_stmt(std__mem__Arena* self, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_when_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_yield_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_defer_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* body, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_module_decl(std__mem__Arena* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_use_decl(std__mem__Arena* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_fn_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op);
-compiler__ast__node__AstNode* std__mem__Arena_struct_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_trait_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types);
-compiler__ast__node__AstNode* std__mem__Arena_impl_decl(std__mem__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings);
-compiler__ast__node__AstNode* std__mem__Arena_enum_decl(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_const_decl(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_extern_block(std__mem__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_program(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_alloc_node(std__memory__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_identifier(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_binary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_unary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix);
+compiler__ast__node__AstNode* std__memory__Arena_call(std__memory__Arena* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_struct_ctor(std__memory__Arena* self, kobel_str c_name, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_enum_ctor(std__memory__Arena* self, kobel_str c_name, kobel_str tag_field, int64_t tag_value, kobel_str payload_path, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_size_of_param(std__memory__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_safe_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_index(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_assign(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_compound_assign(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_update(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_cast(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, bool is_safe, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_group(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_array_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_list_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_if_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_when_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_interp(std__memory__Arena* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_is_expr(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_block_stmt(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_expr_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_var_decl(std__memory__Arena* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_if_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_while_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_stmt(std__memory__Arena* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_return_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_break_stmt(std__memory__Arena* self, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_continue_stmt(std__memory__Arena* self, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_when_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_yield_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_defer_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* body, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_module_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_use_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_fn_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op);
+compiler__ast__node__AstNode* std__memory__Arena_struct_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_trait_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types);
+compiler__ast__node__AstNode* std__memory__Arena_impl_decl(std__memory__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings);
+compiler__ast__node__AstNode* std__memory__Arena_enum_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_extern_block(std__memory__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_program(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col);
 compiler__parser__parser__Parser compiler__parser__parser__Parser_new(std__collections__List_compiler__lexer__Token tokens);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_named_type(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_pointer_type(compiler__parser__parser__Parser* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col);
@@ -2568,7 +2570,7 @@ compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_me
 size_t compiler__sema__structs__StructType_count_method_arity(compiler__sema__structs__StructType* self, kobel_str name, size_t argc);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method_c(compiler__sema__structs__StructType* self, kobel_str c_name);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_operator(compiler__sema__structs__StructType* self, kobel_str op_name, std__collections__List_ptr_compiler__sema__types__Type arg_types);
-compiler__sema__types__Type* std__mem__Arena_struct_type(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__sema__structs__StructField fields);
+compiler__sema__types__Type* std__memory__Arena_struct_type(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__sema__structs__StructField fields);
 compiler__sema__enums__EnumMemberInfo* compiler__sema__enums__EnumInfo_find_member(compiler__sema__enums__EnumInfo* self, kobel_str name);
 int32_t compiler__sema__types__PointerType_type_size(compiler__sema__types__PointerType* self);
 int32_t compiler__sema__types__PointerType_type_align(compiler__sema__types__PointerType* self);
@@ -2593,12 +2595,12 @@ compiler__sema__types__Type compiler__sema__types__Type_usz(void);
 compiler__sema__types__Type compiler__sema__types__Type_f32(void);
 compiler__sema__types__Type compiler__sema__types__Type_f64(void);
 compiler__sema__types__Type compiler__sema__types__Type_str(void);
-compiler__sema__types__Type* std__mem__Arena_type_payload(std__mem__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data);
-compiler__sema__types__Type* std__mem__Arena_primitive_type(std__mem__Arena* self, compiler__sema__types__Type base);
-compiler__sema__types__Type* std__mem__Arena_pointer_type_3_2(std__mem__Arena* self, compiler__sema__types__Type* pointee, bool is_mut);
-compiler__sema__types__Type* std__mem__Arena_nullable_pointer_type(std__mem__Arena* self, compiler__sema__types__Type* pointee, bool is_mut);
-compiler__sema__types__Type* std__mem__Arena_array_type_3_2(std__mem__Arena* self, compiler__sema__types__Type* elem, size_t length);
-compiler__sema__types__Type* std__mem__Arena_fn_type(std__mem__Arena* self, std__collections__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type);
+compiler__sema__types__Type* std__memory__Arena_type_payload(std__memory__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data);
+compiler__sema__types__Type* std__memory__Arena_primitive_type(std__memory__Arena* self, compiler__sema__types__Type base);
+compiler__sema__types__Type* std__memory__Arena_pointer_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut);
+compiler__sema__types__Type* std__memory__Arena_nullable_pointer_type(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut);
+compiler__sema__types__Type* std__memory__Arena_array_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* elem, size_t length);
+compiler__sema__types__Type* std__memory__Arena_fn_type(std__memory__Arena* self, std__collections__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type);
 compiler__sema__types__PointerType* compiler__sema__types__Type_as_pointer(compiler__sema__types__Type* self);
 compiler__sema__types__ArrayType* compiler__sema__types__Type_as_array(compiler__sema__types__Type* self);
 compiler__sema__structs__StructType* compiler__sema__types__Type_as_struct(compiler__sema__types__Type* self);
@@ -2623,8 +2625,8 @@ bool compiler__sema__types__Type_equals_2(compiler__sema__types__Type* self, com
 bool compiler__sema__types__Type_equals_2_2(compiler__sema__types__Type* self, compiler__sema__types__Type b);
 bool compiler__sema__types__Type_can_assign(compiler__sema__types__Type* self, compiler__sema__types__Type* source);
 kobel_str compiler__sema__types__Type_to_str(compiler__sema__types__Type* self);
-compiler__sema__types__Type* compiler__sema__prims__prim_with_methods(std__mem__Arena* arena, compiler__sema__types__DataType kind);
-compiler__sema__prims__PrimTypes compiler__sema__prims__PrimTypes_new(std__mem__Arena* arena);
+compiler__sema__types__Type* compiler__sema__prims__prim_with_methods(std__memory__Arena* arena, compiler__sema__types__DataType kind);
+compiler__sema__prims__PrimTypes compiler__sema__prims__PrimTypes_new(std__memory__Arena* arena);
 compiler__sema__types__Type* compiler__sema__prims__PrimTypes_get(compiler__sema__prims__PrimTypes* self, compiler__sema__types__DataType kind);
 compiler__sema__types__Type* compiler__sema__prims__PrimTypes_t_none(compiler__sema__prims__PrimTypes* self);
 compiler__sema__types__Type* compiler__sema__prims__PrimTypes_t_bool(compiler__sema__prims__PrimTypes* self);
@@ -2646,7 +2648,7 @@ bool compiler__sema__template__is_template_decl(compiler__ast__node__AstNode* no
 compiler__sema__instance__AnnEntry* compiler__sema__instance__InstanceRecord_find_ann(compiler__sema__instance__InstanceRecord* self, compiler__ast__node__AstNode* node);
 compiler__sema__traits__TraitMethod* compiler__sema__traits__TraitInfo_find_method(compiler__sema__traits__TraitInfo* self, kobel_str name);
 bool compiler__sema__traits__TraitInfo_has_impl(compiler__sema__traits__TraitInfo* self, kobel_str struct_name);
-compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym);
+compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__memory__Arena* arena, compiler__sema__symbol__Symbol sym);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_lookup(compiler__sema__symbol__Scope* self, kobel_str name);
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_get(compiler__sema__symbol__Scope* self, kobel_str name);
 bool compiler__sema__symbol__Scope_contains(compiler__sema__symbol__Scope* self, kobel_str name);
@@ -2709,10 +2711,10 @@ void compiler__sema__decl__pass__DeclPass_check_bounds(compiler__sema__decl__pas
 compiler__sema__template__GenSubst* compiler__sema__decl__pass__DeclPass_alloc_subst(compiler__sema__decl__pass__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__node__AstNode args);
 void compiler__sema__decl__pass__DeclPass_queue_decl(compiler__sema__decl__pass__DeclPass* self, kobel_str module, compiler__ast__node__AstNode* node);
 void compiler__sema__decl__pass__DeclPass_drain_instances(compiler__sema__decl__pass__DeclPass* self);
-compiler__ast__node__AstNode* std__mem__Arena_interp_call(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* arg, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_interp_concat(std__mem__Arena* self, compiler__ast__node__AstNode* a, compiler__ast__node__AstNode* b_node, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_interp_concat_many(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode pieces, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_ast_type_from_type(std__mem__Arena* self, compiler__sema__types__Type* ty);
+compiler__ast__node__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* arg, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__node__AstNode* a, compiler__ast__node__AstNode* b_node, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode pieces, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_ast_type_from_type(std__memory__Arena* self, compiler__sema__types__Type* ty);
 compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_type(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node);
 kobel_str compiler__sema__decl__pass__DeclPass_ast_type_name_of(compiler__sema__decl__pass__DeclPass* self, compiler__sema__types__Type* ty);
 std__collections__List_str compiler__sema__decl__pass__overloaded_names(compiler__ast__decl__ImplDecl* im);
@@ -2783,19 +2785,19 @@ void compiler__sema__decl__pass__DeclPass_collect_trait(compiler__sema__decl__pa
 void compiler__sema__decl__pass__DeclPass_collect_declaration(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node);
 void compiler__sema__decl__pass__DeclPass_collect_program(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* program_node);
 bool compiler__sema__desugar__loop__for_is_lvalue(compiler__ast__node__AstNode* node);
-compiler__ast__node__AstNode* std__mem__Arena_for_usz_type(std__mem__Arena* self, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_id(std__mem__Arena* self, kobel_str name, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_num(std__mem__Arena* self, kobel_str text, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_i_cmp(std__mem__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_set_go(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_bump(std__mem__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_for_by_dir(std__mem__Arena* self, compiler__ast__node__AstNode* up_stmt, compiler__ast__node__AstNode* down_stmt, size_t line, size_t col);
-void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node__AstNode* node, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp);
-void std__mem__Arena_for_inject_step_expr(std__mem__Arena* self, compiler__ast__node__AstNode* expr, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp);
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_iter_method(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_iterable(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_range(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for(std__mem__Arena* self, compiler__ast__node__AstNode* node, compiler__ast__stmt__ForStmt* fs, bool use_iter_trait, compiler__sema__body__pass__BodyPass* bp);
+compiler__ast__node__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__node__AstNode* up_stmt, compiler__ast__node__AstNode* down_stmt, size_t line, size_t col);
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__node__AstNode* node, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp);
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__node__AstNode* expr, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp);
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__node__AstNode* node, compiler__ast__stmt__ForStmt* fs, bool use_iter_trait, compiler__sema__body__pass__BodyPass* bp);
 void compiler__sema__body__pass__BodyPass_coerce_to_list(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* list_ty);
 bool compiler__sema__body__pass__BodyPass_is_untyped_literal(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_literal_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* expected);
@@ -2944,8 +2946,8 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_type_of(compil
 bool compiler__sema__body__pass__BodyPass_is_str_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 bool compiler__sema__body__pass__BodyPass_is_stmt_node(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
 bool compiler__sema__body__pass__BodyPass_is_array_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node);
-compiler__ast__node__AstNode* std__mem__Arena_make_str_eq(std__mem__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
-compiler__ast__node__AstNode* std__mem__Arena_make_mem_eq(std__mem__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t size, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col);
+compiler__ast__node__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t size, size_t line, size_t col);
 kobel_str compiler__codegen__c_type__c_type_from_ast(compiler__ast__node__AstNode* node);
 kobel_str compiler__codegen__c_type__c_type_from_type(compiler__sema__types__Type* ty);
 void compiler__codegen__c_codegen__CCodeGen_enter_defer_scope(compiler__codegen__c_codegen__CCodeGen* self);
@@ -4238,249 +4240,314 @@ compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__co
 bool std__collections__List_compiler__codegen__c_codegen__ConditionAlias_contains(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self, compiler__codegen__c_codegen__ConditionAlias value);
 compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_set(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self, size_t index, compiler__codegen__c_codegen__ConditionAlias value);
 void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_plus_assign(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self, compiler__codegen__c_codegen__ConditionAlias value);
-uint8_t* std__mem__alloc_array_u8(size_t count);
-std__mem__ArenaBlock* std__mem__alloc_std__mem__ArenaBlock(void);
-kobel_str* std__mem__alloc_array_str(size_t count);
-bool* std__mem__alloc_array_bool(size_t count);
-uint8_t* std__mem__resize_u8(uint8_t* ptr, size_t count);
-void std__mem__release_u8(uint8_t* ptr);
-lsp__json__JsonValue* std__mem__alloc_lsp__json__JsonValue(void);
-compiler__ast__node__AstNode* std__mem__Arena_alloc_val_compiler__ast__node__AstNode(std__mem__Arena* self, compiler__ast__node__AstNode value);
-compiler__ast__types__NamedType* std__mem__Arena_alloc_val_compiler__ast__types__NamedType(std__mem__Arena* self, compiler__ast__types__NamedType value);
-compiler__ast__types__PointerType* std__mem__Arena_alloc_val_compiler__ast__types__PointerType(std__mem__Arena* self, compiler__ast__types__PointerType value);
-compiler__ast__types__ArrayType* std__mem__Arena_alloc_val_compiler__ast__types__ArrayType(std__mem__Arena* self, compiler__ast__types__ArrayType value);
-compiler__ast__types__NullableType* std__mem__Arena_alloc_val_compiler__ast__types__NullableType(std__mem__Arena* self, compiler__ast__types__NullableType value);
-compiler__ast__expr__LiteralExpr* std__mem__Arena_alloc_val_compiler__ast__expr__LiteralExpr(std__mem__Arena* self, compiler__ast__expr__LiteralExpr value);
-compiler__ast__expr__IdentifierExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(std__mem__Arena* self, compiler__ast__expr__IdentifierExpr value);
-compiler__ast__expr__BinaryExpr* std__mem__Arena_alloc_val_compiler__ast__expr__BinaryExpr(std__mem__Arena* self, compiler__ast__expr__BinaryExpr value);
-compiler__ast__expr__UnaryExpr* std__mem__Arena_alloc_val_compiler__ast__expr__UnaryExpr(std__mem__Arena* self, compiler__ast__expr__UnaryExpr value);
-compiler__ast__expr__CallExpr* std__mem__Arena_alloc_val_compiler__ast__expr__CallExpr(std__mem__Arena* self, compiler__ast__expr__CallExpr value);
-compiler__ast__expr__StructCtorExpr* std__mem__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(std__mem__Arena* self, compiler__ast__expr__StructCtorExpr value);
-compiler__ast__expr__EnumCtorExpr* std__mem__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(std__mem__Arena* self, compiler__ast__expr__EnumCtorExpr value);
-compiler__ast__expr__SizeOfParam* std__mem__Arena_alloc_val_compiler__ast__expr__SizeOfParam(std__mem__Arena* self, compiler__ast__expr__SizeOfParam value);
-compiler__ast__expr__MemberExpr* std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(std__mem__Arena* self, compiler__ast__expr__MemberExpr value);
-compiler__ast__expr__IndexExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IndexExpr(std__mem__Arena* self, compiler__ast__expr__IndexExpr value);
-compiler__ast__expr__AssignExpr* std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(std__mem__Arena* self, compiler__ast__expr__AssignExpr value);
-compiler__ast__expr__UpdateExpr* std__mem__Arena_alloc_val_compiler__ast__expr__UpdateExpr(std__mem__Arena* self, compiler__ast__expr__UpdateExpr value);
-compiler__ast__expr__CastExpr* std__mem__Arena_alloc_val_compiler__ast__expr__CastExpr(std__mem__Arena* self, compiler__ast__expr__CastExpr value);
-compiler__ast__expr__GroupExpr* std__mem__Arena_alloc_val_compiler__ast__expr__GroupExpr(std__mem__Arena* self, compiler__ast__expr__GroupExpr value);
-compiler__ast__expr__ArrayLiteralExpr* std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(std__mem__Arena* self, compiler__ast__expr__ArrayLiteralExpr value);
-compiler__ast__expr__IfExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IfExpr(std__mem__Arena* self, compiler__ast__expr__IfExpr value);
-compiler__ast__expr__WhenExpr* std__mem__Arena_alloc_val_compiler__ast__expr__WhenExpr(std__mem__Arena* self, compiler__ast__expr__WhenExpr value);
-compiler__ast__expr__InterpExpr* std__mem__Arena_alloc_val_compiler__ast__expr__InterpExpr(std__mem__Arena* self, compiler__ast__expr__InterpExpr value);
-compiler__ast__expr__IsExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IsExpr(std__mem__Arena* self, compiler__ast__expr__IsExpr value);
-compiler__ast__stmt__BlockStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__BlockStmt(std__mem__Arena* self, compiler__ast__stmt__BlockStmt value);
-compiler__ast__stmt__ExprStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ExprStmt(std__mem__Arena* self, compiler__ast__stmt__ExprStmt value);
-compiler__ast__stmt__VarDeclStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(std__mem__Arena* self, compiler__ast__stmt__VarDeclStmt value);
-compiler__ast__stmt__IfStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__IfStmt(std__mem__Arena* self, compiler__ast__stmt__IfStmt value);
-compiler__ast__stmt__WhileStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__WhileStmt(std__mem__Arena* self, compiler__ast__stmt__WhileStmt value);
-compiler__ast__stmt__ForStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ForStmt(std__mem__Arena* self, compiler__ast__stmt__ForStmt value);
-compiler__ast__stmt__ReturnStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(std__mem__Arena* self, compiler__ast__stmt__ReturnStmt value);
-compiler__ast__stmt__BreakStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__BreakStmt(std__mem__Arena* self, compiler__ast__stmt__BreakStmt value);
-compiler__ast__stmt__ContinueStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(std__mem__Arena* self, compiler__ast__stmt__ContinueStmt value);
-compiler__ast__stmt__WhenStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__WhenStmt(std__mem__Arena* self, compiler__ast__stmt__WhenStmt value);
-compiler__ast__stmt__YieldStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__YieldStmt(std__mem__Arena* self, compiler__ast__stmt__YieldStmt value);
-compiler__ast__stmt__DeferStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__DeferStmt(std__mem__Arena* self, compiler__ast__stmt__DeferStmt value);
-compiler__ast__decl__ModuleDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ModuleDecl(std__mem__Arena* self, compiler__ast__decl__ModuleDecl value);
-compiler__ast__decl__UseDecl* std__mem__Arena_alloc_val_compiler__ast__decl__UseDecl(std__mem__Arena* self, compiler__ast__decl__UseDecl value);
-compiler__ast__decl__FnDecl* std__mem__Arena_alloc_val_compiler__ast__decl__FnDecl(std__mem__Arena* self, compiler__ast__decl__FnDecl value);
-compiler__ast__decl__StructDecl* std__mem__Arena_alloc_val_compiler__ast__decl__StructDecl(std__mem__Arena* self, compiler__ast__decl__StructDecl value);
-compiler__ast__decl__TraitDecl* std__mem__Arena_alloc_val_compiler__ast__decl__TraitDecl(std__mem__Arena* self, compiler__ast__decl__TraitDecl value);
-compiler__ast__decl__ImplDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ImplDecl(std__mem__Arena* self, compiler__ast__decl__ImplDecl value);
-compiler__ast__decl__EnumDecl* std__mem__Arena_alloc_val_compiler__ast__decl__EnumDecl(std__mem__Arena* self, compiler__ast__decl__EnumDecl value);
-compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ConstDecl(std__mem__Arena* self, compiler__ast__decl__ConstDecl value);
-compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_val_compiler__ast__decl__ExternBlock(std__mem__Arena* self, compiler__ast__decl__ExternBlock value);
-compiler__ast__decl__Program* std__mem__Arena_alloc_val_compiler__ast__decl__Program(std__mem__Arena* self, compiler__ast__decl__Program value);
-compiler__sema__types__Type* std__mem__Arena_alloc_val_compiler__sema__types__Type(std__mem__Arena* self, compiler__sema__types__Type value);
-void std__mem__release_str(kobel_str* ptr);
-compiler__ast__node__AstNode** std__mem__alloc_array_ptr_compiler__ast__node__AstNode(size_t count);
-void std__mem__release_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr);
-compiler__ast__expr__WhenArm* std__mem__alloc_array_compiler__ast__expr__WhenArm(size_t count);
-void std__mem__release_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr);
-compiler__ast__expr__InterpPart* std__mem__alloc_array_compiler__ast__expr__InterpPart(size_t count);
-void std__mem__release_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr);
-compiler__ast__stmt__WhenStmtArm* std__mem__alloc_array_compiler__ast__stmt__WhenStmtArm(size_t count);
-void std__mem__release_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr);
-compiler__ast__decl__GenericParam* std__mem__alloc_array_compiler__ast__decl__GenericParam(size_t count);
-void std__mem__release_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr);
-compiler__ast__decl__Param* std__mem__alloc_array_compiler__ast__decl__Param(size_t count);
-void std__mem__release_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr);
-compiler__ast__decl__StructField* std__mem__alloc_array_compiler__ast__decl__StructField(size_t count);
-void std__mem__release_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr);
-compiler__ast__decl__AssocBinding* std__mem__alloc_array_compiler__ast__decl__AssocBinding(size_t count);
-void std__mem__release_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr);
-compiler__ast__decl__EnumField* std__mem__alloc_array_compiler__ast__decl__EnumField(size_t count);
-void std__mem__release_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr);
-compiler__ast__decl__EnumMember* std__mem__alloc_array_compiler__ast__decl__EnumMember(size_t count);
-void std__mem__release_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr);
-compiler__lexer__Token* std__mem__alloc_array_compiler__lexer__Token(size_t count);
-void std__mem__release_compiler__lexer__Token(compiler__lexer__Token* ptr);
-compiler__loader__LoadedModule* std__mem__alloc_array_compiler__loader__LoadedModule(size_t count);
-void std__mem__release_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr);
-compiler__sema__methods__MethodInfo** std__mem__alloc_array_ptr_compiler__sema__methods__MethodInfo(size_t count);
-void std__mem__release_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr);
-compiler__sema__structs__StructField* std__mem__alloc_array_compiler__sema__structs__StructField(size_t count);
-void std__mem__release_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr);
-compiler__sema__enums__EnumMemberInfo** std__mem__alloc_array_ptr_compiler__sema__enums__EnumMemberInfo(size_t count);
-void std__mem__release_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr);
-compiler__sema__types__Type** std__mem__alloc_array_ptr_compiler__sema__types__Type(size_t count);
-void std__mem__release_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr);
-size_t* std__mem__alloc_array_usz(size_t count);
-void std__mem__release_usz(size_t* ptr);
-compiler__sema__instance__AnnEntry** std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(size_t count);
-void std__mem__release_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr);
-compiler__sema__traits__TraitMethod** std__mem__alloc_array_ptr_compiler__sema__traits__TraitMethod(size_t count);
-void std__mem__release_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr);
-compiler__sema__symbol__Symbol** std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(size_t count);
-void std__mem__release_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr);
-compiler__sema__template__GenTemplate** std__mem__alloc_array_ptr_compiler__sema__template__GenTemplate(size_t count);
-void std__mem__release_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr);
-compiler__sema__instance__InstanceRecord** std__mem__alloc_array_ptr_compiler__sema__instance__InstanceRecord(size_t count);
-void std__mem__release_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr);
-compiler__sema__symbol__ModuleScope** std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(size_t count);
-void std__mem__release_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr);
-compiler__sema__symbol__ImportBinding* std__mem__alloc_array_compiler__sema__symbol__ImportBinding(size_t count);
-void std__mem__release_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr);
-compiler__sema__enums__EnumInfo** std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(size_t count);
-void std__mem__release_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr);
-compiler__sema__traits__TraitInfo** std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(size_t count);
-void std__mem__release_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr);
-void std__mem__release_bool(bool* ptr);
-fmt__comments__Comment* std__mem__alloc_array_fmt__comments__Comment(size_t count);
-void std__mem__release_fmt__comments__Comment(fmt__comments__Comment* ptr);
-lsp__json__JsonValue** std__mem__alloc_array_ptr_lsp__json__JsonValue(size_t count);
-void std__mem__release_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr);
-lsp__document__Document* std__mem__alloc_array_lsp__document__Document(size_t count);
-void std__mem__release_lsp__document__Document(lsp__document__Document* ptr);
-lsp__analysis__LspDiagnostic* std__mem__alloc_array_lsp__analysis__LspDiagnostic(size_t count);
-void std__mem__release_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr);
-compiler__loader__ModuleFile* std__mem__alloc_array_compiler__loader__ModuleFile(size_t count);
-void std__mem__release_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr);
-compiler__sema__body__program__ArrowCandidate** std__mem__alloc_array_ptr_compiler__sema__body__program__ArrowCandidate(size_t count);
-void std__mem__release_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr);
-compiler__codegen__c_codegen__ConditionAlias* std__mem__alloc_array_compiler__codegen__c_codegen__ConditionAlias(size_t count);
-void std__mem__release_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr);
-void std__mem__release_std__mem__ArenaBlock(std__mem__ArenaBlock* ptr);
-compiler__sema__structs__StructType* std__mem__Arena_alloc_val_compiler__sema__structs__StructType(std__mem__Arena* self, compiler__sema__structs__StructType value);
-compiler__sema__types__PointerType* std__mem__Arena_alloc_val_compiler__sema__types__PointerType(std__mem__Arena* self, compiler__sema__types__PointerType value);
-compiler__sema__types__ArrayType* std__mem__Arena_alloc_val_compiler__sema__types__ArrayType(std__mem__Arena* self, compiler__sema__types__ArrayType value);
-compiler__sema__types__FnType* std__mem__Arena_alloc_val_compiler__sema__types__FnType(std__mem__Arena* self, compiler__sema__types__FnType value);
-compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_val_compiler__sema__methods__PrimMethods(std__mem__Arena* self, compiler__sema__methods__PrimMethods value);
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value);
-compiler__sema__symbol__Scope* std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(std__mem__Arena* self, compiler__sema__symbol__Scope value);
-compiler__sema__prims__PrimTypes* std__mem__Arena_alloc_val_compiler__sema__prims__PrimTypes(std__mem__Arena* self, compiler__sema__prims__PrimTypes value);
-compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_val_compiler__sema__symbol__ModuleScope(std__mem__Arena* self, compiler__sema__symbol__ModuleScope value);
-compiler__sema__template__GenTemplate* std__mem__Arena_alloc_val_compiler__sema__template__GenTemplate(std__mem__Arena* self, compiler__sema__template__GenTemplate value);
-compiler__sema__template__GenSubst* std__mem__Arena_alloc_val_compiler__sema__template__GenSubst(std__mem__Arena* self, compiler__sema__template__GenSubst value);
-compiler__sema__methods__MethodInfo* std__mem__Arena_alloc_val_compiler__sema__methods__MethodInfo(std__mem__Arena* self, compiler__sema__methods__MethodInfo value);
-compiler__sema__instance__InstanceRecord* std__mem__Arena_alloc_val_compiler__sema__instance__InstanceRecord(std__mem__Arena* self, compiler__sema__instance__InstanceRecord value);
-compiler__sema__enums__EnumMemberInfo* std__mem__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(std__mem__Arena* self, compiler__sema__enums__EnumMemberInfo value);
-compiler__sema__enums__EnumInfo* std__mem__Arena_alloc_val_compiler__sema__enums__EnumInfo(std__mem__Arena* self, compiler__sema__enums__EnumInfo value);
-compiler__sema__traits__TraitMethod* std__mem__Arena_alloc_val_compiler__sema__traits__TraitMethod(std__mem__Arena* self, compiler__sema__traits__TraitMethod value);
-compiler__sema__traits__TraitInfo* std__mem__Arena_alloc_val_compiler__sema__traits__TraitInfo(std__mem__Arena* self, compiler__sema__traits__TraitInfo value);
-compiler__sema__body__program__ArrowCandidate* std__mem__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(std__mem__Arena* self, compiler__sema__body__program__ArrowCandidate value);
-compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_val_compiler__sema__instance__AnnEntry(std__mem__Arena* self, compiler__sema__instance__AnnEntry value);
-kobel_str* std__mem__resize_str(kobel_str* ptr, size_t count);
-compiler__ast__node__AstNode** std__mem__resize_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr, size_t count);
-compiler__ast__expr__WhenArm* std__mem__resize_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr, size_t count);
-compiler__ast__expr__InterpPart* std__mem__resize_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr, size_t count);
-compiler__ast__stmt__WhenStmtArm* std__mem__resize_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr, size_t count);
-compiler__ast__decl__GenericParam* std__mem__resize_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr, size_t count);
-compiler__ast__decl__Param* std__mem__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count);
-compiler__ast__decl__StructField* std__mem__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count);
-compiler__ast__decl__AssocBinding* std__mem__resize_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr, size_t count);
-compiler__ast__decl__EnumField* std__mem__resize_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr, size_t count);
-compiler__ast__decl__EnumMember* std__mem__resize_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr, size_t count);
-compiler__lexer__Token* std__mem__resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count);
-compiler__loader__LoadedModule* std__mem__resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count);
-compiler__sema__methods__MethodInfo** std__mem__resize_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr, size_t count);
-compiler__sema__structs__StructField* std__mem__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count);
-compiler__sema__enums__EnumMemberInfo** std__mem__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count);
-compiler__sema__types__Type** std__mem__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count);
-size_t* std__mem__resize_usz(size_t* ptr, size_t count);
-compiler__sema__instance__AnnEntry** std__mem__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count);
-compiler__sema__traits__TraitMethod** std__mem__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count);
-compiler__sema__symbol__Symbol** std__mem__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count);
-compiler__sema__template__GenTemplate** std__mem__resize_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr, size_t count);
-compiler__sema__instance__InstanceRecord** std__mem__resize_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr, size_t count);
-compiler__sema__symbol__ModuleScope** std__mem__resize_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr, size_t count);
-compiler__sema__symbol__ImportBinding* std__mem__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count);
-compiler__sema__enums__EnumInfo** std__mem__resize_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr, size_t count);
-compiler__sema__traits__TraitInfo** std__mem__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count);
-bool* std__mem__resize_bool(bool* ptr, size_t count);
-fmt__comments__Comment* std__mem__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count);
-lsp__json__JsonValue** std__mem__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count);
-lsp__document__Document* std__mem__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count);
-lsp__analysis__LspDiagnostic* std__mem__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count);
-compiler__loader__ModuleFile* std__mem__resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count);
-compiler__sema__body__program__ArrowCandidate** std__mem__resize_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr, size_t count);
-compiler__codegen__c_codegen__ConditionAlias* std__mem__resize_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr, size_t count);
-compiler__ast__node__AstNode* std__mem__Arena_alloc_compiler__ast__node__AstNode(std__mem__Arena* self);
-compiler__ast__types__NamedType* std__mem__Arena_alloc_compiler__ast__types__NamedType(std__mem__Arena* self);
-compiler__ast__types__PointerType* std__mem__Arena_alloc_compiler__ast__types__PointerType(std__mem__Arena* self);
-compiler__ast__types__ArrayType* std__mem__Arena_alloc_compiler__ast__types__ArrayType(std__mem__Arena* self);
-compiler__ast__types__NullableType* std__mem__Arena_alloc_compiler__ast__types__NullableType(std__mem__Arena* self);
-compiler__ast__expr__LiteralExpr* std__mem__Arena_alloc_compiler__ast__expr__LiteralExpr(std__mem__Arena* self);
-compiler__ast__expr__IdentifierExpr* std__mem__Arena_alloc_compiler__ast__expr__IdentifierExpr(std__mem__Arena* self);
-compiler__ast__expr__BinaryExpr* std__mem__Arena_alloc_compiler__ast__expr__BinaryExpr(std__mem__Arena* self);
-compiler__ast__expr__UnaryExpr* std__mem__Arena_alloc_compiler__ast__expr__UnaryExpr(std__mem__Arena* self);
-compiler__ast__expr__CallExpr* std__mem__Arena_alloc_compiler__ast__expr__CallExpr(std__mem__Arena* self);
-compiler__ast__expr__StructCtorExpr* std__mem__Arena_alloc_compiler__ast__expr__StructCtorExpr(std__mem__Arena* self);
-compiler__ast__expr__EnumCtorExpr* std__mem__Arena_alloc_compiler__ast__expr__EnumCtorExpr(std__mem__Arena* self);
-compiler__ast__expr__SizeOfParam* std__mem__Arena_alloc_compiler__ast__expr__SizeOfParam(std__mem__Arena* self);
-compiler__ast__expr__MemberExpr* std__mem__Arena_alloc_compiler__ast__expr__MemberExpr(std__mem__Arena* self);
-compiler__ast__expr__IndexExpr* std__mem__Arena_alloc_compiler__ast__expr__IndexExpr(std__mem__Arena* self);
-compiler__ast__expr__AssignExpr* std__mem__Arena_alloc_compiler__ast__expr__AssignExpr(std__mem__Arena* self);
-compiler__ast__expr__UpdateExpr* std__mem__Arena_alloc_compiler__ast__expr__UpdateExpr(std__mem__Arena* self);
-compiler__ast__expr__CastExpr* std__mem__Arena_alloc_compiler__ast__expr__CastExpr(std__mem__Arena* self);
-compiler__ast__expr__GroupExpr* std__mem__Arena_alloc_compiler__ast__expr__GroupExpr(std__mem__Arena* self);
-compiler__ast__expr__ArrayLiteralExpr* std__mem__Arena_alloc_compiler__ast__expr__ArrayLiteralExpr(std__mem__Arena* self);
-compiler__ast__expr__IfExpr* std__mem__Arena_alloc_compiler__ast__expr__IfExpr(std__mem__Arena* self);
-compiler__ast__expr__WhenExpr* std__mem__Arena_alloc_compiler__ast__expr__WhenExpr(std__mem__Arena* self);
-compiler__ast__expr__InterpExpr* std__mem__Arena_alloc_compiler__ast__expr__InterpExpr(std__mem__Arena* self);
-compiler__ast__expr__IsExpr* std__mem__Arena_alloc_compiler__ast__expr__IsExpr(std__mem__Arena* self);
-compiler__ast__stmt__BlockStmt* std__mem__Arena_alloc_compiler__ast__stmt__BlockStmt(std__mem__Arena* self);
-compiler__ast__stmt__ExprStmt* std__mem__Arena_alloc_compiler__ast__stmt__ExprStmt(std__mem__Arena* self);
-compiler__ast__stmt__VarDeclStmt* std__mem__Arena_alloc_compiler__ast__stmt__VarDeclStmt(std__mem__Arena* self);
-compiler__ast__stmt__IfStmt* std__mem__Arena_alloc_compiler__ast__stmt__IfStmt(std__mem__Arena* self);
-compiler__ast__stmt__WhileStmt* std__mem__Arena_alloc_compiler__ast__stmt__WhileStmt(std__mem__Arena* self);
-compiler__ast__stmt__ForStmt* std__mem__Arena_alloc_compiler__ast__stmt__ForStmt(std__mem__Arena* self);
-compiler__ast__stmt__ReturnStmt* std__mem__Arena_alloc_compiler__ast__stmt__ReturnStmt(std__mem__Arena* self);
-compiler__ast__stmt__BreakStmt* std__mem__Arena_alloc_compiler__ast__stmt__BreakStmt(std__mem__Arena* self);
-compiler__ast__stmt__ContinueStmt* std__mem__Arena_alloc_compiler__ast__stmt__ContinueStmt(std__mem__Arena* self);
-compiler__ast__stmt__WhenStmt* std__mem__Arena_alloc_compiler__ast__stmt__WhenStmt(std__mem__Arena* self);
-compiler__ast__stmt__YieldStmt* std__mem__Arena_alloc_compiler__ast__stmt__YieldStmt(std__mem__Arena* self);
-compiler__ast__stmt__DeferStmt* std__mem__Arena_alloc_compiler__ast__stmt__DeferStmt(std__mem__Arena* self);
-compiler__ast__decl__ModuleDecl* std__mem__Arena_alloc_compiler__ast__decl__ModuleDecl(std__mem__Arena* self);
-compiler__ast__decl__UseDecl* std__mem__Arena_alloc_compiler__ast__decl__UseDecl(std__mem__Arena* self);
-compiler__ast__decl__FnDecl* std__mem__Arena_alloc_compiler__ast__decl__FnDecl(std__mem__Arena* self);
-compiler__ast__decl__StructDecl* std__mem__Arena_alloc_compiler__ast__decl__StructDecl(std__mem__Arena* self);
-compiler__ast__decl__TraitDecl* std__mem__Arena_alloc_compiler__ast__decl__TraitDecl(std__mem__Arena* self);
-compiler__ast__decl__ImplDecl* std__mem__Arena_alloc_compiler__ast__decl__ImplDecl(std__mem__Arena* self);
-compiler__ast__decl__EnumDecl* std__mem__Arena_alloc_compiler__ast__decl__EnumDecl(std__mem__Arena* self);
-compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_compiler__ast__decl__ConstDecl(std__mem__Arena* self);
-compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_compiler__ast__decl__ExternBlock(std__mem__Arena* self);
-compiler__ast__decl__Program* std__mem__Arena_alloc_compiler__ast__decl__Program(std__mem__Arena* self);
-compiler__sema__types__Type* std__mem__Arena_alloc_compiler__sema__types__Type(std__mem__Arena* self);
-compiler__sema__structs__StructType* std__mem__Arena_alloc_compiler__sema__structs__StructType(std__mem__Arena* self);
-compiler__sema__types__PointerType* std__mem__Arena_alloc_compiler__sema__types__PointerType(std__mem__Arena* self);
-compiler__sema__types__ArrayType* std__mem__Arena_alloc_compiler__sema__types__ArrayType(std__mem__Arena* self);
-compiler__sema__types__FnType* std__mem__Arena_alloc_compiler__sema__types__FnType(std__mem__Arena* self);
-compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(std__mem__Arena* self);
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self);
-compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Scope(std__mem__Arena* self);
-compiler__sema__prims__PrimTypes* std__mem__Arena_alloc_compiler__sema__prims__PrimTypes(std__mem__Arena* self);
-compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__Arena* self);
-compiler__sema__template__GenTemplate* std__mem__Arena_alloc_compiler__sema__template__GenTemplate(std__mem__Arena* self);
-compiler__sema__template__GenSubst* std__mem__Arena_alloc_compiler__sema__template__GenSubst(std__mem__Arena* self);
-compiler__sema__methods__MethodInfo* std__mem__Arena_alloc_compiler__sema__methods__MethodInfo(std__mem__Arena* self);
-compiler__sema__instance__InstanceRecord* std__mem__Arena_alloc_compiler__sema__instance__InstanceRecord(std__mem__Arena* self);
-compiler__sema__enums__EnumMemberInfo* std__mem__Arena_alloc_compiler__sema__enums__EnumMemberInfo(std__mem__Arena* self);
-compiler__sema__enums__EnumInfo* std__mem__Arena_alloc_compiler__sema__enums__EnumInfo(std__mem__Arena* self);
-compiler__sema__traits__TraitMethod* std__mem__Arena_alloc_compiler__sema__traits__TraitMethod(std__mem__Arena* self);
-compiler__sema__traits__TraitInfo* std__mem__Arena_alloc_compiler__sema__traits__TraitInfo(std__mem__Arena* self);
-compiler__sema__body__program__ArrowCandidate* std__mem__Arena_alloc_compiler__sema__body__program__ArrowCandidate(std__mem__Arena* self);
-compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(std__mem__Arena* self);
+uint8_t* std__memory__create_array_u8(size_t count);
+std__memory__ArenaBlock* std__memory__create_std__memory__ArenaBlock(void);
+kobel_str* std__memory__create_array_str(size_t count);
+bool* std__memory__create_array_bool(size_t count);
+uint8_t* std__memory__resize_u8(uint8_t* ptr, size_t count);
+void std__memory__free_u8(uint8_t* ptr);
+lsp__json__JsonValue* std__memory__create_lsp__json__JsonValue(void);
+compiler__ast__node__AstNode* std__memory__Arena_alloc_val_compiler__ast__node__AstNode(std__memory__Arena* self, compiler__ast__node__AstNode value);
+compiler__ast__types__NamedType* std__memory__Arena_alloc_val_compiler__ast__types__NamedType(std__memory__Arena* self, compiler__ast__types__NamedType value);
+compiler__ast__types__PointerType* std__memory__Arena_alloc_val_compiler__ast__types__PointerType(std__memory__Arena* self, compiler__ast__types__PointerType value);
+compiler__ast__types__ArrayType* std__memory__Arena_alloc_val_compiler__ast__types__ArrayType(std__memory__Arena* self, compiler__ast__types__ArrayType value);
+compiler__ast__types__NullableType* std__memory__Arena_alloc_val_compiler__ast__types__NullableType(std__memory__Arena* self, compiler__ast__types__NullableType value);
+compiler__ast__expr__LiteralExpr* std__memory__Arena_alloc_val_compiler__ast__expr__LiteralExpr(std__memory__Arena* self, compiler__ast__expr__LiteralExpr value);
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self, compiler__ast__expr__IdentifierExpr value);
+compiler__ast__expr__BinaryExpr* std__memory__Arena_alloc_val_compiler__ast__expr__BinaryExpr(std__memory__Arena* self, compiler__ast__expr__BinaryExpr value);
+compiler__ast__expr__UnaryExpr* std__memory__Arena_alloc_val_compiler__ast__expr__UnaryExpr(std__memory__Arena* self, compiler__ast__expr__UnaryExpr value);
+compiler__ast__expr__CallExpr* std__memory__Arena_alloc_val_compiler__ast__expr__CallExpr(std__memory__Arena* self, compiler__ast__expr__CallExpr value);
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self, compiler__ast__expr__StructCtorExpr value);
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self, compiler__ast__expr__EnumCtorExpr value);
+compiler__ast__expr__SizeOfParam* std__memory__Arena_alloc_val_compiler__ast__expr__SizeOfParam(std__memory__Arena* self, compiler__ast__expr__SizeOfParam value);
+compiler__ast__expr__MemberExpr* std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(std__memory__Arena* self, compiler__ast__expr__MemberExpr value);
+compiler__ast__expr__IndexExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IndexExpr(std__memory__Arena* self, compiler__ast__expr__IndexExpr value);
+compiler__ast__expr__AssignExpr* std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(std__memory__Arena* self, compiler__ast__expr__AssignExpr value);
+compiler__ast__expr__UpdateExpr* std__memory__Arena_alloc_val_compiler__ast__expr__UpdateExpr(std__memory__Arena* self, compiler__ast__expr__UpdateExpr value);
+compiler__ast__expr__CastExpr* std__memory__Arena_alloc_val_compiler__ast__expr__CastExpr(std__memory__Arena* self, compiler__ast__expr__CastExpr value);
+compiler__ast__expr__GroupExpr* std__memory__Arena_alloc_val_compiler__ast__expr__GroupExpr(std__memory__Arena* self, compiler__ast__expr__GroupExpr value);
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self, compiler__ast__expr__ArrayLiteralExpr value);
+compiler__ast__expr__IfExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IfExpr(std__memory__Arena* self, compiler__ast__expr__IfExpr value);
+compiler__ast__expr__WhenExpr* std__memory__Arena_alloc_val_compiler__ast__expr__WhenExpr(std__memory__Arena* self, compiler__ast__expr__WhenExpr value);
+compiler__ast__expr__InterpExpr* std__memory__Arena_alloc_val_compiler__ast__expr__InterpExpr(std__memory__Arena* self, compiler__ast__expr__InterpExpr value);
+compiler__ast__expr__IsExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IsExpr(std__memory__Arena* self, compiler__ast__expr__IsExpr value);
+compiler__ast__stmt__BlockStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__BlockStmt(std__memory__Arena* self, compiler__ast__stmt__BlockStmt value);
+compiler__ast__stmt__ExprStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ExprStmt(std__memory__Arena* self, compiler__ast__stmt__ExprStmt value);
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self, compiler__ast__stmt__VarDeclStmt value);
+compiler__ast__stmt__IfStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__IfStmt(std__memory__Arena* self, compiler__ast__stmt__IfStmt value);
+compiler__ast__stmt__WhileStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__WhileStmt(std__memory__Arena* self, compiler__ast__stmt__WhileStmt value);
+compiler__ast__stmt__ForStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ForStmt(std__memory__Arena* self, compiler__ast__stmt__ForStmt value);
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self, compiler__ast__stmt__ReturnStmt value);
+compiler__ast__stmt__BreakStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__BreakStmt(std__memory__Arena* self, compiler__ast__stmt__BreakStmt value);
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self, compiler__ast__stmt__ContinueStmt value);
+compiler__ast__stmt__WhenStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__WhenStmt(std__memory__Arena* self, compiler__ast__stmt__WhenStmt value);
+compiler__ast__stmt__YieldStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__YieldStmt(std__memory__Arena* self, compiler__ast__stmt__YieldStmt value);
+compiler__ast__stmt__DeferStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__DeferStmt(std__memory__Arena* self, compiler__ast__stmt__DeferStmt value);
+compiler__ast__decl__ModuleDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ModuleDecl(std__memory__Arena* self, compiler__ast__decl__ModuleDecl value);
+compiler__ast__decl__UseDecl* std__memory__Arena_alloc_val_compiler__ast__decl__UseDecl(std__memory__Arena* self, compiler__ast__decl__UseDecl value);
+compiler__ast__decl__FnDecl* std__memory__Arena_alloc_val_compiler__ast__decl__FnDecl(std__memory__Arena* self, compiler__ast__decl__FnDecl value);
+compiler__ast__decl__StructDecl* std__memory__Arena_alloc_val_compiler__ast__decl__StructDecl(std__memory__Arena* self, compiler__ast__decl__StructDecl value);
+compiler__ast__decl__TraitDecl* std__memory__Arena_alloc_val_compiler__ast__decl__TraitDecl(std__memory__Arena* self, compiler__ast__decl__TraitDecl value);
+compiler__ast__decl__ImplDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ImplDecl(std__memory__Arena* self, compiler__ast__decl__ImplDecl value);
+compiler__ast__decl__EnumDecl* std__memory__Arena_alloc_val_compiler__ast__decl__EnumDecl(std__memory__Arena* self, compiler__ast__decl__EnumDecl value);
+compiler__ast__decl__ConstDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ConstDecl(std__memory__Arena* self, compiler__ast__decl__ConstDecl value);
+compiler__ast__decl__ExternBlock* std__memory__Arena_alloc_val_compiler__ast__decl__ExternBlock(std__memory__Arena* self, compiler__ast__decl__ExternBlock value);
+compiler__ast__decl__Program* std__memory__Arena_alloc_val_compiler__ast__decl__Program(std__memory__Arena* self, compiler__ast__decl__Program value);
+compiler__sema__types__Type* std__memory__Arena_alloc_val_compiler__sema__types__Type(std__memory__Arena* self, compiler__sema__types__Type value);
+void std__memory__free_str(kobel_str* ptr);
+compiler__ast__node__AstNode** std__memory__create_array_ptr_compiler__ast__node__AstNode(size_t count);
+void std__memory__free_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr);
+compiler__ast__expr__WhenArm* std__memory__create_array_compiler__ast__expr__WhenArm(size_t count);
+void std__memory__free_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr);
+compiler__ast__expr__InterpPart* std__memory__create_array_compiler__ast__expr__InterpPart(size_t count);
+void std__memory__free_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr);
+compiler__ast__stmt__WhenStmtArm* std__memory__create_array_compiler__ast__stmt__WhenStmtArm(size_t count);
+void std__memory__free_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr);
+compiler__ast__decl__GenericParam* std__memory__create_array_compiler__ast__decl__GenericParam(size_t count);
+void std__memory__free_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr);
+compiler__ast__decl__Param* std__memory__create_array_compiler__ast__decl__Param(size_t count);
+void std__memory__free_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr);
+compiler__ast__decl__StructField* std__memory__create_array_compiler__ast__decl__StructField(size_t count);
+void std__memory__free_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr);
+compiler__ast__decl__AssocBinding* std__memory__create_array_compiler__ast__decl__AssocBinding(size_t count);
+void std__memory__free_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr);
+compiler__ast__decl__EnumField* std__memory__create_array_compiler__ast__decl__EnumField(size_t count);
+void std__memory__free_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr);
+compiler__ast__decl__EnumMember* std__memory__create_array_compiler__ast__decl__EnumMember(size_t count);
+void std__memory__free_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr);
+compiler__lexer__Token* std__memory__create_array_compiler__lexer__Token(size_t count);
+void std__memory__free_compiler__lexer__Token(compiler__lexer__Token* ptr);
+compiler__loader__LoadedModule* std__memory__create_array_compiler__loader__LoadedModule(size_t count);
+void std__memory__free_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr);
+compiler__sema__methods__MethodInfo** std__memory__create_array_ptr_compiler__sema__methods__MethodInfo(size_t count);
+void std__memory__free_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr);
+compiler__sema__structs__StructField* std__memory__create_array_compiler__sema__structs__StructField(size_t count);
+void std__memory__free_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr);
+compiler__sema__enums__EnumMemberInfo** std__memory__create_array_ptr_compiler__sema__enums__EnumMemberInfo(size_t count);
+void std__memory__free_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr);
+compiler__sema__types__Type** std__memory__create_array_ptr_compiler__sema__types__Type(size_t count);
+void std__memory__free_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr);
+size_t* std__memory__create_array_usz(size_t count);
+void std__memory__free_usz(size_t* ptr);
+compiler__sema__instance__AnnEntry** std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(size_t count);
+void std__memory__free_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr);
+compiler__sema__traits__TraitMethod** std__memory__create_array_ptr_compiler__sema__traits__TraitMethod(size_t count);
+void std__memory__free_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr);
+compiler__sema__symbol__Symbol** std__memory__create_array_ptr_compiler__sema__symbol__Symbol(size_t count);
+void std__memory__free_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr);
+compiler__sema__template__GenTemplate** std__memory__create_array_ptr_compiler__sema__template__GenTemplate(size_t count);
+void std__memory__free_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr);
+compiler__sema__instance__InstanceRecord** std__memory__create_array_ptr_compiler__sema__instance__InstanceRecord(size_t count);
+void std__memory__free_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr);
+compiler__sema__symbol__ModuleScope** std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(size_t count);
+void std__memory__free_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr);
+compiler__sema__symbol__ImportBinding* std__memory__create_array_compiler__sema__symbol__ImportBinding(size_t count);
+void std__memory__free_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr);
+compiler__sema__enums__EnumInfo** std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(size_t count);
+void std__memory__free_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr);
+compiler__sema__traits__TraitInfo** std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(size_t count);
+void std__memory__free_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr);
+void std__memory__free_bool(bool* ptr);
+fmt__comments__Comment* std__memory__create_array_fmt__comments__Comment(size_t count);
+void std__memory__free_fmt__comments__Comment(fmt__comments__Comment* ptr);
+lsp__json__JsonValue** std__memory__create_array_ptr_lsp__json__JsonValue(size_t count);
+void std__memory__free_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr);
+lsp__document__Document* std__memory__create_array_lsp__document__Document(size_t count);
+void std__memory__free_lsp__document__Document(lsp__document__Document* ptr);
+lsp__analysis__LspDiagnostic* std__memory__create_array_lsp__analysis__LspDiagnostic(size_t count);
+void std__memory__free_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr);
+compiler__loader__ModuleFile* std__memory__create_array_compiler__loader__ModuleFile(size_t count);
+void std__memory__free_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr);
+compiler__sema__body__program__ArrowCandidate** std__memory__create_array_ptr_compiler__sema__body__program__ArrowCandidate(size_t count);
+void std__memory__free_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr);
+compiler__codegen__c_codegen__ConditionAlias* std__memory__create_array_compiler__codegen__c_codegen__ConditionAlias(size_t count);
+void std__memory__free_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr);
+compiler__sema__structs__StructType* std__memory__Arena_alloc_val_compiler__sema__structs__StructType(std__memory__Arena* self, compiler__sema__structs__StructType value);
+compiler__sema__types__PointerType* std__memory__Arena_alloc_val_compiler__sema__types__PointerType(std__memory__Arena* self, compiler__sema__types__PointerType value);
+compiler__sema__types__ArrayType* std__memory__Arena_alloc_val_compiler__sema__types__ArrayType(std__memory__Arena* self, compiler__sema__types__ArrayType value);
+compiler__sema__types__FnType* std__memory__Arena_alloc_val_compiler__sema__types__FnType(std__memory__Arena* self, compiler__sema__types__FnType value);
+compiler__sema__methods__PrimMethods* std__memory__Arena_alloc_val_compiler__sema__methods__PrimMethods(std__memory__Arena* self, compiler__sema__methods__PrimMethods value);
+compiler__sema__symbol__Symbol* std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(std__memory__Arena* self, compiler__sema__symbol__Symbol value);
+compiler__sema__symbol__Scope* std__memory__Arena_alloc_val_compiler__sema__symbol__Scope(std__memory__Arena* self, compiler__sema__symbol__Scope value);
+compiler__sema__prims__PrimTypes* std__memory__Arena_alloc_val_compiler__sema__prims__PrimTypes(std__memory__Arena* self, compiler__sema__prims__PrimTypes value);
+compiler__sema__symbol__ModuleScope* std__memory__Arena_alloc_val_compiler__sema__symbol__ModuleScope(std__memory__Arena* self, compiler__sema__symbol__ModuleScope value);
+compiler__sema__template__GenTemplate* std__memory__Arena_alloc_val_compiler__sema__template__GenTemplate(std__memory__Arena* self, compiler__sema__template__GenTemplate value);
+compiler__sema__template__GenSubst* std__memory__Arena_alloc_val_compiler__sema__template__GenSubst(std__memory__Arena* self, compiler__sema__template__GenSubst value);
+compiler__sema__methods__MethodInfo* std__memory__Arena_alloc_val_compiler__sema__methods__MethodInfo(std__memory__Arena* self, compiler__sema__methods__MethodInfo value);
+compiler__sema__instance__InstanceRecord* std__memory__Arena_alloc_val_compiler__sema__instance__InstanceRecord(std__memory__Arena* self, compiler__sema__instance__InstanceRecord value);
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self, compiler__sema__enums__EnumMemberInfo value);
+compiler__sema__enums__EnumInfo* std__memory__Arena_alloc_val_compiler__sema__enums__EnumInfo(std__memory__Arena* self, compiler__sema__enums__EnumInfo value);
+compiler__sema__traits__TraitMethod* std__memory__Arena_alloc_val_compiler__sema__traits__TraitMethod(std__memory__Arena* self, compiler__sema__traits__TraitMethod value);
+compiler__sema__traits__TraitInfo* std__memory__Arena_alloc_val_compiler__sema__traits__TraitInfo(std__memory__Arena* self, compiler__sema__traits__TraitInfo value);
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self, compiler__sema__body__program__ArrowCandidate value);
+compiler__sema__instance__AnnEntry* std__memory__Arena_alloc_val_compiler__sema__instance__AnnEntry(std__memory__Arena* self, compiler__sema__instance__AnnEntry value);
+kobel_str* std__memory__resize_str(kobel_str* ptr, size_t count);
+compiler__ast__node__AstNode** std__memory__resize_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr, size_t count);
+compiler__ast__expr__WhenArm* std__memory__resize_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr, size_t count);
+compiler__ast__expr__InterpPart* std__memory__resize_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr, size_t count);
+compiler__ast__stmt__WhenStmtArm* std__memory__resize_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr, size_t count);
+compiler__ast__decl__GenericParam* std__memory__resize_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr, size_t count);
+compiler__ast__decl__Param* std__memory__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count);
+compiler__ast__decl__StructField* std__memory__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count);
+compiler__ast__decl__AssocBinding* std__memory__resize_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr, size_t count);
+compiler__ast__decl__EnumField* std__memory__resize_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr, size_t count);
+compiler__ast__decl__EnumMember* std__memory__resize_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr, size_t count);
+compiler__lexer__Token* std__memory__resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count);
+compiler__loader__LoadedModule* std__memory__resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count);
+compiler__sema__methods__MethodInfo** std__memory__resize_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr, size_t count);
+compiler__sema__structs__StructField* std__memory__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count);
+compiler__sema__enums__EnumMemberInfo** std__memory__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count);
+compiler__sema__types__Type** std__memory__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count);
+size_t* std__memory__resize_usz(size_t* ptr, size_t count);
+compiler__sema__instance__AnnEntry** std__memory__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count);
+compiler__sema__traits__TraitMethod** std__memory__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count);
+compiler__sema__symbol__Symbol** std__memory__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count);
+compiler__sema__template__GenTemplate** std__memory__resize_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr, size_t count);
+compiler__sema__instance__InstanceRecord** std__memory__resize_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr, size_t count);
+compiler__sema__symbol__ModuleScope** std__memory__resize_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr, size_t count);
+compiler__sema__symbol__ImportBinding* std__memory__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count);
+compiler__sema__enums__EnumInfo** std__memory__resize_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr, size_t count);
+compiler__sema__traits__TraitInfo** std__memory__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count);
+bool* std__memory__resize_bool(bool* ptr, size_t count);
+fmt__comments__Comment* std__memory__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count);
+lsp__json__JsonValue** std__memory__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count);
+lsp__document__Document* std__memory__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count);
+lsp__analysis__LspDiagnostic* std__memory__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count);
+compiler__loader__ModuleFile* std__memory__resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count);
+compiler__sema__body__program__ArrowCandidate** std__memory__resize_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr, size_t count);
+compiler__codegen__c_codegen__ConditionAlias* std__memory__resize_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr, size_t count);
+compiler__ast__node__AstNode* std__memory__Arena_create_val_compiler__ast__node__AstNode(std__memory__Arena* self, compiler__ast__node__AstNode value);
+compiler__ast__types__NamedType* std__memory__Arena_create_val_compiler__ast__types__NamedType(std__memory__Arena* self, compiler__ast__types__NamedType value);
+compiler__ast__types__PointerType* std__memory__Arena_create_val_compiler__ast__types__PointerType(std__memory__Arena* self, compiler__ast__types__PointerType value);
+compiler__ast__types__ArrayType* std__memory__Arena_create_val_compiler__ast__types__ArrayType(std__memory__Arena* self, compiler__ast__types__ArrayType value);
+compiler__ast__types__NullableType* std__memory__Arena_create_val_compiler__ast__types__NullableType(std__memory__Arena* self, compiler__ast__types__NullableType value);
+compiler__ast__expr__LiteralExpr* std__memory__Arena_create_val_compiler__ast__expr__LiteralExpr(std__memory__Arena* self, compiler__ast__expr__LiteralExpr value);
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_create_val_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self, compiler__ast__expr__IdentifierExpr value);
+compiler__ast__expr__BinaryExpr* std__memory__Arena_create_val_compiler__ast__expr__BinaryExpr(std__memory__Arena* self, compiler__ast__expr__BinaryExpr value);
+compiler__ast__expr__UnaryExpr* std__memory__Arena_create_val_compiler__ast__expr__UnaryExpr(std__memory__Arena* self, compiler__ast__expr__UnaryExpr value);
+compiler__ast__expr__CallExpr* std__memory__Arena_create_val_compiler__ast__expr__CallExpr(std__memory__Arena* self, compiler__ast__expr__CallExpr value);
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_create_val_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self, compiler__ast__expr__StructCtorExpr value);
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_create_val_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self, compiler__ast__expr__EnumCtorExpr value);
+compiler__ast__expr__SizeOfParam* std__memory__Arena_create_val_compiler__ast__expr__SizeOfParam(std__memory__Arena* self, compiler__ast__expr__SizeOfParam value);
+compiler__ast__expr__MemberExpr* std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(std__memory__Arena* self, compiler__ast__expr__MemberExpr value);
+compiler__ast__expr__IndexExpr* std__memory__Arena_create_val_compiler__ast__expr__IndexExpr(std__memory__Arena* self, compiler__ast__expr__IndexExpr value);
+compiler__ast__expr__AssignExpr* std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(std__memory__Arena* self, compiler__ast__expr__AssignExpr value);
+compiler__ast__expr__UpdateExpr* std__memory__Arena_create_val_compiler__ast__expr__UpdateExpr(std__memory__Arena* self, compiler__ast__expr__UpdateExpr value);
+compiler__ast__expr__CastExpr* std__memory__Arena_create_val_compiler__ast__expr__CastExpr(std__memory__Arena* self, compiler__ast__expr__CastExpr value);
+compiler__ast__expr__GroupExpr* std__memory__Arena_create_val_compiler__ast__expr__GroupExpr(std__memory__Arena* self, compiler__ast__expr__GroupExpr value);
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self, compiler__ast__expr__ArrayLiteralExpr value);
+compiler__ast__expr__IfExpr* std__memory__Arena_create_val_compiler__ast__expr__IfExpr(std__memory__Arena* self, compiler__ast__expr__IfExpr value);
+compiler__ast__expr__WhenExpr* std__memory__Arena_create_val_compiler__ast__expr__WhenExpr(std__memory__Arena* self, compiler__ast__expr__WhenExpr value);
+compiler__ast__expr__InterpExpr* std__memory__Arena_create_val_compiler__ast__expr__InterpExpr(std__memory__Arena* self, compiler__ast__expr__InterpExpr value);
+compiler__ast__expr__IsExpr* std__memory__Arena_create_val_compiler__ast__expr__IsExpr(std__memory__Arena* self, compiler__ast__expr__IsExpr value);
+compiler__ast__stmt__BlockStmt* std__memory__Arena_create_val_compiler__ast__stmt__BlockStmt(std__memory__Arena* self, compiler__ast__stmt__BlockStmt value);
+compiler__ast__stmt__ExprStmt* std__memory__Arena_create_val_compiler__ast__stmt__ExprStmt(std__memory__Arena* self, compiler__ast__stmt__ExprStmt value);
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_create_val_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self, compiler__ast__stmt__VarDeclStmt value);
+compiler__ast__stmt__IfStmt* std__memory__Arena_create_val_compiler__ast__stmt__IfStmt(std__memory__Arena* self, compiler__ast__stmt__IfStmt value);
+compiler__ast__stmt__WhileStmt* std__memory__Arena_create_val_compiler__ast__stmt__WhileStmt(std__memory__Arena* self, compiler__ast__stmt__WhileStmt value);
+compiler__ast__stmt__ForStmt* std__memory__Arena_create_val_compiler__ast__stmt__ForStmt(std__memory__Arena* self, compiler__ast__stmt__ForStmt value);
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_create_val_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self, compiler__ast__stmt__ReturnStmt value);
+compiler__ast__stmt__BreakStmt* std__memory__Arena_create_val_compiler__ast__stmt__BreakStmt(std__memory__Arena* self, compiler__ast__stmt__BreakStmt value);
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_create_val_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self, compiler__ast__stmt__ContinueStmt value);
+compiler__ast__stmt__WhenStmt* std__memory__Arena_create_val_compiler__ast__stmt__WhenStmt(std__memory__Arena* self, compiler__ast__stmt__WhenStmt value);
+compiler__ast__stmt__YieldStmt* std__memory__Arena_create_val_compiler__ast__stmt__YieldStmt(std__memory__Arena* self, compiler__ast__stmt__YieldStmt value);
+compiler__ast__stmt__DeferStmt* std__memory__Arena_create_val_compiler__ast__stmt__DeferStmt(std__memory__Arena* self, compiler__ast__stmt__DeferStmt value);
+compiler__ast__decl__ModuleDecl* std__memory__Arena_create_val_compiler__ast__decl__ModuleDecl(std__memory__Arena* self, compiler__ast__decl__ModuleDecl value);
+compiler__ast__decl__UseDecl* std__memory__Arena_create_val_compiler__ast__decl__UseDecl(std__memory__Arena* self, compiler__ast__decl__UseDecl value);
+compiler__ast__decl__FnDecl* std__memory__Arena_create_val_compiler__ast__decl__FnDecl(std__memory__Arena* self, compiler__ast__decl__FnDecl value);
+compiler__ast__decl__StructDecl* std__memory__Arena_create_val_compiler__ast__decl__StructDecl(std__memory__Arena* self, compiler__ast__decl__StructDecl value);
+compiler__ast__decl__TraitDecl* std__memory__Arena_create_val_compiler__ast__decl__TraitDecl(std__memory__Arena* self, compiler__ast__decl__TraitDecl value);
+compiler__ast__decl__ImplDecl* std__memory__Arena_create_val_compiler__ast__decl__ImplDecl(std__memory__Arena* self, compiler__ast__decl__ImplDecl value);
+compiler__ast__decl__EnumDecl* std__memory__Arena_create_val_compiler__ast__decl__EnumDecl(std__memory__Arena* self, compiler__ast__decl__EnumDecl value);
+compiler__ast__decl__ConstDecl* std__memory__Arena_create_val_compiler__ast__decl__ConstDecl(std__memory__Arena* self, compiler__ast__decl__ConstDecl value);
+compiler__ast__decl__ExternBlock* std__memory__Arena_create_val_compiler__ast__decl__ExternBlock(std__memory__Arena* self, compiler__ast__decl__ExternBlock value);
+compiler__ast__decl__Program* std__memory__Arena_create_val_compiler__ast__decl__Program(std__memory__Arena* self, compiler__ast__decl__Program value);
+compiler__sema__types__Type* std__memory__Arena_create_val_compiler__sema__types__Type(std__memory__Arena* self, compiler__sema__types__Type value);
+compiler__sema__structs__StructType* std__memory__Arena_create_val_compiler__sema__structs__StructType(std__memory__Arena* self, compiler__sema__structs__StructType value);
+compiler__sema__types__PointerType* std__memory__Arena_create_val_compiler__sema__types__PointerType(std__memory__Arena* self, compiler__sema__types__PointerType value);
+compiler__sema__types__ArrayType* std__memory__Arena_create_val_compiler__sema__types__ArrayType(std__memory__Arena* self, compiler__sema__types__ArrayType value);
+compiler__sema__types__FnType* std__memory__Arena_create_val_compiler__sema__types__FnType(std__memory__Arena* self, compiler__sema__types__FnType value);
+compiler__sema__methods__PrimMethods* std__memory__Arena_create_val_compiler__sema__methods__PrimMethods(std__memory__Arena* self, compiler__sema__methods__PrimMethods value);
+compiler__sema__symbol__Symbol* std__memory__Arena_create_val_compiler__sema__symbol__Symbol(std__memory__Arena* self, compiler__sema__symbol__Symbol value);
+compiler__sema__symbol__Scope* std__memory__Arena_create_val_compiler__sema__symbol__Scope(std__memory__Arena* self, compiler__sema__symbol__Scope value);
+compiler__sema__prims__PrimTypes* std__memory__Arena_create_val_compiler__sema__prims__PrimTypes(std__memory__Arena* self, compiler__sema__prims__PrimTypes value);
+compiler__sema__symbol__ModuleScope* std__memory__Arena_create_val_compiler__sema__symbol__ModuleScope(std__memory__Arena* self, compiler__sema__symbol__ModuleScope value);
+compiler__sema__template__GenTemplate* std__memory__Arena_create_val_compiler__sema__template__GenTemplate(std__memory__Arena* self, compiler__sema__template__GenTemplate value);
+compiler__sema__template__GenSubst* std__memory__Arena_create_val_compiler__sema__template__GenSubst(std__memory__Arena* self, compiler__sema__template__GenSubst value);
+compiler__sema__methods__MethodInfo* std__memory__Arena_create_val_compiler__sema__methods__MethodInfo(std__memory__Arena* self, compiler__sema__methods__MethodInfo value);
+compiler__sema__instance__InstanceRecord* std__memory__Arena_create_val_compiler__sema__instance__InstanceRecord(std__memory__Arena* self, compiler__sema__instance__InstanceRecord value);
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_create_val_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self, compiler__sema__enums__EnumMemberInfo value);
+compiler__sema__enums__EnumInfo* std__memory__Arena_create_val_compiler__sema__enums__EnumInfo(std__memory__Arena* self, compiler__sema__enums__EnumInfo value);
+compiler__sema__traits__TraitMethod* std__memory__Arena_create_val_compiler__sema__traits__TraitMethod(std__memory__Arena* self, compiler__sema__traits__TraitMethod value);
+compiler__sema__traits__TraitInfo* std__memory__Arena_create_val_compiler__sema__traits__TraitInfo(std__memory__Arena* self, compiler__sema__traits__TraitInfo value);
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_create_val_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self, compiler__sema__body__program__ArrowCandidate value);
+compiler__sema__instance__AnnEntry* std__memory__Arena_create_val_compiler__sema__instance__AnnEntry(std__memory__Arena* self, compiler__sema__instance__AnnEntry value);
+compiler__ast__node__AstNode* std__memory__Arena_create_compiler__ast__node__AstNode(std__memory__Arena* self);
+compiler__ast__types__NamedType* std__memory__Arena_create_compiler__ast__types__NamedType(std__memory__Arena* self);
+compiler__ast__types__PointerType* std__memory__Arena_create_compiler__ast__types__PointerType(std__memory__Arena* self);
+compiler__ast__types__ArrayType* std__memory__Arena_create_compiler__ast__types__ArrayType(std__memory__Arena* self);
+compiler__ast__types__NullableType* std__memory__Arena_create_compiler__ast__types__NullableType(std__memory__Arena* self);
+compiler__ast__expr__LiteralExpr* std__memory__Arena_create_compiler__ast__expr__LiteralExpr(std__memory__Arena* self);
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_create_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self);
+compiler__ast__expr__BinaryExpr* std__memory__Arena_create_compiler__ast__expr__BinaryExpr(std__memory__Arena* self);
+compiler__ast__expr__UnaryExpr* std__memory__Arena_create_compiler__ast__expr__UnaryExpr(std__memory__Arena* self);
+compiler__ast__expr__CallExpr* std__memory__Arena_create_compiler__ast__expr__CallExpr(std__memory__Arena* self);
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_create_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self);
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_create_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self);
+compiler__ast__expr__SizeOfParam* std__memory__Arena_create_compiler__ast__expr__SizeOfParam(std__memory__Arena* self);
+compiler__ast__expr__MemberExpr* std__memory__Arena_create_compiler__ast__expr__MemberExpr(std__memory__Arena* self);
+compiler__ast__expr__IndexExpr* std__memory__Arena_create_compiler__ast__expr__IndexExpr(std__memory__Arena* self);
+compiler__ast__expr__AssignExpr* std__memory__Arena_create_compiler__ast__expr__AssignExpr(std__memory__Arena* self);
+compiler__ast__expr__UpdateExpr* std__memory__Arena_create_compiler__ast__expr__UpdateExpr(std__memory__Arena* self);
+compiler__ast__expr__CastExpr* std__memory__Arena_create_compiler__ast__expr__CastExpr(std__memory__Arena* self);
+compiler__ast__expr__GroupExpr* std__memory__Arena_create_compiler__ast__expr__GroupExpr(std__memory__Arena* self);
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_create_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self);
+compiler__ast__expr__IfExpr* std__memory__Arena_create_compiler__ast__expr__IfExpr(std__memory__Arena* self);
+compiler__ast__expr__WhenExpr* std__memory__Arena_create_compiler__ast__expr__WhenExpr(std__memory__Arena* self);
+compiler__ast__expr__InterpExpr* std__memory__Arena_create_compiler__ast__expr__InterpExpr(std__memory__Arena* self);
+compiler__ast__expr__IsExpr* std__memory__Arena_create_compiler__ast__expr__IsExpr(std__memory__Arena* self);
+compiler__ast__stmt__BlockStmt* std__memory__Arena_create_compiler__ast__stmt__BlockStmt(std__memory__Arena* self);
+compiler__ast__stmt__ExprStmt* std__memory__Arena_create_compiler__ast__stmt__ExprStmt(std__memory__Arena* self);
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_create_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self);
+compiler__ast__stmt__IfStmt* std__memory__Arena_create_compiler__ast__stmt__IfStmt(std__memory__Arena* self);
+compiler__ast__stmt__WhileStmt* std__memory__Arena_create_compiler__ast__stmt__WhileStmt(std__memory__Arena* self);
+compiler__ast__stmt__ForStmt* std__memory__Arena_create_compiler__ast__stmt__ForStmt(std__memory__Arena* self);
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_create_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self);
+compiler__ast__stmt__BreakStmt* std__memory__Arena_create_compiler__ast__stmt__BreakStmt(std__memory__Arena* self);
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_create_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self);
+compiler__ast__stmt__WhenStmt* std__memory__Arena_create_compiler__ast__stmt__WhenStmt(std__memory__Arena* self);
+compiler__ast__stmt__YieldStmt* std__memory__Arena_create_compiler__ast__stmt__YieldStmt(std__memory__Arena* self);
+compiler__ast__stmt__DeferStmt* std__memory__Arena_create_compiler__ast__stmt__DeferStmt(std__memory__Arena* self);
+compiler__ast__decl__ModuleDecl* std__memory__Arena_create_compiler__ast__decl__ModuleDecl(std__memory__Arena* self);
+compiler__ast__decl__UseDecl* std__memory__Arena_create_compiler__ast__decl__UseDecl(std__memory__Arena* self);
+compiler__ast__decl__FnDecl* std__memory__Arena_create_compiler__ast__decl__FnDecl(std__memory__Arena* self);
+compiler__ast__decl__StructDecl* std__memory__Arena_create_compiler__ast__decl__StructDecl(std__memory__Arena* self);
+compiler__ast__decl__TraitDecl* std__memory__Arena_create_compiler__ast__decl__TraitDecl(std__memory__Arena* self);
+compiler__ast__decl__ImplDecl* std__memory__Arena_create_compiler__ast__decl__ImplDecl(std__memory__Arena* self);
+compiler__ast__decl__EnumDecl* std__memory__Arena_create_compiler__ast__decl__EnumDecl(std__memory__Arena* self);
+compiler__ast__decl__ConstDecl* std__memory__Arena_create_compiler__ast__decl__ConstDecl(std__memory__Arena* self);
+compiler__ast__decl__ExternBlock* std__memory__Arena_create_compiler__ast__decl__ExternBlock(std__memory__Arena* self);
+compiler__ast__decl__Program* std__memory__Arena_create_compiler__ast__decl__Program(std__memory__Arena* self);
+compiler__sema__types__Type* std__memory__Arena_create_compiler__sema__types__Type(std__memory__Arena* self);
+compiler__sema__structs__StructType* std__memory__Arena_create_compiler__sema__structs__StructType(std__memory__Arena* self);
+compiler__sema__types__PointerType* std__memory__Arena_create_compiler__sema__types__PointerType(std__memory__Arena* self);
+compiler__sema__types__ArrayType* std__memory__Arena_create_compiler__sema__types__ArrayType(std__memory__Arena* self);
+compiler__sema__types__FnType* std__memory__Arena_create_compiler__sema__types__FnType(std__memory__Arena* self);
+compiler__sema__methods__PrimMethods* std__memory__Arena_create_compiler__sema__methods__PrimMethods(std__memory__Arena* self);
+compiler__sema__symbol__Symbol* std__memory__Arena_create_compiler__sema__symbol__Symbol(std__memory__Arena* self);
+compiler__sema__symbol__Scope* std__memory__Arena_create_compiler__sema__symbol__Scope(std__memory__Arena* self);
+compiler__sema__prims__PrimTypes* std__memory__Arena_create_compiler__sema__prims__PrimTypes(std__memory__Arena* self);
+compiler__sema__symbol__ModuleScope* std__memory__Arena_create_compiler__sema__symbol__ModuleScope(std__memory__Arena* self);
+compiler__sema__template__GenTemplate* std__memory__Arena_create_compiler__sema__template__GenTemplate(std__memory__Arena* self);
+compiler__sema__template__GenSubst* std__memory__Arena_create_compiler__sema__template__GenSubst(std__memory__Arena* self);
+compiler__sema__methods__MethodInfo* std__memory__Arena_create_compiler__sema__methods__MethodInfo(std__memory__Arena* self);
+compiler__sema__instance__InstanceRecord* std__memory__Arena_create_compiler__sema__instance__InstanceRecord(std__memory__Arena* self);
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_create_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self);
+compiler__sema__enums__EnumInfo* std__memory__Arena_create_compiler__sema__enums__EnumInfo(std__memory__Arena* self);
+compiler__sema__traits__TraitMethod* std__memory__Arena_create_compiler__sema__traits__TraitMethod(std__memory__Arena* self);
+compiler__sema__traits__TraitInfo* std__memory__Arena_create_compiler__sema__traits__TraitInfo(std__memory__Arena* self);
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_create_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self);
+compiler__sema__instance__AnnEntry* std__memory__Arena_create_compiler__sema__instance__AnnEntry(std__memory__Arena* self);
 
 size_t std__traits__hash_int(size_t n) {
     return ((n / 8) * 2654435761);
@@ -4572,23 +4639,19 @@ size_t usz_hash(size_t self) {
     return std__traits__hash_int(self);
 }
 
-std__mem__Arena std__mem__Arena_new(size_t block_size) {
-    return (std__mem__Arena){ NULL, block_size };
-}
-
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align) {
+uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, size_t align) {
     if (self->current == NULL) {
-        std__mem__Arena_new_block(self, size);
+        std__memory__Arena_new_block(self, size);
     }
-    std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)self->current;
+    std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)self->current;
     size_t rem = (blk->used % align);
     size_t aligned_used = blk->used;
     if (rem != 0) {
         aligned_used = (blk->used + (align - rem));
     }
     if ((aligned_used + size) > blk->size) {
-        std__mem__Arena_new_block(self, size);
-        blk = (std__mem__ArenaBlock*)self->current;
+        std__memory__Arena_new_block(self, size);
+        blk = (std__memory__ArenaBlock*)self->current;
         aligned_used = 0;
     }
     uint8_t* ptr = &blk->data[aligned_used];
@@ -4596,39 +4659,47 @@ uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t 
     return ptr;
 }
 
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size) {
+std__memory__Arena std__memory__Arena_new(size_t block_size) {
+    return (std__memory__Arena){ NULL, block_size };
+}
+
+void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size) {
     size_t sz = self->block_size;
     if (sz < min_size) {
         sz = min_size;
     }
-    uint8_t* data = std__mem__alloc_array_u8(sz);
-    std__mem__ArenaBlock* blk = std__mem__alloc_std__mem__ArenaBlock();
+    uint8_t* data = std__memory__create_array_u8(sz);
+    std__memory__ArenaBlock* blk = std__memory__create_std__memory__ArenaBlock();
     blk->data = data;
     blk->size = sz;
     blk->used = 0;
     blk->next = self->current;
-    self->current = (std__mem__ArenaBlock*)blk;
+    self->current = (std__memory__ArenaBlock*)blk;
 }
 
-void std__mem__Arena_reset(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
+void std__memory__Arena_reset(std__memory__Arena* self) {
+    std__memory__ArenaBlock* curr = self->current;
     while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
+        std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)curr;
         blk->used = 0;
         curr = blk->next;
     }
 }
 
-void std__mem__Arena_delete(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
+void std__memory__Arena_delete(std__memory__Arena* self) {
+    std__memory__ArenaBlock* curr = self->current;
     while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
-        std__mem__ArenaBlock* next_blk = blk->next;
-        std__mem__release_u8(blk->data);
-        std__mem__release_std__mem__ArenaBlock(curr);
+        std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)curr;
+        std__memory__ArenaBlock* next_blk = blk->next;
+        free(blk->data);
+        free(curr);
         curr = next_blk;
     }
     self->current = NULL;
+}
+
+uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align) {
+    return malloc(size);
 }
 
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap) {
@@ -4636,8 +4707,8 @@ std__collections__HashSet std__collections__HashSet_new(size_t init_cap) {
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -4802,8 +4873,8 @@ void std__collections__HashSet_grow(std__collections__HashSet* self) {
     kobel_str* old_keys = self->keys;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -4867,15 +4938,15 @@ void std__collections__HashSet_grow(std__collections__HashSet* self) {
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_occ);
     }
 }
 
 void std__collections__HashSet_delete(std__collections__HashSet* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->occupied);
     }
 }
 
@@ -4942,7 +5013,7 @@ kobel_str std__collections__HashSet_at(std__collections__HashSet* self, size_t i
 
 std__collections__StringBuilder std__collections__StringBuilder_new(void) {
     int32_t init_cap = 32;
-    uint8_t* raw = std__mem__alloc_array_u8(init_cap);
+    uint8_t* raw = std__memory__create_array_u8(init_cap);
     return (std__collections__StringBuilder){ raw, 0, init_cap };
 }
 
@@ -5125,13 +5196,13 @@ void std__collections__StringBuilder_grow(std__collections__StringBuilder* self,
     while (new_cap < min_cap) {
         new_cap *= 2;
     }
-    uint8_t* new_raw = std__mem__resize_u8(self->buf, new_cap);
+    uint8_t* new_raw = std__memory__resize_u8(self->buf, new_cap);
     self->buf = new_raw;
     self->cap = new_cap;
 }
 
 void std__collections__StringBuilder_delete(std__collections__StringBuilder* self) {
-    std__mem__release_u8(self->buf);
+    std__memory__free_u8(self->buf);
 }
 
 void std__collections__StringBuilder_plus_assign_2(std__collections__StringBuilder* self, kobel_str s) {
@@ -5175,7 +5246,7 @@ char std__collections__StringBuilder_at(std__collections__StringBuilder* self, s
 }
 
 kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self) {
-    uint8_t* str_data = std__mem__alloc_array_u8((self->len + 1));
+    uint8_t* str_data = std__memory__create_array_u8((self->len + 1));
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -5371,7 +5442,7 @@ kobel_str str_strip_suffix(kobel_str self, size_t n) {
 }
 
 kobel_str str_strip_char(kobel_str self, char c) {
-    uint8_t* buf = std__mem__alloc_array_u8((self.len + 1));
+    uint8_t* buf = std__memory__create_array_u8((self.len + 1));
     int32_t w = 0;
     {
         size_t __for_e = self.len;
@@ -5413,7 +5484,7 @@ kobel_str str_replace_char(kobel_str self, char from, char to) {
     if (str_empty(self)) {
         return self;
     }
-    uint8_t* buf = std__mem__alloc_array_u8((self.len + 1));
+    uint8_t* buf = std__memory__create_array_u8((self.len + 1));
     {
         size_t __for_e = self.len;
         size_t __for_i = __for_e;
@@ -5451,7 +5522,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
     if ((n == 0) || str_empty(self)) {
         return KOBEL_STR("");
     }
-    uint8_t* buf = std__mem__alloc_array_u8(((self.len * n) + 1));
+    uint8_t* buf = std__memory__create_array_u8(((self.len * n) + 1));
     int32_t w = 0;
     {
         size_t __for_e = n;
@@ -5550,7 +5621,7 @@ kobel_str str_join(kobel_str self, std__collections__List_str list) {
         }
     }
     total += (self.len * (list.len - 1));
-    uint8_t* buf = std__mem__alloc_array_u8((total + 1));
+    uint8_t* buf = std__memory__create_array_u8((total + 1));
     int32_t w = 0;
     {
         size_t __for_e = list.len;
@@ -5696,7 +5767,7 @@ kobel_str std__string__fmt_u64(uint64_t n0) {
         probe /= 10;
         digits++;
     }
-    uint8_t* buf = std__mem__alloc_array_u8((digits + 1));
+    uint8_t* buf = std__memory__create_array_u8((digits + 1));
     buf[digits] = 0;
     int32_t i = digits;
     while (i > 0) {
@@ -5715,7 +5786,7 @@ kobel_str std__string__fmt_i64(int64_t v) {
 }
 
 kobel_str std__string__fmt_char(char c) {
-    uint8_t* buf = std__mem__alloc_array_u8(2);
+    uint8_t* buf = std__memory__create_array_u8(2);
     buf[0] = ((int32_t)(uint8_t)(c));
     buf[1] = 0;
     return std__string__str_from_bytes(buf, 1);
@@ -5729,7 +5800,7 @@ kobel_str std__string__fmt_zeros(size_t n) {
     if (n == 0) {
         return KOBEL_STR("");
     }
-    uint8_t* buf = std__mem__alloc_array_u8((n + 1));
+    uint8_t* buf = std__memory__create_array_u8((n + 1));
     {
         size_t __for_e = n;
         size_t __for_i = __for_e;
@@ -5955,7 +6026,7 @@ kobel_str std__filesystem__File_read(kobel_str path) {
     }
     fseek(f, 0, 0);
     size_t sz = (size_t)size_i64;
-    uint8_t* buf = std__mem__alloc_array_u8((sz + 1));
+    uint8_t* buf = std__memory__create_array_u8((sz + 1));
     if (buf == NULL) {
         fclose(f);
         return KOBEL_STR("");
@@ -6081,7 +6152,7 @@ kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
     }
     fseek(self->handle, cur, 0);
     int64_t size = (end_pos - cur);
-    uint8_t* buf = std__mem__alloc_array_u8((size + 1));
+    uint8_t* buf = std__memory__create_array_u8((size + 1));
     if (buf == NULL) {
         return KOBEL_STR("");
     }
@@ -6333,7 +6404,7 @@ kobel_str str_module_to_rel(kobel_str self) {
 
 kobel_str str_path_to_module(kobel_str self) {
     kobel_str stem = str_strip_kb(self);
-    uint8_t* buf = std__mem__alloc_array_u8((stem.len + 1));
+    uint8_t* buf = std__memory__create_array_u8((stem.len + 1));
     {
         size_t __for_e = stem.len;
         size_t __for_i = __for_e;
@@ -6507,7 +6578,7 @@ kobel_str str_mangle_symbol(kobel_str self, kobel_str name) {
         return name;
     }
     size_t total = (((self.len * 2) + 2) + name.len);
-    uint8_t* buf = std__mem__alloc_array_u8((total + 1));
+    uint8_t* buf = std__memory__create_array_u8((total + 1));
     size_t w = 0;
     {
         size_t __for_n = self.len;
@@ -6546,7 +6617,7 @@ kobel_str str_mangle_symbol(kobel_str self, kobel_str name) {
 }
 
 kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case) {
-    uint8_t* buf = std__mem__alloc_array_u8((self.len + 1));
+    uint8_t* buf = std__memory__create_array_u8((self.len + 1));
     {
         size_t __for_e = self.len;
         size_t __for_i = __for_e;
@@ -6910,7 +6981,7 @@ kobel_str util__strutil__str_join_dots(std__collections__List_str parts, size_t 
     if (count > 1) {
         total += (count - 1);
     }
-    uint8_t* buf = std__mem__alloc_array_u8((total + 1));
+    uint8_t* buf = std__memory__create_array_u8((total + 1));
     size_t w = 0;
     {
         size_t __for_e = count;
@@ -8288,388 +8359,388 @@ compiler__ast__decl__Program* compiler__ast__node__AstNode_as_program(compiler__
     return (compiler__ast__decl__Program*)(((self != NULL && self->data.tag == compiler__ast__node__NodeData__Program__TAG) ? self->data.u.Program.inner : NULL));
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_alloc_node(std__mem__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col) {
-    return std__mem__Arena_alloc_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ kind, line, col, data, NULL, NULL, NULL, NULL });
+compiler__ast__node__AstNode* std__memory__Arena_alloc_node(std__memory__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col) {
+    return std__memory__Arena_alloc_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ kind, line, col, data, NULL, NULL, NULL, NULL });
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_named_type(std__mem__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__types__NamedType__TAG, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__mem__Arena_alloc_val_compiler__ast__types__NamedType(self, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__types__NamedType__TAG, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__memory__Arena_alloc_val_compiler__ast__types__NamedType(self, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_pointer_type(std__mem__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__types__PointerType__TAG, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__mem__Arena_alloc_val_compiler__ast__types__PointerType(self, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__types__PointerType__TAG, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__memory__Arena_alloc_val_compiler__ast__types__PointerType(self, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_array_type(std__mem__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__types__ArrayType__TAG, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__mem__Arena_alloc_val_compiler__ast__types__ArrayType(self, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__types__ArrayType__TAG, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__memory__Arena_alloc_val_compiler__ast__types__ArrayType(self, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_nullable_type(std__mem__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__types__NullableType__TAG, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__mem__Arena_alloc_val_compiler__ast__types__NullableType(self, (compiler__ast__types__NullableType){ inner }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__types__NullableType__TAG, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__memory__Arena_alloc_val_compiler__ast__types__NullableType(self, (compiler__ast__types__NullableType){ inner }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_literal(std__mem__Arena* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__LiteralExpr(self, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__LiteralExpr(self, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_identifier(std__mem__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(self, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_identifier(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(self, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_binary(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__BinaryExpr(self, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_binary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__BinaryExpr(self, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_unary(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__UnaryExpr(self, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_unary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__UnaryExpr(self, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_call(std__mem__Arena* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__CallExpr__TAG, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__CallExpr(self, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_call(std__memory__Arena* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__CallExpr__TAG, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__CallExpr(self, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_struct_ctor(std__mem__Arena* self, kobel_str c_name, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__StructCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 21, .u.StructCtorExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(self, (compiler__ast__expr__StructCtorExpr){ c_name, args }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_struct_ctor(std__memory__Arena* self, kobel_str c_name, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__StructCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 21, .u.StructCtorExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(self, (compiler__ast__expr__StructCtorExpr){ c_name, args }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_enum_ctor(std__mem__Arena* self, kobel_str c_name, kobel_str tag_field, int64_t tag_value, kobel_str payload_path, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__EnumCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 22, .u.EnumCtorExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(self, (compiler__ast__expr__EnumCtorExpr){ c_name, tag_field, tag_value, payload_path, args }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_enum_ctor(std__memory__Arena* self, kobel_str c_name, kobel_str tag_field, int64_t tag_value, kobel_str payload_path, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__EnumCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 22, .u.EnumCtorExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(self, (compiler__ast__expr__EnumCtorExpr){ c_name, tag_field, tag_value, payload_path, args }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_size_of_param(std__mem__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__SizeOfParam__TAG, (compiler__ast__node__NodeData){ .tag = 23, .u.SizeOfParam = { std__mem__Arena_alloc_val_compiler__ast__expr__SizeOfParam(self, (compiler__ast__expr__SizeOfParam){ param_index, size_text }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_size_of_param(std__memory__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__SizeOfParam__TAG, (compiler__ast__node__NodeData){ .tag = 23, .u.SizeOfParam = { std__memory__Arena_alloc_val_compiler__ast__expr__SizeOfParam(self, (compiler__ast__expr__SizeOfParam){ param_index, size_text }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_member(std__mem__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_safe_member(std__mem__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_safe_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_index(std__mem__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IndexExpr(self, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_index(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IndexExpr(self, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_assign(std__mem__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_assign(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_compound_assign(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_compound_assign(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_update(std__mem__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__UpdateExpr(self, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_update(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__UpdateExpr(self, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_cast(std__mem__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, bool is_safe, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__CastExpr__TAG, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__CastExpr(self, (compiler__ast__expr__CastExpr){ expr, target_type, is_safe, KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_cast(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, bool is_safe, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__CastExpr__TAG, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__CastExpr(self, (compiler__ast__expr__CastExpr){ expr, target_type, is_safe, KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_group(std__mem__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__GroupExpr(self, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_group(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__GroupExpr(self, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_array_literal(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_array_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_list_literal(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_list_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_if_expr(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__IfExpr__TAG, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IfExpr(self, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_if_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__IfExpr__TAG, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IfExpr(self, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_when_expr(std__mem__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__WhenExpr(self, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_when_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__WhenExpr(self, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_interp(std__mem__Arena* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__InterpExpr(self, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_interp(std__memory__Arena* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__InterpExpr(self, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_is_expr(std__mem__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__expr__IsExpr__TAG, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IsExpr(self, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_is_expr(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__expr__IsExpr__TAG, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IsExpr(self, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_block_stmt(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__BlockStmt(self, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_block_stmt(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__BlockStmt(self, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_expr_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ExprStmt(self, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_expr_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ExprStmt(self, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_var_decl(std__mem__Arena* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(self, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_var_decl(std__memory__Arena* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(self, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_if_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__IfStmt(self, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_if_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__IfStmt(self, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_while_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__WhileStmt(self, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_while_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__WhileStmt(self, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_stmt(std__mem__Arena* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ForStmt(self, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_stmt(std__memory__Arena* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ForStmt(self, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_return_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(self, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_return_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(self, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_break_stmt(std__mem__Arena* self, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__BreakStmt(self, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_break_stmt(std__memory__Arena* self, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__BreakStmt(self, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_continue_stmt(std__mem__Arena* self, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(self, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_continue_stmt(std__memory__Arena* self, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(self, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_when_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__WhenStmt(self, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_when_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__WhenStmt(self, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_yield_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__YieldStmt(self, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_yield_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__YieldStmt(self, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_defer_stmt(std__mem__Arena* self, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__DeferStmt(self, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_defer_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* body, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__DeferStmt(self, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_module_decl(std__mem__Arena* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ModuleDecl(self, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_module_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ModuleDecl(self, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_use_decl(std__mem__Arena* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__UseDecl__TAG, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__UseDecl(self, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_use_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__UseDecl__TAG, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__UseDecl(self, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_fn_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__FnDecl__TAG, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__FnDecl(self, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, KOBEL_STR("") }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_fn_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__FnDecl__TAG, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__FnDecl(self, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, KOBEL_STR("") }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_struct_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_struct_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_trait_decl(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__TraitDecl(self, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_trait_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__TraitDecl(self, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_impl_decl(std__mem__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ImplDecl(self, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_impl_decl(std__memory__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ImplDecl(self, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_enum_decl(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__EnumDecl(self, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_enum_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__EnumDecl(self, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_const_decl(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ConstDecl(self, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ConstDecl(self, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_extern_block(std__mem__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__mem__Arena_alloc_val_compiler__ast__decl__ExternBlock(self, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_extern_block(std__memory__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__memory__Arena_alloc_val_compiler__ast__decl__ExternBlock(self, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_program(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(self, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__mem__Arena_alloc_val_compiler__ast__decl__Program(self, (compiler__ast__decl__Program){ declarations }) } }, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_program(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
+    return std__memory__Arena_alloc_node(self, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_alloc_val_compiler__ast__decl__Program(self, (compiler__ast__decl__Program){ declarations }) } }, line, col);
 }
 
 compiler__parser__parser__Parser compiler__parser__parser__Parser_new(std__collections__List_compiler__lexer__Token tokens) {
-    return (compiler__parser__parser__Parser){ tokens, 0, std__mem__Arena_new(65536), std__collections__List_str_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4) };
+    return (compiler__parser__parser__Parser){ tokens, 0, std__memory__Arena_new(65536), std__collections__List_str_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4) };
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_named_type(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__types__NamedType__TAG, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__mem__Arena_alloc_val_compiler__ast__types__NamedType(&self->arena, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__types__NamedType__TAG, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__memory__Arena_alloc_val_compiler__ast__types__NamedType(&self->arena, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_pointer_type(compiler__parser__parser__Parser* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__types__PointerType__TAG, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__mem__Arena_alloc_val_compiler__ast__types__PointerType(&self->arena, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__types__PointerType__TAG, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__memory__Arena_alloc_val_compiler__ast__types__PointerType(&self->arena, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_array_type(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__types__ArrayType__TAG, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__mem__Arena_alloc_val_compiler__ast__types__ArrayType(&self->arena, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__types__ArrayType__TAG, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__memory__Arena_alloc_val_compiler__ast__types__ArrayType(&self->arena, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_nullable_type(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__types__NullableType__TAG, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__mem__Arena_alloc_val_compiler__ast__types__NullableType(&self->arena, (compiler__ast__types__NullableType){ inner }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__types__NullableType__TAG, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__memory__Arena_alloc_val_compiler__ast__types__NullableType(&self->arena, (compiler__ast__types__NullableType){ inner }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_literal(compiler__parser__parser__Parser* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__LiteralExpr(&self->arena, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__LiteralExpr(&self->arena, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_identifier(compiler__parser__parser__Parser* self, kobel_str name, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(&self->arena, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(&self->arena, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_binary(compiler__parser__parser__Parser* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__BinaryExpr(&self->arena, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__BinaryExpr(&self->arena, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_unary(compiler__parser__parser__Parser* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__UnaryExpr(&self->arena, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__UnaryExpr(&self->arena, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_call(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__CallExpr__TAG, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__CallExpr(&self->arena, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__CallExpr__TAG, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__CallExpr(&self->arena, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(&self->arena, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(&self->arena, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_safe_member(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(&self->arena, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(&self->arena, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_index(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IndexExpr(&self->arena, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IndexExpr(&self->arena, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_assign(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(&self->arena, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(&self->arena, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_compound_assign(compiler__parser__parser__Parser* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(&self->arena, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(&self->arena, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_update(compiler__parser__parser__Parser* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__UpdateExpr(&self->arena, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__UpdateExpr(&self->arena, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_cast(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, bool is_safe, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__CastExpr__TAG, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__CastExpr(&self->arena, (compiler__ast__expr__CastExpr){ expr, target_type, is_safe, KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__CastExpr__TAG, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__CastExpr(&self->arena, (compiler__ast__expr__CastExpr){ expr, target_type, is_safe, KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_is_expr(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__IsExpr__TAG, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IsExpr(&self->arena, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__IsExpr__TAG, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IsExpr(&self->arena, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_group(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__GroupExpr(&self->arena, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__GroupExpr(&self->arena, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_array_literal(compiler__parser__parser__Parser* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(&self->arena, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(&self->arena, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_list_literal(compiler__parser__parser__Parser* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(&self->arena, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(&self->arena, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_if_expr(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__IfExpr__TAG, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__IfExpr(&self->arena, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__IfExpr__TAG, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__IfExpr(&self->arena, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_when_expr(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__WhenExpr(&self->arena, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__WhenExpr(&self->arena, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_interp(compiler__parser__parser__Parser* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__mem__Arena_alloc_val_compiler__ast__expr__InterpExpr(&self->arena, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__memory__Arena_alloc_val_compiler__ast__expr__InterpExpr(&self->arena, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_block_stmt(compiler__parser__parser__Parser* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__BlockStmt(&self->arena, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__BlockStmt(&self->arena, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_expr_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ExprStmt(&self->arena, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ExprStmt(&self->arena, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_var_decl(compiler__parser__parser__Parser* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(&self->arena, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(&self->arena, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_if_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__IfStmt(&self->arena, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__IfStmt(&self->arena, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_while_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__WhileStmt(&self->arena, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__WhileStmt(&self->arena, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_for_stmt(compiler__parser__parser__Parser* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ForStmt(&self->arena, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ForStmt(&self->arena, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_return_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(&self->arena, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(&self->arena, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_break_stmt(compiler__parser__parser__Parser* self, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__BreakStmt(&self->arena, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__BreakStmt(&self->arena, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_continue_stmt(compiler__parser__parser__Parser* self, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(&self->arena, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(&self->arena, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_when_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__WhenStmt(&self->arena, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__WhenStmt(&self->arena, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_yield_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__YieldStmt(&self->arena, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__YieldStmt(&self->arena, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_defer_stmt(compiler__parser__parser__Parser* self, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__mem__Arena_alloc_val_compiler__ast__stmt__DeferStmt(&self->arena, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__memory__Arena_alloc_val_compiler__ast__stmt__DeferStmt(&self->arena, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_module_decl(compiler__parser__parser__Parser* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ModuleDecl(&self->arena, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ModuleDecl(&self->arena, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_use_decl(compiler__parser__parser__Parser* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__UseDecl__TAG, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__UseDecl(&self->arena, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__UseDecl__TAG, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__UseDecl(&self->arena, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_fn_decl(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__FnDecl__TAG, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__FnDecl(&self->arena, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, KOBEL_STR("") }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__FnDecl__TAG, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__FnDecl(&self->arena, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, KOBEL_STR("") }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_struct_decl(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__StructDecl(&self->arena, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__StructDecl(&self->arena, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_struct_decl_forward(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__StructDecl(&self->arena, (compiler__ast__decl__StructDecl){ name, type_params, std__collections__List_compiler__ast__decl__StructField_new(4), is_pub, true, true }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__StructDecl(&self->arena, (compiler__ast__decl__StructDecl){ name, type_params, std__collections__List_compiler__ast__decl__StructField_new(4), is_pub, true, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_trait_decl(compiler__parser__parser__Parser* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__TraitDecl(&self->arena, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__TraitDecl(&self->arena, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_impl_decl(compiler__parser__parser__Parser* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ImplDecl(&self->arena, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ImplDecl(&self->arena, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_enum_decl(compiler__parser__parser__Parser* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__EnumDecl(&self->arena, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__EnumDecl(&self->arena, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_const_decl(compiler__parser__parser__Parser* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ConstDecl(&self->arena, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ConstDecl(&self->arena, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_extern_block(compiler__parser__parser__Parser* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__mem__Arena_alloc_val_compiler__ast__decl__ExternBlock(&self->arena, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__memory__Arena_alloc_val_compiler__ast__decl__ExternBlock(&self->arena, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__parser__parser__Parser_program(compiler__parser__parser__Parser* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__mem__Arena_alloc_val_compiler__ast__decl__Program(&self->arena, (compiler__ast__decl__Program){ declarations }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_alloc_val_compiler__ast__decl__Program(&self->arena, (compiler__ast__decl__Program){ declarations }) } }, line, col);
 }
 
 bool compiler__parser__parser__Parser_is_end(compiler__parser__parser__Parser* self) {
@@ -10396,15 +10467,15 @@ compiler__loader__ModuleLoader compiler__loader__ModuleLoader_new(kobel_str entr
         std__collections__List_str_plus_assign(&roots, str_join_path(proj, KOBEL_STR("lib")));
         std__collections__List_str_plus_assign(&roots, str_join_path(proj, KOBEL_STR("src")));
     }
-    return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_new(4), std__collections__List_compiler__loader__LoadedModule_new(4), std__collections__List_str_new(4), std__mem__Arena_new(524288), std__collections__HashSet_new(16) };
+    return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_new(4), std__collections__List_compiler__loader__LoadedModule_new(4), std__collections__List_str_new(4), std__memory__Arena_new(524288), std__collections__HashSet_new(16) };
 }
 
 compiler__ast__node__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__mem__Arena_alloc_val_compiler__ast__decl__ModuleDecl(&self->arena, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__memory__Arena_alloc_val_compiler__ast__decl__ModuleDecl(&self->arena, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* compiler__loader__ModuleLoader_program(compiler__loader__ModuleLoader* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__mem__Arena_alloc_node(&self->arena, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__mem__Arena_alloc_val_compiler__ast__decl__Program(&self->arena, (compiler__ast__decl__Program){ declarations }) } }, line, col);
+    return std__memory__Arena_alloc_node(&self->arena, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_alloc_val_compiler__ast__decl__Program(&self->arena, (compiler__ast__decl__Program){ declarations }) } }, line, col);
 }
 
 size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self) {
@@ -11137,7 +11208,7 @@ compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_op
     return assignable_match;
 }
 
-compiler__sema__types__Type* std__mem__Arena_struct_type(std__mem__Arena* self, kobel_str name, std__collections__List_compiler__sema__structs__StructField fields) {
+compiler__sema__types__Type* std__memory__Arena_struct_type(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__sema__structs__StructField fields) {
     int32_t max_align = 1;
     int32_t current_offset = 0;
     {
@@ -11183,8 +11254,8 @@ compiler__sema__types__Type* std__mem__Arena_struct_type(std__mem__Arena* self, 
     if (total_rem != 0) {
         current_offset += (max_align - total_rem);
     }
-    compiler__sema__structs__StructType* struct_info = std__mem__Arena_alloc_val_compiler__sema__structs__StructType(self, (compiler__sema__structs__StructType){ name, name, fields, std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(4), KOBEL_STR(""), false, true });
-    return std__mem__Arena_type_payload(self, compiler__sema__structs__StructType__TAG, current_offset, max_align, (compiler__sema__types__TypePayload){ .tag = 3, .u.Struct = { struct_info } });
+    compiler__sema__structs__StructType* struct_info = std__memory__Arena_alloc_val_compiler__sema__structs__StructType(self, (compiler__sema__structs__StructType){ name, name, fields, std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(4), KOBEL_STR(""), false, true });
+    return std__memory__Arena_type_payload(self, compiler__sema__structs__StructType__TAG, current_offset, max_align, (compiler__sema__types__TypePayload){ .tag = 3, .u.Struct = { struct_info } });
 }
 
 compiler__sema__enums__EnumMemberInfo* compiler__sema__enums__EnumInfo_find_member(compiler__sema__enums__EnumInfo* self, kobel_str name) {
@@ -11296,32 +11367,32 @@ compiler__sema__types__Type compiler__sema__types__Type_str(void) {
     return compiler__sema__types__Type_primitive(15);
 }
 
-compiler__sema__types__Type* std__mem__Arena_type_payload(std__mem__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data) {
-    return std__mem__Arena_alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, data, NULL });
+compiler__sema__types__Type* std__memory__Arena_type_payload(std__memory__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data) {
+    return std__memory__Arena_alloc_val_compiler__sema__types__Type(self, (compiler__sema__types__Type){ kind, size, align, data, NULL });
 }
 
-compiler__sema__types__Type* std__mem__Arena_primitive_type(std__mem__Arena* self, compiler__sema__types__Type base) {
-    return std__mem__Arena_alloc_val_compiler__sema__types__Type(self, base);
+compiler__sema__types__Type* std__memory__Arena_primitive_type(std__memory__Arena* self, compiler__sema__types__Type base) {
+    return std__memory__Arena_alloc_val_compiler__sema__types__Type(self, base);
 }
 
-compiler__sema__types__Type* std__mem__Arena_pointer_type_3_2(std__mem__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
-    compiler__sema__types__PointerType* inner = std__mem__Arena_alloc_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, false });
-    return std__mem__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
+compiler__sema__types__Type* std__memory__Arena_pointer_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
+    compiler__sema__types__PointerType* inner = std__memory__Arena_alloc_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, false });
+    return std__memory__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
 }
 
-compiler__sema__types__Type* std__mem__Arena_nullable_pointer_type(std__mem__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
-    compiler__sema__types__PointerType* inner = std__mem__Arena_alloc_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, true });
-    return std__mem__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
+compiler__sema__types__Type* std__memory__Arena_nullable_pointer_type(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
+    compiler__sema__types__PointerType* inner = std__memory__Arena_alloc_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, true });
+    return std__memory__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
 }
 
-compiler__sema__types__Type* std__mem__Arena_array_type_3_2(std__mem__Arena* self, compiler__sema__types__Type* elem, size_t length) {
-    compiler__sema__types__ArrayType* inner = std__mem__Arena_alloc_val_compiler__sema__types__ArrayType(self, (compiler__sema__types__ArrayType){ elem, length });
-    return std__mem__Arena_type_payload(self, compiler__sema__types__ArrayType__TAG, (elem->size * length), elem->align, (compiler__sema__types__TypePayload){ .tag = 2, .u.Array = { inner } });
+compiler__sema__types__Type* std__memory__Arena_array_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* elem, size_t length) {
+    compiler__sema__types__ArrayType* inner = std__memory__Arena_alloc_val_compiler__sema__types__ArrayType(self, (compiler__sema__types__ArrayType){ elem, length });
+    return std__memory__Arena_type_payload(self, compiler__sema__types__ArrayType__TAG, (elem->size * length), elem->align, (compiler__sema__types__TypePayload){ .tag = 2, .u.Array = { inner } });
 }
 
-compiler__sema__types__Type* std__mem__Arena_fn_type(std__mem__Arena* self, std__collections__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type) {
-    compiler__sema__types__FnType* inner = std__mem__Arena_alloc_val_compiler__sema__types__FnType(self, (compiler__sema__types__FnType){ param_types, return_type });
-    return std__mem__Arena_type_payload(self, compiler__sema__types__FnType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 4, .u.Fn = { inner } });
+compiler__sema__types__Type* std__memory__Arena_fn_type(std__memory__Arena* self, std__collections__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type) {
+    compiler__sema__types__FnType* inner = std__memory__Arena_alloc_val_compiler__sema__types__FnType(self, (compiler__sema__types__FnType){ param_types, return_type });
+    return std__memory__Arena_type_payload(self, compiler__sema__types__FnType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 4, .u.Fn = { inner } });
 }
 
 compiler__sema__types__PointerType* compiler__sema__types__Type_as_pointer(compiler__sema__types__Type* self) {
@@ -11734,14 +11805,14 @@ kobel_str compiler__sema__types__Type_to_str(compiler__sema__types__Type* self) 
     }
 }
 
-compiler__sema__types__Type* compiler__sema__prims__prim_with_methods(std__mem__Arena* arena, compiler__sema__types__DataType kind) {
-    compiler__sema__types__Type* t = std__mem__Arena_primitive_type(arena, compiler__sema__types__Type_primitive(kind));
-    compiler__sema__methods__PrimMethods* pm = std__mem__Arena_alloc_val_compiler__sema__methods__PrimMethods(arena, (compiler__sema__methods__PrimMethods){ std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(4) });
+compiler__sema__types__Type* compiler__sema__prims__prim_with_methods(std__memory__Arena* arena, compiler__sema__types__DataType kind) {
+    compiler__sema__types__Type* t = std__memory__Arena_primitive_type(arena, compiler__sema__types__Type_primitive(kind));
+    compiler__sema__methods__PrimMethods* pm = std__memory__Arena_alloc_val_compiler__sema__methods__PrimMethods(arena, (compiler__sema__methods__PrimMethods){ std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(4) });
     t->methods = pm;
     return t;
 }
 
-compiler__sema__prims__PrimTypes compiler__sema__prims__PrimTypes_new(std__mem__Arena* arena) {
+compiler__sema__prims__PrimTypes compiler__sema__prims__PrimTypes_new(std__memory__Arena* arena) {
     std__collections__List_ptr_compiler__sema__types__Type types = std__collections__List_ptr_compiler__sema__types__Type_new(4);
     std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&types, compiler__sema__prims__prim_with_methods(arena, 0));
     std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&types, compiler__sema__prims__prim_with_methods(arena, 1));
@@ -11937,8 +12008,8 @@ bool compiler__sema__traits__TraitInfo_has_impl(compiler__sema__traits__TraitInf
     return std__collections__List_str_contains(&self->impls, struct_name);
 }
 
-compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__mem__Arena* arena, compiler__sema__symbol__Symbol sym) {
-    return std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(arena, sym);
+compiler__sema__symbol__Symbol* compiler__sema__symbol__Symbol_box(std__memory__Arena* arena, compiler__sema__symbol__Symbol sym) {
+    return std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(arena, sym);
 }
 
 compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_lookup(compiler__sema__symbol__Scope* self, kobel_str name) {
@@ -12091,10 +12162,10 @@ compiler__sema__instance__InstanceRecord* compiler__sema__symbol__GenericReg_fin
 }
 
 compiler__sema__symbol__SymbolTable compiler__sema__symbol__SymbolTable_new(void) {
-    std__mem__Arena arena = std__mem__Arena_new(65536);
-    compiler__sema__symbol__Scope* root_scope = std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(&arena, (compiler__sema__symbol__Scope){ NULL, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), false });
+    std__memory__Arena arena = std__memory__Arena_new(65536);
+    compiler__sema__symbol__Scope* root_scope = std__memory__Arena_alloc_val_compiler__sema__symbol__Scope(&arena, (compiler__sema__symbol__Scope){ NULL, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), false });
     compiler__sema__symbol__SymbolTable st = (compiler__sema__symbol__SymbolTable){ root_scope, arena, KOBEL_STR(""), std__collections__List_ptr_compiler__sema__symbol__ModuleScope_new(4), std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_new(16), std__collections__List_compiler__sema__symbol__ImportBinding_new(4), std__collections__List_ptr_compiler__sema__enums__EnumInfo_new(4), std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_new(16), std__collections__List_ptr_compiler__sema__traits__TraitInfo_new(4), std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_new(16), std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_new(16), std__collections__List_str_new(4), std__collections__List_str_new(4), std__collections__HashMap_str_ptr_compiler__sema__types__Type_new(16), (compiler__sema__symbol__GenericReg){ std__collections__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__List_ptr_compiler__sema__template__GenTemplate_new(4), std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16), std__collections__List_ptr_compiler__sema__instance__InstanceRecord_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4) }, NULL };
-    st.prims = std__mem__Arena_alloc_val_compiler__sema__prims__PrimTypes(&arena, compiler__sema__prims__PrimTypes_new(&arena));
+    st.prims = std__memory__Arena_alloc_val_compiler__sema__prims__PrimTypes(&arena, compiler__sema__prims__PrimTypes_new(&arena));
     return st;
 }
 
@@ -12173,7 +12244,7 @@ compiler__sema__enums__EnumInfo* compiler__sema__symbol__SymbolTable_find_enum_i
 }
 
 compiler__sema__symbol__Scope* compiler__sema__symbol__SymbolTable_enter_scope(compiler__sema__symbol__SymbolTable* self, bool is_fn_boundary) {
-    compiler__sema__symbol__Scope* new_sc = std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(&self->arena, (compiler__sema__symbol__Scope){ self->current_scope, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), is_fn_boundary });
+    compiler__sema__symbol__Scope* new_sc = std__memory__Arena_alloc_val_compiler__sema__symbol__Scope(&self->arena, (compiler__sema__symbol__Scope){ self->current_scope, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), is_fn_boundary });
     self->current_scope = new_sc;
     return new_sc;
 }
@@ -12284,7 +12355,7 @@ bool compiler__sema__symbol__SymbolTable_define(compiler__sema__symbol__SymbolTa
     if (existing != NULL) {
         return false;
     }
-    compiler__sema__symbol__Symbol* sym_ptr = std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
+    compiler__sema__symbol__Symbol* sym_ptr = std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
     compiler__sema__symbol__Scope_plus_assign(self->current_scope, sym_ptr);
     return true;
 }
@@ -12357,7 +12428,7 @@ bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol
         if (compiler__sema__symbol__ModuleScope_contains(sc, sym.name)) {
             return false;
         }
-        compiler__sema__symbol__Symbol* sym_ptr = std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
+        compiler__sema__symbol__Symbol* sym_ptr = std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
         compiler__sema__symbol__ModuleScope_plus_assign(sc, sym_ptr);
         if (!str_empty(sym.c_name) && !kobel_streq(sym.c_name, sym.name)) {
             std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(&self->c_name_map, sym.c_name, sym_ptr);
@@ -12367,8 +12438,8 @@ bool compiler__sema__symbol__SymbolTable_define_in_module(compiler__sema__symbol
         }
         return true;
     }
-    compiler__sema__symbol__ModuleScope* fresh = std__mem__Arena_alloc_val_compiler__sema__symbol__ModuleScope(&self->arena, (compiler__sema__symbol__ModuleScope){ module_name, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16) });
-    compiler__sema__symbol__Symbol* sym_ptr2 = std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
+    compiler__sema__symbol__ModuleScope* fresh = std__memory__Arena_alloc_val_compiler__sema__symbol__ModuleScope(&self->arena, (compiler__sema__symbol__ModuleScope){ module_name, std__collections__List_ptr_compiler__sema__symbol__Symbol_new(4), std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_new(16) });
+    compiler__sema__symbol__Symbol* sym_ptr2 = std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(&self->arena, sym);
     compiler__sema__symbol__ModuleScope_plus_assign(fresh, sym_ptr2);
     std__collections__List_ptr_compiler__sema__symbol__ModuleScope_plus_assign(&self->modules, fresh);
     std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(&self->module_map, module_name, fresh);
@@ -12483,8 +12554,8 @@ void compiler__sema__decl__pass__DeclPass_register_template(compiler__sema__decl
                                     compiler__ast__decl__Param p = std__collections__List_compiler__ast__decl__Param_get(&f->params, i);
                                     if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
                                         compiler__sema__types__Type* prim = compiler__sema__prims__resolve_primitive_name(self->symtab.prims, im->struct_name);
-                                        compiler__ast__node__AstNode* named = std__mem__Arena_named_type(&self->arena, im->struct_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), m->line, m->col);
-                                        compiler__ast__node__AstNode* self_ty_node = ((prim != NULL) ? named : std__mem__Arena_pointer_type(&self->arena, p.is_mut, named, m->line, m->col));
+                                        compiler__ast__node__AstNode* named = std__memory__Arena_named_type(&self->arena, im->struct_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), m->line, m->col);
+                                        compiler__ast__node__AstNode* self_ty_node = ((prim != NULL) ? named : std__memory__Arena_pointer_type(&self->arena, p.is_mut, named, m->line, m->col));
                                         std__collections__List_compiler__ast__decl__Param_set(&f_mut->params, i, (compiler__ast__decl__Param){ p.name, self_ty_node, p.is_mut, p.has_val, p.default_val });
                                     }
                                     if (__for_up) {
@@ -12512,7 +12583,7 @@ void compiler__sema__decl__pass__DeclPass_register_template(compiler__sema__decl
 }
 
 compiler__sema__template__GenTemplate* compiler__sema__decl__pass__DeclPass_gen_template(compiler__sema__decl__pass__DeclPass* self, kobel_str name, compiler__ast__node__AstNode* node, bool is_method, kobel_str self_type) {
-    return std__mem__Arena_alloc_val_compiler__sema__template__GenTemplate(&self->arena, (compiler__sema__template__GenTemplate){ name, self->current_module, node, is_method, self_type });
+    return std__memory__Arena_alloc_val_compiler__sema__template__GenTemplate(&self->arena, (compiler__sema__template__GenTemplate){ name, self->current_module, node, is_method, self_type });
 }
 
 bool compiler__sema__decl__pass__DeclPass_template_in_module(compiler__sema__decl__pass__DeclPass* self, kobel_str module, kobel_str name) {
@@ -12833,11 +12904,11 @@ void compiler__sema__decl__pass__DeclPass_check_bounds(compiler__sema__decl__pas
 }
 
 compiler__sema__template__GenSubst* compiler__sema__decl__pass__DeclPass_alloc_subst(compiler__sema__decl__pass__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__node__AstNode args) {
-    return std__mem__Arena_alloc_val_compiler__sema__template__GenSubst(&self->arena, (compiler__sema__template__GenSubst){ names, args });
+    return std__memory__Arena_alloc_val_compiler__sema__template__GenSubst(&self->arena, (compiler__sema__template__GenSubst){ names, args });
 }
 
 void compiler__sema__decl__pass__DeclPass_queue_decl(compiler__sema__decl__pass__DeclPass* self, kobel_str module, compiler__ast__node__AstNode* node) {
-    compiler__ast__node__AstNode* marker = std__mem__Arena_module_decl(&self->arena, str_split_dots(module), module, node->line, node->col);
+    compiler__ast__node__AstNode* marker = std__memory__Arena_module_decl(&self->arena, str_split_dots(module), module, node->line, node->col);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&self->symtab.gen.instances, marker);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&self->symtab.gen.instances, node);
 }
@@ -12862,20 +12933,20 @@ void compiler__sema__decl__pass__DeclPass_drain_instances(compiler__sema__decl__
     }
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_interp_call(std__mem__Arena* self, kobel_str name, compiler__ast__node__AstNode* arg, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* arg, size_t line, size_t col) {
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, arg);
-    return std__mem__Arena_call(self, std__mem__Arena_identifier(self, name, line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    return std__memory__Arena_call(self, std__memory__Arena_identifier(self, name, line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_interp_concat(std__mem__Arena* self, compiler__ast__node__AstNode* a, compiler__ast__node__AstNode* b_node, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__node__AstNode* a, compiler__ast__node__AstNode* b_node, size_t line, size_t col) {
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, a);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, b_node);
-    return std__mem__Arena_call(self, std__mem__Arena_identifier(self, KOBEL_STR("kobel_concat"), line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    return std__memory__Arena_call(self, std__memory__Arena_identifier(self, KOBEL_STR("kobel_concat"), line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_interp_concat_many(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode pieces, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode pieces, size_t line, size_t col) {
     if (std__collections__List_ptr_compiler__ast__node__AstNode_empty(&pieces)) {
         return NULL;
     }
@@ -12920,67 +12991,67 @@ compiler__ast__node__AstNode* std__mem__Arena_interp_concat_many(std__mem__Arena
             }
         }
         kobel_str helper = (args.len == 2 ? KOBEL_STR("kobel_concat") : (args.len == 3 ? KOBEL_STR("kobel_concat3") : (args.len == 4 ? KOBEL_STR("kobel_concat4") : KOBEL_STR("kobel_concat5"))));
-        acc = std__mem__Arena_call(self, std__mem__Arena_identifier(self, helper, line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+        acc = std__memory__Arena_call(self, std__memory__Arena_identifier(self, helper, line, col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
         i += take;
     }
     return acc;
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_ast_type_from_type(std__mem__Arena* self, compiler__sema__types__Type* ty) {
+compiler__ast__node__AstNode* std__memory__Arena_ast_type_from_type(std__memory__Arena* self, compiler__sema__types__Type* ty) {
     if (compiler__sema__types__Type_is_enum(ty)) {
-        return std__mem__Arena_named_type(self, (*compiler__sema__types__Type_as_enum(ty)).c_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, (*compiler__sema__types__Type_as_enum(ty)).c_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     }
     if (ty->kind == 16) {
         compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ty);
-        compiler__ast__node__AstNode* base_ptr = std__mem__Arena_pointer_type(self, pt->is_mut, std__mem__Arena_ast_type_from_type(self, pt->pointee), 0, 0);
+        compiler__ast__node__AstNode* base_ptr = std__memory__Arena_pointer_type(self, pt->is_mut, std__memory__Arena_ast_type_from_type(self, pt->pointee), 0, 0);
         if (pt->is_nullable) {
-            return std__mem__Arena_nullable_type(self, base_ptr, 0, 0);
+            return std__memory__Arena_nullable_type(self, base_ptr, 0, 0);
         }
         return base_ptr;
     } else if (ty->kind == 17) {
         compiler__sema__types__ArrayType* at = compiler__sema__types__Type_as_array(ty);
-        return std__mem__Arena_array_type(self, std__mem__Arena_ast_type_from_type(self, at->elem), at->length, 0, 0);
+        return std__memory__Arena_array_type(self, std__memory__Arena_ast_type_from_type(self, at->elem), at->length, 0, 0);
     } else if (ty->kind == 18) {
         compiler__sema__structs__StructType* st_info = compiler__sema__types__Type_as_struct(ty);
         kobel_str st_name = st_info->name;
         if (st_info->c_name.len > 0) {
             st_name = st_info->c_name;
         }
-        return std__mem__Arena_named_type(self, st_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, st_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 0) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 15) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("str"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("str"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 1) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("bool"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("bool"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 2) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("char"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("char"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 3) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("i8"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("i8"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 4) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("i16"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("i16"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 5) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("i32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("i32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 6) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("i64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("i64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 7) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("isz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("isz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 8) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("u8"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("u8"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 9) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("u16"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("u16"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 10) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("u32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("u32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 11) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("u64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("u64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 12) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 13) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("f32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("f32"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else if (ty->kind == 14) {
-        return std__mem__Arena_named_type(self, KOBEL_STR("f64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("f64"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     } else {
-        return std__mem__Arena_named_type(self, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
+        return std__memory__Arena_named_type(self, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), 0, 0);
     }
 }
 
@@ -13084,18 +13155,18 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_resolve_ast_ty
     } else if (node != NULL && node->kind == compiler__ast__types__PointerType__TAG) {
         compiler__ast__types__PointerType* ptr_ast = (node)->data.u.PointerType.inner;
         compiler__sema__types__Type* pointee = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, ptr_ast->pointee);
-        return std__mem__Arena_pointer_type_3_2(&self->arena, pointee, ptr_ast->is_mut);
+        return std__memory__Arena_pointer_type_3_2(&self->arena, pointee, ptr_ast->is_mut);
     } else if (node != NULL && node->kind == compiler__ast__types__ArrayType__TAG) {
         compiler__ast__types__ArrayType* arr_ast = (node)->data.u.ArrayType.inner;
         compiler__sema__types__Type* elem = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, arr_ast->element_type);
-        return std__mem__Arena_array_type_3_2(&self->arena, elem, arr_ast->size);
+        return std__memory__Arena_array_type_3_2(&self->arena, elem, arr_ast->size);
     } else if (node != NULL && node->kind == compiler__ast__types__NullableType__TAG) {
         compiler__ast__types__NullableType* null_ast = (node)->data.u.NullableType.inner;
         compiler__sema__types__Type* inner_ty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, null_ast->inner);
         compiler__sema__types__Type* res_ty = inner_ty;
         if (inner_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(inner_ty);
-            res_ty = std__mem__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+            res_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
         } else {
             compiler__sema__decl__pass__DeclPass_report_error(self, node, KOBEL_STR("Nullable modifier '?' is only supported on pointer types"));
         }
@@ -13266,7 +13337,7 @@ void compiler__sema__decl__pass__trait_put_method(std__collections__List_ptr_com
 }
 
 compiler__sema__decl__pass__DeclPass compiler__sema__decl__pass__DeclPass_new(void) {
-    return (compiler__sema__decl__pass__DeclPass){ compiler__sema__symbol__SymbolTable_new(), std__mem__Arena_new(65536), KOBEL_STR(""), std__collections__List_str_new(4), false, NULL, std__collections__List_str_new(4), std__collections__List_ptr_compiler__sema__types__Type_new(4), NULL, NULL };
+    return (compiler__sema__decl__pass__DeclPass){ compiler__sema__symbol__SymbolTable_new(), std__memory__Arena_new(65536), KOBEL_STR(""), std__collections__List_str_new(4), false, NULL, std__collections__List_str_new(4), std__collections__List_ptr_compiler__sema__types__Type_new(4), NULL, NULL };
 }
 
 compiler__sema__prims__PrimTypes* compiler__sema__decl__pass__DeclPass_prims(compiler__sema__decl__pass__DeclPass* self) {
@@ -13420,7 +13491,7 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
                     compiler__ast__decl__Param p = std__collections__List_compiler__ast__decl__Param_at(&f->params, __for_i);
                     compiler__sema__types__Type* pt = compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self));
                     if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
-                        pt = std__mem__Arena_pointer_type_3_2(&self->arena, st_type, p.is_mut);
+                        pt = std__memory__Arena_pointer_type_3_2(&self->arena, st_type, p.is_mut);
                     } else if (p.type_node != NULL) {
                         pt = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, p.type_node);
                     } else {
@@ -13433,11 +13504,11 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
             compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self))));
             compiler__sema__types__Type* rec_sig = (((compiler__sema__instance__InstanceRecord*)m_node->instance) != NULL ? ((compiler__sema__instance__InstanceRecord*)m_node->instance)->sig : NULL);
             compiler__sema__types__Type* fn_type = rec_sig;
-            if (fn_type == NULL) fn_type = std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
+            if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
             kobel_str m_c_name = compiler__sema__decl__pass__method_c_name(kobel_concat3(st_c_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), used_names);
             std__collections__List_str_plus_assign(&used_names, m_c_name);
             bool is_static = (std__collections__List_compiler__ast__decl__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__decl__Param_get(&f->params, 0).name, KOBEL_STR("self")));
-            compiler__sema__methods__MethodInfo* mi = std__mem__Arena_alloc_val_compiler__sema__methods__MethodInfo(&self->arena, (compiler__sema__methods__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->is_op, is_static });
+            compiler__sema__methods__MethodInfo* mi = std__memory__Arena_alloc_val_compiler__sema__methods__MethodInfo(&self->arena, (compiler__sema__methods__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->is_op, is_static });
             std__collections__List_ptr_compiler__sema__methods__MethodInfo_plus_assign(&st_info->methods, mi);
             f->name = m_c_name;
             __for_i = (__for_i + 1);
@@ -13610,7 +13681,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_ret
         if ((f->body != NULL && f->body->kind == compiler__ast__stmt__ExprStmt__TAG && (es = f->body->data.u.ExprStmt.inner, 1)) && (es->expr != NULL)) {
             compiler__sema__types__Type* ty = compiler__sema__decl__pass__DeclPass_infer_expr_type_quick(self, f, es->expr);
             if (ty != NULL) {
-                f->return_type = std__mem__Arena_ast_type_from_type(&self->arena, ty);
+                f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, ty);
                 return ty;
             }
             return NULL;
@@ -13624,7 +13695,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_ret
                 compiler__sema__decl__pass__DeclPass_collect_return_exprs(self, f->body, &rets);
             }
             if (std__collections__List_ptr_compiler__ast__node__AstNode_empty(&rets)) {
-                f->return_type = std__mem__Arena_named_type(&self->arena, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), (*f->body).line, (*f->body).col);
+                f->return_type = std__memory__Arena_named_type(&self->arena, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), (*f->body).line, (*f->body).col);
                 return compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self));
             }
             compiler__sema__types__Type* first_ty = NULL;
@@ -13650,7 +13721,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_decl_ret
                 }
             }
             if (first_ty != NULL) {
-                f->return_type = std__mem__Arena_ast_type_from_type(&self->arena, first_ty);
+                f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, first_ty);
                 return first_ty;
             }
         }
@@ -13694,7 +13765,7 @@ void compiler__sema__decl__pass__DeclPass_collect_prim_impl(compiler__sema__decl
                     compiler__sema__types__Type* pt = compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self));
                     if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
                         pt = prim;
-                        compiler__ast__node__AstNode* rt = std__mem__Arena_named_type(&self->arena, prim_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                        compiler__ast__node__AstNode* rt = std__memory__Arena_named_type(&self->arena, prim_name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                         std__collections__List_compiler__ast__decl__Param_set(&f->params, i, (compiler__ast__decl__Param){ p.name, rt, p.is_mut, p.has_val, p.default_val });
                     } else if (p.type_node != NULL) {
                         pt = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, p.type_node);
@@ -13717,13 +13788,13 @@ void compiler__sema__decl__pass__DeclPass_collect_prim_impl(compiler__sema__decl
                 }
             }
             compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self))));
-            compiler__sema__types__Type* fn_type = std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
+            compiler__sema__types__Type* fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
             kobel_str m_c_name = compiler__sema__decl__pass__method_c_name(kobel_concat3(prim_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), used_names);
             std__collections__List_str_plus_assign(&used_names, m_c_name);
             if (compiler__sema__symbol__SymbolTable_find_prim_method_arity(&self->symtab, prim->kind, f->name, f->params.len) != NULL) {
                 compiler__sema__decl__pass__DeclPass_report_error(self, m_node, kobel_concat3(kobel_concat5(KOBEL_STR("Duplicate method '"), f->name, KOBEL_STR("' with "), usz_to_str(f->params.len), KOBEL_STR(" parameter(s) for built-in type '")), prim_name, KOBEL_STR("'")));
             }
-            compiler__sema__methods__MethodInfo* mi = std__mem__Arena_alloc_val_compiler__sema__methods__MethodInfo(&self->arena, (compiler__sema__methods__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->is_op, false });
+            compiler__sema__methods__MethodInfo* mi = std__memory__Arena_alloc_val_compiler__sema__methods__MethodInfo(&self->arena, (compiler__sema__methods__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->is_op, false });
             compiler__sema__symbol__SymbolTable_register_prim_method(&self->symtab, prim, mi);
             f->name = m_c_name;
             __for_i = (__for_i + 1);
@@ -13914,7 +13985,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
     }
     compiler__ast__decl__StructDecl* decl = compiler__ast__node__AstNode_as_struct_decl(tmpl->node);
     kobel_str prev_mod = compiler__sema__decl__pass__DeclPass_enter_module(self, tmpl->module);
-    compiler__sema__types__Type* s_type = std__mem__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__sema__structs__StructField_new(4));
+    compiler__sema__types__Type* s_type = std__memory__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(s_type)).c_name = cname;
     (*compiler__sema__types__Type_as_struct_mut(s_type)).module = tmpl->module;
     compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__Symbol_box(&self->arena, (compiler__sema__symbol__Symbol){ cname, cname, 4, s_type, false, decl->is_pub, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL }));
@@ -13973,7 +14044,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
                     }
                     compiler__ast__decl__FnDecl* mf = compiler__ast__node__AstNode_as_fn_decl(m);
                     compiler__ast__node__AstNode* mview = compiler__sema__decl__pass__DeclPass_make_fn_view(self, m, impl_tmpl, args, arg_asts, mf->name);
-                    compiler__sema__instance__InstanceRecord* mrec = std__mem__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
+                    compiler__sema__instance__InstanceRecord* mrec = std__memory__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
                     mrec->sig = compiler__sema__decl__pass__DeclPass_make_fn_sig(self, m, impl_tmpl, args, s_type);
                     mview->instance = (uint8_t*)mrec;
                     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&methods, mview);
@@ -13987,13 +14058,13 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
                 while (__for_i < __for_n) {
                     compiler__ast__decl__AssocBinding b = std__collections__List_compiler__ast__decl__AssocBinding_at(&im->assoc_bindings, __for_i);
                     compiler__sema__types__Type* bty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, b.type_node);
-                    std__collections__List_compiler__ast__decl__AssocBinding_plus_assign(&bindings, (compiler__ast__decl__AssocBinding){ b.name, std__mem__Arena_ast_type_from_type(&self->arena, bty) });
+                    std__collections__List_compiler__ast__decl__AssocBinding_plus_assign(&bindings, (compiler__ast__decl__AssocBinding){ b.name, std__memory__Arena_ast_type_from_type(&self->arena, bty) });
                     __for_i = (__for_i + 1);
                 }
             }
             compiler__sema__decl__pass__DeclPass_pop_subst(self, mark);
             self->current_self_type = NULL;
-            compiler__ast__node__AstNode* iview = std__mem__Arena_impl_decl(&self->arena, cname, std__collections__List_compiler__ast__decl__GenericParam_new(4), im->trait_name, methods, (*impl_tmpl->node).line, (*impl_tmpl->node).col, bindings);
+            compiler__ast__node__AstNode* iview = std__memory__Arena_impl_decl(&self->arena, cname, std__collections__List_compiler__ast__decl__GenericParam_new(4), im->trait_name, methods, (*impl_tmpl->node).line, (*impl_tmpl->node).col, bindings);
             compiler__sema__decl__pass__DeclPass_collect_impl(self, iview);
             compiler__sema__decl__pass__DeclPass_queue_decl(self, impl_tmpl->module, iview);
             compiler__sema__decl__pass__DeclPass_leave_module(self, prev_mod2);
@@ -14002,7 +14073,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instantiate_st
     }
     compiler__ast__node__AstNode* view = compiler__sema__decl__pass__DeclPass_struct_decl_view(self, cname, fields, decl->is_pub, (*tmpl->node).line, (*tmpl->node).col);
     compiler__sema__decl__pass__DeclPass_queue_decl(self, tmpl->module, view);
-    compiler__sema__instance__InstanceRecord* rec = std__mem__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 0, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
+    compiler__sema__instance__InstanceRecord* rec = std__memory__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 0, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
     compiler__sema__symbol__GenericReg_add_record(&self->symtab.gen, rec);
     compiler__sema__decl__pass__DeclPass_leave_module(self, prev_mod);
     compiler__sema__symbol__Symbol* sym = compiler__sema__decl__pass__DeclPass_find_instance_symbol(self, cname);
@@ -14025,7 +14096,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_make_fn_view(
             compiler__ast__node__AstNode* pt = NULL;
             if (p.type_node != NULL) {
                 compiler__sema__types__Type* ty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, p.type_node);
-                pt = std__mem__Arena_ast_type_from_type(&self->arena, ty);
+                pt = std__memory__Arena_ast_type_from_type(&self->arena, ty);
             }
             compiler__ast__node__AstNode* dflt = ((p.default_val != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, p.default_val, compiler__sema__decl__pass__DeclPass_alloc_subst(self, compiler__sema__template__GenTemplate_param_names(tmpl), arg_asts)) : NULL);
             std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p.name, pt, p.is_mut, p.has_val, dflt });
@@ -14035,10 +14106,10 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_make_fn_view(
     compiler__ast__node__AstNode* rt = NULL;
     if (t->return_type != NULL) {
         compiler__sema__types__Type* rty = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, t->return_type);
-        rt = std__mem__Arena_ast_type_from_type(&self->arena, rty);
+        rt = std__memory__Arena_ast_type_from_type(&self->arena, rty);
     }
     compiler__sema__decl__pass__DeclPass_pop_subst(self, mark);
-    compiler__ast__node__AstNode* view = std__mem__Arena_fn_decl(&self->arena, cname, std__collections__List_compiler__ast__decl__GenericParam_new(4), params, rt, t->body, t->is_pub, (*tmpl->node).line, (*tmpl->node).col, t->is_op);
+    compiler__ast__node__AstNode* view = std__memory__Arena_fn_decl(&self->arena, cname, std__collections__List_compiler__ast__decl__GenericParam_new(4), params, rt, t->body, t->is_pub, (*tmpl->node).line, (*tmpl->node).col, t->is_op);
     compiler__ast__decl__FnDecl* view_f = (compiler__ast__decl__FnDecl*)compiler__ast__node__AstNode_as_fn_decl(view);
     view_f->module = self->current_module;
     return view;
@@ -14056,7 +14127,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_make_fn_sig(co
             compiler__ast__decl__Param p = std__collections__List_compiler__ast__decl__Param_at(&t->params, __for_i);
             if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
                 if (receiver != NULL) {
-                    std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&param_types, std__mem__Arena_pointer_type_3_2(&self->arena, receiver, p.is_mut));
+                    std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&param_types, std__memory__Arena_pointer_type_3_2(&self->arena, receiver, p.is_mut));
                 } else {
                     std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&param_types, compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self)));
                 }
@@ -14081,7 +14152,7 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_make_fn_sig(co
         ret_type = compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, t->return_type);
     }
     compiler__sema__decl__pass__DeclPass_pop_subst(self, mark);
-    return std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
+    return std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
 }
 
 compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_instance_receiver_type(compiler__sema__decl__pass__DeclPass* self, compiler__sema__template__GenTemplate* tmpl, std__collections__List_ptr_compiler__sema__types__Type args) {
@@ -14111,11 +14182,11 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_struct_decl_v
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__sema__structs__StructField f = std__collections__List_compiler__sema__structs__StructField_at(&fields, __for_i);
-            std__collections__List_compiler__ast__decl__StructField_plus_assign(&ast_fields, (compiler__ast__decl__StructField){ f.name, std__mem__Arena_ast_type_from_type(&self->arena, f.type_ptr), f.is_pub, f.default_val });
+            std__collections__List_compiler__ast__decl__StructField_plus_assign(&ast_fields, (compiler__ast__decl__StructField){ f.name, std__memory__Arena_ast_type_from_type(&self->arena, f.type_ptr), f.is_pub, f.default_val });
             __for_i = (__for_i + 1);
         }
     }
-    return std__mem__Arena_struct_decl(&self->arena, name, std__collections__List_compiler__ast__decl__GenericParam_new(4), ast_fields, is_pub, line, col);
+    return std__memory__Arena_struct_decl(&self->arena, name, std__collections__List_compiler__ast__decl__GenericParam_new(4), ast_fields, is_pub, line, col);
 }
 
 void compiler__sema__decl__pass__DeclPass_push_subst(compiler__sema__decl__pass__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__sema__types__Type args) {
@@ -14245,7 +14316,7 @@ kobel_str compiler__sema__decl__pass__DeclPass_instantiate_fn(compiler__sema__de
     compiler__sema__types__Type* sig = compiler__sema__decl__pass__DeclPass_make_fn_sig(self, tmpl->node, tmpl, args, receiver);
     compiler__sema__decl__pass__DeclPass_collect_fn_as(self, view, cname, sig);
     compiler__sema__decl__pass__DeclPass_queue_decl(self, tmpl->module, view);
-    compiler__sema__instance__InstanceRecord* rec = std__mem__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
+    compiler__sema__instance__InstanceRecord* rec = std__memory__Arena_alloc_val_compiler__sema__instance__InstanceRecord(&self->arena, (compiler__sema__instance__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_new(16), NULL });
     rec->sig = sig;
     view->instance = (uint8_t*)rec;
     compiler__sema__symbol__GenericReg_add_record(&self->symtab.gen, rec);
@@ -14267,7 +14338,7 @@ void compiler__sema__decl__pass__DeclPass_collect_fn_as(compiler__sema__decl__pa
     }
     compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self)));
     compiler__sema__types__Type* fn_type = sig;
-    if (fn_type == NULL) fn_type = std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
+    if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
     compiler__sema__symbol__GenericReg_add_inst(&self->symtab.gen, compiler__sema__symbol__Symbol_box(&self->arena, (compiler__sema__symbol__Symbol){ final_name, final_name, 3, fn_type, false, f->is_pub, node->line, node->col, node, NULL }));
     f->name = final_name;
 }
@@ -14285,7 +14356,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_type(co
     }
     compiler__sema__instance__AnnEntry* e = compiler__sema__decl__pass__DeclPass_mat_ann(self, node);
     if (e != NULL && e->ty != NULL) {
-        return std__mem__Arena_ast_type_from_type(&self->arena, e->ty);
+        return std__memory__Arena_ast_type_from_type(&self->arena, e->ty);
     }
     compiler__ast__node__AstNode* target = node;
     if (target != NULL && target->kind == compiler__ast__types__NamedType__TAG) {
@@ -14308,7 +14379,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_type(co
                     }
                 }
                 compiler__sema__types__Type* cty = compiler__sema__decl__pass__DeclPass_instantiate_struct(self, tmpl, args);
-                return std__mem__Arena_named_type(&self->arena, (*compiler__sema__types__Type_as_struct(cty)).name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                return std__memory__Arena_named_type(&self->arena, (*compiler__sema__types__Type_as_struct(cty)).name, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
             }
         }
         std__collections__List_ptr_compiler__ast__node__AstNode targs = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
@@ -14321,18 +14392,18 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_type(co
                 __for_i = (__for_i + 1);
             }
         }
-        return std__mem__Arena_named_type(&self->arena, nt->name, targs, node->line, node->col);
+        return std__memory__Arena_named_type(&self->arena, nt->name, targs, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__types__PointerType__TAG) {
         compiler__ast__types__PointerType* pt = (target)->data.u.PointerType.inner;
-        return std__mem__Arena_pointer_type(&self->arena, pt->is_mut, compiler__sema__decl__pass__DeclPass_clone_type(self, pt->pointee, subst), node->line, node->col);
+        return std__memory__Arena_pointer_type(&self->arena, pt->is_mut, compiler__sema__decl__pass__DeclPass_clone_type(self, pt->pointee, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__types__ArrayType__TAG) {
         compiler__ast__types__ArrayType* at = (target)->data.u.ArrayType.inner;
-        return std__mem__Arena_array_type(&self->arena, compiler__sema__decl__pass__DeclPass_clone_type(self, at->element_type, subst), at->size, node->line, node->col);
+        return std__memory__Arena_array_type(&self->arena, compiler__sema__decl__pass__DeclPass_clone_type(self, at->element_type, subst), at->size, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__types__NullableType__TAG) {
         compiler__ast__types__NullableType* nt = (target)->data.u.NullableType.inner;
-        return std__mem__Arena_nullable_type(&self->arena, compiler__sema__decl__pass__DeclPass_clone_type(self, nt->inner, subst), node->line, node->col);
+        return std__memory__Arena_nullable_type(&self->arena, compiler__sema__decl__pass__DeclPass_clone_type(self, nt->inner, subst), node->line, node->col);
     } else {
-        return std__mem__Arena_named_type(&self->arena, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        return std__memory__Arena_named_type(&self->arena, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     }
 }
 
@@ -14351,16 +14422,16 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
     compiler__ast__node__AstNode* out;
     if (target != NULL && target->kind == compiler__ast__expr__LiteralExpr__TAG) {
         compiler__ast__expr__LiteralExpr* l = (target)->data.u.LiteralExpr.inner;
-        out = std__mem__Arena_literal(&self->arena, l->literal_kind, l->raw_text, node->line, node->col);
+        out = std__memory__Arena_literal(&self->arena, l->literal_kind, l->raw_text, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__IdentifierExpr__TAG) {
         compiler__ast__expr__IdentifierExpr* id = (target)->data.u.IdentifierExpr.inner;
-        out = std__mem__Arena_identifier(&self->arena, ((e != NULL && e->has_ident_name) ? e->ident_name : id->name), node->line, node->col);
+        out = std__memory__Arena_identifier(&self->arena, ((e != NULL && e->has_ident_name) ? e->ident_name : id->name), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__BinaryExpr__TAG) {
         compiler__ast__expr__BinaryExpr* b = (target)->data.u.BinaryExpr.inner;
-        out = std__mem__Arena_binary(&self->arena, b->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, b->left, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, b->right, subst), node->line, node->col);
+        out = std__memory__Arena_binary(&self->arena, b->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, b->left, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, b->right, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__UnaryExpr__TAG) {
         compiler__ast__expr__UnaryExpr* u = (target)->data.u.UnaryExpr.inner;
-        out = std__mem__Arena_unary(&self->arena, u->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, u->operand, subst), node->line, node->col, u->is_postfix);
+        out = std__memory__Arena_unary(&self->arena, u->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, u->operand, subst), node->line, node->col, u->is_postfix);
     } else if (target != NULL && target->kind == compiler__ast__expr__CallExpr__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__expr__CallExpr* target = (compiler__ast__expr__CallExpr*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.CallExpr.inner);
@@ -14370,21 +14441,21 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
         compiler__ast__node__AstNode* obj_src = (e != NULL ? e->obj_replace : NULL);
         if (obj_src == NULL) obj_src = m->object;
         compiler__ast__node__AstNode* cloned_obj = compiler__sema__decl__pass__DeclPass_clone_expr(self, obj_src, subst);
-        compiler__ast__node__AstNode* res = (m->is_safe ? std__mem__Arena_safe_member(&self->arena, cloned_obj, m->member, node->line, node->col) : std__mem__Arena_member(&self->arena, cloned_obj, m->member, node->line, node->col));
+        compiler__ast__node__AstNode* res = (m->is_safe ? std__memory__Arena_safe_member(&self->arena, cloned_obj, m->member, node->line, node->col) : std__memory__Arena_member(&self->arena, cloned_obj, m->member, node->line, node->col));
         out = res;
         goto __when_end_32;
     } else if (target != NULL && target->kind == compiler__ast__expr__IndexExpr__TAG) {
         compiler__ast__expr__IndexExpr* ix = (target)->data.u.IndexExpr.inner;
-        out = std__mem__Arena_index(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
+        out = std__memory__Arena_index(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__AssignExpr__TAG) {
         compiler__ast__expr__AssignExpr* a = (target)->data.u.AssignExpr.inner;
-        out = std__mem__Arena_compound_assign(&self->arena, a->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, a->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, a->value, subst), node->line, node->col);
+        out = std__memory__Arena_compound_assign(&self->arena, a->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, a->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, a->value, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__UpdateExpr__TAG) {
         compiler__ast__expr__UpdateExpr* u = (target)->data.u.UpdateExpr.inner;
-        out = std__mem__Arena_update(&self->arena, u->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, u->target, subst), node->line, node->col);
+        out = std__memory__Arena_update(&self->arena, u->op, compiler__sema__decl__pass__DeclPass_clone_expr(self, u->target, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__CastExpr__TAG) {
         compiler__ast__expr__CastExpr* cst = (target)->data.u.CastExpr.inner;
-        compiler__ast__node__AstNode* cloned_cst = std__mem__Arena_cast(&self->arena, ((cst->expr != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, cst->expr, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_type(self, cst->target_type, subst), cst->is_safe, node->line, node->col);
+        compiler__ast__node__AstNode* cloned_cst = std__memory__Arena_cast(&self->arena, ((cst->expr != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, cst->expr, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_type(self, cst->target_type, subst), cst->is_safe, node->line, node->col);
         compiler__ast__expr__CastExpr* cloned_cast = compiler__ast__node__AstNode_as_cast_expr(cloned_cst);
         cloned_cast->tag_field = cst->tag_field;
         cloned_cast->base_c_name = cst->base_c_name;
@@ -14396,10 +14467,10 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
         goto __when_end_32;
     } else if (target != NULL && target->kind == compiler__ast__expr__GroupExpr__TAG) {
         compiler__ast__expr__GroupExpr* g = (target)->data.u.GroupExpr.inner;
-        out = std__mem__Arena_group(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, g->expr, subst), node->line, node->col);
+        out = std__memory__Arena_group(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, g->expr, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__IfExpr__TAG) {
         compiler__ast__expr__IfExpr* ie = (target)->data.u.IfExpr.inner;
-        out = std__mem__Arena_if_expr(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->condition, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->then_branch, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->else_branch, subst), node->line, node->col);
+        out = std__memory__Arena_if_expr(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->condition, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->then_branch, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ie->else_branch, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__ArrayLiteralExpr__TAG) {
         compiler__ast__expr__ArrayLiteralExpr* al = (target)->data.u.ArrayLiteralExpr.inner;
         kobel_str lname = al->list_struct_name;
@@ -14412,19 +14483,19 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
                 enode = compiler__sema__decl__pass__DeclPass_clone_type(self, e->elem_node, subst);
             }
         }
-        out = std__mem__Arena_list_literal(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode, node->line, node->col);
+        out = std__memory__Arena_list_literal(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode, node->line, node->col);
         goto __when_end_32;
     } else if (target != NULL && target->kind == compiler__ast__expr__WhenExpr__TAG) {
         compiler__ast__expr__WhenExpr* we = (target)->data.u.WhenExpr.inner;
-        out = std__mem__Arena_when_expr(&self->arena, ((we->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_when_arms(self, node, subst), node->line, node->col);
+        out = std__memory__Arena_when_expr(&self->arena, ((we->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_when_arms(self, node, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__InterpExpr__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__expr__InterpExpr* target = (compiler__ast__expr__InterpExpr*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.InterpExpr.inner);
-        out = std__mem__Arena_interp(&self->arena, compiler__sema__decl__pass__DeclPass_clone_interp_parts(self, node, subst), node->line, node->col);
+        out = std__memory__Arena_interp(&self->arena, compiler__sema__decl__pass__DeclPass_clone_interp_parts(self, node, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__IsExpr__TAG) {
         compiler__ast__expr__IsExpr* is_e = (target)->data.u.IsExpr.inner;
         compiler__ast__node__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, is_e->expr, subst) : NULL);
-        compiler__ast__node__AstNode* res_is = std__mem__Arena_is_expr(&self->arena, expr_clone, compiler__sema__decl__pass__DeclPass_clone_type(self, is_e->target_type, subst), node->line, node->col);
+        compiler__ast__node__AstNode* res_is = std__memory__Arena_is_expr(&self->arena, expr_clone, compiler__sema__decl__pass__DeclPass_clone_type(self, is_e->target_type, subst), node->line, node->col);
         if (!str_empty(is_e->alias)) {
             compiler__ast__expr__IsExpr* res_e = compiler__ast__node__AstNode_as_is_expr(res_is);
             res_e->alias = is_e->alias;
@@ -14434,15 +14505,15 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
         goto __when_end_32;
     } else if (target != NULL && target->kind == compiler__ast__expr__StructCtorExpr__TAG) {
         compiler__ast__expr__StructCtorExpr* sc = (target)->data.u.StructCtorExpr.inner;
-        out = std__mem__Arena_struct_ctor(&self->arena, sc->c_name, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, sc->args, subst), node->line, node->col);
+        out = std__memory__Arena_struct_ctor(&self->arena, sc->c_name, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, sc->args, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__EnumCtorExpr__TAG) {
         compiler__ast__expr__EnumCtorExpr* ec = (target)->data.u.EnumCtorExpr.inner;
-        out = std__mem__Arena_enum_ctor(&self->arena, ec->c_name, ec->tag_field, ec->tag_value, ec->payload_path, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, ec->args, subst), node->line, node->col);
+        out = std__memory__Arena_enum_ctor(&self->arena, ec->c_name, ec->tag_field, ec->tag_value, ec->payload_path, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, ec->args, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__expr__SizeOfParam__TAG) {
         compiler__ast__expr__SizeOfParam* sop = (target)->data.u.SizeOfParam.inner;
-        out = std__mem__Arena_size_of_param(&self->arena, sop->param_index, sop->size_text, node->line, node->col);
+        out = std__memory__Arena_size_of_param(&self->arena, sop->param_index, sop->size_text, node->line, node->col);
     } else {
-        out = std__mem__Arena_identifier(&self->arena, KOBEL_STR("<unsupported-expr>"), node->line, node->col);
+        out = std__memory__Arena_identifier(&self->arena, KOBEL_STR("<unsupported-expr>"), node->line, node->col);
     }
     __when_end_32:;
     if (e != NULL) {
@@ -14464,7 +14535,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_call_ex
     }
     compiler__ast__expr__CallExpr* c = compiler__ast__node__AstNode_as_call_expr(node);
     std__collections__List_ptr_compiler__ast__node__AstNode args = compiler__sema__decl__pass__DeclPass_clone_expr_list(self, c->args, subst);
-    return std__mem__Arena_call(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, c->callee, subst), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    return std__memory__Arena_call(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, c->callee, subst), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_size_query(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__template__GenSubst* subst) {
@@ -14480,7 +14551,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_size_qu
     if (sa == NULL) {
         return NULL;
     }
-    return std__mem__Arena_literal(&self->arena, 0, usz_to_str(compiler__sema__decl__pass__DeclPass_ast_type_size(self, sa)), node->line, node->col);
+    return std__memory__Arena_literal(&self->arena, 0, usz_to_str(compiler__sema__decl__pass__DeclPass_ast_type_size(self, sa)), node->line, node->col);
 }
 
 compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_template_call(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__sema__template__GenSubst* subst) {
@@ -14510,10 +14581,10 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_templat
                 }
             }
             kobel_str cname = compiler__sema__decl__pass__DeclPass_instantiate_fn(self, ft, targs);
-            compiler__ast__node__AstNode* call_node = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+            compiler__ast__node__AstNode* call_node = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
             if (mem->is_safe) {
-                compiler__ast__node__AstNode* cond = std__mem__Arena_binary(&self->arena, 22, mem_obj, std__mem__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col), node->line, node->col);
-                return std__mem__Arena_if_expr(&self->arena, cond, call_node, std__mem__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col), node->line, node->col);
+                compiler__ast__node__AstNode* cond = std__memory__Arena_binary(&self->arena, 22, mem_obj, std__memory__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col), node->line, node->col);
+                return std__memory__Arena_if_expr(&self->arena, cond, call_node, std__memory__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col), node->line, node->col);
             }
             return call_node;
         }
@@ -14535,7 +14606,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_templat
                         __for_i = (__for_i + 1);
                     }
                 }
-                return std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), cargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                return std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), cargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
             }
             compiler__sema__template__GenTemplate* st = compiler__sema__decl__pass__DeclPass_find_struct_template(self, cid->name);
             if (st != NULL) {
@@ -14551,7 +14622,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_templat
                         __for_i = (__for_i + 1);
                     }
                 }
-                return std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, (*compiler__sema__types__Type_as_struct(cty)).name, node->line, node->col), cargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                return std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, (*compiler__sema__types__Type_as_struct(cty)).name, node->line, node->col), cargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
             }
         }
     }
@@ -14639,15 +14710,15 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_stmt(co
                 __for_i = (__for_i + 1);
             }
         }
-        return std__mem__Arena_block_stmt(&self->arena, ss, node->line, node->col);
+        return std__memory__Arena_block_stmt(&self->arena, ss, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ExprStmt__TAG) {
         compiler__ast__stmt__ExprStmt* e = (target)->data.u.ExprStmt.inner;
-        return std__mem__Arena_expr_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, e->expr, subst), node->line, node->col);
+        return std__memory__Arena_expr_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, e->expr, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__VarDeclStmt__TAG) {
         compiler__ast__stmt__VarDeclStmt* v = (target)->data.u.VarDeclStmt.inner;
         compiler__ast__node__AstNode* ta = ((v->type_annotation != NULL) ? compiler__sema__decl__pass__DeclPass_clone_type(self, v->type_annotation, subst) : NULL);
         if ((se != NULL && se->var_ty != NULL) && (ta == NULL)) {
-            ta = std__mem__Arena_ast_type_from_type(&self->arena, se->var_ty);
+            ta = std__memory__Arena_ast_type_from_type(&self->arena, se->var_ty);
         }
         compiler__ast__node__AstNode* init_src = v->initializer;
         if (se != NULL && se->init_override != NULL) {
@@ -14657,30 +14728,30 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_stmt(co
         if ((ta != NULL) && (init != NULL)) {
             compiler__sema__decl__pass__DeclPass_propagate_target_type(self, ta, init);
         }
-        return std__mem__Arena_var_decl(&self->arena, v->is_mut, v->name, ta, init, node->line, node->col);
+        return std__memory__Arena_var_decl(&self->arena, v->is_mut, v->name, ta, init, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__IfStmt__TAG) {
         compiler__ast__stmt__IfStmt* s = (target)->data.u.IfStmt.inner;
-        return std__mem__Arena_if_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, s->condition, subst), compiler__sema__decl__pass__DeclPass_clone_stmt(self, s->then_branch, subst), ((s->else_branch != NULL) ? compiler__sema__decl__pass__DeclPass_clone_stmt(self, s->else_branch, subst) : NULL), node->line, node->col);
+        return std__memory__Arena_if_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, s->condition, subst), compiler__sema__decl__pass__DeclPass_clone_stmt(self, s->then_branch, subst), ((s->else_branch != NULL) ? compiler__sema__decl__pass__DeclPass_clone_stmt(self, s->else_branch, subst) : NULL), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__WhileStmt__TAG) {
         compiler__ast__stmt__WhileStmt* w = (target)->data.u.WhileStmt.inner;
-        return std__mem__Arena_while_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, w->condition, subst), compiler__sema__decl__pass__DeclPass_clone_stmt(self, w->body, subst), node->line, node->col);
+        return std__memory__Arena_while_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, w->condition, subst), compiler__sema__decl__pass__DeclPass_clone_stmt(self, w->body, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ForStmt__TAG) {
         compiler__ast__stmt__ForStmt* f = (target)->data.u.ForStmt.inner;
-        return std__mem__Arena_for_stmt(&self->arena, f->var_name, f->is_range, f->is_open, f->is_half_open, ((f->iterable != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->iterable, subst) : NULL), ((f->range_start != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->range_start, subst) : NULL), ((f->range_end != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->range_end, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_stmt(self, f->body, subst), node->line, node->col);
+        return std__memory__Arena_for_stmt(&self->arena, f->var_name, f->is_range, f->is_open, f->is_half_open, ((f->iterable != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->iterable, subst) : NULL), ((f->range_start != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->range_start, subst) : NULL), ((f->range_end != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, f->range_end, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_stmt(self, f->body, subst), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ReturnStmt__TAG) {
         compiler__ast__stmt__ReturnStmt* r = (target)->data.u.ReturnStmt.inner;
-        return std__mem__Arena_return_stmt(&self->arena, ((r->value != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, r->value, subst) : NULL), node->line, node->col);
+        return std__memory__Arena_return_stmt(&self->arena, ((r->value != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, r->value, subst) : NULL), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__YieldStmt__TAG) {
         compiler__ast__stmt__YieldStmt* y = (target)->data.u.YieldStmt.inner;
-        return std__mem__Arena_yield_stmt(&self->arena, ((y->value != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, y->value, subst) : NULL), node->line, node->col);
+        return std__memory__Arena_yield_stmt(&self->arena, ((y->value != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, y->value, subst) : NULL), node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__BreakStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__BreakStmt* target = (compiler__ast__stmt__BreakStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.BreakStmt.inner);
-        return std__mem__Arena_break_stmt(&self->arena, node->line, node->col);
+        return std__memory__Arena_break_stmt(&self->arena, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ContinueStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__ContinueStmt* target = (compiler__ast__stmt__ContinueStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.ContinueStmt.inner);
-        return std__mem__Arena_continue_stmt(&self->arena, node->line, node->col);
+        return std__memory__Arena_continue_stmt(&self->arena, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__WhenStmt__TAG) {
         compiler__ast__stmt__WhenStmt* w = (target)->data.u.WhenStmt.inner;
         std__collections__List_compiler__ast__stmt__WhenStmtArm arms = std__collections__List_compiler__ast__stmt__WhenStmtArm_new(4);
@@ -14703,10 +14774,10 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_stmt(co
                 __for_i = (__for_i + 1);
             }
         }
-        return std__mem__Arena_when_stmt(&self->arena, ((w->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, w->condition, subst) : NULL), arms, node->line, node->col);
+        return std__memory__Arena_when_stmt(&self->arena, ((w->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, w->condition, subst) : NULL), arms, node->line, node->col);
     } else if (target != NULL && target->kind == compiler__ast__stmt__DeferStmt__TAG) {
         compiler__ast__stmt__DeferStmt* d = (target)->data.u.DeferStmt.inner;
-        return std__mem__Arena_defer_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_stmt(self, d->body, subst), node->line, node->col);
+        return std__memory__Arena_defer_stmt(&self->arena, compiler__sema__decl__pass__DeclPass_clone_stmt(self, d->body, subst), node->line, node->col);
     } else {
         return (compiler__ast__node__AstNode*)NULL;
     }
@@ -14727,7 +14798,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_fn(comp
         }
     }
     compiler__ast__node__AstNode* rt = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_clone_type(self, f->return_type, subst) : NULL);
-    compiler__ast__node__AstNode* clone = std__mem__Arena_fn_decl(&self->arena, new_name, std__collections__List_compiler__ast__decl__GenericParam_new(4), params, rt, ((f->body != NULL) ? compiler__sema__decl__pass__DeclPass_clone_stmt(self, f->body, subst) : NULL), f->is_pub, node->line, node->col, f->is_op);
+    compiler__ast__node__AstNode* clone = std__memory__Arena_fn_decl(&self->arena, new_name, std__collections__List_compiler__ast__decl__GenericParam_new(4), params, rt, ((f->body != NULL) ? compiler__sema__decl__pass__DeclPass_clone_stmt(self, f->body, subst) : NULL), f->is_pub, node->line, node->col, f->is_op);
     compiler__ast__decl__FnDecl* clone_f = (compiler__ast__decl__FnDecl*)compiler__ast__node__AstNode_as_fn_decl(clone);
     clone_f->module = self->current_module;
     return clone;
@@ -15242,7 +15313,7 @@ void compiler__sema__decl__pass__DeclPass_collect_use(compiler__sema__decl__pass
 
 void compiler__sema__decl__pass__DeclPass_declare_struct_shell(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node, compiler__ast__decl__StructDecl* s) {
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, s->name);
-    compiler__sema__types__Type* s_type = std__mem__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__structs__StructField_new(4));
+    compiler__sema__types__Type* s_type = std__memory__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(s_type)).c_name = c_name;
     (*compiler__sema__types__Type_as_struct_mut(s_type)).module = self->current_module;
     (*compiler__sema__types__Type_as_struct_mut(s_type)).is_defined = false;
@@ -15299,7 +15370,7 @@ void compiler__sema__decl__pass__DeclPass_collect_struct(compiler__sema__decl__p
         return;
     }
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, s->name);
-    compiler__sema__types__Type* s_type = std__mem__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__structs__StructField_new(4));
+    compiler__sema__types__Type* s_type = std__memory__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(s_type)).c_name = c_name;
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ s->name, c_name, 4, s_type, false, s->is_pub, node->line, node->col, node, NULL });
     if (!ok) {
@@ -15343,7 +15414,7 @@ void compiler__sema__decl__pass__DeclPass_collect_fn(compiler__sema__decl__pass_
         }
     }
     compiler__sema__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl__pass__DeclPass_infer_decl_return_type(self, f) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self))));
-    compiler__sema__types__Type* fn_type = std__mem__Arena_fn_type(&self->arena, param_types, ret_type);
+    compiler__sema__types__Type* fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, f->name);
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ f->name, c_name, 3, fn_type, false, f->is_pub, node->line, node->col, node, NULL });
     if (!ok) {
@@ -15461,14 +15532,14 @@ void compiler__sema__decl__pass__DeclPass_collect_enum(compiler__sema__decl__pas
                     raw_text = KOBEL_STR("false");
                 }
             }
-            compiler__sema__enums__EnumMemberInfo* mi = std__mem__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(&self->arena, (compiler__sema__enums__EnumMemberInfo){ m.name, v, NULL, KOBEL_STR(""), raw_text, lit_kind });
+            compiler__sema__enums__EnumMemberInfo* mi = std__memory__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(&self->arena, (compiler__sema__enums__EnumMemberInfo){ m.name, v, NULL, KOBEL_STR(""), raw_text, lit_kind });
             std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_plus_assign(&members, mi);
             __for_i = (__for_i + 1);
         }
     }
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, e->name);
-    compiler__sema__enums__EnumInfo* info = std__mem__Arena_alloc_val_compiler__sema__enums__EnumInfo(&self->arena, (compiler__sema__enums__EnumInfo){ e->name, c_name, under_type, members, false, KOBEL_STR("tag") });
-    compiler__sema__types__Type* carrier = std__mem__Arena_alloc_val_compiler__sema__types__Type(&self->arena, (compiler__sema__types__Type){ under_type->kind, under_type->size, under_type->align, (compiler__sema__types__TypePayload){ .tag = 5, .u.Enum = { info } }, NULL });
+    compiler__sema__enums__EnumInfo* info = std__memory__Arena_alloc_val_compiler__sema__enums__EnumInfo(&self->arena, (compiler__sema__enums__EnumInfo){ e->name, c_name, under_type, members, false, KOBEL_STR("tag") });
+    compiler__sema__types__Type* carrier = std__memory__Arena_alloc_val_compiler__sema__types__Type(&self->arena, (compiler__sema__types__Type){ under_type->kind, under_type->size, under_type->align, (compiler__sema__types__TypePayload){ .tag = 5, .u.Enum = { info } }, NULL });
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ e->name, c_name, 5, carrier, false, e->is_pub, node->line, node->col, node, NULL });
     if (!ok) {
         compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Duplicate enum declaration '"), e->name, KOBEL_STR("'")));
@@ -15483,7 +15554,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
     }
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, e->name);
     compiler__sema__types__Type* tag_ty = compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_i32());
-    compiler__sema__types__Type* enum_ty = std__mem__Arena_struct_type(&self->arena, e->name, std__collections__List_compiler__sema__structs__StructField_new(4));
+    compiler__sema__types__Type* enum_ty = std__memory__Arena_struct_type(&self->arena, e->name, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(enum_ty)).c_name = c_name;
     (*compiler__sema__types__Type_as_struct_mut(enum_ty)).module = self->current_module;
     std__collections__List_compiler__sema__structs__StructField_plus_assign(&(*compiler__sema__types__Type_as_struct_mut(enum_ty)).fields, (compiler__sema__structs__StructField){ KOBEL_STR("tag"), tag_ty, 0, true, NULL });
@@ -15498,7 +15569,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
             compiler__ast__decl__EnumMember m = std__collections__List_compiler__ast__decl__EnumMember_at(&e->members, __for_i);
             kobel_str v_name = kobel_concat3(e->name, KOBEL_STR("."), m.name);
             kobel_str v_c = kobel_concat3(c_name, KOBEL_STR("__"), m.name);
-            compiler__sema__types__Type* v_ty = std__mem__Arena_struct_type(&self->arena, v_name, std__collections__List_compiler__sema__structs__StructField_new(4));
+            compiler__sema__types__Type* v_ty = std__memory__Arena_struct_type(&self->arena, v_name, std__collections__List_compiler__sema__structs__StructField_new(4));
             (*compiler__sema__types__Type_as_struct_mut(v_ty)).c_name = v_c;
             (*compiler__sema__types__Type_as_struct_mut(v_ty)).module = self->current_module;
             {
@@ -15518,7 +15589,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
             }
             compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ v_name, v_c, 4, v_ty, false, e->is_pub, m.line, m.col, node, NULL });
             compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ kobel_concat(v_name, KOBEL_STR("__TAG")), kobel_concat(v_c, KOBEL_STR("__TAG")), 1, tag_ty, false, false, m.line, m.col, NULL, NULL });
-            compiler__sema__enums__EnumMemberInfo* mi = std__mem__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(&self->arena, (compiler__sema__enums__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat(KOBEL_STR("u."), m.name), KOBEL_STR(""), 0 });
+            compiler__sema__enums__EnumMemberInfo* mi = std__memory__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(&self->arena, (compiler__sema__enums__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat(KOBEL_STR("u."), m.name), KOBEL_STR(""), 0 });
             std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_plus_assign(&members, mi);
             if (v_ty->size > max_payload) {
                 max_payload = v_ty->size;
@@ -15542,7 +15613,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
     }
     enum_ty->align = max_align;
     enum_ty->size = (body_off + pay);
-    compiler__sema__enums__EnumInfo* info = std__mem__Arena_alloc_val_compiler__sema__enums__EnumInfo(&self->arena, (compiler__sema__enums__EnumInfo){ e->name, c_name, under_type, members, true, KOBEL_STR("tag") });
+    compiler__sema__enums__EnumInfo* info = std__memory__Arena_alloc_val_compiler__sema__enums__EnumInfo(&self->arena, (compiler__sema__enums__EnumInfo){ e->name, c_name, under_type, members, true, KOBEL_STR("tag") });
     compiler__sema__symbol__SymbolTable_register_enum_info(&self->symtab, info);
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ e->name, c_name, 4, enum_ty, false, e->is_pub, node->line, node->col, node, NULL });
     if (!ok) {
@@ -15555,7 +15626,7 @@ void compiler__sema__decl__pass__DeclPass_collect_const(compiler__sema__decl__pa
     compiler__ast__decl__ConstDecl* c = (compiler__ast__decl__ConstDecl*)compiler__ast__node__AstNode_as_const_decl(node);
     compiler__sema__types__Type* c_type = ((c->type_node != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, c->type_node) : (compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) != NULL ? compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) : compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_i32())));
     if (c->type_node == NULL) {
-        c->type_node = std__mem__Arena_ast_type_from_type(&self->arena, c_type);
+        c->type_node = std__memory__Arena_ast_type_from_type(&self->arena, c_type);
     }
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, c->name);
     bool ok = compiler__sema__symbol__SymbolTable_define_global(&self->symtab, (compiler__sema__symbol__Symbol){ c->name, c_name, 1, c_type, false, c->is_pub, node->line, node->col, node, NULL });
@@ -15601,7 +15672,7 @@ void compiler__sema__decl__pass__DeclPass_collect_trait(compiler__sema__decl__pa
                     continue;
                 }
             }
-            compiler__sema__traits__TraitMethod* tm = std__mem__Arena_alloc_val_compiler__sema__traits__TraitMethod(&self->arena, (compiler__sema__traits__TraitMethod){ f->name, f->params.len, (f->body != NULL), m });
+            compiler__sema__traits__TraitMethod* tm = std__memory__Arena_alloc_val_compiler__sema__traits__TraitMethod(&self->arena, (compiler__sema__traits__TraitMethod){ f->name, f->params.len, (f->body != NULL), m });
             std__collections__List_ptr_compiler__sema__traits__TraitMethod_plus_assign(&methods, tm);
             __for_i = (__for_i + 1);
         }
@@ -15629,7 +15700,7 @@ void compiler__sema__decl__pass__DeclPass_collect_trait(compiler__sema__decl__pa
             __for_i = (__for_i + 1);
         }
     }
-    compiler__sema__traits__TraitInfo* ti = std__mem__Arena_alloc_val_compiler__sema__traits__TraitInfo(&self->arena, (compiler__sema__traits__TraitInfo){ t->name, t->bases, methods, std__collections__List_str_new(4), t->assoc_types });
+    compiler__sema__traits__TraitInfo* ti = std__memory__Arena_alloc_val_compiler__sema__traits__TraitInfo(&self->arena, (compiler__sema__traits__TraitInfo){ t->name, t->bases, methods, std__collections__List_str_new(4), t->assoc_types });
     compiler__sema__symbol__SymbolTable_register_trait(&self->symtab, ti);
 }
 
@@ -15814,39 +15885,39 @@ bool compiler__sema__desugar__loop__for_is_lvalue(compiler__ast__node__AstNode* 
     }
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_usz_type(std__mem__Arena* self, size_t line, size_t col) {
-    return std__mem__Arena_named_type(self, KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col) {
+    return std__memory__Arena_named_type(self, KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_id(std__mem__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__mem__Arena_identifier(self, name, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
+    return std__memory__Arena_identifier(self, name, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_num(std__mem__Arena* self, kobel_str text, size_t line, size_t col) {
-    return std__mem__Arena_literal(self, 0, text, line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col) {
+    return std__memory__Arena_literal(self, 0, text, line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_i_cmp(std__mem__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-    return std__mem__Arena_binary(self, op, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+    return std__memory__Arena_binary(self, op, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_set_go(std__mem__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__mem__Arena_expr_stmt(self, std__mem__Arena_assign(self, std__mem__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), value, line, col), line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
+    return std__memory__Arena_expr_stmt(self, std__memory__Arena_assign(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), value, line, col), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_bump(std__mem__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-    return std__mem__Arena_expr_stmt(self, std__mem__Arena_assign(self, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_binary(self, op, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), line, col), line, col);
+compiler__ast__node__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+    return std__memory__Arena_expr_stmt(self, std__memory__Arena_assign(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_binary(self, op, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), line, col), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_for_by_dir(std__mem__Arena* self, compiler__ast__node__AstNode* up_stmt, compiler__ast__node__AstNode* down_stmt, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__node__AstNode* up_stmt, compiler__ast__node__AstNode* down_stmt, size_t line, size_t col) {
     std__collections__List_ptr_compiler__ast__node__AstNode up_stmts = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&up_stmts, up_stmt);
     std__collections__List_ptr_compiler__ast__node__AstNode down_stmts = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&down_stmts, down_stmt);
-    return std__mem__Arena_if_stmt(self, std__mem__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__mem__Arena_block_stmt(self, up_stmts, line, col), std__mem__Arena_block_stmt(self, down_stmts, line, col), line, col);
+    return std__memory__Arena_if_stmt(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__memory__Arena_block_stmt(self, up_stmts, line, col), std__memory__Arena_block_stmt(self, down_stmts, line, col), line, col);
 }
 
-void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node__AstNode* node, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp) {
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__node__AstNode* node, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp) {
     if (node == NULL) {
         return;
     }
@@ -15858,14 +15929,14 @@ void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node_
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__node__AstNode* stmt = std__collections__List_ptr_compiler__ast__node__AstNode_at(&target->statements, __for_i);
-            std__mem__Arena_for_inject_step(self, stmt, step, bp);
+            std__memory__Arena_for_inject_step(self, stmt, step, bp);
             __for_i = (__for_i + 1);
         }
     } else if (target != NULL && target->kind == compiler__ast__stmt__IfStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__IfStmt* target = (compiler__ast__stmt__IfStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.IfStmt.inner);
-        std__mem__Arena_for_inject_step(self, target->then_branch, step, bp);
-        std__mem__Arena_for_inject_step(self, target->else_branch, step, bp);
+        std__memory__Arena_for_inject_step(self, target->then_branch, step, bp);
+        std__memory__Arena_for_inject_step(self, target->else_branch, step, bp);
     } else if (target != NULL && target->kind == compiler__ast__stmt__WhenStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__WhenStmt* target = (compiler__ast__stmt__WhenStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.WhenStmt.inner);
@@ -15873,17 +15944,17 @@ void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node_
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__stmt__WhenStmtArm arm = std__collections__List_compiler__ast__stmt__WhenStmtArm_at(&target->arms, __for_i);
-            std__mem__Arena_for_inject_step(self, arm.body, step, bp);
+            std__memory__Arena_for_inject_step(self, arm.body, step, bp);
             __for_i = (__for_i + 1);
         }
     } else if (target != NULL && target->kind == compiler__ast__stmt__VarDeclStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__VarDeclStmt* target = (compiler__ast__stmt__VarDeclStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.VarDeclStmt.inner);
-        std__mem__Arena_for_inject_step_expr(self, target->initializer, step, bp);
+        std__memory__Arena_for_inject_step_expr(self, target->initializer, step, bp);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ExprStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__ExprStmt* target = (compiler__ast__stmt__ExprStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.ExprStmt.inner);
-        std__mem__Arena_for_inject_step_expr(self, target->expr, step, bp);
+        std__memory__Arena_for_inject_step_expr(self, target->expr, step, bp);
     } else if (target != NULL && target->kind == compiler__ast__stmt__ContinueStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__stmt__ContinueStmt* target = (compiler__ast__stmt__ContinueStmt*)(((compiler__ast__node__AstNode*)__orig_target)->data.u.ContinueStmt.inner);
@@ -15897,8 +15968,8 @@ void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node_
                 __for_i = (__for_i + 1);
             }
         }
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&stmts, std__mem__Arena_continue_stmt(self, node->line, node->col));
-        compiler__ast__node__AstNode* block = std__mem__Arena_block_stmt(self, stmts, node->line, node->col);
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&stmts, std__memory__Arena_continue_stmt(self, node->line, node->col));
+        compiler__ast__node__AstNode* block = std__memory__Arena_block_stmt(self, stmts, node->line, node->col);
         if (bp != NULL) {
             compiler__sema__body__pass__BodyPass_set_resolved(bp, node, block);
         } else {
@@ -15907,7 +15978,7 @@ void std__mem__Arena_for_inject_step(std__mem__Arena* self, compiler__ast__node_
     }
 }
 
-void std__mem__Arena_for_inject_step_expr(std__mem__Arena* self, compiler__ast__node__AstNode* expr, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp) {
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__node__AstNode* expr, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__sema__body__pass__BodyPass* bp) {
     if (expr == NULL) {
         return;
     }
@@ -15929,64 +16000,64 @@ void std__mem__Arena_for_inject_step_expr(std__mem__Arena* self, compiler__ast__
         compiler__ast__expr__BinaryExpr* bin = NULL;
         compiler__ast__expr__AssignExpr* asg = NULL;
         if ((cur != NULL && cur->kind == compiler__ast__expr__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
-            std__mem__Arena_for_inject_step(self, bin->right, step, bp);
+            std__memory__Arena_for_inject_step(self, bin->right, step, bp);
         } else if ((cur != NULL && cur->kind == compiler__ast__expr__AssignExpr__TAG && (asg = cur->data.u.AssignExpr.inner, 1))) {
-            std__mem__Arena_for_inject_step_expr(self, asg->value, step, bp);
+            std__memory__Arena_for_inject_step_expr(self, asg->value, step, bp);
         }
     }
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_iter_method(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
-    compiler__ast__node__AstNode* count_call = std__mem__Arena_call(self, std__mem__Arena_member(self, fs->iterable, KOBEL_STR("count"), line, col), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, false, KOBEL_STR("__for_n"), std__mem__Arena_for_usz_type(self, line, col), count_call, line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, true, KOBEL_STR("__for_i"), std__mem__Arena_for_usz_type(self, line, col), std__mem__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
+    compiler__ast__node__AstNode* count_call = std__memory__Arena_call(self, std__memory__Arena_member(self, fs->iterable, KOBEL_STR("count"), line, col), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), count_call, line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
     std__collections__List_ptr_compiler__ast__node__AstNode at_args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&at_args, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col));
-    compiler__ast__node__AstNode* at_call = std__mem__Arena_call(self, std__mem__Arena_member(self, fs->iterable, KOBEL_STR("at"), line, col), at_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__mem__Arena_var_decl(self, false, fs->var_name, NULL, at_call, line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__mem__Arena_for_bump(self, 6, line, col));
-    return std__mem__Arena_binary(self, 12, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_n"), line, col), line, col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&at_args, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col));
+    compiler__ast__node__AstNode* at_call = std__memory__Arena_call(self, std__memory__Arena_member(self, fs->iterable, KOBEL_STR("at"), line, col), at_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__memory__Arena_var_decl(self, false, fs->var_name, NULL, at_call, line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
+    return std__memory__Arena_binary(self, 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_iterable(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, false, KOBEL_STR("__for_n"), std__mem__Arena_for_usz_type(self, line, col), std__mem__Arena_member(self, fs->iterable, KOBEL_STR("len"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, true, KOBEL_STR("__for_i"), std__mem__Arena_for_usz_type(self, line, col), std__mem__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__mem__Arena_var_decl(self, false, fs->var_name, NULL, std__mem__Arena_index(self, std__mem__Arena_member(self, fs->iterable, KOBEL_STR("data"), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__mem__Arena_for_bump(self, 6, line, col));
-    return std__mem__Arena_binary(self, 12, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_n"), line, col), line, col);
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_member(self, fs->iterable, KOBEL_STR("len"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__memory__Arena_var_decl(self, false, fs->var_name, NULL, std__memory__Arena_index(self, std__memory__Arena_member(self, fs->iterable, KOBEL_STR("data"), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
+    return std__memory__Arena_binary(self, 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for_range(std__mem__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, true, KOBEL_STR("__for_i"), NULL, std__mem__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_expr_stmt(self, std__mem__Arena_assign(self, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), fs->range_start, line, col), line, col));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, false, KOBEL_STR("__for_up"), NULL, std__mem__Arena_for_i_cmp(self, 23, line, col), line, col));
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode* pre, std__collections__List_ptr_compiler__ast__node__AstNode* head, std__collections__List_ptr_compiler__ast__node__AstNode* step, compiler__ast__stmt__ForStmt* fs, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, true, KOBEL_STR("__for_i"), NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_expr_stmt(self, std__memory__Arena_assign(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), fs->range_start, line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, false, KOBEL_STR("__for_up"), NULL, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col));
     if (fs->is_open) {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_for_by_dir(self, std__mem__Arena_for_bump(self, 6, line, col), std__mem__Arena_for_bump(self, 7, line, col), line, col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col));
     }
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_var_decl(self, true, KOBEL_STR("__for_go"), NULL, std__mem__Arena_literal(self, 2, KOBEL_STR("false"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_var_decl(self, true, KOBEL_STR("__for_go"), NULL, std__memory__Arena_literal(self, 2, KOBEL_STR("false"), line, col), line, col));
     if (fs->is_open || fs->is_half_open) {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_for_by_dir(self, std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 12, line, col), line, col), std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
     } else {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__mem__Arena_for_by_dir(self, std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 23, line, col), line, col), std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 24, line, col), line, col), line, col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 24, line, col), line, col), line, col));
     }
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__mem__Arena_var_decl(self, false, fs->var_name, NULL, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(head, std__memory__Arena_var_decl(self, false, fs->var_name, NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
     if (fs->is_open || fs->is_half_open) {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__mem__Arena_for_by_dir(self, std__mem__Arena_for_set_go(self, std__mem__Arena_binary(self, 12, std__mem__Arena_binary(self, 6, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col), line, col), std__mem__Arena_for_set_go(self, std__mem__Arena_binary(self, 11, std__mem__Arena_binary(self, 7, std__mem__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__mem__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), std__mem__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col), line, col), line, col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_binary(self, 12, std__memory__Arena_binary(self, 6, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_binary(self, 11, std__memory__Arena_binary(self, 7, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col), line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col), line, col), line, col));
     } else {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__mem__Arena_for_by_dir(self, std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 12, line, col), line, col), std__mem__Arena_for_set_go(self, std__mem__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
     }
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__mem__Arena_if_stmt(self, std__mem__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), std__mem__Arena_for_by_dir(self, std__mem__Arena_for_bump(self, 6, line, col), std__mem__Arena_for_bump(self, 7, line, col), line, col), NULL, line, col));
-    return std__mem__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(step, std__memory__Arena_if_stmt(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col), NULL, line, col));
+    return std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_desugar_for(std__mem__Arena* self, compiler__ast__node__AstNode* node, compiler__ast__stmt__ForStmt* fs, bool use_iter_trait, compiler__sema__body__pass__BodyPass* bp) {
+compiler__ast__node__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__node__AstNode* node, compiler__ast__stmt__ForStmt* fs, bool use_iter_trait, compiler__sema__body__pass__BodyPass* bp) {
     size_t line = node->line;
     size_t col = node->col;
     std__collections__List_ptr_compiler__ast__node__AstNode pre = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode head = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode step = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-    compiler__ast__node__AstNode* cond = (fs->is_range ? std__mem__Arena_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? std__mem__Arena_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : std__mem__Arena_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
+    compiler__ast__node__AstNode* cond = (fs->is_range ? std__memory__Arena_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? std__memory__Arena_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : std__memory__Arena_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
     std__collections__List_ptr_compiler__ast__node__AstNode body_stmts = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__node__AstNode_count(&head);
@@ -16023,9 +16094,9 @@ compiler__ast__node__AstNode* std__mem__Arena_desugar_for(std__mem__Arena* self,
             __for_i = (__for_i + 1);
         }
     }
-    std__mem__Arena_for_inject_step(self, fs->body, &step, bp);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&pre, std__mem__Arena_while_stmt(self, cond, std__mem__Arena_block_stmt(self, body_stmts, line, col), line, col));
-    return std__mem__Arena_block_stmt(self, pre, line, col);
+    std__memory__Arena_for_inject_step(self, fs->body, &step, bp);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&pre, std__memory__Arena_while_stmt(self, cond, std__memory__Arena_block_stmt(self, body_stmts, line, col), line, col));
+    return std__memory__Arena_block_stmt(self, pre, line, col);
 }
 
 void compiler__sema__body__pass__BodyPass_coerce_to_list(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* list_ty) {
@@ -16047,7 +16118,7 @@ void compiler__sema__body__pass__BodyPass_coerce_to_list(compiler__sema__body__p
                 return;
             }
             compiler__sema__types__Type* elem_tye = (*compiler__sema__types__Type_as_pointer(f0e.type_ptr)).pointee;
-            e->elem_node = std__mem__Arena_ast_type_from_type(&self->arena, elem_tye);
+            e->elem_node = std__memory__Arena_ast_type_from_type(&self->arena, elem_tye);
             e->has_elem_node = true;
             {
                 size_t __for_n = std__collections__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
@@ -16075,7 +16146,7 @@ void compiler__sema__body__pass__BodyPass_coerce_to_list(compiler__sema__body__p
             return;
         }
         compiler__sema__types__Type* elem_ty = (*compiler__sema__types__Type_as_pointer(f0.type_ptr)).pointee;
-        al->elem_type_node = std__mem__Arena_ast_type_from_type(&self->arena, elem_ty);
+        al->elem_type_node = std__memory__Arena_ast_type_from_type(&self->arena, elem_ty);
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__node__AstNode_count(&al->elements);
             size_t __for_i = 0;
@@ -16176,7 +16247,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_literal_
     } else if (lit->literal_kind == 3) {
         return compiler__sema__prims__PrimTypes_t_char(compiler__sema__body__pass__BodyPass_prims(self));
     } else {
-        return std__mem__Arena_nullable_pointer_type(&self->arena, compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self)), false);
+        return std__memory__Arena_nullable_pointer_type(&self->arena, compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self)), false);
     }
 }
 
@@ -16279,7 +16350,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_elvis_ex
         }
         if (pt->is_nullable) {
             if (is_jump || (((rt != NULL) && (rt->kind == 16)) && !(*compiler__sema__types__Type_as_pointer(rt)).is_nullable)) {
-                return std__mem__Arena_pointer_type_3_2(&self->arena, pt->pointee, pt->is_mut);
+                return std__memory__Arena_pointer_type_3_2(&self->arena, pt->pointee, pt->is_mut);
             }
         }
     }
@@ -16382,8 +16453,8 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_in_op(co
             if (((elem_t != NULL) && (elem_t->kind == 15)) && (lt->kind == 15)) {
                 std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
                 std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->right);
-                compiler__ast__node__AstNode* mem = std__mem__Arena_member(&self->arena, bin->left, KOBEL_STR("in_list"), node->line, node->col);
-                compiler__ast__node__AstNode* call_node = std__mem__Arena_call(&self->arena, mem, args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                compiler__ast__node__AstNode* mem = std__memory__Arena_member(&self->arena, bin->left, KOBEL_STR("in_list"), node->line, node->col);
+                compiler__ast__node__AstNode* call_node = std__memory__Arena_call(&self->arena, mem, args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                 compiler__sema__body__pass__BodyPass_set_resolved(self, node, call_node);
                 return compiler__sema__body__pass__BodyPass_check_expr(self, call_node, NULL);
             }
@@ -16391,8 +16462,8 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_in_op(co
     }
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->left);
-    compiler__ast__node__AstNode* mem = std__mem__Arena_member(&self->arena, bin->right, KOBEL_STR("contains"), node->line, node->col);
-    compiler__ast__node__AstNode* call_node = std__mem__Arena_call(&self->arena, mem, args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* mem = std__memory__Arena_member(&self->arena, bin->right, KOBEL_STR("contains"), node->line, node->col);
+    compiler__ast__node__AstNode* call_node = std__memory__Arena_call(&self->arena, mem, args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     compiler__sema__body__pass__BodyPass_set_resolved(self, node, call_node);
     return compiler__sema__body__pass__BodyPass_check_expr(self, call_node, NULL);
 }
@@ -16404,7 +16475,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_unary_ex
         if (op_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(op_ty);
             if (pt->is_nullable) {
-                return std__mem__Arena_pointer_type_3_2(&self->arena, pt->pointee, pt->is_mut);
+                return std__memory__Arena_pointer_type_3_2(&self->arena, pt->pointee, pt->is_mut);
             }
         }
         compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Force unwrap operator '!' requires a nullable pointer"));
@@ -16436,7 +16507,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_unary_ex
         }
         return (*compiler__sema__types__Type_as_pointer(op_ty)).pointee;
     } else if (un->op == 19) {
-        return std__mem__Arena_pointer_type_3_2(&self->arena, op_ty, true);
+        return std__memory__Arena_pointer_type_3_2(&self->arena, op_ty, true);
     } else {
         return op_ty;
     }
@@ -16458,12 +16529,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_if_expr(
         compiler__sema__types__PointerType* t_ptr = compiler__sema__types__Type_as_pointer(then_ty);
         compiler__sema__types__PointerType* e_ptr = compiler__sema__types__Type_as_pointer(else_ty);
         if (((*e_ptr->pointee).kind == 0) && !t_ptr->is_nullable) {
-            then_ty = std__mem__Arena_nullable_pointer_type(&self->arena, t_ptr->pointee, t_ptr->is_mut);
+            then_ty = std__memory__Arena_nullable_pointer_type(&self->arena, t_ptr->pointee, t_ptr->is_mut);
         } else if (((*t_ptr->pointee).kind == 0) && !e_ptr->is_nullable) {
-            then_ty = std__mem__Arena_nullable_pointer_type(&self->arena, e_ptr->pointee, e_ptr->is_mut);
+            then_ty = std__memory__Arena_nullable_pointer_type(&self->arena, e_ptr->pointee, e_ptr->is_mut);
         } else if ((t_ptr->is_nullable != e_ptr->is_nullable) && compiler__sema__types__Type_equals_2(t_ptr->pointee, e_ptr->pointee)) {
             bool is_mut = (t_ptr->is_mut || e_ptr->is_mut);
-            then_ty = std__mem__Arena_nullable_pointer_type(&self->arena, t_ptr->pointee, is_mut);
+            then_ty = std__memory__Arena_nullable_pointer_type(&self->arena, t_ptr->pointee, is_mut);
         }
     }
     compiler__sema__body__pass__BodyPass_ensure(self, compiler__sema__types__Type_can_assign(then_ty, else_ty), node, KOBEL_STR("If expression branches have incompatible types"));
@@ -16514,7 +16585,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_array_li
             }
         }
     }
-    return std__mem__Arena_array_type_3_2(&self->arena, elem_ty, al->elements.len);
+    return std__memory__Arena_array_type_3_2(&self->arena, elem_ty, al->elements.len);
 }
 
 void compiler__sema__body__pass__BodyPass_check_block_stmt(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -16569,7 +16640,7 @@ void compiler__sema__body__pass__BodyPass_check_var_decl_stmt(compiler__sema__bo
         if (self->current_rec != NULL) {
             compiler__sema__body__pass__BodyPass_set_ann_var_ty(self, node, var_ty);
         } else {
-            vd->type_annotation = std__mem__Arena_ast_type_from_type(&self->arena, var_ty);
+            vd->type_annotation = std__memory__Arena_ast_type_from_type(&self->arena, var_ty);
         }
     }
     bool ok = compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ vd->name, vd->name, 0, var_ty, vd->is_mut, false, node->line, node->col, NULL, NULL });
@@ -16647,7 +16718,7 @@ void compiler__sema__body__pass__BodyPass_promote_to_non_null(compiler__sema__bo
     if (!ptr_ty->is_nullable) {
         return;
     }
-    compiler__sema__types__Type* non_null_ty = std__mem__Arena_pointer_type_3_2(&self->arena, ptr_ty->pointee, ptr_ty->is_mut);
+    compiler__sema__types__Type* non_null_ty = std__memory__Arena_pointer_type_3_2(&self->arena, ptr_ty->pointee, ptr_ty->is_mut);
     compiler__sema__types__Type* orig_ty = sym->orig_type;
     if (orig_ty == NULL) orig_ty = sym->type_ptr;
     compiler__sema__symbol__SymbolTable_define(&self->symtab, (compiler__sema__symbol__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->is_mut, sym->is_pub, 0, 0, NULL, orig_ty });
@@ -16886,7 +16957,7 @@ void compiler__sema__body__pass__BodyPass_check_for_stmt(compiler__sema__body__p
     if (!fs->is_range) {
         use_iter_trait = compiler__sema__body__pass__BodyPass_struct_implements_iterable(self, compiler__sema__body__pass__BodyPass_for_iterable_type(self, fs->iterable));
     }
-    compiler__ast__node__AstNode* block = std__mem__Arena_desugar_for(&self->arena, node, fs, use_iter_trait, self);
+    compiler__ast__node__AstNode* block = std__memory__Arena_desugar_for(&self->arena, node, fs, use_iter_trait, self);
     compiler__sema__body__pass__BodyPass_set_resolved(self, node, block);
     compiler__sema__body__pass__BodyPass_check_statement(self, block);
 }
@@ -17023,7 +17094,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_propagate_ins
     if (!str_starts_with(s->c_name, prefix)) {
         return NULL;
     }
-    return std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, s->c_name, init_node->line, init_node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), init_node->line, init_node->col);
+    return std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, s->c_name, init_node->line, init_node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), init_node->line, init_node->col);
 }
 
 bool compiler__sema__body__pass__BodyPass_struct_implements_iterable(compiler__sema__body__pass__BodyPass* self, compiler__sema__types__Type* ty) {
@@ -17050,7 +17121,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_member_e
     compiler__ast__node__AstNode* obj_expr = mem->object;
     compiler__sema__types__Type* obj_ty = compiler__sema__body__pass__BodyPass_check_expr(self, obj_expr, NULL);
     if ((!mem->is_safe && (obj_ty->kind == 16)) && (obj_expr->kind != 5)) {
-        compiler__ast__node__AstNode* deref = std__mem__Arena_unary(&self->arena, 8, obj_expr, node->line, node->col, false);
+        compiler__ast__node__AstNode* deref = std__memory__Arena_unary(&self->arena, 8, obj_expr, node->line, node->col, false);
         if (self->current_rec != NULL) {
             compiler__sema__body__pass__BodyPass_set_ann_obj(self, node, deref);
         } else {
@@ -17085,7 +17156,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_member_e
     if (mem->is_safe) {
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
-            ret_ty = std__mem__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+            ret_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
         } else if (ret_ty->kind != 15) {
             compiler__sema__body__pass__BodyPass_ensure(self, self->in_safe_nav_context, node, kobel_concat3(KOBEL_STR("Safe navigation '?.' on non-pointer field '"), mem->member, KOBEL_STR("' requires handling null with '?:' or being used in a condition")));
         }
@@ -17114,12 +17185,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_const_me
                         compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat5(kobel_concat5(KOBEL_STR("Variant '"), enum_id->name, KOBEL_STR("."), mem->member, KOBEL_STR("' carries data; construct it with '")), enum_id->name, KOBEL_STR("."), mem->member, KOBEL_STR("(...)'")));
                         return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
                     }
-                    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_enum_ctor(&self->arena, ei->c_name, ei->tag_field, mi->value, KOBEL_STR(""), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col));
+                    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_enum_ctor(&self->arena, ei->c_name, ei->tag_field, mi->value, KOBEL_STR(""), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col));
                     return e_sym->type_ptr;
                 }
-                compiler__ast__node__AstNode* lit = std__mem__Arena_literal(&self->arena, mi->lit_kind, mi->raw_text, node->line, node->col);
+                compiler__ast__node__AstNode* lit = std__memory__Arena_literal(&self->arena, mi->lit_kind, mi->raw_text, node->line, node->col);
                 compiler__sema__body__pass__BodyPass_set_resolved(self, node, lit);
-                compiler__sema__types__Type* carrier = std__mem__Arena_alloc_val_compiler__sema__types__Type(&self->arena, (compiler__sema__types__Type){ (*ei->underlying).kind, (*ei->underlying).size, (*ei->underlying).align, (compiler__sema__types__TypePayload){ .tag = 5, .u.Enum = { ei } }, NULL });
+                compiler__sema__types__Type* carrier = std__memory__Arena_alloc_val_compiler__sema__types__Type(&self->arena, (compiler__sema__types__Type){ (*ei->underlying).kind, (*ei->underlying).size, (*ei->underlying).align, (compiler__sema__types__TypePayload){ .tag = 5, .u.Enum = { ei } }, NULL });
                 return carrier;
             }
             compiler__sema__symbol__Symbol* s_sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, enum_id->name);
@@ -17128,7 +17199,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_const_me
                 if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, enum_id->name, mem->member);
                 if (c_sym == NULL) c_sym = compiler__sema__symbol__SymbolTable_lookup_struct_const(&self->symtab, s_sym->name, mem->member);
                 if (c_sym != NULL && c_sym->kind == 1) {
-                    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_identifier(&self->arena, c_sym->c_name, node->line, node->col));
+                    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_identifier(&self->arena, c_sym->c_name, node->line, node->col));
                     return c_sym->type_ptr;
                 }
             }
@@ -17144,11 +17215,11 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_member_on_str(
         return compiler__sema__prims__PrimTypes_t_usz(compiler__sema__body__pass__BodyPass_prims(self));
     } else if (kobel_streq(mem->member, KOBEL_STR("c_str"))) {
         compiler__sema__types__Type* char_ty = compiler__sema__prims__PrimTypes_t_char(compiler__sema__body__pass__BodyPass_prims(self));
-        compiler__sema__types__Type* char_ptr = std__mem__Arena_pointer_type_3_2(&self->arena, char_ty, false);
-        return std__mem__Arena_fn_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_new(4), char_ptr);
+        compiler__sema__types__Type* char_ptr = std__memory__Arena_pointer_type_3_2(&self->arena, char_ty, false);
+        return std__memory__Arena_fn_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_new(4), char_ptr);
     } else if (kobel_streq(mem->member, KOBEL_STR("data"))) {
         compiler__sema__types__Type* char_ty = compiler__sema__prims__PrimTypes_t_char(compiler__sema__body__pass__BodyPass_prims(self));
-        return std__mem__Arena_pointer_type_3_2(&self->arena, char_ty, false);
+        return std__memory__Arena_pointer_type_3_2(&self->arena, char_ty, false);
     } else {
         compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Member access on non-struct type"));
         return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
@@ -17161,7 +17232,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_member_on_arra
         return compiler__sema__prims__PrimTypes_t_usz(compiler__sema__body__pass__BodyPass_prims(self));
     }
     if (kobel_streq(mem->member, KOBEL_STR("data"))) {
-        return std__mem__Arena_pointer_type_3_2(&self->arena, arr->elem, true);
+        return std__memory__Arena_pointer_type_3_2(&self->arena, arr->elem, true);
     }
     compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Member access on non-struct type"));
     return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
@@ -17417,11 +17488,11 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_index_wr
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
     compiler__sema__types__Type* idx_param_ty = std__collections__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 1);
     compiler__sema__types__Type* val_param_ty = std__collections__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 2);
-    compiler__ast__node__AstNode* operand = ((rhs != NULL) ? rhs : (compiler__sema__types__Type_is_float(val_param_ty) ? std__mem__Arena_literal(&self->arena, 1, KOBEL_STR("1.0"), node->line, node->col) : std__mem__Arena_literal(&self->arena, 0, KOBEL_STR("1"), node->line, node->col)));
+    compiler__ast__node__AstNode* operand = ((rhs != NULL) ? rhs : (compiler__sema__types__Type_is_float(val_param_ty) ? std__memory__Arena_literal(&self->arena, 1, KOBEL_STR("1.0"), node->line, node->col) : std__memory__Arena_literal(&self->arena, 0, KOBEL_STR("1"), node->line, node->col)));
     compiler__ast__node__AstNode* val_expr = operand;
     if (op != 5) {
-        compiler__ast__node__AstNode* get_expr = std__mem__Arena_index(&self->arena, idx->target, idx->index, node->line, node->col);
-        val_expr = std__mem__Arena_binary(&self->arena, op, get_expr, operand, node->line, node->col);
+        compiler__ast__node__AstNode* get_expr = std__memory__Arena_index(&self->arena, idx->target, idx->index, node->line, node->col);
+        val_expr = std__memory__Arena_binary(&self->arena, op, get_expr, operand, node->line, node->col);
     }
     if ((idx_param_ty != NULL) && compiler__sema__types__Type_is_list(idx_param_ty)) {
         compiler__sema__body__pass__BodyPass_coerce_to_list(self, idx->index, idx_param_ty);
@@ -17436,10 +17507,10 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_index_wr
     compiler__sema__types__Type* val_ty = ((op != 5) ? compiler__sema__body__pass__BodyPass_check_expr(self, val_expr, val_param_ty) : (((rhs != NULL) && compiler__sema__body__pass__BodyPass_is_untyped_literal(self, rhs)) ? compiler__sema__body__pass__BodyPass_check_expr(self, rhs, val_param_ty) : val_ty_raw));
     compiler__sema__body__pass__BodyPass_ensure(self, ((val_ty == NULL) || compiler__sema__types__Type_can_assign(val_param_ty, val_ty)), node, kobel_concat(KOBEL_STR("Value type mismatch in index "), what));
     std__collections__List_ptr_compiler__ast__node__AstNode new_args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, (t_is_ptr ? idx->target : std__mem__Arena_unary(&self->arena, 19, idx->target, node->line, node->col, false)));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, (t_is_ptr ? idx->target : std__memory__Arena_unary(&self->arena, 19, idx->target, node->line, node->col, false)));
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, idx->index);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, val_expr);
-    compiler__ast__node__AstNode* call_node = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* call_node = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     compiler__sema__body__pass__BodyPass_set_resolved(self, node, call_node);
     return val_param_ty;
 }
@@ -17547,9 +17618,9 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_cast_exp
                 }
             }
         }
-        return std__mem__Arena_nullable_pointer_type(&self->arena, target_struct_ty, false);
+        return std__memory__Arena_nullable_pointer_type(&self->arena, target_struct_ty, false);
     }
-    return std__mem__Arena_nullable_pointer_type(&self->arena, (target_struct_ty != NULL ? target_struct_ty : compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self))), false);
+    return std__memory__Arena_nullable_pointer_type(&self->arena, (target_struct_ty != NULL ? target_struct_ty : compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self))), false);
 }
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_when_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* expected) {
@@ -17577,12 +17648,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_when_exp
                     compiler__sema__types__PointerType* r_ptr = compiler__sema__types__Type_as_pointer(result_ty);
                     compiler__sema__types__PointerType* b_ptr = compiler__sema__types__Type_as_pointer(body_ty);
                     if (((*b_ptr->pointee).kind == 0) && !r_ptr->is_nullable) {
-                        result_ty = std__mem__Arena_nullable_pointer_type(&self->arena, r_ptr->pointee, r_ptr->is_mut);
+                        result_ty = std__memory__Arena_nullable_pointer_type(&self->arena, r_ptr->pointee, r_ptr->is_mut);
                     } else if (((*r_ptr->pointee).kind == 0) && !b_ptr->is_nullable) {
-                        result_ty = std__mem__Arena_nullable_pointer_type(&self->arena, b_ptr->pointee, b_ptr->is_mut);
+                        result_ty = std__memory__Arena_nullable_pointer_type(&self->arena, b_ptr->pointee, b_ptr->is_mut);
                     } else if ((r_ptr->is_nullable != b_ptr->is_nullable) && compiler__sema__types__Type_equals_2(r_ptr->pointee, b_ptr->pointee)) {
                         bool is_mut = (r_ptr->is_mut || b_ptr->is_mut);
-                        result_ty = std__mem__Arena_nullable_pointer_type(&self->arena, r_ptr->pointee, is_mut);
+                        result_ty = std__memory__Arena_nullable_pointer_type(&self->arena, r_ptr->pointee, is_mut);
                     }
                 }
                 compiler__sema__body__pass__BodyPass_ensure(self, compiler__sema__types__Type_can_assign(result_ty, body_ty), arm.body, KOBEL_STR("When arm type does not match previous arms"));
@@ -17965,10 +18036,10 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_is_patte
         }
     }
     if (!str_empty(is_e->payload_path)) {
-        return std__mem__Arena_pointer_type_3_2(&self->arena, target_ty, (is_e->is_mut || (is_ptr && subj_is_mut)));
+        return std__memory__Arena_pointer_type_3_2(&self->arena, target_ty, (is_e->is_mut || (is_ptr && subj_is_mut)));
     }
     if (is_ptr) {
-        return std__mem__Arena_pointer_type_3_2(&self->arena, target_ty, (is_e->is_mut || (str_empty(is_e->alias) && subj_is_mut)));
+        return std__memory__Arena_pointer_type_3_2(&self->arena, target_ty, (is_e->is_mut || (str_empty(is_e->alias) && subj_is_mut)));
     }
     return target_ty;
 }
@@ -18114,7 +18185,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
                 compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cname);
                 if ((sym != NULL ? sym->type_ptr : NULL) != NULL && (sym != NULL ? sym->type_ptr : NULL)->kind == 19) {
                     compiler__sema__body__pass__BodyPass_ensure_callee_ready(self, sym);
-                    compiler__ast__node__AstNode* new_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                    compiler__ast__node__AstNode* new_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                     compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
                     compiler__sema__body__pass__BodyPass_set_resolved(self, node, new_call);
                     return compiler__sema__body__pass__BodyPass_check_fn_call(self, new_call, sym->type_ptr, new_cc);
@@ -18125,7 +18196,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
                 compiler__sema__types__Type* cty = compiler__sema__body__pass__BodyPass_instantiate_template_struct(self, st, call->type_args);
                 if (cty->kind == 18) {
                     kobel_str cname = (*compiler__sema__types__Type_as_struct(cty)).name;
-                    compiler__ast__node__AstNode* new_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                    compiler__ast__node__AstNode* new_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                     compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
                     compiler__sema__body__pass__BodyPass_set_resolved(self, node, new_call);
                     return compiler__sema__body__pass__BodyPass_check_struct_ctor(self, new_call, cty, new_cc, false);
@@ -18147,7 +18218,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
                         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, cname);
                         if ((sym != NULL ? sym->type_ptr : NULL) != NULL && (sym != NULL ? sym->type_ptr : NULL)->kind == 19) {
                             compiler__sema__body__pass__BodyPass_ensure_callee_ready(self, sym);
-                            compiler__ast__node__AstNode* new_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                            compiler__ast__node__AstNode* new_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                             compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
                             compiler__sema__body__pass__BodyPass_set_resolved(self, node, new_call);
                             return compiler__sema__body__pass__BodyPass_check_fn_call(self, new_call, sym->type_ptr, new_cc);
@@ -18164,7 +18235,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_exp
                         compiler__sema__types__Type* cty = compiler__sema__body__pass__BodyPass_instantiate_template_struct(self, st, inferred_targs);
                         if (cty->kind == 18) {
                             kobel_str cname = (*compiler__sema__types__Type_as_struct(cty)).name;
-                            compiler__ast__node__AstNode* new_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+                            compiler__ast__node__AstNode* new_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), call->args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
                             compiler__ast__expr__CallExpr* new_cc = (compiler__ast__expr__CallExpr*)compiler__ast__node__AstNode_as_call_expr(new_call);
                             compiler__sema__body__pass__BodyPass_set_resolved(self, node, new_call);
                             return compiler__sema__body__pass__BodyPass_check_struct_ctor(self, new_call, cty, new_cc, false);
@@ -18227,12 +18298,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_lower_size_que
             if (idx >= 0) {
                 compiler__sema__types__Type* arg_ty = ((self->has_decl && (((size_t)idx) < self->decl.subst_types.len)) ? std__collections__List_ptr_compiler__sema__types__Type_get(&self->decl.subst_types, (size_t)idx) : NULL);
                 kobel_str size_text = compiler__sema__body__pass__BodyPass_type_c_size_text(self, arg_ty);
-                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_size_of_param(&self->arena, (size_t)idx, size_text, node->line, node->col));
+                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_size_of_param(&self->arena, (size_t)idx, size_text, node->line, node->col));
                 return compiler__sema__prims__PrimTypes_t_usz(compiler__sema__body__pass__BodyPass_prims(self));
             }
             size_t csize = compiler__sema__prims__prim_c_size(id->name);
             if (csize > 0) {
-                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_literal(&self->arena, 0, usz_to_str(csize), node->line, node->col));
+                compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_literal(&self->arena, 0, usz_to_str(csize), node->line, node->col));
                 return compiler__sema__prims__PrimTypes_t_usz(compiler__sema__body__pass__BodyPass_prims(self));
             }
             compiler__sema__symbol__Symbol* tsym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, id->name);
@@ -18406,7 +18477,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_bind_method_ca
     if (mem->is_safe) {
         if (ret_ty->kind == 16) {
             compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
-            ret_ty = std__mem__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+            ret_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
         } else if (ret_ty->kind != 15) {
             compiler__sema__body__pass__BodyPass_ensure(self, self->in_safe_nav_context, node, kobel_concat3(KOBEL_STR("Safe method call '?.' on non-pointer returning method '"), mem->member, KOBEL_STR("' requires handling null with '?:' or being used in a condition")));
         }
@@ -18559,7 +18630,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_method_c
         if (mem->is_safe) {
             if (ret_ty->kind == 16) {
                 compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
-                ret_ty = std__mem__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+                ret_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
             } else if (ret_ty->kind != 15) {
                 compiler__sema__body__pass__BodyPass_ensure(self, self->in_safe_nav_context, node, KOBEL_STR("Safe method call '?.' on non-pointer returning method 'read' requires handling null with '?:' or being used in a condition"));
             }
@@ -18614,7 +18685,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_generic_
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(sym->type_ptr);
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     if ((obj_ty->kind == 18) && !obj_is_ptr) {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, mem->object, node->line, node->col, false));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, mem->object, node->line, node->col, false));
     } else {
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, mem->object);
     }
@@ -18627,7 +18698,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_generic_
             __for_i = (__for_i + 1);
         }
     }
-    compiler__ast__node__AstNode* new_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, cname, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* new_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, cname, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     if (args.len != fn_info->param_types.len) {
         compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Argument count mismatch in method call '"), mem->member, KOBEL_STR("'")));
     } else {
@@ -18801,7 +18872,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_enum_cto
         }
     }
     kobel_str payload_path = (std__collections__List_ptr_compiler__sema__types__Type_empty(&field_types) ? KOBEL_STR("") : mi->payload_path);
-    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_enum_ctor(&self->arena, ei->c_name, ei->tag_field, mi->value, payload_path, call->args, node->line, node->col));
+    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_enum_ctor(&self->arena, ei->c_name, ei->tag_field, mi->value, payload_path, call->args, node->line, node->col));
     return e_sym->type_ptr;
 }
 
@@ -18846,7 +18917,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_fn_call(
                     if ((param_ty->kind == 16) && (arg_ty->kind == 18)) {
                         compiler__sema__types__Type* p_pointee = (*compiler__sema__types__Type_as_pointer(param_ty)).pointee;
                         if (compiler__sema__types__Type_equals_2(p_pointee, arg_ty)) {
-                            std__collections__List_ptr_compiler__ast__node__AstNode_set(&call->args, i, std__mem__Arena_unary(&self->arena, 19, arg_n, arg_n->line, arg_n->col, false));
+                            std__collections__List_ptr_compiler__ast__node__AstNode_set(&call->args, i, std__memory__Arena_unary(&self->arena, 19, arg_n, arg_n->line, arg_n->col, false));
                             {
                                 if (__for_up) {
                                     __for_go = ((__for_i + 1) < __for_e);
@@ -19039,7 +19110,7 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_struct_c
             }
         }
     }
-    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__mem__Arena_struct_ctor(&self->arena, s_info->c_name, call->args, node->line, node->col));
+    compiler__sema__body__pass__BodyPass_set_resolved(self, node, std__memory__Arena_struct_ctor(&self->arena, s_info->c_name, call->args, node->line, node->col));
     return callee_ty;
 }
 
@@ -19187,7 +19258,7 @@ std__collections__List_ptr_compiler__ast__node__AstNode compiler__sema__body__pa
         }
         while (__for_go) {
             size_t k = __for_i;
-            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&result, std__mem__Arena_ast_type_from_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_get(&inferred, k)));
+            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&result, std__memory__Arena_ast_type_from_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_get(&inferred, k)));
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -19333,7 +19404,7 @@ std__collections__List_ptr_compiler__ast__node__AstNode compiler__sema__body__pa
         }
         while (__for_go) {
             size_t k = __for_i;
-            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&result, std__mem__Arena_ast_type_from_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_get(&inferred, k)));
+            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&result, std__memory__Arena_ast_type_from_type(&self->arena, std__collections__List_ptr_compiler__sema__types__Type_get(&inferred, k)));
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -19556,7 +19627,7 @@ void compiler__sema__body__pass__BodyPass_check_fn_body(compiler__sema__body__pa
             compiler__sema__types__Type* cur_ret = self->current_fn_return_type;
             compiler__sema__types__FnType* fn_info_mut = compiler__sema__types__Type_as_fn_mut(fn_type);
             fn_info_mut->return_type = cur_ret;
-            f->return_type = std__mem__Arena_ast_type_from_type(&self->arena, cur_ret);
+            f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, cur_ret);
         }
     } else if (f_body != NULL && f_body->kind == compiler__ast__stmt__ExprStmt__TAG) {
         compiler__ast__stmt__ExprStmt* es = (f_body)->data.u.ExprStmt.inner;
@@ -19568,7 +19639,7 @@ void compiler__sema__body__pass__BodyPass_check_fn_body(compiler__sema__body__pa
             compiler__sema__types__FnType* fn_info_mut = compiler__sema__types__Type_as_fn_mut(fn_type);
             fn_info_mut->return_type = body_ty;
             self->current_fn_return_type = body_ty;
-            f->return_type = std__mem__Arena_ast_type_from_type(&self->arena, body_ty);
+            f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, body_ty);
         } else if (!compiler__sema__types__Type_can_assign(self->current_fn_return_type, body_ty)) {
             compiler__sema__body__pass__BodyPass_report_error(self, fn_node, KOBEL_STR("Expression body type does not match function return type"));
         }
@@ -19821,7 +19892,7 @@ size_t compiler__sema__body__pass__BodyPass_collect_instance_arrow_candidates(co
 }
 
 compiler__sema__body__program__ArrowCandidate* compiler__sema__body__pass__BodyPass_arrow_candidate(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__sema__types__Type* fn_type, compiler__sema__types__Type* self_ty, kobel_str module) {
-    return std__mem__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(&self->arena, (compiler__sema__body__program__ArrowCandidate){ node, fn_type, self_ty, module });
+    return std__memory__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(&self->arena, (compiler__sema__body__program__ArrowCandidate){ node, fn_type, self_ty, module });
 }
 
 void compiler__sema__body__pass__BodyPass_add_fn_arrow_candidate(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* decl, kobel_str module, std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__node__AstNode* seen) {
@@ -19979,26 +20050,26 @@ bool compiler__sema__body__pass__BodyPass_try_infer_arrow(compiler__sema__body__
     self->infer_blocked = saved_blocked;
     compiler__sema__types__FnType* fn_mut = compiler__sema__types__Type_as_fn_mut(c->fn_type);
     fn_mut->return_type = body_ty;
-    f->return_type = std__mem__Arena_ast_type_from_type(&self->arena, body_ty);
+    f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, body_ty);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&self->checked_fns, c->node);
     return true;
 }
 
 compiler__sema__body__pass__BodyPass compiler__sema__body__pass__BodyPass_new_0(void) {
-    std__mem__Arena arena = std__mem__Arena_new(65536);
+    std__memory__Arena arena = std__memory__Arena_new(65536);
     compiler__sema__decl__pass__DeclPass decl_p = compiler__sema__decl__pass__DeclPass_new();
     compiler__sema__types__Type* none_ty = compiler__sema__prims__PrimTypes_t_none(decl_p.symtab.prims);
     return (compiler__sema__body__pass__BodyPass){ decl_p.symtab, arena, none_ty, 0, std__collections__List_str_new(4), NULL, false, 0, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), false, false, 0, compiler__sema__decl__pass__DeclPass_new(), false, false, false, false, NULL, std__collections__List_str_new(4), std__collections__List_ptr_compiler__sema__types__Type_new(4), false };
 }
 
 compiler__sema__body__pass__BodyPass compiler__sema__body__pass__BodyPass_new_1(compiler__sema__symbol__SymbolTable symtab) {
-    std__mem__Arena arena = std__mem__Arena_new(65536);
+    std__memory__Arena arena = std__memory__Arena_new(65536);
     compiler__sema__types__Type* none_ty = compiler__sema__prims__PrimTypes_t_none(symtab.prims);
     return (compiler__sema__body__pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__List_str_new(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), false, false, 0, compiler__sema__decl__pass__DeclPass_new(), false, false, false, false, NULL, std__collections__List_str_new(4), std__collections__List_ptr_compiler__sema__types__Type_new(4), false };
 }
 
 compiler__sema__body__pass__BodyPass compiler__sema__body__pass__BodyPass_new_2(compiler__sema__symbol__SymbolTable symtab, compiler__sema__decl__pass__DeclPass decl) {
-    std__mem__Arena arena = std__mem__Arena_new(65536);
+    std__memory__Arena arena = std__memory__Arena_new(65536);
     compiler__sema__types__Type* none_ty = compiler__sema__prims__PrimTypes_t_none(symtab.prims);
     compiler__sema__body__pass__BodyPass bp = (compiler__sema__body__pass__BodyPass){ symtab, arena, none_ty, 0, std__collections__List_str_new(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), false, false, 0, compiler__sema__decl__pass__DeclPass_new(), false, false, false, false, NULL, std__collections__List_str_new(4), std__collections__List_ptr_compiler__sema__types__Type_new(4), false };
     bp.decl = decl;
@@ -20207,7 +20278,7 @@ compiler__sema__instance__AnnEntry* compiler__sema__body__pass__BodyPass_ann_ent
     if (ex != NULL) {
         return ex;
     }
-    compiler__sema__instance__AnnEntry* e = std__mem__Arena_alloc_val_compiler__sema__instance__AnnEntry(&self->arena, (compiler__sema__instance__AnnEntry){ node, NULL, NULL, NULL, KOBEL_STR(""), false, NULL, false, NULL, NULL, NULL, KOBEL_STR(""), false });
+    compiler__sema__instance__AnnEntry* e = std__memory__Arena_alloc_val_compiler__sema__instance__AnnEntry(&self->arena, (compiler__sema__instance__AnnEntry){ node, NULL, NULL, NULL, KOBEL_STR(""), false, NULL, false, NULL, NULL, NULL, KOBEL_STR(""), false });
     std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(&rec->ann_map, ((uintptr_t)(node)), e);
     return e;
 }
@@ -20908,12 +20979,12 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_binary(
         return node;
     }
     if ((bin->op == 6) && compiler__sema__body__pass__BodyPass_is_str_expr(self, bin->left)) {
-        compiler__ast__node__AstNode* cat = std__mem__Arena_interp_concat(&self->arena, bin->left, bin->right, node->line, node->col);
+        compiler__ast__node__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, bin->left, bin->right, node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, cat);
     }
     if ((bin->op == 21) || (bin->op == 22)) {
         if (compiler__sema__body__pass__BodyPass_is_str_expr(self, bin->left) && compiler__sema__body__pass__BodyPass_is_str_expr(self, bin->right)) {
-            compiler__ast__node__AstNode* eq = std__mem__Arena_make_str_eq(&self->arena, (bin->op == 22), bin->left, bin->right, node->line, node->col);
+            compiler__ast__node__AstNode* eq = std__memory__Arena_make_str_eq(&self->arena, (bin->op == 22), bin->left, bin->right, node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, eq);
         }
     }
@@ -20925,27 +20996,27 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_binary(
         if (r_is_ptr) {
             std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->right);
         } else {
-            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, bin->right, node->line, node->col, false));
+            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, bin->right, node->line, node->col, false));
         }
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->left);
-        compiler__ast__node__AstNode* call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, call);
     }
     if (node->resolved_method != NULL) {
         compiler__sema__methods__MethodInfo* mi = (compiler__sema__methods__MethodInfo*)node->resolved_method;
         std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, bin->left, node->line, node->col, false));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, bin->left, node->line, node->col, false));
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, bin->right);
-        compiler__ast__node__AstNode* call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         if (bin->op == 22) {
-            return compiler__sema__body__pass__BodyPass_lowered(self, node, std__mem__Arena_unary(&self->arena, 4, call, node->line, node->col, false));
+            return compiler__sema__body__pass__BodyPass_lowered(self, node, std__memory__Arena_unary(&self->arena, 4, call, node->line, node->col, false));
         }
         return compiler__sema__body__pass__BodyPass_lowered(self, node, call);
     }
     if ((bin->op == 21) || (bin->op == 22)) {
         compiler__sema__types__Type* lt = compiler__sema__body__pass__BodyPass_type_of(self, bin->left);
         if (lt != NULL && lt->kind == 18) {
-            compiler__ast__node__AstNode* eq = std__mem__Arena_make_mem_eq(&self->arena, (bin->op == 22), bin->left, bin->right, lt->size, node->line, node->col);
+            compiler__ast__node__AstNode* eq = std__memory__Arena_make_mem_eq(&self->arena, (bin->op == 22), bin->left, bin->right, lt->size, node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, eq);
         }
     }
@@ -20961,10 +21032,10 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_assign(
         if (t_is_ptr) {
             std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, asgn->target);
         } else {
-            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, asgn->target, node->line, node->col, false));
+            std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, asgn->target, node->line, node->col, false));
         }
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, asgn->value);
-        compiler__ast__node__AstNode* call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, call);
     }
     if (asgn->op != 32) {
@@ -20973,7 +21044,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_assign(
     if (!compiler__sema__body__pass__BodyPass_is_str_expr(self, asgn->target)) {
         return node;
     }
-    compiler__ast__node__AstNode* cat = std__mem__Arena_interp_concat(&self->arena, asgn->target, asgn->value, node->line, node->col);
+    compiler__ast__node__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, asgn->target, asgn->value, node->line, node->col);
     cat->type_ptr = node->type_ptr;
     asgn->value = cat;
     asgn->op = 5;
@@ -21020,9 +21091,9 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_interp(
             }
         }
     }
-    compiler__ast__node__AstNode* acc = std__mem__Arena_interp_concat_many(&self->arena, pieces, node->line, node->col);
+    compiler__ast__node__AstNode* acc = std__memory__Arena_interp_concat_many(&self->arena, pieces, node->line, node->col);
     if (acc == NULL) {
-        acc = std__mem__Arena_literal(&self->arena, 4, KOBEL_STR("\"\""), node->line, node->col);
+        acc = std__memory__Arena_literal(&self->arena, 4, KOBEL_STR("\"\""), node->line, node->col);
     }
     {
         compiler__ast__node__AstNode* __ret_tmp = compiler__sema__body__pass__BodyPass_lowered(self, node, acc);
@@ -21041,7 +21112,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_to_str_expr(c
     }
     compiler__sema__methods__MethodInfo* pmi = compiler__sema__symbol__SymbolTable_find_prim_method(&self->symtab, ty->kind, KOBEL_STR("to_str"));
     if (pmi != NULL) {
-        return std__mem__Arena_interp_call(&self->arena, pmi->c_name, expr, line, col);
+        return std__memory__Arena_interp_call(&self->arena, pmi->c_name, expr, line, col);
     }
     compiler__sema__types__Type* cur_ty = ty;
     bool is_ptr = false;
@@ -21054,9 +21125,9 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_to_str_expr(c
         if (mi != NULL) {
             compiler__ast__node__AstNode* arg = expr;
             if (!is_ptr) {
-                arg = std__mem__Arena_unary(&self->arena, 19, expr, line, col, false);
+                arg = std__memory__Arena_unary(&self->arena, 19, expr, line, col, false);
             }
-            return std__mem__Arena_interp_call(&self->arena, mi->c_name, arg, line, col);
+            return std__memory__Arena_interp_call(&self->arena, mi->c_name, arg, line, col);
         }
     }
     return NULL;
@@ -21073,7 +21144,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_member(
     }
     if (compiler__sema__body__pass__BodyPass_is_str_expr(self, obj)) {
         if (kobel_streq(mem->member, KOBEL_STR("size"))) {
-            compiler__ast__node__AstNode* len_mem = std__mem__Arena_member(&self->arena, obj, KOBEL_STR("len"), node->line, node->col);
+            compiler__ast__node__AstNode* len_mem = std__memory__Arena_member(&self->arena, obj, KOBEL_STR("len"), node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, len_mem);
         }
         return node;
@@ -21081,7 +21152,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_member(
     if (compiler__sema__body__pass__BodyPass_is_array_expr(self, obj)) {
         if (kobel_streq(mem->member, KOBEL_STR("len")) || kobel_streq(mem->member, KOBEL_STR("size"))) {
             compiler__sema__types__ArrayType* arr = compiler__sema__types__Type_as_array(compiler__sema__body__pass__BodyPass_type_of(self, obj));
-            compiler__ast__node__AstNode* lit = std__mem__Arena_literal(&self->arena, 0, usz_to_str(arr->length), node->line, node->col);
+            compiler__ast__node__AstNode* lit = std__memory__Arena_literal(&self->arena, 0, usz_to_str(arr->length), node->line, node->col);
             return compiler__sema__body__pass__BodyPass_lowered(self, node, lit);
         }
         if (kobel_streq(mem->member, KOBEL_STR("data"))) {
@@ -21097,8 +21168,8 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_unary(c
     }
     compiler__sema__methods__MethodInfo* mi = (compiler__sema__methods__MethodInfo*)node->resolved_method;
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, un->operand, node->line, node->col, false));
-    compiler__ast__node__AstNode* call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, un->operand, node->line, node->col, false));
+    compiler__ast__node__AstNode* call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, call);
 }
 
@@ -21113,10 +21184,10 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_index(c
     if (t_is_ptr) {
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, idx->target);
     } else {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_unary(&self->arena, 19, idx->target, node->line, node->col, false));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, idx->target, node->line, node->col, false));
     }
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, idx->index);
-    compiler__ast__node__AstNode* call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, call);
 }
 
@@ -21137,7 +21208,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
                 __for_i = (__for_i + 1);
             }
         }
-        compiler__ast__node__AstNode* ctor_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, new_mi->c_name, node->line, node->col), ctor_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* ctor_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, new_mi->c_name, node->line, node->col), ctor_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, ctor_call);
     }
     if (callee->kind != 9) {
@@ -21156,7 +21227,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
                 __for_i = (__for_i + 1);
             }
         }
-        compiler__ast__node__AstNode* direct = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), static_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* direct = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), static_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, direct);
     }
     compiler__ast__node__AstNode* recv = mem->object;
@@ -21175,7 +21246,7 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
         if (by_ref) {
             op = 19;
         }
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, std__mem__Arena_unary(&self->arena, op, recv, node->line, node->col, false));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&new_args, std__memory__Arena_unary(&self->arena, op, recv, node->line, node->col, false));
     }
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__node__AstNode_count(&call->args);
@@ -21186,19 +21257,19 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_bound_c
             __for_i = (__for_i + 1);
         }
     }
-    compiler__ast__node__AstNode* direct = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* direct = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, mi->c_name, node->line, node->col), new_args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     if (!mem->is_safe) {
         return compiler__sema__body__pass__BodyPass_lowered(self, node, direct);
     }
     compiler__sema__types__Type* call_ty = compiler__sema__body__pass__BodyPass_type_of(self, node);
-    compiler__ast__node__AstNode* null_lit = std__mem__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col);
-    compiler__ast__node__AstNode* cond = std__mem__Arena_binary(&self->arena, 22, recv, null_lit, node->line, node->col);
+    compiler__ast__node__AstNode* null_lit = std__memory__Arena_literal(&self->arena, 5, KOBEL_STR("null"), node->line, node->col);
+    compiler__ast__node__AstNode* cond = std__memory__Arena_binary(&self->arena, 22, recv, null_lit, node->line, node->col);
     if (call_ty != NULL && call_ty->kind == 1) {
-        compiler__ast__node__AstNode* maybe = std__mem__Arena_binary(&self->arena, 25, cond, direct, node->line, node->col);
+        compiler__ast__node__AstNode* maybe = std__memory__Arena_binary(&self->arena, 25, cond, direct, node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
     }
-    compiler__ast__node__AstNode* fallback = ((call_ty != NULL && call_ty->kind == 15) ? std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, KOBEL_STR("kobel_null_str"), node->line, node->col), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col) : (((((call_ty != NULL) && compiler__sema__types__Type_is_integer(call_ty)) || ((call_ty != NULL) && compiler__sema__types__Type_is_enum(call_ty))) || (call_ty != NULL && call_ty->kind == 2)) ? std__mem__Arena_literal(&self->arena, 0, KOBEL_STR("0"), node->line, node->col) : (((call_ty != NULL && call_ty->kind == 13) || (call_ty != NULL && call_ty->kind == 14)) ? std__mem__Arena_literal(&self->arena, 1, KOBEL_STR("0.0"), node->line, node->col) : null_lit)));
-    compiler__ast__node__AstNode* maybe = std__mem__Arena_if_expr(&self->arena, cond, direct, fallback, node->line, node->col);
+    compiler__ast__node__AstNode* fallback = ((call_ty != NULL && call_ty->kind == 15) ? std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, KOBEL_STR("kobel_null_str"), node->line, node->col), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col) : (((((call_ty != NULL) && compiler__sema__types__Type_is_integer(call_ty)) || ((call_ty != NULL) && compiler__sema__types__Type_is_enum(call_ty))) || (call_ty != NULL && call_ty->kind == 2)) ? std__memory__Arena_literal(&self->arena, 0, KOBEL_STR("0"), node->line, node->col) : (((call_ty != NULL && call_ty->kind == 13) || (call_ty != NULL && call_ty->kind == 14)) ? std__memory__Arena_literal(&self->arena, 1, KOBEL_STR("0.0"), node->line, node->col) : null_lit)));
+    compiler__ast__node__AstNode* maybe = std__memory__Arena_if_expr(&self->arena, cond, direct, fallback, node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, maybe);
 }
 
@@ -21222,14 +21293,14 @@ compiler__ast__node__AstNode* compiler__sema__body__pass__BodyPass_lower_call(co
     if (!std__collections__List_ptr_compiler__ast__node__AstNode_empty(&call->args)) {
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__node__AstNode_first(&call->args));
     } else {
-        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__mem__Arena_literal(&self->arena, 0, KOBEL_STR("0"), node->line, node->col));
+        std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_literal(&self->arena, 0, KOBEL_STR("0"), node->line, node->col));
     }
     if (call->args.len >= 2) {
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__node__AstNode_get(&call->args, 1));
-        compiler__ast__node__AstNode* slice_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, KOBEL_STR("kobel_slice"), node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+        compiler__ast__node__AstNode* slice_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, KOBEL_STR("kobel_slice"), node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
         return compiler__sema__body__pass__BodyPass_lowered(self, node, slice_call);
     }
-    compiler__ast__node__AstNode* slice1_call = std__mem__Arena_call(&self->arena, std__mem__Arena_identifier(&self->arena, KOBEL_STR("kobel_slice1"), node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
+    compiler__ast__node__AstNode* slice1_call = std__memory__Arena_call(&self->arena, std__memory__Arena_identifier(&self->arena, KOBEL_STR("kobel_slice1"), node->line, node->col), args, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), node->line, node->col);
     return compiler__sema__body__pass__BodyPass_lowered(self, node, slice1_call);
 }
 
@@ -21261,25 +21332,25 @@ bool compiler__sema__body__pass__BodyPass_is_array_expr(compiler__sema__body__pa
     return (t != NULL && t->kind == 17);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_make_str_eq(std__mem__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
     std__collections__List_ptr_compiler__ast__node__AstNode eargs = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, left);
     std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, right);
-    compiler__ast__node__AstNode* eq_call = std__mem__Arena_call(self, std__mem__Arena_identifier(self, KOBEL_STR("kobel_streq"), line, col), eargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    compiler__ast__node__AstNode* eq_call = std__memory__Arena_call(self, std__memory__Arena_identifier(self, KOBEL_STR("kobel_streq"), line, col), eargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
     if (is_neq) {
-        return std__mem__Arena_unary(self, 4, eq_call, line, col, false);
+        return std__memory__Arena_unary(self, 4, eq_call, line, col, false);
     }
     return eq_call;
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_make_mem_eq(std__mem__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t size, size_t line, size_t col) {
+compiler__ast__node__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t size, size_t line, size_t col) {
     std__collections__List_ptr_compiler__ast__node__AstNode eargs = std__collections__List_ptr_compiler__ast__node__AstNode_new(4);
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__Arena_unary(self, 19, left, line, col, false));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__Arena_unary(self, 19, right, line, col, false));
-    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__mem__Arena_literal(self, 0, usz_to_str(size), line, col));
-    compiler__ast__node__AstNode* eq_call = std__mem__Arena_call(self, std__mem__Arena_identifier(self, KOBEL_STR("kobel_memeq"), line, col), eargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__memory__Arena_unary(self, 19, left, line, col, false));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__memory__Arena_unary(self, 19, right, line, col, false));
+    std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&eargs, std__memory__Arena_literal(self, 0, usz_to_str(size), line, col));
+    compiler__ast__node__AstNode* eq_call = std__memory__Arena_call(self, std__memory__Arena_identifier(self, KOBEL_STR("kobel_memeq"), line, col), eargs, std__collections__List_ptr_compiler__ast__node__AstNode_new(4), line, col);
     if (is_neq) {
-        return std__mem__Arena_unary(self, 4, eq_call, line, col, false);
+        return std__memory__Arena_unary(self, 4, eq_call, line, col, false);
     }
     return eq_call;
 }
@@ -25606,7 +25677,7 @@ void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kob
 }
 
 lsp__json__JsonValue* lsp__json__JsonValue_box(lsp__json__JsonValue v) {
-    lsp__json__JsonValue* p = std__mem__alloc_lsp__json__JsonValue();
+    lsp__json__JsonValue* p = std__memory__create_lsp__json__JsonValue();
     (*(p) = v);
     return (lsp__json__JsonValue*)p;
 }
@@ -26306,7 +26377,7 @@ kobel_str lsp__protocol__read_message(void) {
     if (content_length == 0) {
         return KOBEL_STR("");
     }
-    uint8_t* buf = std__mem__alloc_array_u8((content_length + 1));
+    uint8_t* buf = std__memory__create_array_u8((content_length + 1));
     {
         size_t __for_e = content_length;
         size_t __for_i = __for_e;
@@ -26322,7 +26393,7 @@ kobel_str lsp__protocol__read_message(void) {
             size_t i = __for_i;
             int32_t ch = getchar();
             if (ch < 0) {
-                std__mem__release_u8(buf);
+                std__memory__free_u8(buf);
                 return KOBEL_STR("");
             }
             buf[i] = (uint8_t)ch;
@@ -27254,7 +27325,7 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
 }
 
 std__collections__List_str std__collections__List_str_new(size_t cap) {
-    return (std__collections__List_str){ std__mem__alloc_array_str(cap), 0, cap };
+    return (std__collections__List_str){ std__memory__create_array_str(cap), 0, cap };
 }
 
 kobel_str std__collections__List_str_first(std__collections__List_str* self) {
@@ -27300,7 +27371,7 @@ size_t std__collections__List_str_clear(std__collections__List_str* self) {
 
 void std__collections__List_str_grow(std__collections__List_str* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_str(self->data, new_cap);
+    self->data = std__memory__resize_str(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -27310,7 +27381,7 @@ void std__collections__List_str_reserve(std__collections__List_str* self, size_t
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_str(self->data, new_cap);
+        self->data = std__memory__resize_str(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -27364,7 +27435,7 @@ void std__collections__List_str_insert(std__collections__List_str* self, size_t 
 
 std__collections__List_str std__collections__List_str_clone(std__collections__List_str* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_str res = (std__collections__List_str){ std__mem__alloc_array_str(cap), 0, cap };
+    std__collections__List_str res = (std__collections__List_str){ std__memory__create_array_str(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -27422,7 +27493,7 @@ void std__collections__List_str_reverse(std__collections__List_str* self) {
 }
 
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count) {
-    std__collections__List_str res = (std__collections__List_str){ std__mem__alloc_array_str(count), 0, count };
+    std__collections__List_str res = (std__collections__List_str){ std__memory__create_array_str(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -27561,7 +27632,7 @@ size_t std__collections__List_str_remove_all(std__collections__List_str* self, k
 }
 
 void std__collections__List_str_delete(std__collections__List_str* self) {
-    std__mem__release_str(self->data);
+    std__memory__free_str(self->data);
 }
 
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index) {
@@ -27585,9 +27656,9 @@ std__collections__HashMap_str_str std__collections__HashMap_str_str_new(size_t i
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    kobel_str* values = std__mem__alloc_array_str(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    kobel_str* values = std__memory__create_array_str(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -27794,9 +27865,9 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
     kobel_str* old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    kobel_str* values = std__mem__alloc_array_str(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    kobel_str* values = std__memory__create_array_str(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -27861,17 +27932,17 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_str(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_str_delete(std__collections__HashMap_str_str* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_str(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -27933,7 +28004,7 @@ compiler__ast__node__AstNode* std__collections__List_ptr_compiler__ast__node__As
 }
 
 std__collections__List_ptr_compiler__ast__node__AstNode std__collections__List_ptr_compiler__ast__node__AstNode_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__ast__node__AstNode){ std__mem__alloc_array_ptr_compiler__ast__node__AstNode(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__ast__node__AstNode){ std__memory__create_array_ptr_compiler__ast__node__AstNode(cap), 0, cap };
 }
 
 compiler__ast__node__AstNode* std__collections__List_ptr_compiler__ast__node__AstNode_first(std__collections__List_ptr_compiler__ast__node__AstNode* self) {
@@ -27979,7 +28050,7 @@ size_t std__collections__List_ptr_compiler__ast__node__AstNode_clear(std__collec
 
 void std__collections__List_ptr_compiler__ast__node__AstNode_grow(std__collections__List_ptr_compiler__ast__node__AstNode* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__ast__node__AstNode(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__ast__node__AstNode(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -27989,7 +28060,7 @@ void std__collections__List_ptr_compiler__ast__node__AstNode_reserve(std__collec
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__ast__node__AstNode(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__ast__node__AstNode(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -28043,7 +28114,7 @@ void std__collections__List_ptr_compiler__ast__node__AstNode_insert(std__collect
 
 std__collections__List_ptr_compiler__ast__node__AstNode std__collections__List_ptr_compiler__ast__node__AstNode_clone(std__collections__List_ptr_compiler__ast__node__AstNode* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__ast__node__AstNode res = (std__collections__List_ptr_compiler__ast__node__AstNode){ std__mem__alloc_array_ptr_compiler__ast__node__AstNode(cap), 0, cap };
+    std__collections__List_ptr_compiler__ast__node__AstNode res = (std__collections__List_ptr_compiler__ast__node__AstNode){ std__memory__create_array_ptr_compiler__ast__node__AstNode(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -28101,7 +28172,7 @@ void std__collections__List_ptr_compiler__ast__node__AstNode_reverse(std__collec
 }
 
 std__collections__List_ptr_compiler__ast__node__AstNode std__collections__List_ptr_compiler__ast__node__AstNode_sub(std__collections__List_ptr_compiler__ast__node__AstNode* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__ast__node__AstNode res = (std__collections__List_ptr_compiler__ast__node__AstNode){ std__mem__alloc_array_ptr_compiler__ast__node__AstNode(count), 0, count };
+    std__collections__List_ptr_compiler__ast__node__AstNode res = (std__collections__List_ptr_compiler__ast__node__AstNode){ std__memory__create_array_ptr_compiler__ast__node__AstNode(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -28240,7 +28311,7 @@ size_t std__collections__List_ptr_compiler__ast__node__AstNode_remove_all(std__c
 }
 
 void std__collections__List_ptr_compiler__ast__node__AstNode_delete(std__collections__List_ptr_compiler__ast__node__AstNode* self) {
-    std__mem__release_ptr_compiler__ast__node__AstNode(self->data);
+    std__memory__free_ptr_compiler__ast__node__AstNode(self->data);
 }
 
 compiler__ast__node__AstNode* std__collections__List_ptr_compiler__ast__node__AstNode_get(std__collections__List_ptr_compiler__ast__node__AstNode* self, size_t index) {
@@ -28268,7 +28339,7 @@ compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm
 }
 
 std__collections__List_compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm_new(size_t cap) {
-    return (std__collections__List_compiler__ast__expr__WhenArm){ std__mem__alloc_array_compiler__ast__expr__WhenArm(cap), 0, cap };
+    return (std__collections__List_compiler__ast__expr__WhenArm){ std__memory__create_array_compiler__ast__expr__WhenArm(cap), 0, cap };
 }
 
 compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm_first(std__collections__List_compiler__ast__expr__WhenArm* self) {
@@ -28314,7 +28385,7 @@ size_t std__collections__List_compiler__ast__expr__WhenArm_clear(std__collection
 
 void std__collections__List_compiler__ast__expr__WhenArm_grow(std__collections__List_compiler__ast__expr__WhenArm* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__expr__WhenArm(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__expr__WhenArm(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -28324,7 +28395,7 @@ void std__collections__List_compiler__ast__expr__WhenArm_reserve(std__collection
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__expr__WhenArm(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__expr__WhenArm(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -28378,7 +28449,7 @@ void std__collections__List_compiler__ast__expr__WhenArm_insert(std__collections
 
 std__collections__List_compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm_clone(std__collections__List_compiler__ast__expr__WhenArm* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__expr__WhenArm res = (std__collections__List_compiler__ast__expr__WhenArm){ std__mem__alloc_array_compiler__ast__expr__WhenArm(cap), 0, cap };
+    std__collections__List_compiler__ast__expr__WhenArm res = (std__collections__List_compiler__ast__expr__WhenArm){ std__memory__create_array_compiler__ast__expr__WhenArm(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -28436,7 +28507,7 @@ void std__collections__List_compiler__ast__expr__WhenArm_reverse(std__collection
 }
 
 std__collections__List_compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm_sub(std__collections__List_compiler__ast__expr__WhenArm* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__expr__WhenArm res = (std__collections__List_compiler__ast__expr__WhenArm){ std__mem__alloc_array_compiler__ast__expr__WhenArm(count), 0, count };
+    std__collections__List_compiler__ast__expr__WhenArm res = (std__collections__List_compiler__ast__expr__WhenArm){ std__memory__create_array_compiler__ast__expr__WhenArm(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -28575,7 +28646,7 @@ size_t std__collections__List_compiler__ast__expr__WhenArm_remove_all(std__colle
 }
 
 void std__collections__List_compiler__ast__expr__WhenArm_delete(std__collections__List_compiler__ast__expr__WhenArm* self) {
-    std__mem__release_compiler__ast__expr__WhenArm(self->data);
+    std__memory__free_compiler__ast__expr__WhenArm(self->data);
 }
 
 compiler__ast__expr__WhenArm std__collections__List_compiler__ast__expr__WhenArm_get(std__collections__List_compiler__ast__expr__WhenArm* self, size_t index) {
@@ -28603,7 +28674,7 @@ compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__Inte
 }
 
 std__collections__List_compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__InterpPart_new(size_t cap) {
-    return (std__collections__List_compiler__ast__expr__InterpPart){ std__mem__alloc_array_compiler__ast__expr__InterpPart(cap), 0, cap };
+    return (std__collections__List_compiler__ast__expr__InterpPart){ std__memory__create_array_compiler__ast__expr__InterpPart(cap), 0, cap };
 }
 
 compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__InterpPart_first(std__collections__List_compiler__ast__expr__InterpPart* self) {
@@ -28649,7 +28720,7 @@ size_t std__collections__List_compiler__ast__expr__InterpPart_clear(std__collect
 
 void std__collections__List_compiler__ast__expr__InterpPart_grow(std__collections__List_compiler__ast__expr__InterpPart* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__expr__InterpPart(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__expr__InterpPart(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -28659,7 +28730,7 @@ void std__collections__List_compiler__ast__expr__InterpPart_reserve(std__collect
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__expr__InterpPart(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__expr__InterpPart(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -28713,7 +28784,7 @@ void std__collections__List_compiler__ast__expr__InterpPart_insert(std__collecti
 
 std__collections__List_compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__InterpPart_clone(std__collections__List_compiler__ast__expr__InterpPart* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__expr__InterpPart res = (std__collections__List_compiler__ast__expr__InterpPart){ std__mem__alloc_array_compiler__ast__expr__InterpPart(cap), 0, cap };
+    std__collections__List_compiler__ast__expr__InterpPart res = (std__collections__List_compiler__ast__expr__InterpPart){ std__memory__create_array_compiler__ast__expr__InterpPart(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -28771,7 +28842,7 @@ void std__collections__List_compiler__ast__expr__InterpPart_reverse(std__collect
 }
 
 std__collections__List_compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__InterpPart_sub(std__collections__List_compiler__ast__expr__InterpPart* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__expr__InterpPart res = (std__collections__List_compiler__ast__expr__InterpPart){ std__mem__alloc_array_compiler__ast__expr__InterpPart(count), 0, count };
+    std__collections__List_compiler__ast__expr__InterpPart res = (std__collections__List_compiler__ast__expr__InterpPart){ std__memory__create_array_compiler__ast__expr__InterpPart(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -28910,7 +28981,7 @@ size_t std__collections__List_compiler__ast__expr__InterpPart_remove_all(std__co
 }
 
 void std__collections__List_compiler__ast__expr__InterpPart_delete(std__collections__List_compiler__ast__expr__InterpPart* self) {
-    std__mem__release_compiler__ast__expr__InterpPart(self->data);
+    std__memory__free_compiler__ast__expr__InterpPart(self->data);
 }
 
 compiler__ast__expr__InterpPart std__collections__List_compiler__ast__expr__InterpPart_get(std__collections__List_compiler__ast__expr__InterpPart* self, size_t index) {
@@ -28938,7 +29009,7 @@ compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__Whe
 }
 
 std__collections__List_compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__WhenStmtArm_new(size_t cap) {
-    return (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__mem__alloc_array_compiler__ast__stmt__WhenStmtArm(cap), 0, cap };
+    return (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__memory__create_array_compiler__ast__stmt__WhenStmtArm(cap), 0, cap };
 }
 
 compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__WhenStmtArm_first(std__collections__List_compiler__ast__stmt__WhenStmtArm* self) {
@@ -28984,7 +29055,7 @@ size_t std__collections__List_compiler__ast__stmt__WhenStmtArm_clear(std__collec
 
 void std__collections__List_compiler__ast__stmt__WhenStmtArm_grow(std__collections__List_compiler__ast__stmt__WhenStmtArm* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__stmt__WhenStmtArm(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__stmt__WhenStmtArm(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -28994,7 +29065,7 @@ void std__collections__List_compiler__ast__stmt__WhenStmtArm_reserve(std__collec
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__stmt__WhenStmtArm(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__stmt__WhenStmtArm(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -29048,7 +29119,7 @@ void std__collections__List_compiler__ast__stmt__WhenStmtArm_insert(std__collect
 
 std__collections__List_compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__WhenStmtArm_clone(std__collections__List_compiler__ast__stmt__WhenStmtArm* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__mem__alloc_array_compiler__ast__stmt__WhenStmtArm(cap), 0, cap };
+    std__collections__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__memory__create_array_compiler__ast__stmt__WhenStmtArm(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -29106,7 +29177,7 @@ void std__collections__List_compiler__ast__stmt__WhenStmtArm_reverse(std__collec
 }
 
 std__collections__List_compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__WhenStmtArm_sub(std__collections__List_compiler__ast__stmt__WhenStmtArm* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__mem__alloc_array_compiler__ast__stmt__WhenStmtArm(count), 0, count };
+    std__collections__List_compiler__ast__stmt__WhenStmtArm res = (std__collections__List_compiler__ast__stmt__WhenStmtArm){ std__memory__create_array_compiler__ast__stmt__WhenStmtArm(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -29245,7 +29316,7 @@ size_t std__collections__List_compiler__ast__stmt__WhenStmtArm_remove_all(std__c
 }
 
 void std__collections__List_compiler__ast__stmt__WhenStmtArm_delete(std__collections__List_compiler__ast__stmt__WhenStmtArm* self) {
-    std__mem__release_compiler__ast__stmt__WhenStmtArm(self->data);
+    std__memory__free_compiler__ast__stmt__WhenStmtArm(self->data);
 }
 
 compiler__ast__stmt__WhenStmtArm std__collections__List_compiler__ast__stmt__WhenStmtArm_get(std__collections__List_compiler__ast__stmt__WhenStmtArm* self, size_t index) {
@@ -29273,7 +29344,7 @@ compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__Ge
 }
 
 std__collections__List_compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__GenericParam_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__GenericParam){ std__mem__alloc_array_compiler__ast__decl__GenericParam(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__GenericParam){ std__memory__create_array_compiler__ast__decl__GenericParam(cap), 0, cap };
 }
 
 compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__GenericParam_first(std__collections__List_compiler__ast__decl__GenericParam* self) {
@@ -29319,7 +29390,7 @@ size_t std__collections__List_compiler__ast__decl__GenericParam_clear(std__colle
 
 void std__collections__List_compiler__ast__decl__GenericParam_grow(std__collections__List_compiler__ast__decl__GenericParam* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__GenericParam(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__GenericParam(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -29329,7 +29400,7 @@ void std__collections__List_compiler__ast__decl__GenericParam_reserve(std__colle
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__GenericParam(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__GenericParam(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -29383,7 +29454,7 @@ void std__collections__List_compiler__ast__decl__GenericParam_insert(std__collec
 
 std__collections__List_compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__GenericParam_clone(std__collections__List_compiler__ast__decl__GenericParam* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__GenericParam res = (std__collections__List_compiler__ast__decl__GenericParam){ std__mem__alloc_array_compiler__ast__decl__GenericParam(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__GenericParam res = (std__collections__List_compiler__ast__decl__GenericParam){ std__memory__create_array_compiler__ast__decl__GenericParam(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -29441,7 +29512,7 @@ void std__collections__List_compiler__ast__decl__GenericParam_reverse(std__colle
 }
 
 std__collections__List_compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__GenericParam_sub(std__collections__List_compiler__ast__decl__GenericParam* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__GenericParam res = (std__collections__List_compiler__ast__decl__GenericParam){ std__mem__alloc_array_compiler__ast__decl__GenericParam(count), 0, count };
+    std__collections__List_compiler__ast__decl__GenericParam res = (std__collections__List_compiler__ast__decl__GenericParam){ std__memory__create_array_compiler__ast__decl__GenericParam(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -29580,7 +29651,7 @@ size_t std__collections__List_compiler__ast__decl__GenericParam_remove_all(std__
 }
 
 void std__collections__List_compiler__ast__decl__GenericParam_delete(std__collections__List_compiler__ast__decl__GenericParam* self) {
-    std__mem__release_compiler__ast__decl__GenericParam(self->data);
+    std__memory__free_compiler__ast__decl__GenericParam(self->data);
 }
 
 compiler__ast__decl__GenericParam std__collections__List_compiler__ast__decl__GenericParam_get(std__collections__List_compiler__ast__decl__GenericParam* self, size_t index) {
@@ -29608,7 +29679,7 @@ compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_at(
 }
 
 std__collections__List_compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__Param){ std__mem__alloc_array_compiler__ast__decl__Param(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__Param){ std__memory__create_array_compiler__ast__decl__Param(cap), 0, cap };
 }
 
 compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_first(std__collections__List_compiler__ast__decl__Param* self) {
@@ -29654,7 +29725,7 @@ size_t std__collections__List_compiler__ast__decl__Param_clear(std__collections_
 
 void std__collections__List_compiler__ast__decl__Param_grow(std__collections__List_compiler__ast__decl__Param* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__Param(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__Param(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -29664,7 +29735,7 @@ void std__collections__List_compiler__ast__decl__Param_reserve(std__collections_
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__Param(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__Param(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -29718,7 +29789,7 @@ void std__collections__List_compiler__ast__decl__Param_insert(std__collections__
 
 std__collections__List_compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_clone(std__collections__List_compiler__ast__decl__Param* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__Param res = (std__collections__List_compiler__ast__decl__Param){ std__mem__alloc_array_compiler__ast__decl__Param(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__Param res = (std__collections__List_compiler__ast__decl__Param){ std__memory__create_array_compiler__ast__decl__Param(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -29776,7 +29847,7 @@ void std__collections__List_compiler__ast__decl__Param_reverse(std__collections_
 }
 
 std__collections__List_compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_sub(std__collections__List_compiler__ast__decl__Param* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__Param res = (std__collections__List_compiler__ast__decl__Param){ std__mem__alloc_array_compiler__ast__decl__Param(count), 0, count };
+    std__collections__List_compiler__ast__decl__Param res = (std__collections__List_compiler__ast__decl__Param){ std__memory__create_array_compiler__ast__decl__Param(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -29915,7 +29986,7 @@ size_t std__collections__List_compiler__ast__decl__Param_remove_all(std__collect
 }
 
 void std__collections__List_compiler__ast__decl__Param_delete(std__collections__List_compiler__ast__decl__Param* self) {
-    std__mem__release_compiler__ast__decl__Param(self->data);
+    std__memory__free_compiler__ast__decl__Param(self->data);
 }
 
 compiler__ast__decl__Param std__collections__List_compiler__ast__decl__Param_get(std__collections__List_compiler__ast__decl__Param* self, size_t index) {
@@ -29943,7 +30014,7 @@ compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__Str
 }
 
 std__collections__List_compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__StructField_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__StructField){ std__mem__alloc_array_compiler__ast__decl__StructField(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__StructField){ std__memory__create_array_compiler__ast__decl__StructField(cap), 0, cap };
 }
 
 compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__StructField_first(std__collections__List_compiler__ast__decl__StructField* self) {
@@ -29989,7 +30060,7 @@ size_t std__collections__List_compiler__ast__decl__StructField_clear(std__collec
 
 void std__collections__List_compiler__ast__decl__StructField_grow(std__collections__List_compiler__ast__decl__StructField* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__StructField(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__StructField(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -29999,7 +30070,7 @@ void std__collections__List_compiler__ast__decl__StructField_reserve(std__collec
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__StructField(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__StructField(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -30053,7 +30124,7 @@ void std__collections__List_compiler__ast__decl__StructField_insert(std__collect
 
 std__collections__List_compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__StructField_clone(std__collections__List_compiler__ast__decl__StructField* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__StructField res = (std__collections__List_compiler__ast__decl__StructField){ std__mem__alloc_array_compiler__ast__decl__StructField(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__StructField res = (std__collections__List_compiler__ast__decl__StructField){ std__memory__create_array_compiler__ast__decl__StructField(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -30111,7 +30182,7 @@ void std__collections__List_compiler__ast__decl__StructField_reverse(std__collec
 }
 
 std__collections__List_compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__StructField_sub(std__collections__List_compiler__ast__decl__StructField* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__StructField res = (std__collections__List_compiler__ast__decl__StructField){ std__mem__alloc_array_compiler__ast__decl__StructField(count), 0, count };
+    std__collections__List_compiler__ast__decl__StructField res = (std__collections__List_compiler__ast__decl__StructField){ std__memory__create_array_compiler__ast__decl__StructField(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -30250,7 +30321,7 @@ size_t std__collections__List_compiler__ast__decl__StructField_remove_all(std__c
 }
 
 void std__collections__List_compiler__ast__decl__StructField_delete(std__collections__List_compiler__ast__decl__StructField* self) {
-    std__mem__release_compiler__ast__decl__StructField(self->data);
+    std__memory__free_compiler__ast__decl__StructField(self->data);
 }
 
 compiler__ast__decl__StructField std__collections__List_compiler__ast__decl__StructField_get(std__collections__List_compiler__ast__decl__StructField* self, size_t index) {
@@ -30278,7 +30349,7 @@ compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__As
 }
 
 std__collections__List_compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__AssocBinding_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__AssocBinding){ std__mem__alloc_array_compiler__ast__decl__AssocBinding(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__AssocBinding){ std__memory__create_array_compiler__ast__decl__AssocBinding(cap), 0, cap };
 }
 
 compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__AssocBinding_first(std__collections__List_compiler__ast__decl__AssocBinding* self) {
@@ -30324,7 +30395,7 @@ size_t std__collections__List_compiler__ast__decl__AssocBinding_clear(std__colle
 
 void std__collections__List_compiler__ast__decl__AssocBinding_grow(std__collections__List_compiler__ast__decl__AssocBinding* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__AssocBinding(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__AssocBinding(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -30334,7 +30405,7 @@ void std__collections__List_compiler__ast__decl__AssocBinding_reserve(std__colle
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__AssocBinding(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__AssocBinding(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -30388,7 +30459,7 @@ void std__collections__List_compiler__ast__decl__AssocBinding_insert(std__collec
 
 std__collections__List_compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__AssocBinding_clone(std__collections__List_compiler__ast__decl__AssocBinding* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__AssocBinding res = (std__collections__List_compiler__ast__decl__AssocBinding){ std__mem__alloc_array_compiler__ast__decl__AssocBinding(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__AssocBinding res = (std__collections__List_compiler__ast__decl__AssocBinding){ std__memory__create_array_compiler__ast__decl__AssocBinding(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -30446,7 +30517,7 @@ void std__collections__List_compiler__ast__decl__AssocBinding_reverse(std__colle
 }
 
 std__collections__List_compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__AssocBinding_sub(std__collections__List_compiler__ast__decl__AssocBinding* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__AssocBinding res = (std__collections__List_compiler__ast__decl__AssocBinding){ std__mem__alloc_array_compiler__ast__decl__AssocBinding(count), 0, count };
+    std__collections__List_compiler__ast__decl__AssocBinding res = (std__collections__List_compiler__ast__decl__AssocBinding){ std__memory__create_array_compiler__ast__decl__AssocBinding(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -30585,7 +30656,7 @@ size_t std__collections__List_compiler__ast__decl__AssocBinding_remove_all(std__
 }
 
 void std__collections__List_compiler__ast__decl__AssocBinding_delete(std__collections__List_compiler__ast__decl__AssocBinding* self) {
-    std__mem__release_compiler__ast__decl__AssocBinding(self->data);
+    std__memory__free_compiler__ast__decl__AssocBinding(self->data);
 }
 
 compiler__ast__decl__AssocBinding std__collections__List_compiler__ast__decl__AssocBinding_get(std__collections__List_compiler__ast__decl__AssocBinding* self, size_t index) {
@@ -30613,7 +30684,7 @@ compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumF
 }
 
 std__collections__List_compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumField_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__EnumField){ std__mem__alloc_array_compiler__ast__decl__EnumField(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__EnumField){ std__memory__create_array_compiler__ast__decl__EnumField(cap), 0, cap };
 }
 
 compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumField_first(std__collections__List_compiler__ast__decl__EnumField* self) {
@@ -30659,7 +30730,7 @@ size_t std__collections__List_compiler__ast__decl__EnumField_clear(std__collecti
 
 void std__collections__List_compiler__ast__decl__EnumField_grow(std__collections__List_compiler__ast__decl__EnumField* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__EnumField(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__EnumField(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -30669,7 +30740,7 @@ void std__collections__List_compiler__ast__decl__EnumField_reserve(std__collecti
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__EnumField(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__EnumField(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -30723,7 +30794,7 @@ void std__collections__List_compiler__ast__decl__EnumField_insert(std__collectio
 
 std__collections__List_compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumField_clone(std__collections__List_compiler__ast__decl__EnumField* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__EnumField res = (std__collections__List_compiler__ast__decl__EnumField){ std__mem__alloc_array_compiler__ast__decl__EnumField(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__EnumField res = (std__collections__List_compiler__ast__decl__EnumField){ std__memory__create_array_compiler__ast__decl__EnumField(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -30781,7 +30852,7 @@ void std__collections__List_compiler__ast__decl__EnumField_reverse(std__collecti
 }
 
 std__collections__List_compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumField_sub(std__collections__List_compiler__ast__decl__EnumField* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__EnumField res = (std__collections__List_compiler__ast__decl__EnumField){ std__mem__alloc_array_compiler__ast__decl__EnumField(count), 0, count };
+    std__collections__List_compiler__ast__decl__EnumField res = (std__collections__List_compiler__ast__decl__EnumField){ std__memory__create_array_compiler__ast__decl__EnumField(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -30920,7 +30991,7 @@ size_t std__collections__List_compiler__ast__decl__EnumField_remove_all(std__col
 }
 
 void std__collections__List_compiler__ast__decl__EnumField_delete(std__collections__List_compiler__ast__decl__EnumField* self) {
-    std__mem__release_compiler__ast__decl__EnumField(self->data);
+    std__memory__free_compiler__ast__decl__EnumField(self->data);
 }
 
 compiler__ast__decl__EnumField std__collections__List_compiler__ast__decl__EnumField_get(std__collections__List_compiler__ast__decl__EnumField* self, size_t index) {
@@ -30948,7 +31019,7 @@ compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__Enum
 }
 
 std__collections__List_compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__EnumMember_new(size_t cap) {
-    return (std__collections__List_compiler__ast__decl__EnumMember){ std__mem__alloc_array_compiler__ast__decl__EnumMember(cap), 0, cap };
+    return (std__collections__List_compiler__ast__decl__EnumMember){ std__memory__create_array_compiler__ast__decl__EnumMember(cap), 0, cap };
 }
 
 compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__EnumMember_first(std__collections__List_compiler__ast__decl__EnumMember* self) {
@@ -30994,7 +31065,7 @@ size_t std__collections__List_compiler__ast__decl__EnumMember_clear(std__collect
 
 void std__collections__List_compiler__ast__decl__EnumMember_grow(std__collections__List_compiler__ast__decl__EnumMember* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__ast__decl__EnumMember(self->data, new_cap);
+    self->data = std__memory__resize_compiler__ast__decl__EnumMember(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -31004,7 +31075,7 @@ void std__collections__List_compiler__ast__decl__EnumMember_reserve(std__collect
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__ast__decl__EnumMember(self->data, new_cap);
+        self->data = std__memory__resize_compiler__ast__decl__EnumMember(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -31058,7 +31129,7 @@ void std__collections__List_compiler__ast__decl__EnumMember_insert(std__collecti
 
 std__collections__List_compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__EnumMember_clone(std__collections__List_compiler__ast__decl__EnumMember* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__decl__EnumMember res = (std__collections__List_compiler__ast__decl__EnumMember){ std__mem__alloc_array_compiler__ast__decl__EnumMember(cap), 0, cap };
+    std__collections__List_compiler__ast__decl__EnumMember res = (std__collections__List_compiler__ast__decl__EnumMember){ std__memory__create_array_compiler__ast__decl__EnumMember(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -31116,7 +31187,7 @@ void std__collections__List_compiler__ast__decl__EnumMember_reverse(std__collect
 }
 
 std__collections__List_compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__EnumMember_sub(std__collections__List_compiler__ast__decl__EnumMember* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__decl__EnumMember res = (std__collections__List_compiler__ast__decl__EnumMember){ std__mem__alloc_array_compiler__ast__decl__EnumMember(count), 0, count };
+    std__collections__List_compiler__ast__decl__EnumMember res = (std__collections__List_compiler__ast__decl__EnumMember){ std__memory__create_array_compiler__ast__decl__EnumMember(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -31255,7 +31326,7 @@ size_t std__collections__List_compiler__ast__decl__EnumMember_remove_all(std__co
 }
 
 void std__collections__List_compiler__ast__decl__EnumMember_delete(std__collections__List_compiler__ast__decl__EnumMember* self) {
-    std__mem__release_compiler__ast__decl__EnumMember(self->data);
+    std__memory__free_compiler__ast__decl__EnumMember(self->data);
 }
 
 compiler__ast__decl__EnumMember std__collections__List_compiler__ast__decl__EnumMember_get(std__collections__List_compiler__ast__decl__EnumMember* self, size_t index) {
@@ -31283,7 +31354,7 @@ compiler__lexer__Token std__collections__List_compiler__lexer__Token_at(std__col
 }
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_new(size_t cap) {
-    return (std__collections__List_compiler__lexer__Token){ std__mem__alloc_array_compiler__lexer__Token(cap), 0, cap };
+    return (std__collections__List_compiler__lexer__Token){ std__memory__create_array_compiler__lexer__Token(cap), 0, cap };
 }
 
 compiler__lexer__Token std__collections__List_compiler__lexer__Token_first(std__collections__List_compiler__lexer__Token* self) {
@@ -31329,7 +31400,7 @@ size_t std__collections__List_compiler__lexer__Token_clear(std__collections__Lis
 
 void std__collections__List_compiler__lexer__Token_grow(std__collections__List_compiler__lexer__Token* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__lexer__Token(self->data, new_cap);
+    self->data = std__memory__resize_compiler__lexer__Token(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -31339,7 +31410,7 @@ void std__collections__List_compiler__lexer__Token_reserve(std__collections__Lis
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__lexer__Token(self->data, new_cap);
+        self->data = std__memory__resize_compiler__lexer__Token(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -31393,7 +31464,7 @@ void std__collections__List_compiler__lexer__Token_insert(std__collections__List
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_clone(std__collections__List_compiler__lexer__Token* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__mem__alloc_array_compiler__lexer__Token(cap), 0, cap };
+    std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__create_array_compiler__lexer__Token(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -31451,7 +31522,7 @@ void std__collections__List_compiler__lexer__Token_reverse(std__collections__Lis
 }
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_sub(std__collections__List_compiler__lexer__Token* self, size_t start, size_t count) {
-    std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__mem__alloc_array_compiler__lexer__Token(count), 0, count };
+    std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__create_array_compiler__lexer__Token(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -31590,7 +31661,7 @@ size_t std__collections__List_compiler__lexer__Token_remove_all(std__collections
 }
 
 void std__collections__List_compiler__lexer__Token_delete(std__collections__List_compiler__lexer__Token* self) {
-    std__mem__release_compiler__lexer__Token(self->data);
+    std__memory__free_compiler__lexer__Token(self->data);
 }
 
 compiler__lexer__Token std__collections__List_compiler__lexer__Token_get(std__collections__List_compiler__lexer__Token* self, size_t index) {
@@ -31618,7 +31689,7 @@ compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedMo
 }
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_new(size_t cap) {
-    return (std__collections__List_compiler__loader__LoadedModule){ std__mem__alloc_array_compiler__loader__LoadedModule(cap), 0, cap };
+    return (std__collections__List_compiler__loader__LoadedModule){ std__memory__create_array_compiler__loader__LoadedModule(cap), 0, cap };
 }
 
 compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_first(std__collections__List_compiler__loader__LoadedModule* self) {
@@ -31664,7 +31735,7 @@ size_t std__collections__List_compiler__loader__LoadedModule_clear(std__collecti
 
 void std__collections__List_compiler__loader__LoadedModule_grow(std__collections__List_compiler__loader__LoadedModule* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__loader__LoadedModule(self->data, new_cap);
+    self->data = std__memory__resize_compiler__loader__LoadedModule(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -31674,7 +31745,7 @@ void std__collections__List_compiler__loader__LoadedModule_reserve(std__collecti
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__loader__LoadedModule(self->data, new_cap);
+        self->data = std__memory__resize_compiler__loader__LoadedModule(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -31728,7 +31799,7 @@ void std__collections__List_compiler__loader__LoadedModule_insert(std__collectio
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_clone(std__collections__List_compiler__loader__LoadedModule* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__mem__alloc_array_compiler__loader__LoadedModule(cap), 0, cap };
+    std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__create_array_compiler__loader__LoadedModule(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -31786,7 +31857,7 @@ void std__collections__List_compiler__loader__LoadedModule_reverse(std__collecti
 }
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_sub(std__collections__List_compiler__loader__LoadedModule* self, size_t start, size_t count) {
-    std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__mem__alloc_array_compiler__loader__LoadedModule(count), 0, count };
+    std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__create_array_compiler__loader__LoadedModule(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -31925,7 +31996,7 @@ size_t std__collections__List_compiler__loader__LoadedModule_remove_all(std__col
 }
 
 void std__collections__List_compiler__loader__LoadedModule_delete(std__collections__List_compiler__loader__LoadedModule* self) {
-    std__mem__release_compiler__loader__LoadedModule(self->data);
+    std__memory__free_compiler__loader__LoadedModule(self->data);
 }
 
 compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_get(std__collections__List_compiler__loader__LoadedModule* self, size_t index) {
@@ -31953,7 +32024,7 @@ compiler__sema__methods__MethodInfo* std__collections__List_ptr_compiler__sema__
 }
 
 std__collections__List_ptr_compiler__sema__methods__MethodInfo std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__mem__alloc_array_ptr_compiler__sema__methods__MethodInfo(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__memory__create_array_ptr_compiler__sema__methods__MethodInfo(cap), 0, cap };
 }
 
 compiler__sema__methods__MethodInfo* std__collections__List_ptr_compiler__sema__methods__MethodInfo_first(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self) {
@@ -31999,7 +32070,7 @@ size_t std__collections__List_ptr_compiler__sema__methods__MethodInfo_clear(std_
 
 void std__collections__List_ptr_compiler__sema__methods__MethodInfo_grow(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__methods__MethodInfo(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__methods__MethodInfo(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -32009,7 +32080,7 @@ void std__collections__List_ptr_compiler__sema__methods__MethodInfo_reserve(std_
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__methods__MethodInfo(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__methods__MethodInfo(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -32063,7 +32134,7 @@ void std__collections__List_ptr_compiler__sema__methods__MethodInfo_insert(std__
 
 std__collections__List_ptr_compiler__sema__methods__MethodInfo std__collections__List_ptr_compiler__sema__methods__MethodInfo_clone(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__methods__MethodInfo res = (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__mem__alloc_array_ptr_compiler__sema__methods__MethodInfo(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__methods__MethodInfo res = (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__memory__create_array_ptr_compiler__sema__methods__MethodInfo(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -32121,7 +32192,7 @@ void std__collections__List_ptr_compiler__sema__methods__MethodInfo_reverse(std_
 }
 
 std__collections__List_ptr_compiler__sema__methods__MethodInfo std__collections__List_ptr_compiler__sema__methods__MethodInfo_sub(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__methods__MethodInfo res = (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__mem__alloc_array_ptr_compiler__sema__methods__MethodInfo(count), 0, count };
+    std__collections__List_ptr_compiler__sema__methods__MethodInfo res = (std__collections__List_ptr_compiler__sema__methods__MethodInfo){ std__memory__create_array_ptr_compiler__sema__methods__MethodInfo(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -32260,7 +32331,7 @@ size_t std__collections__List_ptr_compiler__sema__methods__MethodInfo_remove_all
 }
 
 void std__collections__List_ptr_compiler__sema__methods__MethodInfo_delete(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self) {
-    std__mem__release_ptr_compiler__sema__methods__MethodInfo(self->data);
+    std__memory__free_ptr_compiler__sema__methods__MethodInfo(self->data);
 }
 
 compiler__sema__methods__MethodInfo* std__collections__List_ptr_compiler__sema__methods__MethodInfo_get(std__collections__List_ptr_compiler__sema__methods__MethodInfo* self, size_t index) {
@@ -32288,7 +32359,7 @@ compiler__sema__structs__StructField std__collections__List_compiler__sema__stru
 }
 
 std__collections__List_compiler__sema__structs__StructField std__collections__List_compiler__sema__structs__StructField_new(size_t cap) {
-    return (std__collections__List_compiler__sema__structs__StructField){ std__mem__alloc_array_compiler__sema__structs__StructField(cap), 0, cap };
+    return (std__collections__List_compiler__sema__structs__StructField){ std__memory__create_array_compiler__sema__structs__StructField(cap), 0, cap };
 }
 
 compiler__sema__structs__StructField std__collections__List_compiler__sema__structs__StructField_first(std__collections__List_compiler__sema__structs__StructField* self) {
@@ -32334,7 +32405,7 @@ size_t std__collections__List_compiler__sema__structs__StructField_clear(std__co
 
 void std__collections__List_compiler__sema__structs__StructField_grow(std__collections__List_compiler__sema__structs__StructField* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__sema__structs__StructField(self->data, new_cap);
+    self->data = std__memory__resize_compiler__sema__structs__StructField(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -32344,7 +32415,7 @@ void std__collections__List_compiler__sema__structs__StructField_reserve(std__co
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__sema__structs__StructField(self->data, new_cap);
+        self->data = std__memory__resize_compiler__sema__structs__StructField(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -32398,7 +32469,7 @@ void std__collections__List_compiler__sema__structs__StructField_insert(std__col
 
 std__collections__List_compiler__sema__structs__StructField std__collections__List_compiler__sema__structs__StructField_clone(std__collections__List_compiler__sema__structs__StructField* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__sema__structs__StructField res = (std__collections__List_compiler__sema__structs__StructField){ std__mem__alloc_array_compiler__sema__structs__StructField(cap), 0, cap };
+    std__collections__List_compiler__sema__structs__StructField res = (std__collections__List_compiler__sema__structs__StructField){ std__memory__create_array_compiler__sema__structs__StructField(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -32456,7 +32527,7 @@ void std__collections__List_compiler__sema__structs__StructField_reverse(std__co
 }
 
 std__collections__List_compiler__sema__structs__StructField std__collections__List_compiler__sema__structs__StructField_sub(std__collections__List_compiler__sema__structs__StructField* self, size_t start, size_t count) {
-    std__collections__List_compiler__sema__structs__StructField res = (std__collections__List_compiler__sema__structs__StructField){ std__mem__alloc_array_compiler__sema__structs__StructField(count), 0, count };
+    std__collections__List_compiler__sema__structs__StructField res = (std__collections__List_compiler__sema__structs__StructField){ std__memory__create_array_compiler__sema__structs__StructField(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -32595,7 +32666,7 @@ size_t std__collections__List_compiler__sema__structs__StructField_remove_all(st
 }
 
 void std__collections__List_compiler__sema__structs__StructField_delete(std__collections__List_compiler__sema__structs__StructField* self) {
-    std__mem__release_compiler__sema__structs__StructField(self->data);
+    std__memory__free_compiler__sema__structs__StructField(self->data);
 }
 
 compiler__sema__structs__StructField std__collections__List_compiler__sema__structs__StructField_get(std__collections__List_compiler__sema__structs__StructField* self, size_t index) {
@@ -32623,7 +32694,7 @@ compiler__sema__enums__EnumMemberInfo* std__collections__List_ptr_compiler__sema
 }
 
 std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumMemberInfo(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumMemberInfo(cap), 0, cap };
 }
 
 compiler__sema__enums__EnumMemberInfo* std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_first(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self) {
@@ -32669,7 +32740,7 @@ size_t std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_clear(st
 
 void std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_grow(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__enums__EnumMemberInfo(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__enums__EnumMemberInfo(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -32679,7 +32750,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_reserve(st
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__enums__EnumMemberInfo(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__enums__EnumMemberInfo(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -32733,7 +32804,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_insert(std
 
 std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_clone(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumMemberInfo(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumMemberInfo(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -32791,7 +32862,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_reverse(st
 }
 
 std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_sub(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumMemberInfo(count), 0, count };
+    std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumMemberInfo(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -32930,7 +33001,7 @@ size_t std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_remove_a
 }
 
 void std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_delete(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self) {
-    std__mem__release_ptr_compiler__sema__enums__EnumMemberInfo(self->data);
+    std__memory__free_ptr_compiler__sema__enums__EnumMemberInfo(self->data);
 }
 
 compiler__sema__enums__EnumMemberInfo* std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo_get(std__collections__List_ptr_compiler__sema__enums__EnumMemberInfo* self, size_t index) {
@@ -32958,7 +33029,7 @@ compiler__sema__types__Type* std__collections__List_ptr_compiler__sema__types__T
 }
 
 std__collections__List_ptr_compiler__sema__types__Type std__collections__List_ptr_compiler__sema__types__Type_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__types__Type){ std__mem__alloc_array_ptr_compiler__sema__types__Type(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__types__Type){ std__memory__create_array_ptr_compiler__sema__types__Type(cap), 0, cap };
 }
 
 compiler__sema__types__Type* std__collections__List_ptr_compiler__sema__types__Type_first(std__collections__List_ptr_compiler__sema__types__Type* self) {
@@ -33004,7 +33075,7 @@ size_t std__collections__List_ptr_compiler__sema__types__Type_clear(std__collect
 
 void std__collections__List_ptr_compiler__sema__types__Type_grow(std__collections__List_ptr_compiler__sema__types__Type* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__types__Type(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__types__Type(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -33014,7 +33085,7 @@ void std__collections__List_ptr_compiler__sema__types__Type_reserve(std__collect
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__types__Type(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__types__Type(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -33068,7 +33139,7 @@ void std__collections__List_ptr_compiler__sema__types__Type_insert(std__collecti
 
 std__collections__List_ptr_compiler__sema__types__Type std__collections__List_ptr_compiler__sema__types__Type_clone(std__collections__List_ptr_compiler__sema__types__Type* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__types__Type res = (std__collections__List_ptr_compiler__sema__types__Type){ std__mem__alloc_array_ptr_compiler__sema__types__Type(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__types__Type res = (std__collections__List_ptr_compiler__sema__types__Type){ std__memory__create_array_ptr_compiler__sema__types__Type(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -33126,7 +33197,7 @@ void std__collections__List_ptr_compiler__sema__types__Type_reverse(std__collect
 }
 
 std__collections__List_ptr_compiler__sema__types__Type std__collections__List_ptr_compiler__sema__types__Type_sub(std__collections__List_ptr_compiler__sema__types__Type* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__types__Type res = (std__collections__List_ptr_compiler__sema__types__Type){ std__mem__alloc_array_ptr_compiler__sema__types__Type(count), 0, count };
+    std__collections__List_ptr_compiler__sema__types__Type res = (std__collections__List_ptr_compiler__sema__types__Type){ std__memory__create_array_ptr_compiler__sema__types__Type(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -33265,7 +33336,7 @@ size_t std__collections__List_ptr_compiler__sema__types__Type_remove_all(std__co
 }
 
 void std__collections__List_ptr_compiler__sema__types__Type_delete(std__collections__List_ptr_compiler__sema__types__Type* self) {
-    std__mem__release_ptr_compiler__sema__types__Type(self->data);
+    std__memory__free_ptr_compiler__sema__types__Type(self->data);
 }
 
 compiler__sema__types__Type* std__collections__List_ptr_compiler__sema__types__Type_get(std__collections__List_ptr_compiler__sema__types__Type* self, size_t index) {
@@ -33293,7 +33364,7 @@ size_t std__collections__List_usz_at(std__collections__List_usz* self, size_t i)
 }
 
 std__collections__List_usz std__collections__List_usz_new(size_t cap) {
-    return (std__collections__List_usz){ std__mem__alloc_array_usz(cap), 0, cap };
+    return (std__collections__List_usz){ std__memory__create_array_usz(cap), 0, cap };
 }
 
 size_t std__collections__List_usz_first(std__collections__List_usz* self) {
@@ -33339,7 +33410,7 @@ size_t std__collections__List_usz_clear(std__collections__List_usz* self) {
 
 void std__collections__List_usz_grow(std__collections__List_usz* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_usz(self->data, new_cap);
+    self->data = std__memory__resize_usz(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -33349,7 +33420,7 @@ void std__collections__List_usz_reserve(std__collections__List_usz* self, size_t
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_usz(self->data, new_cap);
+        self->data = std__memory__resize_usz(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -33403,7 +33474,7 @@ void std__collections__List_usz_insert(std__collections__List_usz* self, size_t 
 
 std__collections__List_usz std__collections__List_usz_clone(std__collections__List_usz* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_usz res = (std__collections__List_usz){ std__mem__alloc_array_usz(cap), 0, cap };
+    std__collections__List_usz res = (std__collections__List_usz){ std__memory__create_array_usz(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -33461,7 +33532,7 @@ void std__collections__List_usz_reverse(std__collections__List_usz* self) {
 }
 
 std__collections__List_usz std__collections__List_usz_sub(std__collections__List_usz* self, size_t start, size_t count) {
-    std__collections__List_usz res = (std__collections__List_usz){ std__mem__alloc_array_usz(count), 0, count };
+    std__collections__List_usz res = (std__collections__List_usz){ std__memory__create_array_usz(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -33600,7 +33671,7 @@ size_t std__collections__List_usz_remove_all(std__collections__List_usz* self, s
 }
 
 void std__collections__List_usz_delete(std__collections__List_usz* self) {
-    std__mem__release_usz(self->data);
+    std__memory__free_usz(self->data);
 }
 
 size_t std__collections__List_usz_get(std__collections__List_usz* self, size_t index) {
@@ -33628,7 +33699,7 @@ compiler__sema__instance__AnnEntry* std__collections__List_ptr_compiler__sema__i
 }
 
 std__collections__List_ptr_compiler__sema__instance__AnnEntry std__collections__List_ptr_compiler__sema__instance__AnnEntry_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(cap), 0, cap };
 }
 
 compiler__sema__instance__AnnEntry* std__collections__List_ptr_compiler__sema__instance__AnnEntry_first(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self) {
@@ -33674,7 +33745,7 @@ size_t std__collections__List_ptr_compiler__sema__instance__AnnEntry_clear(std__
 
 void std__collections__List_ptr_compiler__sema__instance__AnnEntry_grow(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__instance__AnnEntry(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__instance__AnnEntry(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -33684,7 +33755,7 @@ void std__collections__List_ptr_compiler__sema__instance__AnnEntry_reserve(std__
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__instance__AnnEntry(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__instance__AnnEntry(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -33738,7 +33809,7 @@ void std__collections__List_ptr_compiler__sema__instance__AnnEntry_insert(std__c
 
 std__collections__List_ptr_compiler__sema__instance__AnnEntry std__collections__List_ptr_compiler__sema__instance__AnnEntry_clone(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__instance__AnnEntry res = (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__instance__AnnEntry res = (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -33796,7 +33867,7 @@ void std__collections__List_ptr_compiler__sema__instance__AnnEntry_reverse(std__
 }
 
 std__collections__List_ptr_compiler__sema__instance__AnnEntry std__collections__List_ptr_compiler__sema__instance__AnnEntry_sub(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__instance__AnnEntry res = (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(count), 0, count };
+    std__collections__List_ptr_compiler__sema__instance__AnnEntry res = (std__collections__List_ptr_compiler__sema__instance__AnnEntry){ std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -33935,7 +34006,7 @@ size_t std__collections__List_ptr_compiler__sema__instance__AnnEntry_remove_all(
 }
 
 void std__collections__List_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self) {
-    std__mem__release_ptr_compiler__sema__instance__AnnEntry(self->data);
+    std__memory__free_ptr_compiler__sema__instance__AnnEntry(self->data);
 }
 
 compiler__sema__instance__AnnEntry* std__collections__List_ptr_compiler__sema__instance__AnnEntry_get(std__collections__List_ptr_compiler__sema__instance__AnnEntry* self, size_t index) {
@@ -33959,9 +34030,9 @@ std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collec
     if (cap < 8) {
         cap = 8;
     }
-    size_t* keys = std__mem__alloc_array_usz(cap);
-    compiler__sema__instance__AnnEntry** values = std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    size_t* keys = std__memory__create_array_usz(cap);
+    compiler__sema__instance__AnnEntry** values = std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -34168,9 +34239,9 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
     compiler__sema__instance__AnnEntry** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    size_t* keys = std__mem__alloc_array_usz(new_cap);
-    compiler__sema__instance__AnnEntry** values = std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    size_t* keys = std__memory__create_array_usz(new_cap);
+    compiler__sema__instance__AnnEntry** values = std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -34235,17 +34306,17 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
                 }
             }
         }
-        std__mem__release_usz(old_keys);
-        std__mem__release_ptr_compiler__sema__instance__AnnEntry(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_delete(std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     if (self->cap > 0) {
-        std__mem__release_usz(self->keys);
-        std__mem__release_ptr_compiler__sema__instance__AnnEntry(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -34307,7 +34378,7 @@ compiler__sema__traits__TraitMethod* std__collections__List_ptr_compiler__sema__
 }
 
 std__collections__List_ptr_compiler__sema__traits__TraitMethod std__collections__List_ptr_compiler__sema__traits__TraitMethod_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitMethod(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__memory__create_array_ptr_compiler__sema__traits__TraitMethod(cap), 0, cap };
 }
 
 compiler__sema__traits__TraitMethod* std__collections__List_ptr_compiler__sema__traits__TraitMethod_first(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self) {
@@ -34353,7 +34424,7 @@ size_t std__collections__List_ptr_compiler__sema__traits__TraitMethod_clear(std_
 
 void std__collections__List_ptr_compiler__sema__traits__TraitMethod_grow(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__traits__TraitMethod(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__traits__TraitMethod(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -34363,7 +34434,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitMethod_reserve(std_
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__traits__TraitMethod(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__traits__TraitMethod(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -34417,7 +34488,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitMethod_insert(std__
 
 std__collections__List_ptr_compiler__sema__traits__TraitMethod std__collections__List_ptr_compiler__sema__traits__TraitMethod_clone(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__traits__TraitMethod res = (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitMethod(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__traits__TraitMethod res = (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__memory__create_array_ptr_compiler__sema__traits__TraitMethod(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -34475,7 +34546,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitMethod_reverse(std_
 }
 
 std__collections__List_ptr_compiler__sema__traits__TraitMethod std__collections__List_ptr_compiler__sema__traits__TraitMethod_sub(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__traits__TraitMethod res = (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitMethod(count), 0, count };
+    std__collections__List_ptr_compiler__sema__traits__TraitMethod res = (std__collections__List_ptr_compiler__sema__traits__TraitMethod){ std__memory__create_array_ptr_compiler__sema__traits__TraitMethod(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -34614,7 +34685,7 @@ size_t std__collections__List_ptr_compiler__sema__traits__TraitMethod_remove_all
 }
 
 void std__collections__List_ptr_compiler__sema__traits__TraitMethod_delete(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self) {
-    std__mem__release_ptr_compiler__sema__traits__TraitMethod(self->data);
+    std__memory__free_ptr_compiler__sema__traits__TraitMethod(self->data);
 }
 
 compiler__sema__traits__TraitMethod* std__collections__List_ptr_compiler__sema__traits__TraitMethod_get(std__collections__List_ptr_compiler__sema__traits__TraitMethod* self, size_t index) {
@@ -34642,7 +34713,7 @@ compiler__sema__symbol__Symbol* std__collections__List_ptr_compiler__sema__symbo
 }
 
 std__collections__List_ptr_compiler__sema__symbol__Symbol std__collections__List_ptr_compiler__sema__symbol__Symbol_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__memory__create_array_ptr_compiler__sema__symbol__Symbol(cap), 0, cap };
 }
 
 compiler__sema__symbol__Symbol* std__collections__List_ptr_compiler__sema__symbol__Symbol_first(std__collections__List_ptr_compiler__sema__symbol__Symbol* self) {
@@ -34688,7 +34759,7 @@ size_t std__collections__List_ptr_compiler__sema__symbol__Symbol_clear(std__coll
 
 void std__collections__List_ptr_compiler__sema__symbol__Symbol_grow(std__collections__List_ptr_compiler__sema__symbol__Symbol* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__symbol__Symbol(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__symbol__Symbol(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -34698,7 +34769,7 @@ void std__collections__List_ptr_compiler__sema__symbol__Symbol_reserve(std__coll
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__symbol__Symbol(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__symbol__Symbol(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -34752,7 +34823,7 @@ void std__collections__List_ptr_compiler__sema__symbol__Symbol_insert(std__colle
 
 std__collections__List_ptr_compiler__sema__symbol__Symbol std__collections__List_ptr_compiler__sema__symbol__Symbol_clone(std__collections__List_ptr_compiler__sema__symbol__Symbol* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__memory__create_array_ptr_compiler__sema__symbol__Symbol(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -34810,7 +34881,7 @@ void std__collections__List_ptr_compiler__sema__symbol__Symbol_reverse(std__coll
 }
 
 std__collections__List_ptr_compiler__sema__symbol__Symbol std__collections__List_ptr_compiler__sema__symbol__Symbol_sub(std__collections__List_ptr_compiler__sema__symbol__Symbol* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(count), 0, count };
+    std__collections__List_ptr_compiler__sema__symbol__Symbol res = (std__collections__List_ptr_compiler__sema__symbol__Symbol){ std__memory__create_array_ptr_compiler__sema__symbol__Symbol(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -34949,7 +35020,7 @@ size_t std__collections__List_ptr_compiler__sema__symbol__Symbol_remove_all(std_
 }
 
 void std__collections__List_ptr_compiler__sema__symbol__Symbol_delete(std__collections__List_ptr_compiler__sema__symbol__Symbol* self) {
-    std__mem__release_ptr_compiler__sema__symbol__Symbol(self->data);
+    std__memory__free_ptr_compiler__sema__symbol__Symbol(self->data);
 }
 
 compiler__sema__symbol__Symbol* std__collections__List_ptr_compiler__sema__symbol__Symbol_get(std__collections__List_ptr_compiler__sema__symbol__Symbol* self, size_t index) {
@@ -34973,9 +35044,9 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collection
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__symbol__Symbol** values = std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__symbol__Symbol** values = std__memory__create_array_ptr_compiler__sema__symbol__Symbol(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -35182,9 +35253,9 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
     compiler__sema__symbol__Symbol** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__symbol__Symbol** values = std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__symbol__Symbol** values = std__memory__create_array_ptr_compiler__sema__symbol__Symbol(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -35249,17 +35320,17 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_ptr_compiler__sema__symbol__Symbol(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_delete(std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_ptr_compiler__sema__symbol__Symbol(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -35321,7 +35392,7 @@ compiler__sema__template__GenTemplate* std__collections__List_ptr_compiler__sema
 }
 
 std__collections__List_ptr_compiler__sema__template__GenTemplate std__collections__List_ptr_compiler__sema__template__GenTemplate_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__mem__alloc_array_ptr_compiler__sema__template__GenTemplate(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__memory__create_array_ptr_compiler__sema__template__GenTemplate(cap), 0, cap };
 }
 
 compiler__sema__template__GenTemplate* std__collections__List_ptr_compiler__sema__template__GenTemplate_first(std__collections__List_ptr_compiler__sema__template__GenTemplate* self) {
@@ -35367,7 +35438,7 @@ size_t std__collections__List_ptr_compiler__sema__template__GenTemplate_clear(st
 
 void std__collections__List_ptr_compiler__sema__template__GenTemplate_grow(std__collections__List_ptr_compiler__sema__template__GenTemplate* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__template__GenTemplate(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__template__GenTemplate(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -35377,7 +35448,7 @@ void std__collections__List_ptr_compiler__sema__template__GenTemplate_reserve(st
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__template__GenTemplate(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__template__GenTemplate(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -35431,7 +35502,7 @@ void std__collections__List_ptr_compiler__sema__template__GenTemplate_insert(std
 
 std__collections__List_ptr_compiler__sema__template__GenTemplate std__collections__List_ptr_compiler__sema__template__GenTemplate_clone(std__collections__List_ptr_compiler__sema__template__GenTemplate* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__template__GenTemplate res = (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__mem__alloc_array_ptr_compiler__sema__template__GenTemplate(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__template__GenTemplate res = (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__memory__create_array_ptr_compiler__sema__template__GenTemplate(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -35489,7 +35560,7 @@ void std__collections__List_ptr_compiler__sema__template__GenTemplate_reverse(st
 }
 
 std__collections__List_ptr_compiler__sema__template__GenTemplate std__collections__List_ptr_compiler__sema__template__GenTemplate_sub(std__collections__List_ptr_compiler__sema__template__GenTemplate* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__template__GenTemplate res = (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__mem__alloc_array_ptr_compiler__sema__template__GenTemplate(count), 0, count };
+    std__collections__List_ptr_compiler__sema__template__GenTemplate res = (std__collections__List_ptr_compiler__sema__template__GenTemplate){ std__memory__create_array_ptr_compiler__sema__template__GenTemplate(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -35628,7 +35699,7 @@ size_t std__collections__List_ptr_compiler__sema__template__GenTemplate_remove_a
 }
 
 void std__collections__List_ptr_compiler__sema__template__GenTemplate_delete(std__collections__List_ptr_compiler__sema__template__GenTemplate* self) {
-    std__mem__release_ptr_compiler__sema__template__GenTemplate(self->data);
+    std__memory__free_ptr_compiler__sema__template__GenTemplate(self->data);
 }
 
 compiler__sema__template__GenTemplate* std__collections__List_ptr_compiler__sema__template__GenTemplate_get(std__collections__List_ptr_compiler__sema__template__GenTemplate* self, size_t index) {
@@ -35656,7 +35727,7 @@ compiler__sema__instance__InstanceRecord* std__collections__List_ptr_compiler__s
 }
 
 std__collections__List_ptr_compiler__sema__instance__InstanceRecord std__collections__List_ptr_compiler__sema__instance__InstanceRecord_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__mem__alloc_array_ptr_compiler__sema__instance__InstanceRecord(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__memory__create_array_ptr_compiler__sema__instance__InstanceRecord(cap), 0, cap };
 }
 
 compiler__sema__instance__InstanceRecord* std__collections__List_ptr_compiler__sema__instance__InstanceRecord_first(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self) {
@@ -35702,7 +35773,7 @@ size_t std__collections__List_ptr_compiler__sema__instance__InstanceRecord_clear
 
 void std__collections__List_ptr_compiler__sema__instance__InstanceRecord_grow(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__instance__InstanceRecord(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__instance__InstanceRecord(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -35712,7 +35783,7 @@ void std__collections__List_ptr_compiler__sema__instance__InstanceRecord_reserve
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__instance__InstanceRecord(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__instance__InstanceRecord(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -35766,7 +35837,7 @@ void std__collections__List_ptr_compiler__sema__instance__InstanceRecord_insert(
 
 std__collections__List_ptr_compiler__sema__instance__InstanceRecord std__collections__List_ptr_compiler__sema__instance__InstanceRecord_clone(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__instance__InstanceRecord res = (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__mem__alloc_array_ptr_compiler__sema__instance__InstanceRecord(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__instance__InstanceRecord res = (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__memory__create_array_ptr_compiler__sema__instance__InstanceRecord(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -35824,7 +35895,7 @@ void std__collections__List_ptr_compiler__sema__instance__InstanceRecord_reverse
 }
 
 std__collections__List_ptr_compiler__sema__instance__InstanceRecord std__collections__List_ptr_compiler__sema__instance__InstanceRecord_sub(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__instance__InstanceRecord res = (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__mem__alloc_array_ptr_compiler__sema__instance__InstanceRecord(count), 0, count };
+    std__collections__List_ptr_compiler__sema__instance__InstanceRecord res = (std__collections__List_ptr_compiler__sema__instance__InstanceRecord){ std__memory__create_array_ptr_compiler__sema__instance__InstanceRecord(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -35963,7 +36034,7 @@ size_t std__collections__List_ptr_compiler__sema__instance__InstanceRecord_remov
 }
 
 void std__collections__List_ptr_compiler__sema__instance__InstanceRecord_delete(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self) {
-    std__mem__release_ptr_compiler__sema__instance__InstanceRecord(self->data);
+    std__memory__free_ptr_compiler__sema__instance__InstanceRecord(self->data);
 }
 
 compiler__sema__instance__InstanceRecord* std__collections__List_ptr_compiler__sema__instance__InstanceRecord_get(std__collections__List_ptr_compiler__sema__instance__InstanceRecord* self, size_t index) {
@@ -35991,7 +36062,7 @@ compiler__sema__symbol__ModuleScope* std__collections__List_ptr_compiler__sema__
 }
 
 std__collections__List_ptr_compiler__sema__symbol__ModuleScope std__collections__List_ptr_compiler__sema__symbol__ModuleScope_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(cap), 0, cap };
 }
 
 compiler__sema__symbol__ModuleScope* std__collections__List_ptr_compiler__sema__symbol__ModuleScope_first(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self) {
@@ -36037,7 +36108,7 @@ size_t std__collections__List_ptr_compiler__sema__symbol__ModuleScope_clear(std_
 
 void std__collections__List_ptr_compiler__sema__symbol__ModuleScope_grow(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__symbol__ModuleScope(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__symbol__ModuleScope(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -36047,7 +36118,7 @@ void std__collections__List_ptr_compiler__sema__symbol__ModuleScope_reserve(std_
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__symbol__ModuleScope(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__symbol__ModuleScope(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -36101,7 +36172,7 @@ void std__collections__List_ptr_compiler__sema__symbol__ModuleScope_insert(std__
 
 std__collections__List_ptr_compiler__sema__symbol__ModuleScope std__collections__List_ptr_compiler__sema__symbol__ModuleScope_clone(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -36159,7 +36230,7 @@ void std__collections__List_ptr_compiler__sema__symbol__ModuleScope_reverse(std_
 }
 
 std__collections__List_ptr_compiler__sema__symbol__ModuleScope std__collections__List_ptr_compiler__sema__symbol__ModuleScope_sub(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(count), 0, count };
+    std__collections__List_ptr_compiler__sema__symbol__ModuleScope res = (std__collections__List_ptr_compiler__sema__symbol__ModuleScope){ std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -36298,7 +36369,7 @@ size_t std__collections__List_ptr_compiler__sema__symbol__ModuleScope_remove_all
 }
 
 void std__collections__List_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self) {
-    std__mem__release_ptr_compiler__sema__symbol__ModuleScope(self->data);
+    std__memory__free_ptr_compiler__sema__symbol__ModuleScope(self->data);
 }
 
 compiler__sema__symbol__ModuleScope* std__collections__List_ptr_compiler__sema__symbol__ModuleScope_get(std__collections__List_ptr_compiler__sema__symbol__ModuleScope* self, size_t index) {
@@ -36322,9 +36393,9 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__colle
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__symbol__ModuleScope** values = std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__symbol__ModuleScope** values = std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -36531,9 +36602,9 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
     compiler__sema__symbol__ModuleScope** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__symbol__ModuleScope** values = std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__symbol__ModuleScope** values = std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -36598,17 +36669,17 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_ptr_compiler__sema__symbol__ModuleScope(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_delete(std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_ptr_compiler__sema__symbol__ModuleScope(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -36670,7 +36741,7 @@ compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__sym
 }
 
 std__collections__List_compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__symbol__ImportBinding_new(size_t cap) {
-    return (std__collections__List_compiler__sema__symbol__ImportBinding){ std__mem__alloc_array_compiler__sema__symbol__ImportBinding(cap), 0, cap };
+    return (std__collections__List_compiler__sema__symbol__ImportBinding){ std__memory__create_array_compiler__sema__symbol__ImportBinding(cap), 0, cap };
 }
 
 compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__symbol__ImportBinding_first(std__collections__List_compiler__sema__symbol__ImportBinding* self) {
@@ -36716,7 +36787,7 @@ size_t std__collections__List_compiler__sema__symbol__ImportBinding_clear(std__c
 
 void std__collections__List_compiler__sema__symbol__ImportBinding_grow(std__collections__List_compiler__sema__symbol__ImportBinding* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__sema__symbol__ImportBinding(self->data, new_cap);
+    self->data = std__memory__resize_compiler__sema__symbol__ImportBinding(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -36726,7 +36797,7 @@ void std__collections__List_compiler__sema__symbol__ImportBinding_reserve(std__c
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__sema__symbol__ImportBinding(self->data, new_cap);
+        self->data = std__memory__resize_compiler__sema__symbol__ImportBinding(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -36780,7 +36851,7 @@ void std__collections__List_compiler__sema__symbol__ImportBinding_insert(std__co
 
 std__collections__List_compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__symbol__ImportBinding_clone(std__collections__List_compiler__sema__symbol__ImportBinding* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__sema__symbol__ImportBinding res = (std__collections__List_compiler__sema__symbol__ImportBinding){ std__mem__alloc_array_compiler__sema__symbol__ImportBinding(cap), 0, cap };
+    std__collections__List_compiler__sema__symbol__ImportBinding res = (std__collections__List_compiler__sema__symbol__ImportBinding){ std__memory__create_array_compiler__sema__symbol__ImportBinding(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -36838,7 +36909,7 @@ void std__collections__List_compiler__sema__symbol__ImportBinding_reverse(std__c
 }
 
 std__collections__List_compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__symbol__ImportBinding_sub(std__collections__List_compiler__sema__symbol__ImportBinding* self, size_t start, size_t count) {
-    std__collections__List_compiler__sema__symbol__ImportBinding res = (std__collections__List_compiler__sema__symbol__ImportBinding){ std__mem__alloc_array_compiler__sema__symbol__ImportBinding(count), 0, count };
+    std__collections__List_compiler__sema__symbol__ImportBinding res = (std__collections__List_compiler__sema__symbol__ImportBinding){ std__memory__create_array_compiler__sema__symbol__ImportBinding(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -36977,7 +37048,7 @@ size_t std__collections__List_compiler__sema__symbol__ImportBinding_remove_all(s
 }
 
 void std__collections__List_compiler__sema__symbol__ImportBinding_delete(std__collections__List_compiler__sema__symbol__ImportBinding* self) {
-    std__mem__release_compiler__sema__symbol__ImportBinding(self->data);
+    std__memory__free_compiler__sema__symbol__ImportBinding(self->data);
 }
 
 compiler__sema__symbol__ImportBinding std__collections__List_compiler__sema__symbol__ImportBinding_get(std__collections__List_compiler__sema__symbol__ImportBinding* self, size_t index) {
@@ -37005,7 +37076,7 @@ compiler__sema__enums__EnumInfo* std__collections__List_ptr_compiler__sema__enum
 }
 
 std__collections__List_ptr_compiler__sema__enums__EnumInfo std__collections__List_ptr_compiler__sema__enums__EnumInfo_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(cap), 0, cap };
 }
 
 compiler__sema__enums__EnumInfo* std__collections__List_ptr_compiler__sema__enums__EnumInfo_first(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self) {
@@ -37051,7 +37122,7 @@ size_t std__collections__List_ptr_compiler__sema__enums__EnumInfo_clear(std__col
 
 void std__collections__List_ptr_compiler__sema__enums__EnumInfo_grow(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__enums__EnumInfo(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__enums__EnumInfo(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -37061,7 +37132,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumInfo_reserve(std__col
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__enums__EnumInfo(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__enums__EnumInfo(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -37115,7 +37186,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumInfo_insert(std__coll
 
 std__collections__List_ptr_compiler__sema__enums__EnumInfo std__collections__List_ptr_compiler__sema__enums__EnumInfo_clone(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__enums__EnumInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__enums__EnumInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -37173,7 +37244,7 @@ void std__collections__List_ptr_compiler__sema__enums__EnumInfo_reverse(std__col
 }
 
 std__collections__List_ptr_compiler__sema__enums__EnumInfo std__collections__List_ptr_compiler__sema__enums__EnumInfo_sub(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__enums__EnumInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(count), 0, count };
+    std__collections__List_ptr_compiler__sema__enums__EnumInfo res = (std__collections__List_ptr_compiler__sema__enums__EnumInfo){ std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -37312,7 +37383,7 @@ size_t std__collections__List_ptr_compiler__sema__enums__EnumInfo_remove_all(std
 }
 
 void std__collections__List_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self) {
-    std__mem__release_ptr_compiler__sema__enums__EnumInfo(self->data);
+    std__memory__free_ptr_compiler__sema__enums__EnumInfo(self->data);
 }
 
 compiler__sema__enums__EnumInfo* std__collections__List_ptr_compiler__sema__enums__EnumInfo_get(std__collections__List_ptr_compiler__sema__enums__EnumInfo* self, size_t index) {
@@ -37336,9 +37407,9 @@ std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collectio
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__enums__EnumInfo** values = std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__enums__EnumInfo** values = std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -37545,9 +37616,9 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
     compiler__sema__enums__EnumInfo** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__enums__EnumInfo** values = std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__enums__EnumInfo** values = std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -37612,17 +37683,17 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_ptr_compiler__sema__enums__EnumInfo(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_delete(std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_ptr_compiler__sema__enums__EnumInfo(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -37684,7 +37755,7 @@ compiler__sema__traits__TraitInfo* std__collections__List_ptr_compiler__sema__tr
 }
 
 std__collections__List_ptr_compiler__sema__traits__TraitInfo std__collections__List_ptr_compiler__sema__traits__TraitInfo_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(cap), 0, cap };
 }
 
 compiler__sema__traits__TraitInfo* std__collections__List_ptr_compiler__sema__traits__TraitInfo_first(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self) {
@@ -37730,7 +37801,7 @@ size_t std__collections__List_ptr_compiler__sema__traits__TraitInfo_clear(std__c
 
 void std__collections__List_ptr_compiler__sema__traits__TraitInfo_grow(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__traits__TraitInfo(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__traits__TraitInfo(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -37740,7 +37811,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitInfo_reserve(std__c
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__traits__TraitInfo(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__traits__TraitInfo(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -37794,7 +37865,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitInfo_insert(std__co
 
 std__collections__List_ptr_compiler__sema__traits__TraitInfo std__collections__List_ptr_compiler__sema__traits__TraitInfo_clone(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__traits__TraitInfo res = (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__traits__TraitInfo res = (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -37852,7 +37923,7 @@ void std__collections__List_ptr_compiler__sema__traits__TraitInfo_reverse(std__c
 }
 
 std__collections__List_ptr_compiler__sema__traits__TraitInfo std__collections__List_ptr_compiler__sema__traits__TraitInfo_sub(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__traits__TraitInfo res = (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(count), 0, count };
+    std__collections__List_ptr_compiler__sema__traits__TraitInfo res = (std__collections__List_ptr_compiler__sema__traits__TraitInfo){ std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -37991,7 +38062,7 @@ size_t std__collections__List_ptr_compiler__sema__traits__TraitInfo_remove_all(s
 }
 
 void std__collections__List_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self) {
-    std__mem__release_ptr_compiler__sema__traits__TraitInfo(self->data);
+    std__memory__free_ptr_compiler__sema__traits__TraitInfo(self->data);
 }
 
 compiler__sema__traits__TraitInfo* std__collections__List_ptr_compiler__sema__traits__TraitInfo_get(std__collections__List_ptr_compiler__sema__traits__TraitInfo* self, size_t index) {
@@ -38015,9 +38086,9 @@ std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collect
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__traits__TraitInfo** values = std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__traits__TraitInfo** values = std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -38224,9 +38295,9 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
     compiler__sema__traits__TraitInfo** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__traits__TraitInfo** values = std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__traits__TraitInfo** values = std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -38291,17 +38362,17 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_ptr_compiler__sema__traits__TraitInfo(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_delete(std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_ptr_compiler__sema__traits__TraitInfo(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -38359,9 +38430,9 @@ std__collections__HashMap_str_compiler__sema__symbol__ImportBinding std__collect
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__symbol__ImportBinding* values = std__mem__alloc_array_compiler__sema__symbol__ImportBinding(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__symbol__ImportBinding* values = std__memory__create_array_compiler__sema__symbol__ImportBinding(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -38568,9 +38639,9 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
     compiler__sema__symbol__ImportBinding* old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__symbol__ImportBinding* values = std__mem__alloc_array_compiler__sema__symbol__ImportBinding(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__symbol__ImportBinding* values = std__memory__create_array_compiler__sema__symbol__ImportBinding(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -38635,17 +38706,17 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_compiler__sema__symbol__ImportBinding(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_delete(std__collections__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_compiler__sema__symbol__ImportBinding(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -38703,9 +38774,9 @@ std__collections__HashMap_str_ptr_compiler__sema__types__Type std__collections__
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    compiler__sema__types__Type** values = std__mem__alloc_array_ptr_compiler__sema__types__Type(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    compiler__sema__types__Type** values = std__memory__create_array_ptr_compiler__sema__types__Type(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -38912,9 +38983,9 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
     compiler__sema__types__Type** old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    compiler__sema__types__Type** values = std__mem__alloc_array_ptr_compiler__sema__types__Type(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    compiler__sema__types__Type** values = std__memory__create_array_ptr_compiler__sema__types__Type(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -38979,17 +39050,17 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_ptr_compiler__sema__types__Type(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__types__Type_delete(std__collections__HashMap_str_ptr_compiler__sema__types__Type* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_ptr_compiler__sema__types__Type(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -39051,7 +39122,7 @@ bool std__collections__List_bool_at(std__collections__List_bool* self, size_t i)
 }
 
 std__collections__List_bool std__collections__List_bool_new(size_t cap) {
-    return (std__collections__List_bool){ std__mem__alloc_array_bool(cap), 0, cap };
+    return (std__collections__List_bool){ std__memory__create_array_bool(cap), 0, cap };
 }
 
 bool std__collections__List_bool_first(std__collections__List_bool* self) {
@@ -39097,7 +39168,7 @@ size_t std__collections__List_bool_clear(std__collections__List_bool* self) {
 
 void std__collections__List_bool_grow(std__collections__List_bool* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_bool(self->data, new_cap);
+    self->data = std__memory__resize_bool(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -39107,7 +39178,7 @@ void std__collections__List_bool_reserve(std__collections__List_bool* self, size
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_bool(self->data, new_cap);
+        self->data = std__memory__resize_bool(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -39161,7 +39232,7 @@ void std__collections__List_bool_insert(std__collections__List_bool* self, size_
 
 std__collections__List_bool std__collections__List_bool_clone(std__collections__List_bool* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_bool res = (std__collections__List_bool){ std__mem__alloc_array_bool(cap), 0, cap };
+    std__collections__List_bool res = (std__collections__List_bool){ std__memory__create_array_bool(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -39219,7 +39290,7 @@ void std__collections__List_bool_reverse(std__collections__List_bool* self) {
 }
 
 std__collections__List_bool std__collections__List_bool_sub(std__collections__List_bool* self, size_t start, size_t count) {
-    std__collections__List_bool res = (std__collections__List_bool){ std__mem__alloc_array_bool(count), 0, count };
+    std__collections__List_bool res = (std__collections__List_bool){ std__memory__create_array_bool(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -39358,7 +39429,7 @@ size_t std__collections__List_bool_remove_all(std__collections__List_bool* self,
 }
 
 void std__collections__List_bool_delete(std__collections__List_bool* self) {
-    std__mem__release_bool(self->data);
+    std__memory__free_bool(self->data);
 }
 
 bool std__collections__List_bool_get(std__collections__List_bool* self, size_t index) {
@@ -39386,7 +39457,7 @@ fmt__comments__Comment std__collections__List_fmt__comments__Comment_at(std__col
 }
 
 std__collections__List_fmt__comments__Comment std__collections__List_fmt__comments__Comment_new(size_t cap) {
-    return (std__collections__List_fmt__comments__Comment){ std__mem__alloc_array_fmt__comments__Comment(cap), 0, cap };
+    return (std__collections__List_fmt__comments__Comment){ std__memory__create_array_fmt__comments__Comment(cap), 0, cap };
 }
 
 fmt__comments__Comment std__collections__List_fmt__comments__Comment_first(std__collections__List_fmt__comments__Comment* self) {
@@ -39432,7 +39503,7 @@ size_t std__collections__List_fmt__comments__Comment_clear(std__collections__Lis
 
 void std__collections__List_fmt__comments__Comment_grow(std__collections__List_fmt__comments__Comment* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_fmt__comments__Comment(self->data, new_cap);
+    self->data = std__memory__resize_fmt__comments__Comment(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -39442,7 +39513,7 @@ void std__collections__List_fmt__comments__Comment_reserve(std__collections__Lis
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_fmt__comments__Comment(self->data, new_cap);
+        self->data = std__memory__resize_fmt__comments__Comment(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -39496,7 +39567,7 @@ void std__collections__List_fmt__comments__Comment_insert(std__collections__List
 
 std__collections__List_fmt__comments__Comment std__collections__List_fmt__comments__Comment_clone(std__collections__List_fmt__comments__Comment* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_fmt__comments__Comment res = (std__collections__List_fmt__comments__Comment){ std__mem__alloc_array_fmt__comments__Comment(cap), 0, cap };
+    std__collections__List_fmt__comments__Comment res = (std__collections__List_fmt__comments__Comment){ std__memory__create_array_fmt__comments__Comment(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -39554,7 +39625,7 @@ void std__collections__List_fmt__comments__Comment_reverse(std__collections__Lis
 }
 
 std__collections__List_fmt__comments__Comment std__collections__List_fmt__comments__Comment_sub(std__collections__List_fmt__comments__Comment* self, size_t start, size_t count) {
-    std__collections__List_fmt__comments__Comment res = (std__collections__List_fmt__comments__Comment){ std__mem__alloc_array_fmt__comments__Comment(count), 0, count };
+    std__collections__List_fmt__comments__Comment res = (std__collections__List_fmt__comments__Comment){ std__memory__create_array_fmt__comments__Comment(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -39693,7 +39764,7 @@ size_t std__collections__List_fmt__comments__Comment_remove_all(std__collections
 }
 
 void std__collections__List_fmt__comments__Comment_delete(std__collections__List_fmt__comments__Comment* self) {
-    std__mem__release_fmt__comments__Comment(self->data);
+    std__memory__free_fmt__comments__Comment(self->data);
 }
 
 fmt__comments__Comment std__collections__List_fmt__comments__Comment_get(std__collections__List_fmt__comments__Comment* self, size_t index) {
@@ -39721,7 +39792,7 @@ lsp__json__JsonValue* std__collections__List_ptr_lsp__json__JsonValue_at(std__co
 }
 
 std__collections__List_ptr_lsp__json__JsonValue std__collections__List_ptr_lsp__json__JsonValue_new(size_t cap) {
-    return (std__collections__List_ptr_lsp__json__JsonValue){ std__mem__alloc_array_ptr_lsp__json__JsonValue(cap), 0, cap };
+    return (std__collections__List_ptr_lsp__json__JsonValue){ std__memory__create_array_ptr_lsp__json__JsonValue(cap), 0, cap };
 }
 
 lsp__json__JsonValue* std__collections__List_ptr_lsp__json__JsonValue_first(std__collections__List_ptr_lsp__json__JsonValue* self) {
@@ -39767,7 +39838,7 @@ size_t std__collections__List_ptr_lsp__json__JsonValue_clear(std__collections__L
 
 void std__collections__List_ptr_lsp__json__JsonValue_grow(std__collections__List_ptr_lsp__json__JsonValue* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_lsp__json__JsonValue(self->data, new_cap);
+    self->data = std__memory__resize_ptr_lsp__json__JsonValue(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -39777,7 +39848,7 @@ void std__collections__List_ptr_lsp__json__JsonValue_reserve(std__collections__L
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_lsp__json__JsonValue(self->data, new_cap);
+        self->data = std__memory__resize_ptr_lsp__json__JsonValue(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -39831,7 +39902,7 @@ void std__collections__List_ptr_lsp__json__JsonValue_insert(std__collections__Li
 
 std__collections__List_ptr_lsp__json__JsonValue std__collections__List_ptr_lsp__json__JsonValue_clone(std__collections__List_ptr_lsp__json__JsonValue* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_lsp__json__JsonValue res = (std__collections__List_ptr_lsp__json__JsonValue){ std__mem__alloc_array_ptr_lsp__json__JsonValue(cap), 0, cap };
+    std__collections__List_ptr_lsp__json__JsonValue res = (std__collections__List_ptr_lsp__json__JsonValue){ std__memory__create_array_ptr_lsp__json__JsonValue(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -39889,7 +39960,7 @@ void std__collections__List_ptr_lsp__json__JsonValue_reverse(std__collections__L
 }
 
 std__collections__List_ptr_lsp__json__JsonValue std__collections__List_ptr_lsp__json__JsonValue_sub(std__collections__List_ptr_lsp__json__JsonValue* self, size_t start, size_t count) {
-    std__collections__List_ptr_lsp__json__JsonValue res = (std__collections__List_ptr_lsp__json__JsonValue){ std__mem__alloc_array_ptr_lsp__json__JsonValue(count), 0, count };
+    std__collections__List_ptr_lsp__json__JsonValue res = (std__collections__List_ptr_lsp__json__JsonValue){ std__memory__create_array_ptr_lsp__json__JsonValue(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -40028,7 +40099,7 @@ size_t std__collections__List_ptr_lsp__json__JsonValue_remove_all(std__collectio
 }
 
 void std__collections__List_ptr_lsp__json__JsonValue_delete(std__collections__List_ptr_lsp__json__JsonValue* self) {
-    std__mem__release_ptr_lsp__json__JsonValue(self->data);
+    std__memory__free_ptr_lsp__json__JsonValue(self->data);
 }
 
 lsp__json__JsonValue* std__collections__List_ptr_lsp__json__JsonValue_get(std__collections__List_ptr_lsp__json__JsonValue* self, size_t index) {
@@ -40056,7 +40127,7 @@ lsp__document__Document std__collections__List_lsp__document__Document_at(std__c
 }
 
 std__collections__List_lsp__document__Document std__collections__List_lsp__document__Document_new(size_t cap) {
-    return (std__collections__List_lsp__document__Document){ std__mem__alloc_array_lsp__document__Document(cap), 0, cap };
+    return (std__collections__List_lsp__document__Document){ std__memory__create_array_lsp__document__Document(cap), 0, cap };
 }
 
 lsp__document__Document std__collections__List_lsp__document__Document_first(std__collections__List_lsp__document__Document* self) {
@@ -40102,7 +40173,7 @@ size_t std__collections__List_lsp__document__Document_clear(std__collections__Li
 
 void std__collections__List_lsp__document__Document_grow(std__collections__List_lsp__document__Document* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_lsp__document__Document(self->data, new_cap);
+    self->data = std__memory__resize_lsp__document__Document(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -40112,7 +40183,7 @@ void std__collections__List_lsp__document__Document_reserve(std__collections__Li
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_lsp__document__Document(self->data, new_cap);
+        self->data = std__memory__resize_lsp__document__Document(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -40166,7 +40237,7 @@ void std__collections__List_lsp__document__Document_insert(std__collections__Lis
 
 std__collections__List_lsp__document__Document std__collections__List_lsp__document__Document_clone(std__collections__List_lsp__document__Document* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_lsp__document__Document res = (std__collections__List_lsp__document__Document){ std__mem__alloc_array_lsp__document__Document(cap), 0, cap };
+    std__collections__List_lsp__document__Document res = (std__collections__List_lsp__document__Document){ std__memory__create_array_lsp__document__Document(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -40224,7 +40295,7 @@ void std__collections__List_lsp__document__Document_reverse(std__collections__Li
 }
 
 std__collections__List_lsp__document__Document std__collections__List_lsp__document__Document_sub(std__collections__List_lsp__document__Document* self, size_t start, size_t count) {
-    std__collections__List_lsp__document__Document res = (std__collections__List_lsp__document__Document){ std__mem__alloc_array_lsp__document__Document(count), 0, count };
+    std__collections__List_lsp__document__Document res = (std__collections__List_lsp__document__Document){ std__memory__create_array_lsp__document__Document(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -40363,7 +40434,7 @@ size_t std__collections__List_lsp__document__Document_remove_all(std__collection
 }
 
 void std__collections__List_lsp__document__Document_delete(std__collections__List_lsp__document__Document* self) {
-    std__mem__release_lsp__document__Document(self->data);
+    std__memory__free_lsp__document__Document(self->data);
 }
 
 lsp__document__Document std__collections__List_lsp__document__Document_get(std__collections__List_lsp__document__Document* self, size_t index) {
@@ -40387,9 +40458,9 @@ std__collections__HashMap_str_lsp__document__Document std__collections__HashMap_
     if (cap < 8) {
         cap = 8;
     }
-    kobel_str* keys = std__mem__alloc_array_str(cap);
-    lsp__document__Document* values = std__mem__alloc_array_lsp__document__Document(cap);
-    bool* occ = std__mem__alloc_array_bool(cap);
+    kobel_str* keys = std__memory__create_array_str(cap);
+    lsp__document__Document* values = std__memory__create_array_lsp__document__Document(cap);
+    bool* occ = std__memory__create_array_bool(cap);
     {
         size_t __for_e = cap;
         size_t __for_i = __for_e;
@@ -40596,9 +40667,9 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
     lsp__document__Document* old_vals = self->values;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__mem__alloc_array_str(new_cap);
-    lsp__document__Document* values = std__mem__alloc_array_lsp__document__Document(new_cap);
-    bool* new_occ = std__mem__alloc_array_bool(new_cap);
+    kobel_str* keys = std__memory__create_array_str(new_cap);
+    lsp__document__Document* values = std__memory__create_array_lsp__document__Document(new_cap);
+    bool* new_occ = std__memory__create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
         size_t __for_i = __for_e;
@@ -40663,17 +40734,17 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
                 }
             }
         }
-        std__mem__release_str(old_keys);
-        std__mem__release_lsp__document__Document(old_vals);
-        std__mem__release_bool(old_occ);
+        free(old_keys);
+        free(old_vals);
+        free(old_occ);
     }
 }
 
 void std__collections__HashMap_str_lsp__document__Document_delete(std__collections__HashMap_str_lsp__document__Document* self) {
     if (self->cap > 0) {
-        std__mem__release_str(self->keys);
-        std__mem__release_lsp__document__Document(self->values);
-        std__mem__release_bool(self->occupied);
+        free(self->keys);
+        free(self->values);
+        free(self->occupied);
     }
 }
 
@@ -40735,7 +40806,7 @@ lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic
 }
 
 std__collections__List_lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic_new(size_t cap) {
-    return (std__collections__List_lsp__analysis__LspDiagnostic){ std__mem__alloc_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
+    return (std__collections__List_lsp__analysis__LspDiagnostic){ std__memory__create_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
 }
 
 lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic_first(std__collections__List_lsp__analysis__LspDiagnostic* self) {
@@ -40781,7 +40852,7 @@ size_t std__collections__List_lsp__analysis__LspDiagnostic_clear(std__collection
 
 void std__collections__List_lsp__analysis__LspDiagnostic_grow(std__collections__List_lsp__analysis__LspDiagnostic* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_lsp__analysis__LspDiagnostic(self->data, new_cap);
+    self->data = std__memory__resize_lsp__analysis__LspDiagnostic(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -40791,7 +40862,7 @@ void std__collections__List_lsp__analysis__LspDiagnostic_reserve(std__collection
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_lsp__analysis__LspDiagnostic(self->data, new_cap);
+        self->data = std__memory__resize_lsp__analysis__LspDiagnostic(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -40845,7 +40916,7 @@ void std__collections__List_lsp__analysis__LspDiagnostic_insert(std__collections
 
 std__collections__List_lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic_clone(std__collections__List_lsp__analysis__LspDiagnostic* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_lsp__analysis__LspDiagnostic res = (std__collections__List_lsp__analysis__LspDiagnostic){ std__mem__alloc_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
+    std__collections__List_lsp__analysis__LspDiagnostic res = (std__collections__List_lsp__analysis__LspDiagnostic){ std__memory__create_array_lsp__analysis__LspDiagnostic(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -40903,7 +40974,7 @@ void std__collections__List_lsp__analysis__LspDiagnostic_reverse(std__collection
 }
 
 std__collections__List_lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic_sub(std__collections__List_lsp__analysis__LspDiagnostic* self, size_t start, size_t count) {
-    std__collections__List_lsp__analysis__LspDiagnostic res = (std__collections__List_lsp__analysis__LspDiagnostic){ std__mem__alloc_array_lsp__analysis__LspDiagnostic(count), 0, count };
+    std__collections__List_lsp__analysis__LspDiagnostic res = (std__collections__List_lsp__analysis__LspDiagnostic){ std__memory__create_array_lsp__analysis__LspDiagnostic(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -41042,7 +41113,7 @@ size_t std__collections__List_lsp__analysis__LspDiagnostic_remove_all(std__colle
 }
 
 void std__collections__List_lsp__analysis__LspDiagnostic_delete(std__collections__List_lsp__analysis__LspDiagnostic* self) {
-    std__mem__release_lsp__analysis__LspDiagnostic(self->data);
+    std__memory__free_lsp__analysis__LspDiagnostic(self->data);
 }
 
 lsp__analysis__LspDiagnostic std__collections__List_lsp__analysis__LspDiagnostic_get(std__collections__List_lsp__analysis__LspDiagnostic* self, size_t index) {
@@ -41070,7 +41141,7 @@ compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile
 }
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_new(size_t cap) {
-    return (std__collections__List_compiler__loader__ModuleFile){ std__mem__alloc_array_compiler__loader__ModuleFile(cap), 0, cap };
+    return (std__collections__List_compiler__loader__ModuleFile){ std__memory__create_array_compiler__loader__ModuleFile(cap), 0, cap };
 }
 
 compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_first(std__collections__List_compiler__loader__ModuleFile* self) {
@@ -41116,7 +41187,7 @@ size_t std__collections__List_compiler__loader__ModuleFile_clear(std__collection
 
 void std__collections__List_compiler__loader__ModuleFile_grow(std__collections__List_compiler__loader__ModuleFile* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__loader__ModuleFile(self->data, new_cap);
+    self->data = std__memory__resize_compiler__loader__ModuleFile(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -41126,7 +41197,7 @@ void std__collections__List_compiler__loader__ModuleFile_reserve(std__collection
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__loader__ModuleFile(self->data, new_cap);
+        self->data = std__memory__resize_compiler__loader__ModuleFile(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -41180,7 +41251,7 @@ void std__collections__List_compiler__loader__ModuleFile_insert(std__collections
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_clone(std__collections__List_compiler__loader__ModuleFile* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__mem__alloc_array_compiler__loader__ModuleFile(cap), 0, cap };
+    std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__create_array_compiler__loader__ModuleFile(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -41238,7 +41309,7 @@ void std__collections__List_compiler__loader__ModuleFile_reverse(std__collection
 }
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_sub(std__collections__List_compiler__loader__ModuleFile* self, size_t start, size_t count) {
-    std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__mem__alloc_array_compiler__loader__ModuleFile(count), 0, count };
+    std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__create_array_compiler__loader__ModuleFile(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -41377,7 +41448,7 @@ size_t std__collections__List_compiler__loader__ModuleFile_remove_all(std__colle
 }
 
 void std__collections__List_compiler__loader__ModuleFile_delete(std__collections__List_compiler__loader__ModuleFile* self) {
-    std__mem__release_compiler__loader__ModuleFile(self->data);
+    std__memory__free_compiler__loader__ModuleFile(self->data);
 }
 
 compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_get(std__collections__List_compiler__loader__ModuleFile* self, size_t index) {
@@ -41405,7 +41476,7 @@ compiler__sema__body__program__ArrowCandidate* std__collections__List_ptr_compil
 }
 
 std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_new(size_t cap) {
-    return (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__mem__alloc_array_ptr_compiler__sema__body__program__ArrowCandidate(cap), 0, cap };
+    return (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__memory__create_array_ptr_compiler__sema__body__program__ArrowCandidate(cap), 0, cap };
 }
 
 compiler__sema__body__program__ArrowCandidate* std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_first(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self) {
@@ -41451,7 +41522,7 @@ size_t std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_
 
 void std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_grow(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_ptr_compiler__sema__body__program__ArrowCandidate(self->data, new_cap);
+    self->data = std__memory__resize_ptr_compiler__sema__body__program__ArrowCandidate(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -41461,7 +41532,7 @@ void std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_re
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_ptr_compiler__sema__body__program__ArrowCandidate(self->data, new_cap);
+        self->data = std__memory__resize_ptr_compiler__sema__body__program__ArrowCandidate(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -41515,7 +41586,7 @@ void std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_in
 
 std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_clone(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate res = (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__mem__alloc_array_ptr_compiler__sema__body__program__ArrowCandidate(cap), 0, cap };
+    std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate res = (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__memory__create_array_ptr_compiler__sema__body__program__ArrowCandidate(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -41573,7 +41644,7 @@ void std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_re
 }
 
 std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_sub(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self, size_t start, size_t count) {
-    std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate res = (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__mem__alloc_array_ptr_compiler__sema__body__program__ArrowCandidate(count), 0, count };
+    std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate res = (std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate){ std__memory__create_array_ptr_compiler__sema__body__program__ArrowCandidate(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -41712,7 +41783,7 @@ size_t std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_
 }
 
 void std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_delete(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self) {
-    std__mem__release_ptr_compiler__sema__body__program__ArrowCandidate(self->data);
+    std__memory__free_ptr_compiler__sema__body__program__ArrowCandidate(self->data);
 }
 
 compiler__sema__body__program__ArrowCandidate* std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate_get(std__collections__List_ptr_compiler__sema__body__program__ArrowCandidate* self, size_t index) {
@@ -41740,7 +41811,7 @@ compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__co
 }
 
 std__collections__List_compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_new(size_t cap) {
-    return (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__mem__alloc_array_compiler__codegen__c_codegen__ConditionAlias(cap), 0, cap };
+    return (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__memory__create_array_compiler__codegen__c_codegen__ConditionAlias(cap), 0, cap };
 }
 
 compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_first(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self) {
@@ -41786,7 +41857,7 @@ size_t std__collections__List_compiler__codegen__c_codegen__ConditionAlias_clear
 
 void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_grow(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self) {
     size_t new_cap = (self->cap * 2);
-    self->data = std__mem__resize_compiler__codegen__c_codegen__ConditionAlias(self->data, new_cap);
+    self->data = std__memory__resize_compiler__codegen__c_codegen__ConditionAlias(self->data, new_cap);
     self->cap = new_cap;
 }
 
@@ -41796,7 +41867,7 @@ void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_reserve
         while (new_cap < min_cap) {
             new_cap *= 2;
         }
-        self->data = std__mem__resize_compiler__codegen__c_codegen__ConditionAlias(self->data, new_cap);
+        self->data = std__memory__resize_compiler__codegen__c_codegen__ConditionAlias(self->data, new_cap);
         self->cap = new_cap;
     }
 }
@@ -41850,7 +41921,7 @@ void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_insert(
 
 std__collections__List_compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_clone(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self) {
     size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__codegen__c_codegen__ConditionAlias res = (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__mem__alloc_array_compiler__codegen__c_codegen__ConditionAlias(cap), 0, cap };
+    std__collections__List_compiler__codegen__c_codegen__ConditionAlias res = (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__memory__create_array_compiler__codegen__c_codegen__ConditionAlias(cap), 0, cap };
     {
         size_t __for_e = self->len;
         size_t __for_i = __for_e;
@@ -41908,7 +41979,7 @@ void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_reverse
 }
 
 std__collections__List_compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_sub(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self, size_t start, size_t count) {
-    std__collections__List_compiler__codegen__c_codegen__ConditionAlias res = (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__mem__alloc_array_compiler__codegen__c_codegen__ConditionAlias(count), 0, count };
+    std__collections__List_compiler__codegen__c_codegen__ConditionAlias res = (std__collections__List_compiler__codegen__c_codegen__ConditionAlias){ std__memory__create_array_compiler__codegen__c_codegen__ConditionAlias(count), 0, count };
     if (start >= self->len) {
         return res;
     }
@@ -42047,7 +42118,7 @@ size_t std__collections__List_compiler__codegen__c_codegen__ConditionAlias_remov
 }
 
 void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_delete(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self) {
-    std__mem__release_compiler__codegen__c_codegen__ConditionAlias(self->data);
+    std__memory__free_compiler__codegen__c_codegen__ConditionAlias(self->data);
 }
 
 compiler__codegen__c_codegen__ConditionAlias std__collections__List_compiler__codegen__c_codegen__ConditionAlias_get(std__collections__List_compiler__codegen__c_codegen__ConditionAlias* self, size_t index) {
@@ -42066,1107 +42137,1367 @@ void std__collections__List_compiler__codegen__c_codegen__ConditionAlias_plus_as
     std__collections__List_compiler__codegen__c_codegen__ConditionAlias_add(self, value);
 }
 
-uint8_t* std__mem__alloc_array_u8(size_t count) {
+uint8_t* std__memory__create_array_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
 
-std__mem__ArenaBlock* std__mem__alloc_std__mem__ArenaBlock(void) {
-    return (std__mem__ArenaBlock*)malloc(32);
+std__memory__ArenaBlock* std__memory__create_std__memory__ArenaBlock(void) {
+    return (std__memory__ArenaBlock*)malloc(32);
 }
 
-kobel_str* std__mem__alloc_array_str(size_t count) {
+kobel_str* std__memory__create_array_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 
-bool* std__mem__alloc_array_bool(size_t count) {
+bool* std__memory__create_array_bool(size_t count) {
     return (bool*)malloc((count * 1));
 }
 
-uint8_t* std__mem__resize_u8(uint8_t* ptr, size_t count) {
+uint8_t* std__memory__resize_u8(uint8_t* ptr, size_t count) {
     return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
 }
 
-void std__mem__release_u8(uint8_t* ptr) {
+void std__memory__free_u8(uint8_t* ptr) {
     free((uint8_t*)ptr);
 }
 
-lsp__json__JsonValue* std__mem__alloc_lsp__json__JsonValue(void) {
+lsp__json__JsonValue* std__memory__create_lsp__json__JsonValue(void) {
     return (lsp__json__JsonValue*)malloc(104);
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_alloc_val_compiler__ast__node__AstNode(std__mem__Arena* self, compiler__ast__node__AstNode value) {
-    compiler__ast__node__AstNode* ptr = std__mem__Arena_alloc_compiler__ast__node__AstNode(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__node__AstNode* std__memory__Arena_alloc_val_compiler__ast__node__AstNode(std__memory__Arena* self, compiler__ast__node__AstNode value) {
+    return std__memory__Arena_create_val_compiler__ast__node__AstNode(self, value);
 }
 
-compiler__ast__types__NamedType* std__mem__Arena_alloc_val_compiler__ast__types__NamedType(std__mem__Arena* self, compiler__ast__types__NamedType value) {
-    compiler__ast__types__NamedType* ptr = std__mem__Arena_alloc_compiler__ast__types__NamedType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__types__NamedType* std__memory__Arena_alloc_val_compiler__ast__types__NamedType(std__memory__Arena* self, compiler__ast__types__NamedType value) {
+    return std__memory__Arena_create_val_compiler__ast__types__NamedType(self, value);
 }
 
-compiler__ast__types__PointerType* std__mem__Arena_alloc_val_compiler__ast__types__PointerType(std__mem__Arena* self, compiler__ast__types__PointerType value) {
-    compiler__ast__types__PointerType* ptr = std__mem__Arena_alloc_compiler__ast__types__PointerType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__types__PointerType* std__memory__Arena_alloc_val_compiler__ast__types__PointerType(std__memory__Arena* self, compiler__ast__types__PointerType value) {
+    return std__memory__Arena_create_val_compiler__ast__types__PointerType(self, value);
 }
 
-compiler__ast__types__ArrayType* std__mem__Arena_alloc_val_compiler__ast__types__ArrayType(std__mem__Arena* self, compiler__ast__types__ArrayType value) {
-    compiler__ast__types__ArrayType* ptr = std__mem__Arena_alloc_compiler__ast__types__ArrayType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__types__ArrayType* std__memory__Arena_alloc_val_compiler__ast__types__ArrayType(std__memory__Arena* self, compiler__ast__types__ArrayType value) {
+    return std__memory__Arena_create_val_compiler__ast__types__ArrayType(self, value);
 }
 
-compiler__ast__types__NullableType* std__mem__Arena_alloc_val_compiler__ast__types__NullableType(std__mem__Arena* self, compiler__ast__types__NullableType value) {
-    compiler__ast__types__NullableType* ptr = std__mem__Arena_alloc_compiler__ast__types__NullableType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__types__NullableType* std__memory__Arena_alloc_val_compiler__ast__types__NullableType(std__memory__Arena* self, compiler__ast__types__NullableType value) {
+    return std__memory__Arena_create_val_compiler__ast__types__NullableType(self, value);
 }
 
-compiler__ast__expr__LiteralExpr* std__mem__Arena_alloc_val_compiler__ast__expr__LiteralExpr(std__mem__Arena* self, compiler__ast__expr__LiteralExpr value) {
-    compiler__ast__expr__LiteralExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__LiteralExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__LiteralExpr* std__memory__Arena_alloc_val_compiler__ast__expr__LiteralExpr(std__memory__Arena* self, compiler__ast__expr__LiteralExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__LiteralExpr(self, value);
 }
 
-compiler__ast__expr__IdentifierExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(std__mem__Arena* self, compiler__ast__expr__IdentifierExpr value) {
-    compiler__ast__expr__IdentifierExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__IdentifierExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self, compiler__ast__expr__IdentifierExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__IdentifierExpr(self, value);
 }
 
-compiler__ast__expr__BinaryExpr* std__mem__Arena_alloc_val_compiler__ast__expr__BinaryExpr(std__mem__Arena* self, compiler__ast__expr__BinaryExpr value) {
-    compiler__ast__expr__BinaryExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__BinaryExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__BinaryExpr* std__memory__Arena_alloc_val_compiler__ast__expr__BinaryExpr(std__memory__Arena* self, compiler__ast__expr__BinaryExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__BinaryExpr(self, value);
 }
 
-compiler__ast__expr__UnaryExpr* std__mem__Arena_alloc_val_compiler__ast__expr__UnaryExpr(std__mem__Arena* self, compiler__ast__expr__UnaryExpr value) {
-    compiler__ast__expr__UnaryExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__UnaryExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__UnaryExpr* std__memory__Arena_alloc_val_compiler__ast__expr__UnaryExpr(std__memory__Arena* self, compiler__ast__expr__UnaryExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__UnaryExpr(self, value);
 }
 
-compiler__ast__expr__CallExpr* std__mem__Arena_alloc_val_compiler__ast__expr__CallExpr(std__mem__Arena* self, compiler__ast__expr__CallExpr value) {
-    compiler__ast__expr__CallExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__CallExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__CallExpr* std__memory__Arena_alloc_val_compiler__ast__expr__CallExpr(std__memory__Arena* self, compiler__ast__expr__CallExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__CallExpr(self, value);
 }
 
-compiler__ast__expr__StructCtorExpr* std__mem__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(std__mem__Arena* self, compiler__ast__expr__StructCtorExpr value) {
-    compiler__ast__expr__StructCtorExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__StructCtorExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_alloc_val_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self, compiler__ast__expr__StructCtorExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__StructCtorExpr(self, value);
 }
 
-compiler__ast__expr__EnumCtorExpr* std__mem__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(std__mem__Arena* self, compiler__ast__expr__EnumCtorExpr value) {
-    compiler__ast__expr__EnumCtorExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__EnumCtorExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_alloc_val_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self, compiler__ast__expr__EnumCtorExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__EnumCtorExpr(self, value);
 }
 
-compiler__ast__expr__SizeOfParam* std__mem__Arena_alloc_val_compiler__ast__expr__SizeOfParam(std__mem__Arena* self, compiler__ast__expr__SizeOfParam value) {
-    compiler__ast__expr__SizeOfParam* ptr = std__mem__Arena_alloc_compiler__ast__expr__SizeOfParam(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__SizeOfParam* std__memory__Arena_alloc_val_compiler__ast__expr__SizeOfParam(std__memory__Arena* self, compiler__ast__expr__SizeOfParam value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__SizeOfParam(self, value);
 }
 
-compiler__ast__expr__MemberExpr* std__mem__Arena_alloc_val_compiler__ast__expr__MemberExpr(std__mem__Arena* self, compiler__ast__expr__MemberExpr value) {
-    compiler__ast__expr__MemberExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__MemberExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__MemberExpr* std__memory__Arena_alloc_val_compiler__ast__expr__MemberExpr(std__memory__Arena* self, compiler__ast__expr__MemberExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(self, value);
 }
 
-compiler__ast__expr__IndexExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IndexExpr(std__mem__Arena* self, compiler__ast__expr__IndexExpr value) {
-    compiler__ast__expr__IndexExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__IndexExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__IndexExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IndexExpr(std__memory__Arena* self, compiler__ast__expr__IndexExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__IndexExpr(self, value);
 }
 
-compiler__ast__expr__AssignExpr* std__mem__Arena_alloc_val_compiler__ast__expr__AssignExpr(std__mem__Arena* self, compiler__ast__expr__AssignExpr value) {
-    compiler__ast__expr__AssignExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__AssignExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__AssignExpr* std__memory__Arena_alloc_val_compiler__ast__expr__AssignExpr(std__memory__Arena* self, compiler__ast__expr__AssignExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(self, value);
 }
 
-compiler__ast__expr__UpdateExpr* std__mem__Arena_alloc_val_compiler__ast__expr__UpdateExpr(std__mem__Arena* self, compiler__ast__expr__UpdateExpr value) {
-    compiler__ast__expr__UpdateExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__UpdateExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__UpdateExpr* std__memory__Arena_alloc_val_compiler__ast__expr__UpdateExpr(std__memory__Arena* self, compiler__ast__expr__UpdateExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__UpdateExpr(self, value);
 }
 
-compiler__ast__expr__CastExpr* std__mem__Arena_alloc_val_compiler__ast__expr__CastExpr(std__mem__Arena* self, compiler__ast__expr__CastExpr value) {
-    compiler__ast__expr__CastExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__CastExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__CastExpr* std__memory__Arena_alloc_val_compiler__ast__expr__CastExpr(std__memory__Arena* self, compiler__ast__expr__CastExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__CastExpr(self, value);
 }
 
-compiler__ast__expr__GroupExpr* std__mem__Arena_alloc_val_compiler__ast__expr__GroupExpr(std__mem__Arena* self, compiler__ast__expr__GroupExpr value) {
-    compiler__ast__expr__GroupExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__GroupExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__GroupExpr* std__memory__Arena_alloc_val_compiler__ast__expr__GroupExpr(std__memory__Arena* self, compiler__ast__expr__GroupExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__GroupExpr(self, value);
 }
 
-compiler__ast__expr__ArrayLiteralExpr* std__mem__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(std__mem__Arena* self, compiler__ast__expr__ArrayLiteralExpr value) {
-    compiler__ast__expr__ArrayLiteralExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__ArrayLiteralExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_alloc_val_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self, compiler__ast__expr__ArrayLiteralExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(self, value);
 }
 
-compiler__ast__expr__IfExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IfExpr(std__mem__Arena* self, compiler__ast__expr__IfExpr value) {
-    compiler__ast__expr__IfExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__IfExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__IfExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IfExpr(std__memory__Arena* self, compiler__ast__expr__IfExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__IfExpr(self, value);
 }
 
-compiler__ast__expr__WhenExpr* std__mem__Arena_alloc_val_compiler__ast__expr__WhenExpr(std__mem__Arena* self, compiler__ast__expr__WhenExpr value) {
-    compiler__ast__expr__WhenExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__WhenExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__WhenExpr* std__memory__Arena_alloc_val_compiler__ast__expr__WhenExpr(std__memory__Arena* self, compiler__ast__expr__WhenExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__WhenExpr(self, value);
 }
 
-compiler__ast__expr__InterpExpr* std__mem__Arena_alloc_val_compiler__ast__expr__InterpExpr(std__mem__Arena* self, compiler__ast__expr__InterpExpr value) {
-    compiler__ast__expr__InterpExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__InterpExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__InterpExpr* std__memory__Arena_alloc_val_compiler__ast__expr__InterpExpr(std__memory__Arena* self, compiler__ast__expr__InterpExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__InterpExpr(self, value);
 }
 
-compiler__ast__expr__IsExpr* std__mem__Arena_alloc_val_compiler__ast__expr__IsExpr(std__mem__Arena* self, compiler__ast__expr__IsExpr value) {
-    compiler__ast__expr__IsExpr* ptr = std__mem__Arena_alloc_compiler__ast__expr__IsExpr(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__expr__IsExpr* std__memory__Arena_alloc_val_compiler__ast__expr__IsExpr(std__memory__Arena* self, compiler__ast__expr__IsExpr value) {
+    return std__memory__Arena_create_val_compiler__ast__expr__IsExpr(self, value);
 }
 
-compiler__ast__stmt__BlockStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__BlockStmt(std__mem__Arena* self, compiler__ast__stmt__BlockStmt value) {
-    compiler__ast__stmt__BlockStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__BlockStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__BlockStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__BlockStmt(std__memory__Arena* self, compiler__ast__stmt__BlockStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__BlockStmt(self, value);
 }
 
-compiler__ast__stmt__ExprStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ExprStmt(std__mem__Arena* self, compiler__ast__stmt__ExprStmt value) {
-    compiler__ast__stmt__ExprStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__ExprStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__ExprStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ExprStmt(std__memory__Arena* self, compiler__ast__stmt__ExprStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__ExprStmt(self, value);
 }
 
-compiler__ast__stmt__VarDeclStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(std__mem__Arena* self, compiler__ast__stmt__VarDeclStmt value) {
-    compiler__ast__stmt__VarDeclStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__VarDeclStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self, compiler__ast__stmt__VarDeclStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__VarDeclStmt(self, value);
 }
 
-compiler__ast__stmt__IfStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__IfStmt(std__mem__Arena* self, compiler__ast__stmt__IfStmt value) {
-    compiler__ast__stmt__IfStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__IfStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__IfStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__IfStmt(std__memory__Arena* self, compiler__ast__stmt__IfStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__IfStmt(self, value);
 }
 
-compiler__ast__stmt__WhileStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__WhileStmt(std__mem__Arena* self, compiler__ast__stmt__WhileStmt value) {
-    compiler__ast__stmt__WhileStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__WhileStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__WhileStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__WhileStmt(std__memory__Arena* self, compiler__ast__stmt__WhileStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__WhileStmt(self, value);
 }
 
-compiler__ast__stmt__ForStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ForStmt(std__mem__Arena* self, compiler__ast__stmt__ForStmt value) {
-    compiler__ast__stmt__ForStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__ForStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__ForStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ForStmt(std__memory__Arena* self, compiler__ast__stmt__ForStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__ForStmt(self, value);
 }
 
-compiler__ast__stmt__ReturnStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(std__mem__Arena* self, compiler__ast__stmt__ReturnStmt value) {
-    compiler__ast__stmt__ReturnStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__ReturnStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self, compiler__ast__stmt__ReturnStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__ReturnStmt(self, value);
 }
 
-compiler__ast__stmt__BreakStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__BreakStmt(std__mem__Arena* self, compiler__ast__stmt__BreakStmt value) {
-    compiler__ast__stmt__BreakStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__BreakStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__BreakStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__BreakStmt(std__memory__Arena* self, compiler__ast__stmt__BreakStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__BreakStmt(self, value);
 }
 
-compiler__ast__stmt__ContinueStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(std__mem__Arena* self, compiler__ast__stmt__ContinueStmt value) {
-    compiler__ast__stmt__ContinueStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__ContinueStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self, compiler__ast__stmt__ContinueStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__ContinueStmt(self, value);
 }
 
-compiler__ast__stmt__WhenStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__WhenStmt(std__mem__Arena* self, compiler__ast__stmt__WhenStmt value) {
-    compiler__ast__stmt__WhenStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__WhenStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__WhenStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__WhenStmt(std__memory__Arena* self, compiler__ast__stmt__WhenStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__WhenStmt(self, value);
 }
 
-compiler__ast__stmt__YieldStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__YieldStmt(std__mem__Arena* self, compiler__ast__stmt__YieldStmt value) {
-    compiler__ast__stmt__YieldStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__YieldStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__YieldStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__YieldStmt(std__memory__Arena* self, compiler__ast__stmt__YieldStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__YieldStmt(self, value);
 }
 
-compiler__ast__stmt__DeferStmt* std__mem__Arena_alloc_val_compiler__ast__stmt__DeferStmt(std__mem__Arena* self, compiler__ast__stmt__DeferStmt value) {
-    compiler__ast__stmt__DeferStmt* ptr = std__mem__Arena_alloc_compiler__ast__stmt__DeferStmt(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__stmt__DeferStmt* std__memory__Arena_alloc_val_compiler__ast__stmt__DeferStmt(std__memory__Arena* self, compiler__ast__stmt__DeferStmt value) {
+    return std__memory__Arena_create_val_compiler__ast__stmt__DeferStmt(self, value);
 }
 
-compiler__ast__decl__ModuleDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ModuleDecl(std__mem__Arena* self, compiler__ast__decl__ModuleDecl value) {
-    compiler__ast__decl__ModuleDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__ModuleDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__ModuleDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ModuleDecl(std__memory__Arena* self, compiler__ast__decl__ModuleDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__ModuleDecl(self, value);
 }
 
-compiler__ast__decl__UseDecl* std__mem__Arena_alloc_val_compiler__ast__decl__UseDecl(std__mem__Arena* self, compiler__ast__decl__UseDecl value) {
-    compiler__ast__decl__UseDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__UseDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__UseDecl* std__memory__Arena_alloc_val_compiler__ast__decl__UseDecl(std__memory__Arena* self, compiler__ast__decl__UseDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__UseDecl(self, value);
 }
 
-compiler__ast__decl__FnDecl* std__mem__Arena_alloc_val_compiler__ast__decl__FnDecl(std__mem__Arena* self, compiler__ast__decl__FnDecl value) {
-    compiler__ast__decl__FnDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__FnDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__FnDecl* std__memory__Arena_alloc_val_compiler__ast__decl__FnDecl(std__memory__Arena* self, compiler__ast__decl__FnDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__FnDecl(self, value);
 }
 
-compiler__ast__decl__StructDecl* std__mem__Arena_alloc_val_compiler__ast__decl__StructDecl(std__mem__Arena* self, compiler__ast__decl__StructDecl value) {
-    compiler__ast__decl__StructDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__StructDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__StructDecl* std__memory__Arena_alloc_val_compiler__ast__decl__StructDecl(std__memory__Arena* self, compiler__ast__decl__StructDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__StructDecl(self, value);
 }
 
-compiler__ast__decl__TraitDecl* std__mem__Arena_alloc_val_compiler__ast__decl__TraitDecl(std__mem__Arena* self, compiler__ast__decl__TraitDecl value) {
-    compiler__ast__decl__TraitDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__TraitDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__TraitDecl* std__memory__Arena_alloc_val_compiler__ast__decl__TraitDecl(std__memory__Arena* self, compiler__ast__decl__TraitDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__TraitDecl(self, value);
 }
 
-compiler__ast__decl__ImplDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ImplDecl(std__mem__Arena* self, compiler__ast__decl__ImplDecl value) {
-    compiler__ast__decl__ImplDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__ImplDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__ImplDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ImplDecl(std__memory__Arena* self, compiler__ast__decl__ImplDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__ImplDecl(self, value);
 }
 
-compiler__ast__decl__EnumDecl* std__mem__Arena_alloc_val_compiler__ast__decl__EnumDecl(std__mem__Arena* self, compiler__ast__decl__EnumDecl value) {
-    compiler__ast__decl__EnumDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__EnumDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__EnumDecl* std__memory__Arena_alloc_val_compiler__ast__decl__EnumDecl(std__memory__Arena* self, compiler__ast__decl__EnumDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__EnumDecl(self, value);
 }
 
-compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_val_compiler__ast__decl__ConstDecl(std__mem__Arena* self, compiler__ast__decl__ConstDecl value) {
-    compiler__ast__decl__ConstDecl* ptr = std__mem__Arena_alloc_compiler__ast__decl__ConstDecl(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__ConstDecl* std__memory__Arena_alloc_val_compiler__ast__decl__ConstDecl(std__memory__Arena* self, compiler__ast__decl__ConstDecl value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__ConstDecl(self, value);
 }
 
-compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_val_compiler__ast__decl__ExternBlock(std__mem__Arena* self, compiler__ast__decl__ExternBlock value) {
-    compiler__ast__decl__ExternBlock* ptr = std__mem__Arena_alloc_compiler__ast__decl__ExternBlock(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__ExternBlock* std__memory__Arena_alloc_val_compiler__ast__decl__ExternBlock(std__memory__Arena* self, compiler__ast__decl__ExternBlock value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__ExternBlock(self, value);
 }
 
-compiler__ast__decl__Program* std__mem__Arena_alloc_val_compiler__ast__decl__Program(std__mem__Arena* self, compiler__ast__decl__Program value) {
-    compiler__ast__decl__Program* ptr = std__mem__Arena_alloc_compiler__ast__decl__Program(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__ast__decl__Program* std__memory__Arena_alloc_val_compiler__ast__decl__Program(std__memory__Arena* self, compiler__ast__decl__Program value) {
+    return std__memory__Arena_create_val_compiler__ast__decl__Program(self, value);
 }
 
-compiler__sema__types__Type* std__mem__Arena_alloc_val_compiler__sema__types__Type(std__mem__Arena* self, compiler__sema__types__Type value) {
-    compiler__sema__types__Type* ptr = std__mem__Arena_alloc_compiler__sema__types__Type(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__types__Type* std__memory__Arena_alloc_val_compiler__sema__types__Type(std__memory__Arena* self, compiler__sema__types__Type value) {
+    return std__memory__Arena_create_val_compiler__sema__types__Type(self, value);
 }
 
-void std__mem__release_str(kobel_str* ptr) {
+void std__memory__free_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__node__AstNode** std__mem__alloc_array_ptr_compiler__ast__node__AstNode(size_t count) {
+compiler__ast__node__AstNode** std__memory__create_array_ptr_compiler__ast__node__AstNode(size_t count) {
     return (compiler__ast__node__AstNode**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr) {
+void std__memory__free_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__expr__WhenArm* std__mem__alloc_array_compiler__ast__expr__WhenArm(size_t count) {
+compiler__ast__expr__WhenArm* std__memory__create_array_compiler__ast__expr__WhenArm(size_t count) {
     return (compiler__ast__expr__WhenArm*)malloc((count * 56));
 }
 
-void std__mem__release_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr) {
+void std__memory__free_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__expr__InterpPart* std__mem__alloc_array_compiler__ast__expr__InterpPart(size_t count) {
+compiler__ast__expr__InterpPart* std__memory__create_array_compiler__ast__expr__InterpPart(size_t count) {
     return (compiler__ast__expr__InterpPart*)malloc((count * 16));
 }
 
-void std__mem__release_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr) {
+void std__memory__free_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__stmt__WhenStmtArm* std__mem__alloc_array_compiler__ast__stmt__WhenStmtArm(size_t count) {
+compiler__ast__stmt__WhenStmtArm* std__memory__create_array_compiler__ast__stmt__WhenStmtArm(size_t count) {
     return (compiler__ast__stmt__WhenStmtArm*)malloc((count * 56));
 }
 
-void std__mem__release_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr) {
+void std__memory__free_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__GenericParam* std__mem__alloc_array_compiler__ast__decl__GenericParam(size_t count) {
+compiler__ast__decl__GenericParam* std__memory__create_array_compiler__ast__decl__GenericParam(size_t count) {
     return (compiler__ast__decl__GenericParam*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr) {
+void std__memory__free_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__Param* std__mem__alloc_array_compiler__ast__decl__Param(size_t count) {
+compiler__ast__decl__Param* std__memory__create_array_compiler__ast__decl__Param(size_t count) {
     return (compiler__ast__decl__Param*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr) {
+void std__memory__free_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__StructField* std__mem__alloc_array_compiler__ast__decl__StructField(size_t count) {
+compiler__ast__decl__StructField* std__memory__create_array_compiler__ast__decl__StructField(size_t count) {
     return (compiler__ast__decl__StructField*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr) {
+void std__memory__free_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__AssocBinding* std__mem__alloc_array_compiler__ast__decl__AssocBinding(size_t count) {
+compiler__ast__decl__AssocBinding* std__memory__create_array_compiler__ast__decl__AssocBinding(size_t count) {
     return (compiler__ast__decl__AssocBinding*)malloc((count * 24));
 }
 
-void std__mem__release_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr) {
+void std__memory__free_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__EnumField* std__mem__alloc_array_compiler__ast__decl__EnumField(size_t count) {
+compiler__ast__decl__EnumField* std__memory__create_array_compiler__ast__decl__EnumField(size_t count) {
     return (compiler__ast__decl__EnumField*)malloc((count * 24));
 }
 
-void std__mem__release_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr) {
+void std__memory__free_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__decl__EnumMember* std__mem__alloc_array_compiler__ast__decl__EnumMember(size_t count) {
+compiler__ast__decl__EnumMember* std__memory__create_array_compiler__ast__decl__EnumMember(size_t count) {
     return (compiler__ast__decl__EnumMember*)malloc((count * 64));
 }
 
-void std__mem__release_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr) {
+void std__memory__free_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__lexer__Token* std__mem__alloc_array_compiler__lexer__Token(size_t count) {
+compiler__lexer__Token* std__memory__create_array_compiler__lexer__Token(size_t count) {
     return (compiler__lexer__Token*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__lexer__Token(compiler__lexer__Token* ptr) {
+void std__memory__free_compiler__lexer__Token(compiler__lexer__Token* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__loader__LoadedModule* std__mem__alloc_array_compiler__loader__LoadedModule(size_t count) {
+compiler__loader__LoadedModule* std__memory__create_array_compiler__loader__LoadedModule(size_t count) {
     return (compiler__loader__LoadedModule*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr) {
+void std__memory__free_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__methods__MethodInfo** std__mem__alloc_array_ptr_compiler__sema__methods__MethodInfo(size_t count) {
+compiler__sema__methods__MethodInfo** std__memory__create_array_ptr_compiler__sema__methods__MethodInfo(size_t count) {
     return (compiler__sema__methods__MethodInfo**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr) {
+void std__memory__free_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__structs__StructField* std__mem__alloc_array_compiler__sema__structs__StructField(size_t count) {
+compiler__sema__structs__StructField* std__memory__create_array_compiler__sema__structs__StructField(size_t count) {
     return (compiler__sema__structs__StructField*)malloc((count * 48));
 }
 
-void std__mem__release_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr) {
+void std__memory__free_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__enums__EnumMemberInfo** std__mem__alloc_array_ptr_compiler__sema__enums__EnumMemberInfo(size_t count) {
+compiler__sema__enums__EnumMemberInfo** std__memory__create_array_ptr_compiler__sema__enums__EnumMemberInfo(size_t count) {
     return (compiler__sema__enums__EnumMemberInfo**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr) {
+void std__memory__free_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__types__Type** std__mem__alloc_array_ptr_compiler__sema__types__Type(size_t count) {
+compiler__sema__types__Type** std__memory__create_array_ptr_compiler__sema__types__Type(size_t count) {
     return (compiler__sema__types__Type**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr) {
+void std__memory__free_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr) {
     free((uint8_t*)ptr);
 }
 
-size_t* std__mem__alloc_array_usz(size_t count) {
+size_t* std__memory__create_array_usz(size_t count) {
     return (size_t*)malloc((count * 8));
 }
 
-void std__mem__release_usz(size_t* ptr) {
+void std__memory__free_usz(size_t* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__instance__AnnEntry** std__mem__alloc_array_ptr_compiler__sema__instance__AnnEntry(size_t count) {
+compiler__sema__instance__AnnEntry** std__memory__create_array_ptr_compiler__sema__instance__AnnEntry(size_t count) {
     return (compiler__sema__instance__AnnEntry**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr) {
+void std__memory__free_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__traits__TraitMethod** std__mem__alloc_array_ptr_compiler__sema__traits__TraitMethod(size_t count) {
+compiler__sema__traits__TraitMethod** std__memory__create_array_ptr_compiler__sema__traits__TraitMethod(size_t count) {
     return (compiler__sema__traits__TraitMethod**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr) {
+void std__memory__free_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__symbol__Symbol** std__mem__alloc_array_ptr_compiler__sema__symbol__Symbol(size_t count) {
+compiler__sema__symbol__Symbol** std__memory__create_array_ptr_compiler__sema__symbol__Symbol(size_t count) {
     return (compiler__sema__symbol__Symbol**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr) {
+void std__memory__free_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__template__GenTemplate** std__mem__alloc_array_ptr_compiler__sema__template__GenTemplate(size_t count) {
+compiler__sema__template__GenTemplate** std__memory__create_array_ptr_compiler__sema__template__GenTemplate(size_t count) {
     return (compiler__sema__template__GenTemplate**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr) {
+void std__memory__free_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__instance__InstanceRecord** std__mem__alloc_array_ptr_compiler__sema__instance__InstanceRecord(size_t count) {
+compiler__sema__instance__InstanceRecord** std__memory__create_array_ptr_compiler__sema__instance__InstanceRecord(size_t count) {
     return (compiler__sema__instance__InstanceRecord**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr) {
+void std__memory__free_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__symbol__ModuleScope** std__mem__alloc_array_ptr_compiler__sema__symbol__ModuleScope(size_t count) {
+compiler__sema__symbol__ModuleScope** std__memory__create_array_ptr_compiler__sema__symbol__ModuleScope(size_t count) {
     return (compiler__sema__symbol__ModuleScope**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr) {
+void std__memory__free_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__symbol__ImportBinding* std__mem__alloc_array_compiler__sema__symbol__ImportBinding(size_t count) {
+compiler__sema__symbol__ImportBinding* std__memory__create_array_compiler__sema__symbol__ImportBinding(size_t count) {
     return (compiler__sema__symbol__ImportBinding*)malloc((count * 72));
 }
 
-void std__mem__release_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr) {
+void std__memory__free_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__enums__EnumInfo** std__mem__alloc_array_ptr_compiler__sema__enums__EnumInfo(size_t count) {
+compiler__sema__enums__EnumInfo** std__memory__create_array_ptr_compiler__sema__enums__EnumInfo(size_t count) {
     return (compiler__sema__enums__EnumInfo**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr) {
+void std__memory__free_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__traits__TraitInfo** std__mem__alloc_array_ptr_compiler__sema__traits__TraitInfo(size_t count) {
+compiler__sema__traits__TraitInfo** std__memory__create_array_ptr_compiler__sema__traits__TraitInfo(size_t count) {
     return (compiler__sema__traits__TraitInfo**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr) {
+void std__memory__free_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr) {
     free((uint8_t*)ptr);
 }
 
-void std__mem__release_bool(bool* ptr) {
+void std__memory__free_bool(bool* ptr) {
     free((uint8_t*)ptr);
 }
 
-fmt__comments__Comment* std__mem__alloc_array_fmt__comments__Comment(size_t count) {
+fmt__comments__Comment* std__memory__create_array_fmt__comments__Comment(size_t count) {
     return (fmt__comments__Comment*)malloc((count * 40));
 }
 
-void std__mem__release_fmt__comments__Comment(fmt__comments__Comment* ptr) {
+void std__memory__free_fmt__comments__Comment(fmt__comments__Comment* ptr) {
     free((uint8_t*)ptr);
 }
 
-lsp__json__JsonValue** std__mem__alloc_array_ptr_lsp__json__JsonValue(size_t count) {
+lsp__json__JsonValue** std__memory__create_array_ptr_lsp__json__JsonValue(size_t count) {
     return (lsp__json__JsonValue**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr) {
+void std__memory__free_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr) {
     free((uint8_t*)ptr);
 }
 
-lsp__document__Document* std__mem__alloc_array_lsp__document__Document(size_t count) {
+lsp__document__Document* std__memory__create_array_lsp__document__Document(size_t count) {
     return (lsp__document__Document*)malloc((count * 56));
 }
 
-void std__mem__release_lsp__document__Document(lsp__document__Document* ptr) {
+void std__memory__free_lsp__document__Document(lsp__document__Document* ptr) {
     free((uint8_t*)ptr);
 }
 
-lsp__analysis__LspDiagnostic* std__mem__alloc_array_lsp__analysis__LspDiagnostic(size_t count) {
+lsp__analysis__LspDiagnostic* std__memory__create_array_lsp__analysis__LspDiagnostic(size_t count) {
     return (lsp__analysis__LspDiagnostic*)malloc((count * 56));
 }
 
-void std__mem__release_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr) {
+void std__memory__free_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__loader__ModuleFile* std__mem__alloc_array_compiler__loader__ModuleFile(size_t count) {
+compiler__loader__ModuleFile* std__memory__create_array_compiler__loader__ModuleFile(size_t count) {
     return (compiler__loader__ModuleFile*)malloc((count * 40));
 }
 
-void std__mem__release_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr) {
+void std__memory__free_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__sema__body__program__ArrowCandidate** std__mem__alloc_array_ptr_compiler__sema__body__program__ArrowCandidate(size_t count) {
+compiler__sema__body__program__ArrowCandidate** std__memory__create_array_ptr_compiler__sema__body__program__ArrowCandidate(size_t count) {
     return (compiler__sema__body__program__ArrowCandidate**)malloc((count * 8));
 }
 
-void std__mem__release_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr) {
+void std__memory__free_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__codegen__c_codegen__ConditionAlias* std__mem__alloc_array_compiler__codegen__c_codegen__ConditionAlias(size_t count) {
+compiler__codegen__c_codegen__ConditionAlias* std__memory__create_array_compiler__codegen__c_codegen__ConditionAlias(size_t count) {
     return (compiler__codegen__c_codegen__ConditionAlias*)malloc((count * 48));
 }
 
-void std__mem__release_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr) {
+void std__memory__free_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr) {
     free((uint8_t*)ptr);
 }
 
-void std__mem__release_std__mem__ArenaBlock(std__mem__ArenaBlock* ptr) {
-    free((uint8_t*)ptr);
+compiler__sema__structs__StructType* std__memory__Arena_alloc_val_compiler__sema__structs__StructType(std__memory__Arena* self, compiler__sema__structs__StructType value) {
+    return std__memory__Arena_create_val_compiler__sema__structs__StructType(self, value);
 }
 
-compiler__sema__structs__StructType* std__mem__Arena_alloc_val_compiler__sema__structs__StructType(std__mem__Arena* self, compiler__sema__structs__StructType value) {
-    compiler__sema__structs__StructType* ptr = std__mem__Arena_alloc_compiler__sema__structs__StructType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__types__PointerType* std__memory__Arena_alloc_val_compiler__sema__types__PointerType(std__memory__Arena* self, compiler__sema__types__PointerType value) {
+    return std__memory__Arena_create_val_compiler__sema__types__PointerType(self, value);
 }
 
-compiler__sema__types__PointerType* std__mem__Arena_alloc_val_compiler__sema__types__PointerType(std__mem__Arena* self, compiler__sema__types__PointerType value) {
-    compiler__sema__types__PointerType* ptr = std__mem__Arena_alloc_compiler__sema__types__PointerType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__types__ArrayType* std__memory__Arena_alloc_val_compiler__sema__types__ArrayType(std__memory__Arena* self, compiler__sema__types__ArrayType value) {
+    return std__memory__Arena_create_val_compiler__sema__types__ArrayType(self, value);
 }
 
-compiler__sema__types__ArrayType* std__mem__Arena_alloc_val_compiler__sema__types__ArrayType(std__mem__Arena* self, compiler__sema__types__ArrayType value) {
-    compiler__sema__types__ArrayType* ptr = std__mem__Arena_alloc_compiler__sema__types__ArrayType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__types__FnType* std__memory__Arena_alloc_val_compiler__sema__types__FnType(std__memory__Arena* self, compiler__sema__types__FnType value) {
+    return std__memory__Arena_create_val_compiler__sema__types__FnType(self, value);
 }
 
-compiler__sema__types__FnType* std__mem__Arena_alloc_val_compiler__sema__types__FnType(std__mem__Arena* self, compiler__sema__types__FnType value) {
-    compiler__sema__types__FnType* ptr = std__mem__Arena_alloc_compiler__sema__types__FnType(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__methods__PrimMethods* std__memory__Arena_alloc_val_compiler__sema__methods__PrimMethods(std__memory__Arena* self, compiler__sema__methods__PrimMethods value) {
+    return std__memory__Arena_create_val_compiler__sema__methods__PrimMethods(self, value);
 }
 
-compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_val_compiler__sema__methods__PrimMethods(std__mem__Arena* self, compiler__sema__methods__PrimMethods value) {
-    compiler__sema__methods__PrimMethods* ptr = std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__symbol__Symbol* std__memory__Arena_alloc_val_compiler__sema__symbol__Symbol(std__memory__Arena* self, compiler__sema__symbol__Symbol value) {
+    return std__memory__Arena_create_val_compiler__sema__symbol__Symbol(self, value);
 }
 
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_val_compiler__sema__symbol__Symbol(std__mem__Arena* self, compiler__sema__symbol__Symbol value) {
-    compiler__sema__symbol__Symbol* ptr = std__mem__Arena_alloc_compiler__sema__symbol__Symbol(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__symbol__Scope* std__memory__Arena_alloc_val_compiler__sema__symbol__Scope(std__memory__Arena* self, compiler__sema__symbol__Scope value) {
+    return std__memory__Arena_create_val_compiler__sema__symbol__Scope(self, value);
 }
 
-compiler__sema__symbol__Scope* std__mem__Arena_alloc_val_compiler__sema__symbol__Scope(std__mem__Arena* self, compiler__sema__symbol__Scope value) {
-    compiler__sema__symbol__Scope* ptr = std__mem__Arena_alloc_compiler__sema__symbol__Scope(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__prims__PrimTypes* std__memory__Arena_alloc_val_compiler__sema__prims__PrimTypes(std__memory__Arena* self, compiler__sema__prims__PrimTypes value) {
+    return std__memory__Arena_create_val_compiler__sema__prims__PrimTypes(self, value);
 }
 
-compiler__sema__prims__PrimTypes* std__mem__Arena_alloc_val_compiler__sema__prims__PrimTypes(std__mem__Arena* self, compiler__sema__prims__PrimTypes value) {
-    compiler__sema__prims__PrimTypes* ptr = std__mem__Arena_alloc_compiler__sema__prims__PrimTypes(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__symbol__ModuleScope* std__memory__Arena_alloc_val_compiler__sema__symbol__ModuleScope(std__memory__Arena* self, compiler__sema__symbol__ModuleScope value) {
+    return std__memory__Arena_create_val_compiler__sema__symbol__ModuleScope(self, value);
 }
 
-compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_val_compiler__sema__symbol__ModuleScope(std__mem__Arena* self, compiler__sema__symbol__ModuleScope value) {
-    compiler__sema__symbol__ModuleScope* ptr = std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__template__GenTemplate* std__memory__Arena_alloc_val_compiler__sema__template__GenTemplate(std__memory__Arena* self, compiler__sema__template__GenTemplate value) {
+    return std__memory__Arena_create_val_compiler__sema__template__GenTemplate(self, value);
 }
 
-compiler__sema__template__GenTemplate* std__mem__Arena_alloc_val_compiler__sema__template__GenTemplate(std__mem__Arena* self, compiler__sema__template__GenTemplate value) {
-    compiler__sema__template__GenTemplate* ptr = std__mem__Arena_alloc_compiler__sema__template__GenTemplate(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__template__GenSubst* std__memory__Arena_alloc_val_compiler__sema__template__GenSubst(std__memory__Arena* self, compiler__sema__template__GenSubst value) {
+    return std__memory__Arena_create_val_compiler__sema__template__GenSubst(self, value);
 }
 
-compiler__sema__template__GenSubst* std__mem__Arena_alloc_val_compiler__sema__template__GenSubst(std__mem__Arena* self, compiler__sema__template__GenSubst value) {
-    compiler__sema__template__GenSubst* ptr = std__mem__Arena_alloc_compiler__sema__template__GenSubst(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__methods__MethodInfo* std__memory__Arena_alloc_val_compiler__sema__methods__MethodInfo(std__memory__Arena* self, compiler__sema__methods__MethodInfo value) {
+    return std__memory__Arena_create_val_compiler__sema__methods__MethodInfo(self, value);
 }
 
-compiler__sema__methods__MethodInfo* std__mem__Arena_alloc_val_compiler__sema__methods__MethodInfo(std__mem__Arena* self, compiler__sema__methods__MethodInfo value) {
-    compiler__sema__methods__MethodInfo* ptr = std__mem__Arena_alloc_compiler__sema__methods__MethodInfo(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__instance__InstanceRecord* std__memory__Arena_alloc_val_compiler__sema__instance__InstanceRecord(std__memory__Arena* self, compiler__sema__instance__InstanceRecord value) {
+    return std__memory__Arena_create_val_compiler__sema__instance__InstanceRecord(self, value);
 }
 
-compiler__sema__instance__InstanceRecord* std__mem__Arena_alloc_val_compiler__sema__instance__InstanceRecord(std__mem__Arena* self, compiler__sema__instance__InstanceRecord value) {
-    compiler__sema__instance__InstanceRecord* ptr = std__mem__Arena_alloc_compiler__sema__instance__InstanceRecord(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self, compiler__sema__enums__EnumMemberInfo value) {
+    return std__memory__Arena_create_val_compiler__sema__enums__EnumMemberInfo(self, value);
 }
 
-compiler__sema__enums__EnumMemberInfo* std__mem__Arena_alloc_val_compiler__sema__enums__EnumMemberInfo(std__mem__Arena* self, compiler__sema__enums__EnumMemberInfo value) {
-    compiler__sema__enums__EnumMemberInfo* ptr = std__mem__Arena_alloc_compiler__sema__enums__EnumMemberInfo(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__enums__EnumInfo* std__memory__Arena_alloc_val_compiler__sema__enums__EnumInfo(std__memory__Arena* self, compiler__sema__enums__EnumInfo value) {
+    return std__memory__Arena_create_val_compiler__sema__enums__EnumInfo(self, value);
 }
 
-compiler__sema__enums__EnumInfo* std__mem__Arena_alloc_val_compiler__sema__enums__EnumInfo(std__mem__Arena* self, compiler__sema__enums__EnumInfo value) {
-    compiler__sema__enums__EnumInfo* ptr = std__mem__Arena_alloc_compiler__sema__enums__EnumInfo(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__traits__TraitMethod* std__memory__Arena_alloc_val_compiler__sema__traits__TraitMethod(std__memory__Arena* self, compiler__sema__traits__TraitMethod value) {
+    return std__memory__Arena_create_val_compiler__sema__traits__TraitMethod(self, value);
 }
 
-compiler__sema__traits__TraitMethod* std__mem__Arena_alloc_val_compiler__sema__traits__TraitMethod(std__mem__Arena* self, compiler__sema__traits__TraitMethod value) {
-    compiler__sema__traits__TraitMethod* ptr = std__mem__Arena_alloc_compiler__sema__traits__TraitMethod(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__traits__TraitInfo* std__memory__Arena_alloc_val_compiler__sema__traits__TraitInfo(std__memory__Arena* self, compiler__sema__traits__TraitInfo value) {
+    return std__memory__Arena_create_val_compiler__sema__traits__TraitInfo(self, value);
 }
 
-compiler__sema__traits__TraitInfo* std__mem__Arena_alloc_val_compiler__sema__traits__TraitInfo(std__mem__Arena* self, compiler__sema__traits__TraitInfo value) {
-    compiler__sema__traits__TraitInfo* ptr = std__mem__Arena_alloc_compiler__sema__traits__TraitInfo(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self, compiler__sema__body__program__ArrowCandidate value) {
+    return std__memory__Arena_create_val_compiler__sema__body__program__ArrowCandidate(self, value);
 }
 
-compiler__sema__body__program__ArrowCandidate* std__mem__Arena_alloc_val_compiler__sema__body__program__ArrowCandidate(std__mem__Arena* self, compiler__sema__body__program__ArrowCandidate value) {
-    compiler__sema__body__program__ArrowCandidate* ptr = std__mem__Arena_alloc_compiler__sema__body__program__ArrowCandidate(self);
-    (*(ptr) = value);
-    return ptr;
+compiler__sema__instance__AnnEntry* std__memory__Arena_alloc_val_compiler__sema__instance__AnnEntry(std__memory__Arena* self, compiler__sema__instance__AnnEntry value) {
+    return std__memory__Arena_create_val_compiler__sema__instance__AnnEntry(self, value);
 }
 
-compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_val_compiler__sema__instance__AnnEntry(std__mem__Arena* self, compiler__sema__instance__AnnEntry value) {
-    compiler__sema__instance__AnnEntry* ptr = std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-kobel_str* std__mem__resize_str(kobel_str* ptr, size_t count) {
+kobel_str* std__memory__resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__ast__node__AstNode** std__mem__resize_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr, size_t count) {
+compiler__ast__node__AstNode** std__memory__resize_ptr_compiler__ast__node__AstNode(compiler__ast__node__AstNode** ptr, size_t count) {
     return (compiler__ast__node__AstNode**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__ast__expr__WhenArm* std__mem__resize_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr, size_t count) {
+compiler__ast__expr__WhenArm* std__memory__resize_compiler__ast__expr__WhenArm(compiler__ast__expr__WhenArm* ptr, size_t count) {
     return (compiler__ast__expr__WhenArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-compiler__ast__expr__InterpPart* std__mem__resize_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr, size_t count) {
+compiler__ast__expr__InterpPart* std__memory__resize_compiler__ast__expr__InterpPart(compiler__ast__expr__InterpPart* ptr, size_t count) {
     return (compiler__ast__expr__InterpPart*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__ast__stmt__WhenStmtArm* std__mem__resize_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr, size_t count) {
+compiler__ast__stmt__WhenStmtArm* std__memory__resize_compiler__ast__stmt__WhenStmtArm(compiler__ast__stmt__WhenStmtArm* ptr, size_t count) {
     return (compiler__ast__stmt__WhenStmtArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-compiler__ast__decl__GenericParam* std__mem__resize_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr, size_t count) {
+compiler__ast__decl__GenericParam* std__memory__resize_compiler__ast__decl__GenericParam(compiler__ast__decl__GenericParam* ptr, size_t count) {
     return (compiler__ast__decl__GenericParam*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__ast__decl__Param* std__mem__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count) {
+compiler__ast__decl__Param* std__memory__resize_compiler__ast__decl__Param(compiler__ast__decl__Param* ptr, size_t count) {
     return (compiler__ast__decl__Param*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__ast__decl__StructField* std__mem__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count) {
+compiler__ast__decl__StructField* std__memory__resize_compiler__ast__decl__StructField(compiler__ast__decl__StructField* ptr, size_t count) {
     return (compiler__ast__decl__StructField*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__ast__decl__AssocBinding* std__mem__resize_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr, size_t count) {
+compiler__ast__decl__AssocBinding* std__memory__resize_compiler__ast__decl__AssocBinding(compiler__ast__decl__AssocBinding* ptr, size_t count) {
     return (compiler__ast__decl__AssocBinding*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__ast__decl__EnumField* std__mem__resize_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr, size_t count) {
+compiler__ast__decl__EnumField* std__memory__resize_compiler__ast__decl__EnumField(compiler__ast__decl__EnumField* ptr, size_t count) {
     return (compiler__ast__decl__EnumField*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__ast__decl__EnumMember* std__mem__resize_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr, size_t count) {
+compiler__ast__decl__EnumMember* std__memory__resize_compiler__ast__decl__EnumMember(compiler__ast__decl__EnumMember* ptr, size_t count) {
     return (compiler__ast__decl__EnumMember*)realloc((uint8_t*)ptr, (count * 64));
 }
 
-compiler__lexer__Token* std__mem__resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count) {
+compiler__lexer__Token* std__memory__resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count) {
     return (compiler__lexer__Token*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__loader__LoadedModule* std__mem__resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count) {
+compiler__loader__LoadedModule* std__memory__resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count) {
     return (compiler__loader__LoadedModule*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__sema__methods__MethodInfo** std__mem__resize_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr, size_t count) {
+compiler__sema__methods__MethodInfo** std__memory__resize_ptr_compiler__sema__methods__MethodInfo(compiler__sema__methods__MethodInfo** ptr, size_t count) {
     return (compiler__sema__methods__MethodInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__structs__StructField* std__mem__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count) {
+compiler__sema__structs__StructField* std__memory__resize_compiler__sema__structs__StructField(compiler__sema__structs__StructField* ptr, size_t count) {
     return (compiler__sema__structs__StructField*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__sema__enums__EnumMemberInfo** std__mem__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count) {
+compiler__sema__enums__EnumMemberInfo** std__memory__resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count) {
     return (compiler__sema__enums__EnumMemberInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__types__Type** std__mem__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count) {
+compiler__sema__types__Type** std__memory__resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count) {
     return (compiler__sema__types__Type**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-size_t* std__mem__resize_usz(size_t* ptr, size_t count) {
+size_t* std__memory__resize_usz(size_t* ptr, size_t count) {
     return (size_t*)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__instance__AnnEntry** std__mem__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count) {
+compiler__sema__instance__AnnEntry** std__memory__resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count) {
     return (compiler__sema__instance__AnnEntry**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__traits__TraitMethod** std__mem__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count) {
+compiler__sema__traits__TraitMethod** std__memory__resize_ptr_compiler__sema__traits__TraitMethod(compiler__sema__traits__TraitMethod** ptr, size_t count) {
     return (compiler__sema__traits__TraitMethod**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__symbol__Symbol** std__mem__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count) {
+compiler__sema__symbol__Symbol** std__memory__resize_ptr_compiler__sema__symbol__Symbol(compiler__sema__symbol__Symbol** ptr, size_t count) {
     return (compiler__sema__symbol__Symbol**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__template__GenTemplate** std__mem__resize_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr, size_t count) {
+compiler__sema__template__GenTemplate** std__memory__resize_ptr_compiler__sema__template__GenTemplate(compiler__sema__template__GenTemplate** ptr, size_t count) {
     return (compiler__sema__template__GenTemplate**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__instance__InstanceRecord** std__mem__resize_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr, size_t count) {
+compiler__sema__instance__InstanceRecord** std__memory__resize_ptr_compiler__sema__instance__InstanceRecord(compiler__sema__instance__InstanceRecord** ptr, size_t count) {
     return (compiler__sema__instance__InstanceRecord**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__symbol__ModuleScope** std__mem__resize_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr, size_t count) {
+compiler__sema__symbol__ModuleScope** std__memory__resize_ptr_compiler__sema__symbol__ModuleScope(compiler__sema__symbol__ModuleScope** ptr, size_t count) {
     return (compiler__sema__symbol__ModuleScope**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__symbol__ImportBinding* std__mem__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count) {
+compiler__sema__symbol__ImportBinding* std__memory__resize_compiler__sema__symbol__ImportBinding(compiler__sema__symbol__ImportBinding* ptr, size_t count) {
     return (compiler__sema__symbol__ImportBinding*)realloc((uint8_t*)ptr, (count * 72));
 }
 
-compiler__sema__enums__EnumInfo** std__mem__resize_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr, size_t count) {
+compiler__sema__enums__EnumInfo** std__memory__resize_ptr_compiler__sema__enums__EnumInfo(compiler__sema__enums__EnumInfo** ptr, size_t count) {
     return (compiler__sema__enums__EnumInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__sema__traits__TraitInfo** std__mem__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count) {
+compiler__sema__traits__TraitInfo** std__memory__resize_ptr_compiler__sema__traits__TraitInfo(compiler__sema__traits__TraitInfo** ptr, size_t count) {
     return (compiler__sema__traits__TraitInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-bool* std__mem__resize_bool(bool* ptr, size_t count) {
+bool* std__memory__resize_bool(bool* ptr, size_t count) {
     return (bool*)realloc((uint8_t*)ptr, (count * 1));
 }
 
-fmt__comments__Comment* std__mem__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count) {
+fmt__comments__Comment* std__memory__resize_fmt__comments__Comment(fmt__comments__Comment* ptr, size_t count) {
     return (fmt__comments__Comment*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-lsp__json__JsonValue** std__mem__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count) {
+lsp__json__JsonValue** std__memory__resize_ptr_lsp__json__JsonValue(lsp__json__JsonValue** ptr, size_t count) {
     return (lsp__json__JsonValue**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-lsp__document__Document* std__mem__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count) {
+lsp__document__Document* std__memory__resize_lsp__document__Document(lsp__document__Document* ptr, size_t count) {
     return (lsp__document__Document*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-lsp__analysis__LspDiagnostic* std__mem__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count) {
+lsp__analysis__LspDiagnostic* std__memory__resize_lsp__analysis__LspDiagnostic(lsp__analysis__LspDiagnostic* ptr, size_t count) {
     return (lsp__analysis__LspDiagnostic*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-compiler__loader__ModuleFile* std__mem__resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count) {
+compiler__loader__ModuleFile* std__memory__resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count) {
     return (compiler__loader__ModuleFile*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__sema__body__program__ArrowCandidate** std__mem__resize_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr, size_t count) {
+compiler__sema__body__program__ArrowCandidate** std__memory__resize_ptr_compiler__sema__body__program__ArrowCandidate(compiler__sema__body__program__ArrowCandidate** ptr, size_t count) {
     return (compiler__sema__body__program__ArrowCandidate**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__codegen__c_codegen__ConditionAlias* std__mem__resize_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr, size_t count) {
+compiler__codegen__c_codegen__ConditionAlias* std__memory__resize_compiler__codegen__c_codegen__ConditionAlias(compiler__codegen__c_codegen__ConditionAlias* ptr, size_t count) {
     return (compiler__codegen__c_codegen__ConditionAlias*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__ast__node__AstNode* std__mem__Arena_alloc_compiler__ast__node__AstNode(std__mem__Arena* self) {
-    return (compiler__ast__node__AstNode*)std__mem__Arena_alloc_bytes(self, 72, 8);
+compiler__ast__node__AstNode* std__memory__Arena_create_val_compiler__ast__node__AstNode(std__memory__Arena* self, compiler__ast__node__AstNode value) {
+    compiler__ast__node__AstNode* ptr = std__memory__Arena_create_compiler__ast__node__AstNode(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__types__NamedType* std__mem__Arena_alloc_compiler__ast__types__NamedType(std__mem__Arena* self) {
-    return (compiler__ast__types__NamedType*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__types__NamedType* std__memory__Arena_create_val_compiler__ast__types__NamedType(std__memory__Arena* self, compiler__ast__types__NamedType value) {
+    compiler__ast__types__NamedType* ptr = std__memory__Arena_create_compiler__ast__types__NamedType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__types__PointerType* std__mem__Arena_alloc_compiler__ast__types__PointerType(std__mem__Arena* self) {
-    return (compiler__ast__types__PointerType*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__types__PointerType* std__memory__Arena_create_val_compiler__ast__types__PointerType(std__memory__Arena* self, compiler__ast__types__PointerType value) {
+    compiler__ast__types__PointerType* ptr = std__memory__Arena_create_compiler__ast__types__PointerType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__types__ArrayType* std__mem__Arena_alloc_compiler__ast__types__ArrayType(std__mem__Arena* self) {
-    return (compiler__ast__types__ArrayType*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__types__ArrayType* std__memory__Arena_create_val_compiler__ast__types__ArrayType(std__memory__Arena* self, compiler__ast__types__ArrayType value) {
+    compiler__ast__types__ArrayType* ptr = std__memory__Arena_create_compiler__ast__types__ArrayType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__types__NullableType* std__mem__Arena_alloc_compiler__ast__types__NullableType(std__mem__Arena* self) {
-    return (compiler__ast__types__NullableType*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__types__NullableType* std__memory__Arena_create_val_compiler__ast__types__NullableType(std__memory__Arena* self, compiler__ast__types__NullableType value) {
+    compiler__ast__types__NullableType* ptr = std__memory__Arena_create_compiler__ast__types__NullableType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__LiteralExpr* std__mem__Arena_alloc_compiler__ast__expr__LiteralExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__LiteralExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__LiteralExpr* std__memory__Arena_create_val_compiler__ast__expr__LiteralExpr(std__memory__Arena* self, compiler__ast__expr__LiteralExpr value) {
+    compiler__ast__expr__LiteralExpr* ptr = std__memory__Arena_create_compiler__ast__expr__LiteralExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__IdentifierExpr* std__mem__Arena_alloc_compiler__ast__expr__IdentifierExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__IdentifierExpr*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_create_val_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self, compiler__ast__expr__IdentifierExpr value) {
+    compiler__ast__expr__IdentifierExpr* ptr = std__memory__Arena_create_compiler__ast__expr__IdentifierExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__BinaryExpr* std__mem__Arena_alloc_compiler__ast__expr__BinaryExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__BinaryExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__BinaryExpr* std__memory__Arena_create_val_compiler__ast__expr__BinaryExpr(std__memory__Arena* self, compiler__ast__expr__BinaryExpr value) {
+    compiler__ast__expr__BinaryExpr* ptr = std__memory__Arena_create_compiler__ast__expr__BinaryExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__UnaryExpr* std__mem__Arena_alloc_compiler__ast__expr__UnaryExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__UnaryExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__UnaryExpr* std__memory__Arena_create_val_compiler__ast__expr__UnaryExpr(std__memory__Arena* self, compiler__ast__expr__UnaryExpr value) {
+    compiler__ast__expr__UnaryExpr* ptr = std__memory__Arena_create_compiler__ast__expr__UnaryExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__CallExpr* std__mem__Arena_alloc_compiler__ast__expr__CallExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__CallExpr*)std__mem__Arena_alloc_bytes(self, 56, 8);
+compiler__ast__expr__CallExpr* std__memory__Arena_create_val_compiler__ast__expr__CallExpr(std__memory__Arena* self, compiler__ast__expr__CallExpr value) {
+    compiler__ast__expr__CallExpr* ptr = std__memory__Arena_create_compiler__ast__expr__CallExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__StructCtorExpr* std__mem__Arena_alloc_compiler__ast__expr__StructCtorExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__StructCtorExpr*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_create_val_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self, compiler__ast__expr__StructCtorExpr value) {
+    compiler__ast__expr__StructCtorExpr* ptr = std__memory__Arena_create_compiler__ast__expr__StructCtorExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__EnumCtorExpr* std__mem__Arena_alloc_compiler__ast__expr__EnumCtorExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__EnumCtorExpr*)std__mem__Arena_alloc_bytes(self, 80, 8);
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_create_val_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self, compiler__ast__expr__EnumCtorExpr value) {
+    compiler__ast__expr__EnumCtorExpr* ptr = std__memory__Arena_create_compiler__ast__expr__EnumCtorExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__SizeOfParam* std__mem__Arena_alloc_compiler__ast__expr__SizeOfParam(std__mem__Arena* self) {
-    return (compiler__ast__expr__SizeOfParam*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__SizeOfParam* std__memory__Arena_create_val_compiler__ast__expr__SizeOfParam(std__memory__Arena* self, compiler__ast__expr__SizeOfParam value) {
+    compiler__ast__expr__SizeOfParam* ptr = std__memory__Arena_create_compiler__ast__expr__SizeOfParam(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__MemberExpr* std__mem__Arena_alloc_compiler__ast__expr__MemberExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__MemberExpr*)std__mem__Arena_alloc_bytes(self, 32, 8);
+compiler__ast__expr__MemberExpr* std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(std__memory__Arena* self, compiler__ast__expr__MemberExpr value) {
+    compiler__ast__expr__MemberExpr* ptr = std__memory__Arena_create_compiler__ast__expr__MemberExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__IndexExpr* std__mem__Arena_alloc_compiler__ast__expr__IndexExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__IndexExpr*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__expr__IndexExpr* std__memory__Arena_create_val_compiler__ast__expr__IndexExpr(std__memory__Arena* self, compiler__ast__expr__IndexExpr value) {
+    compiler__ast__expr__IndexExpr* ptr = std__memory__Arena_create_compiler__ast__expr__IndexExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__AssignExpr* std__mem__Arena_alloc_compiler__ast__expr__AssignExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__AssignExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__AssignExpr* std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(std__memory__Arena* self, compiler__ast__expr__AssignExpr value) {
+    compiler__ast__expr__AssignExpr* ptr = std__memory__Arena_create_compiler__ast__expr__AssignExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__UpdateExpr* std__mem__Arena_alloc_compiler__ast__expr__UpdateExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__UpdateExpr*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__expr__UpdateExpr* std__memory__Arena_create_val_compiler__ast__expr__UpdateExpr(std__memory__Arena* self, compiler__ast__expr__UpdateExpr value) {
+    compiler__ast__expr__UpdateExpr* ptr = std__memory__Arena_create_compiler__ast__expr__UpdateExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__CastExpr* std__mem__Arena_alloc_compiler__ast__expr__CastExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__CastExpr*)std__mem__Arena_alloc_bytes(self, 104, 8);
+compiler__ast__expr__CastExpr* std__memory__Arena_create_val_compiler__ast__expr__CastExpr(std__memory__Arena* self, compiler__ast__expr__CastExpr value) {
+    compiler__ast__expr__CastExpr* ptr = std__memory__Arena_create_compiler__ast__expr__CastExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__GroupExpr* std__mem__Arena_alloc_compiler__ast__expr__GroupExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__GroupExpr*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__expr__GroupExpr* std__memory__Arena_create_val_compiler__ast__expr__GroupExpr(std__memory__Arena* self, compiler__ast__expr__GroupExpr value) {
+    compiler__ast__expr__GroupExpr* ptr = std__memory__Arena_create_compiler__ast__expr__GroupExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__ArrayLiteralExpr* std__mem__Arena_alloc_compiler__ast__expr__ArrayLiteralExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__ArrayLiteralExpr*)std__mem__Arena_alloc_bytes(self, 48, 8);
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self, compiler__ast__expr__ArrayLiteralExpr value) {
+    compiler__ast__expr__ArrayLiteralExpr* ptr = std__memory__Arena_create_compiler__ast__expr__ArrayLiteralExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__IfExpr* std__mem__Arena_alloc_compiler__ast__expr__IfExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__IfExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__IfExpr* std__memory__Arena_create_val_compiler__ast__expr__IfExpr(std__memory__Arena* self, compiler__ast__expr__IfExpr value) {
+    compiler__ast__expr__IfExpr* ptr = std__memory__Arena_create_compiler__ast__expr__IfExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__WhenExpr* std__mem__Arena_alloc_compiler__ast__expr__WhenExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__WhenExpr*)std__mem__Arena_alloc_bytes(self, 32, 8);
+compiler__ast__expr__WhenExpr* std__memory__Arena_create_val_compiler__ast__expr__WhenExpr(std__memory__Arena* self, compiler__ast__expr__WhenExpr value) {
+    compiler__ast__expr__WhenExpr* ptr = std__memory__Arena_create_compiler__ast__expr__WhenExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__InterpExpr* std__mem__Arena_alloc_compiler__ast__expr__InterpExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__InterpExpr*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__expr__InterpExpr* std__memory__Arena_create_val_compiler__ast__expr__InterpExpr(std__memory__Arena* self, compiler__ast__expr__InterpExpr value) {
+    compiler__ast__expr__InterpExpr* ptr = std__memory__Arena_create_compiler__ast__expr__InterpExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__expr__IsExpr* std__mem__Arena_alloc_compiler__ast__expr__IsExpr(std__mem__Arena* self) {
-    return (compiler__ast__expr__IsExpr*)std__mem__Arena_alloc_bytes(self, 112, 8);
+compiler__ast__expr__IsExpr* std__memory__Arena_create_val_compiler__ast__expr__IsExpr(std__memory__Arena* self, compiler__ast__expr__IsExpr value) {
+    compiler__ast__expr__IsExpr* ptr = std__memory__Arena_create_compiler__ast__expr__IsExpr(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__BlockStmt* std__mem__Arena_alloc_compiler__ast__stmt__BlockStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__BlockStmt*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__stmt__BlockStmt* std__memory__Arena_create_val_compiler__ast__stmt__BlockStmt(std__memory__Arena* self, compiler__ast__stmt__BlockStmt value) {
+    compiler__ast__stmt__BlockStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__BlockStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__ExprStmt* std__mem__Arena_alloc_compiler__ast__stmt__ExprStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__ExprStmt*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__stmt__ExprStmt* std__memory__Arena_create_val_compiler__ast__stmt__ExprStmt(std__memory__Arena* self, compiler__ast__stmt__ExprStmt value) {
+    compiler__ast__stmt__ExprStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__ExprStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__VarDeclStmt* std__mem__Arena_alloc_compiler__ast__stmt__VarDeclStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__VarDeclStmt*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_create_val_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self, compiler__ast__stmt__VarDeclStmt value) {
+    compiler__ast__stmt__VarDeclStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__VarDeclStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__IfStmt* std__mem__Arena_alloc_compiler__ast__stmt__IfStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__IfStmt*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__stmt__IfStmt* std__memory__Arena_create_val_compiler__ast__stmt__IfStmt(std__memory__Arena* self, compiler__ast__stmt__IfStmt value) {
+    compiler__ast__stmt__IfStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__IfStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__WhileStmt* std__mem__Arena_alloc_compiler__ast__stmt__WhileStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__WhileStmt*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__ast__stmt__WhileStmt* std__memory__Arena_create_val_compiler__ast__stmt__WhileStmt(std__memory__Arena* self, compiler__ast__stmt__WhileStmt value) {
+    compiler__ast__stmt__WhileStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__WhileStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__ForStmt* std__mem__Arena_alloc_compiler__ast__stmt__ForStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__ForStmt*)std__mem__Arena_alloc_bytes(self, 56, 8);
+compiler__ast__stmt__ForStmt* std__memory__Arena_create_val_compiler__ast__stmt__ForStmt(std__memory__Arena* self, compiler__ast__stmt__ForStmt value) {
+    compiler__ast__stmt__ForStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__ForStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__ReturnStmt* std__mem__Arena_alloc_compiler__ast__stmt__ReturnStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__ReturnStmt*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_create_val_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self, compiler__ast__stmt__ReturnStmt value) {
+    compiler__ast__stmt__ReturnStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__ReturnStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__BreakStmt* std__mem__Arena_alloc_compiler__ast__stmt__BreakStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__BreakStmt*)std__mem__Arena_alloc_bytes(self, 4, 8);
+compiler__ast__stmt__BreakStmt* std__memory__Arena_create_val_compiler__ast__stmt__BreakStmt(std__memory__Arena* self, compiler__ast__stmt__BreakStmt value) {
+    compiler__ast__stmt__BreakStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__BreakStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__ContinueStmt* std__mem__Arena_alloc_compiler__ast__stmt__ContinueStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__ContinueStmt*)std__mem__Arena_alloc_bytes(self, 4, 8);
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_create_val_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self, compiler__ast__stmt__ContinueStmt value) {
+    compiler__ast__stmt__ContinueStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__ContinueStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__WhenStmt* std__mem__Arena_alloc_compiler__ast__stmt__WhenStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__WhenStmt*)std__mem__Arena_alloc_bytes(self, 32, 8);
+compiler__ast__stmt__WhenStmt* std__memory__Arena_create_val_compiler__ast__stmt__WhenStmt(std__memory__Arena* self, compiler__ast__stmt__WhenStmt value) {
+    compiler__ast__stmt__WhenStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__WhenStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__YieldStmt* std__mem__Arena_alloc_compiler__ast__stmt__YieldStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__YieldStmt*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__stmt__YieldStmt* std__memory__Arena_create_val_compiler__ast__stmt__YieldStmt(std__memory__Arena* self, compiler__ast__stmt__YieldStmt value) {
+    compiler__ast__stmt__YieldStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__YieldStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__stmt__DeferStmt* std__mem__Arena_alloc_compiler__ast__stmt__DeferStmt(std__mem__Arena* self) {
-    return (compiler__ast__stmt__DeferStmt*)std__mem__Arena_alloc_bytes(self, 8, 8);
+compiler__ast__stmt__DeferStmt* std__memory__Arena_create_val_compiler__ast__stmt__DeferStmt(std__memory__Arena* self, compiler__ast__stmt__DeferStmt value) {
+    compiler__ast__stmt__DeferStmt* ptr = std__memory__Arena_create_compiler__ast__stmt__DeferStmt(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__ModuleDecl* std__mem__Arena_alloc_compiler__ast__decl__ModuleDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__ModuleDecl*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__decl__ModuleDecl* std__memory__Arena_create_val_compiler__ast__decl__ModuleDecl(std__memory__Arena* self, compiler__ast__decl__ModuleDecl value) {
+    compiler__ast__decl__ModuleDecl* ptr = std__memory__Arena_create_compiler__ast__decl__ModuleDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__UseDecl* std__mem__Arena_alloc_compiler__ast__decl__UseDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__UseDecl*)std__mem__Arena_alloc_bytes(self, 80, 8);
+compiler__ast__decl__UseDecl* std__memory__Arena_create_val_compiler__ast__decl__UseDecl(std__memory__Arena* self, compiler__ast__decl__UseDecl value) {
+    compiler__ast__decl__UseDecl* ptr = std__memory__Arena_create_compiler__ast__decl__UseDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__FnDecl* std__mem__Arena_alloc_compiler__ast__decl__FnDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__FnDecl*)std__mem__Arena_alloc_bytes(self, 104, 8);
+compiler__ast__decl__FnDecl* std__memory__Arena_create_val_compiler__ast__decl__FnDecl(std__memory__Arena* self, compiler__ast__decl__FnDecl value) {
+    compiler__ast__decl__FnDecl* ptr = std__memory__Arena_create_compiler__ast__decl__FnDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__StructDecl* std__mem__Arena_alloc_compiler__ast__decl__StructDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__StructDecl*)std__mem__Arena_alloc_bytes(self, 72, 8);
+compiler__ast__decl__StructDecl* std__memory__Arena_create_val_compiler__ast__decl__StructDecl(std__memory__Arena* self, compiler__ast__decl__StructDecl value) {
+    compiler__ast__decl__StructDecl* ptr = std__memory__Arena_create_compiler__ast__decl__StructDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__TraitDecl* std__mem__Arena_alloc_compiler__ast__decl__TraitDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__TraitDecl*)std__mem__Arena_alloc_bytes(self, 120, 8);
+compiler__ast__decl__TraitDecl* std__memory__Arena_create_val_compiler__ast__decl__TraitDecl(std__memory__Arena* self, compiler__ast__decl__TraitDecl value) {
+    compiler__ast__decl__TraitDecl* ptr = std__memory__Arena_create_compiler__ast__decl__TraitDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__ImplDecl* std__mem__Arena_alloc_compiler__ast__decl__ImplDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__ImplDecl*)std__mem__Arena_alloc_bytes(self, 104, 8);
+compiler__ast__decl__ImplDecl* std__memory__Arena_create_val_compiler__ast__decl__ImplDecl(std__memory__Arena* self, compiler__ast__decl__ImplDecl value) {
+    compiler__ast__decl__ImplDecl* ptr = std__memory__Arena_create_compiler__ast__decl__ImplDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__EnumDecl* std__mem__Arena_alloc_compiler__ast__decl__EnumDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__EnumDecl*)std__mem__Arena_alloc_bytes(self, 56, 8);
+compiler__ast__decl__EnumDecl* std__memory__Arena_create_val_compiler__ast__decl__EnumDecl(std__memory__Arena* self, compiler__ast__decl__EnumDecl value) {
+    compiler__ast__decl__EnumDecl* ptr = std__memory__Arena_create_compiler__ast__decl__EnumDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__ConstDecl* std__mem__Arena_alloc_compiler__ast__decl__ConstDecl(std__mem__Arena* self) {
-    return (compiler__ast__decl__ConstDecl*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__decl__ConstDecl* std__memory__Arena_create_val_compiler__ast__decl__ConstDecl(std__memory__Arena* self, compiler__ast__decl__ConstDecl value) {
+    compiler__ast__decl__ConstDecl* ptr = std__memory__Arena_create_compiler__ast__decl__ConstDecl(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__ExternBlock* std__mem__Arena_alloc_compiler__ast__decl__ExternBlock(std__mem__Arena* self) {
-    return (compiler__ast__decl__ExternBlock*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__ast__decl__ExternBlock* std__memory__Arena_create_val_compiler__ast__decl__ExternBlock(std__memory__Arena* self, compiler__ast__decl__ExternBlock value) {
+    compiler__ast__decl__ExternBlock* ptr = std__memory__Arena_create_compiler__ast__decl__ExternBlock(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__ast__decl__Program* std__mem__Arena_alloc_compiler__ast__decl__Program(std__mem__Arena* self) {
-    return (compiler__ast__decl__Program*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__ast__decl__Program* std__memory__Arena_create_val_compiler__ast__decl__Program(std__memory__Arena* self, compiler__ast__decl__Program value) {
+    compiler__ast__decl__Program* ptr = std__memory__Arena_create_compiler__ast__decl__Program(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__types__Type* std__mem__Arena_alloc_compiler__sema__types__Type(std__mem__Arena* self) {
-    return (compiler__sema__types__Type*)std__mem__Arena_alloc_bytes(self, 48, 8);
+compiler__sema__types__Type* std__memory__Arena_create_val_compiler__sema__types__Type(std__memory__Arena* self, compiler__sema__types__Type value) {
+    compiler__sema__types__Type* ptr = std__memory__Arena_create_compiler__sema__types__Type(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__structs__StructType* std__mem__Arena_alloc_compiler__sema__structs__StructType(std__mem__Arena* self) {
-    return (compiler__sema__structs__StructType*)std__mem__Arena_alloc_bytes(self, 104, 8);
+compiler__sema__structs__StructType* std__memory__Arena_create_val_compiler__sema__structs__StructType(std__memory__Arena* self, compiler__sema__structs__StructType value) {
+    compiler__sema__structs__StructType* ptr = std__memory__Arena_create_compiler__sema__structs__StructType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__types__PointerType* std__mem__Arena_alloc_compiler__sema__types__PointerType(std__mem__Arena* self) {
-    return (compiler__sema__types__PointerType*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__sema__types__PointerType* std__memory__Arena_create_val_compiler__sema__types__PointerType(std__memory__Arena* self, compiler__sema__types__PointerType value) {
+    compiler__sema__types__PointerType* ptr = std__memory__Arena_create_compiler__sema__types__PointerType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__types__ArrayType* std__mem__Arena_alloc_compiler__sema__types__ArrayType(std__mem__Arena* self) {
-    return (compiler__sema__types__ArrayType*)std__mem__Arena_alloc_bytes(self, 16, 8);
+compiler__sema__types__ArrayType* std__memory__Arena_create_val_compiler__sema__types__ArrayType(std__memory__Arena* self, compiler__sema__types__ArrayType value) {
+    compiler__sema__types__ArrayType* ptr = std__memory__Arena_create_compiler__sema__types__ArrayType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__types__FnType* std__mem__Arena_alloc_compiler__sema__types__FnType(std__mem__Arena* self) {
-    return (compiler__sema__types__FnType*)std__mem__Arena_alloc_bytes(self, 32, 8);
+compiler__sema__types__FnType* std__memory__Arena_create_val_compiler__sema__types__FnType(std__memory__Arena* self, compiler__sema__types__FnType value) {
+    compiler__sema__types__FnType* ptr = std__memory__Arena_create_compiler__sema__types__FnType(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__methods__PrimMethods* std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(std__mem__Arena* self) {
-    return (compiler__sema__methods__PrimMethods*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__sema__methods__PrimMethods* std__memory__Arena_create_val_compiler__sema__methods__PrimMethods(std__memory__Arena* self, compiler__sema__methods__PrimMethods value) {
+    compiler__sema__methods__PrimMethods* ptr = std__memory__Arena_create_compiler__sema__methods__PrimMethods(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__symbol__Symbol* std__mem__Arena_alloc_compiler__sema__symbol__Symbol(std__mem__Arena* self) {
-    return (compiler__sema__symbol__Symbol*)std__mem__Arena_alloc_bytes(self, 88, 8);
+compiler__sema__symbol__Symbol* std__memory__Arena_create_val_compiler__sema__symbol__Symbol(std__memory__Arena* self, compiler__sema__symbol__Symbol value) {
+    compiler__sema__symbol__Symbol* ptr = std__memory__Arena_create_compiler__sema__symbol__Symbol(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Scope(std__mem__Arena* self) {
-    return (compiler__sema__symbol__Scope*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__sema__symbol__Scope* std__memory__Arena_create_val_compiler__sema__symbol__Scope(std__memory__Arena* self, compiler__sema__symbol__Scope value) {
+    compiler__sema__symbol__Scope* ptr = std__memory__Arena_create_compiler__sema__symbol__Scope(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__prims__PrimTypes* std__mem__Arena_alloc_compiler__sema__prims__PrimTypes(std__mem__Arena* self) {
-    return (compiler__sema__prims__PrimTypes*)std__mem__Arena_alloc_bytes(self, 24, 8);
+compiler__sema__prims__PrimTypes* std__memory__Arena_create_val_compiler__sema__prims__PrimTypes(std__memory__Arena* self, compiler__sema__prims__PrimTypes value) {
+    compiler__sema__prims__PrimTypes* ptr = std__memory__Arena_create_compiler__sema__prims__PrimTypes(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__Arena* self) {
-    return (compiler__sema__symbol__ModuleScope*)std__mem__Arena_alloc_bytes(self, 80, 8);
+compiler__sema__symbol__ModuleScope* std__memory__Arena_create_val_compiler__sema__symbol__ModuleScope(std__memory__Arena* self, compiler__sema__symbol__ModuleScope value) {
+    compiler__sema__symbol__ModuleScope* ptr = std__memory__Arena_create_compiler__sema__symbol__ModuleScope(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__template__GenTemplate* std__mem__Arena_alloc_compiler__sema__template__GenTemplate(std__mem__Arena* self) {
-    return (compiler__sema__template__GenTemplate*)std__mem__Arena_alloc_bytes(self, 64, 8);
+compiler__sema__template__GenTemplate* std__memory__Arena_create_val_compiler__sema__template__GenTemplate(std__memory__Arena* self, compiler__sema__template__GenTemplate value) {
+    compiler__sema__template__GenTemplate* ptr = std__memory__Arena_create_compiler__sema__template__GenTemplate(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__template__GenSubst* std__mem__Arena_alloc_compiler__sema__template__GenSubst(std__mem__Arena* self) {
-    return (compiler__sema__template__GenSubst*)std__mem__Arena_alloc_bytes(self, 48, 8);
+compiler__sema__template__GenSubst* std__memory__Arena_create_val_compiler__sema__template__GenSubst(std__memory__Arena* self, compiler__sema__template__GenSubst value) {
+    compiler__sema__template__GenSubst* ptr = std__memory__Arena_create_compiler__sema__template__GenSubst(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__methods__MethodInfo* std__mem__Arena_alloc_compiler__sema__methods__MethodInfo(std__mem__Arena* self) {
-    return (compiler__sema__methods__MethodInfo*)std__mem__Arena_alloc_bytes(self, 72, 8);
+compiler__sema__methods__MethodInfo* std__memory__Arena_create_val_compiler__sema__methods__MethodInfo(std__memory__Arena* self, compiler__sema__methods__MethodInfo value) {
+    compiler__sema__methods__MethodInfo* ptr = std__memory__Arena_create_compiler__sema__methods__MethodInfo(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__instance__InstanceRecord* std__mem__Arena_alloc_compiler__sema__instance__InstanceRecord(std__mem__Arena* self) {
-    return (compiler__sema__instance__InstanceRecord*)std__mem__Arena_alloc_bytes(self, 112, 8);
+compiler__sema__instance__InstanceRecord* std__memory__Arena_create_val_compiler__sema__instance__InstanceRecord(std__memory__Arena* self, compiler__sema__instance__InstanceRecord value) {
+    compiler__sema__instance__InstanceRecord* ptr = std__memory__Arena_create_compiler__sema__instance__InstanceRecord(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__enums__EnumMemberInfo* std__mem__Arena_alloc_compiler__sema__enums__EnumMemberInfo(std__mem__Arena* self) {
-    return (compiler__sema__enums__EnumMemberInfo*)std__mem__Arena_alloc_bytes(self, 72, 8);
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_create_val_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self, compiler__sema__enums__EnumMemberInfo value) {
+    compiler__sema__enums__EnumMemberInfo* ptr = std__memory__Arena_create_compiler__sema__enums__EnumMemberInfo(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__enums__EnumInfo* std__mem__Arena_alloc_compiler__sema__enums__EnumInfo(std__mem__Arena* self) {
-    return (compiler__sema__enums__EnumInfo*)std__mem__Arena_alloc_bytes(self, 88, 8);
+compiler__sema__enums__EnumInfo* std__memory__Arena_create_val_compiler__sema__enums__EnumInfo(std__memory__Arena* self, compiler__sema__enums__EnumInfo value) {
+    compiler__sema__enums__EnumInfo* ptr = std__memory__Arena_create_compiler__sema__enums__EnumInfo(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__traits__TraitMethod* std__mem__Arena_alloc_compiler__sema__traits__TraitMethod(std__mem__Arena* self) {
-    return (compiler__sema__traits__TraitMethod*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__sema__traits__TraitMethod* std__memory__Arena_create_val_compiler__sema__traits__TraitMethod(std__memory__Arena* self, compiler__sema__traits__TraitMethod value) {
+    compiler__sema__traits__TraitMethod* ptr = std__memory__Arena_create_compiler__sema__traits__TraitMethod(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__traits__TraitInfo* std__mem__Arena_alloc_compiler__sema__traits__TraitInfo(std__mem__Arena* self) {
-    return (compiler__sema__traits__TraitInfo*)std__mem__Arena_alloc_bytes(self, 112, 8);
+compiler__sema__traits__TraitInfo* std__memory__Arena_create_val_compiler__sema__traits__TraitInfo(std__memory__Arena* self, compiler__sema__traits__TraitInfo value) {
+    compiler__sema__traits__TraitInfo* ptr = std__memory__Arena_create_compiler__sema__traits__TraitInfo(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__body__program__ArrowCandidate* std__mem__Arena_alloc_compiler__sema__body__program__ArrowCandidate(std__mem__Arena* self) {
-    return (compiler__sema__body__program__ArrowCandidate*)std__mem__Arena_alloc_bytes(self, 40, 8);
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_create_val_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self, compiler__sema__body__program__ArrowCandidate value) {
+    compiler__sema__body__program__ArrowCandidate* ptr = std__memory__Arena_create_compiler__sema__body__program__ArrowCandidate(self);
+    (*(ptr) = value);
+    return ptr;
 }
 
-compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(std__mem__Arena* self) {
-    return (compiler__sema__instance__AnnEntry*)std__mem__Arena_alloc_bytes(self, 120, 8);
+compiler__sema__instance__AnnEntry* std__memory__Arena_create_val_compiler__sema__instance__AnnEntry(std__memory__Arena* self, compiler__sema__instance__AnnEntry value) {
+    compiler__sema__instance__AnnEntry* ptr = std__memory__Arena_create_compiler__sema__instance__AnnEntry(self);
+    (*(ptr) = value);
+    return ptr;
+}
+
+compiler__ast__node__AstNode* std__memory__Arena_create_compiler__ast__node__AstNode(std__memory__Arena* self) {
+    return (compiler__ast__node__AstNode*)std__memory__Arena_alloc_bytes(self, 72, 8);
+}
+
+compiler__ast__types__NamedType* std__memory__Arena_create_compiler__ast__types__NamedType(std__memory__Arena* self) {
+    return (compiler__ast__types__NamedType*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__types__PointerType* std__memory__Arena_create_compiler__ast__types__PointerType(std__memory__Arena* self) {
+    return (compiler__ast__types__PointerType*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__types__ArrayType* std__memory__Arena_create_compiler__ast__types__ArrayType(std__memory__Arena* self) {
+    return (compiler__ast__types__ArrayType*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__types__NullableType* std__memory__Arena_create_compiler__ast__types__NullableType(std__memory__Arena* self) {
+    return (compiler__ast__types__NullableType*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__expr__LiteralExpr* std__memory__Arena_create_compiler__ast__expr__LiteralExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__LiteralExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__IdentifierExpr* std__memory__Arena_create_compiler__ast__expr__IdentifierExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__IdentifierExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__expr__BinaryExpr* std__memory__Arena_create_compiler__ast__expr__BinaryExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__BinaryExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__UnaryExpr* std__memory__Arena_create_compiler__ast__expr__UnaryExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__UnaryExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__CallExpr* std__memory__Arena_create_compiler__ast__expr__CallExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__CallExpr*)std__memory__Arena_alloc_bytes(self, 56, 8);
+}
+
+compiler__ast__expr__StructCtorExpr* std__memory__Arena_create_compiler__ast__expr__StructCtorExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__StructCtorExpr*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__expr__EnumCtorExpr* std__memory__Arena_create_compiler__ast__expr__EnumCtorExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__EnumCtorExpr*)std__memory__Arena_alloc_bytes(self, 80, 8);
+}
+
+compiler__ast__expr__SizeOfParam* std__memory__Arena_create_compiler__ast__expr__SizeOfParam(std__memory__Arena* self) {
+    return (compiler__ast__expr__SizeOfParam*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__MemberExpr* std__memory__Arena_create_compiler__ast__expr__MemberExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__MemberExpr*)std__memory__Arena_alloc_bytes(self, 32, 8);
+}
+
+compiler__ast__expr__IndexExpr* std__memory__Arena_create_compiler__ast__expr__IndexExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__IndexExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__expr__AssignExpr* std__memory__Arena_create_compiler__ast__expr__AssignExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__AssignExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__UpdateExpr* std__memory__Arena_create_compiler__ast__expr__UpdateExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__UpdateExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__expr__CastExpr* std__memory__Arena_create_compiler__ast__expr__CastExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__CastExpr*)std__memory__Arena_alloc_bytes(self, 104, 8);
+}
+
+compiler__ast__expr__GroupExpr* std__memory__Arena_create_compiler__ast__expr__GroupExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__GroupExpr*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__expr__ArrayLiteralExpr* std__memory__Arena_create_compiler__ast__expr__ArrayLiteralExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__ArrayLiteralExpr*)std__memory__Arena_alloc_bytes(self, 48, 8);
+}
+
+compiler__ast__expr__IfExpr* std__memory__Arena_create_compiler__ast__expr__IfExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__IfExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__WhenExpr* std__memory__Arena_create_compiler__ast__expr__WhenExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__WhenExpr*)std__memory__Arena_alloc_bytes(self, 32, 8);
+}
+
+compiler__ast__expr__InterpExpr* std__memory__Arena_create_compiler__ast__expr__InterpExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__InterpExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__expr__IsExpr* std__memory__Arena_create_compiler__ast__expr__IsExpr(std__memory__Arena* self) {
+    return (compiler__ast__expr__IsExpr*)std__memory__Arena_alloc_bytes(self, 112, 8);
+}
+
+compiler__ast__stmt__BlockStmt* std__memory__Arena_create_compiler__ast__stmt__BlockStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__BlockStmt*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__stmt__ExprStmt* std__memory__Arena_create_compiler__ast__stmt__ExprStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__ExprStmt*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__stmt__VarDeclStmt* std__memory__Arena_create_compiler__ast__stmt__VarDeclStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__VarDeclStmt*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__stmt__IfStmt* std__memory__Arena_create_compiler__ast__stmt__IfStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__IfStmt*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__ast__stmt__WhileStmt* std__memory__Arena_create_compiler__ast__stmt__WhileStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__WhileStmt*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__ast__stmt__ForStmt* std__memory__Arena_create_compiler__ast__stmt__ForStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__ForStmt*)std__memory__Arena_alloc_bytes(self, 56, 8);
+}
+
+compiler__ast__stmt__ReturnStmt* std__memory__Arena_create_compiler__ast__stmt__ReturnStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__ReturnStmt*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__stmt__BreakStmt* std__memory__Arena_create_compiler__ast__stmt__BreakStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__BreakStmt*)std__memory__Arena_alloc_bytes(self, 4, 8);
+}
+
+compiler__ast__stmt__ContinueStmt* std__memory__Arena_create_compiler__ast__stmt__ContinueStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__ContinueStmt*)std__memory__Arena_alloc_bytes(self, 4, 8);
+}
+
+compiler__ast__stmt__WhenStmt* std__memory__Arena_create_compiler__ast__stmt__WhenStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__WhenStmt*)std__memory__Arena_alloc_bytes(self, 32, 8);
+}
+
+compiler__ast__stmt__YieldStmt* std__memory__Arena_create_compiler__ast__stmt__YieldStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__YieldStmt*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__stmt__DeferStmt* std__memory__Arena_create_compiler__ast__stmt__DeferStmt(std__memory__Arena* self) {
+    return (compiler__ast__stmt__DeferStmt*)std__memory__Arena_alloc_bytes(self, 8, 8);
+}
+
+compiler__ast__decl__ModuleDecl* std__memory__Arena_create_compiler__ast__decl__ModuleDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__ModuleDecl*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__decl__UseDecl* std__memory__Arena_create_compiler__ast__decl__UseDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__UseDecl*)std__memory__Arena_alloc_bytes(self, 80, 8);
+}
+
+compiler__ast__decl__FnDecl* std__memory__Arena_create_compiler__ast__decl__FnDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__FnDecl*)std__memory__Arena_alloc_bytes(self, 104, 8);
+}
+
+compiler__ast__decl__StructDecl* std__memory__Arena_create_compiler__ast__decl__StructDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__StructDecl*)std__memory__Arena_alloc_bytes(self, 72, 8);
+}
+
+compiler__ast__decl__TraitDecl* std__memory__Arena_create_compiler__ast__decl__TraitDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__TraitDecl*)std__memory__Arena_alloc_bytes(self, 120, 8);
+}
+
+compiler__ast__decl__ImplDecl* std__memory__Arena_create_compiler__ast__decl__ImplDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__ImplDecl*)std__memory__Arena_alloc_bytes(self, 104, 8);
+}
+
+compiler__ast__decl__EnumDecl* std__memory__Arena_create_compiler__ast__decl__EnumDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__EnumDecl*)std__memory__Arena_alloc_bytes(self, 56, 8);
+}
+
+compiler__ast__decl__ConstDecl* std__memory__Arena_create_compiler__ast__decl__ConstDecl(std__memory__Arena* self) {
+    return (compiler__ast__decl__ConstDecl*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__decl__ExternBlock* std__memory__Arena_create_compiler__ast__decl__ExternBlock(std__memory__Arena* self) {
+    return (compiler__ast__decl__ExternBlock*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__ast__decl__Program* std__memory__Arena_create_compiler__ast__decl__Program(std__memory__Arena* self) {
+    return (compiler__ast__decl__Program*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__sema__types__Type* std__memory__Arena_create_compiler__sema__types__Type(std__memory__Arena* self) {
+    return (compiler__sema__types__Type*)std__memory__Arena_alloc_bytes(self, 48, 8);
+}
+
+compiler__sema__structs__StructType* std__memory__Arena_create_compiler__sema__structs__StructType(std__memory__Arena* self) {
+    return (compiler__sema__structs__StructType*)std__memory__Arena_alloc_bytes(self, 104, 8);
+}
+
+compiler__sema__types__PointerType* std__memory__Arena_create_compiler__sema__types__PointerType(std__memory__Arena* self) {
+    return (compiler__sema__types__PointerType*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__sema__types__ArrayType* std__memory__Arena_create_compiler__sema__types__ArrayType(std__memory__Arena* self) {
+    return (compiler__sema__types__ArrayType*)std__memory__Arena_alloc_bytes(self, 16, 8);
+}
+
+compiler__sema__types__FnType* std__memory__Arena_create_compiler__sema__types__FnType(std__memory__Arena* self) {
+    return (compiler__sema__types__FnType*)std__memory__Arena_alloc_bytes(self, 32, 8);
+}
+
+compiler__sema__methods__PrimMethods* std__memory__Arena_create_compiler__sema__methods__PrimMethods(std__memory__Arena* self) {
+    return (compiler__sema__methods__PrimMethods*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__sema__symbol__Symbol* std__memory__Arena_create_compiler__sema__symbol__Symbol(std__memory__Arena* self) {
+    return (compiler__sema__symbol__Symbol*)std__memory__Arena_alloc_bytes(self, 88, 8);
+}
+
+compiler__sema__symbol__Scope* std__memory__Arena_create_compiler__sema__symbol__Scope(std__memory__Arena* self) {
+    return (compiler__sema__symbol__Scope*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__sema__prims__PrimTypes* std__memory__Arena_create_compiler__sema__prims__PrimTypes(std__memory__Arena* self) {
+    return (compiler__sema__prims__PrimTypes*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__sema__symbol__ModuleScope* std__memory__Arena_create_compiler__sema__symbol__ModuleScope(std__memory__Arena* self) {
+    return (compiler__sema__symbol__ModuleScope*)std__memory__Arena_alloc_bytes(self, 80, 8);
+}
+
+compiler__sema__template__GenTemplate* std__memory__Arena_create_compiler__sema__template__GenTemplate(std__memory__Arena* self) {
+    return (compiler__sema__template__GenTemplate*)std__memory__Arena_alloc_bytes(self, 64, 8);
+}
+
+compiler__sema__template__GenSubst* std__memory__Arena_create_compiler__sema__template__GenSubst(std__memory__Arena* self) {
+    return (compiler__sema__template__GenSubst*)std__memory__Arena_alloc_bytes(self, 48, 8);
+}
+
+compiler__sema__methods__MethodInfo* std__memory__Arena_create_compiler__sema__methods__MethodInfo(std__memory__Arena* self) {
+    return (compiler__sema__methods__MethodInfo*)std__memory__Arena_alloc_bytes(self, 72, 8);
+}
+
+compiler__sema__instance__InstanceRecord* std__memory__Arena_create_compiler__sema__instance__InstanceRecord(std__memory__Arena* self) {
+    return (compiler__sema__instance__InstanceRecord*)std__memory__Arena_alloc_bytes(self, 112, 8);
+}
+
+compiler__sema__enums__EnumMemberInfo* std__memory__Arena_create_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self) {
+    return (compiler__sema__enums__EnumMemberInfo*)std__memory__Arena_alloc_bytes(self, 72, 8);
+}
+
+compiler__sema__enums__EnumInfo* std__memory__Arena_create_compiler__sema__enums__EnumInfo(std__memory__Arena* self) {
+    return (compiler__sema__enums__EnumInfo*)std__memory__Arena_alloc_bytes(self, 88, 8);
+}
+
+compiler__sema__traits__TraitMethod* std__memory__Arena_create_compiler__sema__traits__TraitMethod(std__memory__Arena* self) {
+    return (compiler__sema__traits__TraitMethod*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__sema__traits__TraitInfo* std__memory__Arena_create_compiler__sema__traits__TraitInfo(std__memory__Arena* self) {
+    return (compiler__sema__traits__TraitInfo*)std__memory__Arena_alloc_bytes(self, 112, 8);
+}
+
+compiler__sema__body__program__ArrowCandidate* std__memory__Arena_create_compiler__sema__body__program__ArrowCandidate(std__memory__Arena* self) {
+    return (compiler__sema__body__program__ArrowCandidate*)std__memory__Arena_alloc_bytes(self, 40, 8);
+}
+
+compiler__sema__instance__AnnEntry* std__memory__Arena_create_compiler__sema__instance__AnnEntry(std__memory__Arena* self) {
+    return (compiler__sema__instance__AnnEntry*)std__memory__Arena_alloc_bytes(self, 120, 8);
 }
 

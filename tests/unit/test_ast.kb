@@ -33,7 +33,7 @@ use compiler.ast.decl.Program;
 
 use compiler.lexer.TokenType;
 use std.collections.List;
-use std.mem.Arena;
+use std.memory.Arena;
 
 // Simple string-to-int helper for our test evaluator
 fn parse_i32(s: str): i32 {

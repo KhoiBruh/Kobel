@@ -15,7 +15,7 @@ mod compiler.sema.lower;
 // and the constants the checker resolved (enum members, struct consts, sizes).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use compiler.ast.node.*;

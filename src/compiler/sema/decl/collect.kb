@@ -9,7 +9,7 @@ mod compiler.sema.decl.collect;
 // monomorphized declarations after the source program (instance graph order).
 // ============================================================================
 
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;

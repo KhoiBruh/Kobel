@@ -1,6 +1,6 @@
 mod std.collections;
 
-use std.mem.*;
+use std.memory.*;
 use std.traits.*;
 
 // A hash map with generic key `K: Hash` and value `V`.
@@ -20,9 +20,9 @@ impl HashMap<K: Hash, V> {
 	pub fn new(init_cap: usz = 16): Self {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
-		val keys = alloc_array<K>(cap);
-		val values = alloc_array<V>(cap);
-		val occ = alloc_array<bool>(cap);
+		val keys = create_array<K>(cap);
+		val values = create_array<V>(cap);
+		val occ = create_array<bool>(cap);
 
 		for (i in 0..<cap) occ[i] = false;
 		return Self(keys, values, occ, 0, cap);
@@ -108,9 +108,9 @@ impl HashMap<K: Hash, V> {
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
-		val keys = alloc_array<K>(new_cap);
-		val values = alloc_array<V>(new_cap);
-		val new_occ = alloc_array<bool>(new_cap);
+		val keys = create_array<K>(new_cap);
+		val values = create_array<V>(new_cap);
+		val new_occ = create_array<bool>(new_cap);
 
 		for (j in 0..<new_cap) new_occ[j] = false;
 
@@ -124,17 +124,17 @@ impl HashMap<K: Hash, V> {
 			for (i in 0..<old_cap) {
 				if (old_occ[i]) self.set(old_keys[i], old_vals[i]);
 			}
-			release(old_keys);
-			release(old_vals);
-			release(old_occ);
+			free(old_keys);
+			free(old_vals);
+			free(old_occ);
 		}
 	}
 
 	pub fn delete(self) {
 		if (self.cap > 0) {
-			release(self.keys);
-			release(self.values);
-			release(self.occupied);
+			free(self.keys);
+			free(self.values);
+			free(self.occupied);
 		}
 	}
 

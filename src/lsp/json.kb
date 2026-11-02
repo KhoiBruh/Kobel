@@ -2,7 +2,7 @@ mod lsp.json;
 
 use std.io.*;
 use std.ascii.*;
-use std.mem.*;
+use std.memory.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -47,7 +47,7 @@ fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 impl JsonValue {
 
 	pub fn box(v: JsonValue): *JsonValue {
-		val p = alloc<JsonValue>();
+		val p = create<JsonValue>();
 		p.write(v);
 		return p as *JsonValue;
 	}

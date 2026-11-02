@@ -8,7 +8,7 @@ mod compiler.sema.desugar.interp;
 // live in `sema.type_ast`, equality helpers in `sema.lower`.
 // ============================================================================
 
-use std.mem.Arena;
+use std.memory.Arena;
 use std.collections.List;
 
 use compiler.lexer.TokenType;
