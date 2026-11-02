@@ -25,6 +25,13 @@ extern "libc" {
 // One uninitialized `T` on the heap.
 pub fn alloc<T>() => malloc(T.size()) as &T;
 
+// One initialized `T` on the heap with the given value.
+pub fn alloc_val<T>(value: T): &T {
+	val ptr = alloc<T>();
+	ptr.write(value);
+	return ptr;
+}
+
 // `count` uninitialized `T`s on the heap (contiguous).
 pub fn alloc_array<T>(count: usz) => malloc(count * T.size()) as &T;
 

@@ -76,7 +76,7 @@ impl Arena {
 
 	pub fn alloc_val<T>(var self, value: T): *T {
 		val ptr = self.alloc<T>();
-		*ptr = value;
+		ptr.write(value);
 		return ptr;
 	}
 }

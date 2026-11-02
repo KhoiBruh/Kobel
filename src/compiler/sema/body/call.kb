@@ -440,6 +440,22 @@ impl BodyPass {
 			if (mi != null) return self.bind_method_call(node, mem, call, mi, obj_ty);
 		}
 
+		if (obj_is_ptr && mem.member == "write") {
+			if (call.args.len != 1) {
+				self.report_error(node, "Method 'write' takes exactly 1 argument");
+				return self.prims().t_none();
+			}
+			val pointee_ty = obj_raw_ty.as_pointer().pointee;
+			val arg_ty = self.check_expr(call.args[0], pointee_ty);
+			if (!pointee_ty.can_assign(arg_ty)) {
+				self.report_error(
+					call.args[0],
+					"Type mismatch in 'write': cannot write value of type '${arg_ty.to_str()}' into pointer to '${pointee_ty.to_str()}'"
+				);
+			}
+			return self.prims().t_none();
+		}
+
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
 		val pmi = self.method_with_defaults(
 			mem.member, argc, self.symtab.prim_methods_of(obj_ty.kind), call,

@@ -48,7 +48,7 @@ impl JsonValue {
 
 	pub fn box(v: JsonValue): *JsonValue {
 		val p = alloc<JsonValue>();
-		*p = v;
+		p.write(v);
 		return p as *JsonValue;
 	}
 

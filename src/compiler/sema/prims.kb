@@ -32,8 +32,7 @@ pub struct PrimTypes {
 // `impl i32 { ... }` can append to it later.
 fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
 	var t = arena.primitive_type(Type.primitive(kind));
-	val pm = arena.alloc<PrimMethods>();
-	*pm = PrimMethods();
+	val pm = arena.alloc_val(PrimMethods());
 	t.methods = pm;
 	return t;
 }

@@ -134,8 +134,7 @@ impl BodyPass {
 				// Reuse the node as a plain integer literal for the backend.
 				val lit = self.arena.literal(mi.lit_kind, mi.raw_text, node.line, node.col);
 				self.set_resolved(node, lit);
-				val carrier = self.arena.alloc<Type>();
-				*carrier = Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei));
+				val carrier = self.arena.alloc_val(Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei)));
 				return carrier;
 			}
 
@@ -281,14 +280,6 @@ impl BodyPass {
 						" 'self' in 'val self' method"
 					);
 				}
-			}
-
-			// `*p = v` is a write through the pointee; any other unary target
-			// is not assignable.
-			is UnaryExpr -> {
-				if (cur.op != TokenType.STAR) self.report_error(
-					op_node, "Invalid target for ${self.target_word(is_update)}"
-				);
 			}
 
 			else -> self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");

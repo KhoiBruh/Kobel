@@ -361,9 +361,7 @@ impl BodyPass {
 	}
 
 	fn arrow_candidate(var self, node: *AstNode, fn_type: *Type, self_ty: *Type? = null, module: str): *ArrowCandidate {
-		val c = self.arena.alloc<ArrowCandidate>();
-		*c = ArrowCandidate(node, fn_type, self_ty, module);
-		return c;
+		return self.arena.alloc_val(ArrowCandidate(node, fn_type, self_ty, module));
 	}
 
 	// Adds an arrow-bodied function whose return type is still unknown to the

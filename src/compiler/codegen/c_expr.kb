@@ -321,6 +321,12 @@ impl CCodeGen {
 				if (mem.is_safe) return "(${obj_str} != NULL ? (uintptr_t)(${obj_str}) : 0)";
 				return "((uintptr_t)(${obj_str}))";
 			}
+			if (mem.member == "write" && self.is_pointer_value(mem.object) && call.args.len == 1) {
+				val obj_str = self.gen_expr(mem.object);
+				val val_str = self.gen_expr(call.args[0]);
+				if (mem.is_safe) return "(${obj_str} != NULL ? (*(${obj_str}) = ${val_str}) : 0)";
+				return "(*(${obj_str}) = ${val_str})";
+			}
 			if (mem.member == "code" && self.is_char_value(mem.object)) {
 				val obj_str = self.gen_expr(mem.object);
 				return "((int32_t)(uint8_t)(${obj_str}))";

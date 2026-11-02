@@ -88,9 +88,7 @@ impl DeclPass {
 	// self_type is the impl's target type for a method template ("" otherwise),
 	// which lets a method be looked up by its receiver instead of by name alone.
 	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenTemplate {
-		val t = self.arena.alloc<GenTemplate>();
-		*t = GenTemplate(name, self.current_module, node, is_method, self_type);
-		return t;
+		return self.arena.alloc_val(GenTemplate(name, self.current_module, node, is_method, self_type));
 	}
 
 	pub fn template_in_module(val self, module: str, name: str): bool {
@@ -241,9 +239,7 @@ impl DeclPass {
 	}
 
 	pub fn alloc_subst(var self, names: List<str>, args: List<*AstNode>): *GenSubst {
-		val s = self.arena.alloc<GenSubst>();
-		*s = GenSubst(names, args);
-		return s;
+		return self.arena.alloc_val(GenSubst(names, args));
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {

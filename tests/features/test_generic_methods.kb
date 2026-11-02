@@ -36,7 +36,7 @@ fn main(): i32 {
 	var arena = Arena(1024);
 	defer arena.delete();
 	val p = arena.alloc<i32>();
-	*p = 9;
+	p.write(9);
 	if (*p != 9) return 4;
 
 	// `alloc_val` is a generic method whose body calls another generic method.

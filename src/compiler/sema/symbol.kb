@@ -241,8 +241,7 @@ impl SymbolTable {
 		var st = Self(root_scope, arena);
 		// Build the canonical primitives eagerly so every copy of this table
 		// shares the same type instances.
-		st.prims = arena.alloc<PrimTypes>();
-		*st.prims = PrimTypes(&arena);
+		st.prims = arena.alloc_val(PrimTypes(&arena));
 		return st;
 	}
 
