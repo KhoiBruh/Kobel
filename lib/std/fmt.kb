@@ -1,17 +1,17 @@
 mod std.fmt;
 
-// ============================================================================
-// std.fmt - formatting umbrella
-//
-// One trait per file under std/traits/, so that directory can grow as more
-// traits appear. This module is the single "formatting" entry point: importing
-// it pulls in the built-in implementations of every formatting trait.
-//
-//   use std.fmt.*;              // everything below
-//   use std.traits.*;
-
-use std.string.*;
-// ============================================================================
+/*
+ * ============================================================================
+ * std.fmt - formatting umbrella
+ *
+ * One trait per file under std/traits/, so that directory can grow as more
+ * traits appear. This module is the single "formatting" entry point: importing
+ * it pulls in the built-in implementations of every formatting trait.
+ *
+ *   use std.fmt.*;              // everything below
+ *   use std.traits.*;
+ * ============================================================================
+ */
 
 use std.traits.*;
 

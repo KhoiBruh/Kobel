@@ -3,22 +3,11 @@ mod std.io;
 use std.string.str_from_bytes;
 use std.mem.alloc_array;
 use std.collections.List;
-
-extern "C" {
-	fn kobel_list_dir(dir_path: str): str;
-}
+use std.filesystem.*;
 
 extern "libc" {
 	fn puts(s: *char): i32;
 	fn putchar(c: char): i32;
-	// The stdio file handle is opaque (`FILE*`): use `*none` so the generated C
-	// passes it through without a FILE* / pointer mismatch warning.
-	fn fopen(filename: *char, mode: *char): *none;
-	fn fclose(stream: *none): i32;
-	fn fread(ptr: &u8, size: usz, count: usz, stream: *none): usz;
-	fn fwrite(ptr: *char, size: usz, count: usz, stream: *none): usz;
-	fn fseek(stream: *none, offset: i64, origin: i32): i32;
-	fn ftell(stream: *none): i64;
 }
 
 pub fn print(s: str) {
@@ -27,67 +16,13 @@ pub fn print(s: str) {
 
 pub fn println(s: str) => puts(s.c_str());
 
-pub fn read_file(path: str): str {
-	val f = fopen(path.c_str(), "rb") ?: return "";
+// Forwarding helpers to std.filesystem for backward compatibility
+pub fn read_file(path: str): str => file_read(path);
 
-	fseek(f, 0, 2);
-	val size_i64 = ftell(f);
-	if (size_i64 <= 0) {
-		fclose(f);
-		return "";
-	}
+pub fn write_file(path: str, content: str): bool => file_write(path, content);
 
-	fseek(f, 0, 0);
-	val sz = size_i64 as usz;
-	val buf = alloc_array<u8>(sz + 1);
-	if (buf == null) {
-		fclose(f);
-		return "";
-	}
+pub fn append_file(path: str, content: str): bool => file_append(path, content);
 
-	val read_bytes = fread(buf, 1, sz, f);
-	fclose(f);
-	buf[read_bytes] = 0;
+pub fn file_exists(path: str): bool => fs_file_exists(path);
 
-	return str_from_bytes(buf, read_bytes);
-}
-
-pub fn write_file(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "wb") ?: return false;
-	val written = fwrite(content.data, 1, content.len, f);
-	fclose(f);
-	return written == content.len;
-}
-
-pub fn append_file(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "ab") ?: return false;
-	val written = fwrite(content.data, 1, content.len, f);
-	fclose(f);
-	return written == content.len;
-}
-
-pub fn file_exists(path: str): bool {
-	val f = fopen(path.c_str(), "rb") ?: return false;
-	fclose(f);
-	return true;
-}
-
-
-pub fn list_dir(path: str): List<str> {
-	val raw = kobel_list_dir(path);
-	if (raw.empty()) return List();
-	var res = List<str>();
-	var start: usz = 0;
-	for (i in 0..<raw.len) {
-		if (raw[i] == '\n') {
-			if (i > start) {
-				res += raw.slice(start, i);
-			}
-			start = i + 1;
-		}
-	}
-	if (start < raw.len) {
-		res += raw.slice(start, raw.len);
-	}
-	return res;
-}
+pub fn list_dir(path: str): List<str> => file_list_dir(path);

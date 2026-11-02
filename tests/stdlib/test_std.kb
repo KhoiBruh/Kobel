@@ -1,5 +1,4 @@
 mod tests.stdlib.test_std;
-mod test.std_demo;
 
 use std.ascii.*;
 use std.string.*;
@@ -19,6 +18,12 @@ use std.collections.HashMap;
 use std.collections.HashSet;
 
 use std.collections.StringBuilder;
+
+use std.filesystem.Path;
+
+use std.filesystem.File;
+use std.filesystem.file_open_read;
+
 
 fn test_ascii(): bool {
 	if (!'5'.is_digit()) return false;
@@ -260,6 +265,38 @@ fn test_str(): bool {
 	return true;
 }
 
+fn test_filesystem(): bool {
+	val p = Path("src/compiler/main.kb");
+	if (p.file_name() != "main.kb") return false;
+	if (p.extension() != "kb") return false;
+	if (p.stem() != "main") return false;
+	val parent_dir = p.parent();
+	if (parent_dir.str() != "src/compiler") return false;
+
+	val dir = Path("dir");
+	val sub = dir.join("sub");
+	val joined = sub.join("file.txt");
+	if (joined.str() != "dir/sub/file.txt") return false;
+	if (joined.extension() != "txt") return false;
+
+	val tmp = Path("build/tmp_fs_test.txt");
+	if (tmp.exists()) tmp.remove();
+
+	if (!tmp.write_string("Hello Filesystem!")) return false;
+	if (!tmp.exists()) return false;
+	if (tmp.read_to_string() != "Hello Filesystem!") return false;
+
+	var f = file_open_read(tmp.str());
+	if (!f.is_valid()) return false;
+	if (f.read_all() != "Hello Filesystem!") return false;
+	f.close();
+
+	if (!tmp.remove()) return false;
+	if (tmp.exists()) return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	if (!test_ascii()) {
 		println("FAIL: test_ascii");
@@ -284,6 +321,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("PASS: std.collections (List, HashMap, StringBuilder)");
+
+	if (!test_filesystem()) {
+		println("FAIL: test_filesystem");
+		return 1;
+	}
+	println("PASS: std.filesystem");
 
 	if (!test_io()) {
 		println("FAIL: test_io");

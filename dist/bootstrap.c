@@ -173,6 +173,8 @@ typedef struct std__mem__Arena std__mem__Arena;
 typedef struct std__collections__HashSet std__collections__HashSet;
 typedef struct std__collections__StringBuilder std__collections__StringBuilder;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__filesystem__File std__filesystem__File;
+typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct config__toml__Toml config__toml__Toml;
 typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct compiler__ast__types__NamedType compiler__ast__types__NamedType;
@@ -519,6 +521,14 @@ struct std__collections__StringBuilder {
 struct std__string__StrRaw {
     const char* data;
     size_t len;
+};
+
+struct std__filesystem__File {
+    void* handle;
+};
+
+struct std__filesystem__Path {
+    kobel_str raw;
 };
 
 struct config__project__ProjectConfig {
@@ -2123,12 +2133,7 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	l.len = n;
 	l.cap = cap;
 	return l;
-}std__mem__Arena std__mem__Arena_new(size_t block_size);
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align);
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size);
-void std__mem__Arena_reset(std__mem__Arena* self);
-void std__mem__Arena_delete(std__mem__Arena* self);
-size_t std__traits__hash_int(size_t n);
+}size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 size_t bool_hash(bool self);
 size_t char_hash(char self);
@@ -2143,6 +2148,11 @@ size_t u16_hash(uint16_t self);
 size_t u32_hash(uint32_t self);
 size_t u64_hash(uint64_t self);
 size_t usz_hash(size_t self);
+std__mem__Arena std__mem__Arena_new(size_t block_size);
+uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align);
+void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size);
+void std__mem__Arena_reset(std__mem__Arena* self);
+void std__mem__Arena_delete(std__mem__Arena* self);
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap);
 size_t std__collections__HashSet_dist(std__collections__HashSet* self, size_t from, size_t to);
 bool std__collections__HashSet_add(std__collections__HashSet* self, kobel_str key);
@@ -2215,6 +2225,42 @@ kobel_str u64_to_str(uint64_t self);
 kobel_str usz_to_str(size_t self);
 kobel_str f32_to_str(float self);
 kobel_str f64_to_str(double self);
+std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode);
+std__filesystem__File std__filesystem__file_open_read(kobel_str path);
+std__filesystem__File std__filesystem__file_open_write(kobel_str path);
+std__filesystem__File std__filesystem__file_open_append(kobel_str path);
+bool std__filesystem__fs_file_exists(kobel_str path);
+bool std__filesystem__file_exists(kobel_str path);
+bool std__filesystem__file_remove(kobel_str path);
+kobel_str std__filesystem__file_read(kobel_str path);
+bool std__filesystem__file_write(kobel_str path, kobel_str content);
+bool std__filesystem__file_append(kobel_str path, kobel_str content);
+std__collections__List_str std__filesystem__file_list_dir(kobel_str path);
+bool std__filesystem__File_is_valid(std__filesystem__File* self);
+void std__filesystem__File_close(std__filesystem__File* self);
+void std__filesystem__File_flush(std__filesystem__File* self);
+int64_t std__filesystem__File_size(std__filesystem__File* self);
+bool std__filesystem__File_write(std__filesystem__File* self, kobel_str content);
+kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
+bool std__filesystem__is_sep(char c);
+std__filesystem__Path std__filesystem__path(kobel_str raw);
+std__filesystem__Path std__filesystem__Path_new(kobel_str raw);
+kobel_str std__filesystem__Path_str(std__filesystem__Path* self);
+const char* std__filesystem__Path_c_str(std__filesystem__Path* self);
+bool std__filesystem__Path_is_empty(std__filesystem__Path* self);
+size_t std__filesystem__Path_len(std__filesystem__Path* self);
+std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_extension(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_stem(std__filesystem__Path* self);
+std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, kobel_str part);
+std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* self, std__filesystem__Path other);
+bool std__filesystem__Path_exists(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self);
+bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content);
+bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content);
+bool std__filesystem__Path_remove(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
 void std__io__print(kobel_str s);
 int32_t std__io__println(kobel_str s);
 kobel_str std__io__read_file(kobel_str path);
@@ -4419,65 +4465,6 @@ compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Sco
 compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__Arena* self);
 compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(std__mem__Arena* self);
 
-std__mem__Arena std__mem__Arena_new(size_t block_size) {
-    return (std__mem__Arena){ NULL, block_size };
-}
-
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align) {
-    if (self->current == NULL) {
-        std__mem__Arena_new_block(self, size);
-    }
-    std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)self->current;
-    size_t rem = (blk->used % align);
-    size_t aligned_used = blk->used;
-    if (rem != 0) {
-        aligned_used = (blk->used + (align - rem));
-    }
-    if ((aligned_used + size) > blk->size) {
-        std__mem__Arena_new_block(self, size);
-        blk = (std__mem__ArenaBlock*)self->current;
-        aligned_used = 0;
-    }
-    uint8_t* ptr = &blk->data[aligned_used];
-    blk->used = (aligned_used + size);
-    return ptr;
-}
-
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size) {
-    size_t sz = self->block_size;
-    if (sz < min_size) {
-        sz = min_size;
-    }
-    uint8_t* data = std__mem__alloc_array_u8(sz);
-    std__mem__ArenaBlock* blk = std__mem__alloc_std__mem__ArenaBlock();
-    blk->data = data;
-    blk->size = sz;
-    blk->used = 0;
-    blk->next = self->current;
-    self->current = (std__mem__ArenaBlock*)blk;
-}
-
-void std__mem__Arena_reset(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
-    while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
-        blk->used = 0;
-        curr = blk->next;
-    }
-}
-
-void std__mem__Arena_delete(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
-    while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
-        std__mem__ArenaBlock* next_blk = blk->next;
-        std__mem__release_u8(blk->data);
-        std__mem__release_std__mem__ArenaBlock(curr);
-        curr = next_blk;
-    }
-    self->current = NULL;
-}
-
 size_t std__traits__hash_int(size_t n) {
     return ((n / 8) * 2654435761);
 }
@@ -4566,6 +4553,65 @@ size_t u64_hash(uint64_t self) {
 
 size_t usz_hash(size_t self) {
     return std__traits__hash_int(self);
+}
+
+std__mem__Arena std__mem__Arena_new(size_t block_size) {
+    return (std__mem__Arena){ NULL, block_size };
+}
+
+uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align) {
+    if (self->current == NULL) {
+        std__mem__Arena_new_block(self, size);
+    }
+    std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)self->current;
+    size_t rem = (blk->used % align);
+    size_t aligned_used = blk->used;
+    if (rem != 0) {
+        aligned_used = (blk->used + (align - rem));
+    }
+    if ((aligned_used + size) > blk->size) {
+        std__mem__Arena_new_block(self, size);
+        blk = (std__mem__ArenaBlock*)self->current;
+        aligned_used = 0;
+    }
+    uint8_t* ptr = &blk->data[aligned_used];
+    blk->used = (aligned_used + size);
+    return ptr;
+}
+
+void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size) {
+    size_t sz = self->block_size;
+    if (sz < min_size) {
+        sz = min_size;
+    }
+    uint8_t* data = std__mem__alloc_array_u8(sz);
+    std__mem__ArenaBlock* blk = std__mem__alloc_std__mem__ArenaBlock();
+    blk->data = data;
+    blk->size = sz;
+    blk->used = 0;
+    blk->next = self->current;
+    self->current = (std__mem__ArenaBlock*)blk;
+}
+
+void std__mem__Arena_reset(std__mem__Arena* self) {
+    std__mem__ArenaBlock* curr = self->current;
+    while (curr != NULL) {
+        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
+        blk->used = 0;
+        curr = blk->next;
+    }
+}
+
+void std__mem__Arena_delete(std__mem__Arena* self) {
+    std__mem__ArenaBlock* curr = self->current;
+    while (curr != NULL) {
+        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
+        std__mem__ArenaBlock* next_blk = blk->next;
+        std__mem__release_u8(blk->data);
+        std__mem__release_std__mem__ArenaBlock(curr);
+        curr = next_blk;
+    }
+    self->current = NULL;
 }
 
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap) {
@@ -5825,42 +5871,41 @@ kobel_str f64_to_str(double self) {
     return std__string__fmt_f64(self);
 }
 
-void std__io__print(kobel_str s) {
-    {
-        size_t __for_e = s.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            putchar(s.data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
+std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode) {
+    void* f = fopen(kobel_cstr(path), kobel_cstr(mode));
+    return (std__filesystem__File){ f };
+}
+
+std__filesystem__File std__filesystem__file_open_read(kobel_str path) {
+    return std__filesystem__file_open(path, KOBEL_STR("rb"));
+}
+
+std__filesystem__File std__filesystem__file_open_write(kobel_str path) {
+    return std__filesystem__file_open(path, KOBEL_STR("wb"));
+}
+
+std__filesystem__File std__filesystem__file_open_append(kobel_str path) {
+    return std__filesystem__file_open(path, KOBEL_STR("ab"));
+}
+
+bool std__filesystem__fs_file_exists(kobel_str path) {
+    void* f = fopen(kobel_cstr(path), "rb");
+    if (f == NULL) {
+        return false;
     }
+    fclose(f);
+    return true;
 }
 
-int32_t std__io__println(kobel_str s) {
-    return puts(kobel_cstr(s));
+bool std__filesystem__file_exists(kobel_str path) {
+    return std__filesystem__fs_file_exists(path);
 }
 
-kobel_str std__io__read_file(kobel_str path) {
+bool std__filesystem__file_remove(kobel_str path) {
+    return (remove(kobel_cstr(path)) == 0);
+}
+
+kobel_str std__filesystem__file_read(kobel_str path) {
     void* f = fopen(kobel_cstr(path), "rb");
     if (f == NULL) {
         return KOBEL_STR("");
@@ -5884,7 +5929,7 @@ kobel_str std__io__read_file(kobel_str path) {
     return std__string__str_from_bytes(buf, read_bytes);
 }
 
-bool std__io__write_file(kobel_str path, kobel_str content) {
+bool std__filesystem__file_write(kobel_str path, kobel_str content) {
     void* f = fopen(kobel_cstr(path), "wb");
     if (f == NULL) {
         return false;
@@ -5894,7 +5939,7 @@ bool std__io__write_file(kobel_str path, kobel_str content) {
     return (written == content.len);
 }
 
-bool std__io__append_file(kobel_str path, kobel_str content) {
+bool std__filesystem__file_append(kobel_str path, kobel_str content) {
     void* f = fopen(kobel_cstr(path), "ab");
     if (f == NULL) {
         return false;
@@ -5904,16 +5949,7 @@ bool std__io__append_file(kobel_str path, kobel_str content) {
     return (written == content.len);
 }
 
-bool std__io__file_exists(kobel_str path) {
-    void* f = fopen(kobel_cstr(path), "rb");
-    if (f == NULL) {
-        return false;
-    }
-    fclose(f);
-    return true;
-}
-
-std__collections__List_str std__io__list_dir(kobel_str path) {
+std__collections__List_str std__filesystem__file_list_dir(kobel_str path) {
     kobel_str raw = kobel_list_dir(path);
     if (str_empty(raw)) {
         return std__collections__List_str_new(4);
@@ -5957,6 +5993,348 @@ std__collections__List_str std__io__list_dir(kobel_str path) {
         std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, raw.len));
     }
     return res;
+}
+
+bool std__filesystem__File_is_valid(std__filesystem__File* self) {
+    return (self->handle != NULL);
+}
+
+void std__filesystem__File_close(std__filesystem__File* self) {
+    if (self->handle != NULL) {
+        fclose(self->handle);
+        self->handle = NULL;
+    }
+}
+
+void std__filesystem__File_flush(std__filesystem__File* self) {
+    if (self->handle != NULL) {
+        fflush(self->handle);
+    }
+}
+
+int64_t std__filesystem__File_size(std__filesystem__File* self) {
+    if (self->handle == NULL) {
+        return 0;
+    }
+    int64_t cur = ftell(self->handle);
+    fseek(self->handle, 0, 2);
+    int64_t total = ftell(self->handle);
+    fseek(self->handle, cur, 0);
+    return total;
+}
+
+bool std__filesystem__File_write(std__filesystem__File* self, kobel_str content) {
+    if (self->handle == NULL) {
+        return false;
+    }
+    size_t written = fwrite(content.data, 1, content.len, self->handle);
+    return (written == content.len);
+}
+
+kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
+    if (self->handle == NULL) {
+        return KOBEL_STR("");
+    }
+    int64_t cur = ftell(self->handle);
+    fseek(self->handle, 0, 2);
+    int64_t end_pos = ftell(self->handle);
+    if (end_pos <= cur) {
+        fseek(self->handle, cur, 0);
+        return KOBEL_STR("");
+    }
+    fseek(self->handle, cur, 0);
+    size_t sz = (size_t)(end_pos - cur);
+    uint8_t* buf = std__mem__alloc_array_u8((sz + 1));
+    if (buf == NULL) {
+        return KOBEL_STR("");
+    }
+    size_t read_bytes = fread(buf, 1, sz, self->handle);
+    buf[read_bytes] = 0;
+    return std__string__str_from_bytes(buf, read_bytes);
+}
+
+bool std__filesystem__is_sep(char c) {
+    return ((c == '/') || (c == '\\'));
+}
+
+std__filesystem__Path std__filesystem__path(kobel_str raw) {
+    return std__filesystem__Path_new(raw);
+}
+
+std__filesystem__Path std__filesystem__Path_new(kobel_str raw) {
+    return (std__filesystem__Path){ raw };
+}
+
+kobel_str std__filesystem__Path_str(std__filesystem__Path* self) {
+    return self->raw;
+}
+
+const char* std__filesystem__Path_c_str(std__filesystem__Path* self) {
+    return kobel_cstr(self->raw);
+}
+
+bool std__filesystem__Path_is_empty(std__filesystem__Path* self) {
+    return str_empty(self->raw);
+}
+
+size_t std__filesystem__Path_len(std__filesystem__Path* self) {
+    return self->raw.len;
+}
+
+std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) {
+    size_t last = 0;
+    bool found = false;
+    {
+        size_t __for_e = self->raw.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (std__filesystem__is_sep(self->raw.data[i])) {
+                last = i;
+                found = true;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (!found) {
+        return std__filesystem__Path_new(KOBEL_STR(""));
+    }
+    return std__filesystem__Path_new(kobel_slice(self->raw, 0, last));
+}
+
+kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
+    size_t start = 0;
+    {
+        size_t __for_e = self->raw.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (std__filesystem__is_sep(self->raw.data[i])) {
+                start = (i + 1);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return kobel_slice1(self->raw, start);
+}
+
+kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
+    kobel_str fname = std__filesystem__Path_file_name(self);
+    size_t last_dot = 0;
+    bool found = false;
+    {
+        size_t __for_e = fname.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (fname.data[i] == '.') {
+                last_dot = i;
+                found = true;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if ((!found || (last_dot == 0)) || (last_dot == (fname.len - 1))) {
+        return KOBEL_STR("");
+    }
+    return kobel_slice1(fname, (last_dot + 1));
+}
+
+kobel_str std__filesystem__Path_stem(std__filesystem__Path* self) {
+    kobel_str fname = std__filesystem__Path_file_name(self);
+    size_t last_dot = 0;
+    bool found = false;
+    {
+        size_t __for_e = fname.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (fname.data[i] == '.') {
+                last_dot = i;
+                found = true;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (!found || (last_dot == 0)) {
+        return fname;
+    }
+    return kobel_slice(fname, 0, last_dot);
+}
+
+std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, kobel_str part) {
+    if (str_empty(self->raw)) {
+        return std__filesystem__Path_new(part);
+    }
+    if (str_empty(part)) {
+        return std__filesystem__Path_new(self->raw);
+    }
+    if (std__filesystem__is_sep(self->raw.data[(self->raw.len - 1)]) || std__filesystem__is_sep(part.data[0])) {
+        if (std__filesystem__is_sep(self->raw.data[(self->raw.len - 1)]) && std__filesystem__is_sep(part.data[0])) {
+            return std__filesystem__Path_new(kobel_concat(self->raw, kobel_slice1(part, 1)));
+        }
+        return std__filesystem__Path_new(kobel_concat(self->raw, part));
+    }
+    return std__filesystem__Path_new(kobel_concat3(self->raw, KOBEL_STR("/"), part));
+}
+
+std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* self, std__filesystem__Path other) {
+    return std__filesystem__Path_join(self, other.raw);
+}
+
+bool std__filesystem__Path_exists(std__filesystem__Path* self) {
+    return std__filesystem__fs_file_exists(self->raw);
+}
+
+kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self) {
+    return std__filesystem__file_read(self->raw);
+}
+
+bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content) {
+    return std__filesystem__file_write(self->raw, content);
+}
+
+bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content) {
+    return std__filesystem__file_append(self->raw, content);
+}
+
+bool std__filesystem__Path_remove(std__filesystem__Path* self) {
+    return std__filesystem__file_remove(self->raw);
+}
+
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self) {
+    return self->raw;
+}
+
+void std__io__print(kobel_str s) {
+    {
+        size_t __for_e = s.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            putchar(s.data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+}
+
+int32_t std__io__println(kobel_str s) {
+    return puts(kobel_cstr(s));
+}
+
+kobel_str std__io__read_file(kobel_str path) {
+    return std__filesystem__file_read(path);
+}
+
+bool std__io__write_file(kobel_str path, kobel_str content) {
+    return std__filesystem__file_write(path, content);
+}
+
+bool std__io__append_file(kobel_str path, kobel_str content) {
+    return std__filesystem__file_append(path, content);
+}
+
+bool std__io__file_exists(kobel_str path) {
+    return std__filesystem__fs_file_exists(path);
+}
+
+std__collections__List_str std__io__list_dir(kobel_str path) {
+    return std__filesystem__file_list_dir(path);
 }
 
 kobel_str util__strutil__cstr_to_str(const char* s) {
