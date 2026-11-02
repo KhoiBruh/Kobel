@@ -180,23 +180,23 @@ impl LspDiagnostic {
 	}
 
 	pub fn to_json(val self): *JsonValue {
-		val obj = json_obj();
+		val obj = JsonValue.obj();
 
-		val range = json_obj();
-		val start_pos = json_obj();
-		start_pos["line"] = json_num(self.line);
-		start_pos["character"] = json_num(self.col);
+		val range = JsonValue.obj();
+		val start_pos = JsonValue.obj();
+		start_pos["line"] = JsonValue.num(self.line);
+		start_pos["character"] = JsonValue.num(self.col);
 
-		val end_pos = json_obj();
-		end_pos["line"] = json_num(self.end_line);
-		end_pos["character"] = json_num(self.end_col);
+		val end_pos = JsonValue.obj();
+		end_pos["line"] = JsonValue.num(self.end_line);
+		end_pos["character"] = JsonValue.num(self.end_col);
 		range["start"] = start_pos;
 		range["end"] = end_pos;
 
 		obj["range"] = range;
-		obj["severity"] = json_num(self.severity);
-		obj["source"] = json_str("kobel");
-		obj["message"] = json_str(self.message);
+		obj["severity"] = JsonValue.num(self.severity);
+		obj["source"] = JsonValue.str("kobel");
+		obj["message"] = JsonValue.str(self.message);
 
 		return obj;
 	}
@@ -402,10 +402,10 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 // ============================================================================
 
 fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
-	val item = json_obj();
-	item["label"] = json_str(label);
-	item["kind"] = json_num(kind);
-	if (detail.len > 0) item["detail"] = json_str(detail);
+	val item = JsonValue.obj();
+	item["label"] = JsonValue.str(label);
+	item["kind"] = JsonValue.num(kind);
+	if (detail.len > 0) item["detail"] = JsonValue.str(detail);
 	arr += item;
 }
 
@@ -498,22 +498,22 @@ impl AnalysisResult {
 		val target_col = col0 + 1;
 
 		val tok = find_token_at(self.tokens, target_line, target_col);
-		if (tok.type == TokenType.UNKNOWN || tok.text.len == 0) return json_null();
+		if (tok.type == TokenType.UNKNOWN || tok.text.len == 0) return JsonValue.null_val();
 
 		// 1. Check keywords
 		val kw_doc = keyword_hover(tok.text);
 		if (kw_doc.len > 0) {
-			val res = json_obj();
-			val contents = json_obj();
-			contents["kind"] = json_str("markdown");
-			contents["value"] = json_str(kw_doc);
+			val res = JsonValue.obj();
+			val contents = JsonValue.obj();
+			contents["kind"] = JsonValue.str("markdown");
+			contents["value"] = JsonValue.str(kw_doc);
 			res["contents"] = contents;
 			return res;
 		}
 
 		// 2. Check identifier symbol in symbol table
 		if (self.has_symtab && tok.type == TokenType.IDENTIFIER) {
-			val sym = self.symtab.lookup(tok.text) ?: return json_null();
+			val sym = self.symtab.lookup(tok.text) ?: return JsonValue.null_val();
 			var md = "```kobel\n";
 			md = when (sym.kind) {
 				SymbolKind.FN -> "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
@@ -526,15 +526,15 @@ impl AnalysisResult {
 			};
 			md = "${md}\n```";
 
-			val res = json_obj();
-			val contents = json_obj();
-			contents["kind"] = json_str("markdown");
-			contents["value"] = json_str(md);
+			val res = JsonValue.obj();
+			val contents = JsonValue.obj();
+			contents["kind"] = JsonValue.str("markdown");
+			contents["value"] = JsonValue.str(md);
 			res["contents"] = contents;
 			return res;
 		}
 
-		return json_null();
+		return JsonValue.null_val();
 	}
 
 // ============================================================================
@@ -546,21 +546,21 @@ impl AnalysisResult {
 		val target_col = col0 + 1;
 
 		val tok = find_token_at(self.tokens, target_line, target_col);
-		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0) return json_null();
+		if (tok.type != TokenType.IDENTIFIER || tok.text.len == 0) return JsonValue.null_val();
 
 		if (self.has_symtab) {
-			val sym = self.symtab.lookup(tok.text) ?: return json_null();
+			val sym = self.symtab.lookup(tok.text) ?: return JsonValue.null_val();
 			if (sym.line > 0) {
-				val res = json_obj();
-				res["uri"] = json_str(doc_uri);
+				val res = JsonValue.obj();
+				res["uri"] = JsonValue.str(doc_uri);
 
-				val range = json_obj();
-				val start_pos = json_obj();
-				start_pos["line"] = json_num((sym.line - 1) as i64);
-				start_pos["character"] = json_num((sym.col - 1) as i64);
-				val end_pos = json_obj();
-				end_pos["line"] = json_num((sym.line - 1) as i64);
-				end_pos["character"] = json_num((sym.col - 1 + sym.name.len) as i64);
+				val range = JsonValue.obj();
+				val start_pos = JsonValue.obj();
+				start_pos["line"] = JsonValue.num((sym.line - 1) as i64);
+				start_pos["character"] = JsonValue.num((sym.col - 1) as i64);
+				val end_pos = JsonValue.obj();
+				end_pos["line"] = JsonValue.num((sym.line - 1) as i64);
+				end_pos["character"] = JsonValue.num((sym.col - 1 + sym.name.len) as i64);
 				range["start"] = start_pos;
 				range["end"] = end_pos;
 
@@ -569,11 +569,11 @@ impl AnalysisResult {
 			}
 		}
 
-		return json_null();
+		return JsonValue.null_val();
 	}
 
 	pub fn complete_at(val self): *JsonValue {
-		val items = json_arr();
+		val items = JsonValue.arr();
 
 		// 1. Language Keywords (Kind: 14 = Keyword)
 		add_completion_item(items, "fn", 14, "Function declaration");
@@ -650,7 +650,7 @@ pub fn document_symbols(source: str): *JsonValue {
 	var lexer = Lexer(source);
 	val tokens = lexer.tokenize();
 	var parser = Parser(tokens);
-	val arr = json_arr();
+	val arr = JsonValue.arr();
 	val prog_node = parser.parse_program() ?: return arr;
 
 	val prog = prog_node.as_program();
@@ -686,21 +686,21 @@ pub fn document_symbols(source: str): *JsonValue {
 		}
 
 		if (sym_name.len > 0) {
-			val item = json_obj();
-			item["name"] = json_str(sym_name);
-			item["kind"] = json_num(sym_kind.value);
+			val item = JsonValue.obj();
+			item["name"] = JsonValue.str(sym_name);
+			item["kind"] = JsonValue.num(sym_kind.value);
 
 			val l0 = if (decl.line > 0) decl.line - 1 else 0;
 			val c0 = if (decl.col > 0) decl.col - 1 else 0;
 
-			val range = json_obj();
-			val s_pos = json_obj();
-			s_pos["line"] = json_num(l0);
-			s_pos["character"] = json_num(c0);
+			val range = JsonValue.obj();
+			val s_pos = JsonValue.obj();
+			s_pos["line"] = JsonValue.num(l0);
+			s_pos["character"] = JsonValue.num(c0);
 
-			val e_pos = json_obj();
-			e_pos["line"] = json_num(l0);
-			e_pos["character"] = json_num(c0 + sym_name.len);
+			val e_pos = JsonValue.obj();
+			e_pos["line"] = JsonValue.num(l0);
+			e_pos["character"] = JsonValue.num(c0 + sym_name.len);
 			range["start"] = s_pos;
 			range["end"] = e_pos;
 
@@ -722,22 +722,22 @@ pub fn format_document(text: str): *JsonValue {
 	val options = FormatOptions();
 	val formatted = format_source(text, options);
 
-	val edits = json_arr();
-	val edit = json_obj();
+	val edits = JsonValue.arr();
+	val edit = JsonValue.obj();
 
-	val range = json_obj();
-	val start_pos = json_obj();
-	start_pos["line"] = json_num(0);
-	start_pos["character"] = json_num(0);
+	val range = JsonValue.obj();
+	val start_pos = JsonValue.obj();
+	start_pos["line"] = JsonValue.num(0);
+	start_pos["character"] = JsonValue.num(0);
 
-	val end_pos = json_obj();
-	end_pos["line"] = json_num(999999);
-	end_pos["character"] = json_num(0);
+	val end_pos = JsonValue.obj();
+	end_pos["line"] = JsonValue.num(999999);
+	end_pos["character"] = JsonValue.num(0);
 	range["start"] = start_pos;
 	range["end"] = end_pos;
 
 	edit["range"] = range;
-	edit["newText"] = json_str(formatted);
+	edit["newText"] = JsonValue.str(formatted);
 	edits += edit;
 
 	return edits;

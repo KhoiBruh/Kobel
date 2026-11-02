@@ -3050,14 +3050,20 @@ void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* sel
 void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
 void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program);
 kobel_str fmt__formatter__format_source(kobel_str src, fmt__options__FormatOptions options);
-lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v);
-lsp__json__JsonValue* lsp__json__json_null(void);
-lsp__json__JsonValue* lsp__json__json_bool(bool b);
-lsp__json__JsonValue* lsp__json__json_num(int64_t n);
-lsp__json__JsonValue* lsp__json__json_str(kobel_str s);
-lsp__json__JsonValue* lsp__json__json_arr(void);
-lsp__json__JsonValue* lsp__json__json_obj(void);
 void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s);
+lsp__json__JsonValue* lsp__json__JsonValue_box(lsp__json__JsonValue v);
+lsp__json__JsonValue* lsp__json__JsonValue_null_val(void);
+lsp__json__JsonValue* lsp__json__JsonValue_nil(void);
+lsp__json__JsonValue* lsp__json__JsonValue_bool(bool b);
+lsp__json__JsonValue* lsp__json__JsonValue_num(int64_t n);
+lsp__json__JsonValue* lsp__json__JsonValue_int(int64_t n);
+lsp__json__JsonValue* lsp__json__JsonValue_str(kobel_str s);
+lsp__json__JsonValue* lsp__json__JsonValue_string(kobel_str s);
+lsp__json__JsonValue* lsp__json__JsonValue_arr(void);
+lsp__json__JsonValue* lsp__json__JsonValue_array(void);
+lsp__json__JsonValue* lsp__json__JsonValue_obj(void);
+lsp__json__JsonValue* lsp__json__JsonValue_object(void);
+lsp__json__JsonValue* lsp__json__JsonValue_parse(kobel_str src);
 void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collections__StringBuilder* sb);
 bool lsp__json__JsonValue_is_null(lsp__json__JsonValue* self);
 bool lsp__json__JsonValue_is_bool(lsp__json__JsonValue* self);
@@ -3088,7 +3094,6 @@ int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self);
 lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* self);
 lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* self);
 lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* self);
-lsp__json__JsonValue* lsp__json__parse_json(kobel_str src);
 void lsp__protocol__init_stdio(void);
 void lsp__protocol__send_raw(kobel_str payload);
 void lsp__protocol__send_response(lsp__json__JsonValue* id, lsp__json__JsonValue* result);
@@ -25575,40 +25580,65 @@ kobel_str fmt__formatter__format_source(kobel_str src, fmt__options__FormatOptio
     return fmt__formatter__Formatter_to_str(&fmt);
 }
 
-lsp__json__JsonValue* lsp__json__json_box(lsp__json__JsonValue v) {
+void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s) {
+    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
+    std__collections__StringBuilder_append_escaped(sb, s);
+    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_box(lsp__json__JsonValue v) {
     lsp__json__JsonValue* p = std__mem__alloc_lsp__json__JsonValue();
     *p = v;
     return (lsp__json__JsonValue*)p;
 }
 
-lsp__json__JsonValue* lsp__json__json_null(void) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 0, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_null_val(void) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 0, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
-lsp__json__JsonValue* lsp__json__json_bool(bool b) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 1, b, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_nil(void) {
+    return lsp__json__JsonValue_null_val();
 }
 
-lsp__json__JsonValue* lsp__json__json_num(int64_t n) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 2, false, n, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_bool(bool b) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 1, b, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
-lsp__json__JsonValue* lsp__json__json_str(kobel_str s) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 3, false, 0, s, std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_num(int64_t n) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 2, false, n, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
-lsp__json__JsonValue* lsp__json__json_arr(void) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 4, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_int(int64_t n) {
+    return lsp__json__JsonValue_num(n);
 }
 
-lsp__json__JsonValue* lsp__json__json_obj(void) {
-    return lsp__json__json_box((lsp__json__JsonValue){ 5, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+lsp__json__JsonValue* lsp__json__JsonValue_str(kobel_str s) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 3, false, 0, s, std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
 }
 
-void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s) {
-    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
-    std__collections__StringBuilder_append_escaped(sb, s);
-    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
+lsp__json__JsonValue* lsp__json__JsonValue_string(kobel_str s) {
+    return lsp__json__JsonValue_str(s);
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_arr(void) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 4, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_array(void) {
+    return lsp__json__JsonValue_arr();
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_obj(void) {
+    return lsp__json__JsonValue_box((lsp__json__JsonValue){ 5, false, 0, KOBEL_STR(""), std__collections__List_ptr_lsp__json__JsonValue_new(4), std__collections__List_str_new(4), std__collections__List_ptr_lsp__json__JsonValue_new(4) });
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_object(void) {
+    return lsp__json__JsonValue_obj();
+}
+
+lsp__json__JsonValue* lsp__json__JsonValue_parse(kobel_str src) {
+    lsp__json__JsonParser parser = (lsp__json__JsonParser){ src, 0 };
+    return lsp__json__JsonParser_parse_value(&parser);
 }
 
 void lsp__json__JsonValue_serialize_to(lsp__json__JsonValue* self, std__collections__StringBuilder* sb) {
@@ -25746,13 +25776,13 @@ void lsp__json__JsonValue_set(lsp__json__JsonValue* self, kobel_str key, lsp__js
 
 lsp__json__JsonValue* lsp__json__JsonValue_get(lsp__json__JsonValue* self, kobel_str key) {
     if ((self == NULL) || (self->kind != 5)) {
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     }
     intptr_t idx = std__collections__List_str_index_of(&self->obj_keys, key);
     if (idx >= 0) {
         return std__collections__List_ptr_lsp__json__JsonValue_get(&self->obj_vals, (size_t)idx);
     }
-    return lsp__json__json_null();
+    return lsp__json__JsonValue_null_val();
 }
 
 bool lsp__json__JsonValue_contains(lsp__json__JsonValue* self, kobel_str key) {
@@ -25792,7 +25822,7 @@ lsp__json__JsonValue* lsp__json__JsonValue_get_obj(lsp__json__JsonValue* self, k
     if (lsp__json__JsonValue_is_obj(v)) {
         return v;
     }
-    return lsp__json__json_obj();
+    return lsp__json__JsonValue_obj();
 }
 
 lsp__json__JsonValue* lsp__json__JsonValue_get_arr(lsp__json__JsonValue* self, kobel_str key) {
@@ -25800,14 +25830,14 @@ lsp__json__JsonValue* lsp__json__JsonValue_get_arr(lsp__json__JsonValue* self, k
     if (lsp__json__JsonValue_is_arr(v)) {
         return v;
     }
-    return lsp__json__json_arr();
+    return lsp__json__JsonValue_arr();
 }
 
 lsp__json__JsonValue* lsp__json__JsonValue_at(lsp__json__JsonValue* self, size_t index) {
     if ((self != NULL && self->kind == 4) && (index < self->arr_val.len)) {
         return std__collections__List_ptr_lsp__json__JsonValue_get(&self->arr_val, index);
     }
-    return lsp__json__json_null();
+    return lsp__json__JsonValue_null_val();
 }
 
 size_t lsp__json__JsonValue_count(lsp__json__JsonValue* self) {
@@ -25935,7 +25965,7 @@ int64_t lsp__json__JsonParser_parse_number(lsp__json__JsonParser* self) {
 
 lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* self) {
     lsp__json__JsonParser_advance(self);
-    lsp__json__JsonValue* res = lsp__json__json_arr();
+    lsp__json__JsonValue* res = lsp__json__JsonValue_arr();
     lsp__json__JsonParser_skip_whitespace(self);
     if (!lsp__json__JsonParser_is_end(self) && (lsp__json__JsonParser_peek(self) == ']')) {
         lsp__json__JsonParser_advance(self);
@@ -25961,7 +25991,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_array(lsp__json__JsonParser* s
 
 lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* self) {
     lsp__json__JsonParser_advance(self);
-    lsp__json__JsonValue* res = lsp__json__json_obj();
+    lsp__json__JsonValue* res = lsp__json__JsonValue_obj();
     lsp__json__JsonParser_skip_whitespace(self);
     if (!lsp__json__JsonParser_is_end(self) && (lsp__json__JsonParser_peek(self) == '}')) {
         lsp__json__JsonParser_advance(self);
@@ -25997,17 +26027,17 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_object(lsp__json__JsonParser* 
 lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* self) {
     lsp__json__JsonParser_skip_whitespace(self);
     if (lsp__json__JsonParser_is_end(self)) {
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     }
     char c = lsp__json__JsonParser_peek(self);
     if ((c == '"')) {
-        return lsp__json__json_str(lsp__json__JsonParser_parse_string(self));
+        return lsp__json__JsonValue_str(lsp__json__JsonParser_parse_string(self));
     } else if ((c == '{')) {
         return lsp__json__JsonParser_parse_object(self);
     } else if ((c == '[')) {
         return lsp__json__JsonParser_parse_array(self);
     } else if (((c == '-') || char_is_digit(c))) {
-        return lsp__json__json_num(lsp__json__JsonParser_parse_number(self));
+        return lsp__json__JsonValue_num(lsp__json__JsonParser_parse_number(self));
     } else if ((c == 't')) {
         {
             int32_t __for_e = 4;
@@ -26039,7 +26069,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
             }
         }
-        return lsp__json__json_bool(true);
+        return lsp__json__JsonValue_bool(true);
     } else if ((c == 'f')) {
         {
             int32_t __for_e = 5;
@@ -26071,7 +26101,7 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
             }
         }
-        return lsp__json__json_bool(false);
+        return lsp__json__JsonValue_bool(false);
     } else if ((c == 'n')) {
         {
             int32_t __for_e = 4;
@@ -26103,16 +26133,11 @@ lsp__json__JsonValue* lsp__json__JsonParser_parse_value(lsp__json__JsonParser* s
                 }
             }
         }
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     } else {
         lsp__json__JsonParser_advance(self);
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     }
-}
-
-lsp__json__JsonValue* lsp__json__parse_json(kobel_str src) {
-    lsp__json__JsonParser parser = (lsp__json__JsonParser){ src, 0 };
-    return lsp__json__JsonParser_parse_value(&parser);
 }
 
 void lsp__protocol__init_stdio(void) {
@@ -26126,28 +26151,28 @@ void lsp__protocol__send_raw(kobel_str payload) {
 }
 
 void lsp__protocol__send_response(lsp__json__JsonValue* id, lsp__json__JsonValue* result) {
-    lsp__json__JsonValue* msg = lsp__json__json_obj();
-    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__json_str(KOBEL_STR("2.0")));
+    lsp__json__JsonValue* msg = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__JsonValue_str(KOBEL_STR("2.0")));
     lsp__json__JsonValue_set(msg, KOBEL_STR("id"), id);
     lsp__json__JsonValue_set(msg, KOBEL_STR("result"), result);
     lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
 }
 
 void lsp__protocol__send_error(lsp__json__JsonValue* id, int64_t code, kobel_str message) {
-    lsp__json__JsonValue* msg = lsp__json__json_obj();
-    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__json_str(KOBEL_STR("2.0")));
+    lsp__json__JsonValue* msg = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__JsonValue_str(KOBEL_STR("2.0")));
     lsp__json__JsonValue_set(msg, KOBEL_STR("id"), id);
-    lsp__json__JsonValue* err = lsp__json__json_obj();
-    lsp__json__JsonValue_set(err, KOBEL_STR("code"), lsp__json__json_num(code));
-    lsp__json__JsonValue_set(err, KOBEL_STR("message"), lsp__json__json_str(message));
+    lsp__json__JsonValue* err = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(err, KOBEL_STR("code"), lsp__json__JsonValue_num(code));
+    lsp__json__JsonValue_set(err, KOBEL_STR("message"), lsp__json__JsonValue_str(message));
     lsp__json__JsonValue_set(msg, KOBEL_STR("error"), err);
     lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
 }
 
 void lsp__protocol__send_notification(kobel_str method, lsp__json__JsonValue* params) {
-    lsp__json__JsonValue* msg = lsp__json__json_obj();
-    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__json_str(KOBEL_STR("2.0")));
-    lsp__json__JsonValue_set(msg, KOBEL_STR("method"), lsp__json__json_str(method));
+    lsp__json__JsonValue* msg = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(msg, KOBEL_STR("jsonrpc"), lsp__json__JsonValue_str(KOBEL_STR("2.0")));
+    lsp__json__JsonValue_set(msg, KOBEL_STR("method"), lsp__json__JsonValue_str(method));
     lsp__json__JsonValue_set(msg, KOBEL_STR("params"), params);
     lsp__protocol__send_raw(lsp__json__JsonValue_serialize(msg));
 }
@@ -26447,20 +26472,20 @@ lsp__analysis__LspDiagnostic lsp__analysis__LspDiagnostic_new(kobel_str err_str,
 }
 
 lsp__json__JsonValue* lsp__analysis__LspDiagnostic_to_json(lsp__analysis__LspDiagnostic* self) {
-    lsp__json__JsonValue* obj = lsp__json__json_obj();
-    lsp__json__JsonValue* range = lsp__json__json_obj();
-    lsp__json__JsonValue* start_pos = lsp__json__json_obj();
-    lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__json_num(self->line));
-    lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__json_num(self->col));
-    lsp__json__JsonValue* end_pos = lsp__json__json_obj();
-    lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__json_num(self->end_line));
-    lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__json_num(self->end_col));
+    lsp__json__JsonValue* obj = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue* range = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue* start_pos = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(self->line));
+    lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__JsonValue_num(self->col));
+    lsp__json__JsonValue* end_pos = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(self->end_line));
+    lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__JsonValue_num(self->end_col));
     lsp__json__JsonValue_set(range, KOBEL_STR("start"), start_pos);
     lsp__json__JsonValue_set(range, KOBEL_STR("end"), end_pos);
     lsp__json__JsonValue_set(obj, KOBEL_STR("range"), range);
-    lsp__json__JsonValue_set(obj, KOBEL_STR("severity"), lsp__json__json_num(self->severity));
-    lsp__json__JsonValue_set(obj, KOBEL_STR("source"), lsp__json__json_str(KOBEL_STR("kobel")));
-    lsp__json__JsonValue_set(obj, KOBEL_STR("message"), lsp__json__json_str(self->message));
+    lsp__json__JsonValue_set(obj, KOBEL_STR("severity"), lsp__json__JsonValue_num(self->severity));
+    lsp__json__JsonValue_set(obj, KOBEL_STR("source"), lsp__json__JsonValue_str(KOBEL_STR("kobel")));
+    lsp__json__JsonValue_set(obj, KOBEL_STR("message"), lsp__json__JsonValue_str(self->message));
     return obj;
 }
 
@@ -26541,11 +26566,11 @@ kobel_str lsp__analysis__keyword_hover(kobel_str kw) {
 }
 
 void lsp__analysis__add_completion_item(lsp__json__JsonValue* arr, kobel_str label, int64_t kind, kobel_str detail) {
-    lsp__json__JsonValue* item = lsp__json__json_obj();
-    lsp__json__JsonValue_set(item, KOBEL_STR("label"), lsp__json__json_str(label));
-    lsp__json__JsonValue_set(item, KOBEL_STR("kind"), lsp__json__json_num(kind));
+    lsp__json__JsonValue* item = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(item, KOBEL_STR("label"), lsp__json__JsonValue_str(label));
+    lsp__json__JsonValue_set(item, KOBEL_STR("kind"), lsp__json__JsonValue_num(kind));
     if (detail.len > 0) {
-        lsp__json__JsonValue_set(item, KOBEL_STR("detail"), lsp__json__json_str(detail));
+        lsp__json__JsonValue_set(item, KOBEL_STR("detail"), lsp__json__JsonValue_str(detail));
     }
     lsp__json__JsonValue_plus_assign(arr, item);
 }
@@ -26656,33 +26681,33 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_hover_at(lsp__analysis__Anal
     size_t target_col = (col0 + 1);
     compiler__lexer__Token tok = lsp__analysis__find_token_at(self->tokens, target_line, target_col);
     if ((tok.type == 72) || (tok.text.len == 0)) {
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     }
     kobel_str kw_doc = lsp__analysis__keyword_hover(tok.text);
     if (kw_doc.len > 0) {
-        lsp__json__JsonValue* res = lsp__json__json_obj();
-        lsp__json__JsonValue* contents = lsp__json__json_obj();
-        lsp__json__JsonValue_set(contents, KOBEL_STR("kind"), lsp__json__json_str(KOBEL_STR("markdown")));
-        lsp__json__JsonValue_set(contents, KOBEL_STR("value"), lsp__json__json_str(kw_doc));
+        lsp__json__JsonValue* res = lsp__json__JsonValue_obj();
+        lsp__json__JsonValue* contents = lsp__json__JsonValue_obj();
+        lsp__json__JsonValue_set(contents, KOBEL_STR("kind"), lsp__json__JsonValue_str(KOBEL_STR("markdown")));
+        lsp__json__JsonValue_set(contents, KOBEL_STR("value"), lsp__json__JsonValue_str(kw_doc));
         lsp__json__JsonValue_set(res, KOBEL_STR("contents"), contents);
         return res;
     }
     if (self->has_symtab && (tok.type == 42)) {
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, tok.text);
         if (sym == NULL) {
-            return lsp__json__json_null();
+            return lsp__json__JsonValue_null_val();
         }
         kobel_str md = KOBEL_STR("```kobel\n");
         md = (sym->kind == 3 ? kobel_concat5(md, KOBEL_STR("fn "), sym->name, KOBEL_STR(": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 4 ? kobel_concat3(md, KOBEL_STR("struct "), sym->name) : (sym->kind == 5 ? kobel_concat3(md, KOBEL_STR("enum "), sym->name) : (sym->kind == 0 ? kobel_concat5(md, KOBEL_STR("var "), sym->name, KOBEL_STR(": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 1 ? kobel_concat5(md, KOBEL_STR("const "), sym->name, KOBEL_STR(": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : (sym->kind == 2 ? kobel_concat5(md, KOBEL_STR("param "), sym->name, KOBEL_STR(": "), compiler__sema__types__Type_to_str(sym->type_ptr)) : kobel_concat4(md, sym->name, KOBEL_STR(": "), compiler__sema__types__Type_to_str(sym->type_ptr))))))));
         md = kobel_concat(md, KOBEL_STR("\n```"));
-        lsp__json__JsonValue* res = lsp__json__json_obj();
-        lsp__json__JsonValue* contents = lsp__json__json_obj();
-        lsp__json__JsonValue_set(contents, KOBEL_STR("kind"), lsp__json__json_str(KOBEL_STR("markdown")));
-        lsp__json__JsonValue_set(contents, KOBEL_STR("value"), lsp__json__json_str(md));
+        lsp__json__JsonValue* res = lsp__json__JsonValue_obj();
+        lsp__json__JsonValue* contents = lsp__json__JsonValue_obj();
+        lsp__json__JsonValue_set(contents, KOBEL_STR("kind"), lsp__json__JsonValue_str(KOBEL_STR("markdown")));
+        lsp__json__JsonValue_set(contents, KOBEL_STR("value"), lsp__json__JsonValue_str(md));
         lsp__json__JsonValue_set(res, KOBEL_STR("contents"), contents);
         return res;
     }
-    return lsp__json__json_null();
+    return lsp__json__JsonValue_null_val();
 }
 
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis__AnalysisResult* self, kobel_str doc_uri, size_t line0, size_t col0) {
@@ -26690,34 +26715,34 @@ lsp__json__JsonValue* lsp__analysis__AnalysisResult_definition_at(lsp__analysis_
     size_t target_col = (col0 + 1);
     compiler__lexer__Token tok = lsp__analysis__find_token_at(self->tokens, target_line, target_col);
     if ((tok.type != 42) || (tok.text.len == 0)) {
-        return lsp__json__json_null();
+        return lsp__json__JsonValue_null_val();
     }
     if (self->has_symtab) {
         compiler__sema__symbol__Symbol* sym = compiler__sema__symbol__SymbolTable_lookup(&self->symtab, tok.text);
         if (sym == NULL) {
-            return lsp__json__json_null();
+            return lsp__json__JsonValue_null_val();
         }
         if (sym->line > 0) {
-            lsp__json__JsonValue* res = lsp__json__json_obj();
-            lsp__json__JsonValue_set(res, KOBEL_STR("uri"), lsp__json__json_str(doc_uri));
-            lsp__json__JsonValue* range = lsp__json__json_obj();
-            lsp__json__JsonValue* start_pos = lsp__json__json_obj();
-            lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__json_num((int64_t)(sym->line - 1)));
-            lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__json_num((int64_t)(sym->col - 1)));
-            lsp__json__JsonValue* end_pos = lsp__json__json_obj();
-            lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__json_num((int64_t)(sym->line - 1)));
-            lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__json_num((int64_t)((sym->col - 1) + sym->name.len)));
+            lsp__json__JsonValue* res = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(res, KOBEL_STR("uri"), lsp__json__JsonValue_str(doc_uri));
+            lsp__json__JsonValue* range = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue* start_pos = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__JsonValue_num((int64_t)(sym->line - 1)));
+            lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__JsonValue_num((int64_t)(sym->col - 1)));
+            lsp__json__JsonValue* end_pos = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__JsonValue_num((int64_t)(sym->line - 1)));
+            lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__JsonValue_num((int64_t)((sym->col - 1) + sym->name.len)));
             lsp__json__JsonValue_set(range, KOBEL_STR("start"), start_pos);
             lsp__json__JsonValue_set(range, KOBEL_STR("end"), end_pos);
             lsp__json__JsonValue_set(res, KOBEL_STR("range"), range);
             return res;
         }
     }
-    return lsp__json__json_null();
+    return lsp__json__JsonValue_null_val();
 }
 
 lsp__json__JsonValue* lsp__analysis__AnalysisResult_complete_at(lsp__analysis__AnalysisResult* self) {
-    lsp__json__JsonValue* items = lsp__json__json_arr();
+    lsp__json__JsonValue* items = lsp__json__JsonValue_arr();
     lsp__analysis__add_completion_item(items, KOBEL_STR("fn"), 14, KOBEL_STR("Function declaration"));
     lsp__analysis__add_completion_item(items, KOBEL_STR("val"), 14, KOBEL_STR("Immutable binding"));
     lsp__analysis__add_completion_item(items, KOBEL_STR("var"), 14, KOBEL_STR("Mutable variable"));
@@ -26786,7 +26811,7 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source) {
     compiler__lexer__Lexer lexer = compiler__lexer__Lexer_new(source);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
     compiler__parser__parser__Parser parser = compiler__parser__parser__Parser_new(tokens);
-    lsp__json__JsonValue* arr = lsp__json__json_arr();
+    lsp__json__JsonValue* arr = lsp__json__JsonValue_arr();
     compiler__ast__node__AstNode* prog_node = compiler__parser__parser__Parser_parse_program(&parser);
     if (prog_node == NULL) {
         return arr;
@@ -26831,18 +26856,18 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source) {
                 sym_kind = 14;
             }
             if (sym_name.len > 0) {
-                lsp__json__JsonValue* item = lsp__json__json_obj();
-                lsp__json__JsonValue_set(item, KOBEL_STR("name"), lsp__json__json_str(sym_name));
-                lsp__json__JsonValue_set(item, KOBEL_STR("kind"), lsp__json__json_num(sym_kind));
+                lsp__json__JsonValue* item = lsp__json__JsonValue_obj();
+                lsp__json__JsonValue_set(item, KOBEL_STR("name"), lsp__json__JsonValue_str(sym_name));
+                lsp__json__JsonValue_set(item, KOBEL_STR("kind"), lsp__json__JsonValue_num(sym_kind));
                 size_t l0 = ((decl->line > 0) ? (decl->line - 1) : 0);
                 size_t c0 = ((decl->col > 0) ? (decl->col - 1) : 0);
-                lsp__json__JsonValue* range = lsp__json__json_obj();
-                lsp__json__JsonValue* s_pos = lsp__json__json_obj();
-                lsp__json__JsonValue_set(s_pos, KOBEL_STR("line"), lsp__json__json_num(l0));
-                lsp__json__JsonValue_set(s_pos, KOBEL_STR("character"), lsp__json__json_num(c0));
-                lsp__json__JsonValue* e_pos = lsp__json__json_obj();
-                lsp__json__JsonValue_set(e_pos, KOBEL_STR("line"), lsp__json__json_num(l0));
-                lsp__json__JsonValue_set(e_pos, KOBEL_STR("character"), lsp__json__json_num((c0 + sym_name.len)));
+                lsp__json__JsonValue* range = lsp__json__JsonValue_obj();
+                lsp__json__JsonValue* s_pos = lsp__json__JsonValue_obj();
+                lsp__json__JsonValue_set(s_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(l0));
+                lsp__json__JsonValue_set(s_pos, KOBEL_STR("character"), lsp__json__JsonValue_num(c0));
+                lsp__json__JsonValue* e_pos = lsp__json__JsonValue_obj();
+                lsp__json__JsonValue_set(e_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(l0));
+                lsp__json__JsonValue_set(e_pos, KOBEL_STR("character"), lsp__json__JsonValue_num((c0 + sym_name.len)));
                 lsp__json__JsonValue_set(range, KOBEL_STR("start"), s_pos);
                 lsp__json__JsonValue_set(range, KOBEL_STR("end"), e_pos);
                 lsp__json__JsonValue_set(item, KOBEL_STR("range"), range);
@@ -26858,19 +26883,19 @@ lsp__json__JsonValue* lsp__analysis__document_symbols(kobel_str source) {
 lsp__json__JsonValue* lsp__analysis__format_document(kobel_str text) {
     fmt__options__FormatOptions options = (fmt__options__FormatOptions){ 4, true, 100, true };
     kobel_str formatted = fmt__formatter__format_source(text, options);
-    lsp__json__JsonValue* edits = lsp__json__json_arr();
-    lsp__json__JsonValue* edit = lsp__json__json_obj();
-    lsp__json__JsonValue* range = lsp__json__json_obj();
-    lsp__json__JsonValue* start_pos = lsp__json__json_obj();
-    lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__json_num(0));
-    lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__json_num(0));
-    lsp__json__JsonValue* end_pos = lsp__json__json_obj();
-    lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__json_num(999999));
-    lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__json_num(0));
+    lsp__json__JsonValue* edits = lsp__json__JsonValue_arr();
+    lsp__json__JsonValue* edit = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue* range = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue* start_pos = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(start_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(0));
+    lsp__json__JsonValue_set(start_pos, KOBEL_STR("character"), lsp__json__JsonValue_num(0));
+    lsp__json__JsonValue* end_pos = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(end_pos, KOBEL_STR("line"), lsp__json__JsonValue_num(999999));
+    lsp__json__JsonValue_set(end_pos, KOBEL_STR("character"), lsp__json__JsonValue_num(0));
     lsp__json__JsonValue_set(range, KOBEL_STR("start"), start_pos);
     lsp__json__JsonValue_set(range, KOBEL_STR("end"), end_pos);
     lsp__json__JsonValue_set(edit, KOBEL_STR("range"), range);
-    lsp__json__JsonValue_set(edit, KOBEL_STR("newText"), lsp__json__json_str(formatted));
+    lsp__json__JsonValue_set(edit, KOBEL_STR("newText"), lsp__json__JsonValue_str(formatted));
     lsp__json__JsonValue_plus_assign(edits, edit);
     return edits;
 }
@@ -26878,7 +26903,7 @@ lsp__json__JsonValue* lsp__analysis__format_document(kobel_str text) {
 void lsp__server__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root) {
     kobel_str p = lsp__document__uri_to_path(uri);
     lsp__analysis__AnalysisResult analysis = lsp__analysis__AnalysisResult_new(p, text, workspace_root);
-    lsp__json__JsonValue* diags_arr = lsp__json__json_arr();
+    lsp__json__JsonValue* diags_arr = lsp__json__JsonValue_arr();
     {
         size_t __for_n = std__collections__List_lsp__analysis__LspDiagnostic_count(&analysis.diagnostics);
         size_t __for_i = 0;
@@ -26888,8 +26913,8 @@ void lsp__server__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_s
             __for_i = (__for_i + 1);
         }
     }
-    lsp__json__JsonValue* notif_params = lsp__json__json_obj();
-    lsp__json__JsonValue_set(notif_params, KOBEL_STR("uri"), lsp__json__json_str(uri));
+    lsp__json__JsonValue* notif_params = lsp__json__JsonValue_obj();
+    lsp__json__JsonValue_set(notif_params, KOBEL_STR("uri"), lsp__json__JsonValue_str(uri));
     lsp__json__JsonValue_set(notif_params, KOBEL_STR("diagnostics"), diags_arr);
     lsp__protocol__send_notification(KOBEL_STR("textDocument/publishDiagnostics"), notif_params);
 }
@@ -26904,7 +26929,7 @@ int32_t lsp__server__run_server(void) {
         if (str_empty(raw_msg)) {
             break;
         }
-        lsp__json__JsonValue* msg = lsp__json__parse_json(raw_msg);
+        lsp__json__JsonValue* msg = lsp__json__JsonValue_parse(raw_msg);
         if (!lsp__json__JsonValue_is_obj(msg)) {
             continue;
         }
@@ -26928,29 +26953,29 @@ int32_t lsp__server__run_server(void) {
                     }
                 }
             }
-            lsp__json__JsonValue* res = lsp__json__json_obj();
-            lsp__json__JsonValue* caps = lsp__json__json_obj();
-            lsp__json__JsonValue_set(caps, KOBEL_STR("textDocumentSync"), lsp__json__json_num(1));
-            lsp__json__JsonValue_set(caps, KOBEL_STR("hoverProvider"), lsp__json__json_bool(true));
-            lsp__json__JsonValue_set(caps, KOBEL_STR("definitionProvider"), lsp__json__json_bool(true));
-            lsp__json__JsonValue_set(caps, KOBEL_STR("documentFormattingProvider"), lsp__json__json_bool(true));
-            lsp__json__JsonValue_set(caps, KOBEL_STR("documentSymbolProvider"), lsp__json__json_bool(true));
-            lsp__json__JsonValue* comp = lsp__json__json_obj();
-            lsp__json__JsonValue* triggers = lsp__json__json_arr();
-            lsp__json__JsonValue_plus_assign(triggers, lsp__json__json_str(KOBEL_STR(".")));
-            lsp__json__JsonValue_plus_assign(triggers, lsp__json__json_str(KOBEL_STR(":")));
+            lsp__json__JsonValue* res = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue* caps = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(caps, KOBEL_STR("textDocumentSync"), lsp__json__JsonValue_num(1));
+            lsp__json__JsonValue_set(caps, KOBEL_STR("hoverProvider"), lsp__json__JsonValue_bool(true));
+            lsp__json__JsonValue_set(caps, KOBEL_STR("definitionProvider"), lsp__json__JsonValue_bool(true));
+            lsp__json__JsonValue_set(caps, KOBEL_STR("documentFormattingProvider"), lsp__json__JsonValue_bool(true));
+            lsp__json__JsonValue_set(caps, KOBEL_STR("documentSymbolProvider"), lsp__json__JsonValue_bool(true));
+            lsp__json__JsonValue* comp = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue* triggers = lsp__json__JsonValue_arr();
+            lsp__json__JsonValue_plus_assign(triggers, lsp__json__JsonValue_str(KOBEL_STR(".")));
+            lsp__json__JsonValue_plus_assign(triggers, lsp__json__JsonValue_str(KOBEL_STR(":")));
             lsp__json__JsonValue_set(comp, KOBEL_STR("triggerCharacters"), triggers);
             lsp__json__JsonValue_set(caps, KOBEL_STR("completionProvider"), comp);
-            lsp__json__JsonValue* server_info = lsp__json__json_obj();
-            lsp__json__JsonValue_set(server_info, KOBEL_STR("name"), lsp__json__json_str(KOBEL_STR("kobel-lsp")));
-            lsp__json__JsonValue_set(server_info, KOBEL_STR("version"), lsp__json__json_str(KOBEL_STR("1.0.0")));
+            lsp__json__JsonValue* server_info = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(server_info, KOBEL_STR("name"), lsp__json__JsonValue_str(KOBEL_STR("kobel-lsp")));
+            lsp__json__JsonValue_set(server_info, KOBEL_STR("version"), lsp__json__JsonValue_str(KOBEL_STR("1.0.0")));
             lsp__json__JsonValue_set(res, KOBEL_STR("capabilities"), caps);
             lsp__json__JsonValue_set(res, KOBEL_STR("serverInfo"), server_info);
             lsp__protocol__send_response(id, res);
         } else if (kobel_streq(method, KOBEL_STR("initialized"))) {
         } else if (kobel_streq(method, KOBEL_STR("shutdown"))) {
             is_shutdown = true;
-            lsp__protocol__send_response(id, lsp__json__json_null());
+            lsp__protocol__send_response(id, lsp__json__JsonValue_null_val());
         } else if (kobel_streq(method, KOBEL_STR("exit"))) {
             if (is_shutdown) {
                 std__sys__sys_exit(0);
@@ -26979,9 +27004,9 @@ int32_t lsp__server__run_server(void) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
             kobel_str uri = lsp__json__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
             lsp__document__DocumentStore_remove(&docs, uri);
-            lsp__json__JsonValue* p = lsp__json__json_obj();
-            lsp__json__JsonValue_set(p, KOBEL_STR("uri"), lsp__json__json_str(uri));
-            lsp__json__JsonValue_set(p, KOBEL_STR("diagnostics"), lsp__json__json_arr());
+            lsp__json__JsonValue* p = lsp__json__JsonValue_obj();
+            lsp__json__JsonValue_set(p, KOBEL_STR("uri"), lsp__json__JsonValue_str(uri));
+            lsp__json__JsonValue_set(p, KOBEL_STR("diagnostics"), lsp__json__JsonValue_arr());
             lsp__protocol__send_notification(KOBEL_STR("textDocument/publishDiagnostics"), p);
         } else if (kobel_streq(method, KOBEL_STR("textDocument/hover"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
@@ -26995,7 +27020,7 @@ int32_t lsp__server__run_server(void) {
                 lsp__json__JsonValue* h = lsp__analysis__AnalysisResult_hover_at(&analysis, line, char_col);
                 lsp__protocol__send_response(id, h);
             } else {
-                lsp__protocol__send_response(id, lsp__json__json_null());
+                lsp__protocol__send_response(id, lsp__json__JsonValue_null_val());
             }
         } else if (kobel_streq(method, KOBEL_STR("textDocument/definition"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
@@ -27009,7 +27034,7 @@ int32_t lsp__server__run_server(void) {
                 lsp__json__JsonValue* def_res = lsp__analysis__AnalysisResult_definition_at(&analysis, uri, line, char_col);
                 lsp__protocol__send_response(id, def_res);
             } else {
-                lsp__protocol__send_response(id, lsp__json__json_null());
+                lsp__protocol__send_response(id, lsp__json__JsonValue_null_val());
             }
         } else if (kobel_streq(method, KOBEL_STR("textDocument/formatting"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
@@ -27019,7 +27044,7 @@ int32_t lsp__server__run_server(void) {
                 lsp__json__JsonValue* edits = lsp__analysis__format_document(doc.text);
                 lsp__protocol__send_response(id, edits);
             } else {
-                lsp__protocol__send_response(id, lsp__json__json_arr());
+                lsp__protocol__send_response(id, lsp__json__JsonValue_arr());
             }
         } else if (kobel_streq(method, KOBEL_STR("textDocument/documentSymbol"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
@@ -27029,7 +27054,7 @@ int32_t lsp__server__run_server(void) {
                 lsp__json__JsonValue* syms = lsp__analysis__document_symbols(doc.text);
                 lsp__protocol__send_response(id, syms);
             } else {
-                lsp__protocol__send_response(id, lsp__json__json_arr());
+                lsp__protocol__send_response(id, lsp__json__JsonValue_arr());
             }
         } else if (kobel_streq(method, KOBEL_STR("textDocument/completion"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));

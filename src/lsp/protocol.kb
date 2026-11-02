@@ -36,28 +36,28 @@ pub fn send_raw(payload: str) {
 }
 
 pub fn send_response(id: *JsonValue, result: *JsonValue) {
-	val msg = json_obj();
-	msg["jsonrpc"] = json_str("2.0");
+	val msg = JsonValue.obj();
+	msg["jsonrpc"] = JsonValue.str("2.0");
 	msg["id"] = id;
 	msg["result"] = result;
 	send_raw(msg.serialize());
 }
 
 pub fn send_error(id: *JsonValue, code: i64, message: str) {
-	val msg = json_obj();
-	msg["jsonrpc"] = json_str("2.0");
+	val msg = JsonValue.obj();
+	msg["jsonrpc"] = JsonValue.str("2.0");
 	msg["id"] = id;
-	val err = json_obj();
-	err["code"] = json_num(code);
-	err["message"] = json_str(message);
+	val err = JsonValue.obj();
+	err["code"] = JsonValue.num(code);
+	err["message"] = JsonValue.str(message);
 	msg["error"] = err;
 	send_raw(msg.serialize());
 }
 
 pub fn send_notification(method: str, params: *JsonValue) {
-	val msg = json_obj();
-	msg["jsonrpc"] = json_str("2.0");
-	msg["method"] = json_str(method);
+	val msg = JsonValue.obj();
+	msg["jsonrpc"] = JsonValue.str("2.0");
+	msg["method"] = JsonValue.str(method);
 	msg["params"] = params;
 	send_raw(msg.serialize());
 }

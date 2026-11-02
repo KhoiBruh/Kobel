@@ -35,11 +35,11 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	val p = uri_to_path(uri);
 	val analysis = AnalysisResult(p, text, workspace_root);
 
-	val diags_arr = json_arr();
+	val diags_arr = JsonValue.arr();
 	for (d in analysis.diagnostics) diags_arr += d.to_json();
 
-	val notif_params = json_obj();
-	notif_params["uri"] = json_str(uri);
+	val notif_params = JsonValue.obj();
+	notif_params["uri"] = JsonValue.str(uri);
 	notif_params["diagnostics"] = diags_arr;
 	send_notification(Method.PUBLISH_DIAGNOSTICS.value, notif_params);
 }
@@ -59,7 +59,7 @@ pub fn run_server(): i32 {
 		val raw_msg = read_message();
 		if (raw_msg.empty()) break; // EOF: editor closed pipe
 
-		val msg = parse_json(raw_msg);
+		val msg = JsonValue.parse(raw_msg);
 		if (!msg.is_obj()) continue;
 
 		val method = msg.get_str("method", "");
@@ -82,8 +82,8 @@ pub fn run_server(): i32 {
 					}
 				}
 
-				val res = json_obj();
-				val caps = json_obj();
+				val res = JsonValue.obj();
+				val caps = JsonValue.obj();
 
 				// Capabilities:
 				// - textDocumentSync: 1 (Full sync)
@@ -92,22 +92,22 @@ pub fn run_server(): i32 {
 				// - documentFormattingProvider: true
 				// - documentSymbolProvider: true
 				// - completionProvider: triggers on '.' and ':'
-				caps["textDocumentSync"] = json_num(1);
-				caps["hoverProvider"] = json_bool(true);
-				caps["definitionProvider"] = json_bool(true);
-				caps["documentFormattingProvider"] = json_bool(true);
-				caps["documentSymbolProvider"] = json_bool(true);
+				caps["textDocumentSync"] = JsonValue.num(1);
+				caps["hoverProvider"] = JsonValue.bool(true);
+				caps["definitionProvider"] = JsonValue.bool(true);
+				caps["documentFormattingProvider"] = JsonValue.bool(true);
+				caps["documentSymbolProvider"] = JsonValue.bool(true);
 
-				val comp = json_obj();
-				val triggers = json_arr();
-				triggers += json_str(".");
-				triggers += json_str(":");
+				val comp = JsonValue.obj();
+				val triggers = JsonValue.arr();
+				triggers += JsonValue.str(".");
+				triggers += JsonValue.str(":");
 				comp["triggerCharacters"] = triggers;
 				caps["completionProvider"] = comp;
 
-				val server_info = json_obj();
-				server_info["name"] = json_str("kobel-lsp");
-				server_info["version"] = json_str("1.0.0");
+				val server_info = JsonValue.obj();
+				server_info["name"] = JsonValue.str("kobel-lsp");
+				server_info["version"] = JsonValue.str("1.0.0");
 
 				res["capabilities"] = caps;
 				res["serverInfo"] = server_info;
@@ -120,7 +120,7 @@ pub fn run_server(): i32 {
 
 			Method.SHUTDOWN.value -> {
 				is_shutdown = true;
-				send_response(id, json_null());
+				send_response(id, JsonValue.null_val());
 			}
 
 			Method.EXIT.value -> {
@@ -156,9 +156,9 @@ pub fn run_server(): i32 {
 				docs.remove(uri);
 
 				// Clear diagnostics when file is closed
-				val p = json_obj();
-				p["uri"] = json_str(uri);
-				p["diagnostics"] = json_arr();
+				val p = JsonValue.obj();
+				p["uri"] = JsonValue.str(uri);
+				p["diagnostics"] = JsonValue.arr();
 				send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
 			}
 
@@ -175,7 +175,7 @@ pub fn run_server(): i32 {
 					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
 				} else {
-					send_response(id, json_null());
+					send_response(id, JsonValue.null_val());
 				}
 			}
 
@@ -192,7 +192,7 @@ pub fn run_server(): i32 {
 					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
 				} else {
-					send_response(id, json_null());
+					send_response(id, JsonValue.null_val());
 				}
 			}
 
@@ -204,7 +204,7 @@ pub fn run_server(): i32 {
 					val edits = format_document(doc.text);
 					send_response(id, edits);
 				} else {
-					send_response(id, json_arr());
+					send_response(id, JsonValue.arr());
 				}
 			}
 
@@ -216,7 +216,7 @@ pub fn run_server(): i32 {
 					val syms = document_symbols(doc.text);
 					send_response(id, syms);
 				} else {
-					send_response(id, json_arr());
+					send_response(id, JsonValue.arr());
 				}
 			}
 
