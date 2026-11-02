@@ -218,7 +218,7 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | File | Nội dung |
 |---|---|
 | `io.kb` | `print/println` (standard output) |
-| `filesystem/file.kb` | `File` handle + `file_read/file_write/file_append/file_exists/file_list_dir` |
+| `filesystem/file.kb` | `File` handle + static methods (`File.open`, `File.read`, `File.write`, `File.append`, `File.exists`, `File.remove`, `File.list_dir`) |
 | `filesystem/path.kb` | `Path` (zero-cost wrapper, parent/file_name/stem/extension/join) |
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |

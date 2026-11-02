@@ -2246,16 +2246,6 @@ void std__filesystem__File_flush(std__filesystem__File* self);
 int64_t std__filesystem__File_size(std__filesystem__File* self);
 bool std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content);
 kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
-std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode);
-std__filesystem__File std__filesystem__file_open_read(kobel_str path);
-std__filesystem__File std__filesystem__file_open_write(kobel_str path);
-std__filesystem__File std__filesystem__file_open_append(kobel_str path);
-bool std__filesystem__file_exists(kobel_str path);
-bool std__filesystem__file_remove(kobel_str path);
-kobel_str std__filesystem__file_read(kobel_str path);
-bool std__filesystem__file_write(kobel_str path, kobel_str content);
-bool std__filesystem__file_append(kobel_str path, kobel_str content);
-std__collections__List_str std__filesystem__file_list_dir(kobel_str path);
 bool std__filesystem__is_sep(char c);
 std__filesystem__Path std__filesystem__Path_new(kobel_str raw);
 kobel_str std__filesystem__Path_str(std__filesystem__Path* self);
@@ -6082,46 +6072,6 @@ kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
     size_t read_bytes = fread(buf, 1, size, self->handle);
     buf[read_bytes] = 0;
     return std__string__str_from_bytes(buf, read_bytes);
-}
-
-std__filesystem__File std__filesystem__file_open(kobel_str path, kobel_str mode) {
-    return std__filesystem__File_open(path, mode);
-}
-
-std__filesystem__File std__filesystem__file_open_read(kobel_str path) {
-    return std__filesystem__File_open_read(path);
-}
-
-std__filesystem__File std__filesystem__file_open_write(kobel_str path) {
-    return std__filesystem__File_open_write(path);
-}
-
-std__filesystem__File std__filesystem__file_open_append(kobel_str path) {
-    return std__filesystem__File_open_append(path);
-}
-
-bool std__filesystem__file_exists(kobel_str path) {
-    return std__filesystem__File_exists(path);
-}
-
-bool std__filesystem__file_remove(kobel_str path) {
-    return std__filesystem__File_remove(path);
-}
-
-kobel_str std__filesystem__file_read(kobel_str path) {
-    return std__filesystem__File_read(path);
-}
-
-bool std__filesystem__file_write(kobel_str path, kobel_str content) {
-    return std__filesystem__File_write(path, content);
-}
-
-bool std__filesystem__file_append(kobel_str path, kobel_str content) {
-    return std__filesystem__File_append(path, content);
-}
-
-std__collections__List_str std__filesystem__file_list_dir(kobel_str path) {
-    return std__filesystem__File_list_dir(path);
 }
 
 bool std__filesystem__is_sep(char c) {

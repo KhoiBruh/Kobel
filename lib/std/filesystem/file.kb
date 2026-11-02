@@ -164,15 +164,3 @@ impl File {
 	}
 
 }
-
-// Backward-compatibility aliases
-pub fn file_open(path: str, mode: str) => File.open(path, mode);
-pub fn file_open_read(path: str) => File.open_read(path);
-pub fn file_open_write(path: str) => File.open_write(path);
-pub fn file_open_append(path: str) => File.open_append(path);
-pub fn file_exists(path: str) => File.exists(path);
-pub fn file_remove(path: str) => File.remove(path);
-pub fn file_read(path: str) => File.read(path);
-pub fn file_write(path: str, content: str) => File.write(path, content);
-pub fn file_append(path: str, content: str) => File.append(path, content);
-pub fn file_list_dir(path: str) => File.list_dir(path);
