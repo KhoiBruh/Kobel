@@ -34,7 +34,6 @@ use compiler.sema.symbol.*;
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
 use compiler.sema.structs.StructField;
-use compiler.sema.types.type_none;
 use compiler.sema.methods.MethodInfo;
 
 use compiler.sema.decl.pass.*;

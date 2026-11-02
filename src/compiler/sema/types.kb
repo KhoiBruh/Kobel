@@ -86,7 +86,7 @@ pub struct Type {
 	pub align: usz,
 	pub data: TypePayload,
 	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
-	// type and for primitives built by `type_primitive`, which are not canonical.
+	// type and for primitives built by `Type.primitive`, which are not canonical.
 	pub methods: *PrimMethods? = null
 }
 
@@ -94,46 +94,50 @@ pub struct Type {
 // Primitive Types Constructors
 // ============================================================================
 
-pub fn type_primitive(kind: DataType): Type {
-	val size = when (kind) {
-		DataType.NONE -> 0;
-		DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
-		DataType.I16, DataType.U16 -> 2;
-		DataType.I32, DataType.U32, DataType.F32 -> 4;
-		DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64 -> 8;
-		DataType.STR -> 16;
-		else -> 8;
-	};
-	val align = when (kind) {
-		DataType.NONE, DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
-		DataType.I16, DataType.U16 -> 2;
-		DataType.I32, DataType.U32, DataType.F32 -> 4;
-		DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64, DataType.STR -> 8;
-		else -> 8;
-	};
-	return Type(kind, size, align, TypePayload.NONE);
+impl Type {
+
+	pub fn primitive(kind: DataType): Type {
+		val size = when (kind) {
+			DataType.NONE -> 0;
+			DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
+			DataType.I16, DataType.U16 -> 2;
+			DataType.I32, DataType.U32, DataType.F32 -> 4;
+			DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64 -> 8;
+			DataType.STR -> 16;
+			else -> 8;
+		};
+		val align = when (kind) {
+			DataType.NONE, DataType.BOOL, DataType.CHAR, DataType.I8, DataType.U8 -> 1;
+			DataType.I16, DataType.U16 -> 2;
+			DataType.I32, DataType.U32, DataType.F32 -> 4;
+			DataType.I64, DataType.ISZ, DataType.U64, DataType.USZ, DataType.F64, DataType.STR -> 8;
+			else -> 8;
+		};
+		return Type(kind, size, align, TypePayload.NONE);
+	}
+
+	pub fn none(): Type => Type.primitive(DataType.NONE);
+	pub fn bool(): Type => Type.primitive(DataType.BOOL);
+	pub fn char(): Type => Type.primitive(DataType.CHAR);
+
+	pub fn i8(): Type => Type.primitive(DataType.I8);
+	pub fn i16(): Type => Type.primitive(DataType.I16);
+	pub fn i32(): Type => Type.primitive(DataType.I32);
+	pub fn i64(): Type => Type.primitive(DataType.I64);
+	pub fn isz(): Type => Type.primitive(DataType.ISZ);
+
+	pub fn u8(): Type => Type.primitive(DataType.U8);
+	pub fn u16(): Type => Type.primitive(DataType.U16);
+	pub fn u32(): Type => Type.primitive(DataType.U32);
+	pub fn u64(): Type => Type.primitive(DataType.U64);
+	pub fn usz(): Type => Type.primitive(DataType.USZ);
+
+	pub fn f32(): Type => Type.primitive(DataType.F32);
+	pub fn f64(): Type => Type.primitive(DataType.F64);
+
+	pub fn str(): Type => Type.primitive(DataType.STR);
+
 }
-
-pub fn type_none() => type_primitive(DataType.NONE);
-pub fn type_bool() => type_primitive(DataType.BOOL);
-pub fn type_char() => type_primitive(DataType.CHAR);
-
-pub fn type_i8() => type_primitive(DataType.I8);
-pub fn type_i16() => type_primitive(DataType.I16);
-pub fn type_i32() => type_primitive(DataType.I32);
-pub fn type_i64() => type_primitive(DataType.I64);
-pub fn type_isz() => type_primitive(DataType.ISZ);
-
-pub fn type_u8() => type_primitive(DataType.U8);
-pub fn type_u16() => type_primitive(DataType.U16);
-pub fn type_u32() => type_primitive(DataType.U32);
-pub fn type_u64() => type_primitive(DataType.U64);
-pub fn type_usz() => type_primitive(DataType.USZ);
-
-pub fn type_f32() => type_primitive(DataType.F32);
-pub fn type_f64() => type_primitive(DataType.F64);
-
-pub fn type_str() => type_primitive(DataType.STR);
 
 // ============================================================================
 // Complex Type Allocators (impl Arena Extension)
@@ -239,7 +243,7 @@ impl Type {
 	}
 
 	// The method list, empty when this type has no payload (a non-canonical
-	// primitive built by `type_primitive`, a pointer, an array, ...).
+	// primitive built by `Type.primitive`, a pointer, an array, ...).
 	pub fn method_list(val self): List<*MethodInfo> {
 		if (self.methods == null) return List();
 		return self.methods.list;

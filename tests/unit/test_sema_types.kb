@@ -13,22 +13,6 @@ use compiler.sema.structs.StructField;
 use compiler.sema.structs.StructType;
 use compiler.sema.types.FnType;
 
-use compiler.sema.types.type_none;
-use compiler.sema.types.type_bool;
-use compiler.sema.types.type_i8;
-use compiler.sema.types.type_i16;
-use compiler.sema.types.type_i32;
-use compiler.sema.types.type_i64;
-use compiler.sema.types.type_isz;
-use compiler.sema.types.type_u8;
-use compiler.sema.types.type_u16;
-use compiler.sema.types.type_u32;
-use compiler.sema.types.type_u64;
-use compiler.sema.types.type_usz;
-use compiler.sema.types.type_f32;
-use compiler.sema.types.type_f64;
-use compiler.sema.types.type_str;
-use compiler.sema.types.type_primitive;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -62,7 +46,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 // ============================================================================
 
 fn test_primitive_types() {
-	var t_i32 = type_i32();
+	var t_i32 = Type.i32();
 	assert_eq_usz(t_i32.size, 4, "i32 size must be 4");
 	assert_eq_usz(t_i32.align, 4, "i32 align must be 4");
 	assert_true(t_i32.is_integer(), "i32 must be integer");
@@ -70,28 +54,28 @@ fn test_primitive_types() {
 	assert_true(!t_i32.is_unsigned_integer(), "i32 must not be unsigned");
 	assert_true(t_i32.is_numeric(), "i32 must be numeric");
 
-	var t_u64 = type_u64();
+	var t_u64 = Type.u64();
 	assert_eq_usz(t_u64.size, 8, "u64 size must be 8");
 	assert_eq_usz(t_u64.align, 8, "u64 align must be 8");
 	assert_true(t_u64.is_unsigned_integer(), "u64 must be unsigned integer");
 	assert_true(!t_u64.is_signed_integer(), "u64 must not be signed");
 
-	var t_f64 = type_f64();
+	var t_f64 = Type.f64();
 	assert_eq_usz(t_f64.size, 8, "f64 size must be 8");
 	assert_true(t_f64.is_float(), "f64 must be float");
 	assert_true(!t_f64.is_integer(), "f64 must not be integer");
 
-	var t_bool = type_bool();
+	var t_bool = Type.bool();
 	assert_eq_usz(t_bool.size, 1, "bool size must be 1");
 	assert_true(!t_bool.is_numeric(), "bool must not be numeric");
 
-	// Test type_primitive helper directly
-	var t_prim_i16 = type_primitive(DataType.I16);
-	assert_eq_usz(t_prim_i16.size, 2, "type_primitive(DataType.I16) size must be 2");
-	assert_eq_usz(t_prim_i16.align, 2, "type_primitive(DataType.I16) align must be 2");
-	var t_prim_str = type_primitive(DataType.STR);
-	assert_eq_usz(t_prim_str.size, 16, "type_primitive(DataType.STR) size must be 16");
-	assert_eq_usz(t_prim_str.align, 8, "type_primitive(DataType.STR) align must be 8");
+	// Test Type.primitive helper directly
+	var t_prim_i16 = Type.primitive(DataType.I16);
+	assert_eq_usz(t_prim_i16.size, 2, "Type.primitive(DataType.I16) size must be 2");
+	assert_eq_usz(t_prim_i16.align, 2, "Type.primitive(DataType.I16) align must be 2");
+	var t_prim_str = Type.primitive(DataType.STR);
+	assert_eq_usz(t_prim_str.size, 16, "Type.primitive(DataType.STR) size must be 16");
+	assert_eq_usz(t_prim_str.align, 8, "Type.primitive(DataType.STR) align must be 8");
 
 	println("  [PASS] test_primitive_types");
 }
@@ -104,7 +88,7 @@ fn test_pointer_and_array_types() {
 	var arena = Arena(16384);
 	defer arena.delete();
 
-	var t_i32 = type_i32();
+	var t_i32 = Type.i32();
 	val ptr_mut = arena.pointer_type(&t_i32, true);
 	val ptr_const = arena.pointer_type(&t_i32, false);
 
@@ -155,9 +139,9 @@ fn test_struct_layout() {
 	// - b: i32 -> offset 4, size 4
 	// - c: i64 -> offset 8, size 8
 	// - total size: 16, align: 8
-	var t_u8 = type_u8();
-	var t_i32 = type_i32();
-	var t_i64 = type_i64();
+	var t_u8 = Type.u8();
+	var t_i32 = Type.i32();
+	var t_i64 = Type.i64();
 
 	var fields = List<StructField>();
 	fields += StructField("a", &t_u8, 0, true, null);
@@ -190,10 +174,10 @@ fn test_type_equality_and_assignability() {
 	var arena = Arena(16384);
 	defer arena.delete();
 
-	var t_i32_1 = type_i32();
-	var t_i32_2 = type_i32();
-	var t_i64 = type_i64();
-	var t_bool = type_bool();
+	var t_i32_1 = Type.i32();
+	var t_i32_2 = Type.i32();
+	var t_i64 = Type.i64();
+	var t_bool = Type.bool();
 
 	assert_true(t_i32_1 == t_i32_2, "i32 must equal i32");
 	assert_true(t_i32_1 != t_i64, "i32 must not equal i64");

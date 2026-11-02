@@ -14,58 +14,6 @@ pub struct Diagnostic {
 	pub message: str
 }
 
-pub fn parse_diagnostic(raw: str, default_file: str, loader: *ModuleLoader? = null): Diagnostic {
-	val line_kw = "Line ";
-	val line_pos = raw.index_of(line_kw);
-
-	if (line_pos >= 0) {
-		val prefix = if (line_pos > 0) raw.slice(0, line_pos as usz).trim() else "";
-		var target = if (prefix.ends_with(":")) prefix.slice(0, prefix.len - 1).trim()
-		else prefix;
-
-		if (target.empty()) target = default_file;
-
-		var l_idx = (line_pos as usz) + line_kw.len;
-		var line_num: usz = 0;
-		while (l_idx < raw.len && raw[l_idx].is_digit()) {
-			line_num = line_num * 10 + (raw[l_idx].code() - 48) as usz;
-			l_idx++;
-		}
-
-		while (l_idx < raw.len && (raw[l_idx] == ' ' || raw[l_idx] == ',')) l_idx++;
-
-		var col_num: usz = 0;
-		val col_kw = "Column ";
-		val rest = raw.slice(l_idx, raw.len);
-		val c_pos = rest.index_of(col_kw);
-		if (c_pos >= 0) {
-			l_idx = l_idx + (c_pos as usz) + col_kw.len;
-			while (l_idx < raw.len && raw[l_idx].is_digit()) {
-				col_num = col_num * 10 + (raw[l_idx].code() - 48) as usz;
-				l_idx++;
-			}
-		}
-
-		while (l_idx < raw.len && (raw[l_idx] == ':' || raw[l_idx] == ' ')) l_idx++;
-		val msg = raw.slice(l_idx, raw.len).trim();
-
-		val file_path = resolve_file_path(target, default_file, loader);
-		return Diagnostic(file_path, line_num, col_num, msg);
-	}
-
-	// Fallback when "Line " is not present
-	val colon_pos = raw.index_of(":");
-	if (colon_pos >= 0) {
-		val c_idx = colon_pos as usz;
-		val target = raw.slice(0, c_idx).trim();
-		val msg = raw.slice(c_idx + 1, raw.len).trim();
-		val file_path = resolve_file_path(target, default_file, loader);
-		return Diagnostic(file_path, 0, 0, msg);
-	}
-
-	return Diagnostic(default_file, 0, 0, raw);
-}
-
 fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): str {
 	if (target.empty()) return default_file;
 	if (target.ends_with(".kb") || "/" in target || "\\" in target) {
@@ -73,10 +21,9 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	}
 
 	if (loader != null) {
-		for (m in loader.modules) {
-			if (m.name == target && !m.path.empty()) {
-				return m.path.to_posix_path();
-			}
+		val resolved = loader.find_module(target);
+		if (resolved.found) {
+			return resolved.path.to_posix_path();
 		}
 	}
 
@@ -88,58 +35,114 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	return target;
 }
 
-pub fn render_diagnostic(diag: Diagnostic): str {
-	val c_red = "\x1b[1;31m";
-	val c_blue = "\x1b[1;34m";
-	val c_bold = "\x1b[1m";
-	val c_reset = "\x1b[0m";
+impl Diagnostic {
 
-	var out = "${c_red}error${c_reset}${c_bold}: ${diag.message}${c_reset}\n";
+	pub fn parse(raw: str, default_file: str, loader: *ModuleLoader? = null): Diagnostic {
+		val line_kw = "Line ";
+		val line_pos = raw.index_of(line_kw);
 
-	if (!diag.file_path.empty()) {
-		if (diag.line > 0) {
-			out = "${out}  ${c_blue}-->${c_reset} ${diag.file_path}:${diag.line}:${diag.col}\n";
-		} else {
-			out = "${out}  ${c_blue}-->${c_reset} ${diag.file_path}\n";
+		if (line_pos >= 0) {
+			val prefix = if (line_pos > 0) raw.slice(0, line_pos as usz).trim() else "";
+			var target = if (prefix.ends_with(":")) prefix.slice(0, prefix.len - 1).trim()
+			else prefix;
+
+			if (target.empty()) target = default_file;
+
+			var l_idx = (line_pos as usz) + line_kw.len;
+			var line_num: usz = 0;
+			while (l_idx < raw.len && raw[l_idx].is_digit()) {
+				line_num = line_num * 10 + (raw[l_idx].code() - 48) as usz;
+				l_idx++;
+			}
+
+			while (l_idx < raw.len && (raw[l_idx] == ' ' || raw[l_idx] == ',')) l_idx++;
+
+			var col_num: usz = 0;
+			val col_kw = "Column ";
+			val rest = raw.slice(l_idx, raw.len);
+			val c_pos = rest.index_of(col_kw);
+			if (c_pos >= 0) {
+				l_idx = l_idx + (c_pos as usz) + col_kw.len;
+				while (l_idx < raw.len && raw[l_idx].is_digit()) {
+					col_num = col_num * 10 + (raw[l_idx].code() - 48) as usz;
+					l_idx++;
+				}
+			}
+
+			while (l_idx < raw.len && (raw[l_idx] == ':' || raw[l_idx] == ' ')) l_idx++;
+			val msg = raw.slice(l_idx, raw.len).trim();
+
+			val file_path = resolve_file_path(target, default_file, loader);
+			return Diagnostic(file_path, line_num, col_num, msg);
 		}
+
+		// Fallback when "Line " is not present
+		val colon_pos = raw.index_of(":");
+		if (colon_pos >= 0) {
+			val c_idx = colon_pos as usz;
+			val target = raw.slice(0, c_idx).trim();
+			val msg = raw.slice(c_idx + 1, raw.len).trim();
+			val file_path = resolve_file_path(target, default_file, loader);
+			return Diagnostic(file_path, 0, 0, msg);
+		}
+
+		return Diagnostic(default_file, 0, 0, raw);
 	}
 
-	if (diag.line > 0 && !diag.file_path.empty() && File.exists(diag.file_path)) {
-		val content = File.read(diag.file_path);
-		if (!content.empty()) {
-			val lines = content.split_lines();
-			if (diag.line >= 1 && diag.line <= lines.len) {
-				val raw_line = lines[diag.line - 1];
-				val line_str = "${diag.line}";
-				val gutter_w = if (line_str.len < 2) 2 else line_str.len;
+	pub fn render(val self): str {
+		val c_red = "\x1b[1;31m";
+		val c_blue = "\x1b[1;34m";
+		val c_bold = "\x1b[1m";
+		val c_reset = "\x1b[0m";
 
-				var gutter_pad = "";
-				if (gutter_w > line_str.len) {
-					for (i in 0..<(gutter_w - line_str.len)) gutter_pad = "${gutter_pad} ";
-				}
-				val line_gutter = "${gutter_pad}${line_str}";
+		var out = "${c_red}error${c_reset}${c_bold}: ${self.message}${c_reset}\n";
 
-				var empty_gutter = "";
-				for (i in 0..<gutter_w) empty_gutter = "${empty_gutter} ";
-
-				var caret_spaces = "";
-				val limit = if (diag.col > 1) diag.col - 1 else 0;
-				for (i in 0..<limit) {
-					if (i < raw_line.len && raw_line[i] == '\t') {
-						caret_spaces = "${caret_spaces}\t";
-					} else {
-						caret_spaces = "${caret_spaces} ";
-					}
-				}
-
-				out = "${out} ${empty_gutter} ${c_blue}|${c_reset}\n";
-				out = "${out} ${c_blue}${line_gutter} |${c_reset} ${raw_line}\n";
-				out = "${out} ${empty_gutter} ${c_blue}|${c_reset} ${caret_spaces}${c_red}^${c_reset}\n";
+		if (!self.file_path.empty()) {
+			if (self.line > 0) {
+				out = "${out}  ${c_blue}-->${c_reset} ${self.file_path}:${self.line}:${self.col}\n";
+			} else {
+				out = "${out}  ${c_blue}-->${c_reset} ${self.file_path}\n";
 			}
 		}
+
+		if (self.line > 0 && !self.file_path.empty() && File.exists(self.file_path)) {
+			val content = File.read(self.file_path);
+			if (!content.empty()) {
+				val lines = content.split_lines();
+				if (self.line >= 1 && self.line <= lines.len) {
+					val raw_line = lines[self.line - 1];
+					val line_str = "${self.line}";
+					val gutter_w = if (line_str.len < 2) 2 else line_str.len;
+
+					var gutter_pad = "";
+					if (gutter_w > line_str.len) {
+						for (i in 0..<(gutter_w - line_str.len)) gutter_pad = "${gutter_pad} ";
+					}
+					val line_gutter = "${gutter_pad}${line_str}";
+
+					var empty_gutter = "";
+					for (i in 0..<gutter_w) empty_gutter = "${empty_gutter} ";
+
+					var caret_spaces = "";
+					val limit = if (self.col > 1) self.col - 1 else 0;
+					for (i in 0..<limit) {
+						if (i < raw_line.len && raw_line[i] == '\t') {
+							caret_spaces = "${caret_spaces}\t";
+						} else {
+							caret_spaces = "${caret_spaces} ";
+						}
+					}
+
+					out = "${out} ${empty_gutter} ${c_blue}|${c_reset}\n";
+					out = "${out} ${c_blue}${line_gutter} |${c_reset} ${raw_line}\n";
+					out = "${out} ${empty_gutter} ${c_blue}|${c_reset} ${caret_spaces}${c_red}^${c_reset}\n";
+				}
+			}
+		}
+
+		return out;
 	}
 
-	return out;
 }
 
 pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLoader? = null) {
@@ -147,7 +150,7 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 	var printed_count = 0;
 
 	for (err in errors) {
-		val diag = parse_diagnostic(err, default_file, loader);
+		val diag = Diagnostic.parse(err, default_file, loader);
 		val key = "${diag.file_path}:${diag.line}:${diag.col}:${diag.message}";
 		var already_seen = false;
 		for (s in seen) {
@@ -159,7 +162,7 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 		if (already_seen) continue;
 		seen += key;
 
-		print(render_diagnostic(diag));
+		print(diag.render());
 		println("");
 		printed_count++;
 	}

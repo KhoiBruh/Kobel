@@ -27,7 +27,7 @@ cmd /c mklink /J "%USERPROFILE%\.vscode\extensions\kobel-lang.kobel-0.1.0" "C:\U
 Or set `kobel.compilerPath` in `.vscode/settings.json`:
 ```json
 {
-  "kobel.compilerPath": "C:\\Users\\Admin\\CLionProjects\\Kobel\\kobel_v1.exe",
+  "kobel.compilerPath": "C:\\Users\\Admin\\CLionProjects\\Kobel\\build\\kobel.exe",
   "[kobel]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "kobel-lang.kobel"
@@ -45,7 +45,7 @@ Or set `kobel.compilerPath` in `.vscode/settings.json`:
 3. Click **+** (Add) and configure:
    - **Name**: `Kobel Language Server`
    - **File types**: Add pattern `*.kb`
-   - **Server executable**: `C:\Users\Admin\CLionProjects\Kobel\kobel_v1.exe` (or `kobel`)
+   - **Server executable**: `C:\Users\Admin\CLionProjects\Kobel\build\kobel.exe` (or `kobel`)
    - **Server arguments**: `lsp`
 4. Click **OK**.
 

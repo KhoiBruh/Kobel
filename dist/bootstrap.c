@@ -2556,9 +2556,9 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
 void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader* self, compiler__ast__node__AstNode* program_node, kobel_str parent_mod);
 compiler__ast__node__AstNode* compiler__loader__ModuleLoader_load_program(compiler__loader__ModuleLoader* self, kobel_str entry_path, kobel_str entry_source);
 compiler__ast__node__AstNode* compiler__loader__ModuleLoader_build_merged_program(compiler__loader__ModuleLoader* self);
-compiler__driver__Diagnostic compiler__driver__parse_diagnostic(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str default_file, compiler__loader__ModuleLoader* loader);
-kobel_str compiler__driver__render_diagnostic(compiler__driver__Diagnostic diag);
+compiler__driver__Diagnostic compiler__driver__Diagnostic_parse(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader);
+kobel_str compiler__driver__Diagnostic_render(compiler__driver__Diagnostic* self);
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_method(compiler__sema__structs__StructType* self, kobel_str name);
 compiler__sema__methods__MethodInfo* compiler__sema__structs__StructType_find_static_method(compiler__sema__structs__StructType* self, kobel_str name);
@@ -2576,23 +2576,23 @@ size_t compiler__sema__types__ArrayType_type_size(compiler__sema__types__ArrayTy
 size_t compiler__sema__types__ArrayType_type_align(compiler__sema__types__ArrayType* self);
 int32_t compiler__sema__types__FnType_type_size(compiler__sema__types__FnType* self);
 int32_t compiler__sema__types__FnType_type_align(compiler__sema__types__FnType* self);
-compiler__sema__types__Type compiler__sema__types__type_primitive(compiler__sema__types__DataType kind);
-compiler__sema__types__Type compiler__sema__types__type_none(void);
-compiler__sema__types__Type compiler__sema__types__type_bool(void);
-compiler__sema__types__Type compiler__sema__types__type_char(void);
-compiler__sema__types__Type compiler__sema__types__type_i8(void);
-compiler__sema__types__Type compiler__sema__types__type_i16(void);
-compiler__sema__types__Type compiler__sema__types__type_i32(void);
-compiler__sema__types__Type compiler__sema__types__type_i64(void);
-compiler__sema__types__Type compiler__sema__types__type_isz(void);
-compiler__sema__types__Type compiler__sema__types__type_u8(void);
-compiler__sema__types__Type compiler__sema__types__type_u16(void);
-compiler__sema__types__Type compiler__sema__types__type_u32(void);
-compiler__sema__types__Type compiler__sema__types__type_u64(void);
-compiler__sema__types__Type compiler__sema__types__type_usz(void);
-compiler__sema__types__Type compiler__sema__types__type_f32(void);
-compiler__sema__types__Type compiler__sema__types__type_f64(void);
-compiler__sema__types__Type compiler__sema__types__type_str(void);
+compiler__sema__types__Type compiler__sema__types__Type_primitive(compiler__sema__types__DataType kind);
+compiler__sema__types__Type compiler__sema__types__Type_none(void);
+compiler__sema__types__Type compiler__sema__types__Type_bool(void);
+compiler__sema__types__Type compiler__sema__types__Type_char(void);
+compiler__sema__types__Type compiler__sema__types__Type_i8(void);
+compiler__sema__types__Type compiler__sema__types__Type_i16(void);
+compiler__sema__types__Type compiler__sema__types__Type_i32(void);
+compiler__sema__types__Type compiler__sema__types__Type_i64(void);
+compiler__sema__types__Type compiler__sema__types__Type_isz(void);
+compiler__sema__types__Type compiler__sema__types__Type_u8(void);
+compiler__sema__types__Type compiler__sema__types__Type_u16(void);
+compiler__sema__types__Type compiler__sema__types__Type_u32(void);
+compiler__sema__types__Type compiler__sema__types__Type_u64(void);
+compiler__sema__types__Type compiler__sema__types__Type_usz(void);
+compiler__sema__types__Type compiler__sema__types__Type_f32(void);
+compiler__sema__types__Type compiler__sema__types__Type_f64(void);
+compiler__sema__types__Type compiler__sema__types__Type_str(void);
 compiler__sema__types__Type* std__mem__Arena_type_payload(std__mem__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data);
 compiler__sema__types__Type* std__mem__Arena_primitive_type(std__mem__Arena* self, compiler__sema__types__Type base);
 compiler__sema__types__Type* std__mem__Arena_pointer_type_3_2(std__mem__Arena* self, compiler__sema__types__Type* pointee, bool is_mut);
@@ -10667,7 +10667,33 @@ compiler__ast__node__AstNode* compiler__loader__ModuleLoader_build_merged_progra
     return compiler__loader__ModuleLoader_program(self, decls, 0, 0);
 }
 
-compiler__driver__Diagnostic compiler__driver__parse_diagnostic(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
+kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
+    if (str_empty(target)) {
+        return default_file;
+    }
+    if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
+        return str_to_posix_path(target);
+    }
+    if (loader != NULL) {
+        compiler__loader__ModuleFile resolved = compiler__loader__ModuleLoader_find_module(loader, target);
+        if (resolved.found) {
+            return str_to_posix_path(resolved.path);
+        }
+    }
+    kobel_str rel = kobel_concat(str_module_to_rel(target), KOBEL_STR(".kb"));
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
+        return kobel_concat(KOBEL_STR("src/"), rel);
+    }
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
+        return kobel_concat(KOBEL_STR("lib/"), rel);
+    }
+    if (std__filesystem__File_exists(rel)) {
+        return rel;
+    }
+    return target;
+}
+
+compiler__driver__Diagnostic compiler__driver__Diagnostic_parse(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
     kobel_str line_kw = KOBEL_STR("Line ");
     intptr_t line_pos = str_index_of(raw, line_kw);
     if (line_pos >= 0) {
@@ -10714,59 +10740,26 @@ compiler__driver__Diagnostic compiler__driver__parse_diagnostic(kobel_str raw, k
     return (compiler__driver__Diagnostic){ default_file, 0, 0, raw };
 }
 
-kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
-    if (str_empty(target)) {
-        return default_file;
-    }
-    if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
-        return str_to_posix_path(target);
-    }
-    if (loader != NULL) {
-        {
-            size_t __for_n = std__collections__List_compiler__loader__LoadedModule_count(&loader->modules);
-            size_t __for_i = 0;
-            while (__for_i < __for_n) {
-                compiler__loader__LoadedModule m = std__collections__List_compiler__loader__LoadedModule_at(&loader->modules, __for_i);
-                if (kobel_streq(m.name, target) && !str_empty(m.path)) {
-                    return str_to_posix_path(m.path);
-                }
-                __for_i = (__for_i + 1);
-            }
-        }
-    }
-    kobel_str rel = kobel_concat(str_module_to_rel(target), KOBEL_STR(".kb"));
-    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
-        return kobel_concat(KOBEL_STR("src/"), rel);
-    }
-    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
-        return kobel_concat(KOBEL_STR("lib/"), rel);
-    }
-    if (std__filesystem__File_exists(rel)) {
-        return rel;
-    }
-    return target;
-}
-
-kobel_str compiler__driver__render_diagnostic(compiler__driver__Diagnostic diag) {
+kobel_str compiler__driver__Diagnostic_render(compiler__driver__Diagnostic* self) {
     kobel_str c_red = KOBEL_STR("\x1b[1;31m");
     kobel_str c_blue = KOBEL_STR("\x1b[1;34m");
     kobel_str c_bold = KOBEL_STR("\x1b[1m");
     kobel_str c_reset = KOBEL_STR("\x1b[0m");
-    kobel_str out = kobel_concat4(kobel_concat5(c_red, KOBEL_STR("error"), c_reset, c_bold, KOBEL_STR(": ")), diag.message, c_reset, KOBEL_STR("\n"));
-    if (!str_empty(diag.file_path)) {
-        if (diag.line > 0) {
-            out = kobel_concat4(kobel_concat5(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), diag.file_path, KOBEL_STR(":"), usz_to_str(diag.line)), KOBEL_STR(":"), usz_to_str(diag.col), KOBEL_STR("\n"));
+    kobel_str out = kobel_concat4(kobel_concat5(c_red, KOBEL_STR("error"), c_reset, c_bold, KOBEL_STR(": ")), self->message, c_reset, KOBEL_STR("\n"));
+    if (!str_empty(self->file_path)) {
+        if (self->line > 0) {
+            out = kobel_concat4(kobel_concat5(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), self->file_path, KOBEL_STR(":"), usz_to_str(self->line)), KOBEL_STR(":"), usz_to_str(self->col), KOBEL_STR("\n"));
         } else {
-            out = kobel_concat4(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), diag.file_path, KOBEL_STR("\n"));
+            out = kobel_concat4(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), self->file_path, KOBEL_STR("\n"));
         }
     }
-    if (((diag.line > 0) && !str_empty(diag.file_path)) && std__filesystem__File_exists(diag.file_path)) {
-        kobel_str content = std__filesystem__File_read(diag.file_path);
+    if (((self->line > 0) && !str_empty(self->file_path)) && std__filesystem__File_exists(self->file_path)) {
+        kobel_str content = std__filesystem__File_read(self->file_path);
         if (!str_empty(content)) {
             std__collections__List_str lines = str_split_lines(content);
-            if ((diag.line >= 1) && (diag.line <= lines.len)) {
-                kobel_str raw_line = std__collections__List_str_get(&lines, (diag.line - 1));
-                kobel_str line_str = usz_to_str(diag.line);
+            if ((self->line >= 1) && (self->line <= lines.len)) {
+                kobel_str raw_line = std__collections__List_str_get(&lines, (self->line - 1));
+                kobel_str line_str = usz_to_str(self->line);
                 size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
                 kobel_str gutter_pad = KOBEL_STR("");
                 if (gutter_w > line_str.len) {
@@ -10830,7 +10823,7 @@ kobel_str compiler__driver__render_diagnostic(compiler__driver__Diagnostic diag)
                     }
                 }
                 kobel_str caret_spaces = KOBEL_STR("");
-                size_t limit = ((diag.col > 1) ? (diag.col - 1) : 0);
+                size_t limit = ((self->col > 1) ? (self->col - 1) : 0);
                 {
                     size_t __for_e = limit;
                     size_t __for_i = __for_e;
@@ -10880,7 +10873,7 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str err = std__collections__List_str_at(&errors, __for_i);
-            compiler__driver__Diagnostic diag = compiler__driver__parse_diagnostic(err, default_file, loader);
+            compiler__driver__Diagnostic diag = compiler__driver__Diagnostic_parse(err, default_file, loader);
             kobel_str key = kobel_concat3(kobel_concat5(diag.file_path, KOBEL_STR(":"), usz_to_str(diag.line), KOBEL_STR(":"), usz_to_str(diag.col)), KOBEL_STR(":"), diag.message);
             bool already_seen = false;
             {
@@ -10900,7 +10893,7 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
                 continue;
             }
             std__collections__List_str_plus_assign(&seen, key);
-            std__io__print(compiler__driver__render_diagnostic(diag));
+            std__io__print(compiler__driver__Diagnostic_render(&diag));
             std__io__println(KOBEL_STR(""));
             printed_count++;
             __for_i = (__for_i + 1);
@@ -11222,74 +11215,74 @@ int32_t compiler__sema__types__FnType_type_align(compiler__sema__types__FnType* 
     return 8;
 }
 
-compiler__sema__types__Type compiler__sema__types__type_primitive(compiler__sema__types__DataType kind) {
+compiler__sema__types__Type compiler__sema__types__Type_primitive(compiler__sema__types__DataType kind) {
     int32_t size = (kind == 0 ? 0 : (kind == 1 || kind == 2 || kind == 3 || kind == 8 ? 1 : (kind == 4 || kind == 9 ? 2 : (kind == 5 || kind == 10 || kind == 13 ? 4 : (kind == 6 || kind == 7 || kind == 11 || kind == 12 || kind == 14 ? 8 : (kind == 15 ? 16 : 8))))));
     int32_t align = (kind == 0 || kind == 1 || kind == 2 || kind == 3 || kind == 8 ? 1 : (kind == 4 || kind == 9 ? 2 : (kind == 5 || kind == 10 || kind == 13 ? 4 : (kind == 6 || kind == 7 || kind == 11 || kind == 12 || kind == 14 || kind == 15 ? 8 : 8))));
     return (compiler__sema__types__Type){ kind, size, align, (compiler__sema__types__TypePayload){ .tag = 0 }, NULL };
 }
 
-compiler__sema__types__Type compiler__sema__types__type_none(void) {
-    return compiler__sema__types__type_primitive(0);
+compiler__sema__types__Type compiler__sema__types__Type_none(void) {
+    return compiler__sema__types__Type_primitive(0);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_bool(void) {
-    return compiler__sema__types__type_primitive(1);
+compiler__sema__types__Type compiler__sema__types__Type_bool(void) {
+    return compiler__sema__types__Type_primitive(1);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_char(void) {
-    return compiler__sema__types__type_primitive(2);
+compiler__sema__types__Type compiler__sema__types__Type_char(void) {
+    return compiler__sema__types__Type_primitive(2);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_i8(void) {
-    return compiler__sema__types__type_primitive(3);
+compiler__sema__types__Type compiler__sema__types__Type_i8(void) {
+    return compiler__sema__types__Type_primitive(3);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_i16(void) {
-    return compiler__sema__types__type_primitive(4);
+compiler__sema__types__Type compiler__sema__types__Type_i16(void) {
+    return compiler__sema__types__Type_primitive(4);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_i32(void) {
-    return compiler__sema__types__type_primitive(5);
+compiler__sema__types__Type compiler__sema__types__Type_i32(void) {
+    return compiler__sema__types__Type_primitive(5);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_i64(void) {
-    return compiler__sema__types__type_primitive(6);
+compiler__sema__types__Type compiler__sema__types__Type_i64(void) {
+    return compiler__sema__types__Type_primitive(6);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_isz(void) {
-    return compiler__sema__types__type_primitive(7);
+compiler__sema__types__Type compiler__sema__types__Type_isz(void) {
+    return compiler__sema__types__Type_primitive(7);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_u8(void) {
-    return compiler__sema__types__type_primitive(8);
+compiler__sema__types__Type compiler__sema__types__Type_u8(void) {
+    return compiler__sema__types__Type_primitive(8);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_u16(void) {
-    return compiler__sema__types__type_primitive(9);
+compiler__sema__types__Type compiler__sema__types__Type_u16(void) {
+    return compiler__sema__types__Type_primitive(9);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_u32(void) {
-    return compiler__sema__types__type_primitive(10);
+compiler__sema__types__Type compiler__sema__types__Type_u32(void) {
+    return compiler__sema__types__Type_primitive(10);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_u64(void) {
-    return compiler__sema__types__type_primitive(11);
+compiler__sema__types__Type compiler__sema__types__Type_u64(void) {
+    return compiler__sema__types__Type_primitive(11);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_usz(void) {
-    return compiler__sema__types__type_primitive(12);
+compiler__sema__types__Type compiler__sema__types__Type_usz(void) {
+    return compiler__sema__types__Type_primitive(12);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_f32(void) {
-    return compiler__sema__types__type_primitive(13);
+compiler__sema__types__Type compiler__sema__types__Type_f32(void) {
+    return compiler__sema__types__Type_primitive(13);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_f64(void) {
-    return compiler__sema__types__type_primitive(14);
+compiler__sema__types__Type compiler__sema__types__Type_f64(void) {
+    return compiler__sema__types__Type_primitive(14);
 }
 
-compiler__sema__types__Type compiler__sema__types__type_str(void) {
-    return compiler__sema__types__type_primitive(15);
+compiler__sema__types__Type compiler__sema__types__Type_str(void) {
+    return compiler__sema__types__Type_primitive(15);
 }
 
 compiler__sema__types__Type* std__mem__Arena_type_payload(std__mem__Arena* self, compiler__sema__types__DataType kind, size_t size, size_t align, compiler__sema__types__TypePayload data) {
@@ -11731,7 +11724,7 @@ kobel_str compiler__sema__types__Type_to_str(compiler__sema__types__Type* self) 
 }
 
 compiler__sema__types__Type* compiler__sema__prims__prim_with_methods(std__mem__Arena* arena, compiler__sema__types__DataType kind) {
-    compiler__sema__types__Type* t = std__mem__Arena_primitive_type(arena, compiler__sema__types__type_primitive(kind));
+    compiler__sema__types__Type* t = std__mem__Arena_primitive_type(arena, compiler__sema__types__Type_primitive(kind));
     compiler__sema__methods__PrimMethods* pm = std__mem__Arena_alloc_compiler__sema__methods__PrimMethods(arena);
     *pm = (compiler__sema__methods__PrimMethods){ std__collections__List_ptr_compiler__sema__methods__MethodInfo_new(4) };
     t->methods = pm;
@@ -13461,9 +13454,9 @@ compiler__sema__types__Type* compiler__sema__decl__pass__DeclPass_infer_const_ty
             } else if (lit->literal_kind == 1) {
                 kobel_str raw = lit->raw_text;
                 if (str_ends_with(raw, KOBEL_STR("f")) || str_ends_with(raw, KOBEL_STR("F"))) {
-                    return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__type_f32());
+                    return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_f32());
                 }
-                return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__type_f64());
+                return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_f64());
             } else if (lit->literal_kind == 2) {
                 return compiler__sema__prims__PrimTypes_t_bool(compiler__sema__decl__pass__DeclPass_prims(self));
             } else if (lit->literal_kind == 4) {
@@ -15361,7 +15354,7 @@ void compiler__sema__decl__pass__DeclPass_collect_fn(compiler__sema__decl__pass_
 
 void compiler__sema__decl__pass__DeclPass_collect_enum(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__decl__EnumDecl* e = (compiler__ast__decl__EnumDecl*)compiler__ast__node__AstNode_as_enum_decl(node);
-    compiler__sema__types__Type* under_type = ((e->underlying_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, e->underlying_type) : compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__type_i32()));
+    compiler__sema__types__Type* under_type = ((e->underlying_type != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, e->underlying_type) : compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_i32()));
     bool is_payload = false;
     {
         size_t __for_n = std__collections__List_compiler__ast__decl__EnumMember_count(&e->members);
@@ -15492,7 +15485,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
         compiler__sema__decl__pass__DeclPass_report_error(self, node, KOBEL_STR("A payload enum cannot declare an underlying type"));
     }
     kobel_str c_name = compiler__sema__decl__pass__DeclPass_c_name_for(self, e->name);
-    compiler__sema__types__Type* tag_ty = compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__type_i32());
+    compiler__sema__types__Type* tag_ty = compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_i32());
     compiler__sema__types__Type* enum_ty = std__mem__Arena_struct_type(&self->arena, e->name, std__collections__List_compiler__sema__structs__StructField_new(4));
     (*compiler__sema__types__Type_as_struct_mut(enum_ty)).c_name = c_name;
     (*compiler__sema__types__Type_as_struct_mut(enum_ty)).module = self->current_module;
@@ -15565,7 +15558,7 @@ void compiler__sema__decl__pass__DeclPass_collect_payload_enum(compiler__sema__d
 
 void compiler__sema__decl__pass__DeclPass_collect_const(compiler__sema__decl__pass__DeclPass* self, compiler__ast__node__AstNode* node) {
     compiler__ast__decl__ConstDecl* c = (compiler__ast__decl__ConstDecl*)compiler__ast__node__AstNode_as_const_decl(node);
-    compiler__sema__types__Type* c_type = ((c->type_node != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, c->type_node) : (compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) != NULL ? compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) : compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__type_i32())));
+    compiler__sema__types__Type* c_type = ((c->type_node != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, c->type_node) : (compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) != NULL ? compiler__sema__decl__pass__DeclPass_infer_const_type(self, c->value) : compiler__sema__prims__PrimTypes_t_prim(compiler__sema__decl__pass__DeclPass_prims(self), compiler__sema__types__Type_i32())));
     if (c->type_node == NULL) {
         c->type_node = std__mem__Arena_ast_type_from_type(&self->arena, c_type);
     }
@@ -16173,12 +16166,12 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_literal_
         kobel_str raw = lit->raw_text;
         bool is_f32 = (str_ends_with(raw, KOBEL_STR("f")) || str_ends_with(raw, KOBEL_STR("F")));
         if (is_f32) {
-            return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__body__pass__BodyPass_prims(self), compiler__sema__types__type_f32());
+            return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__body__pass__BodyPass_prims(self), compiler__sema__types__Type_f32());
         }
         if ((expected != NULL) && compiler__sema__types__Type_is_float(expected)) {
             return expected;
         }
-        return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__body__pass__BodyPass_prims(self), compiler__sema__types__type_f64());
+        return compiler__sema__prims__PrimTypes_t_prim(compiler__sema__body__pass__BodyPass_prims(self), compiler__sema__types__Type_f64());
     } else if (lit->literal_kind == 2) {
         return compiler__sema__prims__PrimTypes_t_bool(compiler__sema__body__pass__BodyPass_prims(self));
     } else if (lit->literal_kind == 4) {

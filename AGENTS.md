@@ -127,11 +127,11 @@ Prefer `val`. Use `var` only when the binding is reassigned.
 
 ```kobel
 // CORRECT
-val diag = parse_diagnostic(err, default_file, loader);
+val diag = Diagnostic.parse(err, default_file, loader);
 var already_seen = false;
 
 // INCORRECT — never reassigned, must be val
-var diag = parse_diagnostic(err, default_file, loader);
+var diag = Diagnostic.parse(err, default_file, loader);
 ```
 
 ### 5. Null-safety (`?.` / `?:`)

@@ -31,7 +31,7 @@ pub struct PrimTypes {
 // A canonical primitive with an empty `PrimMethods` payload attached, so
 // `impl i32 { ... }` can append to it later.
 fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
-	var t = arena.primitive_type(type_primitive(kind));
+	var t = arena.primitive_type(Type.primitive(kind));
 	val pm = arena.alloc<PrimMethods>();
 	*pm = PrimMethods();
 	t.methods = pm;

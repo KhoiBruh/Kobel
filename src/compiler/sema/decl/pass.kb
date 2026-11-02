@@ -35,22 +35,6 @@ use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
 use compiler.sema.prims.PrimTypes;
 use compiler.sema.structs.StructField;
-use compiler.sema.types.type_none;
-use compiler.sema.types.type_bool;
-use compiler.sema.types.type_char;
-use compiler.sema.types.type_i8;
-use compiler.sema.types.type_i16;
-use compiler.sema.types.type_i32;
-use compiler.sema.types.type_i64;
-use compiler.sema.types.type_isz;
-use compiler.sema.types.type_u8;
-use compiler.sema.types.type_u16;
-use compiler.sema.types.type_u32;
-use compiler.sema.types.type_u64;
-use compiler.sema.types.type_usz;
-use compiler.sema.types.type_f32;
-use compiler.sema.types.type_f64;
-use compiler.sema.types.type_str;
 use compiler.sema.methods.MethodInfo;
 use compiler.sema.enums.EnumInfo;
 use compiler.sema.enums.EnumMemberInfo;
@@ -341,8 +325,8 @@ impl DeclPass {
 					if (
 						raw.ends_with("f") ||
 						raw.ends_with("F")
-					) yield self.prims().t_prim(type_f32());
-					yield self.prims().t_prim(type_f64());
+					) yield self.prims().t_prim(Type.f32());
+					yield self.prims().t_prim(Type.f64());
 				}
 				LiteralKind.BOOL -> self.prims().t_bool();
 				LiteralKind.STRING -> self.prims().t_str();

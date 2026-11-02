@@ -41,7 +41,8 @@ pub fn main() {
 - [x] Self-hosted compiler (Kobel → C99 → native)
 - [x] Generics, traits, pattern matching, null-safety operators
 - [x] Bootstrap fixpoint: v2 emits byte-identical C vs v1
-- [ ] Drop the legacy C++/LLVM seed; bootstrap purely from generated C
+- [x] Bootstrap purely from generated C seed (dist/bootstrap.c)
+- [ ] Error union types / faults
 - [ ] Lambda / closures
 - [ ] Freestanding (no-libc) target
 - [ ] Concurrency model

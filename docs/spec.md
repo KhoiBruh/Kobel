@@ -1,184 +1,167 @@
 # Kobel Language Specification
 
-> Source of truth for Kobel syntax and semantics. The self-hosted compiler in `src/` is the reference implementation; where this document and the compiler disagree, file an issue.
+> The reference implementation is the self-hosted compiler in `src/`. Where this specification and the compiler disagree, this document is updated to match compiler reality or an issue is opened.
+
+---
 
 ## 1. Overview
 
-- **Kind:** general-purpose, procedural with object-oriented features. No `class`: `struct` holds data, `impl` holds behavior, `trait` provides abstraction. All dispatch is resolved statically at compile time — no virtual tables.
-- **Compilation:** Kobel source → C99 → native binary via a C compiler (`cl` by default).
-- **Memory:** no GC. Every value has a single owner and is released at scope end. The compiler checks moves only (no full borrow checker); overlapping borrows are the programmer's responsibility.
-- **Attributes:** `@operator(...)`, `@infix`. Users cannot define new attributes — the set is fixed by the language.
-- **Error model:** no exceptions. Errors are values: functions return union types with `fault`, handled with `!:`; nulls are handled with `?.` / `?:`.
+- **Paradigm:** Procedural with object-oriented and functional features. No `class` keyword: `struct` holds data, `impl` holds behavior, and `trait` provides static abstraction.
+- **Dispatch:** 100% static compile-time dispatch. No virtual method tables (vtables), no runtime type overhead.
+- **Compilation model:** Kobel source (`.kb`) → C99 source → native binary via any C compiler (`cl` by default on Windows, `gcc`/`clang` on POSIX).
+- **Memory model:** Explicit ownership without garbage collection. Values have single ownership and are freed at scope end. Raw pointers (`*T` read-only, `&T` mutable) are available for low-level systems programming.
+- **Error model:** Return values and null-safety operators (`?.` and `?:`). Rich fault/error union types are planned for a future release (see §13).
 
-## 2. Lexical structure
+---
 
-- Blocks use `{ ... }`.
-- Line comment: `// ...`. Block comment: `/* ... */`.
-- Keywords: `fn`, `struct`, `trait`, `fault`, `enum`, `alias`, `const`, `val`, `var`, `mod`, `use`, `pub`, `extern`, `defer`, `as`, `as?`, `in`, `if`, `else`, `when`, `is`, `for`, `while`, `loop`, `break`, `continue`, `return`, `yield`, `self`, `Self`, `null`, `true`, `false`, `and`, `or`, `not`.
-- Identifiers: `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be identifiers, so keywords cannot be path segments.
+## 2. Lexical Structure
 
-### Numeric literals
+- **Blocks:** Delimited by curly braces `{ ... }`.
+- **Comments:** Line comments `// ...` and block comments `/* ... */`.
+- **Keywords:**
+  `as`, `as?`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
+- **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be valid identifiers (keywords cannot be module path segments).
 
-Hex (`0xFF`), binary (`0b1010`), and `_` separators (`1_000_000`) are supported. Type suffixes are **UPPERCASE**; default is `i32` for integers, `f64` for floats:
+### Literals
 
-| Suffix | Type |
-|---|---|
-| *(none, no `.`)* | `i32` (or context-inferred, see below) |
-| `B` / `S` / `L` / `Z` | `i8` / `i16` / `i64` / `isz` |
-| `U` / `US` / `UL` / `UB` / `UZ` | `u32` / `u16` / `u64` / `u8` / `usz` |
-| *(none, with `.`)* or `D` | `f64` |
-| `F` | `f32` |
+- **Integers:** Decimal (`42`), hex (`0xFF`), binary (`0b1010`), and digit separators (`1_000_000`).
+- **Suffixes (uppercase):**
+  - Signed: `B` (`i8`), `S` (`i16`), `L` (`i64`), `Z` (`isz`).
+  - Unsigned: `UB` (`u8`), `US` (`u16`), `U` (`u32`), `UL` (`u64`), `UZ` (`usz`).
+  - Default: `i32` when unsuffixed.
+- **Contextual numeric inference:** An unsuffixed numeric literal adapts to the expected type from its surrounding context (e.g. variable annotation, function argument, binary operation):
+  ```kobel
+  val a: usz = 0;   // 0 infers to usz
+  val b = a + 1;    // 1 infers to usz
+  ```
+- **Floats:** `f64` by default (`3.14`, `1.0D`), or `F` suffix for `f32` (`3.14F`).
+- **Booleans:** `true`, `false`.
+- **Characters:** ASCII character literal `'a'`. Escape sequences: `\n`, `\r`, `\t`, `\\`, `\'`, `\"`, `\0`.
+- **Strings:** Double-quoted `"hello"`. Strings are owned and heap-allocated.
 
-**Contextual inference:** an unsuffixed integer literal expression (literals joined by `+ - * / %`, parentheses allowed) takes the surrounding type instead of defaulting to `i32`:
+---
 
-```kobel
-val a = i32.size() * 2;   // 2 infers to usz
-var c: usz = 0;
-c = c + 1;                // 1 infers to usz
-```
+## 3. Primitive Types
 
-Rules: an explicit suffix always wins; mixed-type operands of non-literal values still require `as`; a negative literal never infers to an unsigned type.
-
-## 3. Primitive types
-
-| Group | Types |
-|---|---|
-| Signed integers | `i8`, `i16`, `i32`, `i64`, `isz` |
-| Unsigned integers | `u8`, `u16`, `u32`, `u64`, `usz` |
-| Floats | `f32`, `f64` |
-| Boolean | `bool` |
-| Character | `char` (1-byte ASCII) |
-| String | `str` (heap-allocated, owned) |
-| Unit | no keyword — a function without a declared return type returns unit |
-
-`isz`/`usz` are pointer-width integers. `str` is length-tagged, not null-terminated (see §12 for C interop).
-
-### String interpolation
-
-Inside `"..."`, `${` … `}` opens a hole holding any expression, evaluated exactly once, in position:
-
-```kobel
-val name = "Kobel";
-println("Hello ${name}, n = ${n}");      // str, char, bool, numbers interpolate
-println("${obj.describe()} | ${list.len}");
-println("price: \$5");                   // `\$` is a literal `$`
-```
-
-Outside a hole, `{` and `}` are plain characters. There is no `$name` shorthand — always write `${name}`. Interpolable types: `str`, `char`, `bool`, all integer types (enums included, as their numeric value), `f32`/`f64`. Anything else is a compile error. Lowered in sema to `kobel_concat` calls; codegen is untouched.
-
-### Adjacent string concatenation
-
-Adjacent string literals (separated only by whitespace/newlines) merge at compile time, including interpolated ones:
-
-```kobel
-val query = "SELECT id, name, email "
-            "FROM users "
-            "WHERE active = 1;";
-```
-
-### Nullable types and raw pointers
-
-```kobel
-val a: i32? = null;
-```
-
-- `T?` is nullable; use `?.` for safe navigation and `?:` (Elvis) for the fallback (see §10).
-- Raw pointers work everywhere, with no `unsafe` block: `*T` is read-only, `&T` is read/write.
-
-### Casts
-
-```kobel
-val b = a as u32;    // panics if out of range or mismatched
-val c = a as? u32;   // returns nullable instead of panicking
-```
-
-Widening casts always succeed. There is no unchecked raw cast.
-
-## 4. Composite types
-
-| Type | Meaning | Storage |
+| Group | Types | Notes |
 |---|---|---|
-| `Array<T>` | Fixed size, known at compile time | Stack-like |
-| `List<T>` | Dynamic, self-resizing (`use std.collections.list.*`) | Heap |
-| `HashMap<K, V>` / `HashSet<T>` | Hash-based (`use std.collections.hash_map.*`) | Heap |
+| Signed integers | `i8`, `i16`, `i32`, `i64`, `isz` | `isz` matches pointer width |
+| Unsigned integers | `u8`, `u16`, `u32`, `u64`, `usz` | `usz` matches pointer width |
+| Floating point | `f32`, `f64` | IEEE-754 |
+| Boolean | `bool` | `true` or `false` |
+| Character | `char` | 1-byte ASCII character |
+| String | `str` | Length-tagged string |
+| None | `none` | Unit / no return value |
+
+### String Features
+
+- **String interpolation:** Inside `"..."`, `${expression}` interpolates any value whose type implements the `Stringer` trait (primitives, numbers, and custom types):
+  ```kobel
+  val name = "Kobel";
+  val count = 42;
+  println("Hello ${name}, count = ${count}");
+  ```
+  Use `\$` for a literal dollar sign.
+- **Adjacent string concatenation:** String literals separated only by whitespace or newlines merge at compile time:
+  ```kobel
+  val query = "SELECT id, name "
+              "FROM users "
+              "WHERE active = 1;";
+  ```
+
+### Nullable Types and Pointers
+
+- **Nullable:** `T?` marks a type as nullable (e.g., `*Node?`, `i32?`).
+- **Safe navigation (`?.`):** Accesses a field or calls a method only if the pointer is not null; evaluates to `null` or a default if null.
+- **Elvis operator (`?:`):** Provides a fallback value or early return on null:
+  ```kobel
+  val name = node?.name ?: "anonymous";
+  val next = node?.next ?: return false;
+  ```
+- **Raw pointers:**
+  - `*T`: Read-only pointer (dereferenced via `*p` or `p.field`).
+  - `&T`: Mutable pointer.
+- **Casts:**
+  - `x as T`: Casts `x` to type `T`.
+  - `x as? T`: Safe cast returning nullable `*T?` (evaluates to `null` if the dynamic tag does not match).
+
+---
+
+## 4. Structs, Methods, and Traits
+
+### Structs and Implementation
 
 ```kobel
-val a: Array<i32> = [0, 1, 2, 3];            // size inferred = 4
-val b: Array<i32>(4) = [0, 1, 2, 3];         // explicit size must match exactly
-var m: HashMap<str, i32> = HashMap<str, i32>();
-```
+pub struct Point {
+    pub x: i32,
+    pub y: i32 = 0    // default field value
+}
 
-`Array` and `str` are in the prelude; everything else must be imported.
+impl Point {
+    // Static constructor
+    pub fn new(x: i32, y: i32 = 0): Self => Self(x, y);
 
-### Self-referential structs
+    // Static helper
+    pub fn origin(): Self => Self.new(0, 0);
 
-```kobel
-struct Node {
-    value: i32,
-    next: *Node?
+    // Instance method (read-only self)
+    pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;
+
+    // Mutating instance method
+    pub fn translate(var self, dx: i32, dy: i32) {
+        self.x += dx;
+        self.y += dy;
+    }
 }
 ```
 
-Linked structures use nullable raw pointers with manual allocation and `defer` for cleanup. There is no owning smart pointer yet (see §14).
+- **Fields:** Declared inside `struct`. Fields support `pub` visibility and default initializers.
+- **Methods:** Defined in `impl StructName` blocks.
+  - Instance methods require an explicit `val self` (read-only) or `var self` (mutable) receiver.
+  - Static methods omit `self` and are called via `TypeName.method(...)` or `Self.method(...)` within `impl`.
+- **Construction:**
+  - Unified constructor syntax: `Point(1, 2)` calls `Point.new(1, 2)` if defined, otherwise falls back to positional field construction.
+  - Explicit static call: `Point.new(1, 2)`.
+  - Raw struct construction: `Self(1, 2)` inside `impl` constructs fields directly without calling `new`.
 
-### Forward declarations
+### Forward Declarations
 
+Mutually referential structs can be forward-declared:
 ```kobel
-struct A;                 // 'A' usable from here, behind *A only
+struct A;
 
 struct B {
     pub a: *A
 }
 
-struct A {                // completes the same type 'A'
-    pub v: i32,
-    pub b: *B
-}
-```
-
-A forward declaration registers an incomplete type: usable behind a pointer, rejected by value. Declaration and definition are one type; the backend emits a single typedef.
-
-## 5. Structs, traits, faults, enums
-
-### Structs and `impl`
-
-```kobel
 struct A {
-    pub a: i32,
-    pub b: str
-}
-
-impl A {
-    fn new(c: i32 = 1, d: str = "hello"): Self {
-        return Self(c, d);
-    }
-    // or short form:
-    fn new(c: i32 = 1, d: str = "hello") => Self(c, d);
+    pub b: *B? = null
 }
 ```
-
-- Structs declare fields only; methods live in `impl` blocks. Fields support per-field `pub`.
-- Methods with a `self` receiver (`val self` / `var self`) are instance methods (`obj.method()`).
-- Methods without a `self` parameter are static methods (`Type.method()`), including `fn new(...)` constructors. Inside `impl`, `Self.method(...)` calls static methods on the enclosing struct.
-- Construction: `A.new(...)` explicitly calls the static constructor `new`. `A(...)` is also supported as a unified constructor: calling `new` if present, or falling back to positional field construction `A(1, "hello")`. `Self(...)` always constructs the enclosing struct directly.
-- Memory layout is always C-compatible (declaration order, natural alignment) — no marker needed, FFI-ready.
-- Any function may use the single-expression body form `=> expr;`.
 
 ### Traits
 
+Traits define shared interfaces with static dispatch:
+
 ```kobel
-trait B {
-    fn greet(val self): str => "hello";   // default implementation
+trait Greeter {
+    fn name(val self): str;
+    // Default implementation:
+    fn greet(val self): str => "Hello, " + self.name();
 }
 
-impl B for A {
-    fn greet(val self): str => "hi, " + self.b;
+impl Greeter for Point {
+    fn name(val self): str => "Point(${self.x}, ${self.y})";
 }
 ```
 
-Traits may provide default implementations, be implemented many-per-struct, and inherit from other traits.
+- Traits support inheritance: `trait B : A { ... }`.
+- Traits can provide default method implementations that implementors may override.
+- Trait bounds on generics: `fn show<T: Greeter>(val item: T) { ... }`.
 
-### Associated types
+### Associated Types
+
+Traits can declare associated types, resolved per implementation:
 
 ```kobel
 trait Container {
@@ -188,41 +171,28 @@ trait Container {
 
 impl Container for IntBox {
     type Item = i32;
-    fn first(val self): Self.Item => self.v;
+    fn first(val self): Self.Item => self.value;
 }
 ```
 
-- Declare with `type Name;` in the trait, bind with `type Name = Type;` in the impl, use as `Self.Name`.
-- Every impl must bind all associated types exactly once, with no stray names.
-- Generic impls bind per instance (`impl Container for Box<T> { type Item = T; }`).
+---
 
-### Faults (error types)
+## 5. Enums
 
-```kobel
-fault A;                     // carries no data
-fault A(message: str);       // carries data, struct-like
-fault B : A;                 // extension — organizational only
-```
-
-Faults are not real types: no traits apply. `:` is **not** subtyping — a thrown `B` is caught only by a `B` arm, never implicitly as `A`.
-
-### Plain enums
+### Plain Enums
 
 ```kobel
-enum Status : u16 {   // `: u16` may be omitted; the compiler picks the layout
-    A,        // 0
-    B = 504,
-    C,        // 505 (auto-increment)
-    D,        // 506
+enum Status {
+    OK,
+    NOT_FOUND = 404,
+    ERROR
 }
 
-Status.A.value      // the integer value
-Status.of(505)      // Status? — nullable, not a fault
+val s = Status.OK;
+val code = s.value;    // underlying integer value
 ```
 
-A plain enum is a named integer type usable in arithmetic and comparison.
-
-### Payload enums
+### Payload Enums (Tagged Unions)
 
 ```kobel
 enum Shape {
@@ -231,193 +201,242 @@ enum Shape {
     Empty
 }
 
-val c = Shape.Circle(2.0);
-val e = Shape.Empty;              // empty variant used directly
+val c = Shape.Circle(2.5);
 
-val a = when (c) {
-    is Shape.Circle as circle -> 3.14 * circle.radius * circle.radius,
-    is Shape.Rect as r -> r.width * r.height,
-    is Shape.Empty -> 0.0,
-    else -> 0.0
+val area = when (c) {
+    is Shape.Circle as circle -> 3.14159 * circle.radius * circle.radius;
+    is Shape.Rect as r -> r.width * r.height;
+    is Shape.Empty -> 0.0;
+    else -> 0.0;
 };
 ```
 
-- Variants carry named fields. `is Shape.Circle as x` binds `x` as a **pointer** to the payload, so `x.radius` works for both value and pointer subjects.
-- C layout: `struct Shape { int32_t tag; union { ... } u; }`; each variant is a struct type (`Shape__Circle`) with a tag constant (`Shape__Circle__TAG`).
-- Not yet supported: generic enums, explicit discriminants, or custom backing types on payload enums.
+- Variants can store named payload fields.
+- `is Enum.Variant as alias` binds a pointer to the variant payload.
 
-### `alias`
+---
+
+## 6. Generics
+
+Kobel supports generic structs, functions, and methods monomorphized at compile time:
 
 ```kobel
-alias Number = Comparable + Cloneable;   // combined trait bound for <T: Number>
-alias Meters = f64;                       // plain type alias
+struct Box<T> {
+    pub value: T
+}
+
+impl Box<T> {
+    pub fn get(val self): T => self.value;
+}
+
+fn identity<T>(val x: T): T => x;
+
+// Generic method on struct:
+impl Arena {
+    pub fn alloc<T>(var self): *T { ... }
+}
 ```
 
-## 6. Ownership and memory
+- Type arguments can be explicitly passed (`box.get<i32>()`) or inferred from context (`arena.alloc_val(42)`).
 
-### Three parameter modes
+---
 
-| Declaration | Meaning | Takes ownership? |
-|---|---|---|
-| `self: T` | Move | Yes |
-| `val self: T` | Read borrow | No |
-| `var self: T` | Read/write borrow | No |
+## 7. Operators and Overloading
 
-The compiler checks moves only — no borrow checker or lifetimes. Overlapping borrows cannot cause memory unsafety, only logic bugs.
-
-### `val` / `var` / `const`
-
-- Local `val`/`var` controls **rebinding only**, independent of ownership. A moved-from `val` is dead for good; a moved-from `var` can be reassigned and reused. A `val` binding may still be passed to `var self` or owning parameters — that does not rebind it.
-- `const` is top-level only. Its value must be compile-time computable (no function calls).
-- Structs without a cleanup function require manual `defer <cleanup>(...)`; structs with one clean up automatically at scope end.
-
-## 7. Generics
+Operators are overloaded using the `op` keyword inside `impl` blocks:
 
 ```kobel
-fn max<T: Comparable>(val a: T, val b: T): T { ... }
-struct Box<T: Comparable> { value: T }
-```
+pub struct Vec2 {
+    pub x: i32,
+    pub y: i32
+}
 
-Applies to functions and structs. Multiple bounds via `+` (`T: A + B`) or a pre-combined `alias`. No `where` clause. Instantiation is monomorphization through the `sema/mono` worklist (see `docs/sema.md`).
-
-## 8. Control flow
-
-```kobel
-val a = if (x > 0) 1 else -1;   // if/else is an expression
-
-for (i in 0..10) { ... }        // closed–closed
-for (i in 0>..<10) { ... }      // open–open
-for (i in 0..<10) { ... }       // half-open, excludes the end
-for (i in 10..0) { ... }        // reversed, closed–closed
-for (i in iterator) { ... }
-for ((k, v) in map) { ... }     // destructuring
-
-while (cond) { ... }
-loop { ... break; }             // no do-while
-
-val result = when (x) {
-    1 -> "one",
-    2, 3 -> "two or three",
-    else -> "other"
-};
-```
-
-- All three range forms pick direction at runtime from the written bound order (`10..0` counts down). The loop variable is a read-only copy scoped to the body; `continue` still advances it. `0..<seq.len` is the indexing idiom — correct even when empty.
-- `break`/`continue` support labels for nested loops (exact label syntax still open, see §14).
-
-### Pattern matching and smart casts
-
-```kobel
-when (node) {
-    is Literal as lit -> lit.value;             // read-only bind, 'lit: *Literal'
-    is Binary as var b -> {                     // mutable bind ('as &b' also works)
-        b.left = new_node;
-        yield eval(b.left) + eval(b.right);
+impl Vec2 {
+    pub op plus(val self, other: Vec2): Vec2 => Vec2(self.x + other.x, self.y + other.y);
+    pub op minus(val self, other: Vec2): Vec2 => Vec2(self.x - other.x, self.y - other.y);
+    pub op negate(val self): Vec2 => Vec2(-self.x, -self.y);
+    pub op equals(val self, other: Vec2): bool => self.x == other.x && self.y == other.y;
+    pub op plus_assign(var self, other: Vec2) {
+        self.x += other.x;
+        self.y += other.y;
     }
+}
+```
+
+### Supported Operator Names
+
+| Operator Syntax | Method Name | Description |
+|---|---|---|
+| `a + b` | `plus` | Binary addition |
+| `a - b` | `minus` | Binary subtraction |
+| `a * b` | `mul` | Binary multiplication |
+| `a / b` | `div` | Binary division |
+| `a % b` | `rem` | Binary remainder |
+| `-a` | `negate` | Unary negation |
+| `!a` | `not` | Logical not |
+| `a == b` | `equals` | Equality check |
+| `a < b`, `a > b` | `compare` | Ordering comparison |
+| `a[i]` | `get` | Indexed read |
+| `a[i] = v` | `set` | Indexed write |
+| `x in seq` | `contains` | Containment test |
+| `a += b` | `plus_assign` | In-place addition |
+| `a -= b` | `minus_assign` | In-place subtraction |
+| `a *= b` | `mul_assign` | In-place multiplication |
+| `a /= b` | `div_assign` | In-place division |
+| `a %= b` | `rem_assign` | In-place remainder |
+
+---
+
+## 8. Control Flow
+
+### If Expressions and Statements
+
+```kobel
+val max = if (a > b) a else b;
+```
+
+### Loops
+
+```kobel
+// While loop
+while (condition) {
+    if (should_stop) break;
+    if (should_skip) continue;
+}
+
+// Ranges
+for (i in 0..10) { ... }       // Closed: 0 through 10
+for (i in 0..<10) { ... }      // Half-open: 0 through 9
+for (i in 0>..<10) { ... }     // Open: 1 through 9
+for (i in 10..0) { ... }       // Reverse counting: 10 down to 0
+
+// Iteration over collections (types implementing Iterable)
+for (item in list) { ... }
+```
+
+### Pattern Matching (`when`)
+
+`when` works as both an expression and a statement:
+
+```kobel
+// Value matching
+val text = when (status_code) {
+    200 -> "OK";
+    404 -> "Not Found";
+    else -> "Unknown";
+};
+
+// Smart cast pattern matching on tagged structs
+when (node) {
+    is Literal -> return node.value;       // smart cast: node typed as *Literal
+    is Binary -> return eval(node.left);
+    else -> return 0;
+}
+
+// Multi-statement block arm with yield
+val result = when (action) {
+    Action.CALC -> {
+        val temp = compute();
+        yield temp * 2;
+    };
     else -> 0;
 };
-
-if (node is Literal as var lit) {
-    lit.value = 42;
-}
 ```
 
-Matching is on a leading tag field: `is X` compares `subject.<first field>` against `X.TAG`. Participating structs must declare the tag field **first** and a `const TAG`. Binding forms: `as x` (read-only pointer), `as val x` (same, explicit), `as var x` / `as &x` (mutable). Destructuring: `val (a, b) = getPair();`.
-
-## 9. Operators and overloading
+### Statements and Increment
 
 ```kobel
-impl A {
-    @operator(+)
-    fn plus(val self, other: A): A => A(self.a + other.a, self.c + other.c);
-}
+var count = 0;
+count++;       // Statement increment
+count--;       // Statement decrement
+count += 5;    // Compound assignment
 ```
 
-- No operator traits — `@operator(...)` decides dispatch, the function name is free. Arithmetic and comparison operators supported; wrong types or missing impls are compile errors.
-- Custom infix functions:
+### Defer
+
+The `defer` statement schedules cleanup code to execute at scope exit:
 
 ```kobel
-@infix
-fn to(val self, other: B): Pair<A, B> => Pair(self, other);
-
-val p = a to b;   // desugars to a.to(b)
+var arena = Arena(1024);
+defer arena.delete();
 ```
 
-`in` is hard syntax, not an infix function.
+---
 
-## 10. Error handling and null-safety
+## 9. Modules and Visibility
 
 ```kobel
-fn parse(s: str): i32 | IllegalArguments {
-    if (invalid) { return IllegalArguments(...); }
-    return 5;
-}
+mod my_project.utils.helpers;
 
-val a = parse(s) !: 0;                            // fallback value
-val b = parse(s) !: return IllegalArguments(...); // early return
-val c = parse(s) !: when {                        // discriminate by fault type
-    IllegalArguments -> ...,
-};
-
-val d = maybeNull() ?: 0;   // Elvis for null
-
-val e = parse(s);   // unhandled -> panic with full diagnostics
+use std.io.*;
+use std.collections.List;
+use std.collections.HashMap as Map;
 ```
 
-- `!:` handles faults: fallback value, early return, or a `when` over fault types. Unhandled fault values panic.
-- `?.` is safe navigation; `?:` (Elvis) supplies the null fallback. Safe-nav on a non-pointer must pair with `?:`; comparisons in conditions must short-circuit.
+- **Module path:** Matches the file path. Segments must be valid identifiers.
+- **Imports:** Wildcard `use a.b.*` or explicit `use a.b.Symbol`. Import aliasing `use a.b as c` is supported.
+- **Visibility:** `pub` exports structs, functions, methods, fields, and constants. Symbols without `pub` are private to their defining module.
 
-## 11. Modules
+---
 
-```kobel
-mod a.b.c;   // c = file name, a.b = directory path
+## 10. Standard Library Highlights
 
-use a.b.c.A;
-use b.c.d.A as B;
-use b.c.d.*;     // pulls in only what is actually used
+Standard library modules live in `lib/std/`:
 
-use a.b.B;
-use a.c.B;       // clash -> refer via trailing module: b.B and c.B
-```
+- `std.io`: Console I/O (`print`, `println`).
+- `std.filesystem.File`: Static filesystem operations (`File.open`, `File.read`, `File.write`, `File.append`, `File.exists`, `File.remove`, `File.list_dir`).
+- `std.filesystem.Path`: Path manipulation utilities.
+- `std.collections`: Generic dynamic containers:
+  - `List<T>`: Dynamic resizable array.
+  - `HashMap<K: Hash, V>`: Hash table.
+  - `HashSet<T: Hash>`: Set collection.
+  - `StringBuilder`: Efficient string assembly.
+- `std.mem.alloc`: Direct memory allocator interface (`alloc<T>`, `alloc_array<T>`, `release<T>`).
+- `std.mem.arena`: Bump allocator (`Arena`) for single-point bulk deallocation.
+- `std.traits`: Core traits (`Iterable`, `Hash`, `Stringer`).
+- `std.sys`: System helpers (`exec`, `sys_exit`, `is_windows`, `has_env`).
 
-- If the trailing modules also clash, `use ... as <alias>` is mandatory. Fully-qualified paths as a disambiguator are not allowed.
-- Visibility is `pub` only — no `protected`/`internal`.
-- **Cyclic imports are allowed** between modules, but cross-references must go through a **pointer** (`struct A { b: *B }`); by-value cycles are rejected (C cannot hold them either). Type names are registered before field resolution, so declaration order across modules does not matter.
+---
 
-## 12. FFI
+## 11. Foreign Function Interface (FFI)
 
 ```kobel
 extern "libc" {
     fn printf(fmt: *char, ...): i32;
     fn malloc(size: usz): *u8;
+    fn free(ptr: *u8);
 }
 
-pub extern fn compute(x: i32): i32 {
-    return x * 2;
+pub extern fn add(a: i32, b: i32): i32 {
+    return a + b;
 }
 ```
 
-- Variadic parameters (`...`) are supported when **calling into** C; Kobel itself defines no variadic functions.
-- `str` is not C's `*char` (length-tagged, not null-terminated) — convert via stdlib helpers.
-- Exported functions (`pub extern fn`) must have a body and **cannot be overloaded** (C ABI needs one symbol name).
-- Struct layout is C-compatible by default (§5), so FFI needs no extra marking.
+- `extern "libc"` blocks declare external C bindings. Variadic arguments (`...`) are supported for C calls.
+- Struct memory layout in Kobel is C99-compatible by default.
 
-## 13. Program entry
+---
+
+## 12. Program Entry Point
 
 ```kobel
-pub fn main() { ... }
+pub fn main() {
+    println("Hello, World!");
+}
+
+// Or returning an exit code:
+pub fn main(): i32 {
+    return 0;
+}
 ```
 
-A command-line-argument variant is planned; its exact signature is still open (see §14).
+---
 
-## 14. Open issues
+## 13. Future Plans
 
-- Lambda/closures (Kotlin-style `list.filter { ... }` proposed; capture semantics undecided).
-- Freestanding / no-libc mode (direct syscalls, custom `_start`) — deferred.
-- `Box<T>` owning smart pointer for self-referential structs.
-- Concurrency model (raw libc threads vs dedicated syntax).
-- Per-field `pub` granularity beyond current support.
-- `///` doc-comment generation.
-- Package manager / build system for multi-file projects.
-- Exact `break`/`continue` label syntax.
-- Exact `main(args: ...)` signature.
+The following features are designed for future language versions:
+
+- **Error Union Types & Faults:** A planned error handling model with `fault` definitions and recovery operators (`!:`) to replace plain status returns.
+- **Lambdas and Closures:** Inline anonymous functions and closures with variable capture.
+- **Freestanding Target:** Direct syscall / no-libc compilation mode.
+- **Concurrency:** Structured concurrency and lightweight threading abstractions.

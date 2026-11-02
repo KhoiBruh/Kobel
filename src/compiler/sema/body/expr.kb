@@ -123,11 +123,11 @@ impl BodyPass {
 			LiteralKind.FLOAT -> {
 				val raw = lit.raw_text;
 				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
-				if (is_f32) yield self.prims().t_prim(type_f32());
+				if (is_f32) yield self.prims().t_prim(Type.f32());
 				if (expected?.is_float()) {
 					yield expected;
 				}
-				yield self.prims().t_prim(type_f64());
+				yield self.prims().t_prim(Type.f64());
 			}
 			LiteralKind.BOOL -> self.prims().t_bool();
 			LiteralKind.STRING -> {

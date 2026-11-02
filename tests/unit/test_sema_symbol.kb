@@ -5,9 +5,6 @@ use std.io.println;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
-use compiler.sema.types.type_i32;
-use compiler.sema.types.type_str;
-use compiler.sema.types.type_bool;
 
 use compiler.sema.symbol.SymbolKind;
 use compiler.sema.symbol.Symbol;
@@ -40,7 +37,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 
 fn test_global_scope() {
 	var symtab = SymbolTable();
-	var ty_i32 = type_i32();
+	var ty_i32 = Type.i32();
 
 	val ok = symtab.define(Symbol("global_var", "global_var", SymbolKind.VAR, &ty_i32, false, true, 1, 1));
 	assert_true(ok, "Must successfully define global_var");
@@ -81,8 +78,8 @@ fn test_global_scope() {
 
 fn test_duplicate_definition() {
 	var symtab = SymbolTable();
-	var ty_i32 = type_i32();
-	var ty_bool = type_bool();
+	var ty_i32 = Type.i32();
+	var ty_bool = Type.bool();
 
 	val ok1 = symtab.define(Symbol("count", "count", SymbolKind.VAR, &ty_i32, true, false, 1, 1));
 	assert_true(ok1, "First definition of 'count' must succeed");
@@ -104,8 +101,8 @@ fn test_duplicate_definition() {
 
 fn test_scoping_and_shadowing() {
 	var symtab = SymbolTable();
-	var ty_i32 = type_i32();
-	var ty_str = type_str();
+	var ty_i32 = Type.i32();
+	var ty_str = Type.str();
 
 	// Scope 0 (Global): x: i32
 	symtab.define(Symbol("x", "x", SymbolKind.VAR, &ty_i32, false, false, 1, 1));
@@ -176,7 +173,7 @@ fn test_function_boundary() {
 
 fn test_symbol_table_oop() {
 	var symtab = SymbolTable();
-	var ty_i32 = type_i32();
+	var ty_i32 = Type.i32();
 
 	// Test OOP define and lookup on SymbolTable
 	val ok = symtab.define(Symbol("oop_var", "oop_var", SymbolKind.VAR, &ty_i32, false, true, 1, 1));
