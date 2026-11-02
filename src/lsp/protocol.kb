@@ -1,7 +1,7 @@
 mod lsp.protocol;
 
 use std.io.*;
-use std.str.*;
+use std.string.*;
 use std.ascii.*;
 use std.mem.*;
 use std.collections.*;

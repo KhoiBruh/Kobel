@@ -1,11 +1,11 @@
-mod std.str;
+mod std.string;
 
 use std.collections.List;
 use std.mem.*;
 
 /*
  * ============================================================================
- * std.str — core `str` layout and methods
+ * std.string — core `str` layout and methods
  *
  * `str` is a non-owning fat-pointer view (`{ data: *char, len: usz }`, 16 bytes
  * in C99). String literals, concatenations, and buffer builders all keep an

@@ -172,7 +172,7 @@ typedef struct std__mem__ArenaBlock std__mem__ArenaBlock;
 typedef struct std__mem__Arena std__mem__Arena;
 typedef struct std__collections__HashSet std__collections__HashSet;
 typedef struct std__collections__StringBuilder std__collections__StringBuilder;
-typedef struct std__str__StrRaw std__str__StrRaw;
+typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct config__toml__Toml config__toml__Toml;
 typedef struct config__project__ProjectConfig config__project__ProjectConfig;
 typedef struct compiler__ast__types__NamedType compiler__ast__types__NamedType;
@@ -516,7 +516,7 @@ struct std__collections__StringBuilder {
     size_t cap;
 };
 
-struct std__str__StrRaw {
+struct std__string__StrRaw {
     const char* data;
     size_t len;
 };
@@ -2123,7 +2123,12 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	l.len = n;
 	l.cap = cap;
 	return l;
-}size_t std__traits__hash_int(size_t n);
+}std__mem__Arena std__mem__Arena_new(size_t block_size);
+uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align);
+void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size);
+void std__mem__Arena_reset(std__mem__Arena* self);
+void std__mem__Arena_delete(std__mem__Arena* self);
+size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 size_t bool_hash(bool self);
 size_t char_hash(char self);
@@ -2138,11 +2143,6 @@ size_t u16_hash(uint16_t self);
 size_t u32_hash(uint32_t self);
 size_t u64_hash(uint64_t self);
 size_t usz_hash(size_t self);
-std__mem__Arena std__mem__Arena_new(size_t block_size);
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align);
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size);
-void std__mem__Arena_reset(std__mem__Arena* self);
-void std__mem__Arena_delete(std__mem__Arena* self);
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap);
 size_t std__collections__HashSet_dist(std__collections__HashSet* self, size_t from, size_t to);
 bool std__collections__HashSet_add(std__collections__HashSet* self, kobel_str key);
@@ -2181,7 +2181,7 @@ uint8_t std__collections__StringBuilder_set(std__collections__StringBuilder* sel
 size_t std__collections__StringBuilder_count(std__collections__StringBuilder* self);
 char std__collections__StringBuilder_at(std__collections__StringBuilder* self, size_t i);
 kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self);
-kobel_str std__str__str_from_bytes(uint8_t* buf, size_t len);
+kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 bool str_empty(kobel_str self);
 bool str_starts_with(kobel_str self, kobel_str prefix);
 bool str_ends_with(kobel_str self, kobel_str suffix);
@@ -2194,12 +2194,12 @@ kobel_str str_join(kobel_str self, std__collections__List_str list);
 kobel_str str_suffix_tail(kobel_str self);
 kobel_str str_num_suffix(kobel_str self);
 bool str_contains(kobel_str self, kobel_str sub);
-kobel_str std__traits__fmt_u64(uint64_t n0);
-kobel_str std__traits__fmt_i64(int64_t v);
-kobel_str std__traits__fmt_char(char c);
-kobel_str std__traits__fmt_bool(bool b);
-kobel_str std__traits__fmt_zeros(size_t n);
-kobel_str std__traits__fmt_f64(double v);
+kobel_str std__string__fmt_u64(uint64_t n0);
+kobel_str std__string__fmt_i64(int64_t v);
+kobel_str std__string__fmt_char(char c);
+kobel_str std__string__fmt_bool(bool b);
+kobel_str std__string__fmt_zeros(size_t n);
+kobel_str std__string__fmt_f64(double v);
 kobel_str bool_to_str(bool self);
 kobel_str char_to_str(char self);
 kobel_str str_to_str(kobel_str self);
@@ -4419,6 +4419,65 @@ compiler__sema__symbol__Scope* std__mem__Arena_alloc_compiler__sema__symbol__Sco
 compiler__sema__symbol__ModuleScope* std__mem__Arena_alloc_compiler__sema__symbol__ModuleScope(std__mem__Arena* self);
 compiler__sema__instance__AnnEntry* std__mem__Arena_alloc_compiler__sema__instance__AnnEntry(std__mem__Arena* self);
 
+std__mem__Arena std__mem__Arena_new(size_t block_size) {
+    return (std__mem__Arena){ NULL, block_size };
+}
+
+uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align) {
+    if (self->current == NULL) {
+        std__mem__Arena_new_block(self, size);
+    }
+    std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)self->current;
+    size_t rem = (blk->used % align);
+    size_t aligned_used = blk->used;
+    if (rem != 0) {
+        aligned_used = (blk->used + (align - rem));
+    }
+    if ((aligned_used + size) > blk->size) {
+        std__mem__Arena_new_block(self, size);
+        blk = (std__mem__ArenaBlock*)self->current;
+        aligned_used = 0;
+    }
+    uint8_t* ptr = &blk->data[aligned_used];
+    blk->used = (aligned_used + size);
+    return ptr;
+}
+
+void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size) {
+    size_t sz = self->block_size;
+    if (sz < min_size) {
+        sz = min_size;
+    }
+    uint8_t* data = std__mem__alloc_array_u8(sz);
+    std__mem__ArenaBlock* blk = std__mem__alloc_std__mem__ArenaBlock();
+    blk->data = data;
+    blk->size = sz;
+    blk->used = 0;
+    blk->next = self->current;
+    self->current = (std__mem__ArenaBlock*)blk;
+}
+
+void std__mem__Arena_reset(std__mem__Arena* self) {
+    std__mem__ArenaBlock* curr = self->current;
+    while (curr != NULL) {
+        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
+        blk->used = 0;
+        curr = blk->next;
+    }
+}
+
+void std__mem__Arena_delete(std__mem__Arena* self) {
+    std__mem__ArenaBlock* curr = self->current;
+    while (curr != NULL) {
+        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
+        std__mem__ArenaBlock* next_blk = blk->next;
+        std__mem__release_u8(blk->data);
+        std__mem__release_std__mem__ArenaBlock(curr);
+        curr = next_blk;
+    }
+    self->current = NULL;
+}
+
 size_t std__traits__hash_int(size_t n) {
     return ((n / 8) * 2654435761);
 }
@@ -4507,65 +4566,6 @@ size_t u64_hash(uint64_t self) {
 
 size_t usz_hash(size_t self) {
     return std__traits__hash_int(self);
-}
-
-std__mem__Arena std__mem__Arena_new(size_t block_size) {
-    return (std__mem__Arena){ NULL, block_size };
-}
-
-uint8_t* std__mem__Arena_alloc_bytes(std__mem__Arena* self, size_t size, size_t align) {
-    if (self->current == NULL) {
-        std__mem__Arena_new_block(self, size);
-    }
-    std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)self->current;
-    size_t rem = (blk->used % align);
-    size_t aligned_used = blk->used;
-    if (rem != 0) {
-        aligned_used = (blk->used + (align - rem));
-    }
-    if ((aligned_used + size) > blk->size) {
-        std__mem__Arena_new_block(self, size);
-        blk = (std__mem__ArenaBlock*)self->current;
-        aligned_used = 0;
-    }
-    uint8_t* ptr = &blk->data[aligned_used];
-    blk->used = (aligned_used + size);
-    return ptr;
-}
-
-void std__mem__Arena_new_block(std__mem__Arena* self, size_t min_size) {
-    size_t sz = self->block_size;
-    if (sz < min_size) {
-        sz = min_size;
-    }
-    uint8_t* data = std__mem__alloc_array_u8(sz);
-    std__mem__ArenaBlock* blk = std__mem__alloc_std__mem__ArenaBlock();
-    blk->data = data;
-    blk->size = sz;
-    blk->used = 0;
-    blk->next = self->current;
-    self->current = (std__mem__ArenaBlock*)blk;
-}
-
-void std__mem__Arena_reset(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
-    while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
-        blk->used = 0;
-        curr = blk->next;
-    }
-}
-
-void std__mem__Arena_delete(std__mem__Arena* self) {
-    std__mem__ArenaBlock* curr = self->current;
-    while (curr != NULL) {
-        std__mem__ArenaBlock* blk = (std__mem__ArenaBlock*)curr;
-        std__mem__ArenaBlock* next_blk = blk->next;
-        std__mem__release_u8(blk->data);
-        std__mem__release_std__mem__ArenaBlock(curr);
-        curr = next_blk;
-    }
-    self->current = NULL;
 }
 
 std__collections__HashSet std__collections__HashSet_new(size_t init_cap) {
@@ -5142,11 +5142,11 @@ kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder
         }
     }
     str_data[self->len] = 0;
-    return std__str__str_from_bytes(str_data, self->len);
+    return std__string__str_from_bytes(str_data, self->len);
 }
 
-kobel_str std__str__str_from_bytes(uint8_t* buf, size_t len) {
-    std__str__StrRaw r = (std__str__StrRaw){ (const char*)buf, len };
+kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
+    std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
     kobel_str* sp = (kobel_str*)&r;
     return *sp;
 }
@@ -5343,7 +5343,7 @@ kobel_str str_strip_char(kobel_str self, char c) {
         }
     }
     buf[w] = 0;
-    return std__str__str_from_bytes(buf, w);
+    return std__string__str_from_bytes(buf, w);
 }
 
 kobel_str str_replace_char(kobel_str self, char from, char to) {
@@ -5381,7 +5381,7 @@ kobel_str str_replace_char(kobel_str self, char from, char to) {
         }
     }
     buf[self.len] = 0;
-    return std__str__str_from_bytes(buf, self.len);
+    return std__string__str_from_bytes(buf, self.len);
 }
 
 kobel_str str_repeat(kobel_str self, size_t n) {
@@ -5447,7 +5447,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
         }
     }
     buf[w] = 0;
-    return std__str__str_from_bytes(buf, w);
+    return std__string__str_from_bytes(buf, w);
 }
 
 kobel_str str_join(kobel_str self, std__collections__List_str list) {
@@ -5540,7 +5540,7 @@ kobel_str str_join(kobel_str self, std__collections__List_str list) {
         }
     }
     buf[w] = 0;
-    return std__str__str_from_bytes(buf, w);
+    return std__string__str_from_bytes(buf, w);
 }
 
 kobel_str str_suffix_tail(kobel_str self) {
@@ -5617,7 +5617,7 @@ bool str_contains(kobel_str self, kobel_str sub) {
     return (str_index_of(self, sub) >= 0);
 }
 
-kobel_str std__traits__fmt_u64(uint64_t n0) {
+kobel_str std__string__fmt_u64(uint64_t n0) {
     uint64_t n = n0;
     int32_t digits = 1;
     uint64_t probe = n;
@@ -5633,28 +5633,28 @@ kobel_str std__traits__fmt_u64(uint64_t n0) {
         buf[i] = (uint8_t)(48 + (n % 10));
         n /= 10;
     }
-    return std__str__str_from_bytes(buf, digits);
+    return std__string__str_from_bytes(buf, digits);
 }
 
-kobel_str std__traits__fmt_i64(int64_t v) {
+kobel_str std__string__fmt_i64(int64_t v) {
     if (v < 0) {
-        return kobel_concat(KOBEL_STR("-"), std__traits__fmt_u64((0 - v)));
+        return kobel_concat(KOBEL_STR("-"), std__string__fmt_u64((0 - v)));
     }
-    return std__traits__fmt_u64(v);
+    return std__string__fmt_u64(v);
 }
 
-kobel_str std__traits__fmt_char(char c) {
+kobel_str std__string__fmt_char(char c) {
     uint8_t* buf = std__mem__alloc_array_u8(2);
     buf[0] = ((int32_t)(uint8_t)(c));
     buf[1] = 0;
-    return std__str__str_from_bytes(buf, 1);
+    return std__string__str_from_bytes(buf, 1);
 }
 
-kobel_str std__traits__fmt_bool(bool b) {
+kobel_str std__string__fmt_bool(bool b) {
     return (b ? KOBEL_STR("true") : KOBEL_STR("false"));
 }
 
-kobel_str std__traits__fmt_zeros(size_t n) {
+kobel_str std__string__fmt_zeros(size_t n) {
     if (n == 0) {
         return KOBEL_STR("");
     }
@@ -5688,10 +5688,10 @@ kobel_str std__traits__fmt_zeros(size_t n) {
         }
     }
     buf[n] = 0;
-    return std__str__str_from_bytes(buf, n);
+    return std__string__str_from_bytes(buf, n);
 }
 
-kobel_str std__traits__fmt_f64(double v) {
+kobel_str std__string__fmt_f64(double v) {
     if (v != v) {
         return KOBEL_STR("nan");
     }
@@ -5744,13 +5744,13 @@ kobel_str std__traits__fmt_f64(double v) {
         ip++;
         frac = 0;
     }
-    kobel_str out = kobel_concat(sign, std__traits__fmt_u64(ip));
+    kobel_str out = kobel_concat(sign, std__string__fmt_u64(ip));
     if (frac == 0) {
         return out;
     }
-    kobel_str digits = std__traits__fmt_u64(frac);
+    kobel_str digits = std__string__fmt_u64(frac);
     if (digits.len < prec) {
-        digits = kobel_concat(std__traits__fmt_zeros((prec - digits.len)), digits);
+        digits = kobel_concat(std__string__fmt_zeros((prec - digits.len)), digits);
     }
     size_t end = digits.len;
     while (end > 0) {
@@ -5766,11 +5766,11 @@ kobel_str std__traits__fmt_f64(double v) {
 }
 
 kobel_str bool_to_str(bool self) {
-    return std__traits__fmt_bool(self);
+    return std__string__fmt_bool(self);
 }
 
 kobel_str char_to_str(char self) {
-    return std__traits__fmt_char(self);
+    return std__string__fmt_char(self);
 }
 
 kobel_str str_to_str(kobel_str self) {
@@ -5778,51 +5778,51 @@ kobel_str str_to_str(kobel_str self) {
 }
 
 kobel_str i8_to_str(int8_t self) {
-    return std__traits__fmt_i64(self);
+    return std__string__fmt_i64(self);
 }
 
 kobel_str i16_to_str(int16_t self) {
-    return std__traits__fmt_i64(self);
+    return std__string__fmt_i64(self);
 }
 
 kobel_str i32_to_str(int32_t self) {
-    return std__traits__fmt_i64(self);
+    return std__string__fmt_i64(self);
 }
 
 kobel_str i64_to_str(int64_t self) {
-    return std__traits__fmt_i64(self);
+    return std__string__fmt_i64(self);
 }
 
 kobel_str isz_to_str(intptr_t self) {
-    return std__traits__fmt_i64(self);
+    return std__string__fmt_i64(self);
 }
 
 kobel_str u8_to_str(uint8_t self) {
-    return std__traits__fmt_u64(self);
+    return std__string__fmt_u64(self);
 }
 
 kobel_str u16_to_str(uint16_t self) {
-    return std__traits__fmt_u64(self);
+    return std__string__fmt_u64(self);
 }
 
 kobel_str u32_to_str(uint32_t self) {
-    return std__traits__fmt_u64(self);
+    return std__string__fmt_u64(self);
 }
 
 kobel_str u64_to_str(uint64_t self) {
-    return std__traits__fmt_u64(self);
+    return std__string__fmt_u64(self);
 }
 
 kobel_str usz_to_str(size_t self) {
-    return std__traits__fmt_u64(self);
+    return std__string__fmt_u64(self);
 }
 
 kobel_str f32_to_str(float self) {
-    return std__traits__fmt_f64(self);
+    return std__string__fmt_f64(self);
 }
 
 kobel_str f64_to_str(double self) {
-    return std__traits__fmt_f64(self);
+    return std__string__fmt_f64(self);
 }
 
 void std__io__print(kobel_str s) {
@@ -5881,7 +5881,7 @@ kobel_str std__io__read_file(kobel_str path) {
     size_t read_bytes = fread(buf, 1, sz, f);
     fclose(f);
     buf[read_bytes] = 0;
-    return std__str__str_from_bytes(buf, read_bytes);
+    return std__string__str_from_bytes(buf, read_bytes);
 }
 
 bool std__io__write_file(kobel_str path, kobel_str content) {
@@ -5960,7 +5960,7 @@ std__collections__List_str std__io__list_dir(kobel_str path) {
 }
 
 kobel_str util__strutil__cstr_to_str(const char* s) {
-    return std__str__str_from_bytes((uint8_t*)s, strlen(s));
+    return std__string__str_from_bytes((uint8_t*)s, strlen(s));
 }
 
 bool util__strutil__str_is_sep(char c) {
@@ -6008,7 +6008,7 @@ kobel_str str_path_to_module(kobel_str self) {
         }
     }
     buf[stem.len] = 0;
-    return std__str__str_from_bytes(buf, stem.len);
+    return std__string__str_from_bytes(buf, stem.len);
 }
 
 bool str_has_kb_suffix(kobel_str self) {
@@ -6182,7 +6182,7 @@ kobel_str str_mangle_symbol(kobel_str self, kobel_str name) {
         }
     }
     buf[w] = 0;
-    return std__str__str_from_bytes(buf, w);
+    return std__string__str_from_bytes(buf, w);
 }
 
 kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case) {
@@ -6217,7 +6217,7 @@ kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_cas
         }
     }
     buf[self.len] = 0;
-    return std__str__str_from_bytes(buf, self.len);
+    return std__string__str_from_bytes(buf, self.len);
 }
 
 kobel_str str_normalize_path(kobel_str self) {
@@ -6595,7 +6595,7 @@ kobel_str util__strutil__str_join_dots(std__collections__List_str parts, size_t 
         }
     }
     buf[w] = 0;
-    return std__str__str_from_bytes(buf, w);
+    return std__string__str_from_bytes(buf, w);
 }
 
 config__toml__Toml config__toml__Toml_new(kobel_str content) {
@@ -14200,7 +14200,7 @@ void compiler__sema__body__pass__BodyPass_ensure_to_str(compiler__sema__body__pa
     if ((ty == NULL) || (ty->kind == 15)) {
         return;
     }
-    compiler__sema__traits__TraitInfo* trait_to_str = compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, KOBEL_STR("ToStr"));
+    compiler__sema__traits__TraitInfo* trait_to_str = compiler__sema__symbol__SymbolTable_find_trait(&self->symtab, KOBEL_STR("Stringer"));
     if (trait_to_str != NULL) {
         compiler__sema__types__Type* cur_ty = ty;
         if (cur_ty->kind == 16) {
@@ -14221,7 +14221,7 @@ void compiler__sema__body__pass__BodyPass_ensure_to_str(compiler__sema__body__pa
             return;
         }
     }
-    compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Interpolated value must implement ToStr"));
+    compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Interpolated value must implement Stringer"));
 }
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_call_expr(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node) {
@@ -23167,6 +23167,9 @@ int32_t compiler__driver__pipeline__CompileOptions_compile(compiler__driver__pip
     if (compiler__loader__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.traits")).found) {
         compiler__loader__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.traits"), 0, 0, KOBEL_STR(""));
     }
+    if (compiler__loader__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.string")).found) {
+        compiler__loader__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0, 0, KOBEL_STR(""));
+    }
     compiler__ast__node__AstNode* loaded_prog = compiler__loader__loader__ModuleLoader_load_program(&loader, input_path, src);
     if (!std__collections__List_str_empty(&loader.errors)) {
         compiler__driver__diagnostics__print_diagnostics(loader.errors, input_path, &loader);
@@ -25780,7 +25783,7 @@ kobel_str lsp__protocol__read_message(void) {
         }
     }
     buf[content_length] = 0;
-    return std__str__str_from_bytes(buf, content_length);
+    return std__string__str_from_bytes(buf, content_length);
 }
 
 void lsp__document__DocumentStore_set(lsp__document__DocumentStore* self, kobel_str uri, kobel_str text, int64_t version) {
@@ -26079,6 +26082,9 @@ lsp__analysis__AnalysisResult lsp__analysis__AnalysisResult_new(kobel_str path, 
     compiler__loader__loader__ModuleLoader loader = compiler__loader__loader__ModuleLoader_new(entry_dir, extra_roots);
     if (compiler__loader__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.fmt")).found) {
         compiler__loader__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.fmt"), 0, 0, KOBEL_STR(""));
+    }
+    if (compiler__loader__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.string")).found) {
+        compiler__loader__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0, 0, KOBEL_STR(""));
     }
     compiler__ast__node__AstNode* full_prog = compiler__loader__loader__ModuleLoader_load_program(&loader, path, source);
     if (loader.errors.len > 0) {

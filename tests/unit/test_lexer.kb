@@ -9,7 +9,7 @@ use compiler.lexer.token.Token;
 use compiler.lexer.lexer.Lexer;
 
 use std.collections.List;
-use std.str.str_from_bytes;
+use std.string.str_from_bytes;
 use std.mem.alloc_array;
 
 fn test_keywords(): bool {

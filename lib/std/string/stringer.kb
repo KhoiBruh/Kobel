@@ -1,14 +1,14 @@
-mod std.traits;
+mod std.string;
 
 use std.mem.*;
-use std.str.str_from_bytes;
+use std.string.str_from_bytes;
 
 // ============================================================================
-// std.traits.to_str - the `ToStr` trait
+// std.traits.to_str - the `Stringer` trait
 //
-// `ToStr` is the trait behind string interpolation and `x.to_str()`. It comes
+// `Stringer` is the trait behind string interpolation and `x.to_str()`. It comes
 // with implementations for the built-in value types; user structs may implement
-// it too (import this module and write `impl ToStr for MyStruct`).
+// it too (import this module and write `impl Stringer for MyStruct`).
 //
 // One file per trait keeps std/traits/ organized as more traits are added.
 //
@@ -16,7 +16,7 @@ use std.str.str_from_bytes;
 // zeros trimmed) so no libc is needed; there is no exponent notation.
 // ============================================================================
 
-pub trait ToStr {
+pub trait Stringer {
 	fn to_str(val self): str;
 }
 
@@ -119,62 +119,62 @@ fn fmt_f64(v: f64): str {
 
 // --- built-in implementations ----------------------------------------------
 
-impl ToStr for bool {
+impl Stringer for bool {
 	fn to_str(val self) => fmt_bool(self);
 }
 
-impl ToStr for char {
+impl Stringer for char {
 	fn to_str(val self) => fmt_char(self);
 }
 
-impl ToStr for str {
+impl Stringer for str {
 	fn to_str(val self) => self;
 }
 
-impl ToStr for i8 {
+impl Stringer for i8 {
 	fn to_str(val self) => fmt_i64(self);
 }
 
-impl ToStr for i16 {
+impl Stringer for i16 {
 	fn to_str(val self) => fmt_i64(self);
 }
 
-impl ToStr for i32 {
+impl Stringer for i32 {
 	fn to_str(val self) => fmt_i64(self);
 }
 
-impl ToStr for i64 {
+impl Stringer for i64 {
 	fn to_str(val self) => fmt_i64(self);
 }
 
-impl ToStr for isz {
+impl Stringer for isz {
 	fn to_str(val self) => fmt_i64(self);
 }
 
-impl ToStr for u8 {
+impl Stringer for u8 {
 	fn to_str(val self) => fmt_u64(self);
 }
 
-impl ToStr for u16 {
+impl Stringer for u16 {
 	fn to_str(val self) => fmt_u64(self);
 }
 
-impl ToStr for u32 {
+impl Stringer for u32 {
 	fn to_str(val self) => fmt_u64(self);
 }
 
-impl ToStr for u64 {
+impl Stringer for u64 {
 	fn to_str(val self) => fmt_u64(self);
 }
 
-impl ToStr for usz {
+impl Stringer for usz {
 	fn to_str(val self) => fmt_u64(self);
 }
 
-impl ToStr for f32 {
+impl Stringer for f32 {
 	fn to_str(val self) => fmt_f64(self);
 }
 
-impl ToStr for f64 {
+impl Stringer for f64 {
 	fn to_str(val self) => fmt_f64(self);
 }

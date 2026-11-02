@@ -8,7 +8,11 @@ mod std.fmt;
 // it pulls in the built-in implementations of every formatting trait.
 //
 //   use std.fmt.*;              // everything below
-//   use std.traits.*;    // just the ToStr trait
+//   use std.traits.*;
+
+use std.string.*;
 // ============================================================================
 
 use std.traits.*;
+
+use std.string.*;

@@ -1,8 +1,9 @@
 mod std.collections;
 
 use std.mem.*;
-use std.str.*;
+use std.string.*;
 use std.traits.*;
+use std.string.*;
 
 // `len` is the public size accessor; the buffer and capacity are internal.
 pub struct StringBuilder {
@@ -136,7 +137,7 @@ impl Iterable for StringBuilder {
 	pub fn at(val self, i: usz) => char(self.buf[i]);
 }
 
-impl ToStr for StringBuilder {
+impl Stringer for StringBuilder {
 	pub fn to_str(val self): str {
 		val str_data = alloc_array<u8>(self.len + 1);
 		for (i in 0..<self.len) str_data[i] = self.buf[i];

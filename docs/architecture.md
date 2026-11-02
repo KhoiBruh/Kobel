@@ -220,8 +220,8 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `io.kb` | `print/println`, `read_file/write_file`; handle stdio là `*none` (opaque `FILE*`) |
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
-| `str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
-| `traits/to_str.kb` | trait `ToStr { fn to_str(val self): str }` + impl cho `bool/char/str`, số nguyên, `f32/f64`; nền của nội suy `${...}` |
+| `string/str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |
+| `string/stringer.kb` | trait `Stringer { fn to_str(val self): str }` + impl cho `bool/char/str`, số nguyên, `f32/f64`; nền của nội suy `${...}` |
 | `traits/iterable.kb` | trait `Iterable { fn count(val self): usz; fn at(val self, i: usz) }` — kiểu impl nó thì `for (x in seq)` dùng `count()`/`at(i)` |
 | `fmt.kb` | **umbrella** cho định dạng: `use std.traits.to_str.*` — một trait một tệp dưới `traits/` để thư mục lớn dần |
 | `collections/list.kb` | `List<T>` (generic) — **field không `pub`**, dựng qua `List<T>()` / `List<T>(capacity)` (constructor inherent); impl `Iterable` nên `for (x in list)` chạy |
@@ -232,7 +232,7 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 | `mem/arena.kb` | `Arena` (vùng, giải phóng một lần) — field riêng tư, dựng bằng `Arena()` / `Arena(block_size)` (constructor inherent) + `arena_alloc<T>(&Arena): *T`; dùng facade `std.mem.alloc` |
 
 Quy ước `pub`: `List.cap`, mọi field của `Arena`/`ArenaBlock`, của `StringBuilder`/`HashMap` (trừ `len`
-là accessor công khai), và struct nội bộ `StrRaw` (ở `str.kb`) **không** `pub` — module khác phải đi qua
+là accessor công khai), và struct nội bộ `StrRaw` (ở `string/str.kb`) **không** `pub` — module khác phải đi qua
 constructor/method. Riêng `List.data` / `List.len`
 giữ `pub` vì hạ tầng `for` đọc trực tiếp (xem §6.2).
 
@@ -309,7 +309,7 @@ chuyển sang pass riêng, phần còn lại vẫn hạ ngay trong `check_*` (`r
 | `for (x in seq)` — `seq` là `str`/`[T; N]`/struct có `.len`+`.data` | `val __for_n = seq.len; var __for_i = 0; while (__for_i < __for_n) { val x = seq.data[__for_i]; …; __for_i += 1 }` |
 | `for (x in seq)` — kiểu của `seq` (hoặc con trỏ `*T`/`&T`) có `impl Iterable` | `val __for_n = seq.count(); var __for_i = 0UZ; while (__for_i < __for_n) { val x = seq.at(__for_i); …; __for_i += 1 }` — phần tử lấy từ trait, container **không** cần là mảng phẳng; hỗ trợ cả container theo giá trị lẫn con trỏ |
 | `for (i in a..b)` / `a..<b` / `a>..<b` | `while (__for_go) { … }` có cờ kết thúc; chiều tăng/giảm quyết định **lúc chạy** (`__for_up`). `..<` là dạng nửa mở (loại trừ biên cuối) — dùng cho idiom `for (i in 0..<seq.len)` |
-| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `x.to_str()` (trait `ToStr` ở `std/traits/to_str.kb`) — riêng `str` giữ nguyên xi; hỗ trợ cả kiểu nguyên thuỷ, struct và con trỏ `*Struct`/`&Struct` impl `ToStr`. Kiểu không có `to_str` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
+| `"a${x}b"` | chuỗi `kobel_concat`; mỗi hố hạ thành `x.to_str()` (trait `Stringer` ở `std/string/stringer.kb`) — riêng `str` giữ nguyên xi; hỗ trợ cả kiểu nguyên thuỷ, struct và con trỏ `*Struct`/`&Struct` impl `Stringer`. Kiểu không có `to_str` ⇒ lỗi biên dịch. **Không còn helper C nào cho nội suy** |
 
 `for` có **hai đường**: nếu kiểu của đối tượng duyệt (hoặc kiểu con trỏ trỏ tới nó) có `impl Iterable`
 thì đi qua trait (`count()`/`at(i)`, phần tử lấy kiểu từ `at`; các container danh sách định nghĩa của
@@ -337,8 +337,8 @@ vòng `while` cầm tay sang `for`, phải soi riêng nhóm "biến đếm sốn
 ### 6.3 Runtime helper trong C sinh ra
 
 Prelude của file C chèn sẵn: `kobel_slice`, `kobel_concat`, `kobel_streq`, `kobel_memeq`, `kobel_slen`. **Không còn
-helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi qua trait `ToStr` viết thuần Kobel ở
-`std/traits/to_str.kb`. Prelude C đã được tách thành module độc lập `compiler.codegen.c_runtime`
+helper chuyển-kiểu-sang-`str`**: mọi giá trị (kể cả `f32/f64`) đi qua trait `Stringer` viết thuần Kobel ở
+`std/string/stringer.kb`. Prelude C đã được tách thành module độc lập `compiler.codegen.c_runtime`
 (`src/compiler/codegen/c_runtime.kb`, chứa hằng chuỗi `C_PRELUDE`).
 
 ### 6.4 Hạ tầng C
@@ -472,16 +472,16 @@ chứ không còn bảng phụ:
 được **khai báo trước** (`struct PrimMethods;`, P‑1) và định nghĩa sau `MethodInfo`; `Type.methods` là
 `*PrimMethods`. Trước khi có khai báo trước, chỗ này buộc phải là `*u8` + cast.
 
-Nền tảng này nuôi **trait `ToStr`** (`../lib/std/string/string.kb`, gom qua umbrella `lib/std/fmt.kb`).
-Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.traits.to_str` — để impl
-`ToStr` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay không; nhờ vậy nội suy
+Nền tảng này nuôi **trait `Stringer`** (`../lib/std/string/string.kb`, gom qua umbrella `lib/std/fmt.kb`).
+Driver (`src/main.kb`) **luôn nạp `std.fmt`** (nếu tìm thấy) — kéo theo `std.string.stringer` — để impl
+`Stringer` cho `bool/char/str/số nguyên` luôn tồn tại, bất kể input có `use` hay không; nhờ vậy nội suy
 `${x}` hạ được thành `x.to_str()`.
 
 ⚠ Hạn chế: chưa có `dyn`/trait object; hợp đồng so theo **tên method + arity** (chưa so kiểu chữ ký);
 method nguyên thuỷ dùng tên C toàn cục (`i32_to_str`) nên hai module cùng impl một method cho một kiểu
 sẽ đụng tên; hợp đồng của `impl Trait for Generic<T>` chỉ được kiểm **khi instantiate**, không kiểm trên
 template. Thứ tự các `impl` trong tệp **không** còn quan trọng.
-Riêng `ToStr` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
+Riêng `Stringer` cho `f32/f64` dùng printer **fixed-point** (6 chữ số thập phân, bỏ số 0 cuối) — **không**
 có ký pháp mũ, nên giá trị quá lớn/quá nhỏ mất chính xác.
 
 ### 6.7 Quy ước mã nguồn (đợt dọn sema 2026-10)
@@ -693,9 +693,9 @@ kiểm lời gọi (re-entrancy cũ).
   constructor inherent `new(...)` trong khối `impl Struct` (không cần trait `New`).
 - **Dựng giá trị**: `Type(args)` ưu tiên `new` overload; `Self(...)` dựng thô; struct có field không
   `pub` thì module khác **không** dựng trực tiếp được (phải qua `new`).
-- **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.traits.to_str`): driver nạp ngầm module này; nếu không
+- **Nội suy chuỗi** phụ thuộc `std.fmt` (→ `std.string.stringer`): driver nạp ngầm module này; nếu không
   tìm thấy `lib/std/fmt.kb`, nội suy hố khác `str` sẽ báo lỗi biên dịch. **Literal số thực** (`1.5`)
-  đã có; `ToStr` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).
+  đã có; `Stringer` cho `f32/f64` dùng printer fixed-point (không có ký pháp mũ).
 - **`for`**: chỉ duyệt lvalue; trait `Iterable` đã có nên container **không** cần mảng phẳng —
   `List<T>` (kể cả phần tử là struct) và `StringBuilder` (theo ký tự) đã impl. `str` / `[T; N]` đi
   đường `.len`/`.data` dựng sẵn (mảng cố định hiện **chưa tạo được giá trị**: không có array literal và

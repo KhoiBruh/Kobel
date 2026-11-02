@@ -1,6 +1,7 @@
 mod compiler.lexer.token;
 
 use std.traits.*;
+use std.string.*;
 
 pub enum TokenType {
 	// Single syntax
@@ -95,6 +96,6 @@ pub struct Token {
 	pub col: usz
 }
 
-impl ToStr for Token {
+impl Stringer for Token {
 	pub fn to_str(val self) => self.text;
 }

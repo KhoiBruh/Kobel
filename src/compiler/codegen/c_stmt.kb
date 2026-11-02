@@ -7,7 +7,7 @@ mod compiler.codegen.c_stmt;
 // smart-cast declarations and `when` statements.
 // ============================================================================
 
-use std.str.*;
+use std.string.*;
 use std.collections.*;
 use std.collections.StringBuilder;
 

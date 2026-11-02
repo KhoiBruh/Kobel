@@ -1,6 +1,6 @@
 mod util.strutil;
 
-use std.str.*;
+use std.string.*;
 use std.mem.alloc_array;
 use std.collections.List;
 use std.collections.StringBuilder;

@@ -13,7 +13,7 @@ mod compiler.sema.decl.pass;
 // rewrite, clone).
 // ============================================================================
 
-use std.str.*;
+use std.string.*;
 use std.mem.*;
 use std.collections.*;
 

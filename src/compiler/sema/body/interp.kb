@@ -3,7 +3,7 @@ mod compiler.sema.body.interp;
 // ============================================================================
 // BodyPass - String Interpolation Checking
 //
-// String interpolation: checking the holes and their ToStr contract.
+// String interpolation: checking the holes and their Stringer contract.
 // The concat chain itself is built by the `lower` pass.
 // ============================================================================
 
@@ -30,7 +30,7 @@ use compiler.sema.prims.*;
 impl BodyPass {
 
 	// The `kobel_concat` chain is built by the `lower` pass; checking a hole means
-	// checking its expression and requiring a `ToStr` conversion.
+	// checking its expression and requiring a `Stringer` conversion.
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {
 		val ie = node.as_interp_expr();
 		for (part in ie.parts) {
@@ -41,12 +41,12 @@ impl BodyPass {
 		return self.prims().t_str();
 	}
 
-	// A hole is fine when it is `str` or implements the `ToStr` trait;
+	// A hole is fine when it is `str` or implements the `Stringer` trait;
 	// `lower` picks that implementation while rewriting.
 	fn ensure_to_str(var self, node: *AstNode, ty: *Type) {
 		if (ty == null || ty.kind == DataType.STR) return;
 
-		val trait_to_str = self.symtab.find_trait("ToStr");
+		val trait_to_str = self.symtab.find_trait("Stringer");
 		if (trait_to_str != null) {
 			var cur_ty = ty;
 			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
@@ -63,7 +63,7 @@ impl BodyPass {
 			if (trait_to_str.has_impl(tname)) return;
 		}
 
-		self.report_error(node, "Interpolated value must implement ToStr");
+		self.report_error(node, "Interpolated value must implement Stringer");
 	}
 
 }

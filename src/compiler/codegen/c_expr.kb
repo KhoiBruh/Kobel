@@ -7,7 +7,7 @@ mod compiler.codegen.c_expr;
 // assignments, array literals, `when`/`is` tests and the tag helpers.
 // ============================================================================
 
-use std.str.*;
+use std.string.*;
 use std.collections.*;
 
 use compiler.lexer.token.*;

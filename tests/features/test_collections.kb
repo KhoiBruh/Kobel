@@ -11,7 +11,7 @@ use std.fmt.*;
 //   - List Literals ([1, 2, 3], [], nested)
 //   - Indexing Operator (read, write, compound assign, custom get/set)
 //   - String Interpolation ("${expr}")
-//   - Formatting & ToStr trait implementation
+//   - Formatting & Stringer trait implementation
 // ============================================================================
 
 struct Point2D {
@@ -19,7 +19,7 @@ struct Point2D {
 	pub y: i32
 }
 
-impl ToStr for Point2D {
+impl Stringer for Point2D {
 	fn to_str(val self): str => "Point(${self.x}, ${self.y})";
 }
 
@@ -125,7 +125,7 @@ fn test_interpolation_and_formatting(): bool {
 	val pi_str = "${pi}";
 	if (pi_str.len == 0) return false;
 
-	// Custom struct ToStr implementation
+	// Custom struct Stringer implementation
 	val pt = Point2D(3, 4);
 	if ("${pt}" != "Point(3, 4)") return false;
 

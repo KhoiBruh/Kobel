@@ -2,7 +2,7 @@ mod tests.stdlib.test_std;
 mod test.std_demo;
 
 use std.ascii.*;
-use std.str.*;
+use std.string.*;
 
 use std.io.print;
 use std.io.println;
@@ -271,7 +271,7 @@ fn main(): i32 {
 		println("FAIL: test_str");
 		return 1;
 	}
-	println("PASS: std.str");
+	println("PASS: std.string");
 
 	if (!test_arena()) {
 		println("FAIL: test_arena");

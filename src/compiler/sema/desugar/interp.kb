@@ -4,7 +4,7 @@ mod compiler.sema.desugar.interp;
 // Body checker helper - string interpolation
 //
 // Lowers string interpolation into `kobel_concat*` calls: each hole is checked
-// against `ToStr` and the concat tree is built on the arena. Type annotations
+// against `Stringer` and the concat tree is built on the arena. Type annotations
 // live in `sema.type_ast`, equality helpers in `sema.lower`.
 // ============================================================================
 

@@ -291,7 +291,7 @@ impl BodyPass {
 	}
 
 	// `"a${x}b"` -> a chain of `kobel_concat` calls, with every hole converted by
-	// the `ToStr` implementation for its type. The checker already rejected holes
+	// the `Stringer` implementation for its type. The checker already rejected holes
 	// without one, so a failed lookup here leaves the expression untouched.
 	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
 		var pieces = List<*AstNode>();

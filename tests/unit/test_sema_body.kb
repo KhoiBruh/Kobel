@@ -410,7 +410,7 @@ fn test_interpolation_requires_to_str() {
 	var p1 = Parser(l1.tokenize());
 	var bp1 = BodyPass();
 	bp1.check_program(p1.parse_program());
-	assert_true(bp1.errors.len >= 1, "Interpolation of struct without ToStr must be rejected");
+	assert_true(bp1.errors.len >= 1, "Interpolation of struct without Stringer must be rejected");
 
 	val src2 = """
 		struct AdHoc {
@@ -428,7 +428,7 @@ fn test_interpolation_requires_to_str() {
 	var p2 = Parser(l2.tokenize());
 	var bp2 = BodyPass();
 	bp2.check_program(p2.parse_program());
-	assert_true(bp2.errors.len >= 1, "Interpolation with ad-hoc to_str without ToStr trait must be rejected");
+	assert_true(bp2.errors.len >= 1, "Interpolation with ad-hoc to_str without Stringer trait must be rejected");
 
 	println("  [PASS] test_interpolation_requires_to_str");
 }

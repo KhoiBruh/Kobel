@@ -1,6 +1,6 @@
 mod compiler.codegen.c_codegen;
 
-use std.str.*;
+use std.string.*;
 use std.collections.*;
 use std.collections.StringBuilder;
 

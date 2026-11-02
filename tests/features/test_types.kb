@@ -6,6 +6,7 @@ use testsupport.box.*;
 use std.collections.*;
 use std.mem.*;
 use std.traits.*;
+use std.string.*;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -109,7 +110,7 @@ fn total<T: Measurable>(val item: T): i32 => item.measure();
 
 fn score<T: Summarizable>(val item: T): i32 => item.summary();
 
-fn stringify<T: ToStr>(val item: T): str => item.to_str();
+fn stringify<T: Stringer>(val item: T): str => item.to_str();
 
 fn test_bounds(var t: &Tally) {
 	val p = Person("Ada");
@@ -117,8 +118,8 @@ fn test_bounds(var t: &Tally) {
 	val b = Box(3, 7);
 	check_i(total<Box>(b), 21, "bound on a base trait", t);
 	check_i(score<Box>(b), 42, "bound satisfied through inheritance", t);
-	check_str(stringify<i32>(123), "123", "generic bound ToStr on primitive i32", t);
-	check_str(stringify<bool>(true), "true", "generic bound ToStr on primitive bool", t);
+	check_str(stringify<i32>(123), "123", "generic bound Stringer on primitive i32", t);
+	check_str(stringify<bool>(true), "true", "generic bound Stringer on primitive bool", t);
 }
 
 // --- 5. two structs implementing one trait ---------------------------------
