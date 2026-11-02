@@ -5,8 +5,8 @@ extern "libc" {
 	fn putchar(c: char): i32;
 }
 
-pub fn print(s: str) {
-	for (i in 0..<s.len) putchar(s[i]);
+pub fn print(string: str) {
+	for (c in string) putchar(c);
 }
 
 pub fn println(s: str) => puts(s.c_str());

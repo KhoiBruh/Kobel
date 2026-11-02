@@ -221,3 +221,11 @@ impl str {
 	pub op contains(val self, sub: str) => self.index_of(sub) >= 0;
 
 }
+
+impl Iterable for str {
+
+	pub fn count(val self) => self.len;
+
+	pub fn at(val self, i: usz) => self.data[i];
+
+}

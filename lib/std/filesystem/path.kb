@@ -18,19 +18,19 @@ pub struct Path {
 	pub raw: str
 }
 
-pub fn path(raw: str): Path => Path(raw);
-
 impl Path {
-	pub fn new(raw: str): Self => Self(raw);
 
-	pub fn str(val self): str => self.raw;
-	pub fn c_str(val self): *char => self.raw.c_str();
-	pub fn is_empty(val self): bool => self.raw.empty();
-	pub fn len(val self): usz => self.raw.len;
+	pub fn new(raw: str) => Self(raw);
+
+	pub fn c_str(val self) => self.raw.c_str();
+
+	pub fn empty(val self) => self.raw.empty();
+
+	pub fn len(val self) => self.raw.len;
 
 	// Directory part of the path ("" when no separator is found).
 	pub fn parent(val self): Path {
-		var last: usz = 0;
+		var last = 0;
 		var found = false;
 		for (i in 0..<self.raw.len) {
 			if (is_sep(self.raw[i])) {
@@ -38,6 +38,7 @@ impl Path {
 				found = true;
 			}
 		}
+
 		if (!found) return Path("");
 		return Path(self.raw.slice(0, last));
 	}
@@ -48,13 +49,14 @@ impl Path {
 		for (i in 0..<self.raw.len) {
 			if (is_sep(self.raw[i])) start = i + 1;
 		}
+
 		return self.raw.slice(start);
 	}
 
 	// Extension without the leading dot ("kb" from "src/main.kb", "" if none).
 	pub fn extension(val self): str {
 		val fname = self.file_name();
-		var last_dot: usz = 0;
+		var last_dot = 0;
 		var found = false;
 		for (i in 0..<fname.len) {
 			if (fname[i] == '.') {
@@ -62,6 +64,7 @@ impl Path {
 				found = true;
 			}
 		}
+
 		if (!found || last_dot == 0 || last_dot == fname.len - 1) return "";
 		return fname.slice(last_dot + 1);
 	}
@@ -69,7 +72,7 @@ impl Path {
 	// File name without the trailing extension ("main" from "src/main.kb").
 	pub fn stem(val self): str {
 		val fname = self.file_name();
-		var last_dot: usz = 0;
+		var last_dot = 0;
 		var found = false;
 		for (i in 0..<fname.len) {
 			if (fname[i] == '.') {
@@ -77,6 +80,7 @@ impl Path {
 				found = true;
 			}
 		}
+
 		if (!found || last_dot == 0) return fname;
 		return fname.slice(0, last_dot);
 	}
@@ -84,25 +88,35 @@ impl Path {
 	// Joins two path segments with a normalized '/' separator.
 	pub fn join(val self, part: str): Path {
 		if (self.raw.empty()) return Path(part);
+
 		if (part.empty()) return Path(self.raw);
+
 		if (is_sep(self.raw[self.raw.len - 1]) || is_sep(part[0])) {
-			if (is_sep(self.raw[self.raw.len - 1]) && is_sep(part[0])) {
-				return Path(self.raw + part.slice(1));
-			}
+			if (
+				is_sep(self.raw[self.raw.len - 1]) &&
+				is_sep(part[0])
+			) return Path(self.raw + part.slice(1));
+
 			return Path(self.raw + part);
 		}
+
 		return Path("${self.raw}/${part}");
 	}
 
-	pub fn join_path(val self, other: Path): Path => self.join(other.raw);
+	pub fn join_path(val self, other: Path) => self.join(other.raw);
 
-	pub fn exists(val self): bool => file_exists(self.raw);
-	pub fn read_to_string(val self): str => file_read(self.raw);
-	pub fn write_string(val self, content: str): bool => file_write(self.raw, content);
-	pub fn append_string(val self, content: str): bool => file_append(self.raw, content);
-	pub fn remove(val self): bool => file_remove(self.raw);
+	pub fn exists(val self) => file_exists(self.raw);
+
+	pub fn read_to_string(val self) => file_read(self.raw);
+
+	pub fn write_string(val self, content: str) => file_write(self.raw, content);
+
+	pub fn append_string(val self, content: str) => file_append(self.raw, content);
+
+	pub fn remove(val self) => file_remove(self.raw);
+
 }
 
 impl Stringer for Path {
-	fn to_str(val self): str => self.raw;
+	fn to_str(val self) => self.raw;
 }

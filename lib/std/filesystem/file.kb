@@ -34,11 +34,11 @@ pub fn file_open(path: str, mode: str): File {
 	return File(f);
 }
 
-pub fn file_open_read(path: str): File => file_open(path, "rb");
+pub fn file_open_read(path: str) => file_open(path, "rb");
 
-pub fn file_open_write(path: str): File => file_open(path, "wb");
+pub fn file_open_write(path: str) => file_open(path, "wb");
 
-pub fn file_open_append(path: str): File => file_open(path, "ab");
+pub fn file_open_append(path: str) => file_open(path, "ab");
 
 pub fn file_exists(path: str): bool {
 	val f = fopen(path.c_str(), "rb");
@@ -47,11 +47,10 @@ pub fn file_exists(path: str): bool {
 	return true;
 }
 
-pub fn file_remove(path: str): bool => remove(path.c_str()) == 0;
+pub fn file_remove(path: str) => remove(path.c_str()) == 0;
 
 pub fn file_read(path: str): str {
-	val f = fopen(path.c_str(), "rb");
-	if (f == null) return "";
+	val f = fopen(path.c_str(), "rb") ?: return "";
 
 	fseek(f, 0, 2);
 	val size_i64 = ftell(f);
@@ -76,16 +75,14 @@ pub fn file_read(path: str): str {
 }
 
 pub fn file_write(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "wb");
-	if (f == null) return false;
+	val f = fopen(path.c_str(), "wb") ?: return false;
 	val written = fwrite(content.data, 1, content.len, f);
 	fclose(f);
 	return written == content.len;
 }
 
 pub fn file_append(path: str, content: str): bool {
-	val f = fopen(path.c_str(), "ab");
-	if (f == null) return false;
+	val f = fopen(path.c_str(), "ab") ?: return false;
 	val written = fwrite(content.data, 1, content.len, f);
 	fclose(f);
 	return written == content.len;
@@ -94,24 +91,23 @@ pub fn file_append(path: str, content: str): bool {
 pub fn file_list_dir(path: str): List<str> {
 	val raw = kobel_list_dir(path);
 	if (raw.empty()) return List();
+
 	var res = List<str>();
-	var start: usz = 0;
+	var start = 0;
 	for (i in 0..<raw.len) {
 		if (raw[i] == '\n') {
-			if (i > start) {
-				res += raw.slice(start, i);
-			}
+			if (i > start) res += raw.slice(start, i);
 			start = i + 1;
 		}
 	}
-	if (start < raw.len) {
-		res += raw.slice(start, raw.len);
-	}
+
+	if (start < raw.len) res += raw.slice(start, raw.len);
 	return res;
 }
 
 impl File {
-	pub fn is_valid(val self): bool => self.handle != null;
+
+	pub fn is_valid(val self) => self.handle != null;
 
 	pub fn close(var self) {
 		if (self.handle != null) {
@@ -126,10 +122,13 @@ impl File {
 
 	pub fn size(val self): i64 {
 		if (self.handle == null) return 0;
+
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);
+
 		val total = ftell(self.handle);
 		fseek(self.handle, cur, 0);
+
 		return total;
 	}
 
@@ -141,6 +140,7 @@ impl File {
 
 	pub fn read_all(val self): str {
 		if (self.handle == null) return "";
+
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);
 		val end_pos = ftell(self.handle);
@@ -150,12 +150,13 @@ impl File {
 		}
 		fseek(self.handle, cur, 0);
 
-		val sz = (end_pos - cur) as usz;
-		val buf = alloc_array<u8>(sz + 1);
-		if (buf == null) return "";
+		val size = end_pos - cur;
+		val buf = alloc_array<u8>(size + 1) ?: return "";
 
-		val read_bytes = fread(buf, 1, sz, self.handle);
+		val read_bytes = fread(buf, 1, size, self.handle);
 		buf[read_bytes] = 0;
+
 		return str_from_bytes(buf, read_bytes);
 	}
+
 }
