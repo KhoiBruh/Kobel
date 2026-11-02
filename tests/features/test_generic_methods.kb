@@ -37,11 +37,11 @@ fn main(): i32 {
 	defer arena.delete();
 	val p = arena.alloc<i32>();
 	p.write(9);
-	if (*p != 9) return 4;
+	if (p.read() != 9) return 4;
 
 	// `alloc_val` is a generic method whose body calls another generic method.
 	val q = arena.alloc_val<i32>(5);
-	if (*q != 5) return 5;
+	if (q.read() != 5) return 5;
 
 	// alloc_val with inferred generic type argument
 	val q_inferred = arena.alloc_val(42);

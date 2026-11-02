@@ -24,7 +24,7 @@ struct StrRaw {
 pub fn str_from_bytes(buf: &u8, len: usz): str {
 	var r = StrRaw(buf as *char, len);
 	val sp = &r as *str;
-	return *sp;
+	return sp.read();
 }
 
 impl str {

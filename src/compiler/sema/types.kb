@@ -475,7 +475,7 @@ impl Stringer for Type {
 		DataType.POINTER -> {
 			val ptr = self.as_pointer();
 			val q = if (ptr.is_nullable) "?" else "";
-			if (ptr.is_mut) yield "*mut ${ptr.pointee.to_str()}${q}";
+			if (ptr.is_mut) yield "&${ptr.pointee.to_str()}${q}";
 			yield "*${ptr.pointee.to_str()}${q}";
 		}
 		DataType.ARRAY -> {

@@ -124,7 +124,7 @@ pub struct ModuleScope {
 impl ModuleScope {
 	pub fn lookup(self, name: str): *Symbol? {
 		val p = self.sym_map.get(name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -168,7 +168,7 @@ impl GenericReg {
 
 	pub fn find_instance_symbol(val self, name: str): *Symbol? {
 		val p = self.inst_map.get(name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -290,7 +290,7 @@ impl SymbolTable {
 
 	pub fn find_trait(val self, name: str): *TraitInfo? {
 		val p = self.trait_map.get(name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -304,7 +304,7 @@ impl SymbolTable {
 
 	pub fn find_enum_info(val self, name: str): *EnumInfo? {
 		val p = self.enum_map.get(name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -382,7 +382,7 @@ impl SymbolTable {
 
 	pub fn find_module(val self, name: str): *ModuleScope? {
 		val p = self.module_map.get(name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -407,7 +407,7 @@ impl SymbolTable {
 	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type?
 	{
 		val p = self.assoc_types.get("${struct_name}.${assoc}");
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
@@ -466,14 +466,14 @@ impl SymbolTable {
 	pub fn lookup_c_name(val self, c_name: str): *Symbol? {
 		if (c_name.len == 0) return null;
 		val p = self.c_name_map.get(c_name);
-		if (p != null) return *p;
+		if (p != null) return p.read();
 		return null;
 	}
 
 	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol? {
 		val direct = "${struct_name}__${member_name}";
 		val p = self.struct_const_map.get(direct);
-		val s = if (p != null) *p else null;
+		val s = if (p != null) p.read() else null;
 		if (s != null) return s;
 		for (sc in self.modules) {
 			val sc_s = sc.lookup(direct);

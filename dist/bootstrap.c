@@ -5211,7 +5211,7 @@ kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
     std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
     kobel_str* sp = (kobel_str*)&r;
-    return *sp;
+    return (*(sp));
 }
 
 bool str_empty(kobel_str self) {
@@ -11720,7 +11720,7 @@ kobel_str compiler__sema__types__Type_to_str(compiler__sema__types__Type* self) 
         compiler__sema__types__PointerType* ptr = compiler__sema__types__Type_as_pointer(self);
         kobel_str q = (ptr->is_nullable ? KOBEL_STR("?") : KOBEL_STR(""));
         if (ptr->is_mut) {
-            return kobel_concat3(KOBEL_STR("*mut "), compiler__sema__types__Type_to_str(ptr->pointee), q);
+            return kobel_concat3(KOBEL_STR("&"), compiler__sema__types__Type_to_str(ptr->pointee), q);
         }
         return kobel_concat3(KOBEL_STR("*"), compiler__sema__types__Type_to_str(ptr->pointee), q);
     } else if (self->kind == 17) {
@@ -11979,7 +11979,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__Scope_at(compiler__sema_
 compiler__sema__symbol__Symbol* compiler__sema__symbol__ModuleScope_lookup(compiler__sema__symbol__ModuleScope* self, kobel_str name) {
     compiler__sema__symbol__Symbol** p = std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(&self->sym_map, name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12012,7 +12012,7 @@ void compiler__sema__symbol__GenericReg_add_inst(compiler__sema__symbol__Generic
 compiler__sema__symbol__Symbol* compiler__sema__symbol__GenericReg_find_instance_symbol(compiler__sema__symbol__GenericReg* self, kobel_str name) {
     compiler__sema__symbol__Symbol** p = std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(&self->inst_map, name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12151,7 +12151,7 @@ void compiler__sema__symbol__SymbolTable_register_trait(compiler__sema__symbol__
 compiler__sema__traits__TraitInfo* compiler__sema__symbol__SymbolTable_find_trait(compiler__sema__symbol__SymbolTable* self, kobel_str name) {
     compiler__sema__traits__TraitInfo** p = std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_get(&self->trait_map, name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12167,7 +12167,7 @@ void compiler__sema__symbol__SymbolTable_register_enum_info(compiler__sema__symb
 compiler__sema__enums__EnumInfo* compiler__sema__symbol__SymbolTable_find_enum_info(compiler__sema__symbol__SymbolTable* self, kobel_str name) {
     compiler__sema__enums__EnumInfo** p = std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_get(&self->enum_map, name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12296,7 +12296,7 @@ kobel_str compiler__sema__symbol__SymbolTable_set_current_module(compiler__sema_
 compiler__sema__symbol__ModuleScope* compiler__sema__symbol__SymbolTable_find_module(compiler__sema__symbol__SymbolTable* self, kobel_str name) {
     compiler__sema__symbol__ModuleScope** p = std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_get(&self->module_map, name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12346,7 +12346,7 @@ void compiler__sema__symbol__SymbolTable_set_assoc_type(compiler__sema__symbol__
 compiler__sema__types__Type* compiler__sema__symbol__SymbolTable_find_assoc_type(compiler__sema__symbol__SymbolTable* self, kobel_str struct_name, kobel_str assoc) {
     compiler__sema__types__Type** p = std__collections__HashMap_str_ptr_compiler__sema__types__Type_get(&self->assoc_types, kobel_concat3(struct_name, KOBEL_STR("."), assoc));
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12410,7 +12410,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_nam
     }
     compiler__sema__symbol__Symbol** p = std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(&self->c_name_map, c_name);
     if (p != NULL) {
-        return *p;
+        return (*(p));
     }
     return NULL;
 }
@@ -12418,7 +12418,7 @@ compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_c_nam
 compiler__sema__symbol__Symbol* compiler__sema__symbol__SymbolTable_lookup_struct_const(compiler__sema__symbol__SymbolTable* self, kobel_str struct_name, kobel_str member_name) {
     kobel_str direct = kobel_concat3(struct_name, KOBEL_STR("__"), member_name);
     compiler__sema__symbol__Symbol** p = std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_get(&self->struct_const_map, direct);
-    compiler__sema__symbol__Symbol* s = ((p != NULL) ? *p : NULL);
+    compiler__sema__symbol__Symbol* s = ((p != NULL) ? (*(p)) : NULL);
     if (s != NULL) {
         return s;
     }
@@ -18551,6 +18551,21 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_method_c
         }
         return compiler__sema__prims__PrimTypes_t_none(compiler__sema__body__pass__BodyPass_prims(self));
     }
+    if (obj_is_ptr && kobel_streq(mem->member, KOBEL_STR("read"))) {
+        if (call->args.len != 0) {
+            compiler__sema__body__pass__BodyPass_report_error(self, node, KOBEL_STR("Method 'read' takes no arguments"));
+        }
+        compiler__sema__types__Type* ret_ty = (*compiler__sema__types__Type_as_pointer(obj_raw_ty)).pointee;
+        if (mem->is_safe) {
+            if (ret_ty->kind == 16) {
+                compiler__sema__types__PointerType* pt = compiler__sema__types__Type_as_pointer(ret_ty);
+                ret_ty = std__mem__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->is_mut);
+            } else if (ret_ty->kind != 15) {
+                compiler__sema__body__pass__BodyPass_ensure(self, self->in_safe_nav_context, node, KOBEL_STR("Safe method call '?.' on non-pointer returning method 'read' requires handling null with '?:' or being used in a condition"));
+            }
+        }
+        return ret_ty;
+    }
     compiler__sema__methods__MethodInfo* pmi = compiler__sema__body__pass__BodyPass_method_with_defaults(self, mem->member, argc, compiler__sema__symbol__SymbolTable_prim_methods_of(&self->symtab, obj_ty->kind), call, compiler__sema__symbol__SymbolTable_find_prim_method_arity(&self->symtab, obj_ty->kind, mem->member, argc));
     if (pmi == NULL) pmi = compiler__sema__symbol__SymbolTable_find_prim_method(&self->symtab, obj_ty->kind, mem->member);
     if (pmi != NULL) {
@@ -21796,6 +21811,13 @@ kobel_str compiler__codegen__c_codegen__CCodeGen_gen_call_expr(compiler__codegen
                     return kobel_concat3(kobel_concat5(KOBEL_STR("("), obj_str, KOBEL_STR(" != NULL ? (*("), obj_str, KOBEL_STR(") = ")), val_str, KOBEL_STR(") : 0)"));
                 }
                 return kobel_concat5(KOBEL_STR("(*("), obj_str, KOBEL_STR(") = "), val_str, KOBEL_STR(")"));
+            }
+            if ((kobel_streq(mem->member, KOBEL_STR("read")) && compiler__codegen__c_codegen__CCodeGen_is_pointer_value(self, mem->object)) && (call->args.len == 0)) {
+                kobel_str obj_str = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, mem->object);
+                if (mem->is_safe) {
+                    return kobel_concat5(KOBEL_STR("("), obj_str, KOBEL_STR(" != NULL ? *("), obj_str, KOBEL_STR(") : 0)"));
+                }
+                return kobel_concat3(KOBEL_STR("(*("), obj_str, KOBEL_STR("))"));
             }
             if (kobel_streq(mem->member, KOBEL_STR("code")) && compiler__codegen__c_codegen__CCodeGen_is_char_value(self, mem->object)) {
                 kobel_str obj_str = compiler__codegen__c_codegen__CCodeGen_gen_expr(self, mem->object);

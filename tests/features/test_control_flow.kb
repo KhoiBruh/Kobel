@@ -434,12 +434,12 @@ fn test_defer_nested_scopes(var t: &Tally) {
 }
 
 fn helper_return_with_defer(cond: bool, var trace: &str): i32 {
-	defer trace.write(*trace + "defer_outer;");
+	defer trace.write(trace.read() + "defer_outer;");
 	if (cond) {
-		defer trace.write(*trace + "defer_inner;");
+		defer trace.write(trace.read() + "defer_inner;");
 		return 42;
 	}
-	trace.write(*trace + "after_if;");
+	trace.write(trace.read() + "after_if;");
 	return 100;
 }
 

@@ -456,6 +456,26 @@ impl BodyPass {
 			return self.prims().t_none();
 		}
 
+		if (obj_is_ptr && mem.member == "read") {
+			if (call.args.len != 0) {
+				self.report_error(node, "Method 'read' takes no arguments");
+			}
+			var ret_ty = obj_raw_ty.as_pointer().pointee;
+			if (mem.is_safe) {
+				if (ret_ty.kind == DataType.POINTER) {
+					val pt = ret_ty.as_pointer();
+					ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+				} else if (ret_ty.kind != DataType.STR) {
+					self.ensure(
+						self.in_safe_nav_context,
+						node,
+						"Safe method call '?.' on non-pointer returning method 'read' requires handling null with '?:' or being used in a condition"
+					);
+				}
+			}
+			return ret_ty;
+		}
+
 		// Primitive method: x.m(args) -> <prim>_m(x, args), receiver by value.
 		val pmi = self.method_with_defaults(
 			mem.member, argc, self.symtab.prim_methods_of(obj_ty.kind), call,

@@ -285,9 +285,9 @@ fn test_std_ctors(var t: &Tally) {
 		defer a.delete();
 		val p = a.alloc<i32>();
 		p.write(7);
-		check_i(*p, 7, "Arena(block_size) + a.alloc<T>", t);
+		check_i(p.read(), 7, "Arena(block_size) + a.alloc<T>", t);
 		val p2 = a.alloc_val<i32>(42);
-		check_i(*p2, 42, "a.alloc_val<T>(value)", t);
+		check_i(p2.read(), 42, "a.alloc_val<T>(value)", t);
 	}
 
 	{
