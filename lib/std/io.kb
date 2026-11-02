@@ -1,10 +1,5 @@
 mod std.io;
 
-use std.string.str_from_bytes;
-use std.mem.alloc_array;
-use std.collections.List;
-use std.filesystem.*;
-
 extern "libc" {
 	fn puts(s: *char): i32;
 	fn putchar(c: char): i32;
@@ -15,14 +10,3 @@ pub fn print(s: str) {
 }
 
 pub fn println(s: str) => puts(s.c_str());
-
-// Forwarding helpers to std.filesystem for backward compatibility
-pub fn read_file(path: str): str => file_read(path);
-
-pub fn write_file(path: str, content: str): bool => file_write(path, content);
-
-pub fn append_file(path: str, content: str): bool => file_append(path, content);
-
-pub fn file_exists(path: str): bool => fs_file_exists(path);
-
-pub fn list_dir(path: str): List<str> => file_list_dir(path);

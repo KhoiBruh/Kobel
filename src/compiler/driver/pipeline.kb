@@ -1,6 +1,7 @@
 mod compiler.driver.pipeline;
 
 use std.io.*;
+use std.filesystem.*;
 use std.sys.*;
 use std.collections.*;
 
@@ -119,7 +120,7 @@ impl CompileOptions {
 
 	pub fn compile(val self): i32 {
 		val input_path = self.input_path;
-		val src = read_file(input_path);
+		val src = file_read(input_path);
 		if (src.empty()) {
 			println("Error: Could not read source file or file is empty: ${input_path}");
 			return 1;
@@ -173,7 +174,7 @@ impl CompileOptions {
 		val c_code = codegen.gen_program(prog);
 
 		if (self.only_emit_c) {
-			val ok = write_file(self.emit_c_path, c_code);
+			val ok = file_write(self.emit_c_path, c_code);
 			if (!ok) {
 				println("Error: Failed to write output file: ${self.emit_c_path}");
 				return 1;
@@ -193,7 +194,7 @@ impl CompileOptions {
 		val base_name = out_path.base_name();
 		val c_tmp_path = "build/${base_name}.tmp.c";
 		val obj_tmp_path = "build/${base_name}.tmp.obj";
-		val write_ok = write_file(c_tmp_path, c_code);
+		val write_ok = file_write(c_tmp_path, c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_path}");
 			return 1;

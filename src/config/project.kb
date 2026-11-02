@@ -1,6 +1,7 @@
 mod config.project;
 
 use std.io.*;
+use std.filesystem.*;
 use config.toml.*;
 
 // ============================================================================
@@ -28,7 +29,7 @@ impl ProjectConfig {
 		var self = Self();
 		if (!file_exists(manifest_path)) return self;
 
-		val content = read_file(manifest_path);
+		val content = file_read(manifest_path);
 		if (content.empty()) return self;
 
 		val doc = Toml(content);

@@ -29,7 +29,6 @@ pub struct File {
 	pub handle: *none?
 }
 
-// Module-level functions
 pub fn file_open(path: str, mode: str): File {
 	val f = fopen(path.c_str(), mode.c_str());
 	return File(f);
@@ -41,14 +40,12 @@ pub fn file_open_write(path: str): File => file_open(path, "wb");
 
 pub fn file_open_append(path: str): File => file_open(path, "ab");
 
-pub fn fs_file_exists(path: str): bool {
+pub fn file_exists(path: str): bool {
 	val f = fopen(path.c_str(), "rb");
 	if (f == null) return false;
 	fclose(f);
 	return true;
 }
-
-pub fn file_exists(path: str): bool => fs_file_exists(path);
 
 pub fn file_remove(path: str): bool => remove(path.c_str()) == 0;
 
@@ -114,7 +111,6 @@ pub fn file_list_dir(path: str): List<str> {
 }
 
 impl File {
-	// Instance methods
 	pub fn is_valid(val self): bool => self.handle != null;
 
 	pub fn close(var self) {

@@ -1,6 +1,7 @@
 mod compiler.driver.diagnostics;
 
 use std.io.*;
+use std.filesystem.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -104,7 +105,7 @@ pub fn render_diagnostic(diag: Diagnostic): str {
 	}
 
 	if (diag.line > 0 && !diag.file_path.empty() && file_exists(diag.file_path)) {
-		val content = read_file(diag.file_path);
+		val content = file_read(diag.file_path);
 		if (!content.empty()) {
 			val lines = content.split_lines();
 			if (diag.line >= 1 && diag.line <= lines.len) {

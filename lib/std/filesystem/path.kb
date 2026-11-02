@@ -96,7 +96,7 @@ impl Path {
 
 	pub fn join_path(val self, other: Path): Path => self.join(other.raw);
 
-	pub fn exists(val self): bool => fs_file_exists(self.raw);
+	pub fn exists(val self): bool => file_exists(self.raw);
 	pub fn read_to_string(val self): str => file_read(self.raw);
 	pub fn write_string(val self, content: str): bool => file_write(self.raw, content);
 	pub fn append_string(val self, content: str): bool => file_append(self.raw, content);

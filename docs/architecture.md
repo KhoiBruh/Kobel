@@ -217,7 +217,9 @@ Thuần Kobel, **không** phụ thuộc compiler; mọi extern đều qua `exter
 
 | File | Nội dung |
 |---|---|
-| `io.kb` | `print/println`, `read_file/write_file`; handle stdio là `*none` (opaque `FILE*`) |
+| `io.kb` | `print/println` (standard output) |
+| `filesystem/file.kb` | `File` handle + `file_read/file_write/file_append/file_exists/file_list_dir` |
+| `filesystem/path.kb` | `Path` (zero-cost wrapper, parent/file_name/stem/extension/join) |
 | `sys.kb` | `sys_exit`, `exec` |
 | `ascii.kb` | `is_digit/is_alpha/to_lower/…` |
 | `string/str.kb` | tầng thấp dựng `str` từ buffer byte (`str_from_bytes`); nền chung cho mọi formatter |

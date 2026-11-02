@@ -1,6 +1,7 @@
 mod compiler.driver.commands;
 
 use std.io.*;
+use std.filesystem.*;
 use std.sys.*;
 use std.collections.*;
 
@@ -15,7 +16,7 @@ use compiler.driver.pipeline.*;
 // ============================================================================
 
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
-	var stamp_seed = read_file(manifest_path);
+	var stamp_seed = file_read(manifest_path);
 	ensure_dir("build");
 
 	val tmp_file = "build/.kobel_src_files.tmp";
@@ -29,17 +30,17 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	exec(find_cmd);
 
 	if (file_exists(tmp_file)) {
-		val file_list = read_file(tmp_file);
+		val file_list = file_read(tmp_file);
 		remove_file(tmp_file);
 		val lines = file_list.split_lines();
 		for (line in lines) {
 			val fpath = line.trim();
 			if (!fpath.empty() && file_exists(fpath)) {
-				val content = read_file(fpath);
+				val content = file_read(fpath);
 				stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
 			}
 		}
-	} else stamp_seed += read_file(cfg.entry);
+	} else stamp_seed += file_read(cfg.entry);
 
 	return stamp_seed.hash_stamp();
 }
@@ -63,7 +64,7 @@ pub fn cmd_build(manifest_path: str): i32 {
 		ensure_dir("build");
 		val stamp_file = "build/.kobel_stamp";
 		val stamp = compute_project_stamp(cfg, manifest_path);
-		write_file(stamp_file, stamp);
+		file_write(stamp_file, stamp);
 		println("[SUCCESS] Build complete: ${cfg.output}");
 	}
 	return exit_code;
@@ -90,7 +91,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 			yield true;
 		}
 		else -> {
-			val saved_stamp = read_file(stamp_file).trim();
+			val saved_stamp = file_read(stamp_file).trim();
 			if (saved_stamp != current_stamp) {
 				println("Source changes detected. Rebuilding...");
 				yield true;
@@ -143,7 +144,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 	exec(find_cmd);
 
 	if (file_exists(tmp_list_file)) {
-		val content = read_file(tmp_list_file);
+		val content = file_read(tmp_list_file);
 		remove_file(tmp_list_file);
 		val lines = content.split_lines();
 		val search_token = "/${test_dir}/";
@@ -310,10 +311,10 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val digest = read_file(c_path).hash_stamp();
+		val digest = file_read(c_path).hash_stamp();
 		val golden_path = "${golden_dir}/${flat}.txt";
 		if (update) {
-			write_file(golden_path, "${digest}\n");
+			file_write(golden_path, "${digest}\n");
 			println("UPDATED");
 			continue;
 		}
@@ -324,7 +325,7 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val expected = read_file(golden_path).trim();
+		val expected = file_read(golden_path).trim();
 		if (expected == digest) println("PASS");
 		else {
 			println("FAIL");
@@ -383,8 +384,8 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 		return 1;
 	}
 
-	val first = read_file(stage1_c);
-	val second = read_file(stage2_c);
+	val first = file_read(stage1_c);
+	val second = file_read(stage2_c);
 	if (first == second) {
 		println("[SUCCESS] Fixpoint reached: stage1.c == stage2.c (${first.len} bytes).");
 		return 0;

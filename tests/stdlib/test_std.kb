@@ -5,10 +5,11 @@ use std.string.*;
 
 use std.io.print;
 use std.io.println;
-use std.io.write_file;
-use std.io.append_file;
-use std.io.read_file;
-use std.io.file_exists;
+use std.filesystem.file_write;
+use std.filesystem.file_append;
+use std.filesystem.file_read;
+use std.filesystem.file_exists;
+use std.filesystem.file_open_read;
 
 use std.mem.Arena;
 
@@ -22,7 +23,6 @@ use std.collections.StringBuilder;
 use std.filesystem.Path;
 
 use std.filesystem.File;
-use std.filesystem.file_open_read;
 
 
 fn test_ascii(): bool {
@@ -221,16 +221,16 @@ fn test_collections(): bool {
 fn test_io(): bool {
 	val tmp_file: str = "build/tmp_std_test.txt";
 	val content: str = "Testing Kobel standard library I/O!";
-	val written: bool = write_file(tmp_file, content);
+	val written: bool = file_write(tmp_file, content);
 	if (!written) return false;
 	if (!file_exists(tmp_file)) return false;
 	if (file_exists("non_existent_file_xyz_123.txt")) return false;
 
 	val extra: str = "\nAppended line.";
-	val appended: bool = append_file(tmp_file, extra);
+	val appended: bool = file_append(tmp_file, extra);
 	if (!appended) return false;
 
-	val read_back: str = read_file(tmp_file);
+	val read_back: str = file_read(tmp_file);
 	if (read_back != "Testing Kobel standard library I/O!\nAppended line.") return false;
 
 	return true;

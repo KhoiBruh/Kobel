@@ -1,4 +1,5 @@
 use std.io.*;
+use std.filesystem.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -98,12 +99,12 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 
 	val options = FormatOptions();
 	for (fpath in files) {
-		val src = read_file(fpath);
+		val src = file_read(fpath);
 		if (src.empty()) continue;
 
 		val formatted = format_source(src, options);
 		if (write_in_place) {
-			val ok = write_file(fpath, formatted);
+			val ok = file_write(fpath, formatted);
 			if (!ok) {
 				println("Error: Failed to write to ${fpath}");
 				return 1;
