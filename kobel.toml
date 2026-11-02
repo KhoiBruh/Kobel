@@ -5,7 +5,7 @@ version = "1.0.0"
 [build]
 entry = "src/main.kb"
 output = "build/kobel.exe"
-cc = "clang"
+cc = "cl"
 
 [test]
 dir = "tests"
