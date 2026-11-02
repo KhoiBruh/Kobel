@@ -1,4 +1,4 @@
-mod compiler.driver.commands;
+mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
@@ -8,8 +8,6 @@ use std.collections.*;
 use util.strutil.*;
 
 use config.project.*;
-
-use compiler.driver.pipeline.*;
 
 // ============================================================================
 // Native Project Commands: build, run, test

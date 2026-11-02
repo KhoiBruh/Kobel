@@ -2,7 +2,7 @@ mod compiler.parser.stmt;
 
 use std.collections.*;
 
-use compiler.lexer.token.*;
+use compiler.lexer.*;
 
 use compiler.ast.node.*;
 use compiler.ast.stmt.WhenStmtArm;

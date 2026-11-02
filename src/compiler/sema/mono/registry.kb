@@ -16,7 +16,7 @@ use std.traits.*;
 
 use util.strutil.*;
 
-use compiler.lexer.token.TokenType;
+use compiler.lexer.TokenType;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;

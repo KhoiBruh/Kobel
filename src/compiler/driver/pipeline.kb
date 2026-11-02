@@ -1,4 +1,4 @@
-mod compiler.driver.pipeline;
+mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
@@ -15,16 +15,11 @@ use compiler.sema.body.program.*;
 use compiler.sema.lower.*;
 use compiler.codegen.c_codegen.*;
 use compiler.codegen.c_program.*;
-use compiler.loader.loader.*;
-use compiler.driver.diagnostics.*;
+use compiler.loader.*;
 
 // ============================================================================
 // Compiler Driver Pipeline
 // ============================================================================
-
-pub fn print_error_list(errors: List<str>) {
-	print_diagnostics(errors, "");
-}
 
 pub fn is_msvc_compiler(cc: str): bool {
 	val base = cc.base_name();

@@ -2,7 +2,7 @@ mod compiler.parser.decl;
 
 use std.collections.*;
 
-use compiler.lexer.token.*;
+use compiler.lexer.*;
 
 use compiler.ast.builder.*;
 use compiler.ast.node.*;

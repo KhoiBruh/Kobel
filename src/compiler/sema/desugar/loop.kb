@@ -16,7 +16,7 @@ use compiler.ast.stmt.*;
 use compiler.ast.expr.*;
 use compiler.ast.types.*;
 use compiler.ast.builder.*;
-use compiler.lexer.token.*;
+use compiler.lexer.*;
 use compiler.sema.body.pass.BodyPass;
 
 // ============================================================================

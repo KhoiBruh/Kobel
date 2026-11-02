@@ -1,11 +1,11 @@
-mod compiler.driver.diagnostics;
+mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
 use util.strutil.*;
-use compiler.loader.loader.ModuleLoader;
+use compiler.loader.ModuleLoader;
 
 pub struct Diagnostic {
 	pub file_path: str,

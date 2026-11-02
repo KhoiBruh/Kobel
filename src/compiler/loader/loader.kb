@@ -1,4 +1,4 @@
-mod compiler.loader.loader;
+mod compiler.loader;
 
 // ============================================================================
 // ModuleLoader
@@ -21,7 +21,7 @@ use std.collections.*;
 
 use util.strutil.*;
 
-use compiler.lexer.lexer.*;
+use compiler.lexer.*;
 
 use compiler.ast.builder.*;
 use compiler.ast.node.*;

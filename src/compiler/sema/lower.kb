@@ -24,7 +24,7 @@ use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 use compiler.ast.builder.*;
 
-use compiler.lexer.token.*;
+use compiler.lexer.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;

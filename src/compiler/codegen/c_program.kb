@@ -4,7 +4,7 @@ use std.collections.*;
 
 use util.strutil.*;
 
-use compiler.lexer.token.*;
+use compiler.lexer.*;
 use compiler.ast.builder.*;
 use compiler.ast.node.*;
 use compiler.ast.types.*;

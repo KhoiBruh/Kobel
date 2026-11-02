@@ -9,7 +9,7 @@ use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
 
-use compiler.lexer.token.TokenType;
+use compiler.lexer.TokenType;
 
 // ============================================================================
 // Arena AST Extension Methods

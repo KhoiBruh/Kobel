@@ -1,4 +1,4 @@
-mod compiler.lexer.token;
+mod compiler.lexer;
 
 use std.traits.*;
 use std.string.*;

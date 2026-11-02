@@ -1,9 +1,7 @@
-mod compiler.lexer.lexer;
+mod compiler.lexer;
 
 use std.ascii.*;
 use std.collections.*;
-
-use compiler.lexer.token.*;
 
 pub fn lookup_keyword(text: str) => when (text) {
 	"extern" -> TokenType.KW_EXTERN;

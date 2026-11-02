@@ -6,8 +6,7 @@ use util.strutil.*;
 
 use config.project.*;
 
-use compiler.driver.pipeline.*;
-use compiler.driver.commands.*;
+use compiler.driver.*;
 
 use fmt.options.*;
 use fmt.formatter.*;
