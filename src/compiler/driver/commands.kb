@@ -13,30 +13,55 @@ use config.project.*;
 // Native Project Commands: build, run, test
 // ============================================================================
 
+fn str_before(a: str, b: str): bool {
+	val min_len = if (a.len < b.len) a.len else b.len;
+	for (i in 0..<min_len) {
+		if (a[i] < b[i]) return true;
+		if (a[i] > b[i]) return false;
+	}
+	return a.len < b.len;
+}
+
+pub fn collect_kb_files(dir: str, prefix: str, var out: &List<str>) {
+	val entries = File.list_dir(dir);
+	defer entries.free();
+	if (entries.empty()) return;
+
+	var sorted = List<str>();
+	defer sorted.free();
+	for (e in entries) sorted += e;
+	for (i in 0..<sorted.len) {
+		for (j in (i + 1)..<sorted.len) {
+			if (str_before(sorted[j], sorted[i])) {
+				val tmp = sorted[i];
+				sorted[i] = sorted[j];
+				sorted[j] = tmp;
+			}
+		}
+	}
+
+	for (e in sorted) {
+		val full = dir.join_path(e);
+		if (e.ends_with(".kb")) {
+			if (prefix.empty() || e.starts_with(prefix)) out += full.to_posix_path();
+		} else if (!("." in e)) {
+			collect_kb_files(full, prefix, out);
+		}
+	}
+}
+
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	var stamp_seed = File.read(manifest_path);
-	ensure_dir("build");
-
-	val tmp_file = "build/.kobel_src_files.tmp";
 	val entry_dir = cfg.entry.dir_of();
 	val root_dir = if (!entry_dir.empty()) entry_dir else "src";
-	val find_cmd = if (System.is_windows()) {
-		"cmd /c dir /b /s \"${root_dir.to_win_path()}\\*.kb\" > \"${tmp_file.to_win_path()}\" 2>nul"
-	} else {
-		"find \"${root_dir.to_posix_path()}\" -type f -name \"*.kb\" > \"${tmp_file.to_posix_path()}\" 2>/dev/null"
-	};
-	System.exec(find_cmd);
 
-	if (File.exists(tmp_file)) {
-		val file_list = File.read(tmp_file);
-		remove_file(tmp_file);
-		val lines = file_list.split_lines();
-		for (line in lines) {
-			val fpath = line.trim();
-			if (!fpath.empty() && File.exists(fpath)) {
-				val content = File.read(fpath);
-				stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
-			}
+	var files = List<str>();
+	defer files.free();
+	collect_kb_files(root_dir, "", &files);
+	if (!files.empty()) {
+		for (fpath in files) {
+			val content = File.read(fpath);
+			stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
 		}
 	} else stamp_seed += File.read(cfg.entry);
 
@@ -132,31 +157,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 
 pub fn discover_test_files(test_dir: str): List<str> {
 	var list = List<str>();
-	ensure_dir("build");
-	val tmp_list_file = "build/.kobel_test_list.tmp";
-	val find_cmd = if (System.is_windows()) {
-		"cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul"
-	} else {
-		"find \"${test_dir.to_posix_path()}\" -type f -name \"test_*.kb\" > \"${tmp_list_file}\" 2>/dev/null"
-	};
-	System.exec(find_cmd);
-
-	if (File.exists(tmp_list_file)) {
-		val content = File.read(tmp_list_file);
-		remove_file(tmp_list_file);
-		val lines = content.split_lines();
-		val search_token = "/${test_dir}/";
-		for (line in lines) {
-			val trimmed = line.trim();
-			if (!trimmed.empty()) {
-				var normalized = trimmed.to_posix_path();
-				val tests_idx = normalized.index_of(search_token);
-				if (tests_idx >= 0) normalized = normalized.slice(tests_idx + 1, normalized.len);
-				list += normalized;
-			}
-		}
-	}
-
+	collect_kb_files(test_dir, "test_", &list);
 	return list;
 }
 
@@ -217,7 +218,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		val test_res = System.exec(run_cmd);
 
 		// Clean up the temporary test binary
-		remove_file(test_bin);
+		File.remove(test_bin);
 
 		if (test_res == 0) {
 			println("PASS");
@@ -364,7 +365,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	}
 
 	println("[2/3] Building the second-generation compiler...");
-	remove_file(stage2_exe);
+	File.remove(stage2_exe);
 	val compile_res = System.exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
 	if (compile_res != 0 || !File.exists(stage2_exe)) {
 		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");

@@ -314,8 +314,12 @@ fn test_filesystem(): bool {
 	if (f.read_all() != "Hello Filesystem!") return false;
 	f.close();
 
-	if (!File.remove(tmp.to_str())) return false;
-	if (File.exists(tmp.to_str())) return false;
+	val moved = Path("build/tmp_fs_test_moved.txt");
+	if (!File.rename(tmp.to_str(), moved.to_str())) return false;
+	if (File.exists(tmp.to_str()) || !File.exists(moved.to_str())) return false;
+
+	if (!File.remove(moved.to_str())) return false;
+	if (File.exists(moved.to_str())) return false;
 
 	return true;
 }

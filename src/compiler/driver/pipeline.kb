@@ -35,26 +35,13 @@ pub fn resolve_host_cc(cc: str): str {
 
 pub fn ensure_dir(path: str) {
 	if (path.empty() || File.exists(path)) return;
+	val entries = File.list_dir(path);
+	defer entries.free();
+	if (!entries.empty()) return;
 	if (System.is_windows()) {
 		System.exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
 	} else {
 		System.exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
-	}
-}
-
-pub fn remove_file(path: str) {
-	if (System.is_windows()) {
-		System.exec("del /f /q \"${path.to_win_path()}\" >nul 2>nul");
-	} else {
-		System.exec("rm -f \"${path.to_posix_path()}\" >/dev/null 2>&1");
-	}
-}
-
-pub fn move_file(src: str, dst: str) {
-	if (System.is_windows()) {
-		System.exec("move /y \"${src.to_win_path()}\" \"${dst.to_win_path()}\" >nul 2>nul");
-	} else {
-		System.exec("mv -f \"${src.to_posix_path()}\" \"${dst.to_posix_path()}\" >/dev/null 2>&1");
 	}
 }
 
@@ -205,8 +192,8 @@ impl CompileOptions {
 		// file locking issues (especially during self-hosting builds).
 		val old_bin = "${out_path}.old";
 		if (File.exists(out_path)) {
-			remove_file(old_bin);
-			move_file(out_path, old_bin);
+			File.remove(old_bin);
+			File.rename(out_path, old_bin);
 		}
 
 		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
@@ -215,7 +202,7 @@ impl CompileOptions {
 		if (exit_code != 0) {
 			// Restore previous binary if compilation failed
 			if (File.exists(old_bin) && !File.exists(out_path))
-				move_file(old_bin, out_path);
+				File.rename(old_bin, out_path);
 			println("Error: Backend C compiler failed with exit code ${exit_code}: cmd was '${compile_cmd}'");
 			return exit_code;
 		}
@@ -226,15 +213,15 @@ impl CompileOptions {
 		// executable sits moved aside as `<out>.old`.
 		if (!File.exists(out_path)) {
 			if (File.exists(old_bin))
-				move_file(old_bin, out_path);
+				File.rename(old_bin, out_path);
 			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
 			return 1;
 		}
 
 		// Clean up temporary C, object, and old binary files
-		remove_file(c_tmp_path);
-		remove_file(obj_tmp_path);
-		remove_file(old_bin);
+		File.remove(c_tmp_path);
+		File.remove(obj_tmp_path);
+		File.remove(old_bin);
 
 		if (!self.quiet) println("[SUCCESS] Executable created: ${out_path}");
 		return 0;

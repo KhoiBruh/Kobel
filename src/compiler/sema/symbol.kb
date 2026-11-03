@@ -154,6 +154,7 @@ pub struct GenericReg {
 	// Typed instance records: the identity used by monomorphization is
 	// (template, resolved type arguments), not the mangled C name.
 	pub records: List<*InstanceRecord> = List(),
+	pub record_map: HashMap<str, *InstanceRecord> = HashMap(),
 	// Declarations produced by instantiation, as `module marker, decl` pairs in
 	// creation order (a dependency always precedes the instance that needs it).
 	// The same list is the rewrite worklist: each instance still gets a fixpoint
@@ -174,6 +175,7 @@ impl GenericReg {
 
 	pub fn add_record(var self, rec: *InstanceRecord) {
 		self.records += rec;
+		if (!rec.c_name.empty()) self.record_map[rec.c_name] = rec;
 	}
 
 	// Typed lookup: same template and equal argument types.
@@ -191,9 +193,8 @@ impl GenericReg {
 	}
 
 	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord? {
-		for (r in self.records) {
-			if (r.c_name == cname) return r;
-		}
+		val p = self.record_map.get(cname);
+		if (p != null) return p.read();
 		return null;
 	}
 }

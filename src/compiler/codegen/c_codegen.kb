@@ -27,6 +27,7 @@ pub struct ConditionAlias {
 }
 
 pub struct CCodeGen {
+	pub out: StringBuilder,
 	pub indent_level: usz = 0,
 
 	pub errors: List<str> = List(),
@@ -46,6 +47,8 @@ pub struct CCodeGen {
 
 impl CCodeGen {
 
+	pub init() => Self(StringBuilder());
+
 	pub fn enter_defer_scope(var self) {
 		self.scope_starts += self.defer_nodes.len;
 		self.scope_jumped += false;
@@ -60,43 +63,37 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn exit_defer_scope(var self): str {
-		if (self.scope_starts.empty()) return "";
+	pub fn exit_defer_scope(var self) {
+		if (self.scope_starts.empty()) return;
 		val start_idx = self.scope_starts.pop();
 		val jumped = self.scope_jumped.pop();
 		if (jumped || self.defer_nodes.len <= start_idx) {
 			while (self.defer_nodes.len > start_idx) {
 				self.defer_nodes.pop();
 			}
-			return "";
+			return;
 		}
-		var sb = StringBuilder();
-		defer sb.free();
 		var i = self.defer_nodes.len;
 		while (i > start_idx) {
 			i--;
-			sb += self.gen_statement(self.defer_nodes[i]);
+			self.gen_statement(self.defer_nodes[i]);
 		}
 		while (self.defer_nodes.len > start_idx) {
 			self.defer_nodes.pop();
 		}
-		return sb.to_str();
 	}
 
 	pub fn has_active_defers(val self) => !self.defer_nodes.empty();
 
-	pub fn gen_defers_unwind(var self, depth: usz): str {
-		if (self.defer_nodes.empty()) return "";
+	pub fn gen_defers_unwind(var self, depth: usz) {
+		if (self.defer_nodes.empty()) return;
 		val min_idx = if (depth < self.scope_starts.len) self.scope_starts[depth] else 0;
-		if (self.defer_nodes.len <= min_idx) return "";
-		var sb = StringBuilder();
-		defer sb.free();
+		if (self.defer_nodes.len <= min_idx) return;
 		var i = self.defer_nodes.len;
 		while (i > min_idx) {
 			i--;
-			sb += self.gen_statement(self.defer_nodes[i]);
+			self.gen_statement(self.defer_nodes[i]);
 		}
-		return sb.to_str();
 	}
 
 	// True when the enum carries data on at least one variant; such an enum is
