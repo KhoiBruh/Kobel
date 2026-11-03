@@ -375,9 +375,9 @@ impl BodyPass {
 			if (cur is GroupExpr as g) cur = g.expr;
 			else break;
 		}
-		val call = (cur as? CallExpr) ?: return null;
+		val call = cur.as_call_expr() ?: return null;
 		if (!call.type_args.empty()) return null;
-		val cid = (call.callee as? IdentifierExpr) ?: return null;
+		val cid = call.callee?.as_identifier_expr() ?: return null;
 		val tmpl = self.find_struct_template_for(cid.name) ?: return null;
 		val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
 		val s = var_ty.as_struct();

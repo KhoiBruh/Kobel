@@ -19,7 +19,7 @@
 - **Blocks:** Delimited by curly braces `{ ... }`.
 - **Comments:** Line comments `// ...` and block comments `/* ... */`.
 - **Keywords:**
-  `as`, `as?`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
+  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
 - **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be valid identifiers (keywords cannot be module path segments).
 
 ### Literals
@@ -82,8 +82,7 @@
   - `*T`: Read-only pointer (dereferenced via `*p` or `p.field`).
   - `&T`: Mutable pointer.
 - **Casts:**
-  - `x as T`: Casts `x` to type `T`.
-  - `x as? T`: Safe cast returning nullable `*T?` (evaluates to `null` if the dynamic tag does not match).
+  - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` (`if (x is T)` or `when (x) { is T -> ... }`).
 
 ---
 

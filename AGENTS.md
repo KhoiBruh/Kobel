@@ -148,13 +148,13 @@ val name = "";
 if (decl != null) { name = decl.full_path; }
 ```
 
-### 6. Type narrowing (`is` / `as?`)
+### 6. Type narrowing (`is`)
 
-Narrow with `is`, downcast with `as?`. Never force-cast a value whose type is unchecked.
+Narrow and downcast with `is` pattern matching and smart casting. Never force-cast a value whose type is unchecked.
 
 ```kobel
 // CORRECT
-pub fn as_named_type(val self) => (self as? NamedType) as *NamedType;
+if (decl is ModuleDecl as m) return m.full_path;
 if (decl is ModuleDecl) return decl.full_path;
 ```
 
