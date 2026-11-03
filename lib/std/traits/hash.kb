@@ -12,7 +12,11 @@ pub trait Hash {
 	fn hash(val self): usz;
 }
 
-fn hash_int(n: usz): usz => (n / 8) * 2654435761;
+fn hash_int(n: usz): usz {
+	var x = (n + (n / 8)) * 2654435761;
+	x = (x + (x / 65536)) * 2246822519;
+	return x;
+}
 
 fn hash_str(s: str): usz {
 	var h: usz = 5381;

@@ -3,7 +3,11 @@ mod std.collections;
 use std.memory.*;
 use std.string.*;
 use std.traits.*;
-use std.string.*;
+
+extern "libc" {
+	fn memcpy(dst: &u8, src: *none, n: usz): *none;
+	fn memset(dst: &u8, c: i32, n: usz): *none;
+}
 
 // `len` is the public size accessor; the buffer and capacity are internal.
 pub struct StringBuilder {
@@ -28,8 +32,9 @@ impl StringBuilder {
 
 	pub fn append_str(var self, s: str) {
 		val s_len = s.len;
+		if (s_len == 0) return;
 		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
-		for (i in 0..<s_len) self.buf[self.len + i] = s[i].code();
+		memcpy(&self.buf[self.len], s.data, s_len);
 		self.len += s_len;
 	}
 
@@ -73,9 +78,9 @@ impl StringBuilder {
 
 	// `n` copies of `c` (indentation, padding) in one pass.
 	pub fn append_repeat(var self, c: char, n: usz) {
+		if (n == 0) return;
 		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
-		val b = c.code();
-		for (i in 0..<n) self.buf[self.len + i] = b;
+		memset(&self.buf[self.len], c.code() as i32, n);
 		self.len += n;
 	}
 
@@ -140,7 +145,7 @@ impl Iterable for StringBuilder {
 impl Stringer for StringBuilder {
 	pub fn to_str(val self): str {
 		val str_data = Heap.create_array<u8>(self.len + 1);
-		for (i in 0..<self.len) str_data[i] = self.buf[i];
+		if (self.len > 0) memcpy(str_data, self.buf, self.len);
 		str_data[self.len] = 0;
 		return str_from_bytes(str_data, self.len);
 	}

@@ -10,6 +10,7 @@ use std.traits.*;
 pub struct HashMap<K: Hash, V> {
 	keys: &K,
 	values: &V,
+	hashes: &usz,
 	occupied: &bool,
 	pub len: usz = 0,
 	cap: usz = 0
@@ -22,10 +23,11 @@ impl HashMap<K: Hash, V> {
 		if (cap < 8) cap = 8;
 		val keys = Heap.create_array<K>(cap);
 		val values = Heap.create_array<V>(cap);
+		val hashes = Heap.create_array<usz>(cap);
 		val occ = Heap.create_array<bool>(cap);
 
 		for (i in 0..<cap) occ[i] = false;
-		return Self(keys, values, occ, 0, cap);
+		return Self(keys, values, hashes, occ, 0, cap);
 	}
 
 	fn dist(val self, from: usz, to: usz): usz {
@@ -39,7 +41,7 @@ impl HashMap<K: Hash, V> {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return self.values[idx];
+			if (self.hashes[idx] == h && self.keys[idx] == key) return self.values[idx];
 			idx = (idx + 1) % self.cap;
 		}
 		return value;
@@ -52,14 +54,15 @@ impl HashMap<K: Hash, V> {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
+			if (self.hashes[idx] == h && self.keys[idx] == key) {
 				var i = idx;
 				var j = (idx + 1) % self.cap;
 				while (self.occupied[j]) {
-					val k = self.keys[j].hash() % self.cap;
+					val k = self.hashes[j] % self.cap;
 					if (self.dist(k, i) < self.dist(k, j)) {
 						self.keys[i] = self.keys[j];
 						self.values[i] = self.values[j];
+						self.hashes[i] = self.hashes[j];
 						i = j;
 					}
 					j = (j + 1) % self.cap;
@@ -105,35 +108,49 @@ impl HashMap<K: Hash, V> {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
 		val old_vals = self.values;
+		val old_hashes = self.hashes;
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
 		val keys = Heap.create_array<K>(new_cap);
 		val values = Heap.create_array<V>(new_cap);
+		val hashes = Heap.create_array<usz>(new_cap);
 		val new_occ = Heap.create_array<bool>(new_cap);
 
 		for (j in 0..<new_cap) new_occ[j] = false;
 
-		self.keys = keys;
-		self.values = values;
-		self.occupied = new_occ;
-		self.cap = new_cap;
-		self.len = 0;
-
 		if (old_cap > 0) {
 			for (i in 0..<old_cap) {
-				if (old_occ[i]) self.set(old_keys[i], old_vals[i]);
+				if (old_occ[i]) {
+					val h = old_hashes[i];
+					var idx = h % new_cap;
+					while (new_occ[idx]) {
+						idx = (idx + 1) % new_cap;
+					}
+					keys[idx] = old_keys[i];
+					values[idx] = old_vals[i];
+					hashes[idx] = h;
+					new_occ[idx] = true;
+				}
 			}
 			Heap.free(old_keys);
 			Heap.free(old_vals);
+			Heap.free(old_hashes);
 			Heap.free(old_occ);
 		}
+
+		self.keys = keys;
+		self.values = values;
+		self.hashes = hashes;
+		self.occupied = new_occ;
+		self.cap = new_cap;
 	}
 
 	pub fn free(self) {
 		if (self.cap > 0) {
 			Heap.free(self.keys);
 			Heap.free(self.values);
+			Heap.free(self.hashes);
 			Heap.free(self.occupied);
 		}
 	}
@@ -149,7 +166,7 @@ impl HashMap<K: Hash, V> {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
+			if (self.hashes[idx] == h && self.keys[idx] == key) {
 				self.values[idx] = value;
 				return;
 			}
@@ -158,6 +175,7 @@ impl HashMap<K: Hash, V> {
 
 		self.keys[idx] = key;
 		self.values[idx] = value;
+		self.hashes[idx] = h;
 		self.occupied[idx] = true;
 		self.len++;
 	}
@@ -168,7 +186,7 @@ impl HashMap<K: Hash, V> {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return &self.values[idx];
+			if (self.hashes[idx] == h && self.keys[idx] == key) return &self.values[idx];
 			idx = (idx + 1) % self.cap;
 		}
 		return null;
@@ -180,7 +198,7 @@ impl HashMap<K: Hash, V> {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return true;
+			if (self.hashes[idx] == h && self.keys[idx] == key) return true;
 			idx = (idx + 1) % self.cap;
 		}
 		return false;

@@ -6,6 +6,7 @@ use std.traits.*;
 // `len` is the public size accessor; the storage is internal.
 pub struct HashSet {
 	keys: &str,
+	hashes: &usz,
 	occupied: &bool,
 	pub len: usz = 0,
 	cap: usz = 0
@@ -17,10 +18,11 @@ impl HashSet {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
 		val keys = Heap.create_array<str>(cap);
+		val hashes = Heap.create_array<usz>(cap);
 		val occ = Heap.create_array<bool>(cap);
 
 		for (i in 0..<cap) occ[i] = false;
-		return Self(keys, occ, 0, cap);
+		return Self(keys, hashes, occ, 0, cap);
 	}
 
 	fn dist(val self, from: usz, to: usz): usz {
@@ -35,11 +37,12 @@ impl HashSet {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return false;
+			if (self.hashes[idx] == h && self.keys[idx] == key) return false;
 			idx = (idx + 1) % self.cap;
 		}
 
 		self.keys[idx] = key;
+		self.hashes[idx] = h;
 		self.occupied[idx] = true;
 		self.len++;
 		return true;
@@ -52,13 +55,14 @@ impl HashSet {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) {
+			if (self.hashes[idx] == h && self.keys[idx] == key) {
 				var i = idx;
 				var j = (idx + 1) % self.cap;
 				while (self.occupied[j]) {
-					val k = self.keys[j].hash() % self.cap;
+					val k = self.hashes[j] % self.cap;
 					if (self.dist(k, j) > self.dist(k, i)) {
 						self.keys[i] = self.keys[j];
+						self.hashes[i] = self.hashes[j];
 						i = j;
 					}
 					j = (j + 1) % self.cap;
@@ -93,31 +97,44 @@ impl HashSet {
 	fn grow(var self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
+		val old_hashes = self.hashes;
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
 		val keys = Heap.create_array<str>(new_cap);
+		val hashes = Heap.create_array<usz>(new_cap);
 		val new_occ = Heap.create_array<bool>(new_cap);
 
 		for (j in 0..<new_cap) new_occ[j] = false;
 
-		self.keys = keys;
-		self.occupied = new_occ;
-		self.cap = new_cap;
-		self.len = 0;
-
 		if (old_cap > 0) {
 			for (i in 0..<old_cap) {
-				if (old_occ[i]) self += old_keys[i];
+				if (old_occ[i]) {
+					val h = old_hashes[i];
+					var idx = h % new_cap;
+					while (new_occ[idx]) {
+						idx = (idx + 1) % new_cap;
+					}
+					keys[idx] = old_keys[i];
+					hashes[idx] = h;
+					new_occ[idx] = true;
+				}
 			}
 			Heap.free(old_keys);
+			Heap.free(old_hashes);
 			Heap.free(old_occ);
 		}
+
+		self.keys = keys;
+		self.hashes = hashes;
+		self.occupied = new_occ;
+		self.cap = new_cap;
 	}
 
 	pub fn free(self) {
 		if (self.cap > 0) {
 			Heap.free(self.keys);
+			Heap.free(self.hashes);
 			Heap.free(self.occupied);
 		}
 	}
@@ -130,7 +147,7 @@ impl HashSet {
 		var idx = h % self.cap;
 
 		while (self.occupied[idx]) {
-			if (self.keys[idx] == key) return true;
+			if (self.hashes[idx] == h && self.keys[idx] == key) return true;
 			idx = (idx + 1) % self.cap;
 		}
 

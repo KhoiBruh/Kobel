@@ -511,6 +511,7 @@ struct std__memory__Arena {
 
 struct std__collections__HashSet {
     kobel_str* keys;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1154,6 +1155,7 @@ struct std__collections__List_str {
 struct std__collections__HashMap_str_str {
     kobel_str* keys;
     kobel_str* values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1270,6 +1272,7 @@ struct std__collections__List_ptr_compiler__sema__instance__AnnEntry {
 struct std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry {
     size_t* keys;
     compiler__sema__instance__AnnEntry** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1290,6 +1293,7 @@ struct std__collections__List_ptr_compiler__sema__symbol__Symbol {
 struct std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol {
     kobel_str* keys;
     compiler__sema__symbol__Symbol** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1310,6 +1314,7 @@ struct std__collections__List_ptr_compiler__sema__instance__InstanceRecord {
 struct std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord {
     kobel_str* keys;
     compiler__sema__instance__InstanceRecord** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1324,6 +1329,7 @@ struct std__collections__List_ptr_compiler__sema__symbol__ModuleScope {
 struct std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope {
     kobel_str* keys;
     compiler__sema__symbol__ModuleScope** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1344,6 +1350,7 @@ struct std__collections__List_ptr_compiler__sema__enums__EnumInfo {
 struct std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo {
     kobel_str* keys;
     compiler__sema__enums__EnumInfo** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1358,6 +1365,7 @@ struct std__collections__List_ptr_compiler__sema__traits__TraitInfo {
 struct std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo {
     kobel_str* keys;
     compiler__sema__traits__TraitInfo** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1366,6 +1374,7 @@ struct std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo {
 struct std__collections__HashMap_str_compiler__sema__symbol__ImportBinding {
     kobel_str* keys;
     compiler__sema__symbol__ImportBinding* values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1374,6 +1383,7 @@ struct std__collections__HashMap_str_compiler__sema__symbol__ImportBinding {
 struct std__collections__HashMap_str_ptr_compiler__sema__types__Type {
     kobel_str* keys;
     compiler__sema__types__Type** values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -1406,6 +1416,7 @@ struct std__collections__List_lsp__document__Document {
 struct std__collections__HashMap_str_lsp__document__Document {
     kobel_str* keys;
     lsp__document__Document* values;
+    size_t* hashes;
     bool* occupied;
     size_t len;
     size_t cap;
@@ -4345,6 +4356,7 @@ uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 kobel_str* std__memory__Heap_create_array_str(size_t count);
+size_t* std__memory__Heap_create_array_usz(size_t count);
 bool* std__memory__Heap_create_array_bool(size_t count);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
 compiler__sema__structs__StructType* std__memory__Arena_create_val_compiler__sema__structs__StructType(std__memory__Arena* self, compiler__sema__structs__StructType value);
@@ -4400,7 +4412,6 @@ compiler__sema__enums__EnumMemberInfo** std__memory__Heap_create_array_ptr_compi
 compiler__sema__enums__EnumMemberInfo** std__memory__Heap_resize_ptr_compiler__sema__enums__EnumMemberInfo(compiler__sema__enums__EnumMemberInfo** ptr, size_t count);
 compiler__sema__types__Type** std__memory__Heap_create_array_ptr_compiler__sema__types__Type(size_t count);
 compiler__sema__types__Type** std__memory__Heap_resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count);
-size_t* std__memory__Heap_create_array_usz(size_t count);
 size_t* std__memory__Heap_resize_usz(size_t* ptr, size_t count);
 compiler__sema__instance__AnnEntry** std__memory__Heap_create_array_ptr_compiler__sema__instance__AnnEntry(size_t count);
 compiler__sema__instance__AnnEntry** std__memory__Heap_resize_ptr_compiler__sema__instance__AnnEntry(compiler__sema__instance__AnnEntry** ptr, size_t count);
@@ -4503,7 +4514,9 @@ compiler__sema__body__program__ArrowCandidate* std__memory__Arena_create_compile
 compiler__sema__instance__AnnEntry* std__memory__Arena_create_compiler__sema__instance__AnnEntry(std__memory__Arena* self);
 
 size_t std__traits__hash_int(size_t n) {
-    return ((n / 8) * 2654435761);
+    size_t x = ((n + (n / 8)) * 2654435761);
+    x = ((x + (x / 65536)) * 2246822519);
+    return x;
 }
 
 size_t std__traits__hash_str(kobel_str s) {
@@ -4665,6 +4678,7 @@ std__collections__HashSet std__collections__HashSet_init(size_t init_cap) {
         cap = 8;
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -4694,7 +4708,7 @@ std__collections__HashSet std__collections__HashSet_init(size_t init_cap) {
             }
         }
     }
-    return (std__collections__HashSet){ keys, occ, 0, cap };
+    return (std__collections__HashSet){ keys, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashSet_dist(std__collections__HashSet* self, size_t from, size_t to) {
@@ -4711,12 +4725,13 @@ bool std__collections__HashSet_add(std__collections__HashSet* self, kobel_str ke
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return false;
         }
         idx = ((idx + 1) % self->cap);
     }
     self->keys[idx] = key;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
     return true;
@@ -4729,13 +4744,14 @@ bool std__collections__HashSet_remove(std__collections__HashSet* self, kobel_str
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashSet_dist(self, k, j) > std__collections__HashSet_dist(self, k, i)) {
                     self->keys[i] = self->keys[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -4828,9 +4844,11 @@ std__collections__List_str std__collections__HashSet_to_list(std__collections__H
 void std__collections__HashSet_grow(std__collections__HashSet* self) {
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -4860,10 +4878,6 @@ void std__collections__HashSet_grow(std__collections__HashSet* self) {
             }
         }
     }
-    self->keys = keys;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -4879,7 +4893,14 @@ void std__collections__HashSet_grow(std__collections__HashSet* self) {
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashSet_plus_assign(self, old_keys[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -4896,13 +4917,19 @@ void std__collections__HashSet_grow(std__collections__HashSet* self) {
             }
         }
         std__memory__Heap_free_str(old_keys);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashSet_free(std__collections__HashSet* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -4918,7 +4945,7 @@ bool std__collections__HashSet_contains(std__collections__HashSet* self, kobel_s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -4984,37 +5011,13 @@ void std__collections__StringBuilder_append_char(std__collections__StringBuilder
 
 void std__collections__StringBuilder_append_str(std__collections__StringBuilder* self, kobel_str s) {
     size_t s_len = s.len;
+    if (s_len == 0) {
+        return;
+    }
     if (((self->len + s_len) + 1) >= self->cap) {
         std__collections__StringBuilder_grow(self, ((self->len + s_len) + 1));
     }
-    {
-        size_t __for_e = s_len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->buf[(self->len + i)] = ((int32_t)(uint8_t)(s.data[i]));
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
+    memcpy(&self->buf[self->len], s.data, s_len);
     self->len += s_len;
 }
 
@@ -5057,38 +5060,13 @@ void std__collections__StringBuilder_append_line(std__collections__StringBuilder
 }
 
 void std__collections__StringBuilder_append_repeat(std__collections__StringBuilder* self, char c, size_t n) {
+    if (n == 0) {
+        return;
+    }
     if (((self->len + n) + 1) >= self->cap) {
         std__collections__StringBuilder_grow(self, ((self->len + n) + 1));
     }
-    int32_t b = ((int32_t)(uint8_t)(c));
-    {
-        size_t __for_e = n;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->buf[(self->len + i)] = b;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
+    memset(&self->buf[self->len], (int32_t)((int32_t)(uint8_t)(c)), n);
     self->len += n;
 }
 
@@ -5204,33 +5182,8 @@ char std__collections__StringBuilder_at(std__collections__StringBuilder* self, s
 
 kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self) {
     uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            str_data[i] = self->buf[i];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
+    if (self->len > 0) {
+        memcpy(str_data, self->buf, self->len);
     }
     str_data[self->len] = 0;
     return std__string__str_from_bytes(str_data, self->len);
@@ -27982,6 +27935,7 @@ std__collections__HashMap_str_str std__collections__HashMap_str_str_init(size_t 
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     kobel_str* values = std__memory__Heap_create_array_str(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -28011,7 +27965,7 @@ std__collections__HashMap_str_str std__collections__HashMap_str_str_init(size_t 
             }
         }
     }
-    return (std__collections__HashMap_str_str){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_str){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_str_dist(std__collections__HashMap_str_str* self, size_t from, size_t to) {
@@ -28028,7 +27982,7 @@ kobel_str std__collections__HashMap_str_str_get_or(std__collections__HashMap_str
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -28043,14 +27997,15 @@ bool std__collections__HashMap_str_str_remove(std__collections__HashMap_str_str*
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_str_dist(self, k, i) < std__collections__HashMap_str_str_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -28187,10 +28142,12 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     kobel_str* old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     kobel_str* values = std__memory__Heap_create_array_str(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -28220,11 +28177,6 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -28240,7 +28192,15 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_str_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -28258,14 +28218,21 @@ void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* s
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_str(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_str_free(std__collections__HashMap_str_str* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_str(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -28277,7 +28244,7 @@ void std__collections__HashMap_str_str_set(std__collections__HashMap_str_str* se
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -28285,6 +28252,7 @@ void std__collections__HashMap_str_str_set(std__collections__HashMap_str_str* se
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -28296,7 +28264,7 @@ kobel_str* std__collections__HashMap_str_str_get(std__collections__HashMap_str_s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -28311,7 +28279,7 @@ bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_st
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -34356,6 +34324,7 @@ std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collec
     }
     size_t* keys = std__memory__Heap_create_array_usz(cap);
     compiler__sema__instance__AnnEntry** values = std__memory__Heap_create_array_ptr_compiler__sema__instance__AnnEntry(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -34385,7 +34354,7 @@ std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry std__collec
             }
         }
     }
-    return (std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self, size_t from, size_t to) {
@@ -34402,7 +34371,7 @@ compiler__sema__instance__AnnEntry* std__collections__HashMap_usz_ptr_compiler__
     size_t h = usz_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (self->keys[idx] == key) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -34417,14 +34386,15 @@ bool std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_remove
     size_t h = usz_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (self->keys[idx] == key) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (usz_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(self, k, i) < std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -34561,10 +34531,12 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
     size_t old_cap = self->cap;
     size_t* old_keys = self->keys;
     compiler__sema__instance__AnnEntry** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     size_t* keys = std__memory__Heap_create_array_usz(new_cap);
     compiler__sema__instance__AnnEntry** values = std__memory__Heap_create_array_ptr_compiler__sema__instance__AnnEntry(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -34594,11 +34566,6 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -34614,7 +34581,15 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -34632,14 +34607,21 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_grow(s
         }
         std__memory__Heap_free_usz(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__instance__AnnEntry(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_free(std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_usz(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__instance__AnnEntry(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -34651,7 +34633,7 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(st
     size_t h = usz_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (self->keys[idx] == key) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
             self->values[idx] = value;
             return;
         }
@@ -34659,6 +34641,7 @@ void std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_set(st
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -34670,7 +34653,7 @@ compiler__sema__instance__AnnEntry** std__collections__HashMap_usz_ptr_compiler_
     size_t h = usz_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (self->keys[idx] == key) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -34685,7 +34668,7 @@ bool std__collections__HashMap_usz_ptr_compiler__sema__instance__AnnEntry_contai
     size_t h = usz_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (self->keys[idx] == key) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -35370,6 +35353,7 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collection
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__symbol__Symbol** values = std__memory__Heap_create_array_ptr_compiler__sema__symbol__Symbol(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -35399,7 +35383,7 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol std__collection
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol* self, size_t from, size_t to) {
@@ -35416,7 +35400,7 @@ compiler__sema__symbol__Symbol* std__collections__HashMap_str_ptr_compiler__sema
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -35431,14 +35415,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_remove(std
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -35575,10 +35560,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__symbol__Symbol** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__symbol__Symbol** values = std__memory__Heap_create_array_ptr_compiler__sema__symbol__Symbol(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -35608,11 +35595,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -35628,7 +35610,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -35646,14 +35636,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_grow(std__
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__symbol__Symbol(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_free(std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__symbol__Symbol(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -35665,7 +35662,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(std__c
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -35673,6 +35670,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_set(std__c
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -35684,7 +35682,7 @@ compiler__sema__symbol__Symbol** std__collections__HashMap_str_ptr_compiler__sem
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -35699,7 +35697,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__symbol__Symbol_contains(s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -36384,6 +36382,7 @@ std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord std__
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__instance__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__sema__instance__InstanceRecord(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -36413,7 +36412,7 @@ std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord std__
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_dist(std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord* self, size_t from, size_t to) {
@@ -36430,7 +36429,7 @@ compiler__sema__instance__InstanceRecord* std__collections__HashMap_str_ptr_comp
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -36445,14 +36444,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -36589,10 +36589,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__instance__InstanceRecord** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__instance__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__sema__instance__InstanceRecord(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -36622,11 +36624,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -36642,7 +36639,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -36660,14 +36665,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__instance__InstanceRecord(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_free(std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__instance__InstanceRecord(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -36679,7 +36691,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -36687,6 +36699,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -36698,7 +36711,7 @@ compiler__sema__instance__InstanceRecord** std__collections__HashMap_str_ptr_com
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -36713,7 +36726,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__instance__InstanceRecord_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -37063,6 +37076,7 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__colle
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__symbol__ModuleScope** values = std__memory__Heap_create_array_ptr_compiler__sema__symbol__ModuleScope(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -37092,7 +37106,7 @@ std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope std__colle
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self, size_t from, size_t to) {
@@ -37109,7 +37123,7 @@ compiler__sema__symbol__ModuleScope* std__collections__HashMap_str_ptr_compiler_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -37124,14 +37138,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_remov
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -37268,10 +37283,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__symbol__ModuleScope** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__symbol__ModuleScope** values = std__memory__Heap_create_array_ptr_compiler__sema__symbol__ModuleScope(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -37301,11 +37318,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -37321,7 +37333,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -37339,14 +37359,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_grow(
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__symbol__ModuleScope(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_free(std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__symbol__ModuleScope(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -37358,7 +37385,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -37366,6 +37393,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_set(s
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -37377,7 +37405,7 @@ compiler__sema__symbol__ModuleScope** std__collections__HashMap_str_ptr_compiler
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -37392,7 +37420,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__symbol__ModuleScope_conta
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -38077,6 +38105,7 @@ std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collectio
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__enums__EnumInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__enums__EnumInfo(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -38106,7 +38135,7 @@ std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo std__collectio
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self, size_t from, size_t to) {
@@ -38123,7 +38152,7 @@ compiler__sema__enums__EnumInfo* std__collections__HashMap_str_ptr_compiler__sem
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -38138,14 +38167,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_remove(st
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -38282,10 +38312,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__enums__EnumInfo** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__enums__EnumInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__enums__EnumInfo(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -38315,11 +38347,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -38335,7 +38362,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -38353,14 +38388,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_grow(std_
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__enums__EnumInfo(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_free(std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__enums__EnumInfo(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -38372,7 +38414,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(std__
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -38380,6 +38422,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_set(std__
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -38391,7 +38434,7 @@ compiler__sema__enums__EnumInfo** std__collections__HashMap_str_ptr_compiler__se
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -38406,7 +38449,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__enums__EnumInfo_contains(
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -38756,6 +38799,7 @@ std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collect
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__traits__TraitInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__traits__TraitInfo(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -38785,7 +38829,7 @@ std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo std__collect
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self, size_t from, size_t to) {
@@ -38802,7 +38846,7 @@ compiler__sema__traits__TraitInfo* std__collections__HashMap_str_ptr_compiler__s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -38817,14 +38861,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_remove(
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -38961,10 +39006,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__traits__TraitInfo** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__traits__TraitInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__traits__TraitInfo(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -38994,11 +39041,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -39014,7 +39056,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -39032,14 +39082,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_grow(st
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__traits__TraitInfo(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_free(std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__traits__TraitInfo(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -39051,7 +39108,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(std
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -39059,6 +39116,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_set(std
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -39070,7 +39128,7 @@ compiler__sema__traits__TraitInfo** std__collections__HashMap_str_ptr_compiler__
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -39085,7 +39143,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__traits__TraitInfo_contain
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -39100,6 +39158,7 @@ std__collections__HashMap_str_compiler__sema__symbol__ImportBinding std__collect
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__symbol__ImportBinding* values = std__memory__Heap_create_array_compiler__sema__symbol__ImportBinding(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -39129,7 +39188,7 @@ std__collections__HashMap_str_compiler__sema__symbol__ImportBinding std__collect
             }
         }
     }
-    return (std__collections__HashMap_str_compiler__sema__symbol__ImportBinding){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_compiler__sema__symbol__ImportBinding){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_dist(std__collections__HashMap_str_compiler__sema__symbol__ImportBinding* self, size_t from, size_t to) {
@@ -39146,7 +39205,7 @@ compiler__sema__symbol__ImportBinding std__collections__HashMap_str_compiler__se
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -39161,14 +39220,15 @@ bool std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_remove(
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_dist(self, k, i) < std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -39305,10 +39365,12 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__symbol__ImportBinding* old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__symbol__ImportBinding* values = std__memory__Heap_create_array_compiler__sema__symbol__ImportBinding(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -39338,11 +39400,6 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -39358,7 +39415,15 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -39376,14 +39441,21 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_grow(st
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_compiler__sema__symbol__ImportBinding(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_free(std__collections__HashMap_str_compiler__sema__symbol__ImportBinding* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_compiler__sema__symbol__ImportBinding(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -39395,7 +39467,7 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_set(std
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -39403,6 +39475,7 @@ void std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_set(std
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -39414,7 +39487,7 @@ compiler__sema__symbol__ImportBinding* std__collections__HashMap_str_compiler__s
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -39429,7 +39502,7 @@ bool std__collections__HashMap_str_compiler__sema__symbol__ImportBinding_contain
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -39444,6 +39517,7 @@ std__collections__HashMap_str_ptr_compiler__sema__types__Type std__collections__
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     compiler__sema__types__Type** values = std__memory__Heap_create_array_ptr_compiler__sema__types__Type(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -39473,7 +39547,7 @@ std__collections__HashMap_str_ptr_compiler__sema__types__Type std__collections__
             }
         }
     }
-    return (std__collections__HashMap_str_ptr_compiler__sema__types__Type){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_ptr_compiler__sema__types__Type){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_ptr_compiler__sema__types__Type_dist(std__collections__HashMap_str_ptr_compiler__sema__types__Type* self, size_t from, size_t to) {
@@ -39490,7 +39564,7 @@ compiler__sema__types__Type* std__collections__HashMap_str_ptr_compiler__sema__t
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -39505,14 +39579,15 @@ bool std__collections__HashMap_str_ptr_compiler__sema__types__Type_remove(std__c
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_ptr_compiler__sema__types__Type_dist(self, k, i) < std__collections__HashMap_str_ptr_compiler__sema__types__Type_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -39649,10 +39724,12 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     compiler__sema__types__Type** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     compiler__sema__types__Type** values = std__memory__Heap_create_array_ptr_compiler__sema__types__Type(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -39682,11 +39759,6 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -39702,7 +39774,15 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_ptr_compiler__sema__types__Type_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -39720,14 +39800,21 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_grow(std__col
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_ptr_compiler__sema__types__Type(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_ptr_compiler__sema__types__Type_free(std__collections__HashMap_str_ptr_compiler__sema__types__Type* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_ptr_compiler__sema__types__Type(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -39739,7 +39826,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_set(std__coll
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -39747,6 +39834,7 @@ void std__collections__HashMap_str_ptr_compiler__sema__types__Type_set(std__coll
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -39758,7 +39846,7 @@ compiler__sema__types__Type** std__collections__HashMap_str_ptr_compiler__sema__
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -39773,7 +39861,7 @@ bool std__collections__HashMap_str_ptr_compiler__sema__types__Type_contains(std_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -41128,6 +41216,7 @@ std__collections__HashMap_str_lsp__document__Document std__collections__HashMap_
     }
     kobel_str* keys = std__memory__Heap_create_array_str(cap);
     lsp__document__Document* values = std__memory__Heap_create_array_lsp__document__Document(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
     bool* occ = std__memory__Heap_create_array_bool(cap);
     {
         size_t __for_e = cap;
@@ -41157,7 +41246,7 @@ std__collections__HashMap_str_lsp__document__Document std__collections__HashMap_
             }
         }
     }
-    return (std__collections__HashMap_str_lsp__document__Document){ keys, values, occ, 0, cap };
+    return (std__collections__HashMap_str_lsp__document__Document){ keys, values, hashes, occ, 0, cap };
 }
 
 size_t std__collections__HashMap_str_lsp__document__Document_dist(std__collections__HashMap_str_lsp__document__Document* self, size_t from, size_t to) {
@@ -41174,7 +41263,7 @@ lsp__document__Document std__collections__HashMap_str_lsp__document__Document_ge
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -41189,14 +41278,15 @@ bool std__collections__HashMap_str_lsp__document__Document_remove(std__collectio
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             size_t i = idx;
             size_t j = ((idx + 1) % self->cap);
             while (self->occupied[j]) {
-                size_t k = (str_hash(self->keys[j]) % self->cap);
+                size_t k = (self->hashes[j] % self->cap);
                 if (std__collections__HashMap_str_lsp__document__Document_dist(self, k, i) < std__collections__HashMap_str_lsp__document__Document_dist(self, k, j)) {
                     self->keys[i] = self->keys[j];
                     self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
                     i = j;
                 }
                 j = ((j + 1) % self->cap);
@@ -41333,10 +41423,12 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
     size_t old_cap = self->cap;
     kobel_str* old_keys = self->keys;
     lsp__document__Document* old_vals = self->values;
+    size_t* old_hashes = self->hashes;
     bool* old_occ = self->occupied;
     size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
     kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
     lsp__document__Document* values = std__memory__Heap_create_array_lsp__document__Document(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
     bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
     {
         size_t __for_e = new_cap;
@@ -41366,11 +41458,6 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
             }
         }
     }
-    self->keys = keys;
-    self->values = values;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-    self->len = 0;
     if (old_cap > 0) {
         {
             size_t __for_e = old_cap;
@@ -41386,7 +41473,15 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
             while (__for_go) {
                 size_t i = __for_i;
                 if (old_occ[i]) {
-                    std__collections__HashMap_str_lsp__document__Document_set(self, old_keys[i], old_vals[i]);
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
                 }
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -41404,14 +41499,21 @@ void std__collections__HashMap_str_lsp__document__Document_grow(std__collections
         }
         std__memory__Heap_free_str(old_keys);
         std__memory__Heap_free_lsp__document__Document(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
         std__memory__Heap_free_bool(old_occ);
     }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
 }
 
 void std__collections__HashMap_str_lsp__document__Document_free(std__collections__HashMap_str_lsp__document__Document* self) {
     if (self->cap > 0) {
         std__memory__Heap_free_str(self->keys);
         std__memory__Heap_free_lsp__document__Document(self->values);
+        std__memory__Heap_free_usz(self->hashes);
         std__memory__Heap_free_bool(self->occupied);
     }
 }
@@ -41423,7 +41525,7 @@ void std__collections__HashMap_str_lsp__document__Document_set(std__collections_
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             self->values[idx] = value;
             return;
         }
@@ -41431,6 +41533,7 @@ void std__collections__HashMap_str_lsp__document__Document_set(std__collections_
     }
     self->keys[idx] = key;
     self->values[idx] = value;
+    self->hashes[idx] = h;
     self->occupied[idx] = true;
     self->len++;
 }
@@ -41442,7 +41545,7 @@ lsp__document__Document* std__collections__HashMap_str_lsp__document__Document_g
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return &self->values[idx];
         }
         idx = ((idx + 1) % self->cap);
@@ -41457,7 +41560,7 @@ bool std__collections__HashMap_str_lsp__document__Document_contains(std__collect
     size_t h = str_hash(key);
     size_t idx = (h % self->cap);
     while (self->occupied[idx]) {
-        if (kobel_streq(self->keys[idx], key)) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
             return true;
         }
         idx = ((idx + 1) % self->cap);
@@ -43247,6 +43350,10 @@ kobel_str* std__memory__Heap_create_array_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 
+size_t* std__memory__Heap_create_array_usz(size_t count) {
+    return (size_t*)malloc((count * 8));
+}
+
 bool* std__memory__Heap_create_array_bool(size_t count) {
     return (bool*)malloc((count * 1));
 }
@@ -43503,10 +43610,6 @@ compiler__sema__types__Type** std__memory__Heap_create_array_ptr_compiler__sema_
 
 compiler__sema__types__Type** std__memory__Heap_resize_ptr_compiler__sema__types__Type(compiler__sema__types__Type** ptr, size_t count) {
     return (compiler__sema__types__Type**)realloc((uint8_t*)ptr, (count * 8));
-}
-
-size_t* std__memory__Heap_create_array_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
 }
 
 size_t* std__memory__Heap_resize_usz(size_t* ptr, size_t count) {
@@ -43866,7 +43969,7 @@ compiler__sema__prims__PrimTypes* std__memory__Arena_create_compiler__sema__prim
 }
 
 compiler__sema__symbol__ModuleScope* std__memory__Arena_create_compiler__sema__symbol__ModuleScope(std__memory__Arena* self) {
-    return (compiler__sema__symbol__ModuleScope*)std__memory__Arena_alloc_bytes(self, 80, 8);
+    return (compiler__sema__symbol__ModuleScope*)std__memory__Arena_alloc_bytes(self, 88, 8);
 }
 
 compiler__sema__template__GenTemplate* std__memory__Arena_create_compiler__sema__template__GenTemplate(std__memory__Arena* self) {
@@ -43882,7 +43985,7 @@ compiler__sema__methods__MethodInfo* std__memory__Arena_create_compiler__sema__m
 }
 
 compiler__sema__instance__InstanceRecord* std__memory__Arena_create_compiler__sema__instance__InstanceRecord(std__memory__Arena* self) {
-    return (compiler__sema__instance__InstanceRecord*)std__memory__Arena_alloc_bytes(self, 112, 8);
+    return (compiler__sema__instance__InstanceRecord*)std__memory__Arena_alloc_bytes(self, 120, 8);
 }
 
 compiler__sema__enums__EnumMemberInfo* std__memory__Arena_create_compiler__sema__enums__EnumMemberInfo(std__memory__Arena* self) {
