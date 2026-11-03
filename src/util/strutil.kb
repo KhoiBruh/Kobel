@@ -165,7 +165,7 @@ pub fn multiline_trim_indent(raw: str): str {
 	val prefix = common_whitespace_prefix(lines, start_idx, end_idx);
 
 	var sb = StringBuilder();
-	defer sb.delete();
+	defer sb.free();
 	var first = true;
 	for (i in start_idx..<end_idx) {
 		val line = lines[i];
@@ -187,7 +187,7 @@ pub fn multiline_trim_indent(raw: str): str {
 
 pub fn multiline_escape_for_c(text: str): str {
 	var out = StringBuilder();
-	defer out.delete();
+	defer out.free();
 	out += '"';
 	var i: usz = 0;
 	while (i < text.len) {

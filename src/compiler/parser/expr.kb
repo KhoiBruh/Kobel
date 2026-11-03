@@ -734,7 +734,7 @@ impl Parser {
 		val end = text.len;
 		var i: usz = 0;
 		var lit = StringBuilder();
-		defer lit.delete();
+		defer lit.free();
 		var has_lit = false;
 
 		while (i < end) {
@@ -828,7 +828,7 @@ impl Parser {
 		val end = text.len - 1;   // index of the closing quote
 		var i: usz = 1;           // skip the opening quote
 		var lit = StringBuilder();
-		defer lit.delete();
+		defer lit.free();
 		var has_lit = false;
 
 		while (i < end) {

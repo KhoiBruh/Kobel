@@ -16,7 +16,7 @@ fn test_keywords(): bool {
 	val code: str = "extern struct fn return const null true false val var as while break continue if else when mod use pub trait impl for defer";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 25) {
 		println("  [ERR] Keyword token count mismatch");
@@ -56,7 +56,7 @@ fn test_operators(): bool {
 	val code: str = "= == => + - -> * / % < <= > >= ! != && || : ; , . [ ] ( ) { } &";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens[0].type != TokenType.EQUAL) return false;
 	if (tokens[1].type != TokenType.EQUAL_EQUAL) return false;
@@ -95,7 +95,7 @@ fn test_literals(): bool {
 	val code: str = "123 45.67 \"hello world\" 'a' '\\n'";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 6) return false;
 
@@ -124,7 +124,7 @@ fn test_multiline_string_lexer(): bool {
 	val code: str = "\"\"\"\nhello\nworld\n\"\"\" \"\"\"single\"\"\" \"\"\"\"\"\"";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 4) return false;
 	if (tokens[0].type != TokenType.STRING) return false;
@@ -145,7 +145,7 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 	val code: str = "0xFF 0b1010 0o77 1_000_000 100 50U 10_000_US 3.14F 2.5D";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 10) return false;
 
@@ -167,7 +167,7 @@ fn test_comments_and_whitespace(): bool {
 	val code: str = "val a = 1; // single line comment\nval b = 2; /* multi\nline\ncomment */ val c = 3;";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 16) return false;
 
@@ -198,7 +198,7 @@ fn test_line_col_tracking(): bool {
 	val code: str = "val x = 1;\nval y = 2;";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	val t0: Token = tokens[0];
 	if (t0.text != "val" || t0.line != 1 || t0.col != 1) return false;
@@ -221,7 +221,7 @@ fn test_bom_prefix(): bool {
 
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 6) {
 		println("  [ERR] BOM-prefixed source: wrong token count");
@@ -239,7 +239,7 @@ fn test_question_operators(): bool {
 	val code: str = "? ?: ?.";
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
-	defer tokens.delete();
+	defer tokens.free();
 
 	if (tokens.len != 4) return false;
 	if (tokens[0].type != TokenType.QUESTION) return false;

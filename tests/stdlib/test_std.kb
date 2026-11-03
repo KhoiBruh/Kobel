@@ -42,7 +42,7 @@ fn test_ascii(): bool {
 
 fn test_arena(): bool {
 	var arena: Arena = Arena(1024);
-	defer arena.delete();
+	defer arena.free();
 	val p1: &u8 = arena.alloc_bytes(64, 8);
 	val p2: &u8 = arena.alloc_bytes(128, 8);
 	if (p1 == null || p2 == null) return false;
@@ -71,7 +71,7 @@ fn test_arena(): bool {
 fn test_collections(): bool {
 	// 1. List
 	var list: List<i32> = List<i32>();
-	defer list.delete();
+	defer list.free();
 	list += 10;
 	list += 20;
 	list += 30;
@@ -88,7 +88,7 @@ fn test_collections(): bool {
 	// test clone
 	{
 		var cloned = list.clone();
-		defer cloned.delete();
+		defer cloned.free();
 		if (cloned.len != 3 || cloned[2] != 30) return false;
 	}
 
@@ -98,7 +98,7 @@ fn test_collections(): bool {
 	// test extend, in/contains, index_of, remove, reverse, pop_or
 	{
 		var ext_list = List<i32>();
-		defer ext_list.delete();
+		defer ext_list.free();
 		ext_list += 40;
 		ext_list += 50;
 		list.extend(ext_list); // [10, 20, 40, 50]
@@ -112,7 +112,7 @@ fn test_collections(): bool {
 
 	// 2. HashMap
 	var map: HashMap<str, i32> = HashMap<str, i32>();
-	defer map.delete();
+	defer map.free();
 	if (!map.empty() || map.count() != 0) return false;
 
 	map["first"] = 100;
@@ -143,13 +143,13 @@ fn test_collections(): bool {
 	// test keys and values
 	{
 		val all_keys = map.keys();
-		defer all_keys.delete();
+		defer all_keys.free();
 		if (all_keys.len != 3) return false;
 	}
 
 	{
 		val all_vals = map.values();
-		defer all_vals.delete();
+		defer all_vals.free();
 		if (all_vals.len != 3) return false;
 	}
 
@@ -168,7 +168,7 @@ fn test_collections(): bool {
 	// 3. StringBuilder
 	{
 		var sb: StringBuilder = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		if (!sb.empty()) return false;
 		sb += "Kobel";
 		if (sb.empty()) return false;
@@ -187,7 +187,7 @@ fn test_collections(): bool {
 	// 4. append_repeat / append_escaped
 	{
 		var sb2: StringBuilder = StringBuilder();
-		defer sb2.delete();
+		defer sb2.free();
 		sb2.append_repeat(' ', 3);
 		sb2 += "x";
 		sb2.append_escaped("a\"b\\c\nd");
@@ -200,7 +200,7 @@ fn test_collections(): bool {
 	// 5. HashSet
 	{
 		var set: HashSet = HashSet();
-		defer set.delete();
+		defer set.free();
 		if (!set.empty() || set.count() != 0) return false;
 		if (!set.add("apple")) return false;
 		if (!set.add("banana")) return false;
@@ -209,7 +209,7 @@ fn test_collections(): bool {
 		if ("orange" in set) return false;
 		{
 			val set_list = set.to_list();
-			defer set_list.delete();
+			defer set_list.free();
 			if (set_list.len != 2) return false;
 		}
 		if (!set.remove("apple")) return false;
@@ -224,7 +224,7 @@ fn test_collections(): bool {
 	if (orig_path.replace_char('.', '/') != "a/b/c") return false;
 	{
 		var parts = List<str>();
-		defer parts.delete();
+		defer parts.free();
 		parts += "hello";
 		parts += "world";
 		parts += "kobel";

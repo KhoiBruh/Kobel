@@ -97,7 +97,7 @@ fn test_range_bound_type(var t: &Tally, n: usz) {
 
 fn test_iter_list(var t: &Tally) {
 	var nums = List<i32>();
-	defer nums.delete();
+	defer nums.free();
 	nums += 10;
 	nums += 20;
 	nums += 30;
@@ -175,7 +175,7 @@ fn test_break_continue(var t: &Tally) {
 // The loop variable is read-only and fresh on every iteration.
 fn test_loop_var_is_fresh(var t: &Tally) {
 	var sum = List<i32>();
-	defer sum.delete();
+	defer sum.free();
 	for (i in 0..3) sum += i;
 	val a = sum[0];
 	val b = sum[2];
@@ -191,7 +191,7 @@ fn count_items<T>(xs: List<T>): i32 {
 
 fn test_generic_for(var t: &Tally) {
 	var nums = List<i32>();
-	defer nums.delete();
+	defer nums.free();
 	nums += 5;
 	nums += 6;
 	val n = count_items<i32>(nums);
@@ -239,12 +239,12 @@ fn test_range_half_open(var t: &Tally) {
 // `0..<n` is the index-loop idiom: index any number of parallel containers.
 fn test_range_half_open_index(var t: &Tally) {
 	var nums = List<i32>();
-	defer nums.delete();
+	defer nums.free();
 	nums += 10;
 	nums += 20;
 	nums += 30;
 	var rev = List<i32>();
-	defer rev.delete();
+	defer rev.free();
 	rev += 1;
 	rev += 2;
 	rev += 3;
@@ -341,7 +341,7 @@ fn test_array_literal(var t: &Tally) {
 
 fn test_iter_string_builder(var t: &Tally) {
 	var sb = StringBuilder();
-	defer sb.delete();
+	defer sb.free();
 	sb += "abc";
 	sb += 7;
 
@@ -360,7 +360,7 @@ fn test_iter_string_builder(var t: &Tally) {
 
 fn test_iter_struct_elements(var t: &Tally) {
 	var items = List<Bundle>();
-	defer items.delete();
+	defer items.free();
 	items += Bundle("one", 1);
 	items += Bundle("two", 2);
 
@@ -381,7 +381,7 @@ struct Bag {
 
 fn test_iter_list_field(var t: &Tally) {
 	var bag = Bag(List<i32>());
-	defer bag.items.delete();
+	defer bag.items.free();
 	bag.items += 4;
 	bag.items += 5;
 

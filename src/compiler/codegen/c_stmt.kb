@@ -59,7 +59,7 @@ impl CCodeGen {
 		if (node is BlockStmt as blk) {
 			self.enter_defer_scope();
 			var sb = StringBuilder();
-			defer sb.delete();
+			defer sb.free();
 			for (s in blk.statements) {
 				sb += self.gen_statement(s);
 			}
@@ -94,7 +94,7 @@ impl CCodeGen {
 	fn gen_block_stmt(var self, blk: *BlockStmt): str {
 		val ind = get_indent(self.indent_level);
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		sb += ind;
 		sb += "{\n";
 		self.indent_level++;
@@ -198,7 +198,7 @@ impl CCodeGen {
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
 					var sb = StringBuilder();
-					defer sb.delete();
+					defer sb.free();
 					sb += ind;
 					sb += "if (";
 					sb += obj_wrap;
@@ -235,7 +235,7 @@ impl CCodeGen {
 		var cur = init_e;
 		var first = true;
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		while (cur != null) {
 			while (cur != null) {
 				if (cur is GroupExpr as g) cur = g.expr;
@@ -412,7 +412,7 @@ impl CCodeGen {
 		val ind = get_indent(self.indent_level);
 		val has_aliases = !aliases.empty();
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 
 		if (has_aliases) {
 			sb += ind;
@@ -501,7 +501,7 @@ impl CCodeGen {
 	fn gen_while_stmt(var self, wh: *WhileStmt): str {
 		val ind = get_indent(self.indent_level);
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		sb += ind;
 		sb += "while ";
 		sb += self.gen_cond(wh.condition);
@@ -543,7 +543,7 @@ impl CCodeGen {
 					val not_null_chk = if (is_str_ret) ".data != NULL" else " != NULL";
 					var cur = ret_candidate;
 					var sb = StringBuilder();
-					defer sb.delete();
+					defer sb.free();
 					sb += ind;
 					sb += "{\n";
 					self.indent_level++;
@@ -594,7 +594,7 @@ impl CCodeGen {
 			var ret_ty = self.current_fn_ret_type;
 			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ret_val, "int32_t");
 			var sb = StringBuilder();
-			defer sb.delete();
+			defer sb.free();
 			sb += ind;
 			sb += "{\n";
 			self.indent_level++;
@@ -686,7 +686,7 @@ impl CCodeGen {
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
 					var sb = StringBuilder();
-					defer sb.delete();
+					defer sb.free();
 					sb += ind;
 					sb += "if (";
 					sb += obj_wrap;
@@ -721,7 +721,7 @@ impl CCodeGen {
 		var cur = asg_val;
 		var first = true;
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		while (cur != null) {
 			while (cur != null) {
 				if (cur is GroupExpr as g) cur = g.expr;
@@ -857,7 +857,7 @@ impl CCodeGen {
 		val cond = if (ws.condition != null) self.gen_expr(ws.condition!) else "";
 		val ind = get_indent(self.indent_level);
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		var first = true;
 		for (arm in ws.arms) {
 			var cast_decl = "";
@@ -945,7 +945,7 @@ impl CCodeGen {
 		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		val ind = get_indent(self.indent_level);
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		var first = true;
 
 		val prev_target = self.yield_target;

@@ -72,7 +72,7 @@ pub fn read_message(): str {
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
 		var header_line = StringBuilder();
-		defer header_line.delete();
+		defer header_line.free();
 		var has_any = false;
 		while (true) {
 			val ch = getchar();

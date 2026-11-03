@@ -71,7 +71,7 @@ impl CCodeGen {
 			return "";
 		}
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		var i = self.defer_nodes.len;
 		while (i > start_idx) {
 			i--;
@@ -90,7 +90,7 @@ impl CCodeGen {
 		val min_idx = if (depth < self.scope_starts.len) self.scope_starts[depth] else 0;
 		if (self.defer_nodes.len <= min_idx) return "";
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		var i = self.defer_nodes.len;
 		while (i > min_idx) {
 			i--;

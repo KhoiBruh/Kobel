@@ -86,7 +86,7 @@ fn test_primitive_types() {
 
 fn test_pointer_and_array_types() {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	var t_i32 = Type.i32();
 	val ptr_mut = arena.pointer_type(&t_i32, true);
@@ -132,7 +132,7 @@ fn test_pointer_and_array_types() {
 
 fn test_struct_layout() {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	// struct Sample { a: u8, b: i32, c: i64 }
 	// - a: u8  -> offset 0, size 1 (rem 3 bytes padding)
@@ -172,7 +172,7 @@ fn test_struct_layout() {
 
 fn test_type_equality_and_assignability() {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	var t_i32_1 = Type.i32();
 	var t_i32_2 = Type.i32();

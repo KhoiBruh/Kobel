@@ -162,7 +162,7 @@ fn test_buffer_index_ops() {
 
 fn test_list_ops() {
 	var list = List<i32>();
-	defer list.delete();
+	defer list.free();
 
 	// Test op plus_assign (+=)
 	list += 100;
@@ -183,7 +183,7 @@ fn test_list_ops() {
 
 fn test_hash_map_ops() {
 	var map = HashMap<str, i32>();
-	defer map.delete();
+	defer map.free();
 
 	// Test op set: map[key] = val
 	map["apple"] = 100;
@@ -210,7 +210,7 @@ fn test_hash_map_ops() {
 
 fn test_hash_set_ops() {
 	var set = HashSet();
-	defer set.delete();
+	defer set.free();
 
 	// Test op plus_assign: set += key
 	set += "alpha";
@@ -234,7 +234,7 @@ fn test_hash_set_ops() {
 
 fn test_string_builder_ops() {
 	var sb = StringBuilder();
-	defer sb.delete();
+	defer sb.free();
 
 	// Test op plus_assign overloads: sb += str, sb += char, sb += i64, etc.
 	sb += "Hello";
@@ -265,13 +265,13 @@ fn append_via_ptr(sb: &StringBuilder, list: &List<i32>, set: &HashSet, map: &Has
 
 fn test_pointer_receiver_ops() {
 	var sb = StringBuilder();
-	defer sb.delete();
+	defer sb.free();
 	var list = List<i32>();
-	defer list.delete();
+	defer list.free();
 	var set = HashSet();
-	defer set.delete();
+	defer set.free();
 	var map = HashMap<str, i32>();
-	defer map.delete();
+	defer map.free();
 
 	append_via_ptr(&sb, &list, &set, &map);
 

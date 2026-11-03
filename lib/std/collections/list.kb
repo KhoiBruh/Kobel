@@ -13,7 +13,7 @@ use std.traits.*;
 
 	Usage:
 		var list = List<i32>();
-		defer list.delete();
+		defer list.free();
 		list += 42;
 		val x = list[0];
 */
@@ -174,7 +174,7 @@ impl List<T> {
 		return removed;
 	}
 
-	pub fn delete(self) => Heap.free(self.data);
+	pub fn free(self) => Heap.free(self.data);
 
 	pub op get(val self, index: usz) => self.data[index];
 

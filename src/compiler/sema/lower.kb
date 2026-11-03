@@ -295,7 +295,7 @@ impl BodyPass {
 	// without one, so a failed lookup here leaves the expression untouched.
 	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
 		var pieces = List<*AstNode>();
-		defer pieces.delete();
+		defer pieces.free();
 		for (i in 0..<ie.parts.len) {
 			val part = ie.parts[i];
 			var piece = part.expr;

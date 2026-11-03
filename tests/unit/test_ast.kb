@@ -78,7 +78,7 @@ fn eval_expr(node: *AstNode): i32 {
 
 fn test_expression_tree(): bool {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	// Build: (10 + 20) * 3
 	val lit10 = arena.literal(LiteralKind.INT, "10", 1, 2);
@@ -111,7 +111,7 @@ fn test_expression_tree(): bool {
 
 fn test_statement_nodes(): bool {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	// var count: i32 = 42;
 	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1, 12);
@@ -152,7 +152,7 @@ fn test_statement_nodes(): bool {
 
 fn test_declaration_nodes(): bool {
 	var arena = Arena(16384);
-	defer arena.delete();
+	defer arena.free();
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
@@ -193,7 +193,7 @@ fn test_declaration_nodes(): bool {
 
 fn test_program_iterable(): bool {
 	var arena = Arena();
-	defer arena.delete();
+	defer arena.free();
 	var decls = List<*AstNode>();
 	val d1 = arena.fn_decl("f1", List<GenericParam>(), List<Param>(), null, null, true, 1, 1);
 	val d2 = arena.fn_decl("f2", List<GenericParam>(), List<Param>(), null, null, true, 2, 1);
@@ -220,7 +220,7 @@ fn test_program_iterable(): bool {
 
 fn test_arena_ast_methods(): bool {
 	var arena = Arena();
-	defer arena.delete();
+	defer arena.free();
 
 	val lit_node = arena.literal(LiteralKind.INT, "123", 1, 1);
 	val lit = lit_node.as_literal_expr();

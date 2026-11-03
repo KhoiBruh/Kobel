@@ -30,7 +30,7 @@ impl CCodeGen {
 	pub fn gen_program(var self, program_node: *AstNode): str {
 		if (program_node is Program as prog) {
 			var sb = StringBuilder();
-			defer sb.delete();
+			defer sb.free();
 
 			// 1. C Standard Headers & Runtime Helpers
 			sb += C_PRELUDE;
@@ -250,7 +250,7 @@ impl CCodeGen {
 		if (s.is_forward) return "";
 
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		sb += "struct ";
 		sb += s.name;
 		sb += " {\n";
@@ -272,7 +272,7 @@ impl CCodeGen {
 		if (!self.enum_has_payload(e)) return "";
 
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		for (m in e.members) {
 			sb += "struct ";
 			sb += e.name;
@@ -314,7 +314,7 @@ impl CCodeGen {
 		if (!is_proto && f_body == null) return "";
 
 		var sb = StringBuilder();
-		defer sb.delete();
+		defer sb.free();
 		sb += ret_ty;
 		sb += ' ';
 		sb += f.name;

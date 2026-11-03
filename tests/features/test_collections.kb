@@ -134,7 +134,7 @@ fn test_interpolation_and_formatting(): bool {
 
 fn test_hash_map(): bool {
 	var map: HashMap<str, i32> = HashMap<str, i32>();
-	defer map.delete();
+	defer map.free();
 	if (!map.empty()) return false;
 
 	// Insert 60 items to test multiple resizes (cap 16 -> 32 -> 64 -> 128)
@@ -179,13 +179,13 @@ fn test_hash_map(): bool {
 	// Check keys() and values()
 	{
 		val ks = map.keys();
-		defer ks.delete();
+		defer ks.free();
 		if (ks.len != 30) return false;
 	}
 
 	{
 		val vs = map.values();
-		defer vs.delete();
+		defer vs.free();
 		if (vs.len != 30) return false;
 	}
 
@@ -195,7 +195,7 @@ fn test_hash_map(): bool {
 fn test_generic_hash_map(): bool {
 	// 1. Integer keys
 	var int_map = HashMap<i32, str>();
-	defer int_map.delete();
+	defer int_map.free();
 
 	int_map[1] = "one";
 	int_map[2] = "two";
@@ -213,7 +213,7 @@ fn test_generic_hash_map(): bool {
 
 	// 2. Custom struct keys
 	var pt_map = HashMap<Point2D, i32>();
-	defer pt_map.delete();
+	defer pt_map.free();
 
 	val p1 = Point2D(10, 20);
 	val p2 = Point2D(30, 40);

@@ -130,7 +130,7 @@ impl HashMap<K: Hash, V> {
 		}
 	}
 
-	pub fn delete(self) {
+	pub fn free(self) {
 		if (self.cap > 0) {
 			Heap.free(self.keys);
 			Heap.free(self.values);

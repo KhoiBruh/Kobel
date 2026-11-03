@@ -67,7 +67,7 @@ impl Arena {
 		}
 	}
 
-	pub fn delete(var self) {
+	pub fn free(var self) {
 		var curr = self.current;
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;

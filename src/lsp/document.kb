@@ -46,7 +46,7 @@ pub fn uri_to_path(uri: str): str {
 	else s;
 
 	var sb = StringBuilder();
-	defer sb.delete();
+	defer sb.free();
 	var i: usz = 0;
 	while (i < s.len) {
 		val c = s[i];

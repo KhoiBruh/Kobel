@@ -358,7 +358,7 @@ The `defer` statement schedules cleanup code to execute at scope exit:
 
 ```kobel
 var arena = Arena(1024);
-defer arena.delete();
+defer arena.free();
 ```
 
 ---

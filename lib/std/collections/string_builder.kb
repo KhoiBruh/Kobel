@@ -110,7 +110,7 @@ impl StringBuilder {
 		self.cap = new_cap;
 	}
 
-	pub fn delete(self) => Heap.free(self.buf);
+	pub fn free(self) => Heap.free(self.buf);
 
 	pub op plus_assign(var self, s: str) => self.append_str(s);
 
