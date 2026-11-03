@@ -1,6 +1,7 @@
 mod std.filesystem;
 
 use std.string.Stringer;
+use std.string.str_is_sep;
 
 /*
  * ============================================================================
@@ -12,8 +13,6 @@ use std.string.Stringer;
  * ============================================================================
  */
 
-fn is_sep(c: char) => c == '/' || c == '\\';
-
 pub struct Path {
 	pub raw: str
 }
@@ -21,10 +20,6 @@ pub struct Path {
 impl Path {
 
 	pub fn new(raw: str) => Self(raw);
-
-	pub fn str(val self) => self.raw;
-
-	pub fn to_str(val self) => self.raw;
 
 	pub fn c_str(val self) => self.raw.c_str();
 
@@ -37,7 +32,7 @@ impl Path {
 		var last = 0;
 		var found = false;
 		for (i in 0..<self.raw.len) {
-			if (is_sep(self.raw[i])) {
+			if (str_is_sep(self.raw[i])) {
 				last = i;
 				found = true;
 			}
@@ -51,7 +46,7 @@ impl Path {
 	pub fn file_name(val self): str {
 		var start: usz = 0;
 		for (i in 0..<self.raw.len) {
-			if (is_sep(self.raw[i])) start = i + 1;
+			if (str_is_sep(self.raw[i])) start = i + 1;
 		}
 
 		return self.raw.slice(start);
@@ -95,10 +90,10 @@ impl Path {
 
 		if (part.empty()) return Path(self.raw);
 
-		if (is_sep(self.raw[self.raw.len - 1]) || is_sep(part[0])) {
+		if (str_is_sep(self.raw[self.raw.len - 1]) || str_is_sep(part[0])) {
 			if (
-				is_sep(self.raw[self.raw.len - 1]) &&
-				is_sep(part[0])
+				str_is_sep(self.raw[self.raw.len - 1]) &&
+				str_is_sep(part[0])
 			) return Path(self.raw + part.slice(1));
 
 			return Path(self.raw + part);
@@ -109,15 +104,11 @@ impl Path {
 
 	pub fn join_path(val self, other: Path) => self.join(other.raw);
 
-	pub fn exists(val self) => File.exists(self.raw);
+	pub fn to_win_path(val self): Path => Path(self.raw.to_win_path());
 
-	pub fn read_to_string(val self) => File.read(self.raw);
+	pub fn to_posix_path(val self): Path => Path(self.raw.to_posix_path());
 
-	pub fn write_string(val self, content: str) => File.write(self.raw, content);
-
-	pub fn append_string(val self, content: str) => File.append(self.raw, content);
-
-	pub fn remove(val self) => File.remove(self.raw);
+	pub fn normalize(val self): Path => Path(self.raw.normalize_path());
 
 }
 

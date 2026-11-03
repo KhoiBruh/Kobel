@@ -2198,6 +2198,7 @@ size_t std__collections__StringBuilder_count(std__collections__StringBuilder* se
 char std__collections__StringBuilder_at(std__collections__StringBuilder* self, size_t i);
 kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
+bool std__string__str_is_sep(char c);
 bool str_empty(kobel_str self);
 bool str_starts_with(kobel_str self, kobel_str prefix);
 bool str_ends_with(kobel_str self, kobel_str suffix);
@@ -2209,6 +2210,15 @@ kobel_str str_repeat(kobel_str self, size_t n);
 kobel_str str_join(kobel_str self, std__collections__List_str list);
 kobel_str str_suffix_tail(kobel_str self);
 kobel_str str_num_suffix(kobel_str self);
+kobel_str str_dir_of(kobel_str self);
+kobel_str str_base_name(kobel_str self);
+kobel_str str_join_path(kobel_str self, kobel_str rel);
+kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case);
+kobel_str str_normalize_path(kobel_str self);
+kobel_str str_to_win_path(kobel_str self);
+kobel_str str_to_posix_path(kobel_str self);
+kobel_str str_trim(kobel_str self);
+std__collections__List_str str_split_lines(kobel_str self);
 bool str_contains(kobel_str self, kobel_str sub);
 size_t str_count(kobel_str self);
 char str_at(kobel_str self, size_t i);
@@ -2251,10 +2261,7 @@ void std__filesystem__File_flush(std__filesystem__File* self);
 int64_t std__filesystem__File_size(std__filesystem__File* self);
 bool std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content);
 kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
-bool std__filesystem__is_sep(char c);
 std__filesystem__Path std__filesystem__Path_new(kobel_str raw);
-kobel_str std__filesystem__Path_str(std__filesystem__Path* self);
-kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self);
 bool std__filesystem__Path_empty(std__filesystem__Path* self);
 size_t std__filesystem__Path_len(std__filesystem__Path* self);
@@ -2264,29 +2271,17 @@ kobel_str std__filesystem__Path_extension(std__filesystem__Path* self);
 kobel_str std__filesystem__Path_stem(std__filesystem__Path* self);
 std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, kobel_str part);
 std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* self, std__filesystem__Path other);
-bool std__filesystem__Path_exists(std__filesystem__Path* self);
-kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self);
-bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content);
-bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content);
-bool std__filesystem__Path_remove(std__filesystem__Path* self);
-kobel_str std__filesystem__Path_to_str_1_2(std__filesystem__Path* self);
+std__filesystem__Path std__filesystem__Path_to_win_path(std__filesystem__Path* self);
+std__filesystem__Path std__filesystem__Path_to_posix_path(std__filesystem__Path* self);
+std__filesystem__Path std__filesystem__Path_normalize(std__filesystem__Path* self);
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
 kobel_str util__strutil__cstr_to_str(const char* s);
-bool util__strutil__str_is_sep(char c);
 kobel_str str_module_to_rel(kobel_str self);
 kobel_str str_path_to_module(kobel_str self);
 bool str_has_kb_suffix(kobel_str self);
 kobel_str str_strip_kb(kobel_str self);
-kobel_str str_dir_of(kobel_str self);
-kobel_str str_base_name(kobel_str self);
-kobel_str str_join_path(kobel_str self, kobel_str rel);
 std__collections__List_str str_split_dots(kobel_str self);
 kobel_str str_mangle_symbol(kobel_str self, kobel_str name);
-kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case);
-kobel_str str_normalize_path(kobel_str self);
-kobel_str str_to_win_path(kobel_str self);
-kobel_str str_to_posix_path(kobel_str self);
-kobel_str str_trim(kobel_str self);
-std__collections__List_str str_split_lines(kobel_str self);
 kobel_str str_hash_stamp(kobel_str self);
 kobel_str str_trim_indent(kobel_str self);
 bool util__strutil__str_is_blank(kobel_str s);
@@ -2317,8 +2312,6 @@ bool char_is_alpha(char self);
 bool char_is_alphanumeric(char self);
 bool char_is_whitespace(char self);
 bool char_is_hex_digit(char self);
-char char_lower(char self);
-char char_upper(char self);
 char char_to_lower(char self);
 char char_to_upper(char self);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
@@ -5227,6 +5220,10 @@ kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
     return (*(sp));
 }
 
+bool std__string__str_is_sep(char c) {
+    return ((c == '/') || (c == '\\'));
+}
+
 bool str_empty(kobel_str self) {
     return (self.len == 0);
 }
@@ -5689,6 +5686,192 @@ kobel_str str_num_suffix(kobel_str self) {
     return tail;
 }
 
+kobel_str str_dir_of(kobel_str self) {
+    size_t last = 0;
+    bool found = false;
+    {
+        size_t __for_e = self.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (std__string__str_is_sep(self.data[i])) {
+                last = i;
+                found = true;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (!found) {
+        return KOBEL_STR("");
+    }
+    return kobel_slice(self, 0, last);
+}
+
+kobel_str str_base_name(kobel_str self) {
+    size_t start = 0;
+    {
+        size_t __for_e = self.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (std__string__str_is_sep(self.data[i])) {
+                start = (i + 1);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return kobel_slice1(self, start);
+}
+
+kobel_str str_join_path(kobel_str self, kobel_str rel) {
+    if (str_empty(self)) {
+        return rel;
+    }
+    if (std__string__str_is_sep(self.data[(self.len - 1)])) {
+        return kobel_concat(self, rel);
+    }
+    return kobel_concat3(self, KOBEL_STR("/"), rel);
+}
+
+kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case) {
+    uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+    {
+        size_t __for_e = self.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            char c = self.data[i];
+            buf[i] = ((c == from) ? ((int32_t)(uint8_t)(to)) : (((fold_case && (c >= 'A')) && (c <= 'Z')) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    buf[self.len] = 0;
+    return std__string__str_from_bytes(buf, self.len);
+}
+
+kobel_str str_normalize_path(kobel_str self) {
+    return str_remap_path_bytes(self, '\\', '/', true);
+}
+
+kobel_str str_to_win_path(kobel_str self) {
+    return str_remap_path_bytes(self, '/', '\\', false);
+}
+
+kobel_str str_to_posix_path(kobel_str self) {
+    return str_remap_path_bytes(self, '\\', '/', false);
+}
+
+kobel_str str_trim(kobel_str self) {
+    if (str_empty(self)) {
+        return self;
+    }
+    size_t start = 0;
+    while (start < self.len) {
+        char c = self.data[start];
+        if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+            start++;
+        } else {
+            break;
+        }
+    }
+    if (start == self.len) {
+        return KOBEL_STR("");
+    }
+    size_t end = self.len;
+    while (end > start) {
+        char c = self.data[(end - 1)];
+        if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+            end--;
+        } else {
+            break;
+        }
+    }
+    return kobel_slice(self, start, end);
+}
+
+std__collections__List_str str_split_lines(kobel_str self) {
+    std__collections__List_str res = std__collections__List_str_new(4);
+    int32_t start = 0;
+    int32_t i = 0;
+    while (i < self.len) {
+        char c = self.data[i];
+        if (c == '\n') {
+            int32_t line_end = i;
+            if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
+                line_end = (line_end - 1);
+            }
+            std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
+            start = (i + 1);
+        }
+        i++;
+    }
+    if (start <= self.len) {
+        size_t line_end = self.len;
+        if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
+            line_end = (line_end - 1);
+        }
+        std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
+    }
+    return res;
+}
+
 bool str_contains(kobel_str self, kobel_str sub) {
     return (str_index_of(self, sub) >= 0);
 }
@@ -6103,20 +6286,8 @@ kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
     return std__string__str_from_bytes(buf, read_bytes);
 }
 
-bool std__filesystem__is_sep(char c) {
-    return ((c == '/') || (c == '\\'));
-}
-
 std__filesystem__Path std__filesystem__Path_new(kobel_str raw) {
     return (std__filesystem__Path){ raw };
-}
-
-kobel_str std__filesystem__Path_str(std__filesystem__Path* self) {
-    return self->raw;
-}
-
-kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self) {
-    return self->raw;
 }
 
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self) {
@@ -6147,7 +6318,7 @@ std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) 
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (std__filesystem__is_sep(self->raw.data[i])) {
+            if (std__string__str_is_sep(self->raw.data[i])) {
                 last = i;
                 found = true;
             }
@@ -6186,7 +6357,7 @@ kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (std__filesystem__is_sep(self->raw.data[i])) {
+            if (std__string__str_is_sep(self->raw.data[i])) {
                 start = (i + 1);
             }
             if (__for_up) {
@@ -6295,8 +6466,8 @@ std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, ko
     if (str_empty(part)) {
         return std__filesystem__Path_new(self->raw);
     }
-    if (std__filesystem__is_sep(self->raw.data[(self->raw.len - 1)]) || std__filesystem__is_sep(part.data[0])) {
-        if (std__filesystem__is_sep(self->raw.data[(self->raw.len - 1)]) && std__filesystem__is_sep(part.data[0])) {
+    if (std__string__str_is_sep(self->raw.data[(self->raw.len - 1)]) || std__string__str_is_sep(part.data[0])) {
+        if (std__string__str_is_sep(self->raw.data[(self->raw.len - 1)]) && std__string__str_is_sep(part.data[0])) {
             return std__filesystem__Path_new(kobel_concat(self->raw, kobel_slice1(part, 1)));
         }
         return std__filesystem__Path_new(kobel_concat(self->raw, part));
@@ -6308,36 +6479,24 @@ std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* sel
     return std__filesystem__Path_join(self, other.raw);
 }
 
-bool std__filesystem__Path_exists(std__filesystem__Path* self) {
-    return std__filesystem__File_exists(self->raw);
+std__filesystem__Path std__filesystem__Path_to_win_path(std__filesystem__Path* self) {
+    return std__filesystem__Path_new(str_to_win_path(self->raw));
 }
 
-kobel_str std__filesystem__Path_read_to_string(std__filesystem__Path* self) {
-    return std__filesystem__File_read(self->raw);
+std__filesystem__Path std__filesystem__Path_to_posix_path(std__filesystem__Path* self) {
+    return std__filesystem__Path_new(str_to_posix_path(self->raw));
 }
 
-bool std__filesystem__Path_write_string(std__filesystem__Path* self, kobel_str content) {
-    return std__filesystem__File_write(self->raw, content);
+std__filesystem__Path std__filesystem__Path_normalize(std__filesystem__Path* self) {
+    return std__filesystem__Path_new(str_normalize_path(self->raw));
 }
 
-bool std__filesystem__Path_append_string(std__filesystem__Path* self, kobel_str content) {
-    return std__filesystem__File_append(self->raw, content);
-}
-
-bool std__filesystem__Path_remove(std__filesystem__Path* self) {
-    return std__filesystem__File_remove(self->raw);
-}
-
-kobel_str std__filesystem__Path_to_str_1_2(std__filesystem__Path* self) {
+kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self) {
     return self->raw;
 }
 
 kobel_str util__strutil__cstr_to_str(const char* s) {
     return std__string__str_from_bytes((uint8_t*)s, strlen(s));
-}
-
-bool util__strutil__str_is_sep(char c) {
-    return ((c == '/') || (c == '\\'));
 }
 
 kobel_str str_module_to_rel(kobel_str self) {
@@ -6361,7 +6520,7 @@ kobel_str str_path_to_module(kobel_str self) {
         while (__for_go) {
             size_t i = __for_i;
             char c = stem.data[i];
-            if (util__strutil__str_is_sep(c)) {
+            if (std__string__str_is_sep(c)) {
                 buf[i] = ((int32_t)(uint8_t)('.'));
             } else {
                 buf[i] = ((int32_t)(uint8_t)(c));
@@ -6390,91 +6549,6 @@ bool str_has_kb_suffix(kobel_str self) {
 
 kobel_str str_strip_kb(kobel_str self) {
     return (str_ends_with(self, KOBEL_STR(".kb")) ? str_strip_suffix(self, 3) : self);
-}
-
-kobel_str str_dir_of(kobel_str self) {
-    size_t last = 0;
-    bool found = false;
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (util__strutil__str_is_sep(self.data[i])) {
-                last = i;
-                found = true;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    if (!found) {
-        return KOBEL_STR("");
-    }
-    return kobel_slice(self, 0, last);
-}
-
-kobel_str str_base_name(kobel_str self) {
-    size_t start = 0;
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (util__strutil__str_is_sep(self.data[i])) {
-                start = (i + 1);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return kobel_slice1(self, start);
-}
-
-kobel_str str_join_path(kobel_str self, kobel_str rel) {
-    if (str_empty(self)) {
-        return rel;
-    }
-    if (util__strutil__str_is_sep(self.data[(self.len - 1)])) {
-        return kobel_concat(self, rel);
-    }
-    return kobel_concat3(self, KOBEL_STR("/"), rel);
 }
 
 std__collections__List_str str_split_dots(kobel_str self) {
@@ -6556,107 +6630,6 @@ kobel_str str_mangle_symbol(kobel_str self, kobel_str name) {
     }
     buf[w] = 0;
     return std__string__str_from_bytes(buf, w);
-}
-
-kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case) {
-    uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            char c = self.data[i];
-            buf[i] = ((c == from) ? ((int32_t)(uint8_t)(to)) : (((fold_case && (c >= 'A')) && (c <= 'Z')) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    buf[self.len] = 0;
-    return std__string__str_from_bytes(buf, self.len);
-}
-
-kobel_str str_normalize_path(kobel_str self) {
-    return str_remap_path_bytes(self, '\\', '/', true);
-}
-
-kobel_str str_to_win_path(kobel_str self) {
-    return str_remap_path_bytes(self, '/', '\\', false);
-}
-
-kobel_str str_to_posix_path(kobel_str self) {
-    return str_remap_path_bytes(self, '\\', '/', false);
-}
-
-kobel_str str_trim(kobel_str self) {
-    if (str_empty(self)) {
-        return self;
-    }
-    size_t start = 0;
-    while (start < self.len) {
-        char c = self.data[start];
-        if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
-            start++;
-        } else {
-            break;
-        }
-    }
-    if (start == self.len) {
-        return KOBEL_STR("");
-    }
-    size_t end = self.len;
-    while (end > start) {
-        char c = self.data[(end - 1)];
-        if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
-            end--;
-        } else {
-            break;
-        }
-    }
-    return kobel_slice(self, start, end);
-}
-
-std__collections__List_str str_split_lines(kobel_str self) {
-    std__collections__List_str res = std__collections__List_str_new(4);
-    int32_t start = 0;
-    int32_t i = 0;
-    while (i < self.len) {
-        char c = self.data[i];
-        if (c == '\n') {
-            int32_t line_end = i;
-            if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
-                line_end = (line_end - 1);
-            }
-            std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
-            start = (i + 1);
-        }
-        i++;
-    }
-    if (start <= self.len) {
-        size_t line_end = self.len;
-        if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
-            line_end = (line_end - 1);
-        }
-        std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
-    }
-    return res;
 }
 
 kobel_str str_hash_stamp(kobel_str self) {
@@ -7494,7 +7467,7 @@ bool char_is_hex_digit(char self) {
     return ((char_is_digit(self) || ((self >= 'a') && (self <= 'f'))) || ((self >= 'A') && (self <= 'F')));
 }
 
-char char_lower(char self) {
+char char_to_lower(char self) {
     if ((self >= 'A') && (self <= 'Z')) {
         int32_t offset = (((int32_t)(uint8_t)(self)) + 32);
         return ((char)(offset));
@@ -7502,20 +7475,12 @@ char char_lower(char self) {
     return self;
 }
 
-char char_upper(char self) {
+char char_to_upper(char self) {
     if ((self >= 'a') && (self <= 'z')) {
         int32_t offset = (((int32_t)(uint8_t)(self)) - 32);
         return ((char)(offset));
     }
     return self;
-}
-
-char char_to_lower(char self) {
-    return char_lower(self);
-}
-
-char char_to_upper(char self) {
-    return char_upper(self);
 }
 
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text) {
@@ -26351,7 +26316,7 @@ kobel_str lsp__protocol__read_message(void) {
                 }
                 while (__for_go) {
                     size_t i = __for_i;
-                    if (char_lower(line.data[i]) != prefix.data[i]) {
+                    if (char_to_lower(line.data[i]) != prefix.data[i]) {
                         matches = false;
                         break;
                     }

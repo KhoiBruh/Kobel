@@ -281,6 +281,10 @@ fn test_str(): bool {
 	if (s.repeat(1) != s) return false;
 	if ("".repeat(4) != "") return false;
 
+	if ("  hello world  \n".trim() != "hello world") return false;
+	val lines = "a\nb\nc".split_lines();
+	if (lines.len != 3 || lines[0] != "a" || lines[1] != "b" || lines[2] != "c") return false;
+
 	return true;
 }
 
@@ -290,28 +294,28 @@ fn test_filesystem(): bool {
 	if (p.extension() != "kb") return false;
 	if (p.stem() != "main") return false;
 	val parent_dir = p.parent();
-	if (parent_dir.str() != "src/compiler") return false;
+	if (parent_dir.to_str() != "src/compiler") return false;
 
 	val dir = Path("dir");
 	val sub = dir.join("sub");
 	val joined = sub.join("file.txt");
-	if (joined.str() != "dir/sub/file.txt") return false;
+	if (joined.to_str() != "dir/sub/file.txt") return false;
 	if (joined.extension() != "txt") return false;
 
 	val tmp = Path("build/tmp_fs_test.txt");
-	if (tmp.exists()) tmp.remove();
+	if (File.exists(tmp.to_str())) File.remove(tmp.to_str());
 
-	if (!tmp.write_string("Hello Filesystem!")) return false;
-	if (!tmp.exists()) return false;
-	if (tmp.read_to_string() != "Hello Filesystem!") return false;
+	if (!File.write(tmp.to_str(), "Hello Filesystem!")) return false;
+	if (!File.exists(tmp.to_str())) return false;
+	if (File.read(tmp.to_str()) != "Hello Filesystem!") return false;
 
-	var f = File.open_read(tmp.str());
+	var f = File.open_read(tmp.to_str());
 	if (!f.is_valid()) return false;
 	if (f.read_all() != "Hello Filesystem!") return false;
 	f.close();
 
-	if (!tmp.remove()) return false;
-	if (tmp.exists()) return false;
+	if (!File.remove(tmp.to_str())) return false;
+	if (File.exists(tmp.to_str())) return false;
 
 	return true;
 }

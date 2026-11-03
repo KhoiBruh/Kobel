@@ -95,7 +95,7 @@ pub fn read_message(): str {
 		if (line.len > prefix.len) {
 			var matches = true;
 			for (i in 0..<prefix.len) {
-				if (line[i].lower() != prefix[i]) {
+				if (line[i].to_lower() != prefix[i]) {
 					matches = false;
 					break;
 				}

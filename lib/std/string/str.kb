@@ -27,6 +27,8 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 	return sp.read();
 }
 
+pub fn str_is_sep(c: char) => c == '/' || c == '\\';
+
 impl str {
 
 	pub fn empty(val self) => self.len == 0;
@@ -212,6 +214,108 @@ impl str {
 		 */
 		if (radix && zone.len != tail.len) return "";
 		return tail;
+	}
+
+	// Directory part of a path ("" when the path has no separator).
+	pub fn dir_of(val self): str {
+		var last: usz = 0;
+		var found = false;
+		for (i in 0..<self.len) {
+			if (str_is_sep(self[i])) {
+				last = i;
+				found = true;
+			}
+		}
+
+		if (!found) return "";
+		return self.slice(0, last);
+	}
+
+	// File name part of a path (input with separators included).
+	pub fn base_name(val self): str {
+		var start: usz = 0;
+		for (i in 0..<self.len) {
+			if (str_is_sep(self[i])) start = i + 1;
+		}
+
+		return self.slice(start);
+	}
+
+	// Joins a directory and a relative path with a single '/' separator.
+	pub fn join_path(val self, rel: str): str {
+		if (self.empty()) return rel;
+		if (str_is_sep(self[self.len - 1])) return "${self}${rel}";
+		return "${self}/${rel}";
+	}
+
+	// Path-byte remap: every `from` byte becomes `to`, and A-Z lowercases when
+	// `fold_case` (only `normalize_path` needs that).
+	fn remap_path_bytes(val self, from: char, to: char, fold_case: bool): str {
+		val buf = Heap.create_array<u8>(self.len + 1);
+		for (i in 0..<self.len) {
+			val c = self[i];
+			buf[i] = when {
+				c == from -> to.code();
+				fold_case && c >= 'A' && c <= 'Z' -> c.code() + 32;
+				else -> c.code();
+			};
+		}
+
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
+	pub fn normalize_path(val self) => self.remap_path_bytes('\\', '/', true);
+
+	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
+	pub fn to_win_path(val self) => self.remap_path_bytes('/', '\\', false);
+
+	// Converts '\\' to '/' for cross-platform and POSIX path representations
+	pub fn to_posix_path(val self) => self.remap_path_bytes('\\', '/', false);
+
+	pub fn trim(val self): str {
+		if (self.empty()) return self;
+		var start: usz = 0;
+		while (start < self.len) {
+			val c = self[start];
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') start++;
+			else break;
+		}
+		if (start == self.len) return "";
+		var end: usz = self.len;
+		while (end > start) {
+			val c = self[end - 1];
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') end--;
+			else break;
+		}
+		return self.slice(start, end);
+	}
+
+	pub fn split_lines(val self): List<str> {
+		var res = List<str>();
+		var start = 0;
+		var i = 0;
+		while (i < self.len) {
+			val c = self[i];
+			if (c == '\n') {
+				var line_end = i;
+				if (line_end > start && self[line_end - 1] == '\r') {
+					line_end = line_end - 1;
+				}
+			res += self.slice(start, line_end);
+			start = i + 1;
+			}
+			i++;
+		}
+
+		if (start <= self.len) {
+			var line_end = self.len;
+			if (line_end > start && self[line_end - 1] == '\r') {
+				line_end = line_end - 1;
+			}
+			res += self.slice(start, line_end);
+		}
+		return res;
 	}
 
 	// ============================================================================

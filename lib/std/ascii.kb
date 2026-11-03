@@ -19,7 +19,7 @@ impl char {
 		|| (self >= 'a' && self <= 'f')
 		|| (self >= 'A' && self <= 'F');
 
-	pub fn lower(val self): char {
+	pub fn to_lower(val self): char {
 		if (self >= 'A' && self <= 'Z') {
 			val offset = self.code() + 32;
 			return char(offset);
@@ -28,7 +28,7 @@ impl char {
 		return self;
 	}
 
-	pub fn upper(val self): char {
+	pub fn to_upper(val self): char {
 		if (self >= 'a' && self <= 'z') {
 			val offset = self.code() - 32;
 			return char(offset);
@@ -36,9 +36,5 @@ impl char {
 
 		return self;
 	}
-
-	pub fn to_lower(val self): char => self.lower();
-
-	pub fn to_upper(val self): char => self.upper();
 
 }
