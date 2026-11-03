@@ -263,14 +263,6 @@ impl BodyPass {
 		}
 
 		val target_s = target_ty.as_struct();
-		val tag_const_sym = self.find_tag_const(target_s.name);
-		if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
-			self.report_error(is_node,
-				"Cannot smart cast to '${target_s.name}': "
-				"struct '${target_s.name}' must declare a 'const TAG'"
-			);
-			return null;
-		}
 
 		// The subject may be the struct itself or a pointer to it.
 		var base_ty = subj_ty;
@@ -287,38 +279,62 @@ impl BodyPass {
 		}
 
 		val base_s = base_ty.as_struct();
-		val tag_field_name = self.tag_field_name_of(base_s);
-		if (tag_field_name.empty()) {
-			self.report_error(is_node,
-				"Subject struct '${base_s.name}' must have a tag field as its first field"
-			);
-			return null;
+
+		// Check whether base_s wraps a payload enum field `data` (e.g. AstNode.data: NodeData)
+		// that contains a variant matching target_s.
+		val data_ty = self.field_type_of(base_s, "data");
+		val data_enum = if (data_ty?.kind == DataType.STRUCT) self.symtab.find_enum_info(data_ty.as_struct().name) else null;
+		var is_payload_data = false;
+		var tag_field_name = "";
+		var tag_const_c_name = "";
+
+		if (data_enum?.is_payload) {
+			for (m in data_enum.members) {
+				if (m.name == target_s.name) {
+					is_payload_data = true;
+					tag_field_name = "data.tag";
+					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
+					tag_const_c_name = if (auto_tag != null) auto_tag.c_name else "${data_enum.c_name}__${m.name}__TAG";
+				}
+			}
 		}
 
-		val tag_field_ty = self.field_type_of(base_s, tag_field_name);
-		if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
-			self.report_error(is_node,
-				"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
-			);
-			return null;
+		if (!is_payload_data) {
+			val tag_const_sym = self.find_tag_const(target_s.name);
+			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
+				self.report_error(is_node,
+					"Cannot smart cast to '${target_s.name}': "
+					"struct '${target_s.name}' must declare a 'const TAG'"
+				);
+				return null;
+			}
+
+			tag_field_name = self.tag_field_name_of(base_s);
+			if (tag_field_name.empty()) {
+				self.report_error(is_node,
+					"Subject struct '${base_s.name}' must have a tag field as its first field"
+				);
+				return null;
+			}
+
+			val tag_field_ty = self.field_type_of(base_s, tag_field_name);
+			if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
+				self.report_error(is_node,
+					"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
+				);
+				return null;
+			}
+			tag_const_c_name = tag_const_sym.c_name;
 		}
 
 		is_e.tag_field = tag_field_name;
+		is_e.tag_const = tag_const_c_name;
 		is_e.base_c_name = base_s.c_name;
 		is_e.is_ptr = is_ptr;
 
-		// An AstNode keeps its payload in a payload-enum field: bind the variant
-		// member directly (`node.data.u.LiteralExpr`) instead of casting `data`,
-		// and compare against the payload struct's own TAG constant (which lives
-		// in the module that defines the struct, not where it is forward-declared).
-		val data_ty = self.field_type_of(base_s, "data");
-		if (data_ty?.kind == DataType.STRUCT) {
-			val data_enum = self.symtab.find_enum_info(data_ty.as_struct().name);
-			if (data_enum?.is_payload) {
-				is_e.payload_path = "data.u.${target_s.name}.inner";
-				is_e.payload_ptr = true;
-					is_e.tag_const = tag_const_sym.c_name;
-			}
+		if (is_payload_data) {
+			is_e.payload_path = "data.u.${target_s.name}.inner";
+			is_e.payload_ptr = true;
 		}
 
 		// A payload-enum variant stores its data inline (`subject.u.Variant`), and

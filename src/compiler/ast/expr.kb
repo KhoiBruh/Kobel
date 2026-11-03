@@ -16,83 +16,70 @@ pub enum LiteralKind {
 }
 
 pub struct LiteralExpr {
-	pub const TAG = NodeKind.EXPR_LITERAL;
 	pub literal_kind: LiteralKind,
 	pub raw_text: str
 }
 
 pub struct IdentifierExpr {
-	pub const TAG = NodeKind.EXPR_IDENTIFIER;
 	pub name: str
 }
 
 pub struct BinaryExpr {
-	pub const TAG = NodeKind.EXPR_BINARY;
 	pub left: *AstNode,
 	pub op: TokenType,
 	pub right: *AstNode
 }
 
 pub struct UnaryExpr {
-	pub const TAG = NodeKind.EXPR_UNARY;
 	pub op: TokenType,
 	pub operand: *AstNode,
 	pub is_postfix: bool = false
 }
 
 pub struct CallExpr {
-	pub const TAG = NodeKind.EXPR_CALL;
 	pub callee: *AstNode,
 	pub args: List<*AstNode> = List(),
 	pub type_args: List<*AstNode> = List()
 }
 
 pub struct MemberExpr {
-	pub const TAG = NodeKind.EXPR_MEMBER;
 	pub object: *AstNode,
 	pub member: str,
 	pub is_safe: bool = false
 }
 
 pub struct IndexExpr {
-	pub const TAG = NodeKind.EXPR_INDEX;
 	pub target: *AstNode,
 	pub index: *AstNode
 }
 
 pub struct AssignExpr {
-	pub const TAG = NodeKind.EXPR_ASSIGN;
 	pub target: *AstNode,
 	pub op: TokenType,
 	pub value: *AstNode
 }
 
 pub struct UpdateExpr {
-	pub const TAG = NodeKind.EXPR_UPDATE;
 	pub op: TokenType,
 	pub target: *AstNode
 }
 
 pub struct CastExpr {
-	pub const TAG = NodeKind.EXPR_CAST;
 	pub expr: *AstNode? = null,
 	pub target_type: *AstNode
 }
 
 pub struct GroupExpr {
-	pub const TAG = NodeKind.EXPR_GROUP;
 	pub expr: *AstNode
 }
 
 pub struct ArrayLiteralExpr {
-	pub const TAG = NodeKind.EXPR_ARRAY_LITERAL;
 	pub elements: List<*AstNode>,
 	pub list_struct_name: str = "",
 	pub elem_type_node: *AstNode? = null
 }
 
 pub struct IfExpr {
-	pub const TAG = NodeKind.EXPR_IF;
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode
@@ -107,7 +94,6 @@ pub struct WhenArm {
 }
 
 pub struct WhenExpr {
-	pub const TAG = NodeKind.EXPR_WHEN;
 	pub condition: *AstNode? = null,
 	pub arms: List<WhenArm>
 }
@@ -120,12 +106,10 @@ pub struct InterpPart {
 }
 
 pub struct InterpExpr {
-	pub const TAG = NodeKind.EXPR_INTERP;
 	pub parts: List<InterpPart>
 }
 
 pub struct IsExpr {
-	pub const TAG = NodeKind.EXPR_IS;
 	pub expr: *AstNode? = null,
 	pub target_type: *AstNode,
 	pub alias: str = "",
@@ -149,7 +133,6 @@ pub struct IsExpr {
 // instantiated. Sema creates this node in place of the call, and the backend
 // emits the C size of the current instance's type argument as an integer literal.
 pub struct SizeOfParam {
-	pub const TAG = NodeKind.EXPR_SIZE_OF_PARAM;
 	// Index into the current instance's resolved type-argument list.
 	pub param_index: usz,
 	// The C size (bytes) of that argument, as decimal text (`4UZ`), so the
@@ -161,7 +144,6 @@ pub struct SizeOfParam {
 // matching `new` (or `Self(...)`, which always builds raw). Sema creates this
 // node so the backend never has to guess a constructor from the callee's name.
 pub struct StructCtorExpr {
-	pub const TAG = NodeKind.EXPR_STRUCT_CTOR;
 	pub c_name: str,
 	pub args: List<*AstNode> = List()
 }
@@ -169,7 +151,6 @@ pub struct StructCtorExpr {
 // A payload-enum value built by the checker: `Shape.Circle(1.5)` becomes a C
 // compound literal that sets the tag and the variant's union member.
 pub struct EnumCtorExpr {
-	pub const TAG = NodeKind.EXPR_ENUM_CTOR;
 	pub c_name: str,
 	pub tag_field: str,
 	pub tag_value: i64,

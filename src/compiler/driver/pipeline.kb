@@ -23,7 +23,7 @@ use compiler.loader.*;
 
 pub fn is_msvc_compiler(cc: str): bool {
 	val base = cc.base_name();
-	return base == "cl" || base == "cl.exe";
+	return base == "cl" || base == "cl.exe" || base == "clang-cl" || base == "clang-cl.exe";
 }
 
 // Resolves the configured compiler for the current host OS: on Linux/POSIX,
@@ -73,18 +73,17 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
 	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
 
-	val tmp_setup = "set \"TMP=build\" && set \"TEMP=build\"";
 	val vcvars_setup = "(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul)";
 	val cl_invoke = "${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}";
 
 	var cmd = if (is_msvc_compiler(host_cc)) {
 		if (host_cc == "cl" || host_cc == "cl.exe") {
-			if (System.has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
-			else "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
+			if (System.has_env("VCINSTALLDIR")) cl_invoke
+			else "${vcvars_setup} && ${cl_invoke}"
 		}
-		else "${tmp_setup} && ${cl_invoke}"
+		else cl_invoke
 	} else {
-		"${tmp_setup} && ${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
+		"${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
 	};
 
 	if (quiet) cmd = "${cmd} >nul 2>nul";

@@ -285,7 +285,7 @@ fn test_pointer_receiver_ops() {
 	assert_eq_i32(*map_ptr["ptr_k"], 123, "*(&map)['ptr_k'] == 123");
 }
 
-pub fn main() {
+pub fn main(): i32 {
 	println("=== Running Operator Overloading Tests ===");
 	test_vector_ops();
 	test_buffer_index_ops();
@@ -295,5 +295,6 @@ pub fn main() {
 	test_string_builder_ops();
 	test_pointer_receiver_ops();
 	println("All operator tests passed!");
+	return 0;
 }
 

@@ -246,15 +246,15 @@ fn test_arena_ast_methods(): bool {
 	if (!fn_d.is_pub) return false;
 
 	// Test arena.alloc_node + a typed NodeData payload
-	val m_lit = arena.create_node(LiteralExpr.TAG, NodeData.LiteralExpr(arena.create_val<LiteralExpr>(LiteralExpr(LiteralKind.INT, "456"))), 3, 1);
+	val m_lit = arena.build_node(NodeData.LiteralExpr(arena.create_val<LiteralExpr>(LiteralExpr(LiteralKind.INT, "456"))), 3, 1);
 	if (m_lit.kind != NodeKind.EXPR_LITERAL) return false;
 	if (m_lit.as_literal_expr().raw_text != "456") return false;
 
-	val m_id = arena.create_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(arena.create_val<IdentifierExpr>(IdentifierExpr("y"))), 3, 5);
+	val m_id = arena.build_node(NodeData.IdentifierExpr(arena.create_val<IdentifierExpr>(IdentifierExpr("y"))), 3, 5);
 	if (m_id.kind != NodeKind.EXPR_IDENTIFIER) return false;
 	if (m_id.as_identifier_expr().name != "y") return false;
 
-	val m_bin = arena.create_node(BinaryExpr.TAG, NodeData.BinaryExpr(arena.create_val<BinaryExpr>(BinaryExpr(m_lit, TokenType.STAR, m_id))), 3, 3);
+	val m_bin = arena.build_node(NodeData.BinaryExpr(arena.create_val<BinaryExpr>(BinaryExpr(m_lit, TokenType.STAR, m_id))), 3, 3);
 	if (m_bin.kind != NodeKind.EXPR_BINARY) return false;
 	val bin_d = m_bin.as_binary_expr();
 	if (bin_d.op != TokenType.STAR) return false;

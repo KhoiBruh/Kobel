@@ -68,10 +68,11 @@ fn test_comments() {
 	println("  [PASS] test_comments");
 }
 
-fn main() {
+fn main(): i32 {
 	println("[RUNNING] Kobel Formatter tests...");
 	test_basic_formatting();
 	test_knr_and_smart_tabs();
 	test_comments();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
+	return 0;
 }

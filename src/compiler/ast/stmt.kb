@@ -5,17 +5,14 @@ use std.collections.List;
 use compiler.ast.node.*;
 
 pub struct BlockStmt {
-	pub const TAG = NodeKind.STMT_BLOCK;
 	pub statements: List<*AstNode>
 }
 
 pub struct ExprStmt {
-	pub const TAG = NodeKind.STMT_EXPR;
 	pub expr: *AstNode
 }
 
 pub struct VarDeclStmt {
-	pub const TAG = NodeKind.STMT_VAR_DECL;
 	pub is_mut: bool,
 	pub name: str,
 	pub type_annotation: *AstNode? = null,
@@ -23,14 +20,12 @@ pub struct VarDeclStmt {
 }
 
 pub struct IfStmt {
-	pub const TAG = NodeKind.STMT_IF;
 	pub condition: *AstNode,
 	pub then_branch: *AstNode,
 	pub else_branch: *AstNode? = null
 }
 
 pub struct WhileStmt {
-	pub const TAG = NodeKind.STMT_WHILE;
 	pub condition: *AstNode,
 	pub body: *AstNode
 }
@@ -41,7 +36,6 @@ pub struct WhileStmt {
 // `is_open` (`a>..<b`, exclusive on both ends) and `is_half_open` (`a..<b`,
 // exclusive on the end only) is set; both false means the closed `a..b` form.
 pub struct ForStmt {
-	pub const TAG = NodeKind.STMT_FOR;
 	pub var_name: str,
 	pub is_range: bool,
 	pub is_open: bool,
@@ -53,17 +47,14 @@ pub struct ForStmt {
 }
 
 pub struct ReturnStmt {
-	pub const TAG = NodeKind.STMT_RETURN;
 	pub value: *AstNode? = null
 }
 
 pub struct BreakStmt {
-	pub const TAG = NodeKind.STMT_BREAK;
 	pub dummy: i32 = 0
 }
 
 pub struct ContinueStmt {
-	pub const TAG = NodeKind.STMT_CONTINUE;
 	pub dummy: i32 = 0
 }
 
@@ -76,17 +67,14 @@ pub struct WhenStmtArm {
 }
 
 pub struct WhenStmt {
-	pub const TAG = NodeKind.STMT_WHEN;
 	pub condition: *AstNode? = null,
 	pub arms: List<WhenStmtArm>
 }
 
 pub struct YieldStmt {
-	pub const TAG = NodeKind.STMT_YIELD;
 	pub value: *AstNode? = null
 }
 
 pub struct DeferStmt {
-	pub const TAG = NodeKind.STMT_DEFER;
 	pub body: *AstNode
 }
