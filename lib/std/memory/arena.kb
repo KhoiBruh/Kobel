@@ -42,7 +42,7 @@ impl Allocator for Arena {
 
 impl Arena {
 
-	pub init(block_size: usz = 65536): Self => Self(null, block_size);
+	pub init(block_size: usz = 65536) => Self(null, block_size);
 
 	fn new_block(var self, min_size: usz) {
 		var sz = self.block_size;

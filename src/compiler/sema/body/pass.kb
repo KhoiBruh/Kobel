@@ -93,14 +93,14 @@ pub struct BodyPass {
 
 impl BodyPass {
 
-	pub init(): Self {
+	pub init() {
 		var arena = Arena();
 		var decl_p = DeclPass();
 		val none_ty = decl_p.symtab.prims.t_none();
 		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
 	}
 
-	pub init(symtab: SymbolTable): Self {
+	pub init(symtab: SymbolTable) {
 		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
@@ -108,7 +108,7 @@ impl BodyPass {
 
 	// Standard construction: reuse the declaration pass of the same compilation
 	// for type resolution and generic instantiation.
-	pub init(symtab: SymbolTable, decl: DeclPass): Self {
+	pub init(symtab: SymbolTable, decl: DeclPass) {
 		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
 		var bp = Self(symtab, arena, none_ty, 0, List<str>(), null, true);

@@ -19,7 +19,7 @@ pub struct Path {
 
 impl Path {
 
-	pub init(raw: str): Self => Self(raw);
+	pub init(raw: str) => Self(raw);
 
 	pub fn c_str(val self) => self.raw.c_str();
 

@@ -20,7 +20,7 @@ pub struct Parser {
 
 impl Parser {
 
-	pub init(tokens: List<Token>): Self => Self(tokens);
+	pub init(tokens: List<Token>) => Self(tokens);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.create_node(NamedType.TAG, NodeData.NamedType(self.arena.create_val(NamedType(name, type_args))), line, col);

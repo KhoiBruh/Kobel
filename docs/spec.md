@@ -97,11 +97,11 @@ pub struct Point {
 }
 
 impl Point {
-    // Constructor
-    pub init(x: i32, y: i32 = 0): Self => Self(x, y);
+    // Constructor (implicitly returns Self; return type cannot be declared)
+    pub init(x: i32, y: i32 = 0) => Self(x, y);
 
     // Static helper
-    pub fn origin(): Self => Self.init(0, 0);
+    pub fn origin(): Self => Self(0, 0);
 
     // Instance method (read-only self)
     pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;
@@ -115,6 +115,7 @@ impl Point {
 ```
 
 - **Fields:** Declared inside `struct`. Fields support `pub` visibility and default initializers.
+- **Constructors:** Declared with `init(...) [=> expr; | { ... }]`. Constructors never declare a return type (specifying a return type is a syntax error); they implicitly return an instance of `Self`. Instances are created via `TypeName(...)`.
 - **Methods:** Defined in `impl StructName` blocks.
   - Instance methods require an explicit `val self` (read-only) or `var self` (mutable) receiver.
   - Static methods omit `self` and are called via `TypeName.method(...)` or `Self.method(...)` within `impl`.

@@ -17,7 +17,7 @@ pub struct HashMap<K: Hash, V> {
 
 impl HashMap<K: Hash, V> {
 
-	pub init(init_cap: usz = 16): Self {
+	pub init(init_cap: usz = 16) {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
 		val keys = Heap.create_array<K>(cap);

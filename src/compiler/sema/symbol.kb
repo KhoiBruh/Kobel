@@ -235,7 +235,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
 
-	pub init(): Self {
+	pub init() {
 		val arena = Arena();
 		val root_scope = arena.create_val(Scope());
 		var st = Self(root_scope, arena);

@@ -8,7 +8,7 @@ struct Point {
 }
 
 impl Point {
-	pub init(x: i32, y: i32): Self => Self(x, y);
+	pub init(x: i32, y: i32) => Self(x, y);
 
 	pub fn create(x: i32, y: i32): Self => Self(x, y);
 

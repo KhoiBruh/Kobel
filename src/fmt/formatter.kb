@@ -63,7 +63,7 @@ pub struct Formatter {
 
 impl Formatter {
 
-	pub init(options: FormatOptions, comments: CommentTable): Self => Self(
+	pub init(options: FormatOptions, comments: CommentTable) => Self(
 		FormatBuffer(options), comments, options
 	);
 
@@ -527,7 +527,7 @@ impl Formatter {
 				}
 				self.buf += ")";
 
-				if (f.return_type != null) {
+				if (!f.is_init && f.return_type != null) {
 					self.buf += ": ";
 					self.format_type(f.return_type!);
 				}

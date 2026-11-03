@@ -10320,7 +10320,13 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_init_decl(c
         }
     }
     compiler__parser__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after parameters"));
-    compiler__ast__node__AstNode* return_type = (compiler__parser__parser__Parser_match_token(self, 1) ? compiler__parser__parser__Parser_parse_type(self) : compiler__parser__parser__Parser_named_type(self, KOBEL_STR("Self"), std__collections__List_ptr_compiler__ast__node__AstNode_init(4), kw.line, kw.col));
+    if (compiler__parser__parser__Parser_check(self, 1)) {
+        compiler__lexer__Token col_tok = compiler__parser__parser__Parser_peek(self);
+        compiler__parser__parser__Parser_error(self, col_tok, KOBEL_STR("Constructor 'init' cannot declare a return type; it always returns the enclosing type"));
+        compiler__parser__parser__Parser_advance(self);
+        compiler__parser__parser__Parser_parse_type(self);
+    }
+    compiler__ast__node__AstNode* return_type = compiler__parser__parser__Parser_named_type(self, KOBEL_STR("Self"), std__collections__List_ptr_compiler__ast__node__AstNode_init(4), kw.line, kw.col);
     compiler__ast__node__AstNode* body;
     if (compiler__parser__parser__Parser_match_token(self, 27)) {
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
@@ -25634,7 +25640,7 @@ void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, comp
             }
         }
         fmt__buffer__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(")"));
-        if (f->return_type != NULL) {
+        if (!f->is_init && (f->return_type != NULL)) {
             fmt__buffer__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(": "));
             fmt__formatter__Formatter_format_type(self, f->return_type);
         }

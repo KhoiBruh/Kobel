@@ -214,9 +214,9 @@ struct Pair {
 }
 
 impl Pair {
-	init(): Pair => Self(0, 0);
-	init(v: i32): Pair => Self(v, v);
-	init(a: i32, b: i32): Pair => Self(a, b);
+	init() => Self(0, 0);
+	init(v: i32) => Self(v, v);
+	init(a: i32, b: i32) => Self(a, b);
 }
 
 fn test_new_overloads(var t: &Tally) {
@@ -244,8 +244,8 @@ struct Pair<T> {
 }
 
 impl Pair<T> {
-	init(): Pair<T> => Self(0 as T, 0 as T);
-	init(v: T): Pair<T> => Self(v, v);
+	init() => Self(0 as T, 0 as T);
+	init(v: T) => Self(v, v);
 }
 
 fn test_generic_trait_impl(var t: &Tally) {

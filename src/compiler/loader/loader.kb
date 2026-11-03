@@ -76,7 +76,7 @@ fn str_less(a: str, b: str): bool {
 
 impl ModuleLoader {
 
-	pub init(entry_dir: str, extra_roots: List<str>): Self {
+	pub init(entry_dir: str, extra_roots: List<str>) {
 		var roots = List<str>();
 		if (!entry_dir.empty()) roots += entry_dir;
 

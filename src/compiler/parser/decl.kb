@@ -262,8 +262,14 @@ impl Parser {
 
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after parameters");
 
-		val return_type = if (self.match_token(TokenType.COLON)) self.parse_type()
-		else self.named_type("Self", List<*AstNode>(), kw.line, kw.col);
+		if (self.check(TokenType.COLON)) {
+			val col_tok = self.peek();
+			self.error(col_tok, "Constructor 'init' cannot declare a return type; it always returns the enclosing type");
+			self.advance();
+			self.parse_type();
+		}
+
+		val return_type = self.named_type("Self", List<*AstNode>(), kw.line, kw.col);
 
 		val body = when {
 			self.match_token(TokenType.FAT_ARROW) -> {

@@ -129,7 +129,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 
 impl DeclPass {
 
-	pub init(): Self => Self(SymbolTable(), Arena(), "", List<str>());
+	pub init() => Self(SymbolTable(), Arena(), "", List<str>());
 
 	pub fn prims(val self) => self.symtab.prims;
 
