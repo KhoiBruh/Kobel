@@ -158,8 +158,15 @@ impl Arena {
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false)
 		=> self.create_node(FnDecl.TAG, NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op, is_init))), line, col);
 
+	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0)
+		=> self.fn_decl("init", type_params, params, return_type, body, is_pub, line, col, false, true);
+
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
 		=> self.create_node(StructDecl.TAG, NodeData.StructDecl(self.create_val(StructDecl(name, type_params, fields, is_pub))), line, col);
+
+	// `struct Name;` — an opaque declaration whose definition may follow later.
+	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, is_pub: bool, line: usz, col: usz)
+		=> self.create_node(StructDecl.TAG, NodeData.StructDecl(self.create_val(StructDecl(name, type_params, List<StructField>(), is_pub, true))), line, col);
 
 	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List())
 		=> self.create_node(TraitDecl.TAG, NodeData.TraitDecl(self.create_val(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
