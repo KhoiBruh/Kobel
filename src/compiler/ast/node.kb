@@ -327,8 +327,62 @@ impl AstNode {
 }
 
 impl Arena {
+	pub fn build_node(
+		var self, data: NodeData,
+		line: usz, col: usz
+	) => self.create_val(AstNode(node_kind_of(data), line, col, data));
+
 	pub fn create_node(
 		var self, kind: NodeKind, data: NodeData,
 		line: usz, col: usz
 	) => self.create_val(AstNode(kind, line, col, data));
 }
+
+pub fn node_kind_of(val data: NodeData): NodeKind => when (data) {
+	is NodeData.NamedType -> NodeKind.TYPE_NAMED;
+	is NodeData.PointerType -> NodeKind.TYPE_POINTER;
+	is NodeData.ArrayType -> NodeKind.TYPE_ARRAY;
+	is NodeData.NullableType -> NodeKind.TYPE_NULLABLE;
+	is NodeData.LiteralExpr -> NodeKind.EXPR_LITERAL;
+	is NodeData.IdentifierExpr -> NodeKind.EXPR_IDENTIFIER;
+	is NodeData.BinaryExpr -> NodeKind.EXPR_BINARY;
+	is NodeData.UnaryExpr -> NodeKind.EXPR_UNARY;
+	is NodeData.CallExpr -> NodeKind.EXPR_CALL;
+	is NodeData.MemberExpr -> NodeKind.EXPR_MEMBER;
+	is NodeData.IndexExpr -> NodeKind.EXPR_INDEX;
+	is NodeData.AssignExpr -> NodeKind.EXPR_ASSIGN;
+	is NodeData.UpdateExpr -> NodeKind.EXPR_UPDATE;
+	is NodeData.CastExpr -> NodeKind.EXPR_CAST;
+	is NodeData.GroupExpr -> NodeKind.EXPR_GROUP;
+	is NodeData.ArrayLiteralExpr -> NodeKind.EXPR_ARRAY_LITERAL;
+	is NodeData.IfExpr -> NodeKind.EXPR_IF;
+	is NodeData.WhenExpr -> NodeKind.EXPR_WHEN;
+	is NodeData.InterpExpr -> NodeKind.EXPR_INTERP;
+	is NodeData.IsExpr -> NodeKind.EXPR_IS;
+	is NodeData.StructCtorExpr -> NodeKind.EXPR_STRUCT_CTOR;
+	is NodeData.EnumCtorExpr -> NodeKind.EXPR_ENUM_CTOR;
+	is NodeData.SizeOfParam -> NodeKind.EXPR_SIZE_OF_PARAM;
+	is NodeData.BlockStmt -> NodeKind.STMT_BLOCK;
+	is NodeData.ExprStmt -> NodeKind.STMT_EXPR;
+	is NodeData.VarDeclStmt -> NodeKind.STMT_VAR_DECL;
+	is NodeData.IfStmt -> NodeKind.STMT_IF;
+	is NodeData.WhileStmt -> NodeKind.STMT_WHILE;
+	is NodeData.ForStmt -> NodeKind.STMT_FOR;
+	is NodeData.ReturnStmt -> NodeKind.STMT_RETURN;
+	is NodeData.BreakStmt -> NodeKind.STMT_BREAK;
+	is NodeData.ContinueStmt -> NodeKind.STMT_CONTINUE;
+	is NodeData.WhenStmt -> NodeKind.STMT_WHEN;
+	is NodeData.YieldStmt -> NodeKind.STMT_YIELD;
+	is NodeData.DeferStmt -> NodeKind.STMT_DEFER;
+	is NodeData.ModuleDecl -> NodeKind.DECL_MODULE;
+	is NodeData.UseDecl -> NodeKind.DECL_USE;
+	is NodeData.FnDecl -> NodeKind.DECL_FN;
+	is NodeData.StructDecl -> NodeKind.DECL_STRUCT;
+	is NodeData.TraitDecl -> NodeKind.DECL_TRAIT;
+	is NodeData.ImplDecl -> NodeKind.DECL_IMPL;
+	is NodeData.EnumDecl -> NodeKind.DECL_ENUM;
+	is NodeData.ConstDecl -> NodeKind.DECL_CONST;
+	is NodeData.ExternBlock -> NodeKind.DECL_EXTERN_BLOCK;
+	is NodeData.Program -> NodeKind.PROGRAM;
+	else -> NodeKind.EXPR_LITERAL;
+};

@@ -2409,7 +2409,9 @@ compiler__ast__decl__EnumDecl* compiler__ast__node__AstNode_as_enum_decl(compile
 compiler__ast__decl__ConstDecl* compiler__ast__node__AstNode_as_const_decl(compiler__ast__node__AstNode* self);
 compiler__ast__decl__ExternBlock* compiler__ast__node__AstNode_as_extern_block(compiler__ast__node__AstNode* self);
 compiler__ast__decl__Program* compiler__ast__node__AstNode_as_program(compiler__ast__node__AstNode* self);
+compiler__ast__node__AstNode* std__memory__Arena_build_node(std__memory__Arena* self, compiler__ast__node__NodeData data, size_t line, size_t col);
 compiler__ast__node__AstNode* std__memory__Arena_create_node(std__memory__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col);
+compiler__ast__node__NodeKind compiler__ast__node__node_kind_of(compiler__ast__node__NodeData data);
 compiler__ast__node__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col);
 compiler__ast__node__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col);
 compiler__ast__node__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col);
@@ -8619,172 +8621,362 @@ compiler__ast__decl__Program* compiler__ast__node__AstNode_as_program(compiler__
     return (compiler__ast__decl__Program*)NULL;
 }
 
+compiler__ast__node__AstNode* std__memory__Arena_build_node(std__memory__Arena* self, compiler__ast__node__NodeData data, size_t line, size_t col) {
+    return std__memory__Arena_create_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ compiler__ast__node__node_kind_of(data), line, col, data, NULL, NULL, NULL, NULL });
+}
+
 compiler__ast__node__AstNode* std__memory__Arena_create_node(std__memory__Arena* self, compiler__ast__node__NodeKind kind, compiler__ast__node__NodeData data, size_t line, size_t col) {
     return std__memory__Arena_create_val_compiler__ast__node__AstNode(self, (compiler__ast__node__AstNode){ kind, line, col, data, NULL, NULL, NULL, NULL });
 }
 
+compiler__ast__node__NodeKind compiler__ast__node__node_kind_of(compiler__ast__node__NodeData data) {
+    if (data.tag == compiler__ast__node__NodeData__NamedType__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__NamedType* data = (compiler__ast__node__NodeData__NamedType*)((&((compiler__ast__node__NodeData*)__orig_data)->u.NamedType));
+        return 0;
+    } else if (data.tag == compiler__ast__node__NodeData__PointerType__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__PointerType* data = (compiler__ast__node__NodeData__PointerType*)((&((compiler__ast__node__NodeData*)__orig_data)->u.PointerType));
+        return 1;
+    } else if (data.tag == compiler__ast__node__NodeData__ArrayType__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ArrayType* data = (compiler__ast__node__NodeData__ArrayType*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ArrayType));
+        return 2;
+    } else if (data.tag == compiler__ast__node__NodeData__NullableType__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__NullableType* data = (compiler__ast__node__NodeData__NullableType*)((&((compiler__ast__node__NodeData*)__orig_data)->u.NullableType));
+        return 3;
+    } else if (data.tag == compiler__ast__node__NodeData__LiteralExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__LiteralExpr* data = (compiler__ast__node__NodeData__LiteralExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.LiteralExpr));
+        return 4;
+    } else if (data.tag == compiler__ast__node__NodeData__IdentifierExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__IdentifierExpr* data = (compiler__ast__node__NodeData__IdentifierExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.IdentifierExpr));
+        return 5;
+    } else if (data.tag == compiler__ast__node__NodeData__BinaryExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__BinaryExpr* data = (compiler__ast__node__NodeData__BinaryExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.BinaryExpr));
+        return 6;
+    } else if (data.tag == compiler__ast__node__NodeData__UnaryExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__UnaryExpr* data = (compiler__ast__node__NodeData__UnaryExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.UnaryExpr));
+        return 7;
+    } else if (data.tag == compiler__ast__node__NodeData__CallExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__CallExpr* data = (compiler__ast__node__NodeData__CallExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.CallExpr));
+        return 8;
+    } else if (data.tag == compiler__ast__node__NodeData__MemberExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__MemberExpr* data = (compiler__ast__node__NodeData__MemberExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.MemberExpr));
+        return 9;
+    } else if (data.tag == compiler__ast__node__NodeData__IndexExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__IndexExpr* data = (compiler__ast__node__NodeData__IndexExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.IndexExpr));
+        return 10;
+    } else if (data.tag == compiler__ast__node__NodeData__AssignExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__AssignExpr* data = (compiler__ast__node__NodeData__AssignExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.AssignExpr));
+        return 11;
+    } else if (data.tag == compiler__ast__node__NodeData__UpdateExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__UpdateExpr* data = (compiler__ast__node__NodeData__UpdateExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.UpdateExpr));
+        return 12;
+    } else if (data.tag == compiler__ast__node__NodeData__CastExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__CastExpr* data = (compiler__ast__node__NodeData__CastExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.CastExpr));
+        return 13;
+    } else if (data.tag == compiler__ast__node__NodeData__GroupExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__GroupExpr* data = (compiler__ast__node__NodeData__GroupExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.GroupExpr));
+        return 14;
+    } else if (data.tag == compiler__ast__node__NodeData__ArrayLiteralExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ArrayLiteralExpr* data = (compiler__ast__node__NodeData__ArrayLiteralExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ArrayLiteralExpr));
+        return 15;
+    } else if (data.tag == compiler__ast__node__NodeData__IfExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__IfExpr* data = (compiler__ast__node__NodeData__IfExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.IfExpr));
+        return 16;
+    } else if (data.tag == compiler__ast__node__NodeData__WhenExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__WhenExpr* data = (compiler__ast__node__NodeData__WhenExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.WhenExpr));
+        return 17;
+    } else if (data.tag == compiler__ast__node__NodeData__InterpExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__InterpExpr* data = (compiler__ast__node__NodeData__InterpExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.InterpExpr));
+        return 18;
+    } else if (data.tag == compiler__ast__node__NodeData__IsExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__IsExpr* data = (compiler__ast__node__NodeData__IsExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.IsExpr));
+        return 41;
+    } else if (data.tag == compiler__ast__node__NodeData__StructCtorExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__StructCtorExpr* data = (compiler__ast__node__NodeData__StructCtorExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.StructCtorExpr));
+        return 42;
+    } else if (data.tag == compiler__ast__node__NodeData__EnumCtorExpr__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__EnumCtorExpr* data = (compiler__ast__node__NodeData__EnumCtorExpr*)((&((compiler__ast__node__NodeData*)__orig_data)->u.EnumCtorExpr));
+        return 43;
+    } else if (data.tag == compiler__ast__node__NodeData__SizeOfParam__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__SizeOfParam* data = (compiler__ast__node__NodeData__SizeOfParam*)((&((compiler__ast__node__NodeData*)__orig_data)->u.SizeOfParam));
+        return 44;
+    } else if (data.tag == compiler__ast__node__NodeData__BlockStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__BlockStmt* data = (compiler__ast__node__NodeData__BlockStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.BlockStmt));
+        return 19;
+    } else if (data.tag == compiler__ast__node__NodeData__ExprStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ExprStmt* data = (compiler__ast__node__NodeData__ExprStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ExprStmt));
+        return 20;
+    } else if (data.tag == compiler__ast__node__NodeData__VarDeclStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__VarDeclStmt* data = (compiler__ast__node__NodeData__VarDeclStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.VarDeclStmt));
+        return 21;
+    } else if (data.tag == compiler__ast__node__NodeData__IfStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__IfStmt* data = (compiler__ast__node__NodeData__IfStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.IfStmt));
+        return 22;
+    } else if (data.tag == compiler__ast__node__NodeData__WhileStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__WhileStmt* data = (compiler__ast__node__NodeData__WhileStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.WhileStmt));
+        return 24;
+    } else if (data.tag == compiler__ast__node__NodeData__ForStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ForStmt* data = (compiler__ast__node__NodeData__ForStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ForStmt));
+        return 28;
+    } else if (data.tag == compiler__ast__node__NodeData__ReturnStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ReturnStmt* data = (compiler__ast__node__NodeData__ReturnStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ReturnStmt));
+        return 25;
+    } else if (data.tag == compiler__ast__node__NodeData__BreakStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__BreakStmt* data = (compiler__ast__node__NodeData__BreakStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.BreakStmt));
+        return 26;
+    } else if (data.tag == compiler__ast__node__NodeData__ContinueStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ContinueStmt* data = (compiler__ast__node__NodeData__ContinueStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ContinueStmt));
+        return 27;
+    } else if (data.tag == compiler__ast__node__NodeData__WhenStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__WhenStmt* data = (compiler__ast__node__NodeData__WhenStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.WhenStmt));
+        return 23;
+    } else if (data.tag == compiler__ast__node__NodeData__YieldStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__YieldStmt* data = (compiler__ast__node__NodeData__YieldStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.YieldStmt));
+        return 29;
+    } else if (data.tag == compiler__ast__node__NodeData__DeferStmt__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__DeferStmt* data = (compiler__ast__node__NodeData__DeferStmt*)((&((compiler__ast__node__NodeData*)__orig_data)->u.DeferStmt));
+        return 30;
+    } else if (data.tag == compiler__ast__node__NodeData__ModuleDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ModuleDecl* data = (compiler__ast__node__NodeData__ModuleDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ModuleDecl));
+        return 31;
+    } else if (data.tag == compiler__ast__node__NodeData__UseDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__UseDecl* data = (compiler__ast__node__NodeData__UseDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.UseDecl));
+        return 32;
+    } else if (data.tag == compiler__ast__node__NodeData__FnDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__FnDecl* data = (compiler__ast__node__NodeData__FnDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.FnDecl));
+        return 33;
+    } else if (data.tag == compiler__ast__node__NodeData__StructDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__StructDecl* data = (compiler__ast__node__NodeData__StructDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.StructDecl));
+        return 34;
+    } else if (data.tag == compiler__ast__node__NodeData__TraitDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__TraitDecl* data = (compiler__ast__node__NodeData__TraitDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.TraitDecl));
+        return 35;
+    } else if (data.tag == compiler__ast__node__NodeData__ImplDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ImplDecl* data = (compiler__ast__node__NodeData__ImplDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ImplDecl));
+        return 36;
+    } else if (data.tag == compiler__ast__node__NodeData__EnumDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__EnumDecl* data = (compiler__ast__node__NodeData__EnumDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.EnumDecl));
+        return 37;
+    } else if (data.tag == compiler__ast__node__NodeData__ConstDecl__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ConstDecl* data = (compiler__ast__node__NodeData__ConstDecl*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ConstDecl));
+        return 38;
+    } else if (data.tag == compiler__ast__node__NodeData__ExternBlock__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__ExternBlock* data = (compiler__ast__node__NodeData__ExternBlock*)((&((compiler__ast__node__NodeData*)__orig_data)->u.ExternBlock));
+        return 39;
+    } else if (data.tag == compiler__ast__node__NodeData__Program__TAG) {
+        void* __orig_data = (void*)&data;
+        compiler__ast__node__NodeData__Program* data = (compiler__ast__node__NodeData__Program*)((&((compiler__ast__node__NodeData*)__orig_data)->u.Program));
+        return 40;
+    } else {
+        return 4;
+    }
+}
+
 compiler__ast__node__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__types__NamedType__TAG, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__memory__Arena_create_val_compiler__ast__types__NamedType(self, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 1, .u.NamedType = { std__memory__Arena_create_val_compiler__ast__types__NamedType(self, (compiler__ast__types__NamedType){ name, type_args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool is_mut, compiler__ast__node__AstNode* pointee, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__types__PointerType__TAG, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__memory__Arena_create_val_compiler__ast__types__PointerType(self, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 2, .u.PointerType = { std__memory__Arena_create_val_compiler__ast__types__PointerType(self, (compiler__ast__types__PointerType){ is_mut, pointee }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__node__AstNode* elem, size_t size, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__types__ArrayType__TAG, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__memory__Arena_create_val_compiler__ast__types__ArrayType(self, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 3, .u.ArrayType = { std__memory__Arena_create_val_compiler__ast__types__ArrayType(self, (compiler__ast__types__ArrayType){ elem, size }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__node__AstNode* inner, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__types__NullableType__TAG, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__memory__Arena_create_val_compiler__ast__types__NullableType(self, (compiler__ast__types__NullableType){ inner }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 4, .u.NullableType = { std__memory__Arena_create_val_compiler__ast__types__NullableType(self, (compiler__ast__types__NullableType){ inner }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__expr__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__LiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__LiteralExpr(self, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 5, .u.LiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__LiteralExpr(self, (compiler__ast__expr__LiteralExpr){ lk, raw }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_identifier(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__IdentifierExpr__TAG, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__memory__Arena_create_val_compiler__ast__expr__IdentifierExpr(self, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 6, .u.IdentifierExpr = { std__memory__Arena_create_val_compiler__ast__expr__IdentifierExpr(self, (compiler__ast__expr__IdentifierExpr){ name }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_binary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* left, compiler__ast__node__AstNode* right, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__BinaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_create_val_compiler__ast__expr__BinaryExpr(self, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_create_val_compiler__ast__expr__BinaryExpr(self, (compiler__ast__expr__BinaryExpr){ left, op, right }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_unary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* operand, size_t line, size_t col, bool is_postfix) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__UnaryExpr__TAG, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__memory__Arena_create_val_compiler__ast__expr__UnaryExpr(self, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 8, .u.UnaryExpr = { std__memory__Arena_create_val_compiler__ast__expr__UnaryExpr(self, (compiler__ast__expr__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_call(std__memory__Arena* self, compiler__ast__node__AstNode* callee, std__collections__List_ptr_compiler__ast__node__AstNode args, std__collections__List_ptr_compiler__ast__node__AstNode type_args, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__CallExpr__TAG, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_create_val_compiler__ast__expr__CallExpr(self, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_create_val_compiler__ast__expr__CallExpr(self, (compiler__ast__expr__CallExpr){ callee, args, type_args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_struct_ctor(std__memory__Arena* self, kobel_str c_name, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__StructCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 21, .u.StructCtorExpr = { std__memory__Arena_create_val_compiler__ast__expr__StructCtorExpr(self, (compiler__ast__expr__StructCtorExpr){ c_name, args }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 21, .u.StructCtorExpr = { std__memory__Arena_create_val_compiler__ast__expr__StructCtorExpr(self, (compiler__ast__expr__StructCtorExpr){ c_name, args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_enum_ctor(std__memory__Arena* self, kobel_str c_name, kobel_str tag_field, int64_t tag_value, kobel_str payload_path, std__collections__List_ptr_compiler__ast__node__AstNode args, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__EnumCtorExpr__TAG, (compiler__ast__node__NodeData){ .tag = 22, .u.EnumCtorExpr = { std__memory__Arena_create_val_compiler__ast__expr__EnumCtorExpr(self, (compiler__ast__expr__EnumCtorExpr){ c_name, tag_field, tag_value, payload_path, args }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 22, .u.EnumCtorExpr = { std__memory__Arena_create_val_compiler__ast__expr__EnumCtorExpr(self, (compiler__ast__expr__EnumCtorExpr){ c_name, tag_field, tag_value, payload_path, args }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_size_of_param(std__memory__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__SizeOfParam__TAG, (compiler__ast__node__NodeData){ .tag = 23, .u.SizeOfParam = { std__memory__Arena_create_val_compiler__ast__expr__SizeOfParam(self, (compiler__ast__expr__SizeOfParam){ param_index, size_text }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 23, .u.SizeOfParam = { std__memory__Arena_create_val_compiler__ast__expr__SizeOfParam(self, (compiler__ast__expr__SizeOfParam){ param_index, size_text }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, false }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_safe_member(std__memory__Arena* self, compiler__ast__node__AstNode* obj, kobel_str member, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__MemberExpr__TAG, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 10, .u.MemberExpr = { std__memory__Arena_create_val_compiler__ast__expr__MemberExpr(self, (compiler__ast__expr__MemberExpr){ obj, member, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_index(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* index, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__IndexExpr__TAG, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_create_val_compiler__ast__expr__IndexExpr(self, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_create_val_compiler__ast__expr__IndexExpr(self, (compiler__ast__expr__IndexExpr){ target, index }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_assign(std__memory__Arena* self, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, 5, value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_compound_assign(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__AssignExpr__TAG, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__expr__AssignExpr(self, (compiler__ast__expr__AssignExpr){ target, op, value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_update(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__node__AstNode* target, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__UpdateExpr__TAG, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__memory__Arena_create_val_compiler__ast__expr__UpdateExpr(self, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 13, .u.UpdateExpr = { std__memory__Arena_create_val_compiler__ast__expr__UpdateExpr(self, (compiler__ast__expr__UpdateExpr){ op, target }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_cast(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__CastExpr__TAG, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__memory__Arena_create_val_compiler__ast__expr__CastExpr(self, (compiler__ast__expr__CastExpr){ expr, target_type }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 14, .u.CastExpr = { std__memory__Arena_create_val_compiler__ast__expr__CastExpr(self, (compiler__ast__expr__CastExpr){ expr, target_type }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_group(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__GroupExpr__TAG, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__memory__Arena_create_val_compiler__ast__expr__GroupExpr(self, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 15, .u.GroupExpr = { std__memory__Arena_create_val_compiler__ast__expr__GroupExpr(self, (compiler__ast__expr__GroupExpr){ expr }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_array_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, KOBEL_STR(""), NULL }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_list_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode elements, kobel_str list_struct_name, compiler__ast__node__AstNode* elem_type_node, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__ArrayLiteralExpr__TAG, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { std__memory__Arena_create_val_compiler__ast__expr__ArrayLiteralExpr(self, (compiler__ast__expr__ArrayLiteralExpr){ elements, list_struct_name, elem_type_node }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_if_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__IfExpr__TAG, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__memory__Arena_create_val_compiler__ast__expr__IfExpr(self, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 17, .u.IfExpr = { std__memory__Arena_create_val_compiler__ast__expr__IfExpr(self, (compiler__ast__expr__IfExpr){ condition, then_branch, else_branch }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_when_expr(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__expr__WhenArm arms, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__WhenExpr__TAG, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__memory__Arena_create_val_compiler__ast__expr__WhenExpr(self, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 18, .u.WhenExpr = { std__memory__Arena_create_val_compiler__ast__expr__WhenExpr(self, (compiler__ast__expr__WhenExpr){ condition, arms }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_interp(std__memory__Arena* self, std__collections__List_compiler__ast__expr__InterpPart parts, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__InterpExpr__TAG, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__memory__Arena_create_val_compiler__ast__expr__InterpExpr(self, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 19, .u.InterpExpr = { std__memory__Arena_create_val_compiler__ast__expr__InterpExpr(self, (compiler__ast__expr__InterpExpr){ parts }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_is_expr(std__memory__Arena* self, compiler__ast__node__AstNode* expr, compiler__ast__node__AstNode* target_type, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__expr__IsExpr__TAG, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__memory__Arena_create_val_compiler__ast__expr__IsExpr(self, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 20, .u.IsExpr = { std__memory__Arena_create_val_compiler__ast__expr__IsExpr(self, (compiler__ast__expr__IsExpr){ expr, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_block_stmt(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode statements, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__BlockStmt__TAG, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__memory__Arena_create_val_compiler__ast__stmt__BlockStmt(self, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 24, .u.BlockStmt = { std__memory__Arena_create_val_compiler__ast__stmt__BlockStmt(self, (compiler__ast__stmt__BlockStmt){ statements }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_expr_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* expr, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__ExprStmt__TAG, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ExprStmt(self, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 25, .u.ExprStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ExprStmt(self, (compiler__ast__stmt__ExprStmt){ expr }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_var_decl(std__memory__Arena* self, bool is_mut, kobel_str name, compiler__ast__node__AstNode* type_annotation, compiler__ast__node__AstNode* initializer, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__VarDeclStmt__TAG, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__memory__Arena_create_val_compiler__ast__stmt__VarDeclStmt(self, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 26, .u.VarDeclStmt = { std__memory__Arena_create_val_compiler__ast__stmt__VarDeclStmt(self, (compiler__ast__stmt__VarDeclStmt){ is_mut, name, type_annotation, initializer }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_if_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* then_branch, compiler__ast__node__AstNode* else_branch, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__IfStmt__TAG, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__memory__Arena_create_val_compiler__ast__stmt__IfStmt(self, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 27, .u.IfStmt = { std__memory__Arena_create_val_compiler__ast__stmt__IfStmt(self, (compiler__ast__stmt__IfStmt){ condition, then_branch, else_branch }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_while_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__WhileStmt__TAG, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__memory__Arena_create_val_compiler__ast__stmt__WhileStmt(self, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 28, .u.WhileStmt = { std__memory__Arena_create_val_compiler__ast__stmt__WhileStmt(self, (compiler__ast__stmt__WhileStmt){ condition, body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_for_stmt(std__memory__Arena* self, kobel_str var_name, bool is_range, bool is_open, bool is_half_open, compiler__ast__node__AstNode* iterable, compiler__ast__node__AstNode* range_start, compiler__ast__node__AstNode* range_end, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__ForStmt__TAG, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ForStmt(self, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 29, .u.ForStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ForStmt(self, (compiler__ast__stmt__ForStmt){ var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_return_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__ReturnStmt__TAG, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ReturnStmt(self, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 30, .u.ReturnStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ReturnStmt(self, (compiler__ast__stmt__ReturnStmt){ value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_break_stmt(std__memory__Arena* self, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__BreakStmt__TAG, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__memory__Arena_create_val_compiler__ast__stmt__BreakStmt(self, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 31, .u.BreakStmt = { std__memory__Arena_create_val_compiler__ast__stmt__BreakStmt(self, (compiler__ast__stmt__BreakStmt){ 0 }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_continue_stmt(std__memory__Arena* self, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__ContinueStmt__TAG, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ContinueStmt(self, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 32, .u.ContinueStmt = { std__memory__Arena_create_val_compiler__ast__stmt__ContinueStmt(self, (compiler__ast__stmt__ContinueStmt){ 0 }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_when_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* condition, std__collections__List_compiler__ast__stmt__WhenStmtArm arms, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__WhenStmt__TAG, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__memory__Arena_create_val_compiler__ast__stmt__WhenStmt(self, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 33, .u.WhenStmt = { std__memory__Arena_create_val_compiler__ast__stmt__WhenStmt(self, (compiler__ast__stmt__WhenStmt){ condition, arms }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_yield_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__YieldStmt__TAG, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__memory__Arena_create_val_compiler__ast__stmt__YieldStmt(self, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 34, .u.YieldStmt = { std__memory__Arena_create_val_compiler__ast__stmt__YieldStmt(self, (compiler__ast__stmt__YieldStmt){ value }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_defer_stmt(std__memory__Arena* self, compiler__ast__node__AstNode* body, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__stmt__DeferStmt__TAG, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__memory__Arena_create_val_compiler__ast__stmt__DeferStmt(self, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 35, .u.DeferStmt = { std__memory__Arena_create_val_compiler__ast__stmt__DeferStmt(self, (compiler__ast__stmt__DeferStmt){ body }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_module_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__ModuleDecl__TAG, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__memory__Arena_create_val_compiler__ast__decl__ModuleDecl(self, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 36, .u.ModuleDecl = { std__memory__Arena_create_val_compiler__ast__decl__ModuleDecl(self, (compiler__ast__decl__ModuleDecl){ path, full_path }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_use_decl(std__memory__Arena* self, std__collections__List_str path, kobel_str full_path, kobel_str symbol_name, kobel_str alias, bool is_wildcard, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__UseDecl__TAG, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__memory__Arena_create_val_compiler__ast__decl__UseDecl(self, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 37, .u.UseDecl = { std__memory__Arena_create_val_compiler__ast__decl__UseDecl(self, (compiler__ast__decl__UseDecl){ path, full_path, symbol_name, alias, is_wildcard }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_fn_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col, bool is_op, bool is_init) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__FnDecl__TAG, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__memory__Arena_create_val_compiler__ast__decl__FnDecl(self, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, is_init, KOBEL_STR("") }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 38, .u.FnDecl = { std__memory__Arena_create_val_compiler__ast__decl__FnDecl(self, (compiler__ast__decl__FnDecl){ name, type_params, params, return_type, body, is_pub, is_op, is_init, KOBEL_STR("") }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_init_decl(std__memory__Arena* self, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__Param params, compiler__ast__node__AstNode* return_type, compiler__ast__node__AstNode* body, bool is_pub, size_t line, size_t col) {
@@ -8792,35 +8984,35 @@ compiler__ast__node__AstNode* std__memory__Arena_init_decl(std__memory__Arena* s
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_struct_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_compiler__ast__decl__StructField fields, bool is_pub, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, fields, is_pub, false, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_struct_decl_forward(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, bool is_pub, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__StructDecl__TAG, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, std__collections__List_compiler__ast__decl__StructField_init(4), is_pub, true, true }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__decl__StructDecl(self, (compiler__ast__decl__StructDecl){ name, type_params, std__collections__List_compiler__ast__decl__StructField_init(4), is_pub, true, true }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_trait_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__decl__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__node__AstNode methods, bool is_pub, size_t line, size_t col, std__collections__List_str assoc_types) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__TraitDecl__TAG, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__memory__Arena_create_val_compiler__ast__decl__TraitDecl(self, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 40, .u.TraitDecl = { std__memory__Arena_create_val_compiler__ast__decl__TraitDecl(self, (compiler__ast__decl__TraitDecl){ name, type_params, bases, methods, is_pub, assoc_types }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_impl_decl(std__memory__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__decl__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__node__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__decl__AssocBinding assoc_bindings) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__ImplDecl__TAG, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__memory__Arena_create_val_compiler__ast__decl__ImplDecl(self, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 41, .u.ImplDecl = { std__memory__Arena_create_val_compiler__ast__decl__ImplDecl(self, (compiler__ast__decl__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_enum_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* underlying_type, std__collections__List_compiler__ast__decl__EnumMember members, bool is_pub, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__EnumDecl__TAG, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__memory__Arena_create_val_compiler__ast__decl__EnumDecl(self, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 42, .u.EnumDecl = { std__memory__Arena_create_val_compiler__ast__decl__EnumDecl(self, (compiler__ast__decl__EnumDecl){ name, underlying_type, members, is_pub }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, kobel_str name, compiler__ast__node__AstNode* type_node, compiler__ast__node__AstNode* value, bool is_pub, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__ConstDecl__TAG, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__memory__Arena_create_val_compiler__ast__decl__ConstDecl(self, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 43, .u.ConstDecl = { std__memory__Arena_create_val_compiler__ast__decl__ConstDecl(self, (compiler__ast__decl__ConstDecl){ name, type_node, value, is_pub }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_extern_block(std__memory__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__ExternBlock__TAG, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__memory__Arena_create_val_compiler__ast__decl__ExternBlock(self, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 44, .u.ExternBlock = { std__memory__Arena_create_val_compiler__ast__decl__ExternBlock(self, (compiler__ast__decl__ExternBlock){ abi, declarations }) } }, line, col);
 }
 
 compiler__ast__node__AstNode* std__memory__Arena_program(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__node__AstNode declarations, size_t line, size_t col) {
-    return std__memory__Arena_create_node(self, compiler__ast__decl__Program__TAG, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_create_val_compiler__ast__decl__Program(self, (compiler__ast__decl__Program){ declarations }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__node__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_create_val_compiler__ast__decl__Program(self, (compiler__ast__decl__Program){ declarations }) } }, line, col);
 }
 
 compiler__parser__parser__Parser compiler__parser__parser__Parser_init(std__collections__List_compiler__lexer__Token tokens) {
@@ -9583,27 +9775,27 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_infix(compi
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             right = compiler__parser__parser__Parser_return_stmt(self, value, kw_line, kw_col);
-            goto __when_end_6;
+            goto __when_end_7;
         } else if (compiler__parser__parser__Parser_match_token(self, 56)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_break_stmt(self, kw_line, kw_col);
-            goto __when_end_6;
+            goto __when_end_7;
         } else if (compiler__parser__parser__Parser_match_token(self, 57)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             right = compiler__parser__parser__Parser_continue_stmt(self, kw_line, kw_col);
-            goto __when_end_6;
+            goto __when_end_7;
         } else if (compiler__parser__parser__Parser_match_token(self, 68)) {
             size_t kw_line = compiler__parser__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__parser__Parser_previous(self).col;
             compiler__ast__node__AstNode* value = (((!compiler__parser__parser__Parser_check(self, 0) && !compiler__parser__parser__Parser_check(self, 18)) && !compiler__parser__parser__Parser_check(self, 16)) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             right = compiler__parser__parser__Parser_yield_stmt(self, value, kw_line, kw_col);
-            goto __when_end_6;
+            goto __when_end_7;
         } else {
             right = compiler__parser__parser__Parser_parse_expression(self, 1);
         }
-        __when_end_6:;
+        __when_end_7:;
         return compiler__parser__parser__Parser_binary(self, 37, left, right, line, col);
     } else if (compiler__parser__parser__Parser_match_token(self, 3)) {
         compiler__lexer__Token member_tok = compiler__parser__parser__Parser_consume(self, 42, KOBEL_STR("Expected identifier after '.'"));
@@ -10258,11 +10450,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         } else if (!kobel_streq(pname.text, KOBEL_STR("self"))) {
             compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_9;
+            goto __when_end_10;
         } else {
             ptype = NULL;
         }
-        __when_end_9:;
+        __when_end_10:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
         std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -10280,11 +10472,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
             } else if (!kobel_streq(p_name.text, KOBEL_STR("self"))) {
                 compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
                 p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_10;
+                goto __when_end_11;
             } else {
                 p_type = NULL;
             }
-            __when_end_10:;
+            __when_end_11:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -10296,15 +10488,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_11;
+        goto __when_end_12;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for function body"));
         body = NULL;
-        goto __when_end_11;
+        goto __when_end_12;
     }
-    __when_end_11:;
+    __when_end_12:;
     return compiler__parser__parser__Parser_fn_decl(self, name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col, false, false);
 }
 
@@ -10334,11 +10526,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         } else if (!kobel_streq(pname.text, KOBEL_STR("self"))) {
             compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_12;
+            goto __when_end_13;
         } else {
             ptype = NULL;
         }
-        __when_end_12:;
+        __when_end_13:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
         std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -10356,11 +10548,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
             } else if (!kobel_streq(p_name.text, KOBEL_STR("self"))) {
                 compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
                 p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_13;
+                goto __when_end_14;
             } else {
                 p_type = NULL;
             }
-            __when_end_13:;
+            __when_end_14:;
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -10372,15 +10564,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_14;
+        goto __when_end_15;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for operator body"));
         body = NULL;
-        goto __when_end_14;
+        goto __when_end_15;
     }
-    __when_end_14:;
+    __when_end_15:;
     return compiler__parser__parser__Parser_fn_decl(self, op_name, type_params, params, return_type, body, is_pub, kw.line, kw.col, true, false);
 }
 
@@ -10430,15 +10622,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_init_decl(c
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_15;
+        goto __when_end_16;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for constructor body"));
         body = NULL;
-        goto __when_end_15;
+        goto __when_end_16;
     }
-    __when_end_15:;
+    __when_end_16:;
     return compiler__parser__parser__Parser_init_decl(self, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 }
 
@@ -14775,7 +14967,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
         compiler__ast__node__AstNode* cloned_obj = compiler__sema__decl__pass__DeclPass_clone_expr(self, obj_src, subst);
         compiler__ast__node__AstNode* res = (m->is_safe ? std__memory__Arena_safe_member(&self->arena, cloned_obj, m->member, node->line, node->col) : std__memory__Arena_member(&self->arena, cloned_obj, m->member, node->line, node->col));
         out = res;
-        goto __when_end_33;
+        goto __when_end_34;
     } else if (target != NULL && target->kind == compiler__ast__expr__IndexExpr__TAG) {
         compiler__ast__expr__IndexExpr* ix = (target)->data.u.IndexExpr.inner;
         out = std__memory__Arena_index(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
@@ -14807,7 +14999,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
             }
         }
         out = std__memory__Arena_list_literal(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode, node->line, node->col);
-        goto __when_end_33;
+        goto __when_end_34;
     } else if (target != NULL && target->kind == compiler__ast__expr__WhenExpr__TAG) {
         compiler__ast__expr__WhenExpr* we = (target)->data.u.WhenExpr.inner;
         out = std__memory__Arena_when_expr(&self->arena, ((we->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_when_arms(self, node, subst), node->line, node->col);
@@ -14825,7 +15017,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
             res_e->is_mut = is_e->is_mut;
         }
         out = res_is;
-        goto __when_end_33;
+        goto __when_end_34;
     } else if (target != NULL && target->kind == compiler__ast__expr__StructCtorExpr__TAG) {
         compiler__ast__expr__StructCtorExpr* sc = (target)->data.u.StructCtorExpr.inner;
         out = std__memory__Arena_struct_ctor(&self->arena, sc->c_name, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, sc->args, subst), node->line, node->col);
@@ -14838,7 +15030,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
     } else {
         out = std__memory__Arena_identifier(&self->arena, KOBEL_STR("<unsupported-expr>"), node->line, node->col);
     }
-    __when_end_33:;
+    __when_end_34:;
     if (e != NULL) {
         if (e->ty != NULL) {
             out->type_ptr = (uint8_t*)e->ty;
