@@ -2,7 +2,7 @@ mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
-use std.sys.*;
+use std.system.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -29,32 +29,32 @@ pub fn is_msvc_compiler(cc: str): bool {
 // Resolves the configured compiler for the current host OS: on Linux/POSIX,
 // `cc = "cl"` in `kobel.toml` automatically falls back to `cc`.
 pub fn resolve_host_cc(cc: str): str {
-	if (!is_windows() && is_msvc_compiler(cc)) return "cc";
+	if (!System.is_windows() && is_msvc_compiler(cc)) return "cc";
 	return cc;
 }
 
 pub fn ensure_dir(path: str) {
 	if (path.empty() || File.exists(path)) return;
-	if (is_windows()) {
-		exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
+	if (System.is_windows()) {
+		System.exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
 	} else {
-		exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
+		System.exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
 	}
 }
 
 pub fn remove_file(path: str) {
-	if (is_windows()) {
-		exec("del /f /q \"${path.to_win_path()}\" >nul 2>nul");
+	if (System.is_windows()) {
+		System.exec("del /f /q \"${path.to_win_path()}\" >nul 2>nul");
 	} else {
-		exec("rm -f \"${path.to_posix_path()}\" >/dev/null 2>&1");
+		System.exec("rm -f \"${path.to_posix_path()}\" >/dev/null 2>&1");
 	}
 }
 
 pub fn move_file(src: str, dst: str) {
-	if (is_windows()) {
-		exec("move /y \"${src.to_win_path()}\" \"${dst.to_win_path()}\" >nul 2>nul");
+	if (System.is_windows()) {
+		System.exec("move /y \"${src.to_win_path()}\" \"${dst.to_win_path()}\" >nul 2>nul");
 	} else {
-		exec("mv -f \"${src.to_posix_path()}\" \"${dst.to_posix_path()}\" >/dev/null 2>&1");
+		System.exec("mv -f \"${src.to_posix_path()}\" \"${dst.to_posix_path()}\" >/dev/null 2>&1");
 	}
 }
 
@@ -66,7 +66,7 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 	val is_path_with_spaces = ("/" in host_cc || "\\" in host_cc) && (" " in host_cc) && !host_cc.starts_with("\"");
 	val cc_bin = if (is_path_with_spaces) "\"${host_cc}\"" else host_cc;
 
-	if (!is_windows()) {
+	if (!System.is_windows()) {
 		val posix_exe = exe_path.to_posix_path();
 		val posix_c = c_path.to_posix_path();
 
@@ -92,7 +92,7 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 
 	var cmd = if (is_msvc_compiler(host_cc)) {
 		if (host_cc == "cl" || host_cc == "cl.exe") {
-			if (has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
+			if (System.has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
 			else "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
 		}
 		else "${tmp_setup} && ${cl_invoke}"
@@ -211,7 +211,7 @@ impl CompileOptions {
 
 		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
 
-		val exit_code = exec(compile_cmd);
+		val exit_code = System.exec(compile_cmd);
 		if (exit_code != 0) {
 			// Restore previous binary if compilation failed
 			if (File.exists(old_bin) && !File.exists(out_path))

@@ -1,0 +1,17 @@
+mod std.process;
+
+/*
+ * ============================================================================
+ * std.process.process — Process control utilities
+ * ============================================================================
+ */
+
+extern "libc" {
+	fn exit(code: i32);
+}
+
+pub struct Process;
+
+impl Process {
+	pub fn exit(code: i32) => exit(code);
+}

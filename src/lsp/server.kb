@@ -1,7 +1,7 @@
 mod lsp.server;
 
 use std.io.*;
-use std.sys.*;
+use std.process.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -124,8 +124,8 @@ pub fn run_server(): i32 {
 			}
 
 			Method.EXIT.value -> {
-				if (is_shutdown) sys_exit(0);
-				else sys_exit(1);
+				if (is_shutdown) Process.exit(0);
+				else Process.exit(1);
 			}
 
 			Method.DID_OPEN.value -> {

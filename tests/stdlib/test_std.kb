@@ -22,6 +22,8 @@ use std.collections.StringBuilder;
 
 use std.filesystem.Path;
 use std.filesystem.File;
+use std.system.System;
+use std.process.Process;
 
 
 
@@ -314,6 +316,15 @@ fn test_filesystem(): bool {
 	return true;
 }
 
+fn test_system(): bool {
+	val win = System.is_windows();
+	if (win) {
+		if (!System.has_env("SystemRoot") && !System.has_env("WINDIR")) return false;
+	}
+	if (System.has_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__")) return false;
+	return true;
+}
+
 fn main(): i32 {
 	if (!test_ascii()) {
 		println("FAIL: test_ascii");
@@ -350,6 +361,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("PASS: std.io");
+
+	if (!test_system()) {
+		println("FAIL: test_system");
+		return 1;
+	}
+	println("PASS: std.system");
 
 	println("=== ALL STANDARD LIBRARY TESTS PASSED! ===");
 	return 0;

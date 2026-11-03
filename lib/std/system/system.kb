@@ -1,0 +1,22 @@
+mod std.system;
+
+/*
+ * ============================================================================
+ * std.system.system — Operating system interface and environment utilities
+ * ============================================================================
+ */
+
+extern "libc" {
+	fn system(cmd: *char): i32;
+	fn getenv(name: *char): *char;
+}
+
+pub struct System;
+
+impl System {
+	pub fn exec(cmd: str) => system(cmd.c_str());
+
+	pub fn is_windows() => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;
+
+	pub fn has_env(name: str): bool => getenv(name.c_str()) != null;
+}

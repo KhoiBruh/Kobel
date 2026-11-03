@@ -2,7 +2,7 @@ mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
-use std.sys.*;
+use std.system.*;
 use std.collections.*;
 
 use util.strutil.*;
@@ -20,12 +20,12 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	val tmp_file = "build/.kobel_src_files.tmp";
 	val entry_dir = cfg.entry.dir_of();
 	val root_dir = if (!entry_dir.empty()) entry_dir else "src";
-	val find_cmd = if (is_windows()) {
+	val find_cmd = if (System.is_windows()) {
 		"cmd /c dir /b /s \"${root_dir.to_win_path()}\\*.kb\" > \"${tmp_file.to_win_path()}\" 2>nul"
 	} else {
 		"find \"${root_dir.to_posix_path()}\" -type f -name \"*.kb\" > \"${tmp_file.to_posix_path()}\" 2>/dev/null"
 	};
-	exec(find_cmd);
+	System.exec(find_cmd);
 
 	if (File.exists(tmp_file)) {
 		val file_list = File.read(tmp_file);
@@ -107,8 +107,8 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	} else println("No changes detected. Running '${cfg.output}'...");
 
 	// Prepare run command safely without triggering Windows cmd /c quote stripping
-	var out_bin = if (is_windows()) cfg.output.to_win_path() else cfg.output.to_posix_path();
-	if (is_windows()) {
+	var out_bin = if (System.is_windows()) cfg.output.to_win_path() else cfg.output.to_posix_path();
+	if (System.is_windows()) {
 		if (
 			!out_bin.starts_with(".") &&
 			!out_bin.starts_with("\\") &&
@@ -127,19 +127,19 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		else "${run_cmd} ${arg}";
 	}
 
-	return exec(run_cmd);
+	return System.exec(run_cmd);
 }
 
 pub fn discover_test_files(test_dir: str): List<str> {
 	var list = List<str>();
 	ensure_dir("build");
 	val tmp_list_file = "build/.kobel_test_list.tmp";
-	val find_cmd = if (is_windows()) {
+	val find_cmd = if (System.is_windows()) {
 		"cmd /c dir /b /s \"${test_dir.to_win_path()}\\test_*.kb\" > \"${tmp_list_file}\" 2>nul"
 	} else {
 		"find \"${test_dir.to_posix_path()}\" -type f -name \"test_*.kb\" > \"${tmp_list_file}\" 2>/dev/null"
 	};
-	exec(find_cmd);
+	System.exec(find_cmd);
 
 	if (File.exists(tmp_list_file)) {
 		val content = File.read(tmp_list_file);
@@ -206,7 +206,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		}
 
 		var run_cmd = "";
-		if (is_windows()) {
+		if (System.is_windows()) {
 			val win_bin = test_bin.to_win_path();
 			run_cmd = if (" " in win_bin) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
 		} else {
@@ -214,7 +214,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 			if (!posix_bin.starts_with(".") && !posix_bin.starts_with("/")) posix_bin = "./${posix_bin}";
 			run_cmd = if (" " in posix_bin) "\"${posix_bin}\" >/dev/null 2>&1" else "${posix_bin} >/dev/null 2>&1";
 		}
-		val test_res = exec(run_cmd);
+		val test_res = System.exec(run_cmd);
 
 		// Clean up the temporary test binary
 		remove_file(test_bin);
@@ -365,19 +365,19 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 
 	println("[2/3] Building the second-generation compiler...");
 	remove_file(stage2_exe);
-	val compile_res = exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+	val compile_res = System.exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
 	if (compile_res != 0 || !File.exists(stage2_exe)) {
 		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");
 		return 1;
 	}
 
 	println("[3/3] Re-emitting C with the second-generation compiler...");
-	var run_exe = if (is_windows()) stage2_exe.to_win_path() else stage2_exe.to_posix_path();
-	if (!is_windows() && !run_exe.starts_with(".") && !run_exe.starts_with("/")) {
+	var run_exe = if (System.is_windows()) stage2_exe.to_win_path() else stage2_exe.to_posix_path();
+	if (!System.is_windows() && !run_exe.starts_with(".") && !run_exe.starts_with("/")) {
 		run_exe = "./${run_exe}";
 	}
 	if (" " in run_exe) run_exe = "\"${run_exe}\"";
-	val exit_code = exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
+	val exit_code = System.exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
 	if (exit_code != 0) {
 		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
 		return 1;

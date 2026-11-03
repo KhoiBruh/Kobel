@@ -178,6 +178,7 @@ typedef struct std__filesystem__File std__filesystem__File;
 typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct config__toml__Toml config__toml__Toml;
 typedef struct config__project__ProjectConfig config__project__ProjectConfig;
+typedef struct std__system__System std__system__System;
 typedef struct compiler__lexer__Lexer compiler__lexer__Lexer;
 typedef int32_t compiler__lexer__TokenType;
 typedef struct compiler__lexer__Token compiler__lexer__Token;
@@ -438,6 +439,7 @@ typedef struct fmt__buffer__FormatBuffer fmt__buffer__FormatBuffer;
 typedef struct fmt__comments__Comment fmt__comments__Comment;
 typedef struct fmt__comments__CommentTable fmt__comments__CommentTable;
 typedef struct fmt__formatter__Formatter fmt__formatter__Formatter;
+typedef struct std__process__Process std__process__Process;
 typedef int32_t lsp__json__JsonKind;
 typedef struct lsp__json__JsonValue lsp__json__JsonValue;
 typedef struct lsp__json__JsonParser lsp__json__JsonParser;
@@ -2298,10 +2300,9 @@ kobel_str config__toml__Toml_get_2(config__toml__Toml* self, kobel_str key);
 void config__toml__Toml_set(config__toml__Toml* self, kobel_str key, kobel_str value);
 bool config__toml__Toml_contains(config__toml__Toml* self, kobel_str key);
 config__project__ProjectConfig config__project__ProjectConfig_new(kobel_str manifest_path);
-void std__sys__sys_exit(int32_t code);
-int32_t std__sys__exec(kobel_str cmd);
-bool std__sys__is_windows(void);
-bool std__sys__has_env(kobel_str name);
+int32_t std__system__System_exec(kobel_str cmd);
+bool std__system__System_is_windows(void);
+bool std__system__System_has_env(kobel_str name);
 kobel_str compiler__driver__compute_project_stamp(config__project__ProjectConfig cfg, kobel_str manifest_path);
 int32_t compiler__driver__cmd_build(kobel_str manifest_path);
 int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__List_str extra_args);
@@ -3053,6 +3054,7 @@ void fmt__formatter__Formatter_format_type_params(fmt__formatter__Formatter* sel
 void fmt__formatter__Formatter_format_decl(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* node);
 void fmt__formatter__Formatter_format_program(fmt__formatter__Formatter* self, compiler__ast__node__AstNode* program);
 kobel_str fmt__formatter__format_source(kobel_str src, fmt__options__FormatOptions options);
+void std__process__Process_exit(int32_t code);
 void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s);
 lsp__json__JsonValue* lsp__json__JsonValue_box(lsp__json__JsonValue v);
 lsp__json__JsonValue* lsp__json__JsonValue_null_val(void);
@@ -7057,19 +7059,15 @@ config__project__ProjectConfig config__project__ProjectConfig_new(kobel_str mani
     return self;
 }
 
-void std__sys__sys_exit(int32_t code) {
-    exit(code);
-}
-
-int32_t std__sys__exec(kobel_str cmd) {
+int32_t std__system__System_exec(kobel_str cmd) {
     return system(kobel_cstr(cmd));
 }
 
-bool std__sys__is_windows(void) {
+bool std__system__System_is_windows(void) {
     return ((getenv(kobel_cstr(KOBEL_STR("SystemRoot"))) != NULL) || (getenv(kobel_cstr(KOBEL_STR("WINDIR"))) != NULL));
 }
 
-bool std__sys__has_env(kobel_str name) {
+bool std__system__System_has_env(kobel_str name) {
     return (getenv(kobel_cstr(name)) != NULL);
 }
 
@@ -7079,8 +7077,8 @@ kobel_str compiler__driver__compute_project_stamp(config__project__ProjectConfig
     kobel_str tmp_file = KOBEL_STR("build/.kobel_src_files.tmp");
     kobel_str entry_dir = str_dir_of(cfg.entry);
     kobel_str root_dir = (!str_empty(entry_dir) ? entry_dir : KOBEL_STR("src"));
-    kobel_str find_cmd = (std__sys__is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(root_dir), KOBEL_STR("\\*.kb\" > \""), str_to_win_path(tmp_file), KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(root_dir), KOBEL_STR("\" -type f -name \"*.kb\" > \""), str_to_posix_path(tmp_file), KOBEL_STR("\" 2>/dev/null")));
-    std__sys__exec(find_cmd);
+    kobel_str find_cmd = (std__system__System_is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(root_dir), KOBEL_STR("\\*.kb\" > \""), str_to_win_path(tmp_file), KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(root_dir), KOBEL_STR("\" -type f -name \"*.kb\" > \""), str_to_posix_path(tmp_file), KOBEL_STR("\" 2>/dev/null")));
+    std__system__System_exec(find_cmd);
     if (std__filesystem__File_exists(tmp_file)) {
         kobel_str file_list = std__filesystem__File_read(tmp_file);
         compiler__driver__remove_file(tmp_file);
@@ -7164,8 +7162,8 @@ int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__Lis
     } else {
         std__io__println(kobel_concat3(KOBEL_STR("No changes detected. Running '"), cfg.output, KOBEL_STR("'...")));
     }
-    kobel_str out_bin = (std__sys__is_windows() ? str_to_win_path(cfg.output) : str_to_posix_path(cfg.output));
-    if (std__sys__is_windows()) {
+    kobel_str out_bin = (std__system__System_is_windows() ? str_to_win_path(cfg.output) : str_to_posix_path(cfg.output));
+    if (std__system__System_is_windows()) {
         if ((!str_starts_with(out_bin, KOBEL_STR(".")) && !str_starts_with(out_bin, KOBEL_STR("\\"))) && (str_index_of(out_bin, KOBEL_STR(":")) < 0)) {
             out_bin = kobel_concat(KOBEL_STR(".\\"), out_bin);
         }
@@ -7184,15 +7182,15 @@ int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__Lis
             __for_i = (__for_i + 1);
         }
     }
-    return std__sys__exec(run_cmd);
+    return std__system__System_exec(run_cmd);
 }
 
 std__collections__List_str compiler__driver__discover_test_files(kobel_str test_dir) {
     std__collections__List_str list = std__collections__List_str_new(4);
     compiler__driver__ensure_dir(KOBEL_STR("build"));
     kobel_str tmp_list_file = KOBEL_STR("build/.kobel_test_list.tmp");
-    kobel_str find_cmd = (std__sys__is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(test_dir), KOBEL_STR("\\test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(test_dir), KOBEL_STR("\" -type f -name \"test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>/dev/null")));
-    std__sys__exec(find_cmd);
+    kobel_str find_cmd = (std__system__System_is_windows() ? kobel_concat5(KOBEL_STR("cmd /c dir /b /s \""), str_to_win_path(test_dir), KOBEL_STR("\\test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>nul")) : kobel_concat5(KOBEL_STR("find \""), str_to_posix_path(test_dir), KOBEL_STR("\" -type f -name \"test_*.kb\" > \""), tmp_list_file, KOBEL_STR("\" 2>/dev/null")));
+    std__system__System_exec(find_cmd);
     if (std__filesystem__File_exists(tmp_list_file)) {
         kobel_str content = std__filesystem__File_read(tmp_list_file);
         compiler__driver__remove_file(tmp_list_file);
@@ -7273,7 +7271,7 @@ int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
                 }
             }
             kobel_str run_cmd = KOBEL_STR("");
-            if (std__sys__is_windows()) {
+            if (std__system__System_is_windows()) {
                 kobel_str win_bin = str_to_win_path(test_bin);
                 run_cmd = (str_contains(win_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), win_bin, KOBEL_STR("\" >nul 2>nul")) : kobel_concat(win_bin, KOBEL_STR(" >nul 2>nul")));
             } else {
@@ -7283,7 +7281,7 @@ int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
                 }
                 run_cmd = (str_contains(posix_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), posix_bin, KOBEL_STR("\" >/dev/null 2>&1")) : kobel_concat(posix_bin, KOBEL_STR(" >/dev/null 2>&1")));
             }
-            int32_t test_res = std__sys__exec(run_cmd);
+            int32_t test_res = std__system__System_exec(run_cmd);
             compiler__driver__remove_file(test_bin);
             if (test_res == 0) {
                 std__io__println(KOBEL_STR("PASS"));
@@ -7435,20 +7433,20 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
     }
     std__io__println(KOBEL_STR("[2/3] Building the second-generation compiler..."));
     compiler__driver__remove_file(stage2_exe);
-    int32_t compile_res = std__sys__exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+    int32_t compile_res = std__system__System_exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
     if ((compile_res != 0) || !std__filesystem__File_exists(stage2_exe)) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Backend compiler did not produce '"), stage2_exe, KOBEL_STR("'.")));
         return 1;
     }
     std__io__println(KOBEL_STR("[3/3] Re-emitting C with the second-generation compiler..."));
-    kobel_str run_exe = (std__sys__is_windows() ? str_to_win_path(stage2_exe) : str_to_posix_path(stage2_exe));
-    if ((!std__sys__is_windows() && !str_starts_with(run_exe, KOBEL_STR("."))) && !str_starts_with(run_exe, KOBEL_STR("/"))) {
+    kobel_str run_exe = (std__system__System_is_windows() ? str_to_win_path(stage2_exe) : str_to_posix_path(stage2_exe));
+    if ((!std__system__System_is_windows() && !str_starts_with(run_exe, KOBEL_STR("."))) && !str_starts_with(run_exe, KOBEL_STR("/"))) {
         run_exe = kobel_concat(KOBEL_STR("./"), run_exe);
     }
     if (str_contains(run_exe, KOBEL_STR(" "))) {
         run_exe = kobel_concat3(KOBEL_STR("\""), run_exe, KOBEL_STR("\""));
     }
-    int32_t exit_code = std__sys__exec(kobel_concat5(run_exe, KOBEL_STR(" "), cfg.entry, KOBEL_STR(" -emit-c "), stage2_c));
+    int32_t exit_code = std__system__System_exec(kobel_concat5(run_exe, KOBEL_STR(" "), cfg.entry, KOBEL_STR(" -emit-c "), stage2_c));
     if (exit_code != 0) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Second-generation compiler failed (exit "), i32_to_str(exit_code), KOBEL_STR(").")));
         return 1;
@@ -24128,7 +24126,7 @@ bool compiler__driver__is_msvc_compiler(kobel_str cc) {
 }
 
 kobel_str compiler__driver__resolve_host_cc(kobel_str cc) {
-    if (!std__sys__is_windows() && compiler__driver__is_msvc_compiler(cc)) {
+    if (!std__system__System_is_windows() && compiler__driver__is_msvc_compiler(cc)) {
         return KOBEL_STR("cc");
     }
     return cc;
@@ -24138,26 +24136,26 @@ void compiler__driver__ensure_dir(kobel_str path) {
     if (str_empty(path) || std__filesystem__File_exists(path)) {
         return;
     }
-    if (std__sys__is_windows()) {
-        std__sys__exec(kobel_concat3(KOBEL_STR("cmd /c mkdir \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
+    if (std__system__System_is_windows()) {
+        std__system__System_exec(kobel_concat3(KOBEL_STR("cmd /c mkdir \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
     } else {
-        std__sys__exec(kobel_concat3(KOBEL_STR("mkdir -p \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
+        std__system__System_exec(kobel_concat3(KOBEL_STR("mkdir -p \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
     }
 }
 
 void compiler__driver__remove_file(kobel_str path) {
-    if (std__sys__is_windows()) {
-        std__sys__exec(kobel_concat3(KOBEL_STR("del /f /q \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
+    if (std__system__System_is_windows()) {
+        std__system__System_exec(kobel_concat3(KOBEL_STR("del /f /q \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
     } else {
-        std__sys__exec(kobel_concat3(KOBEL_STR("rm -f \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
+        std__system__System_exec(kobel_concat3(KOBEL_STR("rm -f \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
     }
 }
 
 void compiler__driver__move_file(kobel_str src, kobel_str dst) {
-    if (std__sys__is_windows()) {
-        std__sys__exec(kobel_concat5(KOBEL_STR("move /y \""), str_to_win_path(src), KOBEL_STR("\" \""), str_to_win_path(dst), KOBEL_STR("\" >nul 2>nul")));
+    if (std__system__System_is_windows()) {
+        std__system__System_exec(kobel_concat5(KOBEL_STR("move /y \""), str_to_win_path(src), KOBEL_STR("\" \""), str_to_win_path(dst), KOBEL_STR("\" >nul 2>nul")));
     } else {
-        std__sys__exec(kobel_concat5(KOBEL_STR("mv -f \""), str_to_posix_path(src), KOBEL_STR("\" \""), str_to_posix_path(dst), KOBEL_STR("\" >/dev/null 2>&1")));
+        std__system__System_exec(kobel_concat5(KOBEL_STR("mv -f \""), str_to_posix_path(src), KOBEL_STR("\" \""), str_to_posix_path(dst), KOBEL_STR("\" >/dev/null 2>&1")));
     }
 }
 
@@ -24165,7 +24163,7 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
     kobel_str host_cc = compiler__driver__resolve_host_cc(cc);
     bool is_path_with_spaces = (((str_contains(host_cc, KOBEL_STR("/")) || str_contains(host_cc, KOBEL_STR("\\"))) && (str_contains(host_cc, KOBEL_STR(" ")))) && !str_starts_with(host_cc, KOBEL_STR("\"")));
     kobel_str cc_bin = (is_path_with_spaces ? kobel_concat3(KOBEL_STR("\""), host_cc, KOBEL_STR("\"")) : host_cc);
-    if (!std__sys__is_windows()) {
+    if (!std__system__System_is_windows()) {
         kobel_str posix_exe = str_to_posix_path(exe_path);
         kobel_str posix_c = str_to_posix_path(c_path);
         kobel_str exe_arg = (str_contains(posix_exe, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), posix_exe, KOBEL_STR("\"")) : posix_exe);
@@ -24185,7 +24183,7 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
     kobel_str tmp_setup = KOBEL_STR("set \"TMP=build\" && set \"TEMP=build\"");
     kobel_str vcvars_setup = KOBEL_STR("(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul)");
     kobel_str cl_invoke = kobel_concat3(kobel_concat5(cc_bin, KOBEL_STR(" /nologo /O2 /std:c11 /Fe:"), exe_arg, KOBEL_STR(" /Fo:"), obj_arg), KOBEL_STR(" "), c_arg);
-    kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? ((kobel_streq(host_cc, KOBEL_STR("cl")) || kobel_streq(host_cc, KOBEL_STR("cl.exe"))) ? (std__sys__has_env(KOBEL_STR("VCINSTALLDIR")) ? kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat5(tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(kobel_concat5(tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg), KOBEL_STR(" "), c_arg));
+    kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? ((kobel_streq(host_cc, KOBEL_STR("cl")) || kobel_streq(host_cc, KOBEL_STR("cl.exe"))) ? (std__system__System_has_env(KOBEL_STR("VCINSTALLDIR")) ? kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat5(tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(kobel_concat5(tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg), KOBEL_STR(" "), c_arg));
     if (quiet) {
         cmd = kobel_concat(cmd, KOBEL_STR(" >nul 2>nul"));
     }
@@ -24285,7 +24283,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
         compiler__driver__move_file(out_path, old_bin);
     }
     kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self->c_compiler, self->quiet);
-    int32_t exit_code = std__sys__exec(compile_cmd);
+    int32_t exit_code = std__system__System_exec(compile_cmd);
     if (exit_code != 0) {
         if (std__filesystem__File_exists(old_bin) && !std__filesystem__File_exists(out_path)) {
             compiler__driver__move_file(old_bin, out_path);
@@ -25701,6 +25699,10 @@ kobel_str fmt__formatter__format_source(kobel_str src, fmt__options__FormatOptio
     return fmt__formatter__Formatter_to_str(&fmt);
 }
 
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
 void lsp__json__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s) {
     std__collections__StringBuilder_plus_assign_2_2(sb, '"');
     std__collections__StringBuilder_append_escaped(sb, s);
@@ -27099,9 +27101,9 @@ int32_t lsp__server__run_server(void) {
             lsp__protocol__send_response(id, lsp__json__JsonValue_null_val());
         } else if (kobel_streq(method, KOBEL_STR("exit"))) {
             if (is_shutdown) {
-                std__sys__sys_exit(0);
+                std__process__Process_exit(0);
             } else {
-                std__sys__sys_exit(1);
+                std__process__Process_exit(1);
             }
         } else if (kobel_streq(method, KOBEL_STR("textDocument/didOpen"))) {
             lsp__json__JsonValue* text_doc = lsp__json__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
