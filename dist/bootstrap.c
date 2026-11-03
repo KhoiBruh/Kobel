@@ -342,7 +342,6 @@ typedef struct compiler__sema__methods__MethodInfo compiler__sema__methods__Meth
 typedef struct compiler__sema__methods__PrimMethods compiler__sema__methods__PrimMethods;
 typedef struct compiler__sema__structs__StructField compiler__sema__structs__StructField;
 typedef struct compiler__sema__structs__StructType compiler__sema__structs__StructType;
-#define compiler__sema__structs__StructType__TAG 18
 typedef struct compiler__sema__enums__EnumMemberInfo compiler__sema__enums__EnumMemberInfo;
 typedef struct compiler__sema__enums__EnumInfo compiler__sema__enums__EnumInfo;
 typedef int32_t compiler__sema__types__DataType;
@@ -363,9 +362,6 @@ typedef struct compiler__sema__types__TypePayload__Fn compiler__sema__types__Typ
 typedef struct compiler__sema__types__TypePayload__Enum compiler__sema__types__TypePayload__Enum;
 #define compiler__sema__types__TypePayload__Enum__TAG 5
 typedef struct compiler__sema__types__Type compiler__sema__types__Type;
-#define compiler__sema__types__PointerType__TAG 16
-#define compiler__sema__types__ArrayType__TAG 17
-#define compiler__sema__types__FnType__TAG 19
 typedef struct compiler__sema__prims__PrimTypes compiler__sema__prims__PrimTypes;
 typedef int32_t compiler__sema__template__TemplateKind;
 typedef struct compiler__sema__template__GenTemplate compiler__sema__template__GenTemplate;
@@ -11738,7 +11734,7 @@ compiler__sema__types__Type* std__memory__Arena_struct_type(std__memory__Arena* 
         current_offset += (max_align - total_rem);
     }
     compiler__sema__structs__StructType* struct_info = std__memory__Arena_create_val_compiler__sema__structs__StructType(self, (compiler__sema__structs__StructType){ name, name, fields, std__collections__List_ptr_compiler__sema__methods__MethodInfo_init(4), KOBEL_STR(""), false, true });
-    return std__memory__Arena_type_payload(self, compiler__sema__structs__StructType__TAG, current_offset, max_align, (compiler__sema__types__TypePayload){ .tag = 3, .u.Struct = { struct_info } });
+    return std__memory__Arena_type_payload(self, 18, current_offset, max_align, (compiler__sema__types__TypePayload){ .tag = 3, .u.Struct = { struct_info } });
 }
 
 compiler__sema__enums__EnumMemberInfo* compiler__sema__enums__EnumInfo_find_member(compiler__sema__enums__EnumInfo* self, kobel_str name) {
@@ -11860,22 +11856,22 @@ compiler__sema__types__Type* std__memory__Arena_primitive_type(std__memory__Aren
 
 compiler__sema__types__Type* std__memory__Arena_pointer_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
     compiler__sema__types__PointerType* inner = std__memory__Arena_create_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, false });
-    return std__memory__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
+    return std__memory__Arena_type_payload(self, 16, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
 }
 
 compiler__sema__types__Type* std__memory__Arena_nullable_pointer_type(std__memory__Arena* self, compiler__sema__types__Type* pointee, bool is_mut) {
     compiler__sema__types__PointerType* inner = std__memory__Arena_create_val_compiler__sema__types__PointerType(self, (compiler__sema__types__PointerType){ pointee, is_mut, true });
-    return std__memory__Arena_type_payload(self, compiler__sema__types__PointerType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
+    return std__memory__Arena_type_payload(self, 16, 8, 8, (compiler__sema__types__TypePayload){ .tag = 1, .u.Pointer = { inner } });
 }
 
 compiler__sema__types__Type* std__memory__Arena_array_type_3_2(std__memory__Arena* self, compiler__sema__types__Type* elem, size_t length) {
     compiler__sema__types__ArrayType* inner = std__memory__Arena_create_val_compiler__sema__types__ArrayType(self, (compiler__sema__types__ArrayType){ elem, length });
-    return std__memory__Arena_type_payload(self, compiler__sema__types__ArrayType__TAG, (elem->size * length), elem->align, (compiler__sema__types__TypePayload){ .tag = 2, .u.Array = { inner } });
+    return std__memory__Arena_type_payload(self, 17, (elem->size * length), elem->align, (compiler__sema__types__TypePayload){ .tag = 2, .u.Array = { inner } });
 }
 
 compiler__sema__types__Type* std__memory__Arena_fn_type(std__memory__Arena* self, std__collections__List_ptr_compiler__sema__types__Type param_types, compiler__sema__types__Type* return_type) {
     compiler__sema__types__FnType* inner = std__memory__Arena_create_val_compiler__sema__types__FnType(self, (compiler__sema__types__FnType){ param_types, return_type });
-    return std__memory__Arena_type_payload(self, compiler__sema__types__FnType__TAG, 8, 8, (compiler__sema__types__TypePayload){ .tag = 4, .u.Fn = { inner } });
+    return std__memory__Arena_type_payload(self, 19, 8, 8, (compiler__sema__types__TypePayload){ .tag = 4, .u.Fn = { inner } });
 }
 
 compiler__sema__types__PointerType* compiler__sema__types__Type_as_pointer(compiler__sema__types__Type* self) {

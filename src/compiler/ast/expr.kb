@@ -124,8 +124,7 @@ pub struct IsExpr {
 	// True when the payload member is a pointer field (AstNode's `data.u.X`),
 	// false when it is an inline variant struct to take the address of.
 	pub payload_ptr: bool = false,
-	// C name of the tag constant this pattern compares against (filled by sema,
-	// since a forward-declared payload struct's TAG lives in another module).
+	// C name of the tag constant this pattern compares against (filled by sema).
 	pub tag_const: str = ""
 }
 

@@ -25,7 +25,6 @@ pub struct StructField {
 }
 
 pub struct StructType {
-	pub const TAG = DataType.STRUCT;
 	pub name: str,
 	// Mangled C name; equal to `name` for monomorphized instances.
 	pub c_name: str,
@@ -178,7 +177,7 @@ impl Arena {
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
 		val struct_info = self.create_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
-		return self.type_payload(StructType.TAG, current_offset, max_align, TypePayload.Struct(struct_info));
+		return self.type_payload(DataType.STRUCT, current_offset, max_align, TypePayload.Struct(struct_info));
 	}
 
 }
