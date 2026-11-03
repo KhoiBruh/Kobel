@@ -19,7 +19,7 @@
 - **Blocks:** Delimited by curly braces `{ ... }`.
 - **Comments:** Line comments `// ...` and block comments `/* ... */`.
 - **Keywords:**
-  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
+  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `init`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
 - **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be valid identifiers (keywords cannot be module path segments).
 
 ### Literals
@@ -97,11 +97,11 @@ pub struct Point {
 }
 
 impl Point {
-    // Static constructor
-    pub fn new(x: i32, y: i32 = 0): Self => Self(x, y);
+    // Constructor
+    pub init(x: i32, y: i32 = 0): Self => Self(x, y);
 
     // Static helper
-    pub fn origin(): Self => Self.new(0, 0);
+    pub fn origin(): Self => Self.init(0, 0);
 
     // Instance method (read-only self)
     pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;

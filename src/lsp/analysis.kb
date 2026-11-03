@@ -66,7 +66,7 @@ pub struct LspDiagnostic {
 
 impl LspDiagnostic {
 
-	pub fn new(err_str: str, source: str): Self {
+	pub init(err_str: str, source: str): Self {
 		var line: usz = 1;
 		var col: usz = 1;
 		var msg_start: usz = 0;
@@ -411,7 +411,7 @@ fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
 
 impl AnalysisResult {
 
-	pub fn new(path: str, source: str, workspace_root: str): Self {
+	pub init(path: str, source: str, workspace_root: str): Self {
 		var diagnostics = List<LspDiagnostic>();
 
 		// 1. Lexical analysis

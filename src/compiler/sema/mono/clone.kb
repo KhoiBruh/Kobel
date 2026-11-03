@@ -426,9 +426,9 @@ impl DeclPass {
 				if (se?.var_ty != null && ta == null) ta = self.arena.ast_type_from_type(se.var_ty!);
 				var init_src = v.initializer;
 				if (se?.init_override != null) init_src = se.init_override;
-				val init = if (init_src != null) self.clone_expr(init_src!, subst) else null;
-				if (ta != null && init != null) self.propagate_target_type(ta, init);
-				yield self.arena.var_decl(v.is_mut, v.name, ta, init, node.line, node.col);
+				val init_expr = if (init_src != null) self.clone_expr(init_src!, subst) else null;
+				if (ta != null && init_expr != null) self.propagate_target_type(ta, init_expr);
+				yield self.arena.var_decl(v.is_mut, v.name, ta, init_expr, node.line, node.col);
 			}
 
 			is IfStmt as s -> self.arena.if_stmt(
@@ -502,7 +502,7 @@ impl DeclPass {
 			params, rt,
 			if (f.body != null) self.clone_stmt(f.body!, subst) else null,
 			f.is_pub, node.line, node.col,
-			f.is_op
+			f.is_op, f.is_init
 		);
 		// Remember where the template was declared: the clone's body is checked
 		// later, in another module's context, and needs these names in scope.

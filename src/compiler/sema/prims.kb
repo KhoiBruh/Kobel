@@ -38,7 +38,7 @@ fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
 }
 
 impl PrimTypes {
-	pub fn new(var arena: &Arena): Self {
+	pub init(var arena: &Arena): Self {
 		var types = List<*Type>();
 		types += prim_with_methods(arena, DataType.NONE);
 		types += prim_with_methods(arena, DataType.BOOL);

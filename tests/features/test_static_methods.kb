@@ -8,7 +8,9 @@ struct Point {
 }
 
 impl Point {
-	pub fn new(x: i32, y: i32): Self => Self(x, y);
+	pub init(x: i32, y: i32): Self => Self(x, y);
+
+	pub fn create(x: i32, y: i32): Self => Self(x, y);
 
 	pub fn origin(): Self => Self(0, 0);
 
@@ -22,11 +24,11 @@ impl Point {
 }
 
 fn main(): i32 {
-	// 1. Explicit static constructor Point.new
-	val p1 = Point.new(3, 4);
+	// 1. Explicit static factory Point.create
+	val p1 = Point.create(3, 4);
 	if (p1.x != 3 || p1.y != 4) return 1;
 
-	// 2. Syntactic sugar constructor Point(args) still dispatches to Point.new
+	// 2. Struct constructor Point(args) dispatches to init
 	val p2 = Point(5, 6);
 	if (p2.x != 5 || p2.y != 6) return 2;
 

@@ -11,7 +11,7 @@ pub struct Toml {
 
 impl Toml {
 
-	pub fn new(content: str): Self {
+	pub init(content: str): Self {
 		var self = Self();
 		val lines = content.split_lines();
 		var current_section = "";

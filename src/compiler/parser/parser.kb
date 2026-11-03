@@ -20,7 +20,7 @@ pub struct Parser {
 
 impl Parser {
 
-	pub fn new(tokens: List<Token>) => Self(tokens);
+	pub init(tokens: List<Token>): Self => Self(tokens);
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.create_node(NamedType.TAG, NodeData.NamedType(self.arena.create_val(NamedType(name, type_args))), line, col);
@@ -133,8 +133,11 @@ impl Parser {
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
 		=> self.arena.create_node(UseDecl.TAG, NodeData.UseDecl(self.arena.create_val(UseDecl(path, full_path, symbol_name, alias, is_wildcard))), line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false): *AstNode
-		=> self.arena.create_node(FnDecl.TAG, NodeData.FnDecl(self.arena.create_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false): *AstNode
+		=> self.arena.create_node(FnDecl.TAG, NodeData.FnDecl(self.arena.create_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op, is_init))), line, col);
+
+	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0): *AstNode
+		=> self.arena.create_node(FnDecl.TAG, NodeData.FnDecl(self.arena.create_val(FnDecl("init", type_params, params, return_type, body, is_pub, false, true))), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
 		=> self.arena.create_node(StructDecl.TAG, NodeData.StructDecl(self.arena.create_val(StructDecl(name, type_params, fields, is_pub))), line, col);

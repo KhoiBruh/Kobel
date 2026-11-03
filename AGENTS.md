@@ -181,7 +181,7 @@ if (decl is ModuleDecl) return decl.full_path;
 
 // CORRECT — short rationale stays on one line
 // Standard construction: reuse the declaration pass of the same compilation.
-pub fn new(symtab: SymbolTable, decl: DeclPass): Self { ... }
+pub init(symtab: SymbolTable, decl: DeclPass): Self { ... }
 
 /* CORRECT — multi-sentence rationale as a block comment */
 /*

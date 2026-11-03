@@ -20,7 +20,7 @@ pub struct FormatBuffer {
 
 impl FormatBuffer {
 
-	pub fn new(options: FormatOptions) => Self(StringBuilder(), options);
+	pub init(options: FormatOptions): Self => Self(StringBuilder(), options);
 
 	pub fn ensure_indent(var self) {
 		if (!self.at_line_start) return;

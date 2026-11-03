@@ -86,7 +86,8 @@ pub enum TokenType {
 	// Specials
 	END_OF_FILE,
 	UNKNOWN,
-	KW_IS
+	KW_IS,
+	KW_INIT
 }
 
 pub struct Token {

@@ -63,7 +63,7 @@ pub struct Formatter {
 
 impl Formatter {
 
-	pub fn new(options: FormatOptions, comments: CommentTable) => Self(
+	pub init(options: FormatOptions, comments: CommentTable): Self => Self(
 		FormatBuffer(options), comments, options
 	);
 
@@ -500,9 +500,13 @@ impl Formatter {
 			}
 			is FnDecl as f -> {
 				if (f.is_pub) self.buf += "pub ";
-				if (f.is_op) self.buf += "op ";
-				else self.buf += "fn ";
-				self.buf += f.name;
+				if (f.is_init) {
+					self.buf += "init";
+				} else {
+					if (f.is_op) self.buf += "op ";
+					else self.buf += "fn ";
+					self.buf += f.name;
+				}
 				self.format_type_params(f.type_params);
 				self.buf += "(";
 

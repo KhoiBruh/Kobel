@@ -25,7 +25,7 @@ pub struct ProjectConfig {
 
 impl ProjectConfig {
 
-	pub fn new(manifest_path: str): Self {
+	pub init(manifest_path: str): Self {
 		var self = Self();
 		if (!File.exists(manifest_path)) return self;
 

@@ -13,7 +13,7 @@ pub struct HashSet {
 
 impl HashSet {
 
-	pub fn new(init_cap: usz = 16): Self {
+	pub init(init_cap: usz = 16): Self {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
 		val keys = Heap.create_array<str>(cap);

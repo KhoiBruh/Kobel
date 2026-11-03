@@ -14,7 +14,7 @@ pub struct StringBuilder {
 
 impl StringBuilder {
 
-	pub fn new(): Self {
+	pub init(): Self {
 		val init_cap = 32;
 		val raw = Heap.create_array<u8>(init_cap);
 		return Self(raw, 0, init_cap);

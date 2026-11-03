@@ -39,11 +39,11 @@ impl Parser {
 		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type()
 		else null;
 
-		val init = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
+		val init_expr = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 		else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-		return self.var_decl(is_mut, name_tok.text, type_ann, init, kw.line, kw.col);
+		return self.var_decl(is_mut, name_tok.text, type_ann, init_expr, kw.line, kw.col);
 	}
 
 	pub fn parse_if_stmt(var self): *AstNode {
