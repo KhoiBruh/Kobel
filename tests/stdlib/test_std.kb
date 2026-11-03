@@ -51,17 +51,17 @@ fn test_arena(): bool {
 	if (p3 == null) return false;
 
 	// Heap create / free
-	val h_val = create_val<i32>(100);
+	val h_val = Heap.create_val<i32>(100);
 	if (h_val.read() != 100) return false;
-	free(h_val);
+	Heap.free(h_val);
 
-	val arr = create_array<i32>(5);
+	val arr = Heap.create_array<i32>(5);
 	arr[0] = 10;
 	arr[4] = 50;
 	if (arr[0] != 10 || arr[4] != 50) return false;
-	val arr2 = resize<i32>(arr, 10);
+	val arr2 = Heap.resize<i32>(arr, 10);
 	if (arr2[0] != 10 || arr2[4] != 50) return false;
-	free(arr2);
+	Heap.free(arr2);
 
 	return true;
 }

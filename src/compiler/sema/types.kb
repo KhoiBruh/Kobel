@@ -148,27 +148,27 @@ impl Arena {
 	pub fn type_payload(
 		var self, kind: DataType, size: usz,
 		align: usz, data: TypePayload
-	) => self.alloc_val(Type(kind, size, align, data));
+	) => self.create_val(Type(kind, size, align, data));
 
-	pub fn primitive_type(var self, base: Type) => self.alloc_val(base);
+	pub fn primitive_type(var self, base: Type) => self.create_val(base);
 
 	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.alloc_val(PointerType(pointee, is_mut, false));
+		val inner = self.create_val(PointerType(pointee, is_mut, false));
 		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
 	}
 
 	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.alloc_val(PointerType(pointee, is_mut, true));
+		val inner = self.create_val(PointerType(pointee, is_mut, true));
 		return self.type_payload(PointerType.TAG, 8, 8, TypePayload.Pointer(inner));
 	}
 
 	pub fn array_type(var self, elem: *Type, length: usz): *Type {
-		val inner = self.alloc_val(ArrayType(elem, length));
+		val inner = self.create_val(ArrayType(elem, length));
 		return self.type_payload(ArrayType.TAG, elem.size * length, elem.align, TypePayload.Array(inner));
 	}
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type {
-		val inner = self.alloc_val(FnType(param_types, return_type));
+		val inner = self.create_val(FnType(param_types, return_type));
 		return self.type_payload(FnType.TAG, 8, 8, TypePayload.Fn(inner));
 	}
 

@@ -16,7 +16,7 @@ impl StringBuilder {
 
 	pub fn new(): Self {
 		val init_cap = 32;
-		val raw = create_array<u8>(init_cap);
+		val raw = Heap.create_array<u8>(init_cap);
 		return Self(raw, 0, init_cap);
 	}
 
@@ -105,12 +105,12 @@ impl StringBuilder {
 	fn grow(var self, min_cap: usz) {
 		var new_cap = self.cap * 2;
 		while (new_cap < min_cap) new_cap *= 2;
-		val new_raw = resize<u8>(self.buf, new_cap);
+		val new_raw = Heap.resize<u8>(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;
 	}
 
-	pub fn delete(self) => free<u8>(self.buf);
+	pub fn delete(self) => Heap.free(self.buf);
 
 	pub op plus_assign(var self, s: str) => self.append_str(s);
 
@@ -139,7 +139,7 @@ impl Iterable for StringBuilder {
 
 impl Stringer for StringBuilder {
 	pub fn to_str(val self): str {
-		val str_data = create_array<u8>(self.len + 1);
+		val str_data = Heap.create_array<u8>(self.len + 1);
 		for (i in 0..<self.len) str_data[i] = self.buf[i];
 		str_data[self.len] = 0;
 		return str_from_bytes(str_data, self.len);

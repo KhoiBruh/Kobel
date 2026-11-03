@@ -64,7 +64,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-	pub fn box(var arena: &Arena, sym: Symbol): *Symbol => arena.alloc_val(sym);
+	pub fn box(var arena: &Arena, sym: Symbol): *Symbol => arena.create_val(sym);
 }
 
 // ============================================================================
@@ -237,11 +237,11 @@ impl SymbolTable {
 
 	pub fn new(): Self {
 		val arena = Arena();
-		val root_scope = arena.alloc_val(Scope());
+		val root_scope = arena.create_val(Scope());
 		var st = Self(root_scope, arena);
 		// Build the canonical primitives eagerly so every copy of this table
 		// shares the same type instances.
-		st.prims = arena.alloc_val(PrimTypes(&arena));
+		st.prims = arena.create_val(PrimTypes(&arena));
 		return st;
 	}
 
@@ -309,7 +309,7 @@ impl SymbolTable {
 	}
 
 	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
-		val new_sc = self.arena.alloc_val(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
+		val new_sc = self.arena.create_val(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
 		self.current_scope = new_sc;
 		return new_sc;
 	}
@@ -372,7 +372,7 @@ impl SymbolTable {
 		val existing = self.lookup_current(sym.name);
 		if (existing != null) return false;
 
-		val sym_ptr = self.arena.alloc_val(sym);
+		val sym_ptr = self.arena.create_val(sym);
 
 		self.current_scope += sym_ptr;
 		return true;
@@ -416,7 +416,7 @@ impl SymbolTable {
 		val sc = self.find_module(module_name);
 		if (sc != null) {
 			if (sym.name in sc) return false;
-			val sym_ptr = self.arena.alloc_val(sym);
+			val sym_ptr = self.arena.create_val(sym);
 			sc += sym_ptr;
 
 			if (
@@ -430,8 +430,8 @@ impl SymbolTable {
 		}
 
 		// Module scope does not exist yet -> create it (via pointer) then add the symbol
-		val fresh = self.arena.alloc_val(ModuleScope(module_name));
-		val sym_ptr2 = self.arena.alloc_val(sym);
+		val fresh = self.arena.create_val(ModuleScope(module_name));
+		val sym_ptr2 = self.arena.create_val(sym);
 		fresh += sym_ptr2;
 		self.modules += fresh;
 		self.module_map[module_name] = fresh;

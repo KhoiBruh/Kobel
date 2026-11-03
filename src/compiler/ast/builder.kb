@@ -21,161 +21,161 @@ impl Arena {
 	// ------------------------------------------------------------------------
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(NamedType.TAG, NodeData.NamedType(self.alloc_val(NamedType(name, type_args))), line, col);
+		=> self.create_node(NamedType.TAG, NodeData.NamedType(self.create_val(NamedType(name, type_args))), line, col);
 
 	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(PointerType.TAG, NodeData.PointerType(self.alloc_val(PointerType(is_mut, pointee))), line, col);
+		=> self.create_node(PointerType.TAG, NodeData.PointerType(self.create_val(PointerType(is_mut, pointee))), line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz)
-		=> self.alloc_node(ArrayType.TAG, NodeData.ArrayType(self.alloc_val(ArrayType(elem, size))), line, col);
+		=> self.create_node(ArrayType.TAG, NodeData.ArrayType(self.create_val(ArrayType(elem, size))), line, col);
 
 	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(NullableType.TAG, NodeData.NullableType(self.alloc_val(NullableType(inner))), line, col);
+		=> self.create_node(NullableType.TAG, NodeData.NullableType(self.create_val(NullableType(inner))), line, col);
 
 	// ------------------------------------------------------------------------
 	// Expressions
 	// ------------------------------------------------------------------------
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz)
-		=> self.alloc_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.alloc_val(LiteralExpr(lk, raw))), line, col);
+		=> self.create_node(LiteralExpr.TAG, NodeData.LiteralExpr(self.create_val(LiteralExpr(lk, raw))), line, col);
 
 	pub fn identifier(var self, name: str, line: usz, col: usz)
-		=> self.alloc_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.alloc_val(IdentifierExpr(name))), line, col);
+		=> self.create_node(IdentifierExpr.TAG, NodeData.IdentifierExpr(self.create_val(IdentifierExpr(name))), line, col);
 
 	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.alloc_val(BinaryExpr(left, op, right))), line, col);
+		=> self.create_node(BinaryExpr.TAG, NodeData.BinaryExpr(self.create_val(BinaryExpr(left, op, right))), line, col);
 
 	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz, is_postfix: bool = false)
-		=> self.alloc_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.alloc_val(UnaryExpr(op, operand, is_postfix))), line, col);
+		=> self.create_node(UnaryExpr.TAG, NodeData.UnaryExpr(self.create_val(UnaryExpr(op, operand, is_postfix))), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(CallExpr.TAG, NodeData.CallExpr(self.alloc_val(CallExpr(callee, args, type_args))), line, col);
+		=> self.create_node(CallExpr.TAG, NodeData.CallExpr(self.create_val(CallExpr(callee, args, type_args))), line, col);
 
 	// A struct value built from its fields (`Point(1, 2)`), created by sema.
 	pub fn struct_ctor(var self, c_name: str, args: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(StructCtorExpr.TAG, NodeData.StructCtorExpr(self.alloc_val(StructCtorExpr(c_name, args))), line, col);
+		=> self.create_node(StructCtorExpr.TAG, NodeData.StructCtorExpr(self.create_val(StructCtorExpr(c_name, args))), line, col);
 
 	// A payload-enum value (`Shape.Circle(...)`), created by sema.
 	pub fn enum_ctor(var self, c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(EnumCtorExpr.TAG, NodeData.EnumCtorExpr(self.alloc_val(EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args))), line, col);
+		=> self.create_node(EnumCtorExpr.TAG, NodeData.EnumCtorExpr(self.create_val(EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args))), line, col);
 
 	// `T.size()` in generic code, created by sema; the backend lowers it.
 	pub fn size_of_param(var self, param_index: usz, size_text: str, line: usz, col: usz)
-		=> self.alloc_node(SizeOfParam.TAG, NodeData.SizeOfParam(self.alloc_val(SizeOfParam(param_index, size_text))), line, col);
+		=> self.create_node(SizeOfParam.TAG, NodeData.SizeOfParam(self.create_val(SizeOfParam(param_index, size_text))), line, col);
 
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
-		=> self.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.alloc_val(MemberExpr(obj, member))), line, col);
+		=> self.create_node(MemberExpr.TAG, NodeData.MemberExpr(self.create_val(MemberExpr(obj, member))), line, col);
 
 	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz)
-		=> self.alloc_node(MemberExpr.TAG, NodeData.MemberExpr(self.alloc_val(MemberExpr(obj, member, true))), line, col);
+		=> self.create_node(MemberExpr.TAG, NodeData.MemberExpr(self.create_val(MemberExpr(obj, member, true))), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(IndexExpr.TAG, NodeData.IndexExpr(self.alloc_val(IndexExpr(target, index))), line, col);
+		=> self.create_node(IndexExpr.TAG, NodeData.IndexExpr(self.create_val(IndexExpr(target, index))), line, col);
 
 	pub fn assign(var self, target: *AstNode, value: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(AssignExpr.TAG, NodeData.AssignExpr(self.alloc_val(AssignExpr(target, TokenType.EQUAL, value))), line, col);
+		=> self.create_node(AssignExpr.TAG, NodeData.AssignExpr(self.create_val(AssignExpr(target, TokenType.EQUAL, value))), line, col);
 
 	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(AssignExpr.TAG, NodeData.AssignExpr(self.alloc_val(AssignExpr(target, op, value))), line, col);
+		=> self.create_node(AssignExpr.TAG, NodeData.AssignExpr(self.create_val(AssignExpr(target, op, value))), line, col);
 
 	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.alloc_val(UpdateExpr(op, target))), line, col);
+		=> self.create_node(UpdateExpr.TAG, NodeData.UpdateExpr(self.create_val(UpdateExpr(op, target))), line, col);
 
 	pub fn cast(var self, expr: *AstNode? = null, target_type: *AstNode, is_safe: bool = false, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(CastExpr.TAG, NodeData.CastExpr(self.alloc_val(CastExpr(expr, target_type, is_safe))), line, col);
+		=> self.create_node(CastExpr.TAG, NodeData.CastExpr(self.create_val(CastExpr(expr, target_type, is_safe))), line, col);
 
 	pub fn group(var self, expr: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(GroupExpr.TAG, NodeData.GroupExpr(self.alloc_val(GroupExpr(expr))), line, col);
+		=> self.create_node(GroupExpr.TAG, NodeData.GroupExpr(self.create_val(GroupExpr(expr))), line, col);
 
 	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.alloc_val(ArrayLiteralExpr(elements, "", null))), line, col);
+		=> self.create_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.create_val(ArrayLiteralExpr(elements, "", null))), line, col);
 
 	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode? = null, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.alloc_val(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
+		=> self.create_node(ArrayLiteralExpr.TAG, NodeData.ArrayLiteralExpr(self.create_val(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(IfExpr.TAG, NodeData.IfExpr(self.alloc_val(IfExpr(condition, then_branch, else_branch))), line, col);
+		=> self.create_node(IfExpr.TAG, NodeData.IfExpr(self.create_val(IfExpr(condition, then_branch, else_branch))), line, col);
 
 	pub fn when_expr(var self, condition: *AstNode?, arms: List<WhenArm>, line: usz, col: usz)
-		=> self.alloc_node(WhenExpr.TAG, NodeData.WhenExpr(self.alloc_val(WhenExpr(condition, arms))), line, col);
+		=> self.create_node(WhenExpr.TAG, NodeData.WhenExpr(self.create_val(WhenExpr(condition, arms))), line, col);
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz)
-		=> self.alloc_node(InterpExpr.TAG, NodeData.InterpExpr(self.alloc_val(InterpExpr(parts))), line, col);
+		=> self.create_node(InterpExpr.TAG, NodeData.InterpExpr(self.create_val(InterpExpr(parts))), line, col);
 
 	pub fn is_expr(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(IsExpr.TAG, NodeData.IsExpr(self.alloc_val(IsExpr(expr, target_type))), line, col);
+		=> self.create_node(IsExpr.TAG, NodeData.IsExpr(self.create_val(IsExpr(expr, target_type))), line, col);
 
 	// ------------------------------------------------------------------------
 	// Statements
 	// ------------------------------------------------------------------------
 
 	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(BlockStmt.TAG, NodeData.BlockStmt(self.alloc_val(BlockStmt(statements))), line, col);
+		=> self.create_node(BlockStmt.TAG, NodeData.BlockStmt(self.create_val(BlockStmt(statements))), line, col);
 
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(ExprStmt.TAG, NodeData.ExprStmt(self.alloc_val(ExprStmt(expr))), line, col);
+		=> self.create_node(ExprStmt.TAG, NodeData.ExprStmt(self.create_val(ExprStmt(expr))), line, col);
 
 	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz)
-		=> self.alloc_node(VarDeclStmt.TAG, NodeData.VarDeclStmt(self.alloc_val(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
+		=> self.create_node(VarDeclStmt.TAG, NodeData.VarDeclStmt(self.create_val(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
 
 	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?, line: usz, col: usz)
-		=> self.alloc_node(IfStmt.TAG, NodeData.IfStmt(self.alloc_val(IfStmt(condition, then_branch, else_branch))), line, col);
+		=> self.create_node(IfStmt.TAG, NodeData.IfStmt(self.create_val(IfStmt(condition, then_branch, else_branch))), line, col);
 
 	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(WhileStmt.TAG, NodeData.WhileStmt(self.alloc_val(WhileStmt(condition, body))), line, col);
+		=> self.create_node(WhileStmt.TAG, NodeData.WhileStmt(self.create_val(WhileStmt(condition, body))), line, col);
 
 	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode?, range_start: *AstNode?, range_end: *AstNode?, body: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(ForStmt.TAG, NodeData.ForStmt(self.alloc_val(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
+		=> self.create_node(ForStmt.TAG, NodeData.ForStmt(self.create_val(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
 
 	pub fn return_stmt(var self, value: *AstNode?, line: usz, col: usz)
-		=> self.alloc_node(ReturnStmt.TAG, NodeData.ReturnStmt(self.alloc_val(ReturnStmt(value))), line, col);
+		=> self.create_node(ReturnStmt.TAG, NodeData.ReturnStmt(self.create_val(ReturnStmt(value))), line, col);
 
 	pub fn break_stmt(var self, line: usz, col: usz)
-		=> self.alloc_node(BreakStmt.TAG, NodeData.BreakStmt(self.alloc_val(BreakStmt(0))), line, col);
+		=> self.create_node(BreakStmt.TAG, NodeData.BreakStmt(self.create_val(BreakStmt(0))), line, col);
 
 	pub fn continue_stmt(var self, line: usz, col: usz)
-		=> self.alloc_node(ContinueStmt.TAG, NodeData.ContinueStmt(self.alloc_val(ContinueStmt(0))), line, col);
+		=> self.create_node(ContinueStmt.TAG, NodeData.ContinueStmt(self.create_val(ContinueStmt(0))), line, col);
 
 	pub fn when_stmt(var self, condition: *AstNode?, arms: List<WhenStmtArm>, line: usz, col: usz)
-		=> self.alloc_node(WhenStmt.TAG, NodeData.WhenStmt(self.alloc_val(WhenStmt(condition, arms))), line, col);
+		=> self.create_node(WhenStmt.TAG, NodeData.WhenStmt(self.create_val(WhenStmt(condition, arms))), line, col);
 
 	pub fn yield_stmt(var self, value: *AstNode?, line: usz, col: usz)
-		=> self.alloc_node(YieldStmt.TAG, NodeData.YieldStmt(self.alloc_val(YieldStmt(value))), line, col);
+		=> self.create_node(YieldStmt.TAG, NodeData.YieldStmt(self.create_val(YieldStmt(value))), line, col);
 
 	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz)
-		=> self.alloc_node(DeferStmt.TAG, NodeData.DeferStmt(self.alloc_val(DeferStmt(body))), line, col);
+		=> self.create_node(DeferStmt.TAG, NodeData.DeferStmt(self.create_val(DeferStmt(body))), line, col);
 
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz)
-		=> self.alloc_node(ModuleDecl.TAG, NodeData.ModuleDecl(self.alloc_val(ModuleDecl(path, full_path))), line, col);
+		=> self.create_node(ModuleDecl.TAG, NodeData.ModuleDecl(self.create_val(ModuleDecl(path, full_path))), line, col);
 
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz)
-		=> self.alloc_node(UseDecl.TAG, NodeData.UseDecl(self.alloc_val(UseDecl(path, full_path, symbol_name, alias, is_wildcard))), line, col);
+		=> self.create_node(UseDecl.TAG, NodeData.UseDecl(self.create_val(UseDecl(path, full_path, symbol_name, alias, is_wildcard))), line, col);
 
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false)
-		=> self.alloc_node(FnDecl.TAG, NodeData.FnDecl(self.alloc_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
+		=> self.create_node(FnDecl.TAG, NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op))), line, col);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
-		=> self.alloc_node(StructDecl.TAG, NodeData.StructDecl(self.alloc_val(StructDecl(name, type_params, fields, is_pub))), line, col);
+		=> self.create_node(StructDecl.TAG, NodeData.StructDecl(self.create_val(StructDecl(name, type_params, fields, is_pub))), line, col);
 
 	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List())
-		=> self.alloc_node(TraitDecl.TAG, NodeData.TraitDecl(self.alloc_val(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
+		=> self.create_node(TraitDecl.TAG, NodeData.TraitDecl(self.create_val(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List())
-		=> self.alloc_node(ImplDecl.TAG, NodeData.ImplDecl(self.alloc_val(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
+		=> self.create_node(ImplDecl.TAG, NodeData.ImplDecl(self.create_val(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
 	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), is_pub: bool = false, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(EnumDecl.TAG, NodeData.EnumDecl(self.alloc_val(EnumDecl(name, underlying_type, members, is_pub))), line, col);
+		=> self.create_node(EnumDecl.TAG, NodeData.EnumDecl(self.create_val(EnumDecl(name, underlying_type, members, is_pub))), line, col);
 
 	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0)
-		=> self.alloc_node(ConstDecl.TAG, NodeData.ConstDecl(self.alloc_val(ConstDecl(name, type_node, value, is_pub))), line, col);
+		=> self.create_node(ConstDecl.TAG, NodeData.ConstDecl(self.create_val(ConstDecl(name, type_node, value, is_pub))), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(ExternBlock.TAG, NodeData.ExternBlock(self.alloc_val(ExternBlock(abi, declarations))), line, col);
+		=> self.create_node(ExternBlock.TAG, NodeData.ExternBlock(self.create_val(ExternBlock(abi, declarations))), line, col);
 
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz)
-		=> self.alloc_node(Program.TAG, NodeData.Program(self.alloc_val(Program(declarations))), line, col);
+		=> self.create_node(Program.TAG, NodeData.Program(self.create_val(Program(declarations))), line, col);
 }

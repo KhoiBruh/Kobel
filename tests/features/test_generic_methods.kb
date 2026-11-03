@@ -44,10 +44,10 @@ fn main(): i32 {
 	if (q.read() != 5) return 5;
 
 	// alloc_val with inferred generic type argument
-	val q_inferred = arena.alloc_val(42);
+	val q_inferred = arena.create_val(42);
 	if (*q_inferred != 42) return 6;
 
-	val q_str = arena.alloc_val("hello");
+	val q_str = arena.create_val("hello");
 	if (*q_str != "hello") return 7;
 
 	return 0;

@@ -323,13 +323,16 @@ impl BodyPass {
 
 	pub fn check_static_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {
 		var s_info: *StructType? = null;
+		var struct_ty: *Type? = null;
 
 		if (mem.object is IdentifierExpr as id) {
 			if (id.name == "Self" && self.current_self_type != null) {
+				struct_ty = self.current_self_type;
 				s_info = self.current_self_type!.as_struct();
 			} else {
 				val sym = self.symtab.lookup(id.name);
 				if (sym?.kind == SymbolKind.STRUCT && sym.type_ptr.kind == DataType.STRUCT) {
+					struct_ty = sym.type_ptr;
 					s_info = sym.type_ptr.as_struct();
 				}
 			}
@@ -338,6 +341,55 @@ impl BodyPass {
 		if (s_info == null) return null;
 
 		val st = s_info!;
+
+		if (mem.is_safe) {
+			self.report_error(node, "Safe call operator '?.' cannot be used on a static method call");
+			return self.prims().t_none();
+		}
+
+		var tmpl = self.find_method_template_for(mem.member, st.name);
+		if (tmpl == null) tmpl = self.find_method_template_for(mem.member, "");
+		if (tmpl != null && tmpl.is_method) {
+			var is_static = false;
+			if (tmpl.node is FnDecl as f) {
+				is_static = f.params.empty() || f.params[0].name != "self";
+			}
+			if (is_static) {
+				var targs = call.type_args;
+				if (targs.empty() && tmpl.node.kind == NodeKind.DECL_FN) {
+					targs = self.infer_type_args_for_fn(tmpl.node.as_fn_decl(), call.args, false);
+					if (targs.empty()) return null;
+				}
+
+				val cname = self.instantiate_method(tmpl, targs, struct_ty!);
+				val sym = self.symtab.lookup(cname);
+				if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
+
+				self.ensure_callee_ready(sym);
+				val fn_info = sym.type_ptr.as_fn();
+
+				val new_call = self.arena.call(
+					self.arena.identifier(cname, node.line, node.col),
+					call.args, List<*AstNode>(), node.line, node.col
+				);
+
+				if (call.args.len != fn_info.param_types.len) {
+					self.report_error(node, "Argument count mismatch in call to '${st.name}.${mem.member}'");
+				} else {
+					for (i in 0..<call.args.len) {
+						val param_ty = fn_info.param_types[i];
+						val arg_n = call.args[i];
+						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+						val arg_ty = self.check_expr(arg_n, param_ty);
+						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to '${st.name}.${mem.member}'");
+					}
+				}
+
+				self.set_resolved(node, new_call);
+				return fn_info.return_type;
+			}
+		}
+
 		val cand = st.find_static_method(mem.member);
 		if (cand == null) {
 			val inst_cand = st.find_method(mem.member);
@@ -349,11 +401,6 @@ impl BodyPass {
 				return self.prims().t_none();
 			}
 			return null;
-		}
-
-		if (mem.is_safe) {
-			self.report_error(node, "Safe call operator '?.' cannot be used on a static method call");
-			return self.prims().t_none();
 		}
 
 		if (st.count_static_method_arity(mem.member, call.args.len) > 1) {

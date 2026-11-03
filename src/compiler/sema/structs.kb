@@ -177,7 +177,7 @@ impl Arena {
 		val total_rem = current_offset % max_align;
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
-		val struct_info = self.alloc_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		val struct_info = self.create_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
 		return self.type_payload(StructType.TAG, current_offset, max_align, TypePayload.Struct(struct_info));
 	}
 

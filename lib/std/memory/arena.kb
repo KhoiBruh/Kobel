@@ -48,8 +48,8 @@ impl Arena {
 		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data = create_array<u8>(sz);
-		val blk = create<ArenaBlock>();
+		val data = Heap.create_array<u8>(sz);
+		val blk = Heap.create<ArenaBlock>();
 
 		blk.data = data;
 		blk.size = sz;
@@ -72,8 +72,8 @@ impl Arena {
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;
 			val next_blk = blk.next;
-			free(blk.data);
-			free(curr);
+			Heap.free(blk.data);
+			Heap.free(curr);
 			curr = next_blk;
 		}
 		self.current = null;
@@ -86,9 +86,4 @@ impl Arena {
 		ptr.write(value);
 		return ptr;
 	}
-
-	// Compatibility aliases
-	pub fn alloc<T>(var self) => self.create<T>();
-
-	pub fn alloc_val<T>(var self, value: T): *T => self.create_val(value);
 }

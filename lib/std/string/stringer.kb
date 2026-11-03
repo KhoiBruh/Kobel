@@ -33,7 +33,7 @@ fn fmt_u64(n0: u64): str {
 		digits++;
 	}
 
-	val buf = create_array<u8>(digits + 1);
+	val buf = Heap.create_array<u8>(digits + 1);
 	buf[digits] = 0;
 	var i = digits;
 	while (i > 0) {
@@ -50,7 +50,7 @@ fn fmt_i64(v: i64): str {
 }
 
 fn fmt_char(c: char): str {
-	val buf = create_array<u8>(2);
+	val buf = Heap.create_array<u8>(2);
 	buf[0] = c.code();
 	buf[1] = 0;
 	return str_from_bytes(buf, 1);
@@ -61,7 +61,7 @@ fn fmt_bool(b: bool) => if (b) "true" else "false";
 // `n` copies of the character '0'.
 fn fmt_zeros(n: usz): str {
 	if (n == 0) return "";
-	val buf = create_array<u8>(n + 1);
+	val buf = Heap.create_array<u8>(n + 1);
 	for (i in 0..<n) {
 		buf[i] = '0'.code();
 	}

@@ -306,20 +306,31 @@ impl DeclPass {
 
 		val callee = c.callee;
 		if (callee is MemberExpr as mem) {
-			val ft = self.find_method_template(mem.member) ?: return null;
+			var ft: *GenTemplate? = null;
+			if (mem.object is IdentifierExpr as id) {
+				ft = self.find_method_template(mem.member, id.name);
+			}
+			if (ft == null) ft = self.find_method_template(mem.member);
+			if (ft == null) return null;
+
+			var is_static = false;
+			if (ft.node is FnDecl as f) {
+				is_static = f.params.empty() || f.params[0].name != "self";
+			}
+
 			val mem_obj = self.clone_expr(mem.object, subst);
 			val targs = self.clone_type_args(c.type_args, subst);
 			var new_args = List<*AstNode>();
-			new_args += mem_obj;
+			if (!is_static) new_args += mem_obj;
 			for (a in c.args) new_args += self.clone_expr(a, subst);
-			val cname = self.instantiate_fn(ft, targs);
+			val cname = self.instantiate_fn(ft!, targs);
 			val call_node = self.arena.call(
 				self.arena.identifier(cname, node.line, node.col),
 				new_args, List<*AstNode>(),
 				node.line, node.col
 			);
 
-			if (mem.is_safe) {
+			if (!is_static && mem.is_safe) {
 				val cond = self.arena.binary(
 					TokenType.BANG_EQUAL, mem_obj,
 					self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),

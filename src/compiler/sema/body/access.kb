@@ -134,7 +134,7 @@ impl BodyPass {
 				// Reuse the node as a plain integer literal for the backend.
 				val lit = self.arena.literal(mi.lit_kind, mi.raw_text, node.line, node.col);
 				self.set_resolved(node, lit);
-				val carrier = self.arena.alloc_val(Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei)));
+				val carrier = self.arena.create_val(Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei)));
 				return carrier;
 			}
 

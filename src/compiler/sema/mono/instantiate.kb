@@ -111,7 +111,7 @@ impl DeclPass {
 				if (!(m is FnDecl)) continue;
 				val mf = m.as_fn_decl();
 				val mview = self.make_fn_view(m, impl_tmpl, args, arg_asts, mf.name);
-				val mrec = self.arena.alloc_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
+				val mrec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
 				mrec.sig = self.make_fn_sig(m, impl_tmpl, args, s_type);
 				mview.instance = mrec as *u8;
 				methods += mview;
@@ -138,7 +138,7 @@ impl DeclPass {
 
 		val view = self.struct_decl_view(cname, fields, decl.is_pub, tmpl.node.line, tmpl.node.col);
 		self.queue_decl(tmpl.module, view);
-		val rec = self.arena.alloc_val(InstanceRecord(InstanceKind.STRUCT, tmpl, args, cname, view));
+		val rec = self.arena.create_val(InstanceRecord(InstanceKind.STRUCT, tmpl, args, cname, view));
 		self.symtab.gen.add_record(rec);
 
 		self.leave_module(prev_mod);
@@ -317,7 +317,7 @@ impl DeclPass {
 		val sig = self.make_fn_sig(tmpl.node, tmpl, args, receiver);
 		self.collect_fn_as(view, cname, sig);
 		self.queue_decl(tmpl.module, view);
-		val rec = self.arena.alloc_val(InstanceRecord(InstanceKind.FUNCTION, tmpl, args, cname, view));
+		val rec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, tmpl, args, cname, view));
 		rec.sig = sig;
 		view.instance = rec as *u8;
 		self.symtab.gen.add_record(rec);
