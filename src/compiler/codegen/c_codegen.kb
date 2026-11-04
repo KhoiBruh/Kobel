@@ -1,4 +1,4 @@
-mod compiler.codegen.c_codegen;
+mod compiler.codegen;
 
 use std.string.*;
 use std.collections.*;
@@ -14,7 +14,6 @@ use compiler.ast.decl.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;
-use compiler.codegen.c_type.*;
 
 // ============================================================================
 // C99 Backend Code Generator

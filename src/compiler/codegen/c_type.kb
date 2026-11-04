@@ -1,4 +1,4 @@
-mod compiler.codegen.c_type;
+mod compiler.codegen;
 
 // ============================================================================
 // Type Mapping (Kobel -> C99 Standard Types)

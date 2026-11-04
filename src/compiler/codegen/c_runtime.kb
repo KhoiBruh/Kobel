@@ -1,4 +1,4 @@
-mod compiler.codegen.c_runtime;
+mod compiler.codegen;
 
 // ============================================================================
 // C Runtime Prelude & Standard Helpers

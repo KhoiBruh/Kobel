@@ -13,8 +13,7 @@ use compiler.sema.decl.collect.*;
 use compiler.sema.body.pass.*;
 use compiler.sema.body.program.*;
 use compiler.sema.lower.*;
-use compiler.codegen.c_codegen.*;
-use compiler.codegen.c_program.*;
+use compiler.codegen.*;
 use compiler.loader.*;
 
 // ============================================================================

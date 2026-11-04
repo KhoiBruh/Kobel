@@ -1,4 +1,4 @@
-mod compiler.codegen.c_program;
+mod compiler.codegen;
 
 use std.collections.*;
 
@@ -11,12 +11,6 @@ use compiler.ast.types.*;
 use compiler.ast.expr.*;
 use compiler.ast.stmt.*;
 use compiler.ast.decl.*;
-
-use compiler.codegen.c_codegen.*;
-use compiler.codegen.c_expr.*;
-use compiler.codegen.c_stmt.*;
-use compiler.codegen.c_type.*;
-use compiler.codegen.c_runtime.*;
 
 // ============================================================================
 // Declaration Code Generation
