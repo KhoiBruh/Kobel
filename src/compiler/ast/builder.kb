@@ -43,25 +43,25 @@ impl Arena {
 		=> self.build_node(NodeData.UnaryExpr(op, operand, is_postfix), line, col);
 
 	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.CallExpr(self.create_val(CallExpr(callee, args, type_args))), line, col);
+		=> self.build_node(NodeData.CallExpr(callee, args, type_args), line, col);
 
 	// A struct value built from its fields (`Point(1, 2)`), created by sema.
 	pub fn struct_ctor(var self, c_name: str, args: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.StructCtorExpr(self.create_val(StructCtorExpr(c_name, args))), line, col);
+		=> self.build_node(NodeData.StructCtorExpr(c_name, args), line, col);
 
 	// A payload-enum value (`Shape.Circle(...)`), created by sema.
 	pub fn enum_ctor(var self, c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.EnumCtorExpr(self.create_val(EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args))), line, col);
+		=> self.build_node(NodeData.EnumCtorExpr(c_name, tag_field, tag_value, payload_path, args), line, col);
 
 	// `T.size()` in generic code, created by sema; the backend lowers it.
 	pub fn size_of_param(var self, param_index: usz, size_text: str, line: usz, col: usz)
 		=> self.build_node(NodeData.SizeOfParam(param_index, size_text), line, col);
 
 	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz)
-		=> self.build_node(NodeData.MemberExpr(self.create_val(MemberExpr(obj, member))), line, col);
+		=> self.build_node(NodeData.MemberExpr(obj, member, false), line, col);
 
 	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz)
-		=> self.build_node(NodeData.MemberExpr(self.create_val(MemberExpr(obj, member, true))), line, col);
+		=> self.build_node(NodeData.MemberExpr(obj, member, true), line, col);
 
 	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz)
 		=> self.build_node(NodeData.IndexExpr(target, index), line, col);
@@ -82,22 +82,22 @@ impl Arena {
 		=> self.build_node(NodeData.GroupExpr(expr), line, col);
 
 	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.ArrayLiteralExpr(self.create_val(ArrayLiteralExpr(elements, "", null))), line, col);
+		=> self.build_node(NodeData.ArrayLiteralExpr(elements, "", null), line, col);
 
 	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode? = null, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.ArrayLiteralExpr(self.create_val(ArrayLiteralExpr(elements, list_struct_name, elem_type_node))), line, col);
+		=> self.build_node(NodeData.ArrayLiteralExpr(elements, list_struct_name, elem_type_node), line, col);
 
 	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.IfExpr(self.create_val(IfExpr(condition, then_branch, else_branch))), line, col);
+		=> self.build_node(NodeData.IfExpr(condition, then_branch, else_branch), line, col);
 
 	pub fn when_expr(var self, condition: *AstNode?, arms: List<WhenArm>, line: usz, col: usz)
-		=> self.build_node(NodeData.WhenExpr(self.create_val(WhenExpr(condition, arms))), line, col);
+		=> self.build_node(NodeData.WhenExpr(condition, arms), line, col);
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz)
-		=> self.build_node(NodeData.InterpExpr(self.create_val(InterpExpr(parts))), line, col);
+		=> self.build_node(NodeData.InterpExpr(parts), line, col);
 
 	pub fn is_expr(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.IsExpr(self.create_val(IsExpr(expr, target_type))), line, col);
+		=> self.build_node(NodeData.IsExpr(expr, target_type, "", "", "", false, false, "", false, ""), line, col);
 
 	// ------------------------------------------------------------------------
 	// Statements

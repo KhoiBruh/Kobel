@@ -13,30 +13,6 @@ pub enum LiteralKind {
 	NULL_VAL
 }
 
-pub struct CallExpr {
-	pub callee: *AstNode,
-	pub args: List<*AstNode> = List(),
-	pub type_args: List<*AstNode> = List()
-}
-
-pub struct MemberExpr {
-	pub object: *AstNode,
-	pub member: str,
-	pub is_safe: bool = false
-}
-
-pub struct ArrayLiteralExpr {
-	pub elements: List<*AstNode>,
-	pub list_struct_name: str = "",
-	pub elem_type_node: *AstNode? = null
-}
-
-pub struct IfExpr {
-	pub condition: *AstNode,
-	pub then_branch: *AstNode,
-	pub else_branch: *AstNode
-}
-
 pub struct WhenArm {
 	pub patterns: List<*AstNode>,
 	pub is_else: bool,
@@ -45,56 +21,9 @@ pub struct WhenArm {
 	pub col: usz
 }
 
-pub struct WhenExpr {
-	pub condition: *AstNode? = null,
-	pub arms: List<WhenArm>
-}
-
 // One piece of an interpolated string: either a literal chunk (STRING literal)
 // or a `${...}` hole expression.
 pub enum InterpPart {
 	Literal(node: *AstNode),
 	Hole(node: *AstNode)
-}
-
-pub struct InterpExpr {
-	pub parts: List<InterpPart>
-}
-
-pub struct IsExpr {
-	pub expr: *AstNode? = null,
-	pub target_type: *AstNode,
-	pub alias: str = "",
-	pub tag_field: str = "",
-	pub base_c_name: str = "",
-	pub is_ptr: bool = false,
-	pub mutable: bool = false,
-	// Field path of an inline payload inside the subject, for a payload-enum
-	// variant pattern (`is Shape.Circle` reads `subject.u.Circle`) and for an
-	// AstNode pattern (`data.u.LiteralExpr`).
-	pub payload_path: str = "",
-	// True when the payload member is a pointer field (AstNode's `data.u.X`),
-	// false when it is an inline variant struct to take the address of.
-	pub payload_ptr: bool = false,
-	// C name of the tag constant this pattern compares against (filled by sema).
-	pub tag_const: str = ""
-}
-
-// A struct value built from its fields: `Point(1, 2)` when the type has no
-// matching `new` (or `Self(...)`, which always builds raw). Sema creates this
-// node so the backend never has to guess a constructor from the callee's name.
-pub struct StructCtorExpr {
-	pub c_name: str,
-	pub args: List<*AstNode> = List()
-}
-
-// A payload-enum value built by the checker: `Shape.Circle(1.5)` becomes a C
-// compound literal that sets the tag and the variant's union member.
-pub struct EnumCtorExpr {
-	pub c_name: str,
-	pub tag_field: str,
-	pub tag_value: i64,
-	// Union member path of the variant's payload ("" for a tag-only variant).
-	pub payload_path: str = "",
-	pub args: List<*AstNode> = List()
 }
