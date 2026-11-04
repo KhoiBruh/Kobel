@@ -113,8 +113,8 @@ pub enum NodeData {
 	ImplDecl(inner: *ImplDecl),
 	EnumDecl(inner: *EnumDecl),
 	ConstDecl(name: str, type_node: *AstNode?, value: *AstNode?, public: bool),
-	ExternBlock(inner: *ExternBlock),
-	Program(inner: *Program),
+	ExternBlock(abi: str, declarations: List<*AstNode>),
+	Program(declarations: List<*AstNode>),
 }
 
 pub struct AstNode {

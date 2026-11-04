@@ -193,8 +193,6 @@ typedef struct compiler__ast__ImplDecl compiler__ast__ImplDecl;
 typedef struct compiler__ast__EnumField compiler__ast__EnumField;
 typedef struct compiler__ast__EnumMember compiler__ast__EnumMember;
 typedef struct compiler__ast__EnumDecl compiler__ast__EnumDecl;
-typedef struct compiler__ast__ExternBlock compiler__ast__ExternBlock;
-typedef struct compiler__ast__Program compiler__ast__Program;
 typedef int32_t compiler__ast__LiteralKind;
 typedef struct compiler__ast__WhenArm compiler__ast__WhenArm;
 typedef struct compiler__ast__InterpPart compiler__ast__InterpPart;
@@ -1023,15 +1021,6 @@ struct compiler__ast__EnumDecl {
     bool public;
 };
 
-struct compiler__ast__ExternBlock {
-    kobel_str abi;
-    std__collections__List_ptr_compiler__ast__AstNode declarations;
-};
-
-struct compiler__ast__Program {
-    std__collections__List_ptr_compiler__ast__AstNode declarations;
-};
-
 struct compiler__ast__WhenArm {
     std__collections__List_ptr_compiler__ast__AstNode patterns;
     bool is_else;
@@ -1232,10 +1221,11 @@ struct compiler__ast__NodeData__ConstDecl {
     bool public;
 };
 struct compiler__ast__NodeData__ExternBlock {
-    compiler__ast__ExternBlock* inner;
+    kobel_str abi;
+    std__collections__List_ptr_compiler__ast__AstNode declarations;
 };
 struct compiler__ast__NodeData__Program {
-    compiler__ast__Program* inner;
+    std__collections__List_ptr_compiler__ast__AstNode declarations;
 };
 struct compiler__ast__NodeData {
     int32_t tag;
@@ -2171,11 +2161,11 @@ compiler__ast__AstNode* std__memory__Arena_enum_decl(std__memory__Arena* self, k
 compiler__ast__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* type_node, compiler__ast__AstNode* value, bool public, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_extern_block(std__memory__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__AstNode declarations, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_program(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode declarations, size_t line, size_t col);
-kobel_str compiler__ast__Program_declared_module_name(compiler__ast__Program* self);
-size_t compiler__ast__ExternBlock_count(compiler__ast__ExternBlock* self);
-compiler__ast__AstNode* compiler__ast__ExternBlock_at(compiler__ast__ExternBlock* self, size_t i);
-size_t compiler__ast__Program_count(compiler__ast__Program* self);
-compiler__ast__AstNode* compiler__ast__Program_at(compiler__ast__Program* self, size_t i);
+kobel_str compiler__ast__NodeData__Program_declared_module_name(compiler__ast__NodeData__Program* self);
+size_t compiler__ast__NodeData__ExternBlock_count(compiler__ast__NodeData__ExternBlock* self);
+compiler__ast__AstNode* compiler__ast__NodeData__ExternBlock_at(compiler__ast__NodeData__ExternBlock* self, size_t i);
+size_t compiler__ast__NodeData__Program_count(compiler__ast__NodeData__Program* self);
+compiler__ast__AstNode* compiler__ast__NodeData__Program_at(compiler__ast__NodeData__Program* self, size_t i);
 bool compiler__ast__decl_is_template(compiler__ast__AstNode* node);
 compiler__ast__NodeData__NamedType* compiler__ast__AstNode_as_named_type(compiler__ast__AstNode* self);
 compiler__ast__NodeData__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self);
@@ -2220,8 +2210,8 @@ compiler__ast__TraitDecl* compiler__ast__AstNode_as_trait_decl(compiler__ast__As
 compiler__ast__ImplDecl* compiler__ast__AstNode_as_impl_decl(compiler__ast__AstNode* self);
 compiler__ast__EnumDecl* compiler__ast__AstNode_as_enum_decl(compiler__ast__AstNode* self);
 compiler__ast__NodeData__ConstDecl* compiler__ast__AstNode_as_const_decl(compiler__ast__AstNode* self);
-compiler__ast__ExternBlock* compiler__ast__AstNode_as_extern_block(compiler__ast__AstNode* self);
-compiler__ast__Program* compiler__ast__AstNode_as_program(compiler__ast__AstNode* self);
+compiler__ast__NodeData__ExternBlock* compiler__ast__AstNode_as_extern_block(compiler__ast__AstNode* self);
+compiler__ast__NodeData__Program* compiler__ast__AstNode_as_program(compiler__ast__AstNode* self);
 compiler__ast__AstNode* std__memory__Arena_build_node(std__memory__Arena* self, compiler__ast__NodeData data, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_create_node(std__memory__Arena* self, compiler__ast__NodeKind kind, compiler__ast__NodeData data, size_t line, size_t col);
 compiler__ast__NodeKind compiler__ast__node_kind_of(compiler__ast__NodeData data);
@@ -4038,8 +4028,6 @@ compiler__ast__StructDecl* std__memory__Arena_create_val_compiler__ast__StructDe
 compiler__ast__TraitDecl* std__memory__Arena_create_val_compiler__ast__TraitDecl(std__memory__Arena* self, compiler__ast__TraitDecl value);
 compiler__ast__ImplDecl* std__memory__Arena_create_val_compiler__ast__ImplDecl(std__memory__Arena* self, compiler__ast__ImplDecl value);
 compiler__ast__EnumDecl* std__memory__Arena_create_val_compiler__ast__EnumDecl(std__memory__Arena* self, compiler__ast__EnumDecl value);
-compiler__ast__ExternBlock* std__memory__Arena_create_val_compiler__ast__ExternBlock(std__memory__Arena* self, compiler__ast__ExternBlock value);
-compiler__ast__Program* std__memory__Arena_create_val_compiler__ast__Program(std__memory__Arena* self, compiler__ast__Program value);
 compiler__ast__AstNode* std__memory__Arena_create_val_compiler__ast__AstNode(std__memory__Arena* self, compiler__ast__AstNode value);
 compiler__sema__Type* std__memory__Arena_create_val_compiler__sema__Type(std__memory__Arena* self, compiler__sema__Type value);
 void std__memory__Heap_free_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr);
@@ -4173,8 +4161,6 @@ compiler__ast__StructDecl* std__memory__Arena_create_compiler__ast__StructDecl(s
 compiler__ast__TraitDecl* std__memory__Arena_create_compiler__ast__TraitDecl(std__memory__Arena* self);
 compiler__ast__ImplDecl* std__memory__Arena_create_compiler__ast__ImplDecl(std__memory__Arena* self);
 compiler__ast__EnumDecl* std__memory__Arena_create_compiler__ast__EnumDecl(std__memory__Arena* self);
-compiler__ast__ExternBlock* std__memory__Arena_create_compiler__ast__ExternBlock(std__memory__Arena* self);
-compiler__ast__Program* std__memory__Arena_create_compiler__ast__Program(std__memory__Arena* self);
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self);
 compiler__sema__Type* std__memory__Arena_create_compiler__sema__Type(std__memory__Arena* self);
 compiler__sema__Symbol* std__memory__Arena_create_compiler__sema__Symbol(std__memory__Arena* self);
@@ -8004,14 +7990,14 @@ compiler__ast__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, 
 }
 
 compiler__ast__AstNode* std__memory__Arena_extern_block(std__memory__Arena* self, kobel_str abi, std__collections__List_ptr_compiler__ast__AstNode declarations, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 44, .u.ExternBlock = { std__memory__Arena_create_val_compiler__ast__ExternBlock(self, (compiler__ast__ExternBlock){ abi, declarations }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 44, .u.ExternBlock = { abi, declarations } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_program(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode declarations, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 45, .u.Program = { std__memory__Arena_create_val_compiler__ast__Program(self, (compiler__ast__Program){ declarations }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 45, .u.Program = { declarations } }, line, col);
 }
 
-kobel_str compiler__ast__Program_declared_module_name(compiler__ast__Program* self) {
+kobel_str compiler__ast__NodeData__Program_declared_module_name(compiler__ast__NodeData__Program* self) {
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&self->declarations);
         size_t __for_i = 0;
@@ -8028,19 +8014,19 @@ kobel_str compiler__ast__Program_declared_module_name(compiler__ast__Program* se
     return KOBEL_STR("");
 }
 
-size_t compiler__ast__ExternBlock_count(compiler__ast__ExternBlock* self) {
+size_t compiler__ast__NodeData__ExternBlock_count(compiler__ast__NodeData__ExternBlock* self) {
     return self->declarations.len;
 }
 
-compiler__ast__AstNode* compiler__ast__ExternBlock_at(compiler__ast__ExternBlock* self, size_t i) {
+compiler__ast__AstNode* compiler__ast__NodeData__ExternBlock_at(compiler__ast__NodeData__ExternBlock* self, size_t i) {
     return std__collections__List_ptr_compiler__ast__AstNode_get(&self->declarations, i);
 }
 
-size_t compiler__ast__Program_count(compiler__ast__Program* self) {
+size_t compiler__ast__NodeData__Program_count(compiler__ast__NodeData__Program* self) {
     return self->declarations.len;
 }
 
-compiler__ast__AstNode* compiler__ast__Program_at(compiler__ast__Program* self, size_t i) {
+compiler__ast__AstNode* compiler__ast__NodeData__Program_at(compiler__ast__NodeData__Program* self, size_t i) {
     return std__collections__List_ptr_compiler__ast__AstNode_get(&self->declarations, i);
 }
 
@@ -8478,24 +8464,24 @@ compiler__ast__NodeData__ConstDecl* compiler__ast__AstNode_as_const_decl(compile
     return (compiler__ast__NodeData__ConstDecl*)NULL;
 }
 
-compiler__ast__ExternBlock* compiler__ast__AstNode_as_extern_block(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__ExternBlock* compiler__ast__AstNode_as_extern_block(compiler__ast__AstNode* self) {
     {
-        compiler__ast__ExternBlock* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ExternBlock__TAG && (d = self->data.u.ExternBlock.inner, 1))) {
+        compiler__ast__NodeData__ExternBlock* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ExternBlock__TAG && (d = (compiler__ast__NodeData__ExternBlock*)(&(self)->data.u.ExternBlock), 1))) {
             return d;
         }
     }
-    return (compiler__ast__ExternBlock*)NULL;
+    return (compiler__ast__NodeData__ExternBlock*)NULL;
 }
 
-compiler__ast__Program* compiler__ast__AstNode_as_program(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__Program* compiler__ast__AstNode_as_program(compiler__ast__AstNode* self) {
     {
-        compiler__ast__Program* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__Program__TAG && (d = self->data.u.Program.inner, 1))) {
+        compiler__ast__NodeData__Program* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__Program__TAG && (d = (compiler__ast__NodeData__Program*)(&(self)->data.u.Program), 1))) {
             return d;
         }
     }
-    return (compiler__ast__Program*)NULL;
+    return (compiler__ast__NodeData__Program*)NULL;
 }
 
 compiler__ast__AstNode* std__memory__Arena_build_node(std__memory__Arena* self, compiler__ast__NodeData data, size_t line, size_t col) {
@@ -10857,7 +10843,7 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
                     continue;
                 }
             }
-            kobel_str declared = compiler__ast__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
+            kobel_str declared = compiler__ast__NodeData__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
             if (!str_empty(declared) && !kobel_streq(declared, module_name)) {
                 kobel_str prefix = (!str_empty(parent_mod) ? kobel_concat(parent_mod, KOBEL_STR(": ")) : KOBEL_STR(""));
                 kobel_str msg = ((line > 0) ? kobel_concat4(kobel_concat5(kobel_concat5(prefix, KOBEL_STR("Line "), usz_to_str(line), KOBEL_STR(", Column "), usz_to_str(col)), KOBEL_STR(": "), file.path, KOBEL_STR(": module declared as '"), declared), KOBEL_STR("' but imported as '"), module_name, KOBEL_STR("'")) : kobel_concat3(kobel_concat5(prefix, file.path, KOBEL_STR(": module declared as '"), declared, KOBEL_STR("' but imported as '")), module_name, KOBEL_STR("'")));
@@ -10875,12 +10861,12 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
 }
 
 void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader* self, compiler__ast__AstNode* program_node, kobel_str parent_mod) {
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(program_node);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
             {
                 compiler__ast__NodeData__UseDecl* u = NULL;
                 if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__UseDecl__TAG && (u = (compiler__ast__NodeData__UseDecl*)(&(decl)->data.u.UseDecl), 1))) {
@@ -10900,7 +10886,7 @@ compiler__ast__AstNode* compiler__loader__ModuleLoader_load_program(compiler__lo
     if (prog == NULL) {
         return NULL;
     }
-    kobel_str entry_name = compiler__ast__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
+    kobel_str entry_name = compiler__ast__NodeData__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
     if (str_empty(entry_name)) {
         entry_name = str_path_to_module(str_base_name(entry_path));
     }
@@ -10926,12 +10912,12 @@ compiler__ast__AstNode* compiler__loader__ModuleLoader_build_merged_program(comp
                 }
             }
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&decls, compiler__loader__ModuleLoader_module_decl(self, str_split_dots(lm.name), lm.name, 0, 0));
-            compiler__ast__Program* p = compiler__ast__AstNode_as_program(prog);
+            compiler__ast__NodeData__Program* p = compiler__ast__AstNode_as_program(prog);
             {
-                size_t __for_n = compiler__ast__Program_count(p);
+                size_t __for_n = compiler__ast__NodeData__Program_count(p);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* d = compiler__ast__Program_at(p, __for_i);
+                    compiler__ast__AstNode* d = compiler__ast__NodeData__Program_at(p, __for_i);
                     std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&decls, d);
                     __for_i = (__for_i + 1);
                 }
@@ -13026,12 +13012,12 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
         compiler__sema__decl__DeclPass_rewrite_generics(self, c->value);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ExternBlock__TAG) {
-        compiler__ast__ExternBlock* ext = (cur)->data.u.ExternBlock.inner;
+        compiler__ast__NodeData__ExternBlock* ext = (compiler__ast__NodeData__ExternBlock*)(&(cur)->data.u.ExternBlock);
         {
-            size_t __for_n = compiler__ast__ExternBlock_count(ext);
+            size_t __for_n = compiler__ast__NodeData__ExternBlock_count(ext);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
-                compiler__ast__AstNode* d = compiler__ast__ExternBlock_at(ext, __for_i);
+                compiler__ast__AstNode* d = compiler__ast__NodeData__ExternBlock_at(ext, __for_i);
                 compiler__sema__decl__DeclPass_rewrite_generics(self, d);
                 __for_i = (__for_i + 1);
             }
@@ -13432,14 +13418,14 @@ void compiler__sema__decl__DeclPass_collect_const(compiler__sema__decl__DeclPass
 }
 
 void compiler__sema__decl__DeclPass_collect_extern_block(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__ExternBlock* ext = compiler__ast__AstNode_as_extern_block(node);
+    compiler__ast__NodeData__ExternBlock* ext = compiler__ast__AstNode_as_extern_block(node);
     bool prev_is_extern = self->is_extern;
     self->is_extern = true;
     {
-        size_t __for_n = compiler__ast__ExternBlock_count(ext);
+        size_t __for_n = compiler__ast__NodeData__ExternBlock_count(ext);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d = compiler__ast__ExternBlock_at(ext, __for_i);
+            compiler__ast__AstNode* d = compiler__ast__NodeData__ExternBlock_at(ext, __for_i);
             compiler__sema__decl__DeclPass_collect_declaration(self, d);
             __for_i = (__for_i + 1);
         }
@@ -13521,12 +13507,12 @@ void compiler__sema__decl__DeclPass_collect_declaration(compiler__sema__decl__De
 }
 
 void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* program_node) {
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(program_node);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d0 = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d0 = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d0->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d0);
             } else if (d0->kind == 35) {
@@ -13538,10 +13524,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d_use = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d_use = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d_use->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d_use);
             } else if (d_use->kind == 32) {
@@ -13554,10 +13540,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d_half = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d_half = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d_half->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d_half);
             } else if (d_half->kind == 34) {
@@ -13573,10 +13559,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d_impl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d_impl = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d_impl->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d_impl);
             } else if (d_impl->kind == 36) {
@@ -13592,10 +13578,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d1 = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d1 = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 37) {
@@ -13620,10 +13606,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d1 = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d1 = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 37) {
@@ -13648,10 +13634,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d1 = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d1 = compiler__ast__NodeData__Program_at(prog, __for_i);
             if ((d1->kind != 36) && (d1->kind != 37)) {
                 compiler__sema__decl__DeclPass_collect_declaration(self, d1);
             }
@@ -13659,10 +13645,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d1 = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d1 = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 36) {
@@ -13672,10 +13658,10 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
         }
     }
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* d = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* d = compiler__ast__NodeData__Program_at(prog, __for_i);
             {
                 compiler__ast__NodeData__ModuleDecl* m2 = NULL;
                 if ((d != NULL && d->data.tag == compiler__ast__NodeData__ModuleDecl__TAG && (m2 = (compiler__ast__NodeData__ModuleDecl*)(&(d)->data.u.ModuleDecl), 1))) {
@@ -13709,7 +13695,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
                 __for_i = (__for_i + 1);
             }
         }
-        compiler__ast__Program* p_info = (compiler__ast__Program*)compiler__ast__AstNode_as_program(program_node);
+        compiler__ast__NodeData__Program* p_info = (compiler__ast__NodeData__Program*)compiler__ast__AstNode_as_program(program_node);
         p_info->declarations = combined;
     }
 }
@@ -18280,12 +18266,12 @@ void compiler__sema__body__BodyPass_check_program(compiler__sema__body__BodyPass
     }
     size_t inst_mark = self->symtab.gen.instances.len;
     compiler__sema__body__BodyPass_infer_arrow_returns(self, program_node);
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(program_node);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ModuleDecl__TAG) {
                 compiler__ast__NodeData__ModuleDecl* m = (compiler__ast__NodeData__ModuleDecl*)(&(decl)->data.u.ModuleDecl);
                 compiler__sema__SymbolTable_set_current_module(&self->symtab, m->full_path);
@@ -18312,7 +18298,7 @@ void compiler__sema__body__BodyPass_check_program(compiler__sema__body__BodyPass
 }
 
 void compiler__sema__body__BodyPass_flush_instances(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node, size_t from) {
-    compiler__ast__Program* prog = (compiler__ast__Program*)compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = (compiler__ast__NodeData__Program*)compiler__ast__AstNode_as_program(program_node);
     std__collections__List_ptr_compiler__ast__AstNode added = std__collections__List_ptr_compiler__ast__AstNode_init(4);
     size_t i = from;
     while ((i + 1) < self->symtab.gen.instances.len) {
@@ -18355,16 +18341,16 @@ void compiler__sema__body__BodyPass_flush_instances(compiler__sema__body__BodyPa
 }
 
 void compiler__sema__body__BodyPass_infer_arrow_returns(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node) {
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(program_node);
     kobel_str saved_mod = self->symtab.current_module;
     self->inferring = true;
     std__collections__List_ptr_compiler__sema__body__ArrowCandidate pending = std__collections__List_ptr_compiler__sema__body__ArrowCandidate_init(4);
     std__collections__List_ptr_compiler__ast__AstNode seen = std__collections__List_ptr_compiler__ast__AstNode_init(4);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (decl->kind == 31) {
                 compiler__ast__NodeData__ModuleDecl* m = compiler__ast__AstNode_as_module_decl(decl);
                 compiler__sema__SymbolTable_set_current_module(&self->symtab, m->full_path);
@@ -19367,12 +19353,12 @@ compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self,
 }
 
 void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node) {
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(program_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(program_node);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
             if (decl != NULL && decl->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
                 compiler__ast__FnDecl* f = (decl)->data.u.FnDecl.inner;
                 if (f->type_params.len > 0) {
@@ -22483,15 +22469,15 @@ bool compiler__codegen__CCodeGen_is_char_value(compiler__codegen__CCodeGen* self
 
 kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* program_node) {
     {
-        compiler__ast__Program* prog = NULL;
-        if ((program_node != NULL && program_node->data.tag == compiler__ast__NodeData__Program__TAG && (prog = program_node->data.u.Program.inner, 1))) {
+        compiler__ast__NodeData__Program* prog = NULL;
+        if ((program_node != NULL && program_node->data.tag == compiler__ast__NodeData__Program__TAG && (prog = (compiler__ast__NodeData__Program*)(&(program_node)->data.u.Program), 1))) {
             std__collections__StringBuilder_clear(&self->out);
             std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__C_PRELUDE);
             {
-                size_t __for_n = compiler__ast__Program_count(prog);
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
                     if (compiler__ast__decl_is_template(decl)) {
                         __for_i = (__for_i + 1);
                         continue;
@@ -22581,10 +22567,10 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
             std__collections__List_ptr_compiler__ast__AstNode items = std__collections__List_ptr_compiler__ast__AstNode_init(4);
             std__collections__HashSet pending = std__collections__HashSet_init(16);
             {
-                size_t __for_n = compiler__ast__Program_count(prog);
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
                     if (compiler__ast__decl_is_template(decl)) {
                         __for_i = (__for_i + 1);
                         continue;
@@ -22682,10 +22668,10 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                 }
             }
             {
-                size_t __for_n = compiler__ast__Program_count(prog);
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl_list = compiler__ast__Program_at(prog, __for_i);
+                    compiler__ast__AstNode* decl_list = compiler__ast__NodeData__Program_at(prog, __for_i);
                     {
                         compiler__ast__StructDecl* s = NULL;
                         if ((!compiler__ast__decl_is_template(decl_list) && (decl_list != NULL && decl_list->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = decl_list->data.u.StructDecl.inner, 1))) && (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->name, KOBEL_STR("std__collections__List")))) {
@@ -22696,10 +22682,10 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                 }
             }
             {
-                size_t __for_n = compiler__ast__Program_count(prog);
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
                     if (compiler__ast__decl_is_template(decl)) {
                         __for_i = (__for_i + 1);
                         continue;
@@ -22730,10 +22716,10 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
             }
             std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("\n"));
             {
-                size_t __for_n = compiler__ast__Program_count(prog);
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
                     if (compiler__ast__decl_is_template(decl)) {
                         __for_i = (__for_i + 1);
                         continue;
@@ -25939,7 +25925,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(";"));
         fmt__CommentTable_emit_trailing_on_line(&self->comments, &self->buf, node->line);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ExternBlock__TAG) {
-        compiler__ast__ExternBlock* eb = (node)->data.u.ExternBlock.inner;
+        compiler__ast__NodeData__ExternBlock* eb = (compiler__ast__NodeData__ExternBlock*)(&(node)->data.u.ExternBlock);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("extern \""));
         fmt__FormatBuffer_plus_assign_2(&self->buf, eb->abi);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("\" {"));
@@ -25968,7 +25954,7 @@ void fmt__Formatter_format_program(fmt__Formatter* self, compiler__ast__AstNode*
         return;
     }
     if (program != NULL && program->data.tag == compiler__ast__NodeData__Program__TAG) {
-        compiler__ast__Program* p = (program)->data.u.Program.inner;
+        compiler__ast__NodeData__Program* p = (compiler__ast__NodeData__Program*)(&(program)->data.u.Program);
         bool prev_was_import = false;
         {
             size_t __for_e = p->declarations.len;
@@ -26255,7 +26241,7 @@ lsp__AnalysisResult lsp__AnalysisResult_init(kobel_str path, kobel_str source, k
         compiler__sema__SymbolTable empty_symtab = compiler__sema__SymbolTable_init();
         return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens };
     }
-    kobel_str doc_mod = compiler__ast__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
+    kobel_str doc_mod = compiler__ast__NodeData__Program_declared_module_name(compiler__ast__AstNode_as_program(prog));
     if (str_empty(doc_mod)) {
         doc_mod = str_path_to_module(str_base_name(path));
     }
@@ -26464,12 +26450,12 @@ lsp__JsonValue* lsp__AnalysisResult_document_symbols(kobel_str source) {
     if (prog_node == NULL) {
         return arr;
     }
-    compiler__ast__Program* prog = compiler__ast__AstNode_as_program(prog_node);
+    compiler__ast__NodeData__Program* prog = compiler__ast__AstNode_as_program(prog_node);
     {
-        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_n = compiler__ast__NodeData__Program_count(prog);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__AstNode* decl = compiler__ast__Program_at(prog, __for_i);
+            compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
             kobel_str sym_name = KOBEL_STR("");
             lsp__DocSymbol sym_kind = 0;
             if (decl != NULL && decl->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
@@ -43024,18 +43010,6 @@ compiler__ast__EnumDecl* std__memory__Arena_create_val_compiler__ast__EnumDecl(s
     return ptr;
 }
 
-compiler__ast__ExternBlock* std__memory__Arena_create_val_compiler__ast__ExternBlock(std__memory__Arena* self, compiler__ast__ExternBlock value) {
-    compiler__ast__ExternBlock* ptr = std__memory__Arena_create_compiler__ast__ExternBlock(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__Program* std__memory__Arena_create_val_compiler__ast__Program(std__memory__Arena* self, compiler__ast__Program value) {
-    compiler__ast__Program* ptr = std__memory__Arena_create_compiler__ast__Program(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
 compiler__ast__AstNode* std__memory__Arena_create_val_compiler__ast__AstNode(std__memory__Arena* self, compiler__ast__AstNode value) {
     compiler__ast__AstNode* ptr = std__memory__Arena_create_compiler__ast__AstNode(self);
     (*(ptr) = value);
@@ -43602,14 +43576,6 @@ compiler__ast__ImplDecl* std__memory__Arena_create_compiler__ast__ImplDecl(std__
 
 compiler__ast__EnumDecl* std__memory__Arena_create_compiler__ast__EnumDecl(std__memory__Arena* self) {
     return (compiler__ast__EnumDecl*)std__memory__Arena_alloc_bytes(self, 56, 8);
-}
-
-compiler__ast__ExternBlock* std__memory__Arena_create_compiler__ast__ExternBlock(std__memory__Arena* self) {
-    return (compiler__ast__ExternBlock*)std__memory__Arena_alloc_bytes(self, 40, 8);
-}
-
-compiler__ast__Program* std__memory__Arena_create_compiler__ast__Program(std__memory__Arena* self) {
-    return (compiler__ast__Program*)std__memory__Arena_alloc_bytes(self, 24, 8);
 }
 
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self) {

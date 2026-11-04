@@ -175,8 +175,8 @@ impl Arena {
 		=> self.build_node(NodeData.ConstDecl(name, type_node, value, public), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.ExternBlock(self.create_val(ExternBlock(abi, declarations))), line, col);
+		=> self.build_node(NodeData.ExternBlock(abi, declarations), line, col);
 
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.Program(self.create_val(Program(declarations))), line, col);
+		=> self.build_node(NodeData.Program(declarations), line, col);
 }

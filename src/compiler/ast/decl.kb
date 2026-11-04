@@ -97,15 +97,6 @@ pub struct EnumDecl {
 	pub public: bool
 }
 
-pub struct ExternBlock {
-	pub abi: str,
-	pub declarations: List<*AstNode>
-}
-
-pub struct Program {
-	pub declarations: List<*AstNode>
-}
-
 impl Program {
 	pub fn declared_module_name(val self): str {
 		for (decl in self.declarations) if (decl is ModuleDecl) return decl.full_path;
