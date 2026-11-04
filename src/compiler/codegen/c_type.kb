@@ -59,7 +59,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 
 		is ArrayType -> "${c_type_from_ast(node.element_type)}*";
 
-		is NullableType -> c_type_from_ast(node.inner);
+		is NullableType -> c_type_from_ast(node.inner_type);
 
 		else -> "void*";
 	};

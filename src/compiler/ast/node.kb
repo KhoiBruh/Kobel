@@ -1,6 +1,7 @@
 mod compiler.ast;
 
 use std.memory.Arena;
+use std.collections.List;
 
 pub enum NodeKind {
 	// Syntactic Types
@@ -68,10 +69,10 @@ pub enum NodeKind {
 // type system instead of reinterpreted through a `*u8`.
 pub enum NodeData {
 	NONE,
-	NamedType(inner: *NamedType),
-	PointerType(inner: *PointerType),
-	ArrayType(inner: *ArrayType),
-	NullableType(inner: *NullableType),
+	NamedType(name: str, type_args: List<*AstNode>),
+	PointerType(mutable: bool, pointee: *AstNode),
+	ArrayType(element_type: *AstNode, size: usz),
+	NullableType(inner_type: *AstNode),
 	LiteralExpr(inner: *LiteralExpr),
 	IdentifierExpr(inner: *IdentifierExpr),
 	BinaryExpr(inner: *BinaryExpr),

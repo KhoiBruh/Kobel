@@ -85,7 +85,7 @@ impl DeclPass {
 			);
 
 			is NullableType as nt -> self.arena.nullable_type(
-				self.clone_type(nt.inner, subst),
+				self.clone_type(nt.inner_type, subst),
 				node.line, node.col
 			);
 

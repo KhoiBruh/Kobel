@@ -112,7 +112,7 @@ impl DeclPass {
 				yield self.arena.array_type(elem, arr_ast.size);
 			}
 			is NullableType as null_ast -> {
-				val inner_ty = self.resolve_ast_type(null_ast.inner);
+				val inner_ty = self.resolve_ast_type(null_ast.inner_type);
 				var res_ty = inner_ty;
 				if (inner_ty.kind == DataType.POINTER) {
 					val pt = inner_ty.as_pointer();

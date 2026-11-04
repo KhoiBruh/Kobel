@@ -968,7 +968,7 @@ fn infer_type_args_for_fn(
 			}
 			is NullableType as nult -> {
 				if (arg_ty.kind == DataType.POINTER) {
-					self.match_type_param(nult.inner, arg_ty, type_params, inferred);
+					self.match_type_param(nult.inner_type, arg_ty, type_params, inferred);
 				}
 			}
 			is ArrayType as at -> {

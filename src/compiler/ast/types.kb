@@ -1,22 +1,3 @@
 mod compiler.ast;
 
-use std.collections.List;
-
-pub struct NamedType {
-	pub name: str,
-	pub type_args: List<*AstNode> = List()
-}
-
-pub struct PointerType {
-	pub mutable: bool,
-	pub pointee: *AstNode
-}
-
-pub struct ArrayType {
-	pub element_type: *AstNode,
-	pub size: usz
-}
-
-pub struct NullableType {
-	pub inner: *AstNode
-}
+// Type node payloads are defined directly as variants in NodeData (node.kb).

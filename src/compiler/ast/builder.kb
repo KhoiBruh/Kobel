@@ -15,16 +15,16 @@ impl Arena {
 	// ------------------------------------------------------------------------
 
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz)
-		=> self.build_node(NodeData.NamedType(self.create_val(NamedType(name, type_args))), line, col);
+		=> self.build_node(NodeData.NamedType(name, type_args), line, col);
 
 	pub fn pointer_type(var self, mutable: bool, pointee: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.PointerType(self.create_val(PointerType(mutable, pointee))), line, col);
+		=> self.build_node(NodeData.PointerType(mutable, pointee), line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz)
-		=> self.build_node(NodeData.ArrayType(self.create_val(ArrayType(elem, size))), line, col);
+		=> self.build_node(NodeData.ArrayType(elem, size), line, col);
 
-	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.NullableType(self.create_val(NullableType(inner))), line, col);
+	pub fn nullable_type(var self, inner_type: *AstNode, line: usz, col: usz)
+		=> self.build_node(NodeData.NullableType(inner_type), line, col);
 
 	// ------------------------------------------------------------------------
 	// Expressions

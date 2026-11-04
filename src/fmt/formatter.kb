@@ -91,7 +91,7 @@ impl Formatter {
 				self.buf += "]";
 			}
 			is NullableType as nt -> {
-				self.format_type(nt.inner);
+				self.format_type(nt.inner_type);
 				self.buf += "?";
 			}
 		}

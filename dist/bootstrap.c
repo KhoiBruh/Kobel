@@ -320,10 +320,6 @@ typedef struct compiler__ast__NodeData__Program compiler__ast__NodeData__Program
 #define compiler__ast__NodeData__Program__TAG 45
 typedef struct compiler__ast__AstNode compiler__ast__AstNode;
 typedef struct compiler__ast__WhenStmtArm compiler__ast__WhenStmtArm;
-typedef struct compiler__ast__NamedType compiler__ast__NamedType;
-typedef struct compiler__ast__PointerType compiler__ast__PointerType;
-typedef struct compiler__ast__ArrayType compiler__ast__ArrayType;
-typedef struct compiler__ast__NullableType compiler__ast__NullableType;
 typedef int32_t compiler__parser__Precedence;
 typedef struct compiler__parser__Parser compiler__parser__Parser;
 typedef struct compiler__loader__LoadedModule compiler__loader__LoadedModule;
@@ -619,20 +615,6 @@ struct compiler__ast__IsExpr {
 struct compiler__ast__SizeOfParam {
     size_t param_index;
     kobel_str size_text;
-};
-
-struct compiler__ast__PointerType {
-    bool mutable;
-    compiler__ast__AstNode* pointee;
-};
-
-struct compiler__ast__ArrayType {
-    compiler__ast__AstNode* element_type;
-    size_t size;
-};
-
-struct compiler__ast__NullableType {
-    compiler__ast__AstNode* inner;
 };
 
 struct compiler__loader__LoadedModule {
@@ -1214,16 +1196,19 @@ struct compiler__ast__NodeData__NONE {
     char __empty;
 };
 struct compiler__ast__NodeData__NamedType {
-    compiler__ast__NamedType* inner;
+    kobel_str name;
+    std__collections__List_ptr_compiler__ast__AstNode type_args;
 };
 struct compiler__ast__NodeData__PointerType {
-    compiler__ast__PointerType* inner;
+    bool mutable;
+    compiler__ast__AstNode* pointee;
 };
 struct compiler__ast__NodeData__ArrayType {
-    compiler__ast__ArrayType* inner;
+    compiler__ast__AstNode* element_type;
+    size_t size;
 };
 struct compiler__ast__NodeData__NullableType {
-    compiler__ast__NullableType* inner;
+    compiler__ast__AstNode* inner_type;
 };
 struct compiler__ast__NodeData__LiteralExpr {
     compiler__ast__LiteralExpr* inner;
@@ -1431,11 +1416,6 @@ struct compiler__ast__WhenStmtArm {
     compiler__ast__AstNode* body;
     size_t line;
     size_t col;
-};
-
-struct compiler__ast__NamedType {
-    kobel_str name;
-    std__collections__List_ptr_compiler__ast__AstNode type_args;
 };
 
 struct compiler__parser__Parser {
@@ -2254,7 +2234,7 @@ kobel_str compiler__lexer__Token_to_str(compiler__lexer__Token* self);
 compiler__ast__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__AstNode type_args, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool mutable, compiler__ast__AstNode* pointee, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__AstNode* elem, size_t size, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__AstNode* inner, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__AstNode* inner_type, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__LiteralKind lk, kobel_str raw, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_identifier(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_binary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col);
@@ -2307,10 +2287,10 @@ compiler__ast__AstNode* compiler__ast__ExternBlock_at(compiler__ast__ExternBlock
 size_t compiler__ast__Program_count(compiler__ast__Program* self);
 compiler__ast__AstNode* compiler__ast__Program_at(compiler__ast__Program* self, size_t i);
 bool compiler__ast__decl_is_template(compiler__ast__AstNode* node);
-compiler__ast__NamedType* compiler__ast__AstNode_as_named_type(compiler__ast__AstNode* self);
-compiler__ast__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self);
-compiler__ast__ArrayType* compiler__ast__AstNode_as_array_type(compiler__ast__AstNode* self);
-compiler__ast__NullableType* compiler__ast__AstNode_as_nullable_type(compiler__ast__AstNode* self);
+compiler__ast__NodeData__NamedType* compiler__ast__AstNode_as_named_type(compiler__ast__AstNode* self);
+compiler__ast__NodeData__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self);
+compiler__ast__NodeData__ArrayType* compiler__ast__AstNode_as_array_type(compiler__ast__AstNode* self);
+compiler__ast__NodeData__NullableType* compiler__ast__AstNode_as_nullable_type(compiler__ast__AstNode* self);
 compiler__ast__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self);
 compiler__ast__IdentifierExpr* compiler__ast__AstNode_as_identifier_expr(compiler__ast__AstNode* self);
 compiler__ast__BinaryExpr* compiler__ast__AstNode_as_binary_expr(compiler__ast__AstNode* self);
@@ -4163,10 +4143,6 @@ bool std__collections__List_compiler__codegen__ConditionAlias_contains(std__coll
 compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias_set(std__collections__List_compiler__codegen__ConditionAlias* self, size_t index, compiler__codegen__ConditionAlias value);
 void std__collections__List_compiler__codegen__ConditionAlias_plus_assign(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value);
 void std__memory__Heap_free_u8(uint8_t* ptr);
-compiler__ast__NamedType* std__memory__Arena_create_val_compiler__ast__NamedType(std__memory__Arena* self, compiler__ast__NamedType value);
-compiler__ast__PointerType* std__memory__Arena_create_val_compiler__ast__PointerType(std__memory__Arena* self, compiler__ast__PointerType value);
-compiler__ast__ArrayType* std__memory__Arena_create_val_compiler__ast__ArrayType(std__memory__Arena* self, compiler__ast__ArrayType value);
-compiler__ast__NullableType* std__memory__Arena_create_val_compiler__ast__NullableType(std__memory__Arena* self, compiler__ast__NullableType value);
 compiler__ast__LiteralExpr* std__memory__Arena_create_val_compiler__ast__LiteralExpr(std__memory__Arena* self, compiler__ast__LiteralExpr value);
 compiler__ast__IdentifierExpr* std__memory__Arena_create_val_compiler__ast__IdentifierExpr(std__memory__Arena* self, compiler__ast__IdentifierExpr value);
 compiler__ast__BinaryExpr* std__memory__Arena_create_val_compiler__ast__BinaryExpr(std__memory__Arena* self, compiler__ast__BinaryExpr value);
@@ -4324,10 +4300,6 @@ compiler__sema__body__ArrowCandidate** std__memory__Heap_create_array_ptr_compil
 compiler__sema__body__ArrowCandidate** std__memory__Heap_resize_ptr_compiler__sema__body__ArrowCandidate(compiler__sema__body__ArrowCandidate** ptr, size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr, size_t count);
-compiler__ast__NamedType* std__memory__Arena_create_compiler__ast__NamedType(std__memory__Arena* self);
-compiler__ast__PointerType* std__memory__Arena_create_compiler__ast__PointerType(std__memory__Arena* self);
-compiler__ast__ArrayType* std__memory__Arena_create_compiler__ast__ArrayType(std__memory__Arena* self);
-compiler__ast__NullableType* std__memory__Arena_create_compiler__ast__NullableType(std__memory__Arena* self);
 compiler__ast__LiteralExpr* std__memory__Arena_create_compiler__ast__LiteralExpr(std__memory__Arena* self);
 compiler__ast__IdentifierExpr* std__memory__Arena_create_compiler__ast__IdentifierExpr(std__memory__Arena* self);
 compiler__ast__BinaryExpr* std__memory__Arena_create_compiler__ast__BinaryExpr(std__memory__Arena* self);
@@ -7994,19 +7966,19 @@ kobel_str compiler__lexer__Token_to_str(compiler__lexer__Token* self) {
 }
 
 compiler__ast__AstNode* std__memory__Arena_named_type(std__memory__Arena* self, kobel_str name, std__collections__List_ptr_compiler__ast__AstNode type_args, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { std__memory__Arena_create_val_compiler__ast__NamedType(self, (compiler__ast__NamedType){ name, type_args }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { name, type_args } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_pointer_type(std__memory__Arena* self, bool mutable, compiler__ast__AstNode* pointee, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { std__memory__Arena_create_val_compiler__ast__PointerType(self, (compiler__ast__PointerType){ mutable, pointee }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { mutable, pointee } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_array_type(std__memory__Arena* self, compiler__ast__AstNode* elem, size_t size, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 3, .u.ArrayType = { std__memory__Arena_create_val_compiler__ast__ArrayType(self, (compiler__ast__ArrayType){ elem, size }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 3, .u.ArrayType = { elem, size } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__AstNode* inner, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 4, .u.NullableType = { std__memory__Arena_create_val_compiler__ast__NullableType(self, (compiler__ast__NullableType){ inner }) } }, line, col);
+compiler__ast__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* self, compiler__ast__AstNode* inner_type, size_t line, size_t col) {
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 4, .u.NullableType = { inner_type } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
@@ -8230,44 +8202,44 @@ bool compiler__ast__decl_is_template(compiler__ast__AstNode* node) {
     return (node->kind == 34 ? ((*compiler__ast__AstNode_as_struct_decl(node)).type_params.len > 0) : (node->kind == 33 ? ((*compiler__ast__AstNode_as_fn_decl(node)).type_params.len > 0) : (node->kind == 36 ? ((*compiler__ast__AstNode_as_impl_decl(node)).type_params.len > 0) : false)));
 }
 
-compiler__ast__NamedType* compiler__ast__AstNode_as_named_type(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__NamedType* compiler__ast__AstNode_as_named_type(compiler__ast__AstNode* self) {
     {
-        compiler__ast__NamedType* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__NamedType__TAG && (d = self->data.u.NamedType.inner, 1))) {
+        compiler__ast__NodeData__NamedType* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__NamedType__TAG && (d = (compiler__ast__NodeData__NamedType*)(&(self)->data.u.NamedType), 1))) {
             return d;
         }
     }
-    return (compiler__ast__NamedType*)NULL;
+    return (compiler__ast__NodeData__NamedType*)NULL;
 }
 
-compiler__ast__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self) {
     {
-        compiler__ast__PointerType* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__PointerType__TAG && (d = self->data.u.PointerType.inner, 1))) {
+        compiler__ast__NodeData__PointerType* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__PointerType__TAG && (d = (compiler__ast__NodeData__PointerType*)(&(self)->data.u.PointerType), 1))) {
             return d;
         }
     }
-    return (compiler__ast__PointerType*)NULL;
+    return (compiler__ast__NodeData__PointerType*)NULL;
 }
 
-compiler__ast__ArrayType* compiler__ast__AstNode_as_array_type(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__ArrayType* compiler__ast__AstNode_as_array_type(compiler__ast__AstNode* self) {
     {
-        compiler__ast__ArrayType* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ArrayType__TAG && (d = self->data.u.ArrayType.inner, 1))) {
+        compiler__ast__NodeData__ArrayType* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ArrayType__TAG && (d = (compiler__ast__NodeData__ArrayType*)(&(self)->data.u.ArrayType), 1))) {
             return d;
         }
     }
-    return (compiler__ast__ArrayType*)NULL;
+    return (compiler__ast__NodeData__ArrayType*)NULL;
 }
 
-compiler__ast__NullableType* compiler__ast__AstNode_as_nullable_type(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__NullableType* compiler__ast__AstNode_as_nullable_type(compiler__ast__AstNode* self) {
     {
-        compiler__ast__NullableType* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__NullableType__TAG && (d = self->data.u.NullableType.inner, 1))) {
+        compiler__ast__NodeData__NullableType* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__NullableType__TAG && (d = (compiler__ast__NodeData__NullableType*)(&(self)->data.u.NullableType), 1))) {
             return d;
         }
     }
-    return (compiler__ast__NullableType*)NULL;
+    return (compiler__ast__NodeData__NullableType*)NULL;
 }
 
 compiler__ast__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self) {
@@ -11500,7 +11472,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
     }
     compiler__ast__AstNode* target = node;
     if (target != NULL && target->data.tag == compiler__ast__NodeData__NamedType__TAG) {
-        compiler__ast__NamedType* nt = (target)->data.u.NamedType.inner;
+        compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(target)->data.u.NamedType);
         compiler__ast__AstNode* sa = ((subst != NULL) ? compiler__sema__GenSubst_lookup(subst, nt->name) : NULL);
         if (sa != NULL) {
             return compiler__sema__decl__DeclPass_clone_type(self, (compiler__ast__AstNode*)sa, NULL);
@@ -11534,14 +11506,14 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
         }
         return std__memory__Arena_named_type(&self->arena, nt->name, targs, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__PointerType__TAG) {
-        compiler__ast__PointerType* pt = (target)->data.u.PointerType.inner;
+        compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(target)->data.u.PointerType);
         return std__memory__Arena_pointer_type(&self->arena, pt->mutable, compiler__sema__decl__DeclPass_clone_type(self, pt->pointee, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
-        compiler__ast__ArrayType* at = (target)->data.u.ArrayType.inner;
+        compiler__ast__NodeData__ArrayType* at = (compiler__ast__NodeData__ArrayType*)(&(target)->data.u.ArrayType);
         return std__memory__Arena_array_type(&self->arena, compiler__sema__decl__DeclPass_clone_type(self, at->element_type, subst), at->size, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__NullableType__TAG) {
-        compiler__ast__NullableType* nt = (target)->data.u.NullableType.inner;
-        return std__memory__Arena_nullable_type(&self->arena, compiler__sema__decl__DeclPass_clone_type(self, nt->inner, subst), node->line, node->col);
+        compiler__ast__NodeData__NullableType* nt = (compiler__ast__NodeData__NullableType*)(&(target)->data.u.NullableType);
+        return std__memory__Arena_nullable_type(&self->arena, compiler__sema__decl__DeclPass_clone_type(self, nt->inner_type, subst), node->line, node->col);
     } else {
         return std__memory__Arena_named_type(&self->arena, KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__AstNode_init(4), node->line, node->col);
     }
@@ -12621,7 +12593,7 @@ size_t compiler__sema__decl__DeclPass_ast_type_size(compiler__sema__decl__DeclPa
     if (node->kind == 1) {
         return 8;
     } else if (node->kind == 2) {
-        compiler__ast__ArrayType* a = compiler__ast__AstNode_as_array_type(node);
+        compiler__ast__NodeData__ArrayType* a = compiler__ast__AstNode_as_array_type(node);
         return (a->size * compiler__sema__decl__DeclPass_ast_type_size(self, a->element_type));
     } else if (node->kind == 0) {
         kobel_str name = (*compiler__ast__AstNode_as_named_type(node)).name;
@@ -12783,8 +12755,8 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
         return;
     }
     {
-        compiler__ast__NamedType* nt = NULL;
-        if ((target_type_node != NULL && target_type_node->data.tag == compiler__ast__NodeData__NamedType__TAG && (nt = target_type_node->data.u.NamedType.inner, 1))) {
+        compiler__ast__NodeData__NamedType* nt = NULL;
+        if ((target_type_node != NULL && target_type_node->data.tag == compiler__ast__NodeData__NamedType__TAG && (nt = (compiler__ast__NodeData__NamedType*)(&(target_type_node)->data.u.NamedType), 1))) {
             compiler__ast__AstNode* cur = init_node;
             while (cur != NULL) {
                 {
@@ -12880,7 +12852,7 @@ bool compiler__sema__decl__DeclPass_rewrite_type_generics(compiler__sema__decl__
 }
 
 bool compiler__sema__decl__DeclPass_rewrite_named_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__NamedType* nt = (compiler__ast__NamedType*)compiler__ast__AstNode_as_named_type(node);
+    compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)compiler__ast__AstNode_as_named_type(node);
     if (nt->type_args.len > 0) {
         compiler__sema__GenTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, nt->name);
         if (tmpl != NULL) {
@@ -14626,7 +14598,7 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__
         return compiler__sema__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
     }
     if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
-        compiler__ast__NamedType* named = (node)->data.u.NamedType.inner;
+        compiler__ast__NodeData__NamedType* named = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
         kobel_str name = named->name;
         compiler__sema__Type* subst_res = NULL;
         {
@@ -14719,16 +14691,16 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__
         compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Unknown type '"), name, KOBEL_STR("'")));
         return compiler__sema__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
-        compiler__ast__PointerType* ptr_ast = (node)->data.u.PointerType.inner;
+        compiler__ast__NodeData__PointerType* ptr_ast = (compiler__ast__NodeData__PointerType*)(&(node)->data.u.PointerType);
         compiler__sema__Type* pointee = compiler__sema__decl__DeclPass_resolve_ast_type(self, ptr_ast->pointee);
         return std__memory__Arena_pointer_type_3_2(&self->arena, pointee, ptr_ast->mutable);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
-        compiler__ast__ArrayType* arr_ast = (node)->data.u.ArrayType.inner;
+        compiler__ast__NodeData__ArrayType* arr_ast = (compiler__ast__NodeData__ArrayType*)(&(node)->data.u.ArrayType);
         compiler__sema__Type* elem = compiler__sema__decl__DeclPass_resolve_ast_type(self, arr_ast->element_type);
         return std__memory__Arena_array_type_3_2(&self->arena, elem, arr_ast->size);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
-        compiler__ast__NullableType* null_ast = (node)->data.u.NullableType.inner;
-        compiler__sema__Type* inner_ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, null_ast->inner);
+        compiler__ast__NodeData__NullableType* null_ast = (compiler__ast__NodeData__NullableType*)(&(node)->data.u.NullableType);
+        compiler__sema__Type* inner_ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, null_ast->inner_type);
         compiler__sema__Type* res_ty = inner_ty;
         if (inner_ty->kind == 16) {
             compiler__sema__TypePayload__Pointer* pt = compiler__sema__Type_as_pointer(inner_ty);
@@ -16636,7 +16608,7 @@ void compiler__sema__body__BodyPass_match_type_param(compiler__sema__body__BodyP
         return;
     }
     if (param_ty_node != NULL && param_ty_node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
-        compiler__ast__NamedType* nt = (param_ty_node)->data.u.NamedType.inner;
+        compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(param_ty_node)->data.u.NamedType);
         if (std__collections__List_ptr_compiler__ast__AstNode_empty(&nt->type_args)) {
             {
                 size_t __for_e = type_params.len;
@@ -16714,19 +16686,19 @@ void compiler__sema__body__BodyPass_match_type_param(compiler__sema__body__BodyP
             }
         }
     } else if (param_ty_node != NULL && param_ty_node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
-        compiler__ast__PointerType* pt = (param_ty_node)->data.u.PointerType.inner;
+        compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(param_ty_node)->data.u.PointerType);
         if (arg_ty->kind == 16) {
             compiler__sema__body__BodyPass_match_type_param(self, pt->pointee, (*compiler__sema__Type_as_pointer(arg_ty)).pointee, type_params, inferred);
         } else {
             compiler__sema__body__BodyPass_match_type_param(self, pt->pointee, arg_ty, type_params, inferred);
         }
     } else if (param_ty_node != NULL && param_ty_node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
-        compiler__ast__NullableType* nult = (param_ty_node)->data.u.NullableType.inner;
+        compiler__ast__NodeData__NullableType* nult = (compiler__ast__NodeData__NullableType*)(&(param_ty_node)->data.u.NullableType);
         if (arg_ty->kind == 16) {
-            compiler__sema__body__BodyPass_match_type_param(self, nult->inner, arg_ty, type_params, inferred);
+            compiler__sema__body__BodyPass_match_type_param(self, nult->inner_type, arg_ty, type_params, inferred);
         }
     } else if (param_ty_node != NULL && param_ty_node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
-        compiler__ast__ArrayType* at = (param_ty_node)->data.u.ArrayType.inner;
+        compiler__ast__NodeData__ArrayType* at = (compiler__ast__NodeData__ArrayType*)(&(param_ty_node)->data.u.ArrayType);
         if (arg_ty->kind == 17) {
             compiler__sema__body__BodyPass_match_type_param(self, at->element_type, (*compiler__sema__Type_as_array(arg_ty)).elem, type_params, inferred);
         }
@@ -23385,7 +23357,7 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
         ty_str = compiler__codegen__c_type_from_ast(t_ann);
         if ((t_ann != NULL && t_ann->data.tag == compiler__ast__NodeData__ArrayType__TAG)) {
             void* __orig_t_ann = (void*)t_ann;
-            compiler__ast__ArrayType* t_ann = (compiler__ast__ArrayType*)(((compiler__ast__AstNode*)__orig_t_ann)->data.u.ArrayType.inner);
+            compiler__ast__NodeData__ArrayType* t_ann = (compiler__ast__NodeData__ArrayType*)((&((compiler__ast__AstNode*)__orig_t_ann)->data.u.ArrayType));
             elem_hint = compiler__codegen__c_type_from_ast(t_ann->element_type);
         }
     } else if (vd->initializer != NULL) {
@@ -24500,12 +24472,12 @@ kobel_str compiler__codegen__c_type_from_ast(compiler__ast__AstNode* node) {
     }
     if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__NamedType* node = (compiler__ast__NamedType*)(((compiler__ast__AstNode*)__orig_node)->data.u.NamedType.inner);
+        compiler__ast__NodeData__NamedType* node = (compiler__ast__NodeData__NamedType*)((&((compiler__ast__AstNode*)__orig_node)->data.u.NamedType));
         kobel_str name = node->name;
         return (kobel_streq(name, KOBEL_STR("none")) ? KOBEL_STR("void") : (kobel_streq(name, KOBEL_STR("bool")) ? KOBEL_STR("bool") : (kobel_streq(name, KOBEL_STR("char")) ? KOBEL_STR("char") : (kobel_streq(name, KOBEL_STR("i8")) ? KOBEL_STR("int8_t") : (kobel_streq(name, KOBEL_STR("i16")) ? KOBEL_STR("int16_t") : (kobel_streq(name, KOBEL_STR("i32")) ? KOBEL_STR("int32_t") : (kobel_streq(name, KOBEL_STR("i64")) ? KOBEL_STR("int64_t") : (kobel_streq(name, KOBEL_STR("isz")) ? KOBEL_STR("intptr_t") : (kobel_streq(name, KOBEL_STR("u8")) ? KOBEL_STR("uint8_t") : (kobel_streq(name, KOBEL_STR("u16")) ? KOBEL_STR("uint16_t") : (kobel_streq(name, KOBEL_STR("u32")) ? KOBEL_STR("uint32_t") : (kobel_streq(name, KOBEL_STR("u64")) ? KOBEL_STR("uint64_t") : (kobel_streq(name, KOBEL_STR("usz")) ? KOBEL_STR("size_t") : (kobel_streq(name, KOBEL_STR("f32")) ? KOBEL_STR("float") : (kobel_streq(name, KOBEL_STR("f64")) ? KOBEL_STR("double") : (kobel_streq(name, KOBEL_STR("str")) ? KOBEL_STR("kobel_str") : name))))))))))))))));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__PointerType* node = (compiler__ast__PointerType*)(((compiler__ast__AstNode*)__orig_node)->data.u.PointerType.inner);
+        compiler__ast__NodeData__PointerType* node = (compiler__ast__NodeData__PointerType*)((&((compiler__ast__AstNode*)__orig_node)->data.u.PointerType));
         kobel_str sub = compiler__codegen__c_type_from_ast(node->pointee);
         if (node->mutable) {
             return kobel_concat(sub, KOBEL_STR("*"));
@@ -24513,7 +24485,7 @@ kobel_str compiler__codegen__c_type_from_ast(compiler__ast__AstNode* node) {
         compiler__ast__AstNode* pointee = node->pointee;
         if ((pointee != NULL && pointee->data.tag == compiler__ast__NodeData__NamedType__TAG)) {
             void* __orig_pointee = (void*)pointee;
-            compiler__ast__NamedType* pointee = (compiler__ast__NamedType*)(((compiler__ast__AstNode*)__orig_pointee)->data.u.NamedType.inner);
+            compiler__ast__NodeData__NamedType* pointee = (compiler__ast__NodeData__NamedType*)((&((compiler__ast__AstNode*)__orig_pointee)->data.u.NamedType));
             if (kobel_streq(pointee->name, KOBEL_STR("str"))) {
                 return kobel_concat(sub, KOBEL_STR("*"));
             }
@@ -24524,12 +24496,12 @@ kobel_str compiler__codegen__c_type_from_ast(compiler__ast__AstNode* node) {
         return kobel_concat(sub, KOBEL_STR("*"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__ArrayType* node = (compiler__ast__ArrayType*)(((compiler__ast__AstNode*)__orig_node)->data.u.ArrayType.inner);
+        compiler__ast__NodeData__ArrayType* node = (compiler__ast__NodeData__ArrayType*)((&((compiler__ast__AstNode*)__orig_node)->data.u.ArrayType));
         return kobel_concat(compiler__codegen__c_type_from_ast(node->element_type), KOBEL_STR("*"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__NullableType* node = (compiler__ast__NullableType*)(((compiler__ast__AstNode*)__orig_node)->data.u.NullableType.inner);
-        return compiler__codegen__c_type_from_ast(node->inner);
+        compiler__ast__NodeData__NullableType* node = (compiler__ast__NodeData__NullableType*)((&((compiler__ast__AstNode*)__orig_node)->data.u.NullableType));
+        return compiler__codegen__c_type_from_ast(node->inner_type);
     } else {
         return KOBEL_STR("void*");
     }
@@ -25109,7 +25081,7 @@ void fmt__Formatter_format_type(fmt__Formatter* self, compiler__ast__AstNode* no
         return;
     }
     if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
-        compiler__ast__NamedType* nt = (node)->data.u.NamedType.inner;
+        compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
         fmt__FormatBuffer_plus_assign_2(&self->buf, nt->name);
         if (nt->type_args.len > 0) {
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("<"));
@@ -25147,7 +25119,7 @@ void fmt__Formatter_format_type(fmt__Formatter* self, compiler__ast__AstNode* no
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(">"));
         }
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
-        compiler__ast__PointerType* pt = (node)->data.u.PointerType.inner;
+        compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(node)->data.u.PointerType);
         if (pt->mutable) {
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("&"));
         } else {
@@ -25155,15 +25127,15 @@ void fmt__Formatter_format_type(fmt__Formatter* self, compiler__ast__AstNode* no
         }
         fmt__Formatter_format_type(self, pt->pointee);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
-        compiler__ast__ArrayType* at = (node)->data.u.ArrayType.inner;
+        compiler__ast__NodeData__ArrayType* at = (compiler__ast__NodeData__ArrayType*)(&(node)->data.u.ArrayType);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("["));
         fmt__Formatter_format_type(self, at->element_type);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("; "));
         fmt__FormatBuffer_plus_assign_2(&self->buf, usz_to_str(at->size));
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("]"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
-        compiler__ast__NullableType* nt = (node)->data.u.NullableType.inner;
-        fmt__Formatter_format_type(self, nt->inner);
+        compiler__ast__NodeData__NullableType* nt = (compiler__ast__NodeData__NullableType*)(&(node)->data.u.NullableType);
+        fmt__Formatter_format_type(self, nt->inner_type);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("?"));
     }
 }
@@ -43133,30 +43105,6 @@ void std__memory__Heap_free_u8(uint8_t* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__NamedType* std__memory__Arena_create_val_compiler__ast__NamedType(std__memory__Arena* self, compiler__ast__NamedType value) {
-    compiler__ast__NamedType* ptr = std__memory__Arena_create_compiler__ast__NamedType(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__PointerType* std__memory__Arena_create_val_compiler__ast__PointerType(std__memory__Arena* self, compiler__ast__PointerType value) {
-    compiler__ast__PointerType* ptr = std__memory__Arena_create_compiler__ast__PointerType(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__ArrayType* std__memory__Arena_create_val_compiler__ast__ArrayType(std__memory__Arena* self, compiler__ast__ArrayType value) {
-    compiler__ast__ArrayType* ptr = std__memory__Arena_create_compiler__ast__ArrayType(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__NullableType* std__memory__Arena_create_val_compiler__ast__NullableType(std__memory__Arena* self, compiler__ast__NullableType value) {
-    compiler__ast__NullableType* ptr = std__memory__Arena_create_compiler__ast__NullableType(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
 compiler__ast__LiteralExpr* std__memory__Arena_create_val_compiler__ast__LiteralExpr(std__memory__Arena* self, compiler__ast__LiteralExpr value) {
     compiler__ast__LiteralExpr* ptr = std__memory__Arena_create_compiler__ast__LiteralExpr(self);
     (*(ptr) = value);
@@ -43877,22 +43825,6 @@ compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__code
 
 compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr, size_t count) {
     return (compiler__codegen__ConditionAlias*)realloc((uint8_t*)ptr, (count * 48));
-}
-
-compiler__ast__NamedType* std__memory__Arena_create_compiler__ast__NamedType(std__memory__Arena* self) {
-    return (compiler__ast__NamedType*)std__memory__Arena_alloc_bytes(self, 40, 8);
-}
-
-compiler__ast__PointerType* std__memory__Arena_create_compiler__ast__PointerType(std__memory__Arena* self) {
-    return (compiler__ast__PointerType*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__ArrayType* std__memory__Arena_create_compiler__ast__ArrayType(std__memory__Arena* self) {
-    return (compiler__ast__ArrayType*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__NullableType* std__memory__Arena_create_compiler__ast__NullableType(std__memory__Arena* self) {
-    return (compiler__ast__NullableType*)std__memory__Arena_alloc_bytes(self, 8, 8);
 }
 
 compiler__ast__LiteralExpr* std__memory__Arena_create_compiler__ast__LiteralExpr(std__memory__Arena* self) {
