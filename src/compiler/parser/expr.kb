@@ -1,18 +1,14 @@
-mod compiler.parser.expr;
+mod compiler.parser;
 
 use std.collections.*;
 use std.collections.StringBuilder;
 use util.*;
 
 use compiler.lexer.*;
-use compiler.lexer.*;
 
 use compiler.ast.node.*;
 use compiler.ast.expr.*;
 use compiler.ast.builder.*;
-
-use compiler.parser.parser.*;
-use compiler.parser.types.parse_type;
 
 // ============================================================================
 // Operator Precedence Levels

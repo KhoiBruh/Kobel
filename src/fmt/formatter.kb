@@ -8,8 +8,8 @@ use compiler.ast.stmt.*;
 use compiler.ast.expr.*;
 use compiler.ast.types.*;
 use compiler.lexer.*;
-use compiler.parser.parser.*;
-use compiler.parser.decl.*;
+use compiler.parser.*;
+use compiler.parser.*;
 
 // ============================================================================
 // Operator token to string representation

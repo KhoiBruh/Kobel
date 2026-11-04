@@ -25,8 +25,7 @@ use compiler.ast.builder.*;
 use compiler.ast.node.*;
 use compiler.ast.decl.*;
 
-use compiler.parser.parser.Parser;
-use compiler.parser.decl.parse_program;
+use compiler.parser.Parser;
 
 pub struct LoadedModule {
 	pub name: str,

@@ -1,4 +1,4 @@
-mod compiler.parser.types;
+mod compiler.parser;
 
 use std.collections.*;
 
@@ -6,8 +6,6 @@ use compiler.lexer.*;
 
 use compiler.ast.node.*;
 use compiler.ast.builder.*;
-
-use compiler.parser.parser.*;
 
 impl Parser {
 

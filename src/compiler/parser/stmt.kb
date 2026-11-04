@@ -1,4 +1,4 @@
-mod compiler.parser.stmt;
+mod compiler.parser;
 
 use std.collections.*;
 
@@ -7,10 +7,6 @@ use compiler.lexer.*;
 use compiler.ast.node.*;
 use compiler.ast.stmt.WhenStmtArm;
 use compiler.ast.builder.*;
-use compiler.parser.parser.*;
-
-use compiler.parser.types.parse_type;
-use compiler.parser.expr.*;
 
 // ============================================================================
 // Statement Parsers

@@ -6,8 +6,8 @@ use std.collections.*;
 use util.*;
 
 use compiler.lexer.*;
-use compiler.parser.parser.*;
-use compiler.parser.decl.*;
+use compiler.parser.*;
+use compiler.parser.*;
 use compiler.ast.node.*;
 use compiler.ast.decl.*;
 use compiler.sema.decl.pass.*;
