@@ -13753,7 +13753,50 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 37) {
-                compiler__sema__decl__DeclPass_collect_enum(self, d1);
+                compiler__ast__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
+                bool has_p = false;
+                {
+                    size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
+                        if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
+                            has_p = true;
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+                if (!has_p) {
+                    compiler__sema__decl__DeclPass_collect_enum(self, d1);
+                }
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = compiler__ast__Program_count(prog);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AstNode* d1 = compiler__ast__Program_at(prog, __for_i);
+            if (d1->kind == 31) {
+                compiler__sema__decl__DeclPass_collect_module(self, d1);
+            } else if (d1->kind == 37) {
+                compiler__ast__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
+                bool has_p = false;
+                {
+                    size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
+                        if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
+                            has_p = true;
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+                if (has_p) {
+                    compiler__sema__decl__DeclPass_collect_enum(self, d1);
+                }
             }
             __for_i = (__for_i + 1);
         }

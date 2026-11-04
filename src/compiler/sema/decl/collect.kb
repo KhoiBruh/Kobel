@@ -516,11 +516,29 @@ impl DeclPass {
 			}
 		}
 
-		// Pass 1a: collect enums first so their types exist before function signatures are resolved.
+		// Pass 1a: collect ordinary enums first so their types exist before payload enums or signatures are resolved.
 		for (d1 in prog) {
 			when (d1.kind) {
 				NodeKind.DECL_MODULE -> self.collect_module(d1);
-				NodeKind.DECL_ENUM -> self.collect_enum(d1);
+				NodeKind.DECL_ENUM -> {
+					val e = d1.as_enum_decl();
+					var has_p = false;
+					for (m in e.members) if (!m.payload.empty()) has_p = true;
+					if (!has_p) self.collect_enum(d1);
+				}
+			}
+		}
+
+		// Pass 1a2: collect payload enums now that all ordinary enums and struct shells exist.
+		for (d1 in prog) {
+			when (d1.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d1);
+				NodeKind.DECL_ENUM -> {
+					val e = d1.as_enum_decl();
+					var has_p = false;
+					for (m in e.members) if (!m.payload.empty()) has_p = true;
+					if (has_p) self.collect_enum(d1);
+				}
 			}
 		}
 
