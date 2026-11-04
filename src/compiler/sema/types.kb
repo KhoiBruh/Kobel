@@ -1,4 +1,4 @@
-mod compiler.sema.types;
+mod compiler.sema;
 
 // ============================================================================
 // Type model
@@ -13,11 +13,6 @@ use std.collections.*;
 use std.memory.Arena;
 use std.traits.*;
 use std.string.*;
-
-use compiler.ast.*;
-use compiler.sema.methods.*;
-use compiler.sema.structs.*;
-use compiler.sema.enums.*;
 
 use util.*;
 

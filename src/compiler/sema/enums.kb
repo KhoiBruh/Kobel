@@ -1,4 +1,4 @@
-mod compiler.sema.enums;
+mod compiler.sema;
 
 // ============================================================================
 // Enum descriptors
@@ -11,7 +11,6 @@ mod compiler.sema.enums;
 use std.collections.*;
 
 use compiler.ast.LiteralKind;
-use compiler.sema.types.*;
 
 // A single enum member with its resolved integer value.
 pub struct EnumMemberInfo {

@@ -1,6 +1,5 @@
 use std.io.*;
-use fmt.options.*;
-use fmt.formatter.*;
+use fmt.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

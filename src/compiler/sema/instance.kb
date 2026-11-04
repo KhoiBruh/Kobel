@@ -1,4 +1,4 @@
-mod compiler.sema.instance;
+mod compiler.sema;
 
 // ============================================================================
 // Monomorphized instances and their per-node annotations
@@ -14,8 +14,6 @@ use std.collections.*;
 
 use compiler.ast.*;
 
-use compiler.sema.types.Type;
-use compiler.sema.template.*;
 
 // What kind of declaration an instance was produced from.
 pub enum InstanceKind {

@@ -1,4 +1,4 @@
-mod compiler.sema.prims;
+mod compiler.sema;
 
 // ============================================================================
 // Canonical primitive types
@@ -13,8 +13,6 @@ use std.memory.*;
 
 use util.*;
 
-use compiler.sema.types.*;
-use compiler.sema.methods.*;
 
 // ============================================================================
 // Canonical Primitive Types

@@ -4,14 +4,10 @@ use std.io.print;
 use std.io.println;
 
 use compiler.lexer.Lexer;
-use compiler.parser.parser.Parser;
-use compiler.parser.decl.parse_program;
+use compiler.parser.*;
 
-use compiler.sema.body.pass.BodyPass;
-use compiler.sema.body.stmt.*;
-use compiler.sema.body.expr.*;
-use compiler.sema.body.call.*;
-use compiler.sema.body.program.*;
+use compiler.sema.body.BodyPass;
+use compiler.sema.body.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

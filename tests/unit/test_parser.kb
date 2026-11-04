@@ -7,37 +7,13 @@ use compiler.lexer.Lexer;
 use compiler.lexer.TokenType;
 use compiler.lexer.Token;
 
-use compiler.ast.node.NodeKind;
-use compiler.ast.node.AstNode;
+use compiler.ast.*;
 
-use compiler.ast.types.NamedType;
-use compiler.ast.types.PointerType;
-use compiler.ast.expr.BinaryExpr;
-use compiler.ast.expr.UnaryExpr;
-use compiler.ast.expr.CallExpr;
-use compiler.ast.expr.MemberExpr;
-use compiler.ast.expr.LiteralExpr;
-use compiler.ast.expr.IdentifierExpr;
 
-use compiler.ast.stmt.BlockStmt;
-use compiler.ast.stmt.VarDeclStmt;
-use compiler.ast.stmt.IfStmt;
-use compiler.ast.stmt.ReturnStmt;
-use compiler.ast.stmt.WhileStmt;
 
-use compiler.ast.decl.Program;
-use compiler.ast.decl.ModuleDecl;
-use compiler.ast.decl.UseDecl;
-use compiler.ast.decl.StructDecl;
-use compiler.ast.decl.FnDecl;
 
-use compiler.ast.node.AstNode;
 
-use compiler.parser.parser.Parser;
-use compiler.parser.expr.Precedence;
-use compiler.parser.types.parse_type;
-use compiler.parser.stmt.parse_statement;
-use compiler.parser.decl.parse_program;
+use compiler.parser.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -162,7 +138,7 @@ fn test_statement_parsing() {
 
 	assert_true(stmt.kind == NodeKind.STMT_VAR_DECL, "Must be VarDeclStmt");
 	val var_decl = stmt.as_var_decl_stmt();
-	assert_true(!var_decl.is_mut, "VarDecl must be immutable (val)");
+	assert_true(!var_decl.mutable, "VarDecl must be immutable (val)");
 	assert_eq_str(var_decl.name, "total", "VarDecl name must be 'total'");
 	assert_true(var_decl.type_annotation != null, "VarDecl must have type annotation");
 	assert_true(var_decl.initializer != null, "VarDecl must have initializer");
@@ -218,7 +194,7 @@ fn test_full_program_parsing() {
 	assert_true(d2.kind == NodeKind.DECL_STRUCT, "Decl 2 must be DECL_STRUCT");
 	val s_decl = d2.as_struct_decl();
 	assert_eq_str(s_decl.name, "Vector2D", "Struct name must match");
-	assert_true(s_decl.is_pub, "Struct must be pub");
+	assert_true(s_decl.public, "Struct must be pub");
 	assert_eq_usz(s_decl.fields.len, 2, "Struct must have 2 fields");
 
 	// Decl 3: FnDecl (add)
@@ -226,7 +202,7 @@ fn test_full_program_parsing() {
 	assert_true(d3.kind == NodeKind.DECL_FN, "Decl 3 must be DECL_FN");
 	val fn_add = d3.as_fn_decl();
 	assert_eq_str(fn_add.name, "add", "Function name must be 'add'");
-	assert_true(fn_add.is_pub, "Function must be pub");
+	assert_true(fn_add.public, "Function must be pub");
 	assert_eq_usz(fn_add.params.len, 2, "Function must have 2 params");
 
 	// Decl 4: FnDecl (main)
@@ -234,7 +210,7 @@ fn test_full_program_parsing() {
 	assert_true(d4.kind == NodeKind.DECL_FN, "Decl 4 must be DECL_FN");
 	val fn_main = d4.as_fn_decl();
 	assert_eq_str(fn_main.name, "main", "Function name must be 'main'");
-	assert_true(!fn_main.is_pub, "Function must not be pub");
+	assert_true(!fn_main.public, "Function must not be pub");
 	assert_eq_usz(fn_main.params.len, 0, "Main must have 0 params");
 
 	println("  [PASS] test_full_program_parsing");

@@ -1,4 +1,4 @@
-mod compiler.sema.structs;
+mod compiler.sema;
 
 // ============================================================================
 // Struct layout
@@ -13,8 +13,6 @@ use std.memory.*;
 
 use compiler.ast.*;
 
-use compiler.sema.types.*;
-use compiler.sema.methods.*;
 
 pub struct StructField {
 	pub name: str,

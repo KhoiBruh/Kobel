@@ -56,7 +56,9 @@ impl Toml {
 
 	pub op get(val self, key: str) => self.entries.get_or(key, "");
 
-	pub op set(var self, key: str, value: str) => self.entries[key] = value;
+	pub op set(var self, key: str, value: str) {
+		self.entries[key] = value;
+	}
 
 	pub op contains(val self, key: str) => key in self.entries;
 

@@ -3,33 +3,12 @@ mod test.bootstrap_ast;
 use std.io.print;
 use std.io.println;
 
-use compiler.ast.node.NodeKind;
-use compiler.ast.node.NodeData;
-use compiler.ast.node.AstNode;
+use compiler.ast.*;
 
-use compiler.ast.types.NamedType;
-use compiler.ast.types.PointerType;
-use compiler.ast.types.ArrayType;
 
-use compiler.ast.expr.LiteralKind;
-use compiler.ast.expr.LiteralExpr;
-use compiler.ast.expr.IdentifierExpr;
-use compiler.ast.expr.BinaryExpr;
-use compiler.ast.expr.UnaryExpr;
-use compiler.ast.expr.GroupExpr;
 
-use compiler.ast.stmt.BlockStmt;
-use compiler.ast.stmt.ExprStmt;
-use compiler.ast.stmt.VarDeclStmt;
-use compiler.ast.stmt.IfStmt;
-use compiler.ast.stmt.ReturnStmt;
 
-use compiler.ast.decl.Param;
-use compiler.ast.decl.GenericParam;
-use compiler.ast.decl.FnDecl;
 
-use compiler.ast.builder.*;
-use compiler.ast.decl.Program;
 
 use compiler.lexer.TokenType;
 use std.collections.List;
@@ -120,7 +99,7 @@ fn test_statement_nodes(): bool {
 
 	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
 	val vd = var_stmt.as_var_decl_stmt();
-	if (!vd.is_mut || vd.name != "count") return false;
+	if (!vd.mutable || vd.name != "count") return false;
 	if (vd.type_annotation.kind != NodeKind.TYPE_NAMED) return false;
 	if (vd.initializer.kind != NodeKind.EXPR_LITERAL) return false;
 
@@ -183,7 +162,7 @@ fn test_declaration_nodes(): bool {
 	if (fn_node.kind != NodeKind.DECL_FN) return false;
 	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "add") return false;
-	if (!fn_d.is_pub) return false;
+	if (!fn_d.public) return false;
 	if (fn_d.params.len != 2) return false;
 	if (fn_d.params[0].name != "a") return false;
 	if (fn_d.params[1].name != "b") return false;
@@ -243,7 +222,7 @@ fn test_arena_ast_methods(): bool {
 	val fn_node = arena.fn_decl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, 2, 1);
 	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "test_fn") return false;
-	if (!fn_d.is_pub) return false;
+	if (!fn_d.public) return false;
 
 	// Test arena.alloc_node + a typed NodeData payload
 	val m_lit = arena.build_node(NodeData.LiteralExpr(arena.create_val<LiteralExpr>(LiteralExpr(LiteralKind.INT, "456"))), 3, 1);

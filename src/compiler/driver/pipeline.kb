@@ -8,11 +8,9 @@ use std.collections.*;
 use util.*;
 
 use compiler.ast.*;
-use compiler.sema.decl.pass.*;
-use compiler.sema.decl.collect.*;
-use compiler.sema.body.pass.*;
-use compiler.sema.body.program.*;
-use compiler.sema.lower.*;
+use compiler.sema.*;
+use compiler.sema.decl.*;
+use compiler.sema.body.*;
 use compiler.codegen.*;
 use compiler.loader.*;
 
@@ -72,17 +70,15 @@ pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: 
 	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
 	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
 
-	val vcvars_setup = "(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul)";
+	val tmp_setup = "set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\"";
+	val vcvars_setup = "(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul))";
 	val cl_invoke = "${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}";
 
 	var cmd = if (is_msvc_compiler(host_cc)) {
-		if (host_cc == "cl" || host_cc == "cl.exe") {
-			if (System.has_env("VCINSTALLDIR")) cl_invoke
-			else "${vcvars_setup} && ${cl_invoke}"
-		}
-		else cl_invoke
+		if (System.has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
+		else "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
 	} else {
-		"${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
+		"${tmp_setup} && ${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
 	};
 
 	if (quiet) cmd = "${cmd} >nul 2>nul";

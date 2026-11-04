@@ -7,8 +7,7 @@ use std.collections.StringBuilder;
 use compiler.lexer.*;
 use compiler.ast.*;
 
-use compiler.sema.types.Type;
-use compiler.sema.types.DataType;
+use compiler.sema.*;
 
 // ============================================================================
 // C99 Backend Code Generator

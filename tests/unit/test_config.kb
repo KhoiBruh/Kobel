@@ -1,8 +1,7 @@
 mod tests.unit.test_config;
 
 use std.io.*;
-use config.project.*;
-use config.toml.*;
+use config.*;
 
 fn test_toml_parser(): bool {
 	val toml_content = """

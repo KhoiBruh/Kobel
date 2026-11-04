@@ -1,4 +1,4 @@
-mod compiler.sema.decl.type;
+mod compiler.sema.decl;
 
 // ============================================================================
 // DeclPass - AST type resolution
@@ -13,13 +13,11 @@ mod compiler.sema.decl.type;
 use std.collections.*;
 
 use compiler.ast.*;
+use compiler.ast.PointerType;
+use compiler.ast.ArrayType;
 
-use compiler.sema.types.*;
-use compiler.sema.symbol.*;
-use compiler.sema.prims.*;
-use compiler.sema.mono.registry.*;
-
-use compiler.sema.decl.pass.*;
+use compiler.sema.*;
+use compiler.sema.mono.*;
 
 impl DeclPass {
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {

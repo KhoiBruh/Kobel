@@ -1,4 +1,4 @@
-mod compiler.sema.mono.rewrite;
+mod compiler.sema.mono;
 
 // ============================================================================
 // Generic Syntax Rewriting
@@ -17,14 +17,11 @@ use compiler.lexer.TokenType;
 
 use compiler.ast.*;
 
-use compiler.sema.types.DataType;
-use compiler.sema.types.Type;
-use compiler.sema.structs.StructField;
-use compiler.sema.methods.MethodInfo;
+use compiler.sema.*;
+use compiler.sema.decl.*;
 
-use compiler.sema.decl.pass.*;
 use compiler.ast.StructField as AstStructField;
-use compiler.sema.mono.registry.*;
+use compiler.sema.StructField;
 
 impl DeclPass {
 

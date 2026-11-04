@@ -1,4 +1,4 @@
-mod compiler.sema.desugar.loop;
+mod compiler.sema.desugar;
 
 // ============================================================================
 // Body checker helper - `for` desugaring
@@ -13,7 +13,7 @@ use std.collections.*;
 
 use compiler.ast.*;
 use compiler.lexer.*;
-use compiler.sema.body.pass.BodyPass;
+use compiler.sema.body.*;
 
 // ============================================================================
 // For-loop AST Lowering (Desugaring)

@@ -1,4 +1,4 @@
-mod compiler.sema.desugar.interp;
+mod compiler.sema.desugar;
 
 // ============================================================================
 // Body checker helper - string interpolation
@@ -15,7 +15,7 @@ use compiler.lexer.TokenType;
 
 use compiler.ast.*;
 
-use compiler.sema.types.*;
+use compiler.sema.*;
 
 // ============================================================================
 // String interpolation lowering

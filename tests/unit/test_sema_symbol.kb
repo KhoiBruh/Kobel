@@ -3,14 +3,14 @@ mod test.bootstrap_sema_symbol;
 use std.io.print;
 use std.io.println;
 
-use compiler.sema.types.DataType;
-use compiler.sema.types.Type;
+use compiler.sema.DataType;
+use compiler.sema.Type;
 
-use compiler.sema.symbol.SymbolKind;
-use compiler.sema.symbol.Symbol;
-use compiler.sema.symbol.Scope;
-use compiler.sema.symbol.ModuleScope;
-use compiler.sema.symbol.SymbolTable;
+use compiler.sema.SymbolKind;
+use compiler.sema.Symbol;
+use compiler.sema.Scope;
+use compiler.sema.ModuleScope;
+use compiler.sema.SymbolTable;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
@@ -46,7 +46,7 @@ fn test_global_scope() {
 	assert_true(sym != null, "global_var must be found in symbol table");
 	assert_eq_str(sym.name, "global_var", "Symbol name must be 'global_var'");
 	assert_true(sym.kind == SymbolKind.VAR, "Symbol kind must be VAR");
-	assert_true(sym.is_pub, "Symbol must be pub");
+	assert_true(sym.public, "Symbol must be pub");
 	assert_true(sym.type_ptr.kind == DataType.I32, "Symbol type must be i32");
 
 	val not_found = symtab.lookup("unknown_var");

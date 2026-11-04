@@ -1,4 +1,4 @@
-mod compiler.sema.decl.pass;
+mod compiler.sema.decl;
 
 // ============================================================================
 // DeclPass - type resolution and declaration semantics
@@ -22,26 +22,12 @@ use util.*;
 use compiler.lexer.TokenType;
 
 use compiler.ast.*;
-use compiler.sema.symbol.*;
-use compiler.sema.mono.registry.*;
-use compiler.sema.desugar.interp.*;
-
-use compiler.sema.types.DataType;
-use compiler.sema.types.Type;
-use compiler.sema.prims.PrimTypes;
-use compiler.sema.structs.StructField;
-use compiler.sema.methods.MethodInfo;
-use compiler.sema.enums.EnumInfo;
-use compiler.sema.enums.EnumMemberInfo;
-
-use compiler.sema.instance.*;
-use compiler.sema.prims.*;
-use compiler.sema.type_ast.*;
-use compiler.sema.traits.*;
-
-use compiler.sema.decl.type.*;
+use compiler.sema.*;
+use compiler.sema.mono.*;
+use compiler.sema.desugar.*;
 
 use compiler.ast.StructField as AstStructField;
+use compiler.sema.StructField;
 
 // ============================================================================
 // DeclPass - Top-level Declarations Collector

@@ -1,4 +1,4 @@
-mod compiler.sema.decl.collect;
+mod compiler.sema.decl;
 
 // ============================================================================
 // DeclPass - declaration collection driver
@@ -17,22 +17,9 @@ use util.*;
 use compiler.lexer.*;
 use compiler.ast.*;
 
-use compiler.sema.types.*;
-use compiler.sema.structs.StructField;
-use compiler.sema.symbol.*;
-use compiler.sema.decl.pass.*;
-use compiler.sema.mono.registry.*;
-use compiler.sema.mono.instantiate.*;
-use compiler.sema.mono.clone.*;
-use compiler.sema.mono.rewrite.*;
-
-use compiler.sema.template.*;
-use compiler.sema.traits.*;
-
-use compiler.sema.enums.*;
-
-use compiler.sema.decl.type.*;
-use compiler.sema.type_ast.*;
+use compiler.sema.*;
+use compiler.sema.StructField;
+use compiler.sema.mono.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod? {
@@ -120,7 +107,7 @@ impl DeclPass {
 			return;
 		}
 
-		val existing = self.symtab.lookup(s.name);
+		val existing = self.symtab.lookup_in_module(self.current_module, s.name);
 		if (
 			existing != null &&
 			existing.kind == SymbolKind.STRUCT &&
@@ -502,7 +489,7 @@ impl DeclPass {
 					if (s_half.type_params.empty()) {
 						// Global lookup: a forward declaration in another module is the
 						// shell this definition will fill in.
-						val existing_half = self.symtab.lookup(s_half.name);
+						val existing_half = self.symtab.lookup_in_module(self.current_module, s_half.name);
 						if (existing_half == null) self.declare_struct_shell(d_half, s_half);
 					}
 				}
@@ -524,13 +511,20 @@ impl DeclPass {
 			}
 		}
 
-		// Pass 1a: collect ordinary declarations (templates, impls and imports - the
-		// imports were already registered in pass 0.4 - are deferred).
+		// Pass 1a: collect enums first so their types exist before function signatures are resolved.
 		for (d1 in prog) {
-			if (d1.kind != NodeKind.DECL_IMPL) self.collect_declaration(d1);
+			when (d1.kind) {
+				NodeKind.DECL_MODULE -> self.collect_module(d1);
+				NodeKind.DECL_ENUM -> self.collect_enum(d1);
+			}
 		}
 
-		// Pass 1b: collect impl blocks now that all types are registered.
+		// Pass 1b: collect ordinary declarations (structs, functions, consts, extern blocks).
+		for (d1 in prog) {
+			if (d1.kind != NodeKind.DECL_IMPL && d1.kind != NodeKind.DECL_ENUM) self.collect_declaration(d1);
+		}
+
+		// Pass 1c: collect impl blocks now that all types are registered.
 		for (d1 in prog) {
 			when (d1.kind) {
 				NodeKind.DECL_MODULE -> self.collect_module(d1);

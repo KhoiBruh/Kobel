@@ -10,8 +10,7 @@ mod compiler.codegen;
 
 use compiler.ast.*;
 
-use compiler.sema.types.Type;
-use compiler.sema.types.DataType;
+use compiler.sema.*;
 
 pub fn c_type_from_ast(node: *AstNode): str {
 	if (node == null) return "void";

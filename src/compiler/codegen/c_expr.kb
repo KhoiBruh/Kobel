@@ -13,8 +13,7 @@ use std.collections.*;
 use compiler.lexer.*;
 use compiler.ast.*;
 
-use compiler.sema.types.Type;
-use compiler.sema.types.DataType;
+use compiler.sema.*;
 
 // ============================================================================
 // Expression Code Generation

@@ -1,4 +1,4 @@
-mod compiler.sema.body.call;
+mod compiler.sema.body;
 
 // ============================================================================
 // BodyPass - Call Expression & Constructor Resolution
@@ -16,19 +16,8 @@ use compiler.ast.*;
 
 use compiler.lexer.*;
 
-use compiler.sema.types.*;
-use compiler.sema.symbol.*;
-use compiler.sema.decl.pass.*;
-use compiler.sema.body.pass.*;
-use compiler.sema.body.expr.*;
-
-use compiler.sema.template.*;
-
-use compiler.sema.methods.*;
-use compiler.sema.structs.StructType;
-
-use compiler.sema.prims.*;
-use compiler.sema.type_ast.*;
+use compiler.sema.*;
+use compiler.sema.decl.*;
 
 impl BodyPass {
 

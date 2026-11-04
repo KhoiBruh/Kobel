@@ -11,10 +11,10 @@ use std.io.println;
 use std.filesystem.File;
 
 use compiler.loader.ModuleLoader;
-use compiler.sema.decl.pass.DeclPass;
-use compiler.sema.decl.collect.*;
-use compiler.sema.types.DataType;
-use compiler.ast.node.*;
+use compiler.sema.decl.DeclPass;
+use compiler.sema.decl.*;
+use compiler.sema.DataType;
+use compiler.ast.*;
 
 fn main(): i32 {
 	// The modules live under build/ (ignored by git) and are rewritten per run.

@@ -1,4 +1,4 @@
-mod compiler.sema.mono.registry;
+mod compiler.sema.mono;
 
 // ============================================================================
 // Monomorphization - template registry and instance worklist
@@ -20,20 +20,11 @@ use compiler.lexer.TokenType;
 
 use compiler.ast.*;
 
-use compiler.sema.symbol.*;
-
-use compiler.sema.types.DataType;
-use compiler.sema.types.Type;
-use compiler.sema.structs.StructField;
-use compiler.sema.methods.MethodInfo;
-
-use compiler.sema.decl.pass.*;
-
-use compiler.sema.template.*;
-
-use compiler.sema.prims.*;
+use compiler.sema.*;
+use compiler.sema.decl.*;
 
 use compiler.ast.StructField as AstStructField;
+use compiler.sema.StructField;
 
 // A template is a candidate when its name matches and its table kind agrees:
 // `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`

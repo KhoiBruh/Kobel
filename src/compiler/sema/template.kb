@@ -1,4 +1,4 @@
-mod compiler.sema.template;
+mod compiler.sema;
 
 // ============================================================================
 // Template data model

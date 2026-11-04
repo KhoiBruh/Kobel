@@ -1,4 +1,4 @@
-mod compiler.sema.body.expr;
+mod compiler.sema.body;
 
 // ============================================================================
 // BodyPass - Primaries and Operators
@@ -18,14 +18,9 @@ use compiler.ast.*;
 
 use compiler.lexer.*;
 
-use compiler.sema.types.*;
-use compiler.sema.symbol.*;
-use compiler.sema.decl.pass.*;
-use compiler.sema.body.pass.*;
-use compiler.sema.desugar.interp.*;
-
-use compiler.sema.type_ast.*;
-use compiler.sema.prims.*;
+use compiler.sema.*;
+use compiler.sema.decl.*;
+use compiler.sema.desugar.*;
 
 impl BodyPass {
 

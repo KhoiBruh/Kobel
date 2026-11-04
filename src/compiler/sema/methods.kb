@@ -1,4 +1,4 @@
-mod compiler.sema.methods;
+mod compiler.sema;
 
 // ============================================================================
 // Method descriptors
@@ -13,7 +13,6 @@ use std.collections.*;
 
 use compiler.ast.*;
 
-use compiler.sema.types.Type;
 
 // A method collected from an `impl` block.
 // For instance methods `fn_type.param_types[0]` is the receiver

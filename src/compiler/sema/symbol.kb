@@ -1,4 +1,4 @@
-mod compiler.sema.symbol;
+mod compiler.sema;
 
 // ============================================================================
 // Symbol table and instantiation registry
@@ -20,16 +20,8 @@ use std.memory.*;
 use std.collections.*;
 use std.traits.Iterable;
 
-use compiler.sema.types.Type;
-use compiler.sema.types.DataType;
-use compiler.sema.methods.MethodInfo;
-use compiler.sema.enums.EnumInfo;
-use compiler.sema.prims.PrimTypes;
 use compiler.ast.*;
 
-use compiler.sema.template.*;
-use compiler.sema.instance.*;
-use compiler.sema.traits.*;
 
 // ============================================================================
 // SymbolKind Enumeration
@@ -157,7 +149,9 @@ pub struct GenericReg {
 }
 
 impl GenericReg {
-	pub fn add_inst(var self, sym: *Symbol) => self.inst_map[sym.name] = sym;
+	pub fn add_inst(var self, sym: *Symbol) {
+		self.inst_map[sym.name] = sym;
+	}
 
 	pub fn find_instance_symbol(val self, name: str): *Symbol? {
 		val p = self.inst_map.get(name) ?: return null;
@@ -389,7 +383,9 @@ impl SymbolTable {
 	pub fn set_assoc_type(
 		var self, struct_name: str,
 		assoc: str, ty: *Type
-	) => self.assoc_types["${struct_name}.${assoc}"] = ty;
+	) {
+		self.assoc_types["${struct_name}.${assoc}"] = ty;
+	}
 
 	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type? {
 		val p = self.assoc_types.get("${struct_name}.${assoc}") ?: return null;
