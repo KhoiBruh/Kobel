@@ -97,7 +97,7 @@ fn test_pointer_and_array_types() {
 
 	// Test nullable pointer
 	val ptr_null = arena.nullable_pointer_type(&t_i32, false);
-	assert_true(ptr_null.as_pointer().is_nullable, "ptr_null must be nullable");
+	assert_true(ptr_null.as_pointer().nullable, "ptr_null must be nullable");
 
 	// Array [i32; 10]
 	val arr = arena.array_type(&t_i32, 10);
