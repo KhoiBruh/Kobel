@@ -107,7 +107,7 @@ impl Arena {
 		=> self.build_node(NodeData.BlockStmt(self.create_val(BlockStmt(statements))), line, col);
 
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.ExprStmt(self.create_val(ExprStmt(expr))), line, col);
+		=> self.build_node(NodeData.ExprStmt(expr), line, col);
 
 	pub fn var_decl(var self, mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz)
 		=> self.build_node(NodeData.VarDeclStmt(self.create_val(VarDeclStmt(mutable, name, type_annotation, initializer))), line, col);
@@ -122,22 +122,22 @@ impl Arena {
 		=> self.build_node(NodeData.ForStmt(self.create_val(ForStmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body))), line, col);
 
 	pub fn return_stmt(var self, value: *AstNode?, line: usz, col: usz)
-		=> self.build_node(NodeData.ReturnStmt(self.create_val(ReturnStmt(value))), line, col);
+		=> self.build_node(NodeData.ReturnStmt(value), line, col);
 
 	pub fn break_stmt(var self, line: usz, col: usz)
-		=> self.build_node(NodeData.BreakStmt(self.create_val(BreakStmt(0))), line, col);
+		=> self.build_node(NodeData.BreakStmt, line, col);
 
 	pub fn continue_stmt(var self, line: usz, col: usz)
-		=> self.build_node(NodeData.ContinueStmt(self.create_val(ContinueStmt(0))), line, col);
+		=> self.build_node(NodeData.ContinueStmt, line, col);
 
 	pub fn when_stmt(var self, condition: *AstNode?, arms: List<WhenStmtArm>, line: usz, col: usz)
 		=> self.build_node(NodeData.WhenStmt(self.create_val(WhenStmt(condition, arms))), line, col);
 
 	pub fn yield_stmt(var self, value: *AstNode?, line: usz, col: usz)
-		=> self.build_node(NodeData.YieldStmt(self.create_val(YieldStmt(value))), line, col);
+		=> self.build_node(NodeData.YieldStmt(value), line, col);
 
 	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.DeferStmt(self.create_val(DeferStmt(body))), line, col);
+		=> self.build_node(NodeData.DeferStmt(body), line, col);
 
 	// ------------------------------------------------------------------------
 	// Declarations

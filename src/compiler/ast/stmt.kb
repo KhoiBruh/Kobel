@@ -6,10 +6,6 @@ pub struct BlockStmt {
 	pub statements: List<*AstNode>
 }
 
-pub struct ExprStmt {
-	pub expr: *AstNode
-}
-
 pub struct VarDeclStmt {
 	pub mutable: bool,
 	pub name: str,
@@ -44,18 +40,6 @@ pub struct ForStmt {
 	pub body: *AstNode
 }
 
-pub struct ReturnStmt {
-	pub value: *AstNode? = null
-}
-
-pub struct BreakStmt {
-	pub dummy: i32 = 0
-}
-
-pub struct ContinueStmt {
-	pub dummy: i32 = 0
-}
-
 pub struct WhenStmtArm {
 	pub patterns: List<*AstNode>,
 	pub is_else: bool,
@@ -69,10 +53,3 @@ pub struct WhenStmt {
 	pub arms: List<WhenStmtArm>
 }
 
-pub struct YieldStmt {
-	pub value: *AstNode? = null
-}
-
-pub struct DeferStmt {
-	pub body: *AstNode
-}
