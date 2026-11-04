@@ -97,7 +97,7 @@ impl BodyPass {
 			val is_local_var = local_sym?.kind == SymbolKind.VAR || local_sym?.kind == SymbolKind.PARAM;
 			if (!is_local_var && (local_sym == null || (local_sym.kind != SymbolKind.FN && local_sym.kind != SymbolKind.STRUCT))) {
 				val ft = self.find_fn_template_for(cid.name);
-				if (ft?.node?.kind == NodeKind.DECL_FN) {
+				if (ft != null && ft.node is FnDecl) {
 					val inferred_targs = self.infer_type_args_for_fn(ft.node.as_fn_decl(), call.args, false);
 					if (!inferred_targs.empty()) {
 						val cname = self.instantiate_template_fn(ft, inferred_targs);
@@ -118,7 +118,7 @@ impl BodyPass {
 					}
 				}
 				val st = self.find_struct_template_for(cid.name);
-				if (st?.node?.kind == NodeKind.DECL_STRUCT) {
+				if (st != null && st.node is StructDecl) {
 					val inferred_targs = self.infer_type_args_for_struct(st.node.as_struct_decl(), call.args);
 					if (!inferred_targs.empty()) {
 						val cty = self.instantiate_template_struct(st, inferred_targs);
@@ -352,7 +352,7 @@ impl BodyPass {
 			}
 			if (is_static) {
 				var targs = call.type_args;
-				if (targs.empty() && tmpl.node.kind == NodeKind.DECL_FN) {
+				if (targs.empty() && tmpl.node is FnDecl) {
 					targs = self.infer_type_args_for_fn(tmpl.node.as_fn_decl(), call.args, false);
 					if (targs.empty()) return null;
 				}
@@ -563,7 +563,7 @@ impl BodyPass {
 		if (tmpl == null) return null;
 
 		var targs = call.type_args;
-		if (targs.empty() && tmpl.node.kind == NodeKind.DECL_FN) {
+		if (targs.empty() && tmpl.node is FnDecl) {
 			targs = self.infer_type_args_for_fn(tmpl.node.as_fn_decl(), call.args, true);
 			if (targs.empty()) return null;
 		}
@@ -692,7 +692,7 @@ impl BodyPass {
 	// is not a payload enum, which sends the call down the ordinary method path.
 	fn check_enum_ctor_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr): *Type? {
 		val obj = mem.object;
-		if (obj.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		if (!(obj is IdentifierExpr)) return null;
 		val enum_id = obj.as_identifier_expr();
 		val ei = self.symtab.find_enum_info(enum_id.name);
 		if (ei == null || !ei.is_payload) return null;

@@ -244,7 +244,7 @@ impl BodyPass {
 	}
 
 	pub fn check_is_pattern(var self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
-		if (is_node == null || is_node.kind != NodeKind.EXPR_IS) return null;
+		if (is_node == null || !(is_node is IsExpr)) return null;
 		val is_e = is_node.as_is_expr() as &IsExpr;
 		val target_ty = self.resolve_type(is_e.target_type);
 		if (target_ty.kind != DataType.STRUCT) {

@@ -210,8 +210,8 @@ impl CCodeGen {
 	// primitives): such a struct must be emitted before the field's owner.
 	fn by_value_struct_name(val self, node: *AstNode): str {
 		if (node == null) return "";
-		if (node.kind != NodeKind.TYPE_NAMED) return "";
-		return node.as_named_type().name;
+		if (node is NamedType as nt) return nt.name;
+		return "";
 	}
 
 	fn body_item_name(val self, item: *AstNode) => when (item) {

@@ -27,32 +27,24 @@ fn parse_i32(s: str): i32 {
 	return res;
 }
 
-// Tree traversal using when (node.kind) statement
+// Tree traversal using when statement
 fn eval_expr(node: *AstNode): i32 {
-	when (node.kind) {
-		NodeKind.EXPR_LITERAL -> {
-			val lit = node.as_literal_expr();
-			return parse_i32(lit.raw_text);
-		}
-		NodeKind.EXPR_GROUP -> {
-			val grp = node.as_group_expr();
-			return eval_expr(grp.expr);
-		}
-		NodeKind.EXPR_BINARY -> {
-			val bin = node.as_binary_expr();
+	return when (node) {
+		is LiteralExpr as lit -> parse_i32(lit.raw_text);
+		is GroupExpr as grp -> eval_expr(grp.expr);
+		is BinaryExpr as bin -> {
 			val l = eval_expr(bin.left);
 			val r = eval_expr(bin.right);
-			when (bin.op) {
-				TokenType.PLUS -> return l + r;
-				TokenType.MINUS -> return l - r;
-				TokenType.STAR -> return l * r;
-				TokenType.SLASH -> return l / r;
-				else -> return 0;
-			}
+			yield when (bin.op) {
+				TokenType.PLUS -> l + r;
+				TokenType.MINUS -> l - r;
+				TokenType.STAR -> l * r;
+				TokenType.SLASH -> l / r;
+				else -> 0;
+			};
 		}
-		else -> return 0;
-	}
-	return 0;
+		else -> 0;
+	};
 }
 
 fn test_expression_tree(): bool {
@@ -68,18 +60,18 @@ fn test_expression_tree(): bool {
 	val lit3 = arena.literal(LiteralKind.INT, "3", 1, 12);
 	val mul_expr = arena.binary(TokenType.STAR, group_expr, lit3, 1, 10);
 
-	if (mul_expr.kind != NodeKind.EXPR_BINARY) return false;
+	if (!(mul_expr is BinaryExpr)) return false;
 
 	val bin = mul_expr.as_binary_expr();
 	if (bin.op != TokenType.STAR) return false;
-	if (bin.right.kind != NodeKind.EXPR_LITERAL) return false;
+	if (!(bin.right is LiteralExpr)) return false;
 
 	val r_lit = bin.right.as_literal_expr();
 	if (r_lit.raw_text != "3") return false;
 
-	if (bin.left.kind != NodeKind.EXPR_GROUP) return false;
+	if (!(bin.left is GroupExpr)) return false;
 	val grp = bin.left.as_group_expr();
-	if (grp.expr.kind != NodeKind.EXPR_BINARY) return false;
+	if (!(grp.expr is BinaryExpr)) return false;
 
 	// Evaluate tree
 	val val_result = eval_expr(mul_expr);
@@ -97,22 +89,22 @@ fn test_statement_nodes(): bool {
 	val lit42 = arena.literal(LiteralKind.INT, "42", 1, 18);
 	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
-	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
+	if (!(var_stmt is VarDeclStmt)) return false;
 	val vd = var_stmt.as_var_decl_stmt();
 	if (!vd.mutable || vd.name != "count") return false;
-	if (vd.type_annotation.kind != NodeKind.TYPE_NAMED) return false;
-	if (vd.initializer.kind != NodeKind.EXPR_LITERAL) return false;
+	if (!(vd.type_annotation is NamedType)) return false;
+	if (!(vd.initializer is LiteralExpr)) return false;
 
 	// return count;
 	val id_count = arena.identifier("count", 2, 8);
 	val ret_stmt = arena.node(NodeData.ReturnStmt(id_count), 2, 1);
-	if (ret_stmt.kind != NodeKind.STMT_RETURN) return false;
+	if (!(ret_stmt is ReturnStmt)) return false;
 
 	// { return count; }
 	var stmts = List<*AstNode>();
 	stmts += ret_stmt;
 	val block = arena.node(NodeData.BlockStmt(stmts), 2, 1);
-	if (block.kind != NodeKind.STMT_BLOCK) return false;
+	if (!(block is BlockStmt)) return false;
 	val blk = block.as_block_stmt();
 	if (blk.statements.len != 1) return false;
 
@@ -121,10 +113,10 @@ fn test_statement_nodes(): bool {
 	val cond = arena.binary(TokenType.GREATER, id_count, lit0, 3, 11);
 	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
-	if (if_stmt.kind != NodeKind.STMT_IF) return false;
+	if (!(if_stmt is IfStmt)) return false;
 	val ifs = if_stmt.as_if_stmt();
-	if (ifs.condition.kind != NodeKind.EXPR_BINARY) return false;
-	if (ifs.then_branch.kind != NodeKind.STMT_BLOCK) return false;
+	if (!(ifs.condition is BinaryExpr)) return false;
+	if (!(ifs.then_branch is BlockStmt)) return false;
 
 	return true;
 }
@@ -154,7 +146,7 @@ fn test_declaration_nodes(): bool {
 		1
 	);
 
-	if (fn_node.kind != NodeKind.DECL_FN) return false;
+	if (!(fn_node is FnDecl)) return false;
 	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "add") return false;
 	if (!fn_d.public) return false;
@@ -221,15 +213,15 @@ fn test_arena_ast_methods(): bool {
 
 	// Test arena.alloc_node + a typed NodeData payload
 	val m_lit = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "456"), 3, 1);
-	if (m_lit.kind != NodeKind.EXPR_LITERAL) return false;
+	if (!(m_lit is LiteralExpr)) return false;
 	if (m_lit.as_literal_expr().raw_text != "456") return false;
 
 	val m_id = arena.node(NodeData.IdentifierExpr("y"), 3, 5);
-	if (m_id.kind != NodeKind.EXPR_IDENTIFIER) return false;
+	if (!(m_id is IdentifierExpr)) return false;
 	if (m_id.as_identifier_expr().name != "y") return false;
 
 	val m_bin = arena.node(NodeData.BinaryExpr(m_lit, TokenType.STAR, m_id), 3, 3);
-	if (m_bin.kind != NodeKind.EXPR_BINARY) return false;
+	if (!(m_bin is BinaryExpr)) return false;
 	val bin_d = m_bin.as_binary_expr();
 	if (bin_d.op != TokenType.STAR) return false;
 	if (bin_d.left.as_literal_expr().raw_text != "456") return false;

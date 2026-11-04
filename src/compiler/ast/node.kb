@@ -4,68 +4,6 @@ use std.memory.Arena;
 use std.collections.List;
 use compiler.lexer.*;
 
-pub enum NodeKind {
-	// Syntactic Types
-	TYPE_NAMED,
-	TYPE_POINTER,
-	TYPE_ARRAY,
-	TYPE_NULLABLE,
-
-	// Expressions
-	EXPR_LITERAL,
-	EXPR_IDENTIFIER,
-	EXPR_BINARY,
-	EXPR_UNARY,
-	EXPR_CALL,
-	EXPR_MEMBER,
-	EXPR_INDEX,
-	EXPR_ASSIGN,
-	EXPR_UPDATE,
-	EXPR_CAST,
-	EXPR_GROUP,
-	EXPR_ARRAY_LITERAL,
-	EXPR_IF,
-	EXPR_WHEN,
-	EXPR_INTERP,
-
-	// Statements
-	STMT_BLOCK,
-	STMT_EXPR,
-	STMT_VAR_DECL,
-	STMT_IF,
-	STMT_WHEN,
-	STMT_WHILE,
-	STMT_RETURN,
-	STMT_BREAK,
-	STMT_CONTINUE,
-	STMT_FOR,
-	STMT_YIELD,
-	STMT_DEFER,
-
-	// Declarations
-	DECL_MODULE,
-	DECL_USE,
-	DECL_FN,
-	DECL_STRUCT,
-	DECL_TRAIT,
-	DECL_IMPL,
-	DECL_ENUM,
-	DECL_CONST,
-	DECL_EXTERN_BLOCK,
-	PROGRAM,
-	EXPR_IS,
-	// A struct value built from its fields, e.g. `Point(1, 2)` -> `(Point){1, 2}`.
-	// Never produced by the parser: sema creates it when construction is resolved.
-	EXPR_STRUCT_CTOR,
-	// A payload-enum value: `Shape.Circle(1.5)` -> `(Shape){ .tag = 0, ... }`.
-	// Also created by sema, never by the parser.
-	EXPR_ENUM_CTOR,
-	// `T.size()` inside a generic function body: sema resolves the type-parameter
-	// index against the current instance, and the backend lowers it to the C size
-	// of that instance's concrete type argument. Never produced by the parser.
-	EXPR_SIZE_OF_PARAM
-}
-
 // The payload of an `AstNode`: one variant per node shape, checked by the
 // type system instead of reinterpreted through a `*u8`.
 pub enum NodeData {
@@ -118,7 +56,6 @@ pub enum NodeData {
 }
 
 pub struct AstNode {
-	pub kind: NodeKind,
 	pub line: usz,
 	pub col: usz,
 	pub data: NodeData,
@@ -327,54 +264,5 @@ impl Arena {
 	pub fn node(
 		var self, data: NodeData,
 		line: usz = 0, col: usz = 0
-	): *AstNode => self.create_val(AstNode(node_kind_of(data), line, col, data));
+	): *AstNode => self.create_val(AstNode(line, col, data));
 }
-
-pub fn node_kind_of(val data: NodeData): NodeKind => when (data) {
-	is NodeData.NamedType -> NodeKind.TYPE_NAMED;
-	is NodeData.PointerType -> NodeKind.TYPE_POINTER;
-	is NodeData.ArrayType -> NodeKind.TYPE_ARRAY;
-	is NodeData.NullableType -> NodeKind.TYPE_NULLABLE;
-	is NodeData.LiteralExpr -> NodeKind.EXPR_LITERAL;
-	is NodeData.IdentifierExpr -> NodeKind.EXPR_IDENTIFIER;
-	is NodeData.BinaryExpr -> NodeKind.EXPR_BINARY;
-	is NodeData.UnaryExpr -> NodeKind.EXPR_UNARY;
-	is NodeData.CallExpr -> NodeKind.EXPR_CALL;
-	is NodeData.MemberExpr -> NodeKind.EXPR_MEMBER;
-	is NodeData.IndexExpr -> NodeKind.EXPR_INDEX;
-	is NodeData.AssignExpr -> NodeKind.EXPR_ASSIGN;
-	is NodeData.UpdateExpr -> NodeKind.EXPR_UPDATE;
-	is NodeData.CastExpr -> NodeKind.EXPR_CAST;
-	is NodeData.GroupExpr -> NodeKind.EXPR_GROUP;
-	is NodeData.ArrayLiteralExpr -> NodeKind.EXPR_ARRAY_LITERAL;
-	is NodeData.IfExpr -> NodeKind.EXPR_IF;
-	is NodeData.WhenExpr -> NodeKind.EXPR_WHEN;
-	is NodeData.InterpExpr -> NodeKind.EXPR_INTERP;
-	is NodeData.IsExpr -> NodeKind.EXPR_IS;
-	is NodeData.StructCtorExpr -> NodeKind.EXPR_STRUCT_CTOR;
-	is NodeData.EnumCtorExpr -> NodeKind.EXPR_ENUM_CTOR;
-	is NodeData.SizeOfParam -> NodeKind.EXPR_SIZE_OF_PARAM;
-	is NodeData.BlockStmt -> NodeKind.STMT_BLOCK;
-	is NodeData.ExprStmt -> NodeKind.STMT_EXPR;
-	is NodeData.VarDeclStmt -> NodeKind.STMT_VAR_DECL;
-	is NodeData.IfStmt -> NodeKind.STMT_IF;
-	is NodeData.WhileStmt -> NodeKind.STMT_WHILE;
-	is NodeData.ForStmt -> NodeKind.STMT_FOR;
-	is NodeData.ReturnStmt -> NodeKind.STMT_RETURN;
-	is NodeData.BreakStmt -> NodeKind.STMT_BREAK;
-	is NodeData.ContinueStmt -> NodeKind.STMT_CONTINUE;
-	is NodeData.WhenStmt -> NodeKind.STMT_WHEN;
-	is NodeData.YieldStmt -> NodeKind.STMT_YIELD;
-	is NodeData.DeferStmt -> NodeKind.STMT_DEFER;
-	is NodeData.ModuleDecl -> NodeKind.DECL_MODULE;
-	is NodeData.UseDecl -> NodeKind.DECL_USE;
-	is NodeData.FnDecl -> NodeKind.DECL_FN;
-	is NodeData.StructDecl -> NodeKind.DECL_STRUCT;
-	is NodeData.TraitDecl -> NodeKind.DECL_TRAIT;
-	is NodeData.ImplDecl -> NodeKind.DECL_IMPL;
-	is NodeData.EnumDecl -> NodeKind.DECL_ENUM;
-	is NodeData.ConstDecl -> NodeKind.DECL_CONST;
-	is NodeData.ExternBlock -> NodeKind.DECL_EXTERN_BLOCK;
-	is NodeData.Program -> NodeKind.PROGRAM;
-	else -> NodeKind.EXPR_LITERAL;
-};

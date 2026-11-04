@@ -164,14 +164,11 @@ impl DeclPass {
 	// C-level size of a type node (used to lower `T.size()` during materialization).
 	pub fn ast_type_size(var self, node: *AstNode): usz {
 		if (node == null) return 8;
-		return when (node.kind) {
-			NodeKind.TYPE_POINTER -> 8;
-			NodeKind.TYPE_ARRAY -> {
-				val a = node.as_array_type();
-				yield a.size * self.ast_type_size(a.element_type);
-			}
-			NodeKind.TYPE_NAMED -> {
-				val name = node.as_named_type().name;
+		return when (node) {
+			is PointerType -> 8;
+			is ArrayType as a -> a.size * self.ast_type_size(a.element_type);
+			is NamedType as nt -> {
+				val name = nt.name;
 				if (name == "str") yield 16;
 				if (name == "i8" || name == "u8" || name == "bool" || name == "char") yield 1;
 				if (name == "i16" || name == "u16") yield 2;

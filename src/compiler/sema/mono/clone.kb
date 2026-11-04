@@ -94,12 +94,13 @@ impl DeclPass {
 
 	pub fn clone_expr(var self, node: *AstNode?, subst: *GenSubst? = null): *AstNode {
 		if (node == null) return null as *AstNode;
+		val raw_node = node;
 		if (
-			node.kind == NodeKind.STMT_RETURN ||
-			node.kind == NodeKind.STMT_BREAK ||
-			node.kind == NodeKind.STMT_CONTINUE ||
-			node.kind == NodeKind.STMT_YIELD ||
-			node.kind == NodeKind.STMT_BLOCK
+			raw_node is ReturnStmt ||
+			raw_node is BreakStmt ||
+			raw_node is ContinueStmt ||
+			raw_node is YieldStmt ||
+			raw_node is BlockStmt
 		) return self.clone_stmt(node, subst);
 
 		val e = self.mat_ann(node);
@@ -262,9 +263,9 @@ impl DeclPass {
 	// `T.size()` on a type parameter.
 	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
 		val c = node.as_call_expr();
-		if (c.callee.kind != NodeKind.EXPR_MEMBER) return null;
+		if (!(c.callee is MemberExpr)) return null;
 		val m = c.callee.as_member_expr();
-		if (m.member != "size" || m.object.kind != NodeKind.EXPR_IDENTIFIER) return null;
+		if (m.member != "size" || !(m.object is IdentifierExpr)) return null;
 		val sa = subst?.lookup(m.object.as_identifier_expr().name) ?: return null;
 		return self.arena.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
 	}
@@ -367,7 +368,7 @@ impl DeclPass {
 		var arms = List<WhenArm>();
 		for (arm in we.arms) {
 			val pats = self.clone_expr_list(arm.patterns, subst);
-			val arm_body = if (arm.body.kind == NodeKind.STMT_BLOCK)
+			val arm_body = if (arm.body is BlockStmt)
 				self.clone_stmt(arm.body, subst)
 			else
 				self.clone_expr(arm.body, subst);

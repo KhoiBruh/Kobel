@@ -37,8 +37,8 @@ impl CCodeGen {
 		val s = self.gen_expr(cond);
 		if (
 			cond != null && (
-				cond.kind == NodeKind.EXPR_BINARY ||
-				cond.kind == NodeKind.EXPR_GROUP
+				cond is BinaryExpr ||
+				cond is GroupExpr
 			)
 		) return s;
 		return "(${s})";
@@ -191,13 +191,7 @@ impl CCodeGen {
 				!self.is_str_value(unwrapped_l)
 			) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
-				val is_jump = unwrapped_r != null && (
-					unwrapped_r.kind == NodeKind.STMT_RETURN ||
-					unwrapped_r.kind == NodeKind.STMT_BREAK ||
-					unwrapped_r.kind == NodeKind.STMT_CONTINUE ||
-					unwrapped_r.kind == NodeKind.STMT_YIELD ||
-					unwrapped_r.kind == NodeKind.STMT_BLOCK
-				);
+				val is_jump = unwrapped_r != null && is_jump_or_block(unwrapped_r);
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
@@ -291,11 +285,7 @@ impl CCodeGen {
 					break;
 				}
 			} else {
-				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
-					cur.kind == NodeKind.STMT_BREAK ||
-					cur.kind == NodeKind.STMT_CONTINUE ||
-					cur.kind == NodeKind.STMT_YIELD ||
-					cur.kind == NodeKind.STMT_BLOCK;
+				val is_jump = is_jump_or_block(cur);
 				if (is_jump) {
 					self.out += ind;
 					self.out += "if (";
@@ -662,11 +652,7 @@ impl CCodeGen {
 				bin_candidate is BinaryExpr as bin &&
 				bin.op == TokenType.QUESTION_COLON
 			) {
-				val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-					bin.right.kind == NodeKind.STMT_BREAK ||
-					bin.right.kind == NodeKind.STMT_CONTINUE ||
-					bin.right.kind == NodeKind.STMT_YIELD ||
-					bin.right.kind == NodeKind.STMT_BLOCK;
+				val is_jump = is_jump_or_block(bin.right);
 
 				if (is_jump) {
 					self.gen_elvis_jump_stmt(bin, ind);
@@ -694,13 +680,7 @@ impl CCodeGen {
 				!self.is_str_value(unwrapped_l)
 			) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
-				val is_jump = unwrapped_r != null && (
-					unwrapped_r.kind == NodeKind.STMT_RETURN ||
-					unwrapped_r.kind == NodeKind.STMT_BREAK ||
-					unwrapped_r.kind == NodeKind.STMT_CONTINUE ||
-					unwrapped_r.kind == NodeKind.STMT_YIELD ||
-					unwrapped_r.kind == NodeKind.STMT_BLOCK
-				);
+				val is_jump = unwrapped_r != null && is_jump_or_block(unwrapped_r);
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				if (is_jump) {
@@ -788,11 +768,7 @@ impl CCodeGen {
 					break;
 				}
 			} else {
-				val is_jump = cur.kind == NodeKind.STMT_RETURN ||
-					cur.kind == NodeKind.STMT_BREAK ||
-					cur.kind == NodeKind.STMT_CONTINUE ||
-					cur.kind == NodeKind.STMT_YIELD ||
-					cur.kind == NodeKind.STMT_BLOCK;
+				val is_jump = is_jump_or_block(cur);
 				if (is_jump) {
 					self.out += ind;
 					self.out += "if (";
@@ -906,7 +882,7 @@ impl CCodeGen {
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
 			if (!is_e.alias.empty()) return is_e.alias;
-			if (cond.kind == NodeKind.EXPR_IDENTIFIER) return cond.as_identifier_expr().name;
+			if (cond is IdentifierExpr as id) return id.name;
 		}
 		return "";
 	}
@@ -922,7 +898,7 @@ impl CCodeGen {
 				val pat_node = arm.patterns.first();
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(ws.condition!);
-					if (ws.condition!.kind == NodeKind.EXPR_IDENTIFIER) subj_expr = ws.condition!.as_identifier_expr().name;
+					if (ws.condition! is IdentifierExpr as id) subj_expr = id.name;
 					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
@@ -1091,4 +1067,13 @@ impl CCodeGen {
 
 }
 
-fn ws_is_id(node: *AstNode): bool => node.kind == NodeKind.EXPR_IDENTIFIER;
+fn ws_is_id(node: *AstNode): bool => node is IdentifierExpr;
+
+fn is_jump_or_block(node: *AstNode?): bool =>
+	node != null && (
+		node is ReturnStmt ||
+		node is BreakStmt ||
+		node is ContinueStmt ||
+		node is YieldStmt ||
+		node is BlockStmt
+	);

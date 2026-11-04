@@ -443,16 +443,17 @@ impl DeclPass {
 	}
 
 	pub fn collect_declaration(var self, node: *AstNode) {
-		when (node.kind) {
-			NodeKind.DECL_MODULE -> self.collect_module(node);
-			NodeKind.DECL_USE -> self.collect_use(node);
-			NodeKind.DECL_STRUCT -> self.collect_struct(node);
-			NodeKind.DECL_FN -> self.collect_fn(node);
-			NodeKind.DECL_ENUM -> self.collect_enum(node);
-			NodeKind.DECL_CONST -> self.collect_const(node);
-			NodeKind.DECL_IMPL -> self.collect_impl(node);
-			NodeKind.DECL_TRAIT -> {} // already recorded in Pass 0
-			NodeKind.DECL_EXTERN_BLOCK -> self.collect_extern_block(node);
+		val target = node;
+		when (target) {
+			is ModuleDecl -> self.collect_module(node);
+			is UseDecl -> self.collect_use(node);
+			is StructDecl -> self.collect_struct(node);
+			is FnDecl -> self.collect_fn(node);
+			is EnumDecl -> self.collect_enum(node);
+			is ConstDecl -> self.collect_const(node);
+			is ImplDecl -> self.collect_impl(node);
+			is TraitDecl -> {} // already recorded in Pass 0
+			is ExternBlock -> self.collect_extern_block(node);
 		}
 	}
 
@@ -462,9 +463,10 @@ impl DeclPass {
 		// Pass 0: register generic templates so any use can instantiate them.
 		// Module markers are processed here too, so each template records its module.
 		for (d0 in prog) {
-			when (d0.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d0);
-				NodeKind.DECL_TRAIT -> self.collect_trait(d0);
+			val t0 = d0;
+			when (t0) {
+				is ModuleDecl -> self.collect_module(d0);
+				is TraitDecl -> self.collect_trait(d0);
 				else -> self.register_template(d0);
 			}
 		}
@@ -474,10 +476,10 @@ impl DeclPass {
 		// the shell pass below can find a type forward-declared in another module.
 		// Explicit imports need their target symbol, so they wait for pass 1a.
 		for (d_use in prog) {
-			when (d_use.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d_use);
-				NodeKind.DECL_USE -> {
-					val u_wild = d_use.as_use_decl();
+			val t_use = d_use;
+			when (t_use) {
+				is ModuleDecl -> self.collect_module(d_use);
+				is UseDecl as u_wild -> {
 					if (u_wild.wildcard) self.collect_use(d_use);
 				}
 			}
@@ -487,10 +489,10 @@ impl DeclPass {
 		// is resolved. Imports may form cycles, so a field can mention a type from
 		// a module that is collected later; the passes below fill these shells.
 		for (d_half in prog) {
-			when (d_half.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d_half);
-				NodeKind.DECL_STRUCT -> {
-					val s_half = d_half.as_struct_decl();
+			val t_half = d_half;
+			when (t_half) {
+				is ModuleDecl -> self.collect_module(d_half);
+				is StructDecl as s_half -> {
 					if (s_half.type_params.empty()) {
 						// Global lookup: a forward declaration in another module is the
 						// shell this definition will fill in.
@@ -504,10 +506,10 @@ impl DeclPass {
 		// Pass 0.6: record trait implementations early so generic bound checks
 		// can succeed during signature collection (struct fields, function parameters).
 		for (d_impl in prog) {
-			when (d_impl.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d_impl);
-				NodeKind.DECL_IMPL -> {
-					val im = d_impl.as_impl_decl();
+			val t_impl = d_impl;
+			when (t_impl) {
+				is ModuleDecl -> self.collect_module(d_impl);
+				is ImplDecl as im -> {
 					if (im.type_params.empty() && !im.trait_name.empty()) {
 						val t = self.symtab.find_trait(im.trait_name);
 						if (t != null) self.trait_record_impl(t, im.struct_name);
@@ -518,10 +520,10 @@ impl DeclPass {
 
 		// Pass 1a: collect ordinary enums first so their types exist before payload enums or signatures are resolved.
 		for (d1 in prog) {
-			when (d1.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d1);
-				NodeKind.DECL_ENUM -> {
-					val e = d1.as_enum_decl();
+			val t1 = d1;
+			when (t1) {
+				is ModuleDecl -> self.collect_module(d1);
+				is EnumDecl as e -> {
 					var has_p = false;
 					for (m in e.members) if (!m.payload.empty()) has_p = true;
 					if (!has_p) self.collect_enum(d1);
@@ -531,10 +533,10 @@ impl DeclPass {
 
 		// Pass 1a2: collect payload enums now that all ordinary enums and struct shells exist.
 		for (d1 in prog) {
-			when (d1.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d1);
-				NodeKind.DECL_ENUM -> {
-					val e = d1.as_enum_decl();
+			val t1 = d1;
+			when (t1) {
+				is ModuleDecl -> self.collect_module(d1);
+				is EnumDecl as e -> {
 					var has_p = false;
 					for (m in e.members) if (!m.payload.empty()) has_p = true;
 					if (has_p) self.collect_enum(d1);
@@ -544,14 +546,15 @@ impl DeclPass {
 
 		// Pass 1b: collect ordinary declarations (structs, functions, consts, extern blocks).
 		for (d1 in prog) {
-			if (d1.kind != NodeKind.DECL_IMPL && d1.kind != NodeKind.DECL_ENUM) self.collect_declaration(d1);
+			if (!(d1 is ImplDecl) && !(d1 is EnumDecl)) self.collect_declaration(d1);
 		}
 
 		// Pass 1c: collect impl blocks now that all types are registered.
 		for (d1 in prog) {
-			when (d1.kind) {
-				NodeKind.DECL_MODULE -> self.collect_module(d1);
-				NodeKind.DECL_IMPL -> self.collect_impl(d1);
+			val t1 = d1;
+			when (t1) {
+				is ModuleDecl -> self.collect_module(d1);
+				is ImplDecl -> self.collect_impl(d1);
 			}
 		}
 	

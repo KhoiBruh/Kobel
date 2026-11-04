@@ -25,7 +25,7 @@ impl BodyPass {
 	pub fn check_member_expr(var self, node: *AstNode): *Type {
 		val mem = node.as_member_expr() as &MemberExpr;
 
-		// Enum member (`NodeKind.EXPR_LITERAL`) and struct constant
+		// Enum member (`LiteralExpr`) and struct constant
 		// (`Foo.CONST`) both rewrite the node in place, so they resolve
 		// before the receiver type is even checked.
 		val const_ty = self.check_const_member(node, mem);
@@ -40,7 +40,7 @@ impl BodyPass {
 		if (
 			!mem.is_safe &&
 			obj_ty.kind == DataType.POINTER &&
-			obj_expr.kind != NodeKind.EXPR_IDENTIFIER
+			!(obj_expr is IdentifierExpr)
 		) {
 			val deref = self.arena.unary(TokenType.STAR, obj_expr, node.line, node.col);
 			if (self.current_rec != null) self.set_ann_obj(node, deref);
@@ -98,7 +98,7 @@ impl BodyPass {
 	fn check_const_member(var self, node: *AstNode, mem: &MemberExpr): *Type? {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
-			// Enum member access: `NodeKind.EXPR_LITERAL` -> integer constant,
+			// Enum member access: `LiteralExpr` -> integer constant,
 			// or a payload-enum value when the variant carries data.
 			val ei = self.symtab.find_enum_info(enum_id.name);
 			if (ei != null) {

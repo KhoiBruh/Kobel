@@ -192,7 +192,8 @@ impl BodyPass {
 	// A `when` arm body is either an expression or a block of statements (the
 	// block form yields a value), so pick the right walker for it.
 	fn lower_arm_body(var self, body: *AstNode): *AstNode {
-		if (body?.kind == NodeKind.STMT_BLOCK) return self.lower_stmt(body);
+		val t = body;
+		if (t is BlockStmt) return self.lower_stmt(body);
 		return self.lower_expr(body);
 	}
 
@@ -404,7 +405,7 @@ impl BodyPass {
 
 		// A struct constructor (`Type(args)` resolved to its `new`): a plain call,
 		// no receiver to pass.
-		if (callee.kind == NodeKind.EXPR_IDENTIFIER) {
+		if (callee is IdentifierExpr) {
 			val new_mi = node.resolved_method as *MethodInfo;
 			var ctor_args = List<*AstNode>();
 			for (arg in call.args) ctor_args += arg;
@@ -415,7 +416,7 @@ impl BodyPass {
 			return self.lowered(node, ctor_call);
 		}
 
-		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
+		if (!(callee is MemberExpr)) return node;
 		val mem = callee.as_member_expr() as &MemberExpr;
 		val mi = node.resolved_method as *MethodInfo;
 
@@ -478,7 +479,7 @@ impl BodyPass {
 	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`; `s.slice(a)` -> `kobel_slice1(s, a)`.
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee ?: return node;
-		if (callee.kind != NodeKind.EXPR_MEMBER) return node;
+		if (!(callee is MemberExpr)) return node;
 		val mem = callee.as_member_expr() as &MemberExpr;
 		if (mem.member != "slice") return node;
 		if (!self.is_str_expr(mem.object)) return node;
@@ -506,7 +507,10 @@ impl BodyPass {
 	// `check_expr` recurses into them without annotating the group itself.
 	fn type_of(val self, node: *AstNode): *Type? {
 		var cur = node;
-		while (cur?.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
 		if (cur == null) return null;
 		return cur.type_ptr as *Type;
 	}
@@ -520,11 +524,11 @@ impl BodyPass {
 	// right side of `?:` is allowed to be `return`/`yield`/`break`/`continue`/block).
 	fn is_stmt_node(val self, node: *AstNode): bool {
 		if (node == null) return false;
-		return node.kind == NodeKind.STMT_RETURN ||
-			node.kind == NodeKind.STMT_BREAK ||
-			node.kind == NodeKind.STMT_CONTINUE ||
-			node.kind == NodeKind.STMT_YIELD ||
-			node.kind == NodeKind.STMT_BLOCK;
+		return node is ReturnStmt ||
+			node is BreakStmt ||
+			node is ContinueStmt ||
+			node is YieldStmt ||
+			node is BlockStmt;
 	}
 
 	fn is_array_expr(val self, node: *AstNode): bool {

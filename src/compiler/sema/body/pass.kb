@@ -244,8 +244,8 @@ impl BodyPass {
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
 		if (
-			node.kind != NodeKind.EXPR_BINARY &&
-			node.kind != NodeKind.EXPR_ASSIGN
+			!(node is BinaryExpr) &&
+			!(node is AssignExpr)
 		) self.is_stmt_level = false;
 
 		val ty = self.check_expr_node(node, expected);
@@ -404,27 +404,30 @@ impl BodyPass {
 	fn arrow_pending(val self, ast: *AstNode): bool {
 		val f = ast.as_fn_decl() ?: return false;
 		if (f.return_type != null) return false;
-		return f.body?.kind == NodeKind.STMT_EXPR;
+		return f.body is ExprStmt;
 	}
 
-	fn check_expr_node(var self, node: *AstNode, expected: *Type? = null): *Type => when (node.kind) {
-		NodeKind.EXPR_LITERAL -> self.check_literal_expr(node, expected);
-		NodeKind.EXPR_IDENTIFIER -> self.check_ident_expr(node);
-		NodeKind.EXPR_BINARY -> self.check_binary_expr(node, expected);
-		NodeKind.EXPR_UNARY -> self.check_unary_expr(node, expected);
-		NodeKind.EXPR_CALL -> self.check_call_expr(node);
-		NodeKind.EXPR_MEMBER -> self.check_member_expr(node);
-		NodeKind.EXPR_INDEX -> self.check_index_expr(node);
-		NodeKind.EXPR_ASSIGN -> self.check_assign_expr(node);
-		NodeKind.EXPR_UPDATE -> self.check_update_expr(node);
-		NodeKind.EXPR_CAST -> self.check_cast_expr(node);
-		NodeKind.EXPR_IF -> self.check_if_expr(node, expected);
-		NodeKind.EXPR_WHEN -> self.check_when_expr(node, expected);
-		NodeKind.EXPR_ARRAY_LITERAL -> self.check_array_literal_expr(node);
-		NodeKind.EXPR_INTERP -> self.check_interp_expr(node);
-		NodeKind.EXPR_IS -> self.check_is_expr(node);
-		else -> self.prims().t_none();
-	};
+	fn check_expr_node(var self, node: *AstNode, expected: *Type? = null): *Type {
+		val target = node;
+		return when (target) {
+			is LiteralExpr -> self.check_literal_expr(node, expected);
+			is IdentifierExpr -> self.check_ident_expr(node);
+			is BinaryExpr -> self.check_binary_expr(node, expected);
+			is UnaryExpr -> self.check_unary_expr(node, expected);
+			is CallExpr -> self.check_call_expr(node);
+			is MemberExpr -> self.check_member_expr(node);
+			is IndexExpr -> self.check_index_expr(node);
+			is AssignExpr -> self.check_assign_expr(node);
+			is UpdateExpr -> self.check_update_expr(node);
+			is CastExpr -> self.check_cast_expr(node);
+			is IfExpr -> self.check_if_expr(node, expected);
+			is WhenExpr -> self.check_when_expr(node, expected);
+			is ArrayLiteralExpr -> self.check_array_literal_expr(node);
+			is InterpExpr -> self.check_interp_expr(node);
+			is IsExpr -> self.check_is_expr(node);
+			else -> self.prims().t_none();
+		};
+	}
 
 	// ============================================================================
 	// Top-level Statement Dispatcher
@@ -432,14 +435,14 @@ impl BodyPass {
 
 	pub fn check_statement(var self, node: *AstNode) {
 		if (node == null) return;
-
-		when (node) {
+		val target = node;
+		when (target) {
 			is ExprStmt as es -> {
 				self.check_expr_stmt(es.expr);
 				return;
 			}
 
-			node is DeferStmt as ds -> {
+			is DeferStmt as ds -> {
 				if (self.defer_depth > 0)
 					self.report_error(node, "Nested defer statement is not allowed inside defer");
 				self.defer_depth++;
@@ -457,22 +460,20 @@ impl BodyPass {
 				if (ys.value != null) self.check_expr(ys.value!);
 				return;
 			}
-		}
 
-		when (node.kind) {
-			NodeKind.STMT_BLOCK -> self.check_block_stmt(node);
-			NodeKind.STMT_VAR_DECL -> self.check_var_decl_stmt(node);
-			NodeKind.STMT_IF -> self.check_if_stmt(node);
-			NodeKind.STMT_WHILE -> self.check_while_stmt(node);
-			NodeKind.STMT_FOR -> self.check_for_stmt(node);
-			NodeKind.STMT_RETURN -> self.check_return_stmt(node);
-			NodeKind.STMT_BREAK, NodeKind.STMT_CONTINUE -> {
+			is BlockStmt -> self.check_block_stmt(node);
+			is VarDeclStmt -> self.check_var_decl_stmt(node);
+			is IfStmt -> self.check_if_stmt(node);
+			is WhileStmt -> self.check_while_stmt(node);
+			is ForStmt -> self.check_for_stmt(node);
+			is ReturnStmt -> self.check_return_stmt(node);
+			is BreakStmt, is ContinueStmt -> {
 				if (self.defer_depth > 0)
 					self.report_error(node, "Break or continue statement is not allowed inside defer");
 				if (self.loop_depth == 0)
 					self.report_error(node, "Break or continue statement outside of loop");
 			}
-			NodeKind.STMT_WHEN -> self.check_when_stmt(node);
+			is WhenStmt -> self.check_when_stmt(node);
 		}
 	}
 

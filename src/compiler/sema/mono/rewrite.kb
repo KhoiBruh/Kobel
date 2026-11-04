@@ -95,12 +95,15 @@ impl DeclPass {
 
 	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
 	// argument list rewritten element by element.
-	fn rewrite_type_generics(var self, node: *AstNode) => when (node.kind) {
-		NodeKind.TYPE_NAMED -> self.rewrite_named_type(node);
-		NodeKind.TYPE_POINTER -> self.rewrite_child(node.as_pointer_type().pointee);
-		NodeKind.TYPE_ARRAY -> self.rewrite_child(node.as_array_type().element_type);
-		else -> false;
-	};
+	fn rewrite_type_generics(var self, node: *AstNode): bool {
+		val target = node;
+		return when (target) {
+			is NamedType -> self.rewrite_named_type(node);
+			is PointerType as pt -> self.rewrite_child(pt.pointee);
+			is ArrayType as at -> self.rewrite_child(at.element_type);
+			else -> false;
+		};
+	}
 
 	fn rewrite_named_type(var self, node: *AstNode): bool {
 		val nt = node.as_named_type() as &NamedType;

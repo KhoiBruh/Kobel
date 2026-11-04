@@ -236,11 +236,11 @@ impl BodyPass {
 			"Left-hand side of Elvis operator '?:' must be a pointer, string, or safe navigation '?'"
 		);
 
-		val is_jump = bin.right.kind == NodeKind.STMT_RETURN ||
-			bin.right.kind == NodeKind.STMT_BREAK ||
-			bin.right.kind == NodeKind.STMT_CONTINUE ||
-			bin.right.kind == NodeKind.STMT_YIELD ||
-			bin.right.kind == NodeKind.STMT_BLOCK;
+		val is_jump = bin.right is ReturnStmt ||
+			bin.right is BreakStmt ||
+			bin.right is ContinueStmt ||
+			bin.right is YieldStmt ||
+			bin.right is BlockStmt;
 
 		var rt: *Type? = null;
 		if (is_jump) {
